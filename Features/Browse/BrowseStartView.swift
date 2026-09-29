@@ -14,6 +14,9 @@ struct BrowseStartView: View {
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
 
     @State private var webStore = WebViewStore()
+    /// Once true, the browse WKWebView stays in the tree (history / back-forward). Starts false so
+    /// cold launch on the start page never creates WebKit GPU/WebContent processes.
+    @State private var browseWebViewMounted = false
     @State private var addressText = ""
     @State private var isEditingAddress = false
     @FocusState private var addressFocused: Bool
@@ -69,6 +72,11 @@ struct BrowseStartView: View {
     private var hasPage: Bool {
         guard let url = webStore.currentURL ?? webStore.webView?.url else { return false }
         return url.scheme != "about"
+    }
+
+    /// Create the browse WKWebView only after the first non-start navigation; keep it thereafter.
+    private var showsBrowseWebView: Bool {
+        browseWebViewMounted || hasPage
     }
 
     /// Saved articles in progress, most recently listened first.
@@ -169,9 +177,12 @@ struct BrowseStartView: View {
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
-                WebView(store: webStore, initialURL: nil)
-                    .opacity(hasPage && !showReader ? 1 : 0)
-                    .allowsHitTesting(hasPage && !showReader)
+                if showsBrowseWebView {
+                    WebView(store: webStore, initialURL: nil)
+                        .opacity(hasPage && !showReader ? 1 : 0)
+                        .allowsHitTesting(hasPage && !showReader)
+                        .onAppear { browseWebViewMounted = true }
+                }
 
                 if !hasPage && !showReader {
                     startPage

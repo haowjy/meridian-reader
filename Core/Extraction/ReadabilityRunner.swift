@@ -47,7 +47,9 @@ enum ReadabilityRunner {
         })();
         """
 
-        let webView = WKWebView(frame: .zero)
+        let config = WKWebViewConfiguration()
+        config.processPool = SharedWebKit.processPool
+        let webView = WKWebView(frame: .zero, configuration: config)
         // Only web base URLs load; other schemes (e.g. the UI tests' `reader-test://` pages) never
         // finish, so parse those against a neutral https base.
         let webBase = baseURL.scheme == "http" || baseURL.scheme == "https"

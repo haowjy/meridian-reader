@@ -50,6 +50,7 @@ private struct HTMLReadingWebView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        config.processPool = SharedWebKit.processPool
         let userContent = config.userContentController
         userContent.add(context.coordinator, name: "readerBridge")
         userContent.addUserScript(WKUserScript(
