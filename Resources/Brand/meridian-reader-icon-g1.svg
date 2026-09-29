@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Meridian Reader">
-  <title>Meridian Reader — g1 cream listen (needle + ))) waves)</title>
+  <title>Meridian Reader — g1 cream listen (needle + ))) waves, filled)</title>
   <defs>
     <clipPath id="app"><rect width="1024" height="1024" rx="228" ry="228"/></clipPath>
     <radialGradient id="paper" cx="48%" cy="40%" r="74%">
@@ -21,10 +21,10 @@
       <stop offset="0%" stop-color="#256B5B"/><stop offset="100%" stop-color="#1A4C41"/>
     </linearGradient>
     <filter id="needleShadow" x="-55%" y="-30%" width="210%" height="180%" color-interpolation-filters="sRGB">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="amb"/>
-      <feOffset in="amb" dx="3" dy="9" result="ambO"/>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="16" result="amb"/>
+      <feOffset in="amb" dx="3" dy="10" result="ambO"/>
       <feComponentTransfer in="ambO" result="ambS"><feFuncA type="linear" slope="0.16"/></feComponentTransfer>
-      <feGaussianBlur in="SourceAlpha" stdDeviation="3.5" result="con"/>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="con"/>
       <feOffset in="con" dx="2" dy="3" result="conO"/>
       <feComponentTransfer in="conO" result="conS"><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
       <feMerge>
@@ -35,7 +35,7 @@
       <feGaussianBlur in="SourceGraphic" stdDeviation="0.28"/>
     </filter>
     <filter id="waveSoft" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="1.2"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.3"/>
     </filter>
     <filter id="grain" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
       <feTurbulence type="fractalNoise" baseFrequency="1.15" numOctaves="3" stitchTiles="stitch" seed="11" result="n"/>
@@ -50,12 +50,12 @@
   <g clip-path="url(#app)" filter="url(#grain)">
     <rect width="1024" height="1024" fill="url(#paper)"/>
     <g fill="none" stroke-linecap="round" filter="url(#waveSoft)">
-      <path d="M600.4 442.5 A48 82 0 0 1 600.4 581.5" stroke="#5F9A88" stroke-width="10.0" opacity="0.78"/>
-      <path d="M618.5 395.0 A82 138 0 0 1 618.5 629.0" stroke="#5F9A88" stroke-width="8.5" opacity="0.58"/>
-      <path d="M636.5 347.5 A116 194 0 0 1 636.5 676.5" stroke="#5F9A88" stroke-width="7.0" opacity="0.4"/>
+      <path d="M667.5 377.8 A95 155 0 0 1 667.5 646.2" stroke="#5F9A88" stroke-width="16.0" opacity="0.78"/>
+      <path d="M700.0 286.8 A160 260 0 0 1 700.0 737.2" stroke="#5F9A88" stroke-width="13.0" opacity="0.58"/>
+      <path d="M732.5 195.9 A225 365 0 0 1 732.5 828.1" stroke="#5F9A88" stroke-width="10.5" opacity="0.4"/>
     </g>
     <g filter="url(#needleShadow)">
-      <g transform="translate(512 512) scale(13.5) translate(-24 -24)" filter="url(#inkSoft)">
+      <g transform="translate(510 512) scale(23.5) translate(-24 -24)" filter="url(#inkSoft)">
         <g transform="translate(24 24) scale(0.92) translate(-24 -24)">
           <path d="M24 4 L24 22 L19 24 Z" fill="url(#cinL)"/>
           <path d="M24 4 L29 24 L24 22 Z" fill="url(#cinR)"/>
