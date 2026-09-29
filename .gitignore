@@ -1,0 +1,69 @@
+# Xcode / Swift
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+timeline.xctimeline
+playground.xcworkspace
+
+# Local derived-data paths used by this project's scripts
+.dd-browse/
+.dd-browse-rel/
+.dd-*/
+*.xcresult
+
+# Probe / screenshot / dump caches (regenerable)
+.probe/
+.screenshots/
+_shots/
+_edge_dump/
+_edge_dump_copy/
+/tmp/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Swift Package Manager
+.build/
+.swiftpm/config/registries.json
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+Packages/
+Package.pins
+Package.resolved
+# Keep Package.resolved if you want reproducible SPM; FluidAudio is Vendored — ignore resolved if present at root
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+
+# CocoaPods / Carthage (not used, but safe)
+Pods/
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Secrets / local overrides
+*.mobileprovision
+*.p12
+.env
+.env.*
+!.env.example
