@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Meridian Reader">
+  <title>Meridian Reader — g1 cream listen</title>
+  <defs>
+    <clipPath id="app"><rect width="1024" height="1024" rx="228" ry="228"/></clipPath>
+    <radialGradient id="paper" cx="48%" cy="40%" r="74%">
+      <stop offset="0%" stop-color="#FCFAF5"/>
+      <stop offset="55%" stop-color="#F9F7F2"/>
+      <stop offset="100%" stop-color="#EDE5D6"/>
+    </radialGradient>
+    <radialGradient id="aura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F3EBDD" stop-opacity="0"/>
+      <stop offset="72%" stop-color="#F3EBDD" stop-opacity="0"/>
+      <stop offset="81%" stop-color="#E4DAC8" stop-opacity="0.50"/>
+      <stop offset="90%" stop-color="#F3EBDD" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#F3EBDD" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cinL" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#CC5749"/><stop offset="100%" stop-color="#B84538"/>
+    </linearGradient>
+    <linearGradient id="cinR" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#963028"/><stop offset="100%" stop-color="#72231C"/>
+    </linearGradient>
+    <linearGradient id="jadeL" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#419887"/><stop offset="100%" stop-color="#318574"/>
+    </linearGradient>
+    <linearGradient id="jadeR" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#256B5B"/><stop offset="100%" stop-color="#1A4C41"/>
+    </linearGradient>
+    <filter id="needleShadow" x="-55%" y="-30%" width="210%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="amb"/>
+      <feOffset in="amb" dx="3" dy="9" result="ambO"/>
+      <feComponentTransfer in="ambO" result="ambS"><feFuncA type="linear" slope="0.16"/></feComponentTransfer>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3.5" result="con"/>
+      <feOffset in="con" dx="2" dy="3" result="conO"/>
+      <feComponentTransfer in="conO" result="conS"><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="ambS"/><feMergeNode in="conS"/><feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="inkSoft" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="0.28"/>
+    </filter>
+    <filter id="waveSoft" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.4"/>
+    </filter>
+    <filter id="grain" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="1.15" numOctaves="3" stitchTiles="stitch" seed="11" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="
+        0 0 0 0 0.58
+        0 0 0 0 0.54
+        0 0 0 0 0.46
+        0 0 0 0.15 0" result="g"/>
+      <feBlend in="SourceGraphic" in2="g" mode="multiply"/>
+    </filter>
+  </defs>
+  <g clip-path="url(#app)" filter="url(#grain)">
+    <rect width="1024" height="1024" fill="url(#paper)"/>
+    <circle cx="512" cy="512" r="318" fill="url(#aura)"/>
+    <g fill="none" stroke-linecap="round" filter="url(#waveSoft)">
+      <path d="M578 402 A88 88 0 0 1 578 622" stroke="#5F9A88" stroke-width="9" opacity="0.70"/>
+      <path d="M615 366 A134 134 0 0 1 615 658" stroke="#5F9A88" stroke-width="7.5" opacity="0.52"/>
+      <path d="M652 332 A178 178 0 0 1 652 692" stroke="#5F9A88" stroke-width="6.5" opacity="0.36"/>
+    </g>
+    <g filter="url(#needleShadow)">
+      <g transform="translate(512 512) scale(13.5) translate(-24 -24)" filter="url(#inkSoft)">
+        <g transform="translate(24 24) scale(0.92) translate(-24 -24)">
+          <path d="M24 4 L24 22 L19 24 Z" fill="url(#cinL)"/>
+          <path d="M24 4 L29 24 L24 22 Z" fill="url(#cinR)"/>
+          <path d="M24 44 L19 24 L24 26 Z" fill="url(#jadeL)"/>
+          <path d="M24 44 L24 26 L29 24 Z" fill="url(#jadeR)"/>
+          <circle cx="24" cy="24" r="2.55" fill="#F9F7F2"/>
+          <circle cx="24" cy="24" r="1.05" fill="#201F1B"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

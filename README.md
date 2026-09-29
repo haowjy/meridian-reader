@@ -10,7 +10,7 @@ xcodegen generate
 open Reader.xcodeproj
 ```
 
-Pick an iOS Simulator and Run. (Xcode target / bundle id remain `Reader` / `com.jimmyyao.Reader` for now.)
+Pick an iOS Simulator and Run. Home-screen name is **Meridian Reader**; Xcode target / bundle id remain `Reader` / `com.jimmyyao.Reader` so installs keep your data. App icon is `Resources/Brand/meridian-reader-icon-g1.svg` → `Resources/Assets.xcassets/AppIcon.appiconset`.
 
 ## What’s in here
 
