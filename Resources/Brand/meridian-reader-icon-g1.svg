@@ -58,9 +58,9 @@
     <rect width="1024" height="1024" fill="url(#paper)"/>
     <circle cx="512" cy="512" r="318" fill="url(#aura)"/>
     <g fill="none" stroke-linecap="round" filter="url(#waveSoft)">
-      <path d="M502.6 430.1 A100 100 0 1 1 502.6 593.9" stroke="#5F9A88" stroke-width="9" opacity="0.7"/>
-      <path d="M475.1 390.8 A148 148 0 1 1 475.1 633.2" stroke="#5F9A88" stroke-width="7.5" opacity="0.52"/>
-      <path d="M448.2 352.3 A195 195 0 1 1 448.2 671.7" stroke="#5F9A88" stroke-width="6.5" opacity="0.36"/>
+      <path d="M562.9 399.8 A58 118 0 0 1 562.9 624.2" stroke="#5F9A88" stroke-width="8.5" opacity="0.72"/>
+      <path d="M574.0 345.6 A94 175 0 0 1 574.0 678.4" stroke="#5F9A88" stroke-width="7.0" opacity="0.52"/>
+      <path d="M585.2 291.4 A130 232 0 0 1 585.2 732.6" stroke="#5F9A88" stroke-width="6.0" opacity="0.36"/>
     </g>
     <g filter="url(#needleShadow)">
       <g transform="translate(512 512) scale(13.5) translate(-24 -24)" filter="url(#inkSoft)">
