@@ -60,7 +60,8 @@ final class BrowseToolbarUITests: XCTestCase {
         }
         XCTAssertFalse(element(app, "browseSaved").exists, "Saved moved into ⋯ (Safari-style)")
         XCTAssertFalse(element(app, "browseReader").exists, "Reader moved into the address field / ⋯")
-        XCTAssertTrue(element(app, "addressMic").exists, "mic in the address field")
+        XCTAssertTrue(element(app, "browseLibrary").exists, "Library↔Browser slot beside ⋯")
+        XCTAssertFalse(element(app, "addressMic").exists, "mic only while searching, not idle")
         XCTAssertFalse(app.tabBars.firstMatch.isHittable, "no tab bar on Browse")
 
         let link = app.links["Next page"]
@@ -95,6 +96,7 @@ final class BrowseToolbarUITests: XCTestCase {
         let field = app.textFields["addressField"]
         XCTAssertTrue(waitFor("hasKeyboardFocus == true", field), "Search focuses the field")
         XCTAssertTrue(waitFor("value == 'Search or enter address' OR value == ''", field), "empty, for a new search")
+        XCTAssertTrue(element(app, "addressMic").waitForExistence(timeout: 2), "mic while searching")
         XCTAssertTrue(element(app, "addressCancel").exists)
         element(app, "addressCancel").tap()
         XCTAssertTrue(waitFor("hasKeyboardFocus == false", field))
@@ -113,11 +115,12 @@ final class BrowseToolbarUITests: XCTestCase {
         element(app, "moreReload").tap()
         XCTAssertTrue(waitFor("exists == false", element(app, "moreReload")), "popover closes")
 
-        // Saved → the library sheet; swipe down returns to the same page.
+        // Saved → the library surface (shared chrome); Browser slot returns to the page.
         app.buttons["browseMore"].tap()
         element(app, "moreLibrary").tap()
-        XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5), "library sheet")
-        app.navigationBars["Saved"].swipeDown(velocity: .fast)
+        XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5), "library surface")
+        XCTAssertTrue(element(app, "libraryBrowser").waitForExistence(timeout: 3), "Browser swap slot")
+        element(app, "libraryBrowser").tap()
         XCTAssertTrue(waitFor("exists == false", app.navigationBars["Saved"]), "swipe down dismisses")
         XCTAssertTrue(back.isEnabled, "page state kept")
 

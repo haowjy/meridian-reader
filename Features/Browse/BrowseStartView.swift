@@ -4,7 +4,7 @@ import WebKit
 
 /// The whole app: a browser with in-place Reader Mode (no tab bar).
 /// - Start page (no page loaded): Bookmarks grid · Continue listening · Saved · Recent Searches.
-/// - Bottom: [mini player] · address field (reader icon when the page is readable) · `[‹][›][⋯]`.
+/// - Bottom: [mini player] · address field (reader icon when readable; mic only while searching) · `[‹][›][Search][Library][⋯]`.
 /// - ⋯ opens a Safari-style popover: actions, then big Bookmarks / Saved / History buttons.
 struct BrowseStartView: View {
     @Environment(\.modelContext) private var modelContext
@@ -51,7 +51,12 @@ struct BrowseStartView: View {
     /// ⋯ actions that present something run once the popover is gone.
     @State private var pendingMoreAction: BrowseMoreMenu.Action?
     @State private var showLibrary = false
-    /// Runs once the library sheet is gone (reader-in-library ⋯ → Bookmarks / History).
+    /// Library surface navigation (‹ reader push). Empty = list + shared library chrome.
+    @State private var libraryPath: [UUID] = []
+    @State private var librarySearch = ""
+    /// Bumped to focus the library search field (toolbar Search).
+    @State private var libraryFocusSearchToken = 0
+    /// Runs once the library surface is gone (reader-in-library ⋯ → Bookmarks / History).
     @State private var afterLibraryDismiss: (() -> Void)?
     @State private var showBookmarks = false
     /// Site bookmarks (their own JSON store; not the saved-article model).
@@ -200,7 +205,8 @@ struct BrowseStartView: View {
             }
             .clipped()
 
-            if !showReader {
+            // Library is a full-screen surface with its own shared chrome; Browse chrome hides.
+            if !showReader && !showLibrary {
                 browserChrome
             }
         }
@@ -215,6 +221,7 @@ struct BrowseStartView: View {
                     .transition(.opacity)
             }
         }
+        .overlay { libraryOverlay }
         // ⋯ menu: grows out of the toolbar button and covers it (Safari iOS 26), not a popover.
         .overlay {
             MorphMenuOverlay(isPresented: $showMore, anchor: moreAnchor) { moreMenuPanel }
@@ -252,15 +259,6 @@ struct BrowseStartView: View {
             openLibraryIfRequested()
             seedBookmarksIfRequested()
             await resumeAfterCrashIfNeeded()
-        }
-        .sheet(isPresented: $showLibrary, onDismiss: {
-            guard let next = afterLibraryDismiss else { return }
-            afterLibraryDismiss = nil
-            next()
-        }) {
-            SavedListView()
-                .presentationDragIndicator(.visible)
-                .environment(\.readerMenuHost, readerMenuHost)
         }
         .sheet(isPresented: $showBookmarks) {
             BookmarksListView(store: bookmarkStore) { bookmark in
@@ -344,6 +342,23 @@ struct BrowseStartView: View {
     // MARK: - Reader overlay
 
     @ViewBuilder
+    private var libraryOverlay: some View {
+        if showLibrary {
+            LibrarySurface(
+                path: $libraryPath,
+                searchText: $librarySearch,
+                isMoreOpen: showMore,
+                onMoreAnchor: { if $0 != moreAnchor { moreAnchor = $0 } },
+                onOpenMore: { showMore = true },
+                onLeaveToBrowser: leaveLibrary,
+                focusSearchToken: libraryFocusSearchToken
+            )
+            .environment(\.readerMenuHost, readerMenuHost)
+            .transition(.opacity)
+        }
+    }
+
+        @ViewBuilder
     private func readerOverlay(for article: ReaderArticle) -> some View {
         ArticleReaderScreen(
             article: article,
@@ -360,7 +375,7 @@ struct BrowseStartView: View {
     private var readerMenuHost: ReaderMenuHost {
         ReaderMenuHost(
             showBookmarks: { presentFromReader { showBookmarks = true } },
-            showSaved: { showLibrary = true },
+            showSaved: { openLibrary() },
             showHistory: { presentFromReader { showHistory = true } },
             openWebsite: { url in presentFromReader { openWebsite(url) } }
         )
@@ -396,10 +411,40 @@ struct BrowseStartView: View {
     private func presentFromReader(_ present: @escaping () -> Void) {
         if showLibrary {
             afterLibraryDismiss = present
-            showLibrary = false
+            leaveLibrary()
         } else {
             present()
         }
+    }
+
+    /// Open the library surface (shared chrome). Restores browse when left via 🌐 / leaveLibrary.
+    private func openLibrary() {
+        isEditingAddress = false
+        addressFocused = false
+        googleSuggestions = []
+        dictation?.cancel()
+        if showReader { hideReader() }
+        libraryPath = []
+        showLibrary = true
+    }
+
+    /// Leave Library → prior browse surface. Runs any deferred presentation afterwards.
+    private func leaveLibrary() {
+        guard showLibrary else {
+            flushAfterLibraryDismiss()
+            return
+        }
+        libraryPath = []
+        librarySearch = ""
+        showLibrary = false
+        flushAfterLibraryDismiss()
+    }
+
+    private func flushAfterLibraryDismiss() {
+        guard let next = afterLibraryDismiss else { return }
+        afterLibraryDismiss = nil
+        // Let the library overlay tear down before presenting a sheet.
+        DispatchQueue.main.async { next() }
     }
 
     /// UI-test hook (`-openDemoInBrowseReader`, with `-seedDemoArticle`): show the seeded article
@@ -419,9 +464,9 @@ struct BrowseStartView: View {
 
     /// UI-test hook (`-browseTestPages`): offline pages served by `TestPageSchemeHandler`, with a
     /// link to a second page, so ‹ / › state can be checked without the network.
-    /// UI-test hook (`-openLibrary`): start with the library sheet open (article-list tests).
+    /// UI-test hook (`-openLibrary`): start with the library surface open (article-list tests).
     private func openLibraryIfRequested() {
-        if ProcessInfo.processInfo.arguments.contains("-openLibrary") { showLibrary = true }
+        if ProcessInfo.processInfo.arguments.contains("-openLibrary") { openLibrary() }
     }
 
     private func openTestPagesIfRequested() {
@@ -487,7 +532,9 @@ struct BrowseStartView: View {
     /// bottom-right Reader toggle; Bookmarks / Saved / History live in the ⋯ popover and on the
     /// start page.
     private var toolbarRow: some View {
-        // Five equal slots shared with the reader: `[‹][›][Search][ ][⋯]` (Nav I).
+        // Five equal slots shared with the reader: `[‹][›][Search][Library][⋯]` (Nav I).
+        // Slot 4 is Library↔Browser (on Library the surface shows 🌐). ⋯ always stays in slot 5;
+        // Reader↔Website remains the morph-menu focus near ⋯.
         BottomToolbarLayout {
             toolbarButton("chevron.backward", label: "Back", id: "browseBack") { webStore.goBack() }
                 .disabled(!webStore.canGoBack)
@@ -496,6 +543,7 @@ struct BrowseStartView: View {
             // One tap to a new search: the field, focused and empty (Recent Searches); ✕ / tap
             // outside restores the page's address.
             toolbarButton("magnifyingglass", label: "Search", id: "browseSearch", action: startNewSearch)
+            toolbarButton("books.vertical", label: "Library", id: "browseLibrary", action: openLibrary)
             moreMenu
         }
         .foregroundStyle(.primary)
@@ -589,7 +637,7 @@ struct BrowseStartView: View {
         case .reload: webStore.refresh()
         case .share: if let shareURL { shareItem = ShareItem(url: shareURL) }
         case .voiceSettings: showVoiceSettings = true
-        case .saved: showLibrary = true
+        case .saved: openLibrary()
         case .history: showHistory = true
         case .openWebsite: break // reader context only
         }
@@ -668,9 +716,12 @@ struct BrowseStartView: View {
                     // Losing focus alone does not exit search (swipe-down). ✕ / submit clears it.
                 }
 
-            micButton
+            // Mic only during a search session (not on the idle address bar).
+            if isEditingAddress {
+                micButton
+            }
         }
-        .bottomChromeField()
+        .bottomChromeField(leading: 12, trailing: isEditingAddress ? 4 : 12)
         .overlay {
             if isDictating {
                 Capsule().strokeBorder(Color.accentColor, lineWidth: 1.5)
@@ -865,7 +916,7 @@ struct BrowseStartView: View {
             onDeleteBookmark: { bookmarkStore.remove(id: $0.id) },
             onRenameBookmark: { bookmarkStore.rename(id: $0.id, to: $1) },
             onOpenArticle: { openSaved($0.id) },
-            onShowLibrary: { showLibrary = true },
+            onShowLibrary: { openLibrary() },
             onSearch: { term in
                 addressText = term
                 submitAddress()

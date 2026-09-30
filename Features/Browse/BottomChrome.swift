@@ -6,8 +6,9 @@ import SwiftUI
 /// ```
 /// ┌ .bar band ────────────────────────────────────┐
 /// │ ( field capsule: address field / scrub row  ) │  ← `bottomChromeField()`
-/// │  [‹]   [›]   [Search]  [    ]  [⋯]            │  ← `BottomToolbarLayout` + `toolbarIconFrame()`
-/// │  [1×]  [⏮]   [▶︎]      [⏭]     [⋯]            │    (5 equal slots, ⋯ always in slot 5)
+/// │  [‹]   [›]   [Search]  [Lib]  [⋯]            │  ← `BottomToolbarLayout` + `toolbarIconFrame()`
+/// │  [1×]  [⏮]   [▶︎]      [⏭]    [⋯]            │    (5 equal slots, ⋯ always in slot 5;
+/// │  [ ]   [ ]   [Search]  [🌐]   [⋯]            │     Library surface: slot 4 = Browser)
 /// └───────────────────────────────── home indicator ┘
 /// ```
 enum BottomChrome {
@@ -64,8 +65,9 @@ extension View {
 /// so each icon sits at the same x on every screen:
 ///
 /// ```
-/// Browse  [‹]  [›]  [Search]  [    ]  [⋯]
-/// Reader  [1×] [⏮]  [▶︎]      [⏭]    [⋯]
+/// Browse   [‹]  [›]  [Search]  [Library]  [⋯]
+/// Library  [ ]  [ ]  [Search]  [Browser]  [⋯]
+/// Reader   [1×] [⏮]  [▶︎]      [⏭]       [⋯]
 /// ```
 ///
 /// Leading items fill slots 1, 2, 3…; the last item (⋯) always sits in slot 5, so the morph menu

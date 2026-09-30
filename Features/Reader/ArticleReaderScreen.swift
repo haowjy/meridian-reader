@@ -134,8 +134,15 @@ struct ArticleReaderScreen: View {
                 },
                 jumpMode: $jumpMode,
                 speech: speech,
-                scrubControls: ReaderScrubControls(isSaved: isSaved, jumpEnabled: sessionReady,
-                                                   toggleJump: toggleJump, toggleSaved: toggleSaved),
+                scrubControls: ReaderScrubControls(
+                    isSaved: isSaved,
+                    jumpEnabled: sessionReady,
+                    toggleJump: toggleJump,
+                    toggleSaved: toggleSaved,
+                    // ‹ library reader → Library; ✕ browse reader → Website.
+                    backTarget: closeStyle == .back ? .library : .website,
+                    onBackToSource: close
+                ),
                 listenTrailing: AnyView(moreButton),
                 safeInsets: safeInsets,
                 topChromeHeight: topChromeHeight

@@ -128,22 +128,40 @@ struct ArticleListenSurface: View {
             listenStatusNotes
 
             if let scrubMap {
-                ReaderScrubRow(
-                    map: scrubMap,
-                    position: scrubPosition(scrubMap),
-                    buffered: bufferedSpans(scrubMap),
-                    isSaved: scrubControls.isSaved,
-                    jumpMode: jumpMode,
-                    jumpEnabled: scrubControls.jumpEnabled,
-                    onToggleJump: scrubControls.toggleJump,
-                    onToggleSaved: scrubControls.toggleSaved,
-                    onScrubPreview: { p in
-                        scrubPreview = p
-                        // The only programmatic scroll: following the user's own scrub.
-                        if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
-                    },
-                    onScrubCommit: seek(to:)
-                )
+                // Back-to-source sits left of the scrubber pill (same outside-capsule placement as
+                // Browse's address ✕), then the shared field capsule for scrub / Jump / bookmark.
+                HStack(spacing: 10) {
+                    if let target = scrubControls.backTarget, let onBack = scrubControls.onBackToSource {
+                        Button(action: onBack) {
+                            Image(systemName: target.systemImage)
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 40, height: 40)
+                                .background(Color(.secondarySystemBackground), in: Circle())
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(target.accessibilityLabel)
+                        .accessibilityIdentifier(target.accessibilityIdentifier)
+                    }
+
+                    ReaderScrubRow(
+                        map: scrubMap,
+                        position: scrubPosition(scrubMap),
+                        buffered: bufferedSpans(scrubMap),
+                        isSaved: scrubControls.isSaved,
+                        jumpMode: jumpMode,
+                        jumpEnabled: scrubControls.jumpEnabled,
+                        onToggleJump: scrubControls.toggleJump,
+                        onToggleSaved: scrubControls.toggleSaved,
+                        onScrubPreview: { p in
+                            scrubPreview = p
+                            // The only programmatic scroll: following the user's own scrub.
+                            if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
+                        },
+                        onScrubCommit: seek(to:)
+                    )
+                }
             }
 
             ListenControllerView(
@@ -327,6 +345,38 @@ struct ReaderScrubControls {
     let jumpEnabled: Bool
     let toggleJump: () -> Void
     let toggleSaved: () -> Void
+    /// Left of the scrubber pill: back to Website (came from browse) or Library (came from saved).
+    var backTarget: ReaderScrubBackTarget? = nil
+    var onBackToSource: (() -> Void)? = nil
+}
+
+/// Entry-context return control beside the scrubber pill (muscle memory with Library↔Browser).
+enum ReaderScrubBackTarget: Equatable {
+    /// Came from the web page → reveal / open the article's site.
+    case website
+    /// Came from the library / a saved article → return to Library.
+    case library
+
+    var systemImage: String {
+        switch self {
+        case .website: return "globe"
+        case .library: return "books.vertical"
+        }
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .website: return "Back to Website"
+        case .library: return "Back to Library"
+        }
+    }
+
+    var accessibilityIdentifier: String {
+        switch self {
+        case .website: return "readerBackWebsite"
+        case .library: return "readerBackLibrary"
+        }
+    }
 }
 
 /// A one-shot "scroll this paragraph into view" (token changes per request).

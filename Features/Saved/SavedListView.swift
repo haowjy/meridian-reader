@@ -1,16 +1,27 @@
 import SwiftUI
 import SwiftData
 
-/// The library: every kept article, with search. Presented as a sheet from the browser (⋯ → Saved,
-/// or "Show All" on the start page); swipe down returns to the page. Opening an article pushes
-/// the reader (‹) inside the sheet.
+/// The library list: every kept article, with search. Hosted inside `LibrarySurface` (shared bottom
+/// chrome) or, for tests / previews, standalone. Opening an article pushes the reader (‹) via
+/// `path`.
 struct SavedListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.speechController) private var speech
     @Query(sort: \SavedArticle.savedAt, order: .reverse) private var articles: [SavedArticle]
-    @State private var searchText = ""
-    /// Pushed article ids (value-based navigation).
-    @State private var path: [UUID] = []
+
+    @Binding var path: [UUID]
+    @Binding var searchText: String
+    /// When true, search lives in the shared bottom field capsule (`LibrarySurface`); the nav bar
+    /// drawer is omitted so chrome matches Browse / Reader.
+    var usesExternalSearch: Bool = false
+
+    init(path: Binding<[UUID]> = .constant([]),
+         searchText: Binding<String> = .constant(""),
+         usesExternalSearch: Bool = false) {
+        _path = path
+        _searchText = searchText
+        self.usesExternalSearch = usesExternalSearch
+    }
 
     private var filtered: [SavedArticle] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -48,10 +59,7 @@ struct SavedListView: View {
                 OfflineArticleView(articleID: id)
             }
             .navigationTitle("Saved")
-            // Pinned under the title (in a sheet the default would float it at the bottom, where
-            // it collides with the grabber-less edge and the keyboard).
-            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always),
-                        prompt: "Search saved")
+            .modifier(LibrarySearchModifier(text: $searchText, enabled: !usesExternalSearch))
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
@@ -70,6 +78,22 @@ struct SavedListView: View {
             let article = filtered[index]
             speech.localTTS.handleArticleDeleted(article.id)
             modelContext.delete(article)
+        }
+    }
+}
+
+/// Optional nav-bar search (standalone / sheet hosts). `LibrarySurface` supplies its own field.
+private struct LibrarySearchModifier: ViewModifier {
+    @Binding var text: String
+    let enabled: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled {
+            content.searchable(text: $text, placement: .navigationBarDrawer(displayMode: .always),
+                               prompt: "Search saved")
+        } else {
+            content
         }
     }
 }

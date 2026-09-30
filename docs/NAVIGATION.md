@@ -40,8 +40,8 @@ bottom bar, and the page uses everything between the status bar and it (safe are
 
 ```
 [ ▶︎ Now playing title ━━━━━━━━━━━──────   ⏸ ]   ← mini player (only while something is loaded)
-[ 🔒/📄 address …                       🎤 ]   ← 📄 = reader icon, only on readable pages
-[ ‹ ]   [ › ]   [ 🔍 ]   [   ]   [ ⋯ ]    ← 5 equal slots (slot 4 empty)
+[ 🔒/📄 address …                      (🎤) ]   ← 📄 = reader icon; 🎤 only while searching
+[ ‹ ]   [ › ]   [ 🔍 ]   [ 📚 ]   [ ⋯ ]    ← 5 equal slots (slot 4 = Library↔Browser)
 ```
 
 **One bottom-chrome design (Nav G)**, shared with the reader so Browse ↔ Reader barely changes
@@ -50,10 +50,12 @@ the bottom of the screen (`Features/Browse/BottomChrome.swift`): the band (`bott
 capsule (`bottomChromeField`: 44 pt, secondary-background capsule; 36 pt body-size controls
 inside, like 🎤), and the toolbar row (`BottomToolbarLayout` + `toolbarIconFrame`: 44 pt, plain
 19 pt glyphs). **Five equal slots, evenly spaced, one grid for both rows (Nav I):** Browse is
-`[‹][›][Search][ ][⋯]` (slot 4 empty), the reader `[1×][⏮][▶︎][⏭][⋯]`. Leading items fill slots
-1, 2, 3…, the last item (⋯) always sits in slot 5, so every icon in slot N is at the same x on both
-screens and the ⋯ menu grows from the same spot. The mini player's play/pause is centered over
-the ⋯ slot too. A UI test checks all five slots (and even spacing) on both screens.
+`[‹][›][Search][Library][⋯]`, the Library surface `[ ][ ][Search][Browser][⋯]`, the reader
+`[1×][⏮][▶︎][⏭][⋯]`. Slot 4 is the Library↔Browser swap (📚 on Browse, 🌐 on Library — same
+muscle memory as the morph-menu Reader↔Website near ⋯). Leading items fill slots 1, 2, 3…; the
+last item (⋯) always sits in slot 5, so every icon in slot N is at the same x and the ⋯ menu
+grows from the same spot. ⋯ is never replaced. The mini player's play/pause is centered over the
+⋯ slot too.
 
 - **Search** (🔍, middle): focuses the address field, empty, for a new search (Recent Searches
   show full-bleed, Safari-style); ✕ cancels and restores the page's address. Swipe down lowers
@@ -107,9 +109,11 @@ the ⋯ slot too. A UI test checks all five slots (and even spacing) on both scr
 **Bookmarks sheet** (`BookmarksListView`): every bookmark, tap to open, swipe to delete, Edit to
 reorder/delete; grabber, medium/large.
 
-**Library sheet** (`SavedListView`): every kept article, search pinned under the title, grabber.
-Swipe down returns to the page. Opening an article pushes the ‹ reader inside the sheet (swipe
-back from the left edge). The row's play button plays without opening.
+**Library surface** (`LibrarySurface` / `SavedListView`): every kept article. Uses the **same
+bottom chrome shell** as Browse / Reader (search field capsule + five-slot toolbar). Slot 4
+shows 🌐 Browser to swap back (restores the prior browse surface). Opening an article pushes the
+‹ reader inside the surface (swipe back from the left edge); the shared library chrome hides
+while the reader draws its own. The row's play button plays without opening.
 
 **Editing the address** (a ✕ state, so it closes like one):
 - The toolbar steps aside and the field sits right above the keyboard, with a round ✕ to its right.
@@ -121,10 +125,12 @@ back from the left edge). The row's play button plays without opening.
 - Focusing selects the whole address, so typing replaces it. While the field is empty or still
   shows the untouched address, **Recent Searches** (local, newest first, Clear All) are shown;
   otherwise Recents / Saved / Google suggestions.
-- 🎤 dictates on-device (`SFSpeechRecognizer`, `requiresOnDeviceRecognition` when the locale
-  supports it): partial text streams into the field; it stops on a second tap, on ~1.6 s of
-  silence, or when you type. Listen pauses while the mic is open and resumes afterwards; its
-  `.playback`/`.spokenAudio` session is restored. Nothing is submitted automatically.
+- 🎤 appears **only while searching** (`isEditingAddress` / search session), not on the idle
+  address bar. It dictates on-device (`SFSpeechRecognizer`, `requiresOnDeviceRecognition` when
+  the locale supports it): partial text streams into the field; it stops on a second tap, on
+  ~1.6 s of silence, or when you type. Listen pauses while the mic is open and resumes
+  afterwards; its `.playback`/`.spokenAudio` session is restored. Nothing is submitted
+  automatically.
 
 ## The reader (one screen, wherever it's opened from)
 
@@ -134,7 +140,7 @@ back from the left edge). The row's play button plays without opening.
 └──────────────────────────────────────────────┘
 …  article: edge to edge, the current paragraph softly tinted  …
 ┌ bar ─────────────────────────────────────────┐
-│ ( ━━━━━●━━━━━━░░░░░────────    ☝︎    🔖    ) │  ← scrub row = the address-field capsule
+│ [🌐/📚] ( ━━━━━●━━━━━━░░░░░──  ☝︎  🔖 ) │  ← back-to-source left of scrubber pill; pill = address capsule
 │  [1×]   [⏮]    [▶︎]    [⏭]    [ ⋯ ]            │  ← listen row = the browser's 5-slot toolbar row
 └──────────────────────────────────── home indicator ┘
 ```
@@ -148,8 +154,9 @@ circle), with ⋯ in the same slot 5 as the browser's ⋯ (a UI test checks the 
 margins and position above the home indicator. The ✕ top row mirrors it at the top: the title in
 a field capsule on the same bar material; the ‹ row sits in the navigation bar, same capsule and
 bar material.
-Against Browse's `[‹][›][Search][ ][⋯]` (same five-slot grid, Nav I): 1× under ‹, ⏮ under ›,
-▶︎ under Search, ⏭ in Browse's empty slot 4, ⋯ under ⋯.
+Against Browse's `[‹][›][Search][Library][⋯]` (same five-slot grid, Nav I): 1× under ‹, ⏮ under ›,
+▶︎ under Search, ⏭ under Library, ⋯ under ⋯. A **back to Website / back to Library** control sits
+left of the scrubber pill (🌐 when opened from Browse, 📚 when opened from the library).
 
 **The bars never hide (Nav H).** Like the browser's search bar / toolbar, the top row and the
 bottom controls stay put: no hiding on scroll, no tap-to-toggle, no progress line, and the status
@@ -237,8 +244,8 @@ confirmation). UI tests force it with `-reader.developerOptions NO|YES`.
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | — (grabber) | `.sheet`, medium/large |
 | ⋯ → Bookmarks / start page Show All (`BookmarksListView`) | — (grabber) | `.sheet`, medium/large |
-| ⋯ → Saved / start page Show All → library (`SavedListView`) | — (grabber) | `.sheet` |
-| Library → reader (`OfflineArticleView` → `ArticleReaderScreen`, row in the transparent nav bar, text full-bleed under it) | ‹ custom | push inside the sheet (`navigationDestination(for: UUID.self)`) |
+| ⋯ → Saved / toolbar Library / start page Show All → library (`LibrarySurface`) | 🌐 Browser slot | in-place surface (shared bottom chrome); leave restores browse |
+| Library → reader (`OfflineArticleView` → `ArticleReaderScreen`, row in the transparent nav bar, text full-bleed under it) | ‹ custom | push inside the surface (`navigationDestination(for: UUID.self)`) |
 | Library → Choose voice (`SpeechSettingsView`) | ‹ system | push (`NavigationLink`) |
 | Browser → address-field reader icon / ⋯ Open in Reader / start page row / mini player (`ArticleReaderScreen`) | ✕ custom | full-screen in-place overlay (covers the whole browser, edge to edge); pull top row down |
 | Listen bar ⋯ → Voice settings (`SpeechSettingsView`) | Done | `.sheet` |
