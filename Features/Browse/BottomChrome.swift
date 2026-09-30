@@ -38,11 +38,13 @@ extension View {
     }
 
     /// The field capsule: the browser's address field, the reader's scrub row and title row.
+    /// Fixed height (not minHeight): a Capsule with unbounded height becomes a circle when the
+    /// layout proposes a large vertical size (e.g. idle address bar without the mic's 36 pt frame).
     func bottomChromeField(leading: CGFloat = 12, trailing: CGFloat = 4) -> some View {
         self.padding(.leading, leading)
             .padding(.trailing, trailing)
             .padding(.vertical, 4)
-            .frame(minHeight: BottomChrome.rowHeight)
+            .frame(height: BottomChrome.rowHeight)
             .background(Color(.secondarySystemBackground), in: Capsule())
     }
 

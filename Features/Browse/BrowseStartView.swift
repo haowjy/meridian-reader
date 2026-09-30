@@ -677,7 +677,7 @@ struct BrowseStartView: View {
                 .accessibilityHidden(true)
         } else {
             Color.clear
-                .frame(width: 16)
+                .frame(width: 16, height: 16)
                 .accessibilityHidden(true)
         }
     }
