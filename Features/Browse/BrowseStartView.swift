@@ -601,8 +601,8 @@ struct BrowseStartView: View {
         hasPage ? bookmarkStore.bookmark(for: webStore.currentURL) : nil
     }
 
-    /// Leading slot of the address field: the reader icon (Safari's page-format button) when the
-    /// page is readable, a spinner while extracting, else the lock / search glyph.
+    /// Leading slot of the address field: a spinner while extracting, the reader icon (Safari's
+    /// page-format button) when readable, the search glyph while editing, or an empty spacer.
     @ViewBuilder
     private var addressLeading: some View {
         if !isEditingAddress && isBusy && !busyIsSave {
@@ -621,10 +621,14 @@ struct BrowseStartView: View {
             .accessibilityLabel("Open in Reader")
             .accessibilityIdentifier("addressReader")
             .transition(.opacity)
-        } else {
-            Image(systemName: isEditingAddress ? "magnifyingglass" : "lock.fill")
+        } else if isEditingAddress {
+            Image(systemName: "magnifyingglass")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .frame(width: 16)
+                .accessibilityHidden(true)
+        } else {
+            Color.clear
                 .frame(width: 16)
                 .accessibilityHidden(true)
         }
