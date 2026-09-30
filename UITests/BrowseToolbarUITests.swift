@@ -344,7 +344,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(app.buttons["browseBack"].waitForExistence(timeout: 3), "toolbar back")
     }
 
-    func testSwipeDownCancelsEditing() throws {
+    func testSwipeDownLowersKeyboardKeepsSearch() throws {
         let app = launch(testPage: true)
         let field = app.textFields["addressField"]
         XCTAssertTrue(app.links["Next page"].waitForExistence(timeout: 10))
@@ -357,12 +357,19 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(backdrop.waitForExistence(timeout: 3))
         backdrop.swipeDown()
 
-        XCTAssertTrue(waitFor("exists == false", app.keyboards.firstMatch), "pull-down dismissed editing")
-        XCTAssertEqual(field.value as? String, "pages/one", "previous address restored")
+        // Safari: swipe-down dismisses the keyboard but stays in search mode.
+        XCTAssertTrue(waitFor("exists == false", app.keyboards.firstMatch), "pull-down dismissed keyboard")
+        XCTAssertEqual(field.value as? String, "zzq", "typed text kept")
+        let cancel = app.buttons["addressCancel"]
+        XCTAssertTrue(cancel.exists, "✕ still shown")
+        XCTAssertFalse(app.buttons["browseBack"].exists, "toolbar still stepped aside")
+
+        cancel.tap()
+        XCTAssertEqual(field.value as? String, "pages/one", "✕ restores address")
         XCTAssertTrue(app.buttons["browseBack"].waitForExistence(timeout: 3))
     }
 
-    func testSwipeDownCancelsOnStartPage() throws {
+    func testSwipeDownLowersKeyboardOnStartPage() throws {
         let app = launch(testPage: false)
         let field = app.textFields["addressField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
@@ -371,6 +378,9 @@ final class BrowseToolbarUITests: XCTestCase {
         field.typeText("abc")
         element(app, "addressEditBackdrop").swipeDown()
         XCTAssertTrue(waitFor("exists == false", app.keyboards.firstMatch))
-        XCTAssertNotEqual(field.value as? String, "abc", "typed text discarded")
+        XCTAssertEqual(field.value as? String, "abc", "typed text kept while still searching")
+        XCTAssertTrue(app.buttons["addressCancel"].exists, "✕ still shown")
+        app.buttons["addressCancel"].tap()
+        XCTAssertNotEqual(field.value as? String, "abc", "✕ exits search")
     }
 }

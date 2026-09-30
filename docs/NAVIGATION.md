@@ -56,8 +56,8 @@ screens and the ⋯ menu grows from the same spot. The mini player's play/pause 
 the ⋯ slot too. A UI test checks all five slots (and even spacing) on both screens.
 
 - **Search** (🔍, middle): focuses the address field, empty, for a new search (Recent Searches
-  show); ✕ / tapping outside / dragging down cancels and restores the page's address. The page
-  stays loaded underneath.
+  show full-bleed, Safari-style); ✕ cancels and restores the page's address. Swipe down lowers
+  the keyboard but stays in search mode (typed text and ✕ kept). The page stays loaded underneath.
 - ‹ / › are web history (disabled when WebKit can't go back / forward; KVO on the web view, so
   same-document history counts too). The web view's own edge swipes still work.
 - No Reader button in the toolbar. The **reader icon** (📄, like Safari's page-format icon) sits
@@ -113,9 +113,11 @@ back from the left edge). The row's play button plays without opening.
 
 **Editing the address** (a ✕ state, so it closes like one):
 - The toolbar steps aside and the field sits right above the keyboard, with a round ✕ to its right.
-- ✕, tapping the dimmed page, or dragging down anywhere above the field (suggestions included;
-  a long, scrolled suggestion list only cancels when pulled down from its top) all cancel: keyboard
-  down, the page's address restored.
+- A full-bleed **Recent Searches** / suggestions layer covers the page (Safari): header + Clear All,
+  magnifying-glass rows, and an ↑← control that fills the term into the field without navigating.
+- ✕ exits search mode: keyboard down, the page's address restored.
+- Swipe down (on the search layer; a long scrolled list only when pulled from its top) lowers the
+  keyboard / field but **stays in search mode** — typed text and ✕ remain; tap the field to type again.
 - Focusing selects the whole address, so typing replaces it. While the field is empty or still
   shows the untouched address, **Recent Searches** (local, newest first, Clear All) are shown;
   otherwise Recents / Saved / Google suggestions.
