@@ -115,6 +115,11 @@ shows 🌐 Browser to swap back (restores the prior browse surface). Opening an 
 ‹ reader inside the surface (swipe back from the left edge); the shared library chrome hides
 while the reader draws its own. The row's play button plays without opening.
 
+**Library search** matches Browse's ✕ session: focusing the field (or toolbar Search) hides the
+toolbar icons so the field sits above the keyboard with a round ✕; swipe-down / scroll lowers the
+keyboard but **stays in search mode** (typed text and ✕ kept); ✕ exits and clears the filter.
+Idle chrome keeps Search / 🌐 / ⋯.
+
 **Editing the address** (a ✕ state, so it closes like one):
 - The toolbar steps aside and the field sits right above the keyboard, with a round ✕ to its right.
 - A full-bleed **Recent Searches** / suggestions layer covers the page (Safari): header + Clear All,
