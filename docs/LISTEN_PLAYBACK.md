@@ -80,7 +80,9 @@ Produce **epoch** increments only on `stop` / `seek` / new `play` from a new ind
 
 #### Persistent bake
 
-The queue worker renders chunk CAFs, and once every chunk of a paragraph exists it stitches them and writes the paragraph with `ArticleAudioCache.storeParagraph`. Live listening and bake-ahead use the same path. Replays prefer the stitched paragraph CAF via `bakedURLProvider`.
+The queue worker renders chunk CAFs, and once every chunk of a paragraph exists it stitches them into the paragraph CAF off the main actor (`ArticleAudioCache.stitchParagraph`, renamed over `p-NNNN.caf`) and records it in the index on the main actor (`recordParagraph`). Live listening and bake-ahead use the same path. Replays prefer the stitched paragraph CAF via `bakedURLProvider`.
+
+Render priority: chunks of an article someone is listening to (a producer waits on one of its chunks, or its audio is playing) render at `RenderPriority.listener` (`.userInitiated`); everything else is bake-ahead at `.utility` (Kokoro ONNX: the calling thread's QoS — ORT's pool threads keep the session's). Bake-ahead is held while the thermal state is `.serious` or worse or Low Power Mode is on (`BakeConditions`), and resumes on the thermal / power-state change notification. Only listener calls feed `RenderPace` (the head-start rule).
 
 #### Background bake limits
 

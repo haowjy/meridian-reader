@@ -320,7 +320,7 @@ final class BackgroundListeningTests: XCTestCase {
         let state = AppRunState(phase: .background)
         let (queue, ctx) = makeQueue(FakeEngineProvider(config: .init(rendersInBackground: true)), runState: state)
         let playing = UUID(), other = UUID()
-        ctx.playingKey = playing
+        ctx.playingCacheKey = playing
         let paras = [sentence(1), sentence(2), sentence(3)]
         let otherParas = [sentence(7), sentence(8)]
         queue.openArticle(cacheKey: other, paragraphs: otherParas, voiceID: "v", isEphemeral: false)

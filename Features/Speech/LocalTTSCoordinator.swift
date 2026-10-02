@@ -313,7 +313,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     var activeRouteRendersInBackground: Bool { localEngine?.hostRendersInBackground ?? false }
 
-    var backgroundRenderCacheKey: UUID? { localEngine?.playingArticleID }
+    var playingCacheKey: UUID? { localEngine?.playingArticleID }
 
     /// Local engine whose cache / chunk sizing applies right now (selected, else pending).
     var activeLocalEngineID: SpeechEngineID? {

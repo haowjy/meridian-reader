@@ -33,6 +33,18 @@ enum LocalSynthError: LocalizedError {
     }
 }
 
+/// How soon a synth call's audio is needed. Hosts that run on the CPU map it onto the QoS of
+/// their compute queue.
+enum RenderPriority: Sendable {
+    /// Someone is listening to the article: they wait on this chunk or will play it shortly.
+    case listener
+    /// Rendering ahead (e.g. a saved article) — nobody waits; may run slower and cooler.
+    case bakeAhead
+
+    var qos: DispatchQoS.QoSClass { self == .listener ? .userInitiated : .utility }
+    var taskPriority: TaskPriority { self == .listener ? .userInitiated : .utility }
+}
+
 /// One on-device synth backend behind `LocalModelSpeechEngine` (built by a
 /// `SpeechEngineProvider`). Hosts are thin: load models, run ONE call, map overflow errors to
 /// `LocalSynthError.inputTooLong`. Chunking, re-split, the render gate, crash guard, timing log
@@ -48,7 +60,7 @@ protocol LocalSynthHost: AnyObject, Sendable {
     /// `SynthRenderGate.shared` while loading Core ML models.
     func prepare() async throws
     /// ONE model call for already-sized text. The caller holds the render gate.
-    func synthesizeOnce(text: String) async throws -> SynthesizedPCM
+    func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM
     /// Switch voice (no-op for single-voice engines).
     func setVoice(_ voice: String)
     /// Drop readiness so the next `prepare()` re-runs initialize.

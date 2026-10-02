@@ -308,9 +308,10 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     }
 
     /// One synth chunk → CAF (GlobalSynthQueue worker). Re-splits internally on overflow.
-    func renderChunkToFile(text: String, destination: URL, context: [String: Any]) async throws -> TimeInterval {
+    func renderChunkToFile(text: String, destination: URL, context: [String: Any],
+                           priority: RenderPriority) async throws -> TimeInterval {
         try await prepareIfNeeded()
-        return try await currentRenderer().renderChunk(text: text, to: destination, context: context)
+        return try await currentRenderer().renderChunk(text: text, to: destination, context: context, priority: priority)
     }
 
     /// Apple TTS render of one chunk (never-skip fallback when the engine cannot synthesize it).
