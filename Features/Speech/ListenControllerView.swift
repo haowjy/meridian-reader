@@ -80,7 +80,9 @@ struct ListenControllerView: View {
                     }
                 }
             }
-            .foregroundStyle(.primary)
+            // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI gives
+            // disabled buttons, so ⏮ / ⏭ at the first / last paragraph would look tappable.
+            .tint(.primary)
         }
         // No background or margins of its own: the reader puts it (under the scrub capsule) in
         // the shared bottom band (`bottomChromeBand`), exactly like the browser's toolbar row.
