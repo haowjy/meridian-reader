@@ -153,6 +153,29 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(waitFor("exists == false", element(app, "moreMenuPanel")))
     }
 
+    /// The ⋯ panel follows a vertical drag: an upward one springs back (rubber band), a downward
+    /// one collapses it back into the button.
+    func testMenuPanelSwipeUpSpringsBackAndSwipeDownCollapses() throws {
+        let app = launch(testPage: false)
+        let more = app.buttons["browseMore"]
+        XCTAssertTrue(more.waitForExistence(timeout: 5))
+        more.tap()
+        let panel = element(app, "moreMenuPanel")
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        RunLoop.current.run(until: Date().addingTimeInterval(1.0)) // morph finished
+        let open = panel.frame
+
+        panel.swipeUp()
+        RunLoop.current.run(until: Date().addingTimeInterval(1.0))
+        XCTAssertTrue(panel.exists, "an upward drag doesn't close the menu")
+        XCTAssertEqual(panel.frame.minY, open.minY, accuracy: 1, "…and the panel springs back")
+
+        panel.swipeDown()
+        XCTAssertTrue(waitFor("exists == false", panel), "swipe down collapses the menu")
+        more.tap()
+        XCTAssertTrue(panel.waitForExistence(timeout: 3), "⋯ is back and opens the menu again")
+    }
+
     func testReaderIconAndReaderToggle() throws {
         let app = launch(testPage: true)
         let link = app.links["Next page"]

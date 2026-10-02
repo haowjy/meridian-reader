@@ -32,6 +32,8 @@ struct MorphMenuOverlay<Panel: View>: View {
     @State private var expanded = false
     @State private var panelSize = CGSize(width: 300, height: 420)
     @State private var dragOffset: CGFloat = 0
+    /// Axis of the panel drag in progress, fixed at its first movement (nil between drags).
+    @State private var dragAxis: Axis?
     /// The focus icon's center in panel coordinates (unscaled).
     @State private var focus: CGPoint?
 
@@ -136,6 +138,7 @@ struct MorphMenuOverlay<Panel: View>: View {
 
     private func present() {
         dragOffset = 0
+        dragAxis = nil
         if mounted {
             // Re-opened while collapsing: grow back from where it is.
             withAnimation(MorphMenu.animation) { expanded = true }
@@ -149,20 +152,29 @@ struct MorphMenuOverlay<Panel: View>: View {
         guard mounted else { return }
         withAnimation(MorphMenu.animation) {
             expanded = false
+            // Shrink back into the button from wherever a swipe left the panel.
+            dragOffset = 0
         } completion: {
             if !isPresented { mounted = false }
         }
     }
 
+    /// The panel follows a vertical drag (down freely, up with rubber-band resistance); a
+    /// horizontal one leaves it in place. Released far enough or flung down, it collapses.
     private var swipeDownToDismiss: some Gesture {
         DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance)
             .onChanged { value in
-                dragOffset = SwipeGesturePolicy.verticalOffset(for: value.translation)
+                let axis = dragAxis ?? SwipeGesturePolicy.axis(ofFirstMovement: value.translation)
+                dragAxis = axis
+                guard axis == .vertical else { return }
+                dragOffset = SwipeGesturePolicy.dismissOffset(forVerticalTranslation: value.translation.height)
             }
             .onEnded { value in
-                if SwipeGesturePolicy.shouldCommitVerticalDismiss(
-                    translation: value.translation,
-                    predicted: value.predictedEndTranslation
+                let vertical = dragAxis == .vertical
+                dragAxis = nil
+                if vertical, SwipeGesturePolicy.shouldCommitDownwardDismiss(
+                    translation: value.translation.height,
+                    predicted: value.predictedEndTranslation.height
                 ) {
                     dismiss()
                 } else {

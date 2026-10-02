@@ -25,8 +25,24 @@ enum SwipeGesturePolicy {
     static func shouldCommitVerticalDismiss(translation: CGSize, predicted: CGSize) -> Bool {
         guard translation.height > 0,
               translation.height > abs(translation.width) * axisDominance else { return false }
-        return translation.height > verticalCommitDistance
-            || predicted.height > verticalCommitPrediction
+        return shouldCommitDownwardDismiss(translation: translation.height, predicted: predicted.height)
+    }
+
+    /// The axis a drag moves along, decided once from its first movement and kept for the rest of
+    /// the gesture, so a drag that drifts diagonally never flips between following and not.
+    static func axis(ofFirstMovement translation: CGSize) -> Axis {
+        abs(translation.height) > abs(translation.width) ? .vertical : .horizontal
+    }
+
+    /// Offset of a swipe-down-to-dismiss surface for a vertical drag: it follows the finger down
+    /// and resists going up (rubber band), so the surface never jumps.
+    static func dismissOffset(forVerticalTranslation t: CGFloat) -> CGFloat {
+        t >= 0 ? t : -pow(-t, 0.7)
+    }
+
+    /// Release of a drag already locked to the vertical axis: far enough down, or flung down.
+    static func shouldCommitDownwardDismiss(translation: CGFloat, predicted: CGFloat) -> Bool {
+        translation > verticalCommitDistance || predicted > verticalCommitPrediction
     }
 
     static func horizontalDirection(translation: CGSize, predicted: CGSize) -> SwipeGestureDirection? {
