@@ -14,13 +14,15 @@ import Foundation
 ///   so cached audio keeps its "kokoro.<voice>" key and all curated voices work.
 /// - Style vector = voice-pack row `len(phonemes) − 1` (FluidAudio / kokoro-onnx rule); output ×0.69
 ///   to match the Core ML route's loudness (ONNX measured ≈3 dB louder).
-/// - Threads: `KokoroRouteSettings.cpuThreads` (default 3); the session and every run live on a
-///   `.userInitiated` queue so ORT's pool inherits that QoS. One call at a time (render gate).
+/// - Threads: `KokoroRouteSettings.cpuThreads` (default 3). The session is created on a
+///   `.userInitiated` queue, so ORT's pool threads (spawned then) keep that QoS. Each run is
+///   called from a queue of the call's `RenderPriority`: `.utility` for bake-ahead lowers only the
+///   calling thread's share (ORT has no per-run thread QoS or count). One call at a time (render gate).
 final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Sendable {
     let engineID: SpeechEngineID = .kokoro
     var onProgress: (@Sendable (Double) -> Void)?
     let threads: Int
-    let qos: DispatchQoS.QoSClass = .userInitiated
+    let sessionQoS: DispatchQoS.QoSClass = .userInitiated
     /// Calls above this many tokens are re-split by the renderer (`inputTooLong`). Chunks are
     /// ≤ 280 units (`TextChunker.Limits.kokoroCPU`, ≈1.0–1.3 tokens per char); this only catches
     /// phoneme-dense text (numbers, acronyms). Kokoro's own cap is 510 phonemes.
@@ -79,7 +81,7 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
         let progress = onProgress
         let voice = self.voice
         let threads = self.threads
-        let qos = self.qos
+        let qos = self.sessionQoS
         return Task {
             let t0 = ListenTimingLog.now()
             let reused = CPURouteModelStore.fileLooksInstalled
@@ -137,8 +139,9 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
         }
     }
 
-    func synthesizeOnce(text: String) async throws -> SynthesizedPCM {
+    func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM {
         let (fe, session) = lock.withLock { (frontend, self.session) }
+        let qos = priority.qos
         guard let fe, let session else { throw LocalSynthError.engineUnavailable("Kokoro (CPU) not loaded") }
         let voice = currentVoice
         let t0 = ListenTimingLog.now()

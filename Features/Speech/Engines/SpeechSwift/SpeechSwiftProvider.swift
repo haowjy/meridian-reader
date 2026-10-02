@@ -75,7 +75,7 @@ final class Qwen3Host: LocalSynthHost, @unchecked Sendable {
         }
     }
 
-    func synthesizeOnce(text: String) async throws -> SynthesizedPCM {
+    func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM {
         guard let model = lock.withLock({ model }) else { throw LocalSynthError.engineUnavailable("Qwen3 not loaded") }
         // Map the library's "too many tokens" error to .inputTooLong so LocalChunkRenderer re-splits.
         let samples = try model.synthesize(text: text, language: "english")

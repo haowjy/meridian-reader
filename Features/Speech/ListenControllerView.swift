@@ -21,10 +21,6 @@ struct ListenControllerView: View {
         speech.activeSessionID == session.id
     }
 
-    private var isSpeakingHere: Bool {
-        speech.isActive(sessionID: session.id)
-    }
-
     /// False while OfflineArticleView is still building paragraphs off the main thread.
     private var sessionReady: Bool {
         !session.document.isEmpty
@@ -32,9 +28,9 @@ struct ListenControllerView: View {
 
     var body: some View {
         // Debug chip, bake overlay, buffering / language notes live ABOVE the scrubber
-        // (`ArticleListenSurface.listenStatusNotes`, Nav J) so they never sit on ⋯ or push it.
+        // (`ArticleListenSurface.listenStatusNotes`) so they never sit on ⋯ or push it.
         VStack(spacing: 4) {
-            // The browser's five-slot grid (Nav I): `[1×][⏮][▶︎][⏭][⋯]` under `[‹][›][Search][ ][⋯]`,
+            // The browser's five-slot grid: `[1×][⏮][▶︎][⏭][⋯]` under `[‹][›][Search][ ][⋯]`,
             // plain 19 pt glyphs.
             BottomToolbarLayout {
                 speedButton
@@ -84,13 +80,18 @@ struct ListenControllerView: View {
                     }
                 }
             }
-            .foregroundStyle(.primary)
+            // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI gives
+            // disabled buttons, so ⏮ / ⏭ at the first / last paragraph would look tappable.
+            .tint(.primary)
         }
         // No background or margins of its own: the reader puts it (under the scrub capsule) in
         // the shared bottom band (`bottomChromeBand`), exactly like the browser's toolbar row.
         .simultaneousGesture(paragraphSwipe)
-        .onChange(of: speech.currentParagraphIndex) { _, _ in reportProgress() }
-        .onChange(of: speech.spokenUTF16Offset) { _, _ in reportProgress() }
+        .background {
+            if let onProgress {
+                ListenProgressReporter(speech: speech, sessionID: session.id, onProgress: onProgress)
+            }
+        }
         .sheet(isPresented: $showListenDebug) {
             ListenDebugPanel(speech: speech)
         }
@@ -163,6 +164,29 @@ struct ListenControllerView: View {
     private func reportProgress() {
         guard speech.activeSessionID == session.id else { return }
         onProgress?(speech.currentParagraphIndex, speech.spokenUTF16Offset)
+    }
+}
+
+/// Reports the live position of `sessionID` to `onProgress` as it moves. An empty view of its
+/// own: the position changes several times a second while playing, and only this needs it.
+private struct ListenProgressReporter: View {
+    let speech: SpeechController
+    let sessionID: UUID
+    let onProgress: (Int, Int) -> Void
+
+    private struct Position: Equatable {
+        let paragraph: Int
+        let utf16Offset: Int
+    }
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+            .onChange(of: Position(paragraph: speech.currentParagraphIndex, utf16Offset: speech.spokenUTF16Offset)) { _, position in
+                guard speech.activeSessionID == sessionID else { return }
+                onProgress(position.paragraph, position.utf16Offset)
+            }
     }
 }
 

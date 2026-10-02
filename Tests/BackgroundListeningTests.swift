@@ -266,7 +266,7 @@ final class BackgroundListeningTests: XCTestCase {
         let hash = ArticleIdentity.paragraphHash(paras[0])
         let c0 = ctx.audioCache.chunkURL(articleID: key, paragraphIndex: 0, textHash: hash, chunk: 0)
         let start = Date()
-        while !ctx.audioCache.isUsableChunk(c0) {
+        while !ctx.audioCache.isUsableAudioFile(c0) {
             if Date().timeIntervalSince(start) > 10 { XCTFail("chunk 0 never rendered"); return }
             try await Task.sleep(nanoseconds: 5_000_000)
         }
@@ -320,7 +320,7 @@ final class BackgroundListeningTests: XCTestCase {
         let state = AppRunState(phase: .background)
         let (queue, ctx) = makeQueue(FakeEngineProvider(config: .init(rendersInBackground: true)), runState: state)
         let playing = UUID(), other = UUID()
-        ctx.playingKey = playing
+        ctx.playingCacheKey = playing
         let paras = [sentence(1), sentence(2), sentence(3)]
         let otherParas = [sentence(7), sentence(8)]
         queue.openArticle(cacheKey: other, paragraphs: otherParas, voiceID: "v", isEphemeral: false)

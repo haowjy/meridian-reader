@@ -42,7 +42,7 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
         lock.withLock { prepared = true }
     }
 
-    func synthesizeOnce(text: String) async throws -> SynthesizedPCM {
+    func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM {
         if config.latency > 0 { try await Task.sleep(nanoseconds: UInt64(config.latency * 1e9)) }
         if config.failAlways {
             lock.withLock { _calls.append((text, false)) }
@@ -137,8 +137,8 @@ final class FakeQueueContext: SynthQueueContext, SynthChunkRendering {
     var synthRenderer: SynthChunkRendering { self }
     var engineShortName: String { "Fake" }
 
-    /// (article key, paragraph, chunk) in render order.
-    private(set) var renders: [(key: UUID, p: Int, c: Int)] = []
+    /// (article key, paragraph, chunk, priority) in render order.
+    private(set) var renders: [(key: UUID, p: Int, c: Int, priority: RenderPriority)] = []
     private(set) var fallbackTexts: [String] = []
     private(set) var completed: [UUID] = []
 
@@ -158,19 +158,19 @@ final class FakeQueueContext: SynthQueueContext, SynthChunkRendering {
     func normalizedCacheVoice(_ voiceID: String) -> String { activeVoice ?? voiceID }
     func fallbackAppleVoice(forCacheVoice voiceID: String) -> String? { nil }
     var activeRouteRendersInBackground: Bool { host.rendersInBackground }
-    /// Article "playing" right now (background bake-ahead scope on the CPU route).
-    var playingKey: UUID?
-    var backgroundRenderCacheKey: UUID? { playingKey }
+    /// Article "playing" right now (listener priority; background bake-ahead scope on the CPU route).
+    var playingCacheKey: UUID?
     func noteBakeMarksChanged() {}
     func bakeCompleted(cacheKey: UUID) { completed.append(cacheKey) }
 
-    func renderChunkToFile(text: String, destination: URL, context: [String: Any]) async throws -> TimeInterval {
+    func renderChunkToFile(text: String, destination: URL, context: [String: Any],
+                           priority: RenderPriority) async throws -> TimeInterval {
         // Context "key" is only a short prefix; recover the article UUID from the destination
         // path (<root>/<article uuid>/chunks/…) — the last UUID component (the Simulator's
         // device / app container ids come earlier in the path).
         let key = destination.pathComponents.compactMap(UUID.init(uuidString:)).last ?? UUID()
-        renders.append((key, context["p"] as? Int ?? -1, context["c"] as? Int ?? -1))
-        return try await chunkRenderer.renderChunk(text: text, to: destination, context: context)
+        renders.append((key, context["p"] as? Int ?? -1, context["c"] as? Int ?? -1, priority))
+        return try await chunkRenderer.renderChunk(text: text, to: destination, context: context, priority: priority)
     }
 
     /// Stand-in for Apple TTS (AVSpeechSynthesizer.write is unreliable in unit tests).

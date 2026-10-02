@@ -2,9 +2,9 @@ import Foundation
 import AVFoundation
 import Observation
 
-/// Listen façade for UI. Phase / playhead live in `playback` (PlaybackSessionState).
-/// Engines are commanded; they never clear the session themselves without an event.
-/// See docs/LISTEN_PLAYBACK.md.
+/// Listen façade for UI. Phase / playhead live in `playback` (PlaybackSessionState); views read
+/// the published copies below it. Engines are commanded; they never clear the session themselves
+/// without an event. See docs/LISTEN_PLAYBACK.md.
 @MainActor
 @Observable
 final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
@@ -12,15 +12,43 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     // injected via ReaderApp + the environment default. A second instance would warm a second
     // copy of the local model.
     nonisolated(unsafe) private let synthesizer = AVSpeechSynthesizer()
+    /// Apple synthesizer state (Listen debug).
+    var appleSynthesizerState: (isSpeaking: Bool, isPaused: Bool) { (synthesizer.isSpeaking, synthesizer.isPaused) }
     private let voiceDefaultsKey = "reader.selectedVoiceIdentifier"
     private let languageDefaultsKey = "reader.selectedLanguageCode"
     private let rateDefaultsKey = "reader.rateMultiplier"
     static let languageAutomaticKey = "reader.languageAutomatic"
 
-    /// Single source of truth for Listen phase + playhead.
-    private(set) var playback = PlaybackSessionState() {
-        didSet { refreshNowPlaying() }
+    /// Single source of truth for Listen phase + playhead. Not observed directly: every change is
+    /// copied into the published properties below, each assigned only when its value changes.
+    @ObservationIgnored private(set) var playback = PlaybackSessionState() {
+        didSet { publishPlayback() }
     }
+
+    // MARK: Published playback (what views observe)
+    //
+    // Observation tracks stored properties one by one. The in-paragraph offset moves several
+    // times a second while playing; keeping it apart means a view that reads only the article,
+    // phase or paragraph is not redrawn for it. Read `spokenUTF16Offset` only in small leaf views
+    // (scrubber thumb, mini-player fill, progress reporter).
+
+    private(set) var activeSessionID: UUID?
+    private(set) var document: ParagraphDocument = .empty
+    private(set) var playbackPhase: PlaybackPhase = .idle
+    private(set) var currentParagraphIndex = 0
+    private(set) var spokenUTF16Offset = 0
+
+    /// What the listen bar shows from the engine. Engine state isn't observable, so
+    /// `sampleListenStatus` takes this on every playback change and each tick of the playing
+    /// poll, and bumps `listenStatusRevision` only when it differs: views that show it
+    /// (`showsPauseIcon`, `isBufferingNext`, `renderNote`) redraw exactly when it changes.
+    private struct ListenStatus: Equatable {
+        var showsPause = false
+        var bufferingNext = false
+        var renderNote: String?
+    }
+    @ObservationIgnored private var listenStatus = ListenStatus()
+    private var listenStatusRevision = 0
 
     // MARK: Background listening (audio session, lock screen, interruptions)
 
@@ -77,11 +105,9 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     /// Inline bake debug strip above the listen controls (chip toggle).
     var showBakeDebugOverlay = false
     private static let listenDebugEnabledKey = "reader.listenDebugEnabled"
-    /// Bumped while local-engine listen may be awaiting the next CAF so UI can show buffering.
-    private(set) var bufferingRevision = 0
-    private var bufferingPollTask: Task<Void, Never>?
+    @ObservationIgnored private var bufferingPollTask: Task<Void, Never>?
 
-    private var usesLocalPlayback: Bool {
+    var usesLocalPlayback: Bool {
         localTTS.selectedEngineID.isLocal
             && localTTS.engines.supports(localTTS.selectedEngineID)
             && localTTS.localHostReady
@@ -100,7 +126,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
 
     /// Engine the language picker would use: the active local engine (selected or pending),
     /// else the selected one.
-    private var languageEngineDescriptor: EngineDescriptor? {
+    var languageEngineDescriptor: EngineDescriptor? {
         localTTS.engines.descriptor(localTTS.activeLocalEngineID ?? localTTS.selectedEngineID)
     }
 
@@ -133,34 +159,56 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     /// Cache voice key for local-engine audio (e.g. "kokoro.af_heart").
     var cacheVoiceID: String { localTTS.cacheVoiceID(appleVoice: selectedVoiceIdentifier) }
 
-    // MARK: - Compatibility projections (UI binds these)
+    var isPlaying: Bool { playbackPhase == .playing }
 
-    var activeSessionID: UUID? { playback.articleID }
-    var document: ParagraphDocument { playback.document }
-    var currentParagraphIndex: Int { playback.playhead }
-    var spokenUTF16Offset: Int { playback.utf16Offset }
-
-    enum PlaybackState: Equatable {
-        case idle, prepared, playing, paused
+    /// Copies `playback` into the published properties (only the ones that changed), then
+    /// refreshes what is derived from it: the lock screen and the listen-bar status.
+    private func publishPlayback() {
+        var nowPlayingChanged = false
+        if activeSessionID != playback.articleID { activeSessionID = playback.articleID; nowPlayingChanged = true }
+        if document != playback.document { document = playback.document; nowPlayingChanged = true }
+        if playbackPhase != playback.phase { playbackPhase = playback.phase; nowPlayingChanged = true }
+        if currentParagraphIndex != playback.playhead { currentParagraphIndex = playback.playhead; nowPlayingChanged = true }
+        if spokenUTF16Offset != playback.utf16Offset { spokenUTF16Offset = playback.utf16Offset }
+        if nowPlayingChanged { refreshNowPlaying() }
+        sampleListenStatus()
     }
 
-    var playbackState: PlaybackState {
-        switch playback.phase {
-        case .idle, .finished: return .idle
-        case .prepared: return .prepared
-        case .playing: return .playing
-        case .paused: return .paused
-        }
+    private func sampleListenStatus() {
+        let status = ListenStatus(showsPause: activeSessionShowsPause(), bufferingNext: engineIsBufferingNext(),
+                                  renderNote: currentRenderNote())
+        guard status != listenStatus else { return }
+        listenStatus = status
+        listenStatusRevision &+= 1
     }
 
-    var isPlaying: Bool { playback.phase == .playing }
-    var isPaused: Bool { playback.phase == .paused }
+    /// Pause (not Play) on the active session's button.
+    func showsPauseIcon(for sessionID: UUID) -> Bool {
+        guard activeSessionID == sessionID else { return false }
+        _ = listenStatusRevision
+        return activeSessionShowsPause()
+    }
 
-    /// True when listen intent is still active but the player has no audible unit and more
-    /// paragraphs remain (awaiting GlobalSynthQueue / producer). Not the same as paused.
-    /// Reads `bufferingRevision` so SwiftUI invalidates while polling.
+    /// Listen intent is active but nothing is audible and more paragraphs remain (the local
+    /// engine is waiting for the render queue / producer). Not the same as paused.
     var isBufferingNext: Bool {
-        _ = bufferingRevision
+        _ = listenStatusRevision
+        return engineIsBufferingNext()
+    }
+
+    /// Listen-bar note while the paragraph playing is Apple TTS instead of the local engine.
+    var renderNote: String? {
+        _ = listenStatusRevision
+        return currentRenderNote()
+    }
+
+    /// Audible audio always shows Pause, even while the phase briefly disagrees (a pause request
+    /// the engine hasn't applied yet).
+    private func activeSessionShowsPause() -> Bool {
+        playback.articleID != nil && (engineSnapshot().isAudible || playback.phase == .playing)
+    }
+
+    private func engineIsBufferingNext() -> Bool {
         guard usesLocalPlayback else { return false }
         guard playback.articleID != nil else { return false }
         guard playback.phase == .playing else { return false }
@@ -174,26 +222,39 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         return eng.debugAwaitingMore || eng.debugProducerActive || eng.debugBufferedCount == 0
     }
 
+    private func currentRenderNote() -> String? {
+        guard usesLocalPlayback, playback.phase == .playing || playback.phase == .paused,
+              let reason = localTTS.localEngineInstance.currentAppleFallbackReason else { return nil }
+        return reason.localizedNote(engine: localTTS.localEngineInstance.engineShortName)
+    }
+
+    /// Local playback only, while playing (5 Hz).
     private func startBufferingPoll() {
         bufferingPollTask?.cancel()
         bufferingPollTask = Task { [weak self] in
             while !Task.isCancelled {
-                guard let self else { return }
-                self.bufferingRevision &+= 1
-                if self.playback.phase != .playing {
-                    break
-                }
-                self.updateLocalPlaybackOffset()
-                #if canImport(UIKit)
-                if self.localTTS.synthQueue.runState.phase == .background, self.isBufferingNext {
-                    self.playbackGrace.begin()
-                } else {
-                    self.playbackGrace.end()
-                }
-                #endif
+                guard let self, self.playback.phase == .playing else { return }
+                self.playingPollTick()
                 try? await Task.sleep(nanoseconds: 200_000_000)
             }
         }
+    }
+
+    /// Foreground: move the in-paragraph offset with the player and re-sample the listen-bar
+    /// status (engine state changes without an event: a unit runs out, the producer starts
+    /// waiting). Background: nothing on screen needs either — only keep the app alive while the
+    /// player waits for audio (with nothing audible iOS may suspend it). Pausing and coming back
+    /// to the foreground catch the offset up.
+    private func playingPollTick() {
+        #if canImport(UIKit)
+        if localTTS.synthQueue.runState.phase == .background {
+            if engineIsBufferingNext() { playbackGrace.begin() } else { playbackGrace.end() }
+            return
+        }
+        playbackGrace.end()
+        #endif
+        updateLocalPlaybackOffset()
+        sampleListenStatus()
     }
 
     private func stopBufferingPoll() {
@@ -202,7 +263,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         #if canImport(UIKit)
         playbackGrace.end()
         #endif
-        bufferingRevision &+= 1
+        sampleListenStatus()
     }
 
     static let rateOptions: [Double] = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
@@ -309,27 +370,16 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         return String(format: "%g×", rounded)
     }
 
-    var paragraphCount: Int { playback.paragraphCount }
-    var isPrepared: Bool { playback.isPrepared }
-    var isActive: Bool { playback.articleID != nil && (isPlaying || isPaused) }
+    var isPrepared: Bool { activeSessionID != nil && !document.isEmpty }
+    var isActive: Bool { activeSessionID != nil && (playbackPhase == .playing || playbackPhase == .paused) }
 
     var canSkipToPreviousParagraph: Bool { isPrepared && currentParagraphIndex > 0 }
     var canSkipToNextParagraph: Bool { isPrepared && currentParagraphIndex + 1 < document.count }
 
-    func isActive(sessionID: UUID) -> Bool {
-        playback.articleID == sessionID && (isPlaying || isPaused)
-    }
-
     func isPrepared(sessionID: UUID) -> Bool {
-        playback.articleID == sessionID && isPrepared
+        activeSessionID == sessionID && isPrepared
     }
 
-    func showsPauseIcon(for sessionID: UUID) -> Bool {
-        guard playback.articleID == sessionID else { return false }
-        let snap = engineSnapshot()
-        // Audible audio always shows Pause, even if phase briefly disagrees.
-        return snap.isAudible || playback.phase == .playing
-    }
 
     // MARK: - Session API (intents)
 
@@ -419,7 +469,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
 
     /// Title of the loaded article (mini player). nil when nothing is loaded.
     var nowPlayingTitle: String? {
-        guard let id = playback.articleID, nowPlayingMeta?.id == id else { return nil }
+        guard let id = activeSessionID, nowPlayingMeta?.id == id else { return nil }
         return nowPlayingMeta?.title
     }
 
@@ -593,52 +643,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         ListenTimingLog.log("app_phase", fields)
     }
 
-    /// Consecutive paragraphs after the playhead already rendered in the current voice.
-    func readyAheadCount() -> Int {
-        guard let id = playback.articleID, usesLocalPlayback else { return 0 }
-        var n = 0
-        var i = playback.playhead + 1
-        while i < playback.paragraphCount,
-              localTTS.audioCache.audioURL(articleID: id, paragraphIndex: i,
-                                           engineID: localTTS.cacheEngineID, voiceID: cacheVoiceID) != nil {
-            n += 1
-            i += 1
-        }
-        return n
-    }
-
-    /// Debug: how audio is being produced right now (foreground GPU / background / Apple).
-    var renderModeLabel: String {
-        let phase = localTTS.synthQueue.runState.phase
-        guard usesLocalPlayback else { return "Apple TTS (AVSpeechSynthesizer) · \(phase.rawValue)" }
-        let eng = localTTS.localEngineInstance
-        let pace = RenderPace.shared.snapshot.speed.map { String(format: " · %.1f× real time", $0) } ?? ""
-        if eng.hostRendersInBackground {
-            switch phase {
-            case .active, .inactive:
-                return "\(phase.rawValue) · \(eng.engineShortName) ONNX CPU (\(eng.hostRoutingLabel ?? "cpu"))\(pace)"
-            case .background:
-                return "background · \(eng.engineShortName) ONNX CPU keeps rendering (playing article)\(pace)"
-            }
-        }
-        switch phase {
-        case .active:
-            return "foreground · \(eng.engineShortName) Core ML (\(eng.hostRoutingLabel ?? "default"))"
-        case .inactive:
-            return "inactive · \(eng.engineShortName) for playhead only, bake-ahead held"
-        case .background:
-            return "background · no Core ML — baked audio + Apple fallback"
-        }
-    }
-
-    /// Listen-bar note while the paragraph playing is Apple TTS instead of the local engine.
-    var renderNote: String? {
-        guard usesLocalPlayback, playback.phase == .playing || playback.phase == .paused,
-              let reason = localTTS.localEngineInstance.currentAppleFallbackReason else { return nil }
-        _ = bufferingRevision
-        return reason.localizedNote(engine: localTTS.localEngineInstance.engineShortName)
-    }
-
     // MARK: - Intent execution
 
     private func perform(_ intent: PlaybackIntent) {
@@ -665,7 +669,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         }
     }
 
-    private func engineSnapshot() -> PlaybackEngineSnapshot {
+    func engineSnapshot() -> PlaybackEngineSnapshot {
         if usesLocalPlayback {
             let eng = localTTS.localEngineInstance
             return .init(isAudible: eng.isAudible || eng.isSpeaking, isPaused: eng.isPaused)
@@ -679,6 +683,8 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     private func pauseEngines() {
         if usesLocalPlayback {
             localTTS.localEngineInstance.pause()
+            // The poll doesn't track the offset in the background: take the paused spot now.
+            updateLocalPlaybackOffset()
             playback.handle(.becamePaused)
             stopBufferingPoll()
             return
@@ -910,11 +916,12 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         return ChunkOffsets.locate(offset: offset, starts: chunkStarts(paragraph: paragraph), length: length)
     }
 
-    /// Local engine: estimate the spoken spot inside the playing paragraph from the player's time
-    /// (chunk boundaries + time into the chunk, proportional by characters) and move the session
-    /// offset there, so the scrubber thumb moves smoothly and scrub-back starts from it.
+    /// Local engine: estimate the spoken spot inside the playing (or just paused) paragraph from
+    /// the player's time (chunk boundaries + time into the chunk, proportional by characters) and
+    /// move the session offset there, so the scrubber thumb moves smoothly and scrub-back starts
+    /// from it.
     private func updateLocalPlaybackOffset() {
-        guard usesLocalPlayback, playback.phase == .playing,
+        guard usesLocalPlayback, playback.phase == .playing || playback.phase == .paused,
               let pos = localTTS.localEngineInstance.currentPlaybackPosition else { return }
         let p = pos.item.paragraphIndex
         guard p == playback.playhead, document.paragraphs.indices.contains(p) else { return }
@@ -929,9 +936,8 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             within = from + Int(Double(length - from) * fractionOfFile)
         case .baked, .stitched:
             // The stitched paragraph CAF: locate the chunk from its recorded durations.
-            let durations = localTTS.localEngineInstance.chunkDurationsProvider?(p)
             let loc = ChunkOffsets.locate(time: pos.time, fileDuration: pos.duration,
-                                          durations: durations, chunkCount: starts.count)
+                                          durations: pos.item.chunkDurations, chunkCount: starts.count)
             within = loc.chunk < 0
                 ? Int(Double(length) * loc.fraction)
                 : ChunkOffsets.offset(chunk: loc.chunk, fraction: loc.fraction, starts: starts, length: length)
@@ -1010,7 +1016,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         guard let localID = localTTS.activeLocalEngineID, localTTS.engines.supports(localID),
               localTTS.engines.descriptor(localID)?.supportsBakeCache == true else { return nil }
         // Article speaks with Apple (language the engine can't speak): no marks, like Apple.
-        let detected = detectedLanguage ?? (articleID == playback.articleID ? sessionDetectedLanguage : nil)
+        let detected = detectedLanguage ?? (articleID == activeSessionID ? sessionDetectedLanguage : nil)
         guard languageResolution(detected: detected).engineID.isLocal else { return nil }
         // Hide until unit count is known — empty Set would mark every HTML block not-ready.
         guard paragraphCount > 0 else { return nil }
@@ -1022,137 +1028,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             engineID: self.localTTS.cacheEngineID,
             voiceID: cacheVoiceID
         )
-    }
-
-    // MARK: - Listen debug
-
-    func listenDebugSnapshot() -> ListenDebugSnapshot {
-        let eng = localTTS.localEngineInstance
-        let usingLocal = usesLocalPlayback
-        let articleID = playback.articleID
-        let paragraphs = playback.document.paragraphs
-        let queue = localTTS.synthQueue
-        let bakePlan: String
-        let pending: Int
-        if let articleID {
-            bakePlan = queue.planDescription(for: articleID)
-                ?? (queue.primaryCacheKey == articleID ? "primary" : "queued/idle")
-            pending = localTTS.bakeTasksCount(for: articleID)
-        } else if let primary = queue.primaryCacheKey {
-            bakePlan = queue.planDescription(for: primary) ?? "primary"
-            pending = localTTS.bakeTasksCount(for: primary)
-        } else {
-            bakePlan = "—"
-            pending = 0
-        }
-        let identityKey = articleID ?? queue.primaryCacheKey
-        let ready: Int
-        let totalForCache: Int
-        if let identityKey {
-            let count = (articleID != nil) ? paragraphs.count : (
-                // Fall back to cache status expected paragraphs when viewing queue #1 with no session.
-                paragraphs.count > 0 ? paragraphs.count : pending + 0
-            )
-            let expected = max(count, paragraphs.count)
-            switch localTTS.bakeStatus(for: identityKey, paragraphCount: max(expected, 1)) {
-            case .ready(paragraphCount: let n):
-                ready = n
-                totalForCache = n
-            case .partial(ready: let r, total: let t):
-                ready = r
-                totalForCache = t
-            case .baking, .missing:
-                ready = 0
-                totalForCache = max(paragraphs.count, 0)
-            }
-        } else {
-            ready = 0
-            totalForCache = paragraphs.count
-        }
-
-        let isEph: Bool = {
-            guard let key = identityKey else { return false }
-            if let flagged = queue.isEphemeral(cacheKey: key) { return flagged }
-            return localTTS.audioCache.loadMeta(for: key)?.kind == .ephemeral
-        }()
-        let articleIdentity: String = {
-            guard let key = identityKey else { return "—" }
-            let kind = isEph ? "eph" : "svd"
-            return "\(kind):\(key.uuidString.prefix(8))"
-        }()
-        let queuePrimary: String = {
-            guard let key = queue.primaryCacheKey else { return "—" }
-            let kind = (queue.isEphemeral(cacheKey: key) == true
-                        || localTTS.audioCache.loadMeta(for: key)?.kind == .ephemeral) ? "eph" : "svd"
-            return "\(kind):\(key.uuidString.prefix(8))"
-        }()
-        let activeBake: String = {
-            guard let key = queue.activeBakeCacheKey, let idx = queue.activeBakeIndex else { return "—" }
-            return "\(key.uuidString.prefix(8)) p\(idx)"
-        }()
-        let nextMissing: String = {
-            if let idx = queue.nextMissingIndex() { return "p\(idx)" }
-            return "—"
-        }()
-        let phaseLabel: String = {
-            if isBufferingNext { return "buffering" }
-            switch playback.phase {
-            case .playing: return "playing"
-            case .paused: return "paused"
-            case .prepared: return "prepared"
-            case .finished: return "finished"
-            case .idle: return "idle"
-            }
-        }()
-        let warmingLocal = localTTS.pendingEngineID?.isLocal == true && !localTTS.localHostReady
-        let snap = engineSnapshot()
-        return ListenDebugSnapshot(
-            phase: String(describing: playback.phase),
-            phaseLabel: phaseLabel,
-            engine: usingLocal ? eng.engineShortName : "Apple",
-            isAudible: snap.isAudible,
-            isSpeaking: usingLocal ? eng.isSpeaking : synthesizer.isSpeaking,
-            isPaused: usingLocal ? eng.isPaused : synthesizer.isPaused,
-            playhead: playback.playhead,
-            paragraphCount: paragraphs.count,
-            bufferedCount: usingLocal ? eng.debugBufferedCount : 0,
-            awaitingMore: usingLocal ? eng.debugAwaitingMore : false,
-            producerActive: usingLocal ? eng.debugProducerActive : false,
-            epoch: usingLocal ? eng.debugEpoch : 0,
-            currentCAF: usingLocal ? eng.debugCurrentCAF : "—",
-            secondsSinceEnqueue: usingLocal ? eng.debugSecondsSinceEnqueue : nil,
-            lastHandoffGapMs: usingLocal ? eng.debugLastHandoffGapMs : 0,
-            lastHandoffWasPrimed: usingLocal ? eng.debugLastHandoffWasPrimed : false,
-            starveEventCount: usingLocal ? eng.debugStarveEventCount : 0,
-            bakePlan: bakePlan,
-            bakePendingJobs: pending,
-            bakeReadyCount: ready,
-            bakeParagraphCount: totalForCache > 0 ? totalForCache : paragraphs.count,
-            articleIdentity: articleIdentity,
-            queuePrimary: queuePrimary,
-            demotedCount: queue.demotedCount,
-            activeBakeUnit: activeBake,
-            nextMissingUnit: nextMissing,
-            workerBusy: queue.isWorkerRunning,
-            warmingLocal: warmingLocal,
-            lastBakeEvent: queue.lastBakeEvent,
-            language: languageDebugLabel,
-            renderMode: renderModeLabel,
-            readyAhead: readyAheadCount(),
-            background: queue.runState.phase == .background
-                ? "now: " + eng.backgroundStats.label
-                : lastBackgroundSummary,
-            audioSession: "\(audioSession.isActive ? "active" : "inactive") · activations \(audioSession.activationCount)"
-        )
-    }
-
-    /// Debug overlay line: language code + source → engine.
-    var languageDebugLabel: String {
-        let r = languageResolution
-        let source = r.source == .detected ? "auto" : (r.source == .manual ? "manual" : "auto: undetected")
-        let engine = r.unsupportedEngineID != nil ? "Apple (\(languageEngineDescriptor?.languageLimitNote ?? "unsupported"))"
-            : localTTS.engines.shortName(r.engineID)
-        return "\(r.languageCode) (\(source)) → \(engine)"
     }
 
     // MARK: - AVSpeechSynthesizerDelegate

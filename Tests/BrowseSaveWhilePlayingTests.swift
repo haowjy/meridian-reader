@@ -71,7 +71,7 @@ final class BrowseSaveWhilePlayingTests: XCTestCase {
         let hash = ArticleIdentity.paragraphHash(bParas[0])
         let c0 = c.audioCache.chunkURL(articleID: b, paragraphIndex: 0, textHash: hash, chunk: 0)
         let start = Date()
-        while !c.audioCache.isUsableChunk(c0) {
+        while !c.audioCache.isUsableAudioFile(c0) {
             if Date().timeIntervalSince(start) > 10 { XCTFail("chunk 0 never rendered"); return }
             try await Task.sleep(nanoseconds: 10_000_000)
         }

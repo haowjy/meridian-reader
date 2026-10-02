@@ -56,7 +56,7 @@ Adapters do not own article documents, bake policy, or UI phase.
 
 Each unit is `Ready(URL)` or `Missing`.
 
-- **BakeCache** (`Application Support/TTSCache`): incremental `index.json` + `p-NNNN.caf` so partial bakes are playable.
+- **BakeCache** (`Application Support/TTSCache`): incremental `index.json` + `p-NNNN.caf` so partial bakes are playable. `ArticleAudioCache` reads each article's index once (dropping entries whose CAF is missing or empty) and keeps it in memory; every write goes through it, so ready / playable / bake-mark reads never touch the disk.
 - **Single Core ML worker**: never run two Core ML renders in parallel (that crashed before). Live listen and background bake share one gate.
 
 #### Priority producer
@@ -80,13 +80,15 @@ Produce **epoch** increments only on `stop` / `seek` / new `play` from a new ind
 
 #### Persistent bake
 
-The queue worker renders chunk CAFs, and once every chunk of a paragraph exists it stitches them and writes the paragraph with `ArticleAudioCache.storeParagraph`. Live listening and bake-ahead use the same path. Replays prefer the stitched paragraph CAF via `bakedURLProvider`.
+The queue worker renders chunk CAFs, and once every chunk of a paragraph exists it stitches them into the paragraph CAF off the main actor (`ArticleAudioCache.stitchParagraph`, renamed over `p-NNNN.caf`) and records it in the index on the main actor (`recordParagraph`). Live listening and bake-ahead use the same path. Replays prefer the stitched paragraph CAF via `bakedURLProvider`.
+
+Render priority: chunks of an article someone is listening to (a producer waits on one of its chunks, or its audio is playing) render at `RenderPriority.listener` (`.userInitiated`); everything else is bake-ahead at `.utility` (Kokoro ONNX: the calling thread's QoS — ORT's pool threads keep the session's). Bake-ahead is held while the thermal state is `.serious` or worse or Low Power Mode is on (`BakeConditions`), and resumes on the thermal / power-state change notification. Only listener calls feed `RenderPace` (the head-start rule).
 
 #### Background bake limits
 
-`BackgroundAudioBakeScheduler` persists pending bake jobs (articles saved or opened while the local engine was cold). They fold into the queue once the engine warms, and a finished article drops its job.
+`BackgroundAudioBakeScheduler` persists pending bake jobs (articles saved or opened while the local engine was cold) in `Application Support/PendingBakeJobs.json` (older builds used UserDefaults; the first load moves them). They fold into the queue once the engine warms, and a finished article drops its job.
 
-It also registers a `BGProcessingTask` (`com.jimmyyao.Reader.bake-audio`) and requests it on save. Reader starts **no Core ML call in the background** (see *Background listening* below), so when iOS runs the task it only re-requests itself, logs `bg_task_skipped`, and leaves the jobs pending for the foreground queue. Baking happens while the app is active (or inactive, for chunks a listener waits on); do not promise full-article completion in the background.
+It also registers a `BGProcessingTask` (`com.jimmyyao.Reader.bake-audio`), requested on save / cold open only while the active route may render in the background (Kokoro ONNX). Reader starts **no Core ML call in the background** (see *Background listening* below) and bakes ahead in the background only the article that is playing, so when iOS runs the task it logs `bg_task_skipped` and completes (no re-request), leaving the jobs pending for the foreground queue. Baking happens while the app is active (or inactive, for chunks a listener waits on); do not promise full-article completion in the background.
 
 
 ### 4. UI binding

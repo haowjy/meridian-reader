@@ -151,7 +151,7 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
         await manager.cleanup()
     }
 
-    func synthesizeOnce(text: String) async throws -> SynthesizedPCM {
+    func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM {
         do {
             let r = try await manager.synthesizeDetailed(text: text, voice: currentVoice, speed: 1.0)
             let st = r.timings
