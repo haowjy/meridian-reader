@@ -28,17 +28,19 @@ final class BrowseToolbarUITests: XCTestCase {
     /// Tap the dimmed backdrop of the morph menu (Safari-style: tap outside collapses it).
     private func center(_ f: CGRect) -> CGPoint { CGPoint(x: f.midX, y: f.midY) }
 
-    /// Nav H: with the menu open, the bottom-right button's icon (Reader / Website) sits exactly
-    /// where the ⋯ glyph was. `moreMenuFocus` (-uiTesting only) is that icon's measured center.
+    /// With the menu open, the bottom-right button's icon (Reader / Website) sits slightly up and
+    /// left of the ⋯ glyph (`MorphMenuUITestOffset`). `moreMenuFocus` (-uiTesting only) is that
+    /// icon's measured center.
     private func assertMenuAligned(_ app: XCUIApplication, more moreFrame: CGRect, button id: String,
                                    file: StaticString = #filePath, line: UInt = #line) {
         let focus = element(app, "moreMenuFocus")
         XCTAssertTrue(focus.waitForExistence(timeout: 3), "focus marker", file: file, line: line)
         RunLoop.current.run(until: Date().addingTimeInterval(1.0)) // morph finished
         let f = center(focus.frame), m = center(moreFrame)
-        XCTAssertEqual(f.x, m.x, accuracy: 1, "icon x == ⋯ x", file: file, line: line)
-        XCTAssertEqual(f.y, m.y, accuracy: 1, "icon y == ⋯ y", file: file, line: line)
-        XCTAssertEqual(element(app, id).frame.midX, m.x, accuracy: 1, "\(id) centered on ⋯", file: file, line: line)
+        let x = m.x - MorphMenuUITestOffset.width, y = m.y - MorphMenuUITestOffset.height
+        XCTAssertEqual(f.x, x, accuracy: 1, "icon left of ⋯", file: file, line: line)
+        XCTAssertEqual(f.y, y, accuracy: 1, "icon above ⋯", file: file, line: line)
+        XCTAssertEqual(element(app, id).frame.midX, x, accuracy: 1, "\(id) centered on the focus point", file: file, line: line)
     }
 
     private func dismissMenu(_ app: XCUIApplication) {
