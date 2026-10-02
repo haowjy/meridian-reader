@@ -57,7 +57,7 @@ final class EngineRetirementTests: XCTestCase {
         XCTAssertFalse(cache.hasCache(for: legacy))
         XCTAssertEqual(cache.readyIndices(articleID: kokoroOnly, paragraphCount: 2, engineID: "local.kokoro",
                                           voiceID: "kokoro.af_heart"), [0, 1])
-        XCTAssertEqual(try cache.loadIndex(for: mixed).paragraphs.map(\.index), [0])
+        XCTAssertEqual(try XCTUnwrap(cache.index(for: mixed)).paragraphs.map(\.index), [0])
         XCTAssertFalse(FileManager.default.fileExists(atPath: cache.directory(for: mixed).appendingPathComponent("p-0001.caf").path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: cache.directory(for: kokoroOnly).appendingPathComponent("p-0007.caf").path))
 

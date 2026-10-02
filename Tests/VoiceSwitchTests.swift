@@ -69,7 +69,7 @@ final class VoiceSwitchTests: XCTestCase {
         try store(cache, key, 1, voice: bella, seconds: 0.4)
         XCTAssertEqual(ready(cache, key, 3, voice: bella), [1])
         XCTAssertEqual(ready(cache, key, 3, voice: heart), [0, 2])
-        let mid = try cache.loadIndex(for: key)
+        let mid = try XCTUnwrap(cache.index(for: key))
         XCTAssertEqual(mid.voiceID, bella)
         XCTAssertEqual(mid.paragraphs.filter { $0.voiceID == heart }.map(\.index), [0, 2])
         XCTAssertEqual(cafFiles(cache, key), ["p-0000.caf", "p-0001.caf", "p-0002.caf"], "one file per paragraph")
@@ -84,7 +84,7 @@ final class VoiceSwitchTests: XCTestCase {
         try store(cache, key, 2, voice: bella, seconds: 0.4)
         XCTAssertEqual(ready(cache, key, 3, voice: bella), [0, 1, 2])
         XCTAssertEqual(ready(cache, key, 3, voice: heart), [])
-        let done = try cache.loadIndex(for: key)
+        let done = try XCTUnwrap(cache.index(for: key))
         XCTAssertTrue(done.paragraphs.allSatisfy { $0.voiceID == nil && $0.engineID == nil }, "no old-voice entries")
         XCTAssertEqual(cafFiles(cache, key).count, 3)
         XCTAssertEqual(cache.status(for: key, expectedParagraphs: 3), .ready(paragraphCount: 3))
@@ -102,7 +102,7 @@ final class VoiceSwitchTests: XCTestCase {
         let freed = cache.finalizeVoiceSwitch(articleID: key, paragraphCount: 3, engineID: kokoro, voiceID: bella)
         XCTAssertGreaterThan(freed, 0)
         XCTAssertEqual(cafFiles(cache, key), ["p-0000.caf", "p-0001.caf", "p-0002.caf"])
-        XCTAssertEqual(try cache.loadIndex(for: key).paragraphs.map(\.index), [0, 1, 2])
+        XCTAssertEqual(try XCTUnwrap(cache.index(for: key)).paragraphs.map(\.index), [0, 1, 2])
     }
 
     func testEngineSwitchFollowsTheSameRule() throws {
@@ -113,7 +113,7 @@ final class VoiceSwitchTests: XCTestCase {
         XCTAssertEqual(ready(cache, key, 2, engine: fake, voice: "fake.default"), [])
         XCTAssertNotNil(cache.playableAudioURL(articleID: key, paragraphIndex: 1, engineID: fake, voiceID: "fake.default"))
         try store(cache, key, 0, engine: fake, voice: "fake.default", seconds: 0.4)
-        let index = try cache.loadIndex(for: key)
+        let index = try XCTUnwrap(cache.index(for: key))
         XCTAssertEqual(index.engineID, fake)
         XCTAssertEqual(index.paragraphs.first { $0.index == 1 }?.engineID, kokoro, "stale unit keeps its engine")
         XCTAssertEqual(ready(cache, key, 2, voice: heart), [1])
@@ -143,7 +143,7 @@ final class VoiceSwitchTests: XCTestCase {
 
         XCTAssertEqual(ready(ctx.audioCache, key, 3, engine: ctx.cacheEngineID, voice: "fake.b"), [0, 1, 2])
         XCTAssertEqual(ready(ctx.audioCache, key, 3, engine: ctx.cacheEngineID, voice: "fake.a"), [])
-        let index = try ctx.audioCache.loadIndex(for: key)
+        let index = try XCTUnwrap(ctx.audioCache.index(for: key))
         XCTAssertEqual(index.voiceID, "fake.b")
         XCTAssertTrue(index.paragraphs.allSatisfy { $0.voiceID == nil })
         XCTAssertEqual(cafFiles(ctx.audioCache, key).count, 3, "no staging or old-voice files left")
@@ -153,15 +153,12 @@ final class VoiceSwitchTests: XCTestCase {
     /// Index files and pending bake jobs written before units were always rendered at 1× carry a
     /// `rate` key; they still decode (the key is ignored).
     func testLegacyRateKeyStillDecodes() throws {
-        let cache = tempCache()
         let key = UUID()
-        try FileManager.default.createDirectory(at: cache.directory(for: key), withIntermediateDirectories: true)
         let index = """
         {"engineID":"\(kokoro)","voiceID":"\(heart)","rate":1.25,"createdAt":0,
          "paragraphs":[{"index":0,"file":"p-0000.caf","duration":1.5}]}
         """
-        try Data(index.utf8).write(to: cache.indexURL(for: key))
-        let loaded = try cache.loadIndex(for: key)
+        let loaded = try JSONDecoder().decode(ArticleAudioCache.IndexFile.self, from: Data(index.utf8))
         XCTAssertEqual(loaded.voiceID, heart)
         XCTAssertEqual(loaded.paragraphs.map(\.index), [0])
 

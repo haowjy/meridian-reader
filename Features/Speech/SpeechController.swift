@@ -962,9 +962,8 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             within = from + Int(Double(length - from) * fractionOfFile)
         case .baked, .stitched:
             // The stitched paragraph CAF: locate the chunk from its recorded durations.
-            let durations = localTTS.localEngineInstance.chunkDurationsProvider?(p)
             let loc = ChunkOffsets.locate(time: pos.time, fileDuration: pos.duration,
-                                          durations: durations, chunkCount: starts.count)
+                                          durations: pos.item.chunkDurations, chunkCount: starts.count)
             within = loc.chunk < 0
                 ? Int(Double(length) * loc.fraction)
                 : ChunkOffsets.offset(chunk: loc.chunk, fraction: loc.fraction, starts: starts, length: length)
@@ -1094,7 +1093,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             case .partial(ready: let r, total: let t):
                 ready = r
                 totalForCache = t
-            case .baking, .missing:
+            case .missing:
                 ready = 0
                 totalForCache = max(paragraphs.count, 0)
             }

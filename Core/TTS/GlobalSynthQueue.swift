@@ -377,7 +377,7 @@ final class GlobalSynthQueue {
         failedUnits.remove(failedID(cacheKey, paragraphIndex, hash)) // live request = fresh try
 
         let chunkURL = cache.chunkURL(articleID: cacheKey, paragraphIndex: paragraphIndex, textHash: hash, chunk: chunk)
-        if cache.isUsableChunk(chunkURL) { return .chunk(chunkURL) }
+        if cache.isUsableAudioFile(chunkURL) { return .chunk(chunkURL) }
         if let resolved = paragraphResolution(cacheKey: cacheKey, index: paragraphIndex, chunk: chunk, voiceID: voiceID) {
             return resolved
         }
@@ -429,7 +429,7 @@ final class GlobalSynthQueue {
         let cache = coordinator.audioCache
         let url = cache.chunkURL(articleID: cacheKey, paragraphIndex: paragraphIndex,
                                  textHash: ArticleIdentity.paragraphHash(text), chunk: chunk)
-        if cache.isUsableChunk(url) { return true }
+        if cache.isUsableAudioFile(url) { return true }
         return paragraphResolution(cacheKey: cacheKey, index: paragraphIndex, chunk: chunk, voiceID: voiceID) != nil
     }
 
@@ -623,14 +623,14 @@ final class GlobalSynthQueue {
                 let waited = chunkWaiters.keys
                     .filter { $0.cacheKey == job.cacheKey && $0.index == index }
                     .map(\.chunk).sorted()
-                    .first { chunkURLs.indices.contains($0) && !cache.isUsableChunk(chunkURLs[$0]) }
-                if let k = waited ?? chunkURLs.firstIndex(where: { !cache.isUsableChunk($0) }) {
+                    .first { chunkURLs.indices.contains($0) && !cache.isUsableAudioFile(chunkURLs[$0]) }
+                if let k = waited ?? chunkURLs.firstIndex(where: { !cache.isUsableAudioFile($0) }) {
                     // Render ONE chunk, then loop (re-evaluates priority between chunks).
                     try await renderChunk(job: job, index: index, chunk: k, of: chunks.count,
                                           text: chunks[k], next: k + 1 < chunks.count ? chunks[k + 1] : nil,
                                           to: chunkURLs[k], hash: hash)
                     resumeChunkWaiters(cacheKey: job.cacheKey, index: index, chunk: k, url: chunkURLs[k])
-                    if chunkURLs.allSatisfy(cache.isUsableChunk) == false {
+                    if chunkURLs.allSatisfy(cache.isUsableAudioFile) == false {
                         activeBakeCacheKey = nil
                         activeBakeIndex = nil
                         continue

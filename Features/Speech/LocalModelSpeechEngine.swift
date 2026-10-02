@@ -422,8 +422,11 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
                 // Baked paragraph (all chunks stitched) → play the whole CAF.
                 if nextProduceChunk == 0, let baked = bakedURLProvider?(index), isUsableAudioFile(baked) {
                     nextProduceIndex = index + 1
-                    let start = consumeStartTime(fileURL: baked, paragraph: index, chunk: 0, fileStartTime: 0, wholeParagraph: true)
-                    player.enqueue(.init(paragraphIndex: index, fileURL: baked, source: .baked, startTime: start))
+                    let durations = chunkDurationsProvider?(index)
+                    let start = consumeStartTime(fileURL: baked, chunk: 0, fileStartTime: 0,
+                                                 wholeParagraph: true, chunkDurations: durations)
+                    player.enqueue(.init(paragraphIndex: index, fileURL: baked, source: .baked, startTime: start,
+                                         chunkDurations: durations))
                     continue
                 }
                 // Play-while-building: enqueue each synth chunk as soon as it is rendered.
@@ -445,7 +448,8 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
                     guard e == epoch else { return }
                     switch resolution {
                     case .chunk(let url):
-                        let start = consumeStartTime(fileURL: url, paragraph: index, chunk: k, fileStartTime: 0, wholeParagraph: false)
+                        let start = consumeStartTime(fileURL: url, chunk: k, fileStartTime: 0,
+                                                     wholeParagraph: false, chunkDurations: nil)
                         player.enqueue(.init(paragraphIndex: index, fileURL: url, source: .chunk(k), startTime: start))
                         if k + 1 >= chunkCount {
                             nextProduceIndex = index + 1
@@ -455,9 +459,11 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
                         }
                     case .paragraph(let url, let startTime):
                         // Paragraph finished (scratch gone) — play the rest from the stitched CAF.
-                        let start = consumeStartTime(fileURL: url, paragraph: index, chunk: k, fileStartTime: startTime, wholeParagraph: true)
+                        let durations = chunkDurationsProvider?(index)
+                        let start = consumeStartTime(fileURL: url, chunk: k, fileStartTime: startTime,
+                                                     wholeParagraph: true, chunkDurations: durations)
                         player.enqueue(.init(paragraphIndex: index, fileURL: url, source: .stitched(fromChunk: k),
-                                             startTime: start))
+                                             startTime: start, chunkDurations: durations))
                         nextProduceIndex = index + 1
                         nextProduceChunk = 0
                     }
@@ -488,19 +494,19 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
 
     /// Start time for the first unit after a sub-paragraph speak (`pendingStartFraction` of chunk
     /// `chunk`), then 0 for every later unit. `fileStartTime` = where chunk `chunk` begins in the
-    /// file (stitched paragraph) — the fraction is applied to that chunk's duration.
-    private func consumeStartTime(fileURL: URL, paragraph: Int, chunk: Int, fileStartTime: TimeInterval,
-                                  wholeParagraph: Bool) -> TimeInterval {
+    /// file (stitched paragraph) — the fraction is applied to that chunk's duration
+    /// (`chunkDurations`, the paragraph file's index entry).
+    private func consumeStartTime(fileURL: URL, chunk: Int, fileStartTime: TimeInterval,
+                                  wholeParagraph: Bool, chunkDurations: [TimeInterval]?) -> TimeInterval {
         let fraction = pendingStartFraction
         pendingStartFraction = 0
         guard fraction > 0 else { return fileStartTime }
         let chunkDuration: TimeInterval
         if wholeParagraph {
-            let fileDuration = Self.audioDuration(fileURL)
-            if let durations = chunkDurationsProvider?(paragraph), durations.indices.contains(chunk) {
+            if let durations = chunkDurations, durations.indices.contains(chunk) {
                 chunkDuration = durations[chunk]
             } else {
-                chunkDuration = max(0, fileDuration - fileStartTime) // single chunk: the whole file
+                chunkDuration = max(0, Self.audioDuration(fileURL) - fileStartTime) // single chunk: the whole file
             }
         } else {
             chunkDuration = Self.audioDuration(fileURL)

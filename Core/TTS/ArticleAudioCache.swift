@@ -8,7 +8,6 @@ final class ArticleAudioCache {
         case missing
         case partial(ready: Int, total: Int)
         case ready(paragraphCount: Int)
-        case baking(fraction: Double)
     }
 
     struct IndexFile: Codable, Equatable {
@@ -59,12 +58,17 @@ final class ArticleAudioCache {
         }
     }
 
-    private(set) var bakeProgress: [UUID: Double] = [:]
     /// Bumped when CAF index/files change so reading UI can refresh bake-ready marks.
     private(set) var contentRevision: UInt64 = 0
     private let fileManager: FileManager
     /// Cache root (`Application Support/TTSCache` in the app; a temp dir in tests).
     let root: URL
+
+    /// Each article's index, read from `index.json` once and kept current by every write (all of
+    /// them go through this class). Holds only entries whose CAF exists with audio in it —
+    /// checked when the index is loaded and when a unit is stored — so reads never touch the
+    /// disk; they run on every scrubber redraw and per synth chunk. `.some(nil)`: no index.
+    @ObservationIgnored private var indexes: [UUID: IndexFile?] = [:]
 
     init(fileManager: FileManager = .default, root: URL = ArticleAudioCache.cacheRoot) {
         self.fileManager = fileManager
@@ -89,21 +93,53 @@ final class ArticleAudioCache {
         fileManager.fileExists(atPath: indexURL(for: articleID).path)
     }
 
+    // MARK: Index (in memory)
+
+    /// The article's index — usable entries only — or nil when it has none.
+    func index(for articleID: UUID) -> IndexFile? {
+        if let cached = indexes[articleID] { return cached }
+        let loaded = readIndexFile(for: articleID).map { verified($0, articleID: articleID) }
+        indexes[articleID] = .some(loaded)
+        return loaded
+    }
+
+    /// Make `index` the article's index: in memory first (it describes the files as they are
+    /// now, even if the write below fails), then `index.json`.
+    func saveIndex(_ index: IndexFile, for articleID: UUID) throws {
+        indexes[articleID] = .some(index)
+        try JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
+    }
+
+    /// Forget the in-memory copy (after rewriting the directory on disk); the next read reloads it.
+    private func dropIndex(for articleID: UUID) {
+        indexes.removeValue(forKey: articleID)
+    }
+
+    private func readIndexFile(for articleID: UUID) -> IndexFile? {
+        guard let data = try? Data(contentsOf: indexURL(for: articleID)) else { return nil }
+        return try? JSONDecoder().decode(IndexFile.self, from: data)
+    }
+
+    /// `index` without entries whose CAF is missing or empty (e.g. the app died between the
+    /// copy and the index write).
+    private func verified(_ index: IndexFile, articleID: UUID) -> IndexFile {
+        let dir = directory(for: articleID)
+        var out = index
+        out.paragraphs.removeAll { !isUsableAudioFile(dir.appendingPathComponent($0.file)) }
+        return out
+    }
+
+    // MARK: Reads
+
     func status(for articleID: UUID, expectedParagraphs: Int? = nil) -> Status {
-        if let progress = bakeProgress[articleID] { return .baking(fraction: progress) }
-        guard let index = try? loadIndex(for: articleID) else { return .missing }
+        guard let index = index(for: articleID) else { return .missing }
         let total = expectedParagraphs ?? index.paragraphs.count
         if total == 0 { return .missing }
         // Units in the index's (latest) engine/voice only; stale units of a previous voice don't count.
-        let current = index.paragraphs.filter { $0.engineID == nil && $0.voiceID == nil }
-        let ready = current.filter {
-            fileManager.fileExists(atPath: directory(for: articleID).appendingPathComponent($0.file).path)
-        }.count
-        if ready >= total, ready == current.count {
-            return .ready(paragraphCount: ready)
-        }
+        let ready = index.paragraphs.filter { $0.engineID == nil && $0.voiceID == nil }.count
+        if ready >= total { return .ready(paragraphCount: ready) }
         if ready == 0 { return .missing }
-        return .partial(ready: ready, total: max(total, current.count))
+        return .partial(ready: ready, total: total)
     }
 
     /// True when a complete bake for this engine/voice already exists.
@@ -113,19 +149,14 @@ final class ArticleAudioCache {
                             engineID: engineID, voiceID: voiceID).count == paragraphCount
     }
 
-    func loadIndex(for articleID: UUID) throws -> IndexFile {
-        try JSONDecoder().decode(IndexFile.self, from: Data(contentsOf: indexURL(for: articleID)))
-    }
-
     /// CAF for this paragraph rendered with exactly this engine/voice (bake state, queue).
     func audioURL(articleID: UUID, paragraphIndex: Int, engineID: String, voiceID: String) -> URL? {
-        guard let index = try? loadIndex(for: articleID),
+        guard let index = index(for: articleID),
               let entry = index.paragraphs.first(where: {
                   $0.index == paragraphIndex && index.matches($0, engineID: engineID, voiceID: voiceID)
               })
         else { return nil }
-        let url = directory(for: articleID).appendingPathComponent(entry.file)
-        return isUsableAudioFile(url) ? url : nil
+        return directory(for: articleID).appendingPathComponent(entry.file)
     }
 
     /// Playback: the current engine/voice's CAF, else a stale one (older voice/engine) until the
@@ -135,11 +166,8 @@ final class ArticleAudioCache {
                                 engineID: engineID, voiceID: voiceID) {
             return exact
         }
-        guard let index = try? loadIndex(for: articleID),
-              let entry = index.paragraphs.first(where: { $0.index == paragraphIndex })
-        else { return nil }
-        let url = directory(for: articleID).appendingPathComponent(entry.file)
-        return isUsableAudioFile(url) ? url : nil
+        guard let entry = entry(articleID: articleID, paragraphIndex: paragraphIndex) else { return nil }
+        return directory(for: articleID).appendingPathComponent(entry.file)
     }
 
     /// Paragraph indices with a usable CAF for this engine/voice (stale units excluded).
@@ -150,17 +178,10 @@ final class ArticleAudioCache {
         voiceID: String
     ) -> Set<Int> {
         _ = contentRevision
-        guard paragraphCount > 0 else { return [] }
-        var ready = Set<Int>()
-        if let index = try? loadIndex(for: articleID) {
-            for entry in index.paragraphs
-            where entry.index >= 0 && entry.index < paragraphCount
-                && index.matches(entry, engineID: engineID, voiceID: voiceID) {
-                let url = directory(for: articleID).appendingPathComponent(entry.file)
-                if isUsableAudioFile(url) { ready.insert(entry.index) }
-            }
-        }
-        return ready
+        guard paragraphCount > 0, let index = index(for: articleID) else { return [] }
+        return Set(index.paragraphs.lazy
+            .filter { $0.index >= 0 && $0.index < paragraphCount && index.matches($0, engineID: engineID, voiceID: voiceID) }
+            .map(\.index))
     }
 
     /// Paragraph indices still missing a usable CAF for this engine/voice.
@@ -179,16 +200,23 @@ final class ArticleAudioCache {
         return (0..<paragraphCount).filter { !ready.contains($0) }
     }
 
+    /// Index entry for a ready paragraph (for chunk-boundary offsets).
+    func entry(articleID: UUID, paragraphIndex: Int) -> IndexFile.ParagraphEntry? {
+        index(for: articleID)?.paragraphs.first { $0.index == paragraphIndex }
+    }
+
+    // MARK: Writes
+
     private func bumpContentRevision() {
         contentRevision &+= 1
     }
 
     func deleteAudio(for articleID: UUID) throws {
-        bakeProgress[articleID] = nil
         let dir = directory(for: articleID)
         if fileManager.fileExists(atPath: dir.path) {
             try fileManager.removeItem(at: dir)
         }
+        indexes[articleID] = .some(nil)
         bumpContentRevision()
     }
 
@@ -227,13 +255,8 @@ final class ArticleAudioCache {
         // One voice per article: units of another engine/voice stay (stamped stale, still
         // playable) until their paragraph is re-rendered; this paragraph's old file was just
         // replaced above. `finalizeVoiceSwitch` drops any leftovers once the article is complete.
-        var entries: [IndexFile.ParagraphEntry] = []
-        if let existing = try? loadIndex(for: articleID) {
-            entries = existing.retargeted(engineID: engineID, voiceID: voiceID).paragraphs.filter {
-                $0.index != paragraphIndex
-                    && fileManager.fileExists(atPath: dir.appendingPathComponent($0.file).path)
-            }
-        }
+        var entries = (index(for: articleID)?.retargeted(engineID: engineID, voiceID: voiceID).paragraphs ?? [])
+            .filter { $0.index != paragraphIndex }
         entries.append(.init(
             index: paragraphIndex,
             file: fileName,
@@ -249,14 +272,9 @@ final class ArticleAudioCache {
             createdAt: Date(),
             paragraphs: entries
         )
-        try JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
-        bumpContentRevision()
+        defer { bumpContentRevision() }
+        try saveIndex(index, for: articleID)
         return dest
-    }
-
-    /// Index entry for a ready paragraph (for chunk-boundary offsets).
-    func entry(articleID: UUID, paragraphIndex: Int) -> IndexFile.ParagraphEntry? {
-        (try? loadIndex(for: articleID))?.paragraphs.first { $0.index == paragraphIndex }
     }
 
     // MARK: - Synth chunk scratch (GlobalSynthQueue)
@@ -273,8 +291,6 @@ final class ArticleAudioCache {
         chunkDirectory(articleID: articleID, paragraphIndex: paragraphIndex, textHash: textHash)
             .appendingPathComponent(String(format: "c-%02d.caf", chunk))
     }
-
-    func isUsableChunk(_ url: URL) -> Bool { isUsableAudioFile(url) }
 
     /// Drop chunk scratch for one article (never while it is the live playback session).
     func removeChunkScratch(for articleID: UUID) {
@@ -306,10 +322,10 @@ final class ArticleAudioCache {
         }
     }
 
-    private func isUsableAudioFile(_ url: URL) -> Bool {
-        guard fileManager.fileExists(atPath: url.path) else { return false }
-        let size = (try? fileManager.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.intValue ?? 0
-        return size > 256
+    /// Exists and holds more than a header: a CAF with audio in it (paragraph or synth chunk).
+    func isUsableAudioFile(_ url: URL) -> Bool {
+        guard let size = (try? fileManager.attributesOfItem(atPath: url.path)[.size]) as? NSNumber else { return false }
+        return size.intValue > 256
     }
 }
 
@@ -419,15 +435,15 @@ extension ArticleAudioCache {
         if !fileManager.fileExists(atPath: dst.path) {
             try fileManager.createDirectory(at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
             try fileManager.moveItem(at: src, to: dst)
+            indexes[oldKey] = .some(nil)
+            dropIndex(for: newKey)
             markSaved(cacheKey: newKey)
-            bakeProgress[newKey] = bakeProgress[oldKey]
-            bakeProgress[oldKey] = nil
             return
         }
 
         // Dest exists — copy any missing paragraph files + merge index.
-        let srcIndex = try? loadIndex(for: oldKey)
-        let dstIndex = try? loadIndex(for: newKey)
+        let srcIndex = index(for: oldKey)
+        let dstIndex = index(for: newKey)
         var dstEntries: [IndexFile.ParagraphEntry] = []
         // Index files without an engine key belong to `legacyEngineID`.
         var engineID = Self.legacyEngineID
@@ -446,7 +462,6 @@ extension ArticleAudioCache {
             for entry in srcIndex.paragraphs {
                 let srcFile = src.appendingPathComponent(entry.file)
                 let dstFile = dst.appendingPathComponent(entry.file)
-                guard isUsableAudioFile(srcFile) else { continue }
                 // Keep the destination's unit (and its text hash) when it already has one.
                 guard !isUsableAudioFile(dstFile) else { continue }
                 if fileManager.fileExists(atPath: dstFile.path) {
@@ -464,8 +479,8 @@ extension ArticleAudioCache {
             createdAt: Date(),
             paragraphs: dstEntries
         )
-        try JSONEncoder().encode(index).write(to: indexURL(for: newKey), options: .atomic)
-        bumpContentRevision()
+        defer { bumpContentRevision() }
+        try saveIndex(index, for: newKey)
         markSaved(cacheKey: newKey)
         try? deleteAudio(for: oldKey)
     }
@@ -563,7 +578,7 @@ extension ArticleAudioCache {
     /// Only call with paragraphs known to match the cache (e.g. the saved copy's stored blocks,
     /// or content whose legacy v1 key equalled this cache dir).
     func stampMissingHashes(articleID: UUID, paragraphs: [String]) {
-        guard var index = try? loadIndex(for: articleID) else { return }
+        guard var index = index(for: articleID) else { return }
         var changed = false
         for i in index.paragraphs.indices where index.paragraphs[i].textHash == nil {
             let p = index.paragraphs[i].index
@@ -572,7 +587,7 @@ extension ArticleAudioCache {
             changed = true
         }
         guard changed else { return }
-        try? JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
+        try? saveIndex(index, for: articleID)
     }
 
     /// Align cached CAFs with `paragraphs` (current listen blocks for this article key):
@@ -581,7 +596,7 @@ extension ArticleAudioCache {
     @discardableResult
     func reconcile(articleID: UUID, paragraphs: [String]) -> ReconcileResult {
         var result = ReconcileResult()
-        guard var index = try? loadIndex(for: articleID), !index.paragraphs.isEmpty else { return result }
+        guard var index = index(for: articleID), !index.paragraphs.isEmpty else { return result }
         let dir = directory(for: articleID)
         let currentHashes = paragraphs.map(ArticleIdentity.paragraphHash)
         var targetsByHash: [String: [Int]] = [:]
@@ -594,7 +609,6 @@ extension ArticleAudioCache {
         // Pass 1: exact matches / unverifiable keep their slot.
         var pending: [IndexFile.ParagraphEntry] = []
         for entry in index.paragraphs {
-            guard isUsableAudioFile(dir.appendingPathComponent(entry.file)) else { continue }
             guard let hash = entry.textHash else {
                 if paragraphs.indices.contains(entry.index), final[entry.index] == nil {
                     final[entry.index] = entry
@@ -650,7 +664,7 @@ extension ArticleAudioCache {
         }
         index.paragraphs = final.values.sorted { $0.index < $1.index }
         index.createdAt = Date()
-        try? JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
+        try? saveIndex(index, for: articleID)
         bumpContentRevision()
         return result
     }
@@ -667,7 +681,7 @@ extension ArticleAudioCache {
     /// remaining units of other voices/engines (e.g. indices past the end). Returns bytes freed.
     @discardableResult
     func finalizeVoiceSwitch(articleID: UUID, paragraphCount: Int, engineID: String, voiceID: String) -> Int64 {
-        guard paragraphCount > 0, var index = try? loadIndex(for: articleID) else { return 0 }
+        guard paragraphCount > 0, var index = index(for: articleID) else { return 0 }
         let stale = index.paragraphs.filter { !index.matches($0, engineID: engineID, voiceID: voiceID) }
         guard !stale.isEmpty,
               readyIndices(articleID: articleID, paragraphCount: paragraphCount,
@@ -683,7 +697,7 @@ extension ArticleAudioCache {
         }
         index = index.retargeted(engineID: engineID, voiceID: voiceID)
         index.paragraphs.removeAll { $0.engineID != nil || $0.voiceID != nil }
-        try? JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
+        try? saveIndex(index, for: articleID)
         bumpContentRevision()
         return freed
     }
@@ -746,15 +760,17 @@ extension ArticleAudioCache {
                 report.orphanFiles += 1
                 touched = true
             }
-            if touched { bakeProgress[articleID] = nil }
+            // Rewritten on disk from the raw file; the next read reloads (and verifies) it.
+            if touched { dropIndex(for: articleID) }
         }
         if report.paragraphs > 0 || report.orphanFiles > 0 { bumpContentRevision() }
         return report
     }
 
-    /// `loadIndex`, but tolerates pre-engine-key files (no `engineID` → `legacyEngineID`).
+    /// `index.json` as written (unverified), tolerating pre-engine-key files (no `engineID` →
+    /// `legacyEngineID`).
     private func loadIndexLenient(for articleID: UUID) -> IndexFile? {
-        if let index = try? loadIndex(for: articleID) { return index }
+        if let index = readIndexFile(for: articleID) { return index }
         guard let data = try? Data(contentsOf: indexURL(for: articleID)),
               var obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return nil }

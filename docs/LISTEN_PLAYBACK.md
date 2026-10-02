@@ -56,7 +56,7 @@ Adapters do not own article documents, bake policy, or UI phase.
 
 Each unit is `Ready(URL)` or `Missing`.
 
-- **BakeCache** (`Application Support/TTSCache`): incremental `index.json` + `p-NNNN.caf` so partial bakes are playable.
+- **BakeCache** (`Application Support/TTSCache`): incremental `index.json` + `p-NNNN.caf` so partial bakes are playable. `ArticleAudioCache` reads each article's index once (dropping entries whose CAF is missing or empty) and keeps it in memory; every write goes through it, so ready / playable / bake-mark reads never touch the disk.
 - **Single Core ML worker**: never run two Core ML renders in parallel (that crashed before). Live listen and background bake share one gate.
 
 #### Priority producer

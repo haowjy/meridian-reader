@@ -266,7 +266,7 @@ final class BackgroundListeningTests: XCTestCase {
         let hash = ArticleIdentity.paragraphHash(paras[0])
         let c0 = ctx.audioCache.chunkURL(articleID: key, paragraphIndex: 0, textHash: hash, chunk: 0)
         let start = Date()
-        while !ctx.audioCache.isUsableChunk(c0) {
+        while !ctx.audioCache.isUsableAudioFile(c0) {
             if Date().timeIntervalSince(start) > 10 { XCTFail("chunk 0 never rendered"); return }
             try await Task.sleep(nanoseconds: 5_000_000)
         }

@@ -13,6 +13,9 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         /// Start offset into `fileURL` (a chunk boundary of a stitched paragraph, or a
         /// sub-paragraph start).
         var startTime: TimeInterval = 0
+        /// Durations of the synth chunks stitched into `fileURL` (nil = a single render). Taken
+        /// from the cache index when the unit is enqueued, so they always describe this file.
+        var chunkDurations: [TimeInterval]? = nil
 
         /// Same audio as `other`? See `UnitSource.overlaps`.
         func overlaps(_ other: Item) -> Bool {

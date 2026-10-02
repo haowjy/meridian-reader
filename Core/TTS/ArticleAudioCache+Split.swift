@@ -25,7 +25,7 @@ extension ArticleAudioCache {
     func remapSplitParagraphs(articleID: UUID, paragraphs: [String],
                               chunkPlan: (String, String) -> [String]?) -> SplitRemapResult {
         var result = SplitRemapResult()
-        guard var index = try? loadIndex(for: articleID), !index.paragraphs.isEmpty, paragraphs.count > 1 else {
+        guard var index = index(for: articleID), !index.paragraphs.isEmpty, paragraphs.count > 1 else {
             return result
         }
         let current = Set(paragraphs.map(ArticleIdentity.paragraphHash))
@@ -67,7 +67,8 @@ extension ArticleAudioCache {
                 let length = durations[q..<(q + plan.count)].reduce(0, +)
                 let name = "s-\(String(format: "%04d", target))-\(UUID().uuidString.prefix(8)).caf"
                 guard Self.slice(dir.appendingPathComponent(old.file), start: start, duration: length,
-                                 to: dir.appendingPathComponent(name)) else {
+                                 to: dir.appendingPathComponent(name)),
+                      isUsableAudioFile(dir.appendingPathComponent(name)) else {
                     result.misaligned += 1
                     continue
                 }
@@ -83,7 +84,7 @@ extension ArticleAudioCache {
         guard !added.isEmpty else { return result }
         // Sliced entries go first so `reconcile` gives them their slot (exact hash at index).
         index.paragraphs = added + index.paragraphs
-        try? JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
+        try? saveIndex(index, for: articleID)
         return result
     }
 
