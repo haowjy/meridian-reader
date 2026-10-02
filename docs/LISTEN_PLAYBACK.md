@@ -72,7 +72,7 @@ Two *logical* lanes, one physical synthesizer:
 |-------|------|
 | Article **save** | `topDown` — bake `0…end` |
 | Listen **start** / paragraph **jump** | `fromPlayhead(playhead)` — bake `playhead…end`, then **return to top** for missing `0..<playhead` |
-| Playback **finished** | `resumeGapFillBake` / `topDown` — fill any leftover gaps |
+| Playback **finished** / stopped | `startBakeIfNeeded` (`topDown`) — fill any leftover gaps |
 
 On seek/jump: cancel in-flight batch for that article, clear non-needed pending player units, bump produce epoch, restart the producer from the new playhead (immediate first).
 
@@ -84,11 +84,9 @@ The queue worker renders chunk CAFs, and once every chunk of a paragraph exists 
 
 #### Background bake limits
 
-`BackgroundAudioBakeScheduler` registers a `BGProcessingTask` (`com.jimmyyao.Reader.bake-audio`), requests it when articles save, and resumes pending `BakePriorityPlan`s when iOS runs the task.
+`BackgroundAudioBakeScheduler` persists pending bake jobs (articles saved or opened while the local engine was cold). They fold into the queue once the engine warms, and a finished article drops its job.
 
-**Honesty:** iOS will **not** give unbounded Core ML time. A processing task may run briefly while idle/charging — or not at all. We register, request, process what we can, and re-request. Foreground / active-session bake remains the reliable path. Keep baking while the app is active or inactive when the local engine is free; do not promise full-article completion in the background alone.
-
-**Since 2026-09-24 (background listening):** Reader starts **no Core ML call in the background** (see *Background listening* below), so the processing task now just completes (`bg_task_skipped`) and leaves the jobs pending for the foreground queue.
+It also registers a `BGProcessingTask` (`com.jimmyyao.Reader.bake-audio`) and requests it on save. Reader starts **no Core ML call in the background** (see *Background listening* below), so when iOS runs the task it only re-requests itself, logs `bg_task_skipped`, and leaves the jobs pending for the foreground queue. Baking happens while the app is active (or inactive, for chunks a listener waits on); do not promise full-article completion in the background.
 
 
 ### 4. UI binding

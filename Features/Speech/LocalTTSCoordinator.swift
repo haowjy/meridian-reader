@@ -548,13 +548,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         audioCache.status(for: articleID, expectedParagraphs: paragraphCount)
     }
 
-    /// Compatibility: demote is not cancel — use focusPlayhead / openArticle to reshuffle.
-    /// Kept so call sites that previously cancelled bake for play can call `prioritizeListen` instead.
-    func cancelBake(for articleID: UUID) {
-        // No-op cancel of worker: reshuffle via focusPlayhead. Removing jobs would drop cache work.
-        _ = articleID
-    }
-
     // MARK: - Shared warm / queue reshuffle (Browse + Saved)
 
     /// Open/focus an article as queue #1 and bake from resume downward.
@@ -671,29 +664,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
     }
 
-    func prioritizeBake(
-        articleID: UUID,
-        from playhead: Int,
-        paragraphs: [String],
-        voiceID: String
-    ) {
-        prioritizeListen(
-            cacheKey: articleID,
-            playhead: playhead,
-            paragraphs: paragraphs,
-            voiceID: voiceID,
-            isEphemeral: false
-        )
-    }
-
-    func resumeGapFillBake(
-        articleID: UUID,
-        paragraphs: [String],
-        voiceID: String
-    ) {
-        startBakeIfNeeded(articleID: articleID, paragraphs: paragraphs, voiceID: voiceID)
-    }
-
     /// After Save: move ephemeral CAFs onto the SavedArticle UUID and reshuffle the queue key.
     func migrateListenCache(from ephemeralKey: UUID, to savedKey: UUID) {
         guard ephemeralKey != savedKey else {
@@ -773,19 +743,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
     func chunkPlan(engineID: String, text: String) -> [String]? {
         guard let d = engines.descriptor(SpeechEngineID(rawValue: engineID)) else { return nil }
         return TextChunker.chunks(for: text, limits: d.limits)
-    }
-
-    /// Active plan description for diagnostics.
-    var bakePlans: [UUID: BakePriorityPlan] {
-        // Compatibility shim for Listen debug — reconstruct from queue primary only.
-        var result: [UUID: BakePriorityPlan] = [:]
-        if let key = synthQueue.primaryCacheKey,
-           let desc = synthQueue.planDescription(for: key) {
-            // Parse is lossy; expose via pending count in debug instead.
-            _ = desc
-            result[key] = .topDown(paragraphCount: 0)
-        }
-        return result
     }
 
     /// Bake only for engines that declare `supportsBakeCache` (Apple: no).

@@ -654,8 +654,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     private func execute(_ commands: [PlaybackCommand]) {
         for command in commands {
             switch command {
-            case .prepareDocument:
-                break
             case .enginePlay(let from):
                 speak(fromUTF16Offset: startOffset(forParagraph: from), startPaused: false)
             case .enginePause:
@@ -747,11 +745,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             self?.completeArticle(restartBake: true)
         }
         engine.articleID = playback.articleID
-        if let articleID = playback.articleID {
-            engine.isEphemeralCache = localTTS.audioCache.loadMeta(for: articleID)?.kind == .ephemeral
-        } else {
-            engine.isEphemeralCache = false
-        }
         engine.bakedURLProvider = { [weak self] idx in
             guard let self, let articleID = self.playback.articleID else { return nil }
             // Current voice's CAF, else the previous voice's until this paragraph is re-rendered.
@@ -1003,7 +996,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         audioSession.deactivate()
         if restartBake, let articleID, !paragraphs.isEmpty {
             // Return-to-top gap fill so any paragraphs above the listen playhead still bake.
-            localTTS.resumeGapFillBake(
+            localTTS.startBakeIfNeeded(
                 articleID: articleID,
                 paragraphs: paragraphs,
                 voiceID: voiceID

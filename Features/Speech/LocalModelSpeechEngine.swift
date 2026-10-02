@@ -53,8 +53,6 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     /// Why the unit now playing is Apple TTS (nil = the engine's own audio).
     private(set) var currentAppleFallbackReason: String?
     private var appleFallbackReasons: [Int: String] = [:]
-    /// Apple-TTS units produced this session (engine couldn't render / backgrounded).
-    private(set) var appleFallbackCount = 0
 
     var onParagraphIndexChange: ((Int) -> Void)?
     /// Session-level finished (all units played, producer exhausted).
@@ -63,8 +61,6 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     var bakedURLProvider: ((Int) -> URL?)?
     /// Cache key (SavedArticle.id or ephemeral ArticleIdentity key). Always set while listening.
     var articleID: UUID?
-    /// When true, GlobalSynthQueue marks TTSCache meta as ephemeral.
-    var isEphemeralCache = false
     /// Chunk-level ensure via GlobalSynthQueue: (paragraph, chunk, text) → playable audio.
     /// Unbound (no article wired): every unit falls back to Apple TTS.
     var chunkEnsureProvider: (Int, Int, String) async throws -> GlobalSynthQueue.ChunkResolution = { _, _, _ in
@@ -91,8 +87,6 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     var workerBusyElsewhere: ((Int) -> Bool)?
     /// Durable "now playing" point for crash auto-resume (nil in tests that don't want it).
     var resumePointStore: ListenResumePointStore? = .shared
-    /// Paragraphs spoken with Apple because rendering fell behind playback (debug / tests).
-    private(set) var behindFallbackCount = 0
 
     /// The render ran behind playback: this paragraph plays with Apple (see `HeadStart`).
     struct RenderFellBehind: LocalizedError {
@@ -215,7 +209,7 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     /// (scrubbed to a sentence). Unrendered: that chunk is rendered first.
     func speak(paragraphs: [String], startingAt index: Int, chunk: Int, fractionInChunk: Double,
                voiceID: String?) async throws {
-        stopInternal(clearCallbacks: false)
+        stop()
         try await prepareIfNeeded()
         self.paragraphs = paragraphs
         self.voiceID = voiceID
@@ -258,7 +252,22 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     }
 
     func stop() {
-        stopInternal(clearCallbacks: false)
+        resumePointStore?.clear()
+        currentAppleFallbackReason = nil
+        appleFallbackReasons.removeAll()
+        epoch += 1
+        starveWatchGeneration += 1
+        producerTask?.cancel()
+        producerTask = nil
+        player.clear()
+        userWantsAudible = false
+        isSpeaking = false
+        isPaused = false
+        nextProduceIndex = 0
+        nextProduceChunk = 0
+        pendingStartFraction = 0
+        speakRequestedAt = nil
+        starvedAt = nil
     }
 
     /// Back in the foreground: Apple units rendered ahead only because the engine was paused in
@@ -325,26 +334,6 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     }
 
     // MARK: - Private
-
-    private func stopInternal(clearCallbacks: Bool) {
-        resumePointStore?.clear()
-        currentAppleFallbackReason = nil
-        appleFallbackReasons.removeAll()
-        epoch += 1
-        starveWatchGeneration += 1
-        producerTask?.cancel()
-        producerTask = nil
-        player.clear()
-        userWantsAudible = false
-        isSpeaking = false
-        isPaused = false
-        nextProduceIndex = 0
-        nextProduceChunk = 0
-        pendingStartFraction = 0
-        speakRequestedAt = nil
-        starvedAt = nil
-        _ = clearCallbacks
-    }
 
     private func ensureProducerRunning(epoch forced: Int? = nil) {
         let e = forced ?? epoch
@@ -543,7 +532,6 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
             remainingChars: remaining, firstChunkChars: chunks[k].count, bufferedAudio: buffered,
             pace: pace, rate: Double(player.playbackRate), workerBusyOther: workerBusyElsewhere?(index) ?? false)
         if behind {
-            behindFallbackCount += 1
             ListenTimingLog.log("render_behind", [
                 "key": ListenTimingLog.shortKey(articleID), "p": index, "c": k,
                 "buffered_s": (buffered * 10).rounded() / 10, "speed": ((pace.speed ?? 0) * 100).rounded() / 100,
@@ -568,7 +556,6 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
         }()
         let behind = error is RenderFellBehind
         appleFallbackReasons[index] = background ? "background" : (behind ? "behind" : "engine error")
-        appleFallbackCount += 1
         ListenDebugLog.shared.append(background
             ? "p\(index) c\(fromChunk) not rendered yet, app in background → Apple TTS"
             : behind
