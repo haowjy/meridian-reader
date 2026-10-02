@@ -24,7 +24,7 @@ import Foundation
 /// Saved vs unsaved only changes the persistence key (`cacheKey`), not queue behavior.
 ///
 /// Background (`AppRunState`): no Core ML call starts while the app is backgrounded. Live
-/// chunk/unit requests for audio that isn't rendered yet throw `LocalSynthError.deferredInBackground`
+/// chunk requests for audio that isn't rendered yet throw `LocalSynthError.deferredInBackground`
 /// at once (the producer speaks that paragraph with Apple TTS — never silent, never skipped, and
 /// the Apple audio is NOT written into the engine's cache); bake-ahead waits and the worker is
 /// restarted when the app becomes active. While `inactive` only chunks a listener waits for render.
@@ -55,17 +55,16 @@ final class GlobalSynthQueue {
     private var stack: [UUID] = []
     private var demoteCounter = 0
     private var worker: Task<Void, Never>?
-    private var waiters: [WaitKey: [CheckedContinuation<URL, Error>]] = [:]
     private var chunkWaiters: [ChunkKey: [CheckedContinuation<ChunkResolution, Error>]] = [:]
     /// Paragraphs whose chunk files a live player may reference — keep their scratch after
     /// stitching (cleaned on next open / launch). Pure bake-ahead paragraphs drop scratch at once.
-    private var liveChunkParagraphs: Set<WaitKey> = []
+    private var liveChunkParagraphs: Set<ParagraphKey> = []
     /// (key|index|textHash) that failed the engine *and* Apple fallback — skipped by the worker so a
     /// bad unit cannot spin forever (the old loop retried the same failing paragraph endlessly).
     private var failedUnits: Set<String> = []
     private var chunkPlanCache: [String: [String]] = [:]
 
-    private struct WaitKey: Hashable {
+    private struct ParagraphKey: Hashable {
         var cacheKey: UUID
         var index: Int
     }
@@ -145,7 +144,7 @@ final class GlobalSynthQueue {
         }
     }
 
-    private var hasLiveWaiters: Bool { !waiters.isEmpty || !chunkWaiters.isEmpty }
+    private var hasLiveWaiters: Bool { !chunkWaiters.isEmpty }
 
     /// The active host renders without Core ML/GPU and may run while backgrounded.
     private var rendersInBackground: Bool { coordinator?.activeRouteRendersInBackground ?? false }
@@ -153,9 +152,6 @@ final class GlobalSynthQueue {
     private var canRenderNow: Bool { runState.allowsLocalModelCalls || rendersInBackground }
 
     private func failAllLiveWaiters(_ error: Error) {
-        for key in Array(waiters.keys) {
-            for cont in waiters.removeValue(forKey: key) ?? [] { cont.resume(throwing: error) }
-        }
         for key in Array(chunkWaiters.keys) {
             for cont in chunkWaiters.removeValue(forKey: key) ?? [] { cont.resume(throwing: error) }
         }
@@ -334,97 +330,12 @@ final class GlobalSynthQueue {
         if let idx = stack.firstIndex(of: oldKey) {
             stack[idx] = newKey
         }
-        // Move waiters
-        let oldKeys = waiters.keys.filter { $0.cacheKey == oldKey }
-        for key in oldKeys {
-            let conts = waiters.removeValue(forKey: key) ?? []
-            let newWait = WaitKey(cacheKey: newKey, index: key.index)
-            waiters[newWait, default: []].append(contentsOf: conts)
-        }
         for key in chunkWaiters.keys.filter({ $0.cacheKey == oldKey }) {
             let conts = chunkWaiters.removeValue(forKey: key) ?? []
             chunkWaiters[ChunkKey(cacheKey: newKey, index: key.index, chunk: key.chunk), default: []]
                 .append(contentsOf: conts)
         }
         kickWorker()
-    }
-
-    // MARK: - Live ensure (playhead)
-
-    /// Prefer disk cache; otherwise bump this unit to the front of #1’s plan and await Ready URL.
-    func ensureUnit(
-        cacheKey: UUID,
-        paragraphIndex: Int,
-        text: String,
-        rate: Float,
-        voiceID: String,
-        isEphemeral: Bool
-    ) async throws -> URL {
-        guard let coordinator else {
-            throw NSError(
-                domain: "GlobalSynthQueue",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Coordinator not attached"]
-            )
-        }
-        let engineID = coordinator.cacheEngineID
-        if let url = coordinator.audioCache.audioURL(
-            articleID: cacheKey,
-            paragraphIndex: paragraphIndex,
-            engineID: engineID,
-            voiceID: voiceID
-        ) {
-            return url
-        }
-
-        guard canRenderNow else {
-            noteBackgroundDeferral(cacheKey, paragraphIndex, chunk: nil)
-            throw LocalSynthError.deferredInBackground
-        }
-        // Make sure this article is #1 and playhead-focused so the worker hits this unit next.
-        if jobs[cacheKey] == nil {
-            openArticle(
-                cacheKey: cacheKey,
-                paragraphs: [text], // replaced below if we only have one — caller should openArticle first
-                rate: rate,
-                voiceID: voiceID,
-                resumeParagraph: paragraphIndex,
-                isEphemeral: isEphemeral
-            )
-            // Expand paragraphs if we only seeded one line — prefer full list from caller via openArticle.
-            if var job = jobs[cacheKey], job.paragraphs.count == 1, paragraphIndex == 0 {
-                job.paragraphs = [text]
-                jobs[cacheKey] = job
-            }
-        } else {
-            focusPlayhead(cacheKey: cacheKey, paragraph: paragraphIndex, rate: rate, voiceID: voiceID)
-            if var job = jobs[cacheKey], job.paragraphs.indices.contains(paragraphIndex) == false
-                || job.paragraphs[paragraphIndex] != text {
-                // Keep text in sync for this index when possible.
-                if job.paragraphs.indices.contains(paragraphIndex) {
-                    job.paragraphs[paragraphIndex] = text
-                    jobs[cacheKey] = job
-                }
-            }
-        }
-
-        // If still only a stub job with wrong length, patch this index's text into a minimal list.
-        if var job = jobs[cacheKey] {
-            if !job.paragraphs.indices.contains(paragraphIndex) {
-                while job.paragraphs.count <= paragraphIndex {
-                    job.paragraphs.append("")
-                }
-                job.paragraphs[paragraphIndex] = text
-                job.plan = .fromPlayhead(paragraphIndex, paragraphCount: job.paragraphs.count)
-                jobs[cacheKey] = job
-            }
-        }
-
-        return try await withCheckedThrowingContinuation { (cont: CheckedContinuation<URL, Error>) in
-            let key = WaitKey(cacheKey: cacheKey, index: paragraphIndex)
-            waiters[key, default: []].append(cont)
-            kickWorker()
-        }
     }
 
     // MARK: - Chunk-level live ensure (play-while-building)
@@ -476,7 +387,7 @@ final class GlobalSynthQueue {
         }
         let cache = coordinator.audioCache
         let hash = ArticleIdentity.paragraphHash(text)
-        let unit = WaitKey(cacheKey: cacheKey, index: paragraphIndex)
+        let unit = ParagraphKey(cacheKey: cacheKey, index: paragraphIndex)
         liveChunkParagraphs.insert(unit)
         failedUnits.remove(failedID(cacheKey, paragraphIndex, hash)) // live request = fresh try
 
@@ -701,9 +612,8 @@ final class GlobalSynthQueue {
             let engineID = coordinator.cacheEngineID
             let cache = coordinator.audioCache
             // Already ready?
-            if let url = cache.audioURL(articleID: job.cacheKey, paragraphIndex: index,
-                                        engineID: engineID, voiceID: job.voiceID) {
-                resumeWaiters(cacheKey: job.cacheKey, index: index, url: url)
+            if cache.audioURL(articleID: job.cacheKey, paragraphIndex: index,
+                              engineID: engineID, voiceID: job.voiceID) != nil {
                 resumeChunkWaitersWithParagraph(cacheKey: job.cacheKey, index: index, voiceID: job.voiceID)
                 continue
             }
@@ -751,7 +661,7 @@ final class GlobalSynthQueue {
                 let staging = dir.appendingPathComponent(String(format: ".stitch-p-%04d.caf", index))
                 defer { try? FileManager.default.removeItem(at: staging) }
                 let stitched = try ChunkAudioStitcher.stitch(chunkURLs, to: staging)
-                let stored = try cache.storeParagraph(
+                try cache.storeParagraph(
                     articleID: job.cacheKey,
                     paragraphIndex: index,
                     sourceURL: staging,
@@ -766,11 +676,10 @@ final class GlobalSynthQueue {
                 if job.isEphemeral {
                     cache.markEphemeral(cacheKey: job.cacheKey, lastAccess: Date())
                 }
-                if !liveChunkParagraphs.contains(WaitKey(cacheKey: job.cacheKey, index: index)) {
+                if !liveChunkParagraphs.contains(ParagraphKey(cacheKey: job.cacheKey, index: index)) {
                     try? FileManager.default.removeItem(
                         at: cache.chunkDirectory(articleID: job.cacheKey, paragraphIndex: index, textHash: hash))
                 }
-                resumeWaiters(cacheKey: job.cacheKey, index: index, url: stored)
                 resumeChunkWaitersWithParagraph(cacheKey: job.cacheKey, index: index, voiceID: job.voiceID)
                 let readyMsg = "bake ok \(job.cacheKey.uuidString.prefix(8)) p\(index) (\(chunks.count) chunk\(chunks.count == 1 ? "" : "s"))"
                 lastBakeEvent = readyMsg
@@ -954,16 +863,7 @@ final class GlobalSynthQueue {
         }
     }
 
-    private func resumeWaiters(cacheKey: UUID, index: Int, url: URL) {
-        let key = WaitKey(cacheKey: cacheKey, index: index)
-        let conts = waiters.removeValue(forKey: key) ?? []
-        for cont in conts { cont.resume(returning: url) }
-    }
-
     private func failWaiters(cacheKey: UUID, index: Int, error: Error) {
-        let key = WaitKey(cacheKey: cacheKey, index: index)
-        let conts = waiters.removeValue(forKey: key) ?? []
-        for cont in conts { cont.resume(throwing: error) }
         let chunkKeys = chunkWaiters.keys.filter { $0.cacheKey == cacheKey && $0.index == index }
         for ck in chunkKeys {
             for cont in chunkWaiters.removeValue(forKey: ck) ?? [] { cont.resume(throwing: error) }
@@ -971,11 +871,6 @@ final class GlobalSynthQueue {
     }
 
     private func failWaiters(cacheKey: UUID, error: Error) {
-        let keys = waiters.keys.filter { $0.cacheKey == cacheKey }
-        for key in keys {
-            let conts = waiters.removeValue(forKey: key) ?? []
-            for cont in conts { cont.resume(throwing: error) }
-        }
         let chunkKeys = chunkWaiters.keys.filter { $0.cacheKey == cacheKey }
         for ck in chunkKeys {
             for cont in chunkWaiters.removeValue(forKey: ck) ?? [] { cont.resume(throwing: error) }

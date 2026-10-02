@@ -762,23 +762,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
                 voiceID: self.cacheVoiceID
             )
         }
-        engine.unitEnsureProvider = { [weak self] index, text in
-            guard let self, let articleID = self.playback.articleID else {
-                throw NSError(
-                    domain: "SpeechController",
-                    code: 1,
-                    userInfo: [NSLocalizedDescriptionKey: "No active article for ensure"]
-                )
-            }
-            return try await self.localTTS.ensureUnit(
-                cacheKey: articleID,
-                paragraphIndex: index,
-                text: text,
-                rate: Float(self.rateMultiplier),
-                voiceID: self.cacheVoiceID,
-                isEphemeral: self.localTTS.audioCache.loadMeta(for: articleID)?.kind == .ephemeral
-            )
-        }
         engine.chunkCountProvider = { [weak self] text in
             self?.localTTS.synthQueue.chunkTexts(for: text).count ?? TextChunker.chunks(for: text).count
         }
@@ -823,19 +806,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             guard let self, let articleID = self.playback.articleID else { return false }
             let queue = self.localTTS.synthQueue
             return queue.activeBakeCacheKey == articleID && queue.activeBakeIndex == index
-        }
-        engine.onUnitRendered = { [weak self] index, url, duration in
-            guard let self, let articleID = self.playback.articleID else { return nil }
-            let paragraphs = self.playback.document.paragraphs
-            return try? self.localTTS.persistRenderedUnit(
-                articleID: articleID,
-                paragraphIndex: index,
-                sourceURL: url,
-                duration: duration,
-                rate: Float(self.rateMultiplier),
-                voiceID: self.cacheVoiceID,
-                text: paragraphs.indices.contains(index) ? paragraphs[index] : nil
-            )
         }
     }
 

@@ -706,50 +706,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         startBakeIfNeeded(articleID: articleID, paragraphs: paragraphs, rate: rate, voiceID: voiceID)
     }
 
-    /// Persist a live-rendered unit (fallback path); prefer GlobalSynthQueue.store via worker.
-    @discardableResult
-    func persistRenderedUnit(
-        articleID: UUID,
-        paragraphIndex: Int,
-        sourceURL: URL,
-        duration: TimeInterval,
-        rate: Float,
-        voiceID: String,
-        text: String? = nil
-    ) throws -> URL {
-        let url = try audioCache.storeParagraph(
-            articleID: articleID,
-            paragraphIndex: paragraphIndex,
-            sourceURL: sourceURL,
-            duration: duration,
-            engineID: cacheEngineID,
-            voiceID: voiceID,
-            rate: rate,
-            text: text
-        )
-        noteBakeMarksChanged()
-        return url
-    }
-
-    /// Await Ready CAF via the global queue (playhead path).
-    func ensureUnit(
-        cacheKey: UUID,
-        paragraphIndex: Int,
-        text: String,
-        rate: Float,
-        voiceID: String,
-        isEphemeral: Bool
-    ) async throws -> URL {
-        try await synthQueue.ensureUnit(
-            cacheKey: cacheKey,
-            paragraphIndex: paragraphIndex,
-            text: text,
-            rate: rate,
-            voiceID: voiceID,
-            isEphemeral: isEphemeral
-        )
-    }
-
     /// After Save: move ephemeral CAFs onto the SavedArticle UUID and reshuffle the queue key.
     func migrateListenCache(from ephemeralKey: UUID, to savedKey: UUID) {
         guard ephemeralKey != savedKey else {

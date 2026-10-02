@@ -54,35 +54,6 @@ final class LocalChunkRenderer: Sendable {
         }
     }
 
-    /// Arbitrary text (chunked with the engine's limits) → one CAF. Legacy live / probe path.
-    func render(text: String, to destination: URL, seed: UInt64) async throws -> TimeInterval {
-        let chunks = TextChunker.chunks(for: text, limits: descriptor.limits)
-        guard !chunks.isEmpty else { throw LocalSynthError.emptyText }
-        try await prepare()
-        await gate.acquire()
-        do {
-            var all: [Float] = []
-            var rate = 24_000
-            for (i, chunk) in chunks.enumerated() {
-                try Task.checkCancellation()
-                var part = try await synthesizeResilient(chunk, seed: seed &+ UInt64(i), depth: 0, context: ["c": i])
-                rate = part.sampleRate
-                if host.trimsEdgeSilence {
-                    let next = i + 1 < chunks.count ? chunks[i + 1].split(separator: " ").first.map(String.init) : nil
-                    let b = ChunkEdgeTrim.boundary(after: chunk, nextWord: next, isLastInParagraph: i == chunks.count - 1)
-                    part.samples = ChunkEdgeTrim.trim(part.samples, sampleRate: rate, trailMs: ChunkEdgeTrim.trailMs(b))
-                }
-                all.append(contentsOf: part.samples)
-            }
-            try LocalPCMWriter.write(all, sampleRate: rate, to: destination)
-            await gate.release()
-            return rate > 0 ? Double(all.count) / Double(rate) : 0
-        } catch {
-            await gate.release()
-            throw error
-        }
-    }
-
     /// One call; on overflow split and recurse. Caller holds the gate.
     func synthesizeResilient(_ text: String, seed: UInt64, depth: Int, context: [String: Any]) async throws -> SynthesizedPCM {
         try Task.checkCancellation()

@@ -7,7 +7,7 @@ import Foundation
 /// Session phase lives in `PlaybackSessionState` — this type only plays Ready URLs
 /// and reports callbacks. See docs/LISTEN_PLAYBACK.md.
 @MainActor
-final class LocalModelSpeechEngine: SpeechSynthesizing, SynthChunkRendering {
+final class LocalModelSpeechEngine: SynthChunkRendering {
     /// Active local backend. Switched by `LocalTTSCoordinator.selectEngine` via `setActiveLocalEngine`.
     private(set) var engineID: SpeechEngineID
 
@@ -66,20 +66,16 @@ final class LocalModelSpeechEngine: SpeechSynthesizing, SynthChunkRendering {
     var articleID: UUID?
     /// When true, GlobalSynthQueue marks TTSCache meta as ephemeral.
     var isEphemeralCache = false
-    /// Await Ready CAF via GlobalSynthQueue (single Core ML worker). Preferred over local render.
-    var unitEnsureProvider: ((Int, String) async throws -> URL)?
-    /// Persist every successfully live-rendered unit into ArticleAudioCache (fallback).
-    /// Return the cached URL when persistence succeeds.
-    var onUnitRendered: ((Int, URL, TimeInterval) async -> URL?)?
     /// Chunk-level ensure via GlobalSynthQueue: (paragraph, chunk, text) → playable audio.
-    var chunkEnsureProvider: ((Int, Int, String) async throws -> GlobalSynthQueue.ChunkResolution)?
+    /// Unbound (no article wired): every unit falls back to Apple TTS.
+    var chunkEnsureProvider: (Int, Int, String) async throws -> GlobalSynthQueue.ChunkResolution = { _, _, _ in
+        throw LocalSynthError.engineUnavailable("No article bound to the local engine.")
+    }
     /// Synth chunk count for a paragraph's text (TextChunker plan).
-    var chunkCountProvider: ((String) -> Int)?
+    var chunkCountProvider: (String) -> Int = { TextChunker.chunks(for: $0).count }
     /// True while the single worker is rendering (a chunk of) this paragraph for this article —
     /// the starved watchdog must not treat that as a wedged producer.
     var isRenderingParagraph: ((Int) -> Bool)?
-    /// Playhead origin for the current priority stretch (speak/seek start).
-    private var priorityStart = 0
     /// Chunk durations of a stitched paragraph CAF (nil = single chunk / unknown).
     var chunkDurationsProvider: ((Int) -> [TimeInterval]?)?
     /// Sub-paragraph start (Nav I): how far into the first unit of this speak/seek to begin, as a
@@ -216,10 +212,6 @@ final class LocalModelSpeechEngine: SpeechSynthesizing, SynthChunkRendering {
         try await currentRenderer().prepare()
     }
 
-    func speak(paragraphs: [String], startingAt index: Int, rate: Float, voiceID: String?) async throws {
-        try await speak(paragraphs: paragraphs, startingAt: index, chunk: 0, fractionInChunk: 0, rate: rate, voiceID: voiceID)
-    }
-
     /// Start at synth chunk `chunk` of paragraph `index`, `fractionInChunk` (0…1) into it
     /// (scrubbed to a sentence). Unrendered: that chunk is rendered first.
     func speak(paragraphs: [String], startingAt index: Int, chunk: Int, fractionInChunk: Double,
@@ -231,7 +223,6 @@ final class LocalModelSpeechEngine: SpeechSynthesizing, SynthChunkRendering {
         self.voiceID = voiceID
         let start = max(0, min(index, max(paragraphs.count - 1, 0)))
         nextProduceIndex = start
-        priorityStart = start
         userWantsAudible = true
         isPaused = false
         isSpeaking = true
@@ -298,17 +289,6 @@ final class LocalModelSpeechEngine: SpeechSynthesizing, SynthChunkRendering {
         return first.paragraphIndex
     }
 
-    func skip(by delta: Int) {
-        let current = player.currentParagraphIndex ?? max(0, nextProduceIndex - 1)
-        let next = max(0, min(paragraphs.count - 1, current + delta))
-        seek(to: next)
-    }
-
-    /// `SpeechSynthesizing` conformance: the AVSpeech-scale rate → a playback multiplier.
-    func setRate(_ rate: Float) {
-        setPlaybackRate(rate / AVSpeechUtteranceDefaultSpeechRate)
-    }
-
     /// Listen speed (Nav I): a time-stretch on the player, applied in place. Audio is always
     /// rendered at 1× (engine and Apple fallback alike), so nothing is re-rendered or re-queued
     /// and the current sentence just continues faster / slower.
@@ -322,11 +302,6 @@ final class LocalModelSpeechEngine: SpeechSynthesizing, SynthChunkRendering {
         player.currentPosition
     }
 
-    func setVoice(id: String?) {
-        voiceID = id
-        if isSpeaking || isPaused { seek(to: player.currentParagraphIndex ?? nextProduceIndex) }
-    }
-
     /// One synth chunk → CAF (GlobalSynthQueue worker). Re-splits internally on overflow.
     func renderChunkToFile(text: String, destination: URL, seed: UInt64, context: [String: Any]) async throws -> TimeInterval {
         try await prepareIfNeeded()
@@ -336,29 +311,6 @@ final class LocalModelSpeechEngine: SpeechSynthesizing, SynthChunkRendering {
     /// Apple TTS render of one chunk (never-skip fallback when the engine cannot synthesize it).
     func renderAppleFallback(text: String, destination: URL, rate: Float, voiceID: String?) async throws -> TimeInterval {
         try await probeFallback.render(text: text, to: destination, rate: rate, voiceID: voiceID, language: language)
-    }
-
-    /// Debug engine probe: one production call on the active host (same gate / compute units).
-    /// Returns wall ms for the whole text and, separately, for its first synth chunk.
-    func debugTimedSynth(text: String) async throws -> (wallMs: Int, firstChunkMs: Int, audioSeconds: Double, chunks: Int) {
-        try await prepareIfNeeded()
-        let host = try currentRenderer()
-        let chunks = TextChunker.chunks(for: text, limits: limits)
-        var total = 0.0
-        var firstMs = 0
-        let t0 = ListenTimingLog.now()
-        for (i, chunk) in chunks.enumerated() {
-            let url = tempDir.appendingPathComponent("probe-\(UUID().uuidString).caf")
-            defer { try? FileManager.default.removeItem(at: url) }
-            total += try await host.renderChunk(text: chunk, to: url, seed: 42, context: ["probe": true, "c": i])
-            if i == 0 { firstMs = ListenTimingLog.ms(since: t0) }
-        }
-        return (ListenTimingLog.ms(since: t0), firstMs, total, chunks.count)
-    }
-
-    func renderParagraphToFile(text: String, destination: URL, rate: Float, voiceID: String?) async throws -> TimeInterval {
-        try await prepareIfNeeded()
-        return try await renderLive(text: text, to: destination, voiceID: voiceID, rate: rate, paragraphIndex: nil)
     }
 
     func resetHostPrepared() {
@@ -375,27 +327,6 @@ final class LocalModelSpeechEngine: SpeechSynthesizing, SynthChunkRendering {
     }
 
     // MARK: - Private
-
-    private func seek(to index: Int) {
-        let next = max(0, min(paragraphs.count - 1, index))
-        producerTask?.cancel()
-        producerTask = nil
-        player.clear()
-        nextProduceIndex = next
-        nextProduceChunk = 0
-        pendingStartFraction = 0
-        priorityStart = next
-        speakRequestedAt = ListenTimingLog.now()
-        starvedAt = nil
-        onParagraphIndexChange?(next)
-        epoch += 1
-        let e = epoch
-        userWantsAudible = true
-        isPaused = false
-        isSpeaking = true
-        player.awaitingMore = true
-        ensureProducerRunning(epoch: e)
-    }
 
     private func stopInternal(clearCallbacks: Bool) {
         resumePointStore?.clear()
@@ -511,62 +442,45 @@ final class LocalModelSpeechEngine: SpeechSynthesizing, SynthChunkRendering {
                     continue
                 }
                 // Play-while-building: enqueue each synth chunk as soon as it is rendered.
-                if let chunkEnsureProvider, let chunkCount = chunkCountProvider?(text) {
-                    if chunkCount == 0 {
-                        // Nothing speakable (e.g. "***"). Not a skip of real audio.
-                        ListenDebugLog.shared.append("p\(index) has no speakable text")
-                        nextProduceIndex = index + 1
-                        nextProduceChunk = 0
-                        continue
-                    }
-                    let k = min(nextProduceChunk, chunkCount - 1)
-                    if projectsUnderrun(index: index, chunk: k, text: text) {
-                        await fallbackToApple(index: index, fromChunk: k, text: text, error: RenderFellBehind(), epoch: e)
-                        continue
-                    }
-                    do {
-                        let resolution = try await chunkEnsureProvider(index, k, text)
-                        guard e == epoch else { return }
-                        switch resolution {
-                        case .chunk(let url):
-                            let start = consumeStartTime(fileURL: url, paragraph: index, chunk: k, fileStartTime: 0, wholeParagraph: false)
-                            player.enqueue(.init(paragraphIndex: index, fileURL: url, chunkIndex: k, startTime: start))
-                            if k + 1 >= chunkCount {
-                                nextProduceIndex = index + 1
-                                nextProduceChunk = 0
-                            } else {
-                                nextProduceChunk = k + 1
-                            }
-                        case .paragraph(let url, let startTime):
-                            // Paragraph finished (scratch gone) — play the rest from the stitched CAF.
-                            let start = consumeStartTime(fileURL: url, paragraph: index, chunk: k, fileStartTime: startTime, wholeParagraph: true)
-                            player.enqueue(.init(paragraphIndex: index, fileURL: url, chunkIndex: k, startTime: start,
-                                                 isWholeParagraph: true))
-                            nextProduceIndex = index + 1
-                            nextProduceChunk = 0
-                        }
-                    } catch is CancellationError {
-                        return
-                    } catch {
-                        guard e == epoch else { return }
-                        await fallbackToApple(index: index, fromChunk: k, text: text, error: error, epoch: e)
-                    }
+                let chunkCount = chunkCountProvider(text)
+                if chunkCount == 0 {
+                    // Nothing speakable (e.g. "***"). Not a skip of real audio.
+                    ListenDebugLog.shared.append("p\(index) has no speakable text")
+                    nextProduceIndex = index + 1
+                    nextProduceChunk = 0
+                    continue
+                }
+                let k = min(nextProduceChunk, chunkCount - 1)
+                if projectsUnderrun(index: index, chunk: k, text: text) {
+                    await fallbackToApple(index: index, fromChunk: k, text: text, error: RenderFellBehind(), epoch: e)
                     continue
                 }
                 do {
-                    let url = try await resolveReadyURL(index: index, text: text, epoch: e)
+                    let resolution = try await chunkEnsureProvider(index, k, text)
                     guard e == epoch else { return }
-                    nextProduceIndex = index + 1
-                    pendingStartFraction = 0
-                    // Dedupe: queue may already hold this index if another produce raced.
-                    if !player.bufferedParagraphIndices.contains(index) {
-                        player.enqueue(.init(paragraphIndex: index, fileURL: url))
+                    switch resolution {
+                    case .chunk(let url):
+                        let start = consumeStartTime(fileURL: url, paragraph: index, chunk: k, fileStartTime: 0, wholeParagraph: false)
+                        player.enqueue(.init(paragraphIndex: index, fileURL: url, chunkIndex: k, startTime: start))
+                        if k + 1 >= chunkCount {
+                            nextProduceIndex = index + 1
+                            nextProduceChunk = 0
+                        } else {
+                            nextProduceChunk = k + 1
+                        }
+                    case .paragraph(let url, let startTime):
+                        // Paragraph finished (scratch gone) — play the rest from the stitched CAF.
+                        let start = consumeStartTime(fileURL: url, paragraph: index, chunk: k, fileStartTime: startTime, wholeParagraph: true)
+                        player.enqueue(.init(paragraphIndex: index, fileURL: url, chunkIndex: k, startTime: start,
+                                             isWholeParagraph: true))
+                        nextProduceIndex = index + 1
+                        nextProduceChunk = 0
                     }
                 } catch is CancellationError {
                     return
                 } catch {
                     guard e == epoch else { return }
-                    await fallbackToApple(index: index, fromChunk: 0, text: text, error: error, epoch: e)
+                    await fallbackToApple(index: index, fromChunk: k, text: text, error: error, epoch: e)
                 }
                 continue
             }
@@ -720,84 +634,9 @@ final class LocalModelSpeechEngine: SpeechSynthesizing, SynthChunkRendering {
         }
     }
 
-    /// Next missing index per BakePriorityPlan.fromPlayhead(priorityStart), skipping the
-    /// immediate head (`nextProduceIndex`) so we never dual-render one unit.
-    private func nextBatchIndex() -> Int? {
-        guard !paragraphs.isEmpty else { return nil }
-        let buffered = player.bufferedParagraphIndices
-        let missing = paragraphs.indices.filter { bakedURLProvider?($0) == nil }
-        let order = BakePriorityPlan.fromPlayhead(priorityStart, paragraphCount: paragraphs.count)
-            .orderedWork(missing: Array(missing))
-        // Skip the immediate head and anything already in the player buffer.
-        return order.first { $0 != nextProduceIndex && !buffered.contains($0) }
-    }
-
-    /// Prefer bake cache; else GlobalSynthQueue ensure; else live render + persist.
-    private func resolveReadyURL(index: Int, text: String, epoch e: Int) async throws -> URL {
-        if let baked = bakedURLProvider?(index), isUsableAudioFile(baked) {
-            return baked
-        }
-        if let unitEnsureProvider {
-            let url = try await unitEnsureProvider(index, text)
-            guard isUsableAudioFile(url) else {
-                throw NSError(
-                    domain: "LocalModelSpeechEngine",
-                    code: 2,
-                    userInfo: [NSLocalizedDescriptionKey: "Queue ensure produced empty CAF at \(index)"]
-                )
-            }
-            return url
-        }
-        let url = tempDir.appendingPathComponent("live-\(e)-\(index).caf")
-        let duration = try await renderLive(
-            text: text,
-            to: url,
-            voiceID: voiceID,
-            rate: rate,
-            paragraphIndex: index
-        )
-        guard isUsableAudioFile(url) else {
-            throw NSError(
-                domain: "LocalModelSpeechEngine",
-                code: 2,
-                userInfo: [NSLocalizedDescriptionKey: "Live render produced empty CAF at \(index)"]
-            )
-        }
-        if let persisted = await onUnitRendered?(index, url, duration), isUsableAudioFile(persisted) {
-            return persisted
-        }
-        return url
-    }
-
     private func isUsableAudioFile(_ url: URL) -> Bool {
         guard FileManager.default.fileExists(atPath: url.path) else { return false }
         let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.intValue ?? 0
         return size > 256
-    }
-
-
-    private func seed(for voiceID: String?, paragraphIndex: Int?) -> UInt64 {
-        if let voiceID, !voiceID.isEmpty {
-            var hasher = Hasher()
-            hasher.combine(voiceID)
-            hasher.combine(paragraphIndex ?? -1)
-            return UInt64(bitPattern: Int64(hasher.finalize()))
-        }
-        return UInt64.random(in: 0..<UInt64.max)
-    }
-
-    private func renderLive(
-        text: String,
-        to destination: URL,
-        voiceID: String?,
-        rate: Float,
-        paragraphIndex: Int?
-    ) async throws -> TimeInterval {
-        _ = rate
-        return try await currentRenderer().render(
-            text: text,
-            to: destination,
-            seed: seed(for: voiceID, paragraphIndex: paragraphIndex)
-        )
     }
 }
