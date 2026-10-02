@@ -42,7 +42,7 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
         lock.withLock { prepared = true }
     }
 
-    func synthesizeOnce(text: String, seed: UInt64) async throws -> SynthesizedPCM {
+    func synthesizeOnce(text: String) async throws -> SynthesizedPCM {
         if config.latency > 0 { try await Task.sleep(nanoseconds: UInt64(config.latency * 1e9)) }
         if config.failAlways {
             lock.withLock { _calls.append((text, false)) }
@@ -95,13 +95,11 @@ final class FakeEngineProvider: SpeechEngineProvider {
 
     var descriptor: EngineDescriptor {
         EngineDescriptor(
-            id: Self.fakeID, providerName: name, kind: .onDevice,
+            id: Self.fakeID, kind: .onDevice,
             displayName: "Fake (test)", shortName: "Fake", subtitle: "Test engine",
             isRecommended: false, sortOrder: 99,
             voices: voices, defaultVoiceID: defaultVoice, voiceDefaultsKey: nil, cacheVoiceKey: .prefixed("fake"),
-            streaming: .wholeCall, limits: limits, limitNotes: "maxCharsPerCall",
-            assets: [], approxDownloadBytes: 0, hardware: .none,
-            computeRouting: nil, quirks: [], supportsBakeCache: true,
+            limits: limits, hardware: .none, supportsBakeCache: true,
             crashGuarded: false, crashNoticeDetail: nil, supportedLanguages: languages)
     }
 
@@ -166,17 +164,17 @@ final class FakeQueueContext: SynthQueueContext, SynthChunkRendering {
     func noteBakeMarksChanged() {}
     func bakeCompleted(cacheKey: UUID) { completed.append(cacheKey) }
 
-    func renderChunkToFile(text: String, destination: URL, seed: UInt64, context: [String: Any]) async throws -> TimeInterval {
+    func renderChunkToFile(text: String, destination: URL, context: [String: Any]) async throws -> TimeInterval {
         // Context "key" is only a short prefix; recover the article UUID from the destination
         // path (<root>/<article uuid>/chunks/…) — the last UUID component (the Simulator's
         // device / app container ids come earlier in the path).
         let key = destination.pathComponents.compactMap(UUID.init(uuidString:)).last ?? UUID()
         renders.append((key, context["p"] as? Int ?? -1, context["c"] as? Int ?? -1))
-        return try await chunkRenderer.renderChunk(text: text, to: destination, seed: seed, context: context)
+        return try await chunkRenderer.renderChunk(text: text, to: destination, context: context)
     }
 
     /// Stand-in for Apple TTS (AVSpeechSynthesizer.write is unreliable in unit tests).
-    func renderAppleFallback(text: String, destination: URL, rate: Float, voiceID: String?) async throws -> TimeInterval {
+    func renderAppleFallback(text: String, destination: URL, voiceID: String?) async throws -> TimeInterval {
         fallbackTexts.append(text)
         let samples = FakeSynthHost.tone(seconds: Double(text.count) * 0.05, sampleRate: 24_000)
         try LocalPCMWriter.write(samples, sampleRate: 24_000, to: destination)

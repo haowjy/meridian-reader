@@ -127,7 +127,7 @@ enum EngineLatencyProbe {
                             .appendingPathComponent("engine-probe-\(UUID().uuidString).caf")
                         defer { try? FileManager.default.removeItem(at: url) }
                         audio += try await host.renderChunk(
-                            text: chunk, to: url, seed: 42, context: ["probe": true, "c": i])
+                            text: chunk, to: url, context: ["probe": true, "c": i])
                         if i == 0 { firstMs = ListenTimingLog.ms(since: t0) }
                     }
                     let wall = ListenTimingLog.ms(since: t0)
@@ -152,7 +152,7 @@ enum EngineLatencyProbe {
                 for i in 0..<n {
                     let url = FileManager.default.temporaryDirectory.appendingPathComponent("engine-stress-\(i).caf")
                     do {
-                        _ = try await host.renderChunk(text: texts[1].text, to: url, seed: 42, context: ["probe": true, "c": i])
+                        _ = try await host.renderChunk(text: texts[1].text, to: url, context: ["probe": true, "c": i])
                     } catch {
                         log("[\(name)] stress call \(i) FAILED: \(error.localizedDescription)")
                     }

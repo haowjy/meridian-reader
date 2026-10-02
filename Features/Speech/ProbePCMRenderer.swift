@@ -3,13 +3,13 @@ import Foundation
 
 /// Renders text with AVSpeechSynthesizer.write into a PCM file. Used as the Apple-TTS
 /// fallback for a local-engine chunk that cannot be synthesized (never silently skip audio).
+/// Always renders at 1× like every other unit: the player applies the listen speed.
 final class ProbePCMRenderer: NSObject, @unchecked Sendable {
     private let synthesizer = AVSpeechSynthesizer()
 
     func render(
         text: String,
         to destination: URL,
-        rate: Float,
         voiceID: String?,
         language: String
     ) async throws -> TimeInterval {
@@ -22,7 +22,7 @@ final class ProbePCMRenderer: NSObject, @unchecked Sendable {
         )
 
         let utterance = AVSpeechUtterance(string: text)
-        utterance.rate = rate
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
         if let voiceID, let voice = AVSpeechSynthesisVoice(identifier: voiceID) {
             utterance.voice = voice
         } else if let voice = AVSpeechSynthesisVoice(language: language) {
@@ -33,9 +33,8 @@ final class ProbePCMRenderer: NSObject, @unchecked Sendable {
             var resumed = false
             var totalFrames: AVAudioFrameCount = 0
             var sampleRate: Double = 22050
-            // Keep ONE file open across callbacks — write(_:) delivers many buffers for
-            // anything longer than a few words (the old version recreated the file per buffer
-            // and kept only the last one).
+            // Keep ONE file open across callbacks: write(_:) delivers many buffers for anything
+            // longer than a few words, and each must be appended to the same file.
             var file: AVAudioFile?
 
             func finish(_ result: Result<TimeInterval, Error>) {

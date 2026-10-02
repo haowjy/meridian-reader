@@ -22,7 +22,6 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     private let probeFallback = ProbePCMRenderer()
 
     private var paragraphs: [String] = []
-    private var rate: Float = AVSpeechUtteranceDefaultSpeechRate
     private var voiceID: String?
     private var language: String = "en-US"
 
@@ -215,11 +214,10 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     /// Start at synth chunk `chunk` of paragraph `index`, `fractionInChunk` (0…1) into it
     /// (scrubbed to a sentence). Unrendered: that chunk is rendered first.
     func speak(paragraphs: [String], startingAt index: Int, chunk: Int, fractionInChunk: Double,
-               rate: Float, voiceID: String?) async throws {
+               voiceID: String?) async throws {
         stopInternal(clearCallbacks: false)
         try await prepareIfNeeded()
         self.paragraphs = paragraphs
-        self.rate = rate
         self.voiceID = voiceID
         let start = max(0, min(index, max(paragraphs.count - 1, 0)))
         nextProduceIndex = start
@@ -303,14 +301,14 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     }
 
     /// One synth chunk → CAF (GlobalSynthQueue worker). Re-splits internally on overflow.
-    func renderChunkToFile(text: String, destination: URL, seed: UInt64, context: [String: Any]) async throws -> TimeInterval {
+    func renderChunkToFile(text: String, destination: URL, context: [String: Any]) async throws -> TimeInterval {
         try await prepareIfNeeded()
-        return try await currentRenderer().renderChunk(text: text, to: destination, seed: seed, context: context)
+        return try await currentRenderer().renderChunk(text: text, to: destination, context: context)
     }
 
     /// Apple TTS render of one chunk (never-skip fallback when the engine cannot synthesize it).
-    func renderAppleFallback(text: String, destination: URL, rate: Float, voiceID: String?) async throws -> TimeInterval {
-        try await probeFallback.render(text: text, to: destination, rate: rate, voiceID: voiceID, language: language)
+    func renderAppleFallback(text: String, destination: URL, voiceID: String?) async throws -> TimeInterval {
+        try await probeFallback.render(text: text, to: destination, voiceID: voiceID, language: language)
     }
 
     func resetHostPrepared() {
@@ -579,9 +577,7 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
         let url = tempDir.appendingPathComponent("apple-\(e)-\(index)-\(fromChunk).caf")
         let t0 = ListenTimingLog.now()
         do {
-            // 1× like every other unit: the player applies the listen speed (`setPlaybackRate`).
-            _ = try await probeFallback.render(text: remainder, to: url, rate: AVSpeechUtteranceDefaultSpeechRate,
-                                               voiceID: voiceID, language: language)
+            _ = try await probeFallback.render(text: remainder, to: url, voiceID: voiceID, language: language)
             guard e == epoch else { return }
             ListenTimingLog.log("fallback_apple", ["p": index, "c": fromChunk, "live": true,
                                                    "chars": remainder.count, "ms": ListenTimingLog.ms(since: t0),

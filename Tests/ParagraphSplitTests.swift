@@ -285,7 +285,7 @@ final class ParagraphLayoutMigrationTests: XCTestCase {
         try LocalPCMWriter.write(samples, sampleRate: 24_000, to: tmp)
         try cache.storeParagraph(articleID: article, paragraphIndex: index, sourceURL: tmp,
                                  duration: Double(samples.count) / 24_000, engineID: SpeechEngineID.kokoro.rawValue,
-                                 voiceID: "kstub:af_heart", rate: 1, text: text,
+                                 voiceID: "kstub:af_heart", text: text,
                                  chunkDurations: lengths.count > 1 ? lengths.map { Double($0) / 24_000 } : nil)
     }
 

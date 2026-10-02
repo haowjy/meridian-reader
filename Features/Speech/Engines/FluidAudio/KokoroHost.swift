@@ -13,7 +13,7 @@ import Foundation
 ///   Misaki `us_lexicon_cache.json` (≈10 MB). No espeak.
 ///   Cached under `Application Support/fluidaudio/Models/{kokoro-82m-coreml/ANE, kokoro}`.
 /// - Per call: ≤510 IPA phonemes (`phonemeSequenceTooLong`), ≤2000 frames (`acousticFramesExceedCap`).
-/// - Deterministic; the seed is ignored.
+/// - Deterministic: the same text renders the same audio.
 final class KokoroHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID = .kokoro
 
@@ -151,7 +151,7 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
         await manager.cleanup()
     }
 
-    func synthesizeOnce(text: String, seed: UInt64) async throws -> SynthesizedPCM {
+    func synthesizeOnce(text: String) async throws -> SynthesizedPCM {
         do {
             let r = try await manager.synthesizeDetailed(text: text, voice: currentVoice, speed: 1.0)
             let st = r.timings

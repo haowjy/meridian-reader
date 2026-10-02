@@ -432,7 +432,6 @@ struct ArticleReaderScreen: View {
         speech.localTTS.startBakeIfNeeded(
             articleID: row.id,
             paragraphs: article.document.paragraphs,
-            rate: Float(speech.rateMultiplier),
             voiceID: speech.cacheVoiceID
         )
     }
@@ -461,7 +460,6 @@ struct ArticleReaderScreen: View {
         speech.localTTS.warmListenAudio(
             cacheKey: article.id,
             paragraphs: article.document.paragraphs,
-            rate: Float(speech.rateMultiplier),
             voiceID: speech.cacheVoiceID,
             resumeParagraph: live ? speech.currentParagraphIndex : resumeParagraph,
             isEphemeral: !isSaved

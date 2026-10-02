@@ -30,23 +30,6 @@ struct EngineVoice: Hashable, Sendable, Identifiable {
     var previewResource: String? = nil
 }
 
-/// How the engine produces audio.
-struct EngineStreaming: Sendable, Equatable {
-    /// Audio can start before the whole call finishes.
-    let streams: Bool
-    /// The library hands back PCM chunks as they are generated (vs one buffer per call).
-    let yieldsPCMChunks: Bool
-
-    static let wholeCall = EngineStreaming(streams: false, yieldsPCMChunks: false)
-}
-
-/// One downloadable asset (for Settings / docs; the provider does the actual download).
-struct EngineAsset: Sendable, Equatable {
-    let name: String
-    let approxBytes: Int64
-    let source: String
-}
-
 /// Device floor for an engine. Evaluated by `DeviceChipGate.meets(_:)`.
 struct HardwareRequirement: Sendable, Equatable {
     var minimumOSMajor: Int = 17
@@ -78,7 +61,6 @@ enum EngineKind: Sendable, Equatable {
 /// capabilities; it never switches on concrete engine types.
 struct EngineDescriptor: Sendable, Identifiable {
     let id: SpeechEngineID
-    let providerName: String
     let kind: EngineKind
     /// Settings row title ("Kokoro (on-device)").
     let displayName: String
@@ -97,18 +79,9 @@ struct EngineDescriptor: Sendable, Identifiable {
     let voiceDefaultsKey: String?
     let cacheVoiceKey: CacheVoiceKeyStyle
 
-    let streaming: EngineStreaming
     /// Per-call chunk sizing used by `TextChunker` (units = chars, digits ×3).
     let limits: TextChunker.Limits
-    /// What the per-call cap really is (tokens / phonemes / seconds) and how limits map to it.
-    let limitNotes: String
-
-    let assets: [EngineAsset]
-    let approxDownloadBytes: Int64
     let hardware: HardwareRequirement
-    /// Compute routing the provider uses on this OS (e.g. "gpuAneVocoder"), for logs / docs.
-    let computeRouting: String?
-    let quirks: [String]
 
     /// Paragraph CAFs are baked + cached (bake marks, Preparing next, BG bake). Apple: false.
     let supportsBakeCache: Bool
@@ -121,13 +94,6 @@ struct EngineDescriptor: Sendable, Identifiable {
     var supportedLanguages: [String] = []
 
     var resolvedVoiceDefaultsKey: String { voiceDefaultsKey ?? "reader.tts.voice.\(id.rawValue)" }
-
-    /// "~95 MB download" style label.
-    var downloadSizeLabel: String {
-        guard approxDownloadBytes > 0 else { return "" }
-        let mb = Double(approxDownloadBytes) / 1_000_000
-        return "~\(Int((mb / 5).rounded() * 5)) MB download"
-    }
 
     /// True if the engine can speak `languageCode` (any BCP-47 form; compared by base language).
     func supportsLanguage(_ languageCode: String) -> Bool {

@@ -32,7 +32,6 @@ final class BackgroundAudioBakeScheduler {
     struct PendingJob: Codable, Equatable {
         var articleID: UUID
         var paragraphs: [String]
-        var rate: Float
         var voiceID: String
         var priorityStart: Int
         var fillGapsFromTopAfterPriority: Bool
@@ -41,7 +40,6 @@ final class BackgroundAudioBakeScheduler {
     func enqueuePending(
         articleID: UUID,
         paragraphs: [String],
-        rate: Float,
         voiceID: String,
         plan: BakePriorityPlan
     ) {
@@ -51,7 +49,6 @@ final class BackgroundAudioBakeScheduler {
             PendingJob(
                 articleID: articleID,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID,
                 priorityStart: plan.priorityStart,
                 fillGapsFromTopAfterPriority: plan.fillGapsFromTopAfterPriority
@@ -111,7 +108,6 @@ final class BackgroundAudioBakeScheduler {
             coordinator.startBakeIfNeeded(
                 articleID: job.articleID,
                 paragraphs: job.paragraphs,
-                rate: job.rate,
                 voiceID: job.voiceID
             )
         } else {
@@ -119,7 +115,6 @@ final class BackgroundAudioBakeScheduler {
                 articleID: job.articleID,
                 from: job.priorityStart,
                 paragraphs: job.paragraphs,
-                rate: job.rate,
                 voiceID: job.voiceID
             )
         }

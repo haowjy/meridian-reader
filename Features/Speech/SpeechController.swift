@@ -779,7 +779,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
                 chunk: chunk,
                 text: text,
                 paragraphs: self.playback.document.paragraphs,
-                rate: Float(self.rateMultiplier),
                 voiceID: self.cacheVoiceID,
                 isEphemeral: self.localTTS.audioCache.loadMeta(for: articleID)?.kind == .ephemeral
             )
@@ -838,8 +837,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
 
         if usesLocalPlayback {
             let paragraphIndex = document.isEmpty ? 0 : document.index(containingUTF16Offset: clamped)
-            // Units are rendered at 1×; the player time-stretches to the listen speed (Nav I).
-            let avRate = Float(AVSpeechUtteranceDefaultSpeechRate)
+            // Units are rendered at 1×; the player time-stretches to the listen speed.
             localTTS.localEngineInstance.setPlaybackRate(Float(rateMultiplier))
             // Scrubbed to a sentence mid-paragraph: start at its synth chunk, offset into the audio.
             let within = clamped - document.startUTF16Offset(forParagraph: paragraphIndex)
@@ -870,7 +868,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
                     cacheKey: articleID,
                     playhead: paragraphIndex,
                     paragraphs: document.paragraphs,
-                    rate: Float(rateMultiplier),
                     voiceID: cacheVoiceID,
                     isEphemeral: meta?.kind == .ephemeral
                 )
@@ -884,7 +881,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
                         startingAt: paragraphIndex,
                         chunk: startPoint.chunk,
                         fractionInChunk: startPoint.fraction,
-                        rate: avRate,
                         voiceID: self.selectedVoiceIdentifier
                     )
                     if startPaused {
@@ -997,7 +993,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     private func finishSession(restartBake: Bool) {
         let articleID = playback.articleID
         let paragraphs = playback.document.paragraphs
-        let rate = Float(rateMultiplier)
         let voiceID = cacheVoiceID
         speakGeneration += 1
         stopBufferingPoll()
@@ -1011,7 +1006,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             localTTS.resumeGapFillBake(
                 articleID: articleID,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID
             )
         }

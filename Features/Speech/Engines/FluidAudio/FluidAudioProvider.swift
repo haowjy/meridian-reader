@@ -30,9 +30,11 @@ final class FluidAudioProvider: SpeechEngineProvider {
     /// Curated voices live in `KokoroVoiceCatalog` (one-line swaps).
     static var kokoroVoices: [EngineVoice] { KokoroVoiceCatalog.curated }
 
+    /// Default route: ONNX Runtime CPU (no Core ML/BNNS, keeps rendering in the background).
+    /// The Core ML route is a debug opt-in: on iOS 26.4+ every Core ML routing can SIGSEGV in
+    /// libBNNS (FluidAudio #844).
     static let kokoroDescriptor = EngineDescriptor(
         id: .kokoro,
-        providerName: "FluidAudio",
         kind: .onDevice,
         displayName: "Kokoro (on-device)",
         shortName: "Kokoro",
@@ -43,28 +45,11 @@ final class FluidAudioProvider: SpeechEngineProvider {
         defaultVoiceID: KokoroVoiceCatalog.defaultVoice,
         voiceDefaultsKey: "reader.tts.kokoroVoice", // pre-DI key, keep
         cacheVoiceKey: .prefixed("kokoro"),          // "kokoro.af_heart" (existing caches)
-        streaming: .wholeCall,
+        // Chunks ≤ 280 units; a call over `KokoroCPUHost.maxTokensPerCall` throws inputTooLong
+        // and the renderer re-splits.
         limits: .kokoroCPU,
-        limitNotes: "Model cap ≤510 IPA phonemes per call; the ONNX CPU route sizes chunks to ≈200 tokens "
-            + "(hardMax 200 at ≈1.0 phoneme/char) to bound ORT memory, with a short first chunk (≤80) for fast "
-            + "first audio. >240 tokens → inputTooLong → re-split.",
-        assets: [
-            .init(name: "Kokoro-82M ONNX fp16 (onnx-community/Kokoro-82M-v1.0-ONNX)", approxBytes: 163_234_740,
-                  source: "hf:onnx-community/Kokoro-82M-v1.0-ONNX"),
-            .init(name: "G2P encoder/decoder weights (read by Swift, not Core ML)", approxBytes: 1_600_000,
-                  source: "hf:FluidInference/kokoro-82m-coreml"),
-            .init(name: "us_lexicon_cache.json", approxBytes: 10_400_000, source: "hf:FluidInference/kokoro-82m-coreml"),
-            .init(name: "vocab.json + voice packs (0.5 MB each)", approxBytes: 600_000, source: "hf:FluidInference/kokoro-82m-coreml"),
-        ],
-        approxDownloadBytes: 176_000_000,
         hardware: HardwareRequirement(minimumOSMajor: 17, minimumChip: .a15, allowsSimulator: true,
                                       summary: "iPhone 13 / recent iPad (A15+)"),
-        computeRouting: "onnxCPU (debug: Core ML \(KokoroHost.defaultUnitsLabel))",
-        quirks: [
-            "Default route: ONNX Runtime CPU — no Core ML/BNNS, renders in the background.",
-            "iOS 26.4+: every Core ML routing can SIGSEGV in libBNNS (#844); the Core ML route is a debug opt-in.",
-            "Output is deterministic; seed ignored.",
-        ],
         supportsBakeCache: true,
         crashGuarded: true,
         crashNoticeDetail: "Kokoro stopped unexpectedly",

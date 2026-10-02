@@ -47,8 +47,7 @@ struct RootView: View {
         ListenTimingLog.log("debug_bake_article", [
             "prefix": prefix, "found": true, "key": ListenTimingLog.shortKey(row.id), "paragraphs": paragraphs.count,
         ])
-        speech.localTTS.startBakeIfNeeded(articleID: row.id, paragraphs: paragraphs,
-                                          rate: Float(speech.rateMultiplier), voiceID: speech.cacheVoiceID)
+        speech.localTTS.startBakeIfNeeded(articleID: row.id, paragraphs: paragraphs, voiceID: speech.cacheVoiceID)
     }
 
     private func seedDemoIfNeeded() {

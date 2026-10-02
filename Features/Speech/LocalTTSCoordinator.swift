@@ -562,7 +562,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
     func warmListenAudio(
         cacheKey: UUID,
         paragraphs: [String],
-        rate: Float,
         voiceID: String,
         resumeParagraph: Int = 0,
         isEphemeral: Bool
@@ -574,7 +573,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             BackgroundAudioBakeScheduler.shared.enqueuePending(
                 articleID: cacheKey,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID,
                 plan: resumeParagraph <= 0
                     ? .topDown(paragraphCount: paragraphs.count)
@@ -593,7 +591,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         synthQueue.openArticle(
             cacheKey: cacheKey,
             paragraphs: paragraphs,
-            rate: rate,
             voiceID: voiceID,
             resumeParagraph: resumeParagraph,
             isEphemeral: isEphemeral
@@ -605,7 +602,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         cacheKey: UUID,
         playhead: Int,
         paragraphs: [String],
-        rate: Float,
         voiceID: String,
         isEphemeral: Bool = false
     ) {
@@ -619,7 +615,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             synthQueue.openArticle(
                 cacheKey: cacheKey,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID,
                 resumeParagraph: playhead,
                 isEphemeral: isEphemeral
@@ -629,7 +624,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             warmListenAudio(
                 cacheKey: cacheKey,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID,
                 resumeParagraph: playhead,
                 isEphemeral: isEphemeral
@@ -638,14 +632,13 @@ final class LocalTTSCoordinator: SynthQueueContext {
     }
 
     /// On article save: enqueue (demoted if something else is #1) top → down.
-    func startBakeIfNeeded(articleID: UUID, paragraphs: [String], rate: Float, voiceID: String) {
+    func startBakeIfNeeded(articleID: UUID, paragraphs: [String], voiceID: String) {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
         let voiceID = normalizedCacheVoice(voiceID)
         audioCache.markSaved(cacheKey: articleID)
         BackgroundAudioBakeScheduler.shared.enqueuePending(
             articleID: articleID,
             paragraphs: paragraphs,
-            rate: rate,
             voiceID: voiceID,
             plan: .topDown(paragraphCount: paragraphs.count)
         )
@@ -664,7 +657,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             synthQueue.openArticle(
                 cacheKey: articleID,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID,
                 resumeParagraph: 0,
                 isEphemeral: false
@@ -673,7 +665,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             synthQueue.enqueueDemoted(
                 cacheKey: articleID,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID,
                 isEphemeral: false
             )
@@ -684,14 +675,12 @@ final class LocalTTSCoordinator: SynthQueueContext {
         articleID: UUID,
         from playhead: Int,
         paragraphs: [String],
-        rate: Float,
         voiceID: String
     ) {
         prioritizeListen(
             cacheKey: articleID,
             playhead: playhead,
             paragraphs: paragraphs,
-            rate: rate,
             voiceID: voiceID,
             isEphemeral: false
         )
@@ -700,10 +689,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
     func resumeGapFillBake(
         articleID: UUID,
         paragraphs: [String],
-        rate: Float,
         voiceID: String
     ) {
-        startBakeIfNeeded(articleID: articleID, paragraphs: paragraphs, rate: rate, voiceID: voiceID)
+        startBakeIfNeeded(articleID: articleID, paragraphs: paragraphs, voiceID: voiceID)
     }
 
     /// After Save: move ephemeral CAFs onto the SavedArticle UUID and reshuffle the queue key.
@@ -841,7 +829,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             GlobalSynthQueue.PendingWork(
                 cacheKey: job.articleID,
                 paragraphs: job.paragraphs,
-                rate: job.rate,
                 voiceID: normalizedCacheVoice(job.voiceID),
                 priorityStart: job.priorityStart,
                 isEphemeral: audioCache.loadMeta(for: job.articleID)?.kind == .ephemeral

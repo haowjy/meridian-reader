@@ -1,4 +1,3 @@
-import AVFoundation
 import Foundation
 
 /// Single global Core ML synth work queue for all Listen audio.
@@ -41,7 +40,6 @@ final class GlobalSynthQueue {
     struct ArticleJob: Equatable {
         var cacheKey: UUID
         var paragraphs: [String]
-        var rate: Float
         var voiceID: String
         var plan: BakePriorityPlan
         /// FIFO demotion order among non-#1 articles (lower = older / demoted earlier).
@@ -175,7 +173,6 @@ final class GlobalSynthQueue {
     func openArticle(
         cacheKey: UUID,
         paragraphs: [String],
-        rate: Float,
         voiceID: String,
         resumeParagraph: Int = 0,
         isEphemeral: Bool
@@ -187,7 +184,6 @@ final class GlobalSynthQueue {
         upsert(
             cacheKey: cacheKey,
             paragraphs: paragraphs,
-            rate: rate,
             voiceID: voiceID,
             plan: plan,
             isEphemeral: isEphemeral,
@@ -201,15 +197,13 @@ final class GlobalSynthQueue {
         cacheKey: UUID,
         paragraph: Int,
         paragraphs: [String]? = nil,
-        rate: Float? = nil,
         voiceID: String? = nil
     ) {
         guard var job = jobs[cacheKey] else {
-            if let paragraphs, let rate, let voiceID {
+            if let paragraphs, let voiceID {
                 openArticle(
                     cacheKey: cacheKey,
                     paragraphs: paragraphs,
-                    rate: rate,
                     voiceID: voiceID,
                     resumeParagraph: paragraph,
                     isEphemeral: false
@@ -218,7 +212,6 @@ final class GlobalSynthQueue {
             return
         }
         if let paragraphs { job.paragraphs = paragraphs }
-        if let rate { job.rate = rate }
         if let voiceID { job.voiceID = voiceID }
         job.plan = .fromPlayhead(paragraph, paragraphCount: job.paragraphs.count)
         jobs[cacheKey] = job
@@ -232,7 +225,6 @@ final class GlobalSynthQueue {
     func enqueueDemoted(
         cacheKey: UUID,
         paragraphs: [String],
-        rate: Float,
         voiceID: String,
         resumeParagraph: Int = 0,
         isEphemeral: Bool
@@ -242,7 +234,6 @@ final class GlobalSynthQueue {
             // Refresh payload but keep stack position.
             var job = jobs[cacheKey]!
             job.paragraphs = paragraphs
-            job.rate = rate
             job.voiceID = voiceID
             job.isEphemeral = isEphemeral
             jobs[cacheKey] = job
@@ -251,7 +242,6 @@ final class GlobalSynthQueue {
             jobs[cacheKey] = ArticleJob(
                 cacheKey: cacheKey,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID,
                 plan: resumeParagraph <= 0
                     ? .topDown(paragraphCount: paragraphs.count)
@@ -268,7 +258,6 @@ final class GlobalSynthQueue {
     struct PendingWork: Equatable {
         var cacheKey: UUID
         var paragraphs: [String]
-        var rate: Float
         var voiceID: String
         var priorityStart: Int
         var isEphemeral: Bool
@@ -294,10 +283,10 @@ final class GlobalSynthQueue {
             if primary == job.cacheKey {
                 continue // already #1 with a live plan; don't reset its playhead cursor
             } else if primary == nil || job.cacheKey == focusKey {
-                openArticle(cacheKey: job.cacheKey, paragraphs: job.paragraphs, rate: job.rate,
+                openArticle(cacheKey: job.cacheKey, paragraphs: job.paragraphs,
                             voiceID: job.voiceID, resumeParagraph: job.priorityStart, isEphemeral: job.isEphemeral)
             } else {
-                enqueueDemoted(cacheKey: job.cacheKey, paragraphs: job.paragraphs, rate: job.rate,
+                enqueueDemoted(cacheKey: job.cacheKey, paragraphs: job.paragraphs,
                                voiceID: job.voiceID, resumeParagraph: job.priorityStart, isEphemeral: job.isEphemeral)
             }
         }
@@ -377,7 +366,6 @@ final class GlobalSynthQueue {
         chunk: Int,
         text: String,
         paragraphs: [String],
-        rate: Float,
         voiceID: String,
         isEphemeral: Bool
     ) async throws -> ChunkResolution {
@@ -406,10 +394,10 @@ final class GlobalSynthQueue {
         }
         // Make this article #1 with the cursor on this paragraph.
         if jobs[cacheKey] == nil || jobs[cacheKey]?.paragraphs.count != paragraphs.count {
-            openArticle(cacheKey: cacheKey, paragraphs: paragraphs, rate: rate, voiceID: voiceID,
+            openArticle(cacheKey: cacheKey, paragraphs: paragraphs, voiceID: voiceID,
                         resumeParagraph: paragraphIndex, isEphemeral: isEphemeral)
         }
-        focusPlayhead(cacheKey: cacheKey, paragraph: paragraphIndex, rate: rate, voiceID: voiceID)
+        focusPlayhead(cacheKey: cacheKey, paragraph: paragraphIndex, voiceID: voiceID)
         if var job = jobs[cacheKey], job.paragraphs.indices.contains(paragraphIndex),
            job.paragraphs[paragraphIndex] != text {
             job.paragraphs[paragraphIndex] = text
@@ -534,7 +522,6 @@ final class GlobalSynthQueue {
     private func upsert(
         cacheKey: UUID,
         paragraphs: [String],
-        rate: Float,
         voiceID: String,
         plan: BakePriorityPlan,
         isEphemeral: Bool,
@@ -545,7 +532,6 @@ final class GlobalSynthQueue {
         jobs[cacheKey] = ArticleJob(
             cacheKey: cacheKey,
             paragraphs: paragraphs,
-            rate: rate,
             voiceID: voiceID,
             plan: plan,
             demoteOrder: makePrimary ? existingOrder : demoteCounter,
@@ -668,7 +654,6 @@ final class GlobalSynthQueue {
                     duration: stitched.duration,
                     engineID: engineID,
                     voiceID: job.voiceID,
-                    rate: job.rate,
                     text: text,
                     chunkDurations: chunks.count > 1 ? stitched.chunkDurations : nil
                 )
@@ -743,8 +728,7 @@ final class GlobalSynthQueue {
         // Join pause: a cut before "and/but/which…" is a clause join (ChunkEdgeTrim).
         if let word = next?.split(separator: " ").first { callCtx["nextWord"] = String(word) }
         do {
-            let duration = try await engine.renderChunkToFile(
-                text: text, destination: url, seed: Self.stableSeed(text, chunk: chunk), context: callCtx)
+            let duration = try await engine.renderChunkToFile(text: text, destination: url, context: callCtx)
             ListenTimingLog.log("chunk_ready", ctx.merging([
                 "n": count, "chars": text.count, "ms": ListenTimingLog.ms(since: t0),
                 "audio_s": (duration * 100).rounded() / 100, "engine": engine.engineShortName,
@@ -760,23 +744,14 @@ final class GlobalSynthQueue {
             let msg = "\(engine.engineShortName) FAIL p\(index) c\(chunk) → Apple TTS: \(localError)"
             ListenDebugLog.shared.append(msg)
             lastBakeEvent = msg
-            // Rendered at 1×: the listen speed is applied by the player (time stretch, Nav I).
-            let appleRate = AVSpeechUtteranceDefaultSpeechRate
             // Engine cache voice keys ("kokoro.af_heart") are not Apple voice ids.
             let voice = coordinator.fallbackAppleVoice(forCacheVoice: job.voiceID)
-            let duration = try await engine.renderAppleFallback(text: text, destination: url, rate: appleRate, voiceID: voice)
+            let duration = try await engine.renderAppleFallback(text: text, destination: url, voiceID: voice)
             ListenTimingLog.log("fallback_apple", ctx.merging([
                 "chars": text.count, "ms": ListenTimingLog.ms(since: t0),
                 "audio_s": (duration * 100).rounded() / 100, "engine": engine.engineShortName, "local_err": localError,
             ]) { a, _ in a })
         }
-    }
-
-    /// Process-stable seed (Swift `Hasher` is randomized per launch).
-    static func stableSeed(_ text: String, chunk: Int) -> UInt64 {
-        var h: UInt64 = 0xcbf29ce484222325
-        for b in text.utf8 { h = (h ^ UInt64(b)) &* 0x100000001b3 }
-        return h &+ UInt64(chunk)
     }
 
     /// Next missing unit: always from current #1’s plan; if #1 complete, advance stack.
@@ -910,10 +885,11 @@ extension SynthQueueContext {
     var backgroundRenderCacheKey: UUID? { nil }
 }
 
-/// Renders one synth chunk with the active local engine, or with Apple as the fallback.
+/// Renders one synth chunk with the active local engine, or with Apple as the fallback. Both
+/// render at 1×: the listen speed is a time-stretch on the player.
 @MainActor
 protocol SynthChunkRendering: AnyObject {
     var engineShortName: String { get }
-    func renderChunkToFile(text: String, destination: URL, seed: UInt64, context: [String: Any]) async throws -> TimeInterval
-    func renderAppleFallback(text: String, destination: URL, rate: Float, voiceID: String?) async throws -> TimeInterval
+    func renderChunkToFile(text: String, destination: URL, context: [String: Any]) async throws -> TimeInterval
+    func renderAppleFallback(text: String, destination: URL, voiceID: String?) async throws -> TimeInterval
 }

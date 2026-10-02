@@ -137,7 +137,7 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
         }
     }
 
-    func synthesizeOnce(text: String, seed: UInt64) async throws -> SynthesizedPCM {
+    func synthesizeOnce(text: String) async throws -> SynthesizedPCM {
         let (fe, session) = lock.withLock { (frontend, self.session) }
         guard let fe, let session else { throw LocalSynthError.engineUnavailable("Kokoro (CPU) not loaded") }
         let voice = currentVoice

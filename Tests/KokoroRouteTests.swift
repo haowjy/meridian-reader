@@ -233,13 +233,11 @@ final class KokoroStubProvider: SpeechEngineProvider {
     let name = "KokoroStub"
     var descriptors: [EngineDescriptor] {
         [EngineDescriptor(
-            id: .kokoro, providerName: name, kind: .onDevice,
+            id: .kokoro, kind: .onDevice,
             displayName: "Kokoro (stub)", shortName: "Kokoro", subtitle: "Test",
             isRecommended: true, sortOrder: 1,
             voices: [], defaultVoiceID: nil, voiceDefaultsKey: nil, cacheVoiceKey: .prefixed("kstub"),
-            streaming: .wholeCall, limits: .kokoroCPU, limitNotes: "",
-            assets: [], approxDownloadBytes: 0, hardware: .none,
-            computeRouting: nil, quirks: [], supportsBakeCache: true,
+            limits: .kokoroCPU, hardware: .none, supportsBakeCache: true,
             crashGuarded: true, crashNoticeDetail: "test", supportedLanguages: [])]
     }
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {

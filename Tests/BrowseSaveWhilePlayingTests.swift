@@ -58,7 +58,7 @@ final class BrowseSaveWhilePlayingTests: XCTestCase {
         // Saved article A is playing from its baked audio.
         let a = UUID()
         let aParas = ["The saved article that is already playing has its own words."]
-        c.synthQueue.openArticle(cacheKey: a, paragraphs: aParas, rate: 1, voiceID: voice, isEphemeral: false)
+        c.synthQueue.openArticle(cacheKey: a, paragraphs: aParas, voiceID: voice, isEphemeral: false)
         try await waitIdle(c.synthQueue)
         XCTAssertNotNil(c.audioCache.audioURL(articleID: a, paragraphIndex: 0, engineID: c.cacheEngineID, voiceID: voice))
 
@@ -67,7 +67,7 @@ final class BrowseSaveWhilePlayingTests: XCTestCase {
         let bParas = [(1...5).map(sentence).joined(separator: " "), sentence(9)]
         let chunks0 = c.synthQueue.chunkTexts(for: bParas[0])
         XCTAssertGreaterThanOrEqual(chunks0.count, 3)
-        c.synthQueue.openArticle(cacheKey: b, paragraphs: bParas, rate: 1, voiceID: voice, isEphemeral: false)
+        c.synthQueue.openArticle(cacheKey: b, paragraphs: bParas, voiceID: voice, isEphemeral: false)
 
         // Wait until chunk 0 of B p0 is on disk (mid-paragraph bake).
         let hash = ArticleIdentity.paragraphHash(bParas[0])
@@ -80,7 +80,7 @@ final class BrowseSaveWhilePlayingTests: XCTestCase {
 
         // → Open in Reader. A is the live session, so B's open is NOT live playback.
         c.prepareListenIdentity(key: b, paragraphs: bParas, isLivePlayback: false)
-        c.warmListenAudio(cacheKey: b, paragraphs: bParas, rate: 1, voiceID: voice, isEphemeral: false)
+        c.warmListenAudio(cacheKey: b, paragraphs: bParas, voiceID: voice, isEphemeral: false)
         try await waitIdle(c.synthQueue)
 
         let texts = provider.lastHost!.calls.filter(\.ok).map(\.text)
