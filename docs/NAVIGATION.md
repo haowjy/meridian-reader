@@ -123,10 +123,10 @@ its own menu — *Voice settings*, then big buttons **Bookmarks**, **History**, 
 nothing in it acts on the page under the library. Bookmarks and History close the library
 first; Browser is the same swap as 🌐.
 
-**Library search** matches Browse's ✕ session: focusing the field (or toolbar Search) hides the
-toolbar icons so the field sits above the keyboard with a round ✕; swipe-down / scroll lowers the
-keyboard but **stays in search mode** (typed text and ✕ kept); ✕ exits and clears the filter.
-Idle chrome keeps Search / 🌐 / ⋯.
+**Library search** is the same session as Browse's (`SearchSession` + `SearchSessionChrome`):
+focusing the field (or toolbar Search) hides the toolbar icons so the field sits above the
+keyboard with a round ✕; swipe-down / scroll lowers the keyboard but **stays in search mode**
+(typed text and ✕ kept); ✕ exits and clears the filter. Idle chrome keeps Search / 🌐 / ⋯.
 
 **Editing the address** (a ✕ state, so it closes like one):
 - The toolbar steps aside and the field sits right above the keyboard, with a round ✕ to its right.
@@ -138,7 +138,7 @@ Idle chrome keeps Search / 🌐 / ⋯.
 - Focusing selects the whole address, so typing replaces it. While the field is empty or still
   shows the untouched address, **Recent Searches** (local, newest first, Clear All) are shown;
   otherwise Recents / Saved / Google suggestions.
-- 🎤 appears **only while searching** (`isEditingAddress` / search session), not on the idle
+- 🎤 appears **only while searching** (the address field's `SearchSession`), not on the idle
   address bar. It dictates on-device (`SFSpeechRecognizer`, `requiresOnDeviceRecognition` when
   the locale supports it): partial text streams into the field; it stops on a second tap, on
   ~1.6 s of silence, or when you type. Listen pauses while the mic is open and resumes

@@ -2,11 +2,9 @@ import SwiftUI
 import SwiftData
 import WebKit
 
-/// The whole app: a browser with in-place Reader Mode (no tab bar).
-/// - Start page (no page loaded): Bookmarks grid · Continue listening · Saved · Recent Searches.
-/// - Bottom: [mini player] · address field (reader icon when readable; mic only while searching) · `[‹][›][Search][Library][⋯]`.
-/// - ⋯ grows into the morph menu panel (`MorphMenuOverlay`): actions, then big Bookmarks / Saved /
-///   History / Reader buttons.
+/// The browser, and the root of the shell: the web page or start page with its bottom chrome,
+/// the address search layer, and over it whichever surface `ShellState` says is up (the ✕
+/// reader or the library), the one ⋯ menu overlay and the one sheet.
 struct BrowseStartView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.articleExtractor) private var extractor
@@ -18,33 +16,17 @@ struct BrowseStartView: View {
     /// Once true, the browse WKWebView stays in the tree (history / back-forward). Starts false so
     /// cold launch on the start page never creates WebKit GPU/WebContent processes.
     @State private var browseWebViewMounted = false
-    @State private var addressText = ""
-    /// Search session (Safari): true from focus / Search / mic until ✕ or navigate — survives swipe-down.
-    @State private var isEditingAddress = false
-    @FocusState private var addressFocused: Bool
-    /// The toolbar's Search button focused the field: start empty (Recent Searches), not with the
-    /// page's address selected.
-    @State private var startingNewSearch = false
-
-    /// Address-bar dictation (created in `.task`: it needs the speech controller).
+    /// Address-bar dictation, made on the first mic tap.
     @State private var dictation: AddressDictation?
-    /// Field text when editing began: while it's untouched, show Recent Searches.
-    @State private var focusStartText = ""
     @AppStorage(RecentSearches.storageKey) private var recentSearchesRaw = ""
-    /// Long suggestion lists scroll; pull-down-to-cancel only when the list is at its top.
-    @State private var suggestionsAtTop = true
-    @State private var dragStartedAtTop: Bool?
     @State private var alertMessage: String?
     @State private var useFakeFailure = false
-
     /// Site bookmarks (their own JSON store; not the saved-article model).
     @State private var bookmarkStore = BookmarkStore.shared
     @State private var listenHistory = ListenHistory(defaults: .standard)
 
-    @State private var googleSuggestions: [String] = []
-    @State private var suggestTask: Task<Void, Never>?
-
     private var webStore: WebViewStore { shell.web }
+    private var search: SearchSession { shell.addressSearch }
 
     private var isReaderShown: Bool { shell.readerArticle != nil }
 
@@ -55,10 +37,7 @@ struct BrowseStartView: View {
         return articles.first { $0.canonicalURL == canonical }
     }
 
-    private var hasPage: Bool {
-        guard let url = webStore.currentURL ?? webStore.webView?.url else { return false }
-        return url.scheme != "about"
-    }
+    private var hasPage: Bool { webStore.hasPage }
 
     /// Create the browse WKWebView only after the first non-start navigation; keep it thereafter.
     private var showsBrowseWebView: Bool {
@@ -82,23 +61,6 @@ struct BrowseStartView: View {
 
     private var recentSearches: [String] { RecentSearches.decode(recentSearchesRaw) }
 
-    /// Recent Searches replace suggestions while the field is empty or still shows the page URL.
-    /// Uses `isEditingAddress` (search session), not keyboard focus — swipe-down keeps them visible.
-    private var showsRecentSearches: Bool {
-        guard isEditingAddress, !isReaderShown, !recentSearches.isEmpty, dictation?.isActive != true else { return false }
-        let q = addressText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return q.isEmpty || addressText == focusStartText
-    }
-
-    private var isDictating: Bool { dictation?.isActive == true }
-
-    /// Local Recents/Saved matches first, then Google suggest (deduped).
-    private var addressSuggestions: [AddressSuggestion] {
-        guard isEditingAddress, !showsRecentSearches else { return [] }
-        return AddressSuggestions.build(query: addressText, visits: recentVisits.prefix(RecentVisit.maxEntries),
-                                        articles: articles, google: googleSuggestions)
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
@@ -115,22 +77,40 @@ struct BrowseStartView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // Safari-style search session: full-bleed Recent Searches / suggestions over the page.
-            // Swipe down lowers the keyboard but stays in search mode (✕ exits).
             .overlay {
-                if isEditingAddress && !isReaderShown {
-                    searchSessionOverlay
+                if search.isActive && shell.isBrowsing {
+                    SearchSessionOverlay(
+                        session: search,
+                        recentSearches: recentSearches,
+                        visits: recentVisits,
+                        articles: articles,
+                        isDictating: dictation?.isActive == true,
+                        onSubmit: submit,
+                        onClearRecentSearches: { recentSearchesRaw = "" }
+                    )
                 }
             }
             .clipped()
 
-            // Library is a full-screen surface with its own shared chrome; Browse chrome hides.
+            // The reader and the library draw their own chrome.
             if shell.isBrowsing {
-                browserChrome
+                BrowserBottomChrome(
+                    speech: speech,
+                    dictation: dictation,
+                    onOpenReader: { Task { await runReader() } },
+                    onSubmit: { submit(search.text) },
+                    onMic: toggleDictation,
+                    onOpenLibrary: shell.openLibrary,
+                    onOpenNowPlaying: {
+                        if let id = speech.activeSessionID { shell.openNowPlaying(id, in: modelContext) }
+                    },
+                    menu: { .browse(browseMenu, perform: perform) }
+                )
             }
         }
-        // While editing the address, avoid the keyboard so the field sits right above it. Otherwise
-        // keep ignoring it (typing into a web page must not resize the page / the web view).
-        .ignoresSafeArea(.keyboard, edges: addressFocused ? [] : .bottom)
+        // While searching, avoid the keyboard so the field sits right above it. Otherwise keep
+        // ignoring it (typing into a web page must not resize the page / the web view).
+        .ignoresSafeArea(.keyboard, edges: search.isFocused ? [] : .bottom)
         // Reader Mode covers the whole browser, edge to edge (the text runs under its bars). Outside
         // the page ZStack, whose `.clipped()` would cut it at the safe area.
         .overlay {
@@ -163,14 +143,6 @@ struct BrowseStartView: View {
             Text(alertMessage ?? "")
         }
         .task {
-            if dictation == nil {
-                let d = AddressDictation(recognizer: SystemDictationRecognizer(),
-                                         audio: ListenDictationHandoff(speech: speech))
-                dictation = d
-            }
-            dictation?.onTranscript = { text in
-                if addressFocused || isDictating { addressText = text }
-            }
             speech.onArticleFinished = { id in
                 ListenHistory.record(id, finished: true)
             }
@@ -197,32 +169,20 @@ struct BrowseStartView: View {
         } message: {
             Text(dictation?.errorMessage ?? "")
         }
-        .onChange(of: webStore.currentURL) { _, newURL in
-            guard !addressFocused, !isEditingAddress else { return }
-            syncAddressField(from: newURL)
-        }
+        .onChange(of: webStore.currentURL) { _, _ in shell.syncAddressField() }
         .onChange(of: webStore.isLoading) { _, loading in
             guard !loading else { return }
             Task { await recordRecentVisitIfNeeded() }
         }
-        .onChange(of: addressText) { _, text in
+        .onChange(of: search.text) { _, text in
             // Typing (or clearing) while dictating takes over from the mic.
             if let dictation, dictation.isListening, text != dictation.transcript {
                 dictation.stop()
             }
-            scheduleSuggestFetch()
         }
-        .onChange(of: addressFocused) { _, focused in
-            if focused {
-                scheduleSuggestFetch()
-            } else {
-                dictation?.cancel()
-                // Keep suggestions while still in search session (keyboard lowered via swipe).
-                if !isEditingAddress {
-                    suggestTask?.cancel()
-                    googleSuggestions = []
-                }
-            }
+        // Leaving the field (✕, navigating, swipe-down) closes the mic.
+        .onChange(of: search.isFocused) { _, focused in
+            if !focused { dictation?.cancel() }
         }
     }
 
@@ -253,14 +213,14 @@ struct BrowseStartView: View {
         case .bookmarks:
             BookmarksListView(store: bookmarkStore) { bookmark in
                 shell.sheet = nil
-                if let url = bookmark.url { navigate(to: url) }
+                if let url = bookmark.url { shell.navigate(to: url) }
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         case .history:
             BrowseHistoryView(visits: Array(recentVisits.prefix(RecentVisit.maxEntries))) { visit in
                 shell.sheet = nil
-                if let url = visit.url { navigate(to: url) }
+                if let url = visit.url { shell.navigate(to: url) }
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
@@ -278,15 +238,6 @@ struct BrowseStartView: View {
                 .presentationDetents([.medium, .large])
                 .ignoresSafeArea()
         }
-    }
-
-    /// Open the library surface; the browser underneath stays as it is.
-    private func openLibrary() {
-        isEditingAddress = false
-        addressFocused = false
-        googleSuggestions = []
-        dictation?.cancel()
-        shell.openLibrary()
     }
 
     /// UI-test hook (`-openDemoInBrowseReader`, with `-seedDemoArticle`): show the seeded article
@@ -307,7 +258,7 @@ struct BrowseStartView: View {
     /// link to a second page, so ‹ / › state can be checked without the network.
     /// UI-test hook (`-openLibrary`): start with the library surface open (article-list tests).
     private func openLibraryIfRequested() {
-        if ProcessInfo.processInfo.arguments.contains("-openLibrary") { openLibrary() }
+        if ProcessInfo.processInfo.arguments.contains("-openLibrary") { shell.openLibrary() }
     }
 
     private func openTestPagesIfRequested() {
@@ -316,84 +267,7 @@ struct BrowseStartView: View {
         webStore.load(url)
     }
 
-    // MARK: - Browser chrome
-
-    /// Shared with the reader's bottom (see `BottomChrome.swift`): band, field capsule, toolbar row.
-    private var browserChrome: some View {
-        VStack(spacing: BottomChrome.rowSpacing) {
-            if !isEditingAddress {
-                MiniPlayerBar(speech: speech) {
-                    if let id = speech.activeSessionID { shell.openNowPlaying(id, in: modelContext) }
-                }
-                    .padding(.bottom, 4)
-            }
-            HStack(spacing: 10) {
-                addressBar
-                // ✕ stays while searching — even after swipe-down dismisses the keyboard.
-                if isEditingAddress {
-                    Button(action: cancelEditing) {
-                        Image(systemName: "xmark")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .frame(width: 40, height: 40)
-                            .background(Color(.secondarySystemBackground), in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Cancel")
-                    .accessibilityIdentifier("addressCancel")
-                }
-            }
-
-            // Like Safari: page buttons step aside while searching, so the field hugs the keyboard.
-            if !isEditingAddress {
-                toolbarRow
-            }
-        }
-        .bottomChromeBand(bottomPadding: isEditingAddress ? 8 : 0)
-        .overlay(alignment: .top) {
-            // Thin load progress on the chrome's top edge (no layout shift while loading).
-            if webStore.isLoading && hasPage {
-                GeometryReader { g in
-                    Rectangle()
-                        .fill(Color.accentColor)
-                        .frame(width: g.size.width * max(0.08, min(1, webStore.progress)), height: 2)
-                }
-                .frame(height: 2)
-                .allowsHitTesting(false)
-            }
-        }
-    }
-
-    /// Toolbar: `[‹][›][Search][Library][⋯]` in the shared five-slot grid. Reader is the icon in the
-    /// address field and the ⋯ panel's bottom-right toggle; Bookmarks / Saved / History live in the
-    /// ⋯ panel and on the start page.
-    private var toolbarRow: some View {
-        // Slot 4 swaps Library↔Browser (the Library surface shows 🌐 there); ⋯ is always slot 5,
-        // and the morph menu's Reader↔Website button is its focus point near ⋯.
-        BottomToolbarLayout {
-            toolbarButton("chevron.backward", label: "Back", id: "browseBack") { webStore.goBack() }
-                .disabled(!webStore.canGoBack)
-            toolbarButton("chevron.forward", label: "Forward", id: "browseForward") { webStore.goForward() }
-                .disabled(!webStore.canGoForward)
-            // One tap to a new search: the field, focused and empty (Recent Searches); ✕ / tap
-            // outside restores the page's address.
-            toolbarButton("magnifyingglass", label: "Search", id: "browseSearch", action: startNewSearch)
-            toolbarButton("books.vertical", label: "Library", id: "browseLibrary", action: openLibrary)
-            MoreMenuButton(id: "browseMore", isBusy: shell.busy == .save) { .browse(browseMenu, perform: perform) }
-        }
-        // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI gives
-        // disabled buttons, so ‹ / › with no history would look tappable.
-        .tint(.primary)
-    }
-
-    private func toolbarButton(_ systemImage: String, label: String, id: String,
-                               action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage).toolbarIconFrame()
-        }
-        .accessibilityLabel(label)
-        .accessibilityIdentifier(id)
-    }
+    // MARK: - ⋯ menu
 
     private var shareURL: URL? {
         guard hasPage, let url = webStore.currentURL, url.isWeb else { return nil }
@@ -415,7 +289,7 @@ struct BrowseStartView: View {
 
     private func perform(_ action: BrowseMenu.Action) {
         switch action {
-        case .newSearch: showStartLanding()
+        case .newSearch: shell.showStartPage()
         case .openReader: Task { await runReader() }
         case .toggleSave: Task { await toggleSaveFromBrowser() }
         case .toggleBookmark: Task { await toggleBookmark() }
@@ -423,7 +297,7 @@ struct BrowseStartView: View {
         case .reload: webStore.refresh()
         case .share: if let shareURL { shell.present(.share(shareURL)) }
         case .voiceSettings: shell.present(.voiceSettings)
-        case .saved: openLibrary()
+        case .saved: shell.openLibrary()
         case .history: shell.present(.history)
         }
     }
@@ -434,260 +308,6 @@ struct BrowseStartView: View {
         hasPage ? bookmarkStore.bookmark(for: webStore.currentURL) : nil
     }
 
-    /// Leading slot of the address field: a spinner while extracting, the reader icon (Safari's
-    /// page-format button) when readable, the search glyph while editing, or an empty spacer.
-    @ViewBuilder
-    private var addressLeading: some View {
-        if !isEditingAddress && shell.busy == .reader {
-            ProgressView()
-                .controlSize(.small)
-                .frame(width: 30, height: 30)
-        } else if !isEditingAddress && hasPage && webStore.isReaderable {
-            Button { Task { await runReader() } } label: {
-                Image(systemName: "doc.plaintext")
-                    .font(.body)
-                    .foregroundStyle(Color.accentColor)
-                    .frame(width: 30, height: 30)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Open in Reader")
-            .accessibilityIdentifier("addressReader")
-            .transition(.opacity)
-        } else if isEditingAddress {
-            Image(systemName: "magnifyingglass")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 16)
-                .accessibilityHidden(true)
-        } else {
-            Color.clear
-                .frame(width: 16, height: 16)
-                .accessibilityHidden(true)
-        }
-    }
-
-    private var addressBar: some View {
-        HStack(spacing: 8) {
-            addressLeading
-
-            TextField(isDictating && addressText.isEmpty ? "Listening…" : "Search or enter address",
-                      text: $addressText)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(.webSearch)
-                .submitLabel(.go)
-                .focused($addressFocused)
-                .onSubmit(submitAddress)
-                .accessibilityIdentifier("addressField")
-                .onChange(of: addressFocused) { _, focused in
-                    if focused {
-                        if isEditingAddress {
-                            // Re-focus after swipe-down: keep typed text; do not re-select / reset.
-                            startingNewSearch = false
-                        } else {
-                            // Entering search session.
-                            isEditingAddress = true
-                            if isDictating || startingNewSearch {
-                                startingNewSearch = false
-                                addressText = ""
-                            } else if let url = webStore.currentURL, url.scheme != "about" {
-                                addressText = url.absoluteString
-                                selectAllInFocusedField() // like Safari: typing replaces the URL
-                            }
-                            focusStartText = addressText
-                        }
-                    }
-                    // Losing focus alone does not exit search (swipe-down). ✕ / submit clears it.
-                }
-
-            // Mic only during a search session (not on the idle address bar).
-            if isEditingAddress {
-                micButton
-            }
-        }
-        .bottomChromeField(leading: 12, trailing: isEditingAddress ? 4 : 12)
-        .overlay {
-            if isDictating {
-                Capsule().strokeBorder(Color.accentColor, lineWidth: 1.5)
-            }
-        }
-    }
-
-    private var micButton: some View {
-        let listening = dictation?.isListening == true
-        return Button(action: micTapped) {
-            Image(systemName: isDictating ? "waveform" : "mic")
-                .foregroundStyle(isDictating ? Color.accentColor : Color.secondary)
-                .symbolEffect(.variableColor.iterative, isActive: listening)
-                .fieldControlFrame()
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(isDictating ? "Stop dictation" : "Dictate")
-        .accessibilityIdentifier("addressMic")
-    }
-
-    /// Full-bleed search UI (Safari): opaque background + Recent Searches / suggestions list.
-    /// Swipe down lowers the keyboard; ✕ exits search mode.
-    private var searchSessionOverlay: some View {
-        ZStack(alignment: .top) {
-            Color(.systemBackground)
-                .ignoresSafeArea(edges: .bottom)
-
-            if showsRecentSearches || !addressSuggestions.isEmpty {
-                ScrollView {
-                    suggestionsContent
-                        .padding(.top, 4)
-                        .background(GeometryReader { g in
-                            Color.clear.preference(key: SuggestionsTopOffsetKey.self,
-                                                   value: g.frame(in: .named("suggestScroll")).minY)
-                        })
-                }
-                .coordinateSpace(name: "suggestScroll")
-                .onPreferenceChange(SuggestionsTopOffsetKey.self) { suggestionsAtTop = $0 >= -1 }
-                .scrollDismissesKeyboard(.never)
-                .simultaneousGesture(pullDownToLowerKeyboard(requireTop: true))
-            } else {
-                // Empty session (no recents / not enough typed yet): still swipe-dismiss keyboard.
-                Color.clear
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-                    .gesture(pullDownToLowerKeyboard(requireTop: false))
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("addressEditBackdrop")
-    }
-
-    @ViewBuilder
-    private var suggestionsContent: some View {
-        if showsRecentSearches {
-            recentSearchesPanel
-        } else {
-            suggestionsPanel
-        }
-    }
-
-    private var recentSearchesPanel: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Recent Searches")
-                    .font(.title3.weight(.semibold))
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-                Button("Clear All") { recentSearchesRaw = "" }
-                    .font(.body)
-                    .accessibilityIdentifier("recentSearchesClear")
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
-
-            ForEach(recentSearches, id: \.self) { term in
-                Divider().padding(.leading, 52)
-                HStack(spacing: 0) {
-                    Button {
-                        addressText = term
-                        submitAddress()
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundStyle(.secondary)
-                                .frame(width: 22)
-                            Text(term)
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.leading, 16)
-                        .padding(.vertical, 12)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(term)
-
-                    // Safari fill-into-field affordance: put the term in the field without navigating.
-                    Button {
-                        fillSearchField(term)
-                    } label: {
-                        Image(systemName: "arrow.up.backward")
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Insert into search field")
-                    .padding(.trailing, 6)
-                }
-            }
-        }
-    }
-
-    private var suggestionsPanel: some View {
-        VStack(spacing: 0) {
-            ForEach(addressSuggestions) { row in
-                HStack(spacing: 0) {
-                    Button {
-                        applySuggestion(row)
-                    } label: {
-                        HStack(spacing: 12) {
-                            suggestionLeading(for: row)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(row.title)
-                                    .font(.body)
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(1)
-                                if let subtitle = row.subtitle {
-                                    Text(subtitle)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                            }
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.leading, 16)
-                        .padding(.vertical, 12)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        fillSearchField(row.query)
-                    } label: {
-                        Image(systemName: "arrow.up.backward")
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Insert into search field")
-                    .padding(.trailing, 6)
-                }
-
-                if row.id != addressSuggestions.last?.id {
-                    Divider().padding(.leading, 52)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func suggestionLeading(for row: AddressSuggestion) -> some View {
-        switch row.kind {
-        case .recent, .saved:
-            FaviconImage(data: row.faviconData, host: row.host, size: 28)
-        case .google:
-            Image(systemName: "magnifyingglass")
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .frame(width: 28, height: 28)
-        }
-    }
-
     // MARK: - Start page
 
     private var startPage: some View {
@@ -696,16 +316,13 @@ struct BrowseStartView: View {
             continueListening: continueListeningArticles,
             saved: articles,
             recentSearches: recentSearches,
-            onOpenBookmark: { if let url = $0.url { navigate(to: url) } },
+            onOpenBookmark: { if let url = $0.url { shell.navigate(to: url) } },
             onShowBookmarks: { shell.present(.bookmarks) },
             onDeleteBookmark: { bookmarkStore.remove(id: $0.id) },
             onRenameBookmark: { bookmarkStore.rename(id: $0.id, to: $1) },
             onOpenArticle: { shell.openSaved($0.id, in: modelContext) },
-            onShowLibrary: { openLibrary() },
-            onSearch: { term in
-                addressText = term
-                submitAddress()
-            },
+            onShowLibrary: shell.openLibrary,
+            onSearch: submit,
             onClearSearches: { recentSearchesRaw = "" }
         )
         .task(id: bookmarkStore.bookmarks.count) { await backfillBookmarkIcons() }
@@ -811,163 +428,44 @@ struct BrowseStartView: View {
         ])
     }
 
-    // MARK: - Suggestions
+    // MARK: - Address
 
-    private func scheduleSuggestFetch() {
-        suggestTask?.cancel()
-        let q = addressText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard addressFocused, q.count >= 1 else {
-            googleSuggestions = []
-            return
-        }
-        // Skip Google for paste-looking full URLs.
-        if q.contains("://") || (q.contains(".") && !q.contains(" ") && q.count > 4) {
-            googleSuggestions = []
-            return
-        }
-        suggestTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 280_000_000)
-            guard !Task.isCancelled else { return }
-            let latest = addressText.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard latest == q else { return }
-            let results = await GoogleSuggestClient.suggestions(for: q)
-            guard !Task.isCancelled else { return }
-            googleSuggestions = results
-        }
-    }
-
-    private func applySuggestion(_ row: AddressSuggestion) {
-        addressText = row.query
-        submitAddress()
-    }
-
-    // MARK: - Editing
-
-    /// ✕: leave search mode and put the page's address back.
-    private func cancelEditing() {
-        dictation?.cancel()
-        suggestTask?.cancel()
-        googleSuggestions = []
-        isEditingAddress = false
-        addressFocused = false
-        if let url = webStore.currentURL, url.scheme != "about" {
-            syncAddressField(from: url)
-        } else {
-            addressText = ""
-        }
-    }
-
-    /// Swipe down: dismiss keyboard / lower the field, but stay in search mode (keep text + ✕).
-    private func pullDownToLowerKeyboard(requireTop: Bool) -> some Gesture {
-        DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance)
-            .onChanged { _ in
-                if dragStartedAtTop == nil { dragStartedAtTop = suggestionsAtTop }
-            }
-            .onEnded { value in
-                let startedAtTop = dragStartedAtTop ?? suggestionsAtTop
-                dragStartedAtTop = nil
-                guard isEditingAddress, addressFocused, !requireTop || startedAtTop else { return }
-                if SwipeGesturePolicy.shouldCommitVerticalDismiss(
-                    translation: value.translation,
-                    predicted: value.predictedEndTranslation
-                ) {
-                    addressFocused = false
-                }
-            }
-    }
-
-    /// Put a recent / suggestion term into the field without navigating (Safari fill arrow).
-    private func fillSearchField(_ term: String) {
-        addressText = term
-        focusStartText = "\u{0}" // force recent panel to hide so suggestions can appear
-        if !addressFocused { addressFocused = true }
-    }
-
-    private func micTapped() {
-        guard let dictation else { return }
-        if dictation.isActive {
-            dictation.stop()
-            return
-        }
-        dictation.start() // `.starting` now — clear field for a fresh transcript
-        addressText = ""
-        focusStartText = ""
-        isEditingAddress = true
-        if !addressFocused { addressFocused = true }
-    }
-
-    private func startNewSearch() {
-        startingNewSearch = true
-        addressText = ""
-        focusStartText = ""
-        isEditingAddress = true
-        addressFocused = true
-    }
-
-    private func selectAllInFocusedField() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            UIApplication.shared.sendAction(#selector(UIResponder.selectAll(_:)), to: nil, from: nil, for: nil)
-        }
-    }
-
-    // MARK: - Navigation
-
-    private func submitAddress() {
-        let raw = addressText.trimmingCharacters(in: .whitespacesAndNewlines)
+    /// Submitted address field, recent search or suggestion: remember a search term, then load.
+    private func submit(_ text: String) {
+        let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = BrowseURLParser.destination(from: raw) else { return }
         if RecentSearches.isSearch(raw) {
             recentSearchesRaw = RecentSearches.encode(RecentSearches.adding(raw, to: recentSearches))
         }
-        navigate(to: url)
-    }
-
-    /// Submitted address, bookmark or history pick: leave search, the reader and the library,
-    /// and load it.
-    private func navigate(to url: URL) {
-        isEditingAddress = false
-        addressFocused = false
-        googleSuggestions = []
-        dictation?.cancel()
         shell.navigate(to: url)
-        syncAddressField(from: url)
     }
 
-    private func showStartLanding() {
-        isEditingAddress = false
-        addressFocused = false
-        addressText = ""
-        googleSuggestions = []
-        if let blank = URL(string: "about:blank") {
-            webStore.load(blank)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            webStore.currentURL = nil
-            webStore.pageTitle = nil
-            webStore.canGoBack = webStore.webView?.canGoBack ?? false
-            webStore.canGoForward = webStore.webView?.canGoForward ?? false
-        }
-    }
-
-    private func syncAddressField(from url: URL?) {
-        guard let url, url.scheme != "about" else {
-            if !addressFocused && !isEditingAddress { addressText = "" }
-            return
-        }
-        guard !isEditingAddress else { return }
-        if let host = url.host {
-            let path = url.path == "/" ? "" : url.path
-            addressText = host + path
+    /// 🎤: start dictating into an empty field (a fresh search), or stop.
+    private func toggleDictation() {
+        let dictation = dictation ?? makeDictation()
+        if dictation.isActive {
+            dictation.stop()
         } else {
-            addressText = url.absoluteString
+            dictation.start()
+            search.begin()
         }
+    }
+
+    private func makeDictation() -> AddressDictation {
+        let made = AddressDictation(recognizer: SystemDictationRecognizer(),
+                                    audio: ListenDictationHandoff(speech: speech))
+        made.onTranscript = { [search, weak made] text in
+            if search.isFocused || made?.isActive == true { search.text = text }
+        }
+        dictation = made
+        return made
     }
 
     // MARK: - Recents
 
     @MainActor
     private func recordRecentVisitIfNeeded() async {
-        guard let url = webStore.currentURL ?? webStore.webView?.url else { return }
-        guard url.isWeb else { return }
+        guard let url = webStore.currentURL, url.isWeb else { return }
         var icon: Data?
         if let webView = webStore.webView {
             icon = await FaviconFetcher.fetch(from: webView)
@@ -991,7 +489,7 @@ struct BrowseStartView: View {
 
     @MainActor
     private func makeContext() async throws -> ExtractionContext {
-        guard let url = webStore.currentURL, url.scheme != "about" else {
+        guard let url = webStore.currentURL else {
             throw ExtractionError.unavailable(reason: "Open a page first.")
         }
         let html = try await webStore.snapshotHTML()
@@ -1107,9 +605,4 @@ private struct ListenHistoryRecorder: View {
                 onChange(key.id)
             }
     }
-}
-
-private struct SuggestionsTopOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }

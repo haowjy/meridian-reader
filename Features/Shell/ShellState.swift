@@ -76,6 +76,8 @@ final class ShellState {
     private(set) var menuAnchor: CGRect = .zero
     var busy: BusyAction?
     let web = WebViewStore()
+    /// The browser's address field. Idle, its text is the page's address.
+    let addressSearch = SearchSession()
     /// The unsaved article the mini player reopens: the reader article that became the active
     /// listening session. Saved articles reopen from the store instead.
     private(set) var nowPlayingArticle: ReaderArticle?
@@ -125,6 +127,7 @@ final class ShellState {
     }
 
     func openLibrary() {
+        endAddressSearch()
         surface = .library(path: [])
     }
 
@@ -145,8 +148,10 @@ final class ShellState {
 
     // MARK: - Pages
 
-    /// Shows `url` in the browser, leaving the reader or library.
+    /// Shows `url` in the browser: ends the address search, leaves the reader or library, loads.
+    /// Every way of going to a page (submitted address, bookmark, history, Website) ends here.
     func navigate(to url: URL) {
+        addressSearch.end(showing: Self.addressText(for: url))
         showBrowser()
         web.load(url)
     }
@@ -155,10 +160,38 @@ final class ShellState {
     /// scroll kept), else loaded. Audio keeps playing.
     func openWebsite(_ url: URL) {
         if let current = web.currentURL, current.isSamePage(as: url) {
+            endAddressSearch()
             showBrowser()
         } else {
             navigate(to: url)
         }
+    }
+
+    /// ⋯ → New search: the start page, with an empty address field.
+    func showStartPage() {
+        addressSearch.end(showing: "")
+        web.showStartPage()
+    }
+
+    // MARK: - Address field
+
+    /// ✕, or leaving the browser: ends the search and puts the page's address back.
+    func endAddressSearch() {
+        addressSearch.end(showing: Self.addressText(for: web.currentURL))
+    }
+
+    /// The page changed: show its address, unless the user is searching.
+    func syncAddressField() {
+        guard !addressSearch.isActive else { return }
+        addressSearch.text = Self.addressText(for: web.currentURL)
+    }
+
+    /// The idle address field's text, like Safari: host and path (no scheme, no lone "/"); empty
+    /// on the start page.
+    nonisolated static func addressText(for url: URL?) -> String {
+        guard let url else { return "" }
+        guard let host = url.host else { return url.absoluteString }
+        return host + (url.path == "/" ? "" : url.path)
     }
 
     // MARK: - Menu and sheets

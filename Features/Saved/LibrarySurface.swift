@@ -10,7 +10,7 @@ import SwiftData
 /// │  [ ]   [ ]   [Search]  [🌐]  [⋯]       │  ← idle: slot 4 = Browser; ⋯ stays
 /// └──────────────────────────── home indicator ┘
 ///
-/// While searching (Browse-matched ✕ session):
+/// While searching (the same session as the browser's address field):
 /// │ ( 🔍 Search saved…              )  (✕) │  ← toolbar hidden; ✕ exits search
 /// ```
 ///
@@ -20,80 +20,48 @@ struct LibrarySurface: View {
     @Binding var path: [UUID]
 
     @Environment(ShellState.self) private var shell
-
-    @State private var searchText = ""
-    /// Search session (like Browse `isEditingAddress`): survives swipe-down keyboard dismiss.
-    @State private var isEditingSearch = false
-    @FocusState private var searchFocused: Bool
+    @State private var search = SearchSession()
 
     var body: some View {
         VStack(spacing: 0) {
-            SavedListView(path: $path, searchText: $searchText)
+            SavedListView(path: $path, searchText: search.text)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .scrollDismissesKeyboard(.interactively)
 
             if path.isEmpty {
-                libraryChrome
+                SearchSessionChrome(session: search, cancelID: "librarySearchCancel",
+                                    onCancel: { search.end(showing: "") }) { focus in
+                    searchField(focus)
+                } toolbar: {
+                    toolbar
+                }
+                .lowersKeyboardOnPullDown(search)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("libraryChrome")
             }
         }
         .background(Color(.systemBackground).ignoresSafeArea())
     }
 
-    /// Same band / field capsule / five-slot toolbar as Browse (`BottomChrome`).
-    /// While searching, toolbar steps aside (Safari / Browse): field + round ✕ only.
-    private var libraryChrome: some View {
-        VStack(spacing: BottomChrome.rowSpacing) {
-            HStack(spacing: 10) {
-                searchField
-                if isEditingSearch {
-                    Button(action: cancelSearch) {
-                        Image(systemName: "xmark")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .frame(width: 40, height: 40)
-                            .background(Color(.secondarySystemBackground), in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Cancel")
-                    .accessibilityIdentifier("librarySearchCancel")
-                }
-            }
-
-            // Like Browse/Safari: page buttons step aside while searching.
-            if !isEditingSearch {
-                toolbarRow
-            }
-        }
-        .bottomChromeBand(bottomPadding: isEditingSearch ? 8 : 0)
-        .simultaneousGesture(pullDownToLowerKeyboard)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("libraryChrome")
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 8) {
+    private func searchField(_ focus: FocusState<Bool>.Binding) -> some View {
+        let clearable = search.isActive && !search.text.isEmpty
+        return HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
                 .accessibilityHidden(true)
 
-            TextField("Search saved", text: $searchText)
+            TextField("Search saved", text: Bindable(search).text)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .submitLabel(.search)
-                .focused($searchFocused)
+                .focused(focus)
                 .accessibilityIdentifier("librarySearchField")
-                .onChange(of: searchFocused) { _, focused in
-                    if focused {
-                        isEditingSearch = true
-                    }
-                    // Losing focus alone does not exit search (swipe-down / scroll). ✕ clears it.
-                }
 
-            if isEditingSearch && !searchText.isEmpty {
+            if clearable {
                 Button {
-                    searchText = ""
+                    search.text = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
@@ -103,16 +71,14 @@ struct LibrarySurface: View {
                 .accessibilityLabel("Clear search")
             }
         }
-        .bottomChromeField(leading: 12, trailing: (isEditingSearch && !searchText.isEmpty) ? 4 : 12)
+        .bottomChromeField(leading: 12, trailing: clearable ? 4 : 12)
     }
 
-    private var toolbarRow: some View {
+    private var toolbar: some View {
         BottomToolbarLayout {
             Color.clear.frame(minHeight: BottomChrome.rowHeight)
             Color.clear.frame(minHeight: BottomChrome.rowHeight)
-            Button {
-                beginSearch()
-            } label: {
+            Button { search.begin() } label: {
                 Image(systemName: "magnifyingglass").toolbarIconFrame()
             }
             .accessibilityLabel("Search")
@@ -139,31 +105,5 @@ struct LibrarySurface: View {
         case .history: shell.present(.history)
         case .browser: shell.leaveLibrary()
         }
-    }
-
-    private func beginSearch() {
-        isEditingSearch = true
-        searchFocused = true
-    }
-
-    /// ✕: leave search mode and clear the filter (like Browse restores the page address).
-    private func cancelSearch() {
-        isEditingSearch = false
-        searchFocused = false
-        searchText = ""
-    }
-
-    /// Swipe down on chrome: dismiss keyboard / lower the field, but stay in search mode.
-    private var pullDownToLowerKeyboard: some Gesture {
-        DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance)
-            .onEnded { value in
-                guard isEditingSearch, searchFocused else { return }
-                if SwipeGesturePolicy.shouldCommitVerticalDismiss(
-                    translation: value.translation,
-                    predicted: value.predictedEndTranslation
-                ) {
-                    searchFocused = false
-                }
-            }
     }
 }

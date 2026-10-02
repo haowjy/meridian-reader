@@ -7,6 +7,9 @@ import Observation
 final class WebViewStore {
     weak var webView: WKWebView?
     var pageTitle: String?
+    /// The page in the browser: set by `load` right away (the address field and buttons react
+    /// before WebKit starts), then to what WebKit reports on each navigation event. nil on the
+    /// start page: `about:` pages are never a page.
     var currentURL: URL?
     var isLoading = false
     var canGoBack = false
@@ -19,11 +22,19 @@ final class WebViewStore {
     /// Set by the address bar; consumed once by `WebView.updateUIView`.
     var pendingURL: URL?
 
+    var hasPage: Bool { currentURL != nil }
+
     func load(_ url: URL) {
         pendingURL = url
-        // Optimistic UI while load starts.
         currentURL = url
         isLoading = true
+    }
+
+    /// The start page: a blank document (so ‹ still goes back to the page), no page.
+    func showStartPage() {
+        pendingURL = URL(string: "about:blank")
+        currentURL = nil
+        pageTitle = nil
     }
 
     func goBack() { webView?.goBack() }
@@ -34,8 +45,8 @@ final class WebViewStore {
         guard let webView else { return }
         canGoBack = webView.canGoBack
         canGoForward = webView.canGoForward
-        currentURL = webView.url
-        pageTitle = webView.title
+        currentURL = webView.url.flatMap { $0.scheme == "about" ? nil : $0 }
+        pageTitle = currentURL == nil ? nil : webView.title
     }
 
     func snapshotHTML() async throws -> String {
