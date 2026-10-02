@@ -51,8 +51,7 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     }
     var backgroundStats = BackgroundPlayStats()
     /// Why the unit now playing is Apple TTS (nil = the engine's own audio).
-    private(set) var currentAppleFallbackReason: String?
-    private var appleFallbackReasons: [Int: String] = [:]
+    private(set) var currentAppleFallbackReason: FallbackReason?
 
     var onParagraphIndexChange: ((Int) -> Void)?
     /// Session-level finished (all units played, producer exhausted).
@@ -254,7 +253,6 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     func stop() {
         resumePointStore?.clear()
         currentAppleFallbackReason = nil
-        appleFallbackReasons.removeAll()
         epoch += 1
         starveWatchGeneration += 1
         producerTask?.cancel()
@@ -278,15 +276,15 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     /// Returns the paragraph production restarts from (nil = nothing to reclaim).
     @discardableResult
     func reclaimBackgroundFallbacks() -> Int? {
-        let reasons = appleFallbackReasons
         guard let first = player.dropQueued(fromFirstWhere: { item in
-            (item.chunkIndex ?? 0) >= 10_000 && reasons[item.paragraphIndex] == "background"
+            if case .appleFallback(_, .background) = item.source { return true }
+            return false
         }) else { return nil }
         producerTask?.cancel()
         producerTask = nil
         epoch += 1 // an in-flight produce must not enqueue after the restart point
         nextProduceIndex = first.paragraphIndex
-        nextProduceChunk = max(0, (first.chunkIndex ?? 10_000) - 10_000)
+        nextProduceChunk = first.source.startChunk ?? 0
         player.awaitingMore = true
         ListenDebugLog.shared.append("foreground: re-rendering from p\(first.paragraphIndex) with \(engineShortName) (dropped queued Apple units)")
         ListenTimingLog.log("bg_fallback_reclaimed", [
@@ -425,7 +423,7 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
                 if nextProduceChunk == 0, let baked = bakedURLProvider?(index), isUsableAudioFile(baked) {
                     nextProduceIndex = index + 1
                     let start = consumeStartTime(fileURL: baked, paragraph: index, chunk: 0, fileStartTime: 0, wholeParagraph: true)
-                    player.enqueue(.init(paragraphIndex: index, fileURL: baked, startTime: start, isWholeParagraph: true))
+                    player.enqueue(.init(paragraphIndex: index, fileURL: baked, source: .baked, startTime: start))
                     continue
                 }
                 // Play-while-building: enqueue each synth chunk as soon as it is rendered.
@@ -448,7 +446,7 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
                     switch resolution {
                     case .chunk(let url):
                         let start = consumeStartTime(fileURL: url, paragraph: index, chunk: k, fileStartTime: 0, wholeParagraph: false)
-                        player.enqueue(.init(paragraphIndex: index, fileURL: url, chunkIndex: k, startTime: start))
+                        player.enqueue(.init(paragraphIndex: index, fileURL: url, source: .chunk(k), startTime: start))
                         if k + 1 >= chunkCount {
                             nextProduceIndex = index + 1
                             nextProduceChunk = 0
@@ -458,8 +456,8 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
                     case .paragraph(let url, let startTime):
                         // Paragraph finished (scratch gone) — play the rest from the stitched CAF.
                         let start = consumeStartTime(fileURL: url, paragraph: index, chunk: k, fileStartTime: startTime, wholeParagraph: true)
-                        player.enqueue(.init(paragraphIndex: index, fileURL: url, chunkIndex: k, startTime: start,
-                                             isWholeParagraph: true))
+                        player.enqueue(.init(paragraphIndex: index, fileURL: url, source: .stitched(fromChunk: k),
+                                             startTime: start))
                         nextProduceIndex = index + 1
                         nextProduceChunk = 0
                     }
@@ -550,17 +548,22 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
         let remainder = fromChunk < chunks.count && fromChunk > 0
             ? chunks[fromChunk...].joined(separator: " ")
             : TextChunker.normalize(text)
-        let background: Bool = {
-            if case LocalSynthError.deferredInBackground = error { return true }
-            return false
-        }()
-        let behind = error is RenderFellBehind
-        appleFallbackReasons[index] = background ? "background" : (behind ? "behind" : "engine error")
-        ListenDebugLog.shared.append(background
-            ? "p\(index) c\(fromChunk) not rendered yet, app in background → Apple TTS"
-            : behind
-            ? "p\(index) c\(fromChunk) \(engineShortName) behind playback → Apple TTS for this paragraph"
-            : "p\(index) c\(fromChunk) \(engineShortName) failed → Apple TTS (\(error.localizedDescription))")
+        let reason: FallbackReason
+        if case LocalSynthError.deferredInBackground = error {
+            reason = .background
+        } else if error is RenderFellBehind {
+            reason = .behind
+        } else {
+            reason = .engineError
+        }
+        switch reason {
+        case .background:
+            ListenDebugLog.shared.append("p\(index) c\(fromChunk) not rendered yet, app in background → Apple TTS")
+        case .behind:
+            ListenDebugLog.shared.append("p\(index) c\(fromChunk) \(engineShortName) behind playback → Apple TTS for this paragraph")
+        case .engineError:
+            ListenDebugLog.shared.append("p\(index) c\(fromChunk) \(engineShortName) failed → Apple TTS (\(error.localizedDescription))")
+        }
         let url = tempDir.appendingPathComponent("apple-\(e)-\(index)-\(fromChunk).caf")
         let t0 = ListenTimingLog.now()
         do {
@@ -570,7 +573,8 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
                                                    "chars": remainder.count, "ms": ListenTimingLog.ms(since: t0),
                                                    "engine": engineShortName, "local_err": error.localizedDescription])
             if isUsableAudioFile(url) {
-                player.enqueue(.init(paragraphIndex: index, fileURL: url, chunkIndex: 10_000 + fromChunk))
+                player.enqueue(.init(paragraphIndex: index, fileURL: url,
+                                     source: .appleFallback(fromChunk: fromChunk, reason: reason)))
             }
         } catch {
             ListenDebugLog.shared.append("SKIP p\(index): \(engineShortName) and Apple TTS both failed (\(error.localizedDescription))")
@@ -582,36 +586,37 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     }
 
     private func noteUnitKind(_ item: ChunkPlaybackQueue.Item) {
-        let isApple = (item.chunkIndex ?? 0) >= 10_000
-        currentAppleFallbackReason = isApple ? (appleFallbackReasons[item.paragraphIndex] ?? "fallback") : nil
-        guard AppRunState.shared.phase == .background else { return }
-        if isApple {
-            backgroundStats.appleFallbacks += 1
-        } else if item.chunkIndex == nil || item.startTime > 0 {
-            backgroundStats.bakedParagraphs += 1
+        if case .appleFallback(_, let reason) = item.source {
+            currentAppleFallbackReason = reason
         } else {
-            backgroundStats.engineChunks += 1
+            currentAppleFallbackReason = nil
+        }
+        guard AppRunState.shared.phase == .background else { return }
+        switch item.source {
+        case .baked, .stitched: backgroundStats.bakedParagraphs += 1
+        case .chunk: backgroundStats.engineChunks += 1
+        case .appleFallback: backgroundStats.appleFallbacks += 1
         }
         ListenTimingLog.log("bg_unit", [
-            "key": ListenTimingLog.shortKey(articleID), "p": item.paragraphIndex, "c": item.chunkIndex ?? -1,
-            "kind": isApple ? "apple" : (item.chunkIndex == nil ? "baked" : "chunk"),
+            "key": ListenTimingLog.shortKey(articleID), "p": item.paragraphIndex, "c": item.source.startChunk ?? -1,
+            "kind": item.source.timingKind,
         ])
     }
 
     /// first_audio (after Play/seek) and buffering (Preparing next…) intervals.
     private func noteUnitStartedForTiming(_ item: ChunkPlaybackQueue.Item) {
-        let from = item.chunkIndex == nil ? "baked" : "chunk"
+        let from = item.source.timingKind
         if let t = speakRequestedAt {
             ListenTimingLog.log("first_audio", [
                 "key": ListenTimingLog.shortKey(articleID), "p": item.paragraphIndex,
-                "c": item.chunkIndex ?? -1, "ms": ListenTimingLog.ms(since: t), "from": from,
+                "c": item.source.startChunk ?? -1, "ms": ListenTimingLog.ms(since: t), "from": from,
             ])
             speakRequestedAt = nil
             starvedAt = nil
         } else if let t = starvedAt {
             ListenTimingLog.log("buffering", [
                 "key": ListenTimingLog.shortKey(articleID), "p": item.paragraphIndex,
-                "c": item.chunkIndex ?? -1, "dur_ms": ListenTimingLog.ms(since: t), "from": from,
+                "c": item.source.startChunk ?? -1, "dur_ms": ListenTimingLog.ms(since: t), "from": from,
             ])
             starvedAt = nil
         }

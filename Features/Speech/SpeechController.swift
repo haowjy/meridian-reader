@@ -636,12 +636,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         guard usesLocalPlayback, playback.phase == .playing || playback.phase == .paused,
               let reason = localTTS.localEngineInstance.currentAppleFallbackReason else { return nil }
         _ = bufferingRevision
-        let name = localTTS.localEngineInstance.engineShortName
-        switch reason {
-        case "background": return "Apple voice · \(name) can't render in the background"
-        case "behind": return "Apple voice for this paragraph · \(name) fell behind"
-        default: return "Apple voice · \(name) couldn't render this paragraph"
-        }
+        return reason.localizedNote(engine: localTTS.localEngineInstance.engineShortName)
     }
 
     // MARK: - Intent execution
@@ -925,23 +920,23 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         guard p == playback.playhead, document.paragraphs.indices.contains(p) else { return }
         let length = document.paragraphs[p].utf16.count
         let starts = chunkStarts(paragraph: p)
+        let fractionOfFile = pos.duration > 0 ? min(1, pos.time / pos.duration) : 0
         let within: Int
-        let chunk = pos.item.chunkIndex ?? 0
-        if chunk >= 10_000 {
-            // Apple fallback: the remainder from chunk (chunk - 10 000) as one file.
-            let from = starts[min(chunk - 10_000, starts.count - 1)]
-            let f = pos.duration > 0 ? min(1, pos.time / pos.duration) : 0
-            within = from + Int(Double(length - from) * f)
-        } else if pos.item.chunkIndex == nil || pos.item.isWholeParagraph {
+        switch pos.item.source {
+        case .appleFallback(let fromChunk, _):
+            // The rest of the paragraph from `fromChunk` as one Apple file: proportional by characters.
+            let from = starts[min(fromChunk, starts.count - 1)]
+            within = from + Int(Double(length - from) * fractionOfFile)
+        case .baked, .stitched:
+            // The stitched paragraph CAF: locate the chunk from its recorded durations.
             let durations = localTTS.localEngineInstance.chunkDurationsProvider?(p)
             let loc = ChunkOffsets.locate(time: pos.time, fileDuration: pos.duration,
                                           durations: durations, chunkCount: starts.count)
             within = loc.chunk < 0
                 ? Int(Double(length) * loc.fraction)
                 : ChunkOffsets.offset(chunk: loc.chunk, fraction: loc.fraction, starts: starts, length: length)
-        } else {
-            let f = pos.duration > 0 ? min(1, pos.time / pos.duration) : 0
-            within = ChunkOffsets.offset(chunk: chunk, fraction: f, starts: starts, length: length)
+        case .chunk(let k):
+            within = ChunkOffsets.offset(chunk: k, fraction: fractionOfFile, starts: starts, length: length)
         }
         let utf16 = document.startUTF16Offset(forParagraph: p) + max(0, min(within, max(0, length - 1)))
         guard abs(utf16 - playback.utf16Offset) >= 4 else { return }
