@@ -215,7 +215,7 @@ Swipe-down-to-close (✕, from the top row) and left-edge swipe-back (‹) are u
   Share, Debug* (developer options only); bottom row **Bookmarks / Saved / History / Website** — in reader mode the Reader
   slot becomes 🌐 **Website** (same spot; its icon is 12 pt left / 10 pt up of ⋯, Nav J). Website = reader off:
   it always goes to the article's own page in the browser, wherever the reader was opened from.
-  The ✕ reader over that page just reveals it (no reload); from the library (the sheet closes
+  The ✕ reader over that page just reveals it (no reload); from the library (the library closes
   first), the start page, Continue listening or the mini player the page loads in the browser.
   Playback never stops — the mini player takes over.
   In the ‹ reader the dim also covers the (transparent) navigation bar; the row there fades and a
@@ -244,7 +244,7 @@ confirmation). UI tests force it with `-reader.developerOptions NO|YES`.
 | Browser → editing the address | ✕ round, right of the field | in place; tap outside or drag down |
 | Browser ⋯ / Reader ⋯ | — | morph panel over the button (same design; reader context swaps Reader for Website) |
 | Browser toolbar Search | ✕ round, right of the field | in place (editing the address, empty) |
-| Reader ⋯ → Website | — | closes the reader (and the library sheet) and shows / loads the article's page in the browser; audio continues |
+| Reader ⋯ → Website | — | closes the reader (and leaves the library) and shows / loads the article's page in the browser; audio continues |
 | ⋯ → Voice settings (`SpeechSettingsView`) | Done | `.sheet` |
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | — (grabber) | `.sheet`, medium/large |

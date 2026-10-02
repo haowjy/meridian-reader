@@ -6,7 +6,7 @@ import UIKit
 
 /// The browser's start page (no page loaded), Safari-style: a Bookmarks icon grid (site
 /// bookmarks, like Safari Favorites), "Continue listening", recent "Saved" articles with Show All
-/// (opens the library sheet), then Recent Searches.
+/// (opens the library), then Recent Searches.
 struct BrowseStartPage: View {
     let bookmarks: [SiteBookmark]
     /// In-progress saved articles, most recently listened first (all of them; up to 3 shown).
@@ -303,9 +303,10 @@ struct MiniPlayerBar: View {
     }
 }
 
-// MARK: - ⋯ popover
+// MARK: - ⋯ menu panel
 
-/// Safari-style ⋯ popover: action rows, then a row of big buttons (Bookmarks, Saved, History).
+/// The ⋯ menu panel's content (shown by `MorphMenuOverlay`): action rows, then a row of big
+/// buttons (Bookmarks, Saved, History, Reader / Website).
 struct BrowseMoreMenu: View {
     enum Action { case newSearch, toggleSave, toggleBookmark, share, reload, voiceSettings, listenDebug,
                      bookmarks, saved, history, toggleReader, openWebsite }
@@ -314,7 +315,8 @@ struct BrowseMoreMenu: View {
     /// reader; only the top rows differ. The bottom row is `[Bookmarks][Saved][History][Reader]` on a
     /// page and `[Bookmarks][Saved][History][Website]` in the reader: the rightmost button (nearest
     /// the thumb) switches between the page and its reader view. Its icon is the panel's focus
-    /// point: `MorphMenuOverlay` puts it exactly where the ⋯ glyph was (Nav H).
+    /// point: `MorphMenuOverlay` places it slightly up and left of the ⋯ glyph
+    /// (`MorphMenu.focusOffsetFromAnchor`).
     enum Context { case browse, reader }
 
     var context: Context = .browse
@@ -470,7 +472,7 @@ struct BrowseMoreMenu: View {
     }
 }
 
-/// Pressed-state highlight for popover rows (like a system menu).
+/// Pressed-state highlight for menu panel rows (like a system menu).
 private struct MenuRowStyle: ButtonStyle {
     var cornerRadius: CGFloat = 0
     @Environment(\.isEnabled) private var isEnabled

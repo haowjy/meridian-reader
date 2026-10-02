@@ -1,7 +1,7 @@
 import XCTest
 @testable import Reader
 
-/// Nav I: scrubbing snaps to sentence starts and playback resumes at that sentence (not the
+/// Scrubbing snaps to sentence starts and playback resumes at that sentence (not the
 /// paragraph start); fine-scrub speeds; chunk ↔ paragraph offset mapping for the local engine.
 @MainActor
 final class SubParagraphSeekTests: XCTestCase {
@@ -34,9 +34,8 @@ final class SubParagraphSeekTests: XCTestCase {
         XCTAssertEqual(map.target(at: 0), .init(paragraph: 0, sentence: 0, offset: 0))
         XCTAssertEqual(map.target(at: 0.99).paragraph, 1)
         XCTAssertEqual(map.target(at: 0.99).offset, 0)
-        // Ticks: 3 sentence starts in p0 + the p1 start.
-        XCTAssertEqual(map.ticks.count, 4)
-        XCTAssertNotEqual(map.tickIndex(at: mid), map.tickIndex(at: map.fraction(paragraph: 0, offset: 2)))
+        // Crossing a sentence start changes the target (the scrubber's haptic tick).
+        XCTAssertNotEqual(map.target(at: mid), map.target(at: map.fraction(paragraph: 0, offset: 2)))
         XCTAssertEqual(map.sentenceCount(paragraph: 0), 4)
         XCTAssertEqual(map.target(paragraph: 0, offset: 10_000).sentence, 3)
     }

@@ -38,8 +38,8 @@ enum SwipeGesturePolicy {
 }
 
 /// App-wide swipe-back rule (see `docs/NAVIGATION.md`): every pushed screen can be popped by
-/// swiping from the left edge, even when it hides the system back button / navigation bar and
-/// draws its own ‹ (e.g. the Saved reader uses `.toolbar(.hidden, for: .navigationBar)`).
+/// swiping from the left edge, even when it hides the system back button and draws its own ‹
+/// (the library's ‹ reader uses `.navigationBarBackButtonHidden(true)`).
 ///
 /// UIKit's default pop-gesture delegate refuses to begin when the bar or back button is hidden,
 /// so SwiftUI screens with a custom ‹ lose swipe-back. Here every navigation controller

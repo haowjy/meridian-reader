@@ -2,15 +2,12 @@ import SwiftUI
 import UIKit
 
 /// Article position ↔ scrubber fraction. Each paragraph gets width ∝ its length, so the fill tracks
-/// how much of the article has been read. Scrubbing snaps to **sentence starts** (Nav I): `ticks`
-/// are the fractions where a sentence (or, with a chunk plan, a speech chunk) starts — the scrubber
-/// ticks a light haptic at each one — and `target(at:)` is the sentence under the finger.
+/// how much of the article has been read. Scrubbing snaps to **sentence starts**: `target(at:)` is
+/// the sentence under the finger, and the scrubber ticks a haptic whenever that target changes.
 struct ReaderScrubMap: Equatable, Sendable {
     /// Cumulative weight before each paragraph.
     let starts: [Double]
     let total: Double
-    /// Sorted fractions (0, 1] of sentence / chunk / paragraph starts (excluding the article start).
-    let ticks: [Double]
     /// Paragraph texts (bubble snippet).
     let texts: [String]
     /// Per paragraph: UTF-16 offsets of its sentence starts (always starts with 0).
@@ -26,41 +23,19 @@ struct ReaderScrubMap: Equatable, Sendable {
         var offset: Int
     }
 
-    init(paragraphs: [String], chunkPlan: ((String) -> [String]?)? = nil, sentences: Bool = true) {
+    /// `sentences: false` skips sentence tokenization (every paragraph is one sentence): enough
+    /// for position ↔ fraction, which only needs paragraph lengths.
+    init(paragraphs: [String], sentences: Bool = true) {
         var starts: [Double] = []
-        var weights: [Double] = []
         var acc = 0.0
         for p in paragraphs {
             starts.append(acc)
-            let w = Double(max(1, p.utf16.count))
-            weights.append(w)
-            acc += w
-        }
-        let total = max(acc, 1)
-        var ticks: [Double] = []
-        var sentenceStarts: [[Int]] = []
-        for (i, p) in paragraphs.enumerated() {
-            if i > 0 { ticks.append(starts[i] / total) }
-            let sentenceOffsets = sentences ? SentenceStarts.offsets(in: p) : [0]
-            sentenceStarts.append(sentenceOffsets)
-            for offset in sentenceOffsets.dropFirst() {
-                ticks.append((starts[i] + Double(offset)) / total)
-            }
-            guard let chunks = chunkPlan?(p), chunks.count > 1 else { continue }
-            let lens = chunks.map { Double(max(1, $0.utf16.count)) }
-            let sum = lens.reduce(0, +)
-            var run = 0.0
-            for len in lens.dropLast() {
-                run += len
-                ticks.append((starts[i] + weights[i] * run / sum) / total)
-            }
+            acc += Double(max(1, p.utf16.count))
         }
         self.starts = starts
-        self.total = total
-        var seen = Set<Double>()
-        self.ticks = ticks.sorted().filter { seen.insert($0).inserted }
+        self.total = max(acc, 1)
         self.texts = paragraphs
-        self.sentenceStarts = sentenceStarts
+        self.sentenceStarts = paragraphs.map { sentences ? SentenceStarts.offsets(in: $0) : [0] }
     }
 
     func sentenceCount(paragraph: Int) -> Int {
@@ -151,16 +126,6 @@ struct ReaderScrubMap: Equatable, Sendable {
             }
         }
         return result
-    }
-
-    /// How many ticks lie at or before `fraction` (changes by one per boundary crossed).
-    func tickIndex(at fraction: Double) -> Int {
-        var lo = 0, hi = ticks.count
-        while lo < hi {
-            let mid = (lo + hi) / 2
-            if ticks[mid] <= fraction { lo = mid + 1 } else { hi = mid }
-        }
-        return lo
     }
 }
 

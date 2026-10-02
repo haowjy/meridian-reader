@@ -23,8 +23,6 @@ struct LibrarySurface: View {
     var onMoreAnchor: (CGRect) -> Void
     var onOpenMore: () -> Void
     var onLeaveToBrowser: () -> Void
-    /// Bumped by the parent to focus the library search field (toolbar Search).
-    var focusSearchToken: Int = 0
 
     /// Search session (like Browse `isEditingAddress`): survives swipe-down keyboard dismiss.
     @State private var isEditingSearch = false
@@ -32,7 +30,7 @@ struct LibrarySurface: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SavedListView(path: $path, searchText: $searchText, usesExternalSearch: true)
+            SavedListView(path: $path, searchText: $searchText)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .scrollDismissesKeyboard(.interactively)
 
@@ -41,9 +39,6 @@ struct LibrarySurface: View {
             }
         }
         .background(Color(.systemBackground).ignoresSafeArea())
-        .onChange(of: focusSearchToken) { _, _ in
-            beginSearch()
-        }
     }
 
     /// Same band / field capsule / five-slot toolbar as Browse (`BottomChrome`).
