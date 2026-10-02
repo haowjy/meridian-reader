@@ -106,7 +106,6 @@
 		A2364E6217945A6D3BF08900 /* FaviconFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15D5E14957B2A2E92D82319B /* FaviconFetcher.swift */; };
 		A2950687450BBB87022A0437 /* ListenDebugPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52E746B645BBE5EAB1813B83 /* ListenDebugPanel.swift */; };
 		A4E15DBA0D6700B92EDB7E49 /* TTSModelDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24AB2EA7B37831A515943069 /* TTSModelDownloader.swift */; };
-		A54483432E1FCD1EB898BB36 /* ReaderMenuHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 062520D075EDAB20F74FC502 /* ReaderMenuHost.swift */; };
 		A69EF22F7DD154037FE1142B /* HierarchicalChunkerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93667398429596A83ECBB3A0 /* HierarchicalChunkerTests.swift */; };
 		AA50F3653274F99102BA77B2 /* FakeArticleExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2272B2332A54375FBB977E1F /* FakeArticleExtractor.swift */; };
 		AC0F5712A6CF8E1B85AB14E9 /* SavedArticle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 596D285B620C2685D754A293 /* SavedArticle.swift */; };
@@ -143,6 +142,7 @@
 		D7636E17E4B1043A0CD8AE06 /* SubParagraphSeekTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A62FED21DC8DEDCA05B1F4E /* SubParagraphSeekTests.swift */; };
 		D7E324171618AD61E8FB5F57 /* NavCScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 239212983A9A872B82536ADC /* NavCScreenshotTests.swift */; };
 		D83192165FCC20555A04EDFE /* voice-preview-kokoro-af_heart.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 264308D4EDB25861B1626D22 /* voice-preview-kokoro-af_heart.m4a */; };
+		D854FF521B957553337C19B6 /* ShellState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F142704D0112C236423A10E8 /* ShellState.swift */; };
 		D882768DEE936DDBB5CA605B /* ArticleAudioCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6FD00F341521EF3D8E91C7C /* ArticleAudioCache.swift */; };
 		D92A0B26BB28EBDD3DB82026 /* ReaderChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C182D476232B724A13DCFF /* ReaderChrome.swift */; };
 		DE9AB318EAD81B21EE8159B5 /* KokoroONNXModelPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945DDAA7CAECDB838AF8AB45 /* KokoroONNXModelPatch.swift */; };
@@ -192,7 +192,6 @@
 		0459B3CB50AFA0A0B3D139B8 /* BGTasks-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "BGTasks-Info.plist"; sourceTree = "<group>"; };
 		046B3E1C59E0DE4A4612C789 /* voice-preview-kokoro-af_bella.m4a */ = {isa = PBXFileReference; path = "voice-preview-kokoro-af_bella.m4a"; sourceTree = "<group>"; };
 		05D33101086711B574163FC9 /* ReaderScrubRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderScrubRow.swift; sourceTree = "<group>"; };
-		062520D075EDAB20F74FC502 /* ReaderMenuHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderMenuHost.swift; sourceTree = "<group>"; };
 		0A62FED21DC8DEDCA05B1F4E /* SubParagraphSeekTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubParagraphSeekTests.swift; sourceTree = "<group>"; };
 		0BBE7F8EC03F5E75F9D690AB /* FluidAudioProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FluidAudioProvider.swift; sourceTree = "<group>"; };
 		0DB7651FDEA2A040FCA8E9A2 /* ChunkPlaybackQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChunkPlaybackQueue.swift; sourceTree = "<group>"; };
@@ -343,6 +342,7 @@
 		EE1AC2AC781D13AB00A69360 /* ListenSettingsLayoutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenSettingsLayoutUITests.swift; sourceTree = "<group>"; };
 		EE9BB989753E52B53AF99267 /* AppComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppComposition.swift; sourceTree = "<group>"; };
 		EF8D8AE856A8E4D6F043B722 /* ProbePCMRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbePCMRenderer.swift; sourceTree = "<group>"; };
+		F142704D0112C236423A10E8 /* ShellState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellState.swift; sourceTree = "<group>"; };
 		F4860E7FEA320F42B9345274 /* KokoroCPUInputs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroCPUInputs.swift; sourceTree = "<group>"; };
 		F617E0663C8806D616B48F08 /* FluidAudio */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FluidAudio; path = Vendor/FluidAudio; sourceTree = SOURCE_ROOT; };
 		F6E971A9316951A5F68B8716 /* ParagraphSplitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParagraphSplitTests.swift; sourceTree = "<group>"; };
@@ -388,6 +388,14 @@
 				F617E0663C8806D616B48F08 /* FluidAudio */,
 			);
 			name = Packages;
+			sourceTree = "<group>";
+		};
+		20F5D16E2A75538B11BA87EA /* Shell */ = {
+			isa = PBXGroup;
+			children = (
+				F142704D0112C236423A10E8 /* ShellState.swift */,
+			);
+			path = Shell;
 			sourceTree = "<group>";
 		};
 		21A9B0881F6A562D91E81931 /* SpeechSwift */ = {
@@ -719,7 +727,6 @@
 			children = (
 				922E69F33ED37525B698AF48 /* ArticleReaderScreen.swift */,
 				E4C182D476232B724A13DCFF /* ReaderChrome.swift */,
-				062520D075EDAB20F74FC502 /* ReaderMenuHost.swift */,
 				05D33101086711B574163FC9 /* ReaderScrubRow.swift */,
 			);
 			path = Reader;
@@ -731,6 +738,7 @@
 				D03C6CF7B90BE283EB2B9114 /* Browse */,
 				F9446B1B1AEA6C496FCA027C /* Reader */,
 				536704E7B0423BAD6904BD2B /* Saved */,
+				20F5D16E2A75538B11BA87EA /* Shell */,
 				EFEFDB9D8DBE59449717CF8B /* Speech */,
 			);
 			path = Features;
@@ -982,7 +990,6 @@
 				4CB6BD43E27066EC0E98DBF4 /* ReaderApp.swift in Sources */,
 				2F0DE754C0AE3EB3738FFBF8 /* ReaderArticle.swift in Sources */,
 				D92A0B26BB28EBDD3DB82026 /* ReaderChrome.swift in Sources */,
-				A54483432E1FCD1EB898BB36 /* ReaderMenuHost.swift in Sources */,
 				5FD29F1B635A349F56F20463 /* ReaderScripts.swift in Sources */,
 				D261D731CEAEEA9F0969A383 /* ReaderScrubRow.swift in Sources */,
 				0249FEEC6A842282361BF9A6 /* RecentSearches.swift in Sources */,
@@ -991,6 +998,7 @@
 				424136A2BF389B8A0B449AEA /* RootView.swift in Sources */,
 				AC0F5712A6CF8E1B85AB14E9 /* SavedArticle.swift in Sources */,
 				942ABDCE2B5868D8635B7B73 /* SavedListView.swift in Sources */,
+				D854FF521B957553337C19B6 /* ShellState.swift in Sources */,
 				40B140054C91F32CAF99BD56 /* SpeechController.swift in Sources */,
 				5ECC510A8FE857AB8F3AA2E7 /* SpeechEngineProvider.swift in Sources */,
 				49DE6C82D7597CED2C637542 /* SpeechEnvironment.swift in Sources */,

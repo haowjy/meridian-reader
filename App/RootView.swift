@@ -130,5 +130,6 @@ struct EngineNoticeBanner: View {
 
 #Preview {
     RootView()
+        .environment(ShellState())
         .modelContainer(for: [SavedArticle.self, RecentVisit.self], inMemory: true)
 }

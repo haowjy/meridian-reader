@@ -17,7 +17,8 @@ struct OfflineArticleView: View {
             if let snapshot {
                 ArticleReaderScreen(
                     article: snapshot,
-                    closeStyle: .back,
+                    presentation: .pushed,
+                    origin: .library,
                     speech: speech,
                     onClose: { dismiss() },
                     onIdentityChange: { self.snapshot?.id = $0 }

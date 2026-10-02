@@ -11,10 +11,10 @@ struct BrowseStartView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.articleExtractor) private var extractor
     @Environment(\.speechController) private var speech
+    @Environment(ShellState.self) private var shell
     @Query(sort: \SavedArticle.savedAt, order: .reverse) private var articles: [SavedArticle]
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
 
-    @State private var webStore = WebViewStore()
     /// Once true, the browse WKWebView stays in the tree (history / back-forward). Starts false so
     /// cold launch on the start page never creates WebKit GPU/WebContent processes.
     @State private var browseWebViewMounted = false
@@ -26,10 +26,6 @@ struct BrowseStartView: View {
     /// page's address selected.
     @State private var startingNewSearch = false
 
-    @State private var isBusy = false
-    /// Which action `isBusy` belongs to (spinner on ⋯ for Save, on Reader for Reader).
-    @State private var busyIsSave = false
-    @State private var showVoiceSettings = false
     /// Address-bar dictation (created in `.task`: it needs the speech controller).
     @State private var dictation: AddressDictation?
     /// Field text when editing began: while it's untouched, show Recent Searches.
@@ -39,33 +35,23 @@ struct BrowseStartView: View {
     @State private var suggestionsAtTop = true
     @State private var dragStartedAtTop: Bool?
     @State private var alertMessage: String?
-    @State private var showReader = false
-    /// Article shown in Reader Mode (shared `ArticleReaderScreen`). `id` is the listen/cache key.
-    @State private var readerArticle: ReaderArticle?
     @State private var useFakeFailure = false
-    /// Readers opened this session, by id: the mini player reopens a web article from here.
-    @State private var openedArticles: [UUID: ReaderArticle] = [:]
 
     @State private var showMore = false
     /// The toolbar ⋯ button's global frame: the menu panel grows out of it.
     @State private var moreAnchor: CGRect = .zero
     /// ⋯ actions that present something run once the panel has started collapsing.
     @State private var pendingMoreAction: BrowseMoreMenu.Action?
-    @State private var showLibrary = false
-    /// Library surface navigation (‹ reader push). Empty = list + shared library chrome.
-    @State private var libraryPath: [UUID] = []
-    @State private var librarySearch = ""
-    /// Runs once the library surface is gone (reader-in-library ⋯ → Bookmarks / History).
-    @State private var afterLibraryDismiss: (() -> Void)?
-    @State private var showBookmarks = false
     /// Site bookmarks (their own JSON store; not the saved-article model).
     @State private var bookmarkStore = BookmarkStore.shared
-    @State private var showHistory = false
-    @State private var shareItem: ShareItem?
     @State private var listenHistory = ListenHistory(defaults: .standard)
 
     @State private var googleSuggestions: [String] = []
     @State private var suggestTask: Task<Void, Never>?
+
+    private var webStore: WebViewStore { shell.web }
+
+    private var isReaderShown: Bool { shell.readerArticle != nil }
 
     /// Bottom-bar bookmark reflects "already saved" for the current page's canonical URL.
     private var currentSavedArticle: SavedArticle? {
@@ -104,7 +90,7 @@ struct BrowseStartView: View {
     /// Recent Searches replace suggestions while the field is empty or still shows the page URL.
     /// Uses `isEditingAddress` (search session), not keyboard focus — swipe-down keeps them visible.
     private var showsRecentSearches: Bool {
-        guard isEditingAddress, !showReader, !recentSearches.isEmpty, dictation?.isActive != true else { return false }
+        guard isEditingAddress, !isReaderShown, !recentSearches.isEmpty, dictation?.isActive != true else { return false }
         let q = addressText.trimmingCharacters(in: .whitespacesAndNewlines)
         return q.isEmpty || addressText == focusStartText
     }
@@ -123,12 +109,12 @@ struct BrowseStartView: View {
             ZStack {
                 if showsBrowseWebView {
                     WebView(store: webStore, initialURL: nil)
-                        .opacity(hasPage && !showReader ? 1 : 0)
-                        .allowsHitTesting(hasPage && !showReader)
+                        .opacity(hasPage && !isReaderShown ? 1 : 0)
+                        .allowsHitTesting(hasPage && !isReaderShown)
                         .onAppear { browseWebViewMounted = true }
                 }
 
-                if !hasPage && !showReader {
+                if !hasPage && !isReaderShown {
                     startPage
                 }
             }
@@ -136,14 +122,14 @@ struct BrowseStartView: View {
             // Safari-style search session: full-bleed Recent Searches / suggestions over the page.
             // Swipe down lowers the keyboard but stays in search mode (✕ exits).
             .overlay {
-                if isEditingAddress && !showReader {
+                if isEditingAddress && !isReaderShown {
                     searchSessionOverlay
                 }
             }
             .clipped()
 
             // Library is a full-screen surface with its own shared chrome; Browse chrome hides.
-            if !showReader && !showLibrary {
+            if shell.isBrowsing {
                 browserChrome
             }
         }
@@ -153,8 +139,8 @@ struct BrowseStartView: View {
         // Reader Mode covers the whole browser, edge to edge (the text runs under its bars). Outside
         // the page ZStack, whose `.clipped()` would cut it at the safe area.
         .overlay {
-            if showReader, let readerArticle {
-                readerOverlay(for: readerArticle)
+            if case .reader(let article, let origin) = shell.surface {
+                readerOverlay(for: article, origin: origin)
                     .transition(.opacity)
             }
         }
@@ -164,12 +150,10 @@ struct BrowseStartView: View {
             MorphMenuOverlay(isPresented: $showMore, anchor: moreAnchor) { moreMenuPanel }
         }
         .background {
-            ListenHistoryRecorder(speech: speech) {
+            ListenHistoryRecorder(speech: speech) { activeID in
                 listenHistory = ListenHistory(defaults: .standard)
+                shell.noteActiveSession(activeID)
             }
-        }
-        .onChange(of: readerArticle?.id) { _, _ in
-            if let article = readerArticle { openedArticles[article.id] = article }
         }
         .alert("Couldn’t extract", isPresented: Binding(
             get: { alertMessage != nil },
@@ -197,41 +181,13 @@ struct BrowseStartView: View {
             seedBookmarksIfRequested()
             await resumeAfterCrashIfNeeded()
         }
-        .sheet(isPresented: $showBookmarks) {
-            BookmarksListView(store: bookmarkStore) { bookmark in
-                showBookmarks = false
-                openBookmark(bookmark)
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showHistory) {
-            BrowseHistoryView(visits: Array(recentVisits.prefix(RecentVisit.maxEntries))) { visit in
-                showHistory = false
-                openRecent(visit)
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
-        .sheet(item: $shareItem) { item in
-            ActivityShareSheet(items: [item.url])
-                .presentationDetents([.medium, .large])
-                .ignoresSafeArea()
+        .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { sheet in
+            sheetContent(sheet)
         }
         .onChange(of: showMore) { _, open in
             guard !open, let action = pendingMoreAction else { return }
             pendingMoreAction = nil
             runMoreAction(action)
-        }
-        .sheet(isPresented: $showVoiceSettings) {
-            NavigationStack {
-                SpeechSettingsView(speech: speech)
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { showVoiceSettings = false }
-                        }
-                    }
-            }
         }
         .alert("Dictation", isPresented: Binding(
             get: { dictation?.errorMessage != nil },
@@ -276,113 +232,87 @@ struct BrowseStartView: View {
         }
     }
 
-    // MARK: - Reader overlay
+    // MARK: - Surfaces
 
     @ViewBuilder
     private var libraryOverlay: some View {
-        if showLibrary {
+        if shell.isInLibrary {
             LibrarySurface(
-                path: $libraryPath,
-                searchText: $librarySearch,
+                path: Binding(get: { shell.libraryPath }, set: { shell.libraryPath = $0 }),
                 isMoreOpen: showMore,
                 onMoreAnchor: { if $0 != moreAnchor { moreAnchor = $0 } },
                 onOpenMore: { showMore = true },
-                onLeaveToBrowser: leaveLibrary
+                onLeaveToBrowser: shell.leaveLibrary
             )
-            .environment(\.readerMenuHost, readerMenuHost)
             .transition(.opacity)
         }
     }
 
-        @ViewBuilder
-    private func readerOverlay(for article: ReaderArticle) -> some View {
+    private func readerOverlay(for article: ReaderArticle, origin: ReaderOrigin) -> some View {
         ArticleReaderScreen(
             article: article,
-            closeStyle: .hideReader,
+            presentation: .overlay,
+            origin: origin,
             speech: speech,
-            onClose: hideReader,
-            onIdentityChange: { readerArticle?.id = $0 }
-        )
-        .environment(\.readerMenuHost, readerMenuHost)
-    }
-
-    /// The reader's ⋯ bottom row presents the browser's own sheets. From the ‹ reader inside the
-    /// library surface, Bookmarks / History first leave the library (one presentation at a time).
-    private var readerMenuHost: ReaderMenuHost {
-        ReaderMenuHost(
-            showBookmarks: { presentFromReader { showBookmarks = true } },
-            showSaved: { openLibrary() },
-            showHistory: { presentFromReader { showHistory = true } },
-            openWebsite: { url in presentFromReader { openWebsite(url) } }
+            onClose: shell.hideReader,
+            onIdentityChange: { newID in shell.updateReader(id: article.id) { $0.id = newID } }
         )
     }
 
-    /// Reader ⋯ → Website: close the reader and show the article's page. The ✕ reader opened from
-    /// the page that's already loaded just reveals it (no reload, scroll kept); from anywhere else
-    /// (library, start page, Continue listening, mini player) the page loads. Audio keeps playing.
-    private func openWebsite(_ url: URL) {
-        if showReader { hideReader() }
-        isEditingAddress = false
-        addressFocused = false
-        googleSuggestions = []
-        if !(hasPage && webStore.currentURL?.isSamePage(as: url) == true) {
-            webStore.load(url)
+    @ViewBuilder
+    private func sheetContent(_ sheet: ShellSheet) -> some View {
+        switch sheet {
+        case .bookmarks:
+            BookmarksListView(store: bookmarkStore) { bookmark in
+                shell.sheet = nil
+                if let url = bookmark.url { navigate(to: url) }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        case .history:
+            BrowseHistoryView(visits: Array(recentVisits.prefix(RecentVisit.maxEntries))) { visit in
+                shell.sheet = nil
+                if let url = visit.url { navigate(to: url) }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        case .voiceSettings:
+            NavigationStack {
+                SpeechSettingsView(speech: speech)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { shell.sheet = nil }
+                        }
+                    }
+            }
+        case .share(let url):
+            ActivityShareSheet(items: [url])
+                .presentationDetents([.medium, .large])
+                .ignoresSafeArea()
         }
-        syncAddressField(from: webStore.currentURL.flatMap { $0.isSamePage(as: url) ? $0 : nil } ?? url)
     }
 
-    private func presentFromReader(_ present: @escaping () -> Void) {
-        if showLibrary {
-            afterLibraryDismiss = present
-            leaveLibrary()
-        } else {
-            present()
-        }
-    }
-
-    /// Open the library surface (shared chrome). Restores browse when left via 🌐 / leaveLibrary.
+    /// Open the library surface; the browser underneath stays as it is.
     private func openLibrary() {
         isEditingAddress = false
         addressFocused = false
         googleSuggestions = []
         dictation?.cancel()
-        if showReader { hideReader() }
-        libraryPath = []
-        showLibrary = true
-    }
-
-    /// Leave Library → prior browse surface. Runs any deferred presentation afterwards.
-    private func leaveLibrary() {
-        guard showLibrary else {
-            flushAfterLibraryDismiss()
-            return
-        }
-        libraryPath = []
-        librarySearch = ""
-        showLibrary = false
-        flushAfterLibraryDismiss()
-    }
-
-    private func flushAfterLibraryDismiss() {
-        guard let next = afterLibraryDismiss else { return }
-        afterLibraryDismiss = nil
-        // Let the library overlay tear down before presenting a sheet.
-        DispatchQueue.main.async { next() }
+        shell.openLibrary()
     }
 
     /// UI-test hook (`-openDemoInBrowseReader`, with `-seedDemoArticle`): show the seeded article
     /// in the ✕ Reader Mode without needing the network.
     private func openDemoReaderForUITestsIfRequested() {
         guard ProcessInfo.processInfo.arguments.contains("-openDemoInBrowseReader"),
-              !showReader, let row = articles.first else { return }
+              !isReaderShown, let row = articles.first else { return }
         var article = ReaderArticle(saved: row)
         if article.document.isEmpty {
             let doc = SavedArticle.buildListenDocument(plainText: row.plainText, cleanedHTML: row.cleanedHTML, title: row.title)
             article.document = doc
             article.trustedParagraphs = doc.paragraphs
         }
-        readerArticle = article
-        showReader = true
+        shell.showReader(article, origin: .standalone)
     }
 
     /// UI-test hook (`-browseTestPages`): offline pages served by `TestPageSchemeHandler`, with a
@@ -398,20 +328,15 @@ struct BrowseStartView: View {
         webStore.load(url)
     }
 
-    /// ✕ / pull-down. Playback keeps going; the mini player takes over.
-    private func hideReader() {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            showReader = false
-        }
-    }
-
     // MARK: - Browser chrome
 
     /// Shared with the reader's bottom (see `BottomChrome.swift`): band, field capsule, toolbar row.
     private var browserChrome: some View {
         VStack(spacing: BottomChrome.rowSpacing) {
             if !isEditingAddress {
-                MiniPlayerBar(speech: speech, onOpen: openNowPlaying)
+                MiniPlayerBar(speech: speech) {
+                    if let id = speech.activeSessionID { shell.openNowPlaying(id, in: modelContext) }
+                }
                     .padding(.bottom, 4)
             }
             HStack(spacing: 10) {
@@ -491,7 +416,7 @@ struct BrowseStartView: View {
     private var moreMenu: some View {
         Button { showMore = true } label: {
             Group {
-                if isBusy && busyIsSave {
+                if shell.busy == .save {
                     ProgressView()
                 } else {
                     Image(systemName: "ellipsis")
@@ -513,7 +438,7 @@ struct BrowseStartView: View {
             canToggleReader: canOpenReader,
             isReaderOn: false,
             isSaved: currentSavedArticle != nil,
-            canSave: hasPage && !isBusy,
+            canSave: hasPage && shell.busy == nil,
             isBookmarked: currentBookmark != nil,
             canBookmark: bookmarkableURL != nil,
             canShare: shareURL != nil,
@@ -539,17 +464,17 @@ struct BrowseStartView: View {
         case .listenDebug: speech.showListenDebug = true
         case .toggleSave: Task { await toggleSaveFromBrowser() }
         case .toggleBookmark: Task { await toggleBookmark() }
-        case .bookmarks: showBookmarks = true
+        case .bookmarks: shell.present(.bookmarks)
         case .reload: webStore.refresh()
-        case .share: if let shareURL { shareItem = ShareItem(url: shareURL) }
-        case .voiceSettings: showVoiceSettings = true
+        case .share: if let shareURL { shell.present(.share(shareURL)) }
+        case .voiceSettings: shell.present(.voiceSettings)
         case .saved: openLibrary()
-        case .history: showHistory = true
+        case .history: shell.present(.history)
         case .openWebsite: break // reader context only
         }
     }
 
-    private var canOpenReader: Bool { hasPage && webStore.isReaderable && !isBusy }
+    private var canOpenReader: Bool { hasPage && webStore.isReaderable && shell.busy == nil }
 
     private var currentBookmark: SiteBookmark? {
         hasPage ? bookmarkStore.bookmark(for: webStore.currentURL) : nil
@@ -559,7 +484,7 @@ struct BrowseStartView: View {
     /// page-format button) when readable, the search glyph while editing, or an empty spacer.
     @ViewBuilder
     private var addressLeading: some View {
-        if !isEditingAddress && isBusy && !busyIsSave {
+        if !isEditingAddress && shell.busy == .reader {
             ProgressView()
                 .controlSize(.small)
                 .frame(width: 30, height: 30)
@@ -817,11 +742,11 @@ struct BrowseStartView: View {
             continueListening: continueListeningArticles,
             saved: articles,
             recentSearches: recentSearches,
-            onOpenBookmark: openBookmark,
-            onShowBookmarks: { showBookmarks = true },
+            onOpenBookmark: { if let url = $0.url { navigate(to: url) } },
+            onShowBookmarks: { shell.present(.bookmarks) },
             onDeleteBookmark: { bookmarkStore.remove(id: $0.id) },
             onRenameBookmark: { bookmarkStore.rename(id: $0.id, to: $1) },
-            onOpenArticle: { openSaved($0.id) },
+            onOpenArticle: { shell.openSaved($0.id, in: modelContext) },
             onShowLibrary: { openLibrary() },
             onSearch: { term in
                 addressText = term
@@ -830,16 +755,6 @@ struct BrowseStartView: View {
             onClearSearches: { recentSearchesRaw = "" }
         )
         .task(id: bookmarkStore.bookmarks.count) { await backfillBookmarkIcons() }
-    }
-
-    private func openBookmark(_ bookmark: SiteBookmark) {
-        guard let url = bookmark.url else { return }
-        if showReader { hideReader() } // picked from the reader's ⋯ → Bookmarks
-        isEditingAddress = false
-        addressFocused = false
-        googleSuggestions = []
-        webStore.load(url)
-        syncAddressField(from: url)
     }
 
     /// ⋯ → Bookmark / Remove Bookmark for the current page (URL, title, icon only).
@@ -909,32 +824,6 @@ struct BrowseStartView: View {
         }
     }
 
-    /// Start page row / mini player / crash resume: the saved article in the ✕ reader.
-    private func openSaved(_ id: UUID) {
-        Task { @MainActor in
-            var shown = false
-            await ReaderArticle.loadSaved(id: id, in: modelContext) { article in
-                guard !shown || readerArticle?.id == article.id else { return }
-                readerArticle = article
-                if !shown {
-                    shown = true
-                    withAnimation(.easeInOut(duration: 0.2)) { showReader = true }
-                }
-            }
-        }
-    }
-
-    /// Mini player tap: open the reader for whatever is loaded.
-    private func openNowPlaying() {
-        guard let id = speech.activeSessionID else { return }
-        if articles.contains(where: { $0.id == id }) {
-            openSaved(id)
-        } else if let article = openedArticles[id] {
-            readerArticle = article
-            withAnimation(.easeInOut(duration: 0.2)) { showReader = true }
-        }
-    }
-
     /// Kokoro crashed last session: reopen the article at the paragraph that was playing — playing
     /// again (on the ONNX route, once it's loaded) if the crash just happened, else paused there.
     private func resumeAfterCrashIfNeeded() async {
@@ -950,7 +839,7 @@ struct BrowseStartView: View {
         let session = SpeechSession.saved(article)
         let p = min(max(0, target.paragraph), max(0, session.document.count - 1))
         article.playbackParagraphIndex = p
-        openSaved(article.id)
+        shell.openSaved(article.id, in: modelContext)
         if target.autoPlay {
             // Wait (≤20 s) for the Kokoro host so the resume doesn't start on Apple.
             var waited = 0
@@ -1075,20 +964,17 @@ struct BrowseStartView: View {
         if RecentSearches.isSearch(raw) {
             recentSearchesRaw = RecentSearches.encode(RecentSearches.adding(raw, to: recentSearches))
         }
-        isEditingAddress = false
-        addressFocused = false
-        googleSuggestions = []
-        webStore.load(url)
-        syncAddressField(from: url)
+        navigate(to: url)
     }
 
-    private func openRecent(_ visit: RecentVisit) {
-        guard let url = visit.url else { return }
-        if showReader { hideReader() } // picked from the reader's ⋯ → History
+    /// Submitted address, bookmark or history pick: leave search, the reader and the library,
+    /// and load it.
+    private func navigate(to url: URL) {
         isEditingAddress = false
         addressFocused = false
         googleSuggestions = []
-        webStore.load(url)
+        dictation?.cancel()
+        shell.navigate(to: url)
         syncAddressField(from: url)
     }
 
@@ -1164,9 +1050,8 @@ struct BrowseStartView: View {
 
     @MainActor
     private func runReader() async {
-        isBusy = true
-        busyIsSave = false
-        defer { isBusy = false }
+        shell.busy = .reader
+        defer { shell.busy = nil }
         do {
             let context = try await makeContext()
             let extracted = try await activeExtractor().extract(from: context)
@@ -1176,16 +1061,10 @@ struct BrowseStartView: View {
             if article.faviconData == nil {
                 article.faviconData = recentFavicon(for: context.url)
             }
-            readerArticle = article
-            withAnimation(.easeInOut(duration: 0.2)) {
-                showReader = true
-            }
+            shell.showReader(article, origin: .page(context.url))
             if article.faviconData == nil {
-                let id = article.id
                 let icon = await fetchFavicon(for: context.url)
-                if readerArticle?.id == id, readerArticle?.faviconData == nil {
-                    readerArticle?.faviconData = icon
-                }
+                shell.updateReader(id: article.id) { if $0.faviconData == nil { $0.faviconData = icon } }
             }
         } catch {
             alertMessage = error.localizedDescription
@@ -1203,9 +1082,8 @@ struct BrowseStartView: View {
             speech.localTTS.markListenCacheEphemeral(id, canonicalURL: canonical)
             return
         }
-        isBusy = true
-        busyIsSave = true
-        defer { isBusy = false; busyIsSave = false }
+        shell.busy = .save
+        defer { shell.busy = nil }
         do {
             let context = try await makeContext()
             let extracted = try await activeExtractor().extract(from: context)
@@ -1254,16 +1132,12 @@ struct BrowseStartView: View {
     }
 }
 
-private struct ShareItem: Identifiable {
-    let url: URL
-    var id: String { url.absoluteString }
-}
-
 /// Notes when listening starts (Continue listening order) without making the browser re-render
 /// on every playhead tick: only this empty view observes the speech controller.
 private struct ListenHistoryRecorder: View {
     @Bindable var speech: SpeechController
-    var onChange: () -> Void
+    /// Runs with the active session's id whenever it or its playing state changes.
+    var onChange: (UUID?) -> Void
 
     private struct Key: Equatable {
         let id: UUID?
@@ -1276,7 +1150,7 @@ private struct ListenHistoryRecorder: View {
             .accessibilityHidden(true)
             .onChange(of: Key(id: speech.activeSessionID, playing: speech.isPlaying)) { _, key in
                 if let id = key.id, key.playing { ListenHistory.record(id) }
-                onChange()
+                onChange(key.id)
             }
     }
 }

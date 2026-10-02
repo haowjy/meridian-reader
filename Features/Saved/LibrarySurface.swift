@@ -18,12 +18,12 @@ import SwiftData
 /// the reader draws its own). Leaving via 🌐 restores the prior browse surface.
 struct LibrarySurface: View {
     @Binding var path: [UUID]
-    @Binding var searchText: String
     var isMoreOpen: Bool
     var onMoreAnchor: (CGRect) -> Void
     var onOpenMore: () -> Void
     var onLeaveToBrowser: () -> Void
 
+    @State private var searchText = ""
     /// Search session (like Browse `isEditingAddress`): survives swipe-down keyboard dismiss.
     @State private var isEditingSearch = false
     @FocusState private var searchFocused: Bool

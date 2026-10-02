@@ -6,6 +6,7 @@ struct ReaderApp: App {
     private let extractor: any ArticleExtracting = ReadabilityArticleExtractor()
     /// Composition root output (engine registry → SpeechController). See `AppComposition`.
     @State private var speechController = AppComposition.speechController
+    @State private var shell = ShellState()
 
     init() {
         BackgroundAudioBakeScheduler.shared.register()
@@ -19,6 +20,7 @@ struct ReaderApp: App {
             RootView()
                 .environment(\.articleExtractor, extractor)
                 .environment(\.speechController, speechController)
+                .environment(shell)
                 .onAppear {
                     EngineLatencyProbe.runIfRequested(coordinator: speechController.localTTS)
                 }
