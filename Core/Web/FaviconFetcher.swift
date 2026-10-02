@@ -3,6 +3,15 @@ import UIKit
 import WebKit
 
 enum FaviconFetcher {
+    /// A page's best icon: from its live document when there is one, else the host's
+    /// conventional icons.
+    @MainActor
+    static func best(for url: URL, webView: WKWebView?) async -> Data? {
+        if let webView, let icon = await fetch(from: webView) { return icon }
+        guard let host = url.host else { return nil }
+        return await fetch(forHost: host)
+    }
+
     /// Best-effort icon URL from the live document, then download bytes (capped).
     @MainActor
     static func fetch(from webView: WKWebView) async -> Data? {

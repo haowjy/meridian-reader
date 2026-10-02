@@ -51,21 +51,3 @@ enum GoogleSuggestClient {
         }
     }
 }
-
-/// One row in the address-bar suggestion list.
-struct AddressSuggestion: Identifiable, Equatable {
-    enum Kind: Equatable {
-        case recent
-        case saved
-        case google
-    }
-
-    let id: String
-    let title: String
-    let subtitle: String?
-    let faviconData: Data?
-    let host: String
-    /// Raw text to navigate (URL or search query).
-    let query: String
-    let kind: Kind
-}

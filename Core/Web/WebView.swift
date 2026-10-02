@@ -8,7 +8,8 @@ enum SharedWebKit {
 
 struct WebView: UIViewRepresentable {
     var store: WebViewStore
-    var initialURL: URL?
+    /// UI tests: serve the offline `reader-test://` pages (`TestPageSchemeHandler`).
+    var servesTestPages = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(store: store)
@@ -18,7 +19,7 @@ struct WebView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.processPool = SharedWebKit.processPool
         config.defaultWebpagePreferences.allowsContentJavaScript = true
-        if ProcessInfo.processInfo.arguments.contains("-browseTestPages") {
+        if servesTestPages {
             config.setURLSchemeHandler(TestPageSchemeHandler(), forURLScheme: TestPageSchemeHandler.scheme)
         }
 
@@ -31,9 +32,6 @@ struct WebView: UIViewRepresentable {
         webView.backgroundColor = .systemBackground
 
         context.coordinator.attach(webView)
-        if let initialURL {
-            webView.load(URLRequest(url: initialURL))
-        }
         return webView
     }
 
@@ -89,8 +87,8 @@ struct WebView: UIViewRepresentable {
             readerableGeneration += 1
             let generation = readerableGeneration
             let url = webView.url
-            guard let js = ReaderScripts.readerableCheck,
-                  let scheme = url?.scheme, scheme == "http" || scheme == "https" || scheme == TestPageSchemeHandler.scheme
+            guard let js = ReaderScripts.readerableCheck, let url,
+                  url.isWeb || url.scheme == TestPageSchemeHandler.scheme
             else {
                 store.isReaderable = false
                 return
@@ -173,7 +171,7 @@ struct WebView: UIViewRepresentable {
     }
 }
 
-/// UI tests only (`-browseTestPages`): serves two tiny offline pages at `reader-test://pages/one`
+/// UI tests only (`LaunchOptions.servesTestPages`): serves two tiny offline pages at `reader-test://pages/one`
 /// and `/two` (real navigations, so they get real back/forward history).
 final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "reader-test"

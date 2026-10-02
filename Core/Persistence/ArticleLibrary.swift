@@ -74,7 +74,7 @@ enum ArticleLibrary {
             row = existing
             log("save dedupe \(article.canonicalURL) → existing \(short(existing.id))")
         } else {
-            let words = article.plainText.split { $0.isWhitespace || $0.isNewline }.count
+            let words = SavedArticle.wordCount(of: article.plainText)
             row = SavedArticle(
                 id: article.id,
                 urlString: article.urlString,
@@ -83,7 +83,7 @@ enum ArticleLibrary {
                 cleanedHTML: article.cleanedHTML,
                 plainText: article.plainText,
                 wordCount: words,
-                estimatedMinutes: max(1, Int((Double(words) / 200.0).rounded(.up))),
+                estimatedMinutes: SavedArticle.estimatedMinutes(words: words),
                 excerpt: article.excerpt,
                 playbackParagraphIndex: playhead ?? article.resumeParagraph,
                 faviconData: article.faviconData
@@ -117,7 +117,7 @@ enum ArticleLibrary {
     }
 
     private static func update(_ row: SavedArticle, from article: ReaderArticle) {
-        let words = article.plainText.split { $0.isWhitespace || $0.isNewline }.count
+        let words = SavedArticle.wordCount(of: article.plainText)
         row.urlString = article.urlString
         row.canonicalURL = article.canonicalURL
         row.title = article.title
@@ -125,7 +125,7 @@ enum ArticleLibrary {
         row.plainText = article.plainText
         row.excerpt = article.excerpt
         row.wordCount = words
-        row.estimatedMinutes = max(1, Int((Double(words) / 200.0).rounded(.up)))
+        row.estimatedMinutes = SavedArticle.estimatedMinutes(words: words)
         if !article.document.isEmpty {
             row.storeListenParagraphs(article.document.paragraphs)
             row.playbackParagraphIndex = min(row.playbackParagraphIndex, max(0, article.document.count - 1))

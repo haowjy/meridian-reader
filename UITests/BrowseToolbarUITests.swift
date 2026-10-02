@@ -281,6 +281,45 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertFalse(app.navigationBars["Saved"].exists, "library closed first")
     }
 
+    /// The library's ⋯ is its own menu: nothing in it acts on the page hidden under the library.
+    func testLibraryMenuLeavesThePageAlone() throws {
+        let app = launch(testPage: true)
+        XCTAssertTrue(app.links["Next page"].waitForExistence(timeout: 10))
+        app.buttons["browseLibrary"].tap()
+        XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5), "library surface")
+
+        let libraryMore = app.buttons["libraryMore"]
+        let moreFrame = libraryMore.frame
+        libraryMore.tap()
+        assertMenuAligned(app, more: moreFrame, button: "moreBrowser")
+        for id in ["moreVoice", "moreBookmarks", "moreHistory", "moreBrowser"] {
+            XCTAssertTrue(element(app, id).exists, "library ⋯ has \(id)")
+        }
+        for id in ["moreNewSearch", "moreReload", "moreSave", "moreBookmark", "moreShare", "moreReaderToggle", "moreLibrary"] {
+            XCTAssertFalse(element(app, id).exists, "page actions stay out of the library menu: \(id)")
+        }
+
+        // History leaves the library first; the page underneath is still there.
+        element(app, "moreHistory").tap()
+        XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 5), "history sheet")
+        XCTAssertFalse(app.navigationBars["Saved"].exists, "library closed first")
+        app.navigationBars["History"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
+        XCTAssertTrue(waitFor("exists == false", app.navigationBars["History"]))
+        XCTAssertTrue(app.links["Next page"].exists, "same page")
+
+        // Browser (big button) returns to the page as it was.
+        app.buttons["browseLibrary"].tap()
+        XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5))
+        libraryMore.tap()
+        XCTAssertTrue(element(app, "moreBrowser").waitForExistence(timeout: 3))
+        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        element(app, "moreBrowser").tap()
+        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Saved"]), "library left")
+        XCTAssertTrue(app.links["Next page"].exists, "page kept")
+        XCTAssertEqual(app.textFields["addressField"].value as? String, "pages/one")
+    }
+
     /// Open a saved article directly, play, ⋯ → Website: the library closes, the browser
     /// loads the article's page, and the voice keeps going (mini player).
     func testSavedArticleWebsiteOpensPageAndKeepsPlaying() throws {

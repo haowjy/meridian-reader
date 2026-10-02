@@ -2,36 +2,31 @@ import SwiftUI
 import SwiftData
 
 /// The one reader screen. Browse Reader Mode and the library both render this, so typography,
-/// renderer, top row, scrub row, listen bar, Jump and highlight are identical.
+/// renderer, top row, scrub row, listen bar, Jump and highlight are identical. `presentation`
+/// decides how it closes; `origin` decides where "back" leads.
 ///
 /// Top row: `[close] [title]`
-/// - close: `xmark` (over the browser → back to the page) or `chevron.left` (library → pop)
+/// - close: `xmark` (overlay → back to the browser) or `chevron.left` (pushed → pop)
 ///   Navigation rule (docs/NAVIGATION.md): ‹ is a real push, so edge swipe-back comes from
 ///   `SwipeBackSupport`; ✕ is modal, so pulling the top bar down does exactly what ✕ does.
 /// Bottom (thumb reach), above the listen controls: `[scrubber] [select paragraph] [bookmark]`
 /// - bookmark: `bookmark` = unsaved (tap saves) / `bookmark.fill` = saved (tap unsaves)
 /// - select paragraph (hand.tap): while on, a slim hint banner floats over the article top.
-/// Listen bar: `[1×] [⏮] [▶︎] [⏭] [⋯]`. ⋯ is the browser's menu panel in reader context (Voice
-/// settings, Save, Bookmark, Share, Debug; bottom row Bookmarks / Saved / History / Website).
-/// Website (reader off) opens the article's own page in the browser from anywhere — the library
-/// too — and playback keeps going (Nav H).
+/// Listen bar: `[1×] [⏮] [▶︎] [⏭] [⋯]`. ⋯ opens the shell's menu panel in reader context
+/// (`MenuContext.reader`: Voice settings, Save, Bookmark, Share, Debug; bottom row Bookmarks /
+/// Saved / History / Website). Website (reader off) opens the article's own page in the browser
+/// from anywhere — the library too — and playback keeps going.
 ///
-/// The text runs edge to edge, under the top row and the bottom controls (Nav G: the browser's
+/// The text runs edge to edge, under the top row and the bottom controls (the browser's
 /// bottom-chrome style), inset so its first / last lines clear them. The bars never hide — they
-/// behave like the browser's search bar / toolbar (Nav H). See `ReaderChrome.swift`.
+/// behave like the browser's search bar / toolbar. See `ReaderChrome.swift`.
 ///
 /// Save/Unsave only flips the bookmark: the article key is already the saved id (identity v2),
 /// so the view, the `SpeechSession`, and any playing audio are untouched.
 struct ArticleReaderScreen: View {
-    enum CloseStyle {
-        /// Browse: hide Reader Mode and return to the web page.
-        case hideReader
-        /// Saved: pop back to the Saved list.
-        case back
-    }
-
     let article: ReaderArticle
-    let closeStyle: CloseStyle
+    let presentation: ReaderPresentation
+    let origin: ReaderOrigin
     var onClose: () -> Void
     /// Only when Save resolved to a different id than `article.id` (legacy row saved mid-read).
     var onIdentityChange: ((UUID) -> Void)? = nil
@@ -39,17 +34,9 @@ struct ArticleReaderScreen: View {
     @Bindable var speech: SpeechController
 
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.readerMenuHost) private var menuHost
+    @Environment(ShellState.self) private var shell
     @Query private var savedRows: [SavedArticle]
     @State private var jumpMode = false
-    @State private var showMore = false
-    /// The listen bar ⋯ button's global frame: the menu panel grows out of it.
-    @State private var moreAnchor: CGRect = .zero
-    /// Presenting actions run after the popover has closed (one presentation at a time).
-    @State private var pendingMenuAction: BrowseMoreMenu.Action?
-    @State private var showVoiceSettings = false
-    @State private var shareTarget: ReaderShareTarget?
-    @State private var noFakeFailure = false
     /// ✕ reader only: how far the top bar is being pulled down (swipe-down-to-close).
     @State private var pullDownOffset: CGFloat = 0
     /// The screen's safe area (the text runs under it; the bars and text insets respect it).
@@ -59,13 +46,15 @@ struct ArticleReaderScreen: View {
 
     init(
         article: ReaderArticle,
-        closeStyle: CloseStyle,
+        presentation: ReaderPresentation,
+        origin: ReaderOrigin,
         speech: SpeechController,
         onClose: @escaping () -> Void,
         onIdentityChange: ((UUID) -> Void)? = nil
     ) {
         self.article = article
-        self.closeStyle = closeStyle
+        self.presentation = presentation
+        self.origin = origin
         _speech = Bindable(speech)
         self.onClose = onClose
         self.onIdentityChange = onIdentityChange
@@ -93,12 +82,12 @@ struct ArticleReaderScreen: View {
         savedRow?.playbackParagraphIndex ?? article.resumeParagraph
     }
 
-    /// Saved (‹) is pushed in a `NavigationStack`: its row lives *in* the system navigation bar
+    /// Pushed (‹) in the library's `NavigationStack`: the row lives *in* the system navigation bar
     /// (bar stays visible, back button hidden) so push/pop — including the edge swipe — is the
-    /// standard iOS transition. Hiding the bar here made the pop show the Saved list's bar
-    /// (search field, voice button) full-width over the reader mid-swipe.
-    /// Browse (✕) is an overlay without a navigation bar, so it draws the same row inline.
-    private var rowInNavigationBar: Bool { closeStyle == .back }
+    /// standard iOS transition. A hidden bar would let the list's bar (title, voice button) show
+    /// full-width over the reader mid-swipe. The overlay (✕) has no navigation bar, so it draws
+    /// the same row inline.
+    private var rowInNavigationBar: Bool { presentation == .pushed }
 
     /// ✕ top band (below the safe area) + 6 pt of air above the text.
     private var topChromeHeight: CGFloat { rowInNavigationBar ? 0 : topRowHeight + 6 }
@@ -110,10 +99,10 @@ struct ArticleReaderScreen: View {
                 .toolbar {
                     ToolbarItem(placement: .principal) { navigationBarRow }
                 }
-                // The same bar material as the browser's bottom band (Nav G). Clear while the ⋯
-                // menu dims the page (the dim runs up under it).
+                // The same bar material as the browser's bottom band. The shell's ⋯ menu dims it
+                // with the rest of the screen.
                 .toolbarBackground(.bar, for: .navigationBar)
-                .toolbarBackground(showMore ? .hidden : .visible, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
         } else {
             content
         }
@@ -139,8 +128,7 @@ struct ArticleReaderScreen: View {
                     jumpEnabled: sessionReady,
                     toggleJump: toggleJump,
                     toggleSaved: toggleSaved,
-                    // ‹ library reader → Library; ✕ browse reader → Website.
-                    backTarget: closeStyle == .back ? .library : .website,
+                    backTarget: origin == .library ? .library : .website,
                     onBackToSource: close
                 ),
                 listenTrailing: AnyView(moreButton),
@@ -168,35 +156,11 @@ struct ArticleReaderScreen: View {
                 .ignoresSafeArea()
                 .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { safeInsets = $0 }
         }
-        // ⋯ menu: grows out of the listen bar button and covers it (same panel as the browser).
-        .overlay {
-            MorphMenuOverlay(isPresented: $showMore, anchor: moreAnchor) { moreMenuPanel }
-        }
         .offset(y: pullDownOffset)
         .task(id: WarmKey(id: article.id, count: article.document.count)) {
             prepareListen()
         }
         .onDisappear(perform: persistProgress)
-        .onChange(of: showMore) { _, open in
-            guard !open, let action = pendingMenuAction else { return }
-            pendingMenuAction = nil
-            runMenuAction(action)
-        }
-        .sheet(isPresented: $showVoiceSettings) {
-            NavigationStack {
-                SpeechSettingsView(speech: speech)
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { showVoiceSettings = false }
-                        }
-                    }
-            }
-        }
-        .sheet(item: $shareTarget) { target in
-            ActivityShareSheet(items: [target.url])
-                .presentationDetents([.medium, .large])
-                .ignoresSafeArea()
-        }
     }
 
     // MARK: - ⋯ menu
@@ -204,40 +168,20 @@ struct ArticleReaderScreen: View {
     /// Bottom-right of the listen row: the same cell, glyph and size as the browser's ⋯
     /// (`toolbarIconFrame` in `BottomToolbarLayout`), so the menu grows from the same spot.
     private var moreButton: some View {
-        Button { showMore = true } label: {
-            Image(systemName: "ellipsis").toolbarIconFrame()
-        }
-        .foregroundStyle(.primary)
-        .accessibilityLabel("More")
-        .accessibilityIdentifier("readerMore")
-        .morphMenuButtonHidden(showMore)
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if $0 != moreAnchor { moreAnchor = $0 } }
+        MoreMenuButton(id: "readerMore") { .reader(readerMenu, perform: perform) }
+            .foregroundStyle(.primary)
     }
 
-    private var moreMenuPanel: some View {
-        BrowseMoreMenu(
-            context: .reader,
-            hasPage: true,
-            canToggleReader: true,
-            isReaderOn: true,
-            canOpenWebsite: websiteURL != nil,
+    private var readerMenu: ReaderMenu {
+        ReaderMenu(
             isSaved: isSaved,
             canSave: sessionReady,
             isBookmarked: articleURL.flatMap { BookmarkStore.shared.bookmark(for: $0) } != nil,
             canBookmark: articleURL.map(BookmarkStore.isBookmarkable) ?? false,
             canShare: shareURL != nil,
-            showsDebug: speech.developerOptionsEnabled,
-            fakeExtractionFailure: $noFakeFailure
-        ) { action in
-            switch action {
-            case .toggleSave, .toggleBookmark:
-                showMore = false
-                runMenuAction(action)
-            default:
-                pendingMenuAction = action
-                showMore = false
-            }
-        }
+            canOpenWebsite: websiteURL != nil,
+            showsDebug: speech.developerOptionsEnabled
+        )
     }
 
     private var articleURL: URL? { URL(string: article.urlString) }
@@ -249,52 +193,44 @@ struct ArticleReaderScreen: View {
     }
 
     private var shareURL: URL? {
-        guard let url = articleURL, url.scheme == "http" || url.scheme == "https" else { return nil }
+        guard let url = articleURL, url.isWeb else { return nil }
         return url
     }
 
-    private func runMenuAction(_ action: BrowseMoreMenu.Action) {
+    private func perform(_ action: ReaderMenu.Action) {
         switch action {
-        case .voiceSettings: showVoiceSettings = true
+        case .voiceSettings: shell.present(.voiceSettings)
         case .toggleSave: toggleSaved()
         case .toggleBookmark: toggleBookmark()
-        case .share: if let shareURL { shareTarget = ReaderShareTarget(url: shareURL) }
+        case .share: if let shareURL { shell.present(.share(shareURL)) }
         case .listenDebug: speech.showListenDebug = true
-        case .bookmarks: menuHost?.showBookmarks()
-        // Inside the library (‹) you're already in Saved: go back to the list.
-        case .saved: if closeStyle == .back { close() } else { menuHost?.showSaved() }
-        case .history: menuHost?.showHistory()
+        case .bookmarks: shell.present(.bookmarks)
+        // Opened from the library, you're already in Saved: go back to the list.
+        case .saved: if origin == .library { close() } else { shell.openLibrary() }
+        case .history: shell.present(.history)
         // Reader off = the article's own web page in the browser, wherever the reader was opened
         // from (library, start page, Continue listening, mini player). Playback keeps going.
         case .openWebsite:
-            if let websiteURL, let menuHost { persistProgress(); menuHost.openWebsite(websiteURL) } else { close() }
-        case .toggleReader: close()
-        case .newSearch, .reload: break
+            if let websiteURL { persistProgress(); shell.openWebsite(websiteURL) } else { close() }
         }
     }
 
     /// Site bookmark for the article's page (URL, title, icon only; independent of Save).
     private func toggleBookmark() {
         guard let url = articleURL, BookmarkStore.isBookmarkable(url) else { return }
-        let store = BookmarkStore.shared
-        if let existing = store.bookmark(for: url) {
-            store.remove(id: existing.id)
-            return
-        }
-        let added = store.add(url: url, title: article.title, faviconData: article.faviconData)
-        guard !FaviconFetcher.isTileSized(added.faviconData) else { return }
-        Task { @MainActor in
-            if let icon = await FaviconFetcher.fetch(forHost: added.host),
-               added.faviconData == nil || FaviconFetcher.isTileSized(icon) {
-                store.setFavicon(icon, for: added.id)
+        let title = article.title
+        let icon = article.faviconData
+        Task {
+            await BookmarkStore.shared.toggle(url: url, title: title, faviconData: icon) {
+                await FaviconFetcher.best(for: url, webView: nil)
             }
         }
     }
 
     // MARK: - Top bar
 
-    /// Inline (Browse ✕) version of the row, styled like the browser's bottom chrome mirrored to
-    /// the top (Nav G): the row in the address-field capsule on the same bar material (running up
+    /// Inline (overlay ✕) version of the row, styled like the browser's bottom chrome mirrored to
+    /// the top: the row in the address-field capsule on the same bar material (running up
     /// under the status bar), same margins. Pull-down-to-close.
     private var topBar: some View {
         topRow
@@ -306,33 +242,21 @@ struct ArticleReaderScreen: View {
             .contentShape(Rectangle())
             // Only the ✕ (modal) reader gets pull-down-to-close, and only from the top bar, so it
             // never competes with scrolling, text selection or Jump taps in the article.
-            .gesture(pullDownToClose, including: closeStyle == .hideReader ? .all : .subviews)
+            .gesture(pullDownToClose, including: presentation == .overlay ? .all : .subviews)
     }
 
-    /// Library (‹) version: the row sits in the (transparent) navigation bar so push / pop and the
-    /// edge swipe stay the standard iOS transition. It fades with the chrome; while the ⋯ menu is
-    /// open it dims with the page and a tap on it closes the menu.
+    /// Library (‹) version: the row sits in the navigation bar so push / pop and the edge swipe
+    /// stay the standard iOS transition.
     private var navigationBarRow: some View {
         topRow
             .bottomChromeField(leading: 4, trailing: 4)
-            .opacity(showMore ? 0.45 : 1)
-            .allowsHitTesting(!showMore)
-            .overlay {
-                if showMore {
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .onTapGesture { showMore = false }
-                        .accessibilityHidden(true)
-                }
-            }
-            .animation(.easeInOut(duration: 0.2), value: showMore)
     }
 
     /// `[close] [title]`. The title is centered (a clear spacer balances the close button).
     private var topRow: some View {
         HStack(spacing: 2) {
             Button(action: close) {
-                Image(systemName: closeStyle == .hideReader ? "xmark" : "chevron.left")
+                Image(systemName: presentation == .overlay ? "xmark" : "chevron.left")
                     .font(.body.weight(.semibold))
                     // Explicit so the row looks the same inline (Browse) and in the nav bar (Saved),
                     // where toolbar styling would otherwise make it black.
@@ -341,7 +265,7 @@ struct ArticleReaderScreen: View {
                     .contentShape(Rectangle())
             }
             .accessibilityIdentifier("readerClose")
-            .accessibilityLabel(closeStyle == .hideReader ? "Hide Reader" : "Back")
+            .accessibilityLabel(presentation == .overlay ? "Hide Reader" : "Back")
 
             Text(article.title)
                 .font(.body) // the address field's text size
@@ -410,30 +334,15 @@ struct ArticleReaderScreen: View {
         jumpMode.toggle()
     }
 
+    /// 🔖 / ⋯ → Save. Neither direction touches the screen or playback (see the type comment).
     private func toggleSaved() {
-        let live = isLiveSession
+        let saver = ArticleSaveCoordinator(context: modelContext, speech: speech)
         if isSaved {
-            ArticleLibrary.unsave(id: article.id, canonicalURL: article.canonicalURL, in: modelContext)
-            // Keep audio + playhead; the cache just goes back to the ephemeral TTL.
-            speech.localTTS.markListenCacheEphemeral(article.id, canonicalURL: article.canonicalURL)
+            saver.unsave(id: article.id, canonicalURL: article.canonicalURL)
             return
         }
-        let playhead = live ? speech.currentParagraphIndex : nil
-        let row = ArticleLibrary.save(article, playhead: playhead, in: modelContext)
-        if row.id != article.id {
-            // Legacy row with a different id: rekey audio + live session in place.
-            speech.localTTS.migrateListenCache(from: article.id, to: row.id)
-            speech.rekeyActiveSession(from: article.id, to: row.id)
-            onIdentityChange?(row.id)
-        } else {
-            speech.localTTS.migrateListenCache(from: article.id, to: article.id)
-        }
-        // Background bake (keeps the live playhead plan when this article is #1).
-        speech.localTTS.startBakeIfNeeded(
-            articleID: row.id,
-            paragraphs: article.document.paragraphs,
-            voiceID: speech.cacheVoiceID
-        )
+        let savedID = saver.save(article)
+        if savedID != article.id { onIdentityChange?(savedID) }
     }
 
     /// Identity alignment + queue #1 for this article. Same path for Browse and Saved.
@@ -476,9 +385,4 @@ struct ArticleReaderScreen: View {
         let id: UUID
         let count: Int
     }
-}
-
-private struct ReaderShareTarget: Identifiable {
-    let url: URL
-    var id: String { url.absoluteString }
 }
