@@ -91,6 +91,10 @@ private struct HTMLReadingWebView: UIViewRepresentable {
         weak var webView: WKWebView?
         var lastHTML: String = ""
         private var pendingActive: Int?
+        /// Highlight index the page last received; nil = nothing sent since the page loaded.
+        /// SwiftUI calls `updateUIView` far more often than the paragraph changes, so only a new
+        /// index crosses into the WebContent process.
+        private var sentActive: Int??
         private(set) var jumpMode = false
         private var lastSentJumpMode: Bool?
         private var lastScrollToken: Int?
@@ -104,6 +108,7 @@ private struct HTMLReadingWebView: UIViewRepresentable {
         func load(html: String) {
             lastHTML = html
             userScrolled = false
+            sentActive = nil
             webView?.loadHTMLString(Self.wrap(html), baseURL: nil)
         }
 
@@ -187,7 +192,8 @@ private struct HTMLReadingWebView: UIViewRepresentable {
 
         func setActiveParagraph(_ index: Int?) {
             pendingActive = index
-            guard let webView else { return }
+            guard sentActive != .some(index), let webView else { return }
+            sentActive = .some(index)
             let arg = index.map(String.init) ?? "null"
             webView.evaluateJavaScript(
                 "window.__readerSetActive && window.__readerSetActive(\(arg));",
@@ -223,6 +229,7 @@ private struct HTMLReadingWebView: UIViewRepresentable {
             // A fresh page starts at the top, just below the top row.
             sentInsets = nil
             setTextInsets(textInsets)
+            sentActive = nil
             setActiveParagraph(pendingActive)
             lastSentJumpMode = nil
             setJumpMode(jumpMode)
@@ -266,16 +273,16 @@ private struct HTMLReadingWebView: UIViewRepresentable {
             document.body.classList.toggle('reader-jump', !!on);
           };
           window.__readerSetActive = function(index) {
-            document.querySelectorAll('.reader-active').forEach(function(el) {
-              el.classList.remove('reader-active');
+            var el = (index === null || index === undefined) ? null
+              : document.querySelector('[data-reader-index="' + index + '"]');
+            // Already highlighted: touching the class would still invalidate its style.
+            if (el && el.classList.contains('reader-active')) return;
+            document.querySelectorAll('.reader-active').forEach(function(other) {
+              other.classList.remove('reader-active');
             });
-            if (index === null || index === undefined) return;
-            var el = document.querySelector('[data-reader-index="' + index + '"]');
             // Highlight only — do not scrollIntoView. User owns the viewport
             // during listen and while picking a jump target.
-            if (el) {
-              el.classList.add('reader-active');
-            }
+            if (el) el.classList.add('reader-active');
           };
           reindex();
         })();
