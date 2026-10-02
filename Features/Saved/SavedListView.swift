@@ -62,10 +62,9 @@ struct SavedListView: View {
     }
 
     private func delete(at offsets: IndexSet) {
-        for index in offsets {
-            let article = filtered[index]
-            speech.localTTS.handleArticleDeleted(article.id)
-            modelContext.delete(article)
+        let saver = ArticleSaveCoordinator(context: modelContext, speech: speech)
+        for row in offsets.map({ filtered[$0] }) {
+            saver.delete(row)
         }
     }
 }

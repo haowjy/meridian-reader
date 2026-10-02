@@ -218,16 +218,11 @@ struct ArticleReaderScreen: View {
     /// Site bookmark for the article's page (URL, title, icon only; independent of Save).
     private func toggleBookmark() {
         guard let url = articleURL, BookmarkStore.isBookmarkable(url) else { return }
-        let store = BookmarkStore.shared
-        if let existing = store.bookmark(for: url) {
-            store.remove(id: existing.id)
-            return
-        }
-        let added = store.add(url: url, title: article.title, faviconData: article.faviconData)
-        guard !FaviconFetcher.isTileSized(added.faviconData) else { return }
-        Task { @MainActor in
-            if let icon = await FaviconFetcher.fetch(forHost: added.host) {
-                store.offerFavicon(icon, for: added.id)
+        let title = article.title
+        let icon = article.faviconData
+        Task {
+            await BookmarkStore.shared.toggle(url: url, title: title, faviconData: icon) {
+                await FaviconFetcher.best(for: url, webView: nil)
             }
         }
     }
@@ -339,30 +334,15 @@ struct ArticleReaderScreen: View {
         jumpMode.toggle()
     }
 
+    /// 🔖 / ⋯ → Save. Neither direction touches the screen or playback (see the type comment).
     private func toggleSaved() {
-        let live = isLiveSession
+        let saver = ArticleSaveCoordinator(context: modelContext, speech: speech)
         if isSaved {
-            ArticleLibrary.unsave(id: article.id, canonicalURL: article.canonicalURL, in: modelContext)
-            // Keep audio + playhead; the cache just goes back to the ephemeral TTL.
-            speech.localTTS.markListenCacheEphemeral(article.id, canonicalURL: article.canonicalURL)
+            saver.unsave(id: article.id, canonicalURL: article.canonicalURL)
             return
         }
-        let playhead = live ? speech.currentParagraphIndex : nil
-        let row = ArticleLibrary.save(article, playhead: playhead, in: modelContext)
-        if row.id != article.id {
-            // Legacy row with a different id: rekey audio + live session in place.
-            speech.localTTS.migrateListenCache(from: article.id, to: row.id)
-            speech.rekeyActiveSession(from: article.id, to: row.id)
-            onIdentityChange?(row.id)
-        } else {
-            speech.localTTS.migrateListenCache(from: article.id, to: article.id)
-        }
-        // Background bake (keeps the live playhead plan when this article is #1).
-        speech.localTTS.startBakeIfNeeded(
-            articleID: row.id,
-            paragraphs: article.document.paragraphs,
-            voiceID: speech.cacheVoiceID
-        )
+        let savedID = saver.save(article)
+        if savedID != article.id { onIdentityChange?(savedID) }
     }
 
     /// Identity alignment + queue #1 for this article. Same path for Browse and Saved.

@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import Reader
 
 @MainActor
@@ -12,6 +13,34 @@ final class BookmarkStoreTests: XCTestCase {
 
     override func tearDown() async throws {
         try? FileManager.default.removeItem(at: file.deletingLastPathComponent())
+    }
+
+    private func png(side: CGFloat) -> Data {
+        UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: {
+            let f = UIGraphicsImageRendererFormat(); f.scale = 1; return f
+        }()).pngData { ctx in UIColor.red.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: side, height: side)) }
+    }
+
+    func testToggleAddsWithABetterIconThenRemoves() async {
+        let store = BookmarkStore(fileURL: file)
+        let url = URL(string: "https://example.com/story")!
+        let tile = png(side: 64)
+        await store.toggle(url: url, title: "Story", faviconData: png(side: 16)) { tile }
+        XCTAssertEqual(store.bookmark(for: url)?.faviconData, tile, "a 16 px icon is upgraded to a tile-sized one")
+
+        await store.toggle(url: url, title: "Story", faviconData: nil) { XCTFail("not asked when removing"); return nil }
+        XCTAssertNil(store.bookmark(for: url))
+
+        await store.toggle(url: url, title: "Story", faviconData: tile) { XCTFail("already tile-sized"); return nil }
+        XCTAssertEqual(store.bookmark(for: url)?.faviconData, tile)
+    }
+
+    func testOfferFaviconNeverReplacesAUsableIconWithASmallerOne() {
+        let store = BookmarkStore(fileURL: file)
+        let tile = png(side: 64)
+        let b = store.add(url: URL(string: "https://example.com/")!, title: nil, faviconData: tile)
+        store.offerFavicon(png(side: 16), for: b.id)
+        XCTAssertEqual(store.bookmarks.first?.faviconData, tile)
     }
 
     func testAddDedupesByCanonicalURLAndPersists() {

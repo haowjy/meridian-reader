@@ -95,6 +95,18 @@ final class BookmarkStore {
         persist()
     }
 
+    /// ⋯ → Bookmark / Remove Bookmark. A new bookmark without a tile-sized icon then asks
+    /// `betterIcon` for one.
+    func toggle(url: URL, title: String?, faviconData: Data?, betterIcon: () async -> Data?) async {
+        if let existing = bookmark(for: url) {
+            remove(id: existing.id)
+            return
+        }
+        let added = add(url: url, title: title, faviconData: faviconData)
+        guard !FaviconFetcher.isTileSized(added.faviconData), let icon = await betterIcon() else { return }
+        offerFavicon(icon, for: added.id)
+    }
+
     /// Takes `data` as the bookmark's icon unless it would replace a usable icon with a smaller
     /// one (tiny 16 px favicons look smeared on a tile).
     func offerFavicon(_ data: Data, for id: UUID) {

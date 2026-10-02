@@ -236,7 +236,7 @@ struct BrowseStartView: View {
         switch action {
         case .newSearch: shell.showStartPage()
         case .openReader: Task { await runReader() }
-        case .toggleSave: Task { await toggleSaveFromBrowser() }
+        case .toggleSave: Task { await toggleSave() }
         case .toggleBookmark: Task { await toggleBookmark() }
         case .bookmarks: shell.present(.bookmarks)
         case .reload: webStore.refresh()
@@ -277,21 +277,6 @@ struct BrowseStartView: View {
     private var bookmarkableURL: URL? {
         guard hasPage, let url = webStore.currentURL, BookmarkStore.isBookmarkable(url) else { return nil }
         return url
-    }
-
-    @MainActor
-    private func toggleBookmark() async {
-        guard let url = bookmarkableURL else { return }
-        if let existing = bookmarkStore.bookmark(for: url) {
-            bookmarkStore.remove(id: existing.id)
-            return
-        }
-        let liveTitle = webStore.webView?.title.flatMap { $0.isEmpty ? nil : $0 }
-        let added = bookmarkStore.add(url: url, title: liveTitle ?? webStore.pageTitle,
-                                      faviconData: recentFavicon(for: url))
-        if !FaviconFetcher.isTileSized(added.faviconData), let icon = await fetchFavicon(for: url) {
-            bookmarkStore.offerFavicon(icon, for: added.id)
-        }
     }
 
     /// UI-test hooks: `-resetBookmarks` clears the bookmark store; `-seedBookmarks` also adds a few.
@@ -378,61 +363,25 @@ struct BrowseStartView: View {
         return made
     }
 
-    // MARK: - Recents
+    // MARK: - Page actions
 
-    @MainActor
-    private func recordRecentVisitIfNeeded() async {
-        guard let url = webStore.currentURL, url.isWeb else { return }
-        var icon: Data?
-        if let webView = webStore.webView {
-            icon = await FaviconFetcher.fetch(from: webView)
-        }
-        if icon == nil, let host = url.host {
-            icon = await FaviconFetcher.fetch(forHost: host)
-        }
-        RecentVisitRecorder.record(
-            url: url,
-            title: webStore.pageTitle,
-            faviconData: icon,
-            in: modelContext
-        )
+    /// The loaded page as an article. Developer options can force extraction to fail.
+    private var page: PageArticleService {
+        PageArticleService(web: webStore,
+                           extractor: useFakeFailure ? FakeArticleExtractor(mode: .failure) : extractor,
+                           context: modelContext, recentVisits: recentVisits)
     }
 
-    // MARK: - Extract / save
-
-    private func activeExtractor() -> any ArticleExtracting {
-        useFakeFailure ? FakeArticleExtractor(mode: .failure) : extractor
-    }
-
-    @MainActor
-    private func makeContext() async throws -> ExtractionContext {
-        guard let url = webStore.currentURL else {
-            throw ExtractionError.unavailable(reason: "Open a page first.")
-        }
-        let html = try await webStore.snapshotHTML()
-        return ExtractionContext(
-            url: url,
-            pageTitle: webStore.pageTitle,
-            htmlSnapshot: html
-        )
-    }
-
-    @MainActor
+    /// Address-bar reader icon / ⋯ → Reader: the page in the ✕ reader.
     private func runReader() async {
         shell.busy = .reader
         defer { shell.busy = nil }
         do {
-            let context = try await makeContext()
-            let extracted = try await activeExtractor().extract(from: context)
-            // Identity v2: saved row for this canonical URL → its id/playhead/bookmark.fill,
-            // else the URL-derived key. Same key on every reopen → cached audio is reused.
-            var article = ArticleLibrary.readerArticle(url: context.url, extracted: extracted, in: modelContext)
+            let page = page
+            let (article, url) = try await page.extract()
+            shell.showReader(article, origin: .page(url))
             if article.faviconData == nil {
-                article.faviconData = recentFavicon(for: context.url)
-            }
-            shell.showReader(article, origin: .page(context.url))
-            if article.faviconData == nil {
-                let icon = await fetchFavicon(for: context.url)
+                let icon = await page.favicon(for: url)
                 shell.updateReader(id: article.id) { if $0.faviconData == nil { $0.faviconData = icon } }
             }
         } catch {
@@ -440,64 +389,43 @@ struct BrowseStartView: View {
         }
     }
 
-    /// Bottom-bar bookmark (web page, Reader hidden). Idempotent save / unsave by canonical URL.
-    /// Reader Mode's own bookmark lives in `ArticleReaderScreen`.
-    @MainActor
-    private func toggleSaveFromBrowser() async {
+    /// ⋯ → Save article / Remove from Saved, by canonical URL.
+    private func toggleSave() async {
+        let saver = ArticleSaveCoordinator(context: modelContext, speech: speech)
         if let saved = currentSavedArticle {
-            let id = saved.id
-            let canonical = saved.canonicalURL
-            ArticleLibrary.unsave(id: id, canonicalURL: canonical, in: modelContext)
-            speech.localTTS.markListenCacheEphemeral(id, canonicalURL: canonical)
+            saver.unsave(id: saved.id, canonicalURL: saved.canonicalURL)
             return
         }
         shell.busy = .save
         defer { shell.busy = nil }
         do {
-            let context = try await makeContext()
-            let extracted = try await activeExtractor().extract(from: context)
-            var article = ArticleLibrary.readerArticle(url: context.url, extracted: extracted, in: modelContext)
-            article.faviconData = article.faviconData ?? recentFavicon(for: context.url)
+            let page = page
+            var (article, url) = try await page.extract()
             if article.faviconData == nil {
-                article.faviconData = await fetchFavicon(for: context.url)
+                article.faviconData = await page.favicon(for: url)
             }
-            let row = ArticleLibrary.save(article, in: modelContext)
-            speech.localTTS.prepareListenIdentity(
-                key: row.id,
-                paragraphs: article.document.paragraphs,
-                trustedParagraphs: article.trustedParagraphs,
-                legacyKeys: article.legacyCacheKeys,
-                isLivePlayback: speech.activeSessionID == row.id
-            )
-            speech.localTTS.migrateListenCache(from: row.id, to: row.id)
-            speech.localTTS.startBakeIfNeeded(
-                articleID: row.id,
-                paragraphs: article.document.paragraphs,
-                voiceID: speech.cacheVoiceID
-            )
+            saver.save(article)
         } catch {
             alertMessage = error.localizedDescription
         }
     }
 
-    private func recentFavicon(for url: URL) -> Data? {
-        guard let host = url.host else { return nil }
-        let urlString = url.absoluteString
-        return recentVisits.first(where: {
-            $0.urlString == urlString || $0.host.caseInsensitiveCompare(host) == .orderedSame
-        })?.faviconData
+    /// ⋯ → Bookmark / Remove Bookmark for the page (URL, title, icon only).
+    private func toggleBookmark() async {
+        guard let url = bookmarkableURL else { return }
+        let page = page
+        let liveTitle = webStore.webView?.title.flatMap { $0.isEmpty ? nil : $0 }
+        await bookmarkStore.toggle(url: url, title: liveTitle ?? webStore.pageTitle,
+                                   faviconData: page.recentFavicon(for: url)) {
+            await page.favicon(for: url)
+        }
     }
 
-    @MainActor
-    private func fetchFavicon(for url: URL) async -> Data? {
-        var icon: Data?
-        if let webView = webStore.webView {
-            icon = await FaviconFetcher.fetch(from: webView)
-        }
-        if icon == nil, let host = url.host {
-            icon = await FaviconFetcher.fetch(forHost: host)
-        }
-        return icon
+    /// A page finished loading: add it to History with its icon.
+    private func recordRecentVisitIfNeeded() async {
+        guard let url = webStore.currentURL, url.isWeb else { return }
+        let icon = await FaviconFetcher.best(for: url, webView: webStore.webView)
+        RecentVisitRecorder.record(url: url, title: webStore.pageTitle, faviconData: icon, in: modelContext)
     }
 }
 
