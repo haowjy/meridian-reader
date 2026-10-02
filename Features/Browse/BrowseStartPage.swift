@@ -87,13 +87,19 @@ struct BrowseStartPage: View {
 
     /// Fraction listened, weighted by text length (same measure as the reader's scrubber).
     static func progress(of article: SavedArticle) -> Double {
-        guard let paragraphs = article.cachedListenParagraphs, !paragraphs.isEmpty else { return 0 }
-        let map = ReaderScrubMap(paragraphs: paragraphs)
-        let p = min(max(0, article.playbackParagraphIndex), paragraphs.count - 1)
-        // Stored offsets index the joined listen text (paragraphs + "\n\n" separators).
-        let before = paragraphs[..<p].reduce(0) { $0 + $1.utf16.count + 2 }
-        let within = Double(max(0, article.playbackUTF16Offset - before)) / Double(max(1, paragraphs[p].utf16.count))
-        return map.fraction(paragraph: p, within: min(within, 1))
+        guard let paragraphs = article.cachedListenParagraphs else { return 0 }
+        return progress(paragraphs: paragraphs, paragraph: article.playbackParagraphIndex,
+                        utf16Offset: article.playbackUTF16Offset)
+    }
+
+    /// `utf16Offset` indexes the article's listen text (`ParagraphDocument.joinedText`). Only
+    /// paragraph lengths matter here, so the scrub map skips sentence tokenizing.
+    static func progress(paragraphs: [String], paragraph: Int, utf16Offset: Int) -> Double {
+        let document = ParagraphDocument(parts: paragraphs)
+        guard !document.isEmpty else { return 0 }
+        let p = min(max(0, paragraph), document.count - 1)
+        let map = ReaderScrubMap(paragraphs: document.paragraphs, sentences: false)
+        return map.fraction(paragraph: p, offset: utf16Offset - document.startUTF16Offset(forParagraph: p))
     }
 
     private func section<Content: View>(_ title: String, id: String, showAll: (() -> Void)?,

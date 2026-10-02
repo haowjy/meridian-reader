@@ -44,4 +44,18 @@ final class ContinueListeningTests: XCTestCase {
         XCTAssertEqual(loaded.entries.count, ListenHistory.maxEntries)
         XCTAssertNil(loaded.entry(for: first), "oldest entry is dropped")
     }
+
+    func testRowProgressIsWeightedByTextLength() {
+        // 100 + 300 + 100 UTF-16 units; listen text joins them with "\n\n" (starts 0, 102, 404).
+        let paragraphs = [String(repeating: "a", count: 100), String(repeating: "b", count: 300),
+                          String(repeating: "c", count: 100)]
+        func progress(_ p: Int, _ offset: Int) -> Double {
+            BrowseStartPage.progress(paragraphs: paragraphs, paragraph: p, utf16Offset: offset)
+        }
+        XCTAssertEqual(progress(0, 0), 0, accuracy: 1e-9)
+        XCTAssertEqual(progress(1, 102 + 150), 0.5, accuracy: 1e-9, "halfway through the long middle paragraph")
+        XCTAssertEqual(progress(9, 404), 0.8, accuracy: 1e-9, "paragraph index clamps to the last one")
+        XCTAssertLessThan(progress(0, 101), 0.2, "a paragraph's end never reads as the next one's start")
+        XCTAssertEqual(BrowseStartPage.progress(paragraphs: [], paragraph: 0, utf16Offset: 0), 0)
+    }
 }
