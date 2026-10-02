@@ -69,7 +69,7 @@ struct BrowseStartView: View {
 
     /// Bottom-bar bookmark reflects "already saved" for the current page's canonical URL.
     private var currentSavedArticle: SavedArticle? {
-        guard let url = webStore.currentURL, url.scheme == "http" || url.scheme == "https" else { return nil }
+        guard let url = webStore.currentURL, url.isWeb else { return nil }
         let canonical = ArticleIdentity.canonicalURLString(from: url)
         return articles.first { $0.canonicalURL == canonical }
     }
@@ -113,71 +113,9 @@ struct BrowseStartView: View {
 
     /// Local Recents/Saved matches first, then Google suggest (deduped).
     private var addressSuggestions: [AddressSuggestion] {
-        let q = addressText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard isEditingAddress, q.count >= 1, !showsRecentSearches else { return [] }
-
-        var rows: [AddressSuggestion] = []
-        var seen = Set<String>()
-
-        func take(_ key: String) -> Bool {
-            seen.insert(key.lowercased()).inserted
-        }
-
-        for visit in recentVisits.prefix(RecentVisit.maxEntries) {
-            let hay = "\(visit.title) \(visit.host) \(visit.urlString)".lowercased()
-            guard hay.contains(q.lowercased()) else { continue }
-            guard take(visit.urlString) else { continue }
-            rows.append(
-                AddressSuggestion(
-                    id: "recent-\(visit.id.uuidString)",
-                    title: visit.title,
-                    subtitle: visit.host,
-                    faviconData: visit.faviconData,
-                    host: visit.host,
-                    query: visit.urlString,
-                    kind: .recent
-                )
-            )
-            if rows.count >= 4 { break }
-        }
-
-        var savedCount = 0
-        for article in articles {
-            let hay = "\(article.title) \(article.siteDomain) \(article.urlString)".lowercased()
-            guard hay.contains(q.lowercased()) else { continue }
-            guard take(article.urlString) else { continue }
-            rows.append(
-                AddressSuggestion(
-                    id: "saved-\(article.id.uuidString)",
-                    title: article.title,
-                    subtitle: article.siteDomain,
-                    faviconData: article.faviconData,
-                    host: article.siteDomain,
-                    query: article.urlString,
-                    kind: .saved
-                )
-            )
-            savedCount += 1
-            if savedCount >= 3 { break }
-        }
-
-        for text in googleSuggestions {
-            guard take(text) else { continue }
-            rows.append(
-                AddressSuggestion(
-                    id: "google-\(text)",
-                    title: text,
-                    subtitle: "Google Search",
-                    faviconData: nil,
-                    host: "",
-                    query: text,
-                    kind: .google
-                )
-            )
-            if rows.count >= 10 { break }
-        }
-
-        return rows
+        guard isEditingAddress, !showsRecentSearches else { return [] }
+        return AddressSuggestions.build(query: addressText, visits: recentVisits.prefix(RecentVisit.maxEntries),
+                                        articles: articles, google: googleSuggestions)
     }
 
     var body: some View {
@@ -387,23 +325,10 @@ struct BrowseStartView: View {
         isEditingAddress = false
         addressFocused = false
         googleSuggestions = []
-        if !(hasPage && Self.samePage(webStore.currentURL, url)) {
+        if !(hasPage && webStore.currentURL?.isSamePage(as: url) == true) {
             webStore.load(url)
         }
-        syncAddressField(from: webStore.currentURL.flatMap { Self.samePage($0, url) ? $0 : nil } ?? url)
-    }
-
-    /// Same page, ignoring the fragment and a trailing slash.
-    static func samePage(_ a: URL?, _ b: URL) -> Bool {
-        guard let a else { return false }
-        func key(_ u: URL) -> String {
-            var c = URLComponents(url: u, resolvingAgainstBaseURL: false)
-            c?.fragment = nil
-            var s = c?.string ?? u.absoluteString
-            if s.hasSuffix("/") { s.removeLast() }
-            return s.lowercased()
-        }
-        return key(a) == key(b)
+        syncAddressField(from: webStore.currentURL.flatMap { $0.isSamePage(as: url) ? $0 : nil } ?? url)
     }
 
     private func presentFromReader(_ present: @escaping () -> Void) {
@@ -558,8 +483,7 @@ struct BrowseStartView: View {
     }
 
     private var shareURL: URL? {
-        guard hasPage, let url = webStore.currentURL,
-              url.scheme == "http" || url.scheme == "https" else { return nil }
+        guard hasPage, let url = webStore.currentURL, url.isWeb else { return nil }
         return url
     }
 
@@ -1203,7 +1127,7 @@ struct BrowseStartView: View {
     @MainActor
     private func recordRecentVisitIfNeeded() async {
         guard let url = webStore.currentURL ?? webStore.webView?.url else { return }
-        guard url.scheme == "http" || url.scheme == "https" else { return }
+        guard url.isWeb else { return }
         var icon: Data?
         if let webView = webStore.webView {
             icon = await FaviconFetcher.fetch(from: webView)

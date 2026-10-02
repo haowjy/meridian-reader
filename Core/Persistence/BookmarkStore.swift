@@ -46,7 +46,7 @@ final class BookmarkStore {
 
     /// Web pages (plus the UI tests' offline `reader-test://` pages).
     static func isBookmarkable(_ url: URL) -> Bool {
-        ["http", "https", "reader-test"].contains(url.scheme?.lowercased() ?? "")
+        url.isWeb || url.scheme?.lowercased() == TestPageSchemeHandler.scheme
     }
 
     func bookmark(for url: URL?) -> SiteBookmark? {

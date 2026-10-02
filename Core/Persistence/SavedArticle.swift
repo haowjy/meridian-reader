@@ -64,8 +64,7 @@ final class SavedArticle {
     }
 
     convenience init(id: UUID? = nil, url: URL, extracted: ExtractedArticle, faviconData: Data? = nil) {
-        let words = extracted.plainText.split { $0.isWhitespace || $0.isNewline }.count
-        let minutes = max(1, Int((Double(words) / 200.0).rounded(.up)))
+        let words = Self.wordCount(of: extracted.plainText)
         let domain = url.host ?? extracted.siteName ?? url.absoluteString
         self.init(
             id: id ?? ArticleIdentity.articleKey(url: url),
@@ -75,7 +74,7 @@ final class SavedArticle {
             cleanedHTML: extracted.cleanedHTML,
             plainText: extracted.plainText,
             wordCount: words,
-            estimatedMinutes: minutes,
+            estimatedMinutes: Self.estimatedMinutes(words: words),
             excerpt: extracted.excerpt,
             faviconData: faviconData
         )
@@ -84,6 +83,20 @@ final class SavedArticle {
             cleanedHTML: cleanedHTML,
             title: title
         ).paragraphs)
+    }
+}
+
+// MARK: - Length
+
+extension SavedArticle {
+    /// Whitespace-separated words in `text`.
+    nonisolated static func wordCount(of text: String) -> Int {
+        text.split { $0.isWhitespace || $0.isNewline }.count
+    }
+
+    /// Listening / reading time at 200 words a minute, at least one minute.
+    nonisolated static func estimatedMinutes(words: Int) -> Int {
+        max(1, Int((Double(words) / 200.0).rounded(.up)))
     }
 }
 

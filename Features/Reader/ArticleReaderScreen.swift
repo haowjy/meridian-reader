@@ -249,7 +249,7 @@ struct ArticleReaderScreen: View {
     }
 
     private var shareURL: URL? {
-        guard let url = articleURL, url.scheme == "http" || url.scheme == "https" else { return nil }
+        guard let url = articleURL, url.isWeb else { return nil }
         return url
     }
 

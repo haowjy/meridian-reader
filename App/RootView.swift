@@ -76,7 +76,7 @@ struct RootView: View {
         }
         let plainAll = ([plain] + extras).joined(separator: "\n\n")
         let htmlAll = ([html] + extras.map { "<p>\($0)</p>" }).joined(separator: "\n")
-        let words = plainAll.split { $0.isWhitespace || $0.isNewline }.count
+        let words = SavedArticle.wordCount(of: plainAll)
         let article = SavedArticle(
             urlString: "https://example.com/demo",
             // Optional `-seedDemoTitle "<title>"` (UI tests: long-title layout checks).
@@ -85,7 +85,7 @@ struct RootView: View {
             cleanedHTML: htmlAll,
             plainText: plainAll,
             wordCount: words,
-            estimatedMinutes: max(1, Int((Double(words) / 200.0).rounded(.up))),
+            estimatedMinutes: SavedArticle.estimatedMinutes(words: words),
             excerpt: String(plain.prefix(140)),
             // Optional `-seedDemoProgress N` (UI tests: "Continue listening" on the start page).
             playbackParagraphIndex: UserDefaults.standard.integer(forKey: "seedDemoProgress"),

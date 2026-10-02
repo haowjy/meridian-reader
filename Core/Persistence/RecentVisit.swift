@@ -37,10 +37,7 @@ final class RecentVisit {
 enum RecentVisitRecorder {
     /// Normalize for dedupe: drop fragment, trim trailing slash on path-only "/".
     static func canonicalURLString(from url: URL) -> String? {
-        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
-            return nil
-        }
-        guard var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+        guard url.isWeb, var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return nil
         }
         comps.fragment = nil

@@ -89,8 +89,8 @@ struct WebView: UIViewRepresentable {
             readerableGeneration += 1
             let generation = readerableGeneration
             let url = webView.url
-            guard let js = ReaderScripts.readerableCheck,
-                  let scheme = url?.scheme, scheme == "http" || scheme == "https" || scheme == TestPageSchemeHandler.scheme
+            guard let js = ReaderScripts.readerableCheck, let url,
+                  url.isWeb || url.scheme == TestPageSchemeHandler.scheme
             else {
                 store.isReaderable = false
                 return
