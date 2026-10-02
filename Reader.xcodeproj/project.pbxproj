@@ -175,6 +175,7 @@
 		F0957A3495C26CEA304C3AC0 /* CPURouteBench.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A32A59E9005162EAC95FE8E /* CPURouteBench.swift */; };
 		F36F1CCCA6B4354155BA8C1D /* BrowseStartPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 377072D2F25B66806CCA8563 /* BrowseStartPage.swift */; };
 		F3D5ED853247C48123F36DA6 /* LaunchHooks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D2CC094E191908F9D9D032 /* LaunchHooks.swift */; };
+		F3FCB5D932A2E60032464E5B /* BrowseAlerts.swift in Sources */ = {isa = PBXBuildFile; fileRef = F93C43091A1FAD821B9B9580 /* BrowseAlerts.swift */; };
 		F446C4C429BB15E7347BC2DA /* AppRunState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D94F2B5A6008308776E5FD13 /* AppRunState.swift */; };
 		F540645325BF2BA8F00DD833 /* UnitSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7A1DC1CE83F3D75647BB116 /* UnitSource.swift */; };
 		F60A918840B40ED64A67E0FC /* SwipeGesturePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5381BC4B9FA9D949E9181A49 /* SwipeGesturePolicyTests.swift */; };
@@ -387,6 +388,7 @@
 		F617E0663C8806D616B48F08 /* FluidAudio */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FluidAudio; path = Vendor/FluidAudio; sourceTree = SOURCE_ROOT; };
 		F6E971A9316951A5F68B8716 /* ParagraphSplitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParagraphSplitTests.swift; sourceTree = "<group>"; };
 		F8FF94025F0FC15D5E6D0104 /* ReaderVisibleSnapshot.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ReaderVisibleSnapshot.js; sourceTree = "<group>"; };
+		F93C43091A1FAD821B9B9580 /* BrowseAlerts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseAlerts.swift; sourceTree = "<group>"; };
 		FCD8B7936A4F15F51119C8BE /* KokoroRouteDebugSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroRouteDebugSection.swift; sourceTree = "<group>"; };
 		FD3B47750D87B344B7951621 /* ReaderChromeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderChromeUITests.swift; sourceTree = "<group>"; };
 		FD4B3ABCF6B50C4CDD0143A0 /* KokoroRouteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroRouteTests.swift; sourceTree = "<group>"; };
@@ -677,6 +679,7 @@
 			children = (
 				998BA52D5695194BE951AAAB /* AddressDictation.swift */,
 				46AC4BFEFA14EF0A7C139D6D /* AddressSuggestions.swift */,
+				F93C43091A1FAD821B9B9580 /* BrowseAlerts.swift */,
 				3A0BF9AA5164A0A7C3BB905E /* BrowseHistoryView.swift */,
 				245C674057B671A8705904D6 /* BrowserBottomChrome.swift */,
 				377072D2F25B66806CCA8563 /* BrowseStartPage.swift */,
@@ -1003,6 +1006,7 @@
 				D567ACFA8DE655581155895D /* BookmarkStore.swift in Sources */,
 				75DE77F1DFA505F04C605443 /* BookmarksListView.swift in Sources */,
 				3BA996B22B562629FA09690F /* BottomChrome.swift in Sources */,
+				F3FCB5D932A2E60032464E5B /* BrowseAlerts.swift in Sources */,
 				84533B4FC5D9CFD3DCDABF16 /* BrowseHistoryView.swift in Sources */,
 				F36F1CCCA6B4354155BA8C1D /* BrowseStartPage.swift in Sources */,
 				C9C6AC601298A80D95BF166A /* BrowseStartView.swift in Sources */,

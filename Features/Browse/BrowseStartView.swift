@@ -68,7 +68,7 @@ struct BrowseStartView: View {
             .onChange(of: webStore.currentURL) { _, _ in shell.syncAddressField() }
             .onChange(of: webStore.isLoading) { _, loading in
                 guard !loading else { return }
-                Task { await recordRecentVisitIfNeeded() }
+                run { await $0.recordVisit() }
             }
             .onChange(of: search.text) { _, text in
                 // Typing (or clearing) while dictating takes over from the mic.
@@ -129,7 +129,7 @@ struct BrowseStartView: View {
         BrowserBottomChrome(
             speech: speech,
             dictation: dictation,
-            onOpenReader: { Task { await runReader() } },
+            onOpenReader: { run { try await $0.openInReader() } },
             onSubmit: { submit(search.text) },
             onMic: toggleDictation,
             onOpenLibrary: shell.openLibrary,
@@ -178,8 +178,7 @@ struct BrowseStartView: View {
     // MARK: - ⋯ menu
 
     private var shareURL: URL? {
-        guard hasPage, let url = webStore.currentURL, url.isWeb else { return nil }
-        return url
+        webStore.currentURL.flatMap { $0.isWeb ? $0 : nil }
     }
 
     private var browseMenu: BrowseMenu {
@@ -189,7 +188,7 @@ struct BrowseStartView: View {
             isSaved: currentSavedArticle != nil,
             canSave: hasPage && shell.busy == nil,
             isBookmarked: currentBookmark != nil,
-            canBookmark: bookmarkableURL != nil,
+            canBookmark: webStore.currentURL.map(BookmarkStore.isBookmarkable) ?? false,
             canShare: shareURL != nil,
             fakeExtractionFailure: speech.developerOptionsEnabled ? $useFakeFailure : nil
         )
@@ -198,9 +197,9 @@ struct BrowseStartView: View {
     private func perform(_ action: BrowseMenu.Action) {
         switch action {
         case .newSearch: shell.showStartPage()
-        case .openReader: Task { await runReader() }
-        case .toggleSave: Task { await toggleSave() }
-        case .toggleBookmark: Task { await toggleBookmark() }
+        case .openReader: run { try await $0.openInReader() }
+        case .toggleSave: toggleSave()
+        case .toggleBookmark: run { page in await page.toggleBookmark(in: bookmarkStore) }
         case .bookmarks: shell.present(.bookmarks)
         case .reload: webStore.refresh()
         case .share: if let shareURL { shell.present(.share(shareURL)) }
@@ -213,7 +212,7 @@ struct BrowseStartView: View {
     private var canOpenReader: Bool { hasPage && webStore.isReaderable && shell.busy == nil }
 
     private var currentBookmark: SiteBookmark? {
-        hasPage ? bookmarkStore.bookmark(for: webStore.currentURL) : nil
+        bookmarkStore.bookmark(for: webStore.currentURL)
     }
 
     // MARK: - Start page
@@ -234,12 +233,6 @@ struct BrowseStartView: View {
             onClearSearches: { recentSearchesRaw = "" }
         )
         .task(id: bookmarkStore.bookmarks.count) { await bookmarkStore.backfillIcons() }
-    }
-
-    /// ⋯ → Bookmark / Remove Bookmark for the current page (URL, title, icon only).
-    private var bookmarkableURL: URL? {
-        guard hasPage, let url = webStore.currentURL, BookmarkStore.isBookmarkable(url) else { return nil }
-        return url
     }
 
     // MARK: - Address
@@ -279,96 +272,26 @@ struct BrowseStartView: View {
 
     /// The loaded page as an article. Developer options can force extraction to fail.
     private var page: PageArticleService {
-        PageArticleService(web: webStore,
+        PageArticleService(shell: shell,
                            extractor: useFakeFailure ? FakeArticleExtractor(mode: .failure) : extractor,
-                           context: modelContext, recentVisits: recentVisits)
+                           context: modelContext, speech: speech, recentVisits: recentVisits)
     }
 
-    /// Address-bar reader icon / ⋯ → Reader: the page in the ✕ reader.
-    private func runReader() async {
-        shell.busy = .reader
-        defer { shell.busy = nil }
-        do {
-            let page = page
-            let (article, url) = try await page.extract()
-            shell.showReader(article, origin: .page(url))
-            if article.faviconData == nil {
-                let icon = await page.favicon(for: url)
-                shell.updateReader(id: article.id) { if $0.faviconData == nil { $0.faviconData = icon } }
-            }
-        } catch {
-            alertMessage = error.localizedDescription
+    /// Runs a page action; a failed extraction shows the alert.
+    private func run(_ action: @escaping (PageArticleService) async throws -> Void) {
+        let page = page
+        Task {
+            do { try await action(page) } catch { alertMessage = error.localizedDescription }
         }
     }
 
     /// ⋯ → Save article / Remove from Saved, by canonical URL.
-    private func toggleSave() async {
-        let saver = ArticleSaveCoordinator(context: modelContext, speech: speech)
+    private func toggleSave() {
         if let saved = currentSavedArticle {
-            saver.unsave(id: saved.id, canonicalURL: saved.canonicalURL)
-            return
+            ArticleSaveCoordinator(context: modelContext, speech: speech)
+                .unsave(id: saved.id, canonicalURL: saved.canonicalURL)
+        } else {
+            run { try await $0.save() }
         }
-        shell.busy = .save
-        defer { shell.busy = nil }
-        do {
-            let page = page
-            var (article, url) = try await page.extract()
-            if article.faviconData == nil {
-                article.faviconData = await page.favicon(for: url)
-            }
-            saver.save(article)
-        } catch {
-            alertMessage = error.localizedDescription
-        }
-    }
-
-    /// ⋯ → Bookmark / Remove Bookmark for the page (URL, title, icon only).
-    private func toggleBookmark() async {
-        guard let url = bookmarkableURL else { return }
-        let page = page
-        let liveTitle = webStore.webView?.title.flatMap { $0.isEmpty ? nil : $0 }
-        await bookmarkStore.toggle(url: url, title: liveTitle ?? webStore.pageTitle,
-                                   faviconData: page.recentFavicon(for: url)) {
-            await page.favicon(for: url)
-        }
-    }
-
-    /// A page finished loading: add it to History with its icon.
-    private func recordRecentVisitIfNeeded() async {
-        guard let url = webStore.currentURL, url.isWeb else { return }
-        let icon = await FaviconFetcher.best(for: url, webView: webStore.webView)
-        RecentVisitRecorder.record(url: url, title: webStore.pageTitle, faviconData: icon, in: modelContext)
-    }
-}
-
-/// The browser's two alerts: a failed extraction, and a dictation problem (permission, mic).
-private struct BrowseAlerts: ViewModifier {
-    @Binding var extractionError: String?
-    let dictation: AddressDictation?
-
-    func body(content: Content) -> some View {
-        content
-            .alert("Couldn’t extract", isPresented: Binding(
-                get: { extractionError != nil },
-                set: { if !$0 { extractionError = nil } }
-            )) {
-                Button("OK", role: .cancel) { extractionError = nil }
-            } message: {
-                Text(extractionError ?? "")
-            }
-            .alert("Dictation", isPresented: Binding(
-                get: { dictation?.errorMessage != nil },
-                set: { if !$0 { dictation?.errorMessage = nil } }
-            )) {
-                Button("Open Settings") {
-                    dictation?.errorMessage = nil
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
-                }
-                Button("OK", role: .cancel) { dictation?.errorMessage = nil }
-            } message: {
-                Text(dictation?.errorMessage ?? "")
-            }
     }
 }
