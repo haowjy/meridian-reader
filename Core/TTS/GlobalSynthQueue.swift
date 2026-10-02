@@ -39,12 +39,30 @@ import Foundation
 final class GlobalSynthQueue {
     struct ArticleJob: Equatable {
         var cacheKey: UUID
-        var paragraphs: [String]
+        var paragraphs: [String] {
+            didSet {
+                if paragraphs != oldValue { paragraphHashes = paragraphs.map(ArticleIdentity.paragraphHash) }
+            }
+        }
+        /// `ArticleIdentity.paragraphHash` of each paragraph (chunk scratch dirs, failure marks):
+        /// hashed when the text is set, not again for every chunk the worker picks.
+        private(set) var paragraphHashes: [String]
         var voiceID: String
         var plan: BakePriorityPlan
         /// FIFO demotion order among non-#1 articles (lower = older / demoted earlier).
         var demoteOrder: Int
         var isEphemeral: Bool
+
+        init(cacheKey: UUID, paragraphs: [String], voiceID: String, plan: BakePriorityPlan,
+             demoteOrder: Int, isEphemeral: Bool) {
+            self.cacheKey = cacheKey
+            self.paragraphs = paragraphs
+            self.paragraphHashes = paragraphs.map(ArticleIdentity.paragraphHash)
+            self.voiceID = voiceID
+            self.plan = plan
+            self.demoteOrder = demoteOrder
+            self.isEphemeral = isEphemeral
+        }
     }
 
     private weak var coordinator: SynthQueueContext?
@@ -60,7 +78,12 @@ final class GlobalSynthQueue {
     /// (key|index|textHash) that failed the engine *and* Apple fallback — skipped by the worker so a
     /// bad unit cannot spin forever. A live request for the unit clears its mark (fresh try).
     private var failedUnits: Set<String> = []
-    private var chunkPlanCache: [String: [String]] = [:]
+    private var chunkPlanCache: [ChunkPlanKey: [String]] = [:]
+
+    private struct ChunkPlanKey: Hashable {
+        var engine: String
+        var text: String
+    }
 
     private struct ParagraphKey: Hashable {
         var cacheKey: UUID
@@ -327,13 +350,12 @@ final class GlobalSynthQueue {
 
     // MARK: - Chunk-level live ensure (play-while-building)
 
-    /// Synth chunks for a paragraph's text (deterministic; cached by text hash).
+    /// Synth chunks for a paragraph's text (deterministic; cached per engine and text).
     func chunkTexts(for text: String) -> [String] {
-        let engine = coordinator?.cacheEngineID ?? "?"
-        let hash = engine + "|" + ArticleIdentity.paragraphHash(text)
-        if let cached = chunkPlanCache[hash] { return cached }
+        let key = ChunkPlanKey(engine: coordinator?.cacheEngineID ?? "?", text: text)
+        if let cached = chunkPlanCache[key] { return cached }
         let chunks = TextChunker.chunks(for: text, limits: coordinator?.activeChunkLimits ?? .kokoro)
-        chunkPlanCache[hash] = chunks
+        chunkPlanCache[key] = chunks
         return chunks
     }
 
@@ -525,15 +547,17 @@ final class GlobalSynthQueue {
         makePrimary: Bool
     ) {
         demoteCounter += 1
-        let existingOrder = jobs[cacheKey]?.demoteOrder ?? demoteCounter
-        jobs[cacheKey] = ArticleJob(
-            cacheKey: cacheKey,
-            paragraphs: paragraphs,
-            voiceID: voiceID,
-            plan: plan,
-            demoteOrder: makePrimary ? existingOrder : demoteCounter,
-            isEphemeral: isEphemeral
-        )
+        let existing = jobs[cacheKey]
+        // Reusing the job keeps its paragraph hashes when the text is unchanged (every play / seek
+        // re-opens the article).
+        var job = existing ?? ArticleJob(cacheKey: cacheKey, paragraphs: paragraphs, voiceID: voiceID,
+                                         plan: plan, demoteOrder: demoteCounter, isEphemeral: isEphemeral)
+        job.paragraphs = paragraphs
+        job.voiceID = voiceID
+        job.plan = plan
+        job.demoteOrder = makePrimary ? (existing?.demoteOrder ?? demoteCounter) : demoteCounter
+        job.isEphemeral = isEphemeral
+        jobs[cacheKey] = job
         if makePrimary {
             promoteToPrimary(cacheKey)
         } else if !stack.contains(cacheKey) {
@@ -602,7 +626,7 @@ final class GlobalSynthQueue {
             }
             guard job.paragraphs.indices.contains(index) else { continue }
             let text = job.paragraphs[index]
-            let hash = ArticleIdentity.paragraphHash(text)
+            let hash = job.paragraphHashes[index]
             let chunks = chunkTexts(for: text)
             guard !chunks.isEmpty else {
                 // Nothing speakable (punctuation only). Mark failed so we don't spin; producer
@@ -636,22 +660,34 @@ final class GlobalSynthQueue {
                         continue
                     }
                 }
-                // All chunks present → stitch into the paragraph CAF.
-                let dir = cache.directory(for: job.cacheKey)
-                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                // Stitch beside the final file, then store (replaces p-NNNN.caf with a new file):
-                // the old-voice CAF at that path may be playing right now — never write into it.
-                let staging = dir.appendingPathComponent(String(format: ".stitch-p-%04d.caf", index))
-                defer { try? FileManager.default.removeItem(at: staging) }
-                let stitched = try ChunkAudioStitcher.stitch(chunkURLs, to: staging)
-                try cache.storeParagraph(
+                // All chunks present → stitch them into the paragraph CAF off the main actor (a
+                // read / convert / write of the whole paragraph), then record it here.
+                let dest = cache.paragraphFileURL(articleID: job.cacheKey, paragraphIndex: index)
+                let stitched: ChunkAudioStitcher.Result
+                do {
+                    stitched = try await Task.detached(priority: .userInitiated) {
+                        try ArticleAudioCache.stitchParagraph(chunkURLs, to: dest)
+                    }.value
+                } catch where !chunkURLs.allSatisfy(cache.isUsableAudioFile) {
+                    // The chunk scratch went away meanwhile (engine / voice change, identity
+                    // prep): not this paragraph's failure — look again.
+                    activeBakeCacheKey = nil
+                    activeBakeIndex = nil
+                    continue
+                }
+                guard jobs[job.cacheKey] != nil else {
+                    // The article left the queue meanwhile (audio cleared, article deleted).
+                    activeBakeCacheKey = nil
+                    activeBakeIndex = nil
+                    continue
+                }
+                try cache.recordParagraph(
                     articleID: job.cacheKey,
                     paragraphIndex: index,
-                    sourceURL: staging,
                     duration: stitched.duration,
                     engineID: engineID,
                     voiceID: job.voiceID,
-                    text: text,
+                    textHash: hash,
                     chunkDurations: chunks.count > 1 ? stitched.chunkDurations : nil
                 )
                 coordinator.noteBakeMarksChanged()
@@ -766,8 +802,8 @@ final class GlobalSynthQueue {
                 voiceID: job.voiceID
             )
             let ordered = job.plan.orderedWork(missing: missing).filter { idx in
-                guard job.paragraphs.indices.contains(idx) else { return false }
-                return !failedUnits.contains(failedID(job.cacheKey, idx, ArticleIdentity.paragraphHash(job.paragraphs[idx])))
+                guard job.paragraphHashes.indices.contains(idx) else { return false }
+                return !failedUnits.contains(failedID(job.cacheKey, idx, job.paragraphHashes[idx]))
             }
             if let index = ordered.first {
                 return (job, index)

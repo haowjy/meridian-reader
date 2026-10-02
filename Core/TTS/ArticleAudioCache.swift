@@ -220,8 +220,12 @@ final class ArticleAudioCache {
         bumpContentRevision()
     }
 
-    /// Persist one successfully rendered unit into the bake cache (default path for live + batch).
-    /// Copies `sourceURL` into `p-NNNN.caf` and updates `index.json` atomically.
+    /// A paragraph's CAF: `p-NNNN.caf`.
+    func paragraphFileURL(articleID: UUID, paragraphIndex: Int) -> URL {
+        directory(for: articleID).appendingPathComponent(String(format: "p-%04d.caf", paragraphIndex))
+    }
+
+    /// Persist one rendered paragraph: copies `sourceURL` into `p-NNNN.caf` and records it.
     @discardableResult
     func storeParagraph(
         articleID: UUID,
@@ -233,35 +237,59 @@ final class ArticleAudioCache {
         text: String? = nil,
         chunkDurations: [Double]? = nil
     ) throws -> URL {
-        guard isUsableAudioFile(sourceURL) else {
-            throw NSError(
-                domain: "ArticleAudioCache",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Refusing to store empty/tiny CAF at \(paragraphIndex)"]
-            )
-        }
-        let dir = directory(for: articleID)
-        try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
-
-        let fileName = String(format: "p-%04d.caf", paragraphIndex)
-        let dest = dir.appendingPathComponent(fileName)
+        guard isUsableAudioFile(sourceURL) else { throw Self.emptyAudioError(paragraphIndex) }
+        try fileManager.createDirectory(at: directory(for: articleID), withIntermediateDirectories: true)
+        let dest = paragraphFileURL(articleID: articleID, paragraphIndex: paragraphIndex)
         if sourceURL.standardizedFileURL != dest.standardizedFileURL {
             if fileManager.fileExists(atPath: dest.path) {
                 try fileManager.removeItem(at: dest)
             }
             try fileManager.copyItem(at: sourceURL, to: dest)
         }
+        try recordParagraph(articleID: articleID, paragraphIndex: paragraphIndex, duration: duration,
+                            engineID: engineID, voiceID: voiceID, textHash: text.map(ArticleIdentity.paragraphHash),
+                            chunkDurations: chunkDurations)
+        return dest
+    }
 
+    /// File half of baking a paragraph, safe off the main actor: stitch `chunkURLs` beside
+    /// `dest`, then rename it over `dest`. Never a write into `dest`: an old-voice CAF at that
+    /// path may be playing right now, and its player keeps reading the old file. Then
+    /// `recordParagraph` on the main actor.
+    nonisolated static func stitchParagraph(_ chunkURLs: [URL], to dest: URL) throws -> ChunkAudioStitcher.Result {
+        let fm = FileManager.default
+        let dir = dest.deletingLastPathComponent()
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        let staging = dir.appendingPathComponent(".stitch-" + dest.lastPathComponent)
+        defer { try? fm.removeItem(at: staging) }
+        let result = try ChunkAudioStitcher.stitch(chunkURLs, to: staging)
+        guard hasAudio(at: staging) else { throw emptyAudioError(dest.lastPathComponent) }
+        guard rename(staging.path, dest.path) == 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        return result
+    }
+
+    /// Index half of storing a paragraph whose CAF is already at `paragraphFileURL`.
+    func recordParagraph(
+        articleID: UUID,
+        paragraphIndex: Int,
+        duration: TimeInterval,
+        engineID: String,
+        voiceID: String,
+        textHash: String?,
+        chunkDurations: [Double]?
+    ) throws {
         // One voice per article: units of another engine/voice stay (stamped stale, still
         // playable) until their paragraph is re-rendered; this paragraph's old file was just
-        // replaced above. `finalizeVoiceSwitch` drops any leftovers once the article is complete.
+        // replaced. `finalizeVoiceSwitch` drops any leftovers once the article is complete.
         var entries = (index(for: articleID)?.retargeted(engineID: engineID, voiceID: voiceID).paragraphs ?? [])
             .filter { $0.index != paragraphIndex }
         entries.append(.init(
             index: paragraphIndex,
-            file: fileName,
+            file: paragraphFileURL(articleID: articleID, paragraphIndex: paragraphIndex).lastPathComponent,
             duration: duration,
-            textHash: text.map(ArticleIdentity.paragraphHash),
+            textHash: textHash,
             chunkDurations: chunkDurations
         ))
         entries.sort { $0.index < $1.index }
@@ -274,7 +302,11 @@ final class ArticleAudioCache {
         )
         defer { bumpContentRevision() }
         try saveIndex(index, for: articleID)
-        return dest
+    }
+
+    private nonisolated static func emptyAudioError(_ unit: Any) -> NSError {
+        NSError(domain: "ArticleAudioCache", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Refusing to store empty/tiny CAF at \(unit)"])
     }
 
     // MARK: - Synth chunk scratch (GlobalSynthQueue)
@@ -323,8 +355,12 @@ final class ArticleAudioCache {
     }
 
     /// Exists and holds more than a header: a CAF with audio in it (paragraph or synth chunk).
-    func isUsableAudioFile(_ url: URL) -> Bool {
-        guard let size = (try? fileManager.attributesOfItem(atPath: url.path)[.size]) as? NSNumber else { return false }
+    func isUsableAudioFile(_ url: URL) -> Bool { Self.hasAudio(at: url) }
+
+    nonisolated static func hasAudio(at url: URL) -> Bool {
+        guard let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber else {
+            return false
+        }
         return size.intValue > 256
     }
 }
