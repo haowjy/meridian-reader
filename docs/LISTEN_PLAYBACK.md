@@ -86,9 +86,9 @@ Render priority: chunks of an article someone is listening to (a producer waits 
 
 #### Background bake limits
 
-`BackgroundAudioBakeScheduler` persists pending bake jobs (articles saved or opened while the local engine was cold). They fold into the queue once the engine warms, and a finished article drops its job.
+`BackgroundAudioBakeScheduler` persists pending bake jobs (articles saved or opened while the local engine was cold) in `Application Support/PendingBakeJobs.json` (older builds used UserDefaults; the first load moves them). They fold into the queue once the engine warms, and a finished article drops its job.
 
-It also registers a `BGProcessingTask` (`com.jimmyyao.Reader.bake-audio`) and requests it on save. Reader starts **no Core ML call in the background** (see *Background listening* below), so when iOS runs the task it only re-requests itself, logs `bg_task_skipped`, and leaves the jobs pending for the foreground queue. Baking happens while the app is active (or inactive, for chunks a listener waits on); do not promise full-article completion in the background.
+It also registers a `BGProcessingTask` (`com.jimmyyao.Reader.bake-audio`), requested on save / cold open only while the active route may render in the background (Kokoro ONNX). Reader starts **no Core ML call in the background** (see *Background listening* below) and bakes ahead in the background only the article that is playing, so when iOS runs the task it logs `bg_task_skipped` and completes (no re-request), leaving the jobs pending for the foreground queue. Baking happens while the app is active (or inactive, for chunks a listener waits on); do not promise full-article completion in the background.
 
 
 ### 4. UI binding

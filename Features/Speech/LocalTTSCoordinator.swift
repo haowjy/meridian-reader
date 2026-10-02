@@ -571,7 +571,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
                     ? .topDown(paragraphCount: paragraphs.count)
                     : .fromPlayhead(resumeParagraph, paragraphCount: paragraphs.count)
             )
-            BackgroundAudioBakeScheduler.shared.scheduleProcessingTask()
+            requestBackgroundBakeWindow()
             print("[SynthQueue] queued pending key=\(cacheKey.uuidString.prefix(8)) (local engine cold); warming")
             Task { await self.warmLocalThenDrainPending() }
             return
@@ -635,7 +635,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
             voiceID: voiceID,
             plan: .topDown(paragraphCount: paragraphs.count)
         )
-        BackgroundAudioBakeScheduler.shared.scheduleProcessingTask()
+        requestBackgroundBakeWindow()
         guard usesLocalEngine, localHostReady else {
             Task { await self.warmLocalThenDrainPending() }
             return
@@ -662,6 +662,13 @@ final class LocalTTSCoordinator: SynthQueueContext {
                 isEphemeral: false
             )
         }
+    }
+
+    /// Request the `BGProcessingTask` only while the active route may render in the background:
+    /// for any other route the task can never bake, and asking wakes the app on every charge.
+    private func requestBackgroundBakeWindow() {
+        guard activeRouteRendersInBackground else { return }
+        BackgroundAudioBakeScheduler.shared.scheduleProcessingTask()
     }
 
     /// After Save: move ephemeral CAFs onto the SavedArticle UUID and reshuffle the queue key.
