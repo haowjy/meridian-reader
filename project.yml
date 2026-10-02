@@ -30,6 +30,7 @@ targets:
         optional: true
         excludes:
           - Assets.xcassets
+          - Brand/**
     dependencies:
       - package: FluidAudio
         product: FluidAudio
