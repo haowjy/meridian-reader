@@ -223,12 +223,12 @@ enum MorphMenu {
     /// from a Safari iOS 26 screenshot, where All Tabs sits inset of the tabs/⋯ control rather
     /// than covering it dead-on.
     static let focusOffsetFromAnchor = CGSize(width: 12, height: 10)
-    /// `-uiTesting`: expose the focus point as an accessibility element (alignment test).
-    static let exposesFocus = ProcessInfo.processInfo.arguments.contains("-uiTesting")
+    /// UI tests: expose the focus point as an accessibility element (alignment test).
+    static let exposesFocus = LaunchOptions.current.uiTesting
 
-    /// `-slowMenuAnimation` (UI tests) slows the morph so a mid-animation frame can be captured.
+    /// UI tests can slow the morph so a mid-animation frame can be captured.
     static var animation: Animation {
-        ProcessInfo.processInfo.arguments.contains("-slowMenuAnimation")
+        LaunchOptions.current.slowMenuAnimation
             ? .easeInOut(duration: 3)
             : .spring(response: 0.36, dampingFraction: 0.86)
     }

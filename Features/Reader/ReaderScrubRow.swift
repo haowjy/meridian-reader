@@ -238,11 +238,10 @@ struct ReaderScrubRow: View {
         .onAppear(perform: showDemoBubbleIfRequested)
     }
 
-    /// Screenshot hook (`-uiTesting -scrubBubbleDemo`): freeze a mid-drag frame (fine-scrubbing,
+    /// Screenshot hook (`LaunchOptions.scrubBubbleDemo`): freeze a mid-drag frame (fine-scrubbing,
     /// thumb 40% in) so the bubble can be captured.
     private func showDemoBubbleIfRequested() {
-        let args = ProcessInfo.processInfo.arguments
-        guard args.contains("-uiTesting"), args.contains("-scrubBubbleDemo") else { return }
+        guard LaunchOptions.current.scrubBubbleDemo else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             speed = .quarter
             dragFraction = 0.42

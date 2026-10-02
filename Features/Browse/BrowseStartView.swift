@@ -65,16 +65,6 @@ struct BrowseStartView: View {
             }
             .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { ShellSheetView(sheet: $0) }
             .modifier(BrowseAlerts(extractionError: $alertMessage, dictation: dictation))
-            .task {
-                speech.onArticleFinished = { id in
-                    ListenHistory.record(id, finished: true)
-                }
-                openDemoReaderForUITestsIfRequested()
-                openTestPagesIfRequested()
-                openLibraryIfRequested()
-                seedBookmarksIfRequested()
-                await resumeAfterCrashIfNeeded()
-            }
             .onChange(of: webStore.currentURL) { _, _ in shell.syncAddressField() }
             .onChange(of: webStore.isLoading) { _, loading in
                 guard !loading else { return }
@@ -97,7 +87,7 @@ struct BrowseStartView: View {
         VStack(spacing: 0) {
             ZStack {
                 if showsBrowseWebView {
-                    WebView(store: webStore, initialURL: nil)
+                    WebView(store: webStore, servesTestPages: LaunchOptions.current.servesTestPages)
                         .opacity(hasPage && !isReaderShown ? 1 : 0)
                         .allowsHitTesting(hasPage && !isReaderShown)
                         .onAppear { browseWebViewMounted = true }
@@ -185,33 +175,6 @@ struct BrowseStartView: View {
         )
     }
 
-    /// UI-test hook (`-openDemoInBrowseReader`, with `-seedDemoArticle`): show the seeded article
-    /// in the ✕ Reader Mode without needing the network.
-    private func openDemoReaderForUITestsIfRequested() {
-        guard ProcessInfo.processInfo.arguments.contains("-openDemoInBrowseReader"),
-              !isReaderShown, let row = articles.first else { return }
-        var article = ReaderArticle(saved: row)
-        if article.document.isEmpty {
-            let doc = SavedArticle.buildListenDocument(plainText: row.plainText, cleanedHTML: row.cleanedHTML, title: row.title)
-            article.document = doc
-            article.trustedParagraphs = doc.paragraphs
-        }
-        shell.showReader(article, origin: .standalone)
-    }
-
-    /// UI-test hook (`-browseTestPages`): offline pages served by `TestPageSchemeHandler`, with a
-    /// link to a second page, so ‹ / › state can be checked without the network.
-    /// UI-test hook (`-openLibrary`): start with the library surface open (article-list tests).
-    private func openLibraryIfRequested() {
-        if ProcessInfo.processInfo.arguments.contains("-openLibrary") { shell.openLibrary() }
-    }
-
-    private func openTestPagesIfRequested() {
-        guard ProcessInfo.processInfo.arguments.contains("-browseTestPages"), !hasPage,
-              let url = URL(string: "reader-test://pages/one") else { return }
-        webStore.load(url)
-    }
-
     // MARK: - ⋯ menu
 
     private var shareURL: URL? {
@@ -277,57 +240,6 @@ struct BrowseStartView: View {
     private var bookmarkableURL: URL? {
         guard hasPage, let url = webStore.currentURL, BookmarkStore.isBookmarkable(url) else { return nil }
         return url
-    }
-
-    /// UI-test hooks: `-resetBookmarks` clears the bookmark store; `-seedBookmarks` also adds a few.
-    private func seedBookmarksIfRequested() {
-        let args = ProcessInfo.processInfo.arguments
-        guard args.contains("-resetBookmarks") || args.contains("-seedBookmarks") else { return }
-        bookmarkStore.removeAll()
-        guard args.contains("-seedBookmarks") else { return }
-        let seeds: [(String, String)] = [
-            ("https://www.gutenberg.org/", "Project Gutenberg"),
-            ("https://en.wikipedia.org/wiki/Speech_synthesis", "Speech synthesis"),
-            ("https://news.ycombinator.com/", "Hacker News"),
-            ("https://www.theverge.com/", "The Verge"),
-            ("https://example.com/", "Example"),
-        ]
-        for (url, title) in seeds {
-            if let u = URL(string: url) { bookmarkStore.add(url: u, title: title, faviconData: nil) }
-        }
-    }
-
-    /// Kokoro crashed last session: reopen the article at the paragraph that was playing — playing
-    /// again (on the ONNX route, once it's loaded) if the crash just happened, else paused there.
-    private func resumeAfterCrashIfNeeded() async {
-        let tts = speech.localTTS
-        // The target may predate paragraph layout v3; migrate first (no-op once done) so its
-        // paragraph and the article's blocks use the same numbering.
-        ArticleLibrary.migrateParagraphLayout(in: modelContext, localTTS: tts)
-        guard let target = tts.takePendingResume() else { return }
-        guard let article = articles.first(where: { target.matches($0.id) }) else {
-            ListenTimingLog.log("kokoro_resume", ["ok": false, "why": "article not found", "key": String(target.articleKey.prefix(8))])
-            return
-        }
-        let session = SpeechSession.saved(article)
-        let p = min(max(0, target.paragraph), max(0, session.document.count - 1))
-        article.playbackParagraphIndex = p
-        shell.openSaved(article.id, in: modelContext)
-        if target.autoPlay {
-            // Wait (≤20 s) for the Kokoro host so the resume doesn't start on Apple.
-            var waited = 0
-            while !tts.usesLocalEngine, tts.pendingEngineID != nil, waited < 100 {
-                try? await Task.sleep(nanoseconds: 200_000_000)
-                waited += 1
-            }
-            speech.start(session, fromParagraph: p)
-        } else {
-            speech.prepare(session, startingParagraph: p)
-        }
-        ListenTimingLog.log("kokoro_resume", [
-            "ok": true, "key": ListenTimingLog.shortKey(article.id), "p": p, "auto_play": target.autoPlay,
-            "local": tts.usesLocalEngine,
-        ])
     }
 
     // MARK: - Address

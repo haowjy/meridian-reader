@@ -636,7 +636,8 @@ balanced pieces for display, navigation and audio alike.
   documents split the same way (`ParagraphDocument(plainText:)`). Browse → Reader uses the same
   path. Pieces are ordinary paragraphs with normal paragraph spacing; each piece gets its own
   highlight, tap target and a paragraph pause (~0.52 s) at its end.
-- **One-time migration** (`ArticleLibrary.migrateParagraphLayout`, launch, before `migrate`/bake):
+- **One-time migration** (`ArticleLibrary.migrateParagraphLayout`, run once by `AppLaunch` before
+  `migrate`, bake hooks and crash resume):
   for each saved article with `listenBlocksVersion < 3` it rebuilds the blocks, maps the saved
   position by non-whitespace character offset (`ParagraphPositionMap`; a stale offset falls back to
   the piece start), remaps `ListenResumePointStore` and any pending bake job, then fixes the audio
