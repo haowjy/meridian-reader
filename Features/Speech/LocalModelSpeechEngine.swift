@@ -165,7 +165,7 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
             self?.ensureProducerRunning()
         }
         player.onUnitEnded = { [weak self] in
-            // Buffer dipped — keep the fill loop alive while more units remain.
+            // Buffer dipped — (re)start the fill loop while more units remain.
             self?.ensureProducerRunning()
         }
         player.onStarved = { [weak self] in
@@ -487,8 +487,9 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
                 }
                 return
             }
-            // Buffer full — wait for drain / space.
-            try? await Task.sleep(nanoseconds: 40_000_000)
+            // Buffer full: stop. The next unit to end (`onUnitEnded`) starts the producer again,
+            // so a long baked listen costs no wake-ups while the buffer is full.
+            return
         }
     }
 

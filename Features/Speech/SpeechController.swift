@@ -226,26 +226,33 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         return reason.localizedNote(engine: localTTS.localEngineInstance.engineShortName)
     }
 
-    /// Local playback only: while playing, move the in-paragraph offset with the player and
-    /// re-sample the listen-bar status (engine state changes without an event: a unit runs out,
-    /// the producer starts waiting).
+    /// Local playback only, while playing (5 Hz).
     private func startBufferingPoll() {
         bufferingPollTask?.cancel()
         bufferingPollTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self, self.playback.phase == .playing else { return }
-                self.updateLocalPlaybackOffset()
-                self.sampleListenStatus()
-                #if canImport(UIKit)
-                if self.localTTS.synthQueue.runState.phase == .background, self.isBufferingNext {
-                    self.playbackGrace.begin()
-                } else {
-                    self.playbackGrace.end()
-                }
-                #endif
+                self.playingPollTick()
                 try? await Task.sleep(nanoseconds: 200_000_000)
             }
         }
+    }
+
+    /// Foreground: move the in-paragraph offset with the player and re-sample the listen-bar
+    /// status (engine state changes without an event: a unit runs out, the producer starts
+    /// waiting). Background: nothing on screen needs either — only keep the app alive while the
+    /// player waits for audio (with nothing audible iOS may suspend it). Pausing and coming back
+    /// to the foreground catch the offset up.
+    private func playingPollTick() {
+        #if canImport(UIKit)
+        if localTTS.synthQueue.runState.phase == .background {
+            if engineIsBufferingNext() { playbackGrace.begin() } else { playbackGrace.end() }
+            return
+        }
+        playbackGrace.end()
+        #endif
+        updateLocalPlaybackOffset()
+        sampleListenStatus()
     }
 
     private func stopBufferingPoll() {
@@ -712,6 +719,8 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     private func pauseEngines() {
         if usesLocalPlayback {
             localTTS.localEngineInstance.pause()
+            // The poll doesn't track the offset in the background: take the paused spot now.
+            updateLocalPlaybackOffset()
             playback.handle(.becamePaused)
             stopBufferingPoll()
             return
@@ -943,11 +952,12 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         return ChunkOffsets.locate(offset: offset, starts: chunkStarts(paragraph: paragraph), length: length)
     }
 
-    /// Local engine: estimate the spoken spot inside the playing paragraph from the player's time
-    /// (chunk boundaries + time into the chunk, proportional by characters) and move the session
-    /// offset there, so the scrubber thumb moves smoothly and scrub-back starts from it.
+    /// Local engine: estimate the spoken spot inside the playing (or just paused) paragraph from
+    /// the player's time (chunk boundaries + time into the chunk, proportional by characters) and
+    /// move the session offset there, so the scrubber thumb moves smoothly and scrub-back starts
+    /// from it.
     private func updateLocalPlaybackOffset() {
-        guard usesLocalPlayback, playback.phase == .playing,
+        guard usesLocalPlayback, playback.phase == .playing || playback.phase == .paused,
               let pos = localTTS.localEngineInstance.currentPlaybackPosition else { return }
         let p = pos.item.paragraphIndex
         guard p == playback.playhead, document.paragraphs.indices.contains(p) else { return }
