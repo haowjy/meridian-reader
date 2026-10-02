@@ -223,7 +223,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
                 return
             }
             UserDefaults.standard.set(rateMultiplier, forKey: rateDefaultsKey)
-            // Local engine: time-stretch the player in place (Nav I) — the sentence keeps going at
+            // Local engine: time-stretch the player in place — the sentence keeps going at
             // the new speed, nothing restarts. Apple's synthesizer can't change an utterance's
             // rate, so it restarts from the word being spoken (`willSpeakRange` offset).
             localTTS.localEngineInstance.setPlaybackRate(Float(rateMultiplier))
@@ -368,7 +368,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     /// Prepared (not playing): put the playhead on the stored / scrubbed sentence so Play starts
-    /// there instead of at the paragraph start (Nav I).
+    /// there instead of at the paragraph start.
     private func placeResumeOffset(_ offset: Int?, paragraph: Int) {
         guard let offset, playback.phase == .prepared, !document.isEmpty,
               document.index(containingUTF16Offset: offset) == paragraph else { return }
@@ -399,7 +399,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         perform(.seek(paragraph: paragraph))
     }
 
-    /// Scrubber inside a paragraph (Nav I): move to document offset `utf16` (a sentence start)
+    /// Scrubber inside a paragraph: move to document offset `utf16` (a sentence start)
     /// without changing play/pause state. Local engine: starts at the synth chunk holding that
     /// sentence, offset into its audio; Apple: speaks from that character.
     func seek(_ session: SpeechSession, toUTF16Offset utf16: Int) {
@@ -888,7 +888,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         speakApple(remaining: remaining, generation: generation, startPaused: startPaused)
     }
 
-    // MARK: - Sub-paragraph position (local engine, Nav I)
+    // MARK: - Sub-paragraph position (local engine)
 
     @ObservationIgnored private var chunkStartsCache: [String: [Int]] = [:]
 

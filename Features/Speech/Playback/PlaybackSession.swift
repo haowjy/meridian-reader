@@ -18,7 +18,7 @@ enum PlaybackIntent: Equatable {
     case stop
     case skip(delta: Int)
     case seek(paragraph: Int)
-    /// Scrubber commit inside a paragraph (Nav I): document UTF-16 offset of a sentence start.
+    /// Scrubber commit inside a paragraph: document UTF-16 offset of a sentence start.
     case seekOffset(utf16: Int)
 }
 
@@ -82,7 +82,7 @@ struct PlaybackSessionState: Equatable {
         switch intent {
         case .play(let from):
             let clamped = document.isEmpty ? 0 : max(0, min(from, document.count - 1))
-            // Play from the playhead keeps a sub-paragraph spot (scrubbed while prepared, Nav I).
+            // Play from the playhead keeps a sub-paragraph spot (scrubbed while prepared).
             let keepsOffset = clamped == playhead && !document.isEmpty
                 && document.index(containingUTF16Offset: utf16Offset) == clamped
             playhead = clamped

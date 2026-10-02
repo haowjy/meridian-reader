@@ -44,7 +44,7 @@ struct HardwareRequirement: Sendable, Equatable {
 /// How the engine's paragraphs are keyed in `ArticleAudioCache` (voice half of the key).
 /// Must stay stable per engine or existing caches stop matching.
 enum CacheVoiceKeyStyle: Sendable, Equatable {
-    /// The user's Apple voice id (or "system"). Legacy style (the retired Chatterbox Nano used it).
+    /// The user's Apple voice id (or "system").
     case appleVoice
     /// "<prefix>.<engine voice id>", e.g. "kokoro.af_heart".
     case prefixed(String)

@@ -2,7 +2,7 @@ import AVFoundation
 import XCTest
 @testable import Reader
 
-/// Nav I: speed changes apply in place (player time-stretch, no restart / re-queue), developer
+/// Speed changes apply in place (player time-stretch, no restart / re-queue), developer
 /// options default per build, the five-slot bottom toolbar grid.
 @MainActor
 final class PlaybackRateAndChromeTests: XCTestCase {

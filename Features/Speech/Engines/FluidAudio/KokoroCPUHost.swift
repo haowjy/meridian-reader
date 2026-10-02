@@ -1,7 +1,7 @@
 import FluidAudio
 import Foundation
 
-/// Kokoro 82M on the **ONNX CPU route** — Kokoro's main route since 2026-09-24.
+/// Kokoro 82M on the **ONNX CPU route**, Kokoro's default route.
 ///
 /// - Synthesis: ONNX Runtime CPU execution provider (`KokoroONNXSession`,
 ///   `onnx-community/Kokoro-82M-v1.0-ONNX` fp16, 163 MB, downloaded by `CPURouteModelStore`).

@@ -1,13 +1,11 @@
 import XCTest
 @testable import Reader
 
-/// Crash flow 2026-09-24 22:00 (Kokoro libBNNS SIGSEGV, FluidAudio #844): Browse → Save → open
-/// in Reader while a saved article was playing. The SIGSEGV itself is inside Apple's BNNS and
-/// cannot run on the Simulator; what this reproduces is *our* bug in that flow, which multiplied
-/// Core ML calls (crash exposure grows per call): opening the reader for the just-saved article
-/// (not the live session) wiped the chunk scratch of the paragraph the queue was baking for it,
-/// so already-rendered chunks were synthesized again (timing log: p2 c0 rendered at 22:00:06 and
-/// again at 22:00:08.691, crash on the next call).
+/// Browse → Save → open in Reader while another saved article plays. Opening the reader for the
+/// just-saved article (not the live session) must keep the chunk scratch of the paragraph the
+/// queue is baking for it; wiping it re-synthesizes already-rendered chunks. Every extra Core ML
+/// call is exposure to the Kokoro libBNNS SIGSEGV (FluidAudio #844), which can't be reproduced
+/// on the Simulator, so this pins the call count instead.
 @MainActor
 final class BrowseSaveWhilePlayingTests: XCTestCase {
     private var cleanups: [() -> Void] = []

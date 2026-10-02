@@ -113,8 +113,8 @@ final class SynthPipelineTests: XCTestCase {
 
     // MARK: - Queue priority
 
-    /// Regression: `drainPendingIntoQueue` used to `openArticle` any pending job with
-    /// `priorityStart > 0`, stealing #1 from the article being listened to.
+    /// A pending job started mid-article (`priorityStart > 0`) is demoted behind the article
+    /// being listened to; it must not take #1.
     func testPendingMidArticleJobDoesNotStealActiveArticle() async throws {
         let provider = FakeEngineProvider()
         let (queue, ctx) = makeQueue(provider)

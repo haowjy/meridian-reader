@@ -42,7 +42,7 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     private(set) var isSpeaking = false
     private(set) var isPaused = false
 
-    /// Units played while the app was backgrounded (debug: render mode / what Jimmy's test hit).
+    /// Units played while the app was backgrounded, by source (listen debug panel).
     struct BackgroundPlayStats: Equatable {
         var bakedParagraphs = 0
         var engineChunks = 0
@@ -72,7 +72,7 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     var isRenderingParagraph: ((Int) -> Bool)?
     /// Chunk durations of a stitched paragraph CAF (nil = single chunk / unknown).
     var chunkDurationsProvider: ((Int) -> [TimeInterval]?)?
-    /// Sub-paragraph start (Nav I): how far into the first unit of this speak/seek to begin, as a
+    /// Sub-paragraph start: how far into the first unit of this speak/seek to begin, as a
     /// fraction of its synth chunk. Consumed by the first enqueue of the start paragraph.
     private var pendingStartFraction: Double = 0
     /// Lead-in before an estimated sentence start (the in-chunk position is a character-based
@@ -294,7 +294,7 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
         return first.paragraphIndex
     }
 
-    /// Listen speed (Nav I): a time-stretch on the player, applied in place. Audio is always
+    /// Listen speed: a time-stretch on the player, applied in place. Audio is always
     /// rendered at 1× (engine and Apple fallback alike), so nothing is re-rendered or re-queued
     /// and the current sentence just continues faster / slower.
     func setPlaybackRate(_ multiplier: Float) {
@@ -363,8 +363,8 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     }
 
     /// Recover only genuinely stuck states. While the worker is actively rendering the unit the
-    /// producer waits for, re-arm instead of cancelling (cancel/re-kick never skips, but it was
-    /// churning epochs every 1.5 s during long renders).
+    /// producer waits for, re-arm instead of cancelling (cancel/re-kick never skips, but would
+    /// churn epochs every 1.5 s during a long render).
     private func armStarveWatchdog() {
         starveWatchGeneration += 1
         let watch = starveWatchGeneration

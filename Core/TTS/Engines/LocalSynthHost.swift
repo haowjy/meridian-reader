@@ -114,7 +114,7 @@ enum LocalPCMWriter {
         let channel = channels[0]
         for i in 0..<samples.count {
             // NaN/inf must never reach the file: `min(1, NaN)` is 1 → a full-scale DC block
-            // (a loud pop, silence, a pop). Seen with the unpatched ONNX model, 2026-09-25.
+            // (a loud pop, silence, a pop). The unpatched Kokoro ONNX model emits NaN.
             let v = samples[i]
             let clamped = v.isFinite ? max(-1.0, min(1.0, v)) : 0
             channel[i] = Int16(clamped * Float(Int16.max))

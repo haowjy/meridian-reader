@@ -73,7 +73,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         let routeSettings = KokoroRouteSettings(defaults: defaults)
         let raw = defaults.string(forKey: Self.engineIDKey) ?? SpeechEngineID.apple.rawValue
         var initial = SpeechEngineID(rawValue: raw)
-        // Retired engine selected (e.g. Chatterbox Nano) → its replacement if installed, else Apple.
+        // Retired engine selected → its replacement if installed, else Apple.
         var retiredNotes: [String] = []
         for r in engines.retiredEngines where initial == r.id {
             let to: SpeechEngineID = engines.supports(r.replacement) && engines.isInstalled(r.replacement)
@@ -126,9 +126,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
                 + "Switched to \(engines.displayName(fallback)). Tap \(name) to try again."
             print("[TTS] \(name) crash detected → \(fallback.rawValue)")
         }
-        // One-time (ONNX-main release): an earlier Core ML crash left Kokoro users on Apple
-        // (Jimmy's phone: guard count 2, engine Apple). Bring them back to Kokoro on the stable
-        // route, at the article/paragraph of that crash (opened paused).
+        // One-time: a Core ML crash before the ONNX route existed left Kokoro users on Apple.
+        // Bring them back to Kokoro on the stable route, at the article/paragraph of that crash
+        // (opened paused).
         if !defaults.bool(forKey: Self.onnxMainMigrationKey) {
             defaults.set(true, forKey: Self.onnxMainMigrationKey)
             if !handledKokoroCrash, initial == .apple, engines.supports(.kokoro),
@@ -209,9 +209,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
     }
 
-    /// Bump when saved Kokoro audio must be re-rendered. v2 (2026-09-25): audio from before the
-    /// ONNX NaN fix can contain full-scale pops + seconds of silence, has ≈0.8 s of dead air at
-    /// every chunk join, and used the old chunk plan (mid-phrase cuts).
+    /// Bump when saved Kokoro audio must be re-rendered. v2: audio rendered before the ONNX NaN
+    /// fix can contain full-scale pops + seconds of silence, has ≈0.8 s of dead air at every
+    /// chunk join, and follows a chunk plan that cut mid-phrase.
     static let kokoroAudioCacheVersion = 2
     static let kokoroAudioCacheVersionKey = "reader.tts.kokoro.audioCacheVersion"
 
@@ -706,7 +706,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         if synthQueue.hasJob(cacheKey: key) {
             // Its bake is queued / in progress (e.g. Browse → Save → open in Reader while
             // another article plays): keep finished chunks whose text still matches, or the
-            // worker re-synthesizes them (crash 2026-09-24 22:00, p2 c0 rendered twice).
+            // worker renders them a second time.
             audioCache.removeChunkScratch(for: key, keepingCurrent: paragraphs)
         } else {
             audioCache.removeChunkScratch(for: key)

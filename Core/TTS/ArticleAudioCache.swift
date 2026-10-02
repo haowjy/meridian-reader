@@ -429,7 +429,7 @@ extension ArticleAudioCache {
         let srcIndex = try? loadIndex(for: oldKey)
         let dstIndex = try? loadIndex(for: newKey)
         var dstEntries: [IndexFile.ParagraphEntry] = []
-        // Default for index files written before engine keys existed (Chatterbox Nano era).
+        // Index files without an engine key belong to `legacyEngineID`.
         var engineID = Self.legacyEngineID
         var voiceID = "system"
         if let srcIndex {
@@ -659,7 +659,8 @@ extension ArticleAudioCache {
 // MARK: - One voice per article, retired engines, orphans
 
 extension ArticleAudioCache {
-    /// Engine id assumed for index files written before engine keys existed (Chatterbox Nano era).
+    /// Engine id for index files that carry no `engineID`: only the retired Chatterbox Nano
+    /// wrote those.
     nonisolated static let legacyEngineID = "local.chatterbox-nano"
 
     /// Once every paragraph `0..<paragraphCount` has a CAF in `engineID`/`voiceID`, delete any

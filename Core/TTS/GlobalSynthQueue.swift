@@ -58,7 +58,7 @@ final class GlobalSynthQueue {
     /// stitching (cleaned on next open / launch). Pure bake-ahead paragraphs drop scratch at once.
     private var liveChunkParagraphs: Set<ParagraphKey> = []
     /// (key|index|textHash) that failed the engine *and* Apple fallback — skipped by the worker so a
-    /// bad unit cannot spin forever (the old loop retried the same failing paragraph endlessly).
+    /// bad unit cannot spin forever. A live request for the unit clears its mark (fresh try).
     private var failedUnits: Set<String> = []
     private var chunkPlanCache: [String: [String]] = [:]
 
@@ -271,8 +271,6 @@ final class GlobalSynthQueue {
     /// - any other job becomes #1 only when the queue has no #1 at all;
     /// - everything else — including jobs started mid-article (`priorityStart > 0`) — is demoted
     ///   behind #1, keeping its mid-article plan for when its turn comes.
-    /// (Before: `priorityStart > 0` jobs went through `openArticle` and stole #1 from the
-    /// article being listened to.)
     func adoptPending(_ pending: [PendingWork], focusKey: UUID? = nil) {
         var ordered = pending
         if let focusKey, let i = ordered.firstIndex(where: { $0.cacheKey == focusKey }) {
@@ -339,12 +337,11 @@ final class GlobalSynthQueue {
         return chunks
     }
 
-    /// Local engine or engine voice switched: chunk plans, chunk scratch and failure marks
-    /// belong to the old engine. Paragraph CAFs are keyed by engine+voice in `index.json`,
-    /// so stale ones are simply not matched (and get replaced as the new engine bakes).
-    /// Voice or engine changed: drop chunk plans/scratch (rendered in the old voice) and retarget
-    /// every queued article to the new cache voice so the worker re-renders in it. Old-voice
-    /// paragraph CAFs stay playable until each paragraph is replaced (`playableAudioURL`).
+    /// The local engine or its voice changed: drop chunk plans, chunk scratch and failure marks
+    /// (they belong to the old engine/voice) and retarget every queued article to the new cache
+    /// voice so the worker re-renders in it. Paragraph CAFs are keyed by engine+voice in
+    /// `index.json`: old-voice ones stay playable until each paragraph is replaced
+    /// (`playableAudioURL`) but never count as ready.
     func engineDidChange() {
         chunkPlanCache.removeAll()
         failedUnits.removeAll()
@@ -621,7 +618,7 @@ final class GlobalSynthQueue {
             }
             do {
                 try Task.checkCancellation()
-                // A listener waiting on a later chunk (scrubbed to a sentence mid-paragraph, Nav I)
+                // A listener waiting on a later chunk (scrubbed to a sentence mid-paragraph)
                 // gets that chunk first; otherwise chunks render in order.
                 let waited = chunkWaiters.keys
                     .filter { $0.cacheKey == job.cacheKey && $0.index == index }

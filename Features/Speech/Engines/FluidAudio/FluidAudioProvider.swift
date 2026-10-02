@@ -6,8 +6,8 @@ extension SpeechEngineID {
     /// Kokoro 82M — the on-device engine. One id for both routes (ONNX CPU default, Core ML
     /// debug opt-in), so the article cache ("kokoro.<voice>") is shared between them.
     static let kokoro = SpeechEngineID("local.kokoro")
-    /// Chatterbox Nano — removed from Reader (2026-09-24). Kept only so the retirement cleanup can
-    /// recognise its persisted selection, model files and cached audio.
+    /// Retired engine (Chatterbox Nano). Only the retirement cleanup uses it, to recognise its
+    /// persisted selection, model files and cached audio.
     static let retiredChatterboxNano = SpeechEngineID("local.chatterbox-nano")
 }
 
@@ -62,7 +62,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
 
     var descriptors: [EngineDescriptor] { [Self.kokoroDescriptor] }
 
-    /// Chatterbox Nano was removed: move its users to Kokoro (if installed) or Apple, delete its
+    /// Retired Chatterbox Nano: move its users to Kokoro (if installed) or Apple, delete its
     /// ~750 MB of models and its cached article audio. Runs once (idempotent).
     var retiredEngines: [RetiredEngine] {
         [RetiredEngine(
@@ -124,8 +124,8 @@ final class FluidAudioProvider: SpeechEngineProvider {
         return KokoroHost.deleteCoreMLStages()
     }
 
-    /// Everything Chatterbox Nano ever wrote outside the article cache: FluidAudio's model cache,
-    /// the Phase-0 Reader mirror (`TTSModels/chatterbox-nano`) and old Nano probe outputs.
+    /// Everything Chatterbox Nano wrote outside the article cache: FluidAudio's model cache,
+    /// Reader's model mirror (`TTSModels/chatterbox-nano`) and Nano probe outputs.
     /// Returns bytes freed.
     nonisolated static func deleteRetiredNanoFiles(fileManager fm: FileManager = .default) -> Int64 {
         var targets: [URL] = []

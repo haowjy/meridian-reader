@@ -3,7 +3,7 @@ import SwiftData
 import XCTest
 @testable import Reader
 
-/// Giant paragraphs split for display + navigation + audio (layout v3, 2026-09-25).
+/// Giant paragraphs split for display + navigation + audio (layout v3).
 /// Real text: The Forgotten (royalroad 178276), "Prologue / Chapter One: Gunner".
 final class ParagraphSplitTests: XCTestCase {
     /// `<div class="chapter-inner chapter-content">` of the chapter page (86 `<p>`, with

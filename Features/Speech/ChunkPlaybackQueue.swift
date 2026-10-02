@@ -28,7 +28,7 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
     private var primedItem: Item?
     private let maxBuffered: Int
     private var softPaused = false
-    /// Listen speed (Nav I). Applied in place with `AVAudioPlayer.enableRate` / `rate`, a
+    /// Listen speed. Applied in place with `AVAudioPlayer.enableRate` / `rate`, a
     /// pitch-preserving time stretch: changing it never re-queues, restarts or re-renders
     /// anything — the current unit keeps going from the same spot at the new speed.
     private(set) var playbackRate: Float = 1
@@ -53,8 +53,8 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
     /// True when finish arrived and next CAF was already primed.
     private(set) var lastHandoffWasPrimed = false
 
-    /// Deeper than early redesign (3): local synth can exceed short-paragraph duration,
-    /// so keep more Ready CAF ahead of the playhead to avoid audible gaps.
+    /// Local synth can take longer than a short paragraph plays, so keep several Ready CAFs
+    /// ahead of the playhead to avoid audible gaps.
     init(maxBuffered: Int = 8) {
         self.maxBuffered = maxBuffered
     }
