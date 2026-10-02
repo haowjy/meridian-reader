@@ -530,9 +530,8 @@ struct BrowseStartView: View {
     /// address field and the ⋯ panel's bottom-right toggle; Bookmarks / Saved / History live in the
     /// ⋯ panel and on the start page.
     private var toolbarRow: some View {
-        // Five equal slots shared with the reader: `[‹][›][Search][Library][⋯]` (Nav I).
-        // Slot 4 is Library↔Browser (on Library the surface shows 🌐). ⋯ always stays in slot 5;
-        // Reader↔Website remains the morph-menu focus near ⋯.
+        // Slot 4 swaps Library↔Browser (the Library surface shows 🌐 there); ⋯ is always slot 5,
+        // and the morph menu's Reader↔Website button is its focus point near ⋯.
         BottomToolbarLayout {
             toolbarButton("chevron.backward", label: "Back", id: "browseBack") { webStore.goBack() }
                 .disabled(!webStore.canGoBack)

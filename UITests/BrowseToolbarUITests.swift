@@ -1,8 +1,8 @@
 import XCTest
 
-/// Browser bottom bar: no tab bar, toolbar ‹ › ⋯ (⋯ = Safari-style popover with Bookmarks / Saved /
-/// History), the address-field reader icon (readable pages only), site bookmarks, and edit mode
-/// that cancels via ✕ or a pull-down (restoring the page address).
+/// Browser bottom bar: no tab bar, toolbar `[‹][›][Search][Library][⋯]` (⋯ = the morph menu panel
+/// with Bookmarks / Saved / History), the address-field reader icon (readable pages only), site
+/// bookmarks, and edit mode that cancels via ✕ or a pull-down (restoring the page address).
 final class BrowseToolbarUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
@@ -60,8 +60,8 @@ final class BrowseToolbarUITests: XCTestCase {
         for id in ["browseForward", "browseMore"] {
             XCTAssertTrue(element(app, id).exists, "\(id) exists")
         }
-        XCTAssertFalse(element(app, "browseSaved").exists, "Saved moved into ⋯ (Safari-style)")
-        XCTAssertFalse(element(app, "browseReader").exists, "Reader moved into the address field / ⋯")
+        XCTAssertFalse(element(app, "browseSaved").exists, "Saved lives in ⋯ (Safari-style)")
+        XCTAssertFalse(element(app, "browseReader").exists, "Reader is the address-field icon / ⋯ toggle")
         XCTAssertTrue(element(app, "browseLibrary").exists, "Library↔Browser slot beside ⋯")
         XCTAssertFalse(element(app, "addressMic").exists, "mic only while searching, not idle")
         XCTAssertFalse(app.tabBars.firstMatch.isHittable, "no tab bar on Browse")
@@ -87,7 +87,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(waitFor("isEnabled == true", back))
         XCTAssertTrue(waitFor("isEnabled == false", forward))
 
-        // Five-slot grid (Nav I): Search in the middle slot (3 of 5), ⋯ in slot 5.
+        // Five-slot grid: Search in the middle slot (3 of 5), ⋯ in slot 5.
         let search = app.buttons["browseSearch"]
         XCTAssertTrue(search.exists)
         let row = app.windows.firstMatch.frame
@@ -104,7 +104,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(waitFor("hasKeyboardFocus == false", field))
         XCTAssertTrue(back.isEnabled, "still on the same page")
 
-        // ⋯ popover: action rows, then the big Saved / History buttons.
+        // ⋯ panel: action rows, then the big Saved / History buttons.
         let browseMoreFrame = app.buttons["browseMore"].frame
         app.buttons["browseMore"].tap()
         assertMenuAligned(app, more: browseMoreFrame, button: "moreReaderToggle")
@@ -115,7 +115,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertFalse(element(app, "moreReader").exists, "the Open in Reader row is gone (bottom-right toggle)")
         XCTAssertTrue(element(app, "moreMenuPanel").exists, "Safari-style panel (no popover arrow)")
         element(app, "moreReload").tap()
-        XCTAssertTrue(waitFor("exists == false", element(app, "moreReload")), "popover closes")
+        XCTAssertTrue(waitFor("exists == false", element(app, "moreReload")), "panel closes")
 
         // Saved → the library surface (shared chrome); Browser slot returns to the page.
         app.buttons["browseMore"].tap()
@@ -206,11 +206,11 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(close.waitForExistence(timeout: 10), "⋯ → Reader opens the reader")
 
         let website = element(app, "moreWebsite")
-        // …where ⋯ sits in the listen bar's bottom-right (no gear) and shows the same popover.
-        XCTAssertFalse(app.buttons["listenQuickSettings"].exists, "gear replaced by ⋯")
+        // …where ⋯ sits in the listen bar's bottom-right (no gear) and shows the same panel.
+        XCTAssertFalse(app.buttons["listenQuickSettings"].exists, "no gear: voice settings live in ⋯")
         let readerMore = app.buttons["readerMore"]
         XCTAssertTrue(readerMore.waitForExistence(timeout: 5))
-        // Nav G: the reader's bottom chrome is the browser's; ⋯ sits in exactly the same cell.
+        // The reader's bottom chrome is the browser's; ⋯ sits in exactly the same cell.
         let rf = readerMore.frame
         XCTAssertEqual(rf.midX, browseMoreFrame.midX, accuracy: 1, "⋯ at the same x as the browser's")
         XCTAssertEqual(rf.midY, browseMoreFrame.midY, accuracy: 1, "⋯ at the same y as the browser's")
@@ -241,7 +241,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(website.waitForExistence(timeout: 3))
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
         element(app, "moreBookmark").tap()
-        XCTAssertTrue(waitFor("exists == false", website), "popover closes")
+        XCTAssertTrue(waitFor("exists == false", website), "panel closes")
         readerMore.tap()
         XCTAssertTrue(waitFor("label == 'Remove Bookmark'", element(app, "moreBookmark")), "bookmarked from the reader")
 
@@ -278,10 +278,10 @@ final class BrowseToolbarUITests: XCTestCase {
         readerMore.tap()
         element(app, "moreHistory").tap()
         XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 8), "history sheet")
-        XCTAssertFalse(app.navigationBars["Saved"].exists, "library sheet closed first")
+        XCTAssertFalse(app.navigationBars["Saved"].exists, "library closed first")
     }
 
-    /// Nav H: open a saved article directly, play, ⋯ → Website: the library closes, the browser
+    /// Open a saved article directly, play, ⋯ → Website: the library closes, the browser
     /// loads the article's page, and the voice keeps going (mini player).
     func testSavedArticleWebsiteOpensPageAndKeepsPlaying() throws {
         let app = XCUIApplication()
@@ -326,7 +326,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(bookmark.waitForExistence(timeout: 3))
         XCTAssertEqual(bookmark.label, "Bookmark")
         bookmark.tap()
-        XCTAssertTrue(waitFor("exists == false", bookmark), "popover closes")
+        XCTAssertTrue(waitFor("exists == false", bookmark), "panel closes")
 
         app.buttons["browseMore"].tap()
         XCTAssertTrue(waitFor("label == 'Remove Bookmark'", element(app, "moreBookmark")), "now bookmarked")

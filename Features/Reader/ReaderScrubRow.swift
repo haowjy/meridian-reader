@@ -129,7 +129,7 @@ struct ReaderScrubMap: Equatable, Sendable {
     }
 }
 
-/// Scrub speed by how far the finger has moved vertically away from the track (Nav I), like
+/// Scrub speed by how far the finger has moved vertically away from the track, like
 /// the Music / Podcasts scrubbers: the further up, the finer — for precise small moves back.
 enum ScrubSpeed: Equatable, CaseIterable {
     case normal, half, quarter, fine
@@ -168,7 +168,7 @@ enum ScrubSpeed: Equatable, CaseIterable {
 
 /// Reader bottom row above the listen controls: [scrubber][select paragraph][bookmark] (thumb
 /// reach). The scrubber fills with progress and shows rendered audio as a lighter "buffered" fill
-/// ahead of it. Dragging (Nav I):
+/// ahead of it. Dragging:
 /// - grabbing the thumb moves it relative to the finger (no jump); touching elsewhere jumps there;
 /// - sliding the finger up away from the track scrubs slower (½, ¼, fine) for small precise moves;
 /// - it snaps to sentence starts: a haptic tick per sentence, the bubble shows the paragraph /
@@ -207,7 +207,7 @@ struct ReaderScrubRow: View {
     private static let space = "readerScrubTrack"
 
     var body: some View {
-        // Styled exactly like the browser's address field (Nav G): the same field capsule
+        // Styled exactly like the browser's address field: the same field capsule
         // (`bottomChromeField`), with Jump / bookmark sized and coloured like its mic button.
         HStack(spacing: 4) {
             scrubber

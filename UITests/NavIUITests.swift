@@ -1,12 +1,12 @@
 import XCTest
 
-/// Must match `MorphMenu.focusOffsetFromAnchor` (Nav J Safari nudge).
+/// Must match `MorphMenu.focusOffsetFromAnchor` (Safari-style nudge of the focus icon).
 enum MorphMenuUITestOffset {
     static let width: CGFloat = 12
     static let height: CGFloat = 10
 }
 
-/// Nav I: the five-slot bottom toolbar grid shared by Browse and the reader, developer options
+/// The five-slot bottom toolbar grid shared by Browse and the reader, developer options
 /// hidden, sub-paragraph (sentence) scrubbing.
 final class NavIUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
@@ -71,7 +71,7 @@ final class NavIUITests: XCTestCase {
         }
         XCTAssertEqual(reader[4].midY, browse[4].midY, accuracy: 1, "⋯ same y")
 
-        // ⋯ menu: Website/Reader icon is slightly up and left of ⋯ (Safari feel, Nav J) —
+        // ⋯ menu: Website/Reader icon is slightly up and left of ⋯ (Safari feel) —
         // not dead-on overlap. Morph still grows from ⋯.
         app.buttons["readerMore"].tap()
         let focus = el(app, "moreMenuFocus")

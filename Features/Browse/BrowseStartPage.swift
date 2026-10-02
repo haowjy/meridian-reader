@@ -243,7 +243,7 @@ struct ThinProgressBar: View {
 struct MiniPlayerBar: View {
     @Bindable var speech: SpeechController
     var onOpen: () -> Void
-    /// Bar width (= the toolbar row's width): play/pause sits over the ⋯ slot (Nav I).
+    /// Bar width (= the toolbar row's width): play/pause sits over the ⋯ slot.
     @State private var width: CGFloat = 0
 
     /// Play/pause button width.

@@ -1,7 +1,7 @@
 import XCTest
 
 /// Start page (no page loaded): Continue listening (in-progress saves, tap to resume in the ✕
-/// reader) and Saved (recent saves, Show All → library sheet).
+/// reader) and Saved (recent saves, Show All → library).
 final class BrowseStartPageUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
