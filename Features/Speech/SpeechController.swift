@@ -223,7 +223,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
                 return
             }
             UserDefaults.standard.set(rateMultiplier, forKey: rateDefaultsKey)
-            // Local engine: time-stretch the player in place (Nav I) — the sentence keeps going at
+            // Local engine: time-stretch the player in place — the sentence keeps going at
             // the new speed, nothing restarts. Apple's synthesizer can't change an utterance's
             // rate, so it restarts from the word being spoken (`willSpeakRange` offset).
             localTTS.localEngineInstance.setPlaybackRate(Float(rateMultiplier))
@@ -368,7 +368,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     /// Prepared (not playing): put the playhead on the stored / scrubbed sentence so Play starts
-    /// there instead of at the paragraph start (Nav I).
+    /// there instead of at the paragraph start.
     private func placeResumeOffset(_ offset: Int?, paragraph: Int) {
         guard let offset, playback.phase == .prepared, !document.isEmpty,
               document.index(containingUTF16Offset: offset) == paragraph else { return }
@@ -399,7 +399,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         perform(.seek(paragraph: paragraph))
     }
 
-    /// Scrubber inside a paragraph (Nav I): move to document offset `utf16` (a sentence start)
+    /// Scrubber inside a paragraph: move to document offset `utf16` (a sentence start)
     /// without changing play/pause state. Local engine: starts at the synth chunk holding that
     /// sentence, offset into its audio; Apple: speaks from that character.
     func seek(_ session: SpeechSession, toUTF16Offset utf16: Int) {
@@ -636,12 +636,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         guard usesLocalPlayback, playback.phase == .playing || playback.phase == .paused,
               let reason = localTTS.localEngineInstance.currentAppleFallbackReason else { return nil }
         _ = bufferingRevision
-        let name = localTTS.localEngineInstance.engineShortName
-        switch reason {
-        case "background": return "Apple voice · \(name) can't render in the background"
-        case "behind": return "Apple voice for this paragraph · \(name) fell behind"
-        default: return "Apple voice · \(name) couldn't render this paragraph"
-        }
+        return reason.localizedNote(engine: localTTS.localEngineInstance.engineShortName)
     }
 
     // MARK: - Intent execution
@@ -654,8 +649,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     private func execute(_ commands: [PlaybackCommand]) {
         for command in commands {
             switch command {
-            case .prepareDocument:
-                break
             case .enginePlay(let from):
                 speak(fromUTF16Offset: startOffset(forParagraph: from), startPaused: false)
             case .enginePause:
@@ -747,11 +740,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             self?.completeArticle(restartBake: true)
         }
         engine.articleID = playback.articleID
-        if let articleID = playback.articleID {
-            engine.isEphemeralCache = localTTS.audioCache.loadMeta(for: articleID)?.kind == .ephemeral
-        } else {
-            engine.isEphemeralCache = false
-        }
         engine.bakedURLProvider = { [weak self] idx in
             guard let self, let articleID = self.playback.articleID else { return nil }
             // Current voice's CAF, else the previous voice's until this paragraph is re-rendered.
@@ -760,23 +748,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
                 paragraphIndex: idx,
                 engineID: self.localTTS.cacheEngineID,
                 voiceID: self.cacheVoiceID
-            )
-        }
-        engine.unitEnsureProvider = { [weak self] index, text in
-            guard let self, let articleID = self.playback.articleID else {
-                throw NSError(
-                    domain: "SpeechController",
-                    code: 1,
-                    userInfo: [NSLocalizedDescriptionKey: "No active article for ensure"]
-                )
-            }
-            return try await self.localTTS.ensureUnit(
-                cacheKey: articleID,
-                paragraphIndex: index,
-                text: text,
-                rate: Float(self.rateMultiplier),
-                voiceID: self.cacheVoiceID,
-                isEphemeral: self.localTTS.audioCache.loadMeta(for: articleID)?.kind == .ephemeral
             )
         }
         engine.chunkCountProvider = { [weak self] text in
@@ -796,7 +767,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
                 chunk: chunk,
                 text: text,
                 paragraphs: self.playback.document.paragraphs,
-                rate: Float(self.rateMultiplier),
                 voiceID: self.cacheVoiceID,
                 isEphemeral: self.localTTS.audioCache.loadMeta(for: articleID)?.kind == .ephemeral
             )
@@ -823,19 +793,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             guard let self, let articleID = self.playback.articleID else { return false }
             let queue = self.localTTS.synthQueue
             return queue.activeBakeCacheKey == articleID && queue.activeBakeIndex == index
-        }
-        engine.onUnitRendered = { [weak self] index, url, duration in
-            guard let self, let articleID = self.playback.articleID else { return nil }
-            let paragraphs = self.playback.document.paragraphs
-            return try? self.localTTS.persistRenderedUnit(
-                articleID: articleID,
-                paragraphIndex: index,
-                sourceURL: url,
-                duration: duration,
-                rate: Float(self.rateMultiplier),
-                voiceID: self.cacheVoiceID,
-                text: paragraphs.indices.contains(index) ? paragraphs[index] : nil
-            )
         }
     }
 
@@ -868,8 +825,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
 
         if usesLocalPlayback {
             let paragraphIndex = document.isEmpty ? 0 : document.index(containingUTF16Offset: clamped)
-            // Units are rendered at 1×; the player time-stretches to the listen speed (Nav I).
-            let avRate = Float(AVSpeechUtteranceDefaultSpeechRate)
+            // Units are rendered at 1×; the player time-stretches to the listen speed.
             localTTS.localEngineInstance.setPlaybackRate(Float(rateMultiplier))
             // Scrubbed to a sentence mid-paragraph: start at its synth chunk, offset into the audio.
             let within = clamped - document.startUTF16Offset(forParagraph: paragraphIndex)
@@ -900,7 +856,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
                     cacheKey: articleID,
                     playhead: paragraphIndex,
                     paragraphs: document.paragraphs,
-                    rate: Float(rateMultiplier),
                     voiceID: cacheVoiceID,
                     isEphemeral: meta?.kind == .ephemeral
                 )
@@ -914,7 +869,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
                         startingAt: paragraphIndex,
                         chunk: startPoint.chunk,
                         fractionInChunk: startPoint.fraction,
-                        rate: avRate,
                         voiceID: self.selectedVoiceIdentifier
                     )
                     if startPaused {
@@ -934,7 +888,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         speakApple(remaining: remaining, generation: generation, startPaused: startPaused)
     }
 
-    // MARK: - Sub-paragraph position (local engine, Nav I)
+    // MARK: - Sub-paragraph position (local engine)
 
     @ObservationIgnored private var chunkStartsCache: [String: [Int]] = [:]
 
@@ -966,23 +920,23 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         guard p == playback.playhead, document.paragraphs.indices.contains(p) else { return }
         let length = document.paragraphs[p].utf16.count
         let starts = chunkStarts(paragraph: p)
+        let fractionOfFile = pos.duration > 0 ? min(1, pos.time / pos.duration) : 0
         let within: Int
-        let chunk = pos.item.chunkIndex ?? 0
-        if chunk >= 10_000 {
-            // Apple fallback: the remainder from chunk (chunk - 10 000) as one file.
-            let from = starts[min(chunk - 10_000, starts.count - 1)]
-            let f = pos.duration > 0 ? min(1, pos.time / pos.duration) : 0
-            within = from + Int(Double(length - from) * f)
-        } else if pos.item.chunkIndex == nil || pos.item.isWholeParagraph {
+        switch pos.item.source {
+        case .appleFallback(let fromChunk, _):
+            // The rest of the paragraph from `fromChunk` as one Apple file: proportional by characters.
+            let from = starts[min(fromChunk, starts.count - 1)]
+            within = from + Int(Double(length - from) * fractionOfFile)
+        case .baked, .stitched:
+            // The stitched paragraph CAF: locate the chunk from its recorded durations.
             let durations = localTTS.localEngineInstance.chunkDurationsProvider?(p)
             let loc = ChunkOffsets.locate(time: pos.time, fileDuration: pos.duration,
                                           durations: durations, chunkCount: starts.count)
             within = loc.chunk < 0
                 ? Int(Double(length) * loc.fraction)
                 : ChunkOffsets.offset(chunk: loc.chunk, fraction: loc.fraction, starts: starts, length: length)
-        } else {
-            let f = pos.duration > 0 ? min(1, pos.time / pos.duration) : 0
-            within = ChunkOffsets.offset(chunk: chunk, fraction: f, starts: starts, length: length)
+        case .chunk(let k):
+            within = ChunkOffsets.offset(chunk: k, fraction: fractionOfFile, starts: starts, length: length)
         }
         let utf16 = document.startUTF16Offset(forParagraph: p) + max(0, min(within, max(0, length - 1)))
         guard abs(utf16 - playback.utf16Offset) >= 4 else { return }
@@ -1027,7 +981,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     private func finishSession(restartBake: Bool) {
         let articleID = playback.articleID
         let paragraphs = playback.document.paragraphs
-        let rate = Float(rateMultiplier)
         let voiceID = cacheVoiceID
         speakGeneration += 1
         stopBufferingPoll()
@@ -1038,10 +991,9 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         audioSession.deactivate()
         if restartBake, let articleID, !paragraphs.isEmpty {
             // Return-to-top gap fill so any paragraphs above the listen playhead still bake.
-            localTTS.resumeGapFillBake(
+            localTTS.startBakeIfNeeded(
                 articleID: articleID,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID
             )
         }

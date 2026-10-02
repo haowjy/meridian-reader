@@ -244,7 +244,7 @@ enum ArticleLibrary {
             }
             if let job = scheduler.pendingJobs().first(where: { $0.articleID == row.id }) {
                 let start = ParagraphPositionMap.mapParagraphStart(job.priorityStart, from: ParagraphDocument(parts: job.paragraphs), to: new)
-                scheduler.enqueuePending(articleID: row.id, paragraphs: new.paragraphs, rate: job.rate, voiceID: job.voiceID,
+                scheduler.enqueuePending(articleID: row.id, paragraphs: new.paragraphs, voiceID: job.voiceID,
                                          plan: BakePriorityPlan(priorityStart: start,
                                                                 fillGapsFromTopAfterPriority: job.fillGapsFromTopAfterPriority,
                                                                 paragraphCount: new.count))

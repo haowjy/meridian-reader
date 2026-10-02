@@ -321,8 +321,7 @@ AppComposition (composition root: the only file that lists libraries)
 SpeechEngineProvider (one per library)      EngineDescriptor (capabilities, per engine)
   descriptors / retiredEngines                   id, names, subtitle, recommended, sort order
   makeHost(for:voice:) → LocalSynthHost       voices + default, voice defaults key, cache voice key style
-  isInstalled / deleteModels                  streaming, chunk limits + notes, assets + size
-                                              hardware gate, compute routing, quirks
+  isInstalled / deleteModels                  chunk limits, hardware gate, languages
 LocalSynthHost (thin: load + ONE call)        supportsBakeCache, crashGuarded, crash notice text
   → LocalChunkRenderer (shared: normalize, gate, crash guard, re-split on inputTooLong, log, CAF)
 ```
@@ -347,7 +346,7 @@ capabilities, overflow → re-split, fail → Apple fallback, and queue priority
    `dependencies: - package: … product: …`), then `xcodegen generate`. Library imports stay in
    `Features/Speech/Engines/<Library>/`.
 2. **Host.** Implement `LocalSynthHost`: `prepare()` (download + load; hold
-   `SynthRenderGate.shared` while loading Core ML; report `onProgress`), `synthesizeOnce(text:seed:)`
+   `SynthRenderGate.shared` while loading Core ML; report `onProgress`), `synthesizeOnce(text:)`
    (ONE call → `SynthesizedPCM`; map the library's "input/output too long" error to
    `LocalSynthError.inputTooLong` so the shared renderer re-splits), `setVoice`, `resetPrepared`, `unload`.
 3. **Descriptor.** Fill an `EngineDescriptor`: a new, never-changing `id` (e.g. `local.qwen3-tts`),
@@ -391,7 +390,7 @@ final class Qwen3Host: LocalSynthHost {
     func prepare() async throws {            // hold SynthRenderGate while loading
         model = try await Qwen3TTSCoreMLModel.fromPretrained(progressHandler: { p, _ in onProgress?(p) })
     }
-    func synthesizeOnce(text: String, seed: UInt64) async throws -> SynthesizedPCM {
+    func synthesizeOnce(text: String) async throws -> SynthesizedPCM {
         // ≤125 codec tokens ≈ 10 s per call; map its "too long" error → LocalSynthError.inputTooLong
         SynthesizedPCM(samples: try model.synthesize(text: text, language: "english"), sampleRate: 24_000)
     }
@@ -401,7 +400,7 @@ final class Qwen3Host: LocalSynthHost {
 ```
 
 Then fill in `isInstalled` / `deleteModels` (speech-swift's HuggingFace cache dir), measure on device,
-and set real `limits`, `approxDownloadBytes`, `subtitle` and `hardware`. Note: vendoring both
+and set real `limits`, `subtitle` and `hardware`. Note: vendoring both
 FluidAudio and speech-swift may duplicate model downloads/caches; check the combined app size.
 
 ## CPU route (ONNX Runtime) — debug benchmark only (2026-09-24)

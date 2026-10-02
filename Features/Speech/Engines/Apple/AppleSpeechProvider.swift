@@ -8,7 +8,6 @@ final class AppleSpeechProvider: SpeechEngineProvider {
 
     static let descriptor = EngineDescriptor(
         id: .apple,
-        providerName: "Apple",
         kind: .system,
         displayName: "Apple",
         shortName: "Apple",
@@ -19,14 +18,8 @@ final class AppleSpeechProvider: SpeechEngineProvider {
         defaultVoiceID: nil,
         voiceDefaultsKey: "reader.selectedVoiceIdentifier",
         cacheVoiceKey: .appleVoice,
-        streaming: EngineStreaming(streams: true, yieldsPCMChunks: false),
         limits: .tenSecondCall, // only used to split Apple *fallback* text; any sane size works
-        limitNotes: "No per-call cap that matters; utterances are whole paragraphs.",
-        assets: [],
-        approxDownloadBytes: 0,
         hardware: .none,
-        computeRouting: nil,
-        quirks: [],
         supportsBakeCache: false,
         crashGuarded: false,
         crashNoticeDetail: nil

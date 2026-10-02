@@ -11,7 +11,6 @@ enum PlaybackPhase: Equatable, Sendable {
 
 /// What the UI / controller wants.
 enum PlaybackIntent: Equatable {
-    case prepare(startingAt: Int)
     case play(from: Int)
     case pause
     case resume
@@ -19,7 +18,7 @@ enum PlaybackIntent: Equatable {
     case stop
     case skip(delta: Int)
     case seek(paragraph: Int)
-    /// Scrubber commit inside a paragraph (Nav I): document UTF-16 offset of a sentence start.
+    /// Scrubber commit inside a paragraph: document UTF-16 offset of a sentence start.
     case seekOffset(utf16: Int)
 }
 
@@ -28,10 +27,7 @@ enum PlaybackEngineEvent: Equatable {
     case becameAudible
     case becamePaused
     case playheadAdvanced(paragraph: Int, utf16Offset: Int?)
-    /// Producer still working; do not finish the session.
-    case queueStarved
     case finished
-    case failed
 }
 
 /// Live snapshot of the active adapter — used to decide toggle/pause without trusting phase alone.
@@ -42,7 +38,6 @@ struct PlaybackEngineSnapshot: Equatable {
 
 /// Commands the session asks the controller to run on adapters / producer.
 enum PlaybackCommand: Equatable {
-    case prepareDocument
     case enginePlay(from: Int)
     case enginePause
     case engineResume
@@ -85,17 +80,9 @@ struct PlaybackSessionState: Equatable {
         engine: PlaybackEngineSnapshot
     ) -> [PlaybackCommand] {
         switch intent {
-        case .prepare(let startingAt):
-            guard isPrepared else { return [.prepareDocument] }
-            let clamped = document.isEmpty ? 0 : max(0, min(startingAt, document.count - 1))
-            playhead = clamped
-            utf16Offset = document.startUTF16Offset(forParagraph: clamped)
-            if phase == .idle { phase = .prepared }
-            return []
-
         case .play(let from):
             let clamped = document.isEmpty ? 0 : max(0, min(from, document.count - 1))
-            // Play from the playhead keeps a sub-paragraph spot (scrubbed while prepared, Nav I).
+            // Play from the playhead keeps a sub-paragraph spot (scrubbed while prepared).
             let keepsOffset = clamped == playhead && !document.isEmpty
                 && document.index(containingUTF16Offset: utf16Offset) == clamped
             playhead = clamped
@@ -196,12 +183,9 @@ struct PlaybackSessionState: Equatable {
     mutating func handle(_ event: PlaybackEngineEvent) {
         switch event {
         case .becameAudible:
+            // Audible right after a pause request means the pause hasn't taken yet: stay paused
+            // (the UI shows the Pause icon from the audible snapshot meanwhile).
             if phase != .paused { phase = .playing }
-            // If we had optimistically paused but audio is audible, trust the engine.
-            if phase == .paused {
-                // Keep paused only if we intentionally paused; audible after pause request
-                // means pause has not taken yet — stay paused (UI shows pause icon via audible).
-            }
 
         case .becamePaused:
             phase = .paused
@@ -210,14 +194,8 @@ struct PlaybackSessionState: Equatable {
             playhead = paragraph
             if let utf16 { utf16Offset = utf16 }
 
-        case .queueStarved:
-            break // stay playing/paused; producer will feed more
-
         case .finished:
             phase = .finished
-
-        case .failed:
-            phase = articleID == nil ? .idle : .prepared
         }
     }
 

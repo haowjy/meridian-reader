@@ -32,7 +32,7 @@ final class VoiceSwitchTests: XCTestCase {
         try FileManager.default.createDirectory(at: cache.root, withIntermediateDirectories: true)
         try LocalPCMWriter.write(FakeSynthHost.tone(seconds: seconds, sampleRate: 24_000), sampleRate: 24_000, to: src)
         try cache.storeParagraph(articleID: key, paragraphIndex: i, sourceURL: src, duration: seconds,
-                                 engineID: engine ?? kokoro, voiceID: voice, rate: 1, text: "p\(i)")
+                                 engineID: engine ?? kokoro, voiceID: voice, text: "p\(i)")
         try FileManager.default.removeItem(at: src)
     }
 
@@ -129,13 +129,13 @@ final class VoiceSwitchTests: XCTestCase {
         queue.attach(coordinator: ctx)
         let key = UUID()
         let paras = ["First paragraph here.", "Second paragraph, a bit longer than the first.", "Third."]
-        queue.openArticle(cacheKey: key, paragraphs: paras, rate: 1, voiceID: "fake.a", isEphemeral: false)
+        queue.openArticle(cacheKey: key, paragraphs: paras, voiceID: "fake.a", isEphemeral: false)
         try await waitIdle(queue)
         XCTAssertEqual(ready(ctx.audioCache, key, 3, engine: ctx.cacheEngineID, voice: "fake.a"), [0, 1, 2])
 
         // Background job still carries the old voice when the user switches.
         queue.isPausedForProbe = true
-        queue.openArticle(cacheKey: key, paragraphs: paras, rate: 1, voiceID: "fake.a", isEphemeral: false)
+        queue.openArticle(cacheKey: key, paragraphs: paras, voiceID: "fake.a", isEphemeral: false)
         ctx.activeVoice = "fake.b"
         queue.engineDidChange()
         queue.isPausedForProbe = false
@@ -148,6 +148,29 @@ final class VoiceSwitchTests: XCTestCase {
         XCTAssertTrue(index.paragraphs.allSatisfy { $0.voiceID == nil })
         XCTAssertEqual(cafFiles(ctx.audioCache, key).count, 3, "no staging or old-voice files left")
         XCTAssertEqual(ctx.completed, [key, key])
+    }
+
+    /// Index files and pending bake jobs written before units were always rendered at 1× carry a
+    /// `rate` key; they still decode (the key is ignored).
+    func testLegacyRateKeyStillDecodes() throws {
+        let cache = tempCache()
+        let key = UUID()
+        try FileManager.default.createDirectory(at: cache.directory(for: key), withIntermediateDirectories: true)
+        let index = """
+        {"engineID":"\(kokoro)","voiceID":"\(heart)","rate":1.25,"createdAt":0,
+         "paragraphs":[{"index":0,"file":"p-0000.caf","duration":1.5}]}
+        """
+        try Data(index.utf8).write(to: cache.indexURL(for: key))
+        let loaded = try cache.loadIndex(for: key)
+        XCTAssertEqual(loaded.voiceID, heart)
+        XCTAssertEqual(loaded.paragraphs.map(\.index), [0])
+
+        let job = """
+        [{"articleID":"\(key.uuidString)","paragraphs":["One."],"rate":0.5,"voiceID":"\(heart)",
+          "priorityStart":0,"fillGapsFromTopAfterPriority":false}]
+        """
+        let jobs = try JSONDecoder().decode([BackgroundAudioBakeScheduler.PendingJob].self, from: Data(job.utf8))
+        XCTAssertEqual(jobs.first?.articleID, key)
     }
 
     private func waitIdle(_ queue: GlobalSynthQueue, timeout: TimeInterval = 20) async throws {

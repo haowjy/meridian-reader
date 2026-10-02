@@ -20,7 +20,6 @@ struct ReaderApp: App {
                 .environment(\.articleExtractor, extractor)
                 .environment(\.speechController, speechController)
                 .onAppear {
-                    BackgroundAudioBakeScheduler.shared.coordinator = speechController.localTTS
                     EngineLatencyProbe.runIfRequested(coordinator: speechController.localTTS)
                 }
         }

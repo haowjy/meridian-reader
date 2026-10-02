@@ -14,7 +14,6 @@ final class ArticleAudioCache {
     struct IndexFile: Codable, Equatable {
         var engineID: String
         var voiceID: String
-        var rate: Float?
         var createdAt: Date
         var paragraphs: [ParagraphEntry]
 
@@ -203,7 +202,6 @@ final class ArticleAudioCache {
         duration: TimeInterval,
         engineID: String,
         voiceID: String,
-        rate: Float,
         text: String? = nil,
         chunkDurations: [Double]? = nil
     ) throws -> URL {
@@ -248,7 +246,6 @@ final class ArticleAudioCache {
         let index = IndexFile(
             engineID: engineID,
             voiceID: voiceID,
-            rate: rate,
             createdAt: Date(),
             paragraphs: entries
         )
@@ -432,10 +429,9 @@ extension ArticleAudioCache {
         let srcIndex = try? loadIndex(for: oldKey)
         let dstIndex = try? loadIndex(for: newKey)
         var dstEntries: [IndexFile.ParagraphEntry] = []
-        // Default for index files written before engine keys existed (Chatterbox Nano era).
+        // Index files without an engine key belong to `legacyEngineID`.
         var engineID = Self.legacyEngineID
         var voiceID = "system"
-        var rate: Float? = nil
         if let srcIndex {
             engineID = srcIndex.engineID
             voiceID = srcIndex.voiceID
@@ -445,10 +441,8 @@ extension ArticleAudioCache {
         }
         if let dstIndex {
             dstEntries = dstIndex.retargeted(engineID: engineID, voiceID: voiceID).paragraphs
-            rate = dstIndex.rate
         }
         if let srcIndex {
-            rate = srcIndex.rate
             for entry in srcIndex.paragraphs {
                 let srcFile = src.appendingPathComponent(entry.file)
                 let dstFile = dst.appendingPathComponent(entry.file)
@@ -467,7 +461,6 @@ extension ArticleAudioCache {
         let index = IndexFile(
             engineID: engineID,
             voiceID: voiceID,
-            rate: rate,
             createdAt: Date(),
             paragraphs: dstEntries
         )
@@ -666,7 +659,8 @@ extension ArticleAudioCache {
 // MARK: - One voice per article, retired engines, orphans
 
 extension ArticleAudioCache {
-    /// Engine id assumed for index files written before engine keys existed (Chatterbox Nano era).
+    /// Engine id for index files that carry no `engineID`: only the retired Chatterbox Nano
+    /// wrote those.
     nonisolated static let legacyEngineID = "local.chatterbox-nano"
 
     /// Once every paragraph `0..<paragraphCount` has a CAF in `engineID`/`voiceID`, delete any

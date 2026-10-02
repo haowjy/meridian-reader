@@ -1,7 +1,7 @@
 import FluidAudio
 import Foundation
 
-/// Kokoro 82M on the **ONNX CPU route** — Kokoro's main route since 2026-09-24.
+/// Kokoro 82M on the **ONNX CPU route**, Kokoro's default route.
 ///
 /// - Synthesis: ONNX Runtime CPU execution provider (`KokoroONNXSession`,
 ///   `onnx-community/Kokoro-82M-v1.0-ONNX` fp16, 163 MB, downloaded by `CPURouteModelStore`).
@@ -137,7 +137,7 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
         }
     }
 
-    func synthesizeOnce(text: String, seed: UInt64) async throws -> SynthesizedPCM {
+    func synthesizeOnce(text: String) async throws -> SynthesizedPCM {
         let (fe, session) = lock.withLock { (frontend, self.session) }
         guard let fe, let session else { throw LocalSynthError.engineUnavailable("Kokoro (CPU) not loaded") }
         let voice = currentVoice

@@ -2,7 +2,7 @@ import AVFoundation
 import XCTest
 @testable import Reader
 
-/// Nav I: speed changes apply in place (player time-stretch, no restart / re-queue), developer
+/// Speed changes apply in place (player time-stretch, no restart / re-queue), developer
 /// options default per build, the five-slot bottom toolbar grid.
 @MainActor
 final class PlaybackRateAndChromeTests: XCTestCase {
@@ -37,8 +37,8 @@ final class PlaybackRateAndChromeTests: XCTestCase {
         defer { queue.clear() }
         var started: [Int] = []
         queue.onUnitStarted = { started.append($0.paragraphIndex) }
-        queue.enqueue(.init(paragraphIndex: 0, fileURL: try makeTone(seconds: 3)))
-        queue.enqueue(.init(paragraphIndex: 1, fileURL: try makeTone(seconds: 0.6)))
+        queue.enqueue(.init(paragraphIndex: 0, fileURL: try makeTone(seconds: 3), source: .baked))
+        queue.enqueue(.init(paragraphIndex: 1, fileURL: try makeTone(seconds: 0.6), source: .baked))
         spin(0.5)
         guard let before = queue.currentPosition else { return XCTFail("nothing playing") }
         XCTAssertEqual(before.item.paragraphIndex, 0)
@@ -56,7 +56,7 @@ final class PlaybackRateAndChromeTests: XCTestCase {
         // The next unit starts at the new speed; clear() keeps it (a setting, not queue state).
         queue.clear()
         XCTAssertEqual(queue.playbackRate, 1.5)
-        queue.enqueue(.init(paragraphIndex: 2, fileURL: try makeTone(seconds: 1)))
+        queue.enqueue(.init(paragraphIndex: 2, fileURL: try makeTone(seconds: 1), source: .baked))
         XCTAssertEqual(queue.currentPlayerRate, 1.5)
     }
 

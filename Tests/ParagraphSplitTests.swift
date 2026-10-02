@@ -3,7 +3,7 @@ import SwiftData
 import XCTest
 @testable import Reader
 
-/// Giant paragraphs split for display + navigation + audio (layout v3, 2026-09-25).
+/// Giant paragraphs split for display + navigation + audio (layout v3).
 /// Real text: The Forgotten (royalroad 178276), "Prologue / Chapter One: Gunner".
 final class ParagraphSplitTests: XCTestCase {
     /// `<div class="chapter-inner chapter-content">` of the chapter page (86 `<p>`, with
@@ -285,7 +285,7 @@ final class ParagraphLayoutMigrationTests: XCTestCase {
         try LocalPCMWriter.write(samples, sampleRate: 24_000, to: tmp)
         try cache.storeParagraph(articleID: article, paragraphIndex: index, sourceURL: tmp,
                                  duration: Double(samples.count) / 24_000, engineID: SpeechEngineID.kokoro.rawValue,
-                                 voiceID: "kstub:af_heart", rate: 1, text: text,
+                                 voiceID: "kstub:af_heart", text: text,
                                  chunkDurations: lengths.count > 1 ? lengths.map { Double($0) / 24_000 } : nil)
     }
 

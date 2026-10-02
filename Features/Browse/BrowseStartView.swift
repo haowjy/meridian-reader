@@ -1302,7 +1302,6 @@ struct BrowseStartView: View {
             speech.localTTS.startBakeIfNeeded(
                 articleID: row.id,
                 paragraphs: article.document.paragraphs,
-                rate: Float(speech.rateMultiplier),
                 voiceID: speech.cacheVoiceID
             )
         } catch {

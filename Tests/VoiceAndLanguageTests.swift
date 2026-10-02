@@ -183,14 +183,14 @@ final class VoiceAndLanguageTests: XCTestCase {
         }
         let french = ["Le comité s'est réuni mardi pour discuter de la nouvelle bibliothèque, qui ouvrira au printemps prochain."]
         let key = UUID()
-        c.warmListenAudio(cacheKey: key, paragraphs: french, rate: 1, voiceID: "fake.default",
+        c.warmListenAudio(cacheKey: key, paragraphs: french, voiceID: "fake.default",
                           resumeParagraph: 0, isEphemeral: true)
         XCTAssertEqual(gateCalls.count, 1)
         XCTAssertFalse(c.synthQueue.hasJob(cacheKey: key), "French article must not bake with an English-only engine")
 
         let english = ["The committee met on Tuesday to discuss the new library, which will open next spring."]
         let key2 = UUID()
-        c.warmListenAudio(cacheKey: key2, paragraphs: english, rate: 1, voiceID: "fake.default",
+        c.warmListenAudio(cacheKey: key2, paragraphs: english, voiceID: "fake.default",
                           resumeParagraph: 0, isEphemeral: true)
         XCTAssertTrue(c.synthQueue.hasJob(cacheKey: key2), "English article bakes")
         c.synthQueue.remove(cacheKey: key2)

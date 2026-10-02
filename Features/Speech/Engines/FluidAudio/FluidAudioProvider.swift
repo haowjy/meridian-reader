@@ -6,8 +6,8 @@ extension SpeechEngineID {
     /// Kokoro 82M — the on-device engine. One id for both routes (ONNX CPU default, Core ML
     /// debug opt-in), so the article cache ("kokoro.<voice>") is shared between them.
     static let kokoro = SpeechEngineID("local.kokoro")
-    /// Chatterbox Nano — removed from Reader (2026-09-24). Kept only so the retirement cleanup can
-    /// recognise its persisted selection, model files and cached audio.
+    /// Retired engine (Chatterbox Nano). Only the retirement cleanup uses it, to recognise its
+    /// persisted selection, model files and cached audio.
     static let retiredChatterboxNano = SpeechEngineID("local.chatterbox-nano")
 }
 
@@ -30,9 +30,11 @@ final class FluidAudioProvider: SpeechEngineProvider {
     /// Curated voices live in `KokoroVoiceCatalog` (one-line swaps).
     static var kokoroVoices: [EngineVoice] { KokoroVoiceCatalog.curated }
 
+    /// Default route: ONNX Runtime CPU (no Core ML/BNNS, keeps rendering in the background).
+    /// The Core ML route is a debug opt-in: on iOS 26.4+ every Core ML routing can SIGSEGV in
+    /// libBNNS (FluidAudio #844).
     static let kokoroDescriptor = EngineDescriptor(
         id: .kokoro,
-        providerName: "FluidAudio",
         kind: .onDevice,
         displayName: "Kokoro (on-device)",
         shortName: "Kokoro",
@@ -43,28 +45,11 @@ final class FluidAudioProvider: SpeechEngineProvider {
         defaultVoiceID: KokoroVoiceCatalog.defaultVoice,
         voiceDefaultsKey: "reader.tts.kokoroVoice", // pre-DI key, keep
         cacheVoiceKey: .prefixed("kokoro"),          // "kokoro.af_heart" (existing caches)
-        streaming: .wholeCall,
+        // Chunks ≤ 280 units; a call over `KokoroCPUHost.maxTokensPerCall` throws inputTooLong
+        // and the renderer re-splits.
         limits: .kokoroCPU,
-        limitNotes: "Model cap ≤510 IPA phonemes per call; the ONNX CPU route sizes chunks to ≈200 tokens "
-            + "(hardMax 200 at ≈1.0 phoneme/char) to bound ORT memory, with a short first chunk (≤80) for fast "
-            + "first audio. >240 tokens → inputTooLong → re-split.",
-        assets: [
-            .init(name: "Kokoro-82M ONNX fp16 (onnx-community/Kokoro-82M-v1.0-ONNX)", approxBytes: 163_234_740,
-                  source: "hf:onnx-community/Kokoro-82M-v1.0-ONNX"),
-            .init(name: "G2P encoder/decoder weights (read by Swift, not Core ML)", approxBytes: 1_600_000,
-                  source: "hf:FluidInference/kokoro-82m-coreml"),
-            .init(name: "us_lexicon_cache.json", approxBytes: 10_400_000, source: "hf:FluidInference/kokoro-82m-coreml"),
-            .init(name: "vocab.json + voice packs (0.5 MB each)", approxBytes: 600_000, source: "hf:FluidInference/kokoro-82m-coreml"),
-        ],
-        approxDownloadBytes: 176_000_000,
         hardware: HardwareRequirement(minimumOSMajor: 17, minimumChip: .a15, allowsSimulator: true,
                                       summary: "iPhone 13 / recent iPad (A15+)"),
-        computeRouting: "onnxCPU (debug: Core ML \(KokoroHost.defaultUnitsLabel))",
-        quirks: [
-            "Default route: ONNX Runtime CPU — no Core ML/BNNS, renders in the background.",
-            "iOS 26.4+: every Core ML routing can SIGSEGV in libBNNS (#844); the Core ML route is a debug opt-in.",
-            "Output is deterministic; seed ignored.",
-        ],
         supportsBakeCache: true,
         crashGuarded: true,
         crashNoticeDetail: "Kokoro stopped unexpectedly",
@@ -77,7 +62,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
 
     var descriptors: [EngineDescriptor] { [Self.kokoroDescriptor] }
 
-    /// Chatterbox Nano was removed: move its users to Kokoro (if installed) or Apple, delete its
+    /// Retired Chatterbox Nano: move its users to Kokoro (if installed) or Apple, delete its
     /// ~750 MB of models and its cached article audio. Runs once (idempotent).
     var retiredEngines: [RetiredEngine] {
         [RetiredEngine(
@@ -139,8 +124,8 @@ final class FluidAudioProvider: SpeechEngineProvider {
         return KokoroHost.deleteCoreMLStages()
     }
 
-    /// Everything Chatterbox Nano ever wrote outside the article cache: FluidAudio's model cache,
-    /// the Phase-0 Reader mirror (`TTSModels/chatterbox-nano`) and old Nano probe outputs.
+    /// Everything Chatterbox Nano wrote outside the article cache: FluidAudio's model cache,
+    /// Reader's model mirror (`TTSModels/chatterbox-nano`) and Nano probe outputs.
     /// Returns bytes freed.
     nonisolated static func deleteRetiredNanoFiles(fileManager fm: FileManager = .default) -> Int64 {
         var targets: [URL] = []

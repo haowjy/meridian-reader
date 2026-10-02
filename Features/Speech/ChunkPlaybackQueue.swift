@@ -9,18 +9,14 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
     struct Item {
         let paragraphIndex: Int
         let fileURL: URL
-        /// Synth chunk within the paragraph (nil = whole baked paragraph CAF).
-        var chunkIndex: Int? = nil
-        /// Start offset into `fileURL` (resume at a chunk boundary of a stitched paragraph).
+        let source: UnitSource
+        /// Start offset into `fileURL` (a chunk boundary of a stitched paragraph, or a
+        /// sub-paragraph start).
         var startTime: TimeInterval = 0
-        /// `fileURL` is the whole stitched paragraph (baked CAF), even when `chunkIndex` is set.
-        var isWholeParagraph = false
 
-        /// Same audio? A whole-paragraph item overlaps every chunk of that paragraph.
+        /// Same audio as `other`? See `UnitSource.overlaps`.
         func overlaps(_ other: Item) -> Bool {
-            guard paragraphIndex == other.paragraphIndex else { return false }
-            guard let a = chunkIndex, let b = other.chunkIndex else { return true }
-            return a == b
+            paragraphIndex == other.paragraphIndex && source.overlaps(other.source)
         }
     }
 
@@ -32,7 +28,7 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
     private var primedItem: Item?
     private let maxBuffered: Int
     private var softPaused = false
-    /// Listen speed (Nav I). Applied in place with `AVAudioPlayer.enableRate` / `rate`, a
+    /// Listen speed. Applied in place with `AVAudioPlayer.enableRate` / `rate`, a
     /// pitch-preserving time stretch: changing it never re-queues, restarts or re-renders
     /// anything — the current unit keeps going from the same spot at the new speed.
     private(set) var playbackRate: Float = 1
@@ -57,8 +53,8 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
     /// True when finish arrived and next CAF was already primed.
     private(set) var lastHandoffWasPrimed = false
 
-    /// Deeper than early redesign (3): local synth can exceed short-paragraph duration,
-    /// so keep more Ready CAF ahead of the playhead to avoid audible gaps.
+    /// Local synth can take longer than a short paragraph plays, so keep several Ready CAFs
+    /// ahead of the playhead to avoid audible gaps.
     init(maxBuffered: Int = 8) {
         self.maxBuffered = maxBuffered
     }
@@ -101,7 +97,7 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         queue.append(item)
         lastEnqueueAt = Date()
         ListenDebugLog.shared.append(
-            "enqueue p\(item.paragraphIndex)\(item.chunkIndex.map { "c\($0)" } ?? "") buf=\(bufferedCount) primed=\(primedPlayer != nil)"
+            "enqueue p\(item.paragraphIndex)\(item.source.debugTag) buf=\(bufferedCount) primed=\(primedPlayer != nil)"
         )
         if current == nil, !softPaused {
             playNext()
@@ -225,7 +221,7 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         let p: AVAudioPlayer
         let item: Item
         if let primedPlayer, let primedItem, primedItem.paragraphIndex == head.paragraphIndex,
-           primedItem.chunkIndex == head.chunkIndex, primedItem.startTime == head.startTime,
+           primedItem.source == head.source, primedItem.startTime == head.startTime,
            primedItem.fileURL == head.fileURL {
             queue.removeFirst()
             item = primedItem

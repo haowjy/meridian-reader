@@ -20,7 +20,6 @@ final class SpeechSwiftProvider: SpeechEngineProvider {
 
     static let qwen3Descriptor = EngineDescriptor(
         id: .qwen3TTS,
-        providerName: "speech-swift",
         kind: .onDevice,
         displayName: "Qwen3-TTS (on-device)",
         shortName: "Qwen3",
@@ -31,16 +30,11 @@ final class SpeechSwiftProvider: SpeechEngineProvider {
         defaultVoiceID: nil,
         voiceDefaultsKey: nil,
         cacheVoiceKey: .prefixed("qwen3"),
-        streaming: .wholeCall,
-        // ≤125 codec tokens ≈ 10 s audio per call → `.tenSecondCall` until measured.
+        // ≤125 codec tokens ≈ 10 s audio per call → `.tenSecondCall` until s/char is measured on
+        // device. Model: hf:aufklarer/Qwen3-TTS-CoreML (0.6B), bundle-default compute units.
         limits: .tenSecondCall,
-        limitNotes: "maxTokens 125 (≈10 s) per call; measure s/char on device before widening.",
-        assets: [.init(name: "Qwen3-TTS CoreML 0.6B", approxBytes: 0, source: "hf:aufklarer/Qwen3-TTS-CoreML")],
-        approxDownloadBytes: 0,
         hardware: HardwareRequirement(minimumOSMajor: 18, minimumChip: .a17OrNewer, allowsSimulator: false,
                                       summary: "iPhone 15 Pro or newer · iOS 18+"),
-        computeRouting: "cpuAndNeuralEngine (bundle default)",
-        quirks: [],
         supportsBakeCache: true,
         crashGuarded: true,
         crashNoticeDetail: "Core ML crash"
@@ -81,7 +75,7 @@ final class Qwen3Host: LocalSynthHost, @unchecked Sendable {
         }
     }
 
-    func synthesizeOnce(text: String, seed: UInt64) async throws -> SynthesizedPCM {
+    func synthesizeOnce(text: String) async throws -> SynthesizedPCM {
         guard let model = lock.withLock({ model }) else { throw LocalSynthError.engineUnavailable("Qwen3 not loaded") }
         // Map the library's "too many tokens" error to .inputTooLong so LocalChunkRenderer re-splits.
         let samples = try model.synthesize(text: text, language: "english")

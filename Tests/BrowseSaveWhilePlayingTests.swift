@@ -1,13 +1,11 @@
 import XCTest
 @testable import Reader
 
-/// Crash flow 2026-09-24 22:00 (Kokoro libBNNS SIGSEGV, FluidAudio #844): Browse → Save → open
-/// in Reader while a saved article was playing. The SIGSEGV itself is inside Apple's BNNS and
-/// cannot run on the Simulator; what this reproduces is *our* bug in that flow, which multiplied
-/// Core ML calls (crash exposure grows per call): opening the reader for the just-saved article
-/// (not the live session) wiped the chunk scratch of the paragraph the queue was baking for it,
-/// so already-rendered chunks were synthesized again (timing log: p2 c0 rendered at 22:00:06 and
-/// again at 22:00:08.691, crash on the next call).
+/// Browse → Save → open in Reader while another saved article plays. Opening the reader for the
+/// just-saved article (not the live session) must keep the chunk scratch of the paragraph the
+/// queue is baking for it; wiping it re-synthesizes already-rendered chunks. Every extra Core ML
+/// call is exposure to the Kokoro libBNNS SIGSEGV (FluidAudio #844), which can't be reproduced
+/// on the Simulator, so this pins the call count instead.
 @MainActor
 final class BrowseSaveWhilePlayingTests: XCTestCase {
     private var cleanups: [() -> Void] = []
@@ -58,7 +56,7 @@ final class BrowseSaveWhilePlayingTests: XCTestCase {
         // Saved article A is playing from its baked audio.
         let a = UUID()
         let aParas = ["The saved article that is already playing has its own words."]
-        c.synthQueue.openArticle(cacheKey: a, paragraphs: aParas, rate: 1, voiceID: voice, isEphemeral: false)
+        c.synthQueue.openArticle(cacheKey: a, paragraphs: aParas, voiceID: voice, isEphemeral: false)
         try await waitIdle(c.synthQueue)
         XCTAssertNotNil(c.audioCache.audioURL(articleID: a, paragraphIndex: 0, engineID: c.cacheEngineID, voiceID: voice))
 
@@ -67,7 +65,7 @@ final class BrowseSaveWhilePlayingTests: XCTestCase {
         let bParas = [(1...5).map(sentence).joined(separator: " "), sentence(9)]
         let chunks0 = c.synthQueue.chunkTexts(for: bParas[0])
         XCTAssertGreaterThanOrEqual(chunks0.count, 3)
-        c.synthQueue.openArticle(cacheKey: b, paragraphs: bParas, rate: 1, voiceID: voice, isEphemeral: false)
+        c.synthQueue.openArticle(cacheKey: b, paragraphs: bParas, voiceID: voice, isEphemeral: false)
 
         // Wait until chunk 0 of B p0 is on disk (mid-paragraph bake).
         let hash = ArticleIdentity.paragraphHash(bParas[0])
@@ -80,7 +78,7 @@ final class BrowseSaveWhilePlayingTests: XCTestCase {
 
         // → Open in Reader. A is the live session, so B's open is NOT live playback.
         c.prepareListenIdentity(key: b, paragraphs: bParas, isLivePlayback: false)
-        c.warmListenAudio(cacheKey: b, paragraphs: bParas, rate: 1, voiceID: voice, isEphemeral: false)
+        c.warmListenAudio(cacheKey: b, paragraphs: bParas, voiceID: voice, isEphemeral: false)
         try await waitIdle(c.synthQueue)
 
         let texts = provider.lastHost!.calls.filter(\.ok).map(\.text)

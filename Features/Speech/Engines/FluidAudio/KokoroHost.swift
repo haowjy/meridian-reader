@@ -2,7 +2,7 @@ import FluidAudio
 import Foundation
 
 /// Kokoro 82M via FluidAudio `KokoroAneManager` (vendored v0.16.1, `TTS/KokoroAne`) — the
-/// **Core ML route**. Since 2026-09-24 only used when the debug toggle "Kokoro fast GPU route
+/// **Core ML route**. Only used when the debug toggle "Kokoro fast GPU route
 /// (may crash on iOS 26.4+)" is on; the default is `KokoroCPUHost` (ONNX CPU). Never renders in
 /// the background (`rendersInBackground` = false).
 /// Thin host: download + load, one `synthesizeDetailed` call, map overflow errors.
@@ -13,7 +13,7 @@ import Foundation
 ///   Misaki `us_lexicon_cache.json` (≈10 MB). No espeak.
 ///   Cached under `Application Support/fluidaudio/Models/{kokoro-82m-coreml/ANE, kokoro}`.
 /// - Per call: ≤510 IPA phonemes (`phonemeSequenceTooLong`), ≤2000 frames (`acousticFramesExceedCap`).
-/// - Deterministic; the seed is ignored.
+/// - Deterministic: the same text renders the same audio.
 final class KokoroHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID = .kokoro
 
@@ -28,7 +28,7 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
 
     /// Compute routing. On iOS 26.4–26.x all stages run on `.cpuAndGPU` except the vocoder on
     /// `.cpuAndNeuralEngine` ("gpuAneVocoder"): FluidAudio's default ANE routing crashed in libBNNS
-    /// on Jimmy's iPhone 17 Pro / iOS 26.6.2; gpuAneVocoder ran ~180 calls crash-free at ~18×.
+    /// on an iPhone 17 Pro / iOS 26.6.2; gpuAneVocoder ran ~180 calls crash-free at ~18×.
     /// Debug knob: `-kokoroUnits default|cpuAndGpu|cpuOnly|allAne|aneTailCpu|gpuAneVocoder|aneFrontGpuBack`.
     let unitsLabel: String
     var routingLabel: String? { unitsLabel }
@@ -151,7 +151,7 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
         await manager.cleanup()
     }
 
-    func synthesizeOnce(text: String, seed: UInt64) async throws -> SynthesizedPCM {
+    func synthesizeOnce(text: String) async throws -> SynthesizedPCM {
         do {
             let r = try await manager.synthesizeDetailed(text: text, voice: currentVoice, speed: 1.0)
             let st = r.timings

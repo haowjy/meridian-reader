@@ -73,7 +73,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         let routeSettings = KokoroRouteSettings(defaults: defaults)
         let raw = defaults.string(forKey: Self.engineIDKey) ?? SpeechEngineID.apple.rawValue
         var initial = SpeechEngineID(rawValue: raw)
-        // Retired engine selected (e.g. Chatterbox Nano) → its replacement if installed, else Apple.
+        // Retired engine selected → its replacement if installed, else Apple.
         var retiredNotes: [String] = []
         for r in engines.retiredEngines where initial == r.id {
             let to: SpeechEngineID = engines.supports(r.replacement) && engines.isInstalled(r.replacement)
@@ -126,9 +126,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
                 + "Switched to \(engines.displayName(fallback)). Tap \(name) to try again."
             print("[TTS] \(name) crash detected → \(fallback.rawValue)")
         }
-        // One-time (ONNX-main release): an earlier Core ML crash left Kokoro users on Apple
-        // (Jimmy's phone: guard count 2, engine Apple). Bring them back to Kokoro on the stable
-        // route, at the article/paragraph of that crash (opened paused).
+        // One-time: a Core ML crash before the ONNX route existed left Kokoro users on Apple.
+        // Bring them back to Kokoro on the stable route, at the article/paragraph of that crash
+        // (opened paused).
         if !defaults.bool(forKey: Self.onnxMainMigrationKey) {
             defaults.set(true, forKey: Self.onnxMainMigrationKey)
             if !handledKokoroCrash, initial == .apple, engines.supports(.kokoro),
@@ -209,9 +209,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
     }
 
-    /// Bump when saved Kokoro audio must be re-rendered. v2 (2026-09-25): audio from before the
-    /// ONNX NaN fix can contain full-scale pops + seconds of silence, has ≈0.8 s of dead air at
-    /// every chunk join, and used the old chunk plan (mid-phrase cuts).
+    /// Bump when saved Kokoro audio must be re-rendered. v2: audio rendered before the ONNX NaN
+    /// fix can contain full-scale pops + seconds of silence, has ≈0.8 s of dead air at every
+    /// chunk join, and follows a chunk plan that cut mid-phrase.
     static let kokoroAudioCacheVersion = 2
     static let kokoroAudioCacheVersionKey = "reader.tts.kokoro.audioCacheVersion"
 
@@ -548,13 +548,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         audioCache.status(for: articleID, expectedParagraphs: paragraphCount)
     }
 
-    /// Compatibility: demote is not cancel — use focusPlayhead / openArticle to reshuffle.
-    /// Kept so call sites that previously cancelled bake for play can call `prioritizeListen` instead.
-    func cancelBake(for articleID: UUID) {
-        // No-op cancel of worker: reshuffle via focusPlayhead. Removing jobs would drop cache work.
-        _ = articleID
-    }
-
     // MARK: - Shared warm / queue reshuffle (Browse + Saved)
 
     /// Open/focus an article as queue #1 and bake from resume downward.
@@ -562,7 +555,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
     func warmListenAudio(
         cacheKey: UUID,
         paragraphs: [String],
-        rate: Float,
         voiceID: String,
         resumeParagraph: Int = 0,
         isEphemeral: Bool
@@ -574,7 +566,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             BackgroundAudioBakeScheduler.shared.enqueuePending(
                 articleID: cacheKey,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID,
                 plan: resumeParagraph <= 0
                     ? .topDown(paragraphCount: paragraphs.count)
@@ -593,7 +584,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         synthQueue.openArticle(
             cacheKey: cacheKey,
             paragraphs: paragraphs,
-            rate: rate,
             voiceID: voiceID,
             resumeParagraph: resumeParagraph,
             isEphemeral: isEphemeral
@@ -605,7 +595,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         cacheKey: UUID,
         playhead: Int,
         paragraphs: [String],
-        rate: Float,
         voiceID: String,
         isEphemeral: Bool = false
     ) {
@@ -619,7 +608,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             synthQueue.openArticle(
                 cacheKey: cacheKey,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID,
                 resumeParagraph: playhead,
                 isEphemeral: isEphemeral
@@ -629,7 +617,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             warmListenAudio(
                 cacheKey: cacheKey,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID,
                 resumeParagraph: playhead,
                 isEphemeral: isEphemeral
@@ -638,14 +625,13 @@ final class LocalTTSCoordinator: SynthQueueContext {
     }
 
     /// On article save: enqueue (demoted if something else is #1) top → down.
-    func startBakeIfNeeded(articleID: UUID, paragraphs: [String], rate: Float, voiceID: String) {
+    func startBakeIfNeeded(articleID: UUID, paragraphs: [String], voiceID: String) {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
         let voiceID = normalizedCacheVoice(voiceID)
         audioCache.markSaved(cacheKey: articleID)
         BackgroundAudioBakeScheduler.shared.enqueuePending(
             articleID: articleID,
             paragraphs: paragraphs,
-            rate: rate,
             voiceID: voiceID,
             plan: .topDown(paragraphCount: paragraphs.count)
         )
@@ -664,7 +650,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             synthQueue.openArticle(
                 cacheKey: articleID,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID,
                 resumeParagraph: 0,
                 isEphemeral: false
@@ -673,81 +658,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
             synthQueue.enqueueDemoted(
                 cacheKey: articleID,
                 paragraphs: paragraphs,
-                rate: rate,
                 voiceID: voiceID,
                 isEphemeral: false
             )
         }
-    }
-
-    func prioritizeBake(
-        articleID: UUID,
-        from playhead: Int,
-        paragraphs: [String],
-        rate: Float,
-        voiceID: String
-    ) {
-        prioritizeListen(
-            cacheKey: articleID,
-            playhead: playhead,
-            paragraphs: paragraphs,
-            rate: rate,
-            voiceID: voiceID,
-            isEphemeral: false
-        )
-    }
-
-    func resumeGapFillBake(
-        articleID: UUID,
-        paragraphs: [String],
-        rate: Float,
-        voiceID: String
-    ) {
-        startBakeIfNeeded(articleID: articleID, paragraphs: paragraphs, rate: rate, voiceID: voiceID)
-    }
-
-    /// Persist a live-rendered unit (fallback path); prefer GlobalSynthQueue.store via worker.
-    @discardableResult
-    func persistRenderedUnit(
-        articleID: UUID,
-        paragraphIndex: Int,
-        sourceURL: URL,
-        duration: TimeInterval,
-        rate: Float,
-        voiceID: String,
-        text: String? = nil
-    ) throws -> URL {
-        let url = try audioCache.storeParagraph(
-            articleID: articleID,
-            paragraphIndex: paragraphIndex,
-            sourceURL: sourceURL,
-            duration: duration,
-            engineID: cacheEngineID,
-            voiceID: voiceID,
-            rate: rate,
-            text: text
-        )
-        noteBakeMarksChanged()
-        return url
-    }
-
-    /// Await Ready CAF via the global queue (playhead path).
-    func ensureUnit(
-        cacheKey: UUID,
-        paragraphIndex: Int,
-        text: String,
-        rate: Float,
-        voiceID: String,
-        isEphemeral: Bool
-    ) async throws -> URL {
-        try await synthQueue.ensureUnit(
-            cacheKey: cacheKey,
-            paragraphIndex: paragraphIndex,
-            text: text,
-            rate: rate,
-            voiceID: voiceID,
-            isEphemeral: isEphemeral
-        )
     }
 
     /// After Save: move ephemeral CAFs onto the SavedArticle UUID and reshuffle the queue key.
@@ -792,7 +706,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         if synthQueue.hasJob(cacheKey: key) {
             // Its bake is queued / in progress (e.g. Browse → Save → open in Reader while
             // another article plays): keep finished chunks whose text still matches, or the
-            // worker re-synthesizes them (crash 2026-09-24 22:00, p2 c0 rendered twice).
+            // worker renders them a second time.
             audioCache.removeChunkScratch(for: key, keepingCurrent: paragraphs)
         } else {
             audioCache.removeChunkScratch(for: key)
@@ -829,19 +743,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
     func chunkPlan(engineID: String, text: String) -> [String]? {
         guard let d = engines.descriptor(SpeechEngineID(rawValue: engineID)) else { return nil }
         return TextChunker.chunks(for: text, limits: d.limits)
-    }
-
-    /// Active plan description for diagnostics.
-    var bakePlans: [UUID: BakePriorityPlan] {
-        // Compatibility shim for Listen debug — reconstruct from queue primary only.
-        var result: [UUID: BakePriorityPlan] = [:]
-        if let key = synthQueue.primaryCacheKey,
-           let desc = synthQueue.planDescription(for: key) {
-            // Parse is lossy; expose via pending count in debug instead.
-            _ = desc
-            result[key] = .topDown(paragraphCount: 0)
-        }
-        return result
     }
 
     /// Bake only for engines that declare `supportsBakeCache` (Apple: no).
@@ -885,7 +786,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             GlobalSynthQueue.PendingWork(
                 cacheKey: job.articleID,
                 paragraphs: job.paragraphs,
-                rate: job.rate,
                 voiceID: normalizedCacheVoice(job.voiceID),
                 priorityStart: job.priorityStart,
                 isEphemeral: audioCache.loadMeta(for: job.articleID)?.kind == .ephemeral

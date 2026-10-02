@@ -56,7 +56,7 @@ final class SynthPipelineTests: XCTestCase {
         contexts.append(ctx)
         let text = "The ports closed, the farms failed, the grid went dark, and nobody could say when."
         let url = ctx.root.appendingPathComponent("one.caf")
-        let duration = try await ctx.chunkRenderer.renderChunk(text: text, to: url, seed: 1, context: [:])
+        let duration = try await ctx.chunkRenderer.renderChunk(text: text, to: url, context: [:])
         let calls = ctx.host.calls
         XCTAssertTrue(calls.contains { !$0.ok && $0.text.count > 30 }, "first call overflowed")
         let ok = calls.filter(\.ok)
@@ -73,7 +73,7 @@ final class SynthPipelineTests: XCTestCase {
         contexts.append(ctx)
         do {
             _ = try await ctx.chunkRenderer.renderChunk(
-                text: "Too long for this engine.", to: ctx.root.appendingPathComponent("x.caf"), seed: 1, context: [:])
+                text: "Too long for this engine.", to: ctx.root.appendingPathComponent("x.caf"), context: [:])
             XCTFail("expected inputTooLong")
         } catch LocalSynthError.inputTooLong {
             // expected
@@ -89,7 +89,7 @@ final class SynthPipelineTests: XCTestCase {
         let (queue, ctx) = makeQueue(provider)
         let key = UUID()
         let paragraphs = [sentence(1), (1...3).map(sentence).joined(separator: " ")]
-        queue.openArticle(cacheKey: key, paragraphs: paragraphs, rate: 1, voiceID: "fake.default", isEphemeral: false)
+        queue.openArticle(cacheKey: key, paragraphs: paragraphs, voiceID: "fake.default", isEphemeral: false)
         try await waitIdle(queue)
         let expectedChunks = paragraphs.map { queue.chunkTexts(for: $0).count }.reduce(0, +)
         XCTAssertEqual(ctx.fallbackTexts.count, expectedChunks, "every chunk rendered by the fallback")
@@ -105,7 +105,7 @@ final class SynthPipelineTests: XCTestCase {
         let provider = FakeEngineProvider(config: .init(maxCharsPerCall: 3))
         let (queue, ctx) = makeQueue(provider)
         let key = UUID()
-        queue.openArticle(cacheKey: key, paragraphs: [sentence(7)], rate: 1, voiceID: "v", isEphemeral: false)
+        queue.openArticle(cacheKey: key, paragraphs: [sentence(7)], voiceID: "v", isEphemeral: false)
         try await waitIdle(queue)
         XCTAssertFalse(ctx.fallbackTexts.isEmpty)
         XCTAssertNotNil(ctx.audioCache.audioURL(articleID: key, paragraphIndex: 0, engineID: ctx.cacheEngineID, voiceID: "v"))
@@ -113,18 +113,18 @@ final class SynthPipelineTests: XCTestCase {
 
     // MARK: - Queue priority
 
-    /// Regression: `drainPendingIntoQueue` used to `openArticle` any pending job with
-    /// `priorityStart > 0`, stealing #1 from the article being listened to.
+    /// A pending job started mid-article (`priorityStart > 0`) is demoted behind the article
+    /// being listened to; it must not take #1.
     func testPendingMidArticleJobDoesNotStealActiveArticle() async throws {
         let provider = FakeEngineProvider()
         let (queue, ctx) = makeQueue(provider)
         queue.isPausedForProbe = true
         let active = UUID(), backgroundMid = UUID(), backgroundTop = UUID()
         let paras = (0..<4).map(sentence)
-        queue.openArticle(cacheKey: active, paragraphs: paras, rate: 1, voiceID: "v", resumeParagraph: 2, isEphemeral: false)
+        queue.openArticle(cacheKey: active, paragraphs: paras, voiceID: "v", resumeParagraph: 2, isEphemeral: false)
         queue.adoptPending([
-            .init(cacheKey: backgroundMid, paragraphs: paras, rate: 1, voiceID: "v", priorityStart: 3, isEphemeral: false),
-            .init(cacheKey: backgroundTop, paragraphs: paras, rate: 1, voiceID: "v", priorityStart: 0, isEphemeral: true),
+            .init(cacheKey: backgroundMid, paragraphs: paras, voiceID: "v", priorityStart: 3, isEphemeral: false),
+            .init(cacheKey: backgroundTop, paragraphs: paras, voiceID: "v", priorityStart: 0, isEphemeral: true),
         ])
         XCTAssertEqual(queue.primaryCacheKey, active)
         XCTAssertEqual(queue.demotedCount, 2)
@@ -145,8 +145,8 @@ final class SynthPipelineTests: XCTestCase {
         let other = UUID(), focused = UUID()
         let paras = (0..<3).map(sentence)
         queue.adoptPending([
-            .init(cacheKey: other, paragraphs: paras, rate: 1, voiceID: "v", priorityStart: 1, isEphemeral: false),
-            .init(cacheKey: focused, paragraphs: paras, rate: 1, voiceID: "v", priorityStart: 2, isEphemeral: false),
+            .init(cacheKey: other, paragraphs: paras, voiceID: "v", priorityStart: 1, isEphemeral: false),
+            .init(cacheKey: focused, paragraphs: paras, voiceID: "v", priorityStart: 2, isEphemeral: false),
         ], focusKey: focused)
         XCTAssertEqual(queue.primaryCacheKey, focused)
         XCTAssertEqual(queue.nextMissingIndex(), 2)
