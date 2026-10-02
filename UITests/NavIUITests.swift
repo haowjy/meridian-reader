@@ -1,12 +1,12 @@
 import XCTest
 
-/// Must match `MorphMenu.focusOffsetFromAnchor` (Nav J Safari nudge).
+/// Must match `MorphMenu.focusOffsetFromAnchor` (Safari-style nudge of the focus icon).
 enum MorphMenuUITestOffset {
     static let width: CGFloat = 12
     static let height: CGFloat = 10
 }
 
-/// Nav I: the five-slot bottom toolbar grid shared by Browse and the reader, developer options
+/// The five-slot bottom toolbar grid shared by Browse and the reader, developer options
 /// hidden, sub-paragraph (sentence) scrubbing.
 final class NavIUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
@@ -28,7 +28,7 @@ final class NavIUITests: XCTestCase {
 
     // MARK: - Five-slot grid
 
-    /// Browse `[‹][›][Search][ ][⋯]` and reader `[1×][⏮][▶︎][⏭][⋯]`: 5 equal, evenly spaced slots;
+    /// Browse `[‹][›][Search][Library][⋯]` and reader `[1×][⏮][▶︎][⏭][⋯]`: 5 equal, evenly spaced slots;
     /// slot N at the same x on both screens; the mini player's play button over ⋯.
     func testFiveSlotGridSharedByBrowseAndReader() throws {
         let app = XCUIApplication()
@@ -45,16 +45,12 @@ final class NavIUITests: XCTestCase {
         let slot = rowWidth / 5
         let expected = (0..<5).map { window.minX + 12 + slot * (CGFloat($0) + 0.5) }
 
-        let browse = ["browseBack", "browseForward", "browseSearch", "browseMore"].map { el(app, $0).frame }
-        let browseSlots = [0, 1, 2, 4]
+        let browse = ["browseBack", "browseForward", "browseSearch", "browseLibrary", "browseMore"]
+            .map { el(app, $0).frame }
+        let browseSlots = [0, 1, 2, 3, 4]
         for (frame, s) in zip(browse, browseSlots) {
             XCTAssertEqual(frame.midX, expected[s], accuracy: 1, "browse slot \(s + 1)")
         }
-        // Slot 4 is empty on Browse.
-        let slot4 = app.buttons.allElementsBoundByIndex.filter {
-            $0.frame.midY > browse[0].minY && $0.frame.midY < browse[0].maxY && abs($0.frame.midX - expected[3]) < slot / 2
-        }
-        XCTAssertTrue(slot4.isEmpty, "browse slot 4 is empty")
 
         icon.tap()
         XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 10))
@@ -73,9 +69,9 @@ final class NavIUITests: XCTestCase {
         for (frame, s) in zip(browse, browseSlots) {
             XCTAssertEqual(reader[s].midX, frame.midX, accuracy: 1, "slot \(s + 1) same x in Browse and the reader")
         }
-        XCTAssertEqual(reader[4].midY, browse[3].midY, accuracy: 1, "⋯ same y")
+        XCTAssertEqual(reader[4].midY, browse[4].midY, accuracy: 1, "⋯ same y")
 
-        // ⋯ menu: Website/Reader icon is slightly up and left of ⋯ (Safari feel, Nav J) —
+        // ⋯ menu: Website/Reader icon is slightly up and left of ⋯ (Safari feel) —
         // not dead-on overlap. Morph still grows from ⋯.
         app.buttons["readerMore"].tap()
         let focus = el(app, "moreMenuFocus")

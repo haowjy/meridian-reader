@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// The library list: every kept article, with search. Hosted inside `LibrarySurface` (shared bottom
-/// chrome) or, for tests / previews, standalone. Opening an article pushes the reader (‹) via
+/// The library list: every kept article, filtered by `searchText`. Hosted inside `LibrarySurface`,
+/// whose bottom field capsule owns the search text. Opening an article pushes the reader (‹) via
 /// `path`.
 struct SavedListView: View {
     @Environment(\.modelContext) private var modelContext
@@ -11,17 +11,6 @@ struct SavedListView: View {
 
     @Binding var path: [UUID]
     @Binding var searchText: String
-    /// When true, search lives in the shared bottom field capsule (`LibrarySurface`); the nav bar
-    /// drawer is omitted so chrome matches Browse / Reader.
-    var usesExternalSearch: Bool = false
-
-    init(path: Binding<[UUID]> = .constant([]),
-         searchText: Binding<String> = .constant(""),
-         usesExternalSearch: Bool = false) {
-        _path = path
-        _searchText = searchText
-        self.usesExternalSearch = usesExternalSearch
-    }
 
     private var filtered: [SavedArticle] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -59,7 +48,6 @@ struct SavedListView: View {
                 OfflineArticleView(articleID: id)
             }
             .navigationTitle("Saved")
-            .modifier(LibrarySearchModifier(text: $searchText, enabled: !usesExternalSearch))
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
@@ -78,22 +66,6 @@ struct SavedListView: View {
             let article = filtered[index]
             speech.localTTS.handleArticleDeleted(article.id)
             modelContext.delete(article)
-        }
-    }
-}
-
-/// Optional nav-bar search (standalone / sheet hosts). `LibrarySurface` supplies its own field.
-private struct LibrarySearchModifier: ViewModifier {
-    @Binding var text: String
-    let enabled: Bool
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if enabled {
-            content.searchable(text: $text, placement: .navigationBarDrawer(displayMode: .always),
-                               prompt: "Search saved")
-        } else {
-            content
         }
     }
 }

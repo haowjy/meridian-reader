@@ -1,7 +1,7 @@
 import XCTest
 
 /// Start page (no page loaded): Continue listening (in-progress saves, tap to resume in the ✕
-/// reader) and Saved (recent saves, Show All → library sheet).
+/// reader) and Saved (recent saves, Show All → library).
 final class BrowseStartPageUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
@@ -44,8 +44,8 @@ final class BrowseStartPageUITests: XCTestCase {
         XCTAssertTrue(row(app, in: "startSaved").exists)
 
         el(app, "startSavedShowAll").tap()
-        XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5), "library sheet")
-        XCTAssertTrue(app.searchFields["Search saved"].exists, "search pinned under the title")
+        XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5), "library surface")
+        XCTAssertTrue(el(app, "librarySearchField").exists, "search in the bottom field capsule")
         app.cells.staticTexts["Demo Listen Article"].tap()
         let close = app.buttons["readerClose"]
         XCTAssertTrue(close.waitForExistence(timeout: 5))

@@ -5,7 +5,8 @@ import WebKit
 /// The whole app: a browser with in-place Reader Mode (no tab bar).
 /// - Start page (no page loaded): Bookmarks grid · Continue listening · Saved · Recent Searches.
 /// - Bottom: [mini player] · address field (reader icon when readable; mic only while searching) · `[‹][›][Search][Library][⋯]`.
-/// - ⋯ opens a Safari-style popover: actions, then big Bookmarks / Saved / History buttons.
+/// - ⋯ grows into the morph menu panel (`MorphMenuOverlay`): actions, then big Bookmarks / Saved /
+///   History / Reader buttons.
 struct BrowseStartView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.articleExtractor) private var extractor
@@ -48,14 +49,12 @@ struct BrowseStartView: View {
     @State private var showMore = false
     /// The toolbar ⋯ button's global frame: the menu panel grows out of it.
     @State private var moreAnchor: CGRect = .zero
-    /// ⋯ actions that present something run once the popover is gone.
+    /// ⋯ actions that present something run once the panel has started collapsing.
     @State private var pendingMoreAction: BrowseMoreMenu.Action?
     @State private var showLibrary = false
     /// Library surface navigation (‹ reader push). Empty = list + shared library chrome.
     @State private var libraryPath: [UUID] = []
     @State private var librarySearch = ""
-    /// Bumped to focus the library search field (toolbar Search).
-    @State private var libraryFocusSearchToken = 0
     /// Runs once the library surface is gone (reader-in-library ⋯ → Bookmarks / History).
     @State private var afterLibraryDismiss: (() -> Void)?
     @State private var showBookmarks = false
@@ -350,8 +349,7 @@ struct BrowseStartView: View {
                 isMoreOpen: showMore,
                 onMoreAnchor: { if $0 != moreAnchor { moreAnchor = $0 } },
                 onOpenMore: { showMore = true },
-                onLeaveToBrowser: leaveLibrary,
-                focusSearchToken: libraryFocusSearchToken
+                onLeaveToBrowser: leaveLibrary
             )
             .environment(\.readerMenuHost, readerMenuHost)
             .transition(.opacity)
@@ -371,7 +369,7 @@ struct BrowseStartView: View {
     }
 
     /// The reader's ⋯ bottom row presents the browser's own sheets. From the ‹ reader inside the
-    /// library sheet, Bookmarks / History first close the library (one sheet at a time).
+    /// library surface, Bookmarks / History first leave the library (one presentation at a time).
     private var readerMenuHost: ReaderMenuHost {
         ReaderMenuHost(
             showBookmarks: { presentFromReader { showBookmarks = true } },
@@ -528,13 +526,12 @@ struct BrowseStartView: View {
         }
     }
 
-    /// Toolbar: ‹  ›  ⋯ (evenly spaced). Reader is the icon in the address field and the ⋯ popover's
-    /// bottom-right Reader toggle; Bookmarks / Saved / History live in the ⋯ popover and on the
-    /// start page.
+    /// Toolbar: `[‹][›][Search][Library][⋯]` in the shared five-slot grid. Reader is the icon in the
+    /// address field and the ⋯ panel's bottom-right toggle; Bookmarks / Saved / History live in the
+    /// ⋯ panel and on the start page.
     private var toolbarRow: some View {
-        // Five equal slots shared with the reader: `[‹][›][Search][Library][⋯]` (Nav I).
-        // Slot 4 is Library↔Browser (on Library the surface shows 🌐). ⋯ always stays in slot 5;
-        // Reader↔Website remains the morph-menu focus near ⋯.
+        // Slot 4 swaps Library↔Browser (the Library surface shows 🌐 there); ⋯ is always slot 5,
+        // and the morph menu's Reader↔Website button is its focus point near ⋯.
         BottomToolbarLayout {
             toolbarButton("chevron.backward", label: "Back", id: "browseBack") { webStore.goBack() }
                 .disabled(!webStore.canGoBack)
@@ -546,24 +543,9 @@ struct BrowseStartView: View {
             toolbarButton("books.vertical", label: "Library", id: "browseLibrary", action: openLibrary)
             moreMenu
         }
-        .foregroundStyle(.primary)
-        .simultaneousGesture(browserToolbarSwipe)
-    }
-
-    private var browserToolbarSwipe: some Gesture {
-        DragGesture(minimumDistance: SwipeGesturePolicy.horizontalMinimumDistance)
-            .onEnded { value in
-                guard let direction = SwipeGesturePolicy.horizontalDirection(
-                    translation: value.translation,
-                    predicted: value.predictedEndTranslation
-                ) else { return }
-                switch direction {
-                case .right:
-                    if webStore.canGoBack { webStore.goBack() }
-                case .left:
-                    if webStore.canGoForward { webStore.goForward() }
-                }
-            }
+        // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI gives
+        // disabled buttons, so ‹ / › with no history would look tappable.
+        .tint(.primary)
     }
 
     private func toolbarButton(_ systemImage: String, label: String, id: String,

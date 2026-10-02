@@ -77,13 +77,17 @@ grows from the same spot. ⋯ is never replaced. The mini player's play/pause is
   something (Share, Voice settings, Bookmarks, Saved, History) run after the panel has closed.
 - **The ⋯ panel** (`MorphMenuOverlay`, shared by the browser toolbar ⋯ and the reader / library
   reader listen bar ⋯) is not a popover: it is placed so the bottom-right button's icon (Reader,
-  or Website in the reader — marked with `morphMenuFocus`) sits slightly up and to the left of the ⋯ glyph (Nav J, Safari's feel: **12 pt left, 10 pt up**), not dead-on on top of it; it used to sit exactly where the ⋯ glyph was
-  (same x and y; UI tests check within 1 pt on Browse, the ✕ reader and the ‹ reader). It covers
+  or Website in the reader — marked with `morphMenuFocus`) sits slightly up and to the left of
+  the ⋯ glyph (Safari's feel: **12 pt left, 10 pt up**), not dead-on on top of it (UI tests check
+  the offset within 1 pt on Browse, the ✕ reader and the ‹ reader). It covers
   the button and the toolbar around it, so the bottom row lands under the thumb, and grows out of
   that point (scales up from the button's size; content fades / un-blurs in) while the ⋯ glyph
   fades, and the rest of the screen dims. Tapping the dimmed area,
   swiping the panel down, or Escape (VoiceOver scrub / hardware Esc) collapses it back into the
-  button. Light glass on iOS 26 (thick material before). Debug › is a native `Menu`.
+  button. While dragged, the panel follows the finger down and resists going up (rubber band);
+  the drag's axis is fixed by its first movement, so a horizontal drag leaves the panel in place
+  and a drag that drifts sideways doesn't make it jump. Light glass on iOS 26 (thick material
+  before). Debug › is a native `Menu`.
 - **Bookmarks vs Saved**: a *bookmark* is just a site link (URL, title, favicon — e.g. a story's
   index page), kept in its own small JSON store (`BookmarkStore`,
   Application Support/Bookmarks/bookmarks.json); no text or audio. A *saved article* is the
@@ -215,7 +219,7 @@ Swipe-down-to-close (✕, from the top row) and left-edge swipe-back (‹) are u
   Share, Debug* (developer options only); bottom row **Bookmarks / Saved / History / Website** — in reader mode the Reader
   slot becomes 🌐 **Website** (same spot; its icon is 12 pt left / 10 pt up of ⋯, Nav J). Website = reader off:
   it always goes to the article's own page in the browser, wherever the reader was opened from.
-  The ✕ reader over that page just reveals it (no reload); from the library (the sheet closes
+  The ✕ reader over that page just reveals it (no reload); from the library (the library closes
   first), the start page, Continue listening or the mini player the page loads in the browser.
   Playback never stops — the mini player takes over.
   In the ‹ reader the dim also covers the (transparent) navigation bar; the row there fades and a
@@ -244,7 +248,7 @@ confirmation). UI tests force it with `-reader.developerOptions NO|YES`.
 | Browser → editing the address | ✕ round, right of the field | in place; tap outside or drag down |
 | Browser ⋯ / Reader ⋯ | — | morph panel over the button (same design; reader context swaps Reader for Website) |
 | Browser toolbar Search | ✕ round, right of the field | in place (editing the address, empty) |
-| Reader ⋯ → Website | — | closes the reader (and the library sheet) and shows / loads the article's page in the browser; audio continues |
+| Reader ⋯ → Website | — | closes the reader (and leaves the library) and shows / loads the article's page in the browser; audio continues |
 | ⋯ → Voice settings (`SpeechSettingsView`) | Done | `.sheet` |
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | — (grabber) | `.sheet`, medium/large |

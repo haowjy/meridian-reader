@@ -3,8 +3,7 @@ import SwiftUI
 /// Safari (iOS 26)–style ⋯ menu: the button grows into the menu panel instead of an arrow
 /// popover floating above it. The panel is placed so its focus point (`morphMenuFocus`, the
 /// bottom-right button's icon: Reader / Website) sits slightly up and to the left of the ⋯
-/// glyph (Nav J — Safari's feel; measured ~12 pt left / 10 pt up from a Safari screenshot),
-/// and it grows out of the ⋯. Without a focus point the panel's bottom-right corner sits on
+/// glyph (`MorphMenu.focusOffsetFromAnchor`, Safari's feel), and it grows out of the ⋯. Without a focus point the panel's bottom-right corner sits on
 /// the button's bottom-right corner. The rest of the screen dims; tap outside, swipe the
 /// panel down, or Escape (VoiceOver two-finger scrub / hardware Esc) collapses it back into
 /// the button.
@@ -22,7 +21,7 @@ struct MorphMenuOverlay<Panel: View>: View {
     let anchor: CGRect
     /// How far the panel's bottom-right corner reaches past the button's bottom-right corner.
     var overhang: CGFloat = 0
-    /// Focus icon offset from the ⋯ center: positive width = left, positive height = up (Nav J).
+    /// Focus icon offset from the ⋯ center: positive width = left, positive height = up.
     var focusOffset: CGSize = MorphMenu.focusOffsetFromAnchor
     @ViewBuilder var panel: () -> Panel
 
@@ -32,6 +31,8 @@ struct MorphMenuOverlay<Panel: View>: View {
     @State private var expanded = false
     @State private var panelSize = CGSize(width: 300, height: 420)
     @State private var dragOffset: CGFloat = 0
+    /// Axis of the panel drag in progress, fixed at its first movement (nil between drags).
+    @State private var dragAxis: Axis?
     /// The focus icon's center in panel coordinates (unscaled).
     @State private var focus: CGPoint?
 
@@ -136,6 +137,7 @@ struct MorphMenuOverlay<Panel: View>: View {
 
     private func present() {
         dragOffset = 0
+        dragAxis = nil
         if mounted {
             // Re-opened while collapsing: grow back from where it is.
             withAnimation(MorphMenu.animation) { expanded = true }
@@ -149,20 +151,29 @@ struct MorphMenuOverlay<Panel: View>: View {
         guard mounted else { return }
         withAnimation(MorphMenu.animation) {
             expanded = false
+            // Shrink back into the button from wherever a swipe left the panel.
+            dragOffset = 0
         } completion: {
             if !isPresented { mounted = false }
         }
     }
 
+    /// The panel follows a vertical drag (down freely, up with rubber-band resistance); a
+    /// horizontal one leaves it in place. Released far enough or flung down, it collapses.
     private var swipeDownToDismiss: some Gesture {
         DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance)
             .onChanged { value in
-                dragOffset = SwipeGesturePolicy.verticalOffset(for: value.translation)
+                let axis = dragAxis ?? SwipeGesturePolicy.axis(ofFirstMovement: value.translation)
+                dragAxis = axis
+                guard axis == .vertical else { return }
+                dragOffset = SwipeGesturePolicy.dismissOffset(forVerticalTranslation: value.translation.height)
             }
             .onEnded { value in
-                if SwipeGesturePolicy.shouldCommitVerticalDismiss(
-                    translation: value.translation,
-                    predicted: value.predictedEndTranslation
+                let vertical = dragAxis == .vertical
+                dragAxis = nil
+                if vertical, SwipeGesturePolicy.shouldCommitDownwardDismiss(
+                    translation: value.translation.height,
+                    predicted: value.predictedEndTranslation.height
                 ) {
                     dismiss()
                 } else {
@@ -178,9 +189,9 @@ struct MorphMenuOverlay<Panel: View>: View {
 
 enum MorphMenu {
     static let panelSpace = "morphMenuPanel"
-    /// Nav J: Website / Reader icon sits this far left and up of the ⋯ (Safari's feel).
-    /// Estimated from a Safari iOS 26 screenshot where All Tabs sits inset of the tabs/⋯ control
-    /// rather than covering it dead-on.
+    /// The Website / Reader icon sits this far left and up of the ⋯ (Safari's feel). Measured
+    /// from a Safari iOS 26 screenshot, where All Tabs sits inset of the tabs/⋯ control rather
+    /// than covering it dead-on.
     static let focusOffsetFromAnchor = CGSize(width: 12, height: 10)
     /// `-uiTesting`: expose the focus point as an accessibility element (alignment test).
     static let exposesFocus = ProcessInfo.processInfo.arguments.contains("-uiTesting")

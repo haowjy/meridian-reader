@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// App root: the browser is the whole app (no tab bar). The library opens as a sheet from it.
+/// App root: the browser is the whole app (no tab bar). The library is a full-screen surface over it.
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.speechController) private var speech

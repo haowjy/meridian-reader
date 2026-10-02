@@ -6,7 +6,7 @@ import UIKit
 
 /// The browser's start page (no page loaded), Safari-style: a Bookmarks icon grid (site
 /// bookmarks, like Safari Favorites), "Continue listening", recent "Saved" articles with Show All
-/// (opens the library sheet), then Recent Searches.
+/// (opens the library), then Recent Searches.
 struct BrowseStartPage: View {
     let bookmarks: [SiteBookmark]
     /// In-progress saved articles, most recently listened first (all of them; up to 3 shown).
@@ -87,13 +87,19 @@ struct BrowseStartPage: View {
 
     /// Fraction listened, weighted by text length (same measure as the reader's scrubber).
     static func progress(of article: SavedArticle) -> Double {
-        guard let paragraphs = article.cachedListenParagraphs, !paragraphs.isEmpty else { return 0 }
-        let map = ReaderScrubMap(paragraphs: paragraphs)
-        let p = min(max(0, article.playbackParagraphIndex), paragraphs.count - 1)
-        // Stored offsets index the joined listen text (paragraphs + "\n\n" separators).
-        let before = paragraphs[..<p].reduce(0) { $0 + $1.utf16.count + 2 }
-        let within = Double(max(0, article.playbackUTF16Offset - before)) / Double(max(1, paragraphs[p].utf16.count))
-        return map.fraction(paragraph: p, within: min(within, 1))
+        guard let paragraphs = article.cachedListenParagraphs else { return 0 }
+        return progress(paragraphs: paragraphs, paragraph: article.playbackParagraphIndex,
+                        utf16Offset: article.playbackUTF16Offset)
+    }
+
+    /// `utf16Offset` indexes the article's listen text (`ParagraphDocument.joinedText`). Only
+    /// paragraph lengths matter here, so the scrub map skips sentence tokenizing.
+    static func progress(paragraphs: [String], paragraph: Int, utf16Offset: Int) -> Double {
+        let document = ParagraphDocument(parts: paragraphs)
+        guard !document.isEmpty else { return 0 }
+        let p = min(max(0, paragraph), document.count - 1)
+        let map = ReaderScrubMap(paragraphs: document.paragraphs, sentences: false)
+        return map.fraction(paragraph: p, offset: utf16Offset - document.startUTF16Offset(forParagraph: p))
     }
 
     private func section<Content: View>(_ title: String, id: String, showAll: (() -> Void)?,
@@ -237,7 +243,7 @@ struct ThinProgressBar: View {
 struct MiniPlayerBar: View {
     @Bindable var speech: SpeechController
     var onOpen: () -> Void
-    /// Bar width (= the toolbar row's width): play/pause sits over the ⋯ slot (Nav I).
+    /// Bar width (= the toolbar row's width): play/pause sits over the ⋯ slot.
     @State private var width: CGFloat = 0
 
     /// Play/pause button width.
@@ -303,9 +309,10 @@ struct MiniPlayerBar: View {
     }
 }
 
-// MARK: - ⋯ popover
+// MARK: - ⋯ menu panel
 
-/// Safari-style ⋯ popover: action rows, then a row of big buttons (Bookmarks, Saved, History).
+/// The ⋯ menu panel's content (shown by `MorphMenuOverlay`): action rows, then a row of big
+/// buttons (Bookmarks, Saved, History, Reader / Website).
 struct BrowseMoreMenu: View {
     enum Action { case newSearch, toggleSave, toggleBookmark, share, reload, voiceSettings, listenDebug,
                      bookmarks, saved, history, toggleReader, openWebsite }
@@ -314,7 +321,8 @@ struct BrowseMoreMenu: View {
     /// reader; only the top rows differ. The bottom row is `[Bookmarks][Saved][History][Reader]` on a
     /// page and `[Bookmarks][Saved][History][Website]` in the reader: the rightmost button (nearest
     /// the thumb) switches between the page and its reader view. Its icon is the panel's focus
-    /// point: `MorphMenuOverlay` puts it exactly where the ⋯ glyph was (Nav H).
+    /// point: `MorphMenuOverlay` places it slightly up and left of the ⋯ glyph
+    /// (`MorphMenu.focusOffsetFromAnchor`).
     enum Context { case browse, reader }
 
     var context: Context = .browse
@@ -470,7 +478,7 @@ struct BrowseMoreMenu: View {
     }
 }
 
-/// Pressed-state highlight for popover rows (like a system menu).
+/// Pressed-state highlight for menu panel rows (like a system menu).
 private struct MenuRowStyle: ButtonStyle {
     var cornerRadius: CGFloat = 0
     @Environment(\.isEnabled) private var isEnabled

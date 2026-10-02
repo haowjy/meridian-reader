@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 /// Library entry point into the shared `ArticleReaderScreen` (‹ back chevron: a push inside the
-/// library sheet). Takes the article id (not the model) and snapshots it once, so Unsave from the
+/// library surface). Takes the article id (not the model) and snapshots it once, so Unsave from the
 /// reader keeps the screen and playback alive even after the SwiftData row is deleted.
 struct OfflineArticleView: View {
     let articleID: UUID

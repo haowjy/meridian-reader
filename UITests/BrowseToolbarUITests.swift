@@ -1,8 +1,8 @@
 import XCTest
 
-/// Browser bottom bar: no tab bar, toolbar ‹ › ⋯ (⋯ = Safari-style popover with Bookmarks / Saved /
-/// History), the address-field reader icon (readable pages only), site bookmarks, and edit mode
-/// that cancels via ✕ or a pull-down (restoring the page address).
+/// Browser bottom bar: no tab bar, toolbar `[‹][›][Search][Library][⋯]` (⋯ = the morph menu panel
+/// with Bookmarks / Saved / History), the address-field reader icon (readable pages only), site
+/// bookmarks, and edit mode that cancels via ✕ or a pull-down (restoring the page address).
 final class BrowseToolbarUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
@@ -28,17 +28,19 @@ final class BrowseToolbarUITests: XCTestCase {
     /// Tap the dimmed backdrop of the morph menu (Safari-style: tap outside collapses it).
     private func center(_ f: CGRect) -> CGPoint { CGPoint(x: f.midX, y: f.midY) }
 
-    /// Nav H: with the menu open, the bottom-right button's icon (Reader / Website) sits exactly
-    /// where the ⋯ glyph was. `moreMenuFocus` (-uiTesting only) is that icon's measured center.
+    /// With the menu open, the bottom-right button's icon (Reader / Website) sits slightly up and
+    /// left of the ⋯ glyph (`MorphMenuUITestOffset`). `moreMenuFocus` (-uiTesting only) is that
+    /// icon's measured center.
     private func assertMenuAligned(_ app: XCUIApplication, more moreFrame: CGRect, button id: String,
                                    file: StaticString = #filePath, line: UInt = #line) {
         let focus = element(app, "moreMenuFocus")
         XCTAssertTrue(focus.waitForExistence(timeout: 3), "focus marker", file: file, line: line)
         RunLoop.current.run(until: Date().addingTimeInterval(1.0)) // morph finished
         let f = center(focus.frame), m = center(moreFrame)
-        XCTAssertEqual(f.x, m.x, accuracy: 1, "icon x == ⋯ x", file: file, line: line)
-        XCTAssertEqual(f.y, m.y, accuracy: 1, "icon y == ⋯ y", file: file, line: line)
-        XCTAssertEqual(element(app, id).frame.midX, m.x, accuracy: 1, "\(id) centered on ⋯", file: file, line: line)
+        let x = m.x - MorphMenuUITestOffset.width, y = m.y - MorphMenuUITestOffset.height
+        XCTAssertEqual(f.x, x, accuracy: 1, "icon left of ⋯", file: file, line: line)
+        XCTAssertEqual(f.y, y, accuracy: 1, "icon above ⋯", file: file, line: line)
+        XCTAssertEqual(element(app, id).frame.midX, x, accuracy: 1, "\(id) centered on the focus point", file: file, line: line)
     }
 
     private func dismissMenu(_ app: XCUIApplication) {
@@ -58,8 +60,8 @@ final class BrowseToolbarUITests: XCTestCase {
         for id in ["browseForward", "browseMore"] {
             XCTAssertTrue(element(app, id).exists, "\(id) exists")
         }
-        XCTAssertFalse(element(app, "browseSaved").exists, "Saved moved into ⋯ (Safari-style)")
-        XCTAssertFalse(element(app, "browseReader").exists, "Reader moved into the address field / ⋯")
+        XCTAssertFalse(element(app, "browseSaved").exists, "Saved lives in ⋯ (Safari-style)")
+        XCTAssertFalse(element(app, "browseReader").exists, "Reader is the address-field icon / ⋯ toggle")
         XCTAssertTrue(element(app, "browseLibrary").exists, "Library↔Browser slot beside ⋯")
         XCTAssertFalse(element(app, "addressMic").exists, "mic only while searching, not idle")
         XCTAssertFalse(app.tabBars.firstMatch.isHittable, "no tab bar on Browse")
@@ -85,7 +87,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(waitFor("isEnabled == true", back))
         XCTAssertTrue(waitFor("isEnabled == false", forward))
 
-        // Five-slot grid (Nav I): Search in the middle slot (3 of 5), ⋯ in slot 5.
+        // Five-slot grid: Search in the middle slot (3 of 5), ⋯ in slot 5.
         let search = app.buttons["browseSearch"]
         XCTAssertTrue(search.exists)
         let row = app.windows.firstMatch.frame
@@ -102,7 +104,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(waitFor("hasKeyboardFocus == false", field))
         XCTAssertTrue(back.isEnabled, "still on the same page")
 
-        // ⋯ popover: action rows, then the big Saved / History buttons.
+        // ⋯ panel: action rows, then the big Saved / History buttons.
         let browseMoreFrame = app.buttons["browseMore"].frame
         app.buttons["browseMore"].tap()
         assertMenuAligned(app, more: browseMoreFrame, button: "moreReaderToggle")
@@ -113,7 +115,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertFalse(element(app, "moreReader").exists, "the Open in Reader row is gone (bottom-right toggle)")
         XCTAssertTrue(element(app, "moreMenuPanel").exists, "Safari-style panel (no popover arrow)")
         element(app, "moreReload").tap()
-        XCTAssertTrue(waitFor("exists == false", element(app, "moreReload")), "popover closes")
+        XCTAssertTrue(waitFor("exists == false", element(app, "moreReload")), "panel closes")
 
         // Saved → the library surface (shared chrome); Browser slot returns to the page.
         app.buttons["browseMore"].tap()
@@ -151,6 +153,29 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(waitFor("exists == false", element(app, "moreMenuPanel")))
     }
 
+    /// The ⋯ panel follows a vertical drag: an upward one springs back (rubber band), a downward
+    /// one collapses it back into the button.
+    func testMenuPanelSwipeUpSpringsBackAndSwipeDownCollapses() throws {
+        let app = launch(testPage: false)
+        let more = app.buttons["browseMore"]
+        XCTAssertTrue(more.waitForExistence(timeout: 5))
+        more.tap()
+        let panel = element(app, "moreMenuPanel")
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        RunLoop.current.run(until: Date().addingTimeInterval(1.0)) // morph finished
+        let open = panel.frame
+
+        panel.swipeUp()
+        RunLoop.current.run(until: Date().addingTimeInterval(1.0))
+        XCTAssertTrue(panel.exists, "an upward drag doesn't close the menu")
+        XCTAssertEqual(panel.frame.minY, open.minY, accuracy: 1, "…and the panel springs back")
+
+        panel.swipeDown()
+        XCTAssertTrue(waitFor("exists == false", panel), "swipe down collapses the menu")
+        more.tap()
+        XCTAssertTrue(panel.waitForExistence(timeout: 3), "⋯ is back and opens the menu again")
+    }
+
     func testReaderIconAndReaderToggle() throws {
         let app = launch(testPage: true)
         let link = app.links["Next page"]
@@ -181,11 +206,11 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(close.waitForExistence(timeout: 10), "⋯ → Reader opens the reader")
 
         let website = element(app, "moreWebsite")
-        // …where ⋯ sits in the listen bar's bottom-right (no gear) and shows the same popover.
-        XCTAssertFalse(app.buttons["listenQuickSettings"].exists, "gear replaced by ⋯")
+        // …where ⋯ sits in the listen bar's bottom-right (no gear) and shows the same panel.
+        XCTAssertFalse(app.buttons["listenQuickSettings"].exists, "no gear: voice settings live in ⋯")
         let readerMore = app.buttons["readerMore"]
         XCTAssertTrue(readerMore.waitForExistence(timeout: 5))
-        // Nav G: the reader's bottom chrome is the browser's; ⋯ sits in exactly the same cell.
+        // The reader's bottom chrome is the browser's; ⋯ sits in exactly the same cell.
         let rf = readerMore.frame
         XCTAssertEqual(rf.midX, browseMoreFrame.midX, accuracy: 1, "⋯ at the same x as the browser's")
         XCTAssertEqual(rf.midY, browseMoreFrame.midY, accuracy: 1, "⋯ at the same y as the browser's")
@@ -216,7 +241,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(website.waitForExistence(timeout: 3))
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
         element(app, "moreBookmark").tap()
-        XCTAssertTrue(waitFor("exists == false", website), "popover closes")
+        XCTAssertTrue(waitFor("exists == false", website), "panel closes")
         readerMore.tap()
         XCTAssertTrue(waitFor("label == 'Remove Bookmark'", element(app, "moreBookmark")), "bookmarked from the reader")
 
@@ -253,10 +278,10 @@ final class BrowseToolbarUITests: XCTestCase {
         readerMore.tap()
         element(app, "moreHistory").tap()
         XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 8), "history sheet")
-        XCTAssertFalse(app.navigationBars["Saved"].exists, "library sheet closed first")
+        XCTAssertFalse(app.navigationBars["Saved"].exists, "library closed first")
     }
 
-    /// Nav H: open a saved article directly, play, ⋯ → Website: the library closes, the browser
+    /// Open a saved article directly, play, ⋯ → Website: the library closes, the browser
     /// loads the article's page, and the voice keeps going (mini player).
     func testSavedArticleWebsiteOpensPageAndKeepsPlaying() throws {
         let app = XCUIApplication()
@@ -301,7 +326,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(bookmark.waitForExistence(timeout: 3))
         XCTAssertEqual(bookmark.label, "Bookmark")
         bookmark.tap()
-        XCTAssertTrue(waitFor("exists == false", bookmark), "popover closes")
+        XCTAssertTrue(waitFor("exists == false", bookmark), "panel closes")
 
         app.buttons["browseMore"].tap()
         XCTAssertTrue(waitFor("label == 'Remove Bookmark'", element(app, "moreBookmark")), "now bookmarked")
