@@ -135,7 +135,8 @@ struct LibrarySurface: View {
             .morphMenuButtonHidden(isMoreOpen)
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { onMoreAnchor($0) }
         }
-        .foregroundStyle(.primary)
+        // Same as the browser toolbar: tint keeps disabled buttons dimmed.
+        .tint(.primary)
     }
 
     private func beginSearch() {

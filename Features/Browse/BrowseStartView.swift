@@ -544,7 +544,9 @@ struct BrowseStartView: View {
             toolbarButton("books.vertical", label: "Library", id: "browseLibrary", action: openLibrary)
             moreMenu
         }
-        .foregroundStyle(.primary)
+        // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI gives
+        // disabled buttons, so ‹ / › with no history would look tappable.
+        .tint(.primary)
     }
 
     private func toolbarButton(_ systemImage: String, label: String, id: String,
