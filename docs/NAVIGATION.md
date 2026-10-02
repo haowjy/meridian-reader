@@ -45,7 +45,7 @@ bottom bar, and the page uses everything between the status bar and it (safe are
 ```
 
 **One bottom-chrome design (Nav G)**, shared with the reader so Browse ↔ Reader barely changes
-the bottom of the screen (`Features/Browse/BottomChrome.swift`): the band (`bottomChromeBand`:
+the bottom of the screen (`Features/Shell/BottomChrome.swift`): the band (`bottomChromeBand`:
 12 pt margins, 8 pt top padding, system bar material through the home indicator), the field
 capsule (`bottomChromeField`: 44 pt, secondary-background capsule; 36 pt body-size controls
 inside, like 🎤), and the toolbar row (`BottomToolbarLayout` + `toolbarIconFrame`: 44 pt, plain

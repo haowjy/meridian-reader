@@ -24,6 +24,8 @@ final class BookmarkStore {
 
     private(set) var bookmarks: [SiteBookmark] = []
     @ObservationIgnored private let fileURL: URL
+    /// Bookmarks whose icon `backfillIcons` already fetched this launch.
+    @ObservationIgnored private var iconTried = Set<UUID>()
 
     init(fileURL: URL) {
         self.fileURL = fileURL
@@ -93,10 +95,33 @@ final class BookmarkStore {
         persist()
     }
 
-    func setFavicon(_ data: Data, for id: UUID) {
-        guard let i = bookmarks.firstIndex(where: { $0.id == id }) else { return }
+    /// Takes `data` as the bookmark's icon unless it would replace a usable icon with a smaller
+    /// one (tiny 16 px favicons look smeared on a tile).
+    func offerFavicon(_ data: Data, for id: UUID) {
+        guard let i = bookmarks.firstIndex(where: { $0.id == id }),
+              bookmarks[i].faviconData == nil || FaviconFetcher.isTileSized(data) else { return }
         bookmarks[i].faviconData = data
         persist()
+    }
+
+    /// Bookmarks without a tile-sized icon (seeded, or the page only had a 16 px favicon): try
+    /// the site's icon once per launch. Fetches run concurrently; a bookmark only counts as tried
+    /// once its fetch finished, so a cancelled pass (the start page went away, the list changed)
+    /// retries next time.
+    func backfillIcons() async {
+        let pending = bookmarks.filter { !FaviconFetcher.isTileSized($0.faviconData) && !iconTried.contains($0.id) }
+        guard !pending.isEmpty else { return }
+        await withTaskGroup(of: (UUID, Data?).self) { group in
+            for bookmark in pending {
+                let host = bookmark.host
+                group.addTask { (bookmark.id, await FaviconFetcher.fetch(forHost: host)) }
+            }
+            for await (id, icon) in group {
+                guard !Task.isCancelled else { return }
+                iconTried.insert(id)
+                if let icon { offerFavicon(icon, for: id) }
+            }
+        }
     }
 
     func removeAll() {

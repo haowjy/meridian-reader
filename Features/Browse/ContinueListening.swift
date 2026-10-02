@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// When each article was last listened to, and whether it was listened to the end. Drives the
 /// start page's "Continue listening" order. Kept in UserDefaults (not the SwiftData row) so no
@@ -83,5 +83,46 @@ enum ContinueListening {
             default: return a.savedAt > b.savedAt
             }
         }
+    }
+}
+
+extension ContinueListening {
+    /// Saved articles in progress, most recently listened first.
+    @MainActor
+    static func articles(_ rows: [SavedArticle], history: ListenHistory) -> [SavedArticle] {
+        let candidates = rows.map { row in
+            // Paragraph count only matters for pre-history saves (and decoding blocks isn't free).
+            let needsCount = history.entry(for: row.id) == nil && row.playbackParagraphIndex > 0
+            return Candidate(
+                id: row.id, savedAt: row.savedAt, paragraph: row.playbackParagraphIndex,
+                utf16Offset: row.playbackUTF16Offset,
+                paragraphCount: needsCount ? row.cachedListenParagraphs?.count : nil
+            )
+        }
+        let byID = Dictionary(rows.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        return inProgress(candidates, history: history).compactMap { byID[$0.id] }
+    }
+}
+
+/// Notes when listening starts (Continue listening order) without making the browser re-render
+/// on every playhead tick: only this empty view observes the speech controller.
+struct ListenHistoryRecorder: View {
+    @Bindable var speech: SpeechController
+    /// Runs with the active session's id whenever it or its playing state changes.
+    var onChange: (UUID?) -> Void
+
+    private struct Key: Equatable {
+        let id: UUID?
+        let playing: Bool
+    }
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+            .onChange(of: Key(id: speech.activeSessionID, playing: speech.isPlaying)) { _, key in
+                if let id = key.id, key.playing { ListenHistory.record(id) }
+                onChange(key.id)
+            }
     }
 }

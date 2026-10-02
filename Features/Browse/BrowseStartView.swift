@@ -44,24 +44,56 @@ struct BrowseStartView: View {
         browseWebViewMounted || hasPage
     }
 
-    /// Saved articles in progress, most recently listened first.
-    private var continueListeningArticles: [SavedArticle] {
-        let candidates = articles.map { row in
-            // Paragraph count only matters for pre-history saves (and decoding blocks isn't free).
-            let needsCount = listenHistory.entry(for: row.id) == nil && row.playbackParagraphIndex > 0
-            return ContinueListening.Candidate(
-                id: row.id, savedAt: row.savedAt, paragraph: row.playbackParagraphIndex,
-                utf16Offset: row.playbackUTF16Offset,
-                paragraphCount: needsCount ? row.cachedListenParagraphs?.count : nil
-            )
-        }
-        let byID = Dictionary(articles.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        return ContinueListening.inProgress(candidates, history: listenHistory).compactMap { byID[$0.id] }
-    }
-
     private var recentSearches: [String] { RecentSearches.decode(recentSearchesRaw) }
 
     var body: some View {
+        browser
+            // While searching, avoid the keyboard so the field sits right above it. Otherwise keep
+            // ignoring it (typing into a web page must not resize the page / the web view).
+            .ignoresSafeArea(.keyboard, edges: search.isFocused ? [] : .bottom)
+            // The reader and the library cover the whole browser, edge to edge. Outside the page
+            // ZStack, whose `.clipped()` would cut them at the safe area.
+            .overlay { surfaceOverlay }
+            // Every surface's ⋯ menu: grows out of its button and covers it (Safari iOS 26), over
+            // everything else (the library's navigation bar too).
+            .overlay { menuOverlay }
+            .background {
+                ListenHistoryRecorder(speech: speech) { activeID in
+                    listenHistory = ListenHistory(defaults: .standard)
+                    shell.noteActiveSession(activeID)
+                }
+            }
+            .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { ShellSheetView(sheet: $0) }
+            .modifier(BrowseAlerts(extractionError: $alertMessage, dictation: dictation))
+            .task {
+                speech.onArticleFinished = { id in
+                    ListenHistory.record(id, finished: true)
+                }
+                openDemoReaderForUITestsIfRequested()
+                openTestPagesIfRequested()
+                openLibraryIfRequested()
+                seedBookmarksIfRequested()
+                await resumeAfterCrashIfNeeded()
+            }
+            .onChange(of: webStore.currentURL) { _, _ in shell.syncAddressField() }
+            .onChange(of: webStore.isLoading) { _, loading in
+                guard !loading else { return }
+                Task { await recordRecentVisitIfNeeded() }
+            }
+            .onChange(of: search.text) { _, text in
+                // Typing (or clearing) while dictating takes over from the mic.
+                if let dictation, dictation.isListening, text != dictation.transcript {
+                    dictation.stop()
+                }
+            }
+            // Leaving the field (✕, navigating, swipe-down) closes the mic.
+            .onChange(of: search.isFocused) { _, focused in
+                if !focused { dictation?.cancel() }
+            }
+    }
+
+    /// The page (or start page), the search layer over it, and the bottom chrome.
+    private var browser: some View {
         VStack(spacing: 0) {
             ZStack {
                 if showsBrowseWebView {
@@ -79,120 +111,66 @@ struct BrowseStartView: View {
             // Safari-style search session: full-bleed Recent Searches / suggestions over the page.
             .overlay {
                 if search.isActive && shell.isBrowsing {
-                    SearchSessionOverlay(
-                        session: search,
-                        recentSearches: recentSearches,
-                        visits: recentVisits,
-                        articles: articles,
-                        isDictating: dictation?.isActive == true,
-                        onSubmit: submit,
-                        onClearRecentSearches: { recentSearchesRaw = "" }
-                    )
+                    searchLayer
                 }
             }
             .clipped()
 
             // The reader and the library draw their own chrome.
             if shell.isBrowsing {
-                BrowserBottomChrome(
-                    speech: speech,
-                    dictation: dictation,
-                    onOpenReader: { Task { await runReader() } },
-                    onSubmit: { submit(search.text) },
-                    onMic: toggleDictation,
-                    onOpenLibrary: shell.openLibrary,
-                    onOpenNowPlaying: {
-                        if let id = speech.activeSessionID { shell.openNowPlaying(id, in: modelContext) }
-                    },
-                    menu: { .browse(browseMenu, perform: perform) }
-                )
+                bottomChrome
             }
         }
-        // While searching, avoid the keyboard so the field sits right above it. Otherwise keep
-        // ignoring it (typing into a web page must not resize the page / the web view).
-        .ignoresSafeArea(.keyboard, edges: search.isFocused ? [] : .bottom)
-        // Reader Mode covers the whole browser, edge to edge (the text runs under its bars). Outside
-        // the page ZStack, whose `.clipped()` would cut it at the safe area.
-        .overlay {
-            if case .reader(let article, let origin) = shell.surface {
-                readerOverlay(for: article, origin: origin)
-                    .transition(.opacity)
-            }
-        }
-        .overlay { libraryOverlay }
-        // Every surface's ⋯ menu: grows out of its button and covers it (Safari iOS 26), over
-        // everything else (the library's navigation bar too).
-        .overlay {
-            MorphMenuOverlay(item: Binding(get: { shell.menu }, set: { shell.menu = $0 }),
-                             anchor: shell.menuAnchor) { context, close in
-                MoreMenuPanel(context: context, close: close)
-            }
-        }
-        .background {
-            ListenHistoryRecorder(speech: speech) { activeID in
-                listenHistory = ListenHistory(defaults: .standard)
-                shell.noteActiveSession(activeID)
-            }
-        }
-        .alert("Couldn’t extract", isPresented: Binding(
-            get: { alertMessage != nil },
-            set: { if !$0 { alertMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { alertMessage = nil }
-        } message: {
-            Text(alertMessage ?? "")
-        }
-        .task {
-            speech.onArticleFinished = { id in
-                ListenHistory.record(id, finished: true)
-            }
-            openDemoReaderForUITestsIfRequested()
-            openTestPagesIfRequested()
-            openLibraryIfRequested()
-            seedBookmarksIfRequested()
-            await resumeAfterCrashIfNeeded()
-        }
-        .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { sheet in
-            sheetContent(sheet)
-        }
-        .alert("Dictation", isPresented: Binding(
-            get: { dictation?.errorMessage != nil },
-            set: { if !$0 { dictation?.errorMessage = nil } }
-        )) {
-            Button("Open Settings") {
-                dictation?.errorMessage = nil
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            }
-            Button("OK", role: .cancel) { dictation?.errorMessage = nil }
-        } message: {
-            Text(dictation?.errorMessage ?? "")
-        }
-        .onChange(of: webStore.currentURL) { _, _ in shell.syncAddressField() }
-        .onChange(of: webStore.isLoading) { _, loading in
-            guard !loading else { return }
-            Task { await recordRecentVisitIfNeeded() }
-        }
-        .onChange(of: search.text) { _, text in
-            // Typing (or clearing) while dictating takes over from the mic.
-            if let dictation, dictation.isListening, text != dictation.transcript {
-                dictation.stop()
-            }
-        }
-        // Leaving the field (✕, navigating, swipe-down) closes the mic.
-        .onChange(of: search.isFocused) { _, focused in
-            if !focused { dictation?.cancel() }
+    }
+
+    private var searchLayer: some View {
+        SearchSessionOverlay(
+            session: search,
+            recentSearches: recentSearches,
+            visits: recentVisits,
+            articles: articles,
+            isDictating: dictation?.isActive == true,
+            onSubmit: submit,
+            onClearRecentSearches: { recentSearchesRaw = "" }
+        )
+    }
+
+    private var bottomChrome: some View {
+        BrowserBottomChrome(
+            speech: speech,
+            dictation: dictation,
+            onOpenReader: { Task { await runReader() } },
+            onSubmit: { submit(search.text) },
+            onMic: toggleDictation,
+            onOpenLibrary: shell.openLibrary,
+            onOpenNowPlaying: {
+                if let id = speech.activeSessionID { shell.openNowPlaying(id, in: modelContext) }
+            },
+            menu: { .browse(browseMenu, perform: perform) }
+        )
+    }
+
+    private var menuOverlay: some View {
+        MorphMenuOverlay(item: Binding(get: { shell.menu }, set: { shell.menu = $0 }),
+                         anchor: shell.menuAnchor) { context, close in
+            MoreMenuPanel(context: context, close: close)
         }
     }
 
     // MARK: - Surfaces
 
+    /// The ✕ reader or the library, over the browser.
     @ViewBuilder
-    private var libraryOverlay: some View {
-        if shell.isInLibrary {
+    private var surfaceOverlay: some View {
+        switch shell.surface {
+        case .browse:
+            EmptyView()
+        case .reader(let article, let origin):
+            readerOverlay(for: article, origin: origin)
+                .transition(.opacity)
+        case .library:
             LibrarySurface(path: Binding(get: { shell.libraryPath }, set: { shell.libraryPath = $0 }))
-            .transition(.opacity)
+                .transition(.opacity)
         }
     }
 
@@ -205,39 +183,6 @@ struct BrowseStartView: View {
             onClose: shell.hideReader,
             onIdentityChange: { newID in shell.updateReader(id: article.id) { $0.id = newID } }
         )
-    }
-
-    @ViewBuilder
-    private func sheetContent(_ sheet: ShellSheet) -> some View {
-        switch sheet {
-        case .bookmarks:
-            BookmarksListView(store: bookmarkStore) { bookmark in
-                shell.sheet = nil
-                if let url = bookmark.url { shell.navigate(to: url) }
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        case .history:
-            BrowseHistoryView(visits: Array(recentVisits.prefix(RecentVisit.maxEntries))) { visit in
-                shell.sheet = nil
-                if let url = visit.url { shell.navigate(to: url) }
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        case .voiceSettings:
-            NavigationStack {
-                SpeechSettingsView(speech: speech)
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { shell.sheet = nil }
-                        }
-                    }
-            }
-        case .share(let url):
-            ActivityShareSheet(items: [url])
-                .presentationDetents([.medium, .large])
-                .ignoresSafeArea()
-        }
     }
 
     /// UI-test hook (`-openDemoInBrowseReader`, with `-seedDemoArticle`): show the seeded article
@@ -313,7 +258,7 @@ struct BrowseStartView: View {
     private var startPage: some View {
         BrowseStartPage(
             bookmarks: bookmarkStore.bookmarks,
-            continueListening: continueListeningArticles,
+            continueListening: ContinueListening.articles(articles, history: listenHistory),
             saved: articles,
             recentSearches: recentSearches,
             onOpenBookmark: { if let url = $0.url { shell.navigate(to: url) } },
@@ -325,7 +270,7 @@ struct BrowseStartView: View {
             onSearch: submit,
             onClearSearches: { recentSearchesRaw = "" }
         )
-        .task(id: bookmarkStore.bookmarks.count) { await backfillBookmarkIcons() }
+        .task(id: bookmarkStore.bookmarks.count) { await bookmarkStore.backfillIcons() }
     }
 
     /// ⋯ → Bookmark / Remove Bookmark for the current page (URL, title, icon only).
@@ -344,38 +289,10 @@ struct BrowseStartView: View {
         let liveTitle = webStore.webView?.title.flatMap { $0.isEmpty ? nil : $0 }
         let added = bookmarkStore.add(url: url, title: liveTitle ?? webStore.pageTitle,
                                       faviconData: recentFavicon(for: url))
-        if !FaviconFetcher.isTileSized(added.faviconData), let icon = await fetchFavicon(for: url),
-           added.faviconData == nil || FaviconFetcher.isTileSized(icon) {
-            bookmarkStore.setFavicon(icon, for: added.id)
+        if !FaviconFetcher.isTileSized(added.faviconData), let icon = await fetchFavicon(for: url) {
+            bookmarkStore.offerFavicon(icon, for: added.id)
         }
     }
-
-    /// Bookmarks without a tile-sized icon (seeded, or the page only had a 16 px favicon): try
-    /// the site's icon once per launch. A smaller icon never replaces a usable one.
-    /// Fetches run concurrently; a bookmark only counts as tried once its fetch finished, so a
-    /// cancelled pass (the view went away, the list changed) retries next time.
-    @MainActor
-    private func backfillBookmarkIcons() async {
-        let pending = bookmarkStore.bookmarks.filter {
-            !FaviconFetcher.isTileSized($0.faviconData) && !Self.iconTried.contains($0.id)
-        }
-        guard !pending.isEmpty else { return }
-        await withTaskGroup(of: (UUID, Data?).self) { group in
-            for bookmark in pending {
-                let host = bookmark.host
-                group.addTask { (bookmark.id, await FaviconFetcher.fetch(forHost: host)) }
-            }
-            for await (id, icon) in group {
-                guard !Task.isCancelled else { return }
-                Self.iconTried.insert(id)
-                guard let icon, let current = bookmarkStore.bookmarks.first(where: { $0.id == id }),
-                      current.faviconData == nil || FaviconFetcher.isTileSized(icon) else { continue }
-                bookmarkStore.setFavicon(icon, for: id)
-            }
-        }
-    }
-
-    @MainActor private static var iconTried = Set<UUID>()
 
     /// UI-test hooks: `-resetBookmarks` clears the bookmark store; `-seedBookmarks` also adds a few.
     private func seedBookmarksIfRequested() {
@@ -584,25 +501,34 @@ struct BrowseStartView: View {
     }
 }
 
-/// Notes when listening starts (Continue listening order) without making the browser re-render
-/// on every playhead tick: only this empty view observes the speech controller.
-private struct ListenHistoryRecorder: View {
-    @Bindable var speech: SpeechController
-    /// Runs with the active session's id whenever it or its playing state changes.
-    var onChange: (UUID?) -> Void
+/// The browser's two alerts: a failed extraction, and a dictation problem (permission, mic).
+private struct BrowseAlerts: ViewModifier {
+    @Binding var extractionError: String?
+    let dictation: AddressDictation?
 
-    private struct Key: Equatable {
-        let id: UUID?
-        let playing: Bool
-    }
-
-    var body: some View {
-        Color.clear
-            .frame(width: 0, height: 0)
-            .accessibilityHidden(true)
-            .onChange(of: Key(id: speech.activeSessionID, playing: speech.isPlaying)) { _, key in
-                if let id = key.id, key.playing { ListenHistory.record(id) }
-                onChange(key.id)
+    func body(content: Content) -> some View {
+        content
+            .alert("Couldn’t extract", isPresented: Binding(
+                get: { extractionError != nil },
+                set: { if !$0 { extractionError = nil } }
+            )) {
+                Button("OK", role: .cancel) { extractionError = nil }
+            } message: {
+                Text(extractionError ?? "")
+            }
+            .alert("Dictation", isPresented: Binding(
+                get: { dictation?.errorMessage != nil },
+                set: { if !$0 { dictation?.errorMessage = nil } }
+            )) {
+                Button("Open Settings") {
+                    dictation?.errorMessage = nil
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("OK", role: .cancel) { dictation?.errorMessage = nil }
+            } message: {
+                Text(dictation?.errorMessage ?? "")
             }
     }
 }

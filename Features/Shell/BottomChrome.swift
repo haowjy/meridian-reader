@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The one bottom-chrome design, shared by the browser and the reader (Nav G, docs/NAVIGATION.md),
-/// so switching Browse ↔ Reader barely changes the bottom of the screen:
+/// The one bottom-chrome design, shared by the browser, the library and the reader
+/// (docs/NAVIGATION.md), so switching surfaces barely changes the bottom of the screen:
 ///
 /// ```
 /// ┌ .bar band ────────────────────────────────────┐
@@ -63,7 +63,7 @@ extension View {
     }
 }
 
-/// Toolbar row layout (Nav I): five equal slots, evenly spaced, one grid for every bottom toolbar,
+/// Toolbar row layout: five equal slots, evenly spaced, one grid for every bottom toolbar,
 /// so each icon sits at the same x on every screen:
 ///
 /// ```

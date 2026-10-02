@@ -2,23 +2,24 @@ import SwiftUI
 import SwiftData
 
 /// The one reader screen. Browse Reader Mode and the library both render this, so typography,
-/// renderer, top row, scrub row, listen bar, Jump and highlight are identical.
+/// renderer, top row, scrub row, listen bar, Jump and highlight are identical. `presentation`
+/// decides how it closes; `origin` decides where "back" leads.
 ///
 /// Top row: `[close] [title]`
-/// - close: `xmark` (over the browser → back to the page) or `chevron.left` (library → pop)
+/// - close: `xmark` (overlay → back to the browser) or `chevron.left` (pushed → pop)
 ///   Navigation rule (docs/NAVIGATION.md): ‹ is a real push, so edge swipe-back comes from
 ///   `SwipeBackSupport`; ✕ is modal, so pulling the top bar down does exactly what ✕ does.
 /// Bottom (thumb reach), above the listen controls: `[scrubber] [select paragraph] [bookmark]`
 /// - bookmark: `bookmark` = unsaved (tap saves) / `bookmark.fill` = saved (tap unsaves)
 /// - select paragraph (hand.tap): while on, a slim hint banner floats over the article top.
-/// Listen bar: `[1×] [⏮] [▶︎] [⏭] [⋯]`. ⋯ is the browser's menu panel in reader context (Voice
-/// settings, Save, Bookmark, Share, Debug; bottom row Bookmarks / Saved / History / Website).
-/// Website (reader off) opens the article's own page in the browser from anywhere — the library
-/// too — and playback keeps going (Nav H).
+/// Listen bar: `[1×] [⏮] [▶︎] [⏭] [⋯]`. ⋯ opens the shell's menu panel in reader context
+/// (`MenuContext.reader`: Voice settings, Save, Bookmark, Share, Debug; bottom row Bookmarks /
+/// Saved / History / Website). Website (reader off) opens the article's own page in the browser
+/// from anywhere — the library too — and playback keeps going.
 ///
-/// The text runs edge to edge, under the top row and the bottom controls (Nav G: the browser's
+/// The text runs edge to edge, under the top row and the bottom controls (the browser's
 /// bottom-chrome style), inset so its first / last lines clear them. The bars never hide — they
-/// behave like the browser's search bar / toolbar (Nav H). See `ReaderChrome.swift`.
+/// behave like the browser's search bar / toolbar. See `ReaderChrome.swift`.
 ///
 /// Save/Unsave only flips the bookmark: the article key is already the saved id (identity v2),
 /// so the view, the `SpeechSession`, and any playing audio are untouched.
@@ -81,11 +82,11 @@ struct ArticleReaderScreen: View {
         savedRow?.playbackParagraphIndex ?? article.resumeParagraph
     }
 
-    /// Saved (‹) is pushed in a `NavigationStack`: its row lives *in* the system navigation bar
+    /// Pushed (‹) in the library's `NavigationStack`: the row lives *in* the system navigation bar
     /// (bar stays visible, back button hidden) so push/pop — including the edge swipe — is the
-    /// standard iOS transition. Hiding the bar here made the pop show the Saved list's bar
-    /// (search field, voice button) full-width over the reader mid-swipe.
-    /// Browse (✕) is an overlay without a navigation bar, so it draws the same row inline.
+    /// standard iOS transition. A hidden bar would let the list's bar (title, voice button) show
+    /// full-width over the reader mid-swipe. The overlay (✕) has no navigation bar, so it draws
+    /// the same row inline.
     private var rowInNavigationBar: Bool { presentation == .pushed }
 
     /// ✕ top band (below the safe area) + 6 pt of air above the text.
@@ -225,17 +226,16 @@ struct ArticleReaderScreen: View {
         let added = store.add(url: url, title: article.title, faviconData: article.faviconData)
         guard !FaviconFetcher.isTileSized(added.faviconData) else { return }
         Task { @MainActor in
-            if let icon = await FaviconFetcher.fetch(forHost: added.host),
-               added.faviconData == nil || FaviconFetcher.isTileSized(icon) {
-                store.setFavicon(icon, for: added.id)
+            if let icon = await FaviconFetcher.fetch(forHost: added.host) {
+                store.offerFavicon(icon, for: added.id)
             }
         }
     }
 
     // MARK: - Top bar
 
-    /// Inline (Browse ✕) version of the row, styled like the browser's bottom chrome mirrored to
-    /// the top (Nav G): the row in the address-field capsule on the same bar material (running up
+    /// Inline (overlay ✕) version of the row, styled like the browser's bottom chrome mirrored to
+    /// the top: the row in the address-field capsule on the same bar material (running up
     /// under the status bar), same margins. Pull-down-to-close.
     private var topBar: some View {
         topRow
