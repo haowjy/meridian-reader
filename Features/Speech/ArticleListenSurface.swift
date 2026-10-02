@@ -6,13 +6,17 @@ import SwiftUI
 ///
 /// Bottom, top to bottom: status notes (buffering / language), then
 /// `[scrubber][select paragraph][bookmark]`, then the listen controls. Status notes sit above
-/// the scrubber (Nav J) so skip / preparing text never pushes it.
+/// the scrubber so skip / preparing text never pushes it.
 ///
 /// Lay this out edge to edge (`ignoresSafeArea`) and pass the real safe area in `safeInsets`; the
 /// text scrolls under the bars but is inset so its first / last lines always clear them.
-/// Bottom chrome (Nav G): the browser's own bottom band (`BottomChrome.swift`) — the scrub row is a
+/// The bottom chrome is the browser's own bottom band (`BottomChrome.swift`): the scrub row is a
 /// field capsule like the address field, the listen controls a toolbar row like `[‹][›][⋯]`.
-/// Like the browser's search bar it never hides (Nav H).
+/// Like the browser's search bar it never hides.
+///
+/// This body follows the playhead per paragraph only (highlight, where Play starts). The offset
+/// inside the paragraph moves several times a second while playing; only `PlayheadReader`
+/// leaves (scrubber thumb, UI-test marker) read it, so playback ticks don't redraw the reader.
 struct ArticleListenSurface: View {
     let cleanedHTML: String
     var pageTitle: String? = nil
@@ -94,7 +98,8 @@ struct ArticleListenSurface: View {
 
     @ViewBuilder
     private var readingView: some View {
-        if !cleanedHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        // `contains` stops at the first character; trimming would copy the whole article HTML.
+        if cleanedHTML.contains(where: { !$0.isWhitespace }) {
             // HTML path: do not touch `session.document` here — parsing is deferred
             // until Play / prepare. Avoids main-thread HTML walk on every open / progress write.
             HTMLReadingView(
@@ -121,10 +126,10 @@ struct ArticleListenSurface: View {
     }
 
     /// Scrub capsule + listen row in the browser's bottom band: same margins, material, capsule,
-    /// row height and ⋯ position as the address field + `[‹][›][⋯]` (Nav G).
+    /// row height and ⋯ position as the address field + `[‹][›][⋯]`.
     private var bottomChrome: some View {
         VStack(spacing: BottomChrome.rowSpacing) {
-            // Nav J: status text above the scrubber so skip / buffering never pushes it.
+            // Status text above the scrubber so skip / buffering never pushes it.
             listenStatusNotes
 
             if let scrubMap {
@@ -145,22 +150,26 @@ struct ArticleListenSurface: View {
                         .accessibilityIdentifier(target.accessibilityIdentifier)
                     }
 
-                    ReaderScrubRow(
-                        map: scrubMap,
-                        position: scrubPosition(scrubMap),
-                        buffered: bufferedSpans(scrubMap),
-                        isSaved: scrubControls.isSaved,
-                        jumpMode: jumpMode,
-                        jumpEnabled: scrubControls.jumpEnabled,
-                        onToggleJump: scrubControls.toggleJump,
-                        onToggleSaved: scrubControls.toggleSaved,
-                        onScrubPreview: { p in
-                            scrubPreview = p
-                            // The only programmatic scroll: following the user's own scrub.
-                            if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
-                        },
-                        onScrubCommit: seek(to:)
-                    )
+                    let doc = readingDocument
+                    let buffered = bufferedSpans(scrubMap)
+                    PlayheadReader(speech: speech, resting: restingSpot) { spot in
+                        ReaderScrubRow(
+                            map: scrubMap,
+                            position: Self.scrubFraction(scrubMap, document: doc, spot: spot),
+                            buffered: buffered,
+                            isSaved: scrubControls.isSaved,
+                            jumpMode: jumpMode,
+                            jumpEnabled: scrubControls.jumpEnabled,
+                            onToggleJump: scrubControls.toggleJump,
+                            onToggleSaved: scrubControls.toggleSaved,
+                            onScrubPreview: { p in
+                                scrubPreview = p
+                                // The only programmatic scroll: following the user's own scrub.
+                                if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
+                            },
+                            onScrubCommit: seek(to:)
+                        )
+                    }
                 }
             }
 
@@ -177,19 +186,22 @@ struct ArticleListenSurface: View {
         .overlay(alignment: .topLeading) {
             // UI tests: the exact spot Play starts / plays from ("p=<paragraph> o=<offset in it>").
             if Self.exposesPosition {
-                Color.clear
-                    .frame(width: 2, height: 2)
-                    .allowsHitTesting(false)
-                    .accessibilityElement()
-                    .accessibilityLabel("Scrub position")
-                    .accessibilityValue(positionMarker)
-                    .accessibilityIdentifier("readerScrubOffset")
+                let doc = readingDocument
+                PlayheadReader(speech: speech, resting: restingSpot) { spot in
+                    Color.clear
+                        .frame(width: 2, height: 2)
+                        .allowsHitTesting(false)
+                        .accessibilityElement()
+                        .accessibilityLabel("Scrub position")
+                        .accessibilityValue(Self.positionMarker(document: doc, spot: spot))
+                        .accessibilityIdentifier("readerScrubOffset")
+                }
             }
         }
     }
 
     /// Buffering / Apple-fallback / language notes — above the scrubber so appearing text
-    /// cannot move the scrub row (Nav J).
+    /// cannot move the scrub row.
     @ViewBuilder
     private var listenStatusNotes: some View {
         let isThisSession = speech.activeSessionID == session.id
@@ -256,29 +268,26 @@ struct ArticleListenSurface: View {
 
     private static let exposesPosition = ProcessInfo.processInfo.arguments.contains("-uiTesting")
 
-    private var positionMarker: String {
-        let doc = readingDocument
-        guard !doc.isEmpty else { return "p=0 o=0" }
-        let p = isLoaded ? speech.currentParagraphIndex : effectiveResume
-        let absolute = isLoaded ? speech.spokenUTF16Offset : (effectiveResumeOffset ?? doc.startUTF16Offset(forParagraph: p))
-        return "p=\(p) o=\(max(0, absolute - doc.startUTF16Offset(forParagraph: p)))"
+    /// Where Play starts when this article isn't the loaded session (scrubbed / stored spot);
+    /// nil while it is loaded, so the live playhead shows.
+    private var restingSpot: PlayheadSpot? {
+        isLoaded ? nil : PlayheadSpot(paragraph: effectiveResume, utf16Offset: effectiveResumeOffset)
     }
 
-    private func scrubPosition(_ map: ReaderScrubMap) -> Double {
-        if isLoaded {
-            let p = speech.currentParagraphIndex
-            let paragraphs = readingDocument.paragraphs
-            guard paragraphs.indices.contains(p) else { return map.fraction(paragraph: p) }
-            let within = Double(speech.spokenUTF16Offset - readingDocument.startUTF16Offset(forParagraph: p))
-                / Double(max(1, paragraphs[p].utf16.count))
-            // < 1 so the end of a paragraph never reads as the start of the next one.
-            return map.fraction(paragraph: p, within: min(max(0, within), 0.999))
+    private static func positionMarker(document doc: ParagraphDocument, spot: PlayheadSpot) -> String {
+        guard !doc.isEmpty else { return "p=0 o=0" }
+        let start = doc.startUTF16Offset(forParagraph: spot.paragraph)
+        return "p=\(spot.paragraph) o=\(max(0, (spot.utf16Offset ?? start) - start))"
+    }
+
+    /// Scrubber fraction of `spot`. `ReaderScrubMap` keeps a spot inside its paragraph (< 1 of
+    /// it), so the end of a paragraph never reads as the start of the next one.
+    private static func scrubFraction(_ map: ReaderScrubMap, document doc: ParagraphDocument,
+                                      spot: PlayheadSpot) -> Double {
+        guard let offset = spot.utf16Offset, doc.paragraphs.indices.contains(spot.paragraph) else {
+            return map.fraction(paragraph: spot.paragraph)
         }
-        if let offset = effectiveResumeOffset {
-            return map.fraction(paragraph: effectiveResume,
-                                offset: offset - readingDocument.startUTF16Offset(forParagraph: effectiveResume))
-        }
-        return map.fraction(paragraph: effectiveResume)
+        return map.fraction(paragraph: spot.paragraph, offset: offset - doc.startUTF16Offset(forParagraph: spot.paragraph))
     }
 
     /// Lighter "buffered" fill (like a video player): stretches of rendered audio, as scrubber
@@ -288,7 +297,7 @@ struct ArticleListenSurface: View {
         return map.spans(covering: ready)
     }
 
-    /// Scrubber release: move the playhead to the sentence under the thumb (Nav I). Playing keeps
+    /// Scrubber release: move the playhead to the sentence under the thumb. Playing keeps
     /// playing from that sentence; paused stays paused there (a real seek, not stop-and-reload);
     /// not loaded just moves where Play starts. Never touches another article that's playing.
     private func seek(to target: ReaderScrubMap.Target) {
@@ -336,6 +345,27 @@ struct ArticleListenSurface: View {
     private struct ScrubMapKey: Hashable {
         let count: Int
         let local: Bool
+    }
+}
+
+/// A playhead position: paragraph + document UTF-16 offset inside it (nil = paragraph start).
+struct PlayheadSpot: Equatable {
+    var paragraph: Int
+    var utf16Offset: Int?
+}
+
+/// Hands `content` the live playhead — or `resting` when the article isn't the loaded session.
+/// The live offset moves several times a second while playing; reading it here, in its own
+/// body, keeps those redraws to `content` instead of the view that builds it. A resting spot
+/// reads nothing live, so another article's playback doesn't redraw it either.
+private struct PlayheadReader<Content: View>: View {
+    let speech: SpeechController
+    let resting: PlayheadSpot?
+    @ViewBuilder let content: (PlayheadSpot) -> Content
+
+    var body: some View {
+        content(resting ?? PlayheadSpot(paragraph: speech.currentParagraphIndex,
+                                        utf16Offset: speech.spokenUTF16Offset))
     }
 }
 
