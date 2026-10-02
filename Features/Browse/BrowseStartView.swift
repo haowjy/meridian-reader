@@ -37,11 +37,6 @@ struct BrowseStartView: View {
     @State private var alertMessage: String?
     @State private var useFakeFailure = false
 
-    @State private var showMore = false
-    /// The toolbar ⋯ button's global frame: the menu panel grows out of it.
-    @State private var moreAnchor: CGRect = .zero
-    /// ⋯ actions that present something run once the panel has started collapsing.
-    @State private var pendingMoreAction: BrowseMoreMenu.Action?
     /// Site bookmarks (their own JSON store; not the saved-article model).
     @State private var bookmarkStore = BookmarkStore.shared
     @State private var listenHistory = ListenHistory(defaults: .standard)
@@ -145,9 +140,13 @@ struct BrowseStartView: View {
             }
         }
         .overlay { libraryOverlay }
-        // ⋯ menu: grows out of the toolbar button and covers it (Safari iOS 26), not a popover.
+        // Every surface's ⋯ menu: grows out of its button and covers it (Safari iOS 26), over
+        // everything else (the library's navigation bar too).
         .overlay {
-            MorphMenuOverlay(isPresented: $showMore, anchor: moreAnchor) { moreMenuPanel }
+            MorphMenuOverlay(item: Binding(get: { shell.menu }, set: { shell.menu = $0 }),
+                             anchor: shell.menuAnchor) { context, close in
+                MoreMenuPanel(context: context, close: close)
+            }
         }
         .background {
             ListenHistoryRecorder(speech: speech) { activeID in
@@ -183,11 +182,6 @@ struct BrowseStartView: View {
         }
         .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { sheet in
             sheetContent(sheet)
-        }
-        .onChange(of: showMore) { _, open in
-            guard !open, let action = pendingMoreAction else { return }
-            pendingMoreAction = nil
-            runMoreAction(action)
         }
         .alert("Dictation", isPresented: Binding(
             get: { dictation?.errorMessage != nil },
@@ -237,13 +231,7 @@ struct BrowseStartView: View {
     @ViewBuilder
     private var libraryOverlay: some View {
         if shell.isInLibrary {
-            LibrarySurface(
-                path: Binding(get: { shell.libraryPath }, set: { shell.libraryPath = $0 }),
-                isMoreOpen: showMore,
-                onMoreAnchor: { if $0 != moreAnchor { moreAnchor = $0 } },
-                onOpenMore: { showMore = true },
-                onLeaveToBrowser: shell.leaveLibrary
-            )
+            LibrarySurface(path: Binding(get: { shell.libraryPath }, set: { shell.libraryPath = $0 }))
             .transition(.opacity)
         }
     }
@@ -391,7 +379,7 @@ struct BrowseStartView: View {
             // outside restores the page's address.
             toolbarButton("magnifyingglass", label: "Search", id: "browseSearch", action: startNewSearch)
             toolbarButton("books.vertical", label: "Library", id: "browseLibrary", action: openLibrary)
-            moreMenu
+            MoreMenuButton(id: "browseMore", isBusy: shell.busy == .save) { .browse(browseMenu, perform: perform) }
         }
         // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI gives
         // disabled buttons, so ‹ / › with no history would look tappable.
@@ -412,56 +400,23 @@ struct BrowseStartView: View {
         return url
     }
 
-    /// ⋯ → Safari-style menu panel (see `BrowseMoreMenu`, `MorphMenuOverlay`).
-    private var moreMenu: some View {
-        Button { showMore = true } label: {
-            Group {
-                if shell.busy == .save {
-                    ProgressView()
-                } else {
-                    Image(systemName: "ellipsis")
-                }
-            }
-            .toolbarIconFrame()
-        }
-        .accessibilityLabel("More")
-        .accessibilityIdentifier("browseMore")
-        .morphMenuButtonHidden(showMore)
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if $0 != moreAnchor { moreAnchor = $0 } }
-    }
-
-    private var moreMenuPanel: some View {
-        BrowseMoreMenu(
+    private var browseMenu: BrowseMenu {
+        BrowseMenu(
             hasPage: hasPage,
-            // Off on the start page and on pages that can't be read (Reader mode itself has
-            // its own ⋯ with this toggle selected).
-            canToggleReader: canOpenReader,
-            isReaderOn: false,
+            canOpenReader: canOpenReader,
             isSaved: currentSavedArticle != nil,
             canSave: hasPage && shell.busy == nil,
             isBookmarked: currentBookmark != nil,
             canBookmark: bookmarkableURL != nil,
             canShare: shareURL != nil,
-            showsDebug: speech.developerOptionsEnabled,
-            fakeExtractionFailure: $useFakeFailure
-        ) { action in
-            switch action {
-            case .newSearch, .toggleSave, .toggleBookmark, .reload:
-                showMore = false
-                runMoreAction(action)
-            case .share, .voiceSettings, .bookmarks, .saved, .history, .toggleReader, .listenDebug, .openWebsite:
-                // Present once the panel has started collapsing.
-                pendingMoreAction = action
-                showMore = false
-            }
-        }
+            fakeExtractionFailure: speech.developerOptionsEnabled ? $useFakeFailure : nil
+        )
     }
 
-    private func runMoreAction(_ action: BrowseMoreMenu.Action) {
+    private func perform(_ action: BrowseMenu.Action) {
         switch action {
         case .newSearch: showStartLanding()
-        case .toggleReader: Task { await runReader() }
-        case .listenDebug: speech.showListenDebug = true
+        case .openReader: Task { await runReader() }
         case .toggleSave: Task { await toggleSaveFromBrowser() }
         case .toggleBookmark: Task { await toggleBookmark() }
         case .bookmarks: shell.present(.bookmarks)
@@ -470,7 +425,6 @@ struct BrowseStartView: View {
         case .voiceSettings: shell.present(.voiceSettings)
         case .saved: openLibrary()
         case .history: shell.present(.history)
-        case .openWebsite: break // reader context only
         }
     }
 

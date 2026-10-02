@@ -2,31 +2,38 @@ import SwiftUI
 
 /// Safari (iOS 26)–style ⋯ menu: the button grows into the menu panel instead of an arrow
 /// popover floating above it. The panel is placed so its focus point (`morphMenuFocus`, the
-/// bottom-right button's icon: Reader / Website) sits slightly up and to the left of the ⋯
-/// glyph (`MorphMenu.focusOffsetFromAnchor`, Safari's feel), and it grows out of the ⋯. Without a focus point the panel's bottom-right corner sits on
-/// the button's bottom-right corner. The rest of the screen dims; tap outside, swipe the
-/// panel down, or Escape (VoiceOver two-finger scrub / hardware Esc) collapses it back into
-/// the button.
+/// bottom-right button's icon) sits slightly up and to the left of the ⋯ glyph
+/// (`MorphMenu.focusOffsetFromAnchor`, Safari's feel), and it grows out of the ⋯. Without a focus
+/// point the panel's bottom-right corner sits on the button's bottom-right corner. The rest of the
+/// screen dims; tap outside, swipe the panel down, or Escape (VoiceOver two-finger scrub /
+/// hardware Esc) collapses it back into the button.
 ///
-/// The morph is an animatable progress, not a SwiftUI transition (a transition on a view nested in
-/// the inserted container never runs, which silently turned the morph into a plain fade). The
-/// overlay unmounts once it has collapsed.
+/// The morph is an animatable progress, not a SwiftUI transition: a transition on a view nested in
+/// the inserted container never runs. The overlay unmounts once it has collapsed.
 ///
-/// Used by the browser toolbar ⋯ and the reader listen bar ⋯. The owner keeps `isPresented`,
-/// reports the button's global frame as `anchor`, and fades its ⋯ glyph out while open (see
-/// `morphMenuButtonHidden`) so the button reads as turning into the panel.
-struct MorphMenuOverlay<Panel: View>: View {
-    @Binding var isPresented: Bool
+/// One overlay serves every ⋯ (browser toolbar, library toolbar, reader listen bar): the shell
+/// keeps the open menu as `item` (nil = closed) and the button's global frame as `anchor`; the
+/// button fades its glyph while open (`morphMenuButtonHidden`) so it reads as turning into the
+/// panel. The panel keeps showing the last item while it collapses.
+///
+/// The panel gets a `MorphMenuClose`: rows close the menu through it and pass the action to run
+/// once the panel has started collapsing, so whatever the action presents (a sheet, the library)
+/// never competes with the open menu.
+struct MorphMenuOverlay<Item, Panel: View>: View {
+    @Binding var item: Item?
     /// The ⋯ button's frame in global coordinates.
     let anchor: CGRect
     /// How far the panel's bottom-right corner reaches past the button's bottom-right corner.
     var overhang: CGFloat = 0
     /// Focus icon offset from the ⋯ center: positive width = left, positive height = up.
     var focusOffset: CGSize = MorphMenu.focusOffsetFromAnchor
-    @ViewBuilder var panel: () -> Panel
+    @ViewBuilder var panel: (Item, MorphMenuClose) -> Panel
 
-    /// In the hierarchy (open, or still collapsing back into the button).
-    @State private var mounted = false
+    /// The item on screen: set while open and kept while collapsing back into the button
+    /// (non-nil = in the hierarchy).
+    @State private var shown: Item?
+    /// Runs once the panel has started collapsing (see `MorphMenuClose`).
+    @State private var afterClose: (() -> Void)?
     /// Drives the morph: false = button-sized (collapsed), true = full panel.
     @State private var expanded = false
     @State private var panelSize = CGSize(width: 300, height: 420)
@@ -36,11 +43,11 @@ struct MorphMenuOverlay<Panel: View>: View {
     /// The focus icon's center in panel coordinates (unscaled).
     @State private var focus: CGPoint?
 
-    static var cornerRadius: CGFloat { 28 }
+    private var isPresented: Bool { item != nil }
 
     var body: some View {
         ZStack {
-            if mounted {
+            if let shown {
                 GeometryReader { geo in
                     let origin = geo.frame(in: .global).origin
                     let local = anchor == .zero
@@ -60,7 +67,7 @@ struct MorphMenuOverlay<Panel: View>: View {
                             .accessibilityIdentifier("moreMenuDismiss")
                             .accessibilityAction(.default, dismiss)
 
-                        panelView(buttonSize: local.size)
+                        panelView(shown, buttonSize: local.size)
                             .padding(.trailing, trailing)
                             .padding(.bottom, bottom)
                     }
@@ -73,7 +80,16 @@ struct MorphMenuOverlay<Panel: View>: View {
                 .allowsHitTesting(isPresented)
             }
         }
-        .onChange(of: isPresented) { _, open in open ? present() : collapse() }
+        .onChange(of: isPresented) { _, open in
+            if open {
+                present()
+            } else {
+                collapse()
+                let next = afterClose
+                afterClose = nil
+                next?()
+            }
+        }
         .onAppear { if isPresented { present() } }
     }
 
@@ -90,14 +106,17 @@ struct MorphMenuOverlay<Panel: View>: View {
                       height: max(8, container.height - button.maxY - overhang))
     }
 
-    private func panelView(buttonSize: CGSize) -> some View {
+    private func panelView(_ shown: Item, buttonSize: CGSize) -> some View {
         let start = CGSize(
             width: min(1, max(0.08, buttonSize.width / max(1, panelSize.width))),
             height: min(1, max(0.05, buttonSize.height / max(1, panelSize.height)))
         )
         let anchor = focus.map { UnitPoint(x: $0.x / max(1, panelSize.width), y: $0.y / max(1, panelSize.height)) }
             ?? .bottomTrailing
-        return panel()
+        return panel(shown, MorphMenuClose { next in
+            afterClose = next
+            item = nil
+        })
             .coordinateSpace(name: MorphMenu.panelSpace)
             .onPreferenceChange(MorphMenuFocusKey.self) { focus = $0 }
             .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
@@ -138,23 +157,24 @@ struct MorphMenuOverlay<Panel: View>: View {
     private func present() {
         dragOffset = 0
         dragAxis = nil
-        if mounted {
+        let collapsing = shown != nil
+        shown = item
+        if collapsing {
             // Re-opened while collapsing: grow back from where it is.
             withAnimation(MorphMenu.animation) { expanded = true }
         } else {
             expanded = false
-            mounted = true
         }
     }
 
     private func collapse() {
-        guard mounted else { return }
+        guard shown != nil else { return }
         withAnimation(MorphMenu.animation) {
             expanded = false
             // Shrink back into the button from wherever a swipe left the panel.
             dragOffset = 0
         } completion: {
-            if !isPresented { mounted = false }
+            if !isPresented { shown = nil }
         }
     }
 
@@ -183,12 +203,22 @@ struct MorphMenuOverlay<Panel: View>: View {
     }
 
     private func dismiss() {
-        isPresented = false
+        item = nil
+    }
+}
+
+/// Closes the morph menu, then runs `then` once the panel has started collapsing.
+struct MorphMenuClose {
+    fileprivate let close: (@escaping () -> Void) -> Void
+
+    func callAsFunction(then next: @escaping () -> Void = {}) {
+        close(next)
     }
 }
 
 enum MorphMenu {
     static let panelSpace = "morphMenuPanel"
+    static let cornerRadius: CGFloat = 28
     /// The Website / Reader icon sits this far left and up of the ⋯ (Safari's feel). Measured
     /// from a Safari iOS 26 screenshot, where All Tabs sits inset of the tabs/⋯ control rather
     /// than covering it dead-on.
@@ -225,7 +255,7 @@ private struct MorphPanelEffect: ViewModifier, Animatable {
             .opacity(rows)
             .blur(radius: (1 - p) * 6)
             .background { MorphMenuPanelBackground() }
-            .clipShape(RoundedRectangle(cornerRadius: MorphMenuOverlay<EmptyView>.cornerRadius, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: MorphMenu.cornerRadius, style: .continuous))
             .shadow(color: .black.opacity(0.18 * Double(p)), radius: 28, y: 10)
             .scaleEffect(x: startScale.width + (1 - startScale.width) * p,
                          y: startScale.height + (1 - startScale.height) * p,
@@ -237,7 +267,7 @@ private struct MorphPanelEffect: ViewModifier, Animatable {
 /// Light glass like Safari's menu panel (iOS 26); a thick material before that.
 private struct MorphMenuPanelBackground: View {
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: MorphMenuOverlay<EmptyView>.cornerRadius, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: MorphMenu.cornerRadius, style: .continuous)
         if #available(iOS 26.0, *) {
             shape
                 .fill(Color(.systemBackground).opacity(0.55))

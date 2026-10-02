@@ -36,12 +36,6 @@ struct ArticleReaderScreen: View {
     @Environment(ShellState.self) private var shell
     @Query private var savedRows: [SavedArticle]
     @State private var jumpMode = false
-    @State private var showMore = false
-    /// The listen bar ⋯ button's global frame: the menu panel grows out of it.
-    @State private var moreAnchor: CGRect = .zero
-    /// Presenting actions run after the panel has started collapsing.
-    @State private var pendingMenuAction: BrowseMoreMenu.Action?
-    @State private var noFakeFailure = false
     /// ✕ reader only: how far the top bar is being pulled down (swipe-down-to-close).
     @State private var pullDownOffset: CGFloat = 0
     /// The screen's safe area (the text runs under it; the bars and text insets respect it).
@@ -104,10 +98,10 @@ struct ArticleReaderScreen: View {
                 .toolbar {
                     ToolbarItem(placement: .principal) { navigationBarRow }
                 }
-                // The same bar material as the browser's bottom band (Nav G). Clear while the ⋯
-                // menu dims the page (the dim runs up under it).
+                // The same bar material as the browser's bottom band. The shell's ⋯ menu dims it
+                // with the rest of the screen.
                 .toolbarBackground(.bar, for: .navigationBar)
-                .toolbarBackground(showMore ? .hidden : .visible, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
         } else {
             content
         }
@@ -161,20 +155,11 @@ struct ArticleReaderScreen: View {
                 .ignoresSafeArea()
                 .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { safeInsets = $0 }
         }
-        // ⋯ menu: grows out of the listen bar button and covers it (same panel as the browser).
-        .overlay {
-            MorphMenuOverlay(isPresented: $showMore, anchor: moreAnchor) { moreMenuPanel }
-        }
         .offset(y: pullDownOffset)
         .task(id: WarmKey(id: article.id, count: article.document.count)) {
             prepareListen()
         }
         .onDisappear(perform: persistProgress)
-        .onChange(of: showMore) { _, open in
-            guard !open, let action = pendingMenuAction else { return }
-            pendingMenuAction = nil
-            runMenuAction(action)
-        }
     }
 
     // MARK: - ⋯ menu
@@ -182,40 +167,20 @@ struct ArticleReaderScreen: View {
     /// Bottom-right of the listen row: the same cell, glyph and size as the browser's ⋯
     /// (`toolbarIconFrame` in `BottomToolbarLayout`), so the menu grows from the same spot.
     private var moreButton: some View {
-        Button { showMore = true } label: {
-            Image(systemName: "ellipsis").toolbarIconFrame()
-        }
-        .foregroundStyle(.primary)
-        .accessibilityLabel("More")
-        .accessibilityIdentifier("readerMore")
-        .morphMenuButtonHidden(showMore)
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if $0 != moreAnchor { moreAnchor = $0 } }
+        MoreMenuButton(id: "readerMore") { .reader(readerMenu, perform: perform) }
+            .foregroundStyle(.primary)
     }
 
-    private var moreMenuPanel: some View {
-        BrowseMoreMenu(
-            context: .reader,
-            hasPage: true,
-            canToggleReader: true,
-            isReaderOn: true,
-            canOpenWebsite: websiteURL != nil,
+    private var readerMenu: ReaderMenu {
+        ReaderMenu(
             isSaved: isSaved,
             canSave: sessionReady,
             isBookmarked: articleURL.flatMap { BookmarkStore.shared.bookmark(for: $0) } != nil,
             canBookmark: articleURL.map(BookmarkStore.isBookmarkable) ?? false,
             canShare: shareURL != nil,
-            showsDebug: speech.developerOptionsEnabled,
-            fakeExtractionFailure: $noFakeFailure
-        ) { action in
-            switch action {
-            case .toggleSave, .toggleBookmark:
-                showMore = false
-                runMenuAction(action)
-            default:
-                pendingMenuAction = action
-                showMore = false
-            }
-        }
+            canOpenWebsite: websiteURL != nil,
+            showsDebug: speech.developerOptionsEnabled
+        )
     }
 
     private var articleURL: URL? { URL(string: article.urlString) }
@@ -231,7 +196,7 @@ struct ArticleReaderScreen: View {
         return url
     }
 
-    private func runMenuAction(_ action: BrowseMoreMenu.Action) {
+    private func perform(_ action: ReaderMenu.Action) {
         switch action {
         case .voiceSettings: shell.present(.voiceSettings)
         case .toggleSave: toggleSaved()
@@ -246,8 +211,6 @@ struct ArticleReaderScreen: View {
         // from (library, start page, Continue listening, mini player). Playback keeps going.
         case .openWebsite:
             if let websiteURL { persistProgress(); shell.openWebsite(websiteURL) } else { close() }
-        case .toggleReader: close()
-        case .newSearch, .reload: break
         }
     }
 
@@ -287,23 +250,11 @@ struct ArticleReaderScreen: View {
             .gesture(pullDownToClose, including: presentation == .overlay ? .all : .subviews)
     }
 
-    /// Library (‹) version: the row sits in the (transparent) navigation bar so push / pop and the
-    /// edge swipe stay the standard iOS transition. It fades with the chrome; while the ⋯ menu is
-    /// open it dims with the page and a tap on it closes the menu.
+    /// Library (‹) version: the row sits in the navigation bar so push / pop and the edge swipe
+    /// stay the standard iOS transition.
     private var navigationBarRow: some View {
         topRow
             .bottomChromeField(leading: 4, trailing: 4)
-            .opacity(showMore ? 0.45 : 1)
-            .allowsHitTesting(!showMore)
-            .overlay {
-                if showMore {
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .onTapGesture { showMore = false }
-                        .accessibilityHidden(true)
-                }
-            }
-            .animation(.easeInOut(duration: 0.2), value: showMore)
     }
 
     /// `[close] [title]`. The title is centered (a clear spacer balances the close button).

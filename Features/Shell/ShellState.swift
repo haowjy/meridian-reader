@@ -52,7 +52,8 @@ enum BusyAction: Equatable {
     case save
 }
 
-/// The app's presentation state: one surface (browser, reader or library), at most one sheet.
+/// The app's presentation state: one surface (browser, reader or library), at most one sheet,
+/// at most one ⋯ menu.
 /// Every way of leaving a surface goes through here, so invalid combinations (the library over a
 /// reader, a sheet waiting for the library to close) can't be represented.
 @MainActor
@@ -69,6 +70,10 @@ final class ShellState {
 
     private(set) var surface: Surface = .browse
     var sheet: ShellSheet?
+    /// The open ⋯ menu (nil = closed), rendered by the shell's one `MorphMenuOverlay`.
+    var menu: MenuContext?
+    /// Global frame of the ⋯ button the open menu grows from.
+    private(set) var menuAnchor: CGRect = .zero
     var busy: BusyAction?
     let web = WebViewStore()
     /// The unsaved article the mini player reopens: the reader article that became the active
@@ -156,7 +161,12 @@ final class ShellState {
         }
     }
 
-    // MARK: - Sheets
+    // MARK: - Menu and sheets
+
+    func openMenu(_ context: MenuContext, from anchor: CGRect) {
+        menuAnchor = anchor
+        menu = context
+    }
 
     func present(_ sheet: ShellSheet) {
         if sheet.belongsToBrowser { leaveLibrary() }

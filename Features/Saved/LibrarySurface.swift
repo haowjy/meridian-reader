@@ -18,10 +18,8 @@ import SwiftData
 /// the reader draws its own). Leaving via 🌐 restores the prior browse surface.
 struct LibrarySurface: View {
     @Binding var path: [UUID]
-    var isMoreOpen: Bool
-    var onMoreAnchor: (CGRect) -> Void
-    var onOpenMore: () -> Void
-    var onLeaveToBrowser: () -> Void
+
+    @Environment(ShellState.self) private var shell
 
     @State private var searchText = ""
     /// Search session (like Browse `isEditingAddress`): survives swipe-down keyboard dismiss.
@@ -120,23 +118,27 @@ struct LibrarySurface: View {
             .accessibilityLabel("Search")
             .accessibilityIdentifier("librarySearch")
 
-            Button(action: onLeaveToBrowser) {
+            Button(action: shell.leaveLibrary) {
                 Image(systemName: "globe").toolbarIconFrame()
             }
             .accessibilityLabel("Browser")
             .accessibilityIdentifier("libraryBrowser")
             .accessibilityHint("Return to the browser")
 
-            Button(action: onOpenMore) {
-                Image(systemName: "ellipsis").toolbarIconFrame()
-            }
-            .accessibilityLabel("More")
-            .accessibilityIdentifier("libraryMore")
-            .morphMenuButtonHidden(isMoreOpen)
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { onMoreAnchor($0) }
+            MoreMenuButton(id: "libraryMore") { .library(perform: perform) }
         }
         // Same as the browser toolbar: tint keeps disabled buttons dimmed.
         .tint(.primary)
+    }
+
+    /// The library's own ⋯: nothing in it touches the browser's page.
+    private func perform(_ action: LibraryMenuAction) {
+        switch action {
+        case .voiceSettings: shell.present(.voiceSettings)
+        case .bookmarks: shell.present(.bookmarks)
+        case .history: shell.present(.history)
+        case .browser: shell.leaveLibrary()
+        }
     }
 
     private func beginSearch() {

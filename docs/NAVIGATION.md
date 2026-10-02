@@ -75,8 +75,9 @@ grows from the same spot. ⋯ is never replaced. The mini player's play/pause is
   like Safari's All Tabs). The Reader toggle is disabled on the start page and on pages that
   aren't readable; on a readable page tapping it switches into reader mode. Actions that present
   something (Share, Voice settings, Bookmarks, Saved, History) run after the panel has closed.
-- **The ⋯ panel** (`MorphMenuOverlay`, shared by the browser toolbar ⋯ and the reader / library
-  reader listen bar ⋯) is not a popover: it is placed so the bottom-right button's icon (Reader,
+- **The ⋯ panel** (`MorphMenuOverlay`: one overlay for the browser toolbar ⋯, the library
+  toolbar ⋯ and the reader listen bar ⋯; its rows come from the surface that opened it,
+  `MenuContext`) is not a popover: it is placed so the bottom-right button's icon (Reader,
   or Website in the reader — marked with `morphMenuFocus`) sits slightly up and to the left of
   the ⋯ glyph (Safari's feel: **12 pt left, 10 pt up**), not dead-on on top of it (UI tests check
   the offset within 1 pt on Browse, the ✕ reader and the ‹ reader). It covers
@@ -117,7 +118,10 @@ reorder/delete; grabber, medium/large.
 bottom chrome shell** as Browse / Reader (search field capsule + five-slot toolbar). Slot 4
 shows 🌐 Browser to swap back (restores the prior browse surface). Opening an article pushes the
 ‹ reader inside the surface (swipe back from the left edge); the shared library chrome hides
-while the reader draws its own. The row's play button plays without opening.
+while the reader draws its own. The row's play button plays without opening. The library's ⋯ is
+its own menu — *Voice settings*, then big buttons **Bookmarks**, **History**, **Browser** — and
+nothing in it acts on the page under the library. Bookmarks and History close the library
+first; Browser is the same swap as 🌐.
 
 **Library search** matches Browse's ✕ session: focusing the field (or toolbar Search) hides the
 toolbar icons so the field sits above the keyboard with a round ✕; swipe-down / scroll lowers the
@@ -222,8 +226,7 @@ Swipe-down-to-close (✕, from the top row) and left-edge swipe-back (‹) are u
   The ✕ reader over that page just reveals it (no reload); from the library (the library closes
   first), the start page, Continue listening or the mini player the page loads in the browser.
   Playback never stops — the mini player takes over.
-  In the ‹ reader the dim also covers the (transparent) navigation bar; the row there fades and a
-  tap on it closes the menu.
+  In the ‹ reader the dim covers the navigation bar too; a tap there closes the menu.
   Voice settings (speed / voice / engine — what the gear used to hold) opens as a sheet. There
   is no gear on the listen bar.
 
