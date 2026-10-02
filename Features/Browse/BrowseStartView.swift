@@ -545,23 +545,6 @@ struct BrowseStartView: View {
             moreMenu
         }
         .foregroundStyle(.primary)
-        .simultaneousGesture(browserToolbarSwipe)
-    }
-
-    private var browserToolbarSwipe: some Gesture {
-        DragGesture(minimumDistance: SwipeGesturePolicy.horizontalMinimumDistance)
-            .onEnded { value in
-                guard let direction = SwipeGesturePolicy.horizontalDirection(
-                    translation: value.translation,
-                    predicted: value.predictedEndTranslation
-                ) else { return }
-                switch direction {
-                case .right:
-                    if webStore.canGoBack { webStore.goBack() }
-                case .left:
-                    if webStore.canGoForward { webStore.goForward() }
-                }
-            }
     }
 
     private func toolbarButton(_ systemImage: String, label: String, id: String,
