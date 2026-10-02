@@ -84,8 +84,8 @@ grows from the same spot. ⋯ is never replaced. The mini player's play/pause is
   fades, and the rest of the screen dims. Tapping the dimmed area,
   swiping the panel down, or Escape (VoiceOver scrub / hardware Esc) collapses it back into the
   button. Light glass on iOS 26 (thick material before). Debug › is a native `Menu`.
-- **Bookmarks vs Saved**: a *bookmark* is just a site link (URL, title, favicon — e.g. a Royal
-  Road story page), kept in its own small JSON store (`BookmarkStore`,
+- **Bookmarks vs Saved**: a *bookmark* is just a site link (URL, title, favicon — e.g. a story's
+  index page), kept in its own small JSON store (`BookmarkStore`,
   Application Support/Bookmarks/bookmarks.json); no text or audio. A *saved article* is the
   reader article (text + audio) in SwiftData. The two are independent: bookmarking never saves,
   saving never bookmarks. Star = bookmark, 🔖 = saved article.

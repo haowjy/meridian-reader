@@ -992,7 +992,7 @@ struct BrowseStartView: View {
         bookmarkStore.removeAll()
         guard args.contains("-seedBookmarks") else { return }
         let seeds: [(String, String)] = [
-            ("https://www.royalroad.com/fiction/193675/the-witchs-bond", "The Witch's Bond"),
+            ("https://www.gutenberg.org/", "Project Gutenberg"),
             ("https://en.wikipedia.org/wiki/Speech_synthesis", "Speech synthesis"),
             ("https://news.ycombinator.com/", "Hacker News"),
             ("https://www.theverge.com/", "The Verge"),

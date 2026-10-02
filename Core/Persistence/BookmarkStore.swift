@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// A plain website bookmark (e.g. a Royal Road story page): URL, title, icon. No article text or
+/// A plain website bookmark (e.g. a story's index page): URL, title, icon. No article text or
 /// audio is kept; that's what Saved articles are for.
 struct SiteBookmark: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
