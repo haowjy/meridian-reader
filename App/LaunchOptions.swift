@@ -24,7 +24,7 @@ struct LaunchOptions: Equatable {
     /// (live Google suggestions), so results don't depend on the network.
     var uiTesting = false
     var demoArticle: DemoArticle?
-    /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): start in the ✕ reader on it.
+    /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): start in the reader overlay on it.
     var opensDemoInReader = false
     /// `-openLibrary`: start in the library.
     var opensLibrary = false

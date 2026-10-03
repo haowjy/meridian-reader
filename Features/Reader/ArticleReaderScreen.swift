@@ -5,11 +5,11 @@ import SwiftData
 /// renderer, top row, scrub row, listen bar, Jump and highlight are identical. `presentation`
 /// decides how it closes; `origin` decides where "back" leads.
 ///
-/// Top row: `[close] [title]`
-/// - close: `xmark` (overlay → back to the browser) or `chevron.left` (pushed → pop)
-///   Navigation rule (docs/NAVIGATION.md): ‹ is a real push, so edge swipe-back comes from
-///   `SwipeBackSupport`; ✕ is modal, so pulling the top bar down does exactly what ✕ does.
-/// Bottom (thumb reach), above the listen controls: `[scrubber] [select paragraph] [bookmark]`
+/// Top row: `[title]`. The overlay closes by pulling it down; the pushed reader pops with the
+/// edge swipe (`SwipeBackSupport`). Both do exactly what the back control does.
+/// Bottom (thumb reach), above the listen controls: `[back] ( [scrubber] [select paragraph] [bookmark] )`
+/// - back: the one close control, within thumb reach. It returns to where the reader was opened
+///   from (`ReaderOrigin`: the web page, the start page, or the library) and says which.
 /// - bookmark: `bookmark` = unsaved (tap saves) / `bookmark.fill` = saved (tap unsaves)
 /// - select paragraph (hand.tap): while on, a slim hint banner floats over the article top.
 /// Listen bar: `[1×] [⏮] [▶︎] [⏭] [⋯]`. ⋯ opens the shell's menu panel in reader context
@@ -38,11 +38,11 @@ struct ArticleReaderScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var savedRows: [SavedArticle]
     @State private var jumpMode = false
-    /// ✕ reader only: how far the top bar is being pulled down (swipe-down-to-close).
+    /// Overlay only: how far the top bar is being pulled down (swipe-down-to-close).
     @State private var pullDownOffset: CGFloat = 0
     /// The screen's safe area (the text runs under it; the bars and text insets respect it).
     @State private var safeInsets = EdgeInsets()
-    /// ✕ top row height (the ‹ row lives in the navigation bar instead).
+    /// Overlay top row height (the pushed reader's row lives in the navigation bar instead).
     @State private var topRowHeight: CGFloat = 0
 
     init(
@@ -83,14 +83,14 @@ struct ArticleReaderScreen: View {
         savedRow?.playbackParagraphIndex ?? article.resumeParagraph
     }
 
-    /// Pushed (‹) in the library's `NavigationStack`: the row lives *in* the system navigation bar
+    /// Pushed in the library's `NavigationStack`: the row lives *in* the system navigation bar
     /// (bar stays visible, back button hidden) so push/pop — including the edge swipe — is the
     /// standard iOS transition. A hidden bar would let the list's bar (title, voice button) show
-    /// full-width over the reader mid-swipe. The overlay (✕) has no navigation bar, so it draws
-    /// the same row inline.
+    /// full-width over the reader mid-swipe. The overlay has no navigation bar, so it draws the
+    /// same row inline.
     private var rowInNavigationBar: Bool { presentation == .pushed }
 
-    /// ✕ top band (below the safe area) + 6 pt of air above the text.
+    /// Overlay top band (below the safe area) + 6 pt of air above the text.
     private var topChromeHeight: CGFloat { rowInNavigationBar ? 0 : topRowHeight + 6 }
 
     @ViewBuilder
@@ -129,8 +129,8 @@ struct ArticleReaderScreen: View {
                     jumpEnabled: sessionReady,
                     toggleJump: toggleJump,
                     toggleSaved: toggleSaved,
-                    backTarget: origin == .library ? .library : .website,
-                    onBackToSource: close
+                    back: origin,
+                    onBack: close
                 ),
                 listenTrailing: AnyView(moreButton),
                 safeInsets: safeInsets,
@@ -230,8 +230,8 @@ struct ArticleReaderScreen: View {
 
     // MARK: - Top bar
 
-    /// Inline (overlay ✕) version of the row, styled like the browser's bottom chrome mirrored to
-    /// the top: the row in the address-field capsule on the same bar material (running up
+    /// Inline (overlay) version of the row, styled like the browser's bottom chrome mirrored to
+    /// the top: the title in the address-field capsule on the same bar material (running up
     /// under the status bar), same margins. Pull-down-to-close.
     private var topBar: some View {
         topRow
@@ -241,47 +241,32 @@ struct ArticleReaderScreen: View {
             .padding(.bottom, BottomChrome.topPadding)
             .background(.bar)
             .contentShape(Rectangle())
-            // Only the ✕ (modal) reader gets pull-down-to-close, and only from the top bar, so it
-            // never competes with scrolling, text selection or Jump taps in the article.
+            // Only the overlay gets pull-down-to-close, and only from the top bar, so it never
+            // competes with scrolling, text selection or Jump taps in the article.
             .gesture(pullDownToClose, including: presentation == .overlay ? .all : .subviews)
     }
 
-    /// Library (‹) version: the row sits in the navigation bar so push / pop and the edge swipe
-    /// stay the standard iOS transition.
+    /// Pushed (library) version: the row sits in the navigation bar so push / pop and the edge
+    /// swipe stay the standard iOS transition.
     private var navigationBarRow: some View {
         topRow
             .bottomChromeField(leading: 4, trailing: 4)
     }
 
-    /// `[close] [title]`. The title is centered (a clear spacer balances the close button).
+    /// The title, centered. No close button up here: the back control sits at the bottom left,
+    /// within thumb reach.
     private var topRow: some View {
-        HStack(spacing: 2) {
-            Button(action: close) {
-                Image(systemName: presentation == .overlay ? "xmark" : "chevron.left")
-                    .font(.body.weight(.semibold))
-                    // Explicit so the row looks the same inline (Browse) and in the nav bar (Saved),
-                    // where toolbar styling would otherwise make it black.
-                    .foregroundStyle(Color.accentColor)
-                    .frame(width: BottomChrome.fieldControlSize, height: BottomChrome.fieldControlSize)
-                    .contentShape(Rectangle())
-            }
-            .accessibilityIdentifier("readerClose")
-            .accessibilityLabel(presentation == .overlay ? "Hide Reader" : "Back")
-
-            Text(article.title)
-                .font(.body) // the address field's text size
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity)
-                .layoutPriority(-1)
-                .accessibilityIdentifier("readerTitle")
-
-            Color.clear.frame(width: BottomChrome.fieldControlSize, height: BottomChrome.fieldControlSize)
-        }
-        .frame(maxWidth: .infinity)
+        Text(article.title)
+            .font(.body) // the address field's text size
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("readerTitle")
+            .accessibilityAddTraits(.isHeader)
     }
 
-    /// Pull the top bar down to close the ✕ reader. Same action as tapping ✕.
+    /// Pull the top bar down to close the overlay. Same action as the back control.
     private var pullDownToClose: some Gesture {
         DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance, coordinateSpace: .global)
             .onChanged { value in
@@ -323,7 +308,8 @@ struct ArticleReaderScreen: View {
 
     // MARK: - Actions
 
-    /// ✕ / ‹ tap and ✕ pull-down all go through here (‹ swipe-back pops, `onDisappear` persists).
+    /// The back control and the overlay's pull-down go through here (the pushed reader's edge
+    /// swipe pops directly; `onDisappear` persists).
     private func close() {
         persistProgress()
         onClose()

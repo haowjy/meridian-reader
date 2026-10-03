@@ -26,7 +26,7 @@ final class BrowseStartPageUITests: XCTestCase {
         resume.tap()
         let close = app.buttons["readerClose"]
         XCTAssertTrue(close.waitForExistence(timeout: 5))
-        XCTAssertEqual(close.label, "Hide Reader", "opens in the ✕ reader over the browser")
+        XCTAssertEqual(close.label, "Back to Start Page", "opens in the reader over the start page")
         let scrubber = el(app, "readerScrubber")
         XCTAssertTrue(scrubber.waitForExistence(timeout: 5))
         XCTAssertEqual(scrubber.value as? String, "Paragraph 2 of 3", "resumes at the saved paragraph")
@@ -49,6 +49,6 @@ final class BrowseStartPageUITests: XCTestCase {
         app.cells.staticTexts["Demo Listen Article"].tap()
         let close = app.buttons["readerClose"]
         XCTAssertTrue(close.waitForExistence(timeout: 5))
-        XCTAssertEqual(close.label, "Back", "library pushes the ‹ reader")
+        XCTAssertEqual(close.label, "Back to Library", "library pushes the reader")
     }
 }

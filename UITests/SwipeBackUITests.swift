@@ -50,7 +50,7 @@ final class SwipeBackUITests: XCTestCase {
         row.tap()
         let close = app.buttons["readerClose"]
         XCTAssertTrue(close.waitForExistence(timeout: 5))
-        XCTAssertEqual(close.label, "Back", "Saved reader shows ‹")
+        XCTAssertEqual(close.label, "Back to Library", "the library reader's back control says where it goes")
         startPlayback(app)
 
         edgeSwipe(app)
@@ -64,15 +64,15 @@ final class SwipeBackUITests: XCTestCase {
         rowPause.tap()
         XCTAssertTrue(app.cells.buttons["Play"].waitForExistence(timeout: 3))
 
-        // Stack still healthy: reopen, then the ‹ button still works.
+        // Stack still healthy: reopen, then the back control still pops.
         row.tap()
         XCTAssertTrue(close.waitForExistence(timeout: 5))
         close.tap()
-        XCTAssertTrue(waitFor(5) { row.isHittable }, "‹ tap still pops")
+        XCTAssertTrue(waitFor(5) { row.isHittable }, "back control still pops")
     }
 
-    /// ✕ / pull-down hide the browser's reader; playback keeps going in the mini player, and
-    /// tapping the mini player reopens the reader.
+    /// The back control / pull-down hide the browser's reader; playback keeps going in the mini
+    /// player, and tapping the mini player reopens the reader.
     func testPullDownClosesBrowseReaderLikeXAndMiniPlayerReopens() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-seedDemoArticle", "-openDemoInBrowseReader", "-uiTesting"]
@@ -80,7 +80,7 @@ final class SwipeBackUITests: XCTestCase {
 
         let close = app.buttons["readerClose"]
         XCTAssertTrue(close.waitForExistence(timeout: 5))
-        XCTAssertEqual(close.label, "Hide Reader", "Browse reader shows ✕")
+        XCTAssertEqual(close.label, "Back to Start Page", "opened over the start page")
         startPlayback(app)
 
         // Scrolling the article (even downward at the top) must never close the reader.
@@ -97,7 +97,7 @@ final class SwipeBackUITests: XCTestCase {
         wait(0.8)
         XCTAssertTrue(close.exists, "horizontal drag does not close the reader")
 
-        // Pull the top bar down → same as ✕.
+        // Pull the top bar down → same as the back control.
         titleCenter.press(forDuration: 0.05, thenDragTo: titleCenter.withOffset(CGVector(dx: 0, dy: 320)),
                           withVelocity: .default, thenHoldForDuration: 0)
         XCTAssertTrue(waitFor(5) { !close.exists }, "pull-down closed the reader")
@@ -110,12 +110,12 @@ final class SwipeBackUITests: XCTestCase {
         XCTAssertTrue(waitFor(5) { miniPlay.label == "Pause" }, "still playing")
         XCTAssertEqual(app.staticTexts["miniPlayerTitle"].label, "Demo Listen Article")
 
-        // Tap → the reader is back (✕), mini player gone while it's on screen.
+        // Tap → the reader is back, mini player gone while it's on screen.
         app.descendants(matching: .any)["miniPlayerOpen"].tap()
         XCTAssertTrue(close.waitForExistence(timeout: 5))
         XCTAssertFalse(mini.exists, "no mini player while the reader is on screen")
 
-        // ✕ does the same as the pull-down.
+        // The back control does the same as the pull-down.
         close.tap()
         XCTAssertTrue(mini.waitForExistence(timeout: 5))
         miniPlay.tap()

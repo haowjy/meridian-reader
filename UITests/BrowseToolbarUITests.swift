@@ -194,6 +194,7 @@ final class BrowseToolbarUITests: XCTestCase {
         icon.tap()
         let close = app.buttons["readerClose"]
         XCTAssertTrue(close.waitForExistence(timeout: 10), "reader icon opens the reader")
+        XCTAssertEqual(close.label, "Back to Website", "opened over the page")
         close.tap()
         XCTAssertTrue(waitFor("exists == false", close))
 

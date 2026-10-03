@@ -91,6 +91,6 @@ enum LaunchHooks {
             article.document = document
             article.trustedParagraphs = document.paragraphs
         }
-        shell.showReader(article, origin: .standalone)
+        shell.showReader(article)
     }
 }

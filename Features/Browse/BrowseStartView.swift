@@ -3,8 +3,8 @@ import SwiftData
 import WebKit
 
 /// The browser, and the root of the shell: the web page or start page with its bottom chrome,
-/// the address search layer, and over it whichever surface `ShellState` says is up (the ✕
-/// reader or the library), the one ⋯ menu overlay and the one sheet.
+/// the address search layer, and over it whichever surface `ShellState` says is up (the
+/// reader overlay or the library), the one ⋯ menu overlay and the one sheet.
 struct BrowseStartView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.articleExtractor) private var extractor
@@ -149,7 +149,7 @@ struct BrowseStartView: View {
 
     // MARK: - Surfaces
 
-    /// The ✕ reader or the library, over the browser.
+    /// The reader overlay or the library, over the browser.
     @ViewBuilder
     private var surfaceOverlay: some View {
         switch shell.surface {
