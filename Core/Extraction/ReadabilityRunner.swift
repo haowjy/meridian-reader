@@ -3,6 +3,11 @@ import WebKit
 import ObjectiveC
 
 /// Runs Mozilla Readability against an HTML snapshot inside an off-screen WKWebView.
+///
+/// The snapshot is the live page after its own JavaScript ran (`WebViewStore.snapshotHTML`), so
+/// the page's scripts stay off here: running its `<script>` tags and inline handlers a second time
+/// would fire network requests and change the DOM before Readability reads it. Content JavaScript
+/// off still runs this type's `evaluateJavaScript` calls.
 @MainActor
 enum ReadabilityRunner {
     struct ParseResult: Sendable {
@@ -48,6 +53,7 @@ enum ReadabilityRunner {
         """
 
         let config = WKWebViewConfiguration()
+        config.defaultWebpagePreferences.allowsContentJavaScript = false
         let webView = WKWebView(frame: .zero, configuration: config)
         // Only web base URLs load; other schemes (e.g. the UI tests' `reader-test://` pages) never
         // finish, so parse those against a neutral https base.

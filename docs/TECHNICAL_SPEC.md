@@ -67,15 +67,18 @@ UITests/    UI tests (ReaderUITests)
    the page's visible DOM (`ReaderVisibleSnapshot.js` drops short invisible text such as anti-copy
    lines).
 2. `ReadabilityArticleExtractor` loads that HTML into an **off-screen** `WKWebView` (the page URL
-   as base for web pages), injects Readability.js and the readerable helper, and runs
-   `new Readability(document.cloneNode(true)).parse()`, then normalizes the result
-   (`ReaderNormalize.js`).
+   as base for web pages) with the page's JavaScript off, injects Readability.js and the
+   readerable helper, and runs `new Readability(document.cloneNode(true)).parse()`, then
+   normalizes the result (`ReaderNormalize.js`).
 3. The address bar's reader icon and the ⋯ Reader toggle use the same
    `isProbablyReaderable` check, run after each load and same-document URL change.
 
 Snapshot plus off-screen, rather than injecting into the visible page: the user's page is never
 mutated, injected scripts don't fight the page's CSP, and content rendered by JavaScript is
-already in the snapshot.
+already in the snapshot. That is also why the off-screen view keeps page scripts off
+(`allowsContentJavaScript = false`): the snapshot's `<script>` tags and inline handlers would run
+a second time, fetch, and change the DOM before Readability reads it. The app's own
+`evaluateJavaScript` calls still run.
 
 **Success and failure.** Save and the reader need a non-empty title and body. Otherwise
 extraction fails with a reason the user sees, and nothing is stored (no bookmark-only save, no
@@ -136,6 +139,10 @@ Google suggest endpoint (`suggestqueries.google.com`, while typing in the addres
 of visited and bookmarked sites, and the one-time Kokoro model and voice-pack downloads (Hugging
 Face). No analytics.
 
-Extracted HTML is shown as Readability returns it (Readability drops `<script>` elements); there
-is no separate sanitizer. The reader's web view has JavaScript on for the app's own scripts
-(highlight, scroll, the reader bridge).
+Extracted HTML is shown as Readability returns it; there is no separate sanitizer. Readability
+drops `<script>` elements but keeps inline handlers (`onerror`, `onclick`) and `javascript:`
+links, so the reader's web view runs with the article's JavaScript off
+(`allowsContentJavaScript = false`). Only the app's own code runs there: the bootstrap user
+script and the listeners it installs (tap-to-seek through the `readerBridge` message handler),
+and `evaluateJavaScript` calls for highlight and scroll (`PageScriptIsolationTests`). The visible
+browser keeps JavaScript on; sites need it.
