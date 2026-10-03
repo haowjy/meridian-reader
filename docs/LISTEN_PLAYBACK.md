@@ -1,24 +1,20 @@
 # Listen Playback Architecture
 
-Status: target model for Reader Listen (Apple TTS + Kokoro, the only local engine; Chatterbox Nano was retired 2026-09-24).  
+Status: how Reader Listen works (Apple TTS + Kokoro, the only on-device engine).  
 Goal: one ownership story so Play continues, Pause matches audible audio, and bake makes start fast.
-
-## Problems the old design created
-
-1. **Optimistic UI phase** — `SpeechController.playbackState` was set in `pause()` / `resume()` / `speak()` before AVSpeechSynthesizer or AVAudioPlayer agreed. Result: audio still audible while the button showed Play, and `toggle` called `resume()` which no-op’d (`guard synthesizer.isPaused`).
-2. **Engines cleared the session** — (then Nano) local-engine queue-empty called `onFinished` → `clearSession()` even when the next paragraph was still synthesizing. Apple had a separate finish path. Session lifetime was not owned in one place.
-3. **Local-engine “generation” on resume** — bumping a cancel token on pause/resume discarded in-flight synth, advanced the produce cursor, and broke playhead / highlight.
-4. **Flag tangle** — `isSpeaking`, `isPaused`, `fillingGeneration`, `producerActive`, `speakGeneration`, `suppressCancelSideEffects` overlapped. Fixes fought each other.
-5. **Bake unused at play** — save-time bake existed, but play often cold-synthed; bake contended on the same local-model render gate.
 
 ## Model
 
 ```
-UI ──intent──► SpeechController ──command──► bound ListenEngine (Apple | on-device)
-                │ PlaybackSessionState ▲           │
-                └──────────────────────┴── engine events (PlaybackEngineEvent)
+UI ──intent──► SpeechController ──command──► bound ListenEngine
+                │ PlaybackSessionState ▲          ├─ AppleListenEngine (AVSpeechSynthesizer)
+                │ (document, position, │          └─ LocalListenEngine → LocalListenPlayer
+                │  phase, resume point)│                                   └─ ListenUnitSource (per play)
+                └──────────────────────┴── engine events                     ├─ ArticleAudioCache (rendered paragraphs)
+                                           (PlaybackEngineEvent)             └─ GlobalSynthQueue → LocalSynthService (model)
 
-Background: AudioProducer / BakeCache fills units ahead of playhead.
+Render queue: GlobalSynthQueue renders chunks ahead of the playhead (and bakes saved articles)
+into ArticleAudioCache, admitted by RenderAdmission.
 ```
 
 ### 1. PlaybackSession (single source of truth)
@@ -88,7 +84,7 @@ Adapters do not own bake policy or UI phase: they report facts and the session f
 - Views only call `selectEngine`, `chooseVoice`, `deleteModel` or `synth.cancelDownload`; they
   never restart playback themselves.
 
-### 3. AudioProducer + BakeCache (ahead of playhead)
+### 3. Producer, render queue and bake cache (ahead of the playhead)
 
 Each unit is `Ready(URL)` or `Missing`.
 
@@ -133,14 +129,6 @@ Bind only to `phase` + `playhead` (and derived paragraph highlight).
 Do not cache a second “isPlaying” in the view.  
 **Scroll:** highlight the speaking / selected paragraph, but do **not** auto-scroll the viewport to follow it during playback or jump-mode picking — the user owns scroll.
 
-## Migration (vertical slice landed first)
-
-1. Introduce `PlaybackSession` types + reduce phase mutations to `apply(intent:)` / `apply(event:)`.
-2. Rewrite the local-engine path as Player + Producer (epoch not bumped on resume; empty queue ≠ finished while producer active).
-3. Apple path: pause/resume/toggle go through session + engine snapshot (`isSpeaking` / `isPaused`).
-4. Bake-first lookup on produce; warm bake on article open; cancel bake while speaking.
-5. Delete redundant flags as call sites move (prefer deletion over new guards).
-
 ## Verify
 
 - Apple: while audible, button shows Pause; tap always pauses.
@@ -148,7 +136,7 @@ Do not cache a second “isPlaying” in the view.
 - Kokoro: Pause mid-paragraph, Play resumes same place (same CAF `currentTime`).
 - After bake (or partial bake), Play starts from cache for Ready units.
 - Kokoro: consecutive paragraphs have minimal silence (prefetch keeps Ready ahead of playhead).
-- Kokoro: a bad/missing unit is skipped; playback continues (does not freeze mid-article).
+- Kokoro: a unit the engine can't render plays with Apple; playback continues (never silent, never frozen mid-article).
 
 - Skip/jump re-prioritizes from the new playhead (immediate lane); batch elsewhere is cancelled.
 - After listening from mid-article, gap-fill returns to top so the full article is on disk.

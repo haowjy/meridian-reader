@@ -1,16 +1,18 @@
 # TTS engines sketch
 
 Status: Apple TTS and one on-device engine (Kokoro) ship; cloud voices are a later step (see the
-roadmap). The sections after "Engine 1" are the original design notes and dated build logs.
+roadmap). "Shape", "Engine dependency injection" and the Kokoro sections describe the code; the
+candidate / install / phasing notes are design input for future engines.
 
 Goal: keep the listen UX (play/pause/stop, paragraph skip, rate, resume) while making **audio
 generation** swappable: Apple system voices, **on-device models**, later **cloud** TTS.
 
 ## Shape
 
-`SpeechController` owns the session (document, playhead, phase, rate, voice / language settings)
-and binds one **playback engine** per utterance. On-device audio is rendered by a **synth host**
-per library, behind the engine registry.
+`SpeechController` owns the session (`PlaybackSessionState`: document, position, phase) and the
+rate, voice and language settings, and binds one **playback engine** per utterance. On-device
+audio is rendered by a **synth host** per library, behind the engine registry, and owned by
+`LocalSynthService`; the listen player only plays rendered files.
 
 ```
 Listen UI  →  SpeechController  →  ListenEngine (bound per utterance)
@@ -305,14 +307,17 @@ SpeechEngineProvider (one per library)      EngineDescriptor (capabilities, per 
   descriptors / retiredEngines                   id, names, subtitle, recommended, sort order
   makeHost(for:voice:) → LocalSynthHost       voices + default, voice defaults key, cache voice key style
   isInstalled / deleteModels                  chunk limits, hardware gate, languages
+  recover(from:playing:) / crashRetried       (crash policy; default: switch away)
 LocalSynthHost (thin: load + ONE call)        supportsBakeCache, crashGuarded, crash notice text
   → LocalChunkRenderer (shared: normalize, gate, crash guard, re-split on inputTooLong, log, CAF)
 ```
 
 Shared core (no `import FluidAudio`, no switching on engine types): `GlobalSynthQueue`
-(`SynthQueueContext`), `ArticleAudioCache` keys, bake marks, `TextChunker`,
+(`SynthQueueContext`, `RenderAdmission`), `ArticleAudioCache` keys, bake marks, `TextChunker`,
 `LocalChunkRenderer`, `EngineCrashGuard`, `SynthRenderGate`, Settings voice list, engine probe.
-Library code lives only under `Features/Speech/Engines/<Library>/`.
+Library code lives only under `Features/Speech/Engines/<Library>/`, including its crash policy
+(`recover(from:playing:)`) and its one-time launch steps (`LaunchMigration`s, listed in
+`AppComposition.launchMigrations`). The coordinator's init only picks the launch engine.
 
 Persisted values are unchanged: engine ids (`apple`, `local.kokoro`; retired `local.chatterbox-nano`
 is still recognized for migration), cache voice keys (`kokoro.<voice>`), `reader.tts.kokoroVoice`
@@ -337,7 +342,9 @@ capabilities, overflow → re-split, fail → Apple fallback, and queue priority
    s/char or phonemes/char on device), `hardware`, `crashGuarded` if the library can die uncatchably.
 4. **Provider.** A `SpeechEngineProvider` returning the descriptor(s), `makeHost`, `isInstalled`,
    `deleteModels` (and `retiredEngines` if it removes an engine: id, done flag, replacement, file
-   deleter; the coordinator remaps the selection and purges that engine's cache once).
+   deleter; the coordinator maps a stored selection of it to the replacement, and the
+   `RetiredEngineCleanup` launch migration purges its cache and files once). Override
+   `recover(from:playing:)` if a crash inside the engine needs more than "switch away".
 5. **Register.** One line in `AppComposition.makeProviders()`.
 6. **Verify.** `EngineRegistryTests` style test for ids/keys; Release device run of
    `-engineProbe -probeOnly <ShortName>` (init, first audio, wall vs audio); then pick it in Settings.
