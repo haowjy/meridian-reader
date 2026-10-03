@@ -69,9 +69,11 @@ final class EngineRetirementTests: XCTestCase {
         defaults.set(selected, forKey: LocalTTSCoordinator.engineIDKey)
         provider.installed = installed
         let registry = EngineRegistry(providers: [AppleSpeechProvider(), provider], gate: { _ in true })
-        return LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                   audioCache: ArticleAudioCache(root: cacheRoot),
-                                   crashGuard: EngineCrashGuard(directory: tempDir("Guard")))
+        let tts = LocalTTSCoordinator(engines: registry, defaults: defaults,
+                                      audioCache: ArticleAudioCache(root: cacheRoot),
+                                      crashGuard: EngineCrashGuard(directory: tempDir("Guard")))
+        for engine in registry.retiredEngines { RetiredEngineCleanup(engine: engine).runIfNeeded(tts) }
+        return tts
     }
 
     func testRetiredSelectionMovesToInstalledReplacementElseAppleAndCleanupRunsOnce() throws {

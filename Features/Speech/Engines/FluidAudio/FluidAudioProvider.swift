@@ -74,13 +74,28 @@ final class FluidAudioProvider: SpeechEngineProvider {
         )]
     }
 
+    /// One-time launch steps for Kokoro, run by `AppComposition.runLaunchMaintenance`.
+    static var launchMigrations: [LaunchMigration] { [KokoroAudioCachePurge(), KokoroONNXMainMigration()] }
+
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {
         guard id == .kokoro else { return nil }
         let voice = voice ?? KokoroHost.defaultVoice
         switch routeSettings.route {
-        case .onnxCPU: return KokoroCPUHost(voice: voice, threads: routeSettings.cpuThreads)
+        case .onnxCPU: return KokoroCPUHost(voice: voice, threads: routeSettings.cpuThreads, crashCount: routeSettings)
         case .coreMLGPU: return KokoroHost(voice: voice)
         }
+    }
+
+    /// Kokoro crashed last session: `KokoroCrashRecovery` (resume on the ONNX route; Apple after
+    /// two ONNX crashes close together).
+    func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery? {
+        guard crash.engine == .kokoro else { return nil }
+        return KokoroCrashRecovery.recover(from: crash, playing: playing, settings: routeSettings)
+    }
+
+    /// Picking Kokoro again after the crash fallback starts a fresh ONNX crash count.
+    func crashRetried(_ id: SpeechEngineID) {
+        if id == .kokoro { routeSettings.onnxCrashCount = 0 }
     }
 
     func isInstalled(_ id: SpeechEngineID) -> Bool {

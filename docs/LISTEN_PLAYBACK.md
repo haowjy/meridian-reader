@@ -205,18 +205,19 @@ See also `docs/ARTICLE_IDENTITY.md`.
 ### Chatterbox Nano retirement (one-time launch migration)
 
 Declared by `FluidAudioProvider.retiredEngines` (`RetiredEngine`: id, display name, done flag
-`reader.tts.retired.chatterboxNano.v1`, replacement `.kokoro`, file deleter) and run by
-`LocalTTSCoordinator.init`:
+`reader.tts.retired.chatterboxNano.v1`, replacement `.kokoro`, file deleter):
 
-1. A persisted selection of `local.chatterbox-nano` becomes Kokoro if Kokoro is installed, else Apple.
-2. Once (done flag), `ArticleAudioCache.purgeEngine("local.chatterbox-nano")` deletes every
+1. `LocalTTSCoordinator.init` reads a persisted selection of `local.chatterbox-nano` as Kokoro if
+   Kokoro is installed, else Apple.
+2. Once (done flag), the `RetiredEngineCleanup` launch migration (one of the `LaunchMigration`s
+   `AppComposition.runLaunchMaintenance` runs before anything plays): `ArticleAudioCache.purgeEngine("local.chatterbox-nano")` deletes every
    Nano-keyed paragraph CAF + its `index.json` entries (legacy pre-engine-key indexes count as Nano),
    removes `index.json`/`chunks/` when nothing survives (keeps `meta.json`), and deletes orphan `p-*.caf`
    files no index references. Bake marks recompute (`bakeMarksRevision` bump).
 3. Deletes the Nano model files: `Application Support/fluidaudio/Models/chatterbox-nano` (~746 MB),
    `Application Support/TTSModels/chatterbox-nano` (old Phase-0 store) and `Documents/nano_*` probe output.
 4. Logs the freed bytes to the listen debug log (`retired Chatterbox Nano: freed …`) and the timing
-   event `retired_engine_cleanup` (`model_bytes`, `cache_*`, `orphan_*`, `total_bytes`, `selection`).
+   event `retired_engine_cleanup` (`model_bytes`, `cache_*`, `orphan_*`, `total_bytes`).
 
 Covered by `EngineRetirementTests`. `Vendor/FluidAudio` keeps its Nano patches (unused by Reader).
 
@@ -605,10 +606,14 @@ pack. Nothing in normal playback routing uses it yet; it lives only in the Liste
 - Head-start rule (`HeadStart`, `RenderPace`): before rendering a chunk the engine projects whether
   rendering at the measured speed would starve playback by > 2 s; if so that paragraph plays with
   Apple ("Kokoro fell behind", `render_behind` log).
-- Crash auto-recover: the in-flight marker now carries route/article/paragraph/phase. On launch the
-  coordinator keeps Kokoro (ONNX) and reopens the article at the paragraph (auto-play if the crash was
-  < 20 min ago and something was playing; `listen_resume.json` records the playing paragraph). Banner:
-  "Kokoro stopped unexpectedly; resumed on the stable route."
+- Crash auto-recover: the in-flight marker carries route/article/paragraph/phase. On launch the
+  coordinator asks the crashed engine's provider (`SpeechEngineProvider.recover(from:playing:)`;
+  engines without a hook switch away when they were selected). `FluidAudioProvider` answers with
+  `KokoroCrashRecovery`: keep Kokoro (ONNX) and reopen the article at the paragraph (auto-play if the
+  crash was < 20 min ago and something was playing; `listen_resume.json` records the playing
+  paragraph), or Apple after two ONNX crashes close together. Banner: "Kokoro stopped unexpectedly;
+  resumed on the stable route." `KokoroCPUHost` resets the ONNX crash count after 40 healthy calls
+  through the route settings the provider hands it.
 - Crash attribution on the Core ML route: `coreml_breadcrumb.json` names the model + stage
   (`g2p.bart/decoder`, `kokoro/vocoder`, …) that was about to run; logged as `coreml_stage` in
   `engine_crash_detected`.
@@ -645,7 +650,8 @@ breaking up". Evidence (ListenTiming + the phone's TTSCache for that article, 55
   `normalize` drops a dash glued to punctuation ("etc-." → "etc."). Whole chapter: 164 → 160 chunks,
   mid-paragraph non-sentence cuts 9 → 4 (all at commas), word cuts 2 → 0.
 - **Cache purge.** Saved Kokoro audio from before this fix is deleted once at launch
-  (`reader.tts.kokoro.audioCacheVersion` = 2, `kokoro_audio_cache_purge` log).
+  (`KokoroAudioCachePurge` launch migration, `reader.tts.kokoro.audioCacheVersion` = 2,
+  `kokoro_audio_cache_purge` log).
 - Tests: `HierarchicalChunkerTests` (real p6/p7/p15 text), `ChunkEdgeTrimTests`,
   `LocalPCMWriterNaNTests`, `KokoroNaNProbeTests` (patch + a p6 render: 15 chunks, all finite,
   joins 0.40 s / 0.22 s).

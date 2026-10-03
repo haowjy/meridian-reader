@@ -402,10 +402,13 @@ same phonemes), selected only when `AppRunState` is background. See docs/LISTEN_
   reads the Core ML G2P weights as data — **no Core ML anywhere on the ONNX route**.
 - Core ML GPU route (`KokoroHost`) is a debug toggle: Listen debug panel → "Kokoro fast GPU route
   (may crash on iOS 26.4+)". Foreground only; unused Core ML stages are deleted at launch when off.
-- Route selection: `KokoroRouteSettings` / `KokoroRoutePolicy` (Core/TTS/Engines/KokoroRoute.swift);
+- Route selection: `KokoroRouteSettings.route` (Features/Speech/Engines/FluidAudio/KokoroRoute.swift);
   `FluidAudioProvider.makeHost` returns the route's host.
-- Auto-recover `KokoroCrashRecovery`: Core ML crash → ONNX + resume; ONNX crash → ONNX again + resume;
-  2nd ONNX crash (without 40 healthy calls between) → Apple with an explicit notice.
+- Auto-recover `KokoroCrashRecovery`, answered through the provider hook
+  `FluidAudioProvider.recover(from:playing:)`: Core ML crash → ONNX + resume; ONNX crash → ONNX
+  again + resume; 2nd ONNX crash (without 40 healthy calls between) → Apple with an explicit notice.
+  Kokoro's one-time launch steps (`KokoroAudioCachePurge`, `KokoroONNXMainMigration`) are
+  `FluidAudioProvider.launchMigrations`.
 - Phonemizer finding: FluidAudio's G2P (`G2PModel`, BART) **is Core ML**, loaded `.cpuOnly` → runs on
   E5RT/BNNS on iOS 26.4+, per OOV word (1 encoder + ≤64 decoder predictions). On the Core ML route it
   is instrumented with the `CoreMLBreadcrumb` patch; on the ONNX route it is never loaded.

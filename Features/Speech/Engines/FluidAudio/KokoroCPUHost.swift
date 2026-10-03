@@ -38,16 +38,19 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
     private var session: KokoroONNXSession?
     private var frontend: KokoroAneCPUFrontend?
     private var packs: [String: [Float]] = [:]
-    private static let healthLock = NSLock()
-    private static var healthyCalls = 0
+    /// Where the ONNX crash count lives: a healthy stretch resets it (nil: the CPU bench's frontend-only host).
+    private let crashCount: KokoroRouteSettings?
+    private var healthyCalls = 0
 
     var routingLabel: String? { "onnxCPU·t\(threads)" }
     var rendersInBackground: Bool { true }
     var routeTag: String? { KokoroRoute.onnxCPU.rawValue }
 
-    init(voice: String = KokoroHost.defaultVoice, threads: Int = KokoroRouteSettings().cpuThreads) {
+    init(voice: String = KokoroHost.defaultVoice, threads: Int = KokoroRouteSettings.defaultThreads,
+         crashCount: KokoroRouteSettings? = nil) {
         self.voice = voice
         self.threads = threads
+        self.crashCount = crashCount
     }
 
     func setVoice(_ voice: String) { lock.withLock { self.voice = voice } }
@@ -174,7 +177,7 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
         let onnxMs = ListenTimingLog.ms(since: tRun)
         let gain = Self.gain
         let samples = raw.map { $0 * gain }
-        Self.noteHealthyCall()
+        noteHealthyCall()
         return SynthesizedPCM(
             samples: samples,
             sampleRate: KokoroCPUAudio.sampleRate,
@@ -207,18 +210,14 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
 
     /// After a healthy stretch, forget earlier ONNX-route crashes (the "two crashes → Apple" rule
     /// counts crashes close together, not over the app's lifetime).
-    private static func noteHealthyCall() {
-        let reached: Bool = healthLock.withLock {
+    private func noteHealthyCall() {
+        let reached: Bool = lock.withLock {
             healthyCalls += 1
             return healthyCalls == KokoroCrashRecovery.healthyRendersToReset
         }
-        if reached {
-            let settings = KokoroRouteSettings()
-            if settings.onnxCrashCount > 0 {
-                settings.onnxCrashCount = 0
-                ListenTimingLog.log("kokoro_onnx_crash_count_reset", ["after_calls": KokoroCrashRecovery.healthyRendersToReset])
-            }
-        }
+        guard reached, let crashCount, crashCount.onnxCrashCount > 0 else { return }
+        crashCount.onnxCrashCount = 0
+        ListenTimingLog.log("kokoro_onnx_crash_count_reset", ["after_calls": KokoroCrashRecovery.healthyRendersToReset])
     }
 
     // MARK: - Files

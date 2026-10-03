@@ -11,8 +11,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
     let audioCache: ArticleAudioCache
     /// Single global Core ML work queue — actions reshuffle; one worker drains #1.
     let synthQueue = GlobalSynthQueue()
-    private let defaults: UserDefaults
-    private let crashGuard: EngineCrashGuard
+    /// Engine selection, voices and launch-step flags (a suite in tests).
+    let defaults: UserDefaults
+    let crashGuard: EngineCrashGuard
 
     /// The on-device engine's model: lifecycle, host and renderer. The render queue renders through it.
     let synth: LocalSynthService
@@ -24,16 +25,16 @@ final class LocalTTSCoordinator: SynthQueueContext {
     @ObservationIgnored weak var listenPlayer: LocalListenPlayer?
     /// Selected voice per multi-voice engine (e.g. Kokoro `af_heart`). Part of the cache voice key.
     private(set) var engineVoices: [SpeechEngineID: String] = [:]
-    /// Set when the last process died inside a crash-guarded engine (Kokoro: auto-recovered on
-    /// the ONNX route, or switched to Apple after repeated ONNX crashes). Shown as a dismissible
-    /// one-line banner and in Settings.
+    /// Set when the last process died inside a crash-guarded engine (`CrashRecovery`; Kokoro:
+    /// resumed on the ONNX route, or switched to Apple after repeated ONNX crashes). Shown as a
+    /// dismissible one-line banner and in Settings.
     private(set) var engineCrashNotice: String?
     private var crashedEngineID: SpeechEngineID?
-    /// Article + paragraph to resume after a Kokoro crash (consumed once by the Saved screen).
-    /// Set at init from a crash marker; handed to the UI once (`takePendingResume`). Settable
-    /// in-module for tests.
+    /// The crash marker this launch found (the previous process died inside an engine call).
+    private(set) var launchCrash: EngineCrashGuard.CrashInfo?
+    /// Article + paragraph to resume after a crash, handed to the UI once (`takePendingResume`).
+    /// Settable in-module for tests.
     var pendingResume: ListenResumeTarget?
-    static let onnxMainMigrationKey = "reader.tts.kokoro.onnxMainMigration.v1"
     /// Bumped when CAF ready set changes — reading UI observes this for live bake marks.
     private(set) var bakeMarksRevision: UInt64 = 0
     /// Article the user most recently opened / listened to (stays #1 when pending jobs drain).
@@ -48,6 +49,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// speaks with Apple). nil = always.
     var localLanguageGate: (([String]) -> Bool)?
 
+    /// Picks the launch engine (the stored selection, after crash recovery) and starts loading
+    /// it. One-time launch steps are `LaunchMigration`s, run by `AppComposition`.
     init(
         engines: EngineRegistry,
         defaults: UserDefaults = .standard,
@@ -59,172 +62,81 @@ final class LocalTTSCoordinator: SynthQueueContext {
         self.audioCache = audioCache ?? ArticleAudioCache()
         self.crashGuard = crashGuard
         self.synth = LocalSynthService(engines: engines)
-        var voices: [SpeechEngineID: String] = [:]
         for d in engines.localDescriptors where !d.voices.isEmpty {
             // Stored voice if still offered (curated list), else the engine default.
-            voices[d.id] = d.resolvedVoice(defaults.string(forKey: d.resolvedVoiceDefaultsKey))
+            engineVoices[d.id] = d.resolvedVoice(defaults.string(forKey: d.resolvedVoiceDefaultsKey))
         }
-        var crashedID: SpeechEngineID?
-        var crashNotice: String?
-        var resume: ListenResumeTarget?
-        var handledKokoroCrash = false
-        let routeSettings = KokoroRouteSettings(defaults: defaults)
-        let raw = defaults.string(forKey: Self.engineIDKey) ?? SpeechEngineID.apple.rawValue
-        var initial = SpeechEngineID(rawValue: raw)
-        // Retired engine selected → its replacement if installed, else Apple.
-        var retiredNotes: [String] = []
-        for r in engines.retiredEngines where initial == r.id {
-            let to: SpeechEngineID = engines.supports(r.replacement) && engines.isInstalled(r.replacement)
-                ? r.replacement : .apple
-            initial = to
-            defaults.set(to.rawValue, forKey: Self.engineIDKey)
-            retiredNotes.append("\(r.displayName) was selected → \(engines.displayName(to))")
-        }
-        if !engines.contains(initial) { initial = .apple }
-        // Previous process died inside a crash-guarded engine call (e.g. Kokoro libBNNS SIGSEGV)?
-        // (Pre-DI markers carry no engine id; only crash-guarded engines ever wrote them.)
-        let legacyGuarded = engines.localDescriptors.first { $0.crashGuarded }?.id
-        let crash = crashGuard.consumeCrashInfo(legacyEngine: legacyGuarded)
-        if let crash, crash.engine == .kokoro, engines.supports(.kokoro) {
-            // (d) Auto-recover: never silently leave Kokoro users on Apple after a crash.
-            var onnxCount = routeSettings.onnxCrashCount
-            let outcome = KokoroCrashRecovery.onCrash(
-                route: crash.route.flatMap(KokoroRoute.init(rawValue:)), onnxCrashCount: &onnxCount)
-            routeSettings.onnxCrashCount = onnxCount
-            handledKokoroCrash = true
-            crashNotice = KokoroCrashRecovery.notice(for: outcome)
-            switch outcome {
-            case .resumeOnONNX(let disableFastRoute):
-                if disableFastRoute { routeSettings.fastGPURouteEnabled = false }
-                initial = .kokoro
-                defaults.set(SpeechEngineID.kokoro.rawValue, forKey: Self.engineIDKey)
-                resume = ListenResumeTarget.forCrash(
-                    article: crash.articleKey, paragraph: crash.paragraph, crashAt: crash.at,
-                    playing: ListenResumePointStore.shared.load())
-            case .fallBackToApple:
-                let fallback = engines.crashFallback(for: .kokoro)
-                initial = fallback
-                defaults.set(fallback.rawValue, forKey: Self.engineIDKey)
-                crashedID = .kokoro
-            }
-            ListenTimingLog.log("kokoro_auto_recover", [
-                "route": crash.route ?? "legacy", "outcome": String(describing: outcome),
-                "onnx_crashes": onnxCount, "resume_key": resume?.articleKey.prefix(8) ?? "",
-                "resume_p": resume?.paragraph ?? -1, "auto_play": resume?.autoPlay ?? false,
-            ])
-            print("[TTS] Kokoro crash (route \(crash.route ?? "legacy")) → \(outcome)")
-        } else if let crashed = crash?.engine, crashed == initial {
-            let fallback = engines.crashFallback(for: crashed)
-            initial = fallback
-            defaults.set(fallback.rawValue, forKey: Self.engineIDKey)
-            crashedID = crashed
-            let d = engines.descriptor(crashed)
-            let name = d?.shortName ?? crashed.rawValue
-            crashNotice = "\(name) crashed last session (\(d?.crashNoticeDetail ?? "engine crash")). "
-                + "Switched to \(engines.displayName(fallback)). Tap \(name) to try again."
-            print("[TTS] \(name) crash detected → \(fallback.rawValue)")
-        }
-        // One-time: a Core ML crash before the ONNX route existed left Kokoro users on Apple.
-        // Bring them back to Kokoro on the stable route, at the article/paragraph of that crash
-        // (opened paused).
-        if !defaults.bool(forKey: Self.onnxMainMigrationKey) {
-            defaults.set(true, forKey: Self.onnxMainMigrationKey)
-            if !handledKokoroCrash, initial == .apple, engines.supports(.kokoro),
-               let last = crashGuard.lastCrash, last.engine == .kokoro {
-                initial = .kokoro
-                defaults.set(SpeechEngineID.kokoro.rawValue, forKey: Self.engineIDKey)
-                routeSettings.fastGPURouteEnabled = false
-                routeSettings.onnxCrashCount = 0
-                crashNotice = KokoroCrashRecovery.resumedNotice
-                var target = ListenResumeTarget.forCrash(
-                    article: last.articleKey, paragraph: last.paragraph, crashAt: last.at,
-                    playing: ListenResumePointStore.shared.load())
-                target?.autoPlay = false
-                resume = target
-                ListenTimingLog.log("kokoro_onnx_migration", [
-                    "from": "apple", "resume_key": target?.articleKey.prefix(8) ?? "", "resume_p": target?.paragraph ?? -1,
-                ])
-            }
-        }
+        synthQueue.attach(coordinator: self)
+        synth.onStateChange = { [weak self] in self?.engineStateChanged() }
+        var initial = storedSelection()
+        // Pre-DI crash markers carry no engine id; only crash-guarded engines ever wrote them.
+        launchCrash = crashGuard.consumeCrashInfo(legacyEngine: engines.localDescriptors.first { $0.crashGuarded }?.id)
+        if let launchCrash { initial = recover(from: launchCrash, selection: initial) }
         // Dev/test hook: `-selectEngine <engine id>` (persisted), e.g. local.kokoro.
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "-selectEngine"), i + 1 < args.count,
            engines.contains(SpeechEngineID(rawValue: args[i + 1])) {
-            let forced = SpeechEngineID(rawValue: args[i + 1])
-            initial = forced
-            defaults.set(forced.rawValue, forKey: Self.engineIDKey)
-            if forced == crashedID { crashNotice = nil; crashedID = nil }
+            initial = SpeechEngineID(rawValue: args[i + 1])
+            if initial == crashedEngineID { engineCrashNotice = nil; crashedEngineID = nil }
         }
-        engineVoices = voices
-        crashedEngineID = crashedID
-        engineCrashNotice = crashNotice
-        pendingResume = resume
-        synthQueue.attach(coordinator: self)
-        synth.onStateChange = { [weak self] in self?.engineStateChanged() }
-        if initial.isLocal, engines.supports(initial) {
-            beginWarm(initial)
-        } else {
+        start(initial)
+    }
+
+    /// The persisted engine: a retired engine becomes its replacement when that is installed
+    /// (else Apple); an unknown id is Apple.
+    private func storedSelection() -> SpeechEngineID {
+        let stored = SpeechEngineID(rawValue: defaults.string(forKey: Self.engineIDKey) ?? SpeechEngineID.apple.rawValue)
+        if let retired = engines.retiredEngines.first(where: { $0.id == stored }) {
+            let to: SpeechEngineID = engines.supports(retired.replacement) && engines.isInstalled(retired.replacement)
+                ? retired.replacement : .apple
+            ListenDebugLog.shared.append("retired engine: \(retired.displayName) was selected → \(engines.displayName(to))")
+            return to
+        }
+        return engines.contains(stored) ? stored : .apple
+    }
+
+    /// The previous process died inside `crash.engine`. Its provider decides (Kokoro: resume on the
+    /// stable route); by default a crashed selection moves to the crash fallback.
+    private func recover(from crash: EngineCrashGuard.CrashInfo, selection: SpeechEngineID) -> SpeechEngineID {
+        guard let engine = crash.engine else { return selection }
+        if let recovery = engines.recover(from: crash, playing: ListenResumePointStore.shared.load()) {
+            return apply(recovery, crashed: engine)
+        }
+        guard engine == selection else { return selection }
+        let fallback = engines.crashFallback(for: engine)
+        let d = engines.descriptor(engine)
+        let name = d?.shortName ?? engine.rawValue
+        print("[TTS] \(name) crash detected → \(fallback.rawValue)")
+        return apply(.switchAway(notice: "\(name) crashed last session (\(d?.crashNoticeDetail ?? "engine crash")). "
+            + "Switched to \(engines.displayName(fallback)). Tap \(name) to try again."), crashed: engine)
+    }
+
+    /// Note the recovery for the UI; returns the engine to use.
+    private func apply(_ recovery: CrashRecovery, crashed engine: SpeechEngineID) -> SpeechEngineID {
+        engineCrashNotice = recovery.notice
+        switch recovery {
+        case .stay(_, let resume):
+            pendingResume = resume
+            return engine
+        case .switchAway:
+            crashedEngineID = engine
+            return engines.crashFallback(for: engine)
+        }
+    }
+
+    /// A launch step found an older crash to recover from (`KokoroONNXMainMigration`).
+    func applyLaunchRecovery(_ recovery: CrashRecovery, crashed engine: SpeechEngineID) {
+        start(apply(recovery, crashed: engine))
+    }
+
+    /// Persist `id` and load it when it's an on-device engine this device supports; else Apple.
+    private func start(_ id: SpeechEngineID) {
+        guard id.isLocal, engines.supports(id) else {
             synth.turnOff()
+            return
         }
-        // Nothing is playing at launch: per-chunk synth scratch from last session is disposable.
-        self.audioCache.removeAllChunkScratch()
-        ListenTimingLog.log("app_launch", [
-            "engine": selectedEngineID.rawValue,
-            "build": Self.buildConfiguration,
-        ])
-        cleanUpRetiredEngines(notes: retiredNotes)
-        purgeStaleKokoroAudioOnce()
-        // Best-effort ephemeral prune on launch (age 7d / 500MB). Survives leave-Reader + restart.
-        let pruned = self.audioCache.pruneEphemeral()
-        if pruned.removed > 0 {
-            print("[TTSCache] pruned ephemeral removed=\(pruned.removed) freed=\(pruned.freedBytes)")
-        }
-    }
-
-    /// One-time (per retired engine, idempotent): delete its cached article audio + index entries
-    /// (bake marks recompute), orphan CAFs, and its model files. Logged with bytes freed to the
-    /// listen debug log and `retired_engine_cleanup` in the timing log. Runs before any synth.
-    private func cleanUpRetiredEngines(notes: [String]) {
-        for note in notes { ListenDebugLog.shared.append("retired engine: \(note)") }
-        for r in engines.retiredEngines where !defaults.bool(forKey: r.doneKey) {
-            let cache = audioCache.purgeEngine(r.id.rawValue)
-            let modelBytes = r.deleteFiles()
-            defaults.set(true, forKey: r.doneKey)
-            let total = cache.bytes + cache.orphanBytes + modelBytes
-            ListenDebugLog.shared.append(
-                "retired \(r.displayName): freed \(FileSizes.label(total)) (models \(FileSizes.label(modelBytes)), "
-                + "cached audio \(cache.paragraphs) paragraphs in \(cache.articles) articles \(FileSizes.label(cache.bytes)), "
-                + "orphan CAFs \(cache.orphanFiles) \(FileSizes.label(cache.orphanBytes)))")
-            ListenTimingLog.log("retired_engine_cleanup", [
-                "engine": r.id.rawValue, "model_bytes": modelBytes,
-                "cache_articles": cache.articles, "cache_paragraphs": cache.paragraphs, "cache_bytes": cache.bytes,
-                "orphan_files": cache.orphanFiles, "orphan_bytes": cache.orphanBytes, "total_bytes": total,
-                "selection": notes.joined(separator: "; "),
-            ])
-            if cache.paragraphs > 0 || cache.orphanFiles > 0 { bakeMarksRevision &+= 1 }
-        }
-    }
-
-    /// Bump when saved Kokoro audio must be re-rendered. v2: audio rendered before the ONNX NaN
-    /// fix can contain full-scale pops + seconds of silence, has ≈0.8 s of dead air at every
-    /// chunk join, and follows a chunk plan that cut mid-phrase.
-    static let kokoroAudioCacheVersion = 2
-    static let kokoroAudioCacheVersionKey = "reader.tts.kokoro.audioCacheVersion"
-
-    /// One-time: delete baked Kokoro paragraphs older than `kokoroAudioCacheVersion` (all
-    /// articles; bake marks recompute). Launch-time, before any synth.
-    private func purgeStaleKokoroAudioOnce() {
-        guard defaults.integer(forKey: Self.kokoroAudioCacheVersionKey) < Self.kokoroAudioCacheVersion else { return }
-        let r = audioCache.purgeEngine(SpeechEngineID.kokoro.rawValue)
-        defaults.set(Self.kokoroAudioCacheVersion, forKey: Self.kokoroAudioCacheVersionKey)
-        ListenTimingLog.log("kokoro_audio_cache_purge", [
-            "version": Self.kokoroAudioCacheVersion, "articles": r.articles, "paragraphs": r.paragraphs,
-            "bytes": r.bytes, "orphan_files": r.orphanFiles, "orphan_bytes": r.orphanBytes,
-        ])
-        ListenDebugLog.shared.append(
-            "Kokoro audio cache v\(Self.kokoroAudioCacheVersion): removed \(r.paragraphs) saved paragraphs in \(r.articles) articles "
-            + "(\(FileSizes.label(r.bytes + r.orphanBytes))); they re-render with the NaN fix + new chunking")
-        if r.paragraphs > 0 || r.orphanFiles > 0 { bakeMarksRevision &+= 1 }
+        defaults.set(id.rawValue, forKey: Self.engineIDKey)
+        beginWarm(id)
     }
 
     static var buildConfiguration: String {
@@ -404,7 +316,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
             // Picking the engine again after a crash fallback = a fresh try.
             engineCrashNotice = nil
             crashedEngineID = nil
-            if id == .kokoro { kokoroRouteSettings.onnxCrashCount = 0 }
+            engines.crashRetried(id)
         }
         switch synth.state {
         case .ready(id):

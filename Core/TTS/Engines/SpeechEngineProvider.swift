@@ -17,11 +17,19 @@ protocol SpeechEngineProvider: AnyObject {
     /// Make sure `voice`'s files are on disk (download if needed) before it's selected.
     /// No-op for engines whose voices ship with the model.
     func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws
+    /// The previous process died inside a call of one of this provider's engines (`crash.engine`).
+    /// nil: the default (switch away from it if it was selected). `playing` is the last session
+    /// resume point.
+    func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery?
+    /// The user picked `id` again after a crash moved them off it (a fresh try).
+    func crashRetried(_ id: SpeechEngineID)
 }
 
 extension SpeechEngineProvider {
     var retiredEngines: [RetiredEngine] { [] }
     func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws {}
+    func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery? { nil }
+    func crashRetried(_ id: SpeechEngineID) {}
 }
 
 /// Composition-root registry of every engine. Built once at launch (`AppComposition`) and
@@ -107,6 +115,16 @@ final class EngineRegistry {
             if case .prefixed(let p) = $0.cacheVoiceKey { return voiceID.hasPrefix(p + ".") }
             return false
         }
+    }
+
+    /// The crashed engine's provider decides how to recover (nil: the default rule).
+    func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery? {
+        guard let id = crash.engine, supports(id) else { return nil }
+        return byID[id]?.1.recover(from: crash, playing: playing)
+    }
+
+    func crashRetried(_ id: SpeechEngineID) {
+        byID[id]?.1.crashRetried(id)
     }
 
     /// After `crashed` died mid-call: another supported, installed on-device engine, else Apple.
