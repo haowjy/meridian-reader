@@ -118,7 +118,7 @@ extension SpeechController {
             case .idle: return "idle"
             }
         }()
-        let warmingLocal = localTTS.pendingEngineID?.isLocal == true && !localTTS.localHostReady
+        let warmingLocal = localTTS.engineState.warmingEngineID != nil
         let snap = engineSnapshot()
         return ListenDebugSnapshot(
             phase: String(describing: playback.phase),

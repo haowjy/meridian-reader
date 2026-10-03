@@ -300,7 +300,7 @@ Decision (Jimmy): remove Nano entirely. **Kokoro is the only local engine; Apple
 
 - Removed: `ChatterboxNanoHost`, `NanoLoadProbe`, the Nano descriptor/limits and Settings row,
   `Resources/tts/chatterbox-nano.manifest.json`, `TTSModelManifest`, `TTSProbeLite`,
-  `LocalTTSModelStore`, the downloader's manifest path (`TTSModelDownloader` is now UI state only),
+  `LocalTTSModelStore`, `TTSModelDownloader`,
   `DeviceChipGate` Nano helpers, `-nanoProbe`/`-nanoOnly`.
 - Renamed: `NanoTextChunker` → `TextChunker`, `Limits.nano` → `Limits.tenSecondCall`,
   `NanoHostEmpty` → `NothingSpeakable`, `warmingNano`/`usingNano` → `warmingLocal`/`usingLocal`,

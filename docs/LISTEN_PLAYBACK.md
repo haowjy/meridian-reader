@@ -52,6 +52,27 @@ Rules:
 
 Adapters do not own article documents, bake policy, or UI phase.
 
+#### Engine binding and the on-device engine's lifecycle
+
+- `LocalTTSCoordinator.engineState` (`LocalEngineState`) is the on-device engine's one lifecycle
+  value: `off` (Apple speaks), `warming(id, progress, task)` (download / load in flight; `task` is
+  the single load, and cancelling it abandons the load), `ready(id)`, `failed(id, message)` (Apple
+  speaks; Settings shows the message). Every change goes through `setEngineState`, which persists
+  `reader.tts.engineID` (the engine on `ready`, Apple on `off` / `failed`, unchanged while warming)
+  and calls `onEngineChange`.
+- `SpeechController.speak` picks the engine once (`ListenRoute`: Apple, or the ready on-device
+  engine and its voice when it speaks the article's language) and binds it. Pause, resume, the
+  play icon, "Preparing next…" and stop go to the bound engine until stop or the next `speak`.
+- On `onEngineChange` the controller compares the bound route with the one `speak` would pick now
+  (`EngineHandover.decide`):
+  - Apple audible: it finishes the paragraph it is speaking; the next paragraph starts on the
+    on-device engine.
+  - Apple paused: re-speaks, paused, at the playhead on the on-device engine.
+  - On-device engine bound but no longer the pick (Apple chosen, model deleted, load failed, route
+    reload, voice change): re-speaks at the playhead now.
+- Views only call `selectEngine`, `chooseVoice`, `deleteModel` or `cancelDownload`; they never
+  restart playback themselves.
+
 ### 3. AudioProducer + BakeCache (ahead of playhead)
 
 Each unit is `Ready(URL)` or `Missing`.

@@ -47,10 +47,8 @@ struct SpeechSettingsView: View {
 
     // MARK: - Engine
 
-    /// Engine the Voice section follows: the one being prepared, else the selected one.
-    private var voiceEngineID: SpeechEngineID {
-        localTTS.pendingEngineID ?? localTTS.selectedEngineID
-    }
+    /// Engine the Voice section follows: the one loaded or loading, else Apple.
+    private var voiceEngineID: SpeechEngineID { localTTS.selectedEngineID }
 
     @ViewBuilder
     private var engineSection: some View {
@@ -59,13 +57,10 @@ struct SpeechSettingsView: View {
                 SettingsRow(
                     title: system.displayName,
                     subtitle: system.subtitle,
-                    selected: localTTS.selectedEngineID == system.id && localTTS.pendingEngineID == nil,
+                    selected: localTTS.selectedEngineID == system.id,
                     accessibilityID: "engineRow-\(system.id.rawValue)"
                 ) {
-                    Task {
-                        await localTTS.selectEngine(system.id)
-                        speech.applyEngineSelectionChange()
-                    }
+                    Task { await localTTS.selectEngine(system.id) }
                 } accessory: {
                     EmptyView()
                 }
@@ -79,7 +74,7 @@ struct SpeechSettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 if let notice = localTTS.engineCrashNotice {
                     Text(notice).foregroundStyle(.orange)
-                } else if case .failed(let message) = localTTS.downloader.state {
+                } else if case .failed(_, let message) = localTTS.engineState {
                     Text(message).foregroundStyle(.red)
                 }
                 Text("On-device voices download once, then work offline. Swipe left on a downloaded engine to delete it.")
@@ -91,28 +86,24 @@ struct SpeechSettingsView: View {
     private func localEngineRow(_ descriptor: EngineDescriptor) -> some View {
         let id = descriptor.id
         let gateOK = localTTS.engines.supports(id)
-        let pending = localTTS.pendingEngineID == id
-        let selected = pending || (localTTS.selectedEngineID == id && localTTS.pendingEngineID == nil)
+        let pending = localTTS.engineState.warmingEngineID == id
 
         SettingsRow(
             title: descriptor.displayName,
             subtitle: localSubtitle(descriptor, gateOK: gateOK),
-            selected: selected && !pending,
+            selected: localTTS.engineState.readyEngineID == id,
             enabled: gateOK,
             accessibilityID: "engineRow-\(id.rawValue)"
         ) {
             guard gateOK, !pending else { return }
-            Task {
-                await localTTS.selectEngine(id)
-                speech.applyEngineSelectionChange()
-            }
+            Task { await localTTS.selectEngine(id) }
         } accessory: {
             if pending {
                 // Download ring doubles as the Cancel button (no extra rows appear).
                 Button {
                     localTTS.cancelDownload()
                 } label: {
-                    DownloadRing(fraction: localTTS.modelDownloadFraction)
+                    DownloadRing(fraction: localTTS.engineState.warmingProgress)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Cancel \(descriptor.shortName) download")
@@ -123,7 +114,6 @@ struct SpeechSettingsView: View {
             if gateOK, localTTS.isModelInstalled(id), !pending {
                 Button("Delete", role: .destructive) {
                     try? localTTS.deleteModel(id)
-                    speech.applyEngineSelectionChange()
                 }
             }
         }
@@ -134,8 +124,8 @@ struct SpeechSettingsView: View {
         if !gateOK {
             return localTTS.engines.blockReason(id) ?? "Not supported on this device"
         }
-        if localTTS.pendingEngineID == id {
-            if let fraction = localTTS.modelDownloadFraction, fraction < 1 {
+        if localTTS.engineState.warmingEngineID == id {
+            if let fraction = localTTS.engineState.warmingProgress, fraction < 1 {
                 return "Downloading… \(Int(fraction * 100))%"
             }
             return "Preparing…"
@@ -143,7 +133,7 @@ struct SpeechSettingsView: View {
         if localTTS.engineCrashNotice != nil, localTTS.selectedEngineID != id {
             return "Crashed last session · tap to try again"
         }
-        if localTTS.selectedEngineID == id, localTTS.localHostReady {
+        if localTTS.engineState.readyEngineID == id {
             return descriptor.isRecommended ? "Ready · recommended" : "Ready"
         }
         if localTTS.isModelInstalled(id) {
@@ -177,11 +167,7 @@ struct SpeechSettingsView: View {
                     busy: downloading,
                     accessibilityID: "voiceRow-\(voice.id)"
                 ) {
-                    Task {
-                        if await localTTS.chooseVoice(voice.id, for: descriptor.id) {
-                            speech.applyEngineSelectionChange()
-                        }
-                    }
+                    Task { await localTTS.chooseVoice(voice.id, for: descriptor.id) }
                 } accessory: {
                     if VoicePreviewPlayer.hasPreview(voice) {
                         Button {

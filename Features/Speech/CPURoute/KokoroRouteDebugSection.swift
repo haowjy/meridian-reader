@@ -18,7 +18,6 @@ struct KokoroRouteDebugSection: View {
                     busy = true
                     Task {
                         await tts.setKokoroFastGPURoute(on)
-                        speech.applyEngineSelectionChange()
                         busy = false
                     }
                 }
@@ -30,7 +29,6 @@ struct KokoroRouteDebugSection: View {
                     busy = true
                     Task {
                         await tts.setKokoroCPUThreads(n)
-                        speech.applyEngineSelectionChange()
                         busy = false
                     }
                 }

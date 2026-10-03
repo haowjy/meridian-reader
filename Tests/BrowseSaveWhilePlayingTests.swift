@@ -50,7 +50,7 @@ final class BrowseSaveWhilePlayingTests: XCTestCase {
         let provider = FakeEngineProvider(config: .init(latency: 0.15))
         let c = makeCoordinator(provider)
         await c.selectEngine(FakeEngineProvider.fakeID)
-        XCTAssertTrue(c.localHostReady)
+        XCTAssertTrue(c.usesLocalEngine)
         let voice = c.normalizedCacheVoice("fake.default")
 
         // Saved article A is playing from its baked audio.

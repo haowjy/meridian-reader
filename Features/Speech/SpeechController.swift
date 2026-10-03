@@ -107,11 +107,27 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     private static let listenDebugEnabledKey = "reader.listenDebugEnabled"
     @ObservationIgnored private var bufferingPollTask: Task<Void, Never>?
 
+    /// The engine the live utterance is bound to (nil: nothing speaking or held). Set in `speak`,
+    /// cleared when the engines stop.
+    private struct EngineBinding {
+        var route: ListenRoute
+        /// Paragraph Apple is finishing before the on-device engine takes over (`EngineHandover`).
+        var handoverAfterParagraph: Int?
+    }
+    @ObservationIgnored private var binding: EngineBinding?
+
+    /// The live utterance is on the on-device engine.
     var usesLocalPlayback: Bool {
-        localTTS.selectedEngineID.isLocal
-            && localTTS.engines.supports(localTTS.selectedEngineID)
-            && localTTS.localHostReady
-            && languageResolution.engineID.isLocal
+        if case .local = binding?.route { return true }
+        return false
+    }
+
+    /// The engine `speak` picks now: the on-device engine once it is loaded and speaks this
+    /// article's language, else Apple.
+    private var wantedRoute: ListenRoute {
+        guard let id = localTTS.engineState.readyEngineID, localTTS.engines.supports(id),
+              languageResolution.engineID.isLocal else { return .apple }
+        return .local(id, voice: localTTS.voice(for: id))
     }
 
     // MARK: - Language
@@ -335,6 +351,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             guard let self else { return true }
             return self.languageResolution(detected: ListenLanguage.detectCached(paragraphs: paragraphs)).engineID.isLocal
         }
+        self.localTTS.onEngineChange = { [weak self] in self?.localEngineChanged() }
         synthesizer.delegate = self
         // Category only; the session is activated when playback starts (activating at launch
         // interrupted other apps' audio just for opening Reader). Non-mixable so Reader becomes
@@ -498,11 +515,28 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         wireLocalEngine()
     }
 
-    func applyEngineSelectionChange() {
-        guard playback.isPrepared else { return }
-        guard playback.phase == .playing || playback.phase == .paused else { return }
-        let paused = playback.phase == .paused
-        speak(fromUTF16Offset: playback.utf16Offset, startPaused: paused)
+    /// The on-device engine changed state or voice (`LocalTTSCoordinator.onEngineChange`): move the
+    /// live utterance to the engine `speak` would pick now, when `EngineHandover` says so.
+    private func localEngineChanged() {
+        guard let bound = binding?.route, playback.phase == .playing || playback.phase == .paused else { return }
+        switch EngineHandover.decide(bound: bound, wanted: wantedRoute, phase: playback.phase) {
+        case .none:
+            binding?.handoverAfterParagraph = nil
+        case .restartNow:
+            speak(fromUTF16Offset: playback.utf16Offset, startPaused: playback.phase == .paused)
+        case .atNextParagraph:
+            if binding?.handoverAfterParagraph == nil { binding?.handoverAfterParagraph = playback.playhead }
+        }
+    }
+
+    /// Apple started speaking `paragraph`: a pending handover happens here, at its start.
+    private func handOverIfDue(atParagraph paragraph: Int) {
+        guard let after = binding?.handoverAfterParagraph, paragraph > after else { return }
+        guard wantedRoute != binding?.route else {
+            binding?.handoverAfterParagraph = nil
+            return
+        }
+        speak(fromUTF16Offset: document.startUTF16Offset(forParagraph: paragraph), startPaused: false)
     }
 
     // MARK: - Voice / rate
@@ -725,6 +759,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     private func stopEngines() {
+        binding = nil
         stopBufferingPoll()
         localTTS.localEngineInstance.stop()
         if synthesizer.isSpeaking || synthesizer.isPaused {
@@ -829,7 +864,9 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             return
         }
 
-        if usesLocalPlayback {
+        let route = wantedRoute
+        binding = EngineBinding(route: route)
+        if case .local = route {
             let paragraphIndex = document.isEmpty ? 0 : document.index(containingUTF16Offset: clamped)
             // Units are rendered at 1×; the player time-stretches to the listen speed.
             localTTS.localEngineInstance.setPlaybackRate(Float(rateMultiplier))
@@ -882,6 +919,9 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
                         self.playback.handle(.becamePaused)
                     }
                 } catch {
+                    guard generation == self.speakGeneration else { return }
+                    // Bind Apple first: the failure's engine-change event then finds nothing to move.
+                    self.binding = EngineBinding(route: .apple)
                     self.localTTS.noteSpeakFailed(error)
                     self.speakApple(remaining: remaining, generation: generation, startPaused: startPaused)
                     return
@@ -1063,6 +1103,7 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
                 ? 0
                 : self.document.index(containingUTF16Offset: utf16)
             self.playback.handle(.playheadAdvanced(paragraph: paragraph, utf16Offset: utf16))
+            self.handOverIfDue(atParagraph: paragraph)
         }
     }
 
