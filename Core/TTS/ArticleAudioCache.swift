@@ -142,13 +142,6 @@ final class ArticleAudioCache {
         return .partial(ready: ready, total: total)
     }
 
-    /// True when a complete bake for this engine/voice already exists.
-    func isReady(articleID: UUID, engineID: String, voiceID: String, paragraphCount: Int) -> Bool {
-        guard paragraphCount > 0 else { return false }
-        return readyIndices(articleID: articleID, paragraphCount: paragraphCount,
-                            engineID: engineID, voiceID: voiceID).count == paragraphCount
-    }
-
     /// CAF for this paragraph rendered with exactly this engine/voice (bake state, queue).
     func audioURL(articleID: UUID, paragraphIndex: Int, engineID: String, voiceID: String) -> URL? {
         guard let index = index(for: articleID),
@@ -223,33 +216,6 @@ final class ArticleAudioCache {
     /// A paragraph's CAF: `p-NNNN.caf`.
     func paragraphFileURL(articleID: UUID, paragraphIndex: Int) -> URL {
         directory(for: articleID).appendingPathComponent(String(format: "p-%04d.caf", paragraphIndex))
-    }
-
-    /// Persist one rendered paragraph: copies `sourceURL` into `p-NNNN.caf` and records it.
-    @discardableResult
-    func storeParagraph(
-        articleID: UUID,
-        paragraphIndex: Int,
-        sourceURL: URL,
-        duration: TimeInterval,
-        engineID: String,
-        voiceID: String,
-        text: String? = nil,
-        chunkDurations: [Double]? = nil
-    ) throws -> URL {
-        guard isUsableAudioFile(sourceURL) else { throw Self.emptyAudioError(paragraphIndex) }
-        try fileManager.createDirectory(at: directory(for: articleID), withIntermediateDirectories: true)
-        let dest = paragraphFileURL(articleID: articleID, paragraphIndex: paragraphIndex)
-        if sourceURL.standardizedFileURL != dest.standardizedFileURL {
-            if fileManager.fileExists(atPath: dest.path) {
-                try fileManager.removeItem(at: dest)
-            }
-            try fileManager.copyItem(at: sourceURL, to: dest)
-        }
-        try recordParagraph(articleID: articleID, paragraphIndex: paragraphIndex, duration: duration,
-                            engineID: engineID, voiceID: voiceID, textHash: text.map(ArticleIdentity.paragraphHash),
-                            chunkDurations: chunkDurations)
-        return dest
     }
 
     /// File half of baking a paragraph, safe off the main actor: stitch `chunkURLs` beside
@@ -709,8 +675,8 @@ extension ArticleAudioCache {
 // MARK: - One voice per article, retired engines, orphans
 
 extension ArticleAudioCache {
-    /// Engine id for index files that carry no `engineID`: only the retired Chatterbox Nano
-    /// wrote those.
+    /// Engine id for index files that carry no `engineID`: only Chatterbox Nano (a retired
+    /// engine, see `RetiredEngineCleanup`) wrote those.
     nonisolated static let legacyEngineID = "local.chatterbox-nano"
 
     /// Once every paragraph `0..<paragraphCount` has a CAF in `engineID`/`voiceID`, delete any

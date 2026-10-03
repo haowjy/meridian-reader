@@ -1,6 +1,6 @@
 import Foundation
 
-/// Developer options (Nav I / J): the ⋯ menu's Debug rows, Settings → Listen → Listen debug, the
+/// Developer options: the ⋯ menu's Debug rows, Settings → Listen → Listen debug, the
 /// listen bar's Debug chip / bake overlay and long-press-play → Listen debug panel.
 ///
 /// Off by default in Release (hidden from normal use), on by default in Debug builds. In any build
@@ -8,12 +8,12 @@ import Foundation
 /// confirmation). UI tests force it with the launch argument `-reader.developerOptions NO|YES`
 /// (the argument domain overrides the stored value).
 ///
-/// Nav J: the first Release launch after this update clears a previously stored "on" so a Debug
-/// pill left over from an earlier unlock (or a bad default) cannot keep showing. Long-press the
-/// version row again to turn developer options back on.
+/// A Release build clears a stored "on" once (`releaseResetKey`), so a Debug pill left from an
+/// unlock in an older build cannot keep showing. Long-press the version row again to turn
+/// developer options back on.
 enum DeveloperOptions {
     static let defaultsKey = "reader.developerOptions"
-    /// Set once after forcing developer options off on a Release upgrade (Nav J).
+    /// Set once Release has cleared a stored unlock. The value is a stored key; it can't change.
     static let releaseResetKey = "reader.developerOptions.releaseReset.navJ"
     /// Long-press on the version row that toggles developer options.
     static let unlockPressSeconds: Double = 2
@@ -34,8 +34,8 @@ enum DeveloperOptions {
         return resolve(stored: stored, isDebugBuild: isDebugBuild)
     }
 
-    /// Release only: one-time clear of a stored unlock so the Debug pill cannot stick on after
-    /// upgrading to Nav J. Launch arguments still win for UI tests.
+    /// Release only: one-time clear of a stored unlock, so the Debug pill cannot stick on from an
+    /// older build. Launch arguments still win for UI tests.
     static func clearStaleReleaseUnlockIfNeeded(_ defaults: UserDefaults = .standard,
                                                 isDebugBuild: Bool = DeveloperOptions.isDebugBuild) {
         guard !isDebugBuild else { return }

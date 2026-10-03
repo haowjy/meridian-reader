@@ -288,9 +288,13 @@ final class SpeechController {
         } ?? "en-US"
         self.selectedLanguageCode = storedLanguage ?? Locale.preferredLanguages.first ?? fallback
         // `double(forKey:)` also parses a launch-argument string ("-reader.rateMultiplier 1", UI tests).
+        #if DEBUG
         // UI tests start at 1× (hermetic) unless they pass the rate explicitly.
-        let args = ProcessInfo.processInfo.arguments
-        let ignoreStoredRate = args.contains("-uiTesting") && !args.contains("-\(rateDefaultsKey)")
+        let ignoreStoredRate = LaunchOptions.current.uiTesting
+            && !ProcessInfo.processInfo.arguments.contains("-\(rateDefaultsKey)")
+        #else
+        let ignoreStoredRate = false
+        #endif
         let storedRate = !ignoreStoredRate && UserDefaults.standard.object(forKey: rateDefaultsKey) != nil
             ? UserDefaults.standard.double(forKey: rateDefaultsKey) : 1.0
         self.rateMultiplier = (0.25...4).contains(storedRate) ? storedRate : 1.0
@@ -335,9 +339,6 @@ final class SpeechController {
         guard let id = selectedVoiceIdentifier else { return nil }
         return AVSpeechSynthesisVoice(identifier: id)
     }
-
-    var selectedVoiceDisplayName: String { selectedVoice?.name ?? "System default" }
-    var selectedLanguageDisplayName: String { VoiceCatalog.languageName(for: selectedLanguageCode) }
 
     var rateDisplayLabel: String {
         let rounded = (rateMultiplier * 100).rounded() / 100
@@ -532,14 +533,6 @@ final class SpeechController {
     }
 
     func setRateMultiplier(_ value: Double) { rateMultiplier = value }
-
-    func cycleRate() {
-        if let idx = Self.rateOptions.firstIndex(where: { abs($0 - rateMultiplier) < 0.01 }) {
-            setRateMultiplier(Self.rateOptions[(idx + 1) % Self.rateOptions.count])
-        } else {
-            setRateMultiplier(1.0)
-        }
-    }
 
     // MARK: - Remote commands (lock screen / Control Center / headphones)
 

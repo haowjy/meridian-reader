@@ -39,7 +39,7 @@ final class RenderPace: @unchecked Sendable {
     }
 }
 
-/// Head-start rule (research 2026-09-24). Rendering at `speed`× real time while playback
+/// Head-start rule. Rendering at `speed`× real time while playback
 /// consumes audio at `rate`×: to play `A` seconds of not-yet-rendered audio without a gap you
 /// need a buffer of `B = A·(1 − speed/rate)` (0 when speed ≥ rate) plus the time to render the
 /// first piece. Pure; unit-tested.

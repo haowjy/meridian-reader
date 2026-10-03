@@ -3,8 +3,8 @@ import Foundation
 /// Fixes a NaN bug in the onnx-community Kokoro-82M `model_fp16.onnx` by editing the model file
 /// (protobuf), once, on device.
 ///
-/// Root cause (diagnosed 2026-09-25 from The Forgotten on Jimmy's phone: 14 chunks ≈ 16 % of the
-/// rendered audio came out as NaN → written as full-scale DC = a pop, silence, a pop): the
+/// Root cause (on the phone, 14 chunks ≈ 16 % of one long article's audio came out as NaN →
+/// written as full-scale DC = a pop, silence, a pop): the
 /// generator's harmonic-source STFT phase is exported as `atan2(im, re)` = `Atan(Div(im, re))` plus
 /// `Where` quadrant fixes. In fp16, bins where both `re` and `im` round to exactly 0 give
 /// `0/0 = NaN`; the NaN flows into `noise_convs` → AdaIN (a mean over the whole time axis), so the

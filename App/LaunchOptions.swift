@@ -1,7 +1,8 @@
+#if DEBUG
 import Foundation
 
-/// Launch arguments, parsed once. UI tests and diagnostics drive the app through these; a normal
-/// launch has none of them.
+/// Launch arguments, parsed once (Debug builds only). UI tests and diagnostics drive the app
+/// through these; a normal launch has none of them.
 struct LaunchOptions: Equatable {
     /// `-seedDemoArticle`: the library is replaced by one deterministic demo article.
     struct DemoArticle: Equatable {
@@ -70,3 +71,4 @@ struct LaunchOptions: Equatable {
     /// Live Google suggestions in the address field.
     var fetchesSuggestions: Bool { !uiTesting }
 }
+#endif

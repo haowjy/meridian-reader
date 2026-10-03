@@ -1,7 +1,7 @@
 import AVFoundation
 import Foundation
 
-// MARK: - Giant-paragraph split (paragraph layout v3, 2026-09-25)
+// MARK: - Giant-paragraph split (paragraph layout v3)
 
 extension ArticleAudioCache {
     struct SplitRemapResult: Equatable {

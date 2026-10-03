@@ -1,15 +1,8 @@
 import SwiftUI
 import WebKit
 
-/// Shared WebKit process pool for browse + HTML-reader (+ Readability) WKWebViews.
-enum SharedWebKit {
-    static let processPool = WKProcessPool()
-}
-
 struct WebView: UIViewRepresentable {
     var store: WebViewStore
-    /// UI tests: serve the offline `reader-test://` pages (`TestPageSchemeHandler`).
-    var servesTestPages = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(store: store)
@@ -17,11 +10,12 @@ struct WebView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        config.processPool = SharedWebKit.processPool
         config.defaultWebpagePreferences.allowsContentJavaScript = true
-        if servesTestPages {
+        #if DEBUG
+        if LaunchOptions.current.servesTestPages {
             config.setURLSchemeHandler(TestPageSchemeHandler(), forURLScheme: TestPageSchemeHandler.scheme)
         }
+        #endif
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -88,7 +82,7 @@ struct WebView: UIViewRepresentable {
             let generation = readerableGeneration
             let url = webView.url
             guard let js = ReaderScripts.readerableCheck, let url,
-                  url.isWeb || url.scheme == TestPageSchemeHandler.scheme
+                  url.isWebOrTestPage
             else {
                 store.isReaderable = false
                 return
@@ -171,6 +165,7 @@ struct WebView: UIViewRepresentable {
     }
 }
 
+#if DEBUG
 /// UI tests only (`LaunchOptions.servesTestPages`): serves two tiny offline pages at `reader-test://pages/one`
 /// and `/two` (real navigations, so they get real back/forward history).
 final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
@@ -197,3 +192,4 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
 
     func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {}
 }
+#endif

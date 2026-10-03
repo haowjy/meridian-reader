@@ -8,6 +8,12 @@ final class MorphMenuGeometryTests: XCTestCase {
     private let button = CGSize(width: 44, height: 44)
     private let panel = CGSize(width: 300, height: 420)
 
+    func testFocusSitsUpAndLeftOfTheButton() {
+        // 12 pt left, 10 pt up: Safari's inset, deliberately not dead-on the ⋯.
+        XCTAssertEqual(MorphMenu.focusOffsetFromAnchor.width, 12)
+        XCTAssertEqual(MorphMenu.focusOffsetFromAnchor.height, 10)
+    }
+
     func testStartsAsTheButtonAndEndsAsThePanel() {
         let anchor = UnitPoint.bottomTrailing
         let start = MorphMenu.morphFrame(progress: 0, button: button, panel: panel, anchor: anchor)

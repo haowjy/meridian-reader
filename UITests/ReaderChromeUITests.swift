@@ -1,6 +1,6 @@
 import XCTest
 
-/// Reader chrome (Nav H, docs/NAVIGATION.md): like the browser's search bar / toolbar, the top row
+/// Reader chrome (docs/NAVIGATION.md): like the browser's search bar / toolbar, the top row
 /// and the bottom controls never hide — not on scroll, not on a tap — and there is no progress
 /// line. The text is inset so its first and last lines clear the bars. ‹ swipe-back still pops.
 final class ReaderChromeUITests: XCTestCase {

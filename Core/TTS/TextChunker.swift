@@ -33,14 +33,14 @@ enum TextChunker {
         /// When the first sentence has no clause boundary (`; : —`, comma, before a conjunction)
         /// inside `firstTarget`, the first chunk may grow up to `firstTarget + firstStretch` to reach
         /// one (or the sentence end) instead of cutting between bare words. Kokoro ONNX on the phone
-        /// (iPhone 17 Pro, 231 chunks, 2026-09-25): render ≈ 0.35 s + 23 ms/char (median), worst
+        /// (iPhone 17 Pro, 231 chunks): render ≈ 0.35 s + 23 ms/char (median), worst
         /// ≈ 28 ms/char → 80 units ≈ 2.2 s (worst 2.8 s) to first audio, 120 units ≈ 3.1 s (worst
         /// 4.1 s). +40 keeps first audio ≈ 3 s typical; beyond that the wait becomes noticeable.
         static let firstStretch = 40
 
         /// Engines capped at ≈10 s of audio per call (e.g. Qwen3-TTS: 125 codec tokens).
         /// 140 units ≈ 9.0 s at a measured p95 of 0.064 s of audio per char. Also used to split
-        /// Apple *fallback* text. (Formerly `.nano`, sized for the retired Chatterbox Nano.)
+        /// Apple *fallback* text.
         static let tenSecondCall = Limits(target: 120, hardMax: 140, firstTarget: 90, minResplit: 24)
 
         /// Kokoro (KokoroAne): input cap 510 IPA phonemes (`KokoroAneConstants.maxPhonemeLength`,
@@ -50,7 +50,7 @@ enum TextChunker {
         /// First chunk kept short (~100 chars ≈ 6 s audio) for fast first audio.
         static let kokoro = Limits(target: 220, hardMax: 300, firstTarget: 100, minResplit: 24)
 
-        /// Kokoro on the ONNX CPU route (the default route since 2026-09-24). ≈1.0–1.3 phonemes
+        /// Kokoro on the ONNX CPU route (the default route). ≈1.0–1.3 phonemes
         /// per char. Chunks ramp so playback never waits after the first one: first ≤ 80 units
         /// (≈5 s of audio, ≈1.5 s to render on iPhone 17 Pro at ≈2.7× real time), second ≤ 160
         /// (renders in ≈3.5 s, inside the first chunk's 5 s), then whole sentences packed to 240,
@@ -79,7 +79,7 @@ enum TextChunker {
     /// - collapses all whitespace runs (incl. newlines / NBSP) to one space
     /// - turns "aside" dashes (`-nobody … year-`, `–nurse, etc-`, ` - `) into commas so the engine
     ///   pauses instead of reading/choking on stray hyphens; intra-word hyphens stay
-    ///   (`Ericcson-Sprucefeld`, `three-day`).
+    ///   (`Ashby-Lowell`, `three-day`).
     static func normalize(_ text: String) -> String {
         var s = text.replacingOccurrences(of: "\u{00A0}", with: " ")
         s = s.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
@@ -135,7 +135,7 @@ enum TextChunker {
                 out.append(", ")
             } else {
                 // Inside a token next to other punctuation (URL / path / code: `a.com/-/x`,
-                // `foo-_bar`): keep as-is. (Used to become ", ", inserting a space into URLs.)
+                // `foo-_bar`): keep as-is; a ", " here would put a space into the URL.
                 out.append(contentsOf: chars[i..<j])
             }
             i = j
@@ -249,7 +249,7 @@ enum TextChunker {
                     out.append(head)
                     queue.append(rest)
                 } else {
-                    // No usable space (e.g. a long URL): the old clause/space/hard-cut splitter.
+                    // No usable space (e.g. a long URL): the clause/space/hard-cut splitter.
                     let head = splitOversized(sentence, hardMax: firstLimit)[0]
                     out.append(head)
                     // The rest stays one piece: hard-cut pieces must not be re-joined with spaces.
@@ -444,7 +444,7 @@ enum TextChunker {
     private static let sentenceEndingAbbreviations: Set<String> = ["etc", "inc", "ltd", "corp", "al"]
 
     /// Sentence boundaries: `.`/`!`/`?`/`…` (+ closing quotes/brackets) followed by a space.
-    /// Not a boundary after known abbreviations, single-letter initials ("I. Ericcson"),
+    /// Not a boundary after known abbreviations, single-letter initials ("J. Ashby"),
     /// dotted acronyms ("U.S.A."), or when the next word starts lowercase (". and", "... then").
     static func splitSentences(_ text: String) -> [String] {
         let chars = Array(text)
@@ -489,7 +489,7 @@ enum TextChunker {
         // (titles like "Dr." are always followed by a capitalised name, so they stay joined).
         if sentenceEndingAbbreviations.contains(lower) { return true }
         if abbreviations.contains(lower) { return false }
-        // Single-letter initial: "I. Ericcson", "J. R. R."
+        // Single-letter initial: "J. Ashby", "J. R. R."
         if word.count == 1, word.first!.isUppercase { return false }
         // Dotted acronym: "U.S.A", "e.g"
         if word.contains("."), word.split(separator: ".").allSatisfy({ $0.count <= 2 }) { return false }
@@ -577,8 +577,4 @@ enum TextChunker {
         if !buffer.isEmpty { out.append(buffer) }
         return out
     }
-}
-
-private extension Character {
-    var isQuoteMark: Bool { "\"'“”‘’«»".contains(self) }
 }

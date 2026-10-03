@@ -2,18 +2,19 @@ import AVFoundation
 import XCTest
 @testable import Reader
 
-/// Audio chunking of giant run-on paragraphs (The Forgotten, royalroad 178276, "Prologue /
-/// Chapter One: Gunner", 2026-09-25: "sounds like it's breaking up"). Real text, app paragraphs
-/// p6 (2,543 chars), p7 (1,397) and p15 (1,121). The old chunker cut "pound on the | door",
-/// "Smallpox, | announcing", "business admin, | etc-. The next Castra"; joins were ≈0.8 s of
-/// dead air; and 16 % of the audio was NaN (pops + silence, fixed in KokoroONNXModelPatch).
+/// Audio chunking of giant run-on paragraphs. Fixture text is public domain: Arthur Conan Doyle,
+/// "The Boscombe Valley Mystery" (1891). Joins between chunks must fall where a reader pauses
+/// (sentence ends, clauses), never between bare words.
 final class HierarchicalChunkerTests: XCTestCase {
-    static let p6 = "Okay, I’m gonna give you a bit of a rundown of the state of the, well, states. My parents gave me the occasional history lesson and now it's my turn to pass that knowledge on to you. After the Russian/Ukrainian war ended about 2.5 hundred years ago, -nobody can give me an exact year, answers vary, but the most common is 2031- people became restless. Everyone had thought it would be WWIII, especially when Britain joined the war. Following a threat from a Russian scientist, saying they would release bombs containing the virus Smallpox, announcing that they had evolved it to the point that it could wipe out the whole population, people freaked out, remembering the recent pandemic of COVID-19. The most out-of-stock thing people had trouble buying was toilet paper. Superstores and supermarkets were swamped. There were hundreds of people rushing into stores to buy toilet paper and canned food, -is that just food in a can? - it lasted longer like that apparently. When the war ended, again, no specific date, the world was restless. Much of Asia and Europe had been destroyed, only small, nondescript towns staying afloat. Other countries had civil unrest, leading to civil wars. The president by the end was no longer Trump, instead, it was Ian Ericcson-Sprucefeld. He decided to prevent civil unrest, and the Castra system was born. A long dead language, called Latin, was the basis for all the Castra names. Castra means camp, because you are sent to camps based on your skill. This isn't like any super nitty gritty camp, down in the dirt; it's just the name used for the different groups. Each Castra was named after the type of jobs necessary to keep a civilization afloat. The first group, Scienta, or knowledge, consists of jobs in departments such as healthcare, –nurse, doctor, etc- technology, -programmer, civil engineer, etc- and business –accountant, business admin, etc-. The next Castra, Arte, or skill, has jobs such as construction, -site formation, structural engineering, etc- and agriculture, -farming, etc- Castra number three, Entrepreneur, which is the same in both languages, includes things such as entrepreneur, -startup founder, business owner, etc- and business consultant -. Second to last, Artium, or arts with jobs such as performing arts, -actings, vocals, instruments- creative arts, -art, writing, etc-. Finally, Liberandum, or rescue, jobs such as search and rescue -though it’s not as necessary with the organized Castras, they’re more backup for other rescue services, paramedics, fire, and police."
-    static let p7 = "At first, people didn't like the rules. There were too many restrictions, not enough freedom. Some individuals would skip out on their tests, refusing to become part the “New America”.   President I. Ericcson-Sprucefeld, said at a press conference, much lacking in actual press, that, “the government has a very powerful weapon in its grasp that, if needed, would be unleashed on the entire population of the U.S.A., no matter how many people are involved.” This shut people up real fast, those involved not wanting their families to get hurt. Once every one of age was tested, underage children would stay with both parents, alternating weeks, until Testing Day.  Every year, children at the age of 10 and 16 were tested. For 10-year-olds, they would get tested, just see what they have a gift for. Teachers and parents would use the results from the test, along with the child’s interests, to put more focus on the prominent gifts. Then at 16, they were tested a little more intensely, these tests defining what they should and shouldn't do. The teen would then come back out to the central room and announce the Castra of their choice. Their choice may not reflect their test results; it may, but sometimes they choose based off personal interests. These new Conscribes, or recruits, would pack up their belongings, have a three-day period to say goodbye and then they move to their new Castra."
-    static let p15 = "I'm quickly finishing up when my mother decides it's her turn to pound on the door. “Gunner, we’re going to be late!” Her shadow moves under the door. “Hurry up.” Panic spikes in my stomach, little daggers that want to cut me apart. I shut off the faucet, slick back my hair one more time with my wet hands and run out the door, dragging my hands along a hanging towel on my way out of the bathroom. My socks slip along the hardwood floors, and I snag my leather jacket off the dining table chair that I sat in for breakfast. Nobody cares if you dress nicely, just wear clothes. Shoving my feet into my shoes, I hop out the door and head to our pickup truck. No, don't imagine those old, rusted out pickup trucks from the 21st century. Think, sleek, rounded edges with bright headlights. Sensors open the doors, DNA activated. The wheels? There aren’t any. It floats over the driveway, using the minerals in the earth to push off the ground. It must be held up on rubber blocks when off, so it doesn't scrape on the ground. I run across the driveway, press my thumb against the scanner pad, yank open my door, and scream."
+    /// 1,881 chars; the display split cuts it into three pieces.
+    static let inquest = "“The two McCarthys were seen after the time when William Crowder, the game-keeper, lost sight of them. The Boscombe Pool is thickly wooded round, with just a fringe of grass and of reeds round the edge. A girl of fourteen, Patience Moran, who is the daughter of the lodge-keeper of the Boscombe Valley estate, was in one of the woods picking flowers. She states that while she was there she saw, at the border of the wood and close by the lake, Mr. McCarthy and his son, and that they appeared to be having a violent quarrel. She heard Mr. McCarthy the elder using very strong language to his son, and she saw the latter raise up his hand as if to strike his father. She was so frightened by their violence that she ran away and told her mother when she reached home that she had left the two McCarthys quarrelling near Boscombe Pool, and that she was afraid that they were going to fight. She had hardly said the words when young Mr. McCarthy came running up to the lodge to say that he had found his father dead in the wood, and to ask for the help of the lodge-keeper. He was much excited, without either his gun or his hat, and his right hand and sleeve were observed to be stained with fresh blood. On following him they found the dead body stretched out upon the grass beside the pool. The head had been beaten in by repeated blows of some heavy and blunt weapon. The injuries were such as might very well have been inflicted by the butt-end of his son’s gun, which was found lying on the grass within a few paces of the body. Under these circumstances the young man was instantly arrested, and a verdict of ‘wilful murder’ having been returned at the inquest on Tuesday, he was on Wednesday brought before the magistrates at Ross, who have referred the case to the next Assizes. Those are the main facts of the case as they came out before the coroner and the police-court.”"
+    /// 2,083 chars, quoted testimony with "Mr." abbreviations and an exclamation inside quotes.
+    static let testimony = "“Mr. James McCarthy, the only son of the deceased, was then called and gave evidence as follows: ‘I had been away from home for three days at Bristol, and had only just returned upon the morning of last Monday, the 3rd. My father was absent from home at the time of my arrival, and I was informed by the maid that he had driven over to Ross with John Cobb, the groom. Shortly after my return I heard the wheels of his trap in the yard, and, looking out of my window, I saw him get out and walk rapidly out of the yard, though I was not aware in which direction he was going. I then took my gun and strolled out in the direction of the Boscombe Pool, with the intention of visiting the rabbit warren which is upon the other side. On my way I saw William Crowder, the game-keeper, as he had stated in his evidence; but he is mistaken in thinking that I was following my father. I had no idea that he was in front of me. When about a hundred yards from the pool I heard a cry of “Cooee!” which was a usual signal between my father and myself. I then hurried forward, and found him standing by the pool. He appeared to be much surprised at seeing me and asked me rather roughly what I was doing there. A conversation ensued which led to high words and almost to blows, for my father was a man of a very violent temper. Seeing that his passion was becoming ungovernable, I left him and returned towards Hatherley Farm. I had not gone more than 150 yards, however, when I heard a hideous outcry behind me, which caused me to run back again. I found my father expiring upon the ground, with his head terribly injured. I dropped my gun and held him in my arms, but he almost instantly expired. I knelt beside him for some minutes, and then made my way to Mr. Turner’s lodge-keeper, his house being the nearest, to ask for assistance. I saw no one near my father when I returned, and I have no idea how he came by his injuries. He was not a popular man, being somewhat cold and forbidding in his manners, but he had, as far as I know, no active enemies. I know nothing further of the matter.’"
+    /// 1,135 chars: under the display-split threshold, so audio chunking alone shapes it.
+    static let belowThreshold = "“On the contrary,” said Holmes, “it is the brightest rift which I can at present see in the clouds. However innocent he might be, he could not be such an absolute imbecile as not to see that the circumstances were very black against him. Had he appeared surprised at his own arrest, or feigned indignation at it, I should have looked upon it as highly suspicious, because such surprise or anger would not be natural under the circumstances, and yet might appear to be the best policy to a scheming man. His frank acceptance of the situation marks him as either an innocent man, or else as a man of considerable self-restraint and firmness. As to his remark about his deserts, it was also not unnatural if you consider that he stood beside the dead body of his father, and that there is no doubt that he had that very day so far forgotten his filial duty as to bandy words with him, and even, according to the little girl whose evidence is so important, to raise his hand as if to strike him. The self-reproach and contrition which are displayed in his remark appear to me to be the signs of a healthy mind rather than of a guilty one.”"
 
     private let limits = TextChunker.Limits.kokoroCPU
-    private var giants: [String] { [Self.p6, Self.p7, Self.p15] }
+    private var giants: [String] { [Self.inquest, Self.testimony, Self.belowThreshold] }
 
     private func units(_ s: String) -> Int { TextChunker.estimatedUnits(s) }
 
@@ -54,8 +55,9 @@ final class HierarchicalChunkerTests: XCTestCase {
                 if let l = t.last, ".!?…".contains(l) { sentence += 1 }
             }
         }
-        // 29 cuts: 27 at sentence ends, 2 at commas inside 300+-char list sentences.
-        XCTAssertGreaterThanOrEqual(Double(sentence) / Double(total), 0.9, "\(sentence)/\(total)")
+        // 28 cuts, 25 at sentence ends; the rest are clause cuts in the fast-start ramp or inside a
+        // sentence longer than hardMax.
+        XCTAssertGreaterThanOrEqual(Double(sentence) / Double(total), 0.85, "\(sentence)/\(total)")
     }
 
     func testFirstChunkIsShortAndNotAWordCut() {
@@ -64,9 +66,9 @@ final class HierarchicalChunkerTests: XCTestCase {
             XCTAssertTrue(endsAtBoundary(first), first)
             XCTAssertLessThanOrEqual(units(first), limits.firstTarget + TextChunker.Limits.firstSlack)
         }
-        // Old: "…decides it's her turn to pound on the" | "door."
-        XCTAssertEqual(TextChunker.chunks(for: Self.p15, limits: limits)[0],
-                       "I'm quickly finishing up when my mother decides it's her turn to pound on the door.")
+        // A 99-unit first sentence fits the first-chunk slack: whole, not "…see in the" | "clouds."
+        XCTAssertEqual(TextChunker.chunks(for: Self.belowThreshold, limits: limits)[0],
+                       "“On the contrary,” said Holmes, “it is the brightest rift which I can at present see in the clouds.")
     }
 
     func testHeadStartRampNeverOutrunsRendering() {
@@ -83,17 +85,24 @@ final class HierarchicalChunkerTests: XCTestCase {
         }
     }
 
-    func testKnownBadCutsAreGone() {
-        let p6 = TextChunker.chunks(for: Self.p6, limits: limits)
-        XCTAssertTrue(p6.contains { $0.hasSuffix("announcing that they had evolved it to the point that it could wipe out the whole population, people freaked out, remembering the recent pandemic of COVID-19.") },
-                      "Smallpox sentence stays whole")
-        let i = p6.firstIndex { $0.hasSuffix("business admin, etc.") }
-        XCTAssertNotNil(i, "\"etc-.\" normalised and treated as the sentence end")
-        if let i { XCTAssertTrue(p6[i + 1].hasPrefix("The next Castra")) }
-        XCTAssertLessThan(p6.count, 19, "old plan had 19 chunks for p6")
-        let p7 = TextChunker.chunks(for: Self.p7, limits: limits)
-        XCTAssertFalse(p7.contains { $0.hasSuffix("President I.") }, "initial is not a sentence end")
-        XCTAssertTrue(p7.contains { $0.hasPrefix("President I. Ericcson-Sprucefeld, said at a press conference") })
+    func testAbbreviationsAndQuotedExclamationsAreNotCutPoints() {
+        for para in giants {
+            for c in TextChunker.chunks(for: para, limits: limits) {
+                XCTAssertFalse(c.hasSuffix("Mr."), "\"Mr.\" is not a sentence end: …\(c.suffix(40))")
+                XCTAssertFalse(c.hasSuffix("“Cooee!”"), "a lowercase word follows, so the sentence goes on")
+            }
+        }
+        let testimony = TextChunker.chunks(for: Self.testimony, limits: limits)
+        XCTAssertTrue(testimony.contains { $0.contains("“Cooee!” which was a usual signal") })
+    }
+
+    func testListEndingInDashedEtcEndsTheSentence() {
+        let para = "The stall sold bread, cheese, apples, rope, lamp oil, candles, nails, etc-. The next stall "
+            + "sold nothing but fish, and the one after that sold nothing at all. " + String(repeating: "More words follow here. ", count: 12)
+        let chunks = TextChunker.chunks(for: para, limits: limits)
+        XCTAssertFalse(chunks.contains { $0.lowercased().hasPrefix("etc") }, "\(chunks)")
+        XCTAssertEqual(TextChunker.splitSentences(TextChunker.normalize(para)).first,
+                       "The stall sold bread, cheese, apples, rope, lamp oil, candles, nails, etc.")
     }
 
     func testChunkPlanIsDeterministic() {
@@ -124,7 +133,7 @@ final class HierarchicalChunkerTests: XCTestCase {
     }
 
     func testDashGluedToPunctuationIsDropped() {
-        XCTAssertEqual(TextChunker.normalize("accountant, business admin, etc-. The next"), "accountant, business admin, etc. The next")
+        XCTAssertEqual(TextChunker.normalize("bread, cheese, etc-. The next"), "bread, cheese, etc. The next")
         XCTAssertEqual(TextChunker.normalize("farming, etc-, and"), "farming, etc, and")
         XCTAssertEqual(TextChunker.normalize("a well-known out-of-stock item."), "a well-known out-of-stock item.")
     }

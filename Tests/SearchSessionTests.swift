@@ -72,4 +72,15 @@ final class SearchSessionTests: XCTestCase {
         XCTAssertEqual(LaunchOptions(arguments: ["-seedDemoArticle", "-seedDemoParagraphs", "1"]).demoArticle?.paragraphs, 3)
         XCTAssertFalse(LaunchOptions(arguments: ["-scrubBubbleDemo"]).scrubBubbleDemo, "screenshot hook needs -uiTesting")
     }
+
+    func testUITestingLaunchSendsNoGoogleQuery() {
+        let ui = LaunchOptions(arguments: ["Reader", "-uiTesting"])
+        XCTAssertNil(GoogleSuggestClient.query(forTyped: "swift", enabled: ui.fetchesSuggestions))
+        let normal = LaunchOptions(arguments: ["Reader"])
+        XCTAssertEqual(GoogleSuggestClient.query(forTyped: " swift ", enabled: normal.fetchesSuggestions), "swift")
+        XCTAssertNil(GoogleSuggestClient.query(forTyped: "  ", enabled: true))
+        XCTAssertNil(GoogleSuggestClient.query(forTyped: "example.com/post", enabled: true), "addresses aren't searched")
+        XCTAssertNil(GoogleSuggestClient.query(forTyped: "https://example.com", enabled: true))
+        XCTAssertEqual(GoogleSuggestClient.query(forTyped: "swift 6.2 release", enabled: true), "swift 6.2 release")
+    }
 }

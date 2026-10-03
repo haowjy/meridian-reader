@@ -89,8 +89,6 @@ final class BackgroundGrace {
         self.name = name
     }
 
-    var isHeld: Bool { id != .invalid }
-
     func begin() {
         guard id == .invalid else { return }
         id = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in

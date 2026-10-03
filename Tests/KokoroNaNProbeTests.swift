@@ -1,17 +1,19 @@
 import XCTest
 @testable import Reader
 
-/// ONNX fp16 Kokoro NaN (device 2026-09-25): texts that produced all-NaN audio, and the model patch
-/// (`KokoroONNXModelPatch`) that fixes it. Simulator-only; needs the Mac research model.
+/// ONNX fp16 Kokoro NaN: text that renders all-NaN audio with the unpatched model, and the model
+/// patch (`KokoroONNXModelPatch`) that fixes it. Simulator-only; needs the Mac research model.
 final class KokoroNaNProbeTests: XCTestCase {
-    /// "Like we had a choice" is all-NaN with the unpatched model on the simulator (ORT 1.24.2).
+    /// Public-domain lines (The Adventures of Sherlock Holmes, 1892). The first is all-NaN with the
+    /// unpatched model on the simulator (ORT 1.24.2); the others render clean, to check the patch
+    /// changes nothing else.
     static let texts = [
-        "ARTE CASTRA, WHAT ONCE WAS ORLANDO, FLORIDA, 2240",
-        "“Like we had a choice.” Aza mutters.",
-        "“I'm kidding. Let's go.” I brush past her, looking back to see if she’s following.",
-        "Think, sleek, rounded edges with bright headlights. Sensors open the doors, DNA activated. The wheels? There aren’t any.",
-        "There were hundreds of people rushing into stores to buy toilet paper and canned food, is that just food in a can? it lasted longer like that apparently.",
-        "Okay, I’m gonna give you a bit of a rundown of the state of the, well, states.",
+        "My experience of camp life in Afghanistan had at least had the effect of making me a prompt and ready traveller.",
+        "“I think of writing another little monograph some of these days on the typewriter and its relation to crime.",
+        "Our visitor collapsed into a chair, with a ghastly face and a glitter of moisture on his brow.",
+        "What does her clever stepfather do then?",
+        "“I cannot now entirely see all the steps of your reasoning,”",
+        "Turner had a considerable household, some half-dozen at the least.",
     ]
 
     func testPatchedModelHasNoNaNAndOtherwiseIdenticalAudio() async throws {
@@ -57,9 +59,9 @@ final class KokoroNaNProbeTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(plainNaNTexts, 1, "repro text no longer NaN on the unpatched model")
     }
 
-    /// The real 2,543-char run-on paragraph (The Forgotten p6) through the new chunk plan, the
-    /// NaN-patched model and the join trim: every chunk finite, no full-scale runs, joins ≈ the
-    /// boundary pause (sentence ≈0.4 s, comma ≈0.22 s) instead of ≈0.8 s of dead air.
+    /// A giant paragraph through the chunk plan, the NaN-patched model and the join trim: every
+    /// chunk finite, no full-scale runs, joins ≈ the boundary pause (sentence ≈0.4 s, comma
+    /// ≈0.22 s) rather than Kokoro's ≈0.8 s of padding.
     func testGiantParagraphRendersCleanWithNaturalJoins() async throws {
         guard let home = ProcessInfo.processInfo.environment["SIMULATOR_HOST_HOME"] else { throw XCTSkip("sim only") }
         let patched = URL(fileURLWithPath: home + "/Developer/Reader/.probe/nan/patched_swift.onnx")
@@ -71,7 +73,7 @@ final class KokoroNaNProbeTests: XCTestCase {
         let fe = try KokoroAneCPUFrontendHandle()
         let session = try KokoroONNXSession(modelURL: patched, threads: 3)
         let sr = KokoroCPUAudio.sampleRate
-        let chunks = TextChunker.chunks(for: HierarchicalChunkerTests.p6, limits: .kokoroCPU)
+        let chunks = TextChunker.chunks(for: HierarchicalChunkerTests.inquest, limits: .kokoroCPU)
         var rendered: [[Float]] = []
         var audio = 0.0, wall = 0.0
         for (i, c) in chunks.enumerated() {

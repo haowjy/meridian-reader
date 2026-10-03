@@ -6,7 +6,7 @@ import Foundation
 /// `ParagraphDocument.readingHTML`) and `ParagraphDocument(plainText:)` for plain text, so the
 /// reader view, the listen paragraph list, the render queue and the audio cache see one list.
 ///
-/// Rules (2026-09-25, The Forgotten's 2,543-char run-on paragraph):
+/// Rules:
 /// - Paragraphs ≤ `threshold` characters are never split.
 /// - Cuts only at sentence ends (`TextChunker.isBoundary`: abbreviations, initials, "U.S.A.",
 ///   lowercase continuations, quotes/brackets after the period, "etc-. The").

@@ -1,25 +1,25 @@
 import XCTest
 @testable import Reader
 
-/// Chunker regression tests. Origin: the long-paragraph skip (paragraphs of 1–2.5k chars overflowed
-/// a single engine call and were skipped silently; see docs/LISTEN_PLAYBACK.md § Chunking).
+/// Chunker invariants. Paragraphs of 1–2.5k chars must be cut into engine-sized calls with nothing
+/// dropped (an overflowing call would lose the paragraph; see docs/LISTEN_PLAYBACK.md § Chunking).
 /// Giant-paragraph cases (10k chars, 5k-char run-on, 600-char URL) check every invariant.
 @MainActor
 final class TextChunkerTests: XCTestCase {
-    /// Synthetic stand-in shaped like the paragraphs that were skipped (≈2.5k chars): curly
-    /// quotes, aside dashes, numbers, abbreviations, initials, slashes, double spaces.
+    /// A synthetic ≈2.5k-char paragraph with what real prose throws at the chunker: curly quotes,
+    /// aside dashes, numbers, abbreviations, initials, slashes, double spaces.
     private let longA: String = {
         let base = """
-        Okay, I’m gonna give you a quick rundown of how things got this way, and you’ll have to \
-        trust me on the dates. After the Russian/Ukrainian war ended about 2.5 hundred years ago, \
-        -nobody can give me an exact year, answers vary, but the usual guess is 2031- people grew \
-        restless.  Everyone had expected a third world war, especially once the U.S.A. and Britain \
-        joined in. Dr. Hollis and Mr. I. Ericcson-Sprucefeld wrote that the three-day blackout \
-        changed everything, e.g. the grid, the ports, the farms, etc. Medical staff –nurse, doctor, \
-        orderly, etc- were drafted by the thousands. “Nobody listened,” my father told me, “not \
-        until the bombs were already in the air.” Then the treaty of 2044 split the continent into \
-        eleven zones, each with its own council, currency, and curfew, and each one swore it was \
-        the last honest place left on Earth.
+        Right, let me give you a quick tour of how the harbor town got this way, and you’ll have to \
+        trust me on the dates. After the north/south canal opened about 2.5 hundred years ago, \
+        -nobody agrees on the exact year, the records vary, but the usual guess is 1789- the town grew \
+        quickly.  Everyone expected a second canal, especially once the U.S.A. and Britain \
+        sent surveyors. Dr. Hollis and Mr. J. Ashby-Lowell wrote that the three-day flood \
+        changed everything, e.g. the docks, the mills, the farms, etc. Dock crews –porters, pilots, \
+        clerks, etc- were hired by the thousands. “Nobody listened,” my grandmother told me, “not \
+        until the water was already in the streets.” Then the charter of 1844 split the town into \
+        eleven wards, each with its own council, market, and curfew, and each one swore it was \
+        the last honest place left on the coast.
         """
         return Array(repeating: base, count: 3).joined(separator: " ")
     }()
@@ -51,10 +51,10 @@ final class TextChunkerTests: XCTestCase {
 
     func testAbbreviationsAndInitialsDoNotSplit() {
         let sentences = TextChunker.splitSentences(
-            "Dr. Hollis met Mr. I. Ericcson-Sprucefeld in the U.S.A. last week. Then he left."
+            "Dr. Hollis met Mr. J. Ashby-Lowell in the U.S.A. last week. Then he left."
         )
         XCTAssertEqual(sentences.count, 2, "\(sentences)")
-        XCTAssertTrue(sentences[0].hasPrefix("Dr. Hollis met Mr. I. Ericcson-Sprucefeld"))
+        XCTAssertTrue(sentences[0].hasPrefix("Dr. Hollis met Mr. J. Ashby-Lowell"))
         XCTAssertTrue(sentences[0].hasSuffix("last week."))
     }
 
@@ -73,8 +73,8 @@ final class TextChunkerTests: XCTestCase {
         XCTAssertFalse(n.contains(",,"))
     }
 
-    /// Regression (found by the 600-char URL case): a dash next to non-quote punctuation inside a
-    /// token (`z-_`, `/-/`) was turned into ", ", inserting a space into URLs.
+    /// A dash next to non-quote punctuation inside a token (`z-_`, `/-/`) stays as is: turning it
+    /// into ", " would put a space into URLs.
     func testNormalizeLeavesDashesInsideTokensAlone() {
         let url = "https://example.com/a-_b/-/c--d?x=-1"
         XCTAssertEqual(TextChunker.normalize("See \(url) now."), "See \(url) now.")
@@ -105,7 +105,7 @@ final class TextChunkerTests: XCTestCase {
     }
 
     func testKokoroLimitsAllowLongerChunksButStayUnderPhonemeCap() {
-        // The descriptor now uses .kokoroCPU (ONNX route, short first chunk); .kokoro is the Core ML sizing.
+        // The descriptor uses .kokoroCPU (ONNX route, short first chunk); .kokoro is the Core ML sizing.
         XCTAssertEqual(FluidAudioProvider.kokoroDescriptor.limits, .kokoroCPU)
         let limits = TextChunker.Limits.kokoro
         let chunks = TextChunker.chunks(for: longA, limits: limits)

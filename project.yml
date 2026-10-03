@@ -21,9 +21,13 @@ targets:
     type: application
     platform: iOS
     sources:
+      # `.context/` folders are working notes for agents, not app resources.
       - path: App
+        excludes: ["**/.context/**"]
       - path: Features
+        excludes: ["**/.context/**"]
       - path: Core
+        excludes: ["**/.context/**"]
       - path: Resources/Assets.xcassets
       - path: Resources
         buildPhase: resources

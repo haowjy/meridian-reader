@@ -2,12 +2,11 @@ import Foundation
 
 /// Core ML's E5RT compiled-model cache (`Library/Caches/<bundle id>/com.apple.e5rt.e5bundlecache/
 /// <OS build>/<model hash>/…`) gets fresh compiled bundles for every model each time the app binary
-/// changes (every install / update) and never evicts the old ones: on Jimmy's iPhone it held
-/// 16.7 GB after a day of dev installs (≈240 MB per retired-Nano compile, plus Kokoro's).
+/// changes (every install / update) and never evicts the stale ones: a development iPhone held
+/// 16.7 GB of them after a day of installs (hundreds of MB per compiled model).
 ///
 /// Once per install, delete bundle dirs whose newest file predates this launch (the first launch of
-/// the install). Core ML
-/// recompiles anything it still needs — which it does after a binary change anyway (the one slow
+/// the install). Core ML recompiles anything it still needs — which it does after a binary change anyway (the one slow
 /// first Kokoro load after an install), so this costs nothing extra.
 enum CoreMLCompileCacheJanitor {
     struct Report: Sendable {

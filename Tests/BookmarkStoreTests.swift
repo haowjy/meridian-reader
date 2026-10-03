@@ -45,13 +45,13 @@ final class BookmarkStoreTests: XCTestCase {
 
     func testAddDedupesByCanonicalURLAndPersists() {
         let store = BookmarkStore(fileURL: file)
-        let a = store.add(url: URL(string: "https://www.royalroad.com/fiction/1/story")!, title: " Story ", faviconData: nil)
-        let again = store.add(url: URL(string: "https://www.royalroad.com/fiction/1/story?utm_source=x#top")!,
+        let a = store.add(url: URL(string: "https://www.example.com/stories/1")!, title: " Story ", faviconData: nil)
+        let again = store.add(url: URL(string: "https://www.example.com/stories/1?utm_source=x#top")!,
                               title: "Other", faviconData: nil)
         XCTAssertEqual(a.id, again.id, "same page → one bookmark")
         XCTAssertEqual(store.bookmarks.count, 1)
         XCTAssertEqual(a.title, "Story")
-        XCTAssertNotNil(store.bookmark(for: URL(string: "https://www.royalroad.com/fiction/1/story?utm_medium=y")))
+        XCTAssertNotNil(store.bookmark(for: URL(string: "https://www.example.com/stories/1?utm_medium=y")))
 
         let reloaded = BookmarkStore(fileURL: file)
         XCTAssertEqual(reloaded.bookmarks, store.bookmarks, "persists to its own file")

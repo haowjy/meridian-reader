@@ -16,7 +16,11 @@ struct SearchSessionOverlay: View {
     @State private var google: [String] = []
 
     /// Live Google suggestions; off in UI tests so results don't depend on the network.
+    #if DEBUG
     private static let fetchesGoogle = LaunchOptions.current.fetchesSuggestions
+    #else
+    private static let fetchesGoogle = true
+    #endif
     private static let googleDebounce: Duration = .milliseconds(280)
 
     private var showsRecentSearches: Bool {
@@ -64,12 +68,9 @@ struct SearchSessionOverlay: View {
         }
     }
 
-    /// Google's suggestions for typed text, after a short pause in typing. Empty for text that
-    /// looks like an address (pasted URLs).
+    /// Google's suggestions for typed text, after a short pause in typing.
     private static func googleSuggestions(for text: String) async -> [String] {
-        let q = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard fetchesGoogle, !q.isEmpty,
-              !(q.contains("://") || (q.contains(".") && !q.contains(" ") && q.count > 4)) else { return [] }
+        guard let q = GoogleSuggestClient.query(forTyped: text, enabled: fetchesGoogle) else { return [] }
         do { try await Task.sleep(for: googleDebounce) } catch { return [] }
         return await GoogleSuggestClient.suggestions(for: q)
     }

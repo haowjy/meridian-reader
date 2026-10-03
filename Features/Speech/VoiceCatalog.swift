@@ -17,26 +17,6 @@ enum VoiceCatalog {
         var displayName: String
     }
 
-    static func goodVoices(
-        from all: [AVSpeechSynthesisVoice] = AVSpeechSynthesisVoice.speechVoices(),
-        preferredLanguages: [String] = Locale.preferredLanguages
-    ) -> (recommended: [Entry], more: [Entry]) {
-        let good = allGoodEntries(from: all)
-        let preferredCodes = preferredLanguages.map { canonicalLang($0) }
-        let deviceLang = canonicalLang(Locale.current.language.languageCode?.identifier ?? "en")
-
-        func isPreferred(_ entry: Entry) -> Bool {
-            let code = canonicalLang(entry.voice.language)
-            if preferredCodes.contains(where: { code.hasPrefix($0) || $0.hasPrefix(code) }) { return true }
-            return code.hasPrefix(deviceLang)
-        }
-
-        let recommended = good.filter(isPreferred).sorted(by: sortEntries)
-        let recommendedIDs = Set(recommended.map(\.id))
-        let more = good.filter { !recommendedIDs.contains($0.id) }.sorted(by: sortEntries)
-        return (recommended, more)
-    }
-
     static func allGoodEntries(
         from all: [AVSpeechSynthesisVoice] = AVSpeechSynthesisVoice.speechVoices()
     ) -> [Entry] {

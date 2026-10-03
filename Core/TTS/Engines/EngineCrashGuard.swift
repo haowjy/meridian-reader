@@ -1,7 +1,7 @@
 import Foundation
 
 /// Containment for engines that can die *uncatchably* inside a model call (Kokoro: libBNNS
-/// SIGSEGV on iOS 26.4+, FluidAudio #844/#817; reproduced on Jimmy's iPhone 17 Pro, 2026-09-24).
+/// SIGSEGV on iOS 26.4+, FluidAudio #844/#817; reproduced on an iPhone 17 Pro).
 ///
 /// Before every guarded call we durably write an "in flight" marker (`Data.write(.atomic)`, not
 /// UserDefaults, which may never reach disk before the process dies). It is removed when the

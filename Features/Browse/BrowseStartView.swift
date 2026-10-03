@@ -92,7 +92,7 @@ struct BrowseStartView: View {
         VStack(spacing: 0) {
             ZStack {
                 if showsBrowseWebView {
-                    WebView(store: webStore, servesTestPages: LaunchOptions.current.servesTestPages)
+                    WebView(store: webStore)
                         .opacity(hasPage ? 1 : 0)
                         .allowsHitTesting(hasPage)
                         .onAppear { browseWebViewMounted = true }
