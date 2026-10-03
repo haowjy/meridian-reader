@@ -38,7 +38,6 @@ final class KokoroRouteTests: XCTestCase {
         let t = s
         t.fastGPURouteEnabled = true
         XCTAssertEqual(KokoroRouteSettings(defaults: d).route, .coreMLGPU)
-        XCTAssertEqual(KokoroRoutePolicy.route(fastGPURouteEnabled: false), .onnxCPU)
         t.cpuThreads = 5
         XCTAssertEqual(KokoroRouteSettings(defaults: d).cpuThreads, 5)
         t.cpuThreads = 99 // out of range → default
@@ -131,7 +130,8 @@ final class KokoroRouteTests: XCTestCase {
     // MARK: Coordinator auto-recover
 
     private func makeCoordinator(defaults: UserDefaults, guardDir: URL) -> LocalTTSCoordinator {
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), KokoroStubProvider()], gate: { _ in true })
+        let stub = KokoroStubProvider(routeSettings: KokoroRouteSettings(defaults: defaults))
+        let registry = EngineRegistry(providers: [AppleSpeechProvider(), stub], gate: { _ in true })
         let root = tempDir()
         return LocalTTSCoordinator(engines: registry, defaults: defaults, audioCache: ArticleAudioCache(root: root),
                                    crashGuard: EngineCrashGuard(directory: guardDir))
@@ -170,6 +170,31 @@ final class KokoroRouteTests: XCTestCase {
         XCTAssertEqual(c3.engineCrashNotice, KokoroCrashRecovery.appleNotice)
     }
 
+    func testAnEngineWithoutARecoveryHookSwitchesAwayOnlyWhenItWasSelected() async {
+        let d = suiteDefaults()
+        let guardDir = tempDir()
+        let registry = EngineRegistry(providers: [AppleSpeechProvider(), FakeEngineProvider()], gate: { _ in true })
+        func coordinator() -> LocalTTSCoordinator {
+            LocalTTSCoordinator(engines: registry, defaults: d, audioCache: ArticleAudioCache(root: tempDir()),
+                                crashGuard: EngineCrashGuard(directory: guardDir))
+        }
+        d.set(FakeEngineProvider.fakeID.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
+        EngineCrashGuard(directory: guardDir).beginCall(engine: FakeEngineProvider.fakeID, chars: 10, context: "x/p1")
+        let c = coordinator()
+        XCTAssertEqual(c.selectedEngineID, .apple)
+        XCTAssertEqual(c.engineCrashNotice?.hasPrefix("Fake crashed last session"), true)
+        XCTAssertNil(c.takePendingResume())
+        await c.selectEngine(FakeEngineProvider.fakeID)
+        XCTAssertNil(c.engineCrashNotice, "picking it again is a fresh try")
+
+        // A crash inside an engine that wasn't the selection changes nothing.
+        d.set(SpeechEngineID.apple.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
+        EngineCrashGuard(directory: guardDir).beginCall(engine: FakeEngineProvider.fakeID, chars: 10, context: "x/p1")
+        let quiet = coordinator()
+        XCTAssertEqual(quiet.selectedEngineID, .apple)
+        XCTAssertNil(quiet.engineCrashNotice)
+    }
+
     func testOneTimeMigrationBringsAppleUserBackToKokoroPaused() {
         ListenResumePointStore.shared.clear()
         let d = suiteDefaults()
@@ -181,7 +206,11 @@ final class KokoroRouteTests: XCTestCase {
         d.set(SpeechEngineID.apple.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
 
         let c = makeCoordinator(defaults: d, guardDir: guardDir)
+        XCTAssertEqual(c.selectedEngineID, .apple, "the launch migration hasn't run yet")
+        KokoroONNXMainMigration().runIfNeeded(c)
         XCTAssertEqual(c.selectedEngineID, .kokoro)
+        XCTAssertEqual(d.string(forKey: LocalTTSCoordinator.engineIDKey), SpeechEngineID.kokoro.rawValue)
+        XCTAssertEqual(c.engineCrashNotice, KokoroCrashRecovery.resumedNotice)
         let r = c.takePendingResume()
         XCTAssertEqual(r?.articleKey, "BA7D7639")
         XCTAssertEqual(r?.paragraph, 14)
@@ -190,6 +219,7 @@ final class KokoroRouteTests: XCTestCase {
         // Only once.
         d.set(SpeechEngineID.apple.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
         let again = makeCoordinator(defaults: d, guardDir: guardDir)
+        KokoroONNXMainMigration().runIfNeeded(again)
         XCTAssertEqual(again.selectedEngineID, .apple)
     }
 
@@ -227,10 +257,21 @@ final class KokoroRouteTests: XCTestCase {
     }
 }
 
-/// Kokoro-id engine backed by the fake tone host (coordinator tests without FluidAudio/downloads).
+/// Kokoro-id engine backed by the fake tone host (coordinator tests without FluidAudio/downloads),
+/// with Kokoro's crash policy over a test suite's route settings.
 @MainActor
 final class KokoroStubProvider: SpeechEngineProvider {
     let name = "KokoroStub"
+    let routeSettings: KokoroRouteSettings
+
+    init(routeSettings: KokoroRouteSettings = KokoroRouteSettings(defaults: UserDefaults(suiteName: "KokoroStub")!)) {
+        self.routeSettings = routeSettings
+    }
+
+    func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery? {
+        crash.engine == .kokoro ? KokoroCrashRecovery.recover(from: crash, playing: playing, settings: routeSettings) : nil
+    }
+
     var descriptors: [EngineDescriptor] {
         [EngineDescriptor(
             id: .kokoro, kind: .onDevice,

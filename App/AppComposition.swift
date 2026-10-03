@@ -20,11 +20,29 @@ enum AppComposition {
         return providers
     }
 
-    /// Launch housekeeping that isn't engine-specific: log the background-GPU probe, and prune Core
-    /// ML's compiled-model cache of bundles from previous installs (once per install, background).
+    /// One-time launch steps, in order: retired engines' cleanup, then each voice library's own.
+    static func launchMigrations(for engines: EngineRegistry) -> [LaunchMigration] {
+        engines.retiredEngines.map(RetiredEngineCleanup.init) + FluidAudioProvider.launchMigrations
+    }
+
+    /// Launch housekeeping, before anything renders or plays: the one-time launch migrations, the
+    /// audio cache's per-launch cleanup, the background-GPU probe, and pruning Core ML's
+    /// compiled-model cache of bundles from previous installs (once per install, background).
     static func runLaunchMaintenance() {
+        let tts = speechController.localTTS
+        for migration in launchMigrations(for: engineRegistry) { migration.runIfNeeded(tts) }
+        // Nothing is playing at launch: per-chunk synth scratch from last session is disposable.
+        tts.audioCache.removeAllChunkScratch()
+        // Unsaved reader audio: prune by age (7 days) / size (500 MB).
+        let pruned = tts.audioCache.pruneEphemeral()
+        if pruned.removed > 0 {
+            print("[TTSCache] pruned ephemeral removed=\(pruned.removed) freed=\(pruned.freedBytes)")
+        }
+        ListenTimingLog.log("app_launch", ["engine": tts.selectedEngineID.rawValue, "build": LocalTTSCoordinator.buildConfiguration])
+        #if DEBUG
         // Debug probe: can this device get GPU time in background continued-processing tasks?
         CPURouteProbes.logAtLaunch()
+        #endif
         // Kokoro runs on the ONNX CPU route: drop the unused Core ML stages (≈82 MB) unless the
         // debug fast GPU route is on. Vocab, voice packs, G2P and lexicon stay.
         DispatchQueue.global(qos: .utility).async {

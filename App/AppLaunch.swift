@@ -53,7 +53,7 @@ enum AppLaunch {
         if target.autoPlay {
             // Wait (≤20 s) for the Kokoro host so the resume doesn't start on Apple.
             var waited = 0
-            while tts.engineState.warmingEngineID != nil, waited < 100 {
+            while tts.synth.state.warmingEngineID != nil, waited < 100 {
                 try? await Task.sleep(for: .milliseconds(200))
                 waited += 1
             }

@@ -59,10 +59,8 @@ final class LocalChunkRenderer: Sendable {
     func synthesizeResilient(_ text: String, depth: Int, context: [String: Any],
                              priority: RenderPriority) async throws -> SynthesizedPCM {
         try Task.checkCancellation()
-        // Last line of defense (the queue checks first): never start a Core ML call in the
-        // background — no GPU there, and CPU fallback is the libBNNS crash path (#844). Hosts
-        // that don't use Core ML at all (ONNX CPU route) keep rendering while audio plays.
-        guard runState.allowsLocalModelCalls || host.rendersInBackground else {
+        // Last line of defense (the queue decides first): the hard rule of `RenderAdmission`.
+        guard RenderAdmission.modelCallsAllowed(phase: runState.phase, rendersInBackground: host.rendersInBackground) else {
             ListenTimingLog.log("synth_blocked_bg", ["engine": descriptor.shortName.lowercased(), "chars": text.count])
             throw LocalSynthError.deferredInBackground
         }

@@ -77,7 +77,9 @@ struct ListenDebugPanel: View {
 
                 KokoroRouteDebugSection(speech: speech)
 
+                #if DEBUG
                 CPURouteBenchSection(speech: speech)
+                #endif
 
                 Section("Log (last \(ListenDebugLog.shared.lines.count))") {
                     if ListenDebugLog.shared.lines.isEmpty {
@@ -104,8 +106,8 @@ struct ListenDebugPanel: View {
                     }
                 }
             }
-            .onAppear { snapshot = speech.listenDebugSnapshot() }
-            .onReceive(timer) { _ in snapshot = speech.listenDebugSnapshot() }
+            .onAppear { snapshot = speech.diagnostics.snapshot() }
+            .onReceive(timer) { _ in snapshot = speech.diagnostics.snapshot() }
         }
     }
 
@@ -175,8 +177,8 @@ struct BakeDebugOverlay: View {
         )
         .padding(.horizontal, 8)
         .accessibilityIdentifier("bakeDebugOverlay")
-        .onAppear { snapshot = speech.listenDebugSnapshot() }
-        .onReceive(timer) { _ in snapshot = speech.listenDebugSnapshot() }
+        .onAppear { snapshot = speech.diagnostics.snapshot() }
+        .onReceive(timer) { _ in snapshot = speech.diagnostics.snapshot() }
     }
 
     private var overlayText: String {

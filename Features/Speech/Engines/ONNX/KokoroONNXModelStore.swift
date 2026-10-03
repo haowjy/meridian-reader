@@ -2,15 +2,15 @@ import CryptoKit
 import Foundation
 import Observation
 
-/// Download / verify / delete the Kokoro ONNX fp16 model — Kokoro's main (CPU) route since
-/// 2026-09-24 (`KokoroCPUHost.prepare` awaits `ensureInstalled`), also used by the debug benchmark.
+/// Download / verify / delete the Kokoro ONNX fp16 model for Kokoro's main (CPU) route
+/// (`KokoroCPUHost.prepare` awaits `ensureInstalled`).
 /// `Application Support/CPURoute/kokoro-82m-v1.0-onnx/model_fp16.onnx` (163 MB, excluded from
-/// iCloud backup). Foreground `URLSession` download with progress + cancel; SHA-256 verified.
-/// A file fetched earlier by the debug benchmark download is reused as-is.
+/// iCloud backup; the folder name predates the route and stays so installed models are found).
+/// Foreground `URLSession` download with progress + cancel; SHA-256 verified.
 @MainActor
 @Observable
-final class CPURouteModelStore {
-    static let shared = CPURouteModelStore()
+final class KokoroONNXModelStore {
+    static let shared = KokoroONNXModelStore()
 
     nonisolated static let remoteURL = URL(string: "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/onnx/model_fp16.onnx")!
     nonisolated static let expectedBytes: Int64 = 163_234_740
@@ -86,7 +86,7 @@ final class CPURouteModelStore {
                 if !isBusy { download() }
             }
         } onCancel: {
-            Task { @MainActor in CPURouteModelStore.shared.cancel() }
+            Task { @MainActor in KokoroONNXModelStore.shared.cancel() }
         }
     }
 

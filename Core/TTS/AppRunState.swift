@@ -17,6 +17,9 @@ import UIKit
 ///   only chunks a listener is waiting for; bake-ahead waits.
 /// - `background`: no Core ML at all; live requests are deferred (→ Apple fallback).
 ///
+/// Hosts without Core ML (Kokoro's ONNX CPU route) are the exception; `RenderAdmission` holds
+/// the full rule.
+///
 /// Thread-safe: `LocalChunkRenderer` checks it off the main actor right before each call.
 final class AppRunState: @unchecked Sendable {
     enum Phase: String, Sendable {
@@ -35,10 +38,6 @@ final class AppRunState: @unchecked Sendable {
     }
 
     var phase: Phase { lock.withLock { _phase } }
-    /// A local Core ML synthesis call may start now (never in the background).
-    var allowsLocalModelCalls: Bool { phase != .background }
-    /// Bake-ahead work (nobody waiting on it) may start a chunk now.
-    var allowsBakeAhead: Bool { phase == .active }
 
     func set(_ new: Phase) {
         let changed: Bool = lock.withLock {

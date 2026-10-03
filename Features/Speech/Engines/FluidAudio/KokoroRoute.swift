@@ -64,17 +64,11 @@ struct KokoroRouteSettings {
     }
 
     /// The route new Kokoro hosts use.
-    var route: KokoroRoute { KokoroRoutePolicy.route(fastGPURouteEnabled: fastGPURouteEnabled) }
+    var route: KokoroRoute { fastGPURouteEnabled ? .coreMLGPU : .onnxCPU }
 }
 
-/// Pure route choice (unit-tested).
-enum KokoroRoutePolicy {
-    static func route(fastGPURouteEnabled: Bool) -> KokoroRoute {
-        fastGPURouteEnabled ? .coreMLGPU : .onnxCPU
-    }
-}
-
-/// (d) auto-recover after a crash inside a Kokoro call — pure state machine (unit-tested).
+/// Auto-recover after a crash inside a Kokoro call — a pure state machine (unit-tested) plus
+/// `recover`, the policy `FluidAudioProvider` answers the coordinator's crash hook with.
 ///
 /// - Core ML route crash (or a pre-route marker from an older build) → stay on Kokoro, turn the
 ///   fast GPU route off, resume the article on the ONNX route.
@@ -117,73 +111,31 @@ enum KokoroCrashRecovery {
         case .fallBackToApple: return appleNotice
         }
     }
-}
 
-/// Where to resume listening after a crash.
-struct ListenResumeTarget: Equatable, Sendable {
-    /// Full article/cache key, or an 8-char uppercase prefix from an older crash marker.
-    var articleKey: String
-    var paragraph: Int
-    /// When the point was recorded (resume file) or the crash happened (marker).
-    var at: Date
-    /// Start playing right away (the crash interrupted listening moments ago), else open the
-    /// article paused at the paragraph.
-    var autoPlay: Bool = false
-
-    func matches(_ id: UUID) -> Bool {
-        let s = id.uuidString
-        return articleKey.count >= 36 ? s == articleKey.uppercased() : s.hasPrefix(articleKey.uppercased())
-    }
-
-    /// Resume point for a crash: the paragraph that was *playing* (resume file, written per
-    /// paragraph) if it was recorded shortly before the crash — the crash marker's paragraph is
-    /// the one being *rendered*, which can be ahead or in another article; else the marker's.
-    /// Auto-play only if the user was listening and the crash was recent. Pure; unit-tested.
-    static func forCrash(article: String?, paragraph: Int?, crashAt: Date,
-                         playing point: ListenResumeTarget?, now: Date = Date(),
-                         listeningWindow: TimeInterval = 10 * 60,
-                         autoPlayWindow: TimeInterval = 20 * 60) -> ListenResumeTarget? {
-        let recentCrash = now.timeIntervalSince(crashAt) < autoPlayWindow
-        if let point {
-            let lead = crashAt.timeIntervalSince(point.at)
-            if lead >= -60, lead <= listeningWindow {
-                return ListenResumeTarget(articleKey: point.articleKey, paragraph: point.paragraph,
-                                          at: crashAt, autoPlay: recentCrash)
-            }
+    /// The previous process died inside a Kokoro call: never silently leave the user on Apple.
+    /// Updates the route settings (crash count, fast route off) and says where to resume.
+    /// `playing` is the session's last resume point.
+    static func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?,
+                        settings: KokoroRouteSettings) -> CrashRecovery {
+        var onnxCount = settings.onnxCrashCount
+        let outcome = onCrash(route: crash.route.flatMap(KokoroRoute.init(rawValue:)), onnxCrashCount: &onnxCount)
+        settings.onnxCrashCount = onnxCount
+        let recovery: CrashRecovery
+        switch outcome {
+        case .resumeOnONNX(let disableFastRoute):
+            if disableFastRoute { settings.fastGPURouteEnabled = false }
+            recovery = .stay(notice: resumedNotice, resume: ListenResumeTarget.forCrash(
+                article: crash.articleKey, paragraph: crash.paragraph, crashAt: crash.at, playing: playing))
+        case .fallBackToApple:
+            recovery = .switchAway(notice: appleNotice)
         }
-        guard let article, !article.isEmpty else { return nil }
-        return ListenResumeTarget(articleKey: article, paragraph: max(0, paragraph ?? 0), at: crashAt, autoPlay: false)
+        let resume = recovery.resume
+        ListenTimingLog.log("kokoro_auto_recover", [
+            "route": crash.route ?? "legacy", "outcome": String(describing: outcome),
+            "onnx_crashes": onnxCount, "resume_key": resume?.articleKey.prefix(8) ?? "",
+            "resume_p": resume?.paragraph ?? -1, "auto_play": resume?.autoPlay ?? false,
+        ])
+        print("[TTS] Kokoro crash (route \(crash.route ?? "legacy")) → \(outcome)")
+        return recovery
     }
-}
-
-/// Durable "what is playing" point (atomic file write per paragraph), so a crash can resume at
-/// the paragraph the user was hearing — SwiftData's `playbackParagraphIndex` may not have been
-/// saved when the process died (it lagged 10 paragraphs in the 23:45 crash).
-struct ListenResumePointStore: Sendable {
-    let url: URL
-
-    static let shared = ListenResumePointStore(url: {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("ListenTiming/listen_resume.json")
-    }())
-
-    func save(article: UUID, paragraph: Int, at date: Date = Date()) {
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let obj: [String: Any] = ["article": article.uuidString, "p": paragraph, "t": date.timeIntervalSince1970]
-        if let data = try? JSONSerialization.data(withJSONObject: obj) {
-            try? data.write(to: url, options: .atomic)
-        }
-    }
-
-    func load() -> ListenResumeTarget? {
-        guard let data = try? Data(contentsOf: url),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let article = obj["article"] as? String, let p = obj["p"] as? Int
-        else { return nil }
-        let t = (obj["t"] as? Double).map(Date.init(timeIntervalSince1970:)) ?? .distantPast
-        return ListenResumeTarget(articleKey: article, paragraph: p, at: t)
-    }
-
-    func clear() { try? FileManager.default.removeItem(at: url) }
 }

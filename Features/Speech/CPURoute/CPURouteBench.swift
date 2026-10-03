@@ -1,3 +1,4 @@
+#if DEBUG
 import AVFoundation
 import Foundation
 import Observation
@@ -93,14 +94,14 @@ final class CPURouteBench {
     }
 
     private static var phonemeCacheURL: URL {
-        CPURouteModelStore.directory.deletingLastPathComponent().appendingPathComponent("phonemes-cache.json")
+        KokoroONNXModelStore.directory.deletingLastPathComponent().appendingPathComponent("phonemes-cache.json")
     }
 
     // MARK: - Benchmark
 
     func runBenchmark(coordinator: LocalTTSCoordinator) async {
         guard !isRunning, !soakRunning, !EngineLatencyProbe.isRunning else { return }
-        guard CPURouteModelStore.fileLooksInstalled else {
+        guard KokoroONNXModelStore.fileLooksInstalled else {
             status = "Download the CPU model first."
             return
         }
@@ -112,7 +113,7 @@ final class CPURouteBench {
         // One heavy job at a time: let any engine prepare finish, then hold the bake worker.
         status = "Waiting for Kokoro prepare / bake worker…"
         let waitStart = ListenTimingLog.now()
-        while coordinator.engineState.warmingEngineID != nil, ListenTimingLog.ms(since: waitStart) < 5 * 60_000 {
+        while coordinator.synth.state.warmingEngineID != nil, ListenTimingLog.ms(since: waitStart) < 5 * 60_000 {
             try? await Task.sleep(nanoseconds: 500_000_000)
         }
         coordinator.synthQueue.isPausedForProbe = true
@@ -138,7 +139,7 @@ final class CPURouteBench {
         ListenTimingLog.log("cpubench", ["op": "start", "run": runID])
         ListenDebugLog.shared.append("CPU bench \(runID): start (\(inputs.long.tokenCount)+\(inputs.short.tokenCount) tokens, phonemes \(inputs.phonemesSource))")
 
-        let modelURL = CPURouteModelStore.ensurePatchedModel().url
+        let modelURL = KokoroONNXModelStore.ensurePatchedModel().url
         for (index, config) in Self.configs.enumerated() {
             status = "Running \(index + 1)/\(Self.configs.count): \(config.label)…"
             do {
@@ -189,7 +190,7 @@ final class CPURouteBench {
         sampler.start()
         let thermalStart = CPURouteMetrics.thermal
         do {
-            let (session, loadMs) = try await CPURouteMetrics.onQueue(config.qos) { () throws -> (KokoroONNXSession, Int) in
+            let (session, loadMs) = try await KokoroONNXSession.onQueue(config.qos) { () throws -> (KokoroONNXSession, Int) in
                 let t0 = ListenTimingLog.now()
                 let s = try KokoroONNXSession(modelURL: modelURL, threads: config.threads, allowSpinning: config.spinning)
                 return (s, ListenTimingLog.ms(since: t0))
@@ -232,7 +233,7 @@ final class CPURouteBench {
 
     private nonisolated static func timed(_ session: KokoroONNXSession, _ inputs: KokoroCPUInputs,
                                           qos: DispatchQoS.QoSClass) async throws -> Timed {
-        try await CPURouteMetrics.onQueue(qos) {
+        try await KokoroONNXSession.onQueue(qos) {
             let cpu0 = CPURouteMetrics.cpuSeconds()
             let t0 = CFAbsoluteTimeGetCurrent()
             let samples = try session.run(inputs)
@@ -250,7 +251,7 @@ final class CPURouteBench {
         let text = KokoroCPUBenchText.long
         var temporary: LocalSynthHost?
         let frontend: KokoroCPURouteFrontend
-        if let live = coordinator.localEngineInstance.liveRenderer(for: .kokoro)?.host as? KokoroCPURouteFrontend {
+        if let live = coordinator.synth.liveRenderer(for: .kokoro)?.host as? KokoroCPURouteFrontend {
             frontend = live
         } else {
             let made = KokoroCPUHost(voice: KokoroHost.defaultVoice)
@@ -337,7 +338,7 @@ final class CPURouteBench {
 
     func startSoak(speech: SpeechController) {
         guard !soakRunning, !isRunning else { return }
-        guard CPURouteModelStore.fileLooksInstalled else {
+        guard KokoroONNXModelStore.fileLooksInstalled else {
             soakStatus = "Download the CPU model first."
             return
         }
@@ -371,9 +372,9 @@ final class CPURouteBench {
         do {
             soakStatus = "Preparing inputs…"
             let inputs = try await prepareInputs(coordinator: speech.localTTS)
-            let modelURL = CPURouteModelStore.ensurePatchedModel().url
+            let modelURL = KokoroONNXModelStore.ensurePatchedModel().url
             let loadStart = ListenTimingLog.now()
-            let session = try await CPURouteMetrics.onQueue(.userInitiated) {
+            let session = try await KokoroONNXSession.onQueue(.userInitiated) {
                 try KokoroONNXSession(modelURL: modelURL, threads: 3, allowSpinning: true)
             }
             let loadMs = ListenTimingLog.ms(since: loadStart)
@@ -500,3 +501,4 @@ private final class PlayerDelegate: NSObject, AVAudioPlayerDelegate {
     var onFinish: (() -> Void)?
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) { onFinish?() }
 }
+#endif

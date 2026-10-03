@@ -4,7 +4,7 @@ import Foundation
 /// Kokoro 82M on the **ONNX CPU route**, Kokoro's default route.
 ///
 /// - Synthesis: ONNX Runtime CPU execution provider (`KokoroONNXSession`,
-///   `onnx-community/Kokoro-82M-v1.0-ONNX` fp16, 163 MB, downloaded by `CPURouteModelStore`).
+///   `onnx-community/Kokoro-82M-v1.0-ONNX` fp16, 163 MB, downloaded by `KokoroONNXModelStore`).
 ///   No Core ML, Espresso or BNNS anywhere in the call → immune to the iOS 26.4+ libBNNS SIGSEGV,
 ///   and allowed in the background (CPU work while audio plays), so `rendersInBackground`.
 /// - Text frontend: FluidAudio's English frontend rebuilt without Core ML
@@ -18,7 +18,7 @@ import Foundation
 ///   `.userInitiated` queue, so ORT's pool threads (spawned then) keep that QoS. Each run is
 ///   called from a queue of the call's `RenderPriority`: `.utility` for bake-ahead lowers only the
 ///   calling thread's share (ORT has no per-run thread QoS or count). One call at a time (render gate).
-final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Sendable {
+final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID = .kokoro
     var onProgress: (@Sendable (Double) -> Void)?
     let threads: Int
@@ -38,16 +38,19 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
     private var session: KokoroONNXSession?
     private var frontend: KokoroAneCPUFrontend?
     private var packs: [String: [Float]] = [:]
-    private static let healthLock = NSLock()
-    private static var healthyCalls = 0
+    /// Where the ONNX crash count lives: a healthy stretch resets it (nil: the CPU bench's frontend-only host).
+    private let crashCount: KokoroRouteSettings?
+    private var healthyCalls = 0
 
     var routingLabel: String? { "onnxCPU·t\(threads)" }
     var rendersInBackground: Bool { true }
     var routeTag: String? { KokoroRoute.onnxCPU.rawValue }
 
-    init(voice: String = KokoroHost.defaultVoice, threads: Int = KokoroRouteSettings().cpuThreads) {
+    init(voice: String = KokoroHost.defaultVoice, threads: Int = KokoroRouteSettings.defaultThreads,
+         crashCount: KokoroRouteSettings? = nil) {
         self.voice = voice
         self.threads = threads
+        self.crashCount = crashCount
     }
 
     func setVoice(_ voice: String) { lock.withLock { self.voice = voice } }
@@ -84,25 +87,25 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
         let qos = self.sessionQoS
         return Task {
             let t0 = ListenTimingLog.now()
-            let reused = CPURouteModelStore.fileLooksInstalled
+            let reused = KokoroONNXModelStore.fileLooksInstalled
             ListenTimingLog.log("kokoro_cpu_init_start", ["voice": voice, "threads": threads, "model_on_disk": reused])
             do {
                 // 1) Small frontend files (vocab, G2P weights, lexicon ≈ 12 MB on a fresh install).
                 progress?(0.01)
                 try await KokoroAneCPUFrontend.ensureAssets()
-                try await Self.ensureVoicePackFile(voice)
-                // 2) The 163 MB ONNX model (reuses the debug benchmark's file if present).
-                try await CPURouteModelStore.shared.ensureInstalled { f in progress?(0.03 + 0.97 * f) }
+                try await KokoroAssets.ensureVoicePack(voice)
+                // 2) The 163 MB ONNX model.
+                try await KokoroONNXModelStore.shared.ensureInstalled { f in progress?(0.03 + 0.97 * f) }
                 try Task.checkCancellation()
                 let tDownloaded = ListenTimingLog.ms(since: t0)
                 // 3) Load: lexicon + Swift G2P, voice pack, ORT session (on the render QoS).
                 let fe = try KokoroAneCPUFrontend()
                 try await fe.prepare()
-                let pack = try Self.loadVoicePack(voice)
+                let pack = try KokoroAssets.loadVoicePack(voice)
                 let tSession = ListenTimingLog.now()
-                let (session, model) = try await CPURouteMetrics.onQueue(qos) {
+                let (session, model) = try await KokoroONNXSession.onQueue(qos) {
                     // NaN-safe model (patched once from the download; see KokoroONNXModelPatch).
-                    let model = CPURouteModelStore.ensurePatchedModel()
+                    let model = KokoroONNXModelStore.ensurePatchedModel()
                     return (try KokoroONNXSession(modelURL: model.url, threads: threads, allowSpinning: false), model)
                 }
                 self.lock.withLock {
@@ -155,7 +158,7 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
         let pack = try voicePack(voice)
         let inputs = try KokoroCPUTensorBuilder.build(tokenIDs: ids, phonemeCount: phonemes.count, voicePack: pack)
         let tRun = ListenTimingLog.now()
-        var raw = try await CPURouteMetrics.onQueue(qos) { try session.run(inputs) }
+        var raw = try await KokoroONNXSession.onQueue(qos) { try session.run(inputs) }
         var nanRetry = false
         if !KokoroCPUAudio.allFinite(raw) {
             // Should not happen with the patched model; never write NaN (it becomes a full-scale
@@ -164,7 +167,7 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
             ListenTimingLog.log("onnx_nonfinite", ["chars": text.count, "tokens": ids.count, "retry": true])
             var retryInputs = inputs
             retryInputs.speed = [1.02]
-            raw = try await CPURouteMetrics.onQueue(qos) { try session.run(retryInputs) }
+            raw = try await KokoroONNXSession.onQueue(qos) { try session.run(retryInputs) }
             nanRetry = true
             guard KokoroCPUAudio.allFinite(raw) else {
                 ListenTimingLog.log("onnx_nonfinite", ["chars": text.count, "tokens": ids.count, "retry": false])
@@ -174,7 +177,7 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
         let onnxMs = ListenTimingLog.ms(since: tRun)
         let gain = Self.gain
         let samples = raw.map { $0 * gain }
-        Self.noteHealthyCall()
+        noteHealthyCall()
         return SynthesizedPCM(
             samples: samples,
             sampleRate: KokoroCPUAudio.sampleRate,
@@ -200,50 +203,34 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
 
     private func voicePack(_ voice: String) throws -> [Float] {
         if let cached = lock.withLock({ packs[voice] }) { return cached }
-        let pack = try Self.loadVoicePack(voice)
+        let pack = try KokoroAssets.loadVoicePack(voice)
         lock.withLock { packs[voice] = pack }
         return pack
     }
 
     /// After a healthy stretch, forget earlier ONNX-route crashes (the "two crashes → Apple" rule
     /// counts crashes close together, not over the app's lifetime).
-    private static func noteHealthyCall() {
-        let reached: Bool = healthLock.withLock {
+    private func noteHealthyCall() {
+        let reached: Bool = lock.withLock {
             healthyCalls += 1
             return healthyCalls == KokoroCrashRecovery.healthyRendersToReset
         }
-        if reached {
-            let settings = KokoroRouteSettings()
-            if settings.onnxCrashCount > 0 {
-                settings.onnxCrashCount = 0
-                ListenTimingLog.log("kokoro_onnx_crash_count_reset", ["after_calls": KokoroCrashRecovery.healthyRendersToReset])
-            }
-        }
+        guard reached, let crashCount, crashCount.onnxCrashCount > 0 else { return }
+        crashCount.onnxCrashCount = 0
+        ListenTimingLog.log("kokoro_onnx_crash_count_reset", ["after_calls": KokoroCrashRecovery.healthyRendersToReset])
     }
 
     // MARK: - Files
 
-    static func ensureVoicePackFile(_ voice: String) async throws {
-        guard let dir = KokoroHost.repoDirectory else { throw LocalSynthError.engineUnavailable("No Application Support") }
-        guard !KokoroHost.voicePackInstalled(voice) else { return }
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let t0 = ListenTimingLog.now()
-        try await KokoroAneResourceDownloader.ensureVoicePack(voice, repoDirectory: dir, variant: .english)
-        ListenTimingLog.log("kokoro_voice_download", ["voice": voice, "ms": ListenTimingLog.ms(since: t0)])
-    }
-
-    static func loadVoicePack(_ voice: String) throws -> [Float] {
-        guard let dir = KokoroHost.repoDirectory else { throw LocalSynthError.engineUnavailable("No Application Support") }
-        return try KokoroAneVoicePack.load(from: dir.appendingPathComponent("\(voice).bin")).storage
-    }
-
     /// Everything the CPU route needs is on disk (cheap checks, no hashing).
     static var filesLookInstalled: Bool {
-        CPURouteModelStore.fileLooksInstalled && KokoroAneCPUFrontend.assetsPresent()
+        KokoroONNXModelStore.fileLooksInstalled && KokoroAneCPUFrontend.assetsPresent()
     }
+}
 
-    // MARK: - KokoroCPURouteFrontend (debug benchmark; no Core ML)
-
+#if DEBUG
+/// The CPU route benchmark's frontend (no Core ML).
+extension KokoroCPUHost: KokoroCPURouteFrontend {
     func cpuRoutePhonemes(for text: String) async throws -> String {
         let fe = try await loadedFrontend()
         return try await fe.phonemes(for: text)
@@ -255,7 +242,7 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
     }
 
     func cpuRouteVoicePack(_ voice: String) async throws -> [Float] {
-        try await Self.ensureVoicePackFile(voice)
+        try await KokoroAssets.ensureVoicePack(voice)
         return try voicePack(voice)
     }
 
@@ -268,6 +255,7 @@ final class KokoroCPUHost: LocalSynthHost, KokoroCPURouteFrontend, @unchecked Se
         return lock.withLock { frontend ?? fe }
     }
 }
+#endif
 
 /// Frontend-files presence check without importing FluidAudio at the call site.
 enum KokoroAneCPUFrontendFiles {

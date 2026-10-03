@@ -139,3 +139,24 @@ struct EngineCrashGuard: Sendable {
         return obj["count"] as? Int ?? 0
     }
 }
+
+/// What to do after the previous process died inside an engine's call (a provider's answer to
+/// `SpeechEngineProvider.recover(from:playing:)`).
+enum CrashRecovery: Equatable {
+    /// Keep the engine selected, show `notice`, and reopen `resume` when there is one.
+    case stay(notice: String, resume: ListenResumeTarget?)
+    /// Switch to `EngineRegistry.crashFallback` and show `notice`; picking the crashed engine
+    /// again is a fresh try.
+    case switchAway(notice: String)
+
+    var notice: String {
+        switch self {
+        case .stay(let notice, _), .switchAway(let notice): return notice
+        }
+    }
+
+    var resume: ListenResumeTarget? {
+        if case .stay(_, let resume) = self { return resume }
+        return nil
+    }
+}

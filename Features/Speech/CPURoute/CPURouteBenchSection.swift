@@ -1,10 +1,11 @@
+#if DEBUG
 import SwiftUI
 
 /// "CPU route benchmark" section of the Listen debug panel (debug-only; see `CPURouteBench`).
 struct CPURouteBenchSection: View {
     @Bindable var speech: SpeechController
     @Bindable private var bench = CPURouteBench.shared
-    private var store: CPURouteModelStore { CPURouteModelStore.shared }
+    private var store: KokoroONNXModelStore { KokoroONNXModelStore.shared }
 
     var body: some View {
         Section {
@@ -86,3 +87,4 @@ struct CPURouteBenchSection: View {
         }
     }
 }
+#endif

@@ -81,7 +81,7 @@ final class PlaybackRateAndChromeTests: XCTestCase {
         defer { speech.stop() }
         speech.setRateMultiplier(1.25)
         XCTAssertEqual(UserDefaults.standard.double(forKey: "reader.rateMultiplier"), 1.25, "persisted")
-        XCTAssertEqual(coordinator.localEngineInstance.playbackRate, 1.25, "player time-stretch rate")
+        XCTAssertEqual(speech.localEngine.player.playbackRate, 1.25, "player time-stretch rate")
 
         let session = SpeechSession(id: UUID(), document: ParagraphDocument(parts: ["One two three.", "Four five."]),
                                     title: "Rate")
@@ -89,7 +89,7 @@ final class PlaybackRateAndChromeTests: XCTestCase {
         speech.pause()
         speech.setRateMultiplier(1.75)
         XCTAssertEqual(nowPlaying.lastInfo?.rate, 1.75, "lock screen reports the new rate")
-        XCTAssertEqual(coordinator.localEngineInstance.playbackRate, 1.75)
+        XCTAssertEqual(speech.localEngine.player.playbackRate, 1.75)
     }
 
     func testDeveloperOptionsDefaultPerBuild() {

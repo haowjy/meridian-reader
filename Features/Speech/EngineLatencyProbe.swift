@@ -58,7 +58,7 @@ enum EngineLatencyProbe {
 
         // Let the app's own engine prepare (download / first compile) finish first.
         let waitStart = ListenTimingLog.now()
-        while coordinator.engineState.warmingEngineID != nil, ListenTimingLog.ms(since: waitStart) < 15 * 60_000 {
+        while coordinator.synth.state.warmingEngineID != nil, ListenTimingLog.ms(since: waitStart) < 15 * 60_000 {
             try? await Task.sleep(nanoseconds: 500_000_000)
         }
         log("app engine=\(coordinator.selectedEngineID.rawValue) ready=\(coordinator.usesLocalEngine) waited_ms=\(ListenTimingLog.ms(since: waitStart))")
@@ -90,7 +90,7 @@ enum EngineLatencyProbe {
             log("[\(name)] init start (models on disk=\(installed))")
             // Same engine as the live app host → reuse it. A second model instance of the same
             // engine (e.g. two KokoroAneManagers) makes Core ML predictions fail on device.
-            let live = coordinator.localEngineInstance.liveRenderer(for: engine)
+            let live = coordinator.synth.liveRenderer(for: engine)
             let host: LocalChunkRenderer
             if let live {
                 host = live

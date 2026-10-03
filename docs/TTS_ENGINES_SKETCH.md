@@ -1,35 +1,38 @@
 # TTS engines sketch
 
 Status: Apple TTS and one on-device engine (Kokoro) ship; cloud voices are a later step (see the
-roadmap). The sections after "Engine 1" are the original design notes and dated build logs.
+roadmap). "Shape", "Engine dependency injection" and the Kokoro sections describe the code; the
+candidate / install / phasing notes are design input for future engines.
 
 Goal: keep the listen UX (play/pause/stop, paragraph skip, rate, resume) while making **audio
 generation** swappable: Apple system voices, **on-device models**, later **cloud** TTS.
 
 ## Shape
 
-`SpeechController` owns the session (document, playhead, phase, rate, voice / language settings)
-and binds one **playback engine** per utterance. On-device audio is rendered by a **synth host**
-per library, behind the engine registry.
+`SpeechController` owns the session (`PlaybackSessionState`: document, position, phase) and the
+rate, voice and language settings, and binds one **playback engine** per utterance. On-device
+audio is rendered by a **synth host** per library, behind the engine registry, and owned by
+`LocalSynthService`; the listen player only plays rendered files.
 
 ```
 Listen UI  →  SpeechController  →  ListenEngine (bound per utterance)
                                       ├─ AppleListenEngine   AVSpeechSynthesizer, one utterance
-                                      └─ LocalListenEngine   LocalModelSpeechEngine: file player + producer
-                                                               └─ GlobalSynthQueue → LocalChunkRenderer
-                                                                    → LocalSynthHost (KokoroCPUHost / KokoroHost)
+                                      └─ LocalListenEngine   LocalListenPlayer: file player + producer
+                                                               └─ ListenUnitSource (per play): audio cache + GlobalSynthQueue
+                                                                    → LocalSynthService → LocalChunkRenderer
+                                                                       → LocalSynthHost (KokoroCPUHost / KokoroHost)
 ```
 
 ```swift
 @MainActor
 protocol ListenEngine: AnyObject {
     var name: String { get }
-    var onEvent: ((PlaybackEngineEvent) -> Void)? { get set }  // audible / paused / progress / finished
+    var onEvent: ((PlaybackEngineEvent) -> Void)? { get set }  // audible / paused / position / finished
     func play(_ request: ListenPlayRequest)                     // document, start offset, paused?, Apple voice
     func pause(); func resume(); func stop()
     func setRate(_ multiplier: Double)
     var snapshot: PlaybackEngineSnapshot { get }
-    // + listen-bar status, polled position estimate, foreground hook, debug numbers
+    // + listen-bar status (waiting for audio, source note), foreground hook, debug numbers
 }
 ```
 
@@ -156,10 +159,10 @@ What production / OSS stacks do:
 - Synthesize chunk **N+1 while N plays** (single synth worker — avoid parallel model runs / OOM).
 - Feed PCM into a **bounded** audio queue (`AVAudioPlayerNode` schedule); start after a short watermark (~0.2–0.5 s).
 - **Backpressure**: pause synth when queued audio exceeds ~2–5 s; resume when below threshold (prevents multi‑10 MB PCM buildup).
-- Cancel + clear queues on skip / voice / stop (the produce epoch in `LocalModelSpeechEngine`).
+- Cancel + clear queues on skip / voice / stop (the produce epoch in `LocalListenPlayer`).
 - Optional: keep model “session” warm (voice conditioning) across chunks; reset only what the model requires per chunk.
 
-Reader's on-device engine runs that pipeline (`LocalModelSpeechEngine` + `GlobalSynthQueue`); a cloud engine would reuse it. Apple stays utterance-based with no queue.
+Reader's on-device engine runs that pipeline (`LocalListenPlayer` + `GlobalSynthQueue`); a cloud engine would reuse it. Apple stays utterance-based with no queue.
 
 ## Phased shipping (agreed direction)
 
@@ -298,20 +301,23 @@ Goal: voice libraries plug in without touching the shared listen core.
 ```
 AppComposition (composition root: the only file that lists libraries)
   └─ EngineRegistry(providers: [AppleSpeechProvider, FluidAudioProvider, (SpeechSwiftProvider)])
-       └─ injected → SpeechController(engines:) → LocalTTSCoordinator(engines:) → LocalModelSpeechEngine(engines:)
+       └─ injected → SpeechController(engines:) → LocalTTSCoordinator(engines:) → LocalSynthService(engines:)
 
 SpeechEngineProvider (one per library)      EngineDescriptor (capabilities, per engine)
   descriptors / retiredEngines                   id, names, subtitle, recommended, sort order
   makeHost(for:voice:) → LocalSynthHost       voices + default, voice defaults key, cache voice key style
   isInstalled / deleteModels                  chunk limits, hardware gate, languages
+  recover(from:playing:) / crashRetried       (crash policy; default: switch away)
 LocalSynthHost (thin: load + ONE call)        supportsBakeCache, crashGuarded, crash notice text
   → LocalChunkRenderer (shared: normalize, gate, crash guard, re-split on inputTooLong, log, CAF)
 ```
 
 Shared core (no `import FluidAudio`, no switching on engine types): `GlobalSynthQueue`
-(`SynthQueueContext`), `ArticleAudioCache` keys, bake marks, `TextChunker`,
+(`SynthQueueContext`, `RenderAdmission`), `ArticleAudioCache` keys, bake marks, `TextChunker`,
 `LocalChunkRenderer`, `EngineCrashGuard`, `SynthRenderGate`, Settings voice list, engine probe.
-Library code lives only under `Features/Speech/Engines/<Library>/`.
+Library code lives only under `Features/Speech/Engines/<Library>/`, including its crash policy
+(`recover(from:playing:)`) and its one-time launch steps (`LaunchMigration`s, listed in
+`AppComposition.launchMigrations`). The coordinator's init only picks the launch engine.
 
 Persisted values are unchanged: engine ids (`apple`, `local.kokoro`; retired `local.chatterbox-nano`
 is still recognized for migration), cache voice keys (`kokoro.<voice>`), `reader.tts.kokoroVoice`
@@ -336,7 +342,9 @@ capabilities, overflow → re-split, fail → Apple fallback, and queue priority
    s/char or phonemes/char on device), `hardware`, `crashGuarded` if the library can die uncatchably.
 4. **Provider.** A `SpeechEngineProvider` returning the descriptor(s), `makeHost`, `isInstalled`,
    `deleteModels` (and `retiredEngines` if it removes an engine: id, done flag, replacement, file
-   deleter; the coordinator remaps the selection and purges that engine's cache once).
+   deleter; the coordinator maps a stored selection of it to the replacement, and the
+   `RetiredEngineCleanup` launch migration purges its cache and files once). Override
+   `recover(from:playing:)` if a crash inside the engine needs more than "switch away".
 5. **Register.** One line in `AppComposition.makeProviders()`.
 6. **Verify.** `EngineRegistryTests` style test for ids/keys; Release device run of
    `-engineProbe -probeOnly <ShortName>` (init, first audio, wall vs audio); then pick it in Settings.
@@ -385,14 +393,11 @@ Then fill in `isInstalled` / `deleteModels` (speech-swift's HuggingFace cache di
 and set real `limits`, `subtitle` and `hardware`. Note: vendoring both
 FluidAudio and speech-swift may duplicate model downloads/caches; check the combined app size.
 
-## CPU route (ONNX Runtime) — debug benchmark only (2026-09-24)
+## CPU route benchmark (Debug builds only)
 
-Not an engine yet: no `EngineDescriptor` / provider. `KokoroONNXSession` (ORT, CPU EP) +
-`KokoroCPURouteFrontend` (implemented by `KokoroHost`, so FluidAudio stays confined to the
-FluidAudio folder) back the Listen debug panel's "CPU route benchmark". If it graduates to a
-background renderer it should become a second host behind the Kokoro descriptor (same voices,
-same phonemes), selected only when `AppRunState` is background. See docs/LISTEN_PLAYBACK.md
-§ CPU route benchmark.
+`CPURouteBench` (benchmark + background soak) drives `KokoroONNXSession` directly through
+`KokoroCPURouteFrontend` (implemented by `KokoroCPUHost`, so FluidAudio stays in the FluidAudio
+folder). All of it is `#if DEBUG`. See docs/LISTEN_PLAYBACK.md § CPU route benchmark.
 
 ## Kokoro: ONNX CPU is the main route (2026-09-25)
 - **Default route = ONNX Runtime on CPU** (`KokoroCPUHost`, onnx-community Kokoro-82M fp16, ~163 MB,
@@ -401,10 +406,13 @@ same phonemes), selected only when `AppRunState` is background. See docs/LISTEN_
   reads the Core ML G2P weights as data — **no Core ML anywhere on the ONNX route**.
 - Core ML GPU route (`KokoroHost`) is a debug toggle: Listen debug panel → "Kokoro fast GPU route
   (may crash on iOS 26.4+)". Foreground only; unused Core ML stages are deleted at launch when off.
-- Route selection: `KokoroRouteSettings` / `KokoroRoutePolicy` (Core/TTS/Engines/KokoroRoute.swift);
+- Route selection: `KokoroRouteSettings.route` (Features/Speech/Engines/FluidAudio/KokoroRoute.swift);
   `FluidAudioProvider.makeHost` returns the route's host.
-- Auto-recover `KokoroCrashRecovery`: Core ML crash → ONNX + resume; ONNX crash → ONNX again + resume;
-  2nd ONNX crash (without 40 healthy calls between) → Apple with an explicit notice.
+- Auto-recover `KokoroCrashRecovery`, answered through the provider hook
+  `FluidAudioProvider.recover(from:playing:)`: Core ML crash → ONNX + resume; ONNX crash → ONNX
+  again + resume; 2nd ONNX crash (without 40 healthy calls between) → Apple with an explicit notice.
+  Kokoro's one-time launch steps (`KokoroAudioCachePurge`, `KokoroONNXMainMigration`) are
+  `FluidAudioProvider.launchMigrations`.
 - Phonemizer finding: FluidAudio's G2P (`G2PModel`, BART) **is Core ML**, loaded `.cpuOnly` → runs on
   E5RT/BNNS on iOS 26.4+, per OOV word (1 encoder + ≤64 decoder predictions). On the Core ML route it
   is instrumented with the `CoreMLBreadcrumb` patch; on the ONNX route it is never loaded.
@@ -412,6 +420,6 @@ same phonemes), selected only when `AppRunState` is background. See docs/LISTEN_
 ## Kokoro ONNX NaN fix + chunk joins (2026-09-25)
 The onnx-community fp16 Kokoro model can output an all-NaN chunk (exact fp16 0/0 inside the
 generator's `atan2` = `Atan(Div(imag, real))`). `KokoroONNXModelPatch` guards every `Atan` input
-with `Where(IsNaN(x), 0, x)` once after download; `CPURouteModelStore.ensurePatchedModel()` swaps
+with `Where(IsNaN(x), 0, x)` once after download; `KokoroONNXModelStore.ensurePatchedModel()` swaps
 the file. Chunk joins are trimmed to boundary-sized pauses (`ChunkEdgeTrim`) and chunking is
 hierarchical (sentences → clauses). Details: `LISTEN_PLAYBACK.md` → "Run-on paragraphs".

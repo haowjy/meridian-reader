@@ -22,11 +22,12 @@ import Foundation
 ///
 /// Saved vs unsaved only changes the persistence key (`cacheKey`), not queue behavior.
 ///
-/// Background (`AppRunState`): no Core ML call starts while the app is backgrounded. Live
-/// chunk requests for audio that isn't rendered yet throw `LocalSynthError.deferredInBackground`
-/// at once (the producer speaks that paragraph with Apple TTS — never silent, never skipped, and
-/// the Apple audio is NOT written into the engine's cache); bake-ahead waits and the worker is
-/// restarted when the app becomes active. While `inactive` only chunks a listener waits for render.
+/// Background (`AppRunState`): which model calls may start is `RenderAdmission`. On a Core ML
+/// route nothing renders while the app is backgrounded: live chunk requests for audio that isn't
+/// rendered yet throw `LocalSynthError.deferredInBackground` at once (the producer speaks that
+/// paragraph with Apple TTS — never silent, never skipped, and the Apple audio is NOT written into
+/// the engine's cache); bake-ahead waits and the worker is restarted when the app becomes active.
+/// While `inactive` only chunks a listener waits for render.
 ///
 /// Priority: renders for an article someone is listening to (a chunk waiter, or its audio playing)
 /// run at `.listener` priority; everything else is bake-ahead — a cooler QoS, and held while the
@@ -165,30 +166,17 @@ final class GlobalSynthQueue {
             "phase": phase.rawValue, "worker_busy": worker != nil,
             "active_key": ListenTimingLog.shortKey(activeBakeCacheKey), "active_p": activeBakeIndex ?? -1,
         ])
-        if rendersInBackground {
-            // CPU route: nothing to park. Keep the in-flight call alive through suspension races.
+        if worker != nil, phase == .background {
+            // The in-flight chunk finishes (its waiter gets it, and its file is written); the
+            // worker then decides what may run next.
             #if canImport(UIKit)
-            if phase == .background, worker != nil, usesBackgroundGrace { drainGrace.begin() }
+            if usesBackgroundGrace { drainGrace.begin() }
             #endif
-            if phase != .background, !stack.isEmpty { kickWorker() }
-            if phase == .background, hasLiveWaiters { kickWorker() }
-            return
+        } else if admission(isLiveRequest: true, cacheKey: nil) == .deferToApple {
+            failAllLiveWaiters(LocalSynthError.deferredInBackground)
         }
-        switch phase {
-        case .background:
-            if worker != nil {
-                // The in-flight chunk finishes (its waiter gets it); the worker then parks and
-                // fails the remaining live waiters as deferred.
-                #if canImport(UIKit)
-                if usesBackgroundGrace { drainGrace.begin() }
-                #endif
-            } else {
-                failAllLiveWaiters(LocalSynthError.deferredInBackground)
-            }
-        case .inactive:
-            if hasLiveWaiters { kickWorker() }
-        case .active:
-            if !stack.isEmpty { kickWorker() }
+        if let primary = stack.first, admission(isLiveRequest: hasLiveWaiters, cacheKey: primary) == .render {
+            kickWorker()
         }
     }
 
@@ -196,8 +184,13 @@ final class GlobalSynthQueue {
 
     /// The active host renders without Core ML/GPU and may run while backgrounded.
     private var rendersInBackground: Bool { coordinator?.activeRouteRendersInBackground ?? false }
-    /// May a model call start now (foreground, or a background-capable route)?
-    private var canRenderNow: Bool { runState.allowsLocalModelCalls || rendersInBackground }
+
+    /// `RenderAdmission` for audio of `cacheKey` now.
+    private func admission(isLiveRequest: Bool, cacheKey: UUID?) -> RenderAdmission {
+        RenderAdmission.decide(phase: runState.phase, rendersInBackground: rendersInBackground,
+                               isLiveRequest: isLiveRequest,
+                               isPlayingArticle: cacheKey != nil && cacheKey == coordinator?.playingCacheKey)
+    }
 
     private func failAllLiveWaiters(_ error: Error) {
         for key in Array(chunkWaiters.keys) {
@@ -431,10 +424,10 @@ final class GlobalSynthQueue {
             return resolved
         }
 
-        // Background: don't wait for a render that can't happen — the producer speaks it with
-        // Apple. Don't move the cursor either (the producer pre-renders Apple units far ahead);
-        // on return the listen engine refocuses at the paragraph it restarts from.
-        guard canRenderNow else {
+        // Background on a Core ML route: don't wait for a render that can't happen — the producer
+        // speaks it with Apple. Don't move the cursor either (the producer pre-renders Apple units
+        // far ahead); on return the listen engine refocuses at the paragraph it restarts from.
+        guard admission(isLiveRequest: true, cacheKey: cacheKey) == .render else {
             noteBackgroundDeferral(cacheKey, paragraphIndex, chunk: chunk)
             throw LocalSynthError.deferredInBackground
         }
@@ -620,27 +613,19 @@ final class GlobalSynthQueue {
         }
         while !isPausedForProbe, let next = nextWorkUnit() {
             guard let coordinator else { break }
-            // Check the app state before every chunk (never a Core ML call in the background).
-            if !canRenderNow {
-                failAllLiveWaiters(LocalSynthError.deferredInBackground)
-                lastBakeEvent = "background: Kokoro paused (bake resumes in foreground)"
-                ListenTimingLog.log("synth_queue_parked", ["phase": runState.phase.rawValue])
-                return
-            }
-            if runState.phase == .background, rendersInBackground {
-                // CPU route in the background: the listener's chunks + bake-ahead of the article
-                // that is playing. Other articles wait for the foreground (battery).
-                if !hasLiveWaiters, next.0.cacheKey != coordinator.playingCacheKey {
-                    lastBakeEvent = "background: holding bake of other articles"
-                    ListenTimingLog.log("synth_queue_parked", ["phase": "background", "reason": "not_playing_article"])
-                    return
-                }
+            // Check the app state before every chunk (see `RenderAdmission`).
+            let phase = runState.phase
+            switch admission(isLiveRequest: hasLiveWaiters, cacheKey: next.0.cacheKey) {
+            case .render:
+                // CPU route in the background: keep the app alive through the call.
                 #if canImport(UIKit)
-                if usesBackgroundGrace { drainGrace.begin() }
+                if phase == .background, usesBackgroundGrace { drainGrace.begin() }
                 #endif
-            } else if !runState.allowsBakeAhead, !rendersInBackground, !hasLiveWaiters {
-                ListenTimingLog.log("synth_queue_parked", ["phase": runState.phase.rawValue])
-                return // inactive: resume on becoming active (or when a listener waits)
+            case .deferToApple, .park:
+                // Restarted by `runStateChanged` (or a listener's request).
+                failAllLiveWaiters(LocalSynthError.deferredInBackground)
+                noteParked(phase: phase, engine: coordinator.synthRenderer.engineShortName)
+                return
             }
             let (job, index) = next
             let priority = renderPriority(for: job.cacheKey)
@@ -748,7 +733,8 @@ final class GlobalSynthQueue {
             } catch LocalSynthError.deferredInBackground {
                 // Went to background mid-paragraph: finished chunks stay on disk; not a failure.
                 failAllLiveWaiters(LocalSynthError.deferredInBackground)
-                lastBakeEvent = "background: Kokoro paused at \(job.cacheKey.uuidString.prefix(8)) p\(index)"
+                lastBakeEvent = "background: \(coordinator.synthRenderer.engineShortName) paused at "
+                    + "\(job.cacheKey.uuidString.prefix(8)) p\(index)"
                 ListenTimingLog.log("synth_queue_parked", ["phase": runState.phase.rawValue, "p": index])
                 return
             } catch {
@@ -768,6 +754,23 @@ final class GlobalSynthQueue {
         }
         // Drop completed articles from stack.
         compactCompleted()
+    }
+
+    /// The worker stopped before a chunk (`RenderAdmission` said not now).
+    private func noteParked(phase: AppRunState.Phase, engine: String) {
+        switch phase {
+        case .background where rendersInBackground:
+            // CPU route: the listener's chunks and the playing article render; other articles
+            // wait for the foreground (battery).
+            lastBakeEvent = "background: holding bake of other articles"
+            ListenTimingLog.log("synth_queue_parked", ["phase": phase.rawValue, "reason": "not_playing_article"])
+        case .background:
+            lastBakeEvent = "background: \(engine) paused (bake resumes in foreground)"
+            ListenTimingLog.log("synth_queue_parked", ["phase": phase.rawValue])
+        case .inactive, .active:
+            // Inactive: bake-ahead resumes on becoming active (or when a listener waits).
+            ListenTimingLog.log("synth_queue_parked", ["phase": phase.rawValue])
+        }
     }
 
     private struct NothingSpeakable: LocalizedError {
@@ -804,9 +807,11 @@ final class GlobalSynthQueue {
             throw CancellationError()
         } catch {
             // Backgrounded (or the call was refused because of it): don't write Apple audio into
-            // the engine's cache — the chunk renders with the engine once back in the foreground.
+            // the engine's cache — the chunk renders with the engine once it may run again.
             if case LocalSynthError.deferredInBackground = error { throw error }
-            if !canRenderNow { throw LocalSynthError.deferredInBackground }
+            if admission(isLiveRequest: hasLiveWaiters, cacheKey: job.cacheKey) != .render {
+                throw LocalSynthError.deferredInBackground
+            }
             let localError = error.localizedDescription
             let msg = "\(engine.engineShortName) FAIL p\(index) c\(chunk) → Apple TTS: \(localError)"
             ListenDebugLog.shared.append(msg)
@@ -923,42 +928,4 @@ final class GlobalSynthQueue {
     func clearLiveChunkMarks(cacheKey: UUID) {
         liveChunkParagraphs = liveChunkParagraphs.filter { $0.cacheKey != cacheKey }
     }
-}
-
-/// What `GlobalSynthQueue` needs from its owner. `LocalTTSCoordinator` in the app; a fake in tests.
-@MainActor
-protocol SynthQueueContext: AnyObject {
-    var audioCache: ArticleAudioCache { get }
-    /// `ArticleAudioCache` engine key of the active local engine.
-    var cacheEngineID: String { get }
-    /// Chunk sizing of the active local engine (from its `EngineDescriptor`).
-    var activeChunkLimits: TextChunker.Limits { get }
-    var synthRenderer: SynthChunkRendering { get }
-    /// Apple voice for the never-skip fallback given a cache voice key (nil = system default).
-    func fallbackAppleVoice(forCacheVoice voiceID: String) -> String?
-    /// Map a (possibly stale) cache voice key onto the active engine/voice key space.
-    func normalizedCacheVoice(_ voiceID: String) -> String
-    func noteBakeMarksChanged()
-    /// An article is fully baked (drop its persisted pending job).
-    func bakeCompleted(cacheKey: UUID)
-    /// The active local host may render while the app is backgrounded (Kokoro ONNX CPU route).
-    var activeRouteRendersInBackground: Bool { get }
-    /// Article whose audio is playing right now (nil = none): its renders run at listener
-    /// priority, and it is the only article baked ahead in the background.
-    var playingCacheKey: UUID? { get }
-}
-
-extension SynthQueueContext {
-    var activeRouteRendersInBackground: Bool { false }
-    var playingCacheKey: UUID? { nil }
-}
-
-/// Renders one synth chunk with the active local engine, or with Apple as the fallback. Both
-/// render at 1×: the listen speed is a time-stretch on the player.
-@MainActor
-protocol SynthChunkRendering: AnyObject {
-    var engineShortName: String { get }
-    func renderChunkToFile(text: String, destination: URL, context: [String: Any],
-                           priority: RenderPriority) async throws -> TimeInterval
-    func renderAppleFallback(text: String, destination: URL, voiceID: String?) async throws -> TimeInterval
 }
