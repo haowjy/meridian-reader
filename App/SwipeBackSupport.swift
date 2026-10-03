@@ -16,18 +16,6 @@ enum SwipeGesturePolicy {
     private static let horizontalCommitDistance: CGFloat = 54
     private static let horizontalCommitPrediction: CGFloat = 140
 
-    static func verticalOffset(for translation: CGSize) -> CGFloat {
-        guard translation.height > 0,
-              translation.height > abs(translation.width) * axisDominance else { return 0 }
-        return translation.height
-    }
-
-    static func shouldCommitVerticalDismiss(translation: CGSize, predicted: CGSize) -> Bool {
-        guard translation.height > 0,
-              translation.height > abs(translation.width) * axisDominance else { return false }
-        return shouldCommitDownwardDismiss(translation: translation.height, predicted: predicted.height)
-    }
-
     /// The axis a drag moves along, decided once from its first movement and kept for the rest of
     /// the gesture, so a drag that drifts diagonally never flips between following and not.
     static func axis(ofFirstMovement translation: CGSize) -> Axis {
@@ -53,42 +41,81 @@ enum SwipeGesturePolicy {
     }
 }
 
-/// App-wide swipe-back rule (see `docs/NAVIGATION.md`): every pushed screen can be popped by
-/// swiping from the left edge, even when it hides the system back button and draws its own ‹
-/// (the library's ‹ reader uses `.navigationBarBackButtonHidden(true)`).
-///
-/// UIKit's default pop-gesture delegate refuses to begin when the bar or back button is hidden,
-/// so SwiftUI screens with a custom ‹ lose swipe-back. Here every navigation controller
-/// (SwiftUI's `NavigationStack` is backed by one) becomes its own pop-gesture delegate:
-/// - begins only at depth > 1 (never on a root screen, which would wedge the stack), and not
-///   while a push/pop transition is already running;
-/// - it is still the system edge-pan gesture, so it only starts from the left screen edge and a
-///   completed swipe is a normal pop — the same as tapping ‹ (`onDisappear` runs, playback
-///   is untouched);
-/// - scroll views (the reader's web view) wait for the edge pan to fail, so a horizontal
-///   swipe from the very edge pops instead of scrolling; anywhere else scrolling is unchanged.
-///
-/// Do not add per-screen swipe-back hacks; push screens with `NavigationStack` and this applies.
-///
-/// Note: `UINavigationController` does not implement `viewDidLoad` itself (it only implements
-/// `loadView` / `viewWillAppear:` / `viewDidAppear:`), so this override adds behavior without
-/// replacing any UIKit implementation. `super` reaches `UIViewController.viewDidLoad`.
-extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
-    override open func viewDidLoad() {
-        super.viewDidLoad()
-        interactivePopGestureRecognizer?.delegate = self
+extension View {
+    /// Edge swipe-back for a pushed screen that hides the system back button and draws its own
+    /// back control (the library's reader). See `EdgeSwipeBack`.
+    func edgeSwipeBack() -> some View {
+        background(EdgeSwipeBack().frame(width: 0, height: 0).accessibilityHidden(true))
     }
+}
 
-    public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        guard gestureRecognizer === interactivePopGestureRecognizer else { return true }
-        return viewControllers.count > 1 && transitionCoordinator == nil
-    }
+/// Swipe-back rule (docs/NAVIGATION.md): a pushed screen pops with a swipe from the left edge,
+/// exactly like its back control. UIKit's edge pan refuses to begin once the back button is
+/// hidden, so while a screen using `.edgeSwipeBack()` is on screen, this makes its navigation
+/// controller's edge pan:
+/// - begin only at depth > 1 and not while a push / pop is already running;
+/// - stay the system gesture: it starts only at the left screen edge and a completed swipe is a
+///   normal pop, the same as the back control (`onDisappear` runs, playback is untouched);
+/// - win over scroll views (the reader's web view) at the very edge; anywhere else they scroll.
+/// iOS 26's full-width content swipe is off meanwhile, so a sideways drag on the scrubber or a
+/// text selection never pops the screen. Leaving the screen hands both gestures back as they were.
+private struct EdgeSwipeBack: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> Probe { Probe() }
+    func updateUIViewController(_ probe: Probe, context: Context) {}
 
-    public func gestureRecognizer(
-        _ gestureRecognizer: UIGestureRecognizer,
-        shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
-    ) -> Bool {
-        guard gestureRecognizer === interactivePopGestureRecognizer, viewControllers.count > 1 else { return false }
-        return otherGestureRecognizer is UIPanGestureRecognizer && otherGestureRecognizer.view is UIScrollView
+    /// Sits in the pushed screen's view controller hierarchy to reach its navigation controller.
+    final class Probe: UIViewController, UIGestureRecognizerDelegate {
+        private weak var navigation: UINavigationController?
+        private weak var systemDelegate: UIGestureRecognizerDelegate?
+        private var contentPopWasEnabled = true
+
+        override func viewWillAppear(_ animated: Bool) {
+            super.viewWillAppear(animated)
+            install()
+        }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            install()
+        }
+
+        override func viewDidDisappear(_ animated: Bool) {
+            super.viewDidDisappear(animated)
+            uninstall()
+        }
+
+        private func install() {
+            guard let nav = navigationController, let edge = nav.interactivePopGestureRecognizer else { return }
+            if edge.delegate !== self {
+                systemDelegate = edge.delegate
+                edge.delegate = self
+            }
+            if navigation !== nav, #available(iOS 26.0, *), let content = nav.interactiveContentPopGestureRecognizer {
+                contentPopWasEnabled = content.isEnabled
+                content.isEnabled = false
+            }
+            navigation = nav
+        }
+
+        private func uninstall() {
+            guard let nav = navigation else { return }
+            if let edge = nav.interactivePopGestureRecognizer, edge.delegate === self {
+                edge.delegate = systemDelegate
+            }
+            if #available(iOS 26.0, *) {
+                nav.interactiveContentPopGestureRecognizer?.isEnabled = contentPopWasEnabled
+            }
+            navigation = nil
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let nav = navigation else { return false }
+            return nav.viewControllers.count > 1 && nav.transitionCoordinator == nil
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                               shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            otherGestureRecognizer is UIPanGestureRecognizer && otherGestureRecognizer.view is UIScrollView
+        }
     }
 }

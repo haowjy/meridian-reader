@@ -15,13 +15,13 @@ struct PageArticleService {
 
     private var web: WebViewStore { shell.web }
 
-    /// Address-bar reader icon / ⋯ → Reader: the page in the ✕ reader. The reader icon spins
+    /// Address-bar reader icon / ⋯ → Reader: the page in the reader overlay. The reader icon spins
     /// meanwhile.
     func openInReader() async throws {
         shell.busy = .reader
         defer { shell.busy = nil }
         let (article, url) = try await extract()
-        shell.showReader(article, origin: .page(url))
+        shell.showReader(article)
         if article.faviconData == nil {
             let icon = await favicon(for: url)
             shell.updateReader(id: article.id) { if $0.faviconData == nil { $0.faviconData = icon } }

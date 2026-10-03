@@ -35,8 +35,11 @@ struct BrowserBottomChrome: View {
             // Like Safari: the session starts with the page's full address, selected.
             beginText: { web.currentURL?.absoluteString ?? "" }
         ) {
-            MiniPlayerBar(speech: speech, onOpen: onOpenNowPlaying)
-                .padding(.bottom, 4)
+            // Under the reader overlay the reader is the player; the bar takes over as it leaves.
+            if shell.readerArticle == nil {
+                MiniPlayerBar(speech: speech, onOpen: onOpenNowPlaying)
+                    .padding(.bottom, 4)
+            }
         } field: { focus in
             addressField(focus)
         } toolbar: {
@@ -95,7 +98,7 @@ struct BrowserBottomChrome: View {
                     .font(.body)
                     .foregroundStyle(Color.accentColor)
                     .frame(width: 30, height: 30)
-                    .contentShape(Rectangle())
+                    .tapTarget(30)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Open in Reader")

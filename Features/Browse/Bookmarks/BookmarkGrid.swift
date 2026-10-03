@@ -7,6 +7,7 @@ struct BookmarkGrid: View {
     var onDelete: (SiteBookmark) -> Void
     var onRename: (SiteBookmark, String) -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var renaming: SiteBookmark?
     @State private var renameText = ""
 
@@ -20,7 +21,9 @@ struct BookmarkGrid: View {
                         Text(bookmark.title)
                             .font(.caption)
                             .foregroundStyle(.primary)
-                            .lineLimit(2)
+                            // At accessibility sizes a second line would only hold a word broken
+                            // mid-way; one truncated line reads better.
+                            .lineLimit(typeSize.isAccessibilitySize ? 1 : 2)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
                     }

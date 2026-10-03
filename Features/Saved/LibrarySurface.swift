@@ -14,7 +14,7 @@ import SwiftData
 /// │ ( 🔍 Search saved…              )  (✕) │  ← toolbar hidden; ✕ exits search
 /// ```
 ///
-/// Opening an article pushes the ‹ reader inside the surface (path non-empty hides this chrome;
+/// Opening an article pushes the reader inside the surface (path non-empty hides this chrome;
 /// the reader draws its own). Leaving via 🌐 restores the prior browse surface.
 struct LibrarySurface: View {
     @Binding var path: [UUID]

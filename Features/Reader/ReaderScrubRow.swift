@@ -27,7 +27,7 @@ enum ScrubSpeed: Equatable, CaseIterable {
         }
     }
 
-    /// Bubble label (nil at normal speed).
+    /// Spoken name of the speed (nil at normal speed).
     var label: String? {
         switch self {
         case .normal: return nil
@@ -36,6 +36,43 @@ enum ScrubSpeed: Equatable, CaseIterable {
         case .fine: return "Fine scrubbing"
         }
     }
+
+    /// The bubble's speed chip (nil at normal speed).
+    var chip: String? {
+        switch self {
+        case .normal: return nil
+        case .half: return "½×"
+        case .quarter: return "¼×"
+        case .fine: return "Fine"
+        }
+    }
+}
+
+/// A haptic for one scrubber movement. Ticks carry meaning instead of buzzing: a sentence or
+/// paragraph boundary ticks only when that sentence / paragraph is at least `minSpacing` points
+/// wide on screen at the current speed, so at normal speed long articles tick on paragraphs (or
+/// not at all when those are dense too) and the finer speeds spread sentences out until each one
+/// ticks. Reaching either end of the track gives a firmer tick.
+enum ScrubTick: Equatable {
+    /// Crossed into a sentence or paragraph (selection tick).
+    case boundary
+    /// Reached the start or the end of the article (rigid tick).
+    case end
+
+    static let minSpacing: CGFloat = 7
+
+    /// The tick for the thumb moving from `old` to `new`. `pointsPerFraction` is the track width
+    /// divided by the speed multiplier: how far the finger travels across the whole article.
+    static func between(_ old: (fraction: Double, target: ReaderScrubMap.Target),
+                        _ new: (fraction: Double, target: ReaderScrubMap.Target),
+                        map: ReaderScrubMap, pointsPerFraction: CGFloat) -> ScrubTick? {
+        if new.fraction != old.fraction, new.fraction <= 0 || new.fraction >= 1 { return .end }
+        guard new.target != old.target else { return nil }
+        let width = new.target.paragraph != old.target.paragraph
+            ? map.paragraphWidth(new.target.paragraph)
+            : map.sentenceWidth(new.target)
+        return CGFloat(width) * pointsPerFraction >= minSpacing ? .boundary : nil
+    }
 }
 
 /// Reader bottom row above the listen controls: [scrubber][select paragraph][bookmark] (thumb
@@ -43,10 +80,13 @@ enum ScrubSpeed: Equatable, CaseIterable {
 /// ahead of it. Dragging:
 /// - grabbing the thumb moves it relative to the finger (no jump); touching elsewhere jumps there;
 /// - sliding the finger up away from the track scrubs slower (½, ¼, fine) for small precise moves;
-/// - it snaps to sentence starts: a haptic tick per sentence, the bubble shows the paragraph /
-///   sentence and the sentence's first words, and release seeks to that sentence (not the
-///   paragraph start); the text scrolls to the paragraph under the thumb (the only time the text
-///   scrolls on its own).
+/// - it snaps to sentence starts: release seeks to the sentence under the thumb (not the
+///   paragraph start), and haptics tick on sentences or paragraphs that are far enough apart to
+///   feel (`ScrubTick`); the text scrolls to the paragraph under the thumb (the only time the
+///   text scrolls on its own);
+/// - a bubble rides above the finger showing the speed, paragraph / sentence and the sentence's
+///   first words. The band around the row draws it across its full width
+///   (`readerScrubBubble()`), so it never truncates and the thumb never covers it.
 /// The touch area covers the whole capsule height and its rounded leading end.
 struct ReaderScrubRow: View {
     let map: ReaderScrubMap
@@ -71,8 +111,11 @@ struct ReaderScrubRow: View {
     @State private var speed: ScrubSpeed = .normal
     @State private var lastTarget: ReaderScrubMap.Target?
     @State private var lastPreview: Int?
+    /// The finger's height in the track's coordinates (negative = above it).
+    @State private var fingerY: CGFloat = 0
     @State private var haptics = UISelectionFeedbackGenerator()
     @State private var speedHaptics = UIImpactFeedbackGenerator(style: .light)
+    @State private var endHaptics = UIImpactFeedbackGenerator(style: .rigid)
 
     /// Grab radius around the thumb (points): a touch this close drags the thumb, no jump.
     static let grabRadius: CGFloat = 26
@@ -116,6 +159,7 @@ struct ReaderScrubRow: View {
         guard LaunchOptions.current.scrubBubbleDemo else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             speed = .quarter
+            fingerY = -120
             dragFraction = 0.42
         }
     }
@@ -145,14 +189,6 @@ struct ReaderScrubRow: View {
                     .offset(x: w * shown - thumb / 2)
             }
             .frame(width: w, height: g.size.height)
-            .overlay(alignment: .bottomLeading) {
-                if let f = dragFraction {
-                    bubble(for: map.target(at: f))
-                        .frame(width: w + 14, alignment: .leading)
-                        .offset(x: -10, y: -(g.size.height + 10))
-                        .allowsHitTesting(false)
-                }
-            }
             // Bigger touch target: the whole capsule height and its rounded leading end.
             .overlay {
                 Color.clear
@@ -168,7 +204,11 @@ struct ReaderScrubRow: View {
             .coordinateSpace(name: Self.space)
         }
         .frame(height: BottomChrome.fieldControlSize)
-        .animation(.easeOut(duration: 0.12), value: dragging)
+        .anchorPreference(key: ReaderScrubBubble.Key.self, value: .bounds) { track in
+            dragFraction.map { ReaderScrubBubble(map: map, target: map.target(at: $0), speed: speed,
+                                                 track: track, fingerY: fingerY) }
+        }
+        .animation(Motion.snappy, value: dragging)
         .accessibilityElement()
         .accessibilityIdentifier("readerScrubber")
         .accessibilityLabel("Article position")
@@ -183,44 +223,11 @@ struct ReaderScrubRow: View {
         }
     }
 
-    /// Paragraph · sentence · speed, then the sentence's first words.
-    private func bubble(for t: ReaderScrubMap.Target) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 6) {
-                Text("¶ \(t.paragraph + 1) of \(map.paragraphCount)")
-                if map.sentenceCount(paragraph: t.paragraph) > 1 {
-                    Text("· sentence \(t.sentence + 1) of \(map.sentenceCount(paragraph: t.paragraph))")
-                        .foregroundStyle(.secondary)
-                }
-                if let label = speed.label {
-                    Text("· \(label)")
-                        .foregroundStyle(Color.accentColor)
-                        .accessibilityIdentifier("readerScrubSpeed")
-                }
-            }
-            .font(.caption.weight(.semibold))
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            Text(map.snippet(for: t))
-                .font(.footnote)
-                .lineLimit(2)
-                .foregroundStyle(.primary)
-                .accessibilityIdentifier("readerScrubSnippet")
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("readerScrubBubble")
-    }
-
     private func scrub(_ v: DragGesture.Value, width w: CGFloat) {
         if dragFraction == nil {
             haptics.prepare()
             speedHaptics.prepare()
+            endHaptics.prepare()
             let thumbX = w * CGFloat(min(max(0, position), 1))
             grabbedThumb = abs(v.startLocation.x - thumbX) <= Self.grabRadius
             // Grab the thumb: move relative to it. Elsewhere: jump to the finger.
@@ -237,13 +244,22 @@ struct ReaderScrubRow: View {
             speedHaptics.impactOccurred(intensity: 0.5)
         }
         let f = min(max(0, anchor.fraction + Double((v.location.x - anchor.x) / w) * speed.multiplier), 1)
-        dragFraction = f
-        // Tick at every sentence start crossed.
         let target = map.target(at: f)
-        if let lastTarget, target != lastTarget {
-            haptics.selectionChanged()
-            haptics.prepare()
+        if let previous = dragFraction, let lastTarget {
+            switch ScrubTick.between((previous, lastTarget), (f, target), map: map,
+                                     pointsPerFraction: w / CGFloat(speed.multiplier)) {
+            case .boundary:
+                haptics.selectionChanged()
+                haptics.prepare()
+            case .end:
+                endHaptics.impactOccurred()
+                endHaptics.prepare()
+            case nil:
+                break
+            }
         }
+        dragFraction = f
+        fingerY = v.location.y
         lastTarget = target
         if target.paragraph != lastPreview {
             lastPreview = target.paragraph
@@ -264,5 +280,102 @@ struct ReaderScrubRow: View {
         // A tap on the thumb itself is not a seek (it would jump back to the sentence start).
         guard !tappedThumb else { return }
         onScrubCommit(map.target(at: f))
+    }
+}
+
+/// The scrub bubble while dragging, handed up from `ReaderScrubRow` to the band that draws it.
+struct ReaderScrubBubble {
+    let map: ReaderScrubMap
+    let target: ReaderScrubMap.Target
+    let speed: ScrubSpeed
+    /// The scrubber track's bounds.
+    let track: Anchor<CGRect>
+    /// The finger's height in the track's coordinates (negative = above it).
+    let fingerY: CGFloat
+
+    /// Gap between the bubble and the track (finger resting on the track).
+    static let trackGap: CGFloat = 10
+    /// Gap between the bubble and the finger once it slides up (clears the thumb).
+    static let fingerGap: CGFloat = 44
+
+    /// Where the bubble's bottom edge goes, in the coordinates `track` resolves to: just above
+    /// the track, or above the finger once it slides up past that, so it rides with the finger.
+    static func bottom(track: CGRect, fingerY: CGFloat) -> CGFloat {
+        min(track.minY - trackGap, track.minY + fingerY - fingerGap)
+    }
+
+    struct Key: PreferenceKey {
+        static var defaultValue: ReaderScrubBubble? { nil }
+        static func reduce(value: inout ReaderScrubBubble?, nextValue: () -> ReaderScrubBubble?) {
+            value = value ?? nextValue()
+        }
+    }
+}
+
+extension View {
+    /// Draws the scrub bubble of a `ReaderScrubRow` inside this view across this view's full
+    /// width (the reader's scrub band), above the finger.
+    func readerScrubBubble() -> some View {
+        overlayPreferenceValue(ReaderScrubBubble.Key.self, alignment: .topLeading) { bubble in
+            if let bubble {
+                GeometryReader { proxy in
+                    ReaderScrubBubbleView(bubble: bubble)
+                        // A zero-height frame aligned to the bottom: the bubble grows upward from
+                        // `bottom`, whatever its height.
+                        .frame(width: proxy.size.width, height: 0, alignment: .bottom)
+                        .offset(y: ReaderScrubBubble.bottom(track: proxy[bubble.track], fingerY: bubble.fingerY))
+                }
+                .allowsHitTesting(false)
+            }
+        }
+    }
+}
+
+/// Speed chip, then paragraph · sentence over the sentence's first words. The text wraps rather
+/// than truncating at large text sizes.
+private struct ReaderScrubBubbleView: View {
+    let bubble: ReaderScrubBubble
+
+    var body: some View {
+        let map = bubble.map
+        let t = bubble.target
+        HStack(alignment: .top, spacing: 8) {
+            if let chip = bubble.speed.chip {
+                Text(chip)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(Color.accentColor.opacity(0.15), in: Capsule())
+                    .accessibilityLabel(bubble.speed.label ?? chip)
+                    .accessibilityIdentifier("readerScrubSpeed")
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                header(t, map: map)
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(map.snippet(for: t))
+                    .font(.footnote)
+                    .lineLimit(2)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("readerScrubSnippet")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("readerScrubBubble")
+    }
+
+    private func header(_ t: ReaderScrubMap.Target, map: ReaderScrubMap) -> Text {
+        let paragraph = Text("¶ \(t.paragraph + 1) of \(map.paragraphCount)")
+        let sentences = map.sentenceCount(paragraph: t.paragraph)
+        guard sentences > 1 else { return paragraph }
+        return paragraph + Text(" · sentence \(t.sentence + 1) of \(sentences)").foregroundStyle(.secondary)
     }
 }

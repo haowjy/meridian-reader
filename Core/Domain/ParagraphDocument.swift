@@ -9,6 +9,12 @@ struct ParagraphDocument: Equatable, Sendable {
 
     var count: Int { paragraphs.count }
     var isEmpty: Bool { paragraphs.isEmpty }
+    /// How far through the text `offset` (UTF-16, into `joinedText`) is, 0…1.
+    func progress(atUTF16Offset offset: Int) -> Double {
+        // The last paragraph's end is the text's length, without measuring the string.
+        guard let total = utf16Ranges.last.map(NSMaxRange), total > 0 else { return 0 }
+        return min(1, max(0, Double(offset) / Double(total)))
+    }
 
     static let empty = ParagraphDocument(paragraphs: [], utf16Ranges: [], joinedText: "")
 

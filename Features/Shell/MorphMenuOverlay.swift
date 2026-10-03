@@ -9,7 +9,8 @@ import SwiftUI
 /// hardware Esc) collapses it back into the button.
 ///
 /// The morph is an animatable progress, not a SwiftUI transition: a transition on a view nested in
-/// the inserted container never runs. The overlay unmounts once it has collapsed.
+/// the inserted container never runs. The overlay unmounts once it has collapsed. Under Reduce
+/// Motion the panel only cross-fades in place (no scale, no blur).
 ///
 /// One overlay serves every ⋯ (browser toolbar, library toolbar, reader listen bar): the shell
 /// keeps the open menu as `item` (nil = closed) and the button's global frame as `anchor`; the
@@ -29,6 +30,7 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     var focusOffset: CGSize = MorphMenu.focusOffsetFromAnchor
     @ViewBuilder var panel: (Item, MorphMenuClose) -> Panel
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The item on screen: set while open and kept while collapsing back into the button
     /// (non-nil = in the hierarchy).
     @State private var shown: Item?
@@ -40,6 +42,9 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     @State private var dragOffset: CGFloat = 0
     /// Axis of the panel drag in progress, fixed at its first movement (nil between drags).
     @State private var dragAxis: Axis?
+    /// The next collapse's animation when a swipe-down closed the panel: seeded with the
+    /// release speed, so a fling shrinks it faster (nil = the standard morph).
+    @State private var flingCollapse: Animation?
     /// The focus icon's center in panel coordinates (unscaled).
     @State private var focus: CGPoint?
 
@@ -107,10 +112,6 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     }
 
     private func panelView(_ shown: Item, buttonSize: CGSize) -> some View {
-        let start = CGSize(
-            width: min(1, max(0.08, buttonSize.width / max(1, panelSize.width))),
-            height: min(1, max(0.05, buttonSize.height / max(1, panelSize.height)))
-        )
         let anchor = focus.map { UnitPoint(x: $0.x / max(1, panelSize.width), y: $0.y / max(1, panelSize.height)) }
             ?? .bottomTrailing
         return panel(shown, MorphMenuClose { next in
@@ -118,7 +119,9 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
             item = nil
         })
             .coordinateSpace(name: MorphMenu.panelSpace)
-            .onPreferenceChange(MorphMenuFocusKey.self) { focus = $0 }
+            .onPreferenceChange(MorphMenuFocusKey.self) { measured in
+                if MorphMenu.isNewFocus(measured, comparedTo: focus) { focus = measured }
+            }
             .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
                 if size.width > 0, size.height > 0 { panelSize = size }
             }
@@ -134,7 +137,8 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
                         .accessibilityIdentifier("moreMenuFocus")
                 }
             }
-            .modifier(MorphPanelEffect(progress: expanded ? 1 : 0, startScale: start, anchor: anchor))
+            .modifier(MorphPanelEffect(progress: expanded ? 1 : 0, button: reduceMotion ? nil : buttonSize,
+                                       panelSize: panelSize, anchor: anchor, blurs: !reduceMotion))
             .offset(y: dragOffset)
             .simultaneousGesture(swipeDownToDismiss)
             // Hardware keyboard Esc.
@@ -168,18 +172,21 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     }
 
     private func collapse() {
+        let morph = flingCollapse ?? MorphMenu.animation
+        flingCollapse = nil
         guard shown != nil else { return }
-        withAnimation(MorphMenu.animation) {
+        // Shrink back into the button from wherever a swipe left the panel.
+        withAnimation(MorphMenu.animation) { dragOffset = 0 }
+        withAnimation(morph) {
             expanded = false
-            // Shrink back into the button from wherever a swipe left the panel.
-            dragOffset = 0
         } completion: {
             if !isPresented { shown = nil }
         }
     }
 
     /// The panel follows a vertical drag (down freely, up with rubber-band resistance); a
-    /// horizontal one leaves it in place. Released far enough or flung down, it collapses.
+    /// horizontal one leaves it in place. Released far enough or flung down, it collapses at the
+    /// release speed.
     private var swipeDownToDismiss: some Gesture {
         DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance)
             .onChanged { value in
@@ -195,9 +202,12 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
                     translation: value.translation.height,
                     predicted: value.predictedEndTranslation.height
                 ) {
+                    if !reduceMotion {
+                        flingCollapse = Motion.dismiss(velocity: value.velocity.height, distance: panelSize.height)
+                    }
                     dismiss()
                 } else {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { dragOffset = 0 }
+                    withAnimation(Motion.settle) { dragOffset = 0 }
                 }
             }
     }
@@ -226,22 +236,25 @@ enum MorphMenu {
     /// UI tests: expose the focus point as an accessibility element (alignment test).
     static let exposesFocus = LaunchOptions.current.uiTesting
 
-    /// UI tests can slow the morph so a mid-animation frame can be captured.
+    /// `Motion.standard`; UI tests can slow it so a mid-animation frame can be captured.
     static var animation: Animation {
-        LaunchOptions.current.slowMenuAnimation
-            ? .easeInOut(duration: 3)
-            : .spring(response: 0.36, dampingFraction: 0.86)
+        LaunchOptions.current.slowMenuAnimation ? .easeInOut(duration: 3) : Motion.standard
     }
 }
 
-/// The morph, as one animatable progress (0 = the ⋯ button's size, 1 = the full panel). The panel
-/// scales from the button's size with the bottom-right corners pinned, so it visibly grows out of
-/// (and shrinks back into) the button; the glass shows at once and the rows fade / un-blur in
-/// over the second half.
+/// The morph, as one animatable progress (0 = the ⋯ button, 1 = the full panel). The glass is
+/// drawn at an in-between frame and corner radius — from the button's (a circle) to the panel's,
+/// pinned at `anchor` — so it grows out of (and shrinks back into) the button without ever being
+/// stretched: the corners stay round and the glass refracts at its real size. The rows stay full
+/// size, clipped to that shape, and fade / un-blur in over the second half. Under Reduce Motion
+/// there is no `button`: the glass is panel-sized throughout and the whole panel only fades.
 private struct MorphPanelEffect: ViewModifier, Animatable {
     var progress: CGFloat
-    let startScale: CGSize
+    /// The ⋯ button's size: the glass at progress 0 (nil = no change of shape).
+    let button: CGSize?
+    let panelSize: CGSize
     var anchor: UnitPoint = .bottomTrailing
+    var blurs = true
 
     var animatableData: CGFloat {
         get { progress }
@@ -251,23 +264,62 @@ private struct MorphPanelEffect: ViewModifier, Animatable {
     func body(content: Content) -> some View {
         let p = min(1, max(0, progress))
         let rows = Double(min(1, max(0, (p - 0.35) / 0.65)))
+        let shape = MorphPanelShape(frame: MorphMenu.morphFrame(progress: p, button: button, panel: panelSize, anchor: anchor),
+                                    cornerRadius: MorphMenu.morphCornerRadius(progress: p, button: button))
         return content
             .opacity(rows)
-            .blur(radius: (1 - p) * 6)
-            .background { MorphMenuPanelBackground() }
-            .clipShape(RoundedRectangle(cornerRadius: MorphMenu.cornerRadius, style: .continuous))
+            .blur(radius: blurs ? (1 - p) * 6 : 0)
+            .background { MorphMenuPanelBackground(shape: shape) }
+            .clipShape(shape)
             .shadow(color: .black.opacity(0.18 * Double(p)), radius: 28, y: 10)
-            .scaleEffect(x: startScale.width + (1 - startScale.width) * p,
-                         y: startScale.height + (1 - startScale.height) * p,
-                         anchor: anchor)
             .opacity(Double(min(1, p * 5)))
+    }
+}
+
+/// The panel's glass at one moment of the morph: a continuous rounded rectangle at `frame`
+/// inside the panel's bounds.
+private struct MorphPanelShape: Shape {
+    var frame: CGRect
+    var cornerRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).path(in: frame)
+    }
+}
+
+extension MorphMenu {
+    /// Whether a measured focus point is a real move rather than a rounding nudge. The panel is
+    /// placed by its focus point, and pixel rounding of that placement moves the measured point
+    /// by a fraction of a point; taking those nudges would place the panel again, and again,
+    /// without end.
+    static func isNewFocus(_ measured: CGPoint?, comparedTo current: CGPoint?) -> Bool {
+        guard let measured, let current else { return measured != current }
+        return abs(measured.x - current.x) >= 0.5 || abs(measured.y - current.y) >= 0.5
+    }
+
+    /// The glass's frame (panel coordinates) at `progress`: the button's size grown to the
+    /// panel's, with `anchor` (the point it grows out of) kept in place. No `button`: the panel.
+    static func morphFrame(progress p: CGFloat, button: CGSize?, panel: CGSize, anchor: UnitPoint) -> CGRect {
+        guard let button, panel.width > 0, panel.height > 0 else { return CGRect(origin: .zero, size: panel) }
+        let width = button.width + (panel.width - button.width) * p
+        let height = button.height + (panel.height - button.height) * p
+        return CGRect(x: anchor.x * (panel.width - width), y: anchor.y * (panel.height - height),
+                      width: width, height: height)
+    }
+
+    /// The glass's corner radius at `progress`: the button's (round) to the panel's.
+    static func morphCornerRadius(progress p: CGFloat, button: CGSize?) -> CGFloat {
+        guard let button else { return cornerRadius }
+        let round = min(button.width, button.height) / 2
+        return round + (cornerRadius - round) * p
     }
 }
 
 /// Light glass like Safari's menu panel (iOS 26); a thick material before that.
 private struct MorphMenuPanelBackground: View {
+    let shape: MorphPanelShape
+
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: MorphMenu.cornerRadius, style: .continuous)
         if #available(iOS 26.0, *) {
             shape
                 .fill(Color(.systemBackground).opacity(0.55))

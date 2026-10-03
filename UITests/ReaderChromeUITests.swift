@@ -96,18 +96,19 @@ final class ReaderChromeUITests: XCTestCase {
         }
 
         let close = app.buttons["readerClose"]
+        let title = app.staticTexts["readerTitle"]
         let play = app.buttons["listenPlayPause"]
         let scrubber = el(app, "readerScrubber")
         XCTAssertTrue(close.waitForExistence(timeout: 10))
         waitForArticleText(app)
-        let closeFrame = close.frame, playFrame = play.frame
+        let titleFrame = title.frame, playFrame = play.frame
 
         // Scrolling down: nothing moves or hides, no progress line.
         scrollDown(app)
         scrollDown(app)
         wait(0.8)
-        XCTAssertTrue(shown(app, close) && shown(app, play), "bars stay while scrolling down")
-        XCTAssertEqual(close.frame, closeFrame, "top row didn't move")
+        XCTAssertTrue(shown(app, title) && shown(app, play), "bars stay while scrolling down")
+        XCTAssertEqual(title.frame, titleFrame, "top row didn't move")
         XCTAssertEqual(play.frame, playFrame, "listen row didn't move")
         XCTAssertFalse(el(app, "readerProgressLine").exists, "no progress line")
 
@@ -138,14 +139,14 @@ final class ReaderChromeUITests: XCTestCase {
         XCTAssertTrue(waitFor(8) { play.label == "Pause" }, "jump tap started playback")
         touch(play)
 
-        // ⋯ menu open / closed keeps the reader; ✕ closes it.
+        // ⋯ menu open / closed keeps the reader; the back control closes it.
         touch(app.buttons["readerMore"])
         XCTAssertTrue(el(app, "moreMenuPanel").waitForExistence(timeout: 3))
         el(app, "moreMenuDismiss").tap()
         XCTAssertTrue(waitFor(3) { !el(app, "moreMenuPanel").exists })
         XCTAssertTrue(shown(app, close))
         touch(close)
-        XCTAssertTrue(waitFor(3) { !close.exists }, "✕ closes the reader")
+        XCTAssertTrue(waitFor(3) { !close.exists }, "the back control closes the reader")
     }
 
     func testBrowseReaderFirstLineClearsTopRow() throws {
@@ -153,12 +154,12 @@ final class ReaderChromeUITests: XCTestCase {
         app.launchArguments = ["-seedDemoArticle", "-seedDemoParagraphs", "40", "-openDemoInBrowseReader",
                                "-uiTesting", "-selectEngine", "apple"]
         app.launch()
-        let close = app.buttons["readerClose"]
-        XCTAssertTrue(close.waitForExistence(timeout: 10))
+        let title = app.staticTexts["readerTitle"]
+        XCTAssertTrue(title.waitForExistence(timeout: 10))
         wait(2)
         let texts = app.webViews.staticTexts.allElementsBoundByIndex.map(\.frame).filter { !$0.isEmpty && $0.maxY > 0 }
         let firstTop = texts.map(\.minY).min() ?? 0
-        XCTAssertGreaterThanOrEqual(firstTop, close.frame.maxY, "first line starts below the top row")
+        XCTAssertGreaterThanOrEqual(firstTop, title.frame.maxY, "first line starts below the top row")
     }
 
     func testLibraryReaderChromeStaysAndSwipeBackStillPops() throws {
@@ -172,7 +173,7 @@ final class ReaderChromeUITests: XCTestCase {
         row.tap()
         let close = app.buttons["readerClose"]
         XCTAssertTrue(close.waitForExistence(timeout: 5))
-        XCTAssertEqual(close.label, "Back")
+        XCTAssertEqual(close.label, "Back to Library")
         waitForArticleText(app)
 
         scrollDown(app)

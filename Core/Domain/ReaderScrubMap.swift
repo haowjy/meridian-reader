@@ -2,7 +2,8 @@ import Foundation
 
 /// Article position ↔ scrubber fraction. Each paragraph gets width ∝ its length, so the fill tracks
 /// how much of the article has been read. Scrubbing snaps to **sentence starts**: `target(at:)` is
-/// the sentence under the finger, and the scrubber ticks a haptic whenever that target changes.
+/// the sentence under the finger; `sentenceWidth` / `paragraphWidth` tell the scrubber how far
+/// apart its haptic ticks would land (`ScrubTick`).
 struct ReaderScrubMap: Equatable, Sendable {
     /// Cumulative weight before each paragraph.
     let starts: [Double]
@@ -89,6 +90,21 @@ struct ReaderScrubMap: Equatable, Sendable {
             sentence = trimmed + "…"
         }
         return sentence
+    }
+
+    /// Scrubber width (fraction) of paragraph `paragraph`.
+    func paragraphWidth(_ paragraph: Int) -> Double {
+        fraction(paragraph: paragraph, within: 1) - fraction(paragraph: paragraph)
+    }
+
+    /// Scrubber width (fraction) of the sentence `target` starts.
+    func sentenceWidth(_ target: Target) -> Double {
+        guard !starts.isEmpty else { return 0 }
+        let p = min(max(0, target.paragraph), starts.count - 1)
+        let sentences = sentenceStarts.indices.contains(p) ? sentenceStarts[p] : [0]
+        let length = max(1, texts.indices.contains(p) ? texts[p].utf16.count : 0)
+        let end = target.sentence + 1 < sentences.count ? sentences[target.sentence + 1] : length
+        return Double(max(0, end - target.offset)) / total
     }
 
     /// Fraction at `paragraph` plus `within` (0…1) of it.

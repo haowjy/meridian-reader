@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 /// The library list: every kept article, filtered by `searchText`. Hosted inside `LibrarySurface`,
-/// whose bottom field capsule owns the search text. Opening an article pushes the reader (‹) via
+/// whose bottom field capsule owns the search text. Opening an article pushes the reader via
 /// `path`.
 struct SavedListView: View {
     @Environment(\.modelContext) private var modelContext

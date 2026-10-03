@@ -5,7 +5,8 @@ import SwiftUI
 /// Jump mode is owned by the screen and passed in as a binding.
 ///
 /// Bottom, top to bottom: status notes (buffering / language), then
-/// `[scrubber][select paragraph][bookmark]`, then the listen controls. Status notes sit above
+/// `[back] ( [scrubber][select paragraph][bookmark] )`, then the listen controls. `back` is the
+/// reader's one close control (`ReaderBackButton`). Status notes sit above
 /// the scrubber so skip / preparing text never pushes it.
 ///
 /// Lay this out edge to edge (`ignoresSafeArea`) and pass the real safe area in `safeInsets`; the
@@ -132,24 +133,12 @@ struct ArticleListenSurface: View {
             // Status text above the scrubber so skip / buffering never pushes it.
             listenStatusNotes
 
-            if let scrubMap {
-                // Back-to-source sits left of the scrubber pill (same outside-capsule placement as
-                // Browse's address ✕), then the shared field capsule for scrub / Jump / bookmark.
-                HStack(spacing: 10) {
-                    if let target = scrubControls.backTarget, let onBack = scrubControls.onBackToSource {
-                        Button(action: onBack) {
-                            Image(systemName: target.systemImage)
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(Color.accentColor)
-                                .frame(width: 40, height: 40)
-                                .background(Color(.secondarySystemBackground), in: Circle())
-                                .contentShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(target.accessibilityLabel)
-                        .accessibilityIdentifier(target.accessibilityIdentifier)
-                    }
+            // The back control sits left of the scrubber pill (same outside-capsule placement as
+            // the search session's ✕), then the shared field capsule for scrub / Jump / bookmark.
+            HStack(spacing: 10) {
+                ReaderBackButton(origin: scrubControls.back, action: scrubControls.onBack)
 
+                if let scrubMap {
                     let doc = readingDocument
                     let buffered = bufferedSpans(scrubMap)
                     PlayheadReader(speech: speech, resting: restingSpot) { spot in
@@ -170,8 +159,15 @@ struct ArticleListenSurface: View {
                             onScrubCommit: seek(to:)
                         )
                     }
+                } else {
+                    // Holds the capsule's place until the scrub map is built, so nothing shifts.
+                    Color.clear
+                        .frame(maxWidth: .infinity)
+                        .bottomChromeField()
                 }
             }
+            // The drag bubble spans the whole row, back control included.
+            .readerScrubBubble()
 
             ListenControllerView(
                 session: session,
@@ -375,36 +371,47 @@ struct ReaderScrubControls {
     let jumpEnabled: Bool
     let toggleJump: () -> Void
     let toggleSaved: () -> Void
-    /// Left of the scrubber pill: back to Website (came from browse) or Library (came from saved).
-    var backTarget: ReaderScrubBackTarget? = nil
-    var onBackToSource: (() -> Void)? = nil
+    /// Where the back control (left of the scrubber pill) returns to.
+    let back: ReaderOrigin
+    let onBack: () -> Void
 }
 
-/// Entry-context return control beside the scrubber pill (muscle memory with Library↔Browser).
-enum ReaderScrubBackTarget: Equatable {
-    /// Came from the web page → reveal / open the article's site.
-    case website
-    /// Came from the library / a saved article → return to Library.
-    case library
+/// The reader's one close control, left of the scrubber pill (thumb reach): back to where the
+/// reader was opened from, with that place's icon and name.
+struct ReaderBackButton: View {
+    let origin: ReaderOrigin
+    let action: () -> Void
 
-    var systemImage: String {
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: origin.backSystemImage)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 40, height: 40)
+                .background(Color(.secondarySystemBackground), in: Circle())
+                .tapTarget(40)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(origin.backLabel)
+        .accessibilityIdentifier("readerClose")
+    }
+}
+
+extension ReaderOrigin {
+    /// The back control's icon: the place it returns to (same glyphs as the Library↔Browser swap).
+    var backSystemImage: String {
         switch self {
-        case .website: return "globe"
-        case .library: return "books.vertical"
+        case .page: "globe"
+        case .startPage: "house"
+        case .library: "books.vertical"
         }
     }
 
-    var accessibilityLabel: String {
+    var backLabel: String {
         switch self {
-        case .website: return "Back to Website"
-        case .library: return "Back to Library"
-        }
-    }
-
-    var accessibilityIdentifier: String {
-        switch self {
-        case .website: return "readerBackWebsite"
-        case .library: return "readerBackLibrary"
+        case .page: "Back to Website"
+        case .startPage: "Back to Start Page"
+        case .library: "Back to Library"
         }
     }
 }

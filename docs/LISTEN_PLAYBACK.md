@@ -369,8 +369,8 @@ afconvert -f m4af -d aac -c 1 -b 48000 /tmp/voiceprev/<id>.wav voice-preview-kok
 
 ## Background listening — 2026-09-24
 
-Leaving the app (Home, lock, app switcher) keeps Listen playing. Browse ✕ still stops audio;
-Saved ‹ still keeps it playing (unchanged).
+Leaving the app (Home, lock, app switcher) keeps Listen playing. Closing the reader (its back
+control, the pull-down or the edge swipe) keeps it playing too; the mini player takes over.
 
 ### Audio session (`Features/Speech/Playback/ListenAudioSession.swift`)
 

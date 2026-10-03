@@ -36,6 +36,7 @@ struct SearchSessionChrome<Accessory: View, Field: View, Toolbar: View>: View {
                             .foregroundStyle(.primary)
                             .frame(width: 40, height: 40)
                             .background(Color(.secondarySystemBackground), in: Circle())
+                            .tapTarget(40)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Cancel")
@@ -79,32 +80,31 @@ extension SearchSessionChrome where Accessory == EmptyView {
 }
 
 extension View {
-    /// Swipe down lowers the keyboard but keeps the search session (text and ✕ stay). For a list
-    /// that scrolls, pass whether it's at its top: only a pull that starts there counts.
-    func lowersKeyboardOnPullDown(_ session: SearchSession, isAtTop: Bool = true) -> some View {
-        modifier(PullDownToLowerKeyboard(session: session, isAtTop: isAtTop))
+    /// Swipe down lowers the keyboard but keeps the search session (text and ✕ stay). For
+    /// surfaces that don't scroll; a scrolling list uses `.scrollDismissesKeyboard(.interactively)`.
+    func lowersKeyboardOnPullDown(_ session: SearchSession) -> some View {
+        modifier(PullDownToLowerKeyboard(session: session))
     }
 }
 
 private struct PullDownToLowerKeyboard: ViewModifier {
     let session: SearchSession
-    let isAtTop: Bool
-    /// Whether the drag in progress began with the list at its top (nil between drags).
-    @State private var startedAtTop: Bool?
+    /// Axis of the drag in progress, fixed at its first movement (nil between drags).
+    @State private var dragAxis: Axis?
 
     func body(content: Content) -> some View {
         content.simultaneousGesture(
             DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance)
-                .onChanged { _ in
-                    if startedAtTop == nil { startedAtTop = isAtTop }
+                .onChanged { value in
+                    if dragAxis == nil { dragAxis = SwipeGesturePolicy.axis(ofFirstMovement: value.translation) }
                 }
                 .onEnded { value in
-                    let fromTop = startedAtTop ?? isAtTop
-                    startedAtTop = nil
-                    guard session.isActive, session.isFocused, fromTop else { return }
-                    if SwipeGesturePolicy.shouldCommitVerticalDismiss(
-                        translation: value.translation,
-                        predicted: value.predictedEndTranslation
+                    let vertical = dragAxis == .vertical
+                    dragAxis = nil
+                    guard vertical, session.isActive, session.isFocused else { return }
+                    if SwipeGesturePolicy.shouldCommitDownwardDismiss(
+                        translation: value.translation.height,
+                        predicted: value.predictedEndTranslation.height
                     ) {
                         session.lowerKeyboard()
                     }

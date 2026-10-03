@@ -167,26 +167,33 @@ struct ListenControllerView: View {
     }
 }
 
-/// Reports the live position of `sessionID` to `onProgress` as it moves. An empty view of its
-/// own: the position changes several times a second while playing, and only this needs it.
+/// Reports the live position of `sessionID` to `onProgress` when it is worth saving: a new
+/// paragraph, playback stopping, or the app leaving the foreground. Not on every tick (the
+/// offset moves several times a second while playing); the reader also saves when it closes,
+/// and seeks / skips report right away. An empty view of its own, so it doesn't redraw anything.
 private struct ListenProgressReporter: View {
     let speech: SpeechController
     let sessionID: UUID
     let onProgress: (Int, Int) -> Void
 
-    private struct Position: Equatable {
-        let paragraph: Int
-        let utf16Offset: Int
-    }
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Color.clear
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
-            .onChange(of: Position(paragraph: speech.currentParagraphIndex, utf16Offset: speech.spokenUTF16Offset)) { _, position in
-                guard speech.activeSessionID == sessionID else { return }
-                onProgress(position.paragraph, position.utf16Offset)
+            .onChange(of: speech.currentParagraphIndex) { report() }
+            .onChange(of: speech.isPlaying) { _, playing in
+                if !playing { report() }
             }
+            .onChange(of: scenePhase) { _, phase in
+                if phase != .active { report() }
+            }
+    }
+
+    private func report() {
+        guard speech.activeSessionID == sessionID else { return }
+        onProgress(speech.currentParagraphIndex, speech.spokenUTF16Offset)
     }
 }
 

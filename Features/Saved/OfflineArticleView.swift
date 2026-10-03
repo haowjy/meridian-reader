@@ -1,9 +1,10 @@
 import SwiftUI
 import SwiftData
 
-/// Library entry point into the shared `ArticleReaderScreen` (‹ back chevron: a push inside the
-/// library surface). Takes the article id (not the model) and snapshots it once, so Unsave from the
-/// reader keeps the screen and playback alive even after the SwiftData row is deleted.
+/// Library entry point into the shared `ArticleReaderScreen` (a push inside the library surface;
+/// its back control and the edge swipe pop). Takes the article id (not the model) and snapshots it
+/// once, so Unsave from the reader keeps the screen and playback alive even after the SwiftData
+/// row is deleted.
 struct OfflineArticleView: View {
     let articleID: UUID
     @Environment(\.speechController) private var speech
@@ -28,8 +29,10 @@ struct OfflineArticleView: View {
             }
         }
         // Keep the system bar (stable across push/pop and the edge swipe); the reader puts its
-        // own ‹ row in it. Swipe-back with the back button hidden comes from `SwipeBackSupport`.
+        // title row in it. With the system back button hidden, the edge swipe comes from
+        // `edgeSwipeBack()`.
         .navigationBarBackButtonHidden(true)
+        .edgeSwipeBack()
         .navigationBarTitleDisplayMode(.inline)
         // Bar material / visibility: set by the reader (clear while its chrome is hidden).
         .task(id: articleID) {

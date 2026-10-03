@@ -2,8 +2,8 @@ import XCTest
 import SwiftUI
 @testable import Reader
 
-/// Swipe-to-dismiss rules used by the ⋯ menu panel: axis fixed by the first movement,
-/// rubber-banded upward drags, and the release threshold.
+/// Swipe-to-dismiss rules shared by the ⋯ menu panel and the reader overlay's pull-down: axis
+/// fixed by the first movement, rubber-banded upward drags, and the release threshold.
 final class SwipeGesturePolicyTests: XCTestCase {
     func testFirstMovementDecidesTheAxis() {
         XCTAssertEqual(SwipeGesturePolicy.axis(ofFirstMovement: CGSize(width: 4, height: 14)), .vertical)

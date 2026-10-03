@@ -1,22 +1,24 @@
 import SwiftUI
 import SwiftData
 
-/// Where a reader was opened from. Decides what "back" means; independent of how the reader is
-/// presented (`ReaderPresentation`).
+/// Where a reader was opened from: what its back control (bottom-left, beside the scrubber)
+/// returns to. Independent of how the reader is presented (`ReaderPresentation`).
 enum ReaderOrigin: Equatable {
-    /// Extracted from the page loaded in the browser (address-bar reader icon, ⋯ → Reader).
-    case page(URL)
-    /// A saved article opened from the library list.
+    /// Over a web page in the browser: the address-bar reader icon, ⋯ → Reader, or the mini
+    /// player while a page is loaded. Back reveals that page as it was.
+    case page
+    /// Over the start page: a start-page row, Continue listening, the mini player there, crash
+    /// resume. Back shows the start page.
+    case startPage
+    /// A saved article pushed from the library list. Back pops to the list.
     case library
-    /// Opened on its own: a start-page row, Continue listening, the mini player, crash resume.
-    case standalone
 }
 
 /// How the reader screen is shown.
 enum ReaderPresentation: Equatable {
-    /// Full-screen over the browser, closed with ✕ or a pull-down on its top row.
+    /// Full-screen over the browser; its back control or a pull-down on its top row closes it.
     case overlay
-    /// Pushed inside the library's navigation stack, closed with ‹ or the edge swipe.
+    /// Pushed inside the library's navigation stack; its back control or the edge swipe pops it.
     case pushed
 }
 
@@ -62,9 +64,9 @@ final class ShellState {
     enum Surface {
         /// The web page or the start page.
         case browse
-        /// The ✕ reader over the browser.
+        /// The reader overlay over the browser.
         case reader(ReaderArticle, origin: ReaderOrigin)
-        /// The library list; `path` is its navigation stack (pushed ‹ readers).
+        /// The library list; `path` is its navigation stack (pushed readers).
         case library(path: [UUID])
     }
 
@@ -82,11 +84,9 @@ final class ShellState {
     /// listening session. Saved articles reopen from the store instead.
     private(set) var nowPlayingArticle: ReaderArticle?
 
-    static let readerFade = Animation.easeInOut(duration: 0.2)
-
     // MARK: - Surface queries
 
-    /// The ✕ reader's article, when it is the surface.
+    /// The reader overlay's article, when it is the surface.
     var readerArticle: ReaderArticle? {
         if case .reader(let article, _) = surface { article } else { nil }
     }
@@ -108,11 +108,14 @@ final class ShellState {
 
     // MARK: - Surfaces
 
-    func showReader(_ article: ReaderArticle, origin: ReaderOrigin) {
-        withAnimation(Self.readerFade) { surface = .reader(article, origin: origin) }
+    /// The reader overlay on `article`. It returns to the browser as it is underneath: the page
+    /// that's loaded, or the start page.
+    func showReader(_ article: ReaderArticle) {
+        let origin: ReaderOrigin = web.hasPage ? .page : .startPage
+        withAnimation(Motion.standard) { surface = .reader(article, origin: origin) }
     }
 
-    /// Updates the ✕ reader's article in place (favicon arrived, listen blocks built, Save
+    /// Updates the reader overlay's article in place (favicon arrived, listen blocks built, Save
     /// rekeyed it), if that article is still the one shown.
     func updateReader(id: UUID, _ change: (inout ReaderArticle) -> Void) {
         guard case .reader(var article, let origin) = surface, article.id == id else { return }
@@ -120,10 +123,10 @@ final class ShellState {
         surface = .reader(article, origin: origin)
     }
 
-    /// ✕ / pull-down. Playback keeps going; the mini player takes over.
+    /// The reader's back control / pull-down. Playback keeps going; the mini player takes over.
     func hideReader() {
         guard case .reader = surface else { return }
-        withAnimation(Self.readerFade) { surface = .browse }
+        withAnimation(Motion.standard) { surface = .browse }
     }
 
     func openLibrary() {
@@ -208,8 +211,8 @@ final class ShellState {
 
     // MARK: - Saved articles
 
-    /// A saved article in the ✕ reader (start page row, mini player, crash resume). Shows it as
-    /// soon as the row is read; older saves build their listen blocks afterwards.
+    /// A saved article in the reader overlay (start page row, mini player, crash resume). Shows it
+    /// as soon as the row is read; older saves build their listen blocks afterwards.
     func openSaved(_ id: UUID, in context: ModelContext) {
         Task {
             var shown = false
@@ -218,7 +221,7 @@ final class ShellState {
                     updateReader(id: article.id) { $0 = article }
                 } else {
                     shown = true
-                    showReader(article, origin: .standalone)
+                    showReader(article)
                 }
             }
         }
@@ -229,7 +232,7 @@ final class ShellState {
         if ArticleLibrary.savedArticle(id: id, in: context) != nil {
             openSaved(id, in: context)
         } else if let article = nowPlayingArticle, article.id == id {
-            showReader(article, origin: .standalone)
+            showReader(article)
         }
     }
 

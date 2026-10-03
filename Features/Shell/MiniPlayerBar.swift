@@ -25,7 +25,7 @@ struct MiniPlayerBar: View {
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                         .accessibilityIdentifier("miniPlayerTitle")
-                    ThinProgressBar(value: progress)
+                    MiniPlayerProgress(speech: speech)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
@@ -44,7 +44,7 @@ struct MiniPlayerBar: View {
                         .font(.title3)
                         .foregroundStyle(.primary)
                         .frame(width: Self.playSize, height: Self.playSize)
-                        .contentShape(Rectangle())
+                        .tapTarget(Self.playSize)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(playing ? "Pause" : "Play")
@@ -62,11 +62,14 @@ struct MiniPlayerBar: View {
             .accessibilityIdentifier("miniPlayer")
         }
     }
+}
 
-    /// Text-length weighted, like the scrubber.
-    private var progress: Double {
-        let total = (speech.document.joinedText as NSString).length
-        guard total > 0 else { return 0 }
-        return min(1, Double(speech.spokenUTF16Offset) / Double(total))
+/// The bar's fill, text-length weighted like the scrubber. Its own view: it reads the live offset,
+/// which moves several times a second while playing, so only the fill redraws.
+private struct MiniPlayerProgress: View {
+    let speech: SpeechController
+
+    var body: some View {
+        ThinProgressBar(value: speech.document.progress(atUTF16Offset: speech.spokenUTF16Offset))
     }
 }

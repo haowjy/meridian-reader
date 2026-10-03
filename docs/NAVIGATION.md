@@ -3,35 +3,50 @@
 **If a screen shows ‹, you can swipe back from the left edge. If it shows ✕, you can pull it down.**
 Either gesture must do exactly what tapping the button does.
 
+The reader is the one screen without a ‹ or ✕ at the top: its close control is the back button at
+the bottom left (thumb reach). The same gestures still apply — the pushed reader swipes back, the
+overlay reader pulls down — and do exactly what that button does.
+
 | Button | Presentation | Gesture | Provided by |
 |--------|--------------|---------|-------------|
-| ‹ | real push in a `NavigationStack` (`NavigationLink` / `navigationDestination`) | left-edge swipe-back | `App/SwipeBackSupport.swift` (automatic) |
+| ‹ | real push in a `NavigationStack` (`NavigationLink` / `navigationDestination`) | left-edge swipe-back | UIKit with the system back button; `.edgeSwipeBack()` (`App/SwipeBackSupport.swift`) with a custom one |
 | ✕ | modal: `.sheet`, or an in-place overlay like Browse Reader Mode | swipe down | `.sheet` does it natively; overlays implement it (see below) |
 
 ## ‹ = push + swipe-back
 
 - Never show a ‹ screen with `.sheet` / `.fullScreenCover`; push it.
-- A custom ‹ is fine: hide only the system back button (`.navigationBarBackButtonHidden(true)`)
-  and put your row in the bar (`ToolbarItem(placement: .principal)`). SwiftUI/UIKit normally
-  disable swipe-back then; `SwipeBackSupport` (a `UINavigationController` extension) re-enables
-  it app-wide: the edge gesture begins only at stack depth > 1 and not mid-transition, and scroll
-  views yield to it only at the very left edge.
+- A custom back control is fine: hide only the system back button
+  (`.navigationBarBackButtonHidden(true)`), put your row in the bar
+  (`ToolbarItem(placement: .principal)`), and add `.edgeSwipeBack()` to the screen. UIKit disables
+  swipe-back once the back button is hidden; `.edgeSwipeBack()` re-enables it for that screen only:
+  the edge gesture begins only at stack depth > 1 and not mid-transition, and scroll views yield
+  to it only at the very left edge. iOS 26's full-width content swipe is off on that screen, so
+  sideways drags (the reader's scrubber, text selection) never pop it.
 - **Don't hide the whole navigation bar on a pushed screen** (`.toolbar(.hidden, for: .navigationBar)`)
   when the screen below shows one. The bar is shared by the stack, so mid-swipe the parent's bar
   (large title, search field, toolbar buttons) pops in full-width on top of the page you're leaving.
   Keep the bar visible and stable; that gives the standard push/pop look.
-- Do **not** add per-screen swipe-back hacks. Push with `NavigationStack` and it just works.
-- The custom ‹ should just `dismiss()`; put "leaving" side effects in `onDisappear` so the swipe
-  and the tap stay identical (the Saved reader persists progress there; playback keeps going).
+- Don't build swipe-back by hand. Push with `NavigationStack`; with the system back button it just
+  works, with a custom one add `.edgeSwipeBack()`.
+- A custom back control should just `dismiss()`; put "leaving" side effects in `onDisappear` so
+  the swipe and the tap stay identical (the Saved reader persists progress there; playback keeps
+  going). While it plays, the reader saves its spot on each new paragraph, on pause and when the
+  app leaves the foreground, not on every tick.
 
 ## ✕ = modal + swipe-down
 
 - `.sheet`: swipe-down is built in (show the grabber). A Done/Cancel/✕ button is optional.
 - The browser's Reader Mode is an in-place overlay (not a sheet or `fullScreenCover`): pulling its
-  top bar down calls the same close action as ✕. Closing never stops audio: if something is
+  top bar down calls the same close action as its back control. Closing never stops audio: if something is
   loaded, the mini player takes over. The drag starts only on the top bar, so it never competes
   with scrolling, text selection or Jump taps, and the app never autoscrolls. The reader's bars
-  never hide (Nav H), so the top row is always there to pull.
+  never hide, so the top row is always there to pull.
+- It moves like a system sheet: it rises from the bottom and leaves the same way. The browser
+  stays as it is underneath (page or start page, with its toolbar), so the pull reveals where
+  you're going back to: the reader follows the finger (up only with rubber-band resistance; a
+  drag that starts sideways leaves it in place), shrinks slightly, and the dim behind it lifts.
+  Released far enough or flung, it carries on off the bottom at the finger's speed; otherwise it
+  springs back. Under Reduce Motion it fades in and out instead.
 
 ## The app is a browser (no tab bar)
 
@@ -49,7 +64,11 @@ the bottom of the screen (`Features/Shell/BottomChrome.swift`): the band (`botto
 12 pt margins, 8 pt top padding, system bar material through the home indicator), the field
 capsule (`bottomChromeField`: 44 pt, secondary-background capsule; 36 pt body-size controls
 inside, like 🎤), and the toolbar row (`BottomToolbarLayout` + `toolbarIconFrame`: 44 pt, plain
-19 pt glyphs). **Five equal slots, evenly spaced, one grid for both rows (Nav I):** Browse is
+19 pt glyphs). With larger text the capsule and its controls grow (up to 1.5×) instead of
+clipping; toolbar glyphs keep their size and show in the large content viewer on long press.
+Every control takes taps in at least 44 × 44 pt (`tapTarget`), whatever its drawn size: the
+address-field 📄, the ✕ beside a search field, the reader's back control, the mini player's
+play/pause, the capsule's 36 pt controls. **Five equal slots, evenly spaced, one grid for both rows (Nav I):** Browse is
 `[‹][›][Search][Library][⋯]`, the Library surface `[ ][ ][Search][Browser][⋯]`, the reader
 `[1×][⏮][▶︎][⏭][⋯]`. Slot 4 is the Library↔Browser swap (📚 on Browse, 🌐 on Library — same
 muscle memory as the morph-menu Reader↔Website near ⋯). Leading items fill slots 1, 2, 3…; the
@@ -65,7 +84,7 @@ grows from the same spot. ⋯ is never replaced. The mini player's play/pause is
 - No Reader button in the toolbar. The **reader icon** (📄, like Safari's page-format icon) sits
   at the leading edge of the address field only when the page is readable (the same Mozilla
   `isProbablyReaderable` check extraction uses, run after each load / same-document URL change);
-  otherwise the lock / search glyph is there. Tapping it opens the ✕ Reader Mode overlay (a
+  otherwise the lock / search glyph is there. Tapping it opens the Reader Mode overlay (a
   spinner replaces it while the article is extracted).
 - **⋯** opens a Safari-style menu panel that grows out of the button (covers the ⋯, no arrow):
   rows *New search, Save article / Remove from Saved (🔖),
@@ -80,14 +99,16 @@ grows from the same spot. ⋯ is never replaced. The mini player's play/pause is
   `MenuContext`) is not a popover: it is placed so the bottom-right button's icon (Reader,
   or Website in the reader — marked with `morphMenuFocus`) sits slightly up and to the left of
   the ⋯ glyph (Safari's feel: **12 pt left, 10 pt up**), not dead-on on top of it (UI tests check
-  the offset within 1 pt on Browse, the ✕ reader and the ‹ reader). It covers
+  the offset within 1 pt on Browse, the reader overlay and the pushed reader). It covers
   the button and the toolbar around it, so the bottom row lands under the thumb, and grows out of
-  that point (scales up from the button's size; content fades / un-blurs in) while the ⋯ glyph
+  that point (the glass grows from the button's circle to the panel's frame and corners, never
+  stretched; the rows fade / un-blur in) while the ⋯ glyph
   fades, and the rest of the screen dims. Tapping the dimmed area,
   swiping the panel down, or Escape (VoiceOver scrub / hardware Esc) collapses it back into the
-  button. While dragged, the panel follows the finger down and resists going up (rubber band);
-  the drag's axis is fixed by its first movement, so a horizontal drag leaves the panel in place
-  and a drag that drifts sideways doesn't make it jump. Light glass on iOS 26 (thick material
+  button (a swipe-down collapses it at the release speed). While dragged, the panel follows the
+  finger down and resists going up (rubber band); the drag's axis is fixed by its first movement,
+  so a horizontal drag leaves the panel in place and a drag that drifts sideways doesn't make it
+  jump. The reader overlay's pull-down follows the same rules. Light glass on iOS 26 (thick material
   before). Debug › is a native `Menu`.
 - **Bookmarks vs Saved**: a *bookmark* is just a site link (URL, title, favicon — e.g. a story's
   index page), kept in its own small JSON store (`BookmarkStore`,
@@ -96,7 +117,7 @@ grows from the same spot. ⋯ is never replaced. The mini player's play/pause is
   saving never bookmarks. Star = bookmark, 🔖 = saved article.
 - **Mini player**: title, thin progress, play/pause (centered over the ⋯ slot). Shown whenever an article is loaded for
   playback and the reader isn't on screen (hidden while typing an address). Tap → the reader
-  (✕ overlay); long-press → Stop listening.
+  overlay; long-press → Stop listening.
 
 **Start page** (no page loaded), Safari-style:
 1. **Bookmarks**: a Favorites-style icon grid (favicon, or a coloured letter tile when there is
@@ -105,7 +126,7 @@ grows from the same spot. ⋯ is never replaced. The mini player's play/pause is
    the page doesn't move as listening progress changes.
 2. **Continue listening**: saved articles part-way through (listened and not finished; older saves
    with a playhead past the start), most recently listened first, with a thin progress bar and
-   "N min left". Up to 3; Show All opens the library. Tap → the ✕ reader at that spot.
+   "N min left". Up to 3; Show All opens the library. Tap → the reader overlay at that spot.
 3. **Saved**: the newest kept articles not already above (up to 4), Show All → the library.
 4. **Recent Searches** (local, newest first, Clear).
 
@@ -117,7 +138,7 @@ reorder/delete; grabber, medium/large.
 **Library surface** (`LibrarySurface` / `SavedListView`): every kept article. Uses the **same
 bottom chrome shell** as Browse / Reader (search field capsule + five-slot toolbar). Slot 4
 shows 🌐 Browser to swap back (restores the prior browse surface). Opening an article pushes the
-‹ reader inside the surface (swipe back from the left edge); the shared library chrome hides
+reader inside the surface (its back control or a swipe from the left edge pops it); the shared library chrome hides
 while the reader draws its own. The row's play button plays without opening. The library's ⋯ is
 its own menu — *Voice settings*, then big buttons **Bookmarks**, **History**, **Browser** — and
 nothing in it acts on the page under the library. Bookmarks and History close the library
@@ -133,8 +154,9 @@ keyboard with a round ✕; swipe-down / scroll lowers the keyboard but **stays i
 - A full-bleed **Recent Searches** / suggestions layer covers the page (Safari): header + Clear All,
   magnifying-glass rows, and an ↑← control that fills the term into the field without navigating.
 - ✕ exits search mode: keyboard down, the page's address restored.
-- Swipe down (on the search layer; a long scrolled list only when pulled from its top) lowers the
-  keyboard / field but **stays in search mode** — typed text and ✕ remain; tap the field to type again.
+- Scrolling the Recent Searches / suggestions list drags the keyboard down with the finger
+  (interactive, like Safari); with nothing listed, a swipe down on the layer lowers it. Either way
+  it **stays in search mode** — typed text and ✕ remain; tap the field to type again.
 - Focusing selects the whole address, so typing replaces it. While the field is empty or still
   shows the untouched address, **Recent Searches** (local, newest first, Clear All) are shown;
   otherwise Recents / Saved / Google suggestions.
@@ -149,11 +171,11 @@ keyboard with a round ✕; swipe-down / scroll lowers the keyboard but **stays i
 
 ```
 ┌ bar ─────────────────────────────────────────┐
-│ ( ✕ or ‹           title                   ) │  ← title in the field capsule (✕: own band; ‹: nav bar)
+│ (                  title                   ) │  ← title in the field capsule (overlay: own band; pushed: nav bar)
 └──────────────────────────────────────────────┘
 …  article: edge to edge, the current paragraph softly tinted  …
 ┌ bar ─────────────────────────────────────────┐
-│ [🌐/📚] ( ━━━━━●━━━━━━░░░░░──  ☝︎  🔖 ) │  ← back-to-source left of scrubber pill; pill = address capsule
+│ [🌐/🏠/📚] ( ━━━━━●━━━━░░░░──  ☝︎  🔖 ) │  ← back control left of the scrubber pill; pill = address capsule
 │  [1×]   [⏮]    [▶︎]    [⏭]    [ ⋯ ]            │  ← listen row = the browser's 5-slot toolbar row
 └──────────────────────────────────── home indicator ┘
 ```
@@ -164,22 +186,33 @@ the browser's address field + toolbar (see "One bottom-chrome design" above): th
 coloured like the mic (secondary; accent when on / saved); the listen row uses the same toolbar
 layout and 19 pt plain glyphs as `[‹][›][Search][ ][⋯]` (▶︎ is a plain `play.fill`, no big
 circle), with ⋯ in the same slot 5 as the browser's ⋯ (a UI test checks the frames match). Same band,
-margins and position above the home indicator. The ✕ top row mirrors it at the top: the title in
-a field capsule on the same bar material; the ‹ row sits in the navigation bar, same capsule and
-bar material.
+margins and position above the home indicator. The overlay's top row mirrors it at the top: the
+title in a field capsule on the same bar material; the pushed reader's row sits in the navigation
+bar, same capsule and bar material.
 Against Browse's `[‹][›][Search][Library][⋯]` (same five-slot grid, Nav I): 1× under ‹, ⏮ under ›,
-▶︎ under Search, ⏭ under Library, ⋯ under ⋯. A **back to Website / back to Library** control sits
-left of the scrubber pill (🌐 when opened from Browse, 📚 when opened from the library).
+▶︎ under Search, ⏭ under Library, ⋯ under ⋯.
+
+**The back control** (left of the scrubber pill, within thumb reach) is the reader's one close
+control; there is no ✕ or ‹ at the top. It goes back to where the reader was opened from
+(`ReaderOrigin`) and its icon and label say which:
+- 🌐 **Back to Website**: opened over a web page (address-bar reader icon, ⋯ → Reader, the mini
+  player while a page is loaded). The page is revealed as it was.
+- 🏠 **Back to Start Page**: opened over the start page (a start-page row, Continue listening, the
+  mini player there, crash resume).
+- 📚 **Back to Library**: pushed from the library list.
+
+Pulling the overlay's top row down, and the pushed reader's left-edge swipe, do the same.
 
 **The bars never hide (Nav H).** Like the browser's search bar / toolbar, the top row and the
 bottom controls stay put: no hiding on scroll, no tap-to-toggle, no progress line, and the status
 bar stays. (Nav F's auto-hide was removed.) The text runs edge to edge under the bars, but the
 scroll content is inset by their height (native `contentInset` on the web view,
 `contentMargins` on the plain-text fallback), so the first line starts below the top row and
-the last line scrolls clear of the bottom controls (UI tests check both). The ‹ reader's
+the last line scrolls clear of the bottom controls (UI tests check both). The pushed reader's
 navigation bar turns clear only while the ⋯ menu dims the page. The reader never autoscrolls on
 its own (audio highlighting doesn't move the text; following your scrub is the one exception).
-Swipe-down-to-close (✕, from the top row) and left-edge swipe-back (‹) are unchanged. Code:
+Pull-down-to-close (overlay, from the top row) and left-edge swipe-back (pushed reader) work as
+above. Code:
 `ReaderChrome.swift` (text insets), `BottomChrome.swift` (shared look), `ArticleListenSurface`
 (edge-to-edge layout).
 
@@ -187,7 +220,7 @@ Swipe-down-to-close (✕, from the top row) and left-edge swipe-back (‹) are u
 - **Status notes** (Nav J): "Preparing next…", Apple-fallback / language notes, and the
   developer-only Debug chip sit **above** the scrubber so appearing text never pushes it when you
   skip.
-- **Scrubber** (Nav I: sentence-precise): fill = progress (weighted by text length; with a local
+- **Scrubber** (sentence-precise): fill = progress (weighted by text length; with a local
   voice the thumb now moves smoothly inside a paragraph, estimated from the player's time); the
   lighter fill ahead of it is audio already rendered (local voices; Apple speaks live so there is
   none). This lighter fill replaced the old gray "not ready" paragraph cards; nothing per-paragraph
@@ -196,10 +229,16 @@ Swipe-down-to-close (✕, from the top row) and left-edge swipe-back (‹) are u
     the track and it jumps there. The touch area is the whole capsule height plus its rounded
     leading end.
   - **Fine scrubbing**: slide your finger up away from the track to slow the thumb — < 50 pt 1×,
-    50–110 pt ½ ("Half-speed scrubbing"), 110–170 pt ¼, above that 0.1× ("Fine scrubbing");
-    changing speed re-anchors, so the thumb never jumps.
-  - **Snaps to sentences**: a light haptic ticks at every sentence start; the bubble (a card above
-    the capsule) shows "¶ N of M · sentence k of n · <speed>" and the sentence's first words.
+    50–110 pt ½, 110–170 pt ¼, above that 0.1× ("Fine scrubbing"); changing speed re-anchors, so
+    the thumb never jumps, with a light tap.
+  - **Snaps to sentences**: release lands on a sentence start. Haptics tick only on boundaries
+    you can feel apart: a sentence or paragraph ticks when it is at least 7 pt wide on screen at
+    the current speed, so at 1× a long article ticks on paragraphs and the finer speeds tick each
+    sentence; either end of the track gives a firmer tick.
+  - **The bubble** (a card as wide as the scrub band) shows the speed as a chip (½×, ¼×, Fine),
+    "¶ N of M · sentence k of n" and the sentence's first words. It sits just above the capsule
+    and, once the finger slides up, rides 44 pt above the finger so the thumb never covers it; at
+    large text sizes it wraps rather than truncating.
   - **Release** seeks to the start of the sentence under the thumb, not the paragraph start:
     playing keeps playing from that sentence; paused stays paused there (Play resumes from it);
     not loaded just moves where Play starts (and the stored offset of a saved article resumes at
@@ -223,10 +262,11 @@ Swipe-down-to-close (✕, from the top row) and left-edge swipe-back (‹) are u
   Share, Debug* (developer options only); bottom row **Bookmarks / Saved / History / Website** — in reader mode the Reader
   slot becomes 🌐 **Website** (same spot; its icon is 12 pt left / 10 pt up of ⋯, Nav J). Website = reader off:
   it always goes to the article's own page in the browser, wherever the reader was opened from.
-  The ✕ reader over that page just reveals it (no reload); from the library (the library closes
-  first), the start page, Continue listening or the mini player the page loads in the browser.
+  The reader overlay over that page just reveals it (no reload); from the library (the library
+  closes first), the start page, Continue listening or the mini player the page loads in the
+  browser.
   Playback never stops — the mini player takes over.
-  In the ‹ reader the dim covers the navigation bar too; a tap there closes the menu.
+  In the pushed reader the dim covers the navigation bar too; a tap there closes the menu.
   Voice settings (speed / voice / engine — what the gear used to hold) opens as a sheet. There
   is no gear on the listen bar.
 
@@ -257,9 +297,9 @@ confirmation). UI tests force it with `-reader.developerOptions NO|YES`.
 | ⋯ → History (`BrowseHistoryView`) | — (grabber) | `.sheet`, medium/large |
 | ⋯ → Bookmarks / start page Show All (`BookmarksListView`) | — (grabber) | `.sheet`, medium/large |
 | ⋯ → Saved / toolbar Library / start page Show All → library (`LibrarySurface`) | 🌐 Browser slot | in-place surface (shared bottom chrome); leave restores browse |
-| Library → reader (`OfflineArticleView` → `ArticleReaderScreen`, row in the transparent nav bar, text full-bleed under it) | ‹ custom | push inside the surface (`navigationDestination(for: UUID.self)`) |
+| Library → reader (`OfflineArticleView` → `ArticleReaderScreen`, title row in the nav bar, text full-bleed under it) | 📚 back control, bottom left | push inside the surface (`navigationDestination(for: UUID.self)`); edge swipe-back |
 | Library → Choose voice (`SpeechSettingsView`) | ‹ system | push (`NavigationLink`) |
-| Browser → address-field reader icon / ⋯ Open in Reader / start page row / mini player (`ArticleReaderScreen`) | ✕ custom | full-screen in-place overlay (covers the whole browser, edge to edge); pull top row down |
+| Browser → address-field reader icon / ⋯ Open in Reader / start page row / mini player (`ArticleReaderScreen`) | 🌐 / 🏠 back control, bottom left | full-screen in-place overlay (covers the whole browser, edge to edge); pull top row down |
 | Listen bar ⋯ → Voice settings (`SpeechSettingsView`) | Done | `.sheet` |
 | Listen debug panel | Done | `.sheet` |
 | Speed picker | — | popover |
