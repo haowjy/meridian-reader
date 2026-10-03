@@ -389,7 +389,7 @@ struct ReaderBackButton: View {
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 40, height: 40)
                 .background(Color(.secondarySystemBackground), in: Circle())
-                .contentShape(Circle())
+                .tapTarget(40)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(origin.backLabel)

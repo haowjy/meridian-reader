@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// The address search session's full-bleed layer over the page (Safari): Recent Searches while
-/// the field is untouched, otherwise suggestions (history, saved articles, Google). Swipe down
-/// lowers the keyboard but keeps the session; a long list counts the pull only from its top.
+/// the field is untouched, otherwise suggestions (history, saved articles, Google). Scrolling the
+/// list drags the keyboard down with the finger (the system's interactive dismissal); with
+/// nothing to list, a swipe down lowers it. Either way the session stays.
 struct SearchSessionOverlay: View {
     let session: SearchSession
     let recentSearches: [String]
@@ -13,7 +14,6 @@ struct SearchSessionOverlay: View {
     var onClearRecentSearches: () -> Void
 
     @State private var google: [String] = []
-    @State private var atTop = true
 
     /// Live Google suggestions; off in UI tests so results don't depend on the network.
     private static let fetchesGoogle = LaunchOptions.current.fetchesSuggestions
@@ -45,10 +45,8 @@ struct SearchSessionOverlay: View {
                         }
                     }
                     .padding(.top, 4)
-                    .onGeometryChange(for: Bool.self) { $0.frame(in: .scrollView).minY >= -1 } action: { atTop = $0 }
                 }
-                .scrollDismissesKeyboard(.never)
-                .lowersKeyboardOnPullDown(session, isAtTop: atTop)
+                .scrollDismissesKeyboard(.interactively)
             } else {
                 // Nothing to list yet: the empty layer still takes the pull-down.
                 Color.clear

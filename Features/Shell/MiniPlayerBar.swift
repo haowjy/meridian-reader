@@ -44,7 +44,7 @@ struct MiniPlayerBar: View {
                         .font(.title3)
                         .foregroundStyle(.primary)
                         .frame(width: Self.playSize, height: Self.playSize)
-                        .contentShape(Rectangle())
+                        .tapTarget(Self.playSize)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(playing ? "Pause" : "Play")

@@ -98,7 +98,7 @@ struct BrowserBottomChrome: View {
                     .font(.body)
                     .foregroundStyle(Color.accentColor)
                     .frame(width: 30, height: 30)
-                    .contentShape(Rectangle())
+                    .tapTarget(30)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Open in Reader")

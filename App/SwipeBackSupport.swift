@@ -16,12 +16,6 @@ enum SwipeGesturePolicy {
     private static let horizontalCommitDistance: CGFloat = 54
     private static let horizontalCommitPrediction: CGFloat = 140
 
-    static func shouldCommitVerticalDismiss(translation: CGSize, predicted: CGSize) -> Bool {
-        guard translation.height > 0,
-              translation.height > abs(translation.width) * axisDominance else { return false }
-        return shouldCommitDownwardDismiss(translation: translation.height, predicted: predicted.height)
-    }
-
     /// The axis a drag moves along, decided once from its first movement and kept for the rest of
     /// the gesture, so a drag that drifts diagonally never flips between following and not.
     static func axis(ofFirstMovement translation: CGSize) -> Axis {

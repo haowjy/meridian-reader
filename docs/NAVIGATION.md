@@ -60,7 +60,11 @@ the bottom of the screen (`Features/Shell/BottomChrome.swift`): the band (`botto
 12 pt margins, 8 pt top padding, system bar material through the home indicator), the field
 capsule (`bottomChromeField`: 44 pt, secondary-background capsule; 36 pt body-size controls
 inside, like 🎤), and the toolbar row (`BottomToolbarLayout` + `toolbarIconFrame`: 44 pt, plain
-19 pt glyphs). **Five equal slots, evenly spaced, one grid for both rows (Nav I):** Browse is
+19 pt glyphs). With larger text the capsule and its controls grow (up to 1.5×) instead of
+clipping; toolbar glyphs keep their size and show in the large content viewer on long press.
+Every control takes taps in at least 44 × 44 pt (`tapTarget`), whatever its drawn size: the
+address-field 📄, the ✕ beside a search field, the reader's back control, the mini player's
+play/pause, the capsule's 36 pt controls. **Five equal slots, evenly spaced, one grid for both rows (Nav I):** Browse is
 `[‹][›][Search][Library][⋯]`, the Library surface `[ ][ ][Search][Browser][⋯]`, the reader
 `[1×][⏮][▶︎][⏭][⋯]`. Slot 4 is the Library↔Browser swap (📚 on Browse, 🌐 on Library — same
 muscle memory as the morph-menu Reader↔Website near ⋯). Leading items fill slots 1, 2, 3…; the
@@ -146,8 +150,9 @@ keyboard with a round ✕; swipe-down / scroll lowers the keyboard but **stays i
 - A full-bleed **Recent Searches** / suggestions layer covers the page (Safari): header + Clear All,
   magnifying-glass rows, and an ↑← control that fills the term into the field without navigating.
 - ✕ exits search mode: keyboard down, the page's address restored.
-- Swipe down (on the search layer; a long scrolled list only when pulled from its top) lowers the
-  keyboard / field but **stays in search mode** — typed text and ✕ remain; tap the field to type again.
+- Scrolling the Recent Searches / suggestions list drags the keyboard down with the finger
+  (interactive, like Safari); with nothing listed, a swipe down on the layer lowers it. Either way
+  it **stays in search mode** — typed text and ✕ remain; tap the field to type again.
 - Focusing selects the whole address, so typing replaces it. While the field is empty or still
   shows the untouched address, **Recent Searches** (local, newest first, Clear All) are shown;
   otherwise Recents / Saved / Google suggestions.
