@@ -24,11 +24,17 @@ enum Motion {
     }
 
     /// A release speed as a spring's initial velocity: fractions of the remaining distance per
-    /// second. Movement away from the target (or no distance left) seeds nothing.
+    /// second, at most `maxReleaseVelocity`. Movement away from the target, no distance left or a
+    /// speed the touch system couldn't measure (NaN) seeds nothing. The cap keeps a flick (or an
+    /// infinite speed from two touches with one timestamp) from overshooting wildly, or from
+    /// giving the spring a velocity it can never settle from.
     static func releaseVelocity(_ velocity: CGFloat, over distance: CGFloat) -> Double {
         guard distance > 1, velocity > 0 else { return 0 }
-        return Double(velocity / distance)
+        return min(Double(velocity / distance), maxReleaseVelocity)
     }
+
+    /// Fastest release `dismiss(velocity:distance:)` honours: the whole distance in 1/8 s.
+    static let maxReleaseVelocity = 8.0
 }
 
 extension AnyTransition {

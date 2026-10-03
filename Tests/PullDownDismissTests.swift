@@ -8,6 +8,9 @@ final class PullDownDismissTests: XCTestCase {
         XCTAssertEqual(Motion.releaseVelocity(1600, over: 800), 2)
         XCTAssertEqual(Motion.releaseVelocity(-500, over: 800), 0, "moving back up seeds nothing")
         XCTAssertEqual(Motion.releaseVelocity(1600, over: 0), 0, "nothing left to cover")
+        XCTAssertEqual(Motion.releaseVelocity(100_000, over: 400), Motion.maxReleaseVelocity, "a flick is capped")
+        XCTAssertEqual(Motion.releaseVelocity(.infinity, over: 400), Motion.maxReleaseVelocity, "never infinite")
+        XCTAssertEqual(Motion.releaseVelocity(.nan, over: 400), 0, "unmeasured speed seeds nothing")
     }
 
     func testAtRestTheReaderIsFullSizeOverTheDim() {
