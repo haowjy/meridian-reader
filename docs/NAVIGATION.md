@@ -36,7 +36,13 @@ overlay reader pulls down — and do exactly what that button does.
   top bar down calls the same close action as its back control. Closing never stops audio: if something is
   loaded, the mini player takes over. The drag starts only on the top bar, so it never competes
   with scrolling, text selection or Jump taps, and the app never autoscrolls. The reader's bars
-  never hide (Nav H), so the top row is always there to pull.
+  never hide, so the top row is always there to pull.
+- It moves like a system sheet: it rises from the bottom and leaves the same way. The browser
+  stays as it is underneath (page or start page, with its toolbar), so the pull reveals where
+  you're going back to: the reader follows the finger (up only with rubber-band resistance; a
+  drag that starts sideways leaves it in place), shrinks slightly, and the dim behind it lifts.
+  Released far enough or flung, it carries on off the bottom at the finger's speed; otherwise it
+  springs back. Under Reduce Motion it fades in and out instead.
 
 ## The app is a browser (no tab bar)
 
@@ -90,9 +96,10 @@ grows from the same spot. ⋯ is never replaced. The mini player's play/pause is
   that point (scales up from the button's size; content fades / un-blurs in) while the ⋯ glyph
   fades, and the rest of the screen dims. Tapping the dimmed area,
   swiping the panel down, or Escape (VoiceOver scrub / hardware Esc) collapses it back into the
-  button. While dragged, the panel follows the finger down and resists going up (rubber band);
-  the drag's axis is fixed by its first movement, so a horizontal drag leaves the panel in place
-  and a drag that drifts sideways doesn't make it jump. Light glass on iOS 26 (thick material
+  button (a swipe-down collapses it at the release speed). While dragged, the panel follows the
+  finger down and resists going up (rubber band); the drag's axis is fixed by its first movement,
+  so a horizontal drag leaves the panel in place and a drag that drifts sideways doesn't make it
+  jump. The reader overlay's pull-down follows the same rules. Light glass on iOS 26 (thick material
   before). Debug › is a native `Menu`.
 - **Bookmarks vs Saved**: a *bookmark* is just a site link (URL, title, favicon — e.g. a story's
   index page), kept in its own small JSON store (`BookmarkStore`,

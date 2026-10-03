@@ -42,6 +42,9 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     @State private var dragOffset: CGFloat = 0
     /// Axis of the panel drag in progress, fixed at its first movement (nil between drags).
     @State private var dragAxis: Axis?
+    /// The next collapse's animation when a swipe-down closed the panel: seeded with the
+    /// release speed, so a fling shrinks it faster (nil = the standard morph).
+    @State private var flingCollapse: Animation?
     /// The focus icon's center in panel coordinates (unscaled).
     @State private var focus: CGPoint?
 
@@ -171,18 +174,21 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     }
 
     private func collapse() {
+        let morph = flingCollapse ?? MorphMenu.animation
+        flingCollapse = nil
         guard shown != nil else { return }
-        withAnimation(MorphMenu.animation) {
+        // Shrink back into the button from wherever a swipe left the panel.
+        withAnimation(MorphMenu.animation) { dragOffset = 0 }
+        withAnimation(morph) {
             expanded = false
-            // Shrink back into the button from wherever a swipe left the panel.
-            dragOffset = 0
         } completion: {
             if !isPresented { shown = nil }
         }
     }
 
     /// The panel follows a vertical drag (down freely, up with rubber-band resistance); a
-    /// horizontal one leaves it in place. Released far enough or flung down, it collapses.
+    /// horizontal one leaves it in place. Released far enough or flung down, it collapses at the
+    /// release speed.
     private var swipeDownToDismiss: some Gesture {
         DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance)
             .onChanged { value in
@@ -198,6 +204,9 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
                     translation: value.translation.height,
                     predicted: value.predictedEndTranslation.height
                 ) {
+                    if !reduceMotion {
+                        flingCollapse = Motion.dismiss(velocity: value.velocity.height, distance: panelSize.height)
+                    }
                     dismiss()
                 } else {
                     withAnimation(Motion.settle) { dragOffset = 0 }

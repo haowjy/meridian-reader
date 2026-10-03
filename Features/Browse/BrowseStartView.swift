@@ -10,6 +10,7 @@ struct BrowseStartView: View {
     @Environment(\.articleExtractor) private var extractor
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \SavedArticle.savedAt, order: .reverse) private var articles: [SavedArticle]
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
 
@@ -48,6 +49,10 @@ struct BrowseStartView: View {
 
     var body: some View {
         browser
+            // Under the reader overlay the browser stays as it is (so pulling the reader down
+            // reveals it), but it is out of reach until the reader is gone.
+            .allowsHitTesting(!isReaderShown)
+            .accessibilityHidden(isReaderShown)
             // While searching, avoid the keyboard so the field sits right above it. Otherwise keep
             // ignoring it (typing into a web page must not resize the page / the web view).
             .ignoresSafeArea(.keyboard, edges: search.isFocused ? [] : .bottom)
@@ -88,12 +93,12 @@ struct BrowseStartView: View {
             ZStack {
                 if showsBrowseWebView {
                     WebView(store: webStore, servesTestPages: LaunchOptions.current.servesTestPages)
-                        .opacity(hasPage && !isReaderShown ? 1 : 0)
-                        .allowsHitTesting(hasPage && !isReaderShown)
+                        .opacity(hasPage ? 1 : 0)
+                        .allowsHitTesting(hasPage)
                         .onAppear { browseWebViewMounted = true }
                 }
 
-                if !hasPage && !isReaderShown {
+                if !hasPage {
                     startPage
                 }
             }
@@ -106,8 +111,9 @@ struct BrowseStartView: View {
             }
             .clipped()
 
-            // The reader and the library draw their own chrome.
-            if shell.isBrowsing {
+            // The library draws its own chrome and covers this; the reader overlay draws its own
+            // too, but this stays under it so its pull-down reveals the browser whole.
+            if !shell.isInLibrary {
                 bottomChrome
             }
         }
@@ -157,7 +163,7 @@ struct BrowseStartView: View {
             EmptyView()
         case .reader(let article, let origin):
             readerOverlay(for: article, origin: origin)
-                .transition(.opacity)
+                .transition(.sheet(reduceMotion: reduceMotion))
         case .library:
             LibrarySurface(path: Binding(get: { shell.libraryPath }, set: { shell.libraryPath = $0 }))
                 .transition(.opacity)

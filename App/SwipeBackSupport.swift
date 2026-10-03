@@ -16,12 +16,6 @@ enum SwipeGesturePolicy {
     private static let horizontalCommitDistance: CGFloat = 54
     private static let horizontalCommitPrediction: CGFloat = 140
 
-    static func verticalOffset(for translation: CGSize) -> CGFloat {
-        guard translation.height > 0,
-              translation.height > abs(translation.width) * axisDominance else { return 0 }
-        return translation.height
-    }
-
     static func shouldCommitVerticalDismiss(translation: CGSize, predicted: CGSize) -> Bool {
         guard translation.height > 0,
               translation.height > abs(translation.width) * axisDominance else { return false }

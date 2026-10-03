@@ -40,6 +40,10 @@ struct ArticleReaderScreen: View {
     @State private var jumpMode = false
     /// Overlay only: how far the top bar is being pulled down (swipe-down-to-close).
     @State private var pullDownOffset: CGFloat = 0
+    /// Axis of the pull in progress, fixed at its first movement (nil between drags).
+    @State private var pullDownAxis: Axis?
+    /// Overlay only: the screen's height (a committed pull-down carries the reader off it).
+    @State private var screenHeight: CGFloat = 0
     /// The screen's safe area (the text runs under it; the bars and text insets respect it).
     @State private var safeInsets = EdgeInsets()
     /// Overlay top row height (the pushed reader's row lives in the navigation bar instead).
@@ -105,7 +109,20 @@ struct ArticleReaderScreen: View {
                 .toolbarBackground(.bar, for: .navigationBar)
                 .toolbarBackground(.visible, for: .navigationBar)
         } else {
+            // The browser stays live underneath, so pulling the reader down reveals where it
+            // goes back to: the reader shrinks a little and the dim behind it lifts as it goes.
+            let pulled = PullDownLook(offset: pullDownOffset, screenHeight: screenHeight)
             content
+                .scaleEffect(pulled.scale, anchor: .top)
+                .offset(y: pullDownOffset)
+                .background {
+                    Color.black.opacity(pulled.dim)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+                }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height + $0.safeAreaInsets.top + $0.safeAreaInsets.bottom } action: {
+                    screenHeight = $0
+                }
         }
     }
 
@@ -157,7 +174,6 @@ struct ArticleReaderScreen: View {
                 .ignoresSafeArea()
                 .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { safeInsets = $0 }
         }
-        .offset(y: pullDownOffset)
         .task(id: WarmKey(id: article.id, count: article.document.count)) {
             prepareListen()
         }
@@ -266,18 +282,26 @@ struct ArticleReaderScreen: View {
             .accessibilityAddTraits(.isHeader)
     }
 
-    /// Pull the top bar down to close the overlay. Same action as the back control.
+    /// Pull the top bar down to close the overlay. Same action as the back control. The reader
+    /// follows a vertical pull (down freely, up with rubber-band resistance); a pull that starts
+    /// sideways leaves it in place. Released far enough or flung down, it carries on off the
+    /// bottom at the release speed.
     private var pullDownToClose: some Gesture {
         DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance, coordinateSpace: .global)
             .onChanged { value in
-                pullDownOffset = SwipeGesturePolicy.verticalOffset(for: value.translation)
+                let axis = pullDownAxis ?? SwipeGesturePolicy.axis(ofFirstMovement: value.translation)
+                pullDownAxis = axis
+                guard axis == .vertical else { return }
+                pullDownOffset = SwipeGesturePolicy.dismissOffset(forVerticalTranslation: value.translation.height)
             }
             .onEnded { value in
-                if SwipeGesturePolicy.shouldCommitVerticalDismiss(
-                    translation: value.translation,
-                    predicted: value.predictedEndTranslation
+                let vertical = pullDownAxis == .vertical
+                pullDownAxis = nil
+                if vertical, SwipeGesturePolicy.shouldCommitDownwardDismiss(
+                    translation: value.translation.height,
+                    predicted: value.predictedEndTranslation.height
                 ) {
-                    close()
+                    closeByPull(velocity: value.velocity.height)
                 } else {
                     withAnimation(Motion.settle) { pullDownOffset = 0 }
                 }
@@ -313,6 +337,18 @@ struct ArticleReaderScreen: View {
     private func close() {
         persistProgress()
         onClose()
+    }
+
+    /// A committed pull-down: the reader slides the rest of the way off the screen at the
+    /// finger's speed, then closes. Under Reduce Motion it just fades from where it is.
+    private func closeByPull(velocity: CGFloat) {
+        guard !reduceMotion, screenHeight > 0 else { return close() }
+        persistProgress()
+        withAnimation(Motion.dismiss(velocity: velocity, distance: screenHeight - pullDownOffset)) {
+            pullDownOffset = screenHeight
+        } completion: {
+            onClose()
+        }
     }
 
     private func toggleJump() {
@@ -371,5 +407,31 @@ struct ArticleReaderScreen: View {
     private struct WarmKey: Hashable {
         let id: UUID
         let count: Int
+    }
+}
+
+/// How the reader overlay looks while it is pulled down: like a system sheet, it shrinks a
+/// little (to 96%, over the first third of the screen) and the dim over the browser behind it
+/// lifts as it goes, reaching nothing once the reader is off the screen.
+struct PullDownLook: Equatable {
+    var scale: CGFloat
+    var dim: Double
+
+    static let minScale: CGFloat = 0.96
+    static let maxDim = 0.2
+
+    init(offset: CGFloat, screenHeight: CGFloat) {
+        guard screenHeight > 0, offset > 0 else {
+            self.init(scale: 1, dim: Self.maxDim)
+            return
+        }
+        let progress = min(1, offset / screenHeight)
+        self.init(scale: 1 - (1 - Self.minScale) * min(1, progress * 3),
+                  dim: Self.maxDim * Double(1 - progress))
+    }
+
+    private init(scale: CGFloat, dim: Double) {
+        self.scale = scale
+        self.dim = dim
     }
 }
