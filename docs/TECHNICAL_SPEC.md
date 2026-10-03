@@ -1,274 +1,141 @@
-# Technical Spec — Reader (iOS) v1
+# Technical spec
 
-**Status:** Locked from design-tree decisions (2026-09-17)  
-**Companion:** `FUNCTIONAL_REQUIREMENTS.md`
+How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screens and gestures:
+`NAVIGATION.md`; listening: `LISTEN_PLAYBACK.md`, `TTS_ENGINES.md`; article keys:
+`ARTICLE_IDENTITY.md`. Build and test commands: `AGENTS.md` at the repo root.
 
----
+## Constraints
 
-## 1. Goals and constraints
+- iPhone, portrait, iOS 17+. Native Swift and SwiftUI only.
+- No backend, accounts or sync. Article text and audio stay on the device.
+- Offline first: saved articles read and play with no network (Apple voices, or Kokoro once
+  downloaded).
+- Apple TTS is the default and the fallback; on-device Kokoro is optional.
+- Extraction sits behind a protocol, so the engine can be swapped.
 
-- iOS-only native app
-- No backend, accounts, or sync
-- Offline-first for Saved + Speak; network only for live Browse
-- Extraction must be **swappable** behind a protocol
-- Default extractor: Mozilla Readability on the **live WKWebView DOM**, validated by a **site-test spike** before main UI depends on it
-
----
-
-## 2. Stack
+## Stack
 
 | Layer | Choice |
 |-------|--------|
-| Language | Swift |
-| UI | SwiftUI |
-| Live browser | `WKWebView` |
-| Extraction (default) | Mozilla Readability on live DOM (e.g. `swift-readability` or bundled Readability.js) |
-| Persistence | SwiftData |
-| TTS | `AVSpeechSynthesizer` + system voices |
-| Concurrency | Swift concurrency (async/await) |
-| Search from Browse bar | Google Search URL for non-URL queries |
+| UI | SwiftUI, `@Observable` state objects; UIKit only where SwiftUI has no equivalent (edge swipe-back, web views) |
+| Browser | `WKWebView` |
+| Extraction | Mozilla Readability.js, bundled (`Resources/Readability/`) |
+| Persistence | SwiftData (`SavedArticle`, `RecentVisit`); small JSON files and UserDefaults for the rest |
+| Speech | `AVSpeechSynthesizer`; Kokoro via vendored FluidAudio (`Vendor/FluidAudio`) and ONNX Runtime (SPM `onnxruntime` 1.24.2) |
+| Language | `NaturalLanguage` (article language), `Speech` (address-bar dictation) |
+| Project | XcodeGen (`project.yml` → `Reader.xcodeproj`) |
 
-**Not used in v1:** server APIs, cloud TTS, Share Extension target (unless added later), cross-platform frameworks.
-
----
-
-## 3. High-level architecture
-
-Feature modules + thin Core. Avoid forcing MVVM onto SwiftData lists.
+## Layout
 
 ```
-ReaderApp/
-  App/                    # @main, ModelContainer, dependency wiring
-  Features/
-    Saved/                # library list, offline reader, row play button
-    Browse/               # start screen, WKWebView chrome, Reader toggle, Save
-    Speech/               # playback UI + SpeechController
-  Core/
-    Domain/               # Article value types, pure helpers
-    Extraction/           # ArticleExtracting protocol + Readability implementation
-    Persistence/          # SwiftData models, ArticleStore
-    Web/                  # WKWebView wrappers, navigation events
-  Resources/              # reader CSS/templates if needed
+App/        @main, composition root (AppComposition), launch work (AppLaunch), Debug-only launch hooks
+Core/
+  Device/       chip / OS gates
+  Domain/       ReaderArticle, ParagraphDocument, ParagraphSplitter, ArticleIdentity, ReaderScrubMap
+  Extraction/   ArticleExtracting, Readability runner, reader scripts
+  Persistence/  SwiftData models, ArticleLibrary (save, migrations), BookmarkStore
+  TTS/          chunking, render queue, audio cache, run state, engine plumbing (no library imports)
+  Web/          WebView + store, URL helpers, favicons, Google suggestions
+Features/
+  Shell/    ShellState, bottom chrome, ⋯ morph menu, search session, motion tokens
+  Browse/   start page, browser chrome, page actions (PageArticleService), dictation
+  Reader/   ArticleReaderScreen, scrub row
+  Saved/    library surface, list, pushed reader
+  Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
+Tests/      unit tests (ReaderTests), Tests/Fakes
+UITests/    UI tests (ReaderUITests)
 ```
 
-### 3.1 UI patterns
+## Architecture
 
-- **Saved:** SwiftUI views + SwiftData `@Query` (Apple-aligned). Search via query predicate / filter.
-- **Browse / Speech:** small `@Observable` controllers for WebView state and long-lived synthesizer.
-- **Extraction:** service behind `ArticleExtracting`; features never import a concrete engine directly.
-- **Tabs:** `TabView` — **Saved** (default) | **Browse**.
-- **Navigation:** ‹ = push with edge swipe-back, ✕ = modal with swipe-down. See `NAVIGATION.md`.
+- **Composition root.** `AppComposition` is the only place that lists voice libraries; it builds
+  the `EngineRegistry` and the one `SpeechController`, which `ReaderApp` injects through the
+  environment. `AppLaunch.run` does the launch work once: the saved-article migrations (with the
+  Debug launch hooks before and after them), then crash resume. Views only render.
+- **Navigation.** `ShellState` owns the surface (browser or library), the one presented sheet,
+  the reader overlay and where it was opened from (`ReaderOrigin`). Browse and the library share
+  one `SearchSession` model.
+- **Listening.** `SpeechController` binds an engine per utterance; `PlaybackSessionState` owns
+  the position; `LocalTTSCoordinator` owns the on-device engine, render queue and audio cache.
+  Details in `LISTEN_PLAYBACK.md`.
+- **Dependency direction.** Features → Core. Core never imports a voice library (FluidAudio and
+  ONNX Runtime live in `Features/Speech/Engines/`). Features never name a concrete extractor.
 
-### 3.2 Dependency direction
+## Extraction
 
-```
-Features → Core.Domain / Core.Extraction / Core.Persistence / Core.Web
-Concrete ReadabilityAdapter → ArticleExtracting
-App wires adapters at launch
-```
+1. The browser keeps a live `WKWebView` (`WebViewStore`). Reader mode and Save take a snapshot of
+   the page's visible DOM (`ReaderVisibleSnapshot.js` drops short invisible text such as anti-copy
+   lines).
+2. `ReadabilityArticleExtractor` loads that HTML into an **off-screen** `WKWebView` (the page URL
+   as base for web pages), injects Readability.js and the readerable helper, and runs
+   `new Readability(document.cloneNode(true)).parse()`, then normalizes the result
+   (`ReaderNormalize.js`).
+3. The address bar's reader icon and the ⋯ Reader toggle use the same
+   `isProbablyReaderable` check, run after each load and same-document URL change.
 
----
+Snapshot plus off-screen, rather than injecting into the visible page: the user's page is never
+mutated, injected scripts don't fight the page's CSP, and content rendered by JavaScript is
+already in the snapshot.
 
-## 4. Extraction design (swappable)
+**Success and failure.** Save and the reader need a non-empty title and body. Otherwise
+extraction fails with a reason the user sees, and nothing is stored (no bookmark-only save, no
+raw snapshot).
 
-### 4.1 Protocol (illustrative)
+**Swapping the engine.** A new type conforming to `ArticleExtracting`, set in `ReaderApp`; the
+library and speech don't change. `FakeArticleExtractor` backs the Debug "Fake extraction failure"
+toggle.
 
-```swift
-protocol ArticleExtracting: Sendable {
-    func availability(for context: ExtractionContext) async -> ArticleAvailability
-    func extract(from context: ExtractionContext) async throws -> ExtractedArticle
-}
+**Manual check.** A news article and a long blog post extract a clean title and body; a home
+page (e.g. `https://example.com`) fails with a reason and saves nothing.
 
-struct ExtractionContext: Sendable {
-    let url: URL
-    // Handle or ID for the live WKWebView / DOM access — keep WebKit types out of Domain if possible
-}
+## Data
 
-struct ExtractedArticle: Sendable {
-    var title: String
-    var siteName: String?
-    var cleanedHTML: String
-    var plainText: String
-    var excerpt: String
-}
+**`SavedArticle`** (SwiftData):
 
-enum ArticleAvailability: Sendable {
-    case available
-    case unavailable(reason: String)
-}
+| Field | Purpose |
+|-------|---------|
+| `id` | Article key (`ARTICLE_IDENTITY.md`); unique |
+| `urlString`, `canonicalURL` | The page; canonical form for dedupe |
+| `title`, `siteDomain`, `excerpt`, `faviconData` | Library rows, Now Playing |
+| `savedAt` | Sort |
+| `cleanedHTML`, `plainText` | Offline reading; the listen text comes from the HTML |
+| `wordCount`, `estimatedMinutes` | Row metadata |
+| `playbackParagraphIndex`, `playbackUTF16Offset` | Resume position (paragraph + offset inside the document) |
+| `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
+| `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
 
-enum ExtractionError: Error {
-    case unavailable(reason: String)
-    case emptyContent
-    case engineFailed(underlying: Error)
-}
-```
+**`RecentVisit`** (SwiftData): browser history, the last 30 top-level http(s) pages (canonical
+URL, title, host, visit time, favicon), deduped by URL, recorded when a load finishes.
 
-### 4.2 Default engine
+Elsewhere:
 
-- Run Readability against the **rendered** page in `WKWebView` after navigation settles.
-- Prefer libraries/patterns that expose availability (enable/disable Reader affordance when possible).
-- **Do not** use fetch-only HTML as the primary path (fails on JS-rendered articles).
+| What | Where |
+|------|-------|
+| Bookmarks (site links: URL, title, favicon) | `Application Support/Bookmarks/bookmarks.json` (`BookmarkStore`) |
+| Recent searches | UserDefaults `browse.recentSearches` |
+| Last listened / finished per article | UserDefaults (`ListenHistory`) |
+| Crash-resume point | `ListenResumePointStore` |
+| Rendered audio | `Application Support/TTSCache/<article key>/` (`ArticleAudioCache`) |
+| Pending render jobs | `Application Support/PendingBakeJobs.json` |
+| Timing log | `Application Support/ListenTiming/` |
 
-### 4.3 Success / failure rules
-
-Save / Reader persist path must require non-empty **title** and **body** (plain text or HTML body). Otherwise:
-
-- Throw / return failure with a user-facing reason
-- **Persist nothing**
-
-### 4.4 Spike (required before main UI hard-depends on extractor)
-
-Test a fixed set of URLs (news, blog, Substack-like, medium-like, and a homepage that should fail). Record pass/fail for availability + extract quality. Only then lock the concrete package and wire Browse UI tightly to it.
-
-### 4.5 Swap path
-
-New engine = new type conforming to `ArticleExtracting`. Change composition root only. No rewrites of Saved/Speech.
-
----
-
-## 5. Data model (SwiftData)
-
-`SavedArticle` (name flexible):
-
-| Field | Type | Purpose |
-|-------|------|---------|
-| `id` | `UUID` | Primary key |
-| `url` | `String` / `URL` | Original page URL |
-| `title` | `String` | List + reader title |
-| `siteDomain` | `String` | List + Home domain chips |
-| `savedAt` | `Date` | Sort / display |
-| `cleanedHTML` | `String` | Offline reading |
-| `plainText` | `String` | TTS source |
-| `wordCount` | `Int` | Stats |
-| `estimatedMinutes` | `Int` or `Double` | List metadata (derive from wordCount) |
-| `playbackPosition` | See below | Resume |
-| `excerpt` | `String` | List preview snippet |
-
-### 5.1 Playback position
-
-Store a resume cursor compatible with paragraph skip, e.g.:
-
-- `playbackParagraphIndex: Int`
-- optional `playbackUtf16Offset: Int` within plain text as refinement
-
-Update on pause/stop/skip and on significant progress callbacks from `AVSpeechSynthesizer` delegate if used.
-
-
-
-### RecentVisit (Browse history)
-
-SwiftData model, capped list (default 30):
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `urlString` | `String` (unique canonical) | No fragment; http(s) only |
-| `title` | `String` | From `document.title` / host fallback |
-| `host` | `String` | Display subtitle |
-| `visitedAt` | `Date` | Recency sort; update on revisit |
-| `faviconData` | `Data?` (external storage) | Fetched from page icon links or `/favicon.ico` |
-
-Recording: after top-level navigation `isLoading` → false. Dedupes by `urlString`. Tabs are out of scope.
-
-### 5.2 Domain chips
-
-Derive unique domains from `siteDomain` (or host of `url`) over Saved articles, sorted by recency of last save from that domain. Tap → load `https://{domain}` (or last saved path policy — v1: origin/home of domain is enough unless spike says otherwise).
-
----
-
-## 6. Feature behaviors (technical)
-
-### 6.1 Browse start
-
-- Google-style field:
-  - Detect URL (add scheme if missing when clearly a host/path)
-  - Else `https://www.google.com/search?q=...`
-- Domain chips from persistence query
-- Nothing auto-opens
-
-### 6.2 Browse WebView
-
-- Standard back/forward as feasible in chrome
-- Actions: Reader (manual), Save
-- Save calls `ArticleExtracting.extract` using live WebView context
-
-### 6.3 Reader Mode
-
-- Manual toggle
-- Displays cleaned HTML (engine overlay or load extracted HTML into a reader WebView / native text view — implementation choice during build; prefer one clear approach in spike)
-- Does not auto-engage
-
-### 6.4 Saved
-
-- `@Query` ordered by `savedAt` descending
-- Search: filter title/site/excerpt/plainText
-- Row tap → offline viewer loading `cleanedHTML` (baseURL = original URL for relative links if any remain)
-- Play button → `SpeechController` with that article’s `plainText` + stored position
-- Swipe delete → delete model
-
-### 6.5 SpeechController
-
-- Owns a **long-lived** `AVSpeechSynthesizer` (do not allocate per tap)
-- Speaks `plainText` segmented by **paragraph** (split on blank lines / block boundaries from extraction)
-- Paragraphs over 1,200 chars are split at sentence ends into balanced pieces (~500–900 chars) for display, navigation and audio alike (`ParagraphSplitter`, listen layout v3; see LISTEN_PLAYBACK.md)
-- Play / pause / stop
-- Skip ±1 paragraph
-- Rate mapped to ~0.75x–2x (`AVSpeechUtterance.rate` mapped carefully; document mapping in code)
-- Persist position into SwiftData article
-- No MPRemoteCommandCenter in v1
-
----
-
-## 7. Offline behavior
+## Offline
 
 | Feature | Offline |
 |---------|---------|
-| Saved list / search / delete | Yes |
-| Offline article view | Yes (`cleanedHTML`) |
-| Speak | Yes (`plainText` + system voices) |
-| Browse load | No — needs network |
-| Save new page | Needs network + successful extract from live page |
+| Library, search, delete | Yes |
+| Reading a saved article | Yes (`cleanedHTML`) |
+| Listening | Yes: Apple voices; Kokoro once its model is downloaded |
+| Loading pages, Save of a new page | No |
+| Google suggestions, favicons | No (they quietly don't show) |
 
----
+## Network use
 
-## 8. Security / privacy (v1)
+All of it is user-initiated or for the page in view: page loads, Google search and the unofficial
+Google suggest endpoint (`suggestqueries.google.com`, while typing in the address field), favicons
+of visited and bookmarked sites, and the one-time Kokoro model and voice-pack downloads (Hugging
+Face). No analytics.
 
-- All article content stays on device
-- No analytics backend required by product
-- Sanitize extracted HTML before display where scripts could remain (e.g. DOMPurify in reader pipeline if using HTML WebView) — treat as implementation requirement when rendering `cleanedHTML`
-- Network only for user-initiated Browse loads and Google search navigations
-
----
-
-## 9. Testing plan (minimum)
-
-1. **Extraction spike:** fixture URLs, availability + extract quality, failure on homepage
-2. **Save failure UX:** non-article page → blocked save, nothing in DB
-3. **Offline:** airplane mode → Saved list, open article, speak, resume
-4. **Speech:** paragraph skip, speed, pause/resume position
-5. **Browse bar:** URL vs Google query
-6. **Domain chips:** appear after saves; tap opens site
-
----
-
-## 10. Implementation sequence (suggested)
-
-1. SwiftData model + Saved list UI (empty states)
-2. Extraction protocol + Readability adapter + **spike**
-3. Browse WebView + start screen (Google bar + chips)
-4. Manual Reader + Save wiring (success/fail)
-5. Offline article viewer
-6. SpeechController + row play button + position persistence
-7. Polish: search, delete, speed control, error copy
-
----
-
-## 11. Open items (allowed to resolve during build)
-
-- Exact Swift package vs vendored Readability.js
-- Reader presentation: in-WebView overlay vs separate offline WebView
-- Precise URL detection heuristics for the search bar
-- Paragraph segmentation rules on plain text
-- `AVSpeechUtterance.rate` ↔ UI speed label mapping
-
-These must not break the locked product rules in `FUNCTIONAL_REQUIREMENTS.md`.
+Extracted HTML is shown as Readability returns it (Readability drops `<script>` elements); there
+is no separate sanitizer. The reader's web view has JavaScript on for the app's own scripts
+(highlight, scroll, the reader bridge).

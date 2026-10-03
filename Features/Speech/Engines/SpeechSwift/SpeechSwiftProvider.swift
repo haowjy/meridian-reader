@@ -2,7 +2,7 @@
 //
 // Compiled only once the package is added (SPM product `Qwen3TTSCoreML`, iOS 18+), so this file
 // is inert today. To enable: add the package + product to project.yml (see
-// docs/TTS_ENGINES_SKETCH.md § "How to add an engine/library"). The registration line in
+// docs/TTS_ENGINES.md § "Adding an engine"). The registration line in
 // `App/AppComposition.swift` is already there behind the same `#if canImport`. API below matches speech-swift main as of 2026-09-24
 // (`Qwen3TTSCoreMLModel.fromPretrained(progressHandler:)`, `synthesize(text:language:maxTokens:)`
 // → 24 kHz `[Float]`, ≤125 codec tokens ≈ 10 s per call); verify against the pinned version.

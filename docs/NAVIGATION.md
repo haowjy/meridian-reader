@@ -59,7 +59,7 @@ bottom bar, and the page uses everything between the status bar and it (safe are
 [ ‹ ]   [ › ]   [ 🔍 ]   [ 📚 ]   [ ⋯ ]    ← 5 equal slots (slot 4 = Library↔Browser)
 ```
 
-**One bottom-chrome design (Nav G)**, shared with the reader so Browse ↔ Reader barely changes
+**One bottom-chrome design**, shared with the reader so Browse ↔ Reader barely changes
 the bottom of the screen (`Features/Shell/BottomChrome.swift`): the band (`bottomChromeBand`:
 12 pt margins, 8 pt top padding, system bar material through the home indicator), the field
 capsule (`bottomChromeField`: 44 pt, secondary-background capsule; 36 pt body-size controls
@@ -68,7 +68,7 @@ inside, like 🎤), and the toolbar row (`BottomToolbarLayout` + `toolbarIconFra
 clipping; toolbar glyphs keep their size and show in the large content viewer on long press.
 Every control takes taps in at least 44 × 44 pt (`tapTarget`), whatever its drawn size: the
 address-field 📄, the ✕ beside a search field, the reader's back control, the mini player's
-play/pause, the capsule's 36 pt controls. **Five equal slots, evenly spaced, one grid for both rows (Nav I):** Browse is
+play/pause, the capsule's 36 pt controls. **Five equal slots, evenly spaced, one grid for both rows:** Browse is
 `[‹][›][Search][Library][⋯]`, the Library surface `[ ][ ][Search][Browser][⋯]`, the reader
 `[1×][⏮][▶︎][⏭][⋯]`. Slot 4 is the Library↔Browser swap (📚 on Browse, 🌐 on Library — same
 muscle memory as the morph-menu Reader↔Website near ⋯). Leading items fill slots 1, 2, 3…; the
@@ -180,7 +180,7 @@ keyboard with a round ✕; swipe-down / scroll lowers the keyboard but **stays i
 └──────────────────────────────────── home indicator ┘
 ```
 
-**Bottom chrome = the browser's (Nav G).** The reader's bottom is built from the same pieces as
+**Bottom chrome = the browser's.** The reader's bottom is built from the same pieces as
 the browser's address field + toolbar (see "One bottom-chrome design" above): the scrub row
 (scrubber, ☝︎ Jump, 🔖) sits in the same field capsule as the address field, Jump / 🔖 sized and
 coloured like the mic (secondary; accent when on / saved); the listen row uses the same toolbar
@@ -189,7 +189,7 @@ circle), with ⋯ in the same slot 5 as the browser's ⋯ (a UI test checks the 
 margins and position above the home indicator. The overlay's top row mirrors it at the top: the
 title in a field capsule on the same bar material; the pushed reader's row sits in the navigation
 bar, same capsule and bar material.
-Against Browse's `[‹][›][Search][Library][⋯]` (same five-slot grid, Nav I): 1× under ‹, ⏮ under ›,
+Against Browse's `[‹][›][Search][Library][⋯]` (same five-slot grid): 1× under ‹, ⏮ under ›,
 ▶︎ under Search, ⏭ under Library, ⋯ under ⋯.
 
 **The back control** (left of the scrubber pill, within thumb reach) is the reader's one close
@@ -203,9 +203,9 @@ control; there is no ✕ or ‹ at the top. It goes back to where the reader was
 
 Pulling the overlay's top row down, and the pushed reader's left-edge swipe, do the same.
 
-**The bars never hide (Nav H).** Like the browser's search bar / toolbar, the top row and the
+**The bars never hide.** Like the browser's search bar / toolbar, the top row and the
 bottom controls stay put: no hiding on scroll, no tap-to-toggle, no progress line, and the status
-bar stays. (Nav F's auto-hide was removed.) The text runs edge to edge under the bars, but the
+bar stays. The text runs edge to edge under the bars, but the
 scroll content is inset by their height (native `contentInset` on the web view,
 `contentMargins` on the plain-text fallback), so the first line starts below the top row and
 the last line scrolls clear of the bottom controls (UI tests check both). The pushed reader's
@@ -217,14 +217,14 @@ above. Code:
 (edge-to-edge layout).
 
 - Same look saved or not, playing or not: the tint marks where Play starts / is.
-- **Status notes** (Nav J): "Preparing next…", Apple-fallback / language notes, and the
+- **Status notes**: "Preparing next…", Apple-fallback / language notes, and the
   developer-only Debug chip sit **above** the scrubber so appearing text never pushes it when you
   skip.
 - **Scrubber** (sentence-precise): fill = progress (weighted by text length; with a local
-  voice the thumb now moves smoothly inside a paragraph, estimated from the player's time); the
+  voice the thumb moves smoothly inside a paragraph, estimated from the player's time); the
   lighter fill ahead of it is audio already rendered (local voices; Apple speaks live so there is
-  none). This lighter fill replaced the old gray "not ready" paragraph cards; nothing per-paragraph
-  in the text shows readiness any more (only the developer-only bake overlay does).
+  none). Nothing in the text marks which paragraphs are rendered (only the developer-only bake
+  overlay does).
   - **Grab the thumb** (±26 pt) and it moves relative to your finger — no jump; touch elsewhere on
     the track and it jumps there. The touch area is the whole capsule height plus its rounded
     leading end.
@@ -249,7 +249,7 @@ above. Code:
     chunk durations), with a 0.25 s lead-in so the first word isn't clipped. Not rendered yet: the
     render queue does that chunk first (then the rest of the paragraph). Apple voice: speaks from
     the sentence's first character.
-- **Speed** (1×, Nav I): applied in place — the current sentence keeps going at the new speed.
+- **Speed** (1×): applied in place — the current sentence keeps going at the new speed.
   Local voices: a pitch-preserving time-stretch on the player (`AVAudioPlayer.enableRate` /
   `rate`; all audio, including Apple-fallback units, is rendered at 1×), so nothing is re-queued,
   re-rendered or restarted. The Apple voice (AVSpeechSynthesizer can't change a running
@@ -260,28 +260,27 @@ above. Code:
 - **⋯** (bottom-right of the listen bar, the same spot as the browser's ⋯): the same morph panel
   in reader context. Top rows *Voice settings, Save / Remove article, Bookmark site,
   Share, Debug* (developer options only); bottom row **Bookmarks / Saved / History / Website** — in reader mode the Reader
-  slot becomes 🌐 **Website** (same spot; its icon is 12 pt left / 10 pt up of ⋯, Nav J). Website = reader off:
+  slot becomes 🌐 **Website** (same spot; its icon is 12 pt left / 10 pt up of ⋯). Website = reader off:
   it always goes to the article's own page in the browser, wherever the reader was opened from.
   The reader overlay over that page just reveals it (no reload); from the library (the library
   closes first), the start page, Continue listening or the mini player the page loads in the
   browser.
   Playback never stops — the mini player takes over.
   In the pushed reader the dim covers the navigation bar too; a tap there closes the menu.
-  Voice settings (speed / voice / engine — what the gear used to hold) opens as a sheet. There
-  is no gear on the listen bar.
+  Voice settings (speed / voice / engine) opens as a sheet; the listen bar has no gear.
 
-## Developer options (Nav I / J)
+## Developer options
 
 Debug tools are hidden in normal use: the ⋯ Debug rows (Browse "Debug ›" with Fake extraction
 failure; reader "Debug" → Listen debug panel), Voice settings → Listen debug (and Open full panel),
 the listen bar's Debug pill / bake overlay, and long-press ▶︎ → Listen debug panel. They show only
 with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
 default in Release builds, on by default in Debug builds. To toggle in any build, long-press the
-The first Release launch of Nav J clears a previously stored unlock so a Debug pill
-cannot stick on after upgrading; long-press the version row again to turn it back on.
-
 **version row** at the bottom of Voice settings for 2 s (haptic + "Developer options on/off"
-confirmation). UI tests force it with `-reader.developerOptions NO|YES`.
+confirmation). A Release build clears a stored "on" once, so a Debug pill left from an older build
+can't stick; long-press the version row to turn it back on. UI tests force it with
+`-reader.developerOptions NO|YES`. Launch-argument hooks and test-only markers compile only in
+Debug builds (`App/LaunchOptions.swift`).
 
 ## Current screens
 
@@ -299,7 +298,7 @@ confirmation). UI tests force it with `-reader.developerOptions NO|YES`.
 | ⋯ → Saved / toolbar Library / start page Show All → library (`LibrarySurface`) | 🌐 Browser slot | in-place surface (shared bottom chrome); leave restores browse |
 | Library → reader (`OfflineArticleView` → `ArticleReaderScreen`, title row in the nav bar, text full-bleed under it) | 📚 back control, bottom left | push inside the surface (`navigationDestination(for: UUID.self)`); edge swipe-back |
 | Library → Choose voice (`SpeechSettingsView`) | ‹ system | push (`NavigationLink`) |
-| Browser → address-field reader icon / ⋯ Open in Reader / start page row / mini player (`ArticleReaderScreen`) | 🌐 / 🏠 back control, bottom left | full-screen in-place overlay (covers the whole browser, edge to edge); pull top row down |
+| Browser → address-field reader icon / ⋯ → Reader / start page row / mini player (`ArticleReaderScreen`) | 🌐 / 🏠 back control, bottom left | full-screen in-place overlay (covers the whole browser, edge to edge); pull top row down |
 | Listen bar ⋯ → Voice settings (`SpeechSettingsView`) | Done | `.sheet` |
 | Listen debug panel | Done | `.sheet` |
 | Speed picker | — | popover |

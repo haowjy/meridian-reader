@@ -1,154 +1,68 @@
-# Functional Requirements — Reader (iOS) v1
+# Functional requirements
 
-**Status:** Locked from design-tree decisions (2026-09-17)  
-**Product job:** Listen to articles offline.
+Meridian Reader is a personal tool for **listening to web articles**: find a page in the in-app
+browser, get a clean copy, and listen to it (or read it) on the device, offline once saved. How
+the screens look and move: `NAVIGATION.md`. How it is built: `TECHNICAL_SPEC.md`.
 
----
-
-## 1. Purpose
-
-v1 must let a user browse the web in-app, extract a clean article, save it on device, and listen with Apple’s on-device text-to-speech — with no backend.
-
-Browse and Reader Mode exist to feed that pipeline. Saved + Speak are the must-haves.
-
----
-
-## 2. Personas / primary use
-
-- User finds an article in the in-app browser (URL, Google search, or a domain chip from past saves).
-- User saves a clean copy.
-- User later opens Saved (app home) and plays audio offline, optionally reading along in the cleaned view.
-
----
-
-## 3. Information architecture
+## Surfaces
 
 | Surface | Role |
 |--------|------|
-| **Saved** | App home / default tab. Offline library. |
-| **Browse** | Separate tab. Live web + Reader Mode + Save. |
+| **Browser** | The app's home: a start page or a web page, with one bottom bar (address field + toolbar). No tab bar. |
+| **Library** | Every saved article, in place of the browser (same bottom bar shape); toolbar slot 4 swaps between them. |
+| **Reader** | One reader screen for any article: over the browser, or pushed inside the library. |
+| **Mini player** | Above the browser toolbar whenever an article is loaded for playback and the reader isn't showing. |
 
-Browse has its own **start/landing** screen (not the app home): Google-style URL/search bar + domain chips from sites the user has saved before.
-
----
-
-## 4. Functional requirements
-
-### 4.1 Browse
+## Browser
 
 | ID | Requirement |
 |----|-------------|
-| B1 | User can open Browse and see a start screen with a Google-style URL/search bar. |
-| B2 | If input is a URL, load it in the in-app WebView. |
-| B3 | If input is non-URL text, run a Google Search and show results in the WebView. |
-| B4 | User can follow links inside the WebView (normal navigation). Opening a page is always a user action. |
-| B5 | Start screen shows **domain chips** derived from domains in Saved (sites saved before). Tap chip → open that site in the browser. |
-| B8 | Start screen shows **Recently visited**: last N top-level http(s) pages (title, host, **favicon**). Tap row → reopen that URL in Browse. |
-| B9 | Recents are automatic, deduped by canonical URL, capped (e.g. 30). Not tabs; multi-tab is out of scope. |
-| B10 | Clearing Recents (when exposed) must not delete Saved articles. |
-| B11 | While the address bar is focused, show suggestions: **local Recents/Saved matches first**, then **unofficial Google Search suggest** (`suggestqueries.google.com`, debounced). Tap a row → navigate (URL) or Google Search (query). If Google fails/blocks, show locals only (no error banner). Not an official Google API. |
-| B6 | No curated site directory, no mass/auto-opening of links. |
-| B7 | Browse requires network to load live pages. |
+| B1 | The address field takes a URL (loaded in the in-app web view) or search text (a Google search). |
+| B2 | Pages open only by user action; links navigate normally. ‹ / › are web history. |
+| B3 | The start page shows bookmarks (an icon grid), **Continue listening** (saved articles part-way through, most recent first, with time left), recent **Saved** articles, and Recent Searches. |
+| B4 | While typing: local matches (history, saved articles) first, then live Google suggestions (unofficial endpoint, debounced). If Google fails, only local matches show, with no error. |
+| B5 | History keeps the last 30 visited pages (title, host, favicon), deduped by canonical URL. Clearing history never deletes saved articles. |
+| B6 | Bookmarks are site links (URL, title, favicon), independent of saved articles: bookmarking never saves, saving never bookmarks. |
+| B7 | Dictation fills the address field while searching, on-device where the language allows; nothing is submitted automatically, and listening pauses while the mic is open. |
+| B8 | Loading pages needs the network. |
 
-### 4.2 Reader Mode
+## Reader
 
 | ID | Requirement |
 |----|-------------|
-| R1 | Reader Mode is **manual**: user taps Reader. |
-| R2 | Reader shows cleaned article content for the current page when extraction succeeds. |
-| R3 | From Reader, user can Save and/or Speak (subject to extraction success and speech rules). |
-| R4 | No auto-enter Reader when a page “looks like” an article. |
+| R1 | Reader mode is manual: the address field's reader icon or ⋯ → Reader, only on pages that look readable. It never turns on by itself. |
+| R2 | It shows the cleaned article; the paragraph being spoken (or where Play starts) is tinted. The text never scrolls on its own except to follow the user's scrub. |
+| R3 | Listen controls: play / pause, previous / next paragraph, speed (0.75×–2×), a sentence-precise scrubber with fine scrubbing, and "select paragraph" (tap a paragraph to play from it). |
+| R4 | Save / unsave from the reader keeps the screen and playback as they are. |
+| R5 | One close control (bottom left) goes back to where the reader was opened from (web page, start page or library); the pull-down and the edge swipe do the same. Closing never stops audio. |
 
-### 4.3 Save
-
-| ID | Requirement |
-|----|-------------|
-| S1 | Save is available from **Browse or Reader**. |
-| S2 | Save always runs article extraction. |
-| S3 | On success, persist a full offline article record (see data fields in Technical Spec). |
-| S4 | On extraction failure: **block Save**, show why, **store nothing** (no bookmark-only, no dirty snapshot). |
-| S5 | Saved articles remain available without network. |
-
-### 4.4 Saved (Library) — app home
+## Save and library
 
 | ID | Requirement |
 |----|-------------|
-| L1 | Default landing surface of the app is Saved. |
-| L2 | List shows title, site, and date for each article. |
-| L3 | Tap row → open offline cleaned article (HTML). |
-| L4 | Separate **play** control on the row (not tap-row-to-speak). |
-| L5 | User can search within saved articles. |
-| L6 | User can delete (e.g. swipe to remove). |
+| S1 | Save is available from the browser and the reader, and always runs extraction. |
+| S2 | On success the full article is stored on the device (text, cleaned HTML, metadata). |
+| S3 | On failure Save is blocked with the reason, and nothing is stored. |
+| S4 | One article per canonical URL: saving the same page twice (tracking parameters, fragments) keeps one row. |
+| S5 | The library lists title, site and date; search filters it; swipe deletes (with its audio). A row's play button plays without opening. |
 
-### 4.5 Speech (Apple TTS default; optional on-device Kokoro)
-
-| ID | Requirement |
-|----|-------------|
-| P1 | **Default:** Apple on-device TTS (system voices). **Optional:** Kokoro via FluidAudio on A15+ (the only local engine; Chatterbox Nano was removed 2026-09-24), user-selected; Apple stays the default and the fallback (no model, render failure, or Kokoro crash). An article keeps one voice's audio; switching voice re-renders it, old-voice audio plays until each paragraph is replaced. |
-| P2 | Controls: play, pause, stop. |
-| P3 | Skip forward / back by **paragraph**. |
-| P4 | Speed control approximately 0.75x–2x. |
-| P5 | Remember playback position per article and resume later. |
-| P6 | Speak works fully offline from saved plain text. |
-| P7 | Lock screen / Control Center controls are **out of v1**. |
-
-### 4.6 Offline / network
+## Listening
 
 | ID | Requirement |
 |----|-------------|
-| O1 | Saved reading + Speak work fully offline. |
-| O2 | Browse needs network for live pages. |
-| O3 | ~~No requirement to cache recently browsed~~ **Superseded by B8–B10**: keep last-N Recents with favicons; still no multi-tab. |
+| P1 | Apple TTS is the default and always available. Kokoro (on-device, English, A15+) is optional: downloaded on selection, deletable, and used only once ready. Apple speaks whenever Kokoro can't (not downloaded, loading, failed, crashed, another language, a chunk it can't render). |
+| P2 | Playback never goes silent or freezes mid-article: anything the selected engine can't produce is spoken with Apple. |
+| P3 | Each article keeps one voice's audio; switching voice re-renders it, and the old voice plays until each paragraph is replaced. |
+| P4 | The position is remembered per article and resumed later; after a Kokoro crash the app reopens the article at the paragraph that was playing. |
+| P5 | Listening continues in the background, with lock-screen / Control Center controls (play, pause, next / previous paragraph, rate). Calls and unplugged headphones pause; a resumable interruption resumes. |
+| P6 | The article's language is detected; an article the selected engine can't speak uses an Apple voice for its language, without changing settings. |
+| P7 | Saved articles play fully offline. |
 
----
+## Not in the app
 
-## 5. Non-goals (v1)
-
-- Backend, accounts, or sync
-- Share Extension / Safari share-in
-- Universal Links / open-in as a primary entry
-- Next-page prefetch or auto-advance
-- Custom or cloud voices
-- Lock screen / Control Center playback
-- Folders, tags, highlights
-- Cross-platform (Android / Flutter / RN) — iOS native only
-- Auto Reader Mode
-- Saving failed extractions as bookmarks or raw snapshots
-
----
-
-## 6. Success criteria
-
-v1 is successful when a user can:
-
-1. Reach an article via Browse (URL, Google search, or domain chip).
-2. Save a clean offline copy (or get a clear failure).
-3. From Saved, read that copy offline and listen with play/pause/stop, paragraph skip, speed, and resume — with no account and no server.
-
----
-
-## 7. Future (explicitly deferred)
-
-- Share Extension
-- Next-page detection / prefetch / auto-scroll
-- Custom voice service
-- Lock screen controls
-- Sentence-level skip
-- Fetch-HTML extraction fallback (if spike shows need)
-- Folders / tags / highlights
-- Sync / multi-device
-
----
-
-## 8. Decision log (summary)
-
-| Topic | Decision |
-|-------|----------|
-| Product job | Offline listening (Save + Apple TTS) |
-| App home | Saved |
-| Browse start | URL/Google bar + domain chips from saves |
-| Entry | In-app WebView only; no spam-open |
-| Reader | Manual |
-| Save | Browse or Reader; always extract; fail = store nothing |
-| Speech skip | Paragraph |
-| Extraction | Live-DOM Readability default; spike required; swappable |
+- Accounts, a backend, sync.
+- Tabs; a share extension or open-in as an entry point.
+- Auto reader mode, auto-opening links, saving failed extractions.
+- Cloud voices.
+- Folders, tags, highlights.
+- Chapter-to-chapter auto-advance (planned).
