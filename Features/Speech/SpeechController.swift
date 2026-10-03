@@ -76,7 +76,7 @@ final class SpeechController {
 
     let localTTS: LocalTTSCoordinator
     @ObservationIgnored private let appleEngine: ListenEngine
-    @ObservationIgnored private let localEngine: LocalListenEngine
+    @ObservationIgnored let localEngine: LocalListenEngine
     private var listenEngines: [ListenEngine] { [appleEngine, localEngine] }
 
     /// Developer Listen debug sheet (Settings, Debug chip, or long-press play).
@@ -126,7 +126,7 @@ final class SpeechController {
     /// The engine `speak` picks now: the on-device engine once it is loaded and speaks this
     /// article's language, else Apple.
     private var wantedRoute: ListenRoute {
-        guard let id = localTTS.engineState.readyEngineID, localTTS.engines.supports(id),
+        guard let id = localTTS.synth.state.readyEngineID, localTTS.engines.supports(id),
               languageResolution.engineID.isLocal else { return .apple }
         return .local(id, voice: localTTS.voice(for: id))
     }
@@ -642,20 +642,20 @@ final class SpeechController {
 
     private func appRunStateChanged() {
         let phase = localTTS.synthQueue.runState.phase
-        let eng = localTTS.localEngineInstance
+        let player = localEngine.player
         var fields: [String: Any] = [
             "phase": phase.rawValue, "listen": String(describing: playback.phase),
             "engine": activeEngine?.name ?? "—", "p": playback.playhead,
         ]
         switch phase {
         case .background:
-            eng.backgroundStats = .init()
+            player.backgroundStats = .init()
             deferralsAtBackground = localTTS.synthQueue.backgroundDeferrals
             fields["ready_ahead"] = activeEngine?.debug.readyAhead ?? 0
         case .active:
             activeEngine?.appDidBecomeActive()
-            if eng.backgroundStats != .init() || localTTS.synthQueue.backgroundDeferrals > deferralsAtBackground {
-                lastBackgroundSummary = eng.backgroundStats.label
+            if player.backgroundStats != .init() || localTTS.synthQueue.backgroundDeferrals > deferralsAtBackground {
+                lastBackgroundSummary = player.backgroundStats.label
                     + " · deferred \(localTTS.synthQueue.backgroundDeferrals - deferralsAtBackground)"
                 fields["bg_summary"] = lastBackgroundSummary
             }
@@ -761,7 +761,7 @@ final class SpeechController {
             paragraph: document.isEmpty ? 0 : document.index(containingUTF16Offset: clamped),
             utf16Offset: clamped
         ))
-        guard clamped < length else {
+        guard clamped < length, let articleID = playback.articleID else {
             completeArticle(restartBake: false)
             return
         }
@@ -776,7 +776,7 @@ final class SpeechController {
             playback.handle(.becameAudible)
             startPlayingPoll()
         }
-        engine.play(ListenPlayRequest(articleID: playback.articleID, document: document, utf16Offset: clamped,
+        engine.play(ListenPlayRequest(articleID: articleID, document: document, utf16Offset: clamped,
                                       startPaused: startPaused, appleVoice: effectiveAppleVoice))
     }
 

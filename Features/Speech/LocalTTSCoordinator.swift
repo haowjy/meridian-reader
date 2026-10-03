@@ -14,11 +14,14 @@ final class LocalTTSCoordinator: SynthQueueContext {
     private let defaults: UserDefaults
     private let crashGuard: EngineCrashGuard
 
-    /// The on-device engine's lifecycle. Changed only by `setEngineState(_:)`.
-    private(set) var engineState: LocalEngineState = .off
+    /// The on-device engine's model: lifecycle, host and renderer. The render queue renders through it.
+    let synth: LocalSynthService
     /// Called after every engine-state change and engine-voice change. `SpeechController` uses it
     /// to decide whether the live utterance moves to another engine (views never coordinate that).
     @ObservationIgnored var onEngineChange: (() -> Void)?
+    /// The listen player (set by `LocalListenEngine`): the render queue asks it which article is
+    /// playing (listener priority, background bake scope).
+    @ObservationIgnored weak var listenPlayer: LocalListenPlayer?
     /// Selected voice per multi-voice engine (e.g. Kokoro `af_heart`). Part of the cache voice key.
     private(set) var engineVoices: [SpeechEngineID: String] = [:]
     /// Set when the last process died inside a crash-guarded engine (Kokoro: auto-recovered on
@@ -35,7 +38,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
     private(set) var bakeMarksRevision: UInt64 = 0
     /// Article the user most recently opened / listened to (stays #1 when pending jobs drain).
     private var focusCacheKey: UUID?
-    private var localEngine: LocalModelSpeechEngine?
     /// Voice whose files are downloading after the user picked it (Settings shows a spinner).
     private(set) var voiceDownloadID: String?
     /// Last voice download failure (Settings footer); cleared on the next pick.
@@ -56,6 +58,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         self.defaults = defaults
         self.audioCache = audioCache ?? ArticleAudioCache()
         self.crashGuard = crashGuard
+        self.synth = LocalSynthService(engines: engines)
         var voices: [SpeechEngineID: String] = [:]
         for d in engines.localDescriptors where !d.voices.isEmpty {
             // Stored voice if still offered (curated list), else the engine default.
@@ -157,10 +160,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
         engineCrashNotice = crashNotice
         pendingResume = resume
         synthQueue.attach(coordinator: self)
+        synth.onStateChange = { [weak self] in self?.engineStateChanged() }
         if initial.isLocal, engines.supports(initial) {
             beginWarm(initial)
         } else {
-            setEngineState(.off)
+            synth.turnOff()
         }
         // Nothing is playing at launch: per-chunk synth scratch from last session is disposable.
         self.audioCache.removeAllChunkScratch()
@@ -232,20 +236,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
     }
 
     /// The engine Settings shows as chosen (the on-device one while it loads or once loaded).
-    var selectedEngineID: SpeechEngineID { engineState.selectedEngineID }
+    var selectedEngineID: SpeechEngineID { synth.state.selectedEngineID }
     /// The on-device engine is loaded and serves listening and bake-ahead.
-    var usesLocalEngine: Bool { engineState.readyEngineID != nil }
-
-    var localEngineInstance: LocalModelSpeechEngine {
-        if let localEngine { return localEngine }
-        let engine = LocalModelSpeechEngine(engines: engines)
-        engine.onModelProgress = { [weak self] fraction in
-            guard let self, case .warming(let id, _, let task) = self.engineState else { return }
-            self.setEngineState(.warming(id, progress: fraction, task: task))
-        }
-        localEngine = engine
-        return engine
-    }
+    var usesLocalEngine: Bool { synth.state.readyEngineID != nil }
 
     /// Dismiss the one-line crash banner.
     func dismissCrashNotice() {
@@ -272,7 +265,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// Route the live Kokoro host actually uses (nil = no Kokoro host loaded).
     var liveKokoroRoute: KokoroRoute? {
-        guard let tag = localEngine?.liveRenderer(for: .kokoro)?.host.routeTag else { return nil }
+        guard let tag = synth.liveRenderer(for: .kokoro)?.host.routeTag else { return nil }
         return KokoroRoute(rawValue: tag)
     }
 
@@ -295,19 +288,19 @@ final class LocalTTSCoordinator: SynthQueueContext {
     private func reloadKokoroHost() async {
         RenderPace.shared.reset()
         guard activeLocalEngineID == .kokoro else { return }
-        cancelWarm()
-        localEngine?.unloadHost()
-        await beginWarm(.kokoro).value
+        let load = synth.reload(.kokoro, voice: engineVoices[.kokoro])
+        synthQueue.engineDidChange()
+        await load.value
     }
 
     // MARK: - SynthQueueContext (route-aware background)
 
-    var activeRouteRendersInBackground: Bool { localEngine?.hostRendersInBackground ?? false }
+    var activeRouteRendersInBackground: Bool { synth.rendersInBackground }
 
-    var playingCacheKey: UUID? { localEngine?.playingArticleID }
+    var playingCacheKey: UUID? { listenPlayer?.playingArticleID }
 
     /// Local engine whose cache / chunk sizing applies right now (loaded or loading).
-    var activeLocalEngineID: SpeechEngineID? { engineState.activeEngineID }
+    var activeLocalEngineID: SpeechEngineID? { synth.state.activeEngineID }
 
     /// Descriptor for cache keys / chunking: the active local engine, else the default local one.
     var activeDescriptor: EngineDescriptor? {
@@ -320,7 +313,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Chunk sizing for the active local engine.
     var activeChunkLimits: TextChunker.Limits { engines.limits(for: activeLocalEngineID ?? engines.defaultLocalEngineID) }
 
-    var synthRenderer: SynthChunkRendering { localEngineInstance }
+    var synthRenderer: SynthChunkRendering { synth }
 
     /// Voice selected for a multi-voice engine (nil for single-voice engines).
     func voice(for id: SpeechEngineID) -> String? { engineVoices[id] }
@@ -351,7 +344,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// True when a local model for `id` has been initialized (or its files are on disk).
     func isModelInstalled(_ id: SpeechEngineID) -> Bool {
-        engineState.readyEngineID == id || engines.isInstalled(id)
+        synth.state.readyEngineID == id || engines.isInstalled(id)
     }
 
     func setVoice(_ voice: String, for id: SpeechEngineID) {
@@ -359,7 +352,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         engineVoices[id] = voice
         defaults.set(voice, forKey: d.resolvedVoiceDefaultsKey)
         guard activeLocalEngineID == id else { return }
-        localEngineInstance.setActiveLocalEngine(id, voice: voice)
+        synth.setVoice(voice, for: id)
         synthQueue.engineDidChange()
         noteBakeMarksChanged()
         onEngineChange?()
@@ -400,14 +393,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// settled (loaded, failed, or replaced by another pick).
     func selectEngine(_ id: SpeechEngineID) async {
         guard id.isLocal else {
-            cancelWarm()
-            setEngineState(.off)
-            localEngine?.unloadHost()
+            synth.turnOff()
             return
         }
         guard engines.supports(id) else {
-            cancelWarm()
-            setEngineState(.failed(id, message: engines.blockReason(id) ?? "\(engines.displayName(id)) is not available on this device."))
+            synth.markUnavailable(id)
             return
         }
         if id == crashedEngineID {
@@ -416,7 +406,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
             crashedEngineID = nil
             if id == .kokoro { kokoroRouteSettings.onnxCrashCount = 0 }
         }
-        switch engineState {
+        switch synth.state {
         case .ready(id):
             return
         case .warming(id, _, let task):
@@ -426,67 +416,35 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
     }
 
-    /// Load `id`'s host (cancelling any other load) and move to `.ready` / `.failed` when it
-    /// settles. The returned task is the load; it is also held in `.warming`. A superseded load
-    /// is cancelled by whoever replaced it and then leaves the state alone.
+    /// Load `id` (see `LocalSynthService.load`); the queue drops the old engine's chunk plans
+    /// and scratch.
     @discardableResult
     private func beginWarm(_ id: SpeechEngineID) -> Task<Void, Never> {
-        cancelWarm()
-        localEngineInstance.setActiveLocalEngine(id, voice: engineVoices[id])
+        let load = synth.load(id, voice: engineVoices[id])
         synthQueue.engineDidChange()
-        let task = Task { @MainActor [weak self] in
-            guard let self else { return }
-            do {
-                try await self.localEngineInstance.prepareIfNeeded()
-                guard !Task.isCancelled else { return }
-                self.setEngineState(.ready(id))
-                self.noteBakeMarksChanged()
-                self.drainPendingIntoQueue()
-            } catch {
-                guard !Task.isCancelled else { return }
-                self.setEngineState(error is CancellationError
-                    ? .off : .failed(id, message: self.friendlyLocalError(error, engine: id)))
-            }
-        }
-        setEngineState(.warming(id, progress: nil, task: task))
-        return task
+        return load
     }
 
-    private func cancelWarm() {
-        if case .warming(_, _, let task) = engineState { task.cancel() }
-    }
-
-    private func setEngineState(_ state: LocalEngineState) {
-        engineState = state
+    /// Persist the selection, let the controller move the live utterance, and once a load
+    /// finishes fold the waiting bake jobs into the queue.
+    private func engineStateChanged() {
+        let state = synth.state
         if let persisted = state.persistedSelection {
             defaults.set(persisted.rawValue, forKey: Self.engineIDKey)
         }
         onEngineChange?()
-    }
-
-    /// The live listen could not start on the local engine: drop its host and speak with Apple.
-    func noteSpeakFailed(_ error: Error) {
-        guard let id = engineState.readyEngineID else { return }
-        localEngine?.resetHostPrepared()
-        setEngineState(.failed(id, message: friendlyLocalError(error, engine: id)))
-    }
-
-    /// Settings: stop the model download / load in flight; Apple speaks.
-    func cancelDownload() {
-        guard case .warming = engineState else { return }
-        cancelWarm()
-        localEngine?.resetHostPrepared()
-        setEngineState(.off)
+        if case .ready = state {
+            noteBakeMarksChanged()
+            drainPendingIntoQueue()
+        }
     }
 
     /// Delete one local engine's downloaded models (default: the active local engine).
     func deleteModel(_ engine: SpeechEngineID? = nil) throws {
         let id = engine ?? activeLocalEngineID ?? engines.defaultLocalEngineID
-        switch engineState {
+        switch synth.state {
         case .warming(id, _, _), .ready(id), .failed(id, _):
-            cancelWarm()
-            localEngine?.unloadHost()
-            setEngineState(.off)
+            synth.turnOff()
         default:
             break
         }
@@ -746,16 +704,5 @@ final class LocalTTSCoordinator: SynthQueueContext {
                 isEphemeral: audioCache.loadMeta(for: job.articleID)?.kind == .ephemeral
             )
         }, focusKey: focusCacheKey)
-    }
-
-    private func friendlyLocalError(_ error: Error, engine: SpeechEngineID) -> String {
-        let text = error.localizedDescription
-        if let reason = engines.blockReason(engine) {
-            return reason
-        }
-        if text.isEmpty {
-            return "\(engines.displayName(engine)) failed to load. Tap to retry."
-        }
-        return "\(engines.shortName(engine)): \(text)"
     }
 }

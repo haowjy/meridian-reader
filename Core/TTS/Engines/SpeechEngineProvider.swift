@@ -25,7 +25,7 @@ extension SpeechEngineProvider {
 }
 
 /// Composition-root registry of every engine. Built once at launch (`AppComposition`) and
-/// injected into SpeechController → LocalTTSCoordinator → LocalModelSpeechEngine.
+/// injected into SpeechController → LocalTTSCoordinator → LocalSynthService.
 @MainActor
 final class EngineRegistry {
     let providers: [SpeechEngineProvider]

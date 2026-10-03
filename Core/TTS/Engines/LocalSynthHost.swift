@@ -45,7 +45,7 @@ enum RenderPriority: Sendable {
     var taskPriority: TaskPriority { self == .listener ? .userInitiated : .utility }
 }
 
-/// One on-device synth backend behind `LocalModelSpeechEngine` (built by a
+/// One on-device synth backend behind `LocalSynthService` (built by a
 /// `SpeechEngineProvider`). Hosts are thin: load models, run ONE call, map overflow errors to
 /// `LocalSynthError.inputTooLong`. Chunking, re-split, the render gate, crash guard, timing log
 /// and CAF writing are shared (`LocalChunkRenderer`). Exactly one host is alive at a time.

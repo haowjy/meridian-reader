@@ -45,7 +45,7 @@ struct KokoroRouteDebugSection: View {
 
     private var liveRoute: String {
         guard let r = tts.liveKokoroRoute else { return "not loaded (\(tts.kokoroRouteSettings.route.label) next)" }
-        return "\(r.label) · \(tts.localEngineInstance.hostRoutingLabel ?? "")"
+        return "\(r.label) · \(tts.synth.hostRoutingLabel ?? "")"
     }
 
     private var paceLabel: String {

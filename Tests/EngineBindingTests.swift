@@ -36,7 +36,7 @@ final class EngineBindingTests: XCTestCase {
                                       audioSession: ListenAudioSession(managesSystemSession: false),
                                       nowPlaying: NowPlayingController(commandCenter: nil, infoCenter: nil),
                                       appleEngine: apple)
-        coordinator.localEngineInstance.resumePointStore = nil
+        speech.localEngine.player.resumePointStore = nil
         cleanups.append {
             speech.stop()
             defaults.removePersistentDomain(forName: suite)
@@ -124,13 +124,13 @@ final class EngineBindingTests: XCTestCase {
         let s = session()
         speech.start(s, fromParagraph: 0)
         XCTAssertEqual(engineName(speech), "Fake")
-        await waitUntil({ coordinator.localEngineInstance.isSpeaking }, "the local engine started")
+        await waitUntil({ speech.localEngine.player.isSpeaking }, "the local engine started")
 
         await coordinator.selectEngine(.apple)
 
         XCTAssertEqual(engineName(speech), "Apple")
         XCTAssertEqual(apple.plays.count, 1, "re-spoken with Apple at the playhead")
-        XCTAssertFalse(coordinator.localEngineInstance.isSpeaking, "the local player does not keep going unowned")
+        XCTAssertFalse(speech.localEngine.player.isSpeaking, "the local player does not keep going unowned")
         XCTAssertEqual(speech.playback.phase, .playing)
     }
 
@@ -138,12 +138,12 @@ final class EngineBindingTests: XCTestCase {
         let (speech, coordinator, _) = makeSpeech()
         await coordinator.selectEngine(FakeEngineProvider.fakeID)
         speech.start(session(), fromParagraph: 0)
-        await waitUntil({ coordinator.localEngineInstance.isSpeaking }, "the local engine started")
-        let before = coordinator.localEngineInstance.debugEpoch
+        await waitUntil({ speech.localEngine.player.isSpeaking }, "the local engine started")
+        let before = speech.localEngine.player.debugEpoch
 
         coordinator.setVoice("v2", for: FakeEngineProvider.fakeID)
 
-        XCTAssertGreaterThan(coordinator.localEngineInstance.debugEpoch, before, "re-spoken in the new voice")
+        XCTAssertGreaterThan(speech.localEngine.player.debugEpoch, before, "re-spoken in the new voice")
         XCTAssertEqual(engineName(speech), "Fake")
         XCTAssertEqual(speech.playback.phase, .playing)
     }

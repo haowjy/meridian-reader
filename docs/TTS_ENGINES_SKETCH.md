@@ -15,9 +15,10 @@ per library, behind the engine registry.
 ```
 Listen UI  →  SpeechController  →  ListenEngine (bound per utterance)
                                       ├─ AppleListenEngine   AVSpeechSynthesizer, one utterance
-                                      └─ LocalListenEngine   LocalModelSpeechEngine: file player + producer
-                                                               └─ GlobalSynthQueue → LocalChunkRenderer
-                                                                    → LocalSynthHost (KokoroCPUHost / KokoroHost)
+                                      └─ LocalListenEngine   LocalListenPlayer: file player + producer
+                                                               └─ ListenUnitSource (per play): audio cache + GlobalSynthQueue
+                                                                    → LocalSynthService → LocalChunkRenderer
+                                                                       → LocalSynthHost (KokoroCPUHost / KokoroHost)
 ```
 
 ```swift
@@ -156,10 +157,10 @@ What production / OSS stacks do:
 - Synthesize chunk **N+1 while N plays** (single synth worker — avoid parallel model runs / OOM).
 - Feed PCM into a **bounded** audio queue (`AVAudioPlayerNode` schedule); start after a short watermark (~0.2–0.5 s).
 - **Backpressure**: pause synth when queued audio exceeds ~2–5 s; resume when below threshold (prevents multi‑10 MB PCM buildup).
-- Cancel + clear queues on skip / voice / stop (the produce epoch in `LocalModelSpeechEngine`).
+- Cancel + clear queues on skip / voice / stop (the produce epoch in `LocalListenPlayer`).
 - Optional: keep model “session” warm (voice conditioning) across chunks; reset only what the model requires per chunk.
 
-Reader's on-device engine runs that pipeline (`LocalModelSpeechEngine` + `GlobalSynthQueue`); a cloud engine would reuse it. Apple stays utterance-based with no queue.
+Reader's on-device engine runs that pipeline (`LocalListenPlayer` + `GlobalSynthQueue`); a cloud engine would reuse it. Apple stays utterance-based with no queue.
 
 ## Phased shipping (agreed direction)
 
@@ -298,7 +299,7 @@ Goal: voice libraries plug in without touching the shared listen core.
 ```
 AppComposition (composition root: the only file that lists libraries)
   └─ EngineRegistry(providers: [AppleSpeechProvider, FluidAudioProvider, (SpeechSwiftProvider)])
-       └─ injected → SpeechController(engines:) → LocalTTSCoordinator(engines:) → LocalModelSpeechEngine(engines:)
+       └─ injected → SpeechController(engines:) → LocalTTSCoordinator(engines:) → LocalSynthService(engines:)
 
 SpeechEngineProvider (one per library)      EngineDescriptor (capabilities, per engine)
   descriptors / retiredEngines                   id, names, subtitle, recommended, sort order

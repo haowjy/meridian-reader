@@ -15,8 +15,6 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
         var secondsPerChar = 0.05
         /// Behave like Kokoro's ONNX CPU route (may render while backgrounded).
         var rendersInBackground = false
-        /// Holds `prepare()` until the test opens it (a model load in flight).
-        var prepareGate: TestGate?
     }
 
     struct FakeError: LocalizedError { var errorDescription: String? { "fake engine failure" } }
@@ -40,7 +38,6 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
     var isPrepared: Bool { lock.withLock { prepared } }
 
     func prepare() async throws {
-        if let gate = config.prepareGate { await gate.wait() }
         onProgress?(1)
         lock.withLock { prepared = true }
     }
@@ -69,25 +66,6 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
         let n = max(1, Int(seconds * Double(sampleRate)))
         if silence { return [Float](repeating: 0, count: n) }
         return (0..<n).map { Float(sin(2 * Double.pi * 440 * Double($0) / Double(sampleRate)) * 0.1) }
-    }
-}
-
-/// An async latch: `wait()` suspends until `open()`; `waiting` counts the callers held so far.
-actor TestGate {
-    private var isOpen = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
-    private(set) var waiting = 0
-
-    func wait() async {
-        guard !isOpen else { return }
-        waiting += 1
-        await withCheckedContinuation { waiters.append($0) }
-    }
-
-    func open() {
-        isOpen = true
-        waiters.forEach { $0.resume() }
-        waiters = []
     }
 }
 

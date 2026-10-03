@@ -41,7 +41,7 @@ protocol ListenEngine: AnyObject {
 
 /// What the controller asks the bound engine to play.
 struct ListenPlayRequest {
-    var articleID: UUID?
+    var articleID: UUID
     var document: ParagraphDocument
     /// Document UTF-16 offset to start at: a paragraph start, a scrubbed sentence start, or the
     /// word being spoken when an utterance restarts.

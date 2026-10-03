@@ -79,7 +79,7 @@ extension SpeechController {
             case .idle: return "idle"
             }
         }()
-        let warmingLocal = localTTS.engineState.warmingEngineID != nil
+        let warmingLocal = localTTS.synth.state.warmingEngineID != nil
         let snap = engineSnapshot()
         return ListenDebugSnapshot(
             phase: String(describing: playback.phase),
@@ -115,7 +115,7 @@ extension SpeechController {
             renderMode: activeEngine == nil ? "idle · \(queue.runState.phase.rawValue)" : engine.renderMode,
             readyAhead: engine.readyAhead,
             background: queue.runState.phase == .background
-                ? "now: " + localTTS.localEngineInstance.backgroundStats.label
+                ? "now: " + localEngine.player.backgroundStats.label
                 : lastBackgroundSummary,
             audioSession: "\(audioSession.isActive ? "active" : "inactive") · activations \(audioSession.activationCount)"
         )

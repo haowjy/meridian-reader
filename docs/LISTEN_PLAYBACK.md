@@ -54,9 +54,9 @@ cleared player). Speed is a setting every adapter keeps, bound or not.
 | Adapter | Role |
 |---------|------|
 | `AppleListenEngine` | One `AVSpeechUtterance` holding the rest of the article from the start offset. `pauseSpeaking(at: .word)` / `continueSpeaking`. The delegate reports `becameAudible`, `becamePaused`, `playheadAdvanced(paragraph, offset)` (the word about to be spoken) and `finished` (the live utterance's `didFinish`: it holds the rest of the article). Callbacks from an utterance that was stopped or replaced are dropped. A speed change re-speaks from the word being spoken. A paused `play` holds nothing; Resume then plays from the playhead. |
-| `LocalListenEngine` | Wraps `LocalModelSpeechEngine` (file player + producer; plays **Ready** CAF units only) and points it at the article's cache and render queue. Pause keeps `AVAudioPlayer.currentTime`; resume = `play()`, **no** produce-epoch bump, **no** queue clear. A unit start is `playheadAdvanced(paragraph, nil)` (the controller keeps a scrubbed offset in that paragraph, else uses its start); the end of the article is `finished`, decided only by the player
+| `LocalListenEngine` | Drives `LocalListenPlayer` (file player + producer; plays **Ready** CAF units only). Each play binds one `ListenUnitSource` (`QueueUnitSource`: the article's paragraphs in one engine voice, over the audio cache and the render queue); the player never touches the model. A `play` or `stop` that arrives while the model loads wins: the waiting play returns without starting. Pause keeps `AVAudioPlayer.currentTime`; resume = `play()`, **no** produce-epoch bump, **no** queue clear. A unit start is `playheadAdvanced(paragraph, nil)` (the controller keeps a scrubbed offset in that paragraph, else uses its start); the end of the article is `finished`, decided only by the player
 (`ChunkPlaybackQueue`): the producer calls `endOfInput()` when it has enqueued every paragraph, and
-the player finishes when its queue drains (at once if it was already idle and not paused). Progress inside a paragraph is player time, so while playing the controller polls `estimatedPosition()` at 5 Hz (`needsPlaybackPolling`). Speed is a pitch-preserving time-stretch applied in place. If the host fails to load it calls `noteSpeakFailed`; the engine-change handling below re-speaks the spot with Apple. |
+the player finishes when its queue drains (at once if it was already idle and not paused). Progress inside a paragraph is player time, so while playing the controller polls `estimatedPosition()` at 5 Hz (`needsPlaybackPolling`). Speed is a pitch-preserving time-stretch applied in place. If the host fails to load it calls `LocalSynthService.noteSpeakFailed`; the engine-change handling below re-speaks the spot with Apple. |
 
 Adapters do not own bake policy or UI phase. The controller still confirms `becameAudible` /
 `becamePaused` itself right after commanding the on-device engine, which has no audible / paused
@@ -64,12 +64,14 @@ events of its own.
 
 #### Engine binding and the on-device engine's lifecycle
 
-- `LocalTTSCoordinator.engineState` (`LocalEngineState`) is the on-device engine's one lifecycle
-  value: `off` (Apple speaks), `warming(id, progress, task)` (download / load in flight; `task` is
-  the single load, and cancelling it abandons the load), `ready(id)`, `failed(id, message)` (Apple
-  speaks; Settings shows the message). Every change goes through `setEngineState`, which persists
-  `reader.tts.engineID` (the engine on `ready`, Apple on `off` / `failed`, unchanged while warming)
-  and calls `onEngineChange`.
+- `LocalSynthService` (owned by `LocalTTSCoordinator.synth`) holds the on-device engine's model:
+  the one resident host behind `LocalChunkRenderer`, the Apple renderer for text the engine can't
+  produce, and the lifecycle value `state` (`LocalEngineState`): `off` (Apple speaks),
+  `warming(id, progress, task)` (download / load in flight; `task` is the single load, and
+  cancelling it abandons the load), `ready(id)`, `failed(id, message)` (Apple speaks; Settings
+  shows the message). The render queue renders through it (`SynthChunkRendering`). On every
+  change the coordinator persists `reader.tts.engineID` (the engine on `ready`, Apple on `off` /
+  `failed`, unchanged while warming) and calls `onEngineChange`.
 - `SpeechController.speak` picks the engine once (`ListenRoute`: Apple, or the ready on-device
   engine and its voice when it speaks the article's language) and binds it. Pause, resume, the
   play icon, "Preparing next…" and stop go to the bound engine until stop or the next `speak`.
@@ -80,8 +82,8 @@ events of its own.
   - Apple paused: re-speaks, paused, at the playhead on the on-device engine.
   - On-device engine bound but no longer the pick (Apple chosen, model deleted, load failed, route
     reload, voice change): re-speaks at the playhead now.
-- Views only call `selectEngine`, `chooseVoice`, `deleteModel` or `cancelDownload`; they never
-  restart playback themselves.
+- Views only call `selectEngine`, `chooseVoice`, `deleteModel` or `synth.cancelDownload`; they
+  never restart playback themselves.
 
 ### 3. AudioProducer + BakeCache (ahead of playhead)
 
@@ -111,7 +113,7 @@ Produce **epoch** increments only on `stop` / `seek` / new `play` from a new ind
 
 #### Persistent bake
 
-The queue worker renders chunk CAFs, and once every chunk of a paragraph exists it stitches them into the paragraph CAF off the main actor (`ArticleAudioCache.stitchParagraph`, renamed over `p-NNNN.caf`) and records it in the index on the main actor (`recordParagraph`). Live listening and bake-ahead use the same path. Replays prefer the stitched paragraph CAF via `bakedURLProvider`.
+The queue worker renders chunk CAFs, and once every chunk of a paragraph exists it stitches them into the paragraph CAF off the main actor (`ArticleAudioCache.stitchParagraph`, renamed over `p-NNNN.caf`) and records it in the index on the main actor (`recordParagraph`). Live listening and bake-ahead use the same path. Replays prefer the stitched paragraph CAF (`ListenUnitSource.renderedParagraph`).
 
 Render priority: chunks of an article someone is listening to (a producer waits on one of its chunks, or its audio is playing) render at `RenderPriority.listener` (`.userInitiated`); everything else is bake-ahead at `.utility` (Kokoro ONNX: the calling thread's QoS — ORT's pool threads keep the session's). Bake-ahead is held while the thermal state is `.serious` or worse or Low Power Mode is on (`BakeConditions`), and resumes on the thermal / power-state change notification. Only listener calls feed `RenderPace` (the head-start rule).
 
@@ -178,7 +180,7 @@ See also `docs/ARTICLE_IDENTITY.md`.
 - **Engines** (`SpeechEngineID`): `apple` (always available, default with no model) and `local.kokoro`
   ("Kokoro (on-device)", recommended). **Kokoro is the only local engine.** Chatterbox Nano
   (`local.chatterbox-nano`) was removed (too slow for listening); see "Chatterbox Nano retirement" below.
-- **One host at a time.** `LocalModelSpeechEngine` holds a single `LocalSynthHost`
+- **One host at a time.** `LocalSynthService` holds a single `LocalSynthHost`
   (`KokoroHost`, built by `FluidAudioProvider` via `EngineRegistry`) wrapped
   in the shared `LocalChunkRenderer`. Selecting another engine drops (unloads)
   the old host before warming the new one. All renders serialize through `SynthRenderGate.shared`

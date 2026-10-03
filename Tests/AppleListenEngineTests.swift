@@ -15,7 +15,7 @@ final class AppleListenEngineTests: XCTestCase {
     ])
 
     private func request(at offset: Int = 0) -> ListenPlayRequest {
-        ListenPlayRequest(articleID: nil, document: document, utf16Offset: offset, startPaused: false, appleVoice: nil)
+        ListenPlayRequest(articleID: UUID(), document: document, utf16Offset: offset, startPaused: false, appleVoice: nil)
     }
 
     /// Let the delegate's main-actor hops run. Bounded, no clock.
