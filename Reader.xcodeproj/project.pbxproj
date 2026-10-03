@@ -173,6 +173,7 @@
 		D92A0B26BB28EBDD3DB82026 /* ReaderChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C182D476232B724A13DCFF /* ReaderChrome.swift */; };
 		DE9AB318EAD81B21EE8159B5 /* KokoroONNXModelPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945DDAA7CAECDB838AF8AB45 /* KokoroONNXModelPatch.swift */; };
 		E09DA3B50045D89452C75D3D /* MenuContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EB55F0DE69FFF5ADAA1C1C6 /* MenuContext.swift */; };
+		E1BD3E67C58821D757E1DF53 /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 907FDD989A204934F5886F2F /* Motion.swift */; };
 		E4DAA4EB12D98A6BA89D52E8 /* CoreMLBreadcrumbFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = DED278172861903AD2F8A34A /* CoreMLBreadcrumbFile.swift */; };
 		E57FAEEC0A567CEA3C29038A /* BrowseStartPageUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FA13AD50DF32A7512831312 /* BrowseStartPageUITests.swift */; };
 		E63AA18B2D807E2F2D3D7569 /* BookmarkStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD39B0E9CFD8BAD090771AAC /* BookmarkStoreTests.swift */; };
@@ -327,6 +328,7 @@
 		8DDA68BDD5DA0567C7B1C542 /* SpeechSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechSettingsView.swift; sourceTree = "<group>"; };
 		8E3D075C11D960B34BA37542 /* ListenTimingLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenTimingLog.swift; sourceTree = "<group>"; };
 		8FC9934EE4B8935F2752DB39 /* ContinueListening.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueListening.swift; sourceTree = "<group>"; };
+		907FDD989A204934F5886F2F /* Motion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Motion.swift; sourceTree = "<group>"; };
 		90D50E23C0005AF23F5189E7 /* NavJScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavJScreenshotTests.swift; sourceTree = "<group>"; };
 		922E69F33ED37525B698AF48 /* ArticleReaderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleReaderScreen.swift; sourceTree = "<group>"; };
 		93667398429596A83ECBB3A0 /* HierarchicalChunkerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HierarchicalChunkerTests.swift; sourceTree = "<group>"; };
@@ -469,6 +471,7 @@
 				77EF9C1D2E4499613BE111E8 /* MiniPlayerBar.swift */,
 				DE0F44E4E40BE383CB1BB66E /* MoreMenuPanel.swift */,
 				B68A159D8370E2690B974D9C /* MorphMenuOverlay.swift */,
+				907FDD989A204934F5886F2F /* Motion.swift */,
 				35F376A9DF09F7F071F05780 /* SearchSession.swift */,
 				3EAD948127873C2E85288524 /* SearchSessionChrome.swift */,
 				7AD55CF45960CA0A23825A7C /* ShellSheetView.swift */,
@@ -1091,6 +1094,7 @@
 				D316A0062C09AD472D6F09A6 /* MiniPlayerBar.swift in Sources */,
 				8EDB36351E73ECCAF93D2A4E /* MoreMenuPanel.swift in Sources */,
 				6AD0815D712810EE2A6FD9E1 /* MorphMenuOverlay.swift in Sources */,
+				E1BD3E67C58821D757E1DF53 /* Motion.swift in Sources */,
 				3193736F0C34120472D97E93 /* NowPlayingController.swift in Sources */,
 				CFC87DF390B416077E445A0E /* OfflineArticleView.swift in Sources */,
 				D23BE8EDA861B2EF7254FCE8 /* PageArticleService.swift in Sources */,

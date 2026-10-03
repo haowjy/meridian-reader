@@ -35,6 +35,7 @@ struct ArticleReaderScreen: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(ShellState.self) private var shell
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var savedRows: [SavedArticle]
     @State private var jumpMode = false
     /// ✕ reader only: how far the top bar is being pulled down (swipe-down-to-close).
@@ -147,10 +148,10 @@ struct ArticleReaderScreen: View {
             if jumpMode {
                 jumpBanner
                     .padding(.top, topChromeHeight)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(.slideAndFade(from: .top, reduceMotion: reduceMotion))
             }
         }
-        .animation(.easeInOut(duration: 0.15), value: jumpMode)
+        .animation(Motion.snappy, value: jumpMode)
         .background {
             Color(.systemBackground)
                 .ignoresSafeArea()
@@ -293,7 +294,7 @@ struct ArticleReaderScreen: View {
                 ) {
                     close()
                 } else {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { pullDownOffset = 0 }
+                    withAnimation(Motion.settle) { pullDownOffset = 0 }
                 }
             }
     }

@@ -82,8 +82,6 @@ final class ShellState {
     /// listening session. Saved articles reopen from the store instead.
     private(set) var nowPlayingArticle: ReaderArticle?
 
-    static let readerFade = Animation.easeInOut(duration: 0.2)
-
     // MARK: - Surface queries
 
     /// The ✕ reader's article, when it is the surface.
@@ -109,7 +107,7 @@ final class ShellState {
     // MARK: - Surfaces
 
     func showReader(_ article: ReaderArticle, origin: ReaderOrigin) {
-        withAnimation(Self.readerFade) { surface = .reader(article, origin: origin) }
+        withAnimation(Motion.standard) { surface = .reader(article, origin: origin) }
     }
 
     /// Updates the ✕ reader's article in place (favicon arrived, listen blocks built, Save
@@ -123,7 +121,7 @@ final class ShellState {
     /// ✕ / pull-down. Playback keeps going; the mini player takes over.
     func hideReader() {
         guard case .reader = surface else { return }
-        withAnimation(Self.readerFade) { surface = .browse }
+        withAnimation(Motion.standard) { surface = .browse }
     }
 
     func openLibrary() {

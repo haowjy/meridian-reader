@@ -168,7 +168,7 @@ struct ReaderScrubRow: View {
             .coordinateSpace(name: Self.space)
         }
         .frame(height: BottomChrome.fieldControlSize)
-        .animation(.easeOut(duration: 0.12), value: dragging)
+        .animation(Motion.snappy, value: dragging)
         .accessibilityElement()
         .accessibilityIdentifier("readerScrubber")
         .accessibilityLabel("Article position")

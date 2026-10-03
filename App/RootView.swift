@@ -5,6 +5,7 @@ import SwiftData
 /// over it (`ShellState`). Shows the local engine's crash notice on top.
 struct RootView: View {
     @Environment(\.speechController) private var speech
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         BrowseStartView()
@@ -12,10 +13,10 @@ struct RootView: View {
                 if let notice = speech.localTTS.engineCrashNotice {
                     EngineNoticeBanner(text: notice) { speech.localTTS.dismissCrashNotice() }
                         .padding(.horizontal, 12)
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .transition(.slideAndFade(from: .top, reduceMotion: reduceMotion))
                 }
             }
-            .animation(.easeInOut(duration: 0.2), value: speech.localTTS.engineCrashNotice)
+            .animation(Motion.snappy, value: speech.localTTS.engineCrashNotice)
     }
 }
 

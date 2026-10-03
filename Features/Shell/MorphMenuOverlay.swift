@@ -9,7 +9,8 @@ import SwiftUI
 /// hardware Esc) collapses it back into the button.
 ///
 /// The morph is an animatable progress, not a SwiftUI transition: a transition on a view nested in
-/// the inserted container never runs. The overlay unmounts once it has collapsed.
+/// the inserted container never runs. The overlay unmounts once it has collapsed. Under Reduce
+/// Motion the panel only cross-fades in place (no scale, no blur).
 ///
 /// One overlay serves every ⋯ (browser toolbar, library toolbar, reader listen bar): the shell
 /// keeps the open menu as `item` (nil = closed) and the button's global frame as `anchor`; the
@@ -29,6 +30,7 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     var focusOffset: CGSize = MorphMenu.focusOffsetFromAnchor
     @ViewBuilder var panel: (Item, MorphMenuClose) -> Panel
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The item on screen: set while open and kept while collapsing back into the button
     /// (non-nil = in the hierarchy).
     @State private var shown: Item?
@@ -134,7 +136,8 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
                         .accessibilityIdentifier("moreMenuFocus")
                 }
             }
-            .modifier(MorphPanelEffect(progress: expanded ? 1 : 0, startScale: start, anchor: anchor))
+            .modifier(MorphPanelEffect(progress: expanded ? 1 : 0, startScale: reduceMotion ? CGSize(width: 1, height: 1) : start,
+                                       anchor: anchor, blurs: !reduceMotion))
             .offset(y: dragOffset)
             .simultaneousGesture(swipeDownToDismiss)
             // Hardware keyboard Esc.
@@ -197,7 +200,7 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
                 ) {
                     dismiss()
                 } else {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { dragOffset = 0 }
+                    withAnimation(Motion.settle) { dragOffset = 0 }
                 }
             }
     }
@@ -226,22 +229,21 @@ enum MorphMenu {
     /// UI tests: expose the focus point as an accessibility element (alignment test).
     static let exposesFocus = LaunchOptions.current.uiTesting
 
-    /// UI tests can slow the morph so a mid-animation frame can be captured.
+    /// `Motion.standard`; UI tests can slow it so a mid-animation frame can be captured.
     static var animation: Animation {
-        LaunchOptions.current.slowMenuAnimation
-            ? .easeInOut(duration: 3)
-            : .spring(response: 0.36, dampingFraction: 0.86)
+        LaunchOptions.current.slowMenuAnimation ? .easeInOut(duration: 3) : Motion.standard
     }
 }
 
 /// The morph, as one animatable progress (0 = the ⋯ button's size, 1 = the full panel). The panel
 /// scales from the button's size with the bottom-right corners pinned, so it visibly grows out of
 /// (and shrinks back into) the button; the glass shows at once and the rows fade / un-blur in
-/// over the second half.
+/// over the second half. Reduce Motion passes a start scale of 1 and no blur: a plain fade.
 private struct MorphPanelEffect: ViewModifier, Animatable {
     var progress: CGFloat
     let startScale: CGSize
     var anchor: UnitPoint = .bottomTrailing
+    var blurs = true
 
     var animatableData: CGFloat {
         get { progress }
@@ -253,7 +255,7 @@ private struct MorphPanelEffect: ViewModifier, Animatable {
         let rows = Double(min(1, max(0, (p - 0.35) / 0.65)))
         return content
             .opacity(rows)
-            .blur(radius: (1 - p) * 6)
+            .blur(radius: blurs ? (1 - p) * 6 : 0)
             .background { MorphMenuPanelBackground() }
             .clipShape(RoundedRectangle(cornerRadius: MorphMenu.cornerRadius, style: .continuous))
             .shadow(color: .black.opacity(0.18 * Double(p)), radius: 28, y: 10)
