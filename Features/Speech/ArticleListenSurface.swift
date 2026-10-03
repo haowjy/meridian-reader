@@ -166,6 +166,8 @@ struct ArticleListenSurface: View {
                         .bottomChromeField()
                 }
             }
+            // The drag bubble spans the whole row, back control included.
+            .readerScrubBubble()
 
             ListenControllerView(
                 session: session,

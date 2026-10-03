@@ -210,7 +210,7 @@ above. Code:
 - **Status notes** (Nav J): "Preparing next…", Apple-fallback / language notes, and the
   developer-only Debug chip sit **above** the scrubber so appearing text never pushes it when you
   skip.
-- **Scrubber** (Nav I: sentence-precise): fill = progress (weighted by text length; with a local
+- **Scrubber** (sentence-precise): fill = progress (weighted by text length; with a local
   voice the thumb now moves smoothly inside a paragraph, estimated from the player's time); the
   lighter fill ahead of it is audio already rendered (local voices; Apple speaks live so there is
   none). This lighter fill replaced the old gray "not ready" paragraph cards; nothing per-paragraph
@@ -219,10 +219,16 @@ above. Code:
     the track and it jumps there. The touch area is the whole capsule height plus its rounded
     leading end.
   - **Fine scrubbing**: slide your finger up away from the track to slow the thumb — < 50 pt 1×,
-    50–110 pt ½ ("Half-speed scrubbing"), 110–170 pt ¼, above that 0.1× ("Fine scrubbing");
-    changing speed re-anchors, so the thumb never jumps.
-  - **Snaps to sentences**: a light haptic ticks at every sentence start; the bubble (a card above
-    the capsule) shows "¶ N of M · sentence k of n · <speed>" and the sentence's first words.
+    50–110 pt ½, 110–170 pt ¼, above that 0.1× ("Fine scrubbing"); changing speed re-anchors, so
+    the thumb never jumps, with a light tap.
+  - **Snaps to sentences**: release lands on a sentence start. Haptics tick only on boundaries
+    you can feel apart: a sentence or paragraph ticks when it is at least 7 pt wide on screen at
+    the current speed, so at 1× a long article ticks on paragraphs and the finer speeds tick each
+    sentence; either end of the track gives a firmer tick.
+  - **The bubble** (a card as wide as the scrub band) shows the speed as a chip (½×, ¼×, Fine),
+    "¶ N of M · sentence k of n" and the sentence's first words. It sits just above the capsule
+    and, once the finger slides up, rides 44 pt above the finger so the thumb never covers it; at
+    large text sizes it wraps rather than truncating.
   - **Release** seeks to the start of the sentence under the thumb, not the paragraph start:
     playing keeps playing from that sentence; paused stays paused there (Play resumes from it);
     not loaded just moves where Play starts (and the stored offset of a saved article resumes at
