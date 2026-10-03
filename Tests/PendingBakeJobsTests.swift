@@ -20,20 +20,20 @@ final class PendingBakeJobsTests: XCTestCase {
         """
         defaults.set(Data(legacy.utf8), forKey: "reader.tts.pendingBakeJobs")
 
-        let scheduler = BackgroundAudioBakeScheduler(storeURL: url, defaults: defaults)
-        let jobs = scheduler.pendingJobs()
+        let store = PendingBakeJobStore(storeURL: url, defaults: defaults)
+        let jobs = store.pendingJobs()
         XCTAssertEqual(jobs.map(\.articleID), [key])
         XCTAssertEqual(jobs.first?.paragraphs, ["One.", "Two."])
         XCTAssertEqual(jobs.first?.priorityStart, 1)
         XCTAssertNil(defaults.object(forKey: "reader.tts.pendingBakeJobs"), "moved out of UserDefaults")
 
         // Another instance reads the file.
-        XCTAssertEqual(BackgroundAudioBakeScheduler(storeURL: url, defaults: defaults).pendingJobs(), jobs)
+        XCTAssertEqual(PendingBakeJobStore(storeURL: url, defaults: defaults).pendingJobs(), jobs)
 
-        scheduler.enqueuePending(articleID: UUID(), paragraphs: ["Three."], voiceID: "v", plan: .topDown(paragraphCount: 1))
-        XCTAssertEqual(scheduler.pendingJobs().count, 2)
-        for job in scheduler.pendingJobs() { scheduler.removePending(articleID: job.articleID) }
-        XCTAssertTrue(scheduler.pendingJobs().isEmpty)
+        store.enqueuePending(articleID: UUID(), paragraphs: ["Three."], voiceID: "v", plan: .topDown(paragraphCount: 1))
+        XCTAssertEqual(store.pendingJobs().count, 2)
+        for job in store.pendingJobs() { store.removePending(articleID: job.articleID) }
+        XCTAssertTrue(store.pendingJobs().isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: url.path), "no jobs → no file")
     }
 }

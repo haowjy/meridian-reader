@@ -297,7 +297,7 @@ final class GlobalSynthQueue {
         kickWorker()
     }
 
-    /// Pending background-bake job (persisted by `BackgroundAudioBakeScheduler`).
+    /// Pending bake job (persisted by `PendingBakeJobStore`).
     struct PendingWork: Equatable {
         var cacheKey: UUID
         var paragraphs: [String]

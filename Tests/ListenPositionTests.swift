@@ -12,7 +12,7 @@ final class ListenPositionTests: XCTestCase {
     override func tearDown() async throws {
         cleanups.reversed().forEach { $0() }
         cleanups = []
-        for id in sessionIDs { BackgroundAudioBakeScheduler.shared.removePending(articleID: id) }
+        for id in sessionIDs { PendingBakeJobStore.shared.removePending(articleID: id) }
         sessionIDs = []
     }
 

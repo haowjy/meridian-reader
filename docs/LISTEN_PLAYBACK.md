@@ -272,11 +272,9 @@ highlight and the paragraph picker stay fine-grained.
   kept out of the on-device queue (`LocalTTSCoordinator.localLanguageGate`).
 
 **Pending jobs.** Articles saved or opened while the engine was cold are kept as pending bake
-jobs in `Application Support/PendingBakeJobs.json` (`BackgroundAudioBakeScheduler`) and fold into
-the queue once the engine is ready. The same type registers a `BGProcessingTask`
-(`com.jimmyyao.Reader.bake-audio`), requested on save / cold open only while the route may render
-in the background; when iOS runs it, it logs `bg_task_skipped` and completes, leaving the jobs for
-the foreground. Full-article rendering in the background is not promised.
+jobs in `Application Support/PendingBakeJobs.json` (`PendingBakeJobStore`) and fold into the
+queue once the engine is ready. Nothing bakes while the app is suspended: the app registers no
+background task, and full-article rendering in the background is not promised.
 
 **Core ML compile cache.** Core ML adds compiled bundles under
 `Library/Caches/<bundle>/com.apple.e5rt.e5bundlecache/<os build>/` after every install and never
@@ -319,11 +317,11 @@ accessory and check slots, min height 48), so state changes never move rows
 Leaving the app (Home, lock, app switcher) keeps Listen playing. Closing the reader keeps it
 playing too; the mini player takes over.
 
-**Audio session** (`ListenAudioSession`): `UIBackgroundModes: [audio, processing]`
-(`project.yml`). Category `.playback`, mode `.spokenAudio`, no options: a mixable (ducking)
-session never becomes the Now Playing app, so other apps' audio pauses while Reader speaks, like a
-podcast app. Only the category is set at launch; the session activates when playback starts or
-resumes and deactivates with `.notifyOthersOnDeactivation` on stop or finish.
+**Audio session** (`ListenAudioSession`): `UIBackgroundModes: [audio]` (`project.yml`). Category
+`.playback`, mode `.spokenAudio`, no options: a mixable (ducking) session never becomes the Now
+Playing app, so other apps' audio pauses while Reader speaks, like a podcast app. Only the
+category is set at launch; the session activates when playback starts or resumes and deactivates
+with `.notifyOthersOnDeactivation` on stop or finish.
 
 **Lock screen / Control Center** (`NowPlayingController`):
 

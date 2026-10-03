@@ -1,4 +1,3 @@
-import BackgroundTasks
 import Foundation
 
 /// Persisted bake jobs for articles that still need audio (`PendingJob`). Jobs are added on save
@@ -6,17 +5,11 @@ import Foundation
 /// (`LocalTTSCoordinator.drainPendingIntoQueue`); a finished article drops its job.
 ///
 /// Jobs carry the article's paragraphs, so they live in a small JSON file in Application Support,
-/// not in UserDefaults (whose plist is loaded whole at every launch). Older builds kept them under
-/// `reader.tts.pendingBakeJobs` in UserDefaults; the first load moves them to the file.
-///
-/// Also registers a `BGProcessingTask`. The coordinator requests it only while the active route
-/// may render in the background (Kokoro ONNX); its handler doesn't render yet — background
-/// bake-ahead is limited to the article that is playing — so it logs and completes, and the jobs
-/// stay pending for the foreground queue.
+/// not in UserDefaults (whose plist is loaded whole at every launch). Jobs still under the legacy
+/// `reader.tts.pendingBakeJobs` UserDefaults key move to the file on the first load.
 @MainActor
-final class BackgroundAudioBakeScheduler {
-    static let shared = BackgroundAudioBakeScheduler()
-    static let taskIdentifier = "com.jimmyyao.Reader.bake-audio"
+final class PendingBakeJobStore {
+    static let shared = PendingBakeJobStore()
 
     private static let legacyDefaultsKey = "reader.tts.pendingBakeJobs"
     private let storeURL: URL
@@ -29,21 +22,9 @@ final class BackgroundAudioBakeScheduler {
     }
 
     /// `storeURL` / `defaults` are injectable for tests.
-    init(storeURL: URL = BackgroundAudioBakeScheduler.defaultStoreURL, defaults: UserDefaults = .standard) {
+    init(storeURL: URL = PendingBakeJobStore.defaultStoreURL, defaults: UserDefaults = .standard) {
         self.storeURL = storeURL
         self.defaults = defaults
-    }
-
-    func register() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.taskIdentifier, using: nil) { task in
-            guard let processing = task as? BGProcessingTask else {
-                task.setTaskCompleted(success: false)
-                return
-            }
-            Task { @MainActor in
-                BackgroundAudioBakeScheduler.shared.handle(processing)
-            }
-        }
     }
 
     struct PendingJob: Codable, Equatable {
@@ -84,27 +65,9 @@ final class BackgroundAudioBakeScheduler {
     /// Pending jobs waiting for local-engine readiness.
     func pendingJobs() -> [PendingJob] { loadPending() }
 
-    func scheduleProcessingTask() {
-        let request = BGProcessingTaskRequest(identifier: Self.taskIdentifier)
-        request.requiresNetworkConnectivity = false
-        request.requiresExternalPower = true
-        do {
-            try BGTaskScheduler.shared.submit(request)
-        } catch {
-            print("[BGBake] submit failed: \(error.localizedDescription)")
-        }
-    }
-
-    /// Nothing renders here (see the type comment). Not re-requested: the next save on a route
-    /// that renders in the background asks again.
-    private func handle(_ task: BGProcessingTask) {
-        ListenTimingLog.log("bg_task_skipped", ["reason": "bake_ahead_foreground_only", "pending": loadPending().count])
-        task.setTaskCompleted(success: true)
-    }
-
     private func loadPending() -> [PendingJob] {
         if let data = defaults.data(forKey: Self.legacyDefaultsKey) {
-            // Move jobs written by older builds out of UserDefaults (once).
+            // Move legacy UserDefaults jobs to the file (once).
             let legacy = (try? JSONDecoder().decode([PendingJob].self, from: data)) ?? []
             savePending(legacy)
             defaults.removeObject(forKey: Self.legacyDefaultsKey)

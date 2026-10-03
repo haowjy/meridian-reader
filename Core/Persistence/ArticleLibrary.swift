@@ -209,7 +209,7 @@ enum ArticleLibrary {
         guard !stale.isEmpty else { return report }
         let cache = localTTS.audioCache
         let resume = ListenResumePointStore.shared.load()
-        let scheduler = BackgroundAudioBakeScheduler.shared
+        let pendingStore = PendingBakeJobStore.shared
         for row in stale {
             let t0 = ListenTimingLog.now()
             // The list the stored position / audio refer to: the stored v2 blocks when present,
@@ -242,12 +242,12 @@ enum ArticleLibrary {
             localTTS.remapPendingResume(article: row.id) {
                 ParagraphPositionMap.mapParagraphStart($0, from: old, to: new)
             }
-            if let job = scheduler.pendingJobs().first(where: { $0.articleID == row.id }) {
+            if let job = pendingStore.pendingJobs().first(where: { $0.articleID == row.id }) {
                 let start = ParagraphPositionMap.mapParagraphStart(job.priorityStart, from: ParagraphDocument(parts: job.paragraphs), to: new)
-                scheduler.enqueuePending(articleID: row.id, paragraphs: new.paragraphs, voiceID: job.voiceID,
-                                         plan: BakePriorityPlan(priorityStart: start,
-                                                                fillGapsFromTopAfterPriority: job.fillGapsFromTopAfterPriority,
-                                                                paragraphCount: new.count))
+                pendingStore.enqueuePending(articleID: row.id, paragraphs: new.paragraphs, voiceID: job.voiceID,
+                                            plan: BakePriorityPlan(priorityStart: start,
+                                                                   fillGapsFromTopAfterPriority: job.fillGapsFromTopAfterPriority,
+                                                                   paragraphCount: new.count))
             }
             let splitCount = old.paragraphs.filter { ParagraphSplitter.pieces($0).count > 1 }.count
             report.articles += 1
