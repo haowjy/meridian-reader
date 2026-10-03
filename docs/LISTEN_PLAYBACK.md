@@ -471,9 +471,13 @@ background) and is thread-safe:
 | inactive (Control Center, call banner, app switcher, on the way out) | Only chunks a listener is waiting for render. Bake-ahead waits. |
 | background | No model call starts. |
 
-It's checked **before each synthesis**, at two layers:
+One pure rule, `RenderAdmission.decide(phase:rendersInBackground:isLiveRequest:isPlayingArticle:)`
+→ `render` / `park` / `deferToApple`, holds this table and the CPU-route exception below (its doc
+comment has the full matrix; `RenderAdmissionTests` covers every row). It's checked **before each
+synthesis**, at two layers:
 
-1. `GlobalSynthQueue`:
+1. `GlobalSynthQueue` (on every app-phase change, before every chunk, in `ensureChunk`, and when a
+   render fails):
    - Before every chunk, the worker parks instead of rendering.
    - `ensureChunk` for unrendered audio throws `LocalSynthError.deferredInBackground` right away,
      without moving the priority cursor. On returning to the foreground the listen engine refocuses
@@ -481,7 +485,8 @@ It's checked **before each synthesis**, at two layers:
    - A chunk render that fails because of backgrounding is **not** replaced with Apple audio in the
      engine cache. Chunks already rendered stay on disk.
    - On returning to active, the worker is re-kicked.
-2. `LocalChunkRenderer.synthesizeResilient` is the last line of defense. It sits right before
+2. `LocalChunkRenderer.synthesizeResilient` is the last line of defense
+   (`RenderAdmission.modelCallsAllowed`: no Core ML call in the background). It sits right before
    `host.synthesizeOnce` (covering the queue and the engine probe) and refuses with
    `deferredInBackground` (`synth_blocked_bg` in the timing log).
 
