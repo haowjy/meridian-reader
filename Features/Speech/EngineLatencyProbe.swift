@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 #if canImport(UIKit)
 import UIKit
@@ -168,3 +169,4 @@ enum EngineLatencyProbe {
         log("done")
     }
 }
+#endif

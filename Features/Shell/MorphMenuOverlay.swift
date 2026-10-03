@@ -125,9 +125,10 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
             .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
                 if size.width > 0, size.height > 0 { panelSize = size }
             }
+            #if DEBUG
             .overlay(alignment: .topLeading) {
                 // UI tests: where the focus icon's center really ends up on screen.
-                if MorphMenu.exposesFocus, let focus {
+                if LaunchOptions.current.uiTesting, let focus {
                     Color.clear
                         .frame(width: 2, height: 2)
                         .offset(x: focus.x - 1, y: focus.y - 1)
@@ -137,6 +138,7 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
                         .accessibilityIdentifier("moreMenuFocus")
                 }
             }
+            #endif
             .modifier(MorphPanelEffect(progress: expanded ? 1 : 0, button: reduceMotion ? nil : buttonSize,
                                        panelSize: panelSize, anchor: anchor, blurs: !reduceMotion))
             .offset(y: dragOffset)
@@ -233,13 +235,14 @@ enum MorphMenu {
     /// from a Safari iOS 26 screenshot, where All Tabs sits inset of the tabs/⋯ control rather
     /// than covering it dead-on.
     static let focusOffsetFromAnchor = CGSize(width: 12, height: 10)
-    /// UI tests: expose the focus point as an accessibility element (alignment test).
-    static let exposesFocus = LaunchOptions.current.uiTesting
-
-    /// `Motion.standard`; UI tests can slow it so a mid-animation frame can be captured.
+    #if DEBUG
+    /// `Motion.standard`; screenshot runs can slow it so a mid-animation frame can be captured.
     static var animation: Animation {
         LaunchOptions.current.slowMenuAnimation ? .easeInOut(duration: 3) : Motion.standard
     }
+    #else
+    static let animation = Motion.standard
+    #endif
 }
 
 /// The morph, as one animatable progress (0 = the ⋯ button, 1 = the full panel). The glass is

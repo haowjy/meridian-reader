@@ -150,9 +150,12 @@ struct ReaderScrubRow: View {
             .accessibilityValue(isSaved ? "Saved" : "Not saved")
         }
         .bottomChromeField(leading: 14, trailing: 4)
+        #if DEBUG
         .onAppear(perform: showDemoBubbleIfRequested)
+        #endif
     }
 
+    #if DEBUG
     /// Screenshot hook (`LaunchOptions.scrubBubbleDemo`): freeze a mid-drag frame (fine-scrubbing,
     /// thumb 40% in) so the bubble can be captured.
     private func showDemoBubbleIfRequested() {
@@ -163,6 +166,7 @@ struct ReaderScrubRow: View {
             dragFraction = 0.42
         }
     }
+    #endif
 
     private var dragging: Bool { dragFraction != nil }
 

@@ -72,6 +72,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         // Pre-DI crash markers carry no engine id; only crash-guarded engines ever wrote them.
         launchCrash = crashGuard.consumeCrashInfo(legacyEngine: engines.localDescriptors.first { $0.crashGuarded }?.id)
         if let launchCrash { initial = recover(from: launchCrash, selection: initial) }
+        #if DEBUG
         // Dev/test hook: `-selectEngine <engine id>` (persisted), e.g. local.kokoro.
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "-selectEngine"), i + 1 < args.count,
@@ -79,6 +80,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
             initial = SpeechEngineID(rawValue: args[i + 1])
             if initial == crashedEngineID { engineCrashNotice = nil; crashedEngineID = nil }
         }
+        #endif
         start(initial)
     }
 

@@ -7,6 +7,15 @@ extension URL {
         return scheme == "http" || scheme == "https"
     }
 
+    /// The web, plus (Debug builds) the UI tests' offline `reader-test://` pages: what the browser
+    /// checks for reader mode and lets you bookmark.
+    var isWebOrTestPage: Bool {
+        #if DEBUG
+        if scheme?.lowercased() == TestPageSchemeHandler.scheme { return true }
+        #endif
+        return isWeb
+    }
+
     /// Same page, ignoring the fragment, a trailing slash and letter case.
     func isSamePage(as other: URL) -> Bool {
         Self.pageKey(self) == Self.pageKey(other)

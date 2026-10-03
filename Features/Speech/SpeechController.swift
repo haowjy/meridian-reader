@@ -288,9 +288,13 @@ final class SpeechController {
         } ?? "en-US"
         self.selectedLanguageCode = storedLanguage ?? Locale.preferredLanguages.first ?? fallback
         // `double(forKey:)` also parses a launch-argument string ("-reader.rateMultiplier 1", UI tests).
+        #if DEBUG
         // UI tests start at 1× (hermetic) unless they pass the rate explicitly.
-        let args = ProcessInfo.processInfo.arguments
-        let ignoreStoredRate = args.contains("-uiTesting") && !args.contains("-\(rateDefaultsKey)")
+        let ignoreStoredRate = LaunchOptions.current.uiTesting
+            && !ProcessInfo.processInfo.arguments.contains("-\(rateDefaultsKey)")
+        #else
+        let ignoreStoredRate = false
+        #endif
         let storedRate = !ignoreStoredRate && UserDefaults.standard.object(forKey: rateDefaultsKey) != nil
             ? UserDefaults.standard.double(forKey: rateDefaultsKey) : 1.0
         self.rateMultiplier = (0.25...4).contains(storedRate) ? storedRate : 1.0

@@ -43,9 +43,13 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
     }
 
     static var launchArgUnits: String? {
+        #if DEBUG
         let args = ProcessInfo.processInfo.arguments
         guard let i = args.firstIndex(of: "-kokoroUnits"), i + 1 < args.count else { return nil }
         return args[i + 1]
+        #else
+        return nil
+        #endif
     }
 
     init(voice: String = KokoroHost.defaultVoice, unitsOverride: String? = nil) {

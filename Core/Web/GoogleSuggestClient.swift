@@ -10,6 +10,15 @@ enum GoogleSuggestClient {
         return URLSession(configuration: config)
     }()
 
+    /// What to ask Google for text typed in the address field, or nil: suggestions are off
+    /// (`enabled` false, e.g. UI tests), nothing is typed, or the text looks like an address.
+    static func query(forTyped text: String, enabled: Bool) -> String? {
+        let q = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard enabled, !q.isEmpty else { return nil }
+        let looksLikeAddress = q.contains("://") || (q.contains(".") && !q.contains(" ") && q.count > 4)
+        return looksLikeAddress ? nil : q
+    }
+
     /// Returns up to `limit` suggestion strings for `query`, or `[]` on any failure.
     static func suggestions(for query: String, limit: Int = 8) async -> [String] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -46,9 +46,8 @@ final class BookmarkStore {
         ArticleIdentity.canonicalURLString(from: url)
     }
 
-    /// Web pages (plus the UI tests' offline `reader-test://` pages).
     static func isBookmarkable(_ url: URL) -> Bool {
-        url.isWeb || url.scheme?.lowercased() == TestPageSchemeHandler.scheme
+        url.isWebOrTestPage
     }
 
     func bookmark(for url: URL?) -> SiteBookmark? {

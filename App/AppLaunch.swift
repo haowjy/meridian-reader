@@ -2,19 +2,20 @@ import Foundation
 import SwiftData
 
 /// Launch work, run once by `ReaderApp` when the first window appears: saved-article migrations,
-/// app-wide callbacks, the UI-test / diagnostics hooks from `LaunchOptions`, then crash resume.
+/// app-wide callbacks, the UI-test / diagnostics hooks from `LaunchOptions` (Debug builds), then
+/// crash resume.
 /// Views only render; nothing here waits on a view appearing in a particular order.
 @MainActor
 enum AppLaunch {
     private static var didRun = false
 
-    static func run(context: ModelContext, speech: SpeechController, shell: ShellState,
-                    options: LaunchOptions = .current) async {
+    static func run(context: ModelContext, speech: SpeechController, shell: ShellState) async {
         guard !didRun else { return }
         didRun = true
         let tts = speech.localTTS
-        EngineLatencyProbe.runIfRequested(coordinator: tts)
-        if let demo = options.demoArticle { LaunchHooks.seedDemoArticle(demo, in: context) }
+        #if DEBUG
+        LaunchHooks.runBeforeMigrations(.current, context: context, tts: tts)
+        #endif
 
         // Paragraph layout v3 first (it needs the stored pre-split blocks): split giant
         // paragraphs, keeping position and usable audio. Then identity v2: backfill canonical
@@ -26,11 +27,9 @@ enum AppLaunch {
             ListenHistory.record(id, finished: true)
         }
 
-        if let prefix = options.bakeArticlePrefix { LaunchHooks.bakeArticle(prefix: prefix, in: context, speech: speech) }
-        if let setup = options.bookmarks { LaunchHooks.setUpBookmarks(setup, in: .shared) }
-        if options.servesTestPages, let url = URL(string: "reader-test://pages/one") { shell.navigate(to: url) }
-        if options.opensLibrary { shell.openLibrary() }
-        if options.opensDemoInReader { LaunchHooks.openNewestInReader(in: context, shell: shell) }
+        #if DEBUG
+        LaunchHooks.runAfterMigrations(.current, context: context, speech: speech, shell: shell)
+        #endif
 
         await resumeAfterCrash(context: context, speech: speech, shell: shell)
     }

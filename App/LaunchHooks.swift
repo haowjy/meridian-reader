@@ -1,10 +1,28 @@
+#if DEBUG
 import Foundation
 import SwiftData
 
-/// What the UI-test and diagnostics launch arguments (`LaunchOptions`) do. A normal launch runs
-/// none of this.
+/// What the UI-test and diagnostics launch arguments (`LaunchOptions`) do (Debug builds only). A
+/// normal launch runs none of this.
 @MainActor
 enum LaunchHooks {
+    /// Before the saved-article migrations: the engine probe, and the demo seed (so the seeded
+    /// row goes through the same migrations as a real one).
+    static func runBeforeMigrations(_ options: LaunchOptions, context: ModelContext, tts: LocalTTSCoordinator) {
+        EngineLatencyProbe.runIfRequested(coordinator: tts)
+        if let demo = options.demoArticle { seedDemoArticle(demo, in: context) }
+    }
+
+    /// After the migrations, before crash resume: bake, bookmarks, and where the app starts.
+    static func runAfterMigrations(_ options: LaunchOptions, context: ModelContext, speech: SpeechController,
+                                   shell: ShellState) {
+        if let prefix = options.bakeArticlePrefix { bakeArticle(prefix: prefix, in: context, speech: speech) }
+        if let setup = options.bookmarks { setUpBookmarks(setup, in: .shared) }
+        if options.servesTestPages, let url = URL(string: "reader-test://pages/one") { shell.navigate(to: url) }
+        if options.opensLibrary { shell.openLibrary() }
+        if options.opensDemoInReader { openNewestInReader(in: context, shell: shell) }
+    }
+
     /// `-seedDemoArticle`: replace the library with one deterministic article, so a stored resume
     /// position can't stick at the end between tests.
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in context: ModelContext) {
@@ -94,3 +112,4 @@ enum LaunchHooks {
         shell.showReader(article)
     }
 }
+#endif

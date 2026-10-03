@@ -179,9 +179,10 @@ struct ArticleListenSurface: View {
             )
         }
         .bottomChromeBand(bottomInset: safeInsets.bottom)
+        #if DEBUG
         .overlay(alignment: .topLeading) {
             // UI tests: the exact spot Play starts / plays from ("p=<paragraph> o=<offset in it>").
-            if Self.exposesPosition {
+            if LaunchOptions.current.uiTesting {
                 let doc = readingDocument
                 PlayheadReader(speech: speech, resting: restingSpot) { spot in
                     Color.clear
@@ -194,6 +195,7 @@ struct ArticleListenSurface: View {
                 }
             }
         }
+        #endif
     }
 
     /// Buffering / Apple-fallback / language notes — above the scrubber so appearing text
@@ -262,19 +264,19 @@ struct ArticleListenSurface: View {
         }
     }
 
-    private static let exposesPosition = ProcessInfo.processInfo.arguments.contains("-uiTesting")
-
     /// Where Play starts when this article isn't the loaded session (scrubbed / stored spot);
     /// nil while it is loaded, so the live playhead shows.
     private var restingSpot: PlayheadSpot? {
         isLoaded ? nil : PlayheadSpot(paragraph: effectiveResume, utf16Offset: effectiveResumeOffset)
     }
 
+    #if DEBUG
     private static func positionMarker(document doc: ParagraphDocument, spot: PlayheadSpot) -> String {
         guard !doc.isEmpty else { return "p=0 o=0" }
         let start = doc.startUTF16Offset(forParagraph: spot.paragraph)
         return "p=\(spot.paragraph) o=\(max(0, (spot.utf16Offset ?? start) - start))"
     }
+    #endif
 
     /// Scrubber fraction of `spot`. `ReaderScrubMap` keeps a spot inside its paragraph (< 1 of
     /// it), so the end of a paragraph never reads as the start of the next one.

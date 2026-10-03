@@ -65,6 +65,7 @@ struct ListenDebugPanel: View {
                     Text("No snapshot yet").foregroundStyle(.secondary)
                 }
 
+                #if DEBUG
                 Section {
                     Button(EngineLatencyProbe.isRunning ? "Engine probe running…" : "Run engine probe (on-device engines)") {
                         Task { await EngineLatencyProbe.run(coordinator: speech.localTTS) }
@@ -74,6 +75,7 @@ struct ListenDebugPanel: View {
                 } footer: {
                     Text("Writes Documents/engine_probe.txt. Takes ~1–2 min; don't listen meanwhile.")
                 }
+                #endif
 
                 KokoroRouteDebugSection(speech: speech)
 
