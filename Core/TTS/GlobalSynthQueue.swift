@@ -500,7 +500,6 @@ final class GlobalSynthQueue {
     private(set) var lastBakeEvent: String = "—"
 
     var primaryCacheKey: UUID? { stack.first }
-    var queuedArticleCount: Int { stack.count }
     /// Articles behind #1 (demoted / FIFO).
     var demotedCount: Int { max(0, stack.count - 1) }
     var isWorkerRunning: Bool { worker != nil }
@@ -536,24 +535,6 @@ final class GlobalSynthQueue {
             voiceID: job.voiceID
         )
         return job.plan.orderedWork(missing: missing).first
-    }
-
-    /// Compact live snapshot for the bake debug overlay.
-    func bakeDebugDescription() -> String {
-        guard let primary = stack.first, let job = jobs[primary] else {
-            return "queue empty · worker \(isWorkerRunning ? "busy" : "idle")"
-        }
-        let kind = job.isEphemeral ? "eph" : "svd"
-        let short = "\(kind):\(primary.uuidString.prefix(8))"
-        let active: String
-        if let ak = activeBakeCacheKey, let ai = activeBakeIndex {
-            let aKind = (jobs[ak]?.isEphemeral == true) ? "eph" : "svd"
-            active = "\(aKind):\(ak.uuidString.prefix(8)) p\(ai)"
-        } else {
-            active = "—"
-        }
-        let next = nextMissingIndex(for: primary).map { "p\($0)" } ?? "—"
-        return "#1 \(short) demoted=\(demotedCount) active=\(active) next=\(next)"
     }
 
     // MARK: - Private

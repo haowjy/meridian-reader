@@ -340,9 +340,6 @@ final class SpeechController {
         return AVSpeechSynthesisVoice(identifier: id)
     }
 
-    var selectedVoiceDisplayName: String { selectedVoice?.name ?? "System default" }
-    var selectedLanguageDisplayName: String { VoiceCatalog.languageName(for: selectedLanguageCode) }
-
     var rateDisplayLabel: String {
         let rounded = (rateMultiplier * 100).rounded() / 100
         if abs(rounded - 1.0) < 0.01 { return "1×" }
@@ -536,14 +533,6 @@ final class SpeechController {
     }
 
     func setRateMultiplier(_ value: Double) { rateMultiplier = value }
-
-    func cycleRate() {
-        if let idx = Self.rateOptions.firstIndex(where: { abs($0 - rateMultiplier) < 0.01 }) {
-            setRateMultiplier(Self.rateOptions[(idx + 1) % Self.rateOptions.count])
-        } else {
-            setRateMultiplier(1.0)
-        }
-    }
 
     // MARK: - Remote commands (lock screen / Control Center / headphones)
 

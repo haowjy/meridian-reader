@@ -578,7 +578,3 @@ enum TextChunker {
         return out
     }
 }
-
-private extension Character {
-    var isQuoteMark: Bool { "\"'“”‘’«»".contains(self) }
-}

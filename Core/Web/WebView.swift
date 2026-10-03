@@ -1,11 +1,6 @@
 import SwiftUI
 import WebKit
 
-/// Shared WebKit process pool for browse + HTML-reader (+ Readability) WKWebViews.
-enum SharedWebKit {
-    static let processPool = WKProcessPool()
-}
-
 struct WebView: UIViewRepresentable {
     var store: WebViewStore
 
@@ -15,7 +10,6 @@ struct WebView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        config.processPool = SharedWebKit.processPool
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         #if DEBUG
         if LaunchOptions.current.servesTestPages {

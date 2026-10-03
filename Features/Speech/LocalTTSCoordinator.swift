@@ -216,11 +216,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Local engine whose cache / chunk sizing applies right now (loaded or loading).
     var activeLocalEngineID: SpeechEngineID? { synth.state.activeEngineID }
 
-    /// Descriptor for cache keys / chunking: the active local engine, else the default local one.
-    var activeDescriptor: EngineDescriptor? {
-        engines.descriptor(activeLocalEngineID ?? engines.defaultLocalEngineID)
-    }
-
     /// `ArticleAudioCache` engine key for the active local engine.
     var cacheEngineID: String { (activeLocalEngineID ?? engines.defaultLocalEngineID).rawValue }
 
