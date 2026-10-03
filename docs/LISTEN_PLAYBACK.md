@@ -559,19 +559,22 @@ synthesis**, at two layers:
 - This removes the extra Core ML exposure but not Apple's bug. The crash guard still switches to
   Apple on the next launch.
 
-## CPU route benchmark (debug-only) — 2026-09-24
+## CPU route benchmark (Debug builds only)
 
-Candidate background renderer: Kokoro-82M through **ONNX Runtime on the CPU execution provider**
-(no Core ML, no GPU, no ANE), fed by FluidAudio's own phonemizer, `vocab.json` and `af_heart`
-pack. Nothing in normal playback routing uses it yet; it lives only in the Listen debug panel
-(Settings → Listen → Listen debug → Open full panel → **CPU route benchmark**).
+A benchmark and background soak for Kokoro's ONNX CPU route (ONNX Runtime on the CPU execution
+provider: no Core ML, no GPU, no ANE), fed by FluidAudio's own phonemizer, `vocab.json` and
+`af_heart` pack. It is compiled only into Debug builds (`#if DEBUG`: `CPURouteBench`,
+`CPURouteBenchSection`, `CPURouteMetrics`, `KokoroCPURouteFrontend`) and lives in the Listen debug
+panel (Settings → Listen → Listen debug → Open full panel → **CPU route benchmark**). The route's
+production pieces live in `Features/Speech/Engines/ONNX/` (`KokoroONNXSession`,
+`KokoroONNXModelStore`, `KokoroCPUInputs`, `KokoroONNXModelPatch`).
 
 - **Package / model.** `microsoft/onnxruntime-swift-package-manager` 1.24.2 (product
   `onnxruntime`, module `OnnxRuntimeBindings`; only `Features/Speech/Engines/ONNX/KokoroONNXSession.swift`
   imports it). Model `onnx-community/Kokoro-82M-v1.0-ONNX/onnx/model_fp16.onnx` (163,234,740 B,
   SHA-256 verified) is downloaded on demand into `Application Support/CPURoute/kokoro-82m-v1.0-onnx/`
   (excluded from backup; delete button). Never bundled.
-- **Inputs** (`Core/TTS/CPURoute/KokoroCPUInputs.swift`, unit-tested): `input_ids` = `[0, ids…, 0]`,
+- **Inputs** (`Features/Speech/Engines/ONNX/KokoroCPUInputs.swift`, unit-tested): `input_ids` = `[0, ids…, 0]`,
   `style` = `pack[len(phonemes) - 1]` (clamped 0…509; full 256 floats = ONNX `ref_s`), `speed` = 1.
   Frontend via `KokoroCPURouteFrontend`, implemented by `KokoroHost` (the live host is reused).
   Phonemization may load Kokoro's Core ML models + BART G2P → foreground only, holds

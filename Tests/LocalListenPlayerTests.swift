@@ -52,17 +52,17 @@ final class LocalListenPlayerTests: XCTestCase {
         // Every paragraph is rendered: the buffer (8 units) fills at once.
         let source = FakeUnitSource(paragraphs: (0..<12).map { "Paragraph \($0)." }, rendered: baked)
         try await player.play(source, from: 0, chunk: 0, fractionInChunk: 0)
-        await settle { player.debugNextProduceIndex == 8 && !player.debugProducerActive }
-        XCTAssertEqual(player.debugBufferedCount, 8)
-        XCTAssertEqual(player.debugNextProduceIndex, 8)
-        XCTAssertFalse(player.debugProducerActive, "full buffer: the producer stops instead of polling")
+        await settle { player.nextParagraphToProduce == 8 && !player.isProducing }
+        XCTAssertEqual(player.bufferedUnitCount, 8)
+        XCTAssertEqual(player.nextParagraphToProduce, 8)
+        XCTAssertFalse(player.isProducing, "full buffer: the producer stops instead of polling")
 
         // A unit ends → the producer runs again and refills.
         try endCurrentUnit(queue, file: baked)
-        await settle { player.debugNextProduceIndex == 9 && !player.debugProducerActive }
-        XCTAssertEqual(player.debugNextProduceIndex, 9)
-        XCTAssertEqual(player.debugBufferedCount, 8)
-        XCTAssertFalse(player.debugProducerActive)
+        await settle { player.nextParagraphToProduce == 9 && !player.isProducing }
+        XCTAssertEqual(player.nextParagraphToProduce, 9)
+        XCTAssertEqual(player.bufferedUnitCount, 8)
+        XCTAssertFalse(player.isProducing)
     }
 
     func testArticleEndIsReportedOnce() async throws {
@@ -75,9 +75,9 @@ final class LocalListenPlayerTests: XCTestCase {
 
         try await player.play(FakeUnitSource(paragraphs: ["One.", "Two."], rendered: baked),
                               from: 0, chunk: 0, fractionInChunk: 0)
-        await settle { !player.debugProducerActive && player.debugBufferedCount == 2 }
-        XCTAssertEqual(player.debugBufferedCount, 2)
-        XCTAssertFalse(player.debugAwaitingMore, "everything produced")
+        await settle { !player.isProducing && player.bufferedUnitCount == 2 }
+        XCTAssertEqual(player.bufferedUnitCount, 2)
+        XCTAssertFalse(player.awaitingMore, "everything produced")
 
         try endCurrentUnit(queue, file: baked)
         await settle()
@@ -120,10 +120,10 @@ final class LocalListenPlayerTests: XCTestCase {
         await gate.open()
         _ = try? await first.value
         try await second.value
-        await settle { queue.currentParagraphIndex == 3 && !player.debugProducerActive }
+        await settle { queue.currentParagraphIndex == 3 && !player.isProducing }
         XCTAssertEqual(queue.currentParagraphIndex, 3, "the second request plays")
-        XCTAssertEqual(player.debugBufferedCount, 3, "B3…B5 only; nothing of the first request")
-        XCTAssertFalse(player.debugProducerActive)
+        XCTAssertEqual(player.bufferedUnitCount, 3, "B3…B5 only; nothing of the first request")
+        XCTAssertFalse(player.isProducing)
         XCTAssertEqual(player.playingArticleID, b.articleID)
     }
 
@@ -143,7 +143,7 @@ final class LocalListenPlayerTests: XCTestCase {
         await settle()
         XCTAssertEqual(queue.bufferedCount, 0, "stopped before the load finished: nothing plays")
         XCTAssertFalse(player.isSpeaking)
-        XCTAssertFalse(player.debugProducerActive)
+        XCTAssertFalse(player.isProducing)
     }
 
     func testEndOfInputWhileIdleFinishesUnlessPaused() {

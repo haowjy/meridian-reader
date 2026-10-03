@@ -142,9 +142,9 @@ final class LocalListenEngine: ListenEngine {
     var isWaitingForAudio: Bool {
         guard !player.isPaused, !player.isAudible else { return false }
         let count = document.count
-        let hasMoreUnits = paragraph + 1 < count || player.debugNextProduceIndex < count || player.debugAwaitingMore
+        let hasMoreUnits = paragraph + 1 < count || player.nextParagraphToProduce < count || player.awaitingMore
         guard hasMoreUnits else { return false }
-        return player.debugAwaitingMore || player.debugProducerActive || player.debugBufferedCount == 0
+        return player.awaitingMore || player.isProducing || player.bufferedUnitCount == 0
     }
 
     var sourceNote: String? {
@@ -158,8 +158,8 @@ final class LocalListenEngine: ListenEngine {
     var debug: ListenEngineDebug {
         ListenEngineDebug(
             isSpeaking: player.isSpeaking, isPaused: player.isPaused,
-            bufferedCount: player.debugBufferedCount, awaitingMore: player.debugAwaitingMore,
-            producerActive: player.debugProducerActive, epoch: player.debugEpoch,
+            bufferedCount: player.bufferedUnitCount, awaitingMore: player.awaitingMore,
+            producerActive: player.isProducing, epoch: player.debugEpoch,
             currentCAF: player.debugCurrentCAF, secondsSinceEnqueue: player.debugSecondsSinceEnqueue,
             lastHandoffGapMs: player.debugLastHandoffGapMs, lastHandoffWasPrimed: player.debugLastHandoffWasPrimed,
             starveEventCount: player.debugStarveEventCount, renderMode: renderMode, readyAhead: readyAhead)

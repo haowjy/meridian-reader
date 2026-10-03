@@ -102,7 +102,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
         guard id == .kokoro else { return false }
         switch routeSettings.route {
         case .onnxCPU: return KokoroCPUHost.filesLookInstalled
-        case .coreMLGPU: return KokoroHost.modelsLookInstalled
+        case .coreMLGPU: return KokoroAssets.coreMLStagesLookInstalled
         }
     }
 
@@ -110,9 +110,9 @@ final class FluidAudioProvider: SpeechEngineProvider {
     /// voice packs, G2P, lexicon).
     func deleteModels(_ id: SpeechEngineID) throws {
         guard id == .kokoro else { return }
-        KokoroHost.clearCachedModels()
-        CPURouteModelStore.shared.cancel()
-        CPURouteModelStore.shared.delete()
+        KokoroAssets.clearCachedModels()
+        KokoroONNXModelStore.shared.cancel()
+        KokoroONNXModelStore.shared.delete()
     }
 
     /// Non-default Kokoro packs are fetched on first use (~0.5 MB); do it at select time so the
@@ -123,9 +123,12 @@ final class FluidAudioProvider: SpeechEngineProvider {
         case .onnxCPU:
             // Only once the frontend files exist; otherwise `prepare()` fetches the voice.
             guard KokoroAneCPUFrontendFiles.present else { return }
-            try await KokoroCPUHost.ensureVoicePackFile(voice)
+            try await KokoroAssets.ensureVoicePack(voice)
         case .coreMLGPU:
-            try await KokoroHost.ensureVoicePack(voice)
+            // Before the Core ML models are downloaded there's nothing to add to: `prepare()`
+            // preloads the selected voice.
+            guard KokoroAssets.repoDirectoryExists else { return }
+            try await KokoroAssets.ensureVoicePack(voice)
         }
     }
 
@@ -136,7 +139,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
     @discardableResult
     nonisolated static func cleanUpUnusedCoreMLStages(settings: KokoroRouteSettings = KokoroRouteSettings()) -> Int64 {
         guard !settings.fastGPURouteEnabled else { return 0 }
-        return KokoroHost.deleteCoreMLStages()
+        return KokoroAssets.deleteCoreMLStages()
     }
 
     /// Everything Chatterbox Nano wrote outside the article cache: FluidAudio's model cache,

@@ -70,9 +70,8 @@ final class SpeechController {
     /// Called when an article plays to its end (e.g. drop it from "Continue listening").
     @ObservationIgnored var onArticleFinished: ((UUID) -> Void)?
     @ObservationIgnored private var runStateObserver: NSObjectProtocol?
-    @ObservationIgnored private var deferralsAtBackground = 0
-    /// Debug: what happened during the last stretch in the background.
-    private(set) var lastBackgroundSummary = "—"
+    /// Debug panel snapshot and background-stretch tracking.
+    @ObservationIgnored private(set) lazy var diagnostics = ListenDiagnostics(speech: self)
 
     let localTTS: LocalTTSCoordinator
     @ObservationIgnored private let appleEngine: ListenEngine
@@ -468,7 +467,7 @@ final class SpeechController {
     func rekeyActiveSession(from oldID: UUID, to newID: UUID) {
         guard oldID != newID, playback.articleID == oldID else { return }
         if nowPlayingMeta?.id == oldID { nowPlayingMeta?.id = newID }
-        playback.articleID = newID
+        playback.rekey(to: newID)
         localEngine.rekey(to: newID)
     }
 
@@ -605,27 +604,8 @@ final class SpeechController {
 
     private func appRunStateChanged() {
         let phase = localTTS.synthQueue.runState.phase
-        let player = localEngine.player
-        var fields: [String: Any] = [
-            "phase": phase.rawValue, "listen": String(describing: playback.phase),
-            "engine": activeEngine?.name ?? "—", "p": playback.playhead,
-        ]
-        switch phase {
-        case .background:
-            player.backgroundStats = .init()
-            deferralsAtBackground = localTTS.synthQueue.backgroundDeferrals
-            fields["ready_ahead"] = activeEngine?.debug.readyAhead ?? 0
-        case .active:
-            activeEngine?.appDidBecomeActive()
-            if player.backgroundStats != .init() || localTTS.synthQueue.backgroundDeferrals > deferralsAtBackground {
-                lastBackgroundSummary = player.backgroundStats.label
-                    + " · deferred \(localTTS.synthQueue.backgroundDeferrals - deferralsAtBackground)"
-                fields["bg_summary"] = lastBackgroundSummary
-            }
-        case .inactive:
-            break
-        }
-        ListenTimingLog.log("app_phase", fields)
+        if phase == .active { activeEngine?.appDidBecomeActive() }
+        diagnostics.appPhaseChanged(phase)
     }
 
     // MARK: - Intent execution

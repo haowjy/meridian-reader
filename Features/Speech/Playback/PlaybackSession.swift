@@ -54,8 +54,8 @@ enum PlaybackCommand: Equatable {
 /// report facts (`PlaybackEngineEvent`); UI binds here only.
 @MainActor
 struct PlaybackSessionState: Equatable {
-    var articleID: UUID?
-    var document: ParagraphDocument = .empty
+    private(set) var articleID: UUID?
+    private(set) var document: ParagraphDocument = .empty
     var playhead: Int = 0
     var utf16Offset: Int = 0
     var phase: PlaybackPhase = .idle
@@ -91,6 +91,12 @@ struct PlaybackSessionState: Equatable {
         playhead = clamped
         utf16Offset = document.isEmpty ? 0 : document.startUTF16Offset(forParagraph: clamped)
         phase = document.isEmpty ? .idle : .prepared
+    }
+
+    /// Save landed on a different id than the reader key: the same session continues under `id`.
+    mutating func rekey(to id: UUID) {
+        guard articleID != nil else { return }
+        articleID = id
     }
 
     mutating func clear() {

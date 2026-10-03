@@ -1,10 +1,11 @@
 import Foundation
 import OnnxRuntimeBindings
 
-/// Debug-only: Kokoro-82M through ONNX Runtime on the CPU execution provider (no Core ML EP,
-/// no GPU, no ANE — nothing that is restricted in the background). The only file that imports
-/// ONNX Runtime. Model: `onnx-community/Kokoro-82M-v1.0-ONNX/onnx/model_fp16.onnx`, downloaded
-/// at runtime by `CPURouteModelStore` (never bundled).
+/// Kokoro-82M through ONNX Runtime on the CPU execution provider (no Core ML EP, no GPU, no
+/// ANE — nothing that is restricted in the background): Kokoro's main route (`KokoroCPUHost`).
+/// The only file that imports ONNX Runtime. Model:
+/// `onnx-community/Kokoro-82M-v1.0-ONNX/onnx/model_fp16.onnx`, downloaded at runtime by
+/// `KokoroONNXModelStore` (never bundled).
 ///
 /// Not thread-safe: one `run` at a time per session. Create the session on the queue whose QoS
 /// the intra-op thread pool should inherit (ORT spawns its pool threads at session creation).
@@ -35,6 +36,17 @@ final class KokoroONNXSession: @unchecked Sendable {
         self.session = try ORTSession(env: env, modelPath: modelURL.path, sessionOptions: opts)
         self.threads = threads
         self.allowSpinning = allowSpinning
+    }
+
+    /// Run `body` synchronously on a global queue of `qos` and await the result. Create a session
+    /// this way so ORT's pool (spawned at creation) inherits that QoS; run renders this way so the
+    /// calling thread has the render's QoS.
+    static func onQueue<T>(_ qos: DispatchQoS.QoSClass, _ body: @escaping () throws -> T) async throws -> T {
+        try await withCheckedThrowingContinuation { cont in
+            DispatchQueue.global(qos: qos).async {
+                cont.resume(with: Result { try body() })
+            }
+        }
     }
 
     /// One synchronous render → 24 kHz mono float samples.

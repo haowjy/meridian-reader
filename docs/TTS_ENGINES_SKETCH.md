@@ -386,14 +386,11 @@ Then fill in `isInstalled` / `deleteModels` (speech-swift's HuggingFace cache di
 and set real `limits`, `subtitle` and `hardware`. Note: vendoring both
 FluidAudio and speech-swift may duplicate model downloads/caches; check the combined app size.
 
-## CPU route (ONNX Runtime) — debug benchmark only (2026-09-24)
+## CPU route benchmark (Debug builds only)
 
-Not an engine yet: no `EngineDescriptor` / provider. `KokoroONNXSession` (ORT, CPU EP) +
-`KokoroCPURouteFrontend` (implemented by `KokoroHost`, so FluidAudio stays confined to the
-FluidAudio folder) back the Listen debug panel's "CPU route benchmark". If it graduates to a
-background renderer it should become a second host behind the Kokoro descriptor (same voices,
-same phonemes), selected only when `AppRunState` is background. See docs/LISTEN_PLAYBACK.md
-§ CPU route benchmark.
+`CPURouteBench` (benchmark + background soak) drives `KokoroONNXSession` directly through
+`KokoroCPURouteFrontend` (implemented by `KokoroCPUHost`, so FluidAudio stays in the FluidAudio
+folder). All of it is `#if DEBUG`. See docs/LISTEN_PLAYBACK.md § CPU route benchmark.
 
 ## Kokoro: ONNX CPU is the main route (2026-09-25)
 - **Default route = ONNX Runtime on CPU** (`KokoroCPUHost`, onnx-community Kokoro-82M fp16, ~163 MB,
@@ -416,6 +413,6 @@ same phonemes), selected only when `AppRunState` is background. See docs/LISTEN_
 ## Kokoro ONNX NaN fix + chunk joins (2026-09-25)
 The onnx-community fp16 Kokoro model can output an all-NaN chunk (exact fp16 0/0 inside the
 generator's `atan2` = `Atan(Div(imag, real))`). `KokoroONNXModelPatch` guards every `Atan` input
-with `Where(IsNaN(x), 0, x)` once after download; `CPURouteModelStore.ensurePatchedModel()` swaps
+with `Where(IsNaN(x), 0, x)` once after download; `KokoroONNXModelStore.ensurePatchedModel()` swaps
 the file. Chunk joins are trimmed to boundary-sized pauses (`ChunkEdgeTrim`) and chunking is
 hierarchical (sentences → clauses). Details: `LISTEN_PLAYBACK.md` → "Run-on paragraphs".

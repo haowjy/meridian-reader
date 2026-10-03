@@ -55,7 +55,7 @@ final class EngineBindingTests: XCTestCase {
                              detectedLanguage: "en", title: "Binding")
     }
 
-    private func engineName(_ speech: SpeechController) -> String { speech.listenDebugSnapshot().engine }
+    private func engineName(_ speech: SpeechController) -> String { speech.diagnostics.snapshot().engine }
 
     private func waitUntil(_ condition: () -> Bool, _ message: String) async {
         for _ in 0..<500 where !condition() {

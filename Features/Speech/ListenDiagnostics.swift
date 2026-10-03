@@ -1,9 +1,48 @@
 import Foundation
 
-/// Listen diagnostics: the debug panel / bake overlay snapshot and its labels.
-extension SpeechController {
-    func listenDebugSnapshot() -> ListenDebugSnapshot {
-        let engine = activeEngine?.debug ?? ListenEngineDebug()
+/// Listen diagnostics, kept out of the controller: the debug panel / bake overlay snapshot and its
+/// labels, and what the last stretch in the background played (`app_phase` timing log).
+@MainActor
+final class ListenDiagnostics {
+    private unowned let speech: SpeechController
+    /// What the last stretch in the background played (debug panel).
+    private(set) var lastBackgroundSummary = "—"
+    private var deferralsAtBackground = 0
+
+    init(speech: SpeechController) {
+        self.speech = speech
+    }
+
+    private var localTTS: LocalTTSCoordinator { speech.localTTS }
+    private var playback: PlaybackSessionState { speech.playback }
+
+    /// The app moved between active / inactive / background: log it, and track what the
+    /// background stretch played.
+    func appPhaseChanged(_ phase: AppRunState.Phase) {
+        let player = speech.localEngine.player
+        let deferrals = localTTS.synthQueue.backgroundDeferrals
+        var fields: [String: Any] = [
+            "phase": phase.rawValue, "listen": String(describing: playback.phase),
+            "engine": speech.activeEngine?.name ?? "—", "p": playback.playhead,
+        ]
+        switch phase {
+        case .background:
+            player.backgroundStats = .init()
+            deferralsAtBackground = deferrals
+            fields["ready_ahead"] = speech.activeEngine?.debug.readyAhead ?? 0
+        case .active:
+            if player.backgroundStats != .init() || deferrals > deferralsAtBackground {
+                lastBackgroundSummary = player.backgroundStats.label + " · deferred \(deferrals - deferralsAtBackground)"
+                fields["bg_summary"] = lastBackgroundSummary
+            }
+        case .inactive:
+            break
+        }
+        ListenTimingLog.log("app_phase", fields)
+    }
+
+    func snapshot() -> ListenDebugSnapshot {
+        let engine = speech.activeEngine?.debug ?? ListenEngineDebug()
         let articleID = playback.articleID
         let paragraphs = playback.document.paragraphs
         let queue = localTTS.synthQueue
@@ -70,7 +109,7 @@ extension SpeechController {
             return "—"
         }()
         let phaseLabel: String = {
-            if isBufferingNext { return "buffering" }
+            if speech.isBufferingNext { return "buffering" }
             switch playback.phase {
             case .playing: return "playing"
             case .paused: return "paused"
@@ -80,11 +119,11 @@ extension SpeechController {
             }
         }()
         let warmingLocal = localTTS.synth.state.warmingEngineID != nil
-        let snap = engineSnapshot()
+        let snap = speech.engineSnapshot()
         return ListenDebugSnapshot(
             phase: String(describing: playback.phase),
             phaseLabel: phaseLabel,
-            engine: activeEngine?.name ?? "—",
+            engine: speech.activeEngine?.name ?? "—",
             isAudible: snap.isAudible,
             isSpeaking: engine.isSpeaking,
             isPaused: engine.isPaused,
@@ -111,21 +150,21 @@ extension SpeechController {
             workerBusy: queue.isWorkerRunning,
             warmingLocal: warmingLocal,
             lastBakeEvent: queue.lastBakeEvent,
-            language: languageDebugLabel,
-            renderMode: activeEngine == nil ? "idle · \(queue.runState.phase.rawValue)" : engine.renderMode,
+            language: languageLabel,
+            renderMode: speech.activeEngine == nil ? "idle · \(queue.runState.phase.rawValue)" : engine.renderMode,
             readyAhead: engine.readyAhead,
             background: queue.runState.phase == .background
-                ? "now: " + localEngine.player.backgroundStats.label
+                ? "now: " + speech.localEngine.player.backgroundStats.label
                 : lastBackgroundSummary,
-            audioSession: "\(audioSession.isActive ? "active" : "inactive") · activations \(audioSession.activationCount)"
+            audioSession: "\(speech.audioSession.isActive ? "active" : "inactive") · activations \(speech.audioSession.activationCount)"
         )
     }
 
     /// Debug overlay line: language code + source → engine.
-    var languageDebugLabel: String {
-        let r = languageResolution
+    var languageLabel: String {
+        let r = speech.languageResolution
         let source = r.source == .detected ? "auto" : (r.source == .manual ? "manual" : "auto: undetected")
-        let engine = r.unsupportedEngineID != nil ? "Apple (\(languageEngineDescriptor?.languageLimitNote ?? "unsupported"))"
+        let engine = r.unsupportedEngineID != nil ? "Apple (\(speech.languageEngineDescriptor?.languageLimitNote ?? "unsupported"))"
             : localTTS.engines.shortName(r.engineID)
         return "\(r.languageCode) (\(source)) → \(engine)"
     }

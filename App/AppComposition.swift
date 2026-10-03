@@ -39,8 +39,10 @@ enum AppComposition {
             print("[TTSCache] pruned ephemeral removed=\(pruned.removed) freed=\(pruned.freedBytes)")
         }
         ListenTimingLog.log("app_launch", ["engine": tts.selectedEngineID.rawValue, "build": LocalTTSCoordinator.buildConfiguration])
+        #if DEBUG
         // Debug probe: can this device get GPU time in background continued-processing tasks?
         CPURouteProbes.logAtLaunch()
+        #endif
         // Kokoro runs on the ONNX CPU route: drop the unused Core ML stages (≈82 MB) unless the
         // debug fast GPU route is on. Vocab, voice packs, G2P and lexicon stay.
         DispatchQueue.global(qos: .utility).async {

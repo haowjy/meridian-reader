@@ -1,3 +1,4 @@
+#if DEBUG
 import BackgroundTasks
 import Darwin
 import Foundation
@@ -6,7 +7,7 @@ import os
 import UIKit
 #endif
 
-/// Debug-only process metrics for the CPU route benchmark / soak.
+/// Process metrics for the CPU route benchmark / soak.
 enum CPURouteMetrics {
     /// `phys_footprint` (what jetsam counts) and the process-lifetime peak, bytes.
     static func footprint() -> (current: UInt64, peak: UInt64) {
@@ -71,15 +72,6 @@ enum CPURouteMetrics {
         }
     }
 
-    /// Run `body` synchronously on a global queue of `qos` (so ORT's pool, created inside,
-    /// inherits that QoS) and await the result.
-    static func onQueue<T>(_ qos: DispatchQoS.QoSClass, _ body: @escaping () throws -> T) async throws -> T {
-        try await withCheckedThrowingContinuation { cont in
-            DispatchQueue.global(qos: qos).async {
-                cont.resume(with: Result { try body() })
-            }
-        }
-    }
 }
 
 /// Polls `phys_footprint` every 100 ms while a render runs; reports the max and min headroom.
@@ -158,3 +150,4 @@ enum CPURouteProbes {
         ListenDebugLog.shared.append("Probe: BGTaskScheduler.supportedResources.contains(.gpu) = \(backgroundGPULabel)")
     }
 }
+#endif

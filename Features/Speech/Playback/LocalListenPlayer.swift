@@ -99,18 +99,22 @@ final class LocalListenPlayer {
     }
 
     var isAudible: Bool { player.isAudible }
+    /// Units in the player: the one playing plus those queued.
+    var bufferedUnitCount: Int { player.bufferedCount }
+    /// The producer has more to enqueue for this play.
+    var awaitingMore: Bool { player.awaitingMore }
+    /// The producer is filling the buffer (or waiting for a render) right now.
+    var isProducing: Bool { producerTask != nil }
+    /// The next paragraph the producer will enqueue.
+    var nextParagraphToProduce: Int { nextProduceIndex }
 
     // MARK: - Listen debug
-    var debugBufferedCount: Int { player.bufferedCount }
-    var debugAwaitingMore: Bool { player.awaitingMore }
-    var debugProducerActive: Bool { producerTask != nil }
     var debugEpoch: Int { epoch }
     var debugCurrentCAF: String { player.currentFileName ?? "—" }
     var debugSecondsSinceEnqueue: Double? { player.secondsSinceLastEnqueue }
     var debugLastHandoffGapMs: Double { player.lastHandoffGapMs }
     var debugLastHandoffWasPrimed: Bool { player.lastHandoffWasPrimed }
     var debugStarveEventCount: Int { player.starveEventCount }
-    var debugNextProduceIndex: Int { nextProduceIndex }
 
     /// Play `source` from synth chunk `chunk` of paragraph `index`, `fractionInChunk` (0…1) into
     /// it (scrubbed to a sentence). Unrendered: that chunk is rendered first. Returns without

@@ -155,7 +155,7 @@ final class ListenPositionTests: XCTestCase {
         speech.prepare(s)
         speech.seek(s, toUTF16Offset: target)
         speech.toggle(s)
-        XCTAssertEqual(speech.listenDebugSnapshot().engine, "Fake")
+        XCTAssertEqual(speech.diagnostics.snapshot().engine, "Fake")
 
         await waitUntil({ speech.localEngine.player.isSpeaking && speech.localEngine.player.isAudible },
                         "the first unit plays")
