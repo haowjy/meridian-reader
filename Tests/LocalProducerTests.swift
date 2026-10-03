@@ -23,8 +23,10 @@ final class LocalProducerTests: XCTestCase {
     }
 
     /// Engine over a fake on-device engine whose every paragraph is baked (`baked` URL).
-    private func makeEngine(player: ChunkPlaybackQueue, baked: URL) -> LocalModelSpeechEngine {
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), FakeEngineProvider()], gate: { _ in true })
+    private func makeEngine(player: ChunkPlaybackQueue, baked: URL,
+                            prepareGate: TestGate? = nil) -> LocalModelSpeechEngine {
+        let provider = FakeEngineProvider(config: .init(prepareGate: prepareGate))
+        let registry = EngineRegistry(providers: [AppleSpeechProvider(), provider], gate: { _ in true })
         let engine = LocalModelSpeechEngine(engines: registry, player: player)
         engine.resumePointStore = nil
         engine.setActiveLocalEngine(FakeEngineProvider.fakeID, voice: nil)
@@ -85,6 +87,54 @@ final class LocalProducerTests: XCTestCase {
         await settle()
         XCTAssertEqual(finished, 1)
         XCTAssertFalse(engine.isSpeaking)
+    }
+
+    /// Wait (bounded, no clock) until an async condition holds.
+    private func settleAsync(until condition: () async -> Bool) async {
+        for _ in 0..<500 { if await condition() { return }; await Task.yield() }
+    }
+
+    func testSecondSpeakDuringTheModelLoadPlaysTheSecondRequest() async throws {
+        let gate = TestGate()
+        let player = ChunkPlaybackQueue(maxBuffered: 8)
+        let baked = try tone(seconds: 30)
+        let engine = makeEngine(player: player, baked: baked, prepareGate: gate)
+        defer { engine.stop() }
+
+        let first = Task { try await engine.speak(paragraphs: ["A0.", "A1."], startingAt: 0, chunk: 0,
+                                                  fractionInChunk: 0, voiceID: nil) }
+        await settleAsync { await gate.waiting == 1 }
+        let second = Task { try await engine.speak(paragraphs: (0..<6).map { "B\($0)." }, startingAt: 3, chunk: 0,
+                                                   fractionInChunk: 0, voiceID: nil) }
+        await settleAsync { await gate.waiting == 2 }
+        XCTAssertEqual(player.bufferedCount, 0, "nothing plays while the model loads")
+
+        await gate.open()
+        _ = try? await first.value
+        try await second.value
+        await settle { player.currentParagraphIndex == 3 && !engine.debugProducerActive }
+        XCTAssertEqual(player.currentParagraphIndex, 3, "the second request plays")
+        XCTAssertEqual(engine.debugBufferedCount, 3, "B3…B5 only; nothing of the first request")
+        XCTAssertFalse(engine.debugProducerActive)
+    }
+
+    func testStopDuringTheModelLoadLeavesTheEngineSilent() async throws {
+        let gate = TestGate()
+        let player = ChunkPlaybackQueue(maxBuffered: 8)
+        let baked = try tone(seconds: 30)
+        let engine = makeEngine(player: player, baked: baked, prepareGate: gate)
+        defer { engine.stop() }
+
+        let speak = Task { try await engine.speak(paragraphs: ["One.", "Two."], startingAt: 0, chunk: 0,
+                                                  fractionInChunk: 0, voiceID: nil) }
+        await settleAsync { await gate.waiting == 1 }
+        engine.stop()
+        await gate.open()
+        _ = try? await speak.value
+        await settle()
+        XCTAssertEqual(player.bufferedCount, 0, "stopped before the load finished: nothing plays")
+        XCTAssertFalse(engine.isSpeaking)
+        XCTAssertFalse(engine.debugProducerActive)
     }
 
     func testEndOfInputWhileIdleFinishesUnlessPaused() {

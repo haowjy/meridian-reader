@@ -208,11 +208,15 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     }
 
     /// Start at synth chunk `chunk` of paragraph `index`, `fractionInChunk` (0…1) into it
-    /// (scrubbed to a sentence). Unrendered: that chunk is rendered first.
+    /// (scrubbed to a sentence). Unrendered: that chunk is rendered first. Returns without
+    /// starting when another `speak` or a `stop` arrives while the model loads: that call owns
+    /// the engine now.
     func speak(paragraphs: [String], startingAt index: Int, chunk: Int, fractionInChunk: Double,
                voiceID: String?) async throws {
         stop()
+        let request = epoch
         try await prepareIfNeeded()
+        guard request == epoch else { return }
         self.paragraphs = paragraphs
         self.voiceID = voiceID
         let start = max(0, min(index, max(paragraphs.count - 1, 0)))
