@@ -57,9 +57,9 @@ final class KokoroNaNProbeTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(plainNaNTexts, 1, "repro text no longer NaN on the unpatched model")
     }
 
-    /// The real 2,543-char run-on paragraph (The Forgotten p6) through the new chunk plan, the
-    /// NaN-patched model and the join trim: every chunk finite, no full-scale runs, joins ≈ the
-    /// boundary pause (sentence ≈0.4 s, comma ≈0.22 s) instead of ≈0.8 s of dead air.
+    /// A giant paragraph through the chunk plan, the NaN-patched model and the join trim: every
+    /// chunk finite, no full-scale runs, joins ≈ the boundary pause (sentence ≈0.4 s, comma
+    /// ≈0.22 s) rather than Kokoro's ≈0.8 s of padding.
     func testGiantParagraphRendersCleanWithNaturalJoins() async throws {
         guard let home = ProcessInfo.processInfo.environment["SIMULATOR_HOST_HOME"] else { throw XCTSkip("sim only") }
         let patched = URL(fileURLWithPath: home + "/Developer/Reader/.probe/nan/patched_swift.onnx")
@@ -71,7 +71,7 @@ final class KokoroNaNProbeTests: XCTestCase {
         let fe = try KokoroAneCPUFrontendHandle()
         let session = try KokoroONNXSession(modelURL: patched, threads: 3)
         let sr = KokoroCPUAudio.sampleRate
-        let chunks = TextChunker.chunks(for: HierarchicalChunkerTests.p6, limits: .kokoroCPU)
+        let chunks = TextChunker.chunks(for: HierarchicalChunkerTests.inquest, limits: .kokoroCPU)
         var rendered: [[Float]] = []
         var audio = 0.0, wall = 0.0
         for (i, c) in chunks.enumerated() {

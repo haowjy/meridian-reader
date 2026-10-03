@@ -2,18 +2,23 @@ import XCTest
 @testable import Reader
 
 /// The first (fast-start) chunk of a paragraph must end at a sentence end or a clause boundary
-/// (`; : —`, comma, before and/but/which…), never between bare words, and its join gets the
-/// matching pause. Regression: two pieces of The Forgotten p6 (after the 1,200-char split) had
-/// first joins of 0.08 s (“…to buy toilet paper | and canned food”, “…departments such as |
-/// healthcare”).
+/// (`; : —`, comma, before and/but/which/when…), never between bare words, and its join gets the
+/// matching pause (≥ 0.15 s; a bare-word join is ≈ 0.08 s and sounds like a stutter).
 final class FirstChunkBoundaryTests: XCTestCase {
     private let limits = TextChunker.Limits.kokoroCPU
     private var cap: Int { limits.firstTarget + TextChunker.Limits.firstStretch }
     private func units(_ s: String) -> Int { TextChunker.estimatedUnits(s) }
 
-    /// All listen paragraphs of the real chapter, after the long-paragraph split.
+    /// All listen paragraphs of the chapter fixture, after the long-paragraph split.
     private var chapterParagraphs: [String] {
         ListenHTMLBlocks.leafTexts(fromHTML: ParagraphSplitTests.chapterHTML).flatMap { ParagraphSplitter.pieces($0) }
+    }
+
+    /// Only the pieces the long-paragraph split produced.
+    private var splitPieces: [String] {
+        ListenHTMLBlocks.leafTexts(fromHTML: ParagraphSplitTests.chapterHTML)
+            .filter { $0.count > ParagraphSplitter.threshold }
+            .flatMap { ParagraphSplitter.pieces($0) }
     }
 
     private func joins(_ chunks: [String]) -> [ChunkEdgeTrim.Boundary] {
@@ -28,22 +33,21 @@ final class FirstChunkBoundaryTests: XCTestCase {
         Double(ChunkEdgeTrim.trailMs(b) + ChunkEdgeTrim.leadMs) / 1000
     }
 
-    func testForgottenPieceTwoFirstChunkEndsBeforeConjunctionWithClausePause() {
-        let piece = ParagraphSplitter.pieces(HierarchicalChunkerTests.p6)[1]
-        XCTAssertTrue(piece.hasPrefix("There were hundreds of people"))
+    func testSplitPieceFirstChunkEndsBeforeConjunctionWithClausePause() {
+        let piece = ParagraphSplitter.pieces(HierarchicalChunkerTests.inquest)[1]
+        XCTAssertTrue(piece.hasPrefix("She was so frightened"))
         let chunks = TextChunker.chunks(for: piece, limits: limits)
-        XCTAssertEqual(chunks[0], "There were hundreds of people rushing into stores to buy toilet paper")
-        XCTAssertTrue(chunks[1].hasPrefix("and canned food"))
+        XCTAssertEqual(chunks[0], "She was so frightened by their violence that she ran away and told her mother")
+        XCTAssertTrue(chunks[1].hasPrefix("when she reached home"))
         XCTAssertEqual(joins(chunks)[0], .clause)
         XCTAssertGreaterThanOrEqual(joinSeconds(joins(chunks)[0]), 0.15)
     }
 
-    func testForgottenPieceThreeFirstChunkEndsAtCommaNotMidPhrase() {
-        let piece = ParagraphSplitter.pieces(HierarchicalChunkerTests.p6)[2]
-        XCTAssertTrue(piece.hasPrefix("The first group, Scienta"))
+    func testSplitPieceFirstChunkEndsAtCommaNotMidPhrase() {
+        let piece = ParagraphSplitter.pieces(HierarchicalChunkerTests.testimony)[1]
+        XCTAssertTrue(piece.hasPrefix("On my way I saw William Crowder"))
         let chunks = TextChunker.chunks(for: piece, limits: limits)
-        // Old: "…consists of jobs in departments such as" | "healthcare, …" (a bare word cut).
-        XCTAssertEqual(chunks[0], "The first group, Scienta, or knowledge,")
+        XCTAssertEqual(chunks[0], "On my way I saw William Crowder, the game-keeper,")
         XCTAssertEqual(joins(chunks)[0], .clause)
         XCTAssertEqual(chunks.joined(separator: " "), TextChunker.normalize(piece))
     }
@@ -62,7 +66,9 @@ final class FirstChunkBoundaryTests: XCTestCase {
     }
 
     func testHeadStartRampStillHoldsForThePieces() {
-        for para in chapterParagraphs {
+        let pieces = splitPieces
+        XCTAssertEqual(pieces.count, 8)
+        for para in pieces {
             let u = TextChunker.chunks(for: para, limits: limits).map(units)
             guard u.count > 1 else { continue }
             for k in 1..<u.count {
