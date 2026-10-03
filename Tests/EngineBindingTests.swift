@@ -14,7 +14,7 @@ final class EngineBindingTests: XCTestCase {
         cleanups = []
         // Stopping on the local engine files a gap-fill bake job in the process-wide store; another
         // test's coordinator would adopt it when its engine warms.
-        for id in sessionIDs { BackgroundAudioBakeScheduler.shared.removePending(articleID: id) }
+        for id in sessionIDs { PendingBakeJobStore.shared.removePending(articleID: id) }
         sessionIDs = []
     }
 

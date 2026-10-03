@@ -166,7 +166,7 @@ final class VoiceSwitchTests: XCTestCase {
         [{"articleID":"\(key.uuidString)","paragraphs":["One."],"rate":0.5,"voiceID":"\(heart)",
           "priorityStart":0,"fillGapsFromTopAfterPriority":false}]
         """
-        let jobs = try JSONDecoder().decode([BackgroundAudioBakeScheduler.PendingJob].self, from: Data(job.utf8))
+        let jobs = try JSONDecoder().decode([PendingBakeJobStore.PendingJob].self, from: Data(job.utf8))
         XCTAssertEqual(jobs.first?.articleID, key)
     }
 

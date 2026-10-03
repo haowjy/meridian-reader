@@ -83,7 +83,7 @@ struct EngineDescriptor: Sendable, Identifiable {
     let limits: TextChunker.Limits
     let hardware: HardwareRequirement
 
-    /// Paragraph CAFs are baked + cached (bake marks, Preparing next, BG bake). Apple: false.
+    /// Paragraph CAFs are baked + cached (bake marks, Preparing next, the render queue). Apple: false.
     let supportsBakeCache: Bool
     /// Wrap every model call in `EngineCrashGuard` (engine can die uncatchably inside the call).
     let crashGuarded: Bool

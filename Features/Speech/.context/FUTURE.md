@@ -10,3 +10,6 @@
   phonemes) is text from a third-party web novel. Replacing it means changing the Mac ORT
   benchmark's input in lockstep and re-pinning `KokoroCPUInputsTests` (501 / 190 phonemes) and
   `KokoroONNXSessionTests` (sample count, RMS).
+- Background baking: the app registers no `BGProcessingTask`, so saved articles bake only while
+  the app is open. Rebuild it around the library's queue (`PendingBakeJobStore` →
+  `GlobalSynthQueue`): render saved articles overnight while the phone charges.

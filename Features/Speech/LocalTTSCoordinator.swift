@@ -234,7 +234,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return d.cacheVoiceID(engineVoice: engineVoices[id], appleVoice: appleVoice)
     }
 
-    /// Map any stored/passed voice key onto the active engine's key space (pending BG jobs may
+    /// Map any stored/passed voice key onto the active engine's key space (pending jobs may
     /// carry an Apple voice id from an old session, or another voice's key after a voice switch).
     func normalizedCacheVoice(_ voiceID: String) -> String {
         if let id = activeLocalEngineID, let d = engines.descriptor(id), case .prefixed = d.cacheVoiceKey {
@@ -248,7 +248,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     }
 
     func bakeCompleted(cacheKey: UUID) {
-        BackgroundAudioBakeScheduler.shared.removePending(articleID: cacheKey)
+        PendingBakeJobStore.shared.removePending(articleID: cacheKey)
     }
 
     /// True when a local model for `id` has been initialized (or its files are on disk).
@@ -369,7 +369,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         synthQueue.remove(cacheKey: articleID)
         try audioCache.deleteAudio(for: articleID)
         noteBakeMarksChanged()
-        BackgroundAudioBakeScheduler.shared.removePending(articleID: articleID)
+        PendingBakeJobStore.shared.removePending(articleID: articleID)
     }
 
     func noteBakeMarksChanged() {
@@ -404,7 +404,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         focusCacheKey = cacheKey
         guard usesLocalEngine else {
             // Still loading: the job waits on disk and joins the queue when the load finishes.
-            BackgroundAudioBakeScheduler.shared.enqueuePending(
+            PendingBakeJobStore.shared.enqueuePending(
                 articleID: cacheKey,
                 paragraphs: paragraphs,
                 voiceID: voiceID,
@@ -412,7 +412,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
                     ? .topDown(paragraphCount: paragraphs.count)
                     : .fromPlayhead(resumeParagraph, paragraphCount: paragraphs.count)
             )
-            requestBackgroundBakeWindow()
             print("[SynthQueue] queued pending key=\(cacheKey.uuidString.prefix(8)) (local engine warming)")
             return
         }
@@ -469,13 +468,12 @@ final class LocalTTSCoordinator: SynthQueueContext {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
         let voiceID = normalizedCacheVoice(voiceID)
         audioCache.markSaved(cacheKey: articleID)
-        BackgroundAudioBakeScheduler.shared.enqueuePending(
+        PendingBakeJobStore.shared.enqueuePending(
             articleID: articleID,
             paragraphs: paragraphs,
             voiceID: voiceID,
             plan: .topDown(paragraphCount: paragraphs.count)
         )
-        requestBackgroundBakeWindow()
         // Still loading: the job joins the queue when the load finishes.
         guard usesLocalEngine else { return }
         // Already #1 (e.g. Save mid-listen): keep its playhead plan; just flip to saved.
@@ -500,13 +498,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
                 isEphemeral: false
             )
         }
-    }
-
-    /// Request the `BGProcessingTask` only while the active route may render in the background:
-    /// for any other route the task can never bake, and asking wakes the app on every charge.
-    private func requestBackgroundBakeWindow() {
-        guard activeRouteRendersInBackground else { return }
-        BackgroundAudioBakeScheduler.shared.scheduleProcessingTask()
     }
 
     /// After Save: move ephemeral CAFs onto the SavedArticle UUID and reshuffle the queue key.
@@ -596,11 +587,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return engines.descriptor(id)?.supportsBakeCache == true
     }
 
-    /// Persisted BG jobs → queue. The focused (active) article stays #1; see
+    /// Persisted pending jobs → queue. The focused (active) article stays #1; see
     /// `GlobalSynthQueue.adoptPending`.
     private func drainPendingIntoQueue() {
         guard usesLocalEngine else { return }
-        let pending = BackgroundAudioBakeScheduler.shared.pendingJobs()
+        let pending = PendingBakeJobStore.shared.pendingJobs()
             .filter { localLanguageAllows($0.paragraphs) }
         guard !pending.isEmpty else { return }
         print("[SynthQueue] draining \(pending.count) pending job(s)")

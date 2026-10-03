@@ -15,7 +15,6 @@ struct ReaderApp: App {
         } catch {
             fatalError("Couldn't open the saved-article store: \(error)")
         }
-        BackgroundAudioBakeScheduler.shared.register()
         // Foreground/background gate for Core ML synthesis (no model calls in the background).
         AppRunState.shared.observeApplication()
         AppComposition.runLaunchMaintenance()

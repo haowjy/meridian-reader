@@ -36,7 +36,7 @@ struct HTMLReadingView: View {
     }
 }
 
-private struct HTMLReadingWebView: UIViewRepresentable {
+struct HTMLReadingWebView: UIViewRepresentable {
     let html: String
     let activeParagraphIndex: Int?
     let jumpMode: Bool
@@ -49,9 +49,23 @@ private struct HTMLReadingWebView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
+        let webView = Self.makeWebView(coordinator: context.coordinator)
+        context.coordinator.textInsets = textInsets
+        context.coordinator.load(html: html)
+        return webView
+    }
+
+    /// The reader's web view, wired to `coordinator` (bridge, navigation, drags).
+    ///
+    /// Article HTML is untrusted: Readability keeps inline handlers (`onerror`, `onclick`) and
+    /// `javascript:` links, and they must not run next to `readerBridge`. Content JavaScript is
+    /// off; the bootstrap `WKUserScript`, the listeners it installs and the coordinator's
+    /// `evaluateJavaScript` calls still run.
+    static func makeWebView(coordinator: Coordinator) -> WKWebView {
         let config = WKWebViewConfiguration()
+        config.defaultWebpagePreferences.allowsContentJavaScript = false
         let userContent = config.userContentController
-        userContent.add(context.coordinator, name: "readerBridge")
+        userContent.add(coordinator, name: "readerBridge")
         userContent.addUserScript(WKUserScript(
             source: Self.bootstrapJS,
             injectionTime: .atDocumentEnd,
@@ -66,11 +80,9 @@ private struct HTMLReadingWebView: UIViewRepresentable {
         // `setTextInsets`) keeps the first / last lines clear of them. Native
         // insets, not CSS padding: article HTML (e.g. Wikipedia's styles) can't override them.
         webView.scrollView.contentInsetAdjustmentBehavior = .never
-        webView.navigationDelegate = context.coordinator
-        context.coordinator.webView = webView
-        context.coordinator.textInsets = textInsets
-        context.coordinator.observeDragging(webView.scrollView)
-        context.coordinator.load(html: html)
+        webView.navigationDelegate = coordinator
+        coordinator.webView = webView
+        coordinator.observeDragging(webView.scrollView)
         return webView
     }
 

@@ -41,13 +41,10 @@ targets:
       - package: onnxruntime
         product: onnxruntime
     info:
-      path: App/BGTasks-Info.plist
+      path: App/Info.plist
       properties:
-        BGTaskSchedulerPermittedIdentifiers:
-          - com.jimmyyao.Reader.bake-audio
         UIBackgroundModes:
           - audio
-          - processing
         NSMicrophoneUsageDescription: Reader uses the microphone when you tap the mic in the Browse address bar, so you can say what to search for.
         NSSpeechRecognitionUsageDescription: Reader turns what you say into text for the Browse address bar. Recognition runs on your iPhone when your language supports it.
     settings:

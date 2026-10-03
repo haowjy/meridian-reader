@@ -70,8 +70,6 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
   change; a rename needs a migration.
 - No real people's content in the repo: fixtures are synthetic or public domain, URLs use
   `example.com`.
-- `BackgroundAudioBakeScheduler` and its `BGProcessingTask` are an open product decision: don't
-  change them without asking.
 
 ## Writing
 
