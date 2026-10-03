@@ -39,6 +39,14 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
     /// Producer still expects to enqueue more. Empty queue + !awaitingMore ⇒ finished.
     var awaitingMore = false
 
+    /// The producer has enqueued everything it will. The player is the one place that decides
+    /// the article played out: when the last unit ends, or right away if nothing is playing or
+    /// queued (unless paused; Resume then finishes).
+    func endOfInput() {
+        awaitingMore = false
+        if current == nil, queue.isEmpty { playNext() }
+    }
+
     var onUnitStarted: ((Item) -> Void)?
     var onFinished: (() -> Void)?
     var onStarved: (() -> Void)?
@@ -84,9 +92,7 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
     }
     var canAcceptMore: Bool { bufferedCount < maxBuffered }
     var isAudible: Bool { player?.isPlaying == true }
-    var isSoftPaused: Bool { softPaused }
     var currentParagraphIndex: Int? { current?.paragraphIndex }
-    var hasQueuedOrCurrent: Bool { current != nil || !queue.isEmpty }
     var currentFileName: String? { current?.fileURL.lastPathComponent }
     var secondsSinceLastEnqueue: Double? {
         guard let lastEnqueueAt else { return nil }
