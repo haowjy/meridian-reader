@@ -1,67 +1,50 @@
-# TTS engines sketch (post-v1)
+# TTS engines sketch
 
-Status: **design only** — not in v1. v1 stays Apple `AVSpeechSynthesizer` (FRD P1).
+Status: Apple TTS and one on-device engine (Kokoro) ship; cloud voices are a later step (see the
+roadmap). The sections after "Engine 1" are the original design notes and dated build logs.
 
-Goal: keep today’s listen UX (play/pause/stop, paragraph skip, rate, resume) while making **audio generation** swappable: Apple system voices → **local AI models** → later **paid cloud / subscription** TTS.
+Goal: keep the listen UX (play/pause/stop, paragraph skip, rate, resume) while making **audio
+generation** swappable: Apple system voices, **on-device models**, later **cloud** TTS.
 
-## Principle
+## Shape
 
-`SpeechController` stays the **session owner** (document, paragraph index, rate, UI state). It no longer owns a concrete synthesizer forever.
-
-A `SpeechSynthesizing` engine owns **how samples / speech are produced**. Controllers and Saved/Browse listen UI talk only to `SpeechController`.
+`SpeechController` owns the session (document, playhead, phase, rate, voice / language settings)
+and binds one **playback engine** per utterance. On-device audio is rendered by a **synth host**
+per library, behind the engine registry.
 
 ```
-Listen UI  →  SpeechController  →  SpeechSynthesizing
-                                      ├─ AppleSpeechEngine      (v1 / always available)
-                                      ├─ LocalModelSpeechEngine (downloadable bundle)
-                                      └─ CloudSpeechEngine      (subscription; optional)
+Listen UI  →  SpeechController  →  ListenEngine (bound per utterance)
+                                      ├─ AppleListenEngine   AVSpeechSynthesizer, one utterance
+                                      └─ LocalListenEngine   LocalModelSpeechEngine: file player + producer
+                                                               └─ GlobalSynthQueue → LocalChunkRenderer
+                                                                    → LocalSynthHost (KokoroCPUHost / KokoroHost)
 ```
-
-## Protocol (sketch)
 
 ```swift
 @MainActor
-protocol SpeechSynthesizing: AnyObject {
-    var engineID: String { get }          // "apple" | "local.<model>" | "cloud.<provider>"
-    var displayName: String { get }
-    var requiresNetwork: Bool { get }
-    var isReady: Bool { get }             // model downloaded / entitlement valid
-
-    func availableVoices() async -> [SpeechVoiceDescriptor]
-    func prepareIfNeeded() async throws   // download / warm-up
-
-    /// Speak `text` starting at UTF-16 offset; report word/char progress for highlighting.
-    func speak(
-        text: String,
-        voiceID: String?,
-        rate: Double,
-        fromUTF16Offset: Int,
-        delegate: SpeechSynthesisDelegate
-    )
-
-    func pause()
-    func resume()
-    func stop()
-}
-
-struct SpeechVoiceDescriptor: Identifiable, Hashable {
-    var id: String
-    var name: String
-    var languageCode: String
-    var qualityLabel: String?    // "Enhanced", "Neural", …
-    var engineID: String
-    var isInstalled: Bool
+protocol ListenEngine: AnyObject {
+    var name: String { get }
+    var onEvent: ((PlaybackEngineEvent) -> Void)? { get set }  // audible / paused / progress / finished
+    func play(_ request: ListenPlayRequest)                     // document, start offset, paused?, Apple voice
+    func pause(); func resume(); func stop()
+    func setRate(_ multiplier: Double)
+    var snapshot: PlaybackEngineSnapshot { get }
+    // + listen-bar status, polled position estimate, foreground hook, debug numbers
 }
 ```
 
-Progress / finish / cancel stay on a small delegate so Apple’s `AVSpeechSynthesizerDelegate` and a PCM player for local/cloud engines map to the same paragraph + highlight updates.
+The binding rules (which engine speaks, and what happens when the on-device engine finishes
+loading or goes away mid-utterance) are in `LISTEN_PLAYBACK.md` → "Engine binding and the
+on-device engine's lifecycle". A cloud engine would be another synth host feeding the file player,
+or its own `ListenEngine` if it streams.
 
 ## Engine 1 — Apple (keep)
 
-- Thin wrapper around current `AVSpeechSynthesizer` path.
-- Voices = installed system voices (`VoiceCatalog` today).
+- `AppleListenEngine`: `AVSpeechSynthesizer` with one utterance for the rest of the article.
+- Voices = installed system voices (`VoiceCatalog`).
 - Offline. Zero download beyond what the user already gets from Settings.
-- Default engine forever (fallback if local model missing or cloud fails).
+- Default engine forever (fallback if the local model is missing, loading or failed, or the
+  article's language isn't supported).
 
 ## Engine 2 — Local AI model
 
@@ -99,7 +82,7 @@ Candidate families (pick one in a spike):
 
 ## Engine 3 — Paid / subscription cloud (later)
 
-- Same `SpeechSynthesizing` surface.
+- Behind the same `ListenEngine` binding (a synth host feeding the file player, or its own engine if it streams).
 - `requiresNetwork = true`; gate with StoreKit 2 entitlement.
 - Stream or fetch audio per paragraph; cache recent paragraphs optionally.
 - On failure / offline / no sub → automatic fallback to Apple (or installed local model), with a quiet banner once.
@@ -118,7 +101,8 @@ Persist:
 - `reader.tts.voiceID` (engine-scoped)
 - Existing rate + language prefs stay global where they still make sense
 
-Mid-playback engine/voice change = stop + restart current paragraph with new engine (same as today’s voice hot-swap).
+Mid-playback engine/voice change: see `EngineHandover` in `LISTEN_PLAYBACK.md` (Apple finishes the
+paragraph it is speaking; an on-device engine that goes away or changes voice re-speaks at once).
 
 ## What stays stable
 
@@ -126,12 +110,10 @@ Mid-playback engine/voice change = stop + restart current paragraph with new eng
 - Listen bar UI  
 - Offline Saved playback **as long as** the chosen engine is Apple or an installed local model  
 
-## What changes when we build it
+## Build order
 
-1. Extract Apple path from `SpeechController` into `AppleSpeechEngine`.
-2. Introduce `SpeechSynthesizing` + engine registry at composition root.
-3. Spike one local model end-to-end (download → speak one article → paragraph skip).
-4. Only then design StoreKit + `CloudSpeechEngine`.
+Done: Apple playback in `AppleListenEngine`, the `ListenEngine` binding, the engine registry at the
+composition root, and Kokoro end to end. Next: StoreKit + `CloudSpeechEngine`.
 
 ## FRD impact (when we commit)
 
@@ -174,10 +156,10 @@ What production / OSS stacks do:
 - Synthesize chunk **N+1 while N plays** (single synth worker — avoid parallel model runs / OOM).
 - Feed PCM into a **bounded** audio queue (`AVAudioPlayerNode` schedule); start after a short watermark (~0.2–0.5 s).
 - **Backpressure**: pause synth when queued audio exceeds ~2–5 s; resume when below threshold (prevents multi‑10 MB PCM buildup).
-- Cancel + clear queues on skip / voice / rate / stop (same role as today’s `speakGeneration`).
+- Cancel + clear queues on skip / voice / stop (the produce epoch in `LocalModelSpeechEngine`).
 - Optional: keep model “session” warm (voice conditioning) across chunks; reset only what the model requires per chunk.
 
-So for Reader local/cloud engines: implement that pipeline behind `SpeechSynthesizing`. Apple engine stays utterance-based with no queue.
+Reader's on-device engine runs that pipeline (`LocalModelSpeechEngine` + `GlobalSynthQueue`); a cloud engine would reuse it. Apple stays utterance-based with no queue.
 
 ## Phased shipping (agreed direction)
 
@@ -201,7 +183,7 @@ So: ship the app with Apple TTS + “Download on-device voice” that pulls a **
 
 ### Phase 1 — if traction
 - Own a small backend / CDN for curated rotating list, analytics on which packs succeed, kill-switches.
-- Paid **hosted** TTS (subscription) as another `SpeechSynthesizing` engine.
+- Paid **hosted** TTS (subscription) as another engine behind the `ListenEngine` binding.
 - Richer Hub browse still gated by “we can run this” manifests.
 
 ### Explicit non-goals until Phase 1
@@ -300,7 +282,7 @@ Decision (Jimmy): remove Nano entirely. **Kokoro is the only local engine; Apple
 
 - Removed: `ChatterboxNanoHost`, `NanoLoadProbe`, the Nano descriptor/limits and Settings row,
   `Resources/tts/chatterbox-nano.manifest.json`, `TTSModelManifest`, `TTSProbeLite`,
-  `LocalTTSModelStore`, the downloader's manifest path (`TTSModelDownloader` is now UI state only),
+  `LocalTTSModelStore`, `TTSModelDownloader`,
   `DeviceChipGate` Nano helpers, `-nanoProbe`/`-nanoOnly`.
 - Renamed: `NanoTextChunker` → `TextChunker`, `Limits.nano` → `Limits.tenSecondCall`,
   `NanoHostEmpty` → `NothingSpeakable`, `warmingNano`/`usingNano` → `warmingLocal`/`usingLocal`,

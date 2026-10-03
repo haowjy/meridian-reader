@@ -172,7 +172,7 @@ final class VoiceAndLanguageTests: XCTestCase {
         let (c, defaults, suite) = makeCoordinator(provider)
         defer { defaults.removePersistentDomain(forName: suite) }
         await c.selectEngine(FakeEngineProvider.fakeID)
-        XCTAssertTrue(c.localHostReady)
+        XCTAssertTrue(c.usesLocalEngine)
         let gateCalls = GateRecorder()
         c.localLanguageGate = { paragraphs in
             gateCalls.count += 1

@@ -58,10 +58,10 @@ enum EngineLatencyProbe {
 
         // Let the app's own engine prepare (download / first compile) finish first.
         let waitStart = ListenTimingLog.now()
-        while coordinator.pendingEngineID != nil, ListenTimingLog.ms(since: waitStart) < 15 * 60_000 {
+        while coordinator.engineState.warmingEngineID != nil, ListenTimingLog.ms(since: waitStart) < 15 * 60_000 {
             try? await Task.sleep(nanoseconds: 500_000_000)
         }
-        log("app engine=\(coordinator.selectedEngineID.rawValue) ready=\(coordinator.localHostReady) waited_ms=\(ListenTimingLog.ms(since: waitStart))")
+        log("app engine=\(coordinator.selectedEngineID.rawValue) ready=\(coordinator.usesLocalEngine) waited_ms=\(ListenTimingLog.ms(since: waitStart))")
         // Hold the bake worker (it finishes its current chunk) so timings aren't interleaved.
         coordinator.synthQueue.isPausedForProbe = true
         defer { coordinator.synthQueue.isPausedForProbe = false }

@@ -8,20 +8,17 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// Every engine + its capabilities. Injected from the composition root.
     let engines: EngineRegistry
-    let downloader = TTSModelDownloader()
     let audioCache: ArticleAudioCache
     /// Single global Core ML work queue — actions reshuffle; one worker drains #1.
     let synthQueue = GlobalSynthQueue()
     private let defaults: UserDefaults
     private let crashGuard: EngineCrashGuard
 
-    private(set) var selectedEngineID: SpeechEngineID
-    /// Desired engine while a local prepare / download may still be in flight.
-    private(set) var pendingEngineID: SpeechEngineID?
-    /// True after the selected local engine's initialize succeeded this session.
-    private(set) var localHostReady = false
-    /// Model download fraction (0…1) while the pending local engine fetches weights.
-    private(set) var modelDownloadFraction: Double?
+    /// The on-device engine's lifecycle. Changed only by `setEngineState(_:)`.
+    private(set) var engineState: LocalEngineState = .off
+    /// Called after every engine-state change and engine-voice change. `SpeechController` uses it
+    /// to decide whether the live utterance moves to another engine (views never coordinate that).
+    @ObservationIgnored var onEngineChange: (() -> Void)?
     /// Selected voice per multi-voice engine (e.g. Kokoro `af_heart`). Part of the cache voice key.
     private(set) var engineVoices: [SpeechEngineID: String] = [:]
     /// Set when the last process died inside a crash-guarded engine (Kokoro: auto-recovered on
@@ -39,8 +36,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Article the user most recently opened / listened to (stays #1 when pending jobs drain).
     private var focusCacheKey: UUID?
     private var localEngine: LocalModelSpeechEngine?
-    /// Single-flight local-engine prepare shared by Settings select and Speak.
-    private var localPrepareTask: Task<Void, Error>?
     /// Voice whose files are downloading after the user picked it (Settings shows a spinner).
     private(set) var voiceDownloadID: String?
     /// Last voice download failure (Settings footer); cleared on the next pick.
@@ -157,19 +152,16 @@ final class LocalTTSCoordinator: SynthQueueContext {
             defaults.set(forced.rawValue, forKey: Self.engineIDKey)
             if forced == crashedID { crashNotice = nil; crashedID = nil }
         }
-        selectedEngineID = initial
         engineVoices = voices
         crashedEngineID = crashedID
         engineCrashNotice = crashNotice
         pendingResume = resume
-        if initial.isLocal, !engines.supports(initial) {
-            selectedEngineID = .apple
-            defaults.set(SpeechEngineID.apple.rawValue, forKey: Self.engineIDKey)
-        } else if initial.isLocal {
-            pendingEngineID = initial
-            Task { await self.selectEngine(initial) }
-        }
         synthQueue.attach(coordinator: self)
+        if initial.isLocal, engines.supports(initial) {
+            beginWarm(initial)
+        } else {
+            setEngineState(.off)
+        }
         // Nothing is playing at launch: per-chunk synth scratch from last session is disposable.
         self.audioCache.removeAllChunkScratch()
         ListenTimingLog.log("app_launch", [
@@ -239,13 +231,17 @@ final class LocalTTSCoordinator: SynthQueueContext {
         #endif
     }
 
-    var usesLocalEngine: Bool { selectedEngineID.isLocal && localHostReady }
+    /// The engine Settings shows as chosen (the on-device one while it loads or once loaded).
+    var selectedEngineID: SpeechEngineID { engineState.selectedEngineID }
+    /// The on-device engine is loaded and serves listening and bake-ahead.
+    var usesLocalEngine: Bool { engineState.readyEngineID != nil }
+
     var localEngineInstance: LocalModelSpeechEngine {
         if let localEngine { return localEngine }
         let engine = LocalModelSpeechEngine(engines: engines)
         engine.onModelProgress = { [weak self] fraction in
-            guard let self, self.pendingEngineID != nil else { return }
-            self.modelDownloadFraction = fraction
+            guard let self, case .warming(let id, _, let task) = self.engineState else { return }
+            self.setEngineState(.warming(id, progress: fraction, task: task))
         }
         localEngine = engine
         return engine
@@ -299,14 +295,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
     private func reloadKokoroHost() async {
         RenderPace.shared.reset()
         guard activeLocalEngineID == .kokoro else { return }
-        localPrepareTask?.cancel()
-        localPrepareTask = nil
-        localHostReady = false
+        cancelWarm()
         localEngine?.unloadHost()
-        synthQueue.engineDidChange()
-        if selectedEngineID == .kokoro || pendingEngineID == .kokoro {
-            await selectEngine(.kokoro)
-        }
+        await beginWarm(.kokoro).value
     }
 
     // MARK: - SynthQueueContext (route-aware background)
@@ -315,12 +306,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     var playingCacheKey: UUID? { localEngine?.playingArticleID }
 
-    /// Local engine whose cache / chunk sizing applies right now (selected, else pending).
-    var activeLocalEngineID: SpeechEngineID? {
-        if selectedEngineID.isLocal { return selectedEngineID }
-        if let pendingEngineID, pendingEngineID.isLocal { return pendingEngineID }
-        return nil
-    }
+    /// Local engine whose cache / chunk sizing applies right now (loaded or loading).
+    var activeLocalEngineID: SpeechEngineID? { engineState.activeEngineID }
 
     /// Descriptor for cache keys / chunking: the active local engine, else the default local one.
     var activeDescriptor: EngineDescriptor? {
@@ -364,8 +351,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// True when a local model for `id` has been initialized (or its files are on disk).
     func isModelInstalled(_ id: SpeechEngineID) -> Bool {
-        if localHostReady, selectedEngineID == id { return true }
-        return engines.isInstalled(id)
+        engineState.readyEngineID == id || engines.isInstalled(id)
     }
 
     func setVoice(_ voice: String, for id: SpeechEngineID) {
@@ -376,6 +362,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         localEngineInstance.setActiveLocalEngine(id, voice: voice)
         synthQueue.engineDidChange()
         noteBakeMarksChanged()
+        onEngineChange?()
     }
 
     /// User picked `voice` in Settings: download its files if needed (e.g. a ~0.5 MB Kokoro
@@ -409,23 +396,18 @@ final class LocalTTSCoordinator: SynthQueueContext {
     }
 
     /// Select any registered engine. Local engines download-on-select + warm, and only one
-    /// local engine's models stay loaded (the other host is dropped).
+    /// local engine's models stay loaded (the other host is dropped). Returns once the choice has
+    /// settled (loaded, failed, or replaced by another pick).
     func selectEngine(_ id: SpeechEngineID) async {
         guard id.isLocal else {
-            pendingEngineID = nil
-            localPrepareTask?.cancel()
-            localPrepareTask = nil
-            localHostReady = false
-            modelDownloadFraction = nil
-            applyEngineSelection(.apple)
+            cancelWarm()
+            setEngineState(.off)
             localEngine?.unloadHost()
             return
         }
         guard engines.supports(id) else {
-            pendingEngineID = nil
-            localHostReady = false
-            applyEngineSelection(.apple)
-            downloader.markFailed(engines.blockReason(id) ?? "\(engines.displayName(id)) is not available on this device.")
+            cancelWarm()
+            setEngineState(.failed(id, message: engines.blockReason(id) ?? "\(engines.displayName(id)) is not available on this device."))
             return
         }
         if id == crashedEngineID {
@@ -434,90 +416,81 @@ final class LocalTTSCoordinator: SynthQueueContext {
             crashedEngineID = nil
             if id == .kokoro { kokoroRouteSettings.onnxCrashCount = 0 }
         }
-        let engineChanged = localEngine?.engineID != id || !selectedEngineID.isLocal || selectedEngineID != id
-        if engineChanged {
-            // Drop the other engine's in-flight prepare + host (memory) before warming this one.
-            localPrepareTask?.cancel()
-            localPrepareTask = nil
-            localHostReady = false
+        switch engineState {
+        case .ready(id):
+            return
+        case .warming(id, _, let task):
+            await task.value
+        default:
+            await beginWarm(id).value
         }
-        pendingEngineID = id
+    }
+
+    /// Load `id`'s host (cancelling any other load) and move to `.ready` / `.failed` when it
+    /// settles. The returned task is the load; it is also held in `.warming`. A superseded load
+    /// is cancelled by whoever replaced it and then leaves the state alone.
+    @discardableResult
+    private func beginWarm(_ id: SpeechEngineID) -> Task<Void, Never> {
+        cancelWarm()
         localEngineInstance.setActiveLocalEngine(id, voice: engineVoices[id])
-        if engineChanged { synthQueue.engineDidChange() }
-        downloader.markPreparing()
-        modelDownloadFraction = nil
-        do {
-            try await ensureLocalPrepared()
-            guard pendingEngineID == id || selectedEngineID == id else { return } // superseded
-            localHostReady = true
-            pendingEngineID = nil
-            modelDownloadFraction = nil
-            applyEngineSelection(id)
-            downloader.stateHintInstalled()
-            noteBakeMarksChanged()
-            drainPendingIntoQueue()
-        } catch is CancellationError {
-            guard pendingEngineID == id else { return }
-            localHostReady = false
-            pendingEngineID = nil
-            modelDownloadFraction = nil
-            if selectedEngineID == id {
-                applyEngineSelection(.apple)
+        synthQueue.engineDidChange()
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await self.localEngineInstance.prepareIfNeeded()
+                guard !Task.isCancelled else { return }
+                self.setEngineState(.ready(id))
+                self.noteBakeMarksChanged()
+                self.drainPendingIntoQueue()
+            } catch {
+                guard !Task.isCancelled else { return }
+                self.setEngineState(error is CancellationError
+                    ? .off : .failed(id, message: self.friendlyLocalError(error, engine: id)))
             }
-            downloader.cancel()
-        } catch {
-            guard pendingEngineID == id else { return }
-            localHostReady = false
-            pendingEngineID = nil
-            modelDownloadFraction = nil
-            applyEngineSelection(.apple)
-            downloader.markFailed(friendlyLocalError(error, engine: id))
         }
+        setEngineState(.warming(id, progress: nil, task: task))
+        return task
     }
 
+    private func cancelWarm() {
+        if case .warming(_, _, let task) = engineState { task.cancel() }
+    }
+
+    private func setEngineState(_ state: LocalEngineState) {
+        engineState = state
+        if let persisted = state.persistedSelection {
+            defaults.set(persisted.rawValue, forKey: Self.engineIDKey)
+        }
+        onEngineChange?()
+    }
+
+    /// The live listen could not start on the local engine: drop its host and speak with Apple.
     func noteSpeakFailed(_ error: Error) {
-        let engine = selectedEngineID
-        localHostReady = false
-        pendingEngineID = nil
-        localPrepareTask = nil
+        guard let id = engineState.readyEngineID else { return }
         localEngine?.resetHostPrepared()
-        applyEngineSelection(.apple)
-        downloader.markFailed(friendlyLocalError(error, engine: engine))
+        setEngineState(.failed(id, message: friendlyLocalError(error, engine: id)))
     }
 
+    /// Settings: stop the model download / load in flight; Apple speaks.
     func cancelDownload() {
-        localPrepareTask?.cancel()
-        localPrepareTask = nil
-        downloader.cancel()
-        modelDownloadFraction = nil
-        if pendingEngineID != nil {
-            pendingEngineID = nil
-            localHostReady = false
-            localEngine?.resetHostPrepared()
-            if selectedEngineID.isLocal, !localHostReady {
-                applyEngineSelection(.apple)
-            }
-        }
+        guard case .warming = engineState else { return }
+        cancelWarm()
+        localEngine?.resetHostPrepared()
+        setEngineState(.off)
     }
 
     /// Delete one local engine's downloaded models (default: the active local engine).
     func deleteModel(_ engine: SpeechEngineID? = nil) throws {
         let id = engine ?? activeLocalEngineID ?? engines.defaultLocalEngineID
-        let isActive = selectedEngineID == id || pendingEngineID == id
-        if isActive {
-            pendingEngineID = nil
-            localPrepareTask?.cancel()
-            localPrepareTask = nil
-            localHostReady = false
-            modelDownloadFraction = nil
+        switch engineState {
+        case .warming(id, _, _), .ready(id), .failed(id, _):
+            cancelWarm()
             localEngine?.unloadHost()
+            setEngineState(.off)
+        default:
+            break
         }
-        downloader.cancel()
         try engines.deleteModels(id)
-        downloader.resetToIdle()
-        if selectedEngineID == id {
-            applyEngineSelection(.apple)
-        }
         noteBakeMarksChanged()
     }
 
@@ -562,7 +535,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
         let voiceID = normalizedCacheVoice(voiceID)
         focusCacheKey = cacheKey
-        guard usesLocalEngine, localHostReady else {
+        guard usesLocalEngine else {
+            // Still loading: the job waits on disk and joins the queue when the load finishes.
             BackgroundAudioBakeScheduler.shared.enqueuePending(
                 articleID: cacheKey,
                 paragraphs: paragraphs,
@@ -572,8 +546,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
                     : .fromPlayhead(resumeParagraph, paragraphCount: paragraphs.count)
             )
             requestBackgroundBakeWindow()
-            print("[SynthQueue] queued pending key=\(cacheKey.uuidString.prefix(8)) (local engine cold); warming")
-            Task { await self.warmLocalThenDrainPending() }
+            print("[SynthQueue] queued pending key=\(cacheKey.uuidString.prefix(8)) (local engine warming)")
             return
         }
         if isEphemeral {
@@ -604,7 +577,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         if isEphemeral {
             audioCache.markEphemeral(cacheKey: cacheKey, lastAccess: Date())
         }
-        if usesLocalEngine, localHostReady {
+        if usesLocalEngine {
             synthQueue.openArticle(
                 cacheKey: cacheKey,
                 paragraphs: paragraphs,
@@ -636,10 +609,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
             plan: .topDown(paragraphCount: paragraphs.count)
         )
         requestBackgroundBakeWindow()
-        guard usesLocalEngine, localHostReady else {
-            Task { await self.warmLocalThenDrainPending() }
-            return
-        }
+        // Still loading: the job joins the queue when the load finishes.
+        guard usesLocalEngine else { return }
         // Already #1 (e.g. Save mid-listen): keep its playhead plan; just flip to saved.
         if synthQueue.primaryCacheKey == articleID, synthQueue.hasJob(cacheKey: articleID) {
             synthQueue.setEphemeral(cacheKey: articleID, false)
@@ -758,33 +729,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return engines.descriptor(id)?.supportsBakeCache == true
     }
 
-    private func warmLocalThenDrainPending() async {
-        guard wantsLocalBake, let id = activeLocalEngineID else { return }
-        if localHostReady {
-            drainPendingIntoQueue()
-            return
-        }
-        do {
-            localEngineInstance.setActiveLocalEngine(id, voice: engineVoices[id])
-            try await ensureLocalPrepared()
-            guard activeLocalEngineID == id else { return }
-            localHostReady = true
-            pendingEngineID = nil
-            modelDownloadFraction = nil
-            applyEngineSelection(id)
-            downloader.stateHintInstalled()
-            drainPendingIntoQueue()
-        } catch is CancellationError {
-            print("[SynthQueue] warm cancelled")
-        } catch {
-            print("[SynthQueue] warm-then-drain failed: \(error.localizedDescription)")
-        }
-    }
-
     /// Persisted BG jobs → queue. The focused (active) article stays #1; see
     /// `GlobalSynthQueue.adoptPending`.
     private func drainPendingIntoQueue() {
-        guard usesLocalEngine, localHostReady else { return }
+        guard usesLocalEngine else { return }
         let pending = BackgroundAudioBakeScheduler.shared.pendingJobs()
             .filter { localLanguageAllows($0.paragraphs) }
         guard !pending.isEmpty else { return }
@@ -798,30 +746,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
                 isEphemeral: audioCache.loadMeta(for: job.articleID)?.kind == .ephemeral
             )
         }, focusKey: focusCacheKey)
-    }
-
-    private func ensureLocalPrepared() async throws {
-        if localHostReady { return }
-        if let localPrepareTask {
-            try await localPrepareTask.value
-            return
-        }
-        let task = Task { @MainActor in
-            try await self.localEngineInstance.prepareIfNeeded()
-        }
-        localPrepareTask = task
-        do {
-            try await task.value
-            if localPrepareTask == task { localPrepareTask = nil }
-        } catch {
-            if localPrepareTask == task { localPrepareTask = nil }
-            throw error
-        }
-    }
-
-    private func applyEngineSelection(_ id: SpeechEngineID) {
-        selectedEngineID = id
-        defaults.set(id.rawValue, forKey: Self.engineIDKey)
     }
 
     private func friendlyLocalError(_ error: Error, engine: SpeechEngineID) -> String {

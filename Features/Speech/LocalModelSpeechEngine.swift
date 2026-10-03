@@ -12,7 +12,7 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     private(set) var engineID: SpeechEngineID
 
     private let engines: EngineRegistry
-    private let player = ChunkPlaybackQueue(maxBuffered: 8)
+    private let player: ChunkPlaybackQueue
     private var tempDir: URL
     /// Host + shared renderer for the active engine (nil until first use / after unload).
     private var rendererBox: LocalChunkRenderer?
@@ -146,8 +146,10 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
     /// Article whose audio is playing right now (nil when paused / stopped).
     var playingArticleID: UUID? { (isSpeaking && !isPaused) ? articleID : nil }
 
-    init(engines: EngineRegistry) {
+    /// `player` is injectable so tests can end units without waiting for real audio.
+    init(engines: EngineRegistry, player injected: ChunkPlaybackQueue? = nil) {
         self.engines = engines
+        self.player = injected ?? ChunkPlaybackQueue(maxBuffered: 8)
         self.engineID = engines.defaultLocalEngineID
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ReaderTTSLive", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -175,7 +177,8 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
             print("[LocalPlay] unit error (fail-forward): \(error.localizedDescription)")
         }
         player.onFinished = { [weak self] in
-            guard let self else { return }
+            // The only place the article ends (see `ChunkPlaybackQueue.endOfInput`); once per speak.
+            guard let self, self.userWantsAudible || self.isSpeaking else { return }
             self.isSpeaking = false
             self.isPaused = false
             self.userWantsAudible = false
@@ -338,14 +341,7 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
         let e = forced ?? epoch
         guard producerTask == nil else { return }
         guard nextProduceIndex < paragraphs.count else {
-            player.awaitingMore = false
-            if !player.hasQueuedOrCurrent, !player.isAudible {
-                if userWantsAudible || isSpeaking {
-                    isSpeaking = false
-                    userWantsAudible = false
-                    onFinished?()
-                }
-            }
+            player.endOfInput()
             return
         }
         player.awaitingMore = true
@@ -376,12 +372,7 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
             guard self.starveWatchGeneration == watch, self.epoch == e else { return }
             guard self.userWantsAudible || self.isSpeaking || self.isPaused else { return }
             guard self.nextProduceIndex < self.paragraphs.count else {
-                self.player.awaitingMore = false
-                if !self.player.hasQueuedOrCurrent, !self.player.isAudible {
-                    self.isSpeaking = false
-                    self.userWantsAudible = false
-                    self.onFinished?()
-                }
+                self.player.endOfInput()
                 return
             }
             if self.player.bufferedCount == 0, self.producerTask != nil,
@@ -480,12 +471,7 @@ final class LocalModelSpeechEngine: SynthChunkRendering {
             // Batch / rest-of-article bake is owned by GlobalSynthQueue (article #1 plan).
             // Producer only fills the player buffer (immediate lane).
             if nextProduceIndex >= paragraphs.count {
-                player.awaitingMore = false
-                if !player.isAudible, player.bufferedCount == 0, userWantsAudible || isSpeaking {
-                    isSpeaking = false
-                    userWantsAudible = false
-                    onFinished?()
-                }
+                player.endOfInput()
                 return
             }
             // Buffer full: stop. The next unit to end (`onUnitEnded`) starts the producer again,

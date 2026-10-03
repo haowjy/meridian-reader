@@ -112,7 +112,7 @@ final class CPURouteBench {
         // One heavy job at a time: let any engine prepare finish, then hold the bake worker.
         status = "Waiting for Kokoro prepare / bake worker…"
         let waitStart = ListenTimingLog.now()
-        while coordinator.pendingEngineID != nil, ListenTimingLog.ms(since: waitStart) < 5 * 60_000 {
+        while coordinator.engineState.warmingEngineID != nil, ListenTimingLog.ms(since: waitStart) < 5 * 60_000 {
             try? await Task.sleep(nanoseconds: 500_000_000)
         }
         coordinator.synthQueue.isPausedForProbe = true

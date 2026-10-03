@@ -378,7 +378,7 @@ struct ArticleReaderScreen: View {
             "paragraphs": paragraphs.count,
             "chars": paragraphs.reduce(0) { $0 + $1.count },
             "resume_p": live ? speech.currentParagraphIndex : resumeParagraph,
-            "local_ready": speech.localTTS.localHostReady,
+            "local_ready": speech.localTTS.usesLocalEngine,
             "live": live,
             "saved": isSaved,
         ])
