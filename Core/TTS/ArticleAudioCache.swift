@@ -675,8 +675,8 @@ extension ArticleAudioCache {
 // MARK: - One voice per article, retired engines, orphans
 
 extension ArticleAudioCache {
-    /// Engine id for index files that carry no `engineID`: only the retired Chatterbox Nano
-    /// wrote those.
+    /// Engine id for index files that carry no `engineID`: only Chatterbox Nano (a retired
+    /// engine, see `RetiredEngineCleanup`) wrote those.
     nonisolated static let legacyEngineID = "local.chatterbox-nano"
 
     /// Once every paragraph `0..<paragraphCount` has a CAF in `engineID`/`voiceID`, delete any

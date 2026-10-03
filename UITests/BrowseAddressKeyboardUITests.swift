@@ -22,7 +22,7 @@ final class BrowseAddressKeyboardUITests: XCTestCase {
                                      "field above the keyboard (\(field.frame) vs \(keyboard.frame))", file: file, line: line)
         }
         XCTAssertEqual(field.value as? String, typed, "typed text is in the field", file: file, line: line)
-        // The old bug pushed the landing helper text up under the clock.
+        // The landing helper text must not be pushed up under the clock.
         let helper = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Search or enter an address below")).firstMatch
         if helper.exists, helper.isHittable {
             XCTAssertGreaterThanOrEqual(helper.frame.minY, top, "nothing under the status bar", file: file, line: line)

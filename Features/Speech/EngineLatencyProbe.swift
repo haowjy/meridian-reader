@@ -6,7 +6,7 @@ import UIKit
 
 /// Debug-only device timing for every registered on-device engine (production hosts via the
 /// registry, shared `LocalChunkRenderer`, per-engine chunk limits, same gate).
-/// Limit engines with `-probeOnly Kokoro[,Other]` (short names; legacy `-kokoroOnly`).
+/// Limit engines with `-probeOnly Kokoro[,Other]` (short names).
 ///
 /// Trigger: launch arg `-engineProbe` (e.g. `xcrun devicectl device process launch … -engineProbe`)
 /// or Settings → Listen → Listen debug → Open full panel → "Run engine probe".
@@ -75,11 +75,9 @@ enum EngineLatencyProbe {
         var only: Set<String>? = nil
         if let i = args.firstIndex(of: "-probeOnly"), i + 1 < args.count {
             only = Set(args[i + 1].split(separator: ",").map { $0.lowercased() })
-        } else if args.contains("-kokoroOnly") {
-            only = ["kokoro"]
         }
         let registry = coordinator.engines
-        // Reverse descriptor order (recommended engine last, as before).
+        // Reverse descriptor order (recommended engine last).
         let descriptors = registry.localDescriptors.reversed().filter {
             registry.supports($0.id) && (only?.contains($0.shortName.lowercased()) ?? true)
         }

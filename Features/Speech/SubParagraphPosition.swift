@@ -1,7 +1,7 @@
 import Foundation
 import NaturalLanguage
 
-/// Positions inside a paragraph (Nav I: sub-paragraph seek). Offsets are UTF-16 offsets into the
+/// Positions inside a paragraph (sentence-level seek). Offsets are UTF-16 offsets into the
 /// paragraph's own text (what `ParagraphDocument` and the reader use).
 enum SentenceStarts {
     /// Start offset of every sentence in `text` (always begins with 0 for non-empty text).

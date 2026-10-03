@@ -192,7 +192,7 @@ enum ArticleLibrary {
         var audioDropped = 0
     }
 
-    /// Paragraph layout v3 (2026-09-25): paragraphs over 1,200 characters are split at sentence
+    /// Paragraph layout v3: paragraphs over 1,200 characters are split at sentence
     /// ends (`ParagraphSplitter`). For every saved row still on older listen blocks: rebuild its
     /// paragraphs, move the reading position to the same sentence (character-offset mapping),
     /// align its cached audio (slice pieces whose chunks line up, move shifted paragraphs,

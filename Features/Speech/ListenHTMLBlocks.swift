@@ -18,7 +18,7 @@ enum ListenHTMLBlocks {
 
     /// Bump whenever the block rules or text extraction change. Saved articles store their
     /// paragraphs with this number and rebuild once when it no longer matches.
-    /// v3 (2026-09-25): giant paragraphs are split at sentence ends (`splitLongBlocks`).
+    /// v3: giant paragraphs are split at sentence ends (`splitLongBlocks`).
     static let version = 3
 
     /// CSS selector for `querySelectorAll` / `querySelector` inside the article body.

@@ -7,7 +7,7 @@ import UIKit
 #endif
 
 /// Debug-only on-device benchmark + background soak for the Kokoro **CPU route** (ONNX Runtime,
-/// CPU execution provider) — Kokoro's main route since 2026-09-24 (`KokoroCPUHost`). Use it to
+/// CPU execution provider), Kokoro's main route (`KokoroCPUHost`). Use it to
 /// pick the thread count (`KokoroRouteSettings.cpuThreads`).
 ///
 /// Settings → Listen → Listen debug → Open full panel → "CPU route benchmark".

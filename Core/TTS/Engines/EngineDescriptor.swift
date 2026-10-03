@@ -124,7 +124,7 @@ struct EngineDescriptor: Sendable, Identifiable {
     }
 }
 
-/// An engine a provider used to ship and has removed. At launch (once, idempotent) the
+/// An engine a provider has removed. At launch (once, idempotent) the
 /// coordinator moves a persisted selection of `id` to `replacement` when that engine is installed
 /// (else Apple), deletes `id`'s cached article audio, and calls `deleteFiles` for its models.
 struct RetiredEngine: @unchecked Sendable {

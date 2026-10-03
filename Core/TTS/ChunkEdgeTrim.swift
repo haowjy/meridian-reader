@@ -2,10 +2,10 @@ import Foundation
 
 /// Controls the silence at chunk joins.
 ///
-/// Kokoro (ONNX) pads every call with ≈320 ms of leading and ≈500 ms of trailing silence, so each
-/// join between two chunks was ≈0.8 s of dead air — even where the text was cut mid-sentence at a
-/// comma (natural pause there ≈0.2–0.4 s). Measured on The Forgotten p6, 2026-09-25: 18 joins,
-/// lead 290–380 ms, trail 410–620 ms. This trims each chunk to a short lead-in and a trailing
+/// Kokoro (ONNX) pads every call with ≈320 ms of leading and ≈500 ms of trailing silence, so an
+/// untrimmed join between two chunks is ≈0.8 s of dead air, even where the text was cut
+/// mid-sentence at a comma (natural pause there ≈0.2–0.4 s). Measured over the 18 joins of one
+/// giant paragraph: lead 290–380 ms, trail 410–620 ms. This trims each chunk to a short lead-in and a trailing
 /// pause that matches the text boundary, so joins sound like Kokoro's own in-chunk pauses
 /// (sentence ≈0.35–0.6 s, comma ≈0.2–0.4 s). Pure; unit-tested.
 enum ChunkEdgeTrim {
@@ -31,8 +31,8 @@ enum ChunkEdgeTrim {
     }
 
     /// What kind of cut follows this chunk's text.
-    /// `nextWord`: first word of the following chunk — a cut before a conjunction ("…toilet
-    /// paper | and canned food") is a clause join and gets the clause pause.
+    /// `nextWord`: first word of the following chunk — a cut before a conjunction ("…told her
+    /// mother | when she reached home") is a clause join and gets the clause pause.
     static func boundary(after text: String, nextWord: String? = nil, isLastInParagraph: Bool) -> Boundary {
         if isLastInParagraph { return .paragraphEnd }
         let closers: Set<Character> = ["\"", "'", "”", "’", ")", "]", "»"]

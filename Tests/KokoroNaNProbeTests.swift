@@ -1,17 +1,19 @@
 import XCTest
 @testable import Reader
 
-/// ONNX fp16 Kokoro NaN (device 2026-09-25): texts that produced all-NaN audio, and the model patch
-/// (`KokoroONNXModelPatch`) that fixes it. Simulator-only; needs the Mac research model.
+/// ONNX fp16 Kokoro NaN: text that renders all-NaN audio with the unpatched model, and the model
+/// patch (`KokoroONNXModelPatch`) that fixes it. Simulator-only; needs the Mac research model.
 final class KokoroNaNProbeTests: XCTestCase {
-    /// "Like we had a choice" is all-NaN with the unpatched model on the simulator (ORT 1.24.2).
+    /// Public-domain lines (The Adventures of Sherlock Holmes, 1892). The first is all-NaN with the
+    /// unpatched model on the simulator (ORT 1.24.2); the others render clean, to check the patch
+    /// changes nothing else.
     static let texts = [
-        "ARTE CASTRA, WHAT ONCE WAS ORLANDO, FLORIDA, 2240",
-        "“Like we had a choice.” Aza mutters.",
-        "“I'm kidding. Let's go.” I brush past her, looking back to see if she’s following.",
-        "Think, sleek, rounded edges with bright headlights. Sensors open the doors, DNA activated. The wheels? There aren’t any.",
-        "There were hundreds of people rushing into stores to buy toilet paper and canned food, is that just food in a can? it lasted longer like that apparently.",
-        "Okay, I’m gonna give you a bit of a rundown of the state of the, well, states.",
+        "My experience of camp life in Afghanistan had at least had the effect of making me a prompt and ready traveller.",
+        "“I think of writing another little monograph some of these days on the typewriter and its relation to crime.",
+        "Our visitor collapsed into a chair, with a ghastly face and a glitter of moisture on his brow.",
+        "What does her clever stepfather do then?",
+        "“I cannot now entirely see all the steps of your reasoning,”",
+        "Turner had a considerable household, some half-dozen at the least.",
     ]
 
     func testPatchedModelHasNoNaNAndOtherwiseIdenticalAudio() async throws {

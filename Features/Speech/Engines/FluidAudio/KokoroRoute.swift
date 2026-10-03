@@ -3,12 +3,12 @@ import Foundation
 /// How Kokoro renders. Both routes use the same voice packs, phonemes and article cache key
 /// ("kokoro.<voice>"), so audio rendered on either route stays valid on the other.
 ///
-/// - `onnxCPU` (default, 2026-09-24): ONNX Runtime on the CPU execution provider
+/// - `onnxCPU` (default): ONNX Runtime on the CPU execution provider
 ///   (`KokoroCPUHost`). No Core ML / Espresso / BNNS anywhere in the call, so it neither hits the
 ///   iOS 26.4+ libBNNS SIGSEGV nor is it forbidden in the background (CPU work is allowed while
 ///   audio plays).
 /// - `coreMLGPU` (debug opt-in): FluidAudio's 7-stage Core ML chain (`KokoroHost`,
-///   gpuAneVocoder on iOS 26.4+). ~4× faster but crashed in libBNNS 5× on 2026-09-24 and can't
+///   gpuAneVocoder on iOS 26.4+). ~4× faster but crashes in libBNNS on device and can't
 ///   run in the background (no GPU there).
 enum KokoroRoute: String, Sendable, Equatable {
     case onnxCPU = "onnx"

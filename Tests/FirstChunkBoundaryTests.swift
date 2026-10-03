@@ -111,9 +111,9 @@ final class FirstChunkBoundaryTests: XCTestCase {
     }
 
     func testConjunctionJoinGetsTheClausePause() {
-        XCTAssertEqual(ChunkEdgeTrim.boundary(after: "to buy toilet paper", nextWord: "and", isLastInParagraph: false), .clause)
+        XCTAssertEqual(ChunkEdgeTrim.boundary(after: "told her mother", nextWord: "and", isLastInParagraph: false), .clause)
         XCTAssertEqual(ChunkEdgeTrim.boundary(after: "the house", nextWord: "Which", isLastInParagraph: false), .clause)
-        XCTAssertEqual(ChunkEdgeTrim.boundary(after: "departments such as", nextWord: "healthcare,", isLastInParagraph: false), .word)
+        XCTAssertEqual(ChunkEdgeTrim.boundary(after: "by way of the", nextWord: "woods,", isLastInParagraph: false), .word)
         XCTAssertEqual(ChunkEdgeTrim.boundary(after: "the end.", nextWord: "and", isLastInParagraph: false), .sentence)
         XCTAssertEqual(ChunkEdgeTrim.boundary(after: "x", nextWord: "and", isLastInParagraph: true), .paragraphEnd)
     }
