@@ -25,12 +25,12 @@ Listen UI  →  SpeechController  →  ListenEngine (bound per utterance)
 @MainActor
 protocol ListenEngine: AnyObject {
     var name: String { get }
-    var onEvent: ((PlaybackEngineEvent) -> Void)? { get set }  // audible / paused / progress / finished
+    var onEvent: ((PlaybackEngineEvent) -> Void)? { get set }  // audible / paused / position / finished
     func play(_ request: ListenPlayRequest)                     // document, start offset, paused?, Apple voice
     func pause(); func resume(); func stop()
     func setRate(_ multiplier: Double)
     var snapshot: PlaybackEngineSnapshot { get }
-    // + listen-bar status, polled position estimate, foreground hook, debug numbers
+    // + listen-bar status (waiting for audio, source note), foreground hook, debug numbers
 }
 ```
 

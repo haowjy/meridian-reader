@@ -35,8 +35,7 @@ final class EngineBindingTests: XCTestCase {
         let speech = SpeechController(engines: registry, localTTS: coordinator,
                                       audioSession: ListenAudioSession(managesSystemSession: false),
                                       nowPlaying: NowPlayingController(commandCenter: nil, infoCenter: nil),
-                                      appleEngine: apple)
-        speech.localEngine.player.resumePointStore = nil
+                                      appleEngine: apple, resumePoints: nil)
         cleanups.append {
             speech.stop()
             defaults.removePersistentDomain(forName: suite)
@@ -90,12 +89,12 @@ final class EngineBindingTests: XCTestCase {
         XCTAssertEqual(engineName(speech), "Apple")
 
         // Still in paragraph 0: Apple keeps going.
-        apple.emit(.playheadAdvanced(paragraph: 0, utf16Offset: 40))
+        apple.emit(.position(paragraph: 0, utf16: 40))
         XCTAssertEqual(engineName(speech), "Apple")
 
         // Apple starts speaking paragraph 1: the session switches there.
         let p1 = s.document.startUTF16Offset(forParagraph: 1)
-        apple.emit(.playheadAdvanced(paragraph: 1, utf16Offset: p1))
+        apple.emit(.position(paragraph: 1, utf16: p1))
         XCTAssertEqual(engineName(speech), "Fake", "switched to the warm engine at the paragraph start")
         XCTAssertGreaterThan(apple.stopCount, 0, "Apple stopped")
         XCTAssertEqual(speech.currentParagraphIndex, 1)

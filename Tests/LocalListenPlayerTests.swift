@@ -25,9 +25,7 @@ final class LocalListenPlayerTests: XCTestCase {
     }
 
     private func makePlayer(_ queue: ChunkPlaybackQueue) -> LocalListenPlayer {
-        let player = LocalListenPlayer(player: queue)
-        player.resumePointStore = nil
-        return player
+        LocalListenPlayer(player: queue)
     }
 
     /// The unit playing now ends (as `AVAudioPlayer` reports it).

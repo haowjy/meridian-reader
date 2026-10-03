@@ -22,11 +22,15 @@ enum PlaybackIntent: Equatable {
     case seekOffset(utf16: Int)
 }
 
-/// Facts reported by Apple / local-engine adapters (never set phase from UI alone).
+/// Facts reported by the bound engine. Phase and position change only through these and intents.
 enum PlaybackEngineEvent: Equatable {
     case becameAudible
     case becamePaused
-    case playheadAdvanced(paragraph: Int, utf16Offset: Int?)
+    /// The spot being spoken: document paragraph and UTF-16 offset.
+    case position(paragraph: Int, utf16: Int)
+    /// Listen-bar status the engine has no other event for changed (waiting for audio, where the
+    /// audio comes from). For the controller; the session ignores it.
+    case statusChanged
     case finished
 }
 
@@ -45,7 +49,9 @@ enum PlaybackCommand: Equatable {
     case engineSeek(paragraph: Int)
 }
 
-/// Owns document, playhead, and phase. Engines are dumb; UI binds here only.
+/// Owns the document, the position (`playhead` paragraph + document `utf16Offset`) and the phase.
+/// The scrubber, highlight, Now Playing and crash-resume all read the position from here. Engines
+/// report facts (`PlaybackEngineEvent`); UI binds here only.
 @MainActor
 struct PlaybackSessionState: Equatable {
     var articleID: UUID?
@@ -56,6 +62,27 @@ struct PlaybackSessionState: Equatable {
 
     var isPrepared: Bool { articleID != nil && !document.isEmpty }
     var paragraphCount: Int { document.count }
+
+    /// What crash-resume reopens: the article and paragraph while playing; nil when paused,
+    /// stopped or finished (nothing to auto-play).
+    var resumePoint: ResumePoint? {
+        guard phase == .playing, let articleID, isPrepared else { return nil }
+        return ResumePoint(article: articleID, paragraph: playhead)
+    }
+
+    struct ResumePoint: Equatable {
+        var article: UUID
+        var paragraph: Int
+    }
+
+    /// Move the position to document offset `utf16` (clamped to the text): where the next
+    /// engine play starts.
+    mutating func moveTo(utf16 offset: Int) {
+        let length = (document.joinedText as NSString).length
+        let clamped = max(0, min(offset, length))
+        utf16Offset = clamped
+        playhead = document.isEmpty ? 0 : document.index(containingUTF16Offset: clamped)
+    }
 
     mutating func bind(articleID: UUID, document: ParagraphDocument, startingAt: Int) {
         self.articleID = articleID
@@ -95,14 +122,8 @@ struct PlaybackSessionState: Equatable {
             return [.enginePlay(from: clamped)]
 
         case .pause:
-            // Always tell the engine to pause if anything is audible OR we think we're playing.
-            if engine.isAudible || engine.isPaused || phase == .playing || phase == .paused {
-                // Optimistic pause only when already paused in engine; otherwise wait for event,
-                // but set paused immediately after issuing pause so toggle does not bounce.
-                phase = .paused
-                return engine.isPaused ? [] : [.enginePause]
-            }
-            return []
+            guard engine.isAudible || engine.isPaused || phase == .playing || phase == .paused else { return [] }
+            return pause(engine: engine)
 
         case .resume:
             if engine.isAudible {
@@ -118,10 +139,9 @@ struct PlaybackSessionState: Equatable {
             return [.enginePlay(from: playhead)]
 
         case .toggle:
-            // Audible wins over stale phase (fixes Apple: audio playing, UI paused).
+            // Audible wins over a stale phase.
             if engine.isAudible || phase == .playing {
-                phase = .paused
-                return engine.isPaused ? [] : [.enginePause]
+                return pause(engine: engine)
             }
             if engine.isPaused || phase == .paused {
                 phase = .playing
@@ -162,6 +182,16 @@ struct PlaybackSessionState: Equatable {
         }
     }
 
+    /// The phase turns paused when the engine confirms (`becamePaused`); an engine already
+    /// holding its audio confirms through the snapshot.
+    private mutating func pause(engine: PlaybackEngineSnapshot) -> [PlaybackCommand] {
+        if engine.isPaused {
+            phase = .paused
+            return []
+        }
+        return [.enginePause]
+    }
+
     /// Scrubber commit. Playing keeps playing from the new spot; paused stays paused there (the
     /// engine re-queues at the new spot without sounding, so Play resumes from it); prepared /
     /// finished just move the playhead (and offset) that Play starts from.
@@ -183,16 +213,17 @@ struct PlaybackSessionState: Equatable {
     mutating func handle(_ event: PlaybackEngineEvent) {
         switch event {
         case .becameAudible:
-            // Audible right after a pause request means the pause hasn't taken yet: stay paused
-            // (the UI shows the Pause icon from the audible snapshot meanwhile).
-            if phase != .paused { phase = .playing }
+            phase = .playing
 
         case .becamePaused:
             phase = .paused
 
-        case .playheadAdvanced(let paragraph, let utf16):
+        case .position(let paragraph, let utf16):
             playhead = paragraph
-            if let utf16 { utf16Offset = utf16 }
+            utf16Offset = utf16
+
+        case .statusChanged:
+            break
 
         case .finished:
             phase = .finished

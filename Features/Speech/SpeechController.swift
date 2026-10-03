@@ -17,11 +17,16 @@ final class SpeechController {
     private let rateDefaultsKey = "reader.rateMultiplier"
     static let languageAutomaticKey = "reader.languageAutomatic"
 
-    /// Single source of truth for Listen phase + playhead. Not observed directly: every change is
+    /// Single source of truth for Listen phase + position. Not observed directly: every change is
     /// copied into the published properties below, each assigned only when its value changes.
     @ObservationIgnored private(set) var playback = PlaybackSessionState() {
-        didSet { publishPlayback() }
+        didSet {
+            if playback.resumePoint != oldValue.resumePoint { saveResumePoint() }
+            publishPlayback()
+        }
     }
+    /// Durable "what is playing" point for crash auto-resume (nil: tests that don't want it).
+    @ObservationIgnored private let resumePoints: ListenResumePointStore?
 
     // MARK: Published playback (what views observe)
     //
@@ -37,8 +42,8 @@ final class SpeechController {
     private(set) var spokenUTF16Offset = 0
 
     /// What the listen bar shows from the engine. Engine state isn't observable, so
-    /// `sampleListenStatus` takes this on every playback change and each tick of the playing
-    /// poll, and bumps `listenStatusRevision` only when it differs: views that show it
+    /// `sampleListenStatus` takes this on every playback change and every engine
+    /// `statusChanged`, and bumps `listenStatusRevision` only when it differs: views that show it
     /// (`showsPauseIcon`, `isBufferingNext`, `renderNote`) redraw exactly when it changes.
     private struct ListenStatus: Equatable {
         var showsPause = false
@@ -65,11 +70,6 @@ final class SpeechController {
     /// Called when an article plays to its end (e.g. drop it from "Continue listening").
     @ObservationIgnored var onArticleFinished: ((UUID) -> Void)?
     @ObservationIgnored private var runStateObserver: NSObjectProtocol?
-    #if canImport(UIKit)
-    /// Keeps the app alive while the player is starved in the background (e.g. rendering an
-    /// Apple-fallback paragraph) — with nothing audible iOS may suspend the app.
-    @ObservationIgnored private lazy var playbackGrace = BackgroundGrace(name: "ReaderListenGap")
-    #endif
     @ObservationIgnored private var deferralsAtBackground = 0
     /// Debug: what happened during the last stretch in the background.
     private(set) var lastBackgroundSummary = "—"
@@ -102,7 +102,6 @@ final class SpeechController {
     /// Inline bake debug strip above the listen controls (chip toggle).
     var showBakeDebugOverlay = false
     private static let listenDebugEnabledKey = "reader.listenDebugEnabled"
-    @ObservationIgnored private var playingPollTask: Task<Void, Never>?
 
     /// The engine the live utterance is bound to (nil: nothing speaking or held). Set in `speak`,
     /// cleared when the engines stop.
@@ -219,8 +218,8 @@ final class SpeechController {
         return currentRenderNote()
     }
 
-    /// Audible audio always shows Pause, even while the phase briefly disagrees (a pause request
-    /// the engine hasn't applied yet).
+    /// Audible audio always shows Pause, even while the phase briefly disagrees (the engine
+    /// hasn't reported a change yet).
     private func activeSessionShowsPause() -> Bool {
         playback.articleID != nil && (engineSnapshot().isAudible || playback.phase == .playing)
     }
@@ -234,52 +233,14 @@ final class SpeechController {
         return activeEngine?.sourceNote
     }
 
-    /// While playing, for engines whose progress has no events (5 Hz).
-    private func startPlayingPoll() {
-        guard activeEngine?.needsPlaybackPolling == true else { return }
-        playingPollTask?.cancel()
-        playingPollTask = Task { [weak self] in
-            while !Task.isCancelled {
-                guard let self, self.playback.phase == .playing else { return }
-                self.playingPollTick()
-                try? await Task.sleep(nanoseconds: 200_000_000)
-            }
+    /// The session's resume point changed (playing a new paragraph, paused, stopped).
+    private func saveResumePoint() {
+        guard let resumePoints else { return }
+        if let point = playback.resumePoint {
+            resumePoints.save(article: point.article, paragraph: point.paragraph)
+        } else {
+            resumePoints.clear()
         }
-    }
-
-    /// Foreground: move the in-paragraph offset with the player and re-sample the listen-bar
-    /// status (engine state changes without an event: a unit runs out, the producer starts
-    /// waiting). Background: nothing on screen needs either — only keep the app alive while the
-    /// player waits for audio (with nothing audible iOS may suspend it). Pausing and coming back
-    /// to the foreground catch the offset up.
-    private func playingPollTick() {
-        #if canImport(UIKit)
-        if localTTS.synthQueue.runState.phase == .background {
-            if engineIsBufferingNext() { playbackGrace.begin() } else { playbackGrace.end() }
-            return
-        }
-        playbackGrace.end()
-        #endif
-        syncEstimatedPosition()
-        sampleListenStatus()
-    }
-
-    /// Move the session offset to the engine's estimate of the spoken spot, so the scrubber thumb
-    /// moves smoothly and scrub-back starts from it.
-    private func syncEstimatedPosition() {
-        guard playback.phase == .playing || playback.phase == .paused,
-              let pos = activeEngine?.estimatedPosition(), pos.paragraph == playback.playhead,
-              abs(pos.utf16Offset - playback.utf16Offset) >= 4 else { return }
-        playback.handle(.playheadAdvanced(paragraph: pos.paragraph, utf16Offset: pos.utf16Offset))
-    }
-
-    private func stopPlayingPoll() {
-        playingPollTask?.cancel()
-        playingPollTask = nil
-        #if canImport(UIKit)
-        playbackGrace.end()
-        #endif
-        sampleListenStatus()
     }
 
     static let rateOptions: [Double] = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
@@ -306,20 +267,22 @@ final class SpeechController {
         didSet { UserDefaults.standard.set(selectedVoiceIdentifier, forKey: voiceDefaultsKey) }
     }
 
-    /// `localTTS` / `audioSession` / `nowPlaying` / `appleEngine` are injectable for unit tests
-    /// (temp cache, no process-wide audio session or remote command registration, a scripted
-    /// Apple engine).
+    /// `localTTS` / `audioSession` / `nowPlaying` / `appleEngine` / `resumePoints` are injectable
+    /// for unit tests (temp cache, no process-wide audio session or remote command registration, a
+    /// scripted Apple engine, no resume file).
     init(engines: EngineRegistry,
          localTTS: LocalTTSCoordinator? = nil,
          audioSession: ListenAudioSession? = nil,
          nowPlaying: NowPlayingController? = nil,
-         appleEngine: ListenEngine? = nil) {
+         appleEngine: ListenEngine? = nil,
+         resumePoints: ListenResumePointStore? = .shared) {
         let coordinator = localTTS ?? LocalTTSCoordinator(engines: engines)
         self.localTTS = coordinator
         self.appleEngine = appleEngine ?? AppleListenEngine()
         self.localEngine = LocalListenEngine(coordinator: coordinator)
         self.audioSession = audioSession ?? ListenAudioSession()
         self.nowPlaying = nowPlaying ?? NowPlayingController()
+        self.resumePoints = resumePoints
         let storedLanguage = UserDefaults.standard.string(forKey: languageDefaultsKey)
         let fallback = Locale.current.language.languageCode.map {
             "\($0.identifier)-\(Locale.current.region?.identifier ?? "US")"
@@ -662,9 +625,6 @@ final class SpeechController {
         case .inactive:
             break
         }
-        #if canImport(UIKit)
-        if phase != .background { playbackGrace.end() }
-        #endif
         ListenTimingLog.log("app_phase", fields)
     }
 
@@ -698,15 +658,9 @@ final class SpeechController {
         activeEngine?.snapshot ?? PlaybackEngineSnapshot(isAudible: false, isPaused: false)
     }
 
+    /// The engine confirms with `becamePaused` (the on-device player at once, Apple at the next word).
     private func pauseEngines() {
-        guard let engine = activeEngine else { return }
-        engine.pause()
-        // The poll doesn't track the offset in the background: take the paused spot now.
-        syncEstimatedPosition()
-        // Engines that pause at once confirm here; Apple pauses at the next word and confirms
-        // through its delegate.
-        if engine.snapshot.isPaused { playback.handle(.becamePaused) }
-        stopPlayingPoll()
+        activeEngine?.pause()
     }
 
     private func resumeEngines() {
@@ -717,14 +671,12 @@ final class SpeechController {
             return
         }
         engine.resume()
-        playback.handle(.becameAudible)
-        startPlayingPoll()
     }
 
     private func stopEngines() {
         binding = nil
-        stopPlayingPoll()
         for engine in listenEngines { engine.stop() }
+        sampleListenStatus()
     }
 
     /// Events from engines. Only the bound engine's count: a stopped or replaced engine's late
@@ -734,12 +686,11 @@ final class SpeechController {
         switch event {
         case .becameAudible, .becamePaused:
             playback.handle(event)
-        case .playheadAdvanced(let paragraph, let utf16):
-            // No offset: a unit of `paragraph` started. Starting mid-paragraph (scrubbed to a
-            // sentence) keeps that offset; a new paragraph starts at its beginning.
-            let offset = utf16 ?? (document.isEmpty ? nil : startOffset(forParagraph: paragraph))
-            playback.handle(.playheadAdvanced(paragraph: paragraph, utf16Offset: offset))
+        case .position(let paragraph, _):
+            playback.handle(event)
             handOverIfDue(atParagraph: paragraph)
+        case .statusChanged:
+            sampleListenStatus()
         case .finished:
             completeArticle(restartBake: true)
         }
@@ -755,13 +706,9 @@ final class SpeechController {
         if !startPaused { audioSession.activate() }
         stopEngines()
 
-        let length = (document.joinedText as NSString).length
-        let clamped = max(0, min(offset, length))
-        playback.handle(.playheadAdvanced(
-            paragraph: document.isEmpty ? 0 : document.index(containingUTF16Offset: clamped),
-            utf16Offset: clamped
-        ))
-        guard clamped < length, let articleID = playback.articleID else {
+        playback.moveTo(utf16: offset)
+        let start = playback.utf16Offset
+        guard start < (document.joinedText as NSString).length, let articleID = playback.articleID else {
             completeArticle(restartBake: false)
             return
         }
@@ -769,14 +716,9 @@ final class SpeechController {
         let route = wantedRoute
         let engine = engine(for: route)
         binding = EngineBinding(route: route, engine: engine)
-        if startPaused {
-            playback.handle(.becamePaused)
-            stopPlayingPoll()
-        } else {
-            playback.handle(.becameAudible)
-            startPlayingPoll()
-        }
-        engine.play(ListenPlayRequest(articleID: articleID, document: document, utf16Offset: clamped,
+        // The phase already says playing or paused (the intent that led here set it); the engine
+        // confirms with its own events.
+        engine.play(ListenPlayRequest(articleID: articleID, document: document, utf16Offset: start,
                                       startPaused: startPaused, appleVoice: effectiveAppleVoice))
     }
 

@@ -3,18 +3,20 @@ import Foundation
 
 /// One way of producing Listen audio: Apple's synthesizer or an on-device engine's file player.
 /// `SpeechController.speak` binds one per utterance (`ListenRoute`) and sends it every command until
-/// stop or the next `speak`. Engines report what happened through `onEvent` and never change the
-/// session themselves. See docs/LISTEN_PLAYBACK.md.
+/// stop or the next `speak`. Engines report what happened through `onEvent` — audible, paused, the
+/// spot being spoken, finished — and never change the session themselves; the session moves only
+/// on those reports. See docs/LISTEN_PLAYBACK.md.
 @MainActor
 protocol ListenEngine: AnyObject {
     /// Diagnostics / timing-log name ("Apple", "Kokoro").
     var name: String { get }
-    /// Facts for the session (audible, paused, progress, finished). Set once by the controller.
+    /// Facts for the session (audible, paused, position, status, finished). Set once by the controller.
     var onEvent: ((PlaybackEngineEvent) -> Void)? { get set }
 
     /// Start at `request.utf16Offset`. Paused: take the spot without sounding; `resume` or a new
     /// `play` sounds it.
     func play(_ request: ListenPlayRequest)
+    /// Confirmed with `becamePaused` once the audio holds.
     func pause()
     /// Continue what `pause` held (no-op when nothing is held).
     func resume()
@@ -28,11 +30,6 @@ protocol ListenEngine: AnyObject {
     var isWaitingForAudio: Bool { get }
     /// Listen-bar note about where the audio playing now comes from (nil: the engine's own voice).
     var sourceNote: String? { get }
-    /// Progress and buffering change without events (player time), so the controller samples
-    /// `estimatedPosition` and the listen-bar status while playing.
-    var needsPlaybackPolling: Bool { get }
-    /// The spot being spoken, estimated from player time (nil: no estimate; progress comes as events).
-    func estimatedPosition() -> (paragraph: Int, utf16Offset: Int)?
     /// Back in the foreground (the on-device engine re-renders audio it had to defer).
     func appDidBecomeActive()
     /// Engine-side numbers for the Listen debug panel.

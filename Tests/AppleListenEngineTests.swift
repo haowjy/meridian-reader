@@ -37,7 +37,7 @@ final class AppleListenEngineTests: XCTestCase {
         engine.speechSynthesizer(AVSpeechSynthesizer(), didFinish: utterance)
         await settle()
 
-        XCTAssertTrue(events.contains(.playheadAdvanced(paragraph: 0, utf16Offset: lastWord.location)))
+        XCTAssertTrue(events.contains(.position(paragraph: 0, utf16: lastWord.location)))
         XCTAssertEqual(events.filter { $0 == .finished }.count, 1)
         XCTAssertNil(engine.utterance)
     }
@@ -58,8 +58,8 @@ final class AppleListenEngineTests: XCTestCase {
         await settle()
         XCTAssertFalse(events.contains(.finished), "the replaced utterance's finish is not the article's end")
         // Its late progress, read against the live utterance's base (10) or its own (0), is dropped.
-        XCTAssertFalse(events.contains(.playheadAdvanced(paragraph: 0, utf16Offset: 410)))
-        XCTAssertFalse(events.contains(.playheadAdvanced(paragraph: 0, utf16Offset: 400)))
+        XCTAssertFalse(events.contains(.position(paragraph: 0, utf16: 410)))
+        XCTAssertFalse(events.contains(.position(paragraph: 0, utf16: 400)))
 
         engine.stop()
         engine.speechSynthesizer(AVSpeechSynthesizer(), didFinish: live)

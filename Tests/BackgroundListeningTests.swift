@@ -15,8 +15,9 @@ final class BackgroundListeningTests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// Real SpeechController + Session over the Apple engine, with a temp cache and no
-    /// process-wide audio session / remote command registration.
+    /// Real SpeechController + Session over a scripted Apple engine that confirms pause / resume
+    /// at once, with a temp cache, no resume file and no process-wide audio session / remote
+    /// command registration.
     private func makeSpeech() -> (SpeechController, ListenAudioSession, NowPlayingController) {
         let suite = "BackgroundListening-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -29,7 +30,8 @@ final class BackgroundListeningTests: XCTestCase {
                                               crashGuard: EngineCrashGuard(directory: guardDir))
         let audio = ListenAudioSession(managesSystemSession: false)
         let nowPlaying = NowPlayingController(commandCenter: nil, infoCenter: nil)
-        let speech = SpeechController(engines: registry, localTTS: coordinator, audioSession: audio, nowPlaying: nowPlaying)
+        let speech = SpeechController(engines: registry, localTTS: coordinator, audioSession: audio, nowPlaying: nowPlaying,
+                                      appleEngine: FakeListenEngine(), resumePoints: nil)
         let savedRate = UserDefaults.standard.object(forKey: "reader.rateMultiplier")
         cleanups.append {
             speech.stop()
@@ -67,6 +69,8 @@ final class BackgroundListeningTests: XCTestCase {
         XCTAssertEqual(s.handle(RemoteCommand.play.intent!, engine: silent), [.enginePlay(from: 0)])
         XCTAssertEqual(s.phase, .playing)
         XCTAssertEqual(s.handle(RemoteCommand.togglePlayPause.intent!, engine: audible), [.enginePause])
+        XCTAssertEqual(s.phase, .playing, "paused only once the engine confirms")
+        s.handle(.becamePaused)
         XCTAssertEqual(s.phase, .paused)
         XCTAssertEqual(s.handle(RemoteCommand.play.intent!, engine: paused), [.engineResume])
         XCTAssertEqual(s.phase, .playing)
@@ -75,6 +79,8 @@ final class BackgroundListeningTests: XCTestCase {
         XCTAssertEqual(s.handle(RemoteCommand.previousTrack.intent!, engine: audible), [.engineSeek(paragraph: 0)])
         XCTAssertEqual(s.playhead, 0)
         XCTAssertEqual(s.handle(RemoteCommand.pause.intent!, engine: audible), [.enginePause])
+        XCTAssertEqual(s.phase, .playing)
+        s.handle(.becamePaused)
         XCTAssertEqual(s.phase, .paused)
         XCTAssertEqual(s.handle(RemoteCommand.togglePlayPause.intent!, engine: paused), [.engineResume])
         XCTAssertEqual(s.phase, .playing)

@@ -1,8 +1,9 @@
 import Foundation
 @testable import Reader
 
-/// Scripted `ListenEngine` (stands in for Apple's synthesizer): records commands, and the test
-/// emits the events a real engine would.
+/// Scripted `ListenEngine` (stands in for Apple's synthesizer): records commands and confirms
+/// pause / resume at once, as an engine that holds its audio immediately would; the test emits the
+/// other events (position, finished) a real engine would.
 @MainActor
 final class FakeListenEngine: ListenEngine {
     let name: String
@@ -25,12 +26,16 @@ final class FakeListenEngine: ListenEngine {
 
     func pause() {
         pauseCount += 1
-        if speaking { paused = true }
+        guard speaking else { return }
+        paused = true
+        onEvent?(.becamePaused)
     }
 
     func resume() {
         resumeCount += 1
+        guard paused else { return }
         paused = false
+        onEvent?(.becameAudible)
     }
 
     func stop() {
@@ -44,8 +49,6 @@ final class FakeListenEngine: ListenEngine {
     var snapshot: PlaybackEngineSnapshot { PlaybackEngineSnapshot(isAudible: speaking && !paused, isPaused: paused) }
     var isWaitingForAudio: Bool { false }
     var sourceNote: String? { nil }
-    var needsPlaybackPolling: Bool { false }
-    func estimatedPosition() -> (paragraph: Int, utf16Offset: Int)? { nil }
     func appDidBecomeActive() {}
     var debug: ListenEngineDebug { ListenEngineDebug(isSpeaking: speaking, isPaused: paused) }
 

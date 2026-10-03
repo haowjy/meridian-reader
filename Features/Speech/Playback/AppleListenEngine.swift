@@ -2,7 +2,8 @@ import AVFoundation
 import Foundation
 
 /// Listen through `AVSpeechSynthesizer`: one utterance holding the rest of the article from the
-/// start offset. Progress comes from the delegate (`willSpeakRange`), so no polling. Callbacks
+/// start offset. The delegate reports audible / paused (`didStart`, `didContinue`, `didPause`) and
+/// the word being spoken (`willSpeakRange`), so no polling. Callbacks
 /// count only for the utterance this engine spoke last and hasn't stopped: a stopped or replaced
 /// utterance's late `didFinish` / `willSpeakRange` is dropped, so `didFinish` of the live one is
 /// the end of the article.
@@ -78,8 +79,6 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
 
     var isWaitingForAudio: Bool { false }
     var sourceNote: String? { nil }
-    var needsPlaybackPolling: Bool { false }
-    func estimatedPosition() -> (paragraph: Int, utf16Offset: Int)? { nil }
     func appDidBecomeActive() {}
 
     var debug: ListenEngineDebug {
@@ -120,7 +119,7 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
             let utf16 = engine.utteranceBaseOffset + characterRange.location
             engine.spokenOffset = utf16
             let paragraph = document.isEmpty ? 0 : document.index(containingUTF16Offset: utf16)
-            engine.onEvent?(.playheadAdvanced(paragraph: paragraph, utf16Offset: utf16))
+            engine.onEvent?(.position(paragraph: paragraph, utf16: utf16))
         }
     }
 

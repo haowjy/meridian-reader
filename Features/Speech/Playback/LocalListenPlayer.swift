@@ -43,7 +43,7 @@ final class LocalListenPlayer {
     private(set) var currentAppleFallbackReason: FallbackReason?
 
     /// A unit of this paragraph started playing.
-    var onParagraphIndexChange: ((Int) -> Void)?
+    var onUnitStarted: ((Int) -> Void)?
     /// The article played out (all units played, nothing more to produce). Once per play.
     var onFinished: (() -> Void)?
     /// Sub-paragraph start: how far into the first unit of this play/seek to begin, as a
@@ -52,8 +52,6 @@ final class LocalListenPlayer {
     /// Lead-in before an estimated sentence start (the in-chunk position is a character-based
     /// estimate; starting a hair early beats clipping the first word).
     static let subChunkLeadIn: TimeInterval = 0.25
-    /// Durable "now playing" point for crash auto-resume (nil in tests that don't want it).
-    var resumePointStore: ListenResumePointStore? = .shared
 
     /// The render ran behind playback: this paragraph plays with Apple (see `HeadStart`).
     struct RenderFellBehind: LocalizedError {
@@ -71,15 +69,14 @@ final class LocalListenPlayer {
         self.tempDir = dir
 
         player.onUnitStarted = { [weak self] item in
-            let idx = item.paragraphIndex
-            if let self, let id = self.source?.articleID { self.resumePointStore?.save(article: id, paragraph: idx) }
-            self?.noteUnitStartedForTiming(item)
-            self?.noteUnitKind(item)
-            self?.onParagraphIndexChange?(idx)
-            self?.isSpeaking = true
-            self?.isPaused = false
+            guard let self else { return }
+            self.noteUnitStartedForTiming(item)
+            self.noteUnitKind(item)
+            self.isSpeaking = true
+            self.isPaused = false
+            self.onUnitStarted?(item.paragraphIndex)
             // Start / keep producing the next units as soon as one begins playing.
-            self?.ensureProducerRunning()
+            self.ensureProducerRunning()
         }
         player.onUnitEnded = { [weak self] in
             // Buffer dipped — (re)start the fill loop while more units remain.
@@ -143,7 +140,6 @@ final class LocalListenPlayer {
     }
 
     func pause() {
-        resumePointStore?.clear()
         starvedAt = nil
         speakRequestedAt = nil
         userWantsAudible = false
@@ -154,7 +150,6 @@ final class LocalListenPlayer {
     }
 
     func resume() {
-        if let id = source?.articleID, let p = player.currentParagraphIndex { resumePointStore?.save(article: id, paragraph: p) }
         userWantsAudible = true
         isPaused = false
         isSpeaking = true
@@ -165,7 +160,6 @@ final class LocalListenPlayer {
     }
 
     func stop() {
-        resumePointStore?.clear()
         source = nil
         currentAppleFallbackReason = nil
         epoch += 1

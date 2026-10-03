@@ -23,23 +23,28 @@ Background: AudioProducer / BakeCache fills units ahead of playhead.
 
 ### 1. PlaybackSession (single source of truth)
 
-Owns:
+`PlaybackSessionState` (held by `SpeechController.playback`) owns:
 
 | Field | Meaning |
 |--------|---------|
 | `articleID` | Session identity (same as saved article / SpeechSession.id) |
 | `document` | Ordered paragraph units |
-| `playhead` | Current unit index (+ UTF-16 offset for Apple highlight) |
+| `playhead` + `utf16Offset` | The position: paragraph and document UTF-16 offset of the spot being spoken |
 | `phase` | `idle → prepared → playing ↔ paused → finished` |
 
-**Phase changes only via:**
+The scrubber, the paragraph highlight, Now Playing and crash-resume all read the position from
+here. `resumePoint` (article + paragraph while playing, nil otherwise) is what crash-resume
+reopens; the controller writes it to `ListenResumePointStore` whenever it changes.
 
-- **Intents** from UI / controller: `prepare`, `play`, `pause`, `resume`, `toggle`, `stop`, `skip`, `seek`
-- **Engine events**: `becameAudible`, `becamePaused`, `playheadAdvanced`, `finished`, `failed`
+**Phase and position change only via:**
+
+- **Intents** from UI / controller: `play`, `pause`, `resume`, `toggle`, `stop`, `skip`, `seek`, `seekOffset`
+- **Engine events**: `becameAudible`, `becamePaused`, `position(paragraph, utf16)`, `finished`
+  (`statusChanged` only tells the controller to re-read the listen-bar status)
 
 Rules:
 
-- Never set `phase = paused` only because the user tapped Pause; send `.pause` to the engine, then set paused on `becamePaused` **or** after verifying `engine.isPaused` / `!engine.isAudible`.
+- Never set `phase = paused` only because the user tapped Pause; send `.pause` to the engine, then set paused on `becamePaused`, or at once when the engine snapshot already shows it paused.
 - Never let an engine call `clearSession` directly. Engines emit `finished`; the session decides idle/finished and whether to release the article.
 - `toggle`: if `phase == .playing` **or** engine reports audible → pause intent; else if paused → resume; else play.
 
@@ -53,14 +58,12 @@ cleared player). Speed is a setting every adapter keeps, bound or not.
 
 | Adapter | Role |
 |---------|------|
-| `AppleListenEngine` | One `AVSpeechUtterance` holding the rest of the article from the start offset. `pauseSpeaking(at: .word)` / `continueSpeaking`. The delegate reports `becameAudible`, `becamePaused`, `playheadAdvanced(paragraph, offset)` (the word about to be spoken) and `finished` (the live utterance's `didFinish`: it holds the rest of the article). Callbacks from an utterance that was stopped or replaced are dropped. A speed change re-speaks from the word being spoken. A paused `play` holds nothing; Resume then plays from the playhead. |
-| `LocalListenEngine` | Drives `LocalListenPlayer` (file player + producer; plays **Ready** CAF units only). Each play binds one `ListenUnitSource` (`QueueUnitSource`: the article's paragraphs in one engine voice, over the audio cache and the render queue); the player never touches the model. A `play` or `stop` that arrives while the model loads wins: the waiting play returns without starting. Pause keeps `AVAudioPlayer.currentTime`; resume = `play()`, **no** produce-epoch bump, **no** queue clear. A unit start is `playheadAdvanced(paragraph, nil)` (the controller keeps a scrubbed offset in that paragraph, else uses its start); the end of the article is `finished`, decided only by the player
+| `AppleListenEngine` | One `AVSpeechUtterance` holding the rest of the article from the start offset. `pauseSpeaking(at: .word)` / `continueSpeaking`. The delegate reports `becameAudible`, `becamePaused`, `position(paragraph, offset)` (the word about to be spoken) and `finished` (the live utterance's `didFinish`: it holds the rest of the article). Callbacks from an utterance that was stopped or replaced are dropped. A speed change re-speaks from the word being spoken. A paused `play` holds nothing; Resume then plays from the playhead. |
+| `LocalListenEngine` | Drives `LocalListenPlayer` (file player + producer; plays **Ready** CAF units only). Each play binds one `ListenUnitSource` (`QueueUnitSource`: the article's paragraphs in one engine voice, over the audio cache and the render queue); the player never touches the model. A `play` or `stop` that arrives while the model loads wins: the waiting play returns without starting. Pause keeps `AVAudioPlayer.currentTime` and is confirmed at once (`becamePaused`); resume = `play()`, **no** produce-epoch bump, **no** queue clear. A unit start reports `becameAudible` and the unit's `position`; the end of the article is `finished`, decided only by the player
 (`ChunkPlaybackQueue`): the producer calls `endOfInput()` when it has enqueued every paragraph, and
-the player finishes when its queue drains (at once if it was already idle and not paused). Progress inside a paragraph is player time, so while playing the controller polls `estimatedPosition()` at 5 Hz (`needsPlaybackPolling`). Speed is a pitch-preserving time-stretch applied in place. If the host fails to load it calls `LocalSynthService.noteSpeakFailed`; the engine-change handling below re-speaks the spot with Apple. |
+the player finishes when its queue drains (at once if it was already idle and not paused). Progress inside a paragraph is player time, which has no callbacks, so while audio is wanted the engine samples it 5×/s: in the foreground it reports `position` once the spot moved a few characters (`ListenPositionMapper`: chunk boundaries plus time into the chunk; never before the offset the play started at) and `statusChanged` when the listen-bar status changed; in the background it only holds `ReaderListenGap` while waiting for audio. Speed is a pitch-preserving time-stretch applied in place. If the host fails to load it calls `LocalSynthService.noteSpeakFailed`; the engine-change handling below re-speaks the spot with Apple. |
 
-Adapters do not own bake policy or UI phase. The controller still confirms `becameAudible` /
-`becamePaused` itself right after commanding the on-device engine, which has no audible / paused
-events of its own.
+Adapters do not own bake policy or UI phase: they report facts and the session follows them.
 
 #### Engine binding and the on-device engine's lifecycle
 
