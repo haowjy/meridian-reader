@@ -1,43 +1,38 @@
 # Meridian Reader
 
-iOS offline article listening: browse → extract → save → speak (Apple TTS + on-device voices).
+A personal iOS app for listening to web articles. Browse in the app, extract a clean copy with
+Readability, save it, and listen offline with Apple's voices or Kokoro running on the device.
 
-## Open / run
+## Open and run
 
 ```bash
-cd ~/Developer/repos/meridian-reader
+cd ~/repos/meridian-reader
 xcodegen generate
 open Reader.xcodeproj
 ```
 
-Pick an iOS Simulator and Run. Home-screen name is **Meridian Reader**; Xcode target / bundle id remain `Reader` / `com.jimmyyao.Reader` so installs keep your data. App icon is `Resources/Brand/meridian-reader-icon-g1.svg` → `Resources/Assets.xcassets/AppIcon.appiconset`.
+Pick an iOS Simulator or a device and run the `Reader` scheme. The home-screen name is
+**Meridian Reader**. The target and bundle id stay `Reader` / `com.jimmyyao.Reader` so existing
+installs keep their data. Measure speech timing on a device with a Release build; FluidAudio is
+about 3× slower in Debug.
 
-## What’s in here
+Requirements: Xcode with the iOS 17+ SDK and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+(`brew install xcodegen`).
 
-- Browse + Reader chrome (Safari-style ⋯ morph menu, five-slot toolbar)
-- SwiftData library (Saved), bookmarks, history
-- Live-DOM Readability extraction behind `ArticleExtracting`
-- Listen: paragraph / sentence scrubbing, speed in place, mini player, lock screen
-- On-device TTS (Kokoro via vendored FluidAudio) with Apple fallback
+## What's in it
 
-See `docs/` (especially `NAVIGATION.md`) for behavior notes.
+- Browser with a five-slot bottom toolbar and the ⋯ morph menu
+- Reader view extracted from the live page with Mozilla Readability
+- Library of saved articles (SwiftData), bookmarks and history
+- Listening: sentence and paragraph scrubbing, speed changes in place, mini player, lock screen
+- On-device Kokoro (vendored FluidAudio and ONNX Runtime) with Apple speech as the fallback
 
-## Extraction
+The app icon source is `Resources/Brand/meridian-reader-icon-g1.svg`, exported into
+`Resources/Assets.xcassets/AppIcon.appiconset`.
 
-Default extractor is `ReadabilityArticleExtractor`:
-1. Snapshot live page HTML from `WKWebView`
-2. Parse with bundled Mozilla `Readability.js` in an off-screen WebView
-3. Still behind `ArticleExtracting` (Fake extractor available via developer Debug menu)
+## Where to read next
 
-See `docs/EXTRACTION_SPIKE.md` for the test matrix.
-
-### Manual check
-1. Run on Simulator
-2. Browse → open a real article URL (news/blog)
-3. Tap **Reader** / **Save** — expect clean text
-4. Try a homepage — expect failure, nothing saved
-
-## Requirements
-
-- Xcode with iOS 17+ SDK
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
+- `AGENTS.md`: build and test commands, layout, cross-cutting rules
+- `docs/TECHNICAL_SPEC.md`: architecture, extraction, persistence
+- `docs/NAVIGATION.md`: browser, reader and library navigation
+- `docs/LISTEN_PLAYBACK.md` and `docs/TTS_ENGINES.md`: playback and voice engines
