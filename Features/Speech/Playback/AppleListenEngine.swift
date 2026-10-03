@@ -2,7 +2,10 @@ import AVFoundation
 import Foundation
 
 /// Listen through `AVSpeechSynthesizer`: one utterance holding the rest of the article from the
-/// start offset. Progress comes from the delegate (`willSpeakRange`), so no polling.
+/// start offset. Progress comes from the delegate (`willSpeakRange`), so no polling. Callbacks
+/// count only for the utterance this engine spoke last and hasn't stopped: a stopped or replaced
+/// utterance's late `didFinish` / `willSpeakRange` is dropped, so `didFinish` of the live one is
+/// the end of the article.
 @MainActor
 final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelegate {
     let name = "Apple"
@@ -10,15 +13,13 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
 
     nonisolated(unsafe) private let synthesizer = AVSpeechSynthesizer()
     private var request: ListenPlayRequest?
+    /// The utterance speaking or paused now (nil: stopped, or a paused `play` holding nothing).
+    private(set) var utterance: AVSpeechUtterance?
     /// Document offset where the current utterance's text begins.
     private var utteranceBaseOffset = 0
     /// Document offset of the word being spoken (restart point for a speed change).
     private var spokenOffset = 0
     private var rate = 1.0
-    /// Set while an utterance is being replaced, so the replaced one's finish isn't taken for the
-    /// end of the article.
-    private var suppressCancelSideEffects = false
-    private var playGeneration = 0
 
     override init() {
         super.init()
@@ -26,9 +27,6 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
     }
 
     func play(_ request: ListenPlayRequest) {
-        playGeneration += 1
-        let generation = playGeneration
-        suppressCancelSideEffects = true
         stop()
         self.request = request
         utteranceBaseOffset = request.utf16Offset
@@ -38,14 +36,11 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
             let utterance = AVSpeechUtterance(string: text)
             utterance.rate = Float(AVSpeechUtteranceDefaultSpeechRate) * Float(rate)
             if let voice = request.appleVoice { utterance.voice = voice }
+            self.utterance = utterance
             synthesizer.speak(utterance)
         }
         // Paused: hold nothing. `speak` + an immediate `pauseSpeaking` doesn't stick (the utterance
         // hasn't started, so it speaks anyway); Resume finds nothing held and plays the playhead.
-        DispatchQueue.main.async { [weak self] in
-            guard let self, generation == self.playGeneration else { return }
-            self.suppressCancelSideEffects = false
-        }
     }
 
     func pause() {
@@ -59,6 +54,7 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
     }
 
     func stop() {
+        utterance = nil
         if synthesizer.isSpeaking || synthesizer.isPaused {
             synthesizer.stopSpeaking(at: .immediate)
         }
@@ -69,7 +65,7 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
     func setRate(_ multiplier: Double) {
         guard multiplier != rate else { return }
         rate = multiplier
-        guard var restart = request, synthesizer.isSpeaking || synthesizer.isPaused else { return }
+        guard var restart = request, utterance != nil else { return }
         restart.utf16Offset = spokenOffset
         restart.startPaused = synthesizer.isPaused
         play(restart)
@@ -93,16 +89,25 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
 
     // MARK: - AVSpeechSynthesizerDelegate
 
+    /// Runs `body` on the main actor if `utterance` is still the live one.
+    nonisolated private func live(_ utterance: AVSpeechUtterance, _ body: @escaping @MainActor (AppleListenEngine) -> Void) {
+        let id = ObjectIdentifier(utterance)
+        Task { @MainActor in
+            guard let current = self.utterance, ObjectIdentifier(current) == id else { return }
+            body(self)
+        }
+    }
+
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.onEvent?(.becameAudible) }
+        live(utterance) { $0.onEvent?(.becameAudible) }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didPause utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.onEvent?(.becamePaused) }
+        live(utterance) { $0.onEvent?(.becamePaused) }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didContinue utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.onEvent?(.becameAudible) }
+        live(utterance) { $0.onEvent?(.becameAudible) }
     }
 
     nonisolated func speechSynthesizer(
@@ -110,22 +115,20 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
         willSpeakRangeOfSpeechString characterRange: NSRange,
         utterance: AVSpeechUtterance
     ) {
-        Task { @MainActor in
-            guard let document = self.request?.document else { return }
-            let utf16 = self.utteranceBaseOffset + characterRange.location
-            self.spokenOffset = utf16
+        live(utterance) { engine in
+            guard let document = engine.request?.document else { return }
+            let utf16 = engine.utteranceBaseOffset + characterRange.location
+            engine.spokenOffset = utf16
             let paragraph = document.isEmpty ? 0 : document.index(containingUTF16Offset: utf16)
-            self.onEvent?(.playheadAdvanced(paragraph: paragraph, utf16Offset: utf16))
+            engine.onEvent?(.playheadAdvanced(paragraph: paragraph, utf16Offset: utf16))
         }
     }
 
+    /// The live utterance holds the rest of the article, so its finish is the article's end.
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        Task { @MainActor in
-            guard !self.suppressCancelSideEffects else { return }
-            guard !self.synthesizer.isSpeaking, !self.synthesizer.isPaused else { return }
-            let length = ((self.request?.document.joinedText ?? "") as NSString).length
-            guard length == 0 || self.spokenOffset >= max(0, length - 8) else { return }
-            self.onEvent?(.finished)
+        live(utterance) { engine in
+            engine.utterance = nil
+            engine.onEvent?(.finished)
         }
     }
 
