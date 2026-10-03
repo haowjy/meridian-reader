@@ -381,17 +381,22 @@ struct ReaderScrubControls {
 /// The reader's one close control, left of the scrubber pill (thumb reach): back to where the
 /// reader was opened from, with that place's icon and name.
 struct ReaderBackButton: View {
+    static let size: CGFloat = 40
+
     let origin: ReaderOrigin
     let action: () -> Void
+    /// Grows with Dynamic Type like the field capsule beside it (same cap).
+    @ScaledMetric(relativeTo: .body) private var scaledSize = ReaderBackButton.size
 
     var body: some View {
+        let side = BottomChrome.grown(scaledSize, from: Self.size)
         Button(action: action) {
             Image(systemName: origin.backSystemImage)
                 .font(.body.weight(.semibold))
                 .foregroundStyle(Color.accentColor)
-                .frame(width: 40, height: 40)
+                .frame(width: side, height: side)
                 .background(Color(.secondarySystemBackground), in: Circle())
-                .tapTarget(40)
+                .tapTarget(side)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(origin.backLabel)
