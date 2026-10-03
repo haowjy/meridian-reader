@@ -2,47 +2,8 @@ import Foundation
 
 /// Listen diagnostics: the debug panel / bake overlay snapshot and its labels.
 extension SpeechController {
-    /// Consecutive paragraphs after the playhead already rendered in the current voice.
-    func readyAheadCount() -> Int {
-        guard let id = playback.articleID, usesLocalPlayback else { return 0 }
-        var n = 0
-        var i = playback.playhead + 1
-        while i < playback.paragraphCount,
-              localTTS.audioCache.audioURL(articleID: id, paragraphIndex: i,
-                                           engineID: localTTS.cacheEngineID, voiceID: cacheVoiceID) != nil {
-            n += 1
-            i += 1
-        }
-        return n
-    }
-
-    /// Debug: how audio is being produced right now (foreground GPU / background / Apple).
-    var renderModeLabel: String {
-        let phase = localTTS.synthQueue.runState.phase
-        guard usesLocalPlayback else { return "Apple TTS (AVSpeechSynthesizer) · \(phase.rawValue)" }
-        let eng = localTTS.localEngineInstance
-        let pace = RenderPace.shared.snapshot.speed.map { String(format: " · %.1f× real time", $0) } ?? ""
-        if eng.hostRendersInBackground {
-            switch phase {
-            case .active, .inactive:
-                return "\(phase.rawValue) · \(eng.engineShortName) ONNX CPU (\(eng.hostRoutingLabel ?? "cpu"))\(pace)"
-            case .background:
-                return "background · \(eng.engineShortName) ONNX CPU keeps rendering (playing article)\(pace)"
-            }
-        }
-        switch phase {
-        case .active:
-            return "foreground · \(eng.engineShortName) Core ML (\(eng.hostRoutingLabel ?? "default"))"
-        case .inactive:
-            return "inactive · \(eng.engineShortName) for playhead only, bake-ahead held"
-        case .background:
-            return "background · no Core ML — baked audio + Apple fallback"
-        }
-    }
-
     func listenDebugSnapshot() -> ListenDebugSnapshot {
-        let eng = localTTS.localEngineInstance
-        let usingLocal = usesLocalPlayback
+        let engine = activeEngine?.debug ?? ListenEngineDebug()
         let articleID = playback.articleID
         let paragraphs = playback.document.paragraphs
         let queue = localTTS.synthQueue
@@ -123,21 +84,21 @@ extension SpeechController {
         return ListenDebugSnapshot(
             phase: String(describing: playback.phase),
             phaseLabel: phaseLabel,
-            engine: usingLocal ? eng.engineShortName : "Apple",
+            engine: activeEngine?.name ?? "—",
             isAudible: snap.isAudible,
-            isSpeaking: usingLocal ? eng.isSpeaking : appleSynthesizerState.isSpeaking,
-            isPaused: usingLocal ? eng.isPaused : appleSynthesizerState.isPaused,
+            isSpeaking: engine.isSpeaking,
+            isPaused: engine.isPaused,
             playhead: playback.playhead,
             paragraphCount: paragraphs.count,
-            bufferedCount: usingLocal ? eng.debugBufferedCount : 0,
-            awaitingMore: usingLocal ? eng.debugAwaitingMore : false,
-            producerActive: usingLocal ? eng.debugProducerActive : false,
-            epoch: usingLocal ? eng.debugEpoch : 0,
-            currentCAF: usingLocal ? eng.debugCurrentCAF : "—",
-            secondsSinceEnqueue: usingLocal ? eng.debugSecondsSinceEnqueue : nil,
-            lastHandoffGapMs: usingLocal ? eng.debugLastHandoffGapMs : 0,
-            lastHandoffWasPrimed: usingLocal ? eng.debugLastHandoffWasPrimed : false,
-            starveEventCount: usingLocal ? eng.debugStarveEventCount : 0,
+            bufferedCount: engine.bufferedCount,
+            awaitingMore: engine.awaitingMore,
+            producerActive: engine.producerActive,
+            epoch: engine.epoch,
+            currentCAF: engine.currentCAF,
+            secondsSinceEnqueue: engine.secondsSinceEnqueue,
+            lastHandoffGapMs: engine.lastHandoffGapMs,
+            lastHandoffWasPrimed: engine.lastHandoffWasPrimed,
+            starveEventCount: engine.starveEventCount,
             bakePlan: bakePlan,
             bakePendingJobs: pending,
             bakeReadyCount: ready,
@@ -151,10 +112,10 @@ extension SpeechController {
             warmingLocal: warmingLocal,
             lastBakeEvent: queue.lastBakeEvent,
             language: languageDebugLabel,
-            renderMode: renderModeLabel,
-            readyAhead: readyAheadCount(),
+            renderMode: activeEngine == nil ? "idle · \(queue.runState.phase.rawValue)" : engine.renderMode,
+            readyAhead: engine.readyAhead,
             background: queue.runState.phase == .background
-                ? "now: " + eng.backgroundStats.label
+                ? "now: " + localTTS.localEngineInstance.backgroundStats.label
                 : lastBackgroundSummary,
             audioSession: "\(audioSession.isActive ? "active" : "inactive") · activations \(audioSession.activationCount)"
         )

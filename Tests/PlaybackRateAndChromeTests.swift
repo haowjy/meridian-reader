@@ -90,9 +90,6 @@ final class PlaybackRateAndChromeTests: XCTestCase {
         speech.setRateMultiplier(1.75)
         XCTAssertEqual(nowPlaying.lastInfo?.rate, 1.75, "lock screen reports the new rate")
         XCTAssertEqual(coordinator.localEngineInstance.playbackRate, 1.75)
-        // Local playback never restarts on a speed change; only Apple's synthesizer must re-speak.
-        XCTAssertFalse(SpeechController.rateChangeRestartsUtterance(usesLocalPlayback: true))
-        XCTAssertTrue(SpeechController.rateChangeRestartsUtterance(usesLocalPlayback: false))
     }
 
     func testDeveloperOptionsDefaultPerBuild() {

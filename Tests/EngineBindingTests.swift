@@ -1,4 +1,3 @@
-import AVFoundation
 import XCTest
 @testable import Reader
 
@@ -19,9 +18,10 @@ final class EngineBindingTests: XCTestCase {
         sessionIDs = []
     }
 
-    /// SpeechController over Apple + a fake on-device engine. Apple is selected, so the fake
-    /// engine is cold until the test selects it (stands in for the launch warm-up finishing).
-    private func makeSpeech() -> (SpeechController, LocalTTSCoordinator) {
+    /// SpeechController over a scripted Apple engine + a fake on-device engine. Apple is selected,
+    /// so the fake engine is cold until the test selects it (stands in for the launch warm-up
+    /// finishing).
+    private func makeSpeech() -> (SpeechController, LocalTTSCoordinator, FakeListenEngine) {
         let suite = "EngineBinding-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         let registry = EngineRegistry(providers: [AppleSpeechProvider(), FakeEngineProvider()], gate: { _ in true })
@@ -31,9 +31,11 @@ final class EngineBindingTests: XCTestCase {
         let coordinator = LocalTTSCoordinator(engines: registry, defaults: defaults,
                                               audioCache: ArticleAudioCache(root: root),
                                               crashGuard: EngineCrashGuard(directory: guardDir))
+        let apple = FakeListenEngine()
         let speech = SpeechController(engines: registry, localTTS: coordinator,
                                       audioSession: ListenAudioSession(managesSystemSession: false),
-                                      nowPlaying: NowPlayingController(commandCenter: nil, infoCenter: nil))
+                                      nowPlaying: NowPlayingController(commandCenter: nil, infoCenter: nil),
+                                      appleEngine: apple)
         coordinator.localEngineInstance.resumePointStore = nil
         cleanups.append {
             speech.stop()
@@ -41,7 +43,7 @@ final class EngineBindingTests: XCTestCase {
             try? FileManager.default.removeItem(at: root)
             try? FileManager.default.removeItem(at: guardDir)
         }
-        return (speech, coordinator)
+        return (speech, coordinator, apple)
     }
 
     private func session() -> SpeechSession {
@@ -64,7 +66,7 @@ final class EngineBindingTests: XCTestCase {
     }
 
     func testWarmUpFinishingMidPlaybackLeavesAppleInChargeOfItsUtterance() async {
-        let (speech, coordinator) = makeSpeech()
+        let (speech, coordinator, apple) = makeSpeech()
         let s = session()
         speech.start(s, fromParagraph: 0)
         XCTAssertEqual(engineName(speech), "Apple")
@@ -75,28 +77,39 @@ final class EngineBindingTests: XCTestCase {
         XCTAssertEqual(engineName(speech), "Apple", "Apple's utterance keeps its engine")
         XCTAssertFalse(speech.isBufferingNext, "Apple is speaking: nothing is buffering")
         speech.pause()
-        XCTAssertEqual(engineName(speech), "Apple", "Pause went to Apple")
+        XCTAssertEqual(apple.pauseCount, 1, "Pause went to Apple")
+        XCTAssertEqual(engineName(speech), "Apple")
         XCTAssertEqual(speech.playback.phase, .paused)
     }
 
     func testPlayingSessionMovesToTheWarmEngineAtTheNextParagraph() async {
-        let (speech, coordinator) = makeSpeech()
+        let (speech, coordinator, apple) = makeSpeech()
         let s = session()
         speech.start(s, fromParagraph: 0)
         await coordinator.selectEngine(FakeEngineProvider.fakeID)
         XCTAssertEqual(engineName(speech), "Apple")
 
+        // Still in paragraph 0: Apple keeps going.
+        apple.emit(.playheadAdvanced(paragraph: 0, utf16Offset: 40))
+        XCTAssertEqual(engineName(speech), "Apple")
+
         // Apple starts speaking paragraph 1: the session switches there.
         let p1 = s.document.startUTF16Offset(forParagraph: 1)
-        speech.speechSynthesizer(AVSpeechSynthesizer(), willSpeakRangeOfSpeechString: NSRange(location: p1, length: 3),
-                                 utterance: AVSpeechUtterance(string: ""))
-        await waitUntil({ engineName(speech) == "Fake" }, "switched to the warm engine at the paragraph start")
+        apple.emit(.playheadAdvanced(paragraph: 1, utf16Offset: p1))
+        XCTAssertEqual(engineName(speech), "Fake", "switched to the warm engine at the paragraph start")
+        XCTAssertGreaterThan(apple.stopCount, 0, "Apple stopped")
         XCTAssertEqual(speech.currentParagraphIndex, 1)
+        XCTAssertEqual(speech.spokenUTF16Offset, p1)
+
+        // A late callback from the replaced engine doesn't move the session.
+        apple.emit(.finished)
+        XCTAssertEqual(speech.playback.phase, .playing)
+        XCTAssertNotNil(speech.activeSessionID)
         XCTAssertEqual(speech.playback.phase, .playing)
     }
 
     func testPausedSessionMovesToTheWarmEngineAtOnce() async {
-        let (speech, coordinator) = makeSpeech()
+        let (speech, coordinator, _) = makeSpeech()
         let s = session()
         speech.start(s, fromParagraph: 0)
         speech.pause()
@@ -106,7 +119,7 @@ final class EngineBindingTests: XCTestCase {
     }
 
     func testLeavingTheLocalEngineMidPlaybackStopsItsPlayer() async {
-        let (speech, coordinator) = makeSpeech()
+        let (speech, coordinator, apple) = makeSpeech()
         await coordinator.selectEngine(FakeEngineProvider.fakeID)
         let s = session()
         speech.start(s, fromParagraph: 0)
@@ -116,12 +129,13 @@ final class EngineBindingTests: XCTestCase {
         await coordinator.selectEngine(.apple)
 
         XCTAssertEqual(engineName(speech), "Apple")
+        XCTAssertEqual(apple.plays.count, 1, "re-spoken with Apple at the playhead")
         XCTAssertFalse(coordinator.localEngineInstance.isSpeaking, "the local player does not keep going unowned")
         XCTAssertEqual(speech.playback.phase, .playing)
     }
 
     func testLocalVoiceChangeRestartsTheUtteranceOnTheNewVoice() async {
-        let (speech, coordinator) = makeSpeech()
+        let (speech, coordinator, _) = makeSpeech()
         await coordinator.selectEngine(FakeEngineProvider.fakeID)
         speech.start(session(), fromParagraph: 0)
         await waitUntil({ coordinator.localEngineInstance.isSpeaking }, "the local engine started")

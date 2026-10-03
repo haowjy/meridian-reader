@@ -3,17 +3,15 @@ import AVFoundation
 import Observation
 
 /// Listen façade for UI. Phase / playhead live in `playback` (PlaybackSessionState); views read
-/// the published copies below it. Engines are commanded; they never clear the session themselves
-/// without an event. See docs/LISTEN_PLAYBACK.md.
+/// the published copies below it. Each utterance is bound to one `ListenEngine` (Apple or the
+/// on-device engine), which reports events; engines never clear the session themselves.
+/// See docs/LISTEN_PLAYBACK.md.
 @MainActor
 @Observable
-final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
+final class SpeechController {
     // Exactly one instance per process: built by `AppComposition` (composition root) and
     // injected via ReaderApp + the environment default. A second instance would warm a second
     // copy of the local model.
-    nonisolated(unsafe) private let synthesizer = AVSpeechSynthesizer()
-    /// Apple synthesizer state (Listen debug).
-    var appleSynthesizerState: (isSpeaking: Bool, isPaused: Bool) { (synthesizer.isSpeaking, synthesizer.isPaused) }
     private let voiceDefaultsKey = "reader.selectedVoiceIdentifier"
     private let languageDefaultsKey = "reader.selectedLanguageCode"
     private let rateDefaultsKey = "reader.rateMultiplier"
@@ -76,11 +74,10 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     /// Debug: what happened during the last stretch in the background.
     private(set) var lastBackgroundSummary = "—"
 
-    private var utteranceBaseOffset = 0
-    private var suppressCancelSideEffects = false
-    private var speakGeneration = 0
-
     let localTTS: LocalTTSCoordinator
+    @ObservationIgnored private let appleEngine: ListenEngine
+    @ObservationIgnored private let localEngine: LocalListenEngine
+    private var listenEngines: [ListenEngine] { [appleEngine, localEngine] }
 
     /// Developer Listen debug sheet (Settings, Debug chip, or long-press play).
     var showListenDebug = false
@@ -105,21 +102,25 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     /// Inline bake debug strip above the listen controls (chip toggle).
     var showBakeDebugOverlay = false
     private static let listenDebugEnabledKey = "reader.listenDebugEnabled"
-    @ObservationIgnored private var bufferingPollTask: Task<Void, Never>?
+    @ObservationIgnored private var playingPollTask: Task<Void, Never>?
 
     /// The engine the live utterance is bound to (nil: nothing speaking or held). Set in `speak`,
     /// cleared when the engines stop.
     private struct EngineBinding {
         var route: ListenRoute
+        var engine: ListenEngine
         /// Paragraph Apple is finishing before the on-device engine takes over (`EngineHandover`).
         var handoverAfterParagraph: Int?
     }
     @ObservationIgnored private var binding: EngineBinding?
+    /// The engine every command goes to (nil: nothing speaking or held).
+    var activeEngine: ListenEngine? { binding?.engine }
 
-    /// The live utterance is on the on-device engine.
-    var usesLocalPlayback: Bool {
-        if case .local = binding?.route { return true }
-        return false
+    private func engine(for route: ListenRoute) -> ListenEngine {
+        switch route {
+        case .apple: return appleEngine
+        case .local: return localEngine
+        }
     }
 
     /// The engine `speak` picks now: the on-device engine once it is loaded and speaks this
@@ -205,8 +206,8 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         return activeSessionShowsPause()
     }
 
-    /// Listen intent is active but nothing is audible and more paragraphs remain (the local
-    /// engine is waiting for the render queue / producer). Not the same as paused.
+    /// Listen intent is active but nothing is audible and more audio is on its way (the bound
+    /// engine is waiting for it, e.g. the on-device render queue). Not the same as paused.
     var isBufferingNext: Bool {
         _ = listenStatusRevision
         return engineIsBufferingNext()
@@ -225,29 +226,19 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     private func engineIsBufferingNext() -> Bool {
-        guard usesLocalPlayback else { return false }
-        guard playback.articleID != nil else { return false }
-        guard playback.phase == .playing else { return false }
-        let eng = localTTS.localEngineInstance
-        if eng.isPaused { return false }
-        if eng.isAudible { return false }
-        let hasMoreUnits = playback.playhead + 1 < playback.document.count
-            || eng.debugNextProduceIndex < playback.document.count
-            || eng.debugAwaitingMore
-        guard hasMoreUnits else { return false }
-        return eng.debugAwaitingMore || eng.debugProducerActive || eng.debugBufferedCount == 0
+        playback.articleID != nil && playback.phase == .playing && activeEngine?.isWaitingForAudio == true
     }
 
     private func currentRenderNote() -> String? {
-        guard usesLocalPlayback, playback.phase == .playing || playback.phase == .paused,
-              let reason = localTTS.localEngineInstance.currentAppleFallbackReason else { return nil }
-        return reason.localizedNote(engine: localTTS.localEngineInstance.engineShortName)
+        guard playback.phase == .playing || playback.phase == .paused else { return nil }
+        return activeEngine?.sourceNote
     }
 
-    /// Local playback only, while playing (5 Hz).
-    private func startBufferingPoll() {
-        bufferingPollTask?.cancel()
-        bufferingPollTask = Task { [weak self] in
+    /// While playing, for engines whose progress has no events (5 Hz).
+    private func startPlayingPoll() {
+        guard activeEngine?.needsPlaybackPolling == true else { return }
+        playingPollTask?.cancel()
+        playingPollTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self, self.playback.phase == .playing else { return }
                 self.playingPollTick()
@@ -269,13 +260,22 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         }
         playbackGrace.end()
         #endif
-        updateLocalPlaybackOffset()
+        syncEstimatedPosition()
         sampleListenStatus()
     }
 
-    private func stopBufferingPoll() {
-        bufferingPollTask?.cancel()
-        bufferingPollTask = nil
+    /// Move the session offset to the engine's estimate of the spoken spot, so the scrubber thumb
+    /// moves smoothly and scrub-back starts from it.
+    private func syncEstimatedPosition() {
+        guard playback.phase == .playing || playback.phase == .paused,
+              let pos = activeEngine?.estimatedPosition(), pos.paragraph == playback.playhead,
+              abs(pos.utf16Offset - playback.utf16Offset) >= 4 else { return }
+        playback.handle(.playheadAdvanced(paragraph: pos.paragraph, utf16Offset: pos.utf16Offset))
+    }
+
+    private func stopPlayingPoll() {
+        playingPollTask?.cancel()
+        playingPollTask = nil
         #if canImport(UIKit)
         playbackGrace.end()
         #endif
@@ -283,10 +283,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     static let rateOptions: [Double] = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
-
-    /// Speed change policy: local playback changes the player's rate in place; only the Apple
-    /// synthesizer path re-speaks (from the current word).
-    static func rateChangeRestartsUtterance(usesLocalPlayback: Bool) -> Bool { !usesLocalPlayback }
 
     var selectedLanguageCode: String {
         didSet { UserDefaults.standard.set(selectedLanguageCode, forKey: languageDefaultsKey) }
@@ -300,13 +296,8 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
                 return
             }
             UserDefaults.standard.set(rateMultiplier, forKey: rateDefaultsKey)
-            // Local engine: time-stretch the player in place — the sentence keeps going at
-            // the new speed, nothing restarts. Apple's synthesizer can't change an utterance's
-            // rate, so it restarts from the word being spoken (`willSpeakRange` offset).
-            localTTS.localEngineInstance.setPlaybackRate(Float(rateMultiplier))
-            if Self.rateChangeRestartsUtterance(usesLocalPlayback: usesLocalPlayback) {
-                restartUtteranceIfNeeded()
-            }
+            // Every engine keeps the speed; the bound one applies it to what is playing.
+            for engine in listenEngines { engine.setRate(rateMultiplier) }
             refreshNowPlaying()
         }
     }
@@ -315,13 +306,18 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         didSet { UserDefaults.standard.set(selectedVoiceIdentifier, forKey: voiceDefaultsKey) }
     }
 
-    /// `localTTS` / `audioSession` / `nowPlaying` are injectable for unit tests (temp cache,
-    /// no process-wide audio session or remote command registration).
+    /// `localTTS` / `audioSession` / `nowPlaying` / `appleEngine` are injectable for unit tests
+    /// (temp cache, no process-wide audio session or remote command registration, a scripted
+    /// Apple engine).
     init(engines: EngineRegistry,
          localTTS: LocalTTSCoordinator? = nil,
          audioSession: ListenAudioSession? = nil,
-         nowPlaying: NowPlayingController? = nil) {
-        self.localTTS = localTTS ?? LocalTTSCoordinator(engines: engines)
+         nowPlaying: NowPlayingController? = nil,
+         appleEngine: ListenEngine? = nil) {
+        let coordinator = localTTS ?? LocalTTSCoordinator(engines: engines)
+        self.localTTS = coordinator
+        self.appleEngine = appleEngine ?? AppleListenEngine()
+        self.localEngine = LocalListenEngine(coordinator: coordinator)
         self.audioSession = audioSession ?? ListenAudioSession()
         self.nowPlaying = nowPlaying ?? NowPlayingController()
         let storedLanguage = UserDefaults.standard.string(forKey: languageDefaultsKey)
@@ -340,7 +336,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         self.listenDebugEnabled = UserDefaults.standard.bool(forKey: Self.listenDebugEnabledKey)
         self.developerOptionsEnabled = DeveloperOptions.load()
         self.languageAutomatic = (UserDefaults.standard.object(forKey: Self.languageAutomaticKey) as? Bool) ?? true
-        super.init()
         // Init skips didSet — keep overlays off when Release reset / default leaves options off.
         if !developerOptionsEnabled {
             showBakeDebugOverlay = false
@@ -352,7 +347,10 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             return self.languageResolution(detected: ListenLanguage.detectCached(paragraphs: paragraphs)).engineID.isLocal
         }
         self.localTTS.onEngineChange = { [weak self] in self?.localEngineChanged() }
-        synthesizer.delegate = self
+        for engine in listenEngines {
+            engine.setRate(rateMultiplier)
+            engine.onEvent = { [weak self, unowned engine] event in self?.handle(event, from: engine) }
+        }
         // Category only; the session is activated when playback starts (activating at launch
         // interrupted other apps' audio just for opening Reader). Non-mixable so Reader becomes
         // the Now Playing app (lock screen controls); `UIBackgroundModes: audio` keeps it playing.
@@ -367,8 +365,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.appRunStateChanged() }
         }
-        wireLocalEngine()
-        self.localTTS.localEngineInstance.setPlaybackRate(Float(rateMultiplier))
     }
 
     // MARK: - Display
@@ -409,7 +405,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         if playback.articleID == session.id, !playback.document.isEmpty { return }
         execute(playback.handle(.stop, engine: engineSnapshot()))
         playback.bind(articleID: session.id, document: session.document, startingAt: startingParagraph)
-        utteranceBaseOffset = playback.utf16Offset
     }
 
     func toggle(_ session: SpeechSession, resumeParagraph: Int? = nil, resumeUTF16Offset: Int? = nil) {
@@ -499,20 +494,19 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
 
     func stop() {
         interruptionPolicy.noteUserIntent()
-        suppressCancelSideEffects = false
         perform(.stop)
         // Listen preempts bake; on stop, resume gap-fill so save-time work still lands on disk.
         finishSession(restartBake: true)
     }
 
-    /// Swap the live session's identity without stopping audio (engine closures read
-    /// `playback.articleID` lazily). Only needed when Save lands on a different id than the
-    /// reader key (legacy saved row found mid-read); v2 saves reuse the key, so this is a no-op.
+    /// Swap the live session's identity without stopping audio. Only needed when Save lands on a
+    /// different id than the reader key (legacy saved row found mid-read); v2 saves reuse the key,
+    /// so this is a no-op.
     func rekeyActiveSession(from oldID: UUID, to newID: UUID) {
         guard oldID != newID, playback.articleID == oldID else { return }
         if nowPlayingMeta?.id == oldID { nowPlayingMeta?.id = newID }
         playback.articleID = newID
-        wireLocalEngine()
+        localEngine.rekey(to: newID)
     }
 
     /// The on-device engine changed state or voice (`LocalTTSCoordinator.onEngineChange`): move the
@@ -651,18 +645,15 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         let eng = localTTS.localEngineInstance
         var fields: [String: Any] = [
             "phase": phase.rawValue, "listen": String(describing: playback.phase),
-            "engine": usesLocalPlayback ? eng.engineShortName : "Apple", "p": playback.playhead,
+            "engine": activeEngine?.name ?? "—", "p": playback.playhead,
         ]
         switch phase {
         case .background:
             eng.backgroundStats = .init()
             deferralsAtBackground = localTTS.synthQueue.backgroundDeferrals
-            fields["ready_ahead"] = readyAheadCount()
+            fields["ready_ahead"] = activeEngine?.debug.readyAhead ?? 0
         case .active:
-            if usesLocalPlayback, let from = eng.reclaimBackgroundFallbacks(), let id = playback.articleID {
-                // Queue cursor → the restart paragraph before the worker picks its next chunk.
-                localTTS.synthQueue.focusPlayhead(cacheKey: id, paragraph: from)
-            }
+            activeEngine?.appDidBecomeActive()
             if eng.backgroundStats != .init() || localTTS.synthQueue.backgroundDeferrals > deferralsAtBackground {
                 lastBackgroundSummary = eng.backgroundStats.label
                     + " · deferred \(localTTS.synthQueue.backgroundDeferrals - deferralsAtBackground)"
@@ -704,136 +695,53 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     func engineSnapshot() -> PlaybackEngineSnapshot {
-        if usesLocalPlayback {
-            let eng = localTTS.localEngineInstance
-            return .init(isAudible: eng.isAudible || eng.isSpeaking, isPaused: eng.isPaused)
-        }
-        return .init(
-            isAudible: synthesizer.isSpeaking && !synthesizer.isPaused,
-            isPaused: synthesizer.isPaused
-        )
+        activeEngine?.snapshot ?? PlaybackEngineSnapshot(isAudible: false, isPaused: false)
     }
 
     private func pauseEngines() {
-        if usesLocalPlayback {
-            localTTS.localEngineInstance.pause()
-            // The poll doesn't track the offset in the background: take the paused spot now.
-            updateLocalPlaybackOffset()
-            playback.handle(.becamePaused)
-            stopBufferingPoll()
-            return
-        }
-        if synthesizer.isSpeaking, !synthesizer.isPaused {
-            synthesizer.pauseSpeaking(at: .word)
-        }
-        // Phase already set by intent; didPause confirms.
-        if synthesizer.isPaused {
-            playback.handle(.becamePaused)
-        }
+        guard let engine = activeEngine else { return }
+        engine.pause()
+        // The poll doesn't track the offset in the background: take the paused spot now.
+        syncEstimatedPosition()
+        // Engines that pause at once confirm here; Apple pauses at the next word and confirms
+        // through its delegate.
+        if engine.snapshot.isPaused { playback.handle(.becamePaused) }
+        stopPlayingPoll()
     }
 
     private func resumeEngines() {
         audioSession.activate()
-        if usesLocalPlayback {
-            let eng = localTTS.localEngineInstance
-            if eng.isPaused {
-                eng.resume()
-            } else if !eng.isSpeaking && !eng.isAudible {
-                // Nothing held — replay from the playhead (sentence, if scrubbed there).
-                let offset = startOffset(forParagraph: playback.playhead)
-                speak(fromUTF16Offset: offset, startPaused: false)
-            }
-            playback.handle(.becameAudible)
-            startBufferingPoll()
+        guard let engine = activeEngine, engine.snapshot.isPaused || engine.snapshot.isAudible else {
+            // Nothing held: play from the playhead (the scrubbed sentence, if any).
+            speak(fromUTF16Offset: startOffset(forParagraph: playback.playhead), startPaused: false)
             return
         }
-        if synthesizer.isPaused {
-            synthesizer.continueSpeaking()
-            playback.handle(.becameAudible)
-        } else if synthesizer.isSpeaking {
-            playback.handle(.becameAudible)
-        } else {
-            let offset = playback.utf16Offset
-            speak(fromUTF16Offset: offset, startPaused: false)
-        }
+        engine.resume()
+        playback.handle(.becameAudible)
+        startPlayingPoll()
     }
 
     private func stopEngines() {
         binding = nil
-        stopBufferingPoll()
-        localTTS.localEngineInstance.stop()
-        if synthesizer.isSpeaking || synthesizer.isPaused {
-            synthesizer.stopSpeaking(at: .immediate)
-        }
+        stopPlayingPoll()
+        for engine in listenEngines { engine.stop() }
     }
 
-    private func wireLocalEngine() {
-        let engine = localTTS.localEngineInstance
-        engine.onParagraphIndexChange = { [weak self] idx in
-            guard let self else { return }
-            // Starting mid-paragraph (scrubbed to a sentence): keep that offset; a new paragraph
-            // starts at its beginning.
-            let utf16 = self.document.isEmpty ? nil : self.startOffset(forParagraph: idx)
-            self.playback.handle(.playheadAdvanced(paragraph: idx, utf16Offset: utf16))
-            if let utf16 { self.utteranceBaseOffset = utf16 }
-        }
-        engine.onFinished = { [weak self] in
-            self?.completeArticle(restartBake: true)
-        }
-        engine.articleID = playback.articleID
-        engine.bakedURLProvider = { [weak self] idx in
-            guard let self, let articleID = self.playback.articleID else { return nil }
-            // Current voice's CAF, else the previous voice's until this paragraph is re-rendered.
-            return self.localTTS.audioCache.playableAudioURL(
-                articleID: articleID,
-                paragraphIndex: idx,
-                engineID: self.localTTS.cacheEngineID,
-                voiceID: self.cacheVoiceID
-            )
-        }
-        engine.chunkCountProvider = { [weak self] text in
-            self?.localTTS.synthQueue.chunkTexts(for: text).count ?? TextChunker.chunks(for: text).count
-        }
-        engine.chunkEnsureProvider = { [weak self] index, chunk, text in
-            guard let self, let articleID = self.playback.articleID else {
-                throw NSError(
-                    domain: "SpeechController",
-                    code: 1,
-                    userInfo: [NSLocalizedDescriptionKey: "No active article for chunk ensure"]
-                )
-            }
-            return try await self.localTTS.synthQueue.ensureChunk(
-                cacheKey: articleID,
-                paragraphIndex: index,
-                chunk: chunk,
-                text: text,
-                paragraphs: self.playback.document.paragraphs,
-                voiceID: self.cacheVoiceID,
-                isEphemeral: self.localTTS.audioCache.loadMeta(for: articleID)?.kind == .ephemeral
-            )
-        }
-        engine.chunkTextsProvider = { [weak self] text in
-            self?.localTTS.synthQueue.chunkTexts(for: text) ?? []
-        }
-        engine.chunkDurationsProvider = { [weak self] index in
-            guard let self, let articleID = self.playback.articleID else { return nil }
-            return self.localTTS.audioCache.entry(articleID: articleID, paragraphIndex: index)?.chunkDurations
-        }
-        engine.chunkReadyProvider = { [weak self] index, chunk, text in
-            guard let self, let articleID = self.playback.articleID else { return false }
-            return self.localTTS.synthQueue.isChunkReady(
-                cacheKey: articleID, paragraphIndex: index, chunk: chunk, text: text, voiceID: self.cacheVoiceID)
-        }
-        engine.workerBusyElsewhere = { [weak self] index in
-            guard let self, let articleID = self.playback.articleID else { return false }
-            let queue = self.localTTS.synthQueue
-            guard let active = queue.activeBakeCacheKey else { return false }
-            return active != articleID || queue.activeBakeIndex != index
-        }
-        engine.isRenderingParagraph = { [weak self] index in
-            guard let self, let articleID = self.playback.articleID else { return false }
-            let queue = self.localTTS.synthQueue
-            return queue.activeBakeCacheKey == articleID && queue.activeBakeIndex == index
+    /// Events from engines. Only the bound engine's count: a stopped or replaced engine's late
+    /// callback (a cancelled utterance, a cleared player) must not move the session.
+    private func handle(_ event: PlaybackEngineEvent, from engine: ListenEngine) {
+        guard engine === activeEngine else { return }
+        switch event {
+        case .becameAudible, .becamePaused:
+            playback.handle(event)
+        case .playheadAdvanced(let paragraph, let utf16):
+            // No offset: a unit of `paragraph` started. Starting mid-paragraph (scrubbed to a
+            // sentence) keeps that offset; a new paragraph starts at its beginning.
+            let offset = utf16 ?? (document.isEmpty ? nil : startOffset(forParagraph: paragraph))
+            playback.handle(.playheadAdvanced(paragraph: paragraph, utf16Offset: offset))
+            handOverIfDue(atParagraph: paragraph)
+        case .finished:
+            completeArticle(restartBake: true)
         }
     }
 
@@ -845,175 +753,31 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
 
     private func speak(fromUTF16Offset offset: Int, startPaused: Bool) {
         if !startPaused { audioSession.activate() }
-        speakGeneration += 1
-        let generation = speakGeneration
-        suppressCancelSideEffects = true
         stopEngines()
 
-        let ns = document.joinedText as NSString
-        let clamped = max(0, min(offset, ns.length))
+        let length = (document.joinedText as NSString).length
+        let clamped = max(0, min(offset, length))
         playback.handle(.playheadAdvanced(
             paragraph: document.isEmpty ? 0 : document.index(containingUTF16Offset: clamped),
             utf16Offset: clamped
         ))
-        utteranceBaseOffset = clamped
-        let remaining = ns.substring(from: clamped)
-        guard !remaining.isEmpty else {
-            suppressCancelSideEffects = false
+        guard clamped < length else {
             completeArticle(restartBake: false)
             return
         }
 
         let route = wantedRoute
-        binding = EngineBinding(route: route)
-        if case .local = route {
-            let paragraphIndex = document.isEmpty ? 0 : document.index(containingUTF16Offset: clamped)
-            // Units are rendered at 1×; the player time-stretches to the listen speed.
-            localTTS.localEngineInstance.setPlaybackRate(Float(rateMultiplier))
-            // Scrubbed to a sentence mid-paragraph: start at its synth chunk, offset into the audio.
-            let within = clamped - document.startUTF16Offset(forParagraph: paragraphIndex)
-            let startPoint = within > 0 ? chunkLocation(paragraph: paragraphIndex, offset: within) : (chunk: 0, fraction: 0)
-            if startPaused {
-                playback.handle(.becamePaused)
-                stopBufferingPoll()
-            } else {
-                playback.handle(.becameAudible)
-                startBufferingPoll()
-            }
-            ListenTimingLog.log("play", [
-                "key": ListenTimingLog.shortKey(playback.articleID), "p": paragraphIndex,
-                "paused": startPaused,
-                "baked": playback.articleID.flatMap { id in
-                    localTTS.audioCache.audioURL(articleID: id, paragraphIndex: paragraphIndex,
-                                                 engineID: self.localTTS.cacheEngineID,
-                                                 voiceID: cacheVoiceID)
-                } != nil,
-                "worker_busy": localTTS.synthQueue.activeBakeCacheKey != nil,
-                "worker_key": ListenTimingLog.shortKey(localTTS.synthQueue.activeBakeCacheKey),
-                "worker_p": localTTS.synthQueue.activeBakeIndex ?? -1,
-            ])
-            if let articleID = playback.articleID {
-                // Reshuffle global queue: this article #1, cursor at playhead.
-                let meta = localTTS.audioCache.loadMeta(for: articleID)
-                localTTS.prioritizeListen(
-                    cacheKey: articleID,
-                    playhead: paragraphIndex,
-                    paragraphs: document.paragraphs,
-                    voiceID: cacheVoiceID,
-                    isEphemeral: meta?.kind == .ephemeral
-                )
-            }
-            wireLocalEngine()
-            Task { @MainActor in
-                guard generation == self.speakGeneration else { return }
-                do {
-                    try await self.localTTS.localEngineInstance.speak(
-                        paragraphs: self.document.paragraphs,
-                        startingAt: paragraphIndex,
-                        chunk: startPoint.chunk,
-                        fractionInChunk: startPoint.fraction,
-                        voiceID: self.selectedVoiceIdentifier
-                    )
-                    if startPaused {
-                        self.localTTS.localEngineInstance.pause()
-                        self.playback.handle(.becamePaused)
-                    }
-                } catch {
-                    guard generation == self.speakGeneration else { return }
-                    // Bind Apple first: the failure's engine-change event then finds nothing to move.
-                    self.binding = EngineBinding(route: .apple)
-                    self.localTTS.noteSpeakFailed(error)
-                    self.speakApple(remaining: remaining, generation: generation, startPaused: startPaused)
-                    return
-                }
-                self.suppressCancelSideEffects = false
-            }
-            return
-        }
-
-        speakApple(remaining: remaining, generation: generation, startPaused: startPaused)
-    }
-
-    // MARK: - Sub-paragraph position (local engine)
-
-    @ObservationIgnored private var chunkStartsCache: [String: [Int]] = [:]
-
-    /// Where each synth chunk of paragraph `paragraph` starts (paragraph UTF-16 offsets).
-    private func chunkStarts(paragraph: Int) -> [Int] {
-        let paragraphs = document.paragraphs
-        guard paragraphs.indices.contains(paragraph) else { return [0] }
-        let text = paragraphs[paragraph]
-        if let cached = chunkStartsCache[text] { return cached }
-        let starts = ChunkOffsets.starts(paragraph: text, chunks: localTTS.synthQueue.chunkTexts(for: text))
-        if chunkStartsCache.count > 64 { chunkStartsCache.removeAll() }
-        chunkStartsCache[text] = starts
-        return starts
-    }
-
-    /// Synth chunk + fraction for paragraph offset `offset`.
-    private func chunkLocation(paragraph: Int, offset: Int) -> (chunk: Int, fraction: Double) {
-        let length = document.paragraphs.indices.contains(paragraph) ? document.paragraphs[paragraph].utf16.count : 0
-        return ChunkOffsets.locate(offset: offset, starts: chunkStarts(paragraph: paragraph), length: length)
-    }
-
-    /// Local engine: estimate the spoken spot inside the playing (or just paused) paragraph from
-    /// the player's time (chunk boundaries + time into the chunk, proportional by characters) and
-    /// move the session offset there, so the scrubber thumb moves smoothly and scrub-back starts
-    /// from it.
-    private func updateLocalPlaybackOffset() {
-        guard usesLocalPlayback, playback.phase == .playing || playback.phase == .paused,
-              let pos = localTTS.localEngineInstance.currentPlaybackPosition else { return }
-        let p = pos.item.paragraphIndex
-        guard p == playback.playhead, document.paragraphs.indices.contains(p) else { return }
-        let length = document.paragraphs[p].utf16.count
-        let starts = chunkStarts(paragraph: p)
-        let fractionOfFile = pos.duration > 0 ? min(1, pos.time / pos.duration) : 0
-        let within: Int
-        switch pos.item.source {
-        case .appleFallback(let fromChunk, _):
-            // The rest of the paragraph from `fromChunk` as one Apple file: proportional by characters.
-            let from = starts[min(fromChunk, starts.count - 1)]
-            within = from + Int(Double(length - from) * fractionOfFile)
-        case .baked, .stitched:
-            // The stitched paragraph CAF: locate the chunk from its recorded durations.
-            let loc = ChunkOffsets.locate(time: pos.time, fileDuration: pos.duration,
-                                          durations: pos.item.chunkDurations, chunkCount: starts.count)
-            within = loc.chunk < 0
-                ? Int(Double(length) * loc.fraction)
-                : ChunkOffsets.offset(chunk: loc.chunk, fraction: loc.fraction, starts: starts, length: length)
-        case .chunk(let k):
-            within = ChunkOffsets.offset(chunk: k, fraction: fractionOfFile, starts: starts, length: length)
-        }
-        let utf16 = document.startUTF16Offset(forParagraph: p) + max(0, min(within, max(0, length - 1)))
-        guard abs(utf16 - playback.utf16Offset) >= 4 else { return }
-        playback.handle(.playheadAdvanced(paragraph: p, utf16Offset: utf16))
-    }
-
-    private func speakApple(remaining: String, generation: Int, startPaused: Bool) {
-        let utterance = AVSpeechUtterance(string: remaining)
-        utterance.rate = Float(AVSpeechUtteranceDefaultSpeechRate) * Float(rateMultiplier)
-        if let voice = effectiveAppleVoice {
-            utterance.voice = voice
-        }
-
+        let engine = engine(for: route)
+        binding = EngineBinding(route: route, engine: engine)
         if startPaused {
-            // Paused seek / skip: hold nothing. `speak` + an immediate `pauseSpeaking` doesn't
-            // stick (the utterance hasn't started yet, so it starts speaking anyway). Resume finds
-            // nothing held and speaks from the playhead (`resumeEngines`).
             playback.handle(.becamePaused)
-            DispatchQueue.main.async {
-                guard generation == self.speakGeneration else { return }
-                self.suppressCancelSideEffects = false
-            }
-            return
+            stopPlayingPoll()
         } else {
             playback.handle(.becameAudible)
-            synthesizer.speak(utterance)
+            startPlayingPoll()
         }
-        DispatchQueue.main.async {
-            guard generation == self.speakGeneration else { return }
-            self.suppressCancelSideEffects = false
-        }
+        engine.play(ListenPlayRequest(articleID: playback.articleID, document: document, utf16Offset: clamped,
+                                      startPaused: startPaused, appleVoice: effectiveAppleVoice))
     }
 
     /// Played to the end (not stopped): note it, then tear the session down.
@@ -1028,11 +792,8 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         let articleID = playback.articleID
         let paragraphs = playback.document.paragraphs
         let voiceID = cacheVoiceID
-        speakGeneration += 1
-        stopBufferingPoll()
         stopEngines()
         playback.clear()
-        utteranceBaseOffset = 0
         // Let other apps' audio resume (Browse ✕ / end of article).
         audioSession.deactivate()
         if restartBake, let articleID, !paragraphs.isEmpty {
@@ -1044,8 +805,6 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             )
         }
     }
-
-    
 
     // MARK: - Bake-ready marks (local engines only)
 
@@ -1069,53 +828,4 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
             voiceID: cacheVoiceID
         )
     }
-
-    // MARK: - AVSpeechSynthesizerDelegate
-
-    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
-        Task { @MainActor in
-            if self.playback.phase != .paused {
-                self.playback.handle(.becameAudible)
-            }
-        }
-    }
-
-    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didPause utterance: AVSpeechUtterance) {
-        Task { @MainActor in
-            self.playback.handle(.becamePaused)
-        }
-    }
-
-    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didContinue utterance: AVSpeechUtterance) {
-        Task { @MainActor in
-            self.playback.handle(.becameAudible)
-        }
-    }
-
-    nonisolated func speechSynthesizer(
-        _ synthesizer: AVSpeechSynthesizer,
-        willSpeakRangeOfSpeechString characterRange: NSRange,
-        utterance: AVSpeechUtterance
-    ) {
-        Task { @MainActor in
-            let utf16 = self.utteranceBaseOffset + characterRange.location
-            let paragraph = self.document.isEmpty
-                ? 0
-                : self.document.index(containingUTF16Offset: utf16)
-            self.playback.handle(.playheadAdvanced(paragraph: paragraph, utf16Offset: utf16))
-            self.handOverIfDue(atParagraph: paragraph)
-        }
-    }
-
-    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        Task { @MainActor in
-            guard !self.suppressCancelSideEffects else { return }
-            guard !self.synthesizer.isSpeaking, !self.synthesizer.isPaused else { return }
-            let length = (self.document.joinedText as NSString).length
-            guard length == 0 || self.playback.utf16Offset >= max(0, length - 8) else { return }
-            self.completeArticle(restartBake: false)
-        }
-    }
-
-    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {}
 }

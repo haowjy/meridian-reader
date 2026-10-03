@@ -11,12 +11,12 @@ Goal: one ownership story so Play continues, Pause matches audible audio, and ba
 4. **Flag tangle** — `isSpeaking`, `isPaused`, `fillingGeneration`, `producerActive`, `speakGeneration`, `suppressCancelSideEffects` overlapped. Fixes fought each other.
 5. **Bake unused at play** — save-time bake existed, but play often cold-synthed; bake contended on the same local-model render gate.
 
-## Target model
+## Model
 
 ```
-UI ──intent──► PlaybackSession ──command──► Engine adapter
-                     ▲                         │
-                     └── engine events ────────┘
+UI ──intent──► SpeechController ──command──► bound ListenEngine (Apple | on-device)
+                │ PlaybackSessionState ▲           │
+                └──────────────────────┴── engine events (PlaybackEngineEvent)
 
 Background: AudioProducer / BakeCache fills units ahead of playhead.
 ```
@@ -43,14 +43,22 @@ Rules:
 - Never let an engine call `clearSession` directly. Engines emit `finished`; the session decides idle/finished and whether to release the article.
 - `toggle`: if `phase == .playing` **or** engine reports audible → pause intent; else if paused → resume; else play.
 
-### 2. Engine adapters (dumb players)
+### 2. Engine adapters (`ListenEngine`)
+
+`SpeechController.speak` binds one adapter per utterance (see "Engine binding" below). An adapter
+takes `play(ListenPlayRequest)`, `pause`, `resume`, `stop` and `setRate`, reports
+`PlaybackEngineEvent`s through `onEvent`, and answers `snapshot` (audible / paused) for toggle
+decisions. The controller drops events from an engine that isn't bound (a cancelled utterance, a
+cleared player). Speed is a setting every adapter keeps, bound or not.
 
 | Adapter | Role |
 |---------|------|
-| Apple | One utterance (or remaining text). `pauseSpeaking` / `continueSpeaking`. Mirror `isSpeaking` / `isPaused` into events. |
-| Local engine / Kokoro (file player) | Plays **Ready** CAF URLs only. Pause keeps `AVAudioPlayer.currentTime`. Resume = `play()` — **no** produce-epoch bump, **no** queue clear. |
+| `AppleListenEngine` | One `AVSpeechUtterance` holding the rest of the article from the start offset. `pauseSpeaking(at: .word)` / `continueSpeaking`. The delegate reports `becameAudible`, `becamePaused`, `playheadAdvanced(paragraph, offset)` (the word about to be spoken) and `finished`. A speed change re-speaks from the word being spoken. A paused `play` holds nothing; Resume then plays from the playhead. |
+| `LocalListenEngine` | Wraps `LocalModelSpeechEngine` (file player + producer; plays **Ready** CAF units only) and points it at the article's cache and render queue. Pause keeps `AVAudioPlayer.currentTime`; resume = `play()`, **no** produce-epoch bump, **no** queue clear. A unit start is `playheadAdvanced(paragraph, nil)` (the controller keeps a scrubbed offset in that paragraph, else uses its start); the end of the article is `finished`. Progress inside a paragraph is player time, so while playing the controller polls `estimatedPosition()` at 5 Hz (`needsPlaybackPolling`). Speed is a pitch-preserving time-stretch applied in place. If the host fails to load it calls `noteSpeakFailed`; the engine-change handling below re-speaks the spot with Apple. |
 
-Adapters do not own article documents, bake policy, or UI phase.
+Adapters do not own bake policy or UI phase. The controller still confirms `becameAudible` /
+`becamePaused` itself right after commanding the on-device engine, which has no audible / paused
+events of its own.
 
 #### Engine binding and the on-device engine's lifecycle
 
