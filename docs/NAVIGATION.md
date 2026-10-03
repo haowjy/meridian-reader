@@ -93,7 +93,8 @@ grows from the same spot. ⋯ is never replaced. The mini player's play/pause is
   the ⋯ glyph (Safari's feel: **12 pt left, 10 pt up**), not dead-on on top of it (UI tests check
   the offset within 1 pt on Browse, the reader overlay and the pushed reader). It covers
   the button and the toolbar around it, so the bottom row lands under the thumb, and grows out of
-  that point (scales up from the button's size; content fades / un-blurs in) while the ⋯ glyph
+  that point (the glass grows from the button's circle to the panel's frame and corners, never
+  stretched; the rows fade / un-blur in) while the ⋯ glyph
   fades, and the rest of the screen dims. Tapping the dimmed area,
   swiping the panel down, or Escape (VoiceOver scrub / hardware Esc) collapses it back into the
   button (a swipe-down collapses it at the release speed). While dragged, the panel follows the

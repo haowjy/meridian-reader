@@ -112,10 +112,6 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     }
 
     private func panelView(_ shown: Item, buttonSize: CGSize) -> some View {
-        let start = CGSize(
-            width: min(1, max(0.08, buttonSize.width / max(1, panelSize.width))),
-            height: min(1, max(0.05, buttonSize.height / max(1, panelSize.height)))
-        )
         let anchor = focus.map { UnitPoint(x: $0.x / max(1, panelSize.width), y: $0.y / max(1, panelSize.height)) }
             ?? .bottomTrailing
         return panel(shown, MorphMenuClose { next in
@@ -123,7 +119,9 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
             item = nil
         })
             .coordinateSpace(name: MorphMenu.panelSpace)
-            .onPreferenceChange(MorphMenuFocusKey.self) { focus = $0 }
+            .onPreferenceChange(MorphMenuFocusKey.self) { measured in
+                if MorphMenu.isNewFocus(measured, comparedTo: focus) { focus = measured }
+            }
             .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
                 if size.width > 0, size.height > 0 { panelSize = size }
             }
@@ -139,8 +137,8 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
                         .accessibilityIdentifier("moreMenuFocus")
                 }
             }
-            .modifier(MorphPanelEffect(progress: expanded ? 1 : 0, startScale: reduceMotion ? CGSize(width: 1, height: 1) : start,
-                                       anchor: anchor, blurs: !reduceMotion))
+            .modifier(MorphPanelEffect(progress: expanded ? 1 : 0, button: reduceMotion ? nil : buttonSize,
+                                       panelSize: panelSize, anchor: anchor, blurs: !reduceMotion))
             .offset(y: dragOffset)
             .simultaneousGesture(swipeDownToDismiss)
             // Hardware keyboard Esc.
@@ -244,13 +242,17 @@ enum MorphMenu {
     }
 }
 
-/// The morph, as one animatable progress (0 = the ⋯ button's size, 1 = the full panel). The panel
-/// scales from the button's size with the bottom-right corners pinned, so it visibly grows out of
-/// (and shrinks back into) the button; the glass shows at once and the rows fade / un-blur in
-/// over the second half. Reduce Motion passes a start scale of 1 and no blur: a plain fade.
+/// The morph, as one animatable progress (0 = the ⋯ button, 1 = the full panel). The glass is
+/// drawn at an in-between frame and corner radius — from the button's (a circle) to the panel's,
+/// pinned at `anchor` — so it grows out of (and shrinks back into) the button without ever being
+/// stretched: the corners stay round and the glass refracts at its real size. The rows stay full
+/// size, clipped to that shape, and fade / un-blur in over the second half. Under Reduce Motion
+/// there is no `button`: the glass is panel-sized throughout and the whole panel only fades.
 private struct MorphPanelEffect: ViewModifier, Animatable {
     var progress: CGFloat
-    let startScale: CGSize
+    /// The ⋯ button's size: the glass at progress 0 (nil = no change of shape).
+    let button: CGSize?
+    let panelSize: CGSize
     var anchor: UnitPoint = .bottomTrailing
     var blurs = true
 
@@ -262,23 +264,62 @@ private struct MorphPanelEffect: ViewModifier, Animatable {
     func body(content: Content) -> some View {
         let p = min(1, max(0, progress))
         let rows = Double(min(1, max(0, (p - 0.35) / 0.65)))
+        let shape = MorphPanelShape(frame: MorphMenu.morphFrame(progress: p, button: button, panel: panelSize, anchor: anchor),
+                                    cornerRadius: MorphMenu.morphCornerRadius(progress: p, button: button))
         return content
             .opacity(rows)
             .blur(radius: blurs ? (1 - p) * 6 : 0)
-            .background { MorphMenuPanelBackground() }
-            .clipShape(RoundedRectangle(cornerRadius: MorphMenu.cornerRadius, style: .continuous))
+            .background { MorphMenuPanelBackground(shape: shape) }
+            .clipShape(shape)
             .shadow(color: .black.opacity(0.18 * Double(p)), radius: 28, y: 10)
-            .scaleEffect(x: startScale.width + (1 - startScale.width) * p,
-                         y: startScale.height + (1 - startScale.height) * p,
-                         anchor: anchor)
             .opacity(Double(min(1, p * 5)))
+    }
+}
+
+/// The panel's glass at one moment of the morph: a continuous rounded rectangle at `frame`
+/// inside the panel's bounds.
+private struct MorphPanelShape: Shape {
+    var frame: CGRect
+    var cornerRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).path(in: frame)
+    }
+}
+
+extension MorphMenu {
+    /// Whether a measured focus point is a real move rather than a rounding nudge. The panel is
+    /// placed by its focus point, and pixel rounding of that placement moves the measured point
+    /// by a fraction of a point; taking those nudges would place the panel again, and again,
+    /// without end.
+    static func isNewFocus(_ measured: CGPoint?, comparedTo current: CGPoint?) -> Bool {
+        guard let measured, let current else { return measured != current }
+        return abs(measured.x - current.x) >= 0.5 || abs(measured.y - current.y) >= 0.5
+    }
+
+    /// The glass's frame (panel coordinates) at `progress`: the button's size grown to the
+    /// panel's, with `anchor` (the point it grows out of) kept in place. No `button`: the panel.
+    static func morphFrame(progress p: CGFloat, button: CGSize?, panel: CGSize, anchor: UnitPoint) -> CGRect {
+        guard let button, panel.width > 0, panel.height > 0 else { return CGRect(origin: .zero, size: panel) }
+        let width = button.width + (panel.width - button.width) * p
+        let height = button.height + (panel.height - button.height) * p
+        return CGRect(x: anchor.x * (panel.width - width), y: anchor.y * (panel.height - height),
+                      width: width, height: height)
+    }
+
+    /// The glass's corner radius at `progress`: the button's (round) to the panel's.
+    static func morphCornerRadius(progress p: CGFloat, button: CGSize?) -> CGFloat {
+        guard let button else { return cornerRadius }
+        let round = min(button.width, button.height) / 2
+        return round + (cornerRadius - round) * p
     }
 }
 
 /// Light glass like Safari's menu panel (iOS 26); a thick material before that.
 private struct MorphMenuPanelBackground: View {
+    let shape: MorphPanelShape
+
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: MorphMenu.cornerRadius, style: .continuous)
         if #available(iOS 26.0, *) {
             shape
                 .fill(Color(.systemBackground).opacity(0.55))
