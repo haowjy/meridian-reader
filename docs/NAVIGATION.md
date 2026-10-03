@@ -30,7 +30,8 @@ overlay reader pulls down — and do exactly what that button does.
   works, with a custom one add `.edgeSwipeBack()`.
 - A custom back control should just `dismiss()`; put "leaving" side effects in `onDisappear` so
   the swipe and the tap stay identical (the Saved reader persists progress there; playback keeps
-  going).
+  going). While it plays, the reader saves its spot on each new paragraph, on pause and when the
+  app leaves the foreground, not on every tick.
 
 ## ✕ = modal + swipe-down
 
