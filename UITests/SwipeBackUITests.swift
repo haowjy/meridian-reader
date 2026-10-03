@@ -71,6 +71,30 @@ final class SwipeBackUITests: XCTestCase {
         XCTAssertTrue(waitFor(5) { row.isHittable }, "back control still pops")
     }
 
+    /// A sideways drag on the pushed reader's scrubber scrubs; it never pops the reader (only the
+    /// left-edge swipe does; iOS 26's full-width content swipe is off there).
+    func testScrubberDragInLibraryReaderDoesNotPop() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-seedDemoArticle", "-uiTesting", "-openLibrary"]
+        app.launch()
+        let row = app.cells.staticTexts["Demo Listen Article"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        let close = app.buttons["readerClose"]
+        XCTAssertTrue(close.waitForExistence(timeout: 5))
+        let scrubber = app.descendants(matching: .any)["readerScrubber"]
+        XCTAssertTrue(scrubber.waitForExistence(timeout: 5))
+        wait(1.0) // sentence map built
+        let before = scrubber.value as? String
+
+        scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
+            .press(forDuration: 0.05, thenDragTo: scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)))
+        wait(0.8)
+        XCTAssertTrue(close.exists, "still in the reader")
+        XCTAssertFalse(row.isHittable, "the list didn't come back")
+        XCTAssertNotEqual(scrubber.value as? String, before, "the drag scrubbed")
+    }
+
     /// The back control / pull-down hide the browser's reader; playback keeps going in the mini
     /// player, and tapping the mini player reopens the reader.
     func testPullDownClosesBrowseReaderLikeXAndMiniPlayerReopens() throws {

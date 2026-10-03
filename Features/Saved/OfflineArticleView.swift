@@ -29,8 +29,10 @@ struct OfflineArticleView: View {
             }
         }
         // Keep the system bar (stable across push/pop and the edge swipe); the reader puts its
-        // title row in it. Swipe-back with the back button hidden comes from `SwipeBackSupport`.
+        // title row in it. With the system back button hidden, the edge swipe comes from
+        // `edgeSwipeBack()`.
         .navigationBarBackButtonHidden(true)
+        .edgeSwipeBack()
         .navigationBarTitleDisplayMode(.inline)
         // Bar material / visibility: set by the reader (clear while its chrome is hidden).
         .task(id: articleID) {

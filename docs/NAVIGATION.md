@@ -9,22 +9,25 @@ overlay reader pulls down — and do exactly what that button does.
 
 | Button | Presentation | Gesture | Provided by |
 |--------|--------------|---------|-------------|
-| ‹ | real push in a `NavigationStack` (`NavigationLink` / `navigationDestination`) | left-edge swipe-back | `App/SwipeBackSupport.swift` (automatic) |
+| ‹ | real push in a `NavigationStack` (`NavigationLink` / `navigationDestination`) | left-edge swipe-back | UIKit with the system back button; `.edgeSwipeBack()` (`App/SwipeBackSupport.swift`) with a custom one |
 | ✕ | modal: `.sheet`, or an in-place overlay like Browse Reader Mode | swipe down | `.sheet` does it natively; overlays implement it (see below) |
 
 ## ‹ = push + swipe-back
 
 - Never show a ‹ screen with `.sheet` / `.fullScreenCover`; push it.
 - A custom back control is fine: hide only the system back button
-  (`.navigationBarBackButtonHidden(true)`) and put your row in the bar
-  (`ToolbarItem(placement: .principal)`). SwiftUI/UIKit normally disable swipe-back then; `SwipeBackSupport` (a `UINavigationController` extension) re-enables
-  it app-wide: the edge gesture begins only at stack depth > 1 and not mid-transition, and scroll
-  views yield to it only at the very left edge.
+  (`.navigationBarBackButtonHidden(true)`), put your row in the bar
+  (`ToolbarItem(placement: .principal)`), and add `.edgeSwipeBack()` to the screen. UIKit disables
+  swipe-back once the back button is hidden; `.edgeSwipeBack()` re-enables it for that screen only:
+  the edge gesture begins only at stack depth > 1 and not mid-transition, and scroll views yield
+  to it only at the very left edge. iOS 26's full-width content swipe is off on that screen, so
+  sideways drags (the reader's scrubber, text selection) never pop it.
 - **Don't hide the whole navigation bar on a pushed screen** (`.toolbar(.hidden, for: .navigationBar)`)
   when the screen below shows one. The bar is shared by the stack, so mid-swipe the parent's bar
   (large title, search field, toolbar buttons) pops in full-width on top of the page you're leaving.
   Keep the bar visible and stable; that gives the standard push/pop look.
-- Do **not** add per-screen swipe-back hacks. Push with `NavigationStack` and it just works.
+- Don't build swipe-back by hand. Push with `NavigationStack`; with the system back button it just
+  works, with a custom one add `.edgeSwipeBack()`.
 - A custom back control should just `dismiss()`; put "leaving" side effects in `onDisappear` so
   the swipe and the tap stay identical (the Saved reader persists progress there; playback keeps
   going).

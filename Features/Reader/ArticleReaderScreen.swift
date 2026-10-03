@@ -6,7 +6,7 @@ import SwiftData
 /// decides how it closes; `origin` decides where "back" leads.
 ///
 /// Top row: `[title]`. The overlay closes by pulling it down; the pushed reader pops with the
-/// edge swipe (`SwipeBackSupport`). Both do exactly what the back control does.
+/// edge swipe (`edgeSwipeBack()`). Both do exactly what the back control does.
 /// Bottom (thumb reach), above the listen controls: `[back] ( [scrubber] [select paragraph] [bookmark] )`
 /// - back: the one close control, within thumb reach. It returns to where the reader was opened
 ///   from (`ReaderOrigin`: the web page, the start page, or the library) and says which.
