@@ -36,7 +36,8 @@ final class DesignSystemGalleryTests: XCTestCase {
         for (name, gallery) in Self.galleries {
             for variant in PreviewVariant.allCases {
                 let renderer = ImageRenderer(content: gallery.previewVariant(variant))
-                renderer.scale = 2
+                // AX5 galleries run long; at 2× the tallest outgrow what PNG encoding accepts.
+                renderer.scale = variant == .largestText ? 1 : 2
                 let image = try XCTUnwrap(renderer.uiImage, "\(name) \(variant.rawValue)")
                 XCTAssertEqual(image.size.width, PreviewGallery<EmptyView>.width, accuracy: 1, "\(name) \(variant.rawValue)")
                 XCTAssertGreaterThan(image.size.height, 40, "\(name) \(variant.rawValue)")
