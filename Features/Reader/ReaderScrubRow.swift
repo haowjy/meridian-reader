@@ -119,20 +119,22 @@ struct ReaderScrubRow: View {
 
     /// Grab radius around the thumb (points): a touch this close drags the thumb, no jump.
     static let grabRadius: CGFloat = 26
+    /// Room before the track inside the capsule (its rounded end); the drag area reaches into it.
+    private static let fieldLeading = Spacing.m
     private static let space = "readerScrubTrack"
 
     var body: some View {
         // Styled exactly like the browser's address field: the same field capsule
         // (`bottomChromeField`), with Jump / bookmark sized and coloured like its mic button.
-        HStack(spacing: 4) {
+        HStack(spacing: Spacing.xxs) {
             scrubber
-                .padding(.trailing, 4)
+                .padding(.trailing, Spacing.xxs)
 
             Button(action: onToggleJump) {
                 Image(systemName: jumpMode ? "hand.tap.fill" : "hand.tap")
-                    .foregroundStyle(jumpMode ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(jumpMode ? Palette.accent : Palette.secondaryInk)
                     .fieldControlFrame()
-                    .background(Circle().fill(jumpMode ? Color.accentColor.opacity(0.15) : Color.clear))
+                    .background(Circle().fill(jumpMode ? Palette.accent.opacity(0.15) : Color.clear))
             }
             .buttonStyle(.plain)
             .disabled(!jumpEnabled)
@@ -141,7 +143,7 @@ struct ReaderScrubRow: View {
 
             Button(action: onToggleSaved) {
                 Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                    .foregroundStyle(isSaved ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(isSaved ? Palette.accent : Palette.secondaryInk)
                     .fieldControlFrame()
             }
             .buttonStyle(.plain)
@@ -149,7 +151,7 @@ struct ReaderScrubRow: View {
             .accessibilityLabel(isSaved ? "Remove from Saved" : "Save")
             .accessibilityValue(isSaved ? "Saved" : "Not saved")
         }
-        .bottomChromeField(leading: 14, trailing: 4)
+        .bottomChromeField(leading: Self.fieldLeading, trailing: Spacing.xxs)
         #if DEBUG
         .onAppear(perform: showDemoBubbleIfRequested)
         #endif
@@ -173,32 +175,14 @@ struct ReaderScrubRow: View {
     private var scrubber: some View {
         GeometryReader { g in
             let w = max(1, g.size.width)
-            let shown = min(max(0, dragFraction ?? position), 1)
-            let thumb: CGFloat = dragging ? 20 : 12
-            let track: CGFloat = dragging ? 6 : 4
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.secondary.opacity(0.22)).frame(height: track)
-                ForEach(Array(buffered.enumerated()), id: \.offset) { _, span in
-                    Capsule()
-                        .fill(Color.accentColor.opacity(0.28))
-                        .frame(width: max(track, w * (span.upperBound - span.lowerBound)), height: track)
-                        .offset(x: w * span.lowerBound)
-                }
-                .accessibilityHidden(true)
-                Capsule().fill(Color.accentColor).frame(width: w * shown, height: track)
-                Circle()
-                    .fill(Color.accentColor)
-                    .frame(width: thumb, height: thumb)
-                    .shadow(color: .black.opacity(dragging ? 0.18 : 0), radius: 3, y: 1)
-                    .offset(x: w * shown - thumb / 2)
-            }
+            ScrubTrack(value: dragFraction ?? position, buffered: buffered, isDragging: dragging)
             .frame(width: w, height: g.size.height)
             // Bigger touch target: the whole capsule height and its rounded leading end.
             .overlay {
                 Color.clear
                     .contentShape(Rectangle())
-                    .padding(.vertical, -6)
-                    .padding(.leading, -14)
+                    .padding(.vertical, -BottomChrome.fieldVerticalPadding)
+                    .padding(.leading, -Self.fieldLeading)
                     .gesture(
                         DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
                             .onChanged { v in scrub(v, width: w) }
@@ -343,34 +327,34 @@ private struct ReaderScrubBubbleView: View {
     var body: some View {
         let map = bubble.map
         let t = bubble.target
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: Spacing.xs) {
             if let chip = bubble.speed.chip {
                 Text(chip)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(Color.accentColor)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2)
-                    .background(Color.accentColor.opacity(0.15), in: Capsule())
+                    .typeStyle(.caption, weight: .bold)
+                    .foregroundStyle(Palette.accent)
+                    .padding(.horizontal, Spacing.xs)
+                    .padding(.vertical, Spacing.xxs)
+                    .background(Palette.accent.opacity(0.15), in: Capsule())
                     .accessibilityLabel(bubble.speed.label ?? chip)
                     .accessibilityIdentifier("readerScrubSpeed")
             }
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 header(t, map: map)
-                    .font(.caption.weight(.semibold))
+                    .typeStyle(.caption, weight: .semibold)
                     .monospacedDigit()
                     .fixedSize(horizontal: false, vertical: true)
                 Text(map.snippet(for: t))
-                    .font(.footnote)
+                    .typeStyle(.caption)
                     .lineLimit(2)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("readerScrubSnippet")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .padding(.horizontal, Spacing.s)
+        .padding(.vertical, Spacing.xs)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("readerScrubBubble")
@@ -380,6 +364,6 @@ private struct ReaderScrubBubbleView: View {
         let paragraph = Text("¶ \(t.paragraph + 1) of \(map.paragraphCount)")
         let sentences = map.sentenceCount(paragraph: t.paragraph)
         guard sentences > 1 else { return paragraph }
-        return paragraph + Text(" · sentence \(t.sentence + 1) of \(sentences)").foregroundStyle(.secondary)
+        return paragraph + Text(" · sentence \(t.sentence + 1) of \(sentences)").foregroundStyle(Palette.secondaryInk)
     }
 }

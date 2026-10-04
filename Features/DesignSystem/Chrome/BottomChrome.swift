@@ -160,3 +160,88 @@ struct BottomToolbarLayout: Layout {
         }
     }
 }
+
+/// A toolbar row with one wide control: the first item in slot 1, the last in slot 5 (⋯, so the
+/// morph menu grows from the same spot as everywhere else), and the middle one across slots 2–4
+/// with `Spacing.xs` either side.
+///
+/// ```
+/// Reader   [🔖]  [ ▶  Listen · 9 min  ]  [⋯]
+/// ```
+struct BottomToolbarSpanLayout: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let height = subviews.map { $0.sizeThatFits(.unspecified).height }.max() ?? 0
+        return CGSize(width: proposal.width ?? 320, height: max(BottomChrome.rowHeight, height))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 3 else { return }
+        let slot = BottomToolbarLayout.slotWidth(rowWidth: bounds.width)
+        let edge = ProposedViewSize(width: slot, height: bounds.height)
+        subviews[0].place(at: CGPoint(x: bounds.minX + BottomToolbarLayout.slotCenterX(0, rowWidth: bounds.width),
+                                      y: bounds.midY), anchor: .center, proposal: edge)
+        subviews[1].place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center,
+                          proposal: ProposedViewSize(width: slot * 3 - Spacing.xs * 2, height: bounds.height))
+        subviews[2].place(at: CGPoint(x: bounds.minX + BottomToolbarLayout.slotCenterX(4, rowWidth: bounds.width),
+                                      y: bounds.midY), anchor: .center, proposal: edge)
+    }
+}
+
+#if DEBUG
+/// The bottom band on each surface: field capsule over the five-slot toolbar, and the Reader's
+/// spanning row.
+struct BottomToolbarGallery: View {
+    var body: some View {
+        PreviewGallery {
+            PreviewState("browser") {
+                band {
+                    AddressField(reader: .available, listen: .idle) { Text("news.example.org") }
+                    BottomToolbarLayout {
+                        icon("chevron.backward"); icon("chevron.forward"); icon("magnifyingglass")
+                        icon("books.vertical"); icon("ellipsis")
+                    }
+                }
+            }
+            PreviewState("library") {
+                band {
+                    SearchField(text: .constant(""))
+                    BottomToolbarLayout {
+                        icon("plus"); Color.clear.frame(height: BottomChrome.rowHeight); icon("magnifyingglass")
+                        icon("globe"); icon("ellipsis")
+                    }
+                }
+            }
+            PreviewState("reader") {
+                band {
+                    BottomToolbarSpanLayout {
+                        icon("bookmark")
+                        PlayStateButton(state: .idle, look: .pill(title: "Listen · 9 min", expands: true)) {}
+                        icon("ellipsis")
+                    }
+                }
+            }
+            PreviewState("disabled slot") {
+                band {
+                    BottomToolbarLayout {
+                        icon("chevron.backward").disabled(true); icon("ellipsis")
+                    }
+                }
+            }
+        }
+    }
+
+    private func band<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        VStack(spacing: BottomChrome.rowSpacing) { content() }
+            .bottomChromeBand(bottomPadding: Spacing.xs)
+            .tint(Palette.ink)
+    }
+
+    private func icon(_ name: String) -> some View {
+        Button {} label: { Image(systemName: name).toolbarIconFrame() }
+    }
+}
+
+#Preview("BottomToolbar · light", traits: .sizeThatFitsLayout) { BottomToolbarGallery().previewVariant(.light) }
+#Preview("BottomToolbar · dark", traits: .sizeThatFitsLayout) { BottomToolbarGallery().previewVariant(.dark) }
+#Preview("BottomToolbar · AX5", traits: .sizeThatFitsLayout) { BottomToolbarGallery().previewVariant(.largestText) }
+#endif
