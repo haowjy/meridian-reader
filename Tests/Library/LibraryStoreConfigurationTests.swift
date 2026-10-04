@@ -172,7 +172,7 @@ final class LibraryStoreConfigurationTests: XCTestCase {
         let unsavedOld = page("unsaved-old", added: nil)
         unsavedOld.lastPlayedAt = old
         let unsavedNew = page("unsaved-new", added: nil)
-        unsavedNew.lastPlayedAt = now
+        unsavedNew.lastPlayedAt = now.addingTimeInterval(-60)
         let chapter = page("chapter")
         chapter.setFolder(book)
         try context.save()
