@@ -60,9 +60,9 @@ bottom bar, and the page uses everything between the status bar and it (safe are
 ```
 
 **One bottom-chrome design**, shared with the reader so Browse ↔ Reader barely changes
-the bottom of the screen (`Features/Shell/BottomChrome.swift`): the band (`bottomChromeBand`:
-12 pt margins, 8 pt top padding, system bar material through the home indicator), the field
-capsule (`bottomChromeField`: 44 pt, secondary-background capsule; 36 pt body-size controls
+the bottom of the screen (`Features/DesignSystem/Chrome/BottomChrome.swift`): the band
+(`bottomChromeBand`: 12 pt margins, 8 pt top padding, system bar material through the home
+indicator), the field capsule (`bottomChromeField`: 44 pt, chrome-coloured capsule; 36 pt body-size controls
 inside, like 🎤), and the toolbar row (`BottomToolbarLayout` + `toolbarIconFrame`: 44 pt, plain
 19 pt glyphs). With larger text the capsule and its controls grow (up to 1.5×) instead of
 clipping; toolbar glyphs keep their size and show in the large content viewer on long press.

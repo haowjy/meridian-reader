@@ -6,6 +6,9 @@ changing the shell code.
 - **`ShellState` is the navigation model.** Surface (browser or library), the one sheet, the
   reader overlay and its `ReaderOrigin` (derived from what is under it). Add a screen by adding a
   case here, not a presentation flag in a view.
+- **Shared look lives in `../DesignSystem/`**: tokens, `Motion`, `BottomChrome`, the morph
+  overlay (`MorphMenu.swift`) and the components. This folder keeps what knows about the app:
+  `ShellState`, the ⋯ panel's rows (`MoreMenuPanel`), the mini player.
 - **The ⋯ morph menu measures its focus point** through a preference and places the panel from it.
   Ignore focus changes under 0.5 pt (`MorphMenu.isNewFocus`): pixel rounding of the placement
   nudges the measurement each pass, and without the threshold the panel re-places itself forever
