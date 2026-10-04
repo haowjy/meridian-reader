@@ -76,7 +76,7 @@ extension LibraryStore {
                     existing.setFolder(favorites)
                     existing.sortKey = favoriteKey
                     if existing.artworkData == nil { existing.artworkData = bookmark.faviconData }
-                    report.savedIntoFavorites += 1
+                    if existing.isSaved { report.savedIntoFavorites += 1 }
                 }
             } else {
                 let page = Page(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: bookmark.title,

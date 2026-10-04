@@ -180,6 +180,38 @@ final class LibraryMigrationTests: XCTestCase {
         XCTAssertEqual(env.pages().count, 2)
     }
 
+    /// The app died after the copy was saved but before the ledger was written: the next
+    /// launch copies again, and dedupe folds the copies (same keys) into the pages already there.
+    func testACrashBeforeTheLedgerCopiesAgainWithoutDuplicates() throws {
+        let id = UUID()
+        env.legacyRow("https://example.com/1", id: id, savedAt: date(0), position: 2)
+        try env.writeBookmarks([SiteBookmark(urlString: "https://example.com/fav", title: "Fav", host: "example.com")])
+        library.migrateLegacy()
+        try FileManager.default.removeItem(at: env.legacy.ledgerURL)
+
+        let again = env.makeLibrary().migrateLegacy()
+        XCTAssertEqual(again.copiedArticles, 1)
+        XCTAssertEqual(again.copiedBookmarks, 1)
+        XCTAssertEqual(again.mergedDuplicates, 1, "the row's second copy; the bookmark finds its page by address")
+        XCTAssertEqual(env.pages().count, 2, "no duplicate pages")
+        XCTAssertEqual(library.favoritePages().map(\.title), ["Fav"])
+        XCTAssertEqual(library.page(key: id)?.positionParagraph, 2)
+        XCTAssertTrue(again.ledgerWritten)
+    }
+
+    #if DEBUG
+    func testRerunLibraryMigrationCopiesEverythingAgain() throws {
+        env.legacyRow("https://example.com/1", savedAt: date(0))
+        library.migrateLegacy()
+        library.delete(try XCTUnwrap(library.page(url: URL(string: "https://example.com/1")!)))
+        library.resetForMigrationRerun()
+        XCTAssertTrue(env.pages().isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: env.legacy.ledgerURL.path))
+        XCTAssertEqual(library.migrateLegacy().copiedArticles, 1)
+        XCTAssertNotNil(library.page(url: URL(string: "https://example.com/1")!))
+    }
+    #endif
+
     func testLegacyDataIsNeverWritten() throws {
         let row = env.legacyRow("https://example.com/1", savedAt: date(0), position: 2)
         let bookmarks = [SiteBookmark(urlString: "https://example.com/fav", title: "Fav", host: "example.com")]
