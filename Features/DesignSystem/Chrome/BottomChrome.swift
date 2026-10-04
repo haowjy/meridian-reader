@@ -13,15 +13,20 @@ import SwiftUI
 /// ```
 enum BottomChrome {
     /// Horizontal margin of the band's content.
-    static let horizontalMargin: CGFloat = 12
+    static let horizontalMargin = Spacing.bandMargin
     /// Space above the first row inside the band.
-    static let topPadding: CGFloat = 8
+    static let topPadding = Spacing.xs
     /// Space between the field capsule and the toolbar row.
-    static let rowSpacing: CGFloat = 4
+    static let rowSpacing = Spacing.xxs
+    /// Vertical padding inside the field capsule.
+    static let fieldVerticalPadding = Spacing.xxs
     /// Field capsule / toolbar row height.
     static let rowHeight: CGFloat = 44
     /// Toolbar glyph size.
     static let iconSize: CGFloat = 19
+    /// Text standing in for a glyph in a toolbar slot (the speed label). Like the glyphs it keeps
+    /// its size at large text sizes, so the five slots never crowd.
+    static let toolbarTextSize: CGFloat = 17
     /// Small controls inside the field capsule (mic, Jump, bookmark).
     static let fieldControlSize: CGFloat = 36
     /// The smallest tap area of a control (`tapTarget`), whatever it looks like.
@@ -50,7 +55,7 @@ extension View {
 
     /// The field capsule: the browser's address field, the reader's scrub row and title row.
     /// 44 pt, growing with Dynamic Type (up to `maxTextGrowth`) so its text never clips.
-    func bottomChromeField(leading: CGFloat = 12, trailing: CGFloat = 4) -> some View {
+    func bottomChromeField(leading: CGFloat = Spacing.s, trailing: CGFloat = Spacing.xxs) -> some View {
         modifier(BottomChromeField(leading: leading, trailing: trailing))
     }
 
@@ -62,6 +67,14 @@ extension View {
             .frame(maxWidth: .infinity, minHeight: BottomChrome.rowHeight)
             .contentShape(Rectangle())
             .accessibilityShowsLargeContentViewer()
+    }
+
+    /// Toolbar text (the speed label): its cell of the toolbar row, 44 pt tall, full-cell tap
+    /// target, at the fixed `toolbarTextSize` with even-width digits.
+    func toolbarTextFrame() -> some View {
+        self.font(.system(size: BottomChrome.toolbarTextSize, weight: .medium).monospacedDigit())
+            .frame(maxWidth: .infinity, minHeight: BottomChrome.rowHeight)
+            .contentShape(Rectangle())
     }
 
     /// A small control inside the field capsule (mic, Jump, bookmark): 36 pt with a body-size
@@ -88,9 +101,9 @@ private struct BottomChromeField: ViewModifier {
         content
             .padding(.leading, leading)
             .padding(.trailing, trailing)
-            .padding(.vertical, 4)
+            .padding(.vertical, BottomChrome.fieldVerticalPadding)
             .frame(height: BottomChrome.grown(height, from: BottomChrome.rowHeight))
-            .background(Color(.secondarySystemBackground), in: Capsule())
+            .background(Palette.chrome, in: Capsule())
     }
 }
 

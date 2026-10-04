@@ -107,8 +107,8 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
             return CGSize(width: max(0, container.width - originX - panelSize.width),
                           height: max(0, container.height - originY - panelSize.height))
         }
-        return CGSize(width: max(8, container.width - button.maxX - overhang),
-                      height: max(8, container.height - button.maxY - overhang))
+        return CGSize(width: max(Spacing.xs, container.width - button.maxX - overhang),
+                      height: max(Spacing.xs, container.height - button.maxY - overhang))
     }
 
     private func panelView(_ shown: Item, buttonSize: CGSize) -> some View {
@@ -230,6 +230,8 @@ struct MorphMenuClose {
 
 enum MorphMenu {
     static let panelSpace = "morphMenuPanel"
+    /// The panel's glass. Deliberately rounder than `Radius.card`: it matches the system's menu
+    /// glass, and the morph grows it out of the round ⋯ button.
     static let cornerRadius: CGFloat = 28
     /// The Website / Reader icon sits this far left and up of the ⋯ (Safari's feel). Measured
     /// from a Safari iOS 26 screenshot, where All Tabs sits inset of the tabs/⋯ control rather
