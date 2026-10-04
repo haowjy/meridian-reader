@@ -19,7 +19,7 @@ struct SearchField: View {
             Image(systemName: "magnifyingglass")
                 .font(.caption)
                 .foregroundStyle(Palette.secondaryInk)
-                .frame(width: Spacing.m)
+                .frame(width: 16)
                 .accessibilityHidden(true)
 
             textField

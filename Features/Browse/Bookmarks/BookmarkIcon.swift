@@ -10,7 +10,7 @@ struct BookmarkIcon: View {
         ZStack {
             if let image = icon {
                 RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                    .fill(Color(.secondarySystemBackground))
+                    .fill(Palette.chrome)
                 Image(uiImage: image)
                     .resizable()
                     .interpolation(.high)

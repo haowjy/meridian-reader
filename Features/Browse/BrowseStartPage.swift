@@ -24,6 +24,8 @@ struct BrowseStartPage: View {
     static let bookmarkLimit = 8
     static let continueLimit = 3
     static let savedLimit = 4
+    /// Width of a recent search's clock glyph.
+    private static let searchIconWidth: CGFloat = 20
 
     private var continueShown: [SavedArticle] { Array(continueListening.prefix(Self.continueLimit)) }
 
@@ -34,7 +36,7 @@ struct BrowseStartPage: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 26) {
+            VStack(alignment: .leading, spacing: Spacing.xl) {
                 if !bookmarks.isEmpty {
                     section("Bookmarks", id: "startBookmarks", showAll: onShowBookmarks) {
                         BookmarkGrid(bookmarks: Array(bookmarks.prefix(Self.bookmarkLimit)),
@@ -66,19 +68,19 @@ struct BrowseStartPage: View {
 
                 if bookmarks.isEmpty && continueShown.isEmpty && savedShown.isEmpty && recentSearches.isEmpty {
                     Text("Search or enter an address below. Sites you bookmark and articles you save or listen to show up here.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .typeStyle(.row)
+                        .foregroundStyle(Palette.secondaryInk)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 24)
+                        .padding(.top, Spacing.xl)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 24)
+            .padding(.horizontal, Spacing.pageMargin)
+            .padding(.top, Spacing.s)
+            .padding(.bottom, Spacing.xl)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollDismissesKeyboard(.immediately)
-        .background(Color(.systemBackground))
+        .background(Palette.paper)
         .accessibilityIdentifier("browseStartPage")
     }
 
@@ -101,19 +103,20 @@ struct BrowseStartPage: View {
 
     private func section<Content: View>(_ title: String, id: String, showAll: (() -> Void)?,
                                         @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title)
-                    .font(.title3.bold())
+                    .typeStyle(.heading)
+                    .foregroundStyle(Palette.ink)
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
                 if let showAll {
                     Button(action: showAll) {
-                        HStack(spacing: 3) {
+                        HStack(spacing: Spacing.xxs) {
                             Text("Show All")
                             Image(systemName: "chevron.right").font(.caption.weight(.semibold))
                         }
-                        .font(.subheadline)
+                        .typeStyle(.row)
                     }
                     .accessibilityIdentifier("\(id)ShowAll")
                 }
@@ -129,53 +132,55 @@ struct BrowseStartPage: View {
             ForEach(articles, id: \.id) { article in
                 Button { onOpenArticle(article) } label: {
                     row(article)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
+                        .padding(.horizontal, Spacing.s)
+                        .padding(.vertical, Spacing.s)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 if article.id != articles.last?.id {
-                    Divider().padding(.leading, 56)
+                    Divider().padding(.leading, Spacing.s + ArticleRow.iconSize + Spacing.s)
                 }
             }
         }
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+        .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.card))
     }
 
     private var recentSearchesSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Recent Searches")
-                    .font(.title3.bold())
+                    .typeStyle(.heading)
+                    .foregroundStyle(Palette.ink)
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
                 Button("Clear", action: onClearSearches)
-                    .font(.subheadline)
+                    .typeStyle(.row)
                     .accessibilityIdentifier("startSearchesClear")
             }
             VStack(spacing: 0) {
                 ForEach(recentSearches, id: \.self) { term in
                     Button { onSearch(term) } label: {
-                        HStack(spacing: 12) {
+                        HStack(spacing: Spacing.s) {
                             Image(systemName: "clock.arrow.circlepath")
-                                .foregroundStyle(.secondary)
-                                .frame(width: 20)
+                                .foregroundStyle(Palette.secondaryInk)
+                                .frame(width: Self.searchIconWidth)
                             Text(term)
-                                .foregroundStyle(.primary)
+                                .typeStyle(.row)
+                                .foregroundStyle(Palette.ink)
                                 .lineLimit(1)
                             Spacer(minLength: 0)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 11)
+                        .padding(.horizontal, Spacing.s)
+                        .padding(.vertical, Spacing.s)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     if term != recentSearches.last {
-                        Divider().padding(.leading, 44)
+                        Divider().padding(.leading, Spacing.s + Self.searchIconWidth + Spacing.s)
                     }
                 }
             }
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+            .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.card))
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("startRecentSearches")
@@ -187,22 +192,24 @@ private struct ArticleRow: View {
     /// Non-nil: a thin progress bar (Continue listening).
     let progress: Double?
 
+    /// The site icon's size.
+    static let iconSize: CGFloat = 32
+
     var body: some View {
-        HStack(spacing: 12) {
-            FaviconImage(data: article.faviconData, host: article.siteDomain, size: 32)
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(spacing: Spacing.s) {
+            FaviconImage(data: article.faviconData, host: article.siteDomain, size: Self.iconSize)
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(article.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .typeStyle(.row, weight: .semibold)
+                    .foregroundStyle(Palette.ink)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .typeStyle(.caption)
+                    .foregroundStyle(Palette.secondaryInk)
                     .lineLimit(1)
                 if let progress {
                     ThinProgressBar(value: progress)
-                        .padding(.top, 2)
                 }
             }
             Spacer(minLength: 0)

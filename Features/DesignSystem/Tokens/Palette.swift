@@ -19,13 +19,14 @@ import UIKit
 enum Palette {
     /// Page and sheet background.
     static let paper = Color(light: 0xFBFAF7, dark: 0x141416)
-    /// Field capsules, cards, grouped lists, the Now Playing bar.
+    /// Field capsules, cards, grouped lists.
     static let chrome = Color(light: 0xF3F2EE, dark: 0x1F1F23)
     /// Primary text and glyphs.
     static let ink = Color(light: 0x141416, dark: 0xF2F1EC)
     /// Secondary text: sources, times, counts, captions.
     static let secondaryInk = Color(light: 0x55555E, dark: 0xA1A1AA)
-    /// Links, controls, progress, the playing state.
+    /// Links, controls, progress, the playing state. The asset catalog's AccentColor carries the
+    /// same values, so system controls and `Color.accentColor` match.
     static let accent = Color(light: 0x0A58CA, dark: 0x6EA4FF)
     /// Text and glyphs on an `accent` fill. White can't reach 4.5:1 on a dark-mode accent light
     /// enough to read on dark paper, so it turns dark there.

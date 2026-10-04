@@ -74,20 +74,20 @@ private struct SavedRowView: View {
     @Bindable var speech: SpeechController
 
     private var rowLabel: some View {
-                HStack(alignment: .top, spacing: 12) {
+                HStack(alignment: .top, spacing: Spacing.s) {
                     FaviconImage(data: article.faviconData, host: article.siteDomain)
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
                         Text(article.title)
-                            .font(.headline)
-                            .foregroundStyle(.primary)
+                            .typeStyle(.row, weight: .semibold)
+                            .foregroundStyle(Palette.ink)
                             .lineLimit(2)
                         Text("\(article.siteDomain) · \(article.savedAt.formatted(date: .abbreviated, time: .omitted))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .typeStyle(.caption)
+                            .foregroundStyle(Palette.secondaryInk)
                         if !article.excerpt.isEmpty {
                             Text(article.excerpt)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .typeStyle(.caption)
+                                .foregroundStyle(Palette.secondaryInk)
                                 .lineLimit(2)
                         }
                     }
@@ -95,7 +95,7 @@ private struct SavedRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.s) {
             NavigationLink(value: article.id) { rowLabel }
 
             Button {
@@ -108,7 +108,7 @@ private struct SavedRowView: View {
             .buttonStyle(.borderless)
             .accessibilityLabel(speech.showsPauseIcon(for: article.id) ? "Pause" : "Play")
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.xxs)
         .contextMenu {
             if speech.localTTS.hasListenAudio(for: article.id) {
                 Button("Clear listen audio", role: .destructive) {

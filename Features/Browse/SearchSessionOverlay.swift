@@ -36,7 +36,7 @@ struct SearchSessionOverlay: View {
     var body: some View {
         let suggestions = suggestions
         ZStack(alignment: .top) {
-            Color(.systemBackground)
+            Palette.paper
                 .ignoresSafeArea(edges: .bottom)
 
             if showsRecentSearches || !suggestions.isEmpty {
@@ -48,7 +48,7 @@ struct SearchSessionOverlay: View {
                             suggestionsList(suggestions)
                         }
                     }
-                    .padding(.top, 4)
+                    .padding(.top, Spacing.xxs)
                 }
                 .scrollDismissesKeyboard(.interactively)
             } else {
@@ -79,24 +79,25 @@ struct SearchSessionOverlay: View {
         VStack(spacing: 0) {
             HStack {
                 Text("Recent Searches")
-                    .font(.title3.weight(.semibold))
+                    .typeStyle(.heading, weight: .semibold)
+                    .foregroundStyle(Palette.ink)
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
                 Button("Clear All", action: onClearRecentSearches)
-                    .font(.body)
+                    .typeStyle(.row)
                     .accessibilityIdentifier("recentSearchesClear")
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+            .padding(.horizontal, Spacing.m)
+            .padding(.top, Spacing.s)
+            .padding(.bottom, Spacing.xs)
 
             ForEach(recentSearches, id: \.self) { term in
-                Divider().padding(.leading, 52)
+                Divider().padding(.leading, SuggestionRow<EmptyView>.textInset)
                 SuggestionRow(title: term, subtitle: nil, openLabel: term, onOpen: { onSubmit(term) },
                               onFill: { session.fill(term) }) {
                     Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22)
+                        .foregroundStyle(Palette.secondaryInk)
+                        .frame(width: SuggestionRow<EmptyView>.leadingWidth)
                 }
             }
         }
@@ -109,16 +110,18 @@ struct SearchSessionOverlay: View {
                               onFill: { session.fill(row.query) }) {
                     switch row.kind {
                     case .recent, .saved:
-                        FaviconImage(data: row.faviconData, host: row.host, size: 28)
+                        FaviconImage(data: row.faviconData, host: row.host,
+                                     size: SuggestionRow<EmptyView>.leadingWidth)
                     case .google:
                         Image(systemName: "magnifyingglass")
                             .font(.body)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 28, height: 28)
+                            .foregroundStyle(Palette.secondaryInk)
+                            .frame(width: SuggestionRow<EmptyView>.leadingWidth,
+                                   height: SuggestionRow<EmptyView>.leadingWidth)
                     }
                 }
                 if row.id != rows.last?.id {
-                    Divider().padding(.leading, 52)
+                    Divider().padding(.leading, SuggestionRow<EmptyView>.textInset)
                 }
             }
         }
@@ -136,6 +139,11 @@ private struct SuggestionRow<Leading: View>: View {
     let onFill: () -> Void
     @ViewBuilder let leading: () -> Leading
 
+    /// Width of the leading icon.
+    static var leadingWidth: CGFloat { 28 }
+    /// Where the title starts: dividers line up with it.
+    static var textInset: CGFloat { Spacing.m + leadingWidth + Spacing.s }
+
     var body: some View {
         HStack(spacing: 0) {
             if let openLabel {
@@ -147,36 +155,36 @@ private struct SuggestionRow<Leading: View>: View {
             Button(action: onFill) {
                 Image(systemName: "arrow.up.backward")
                     .font(.body.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, height: 44)
+                    .foregroundStyle(Palette.secondaryInk)
+                    .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Insert into search field")
-            .padding(.trailing, 6)
+            .padding(.trailing, Spacing.xxs)
         }
     }
 
     private var openButton: some View {
         Button(action: onOpen) {
-            HStack(spacing: 12) {
+            HStack(spacing: Spacing.s) {
                 leading()
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 0) {
                     Text(title)
-                        .font(.body)
-                        .foregroundStyle(.primary)
+                        .typeStyle(.row)
+                        .foregroundStyle(Palette.ink)
                         .lineLimit(1)
                     if let subtitle {
                         Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .typeStyle(.caption)
+                            .foregroundStyle(Palette.secondaryInk)
                             .lineLimit(1)
                     }
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.leading, 16)
-            .padding(.vertical, 12)
+            .padding(.leading, Spacing.m)
+            .padding(.vertical, Spacing.s)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

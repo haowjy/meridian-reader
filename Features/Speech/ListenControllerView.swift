@@ -29,7 +29,7 @@ struct ListenControllerView: View {
     var body: some View {
         // Debug chip, bake overlay, buffering / language notes live ABOVE the scrubber
         // (`ArticleListenSurface.listenStatusNotes`) so they never sit on ⋯ or push it.
-        VStack(spacing: 4) {
+        VStack(spacing: BottomChrome.rowSpacing) {
             // The browser's five-slot grid: `[1×][⏮][▶︎][⏭][⋯]` under `[‹][›][Search][ ][⋯]`,
             // plain 19 pt glyphs.
             BottomToolbarLayout {
@@ -82,7 +82,7 @@ struct ListenControllerView: View {
             }
             // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI gives
             // disabled buttons, so ⏮ / ⏭ at the first / last paragraph would look tappable.
-            .tint(.primary)
+            .tint(Palette.ink)
         }
         // No background or margins of its own: the reader puts it (under the scrub capsule) in
         // the shared bottom band (`bottomChromeBand`), exactly like the browser's toolbar row.
@@ -143,9 +143,7 @@ struct ListenControllerView: View {
             showSpeedPopover = true
         } label: {
             Text(speech.rateDisplayLabel)
-                .font(.system(size: 17, weight: .medium).monospacedDigit())
-                .frame(maxWidth: .infinity, minHeight: BottomChrome.rowHeight)
-                .contentShape(Rectangle())
+                .toolbarTextFrame()
         }
         .accessibilityIdentifier("listenSpeed")
         .accessibilityLabel("Speed \(speech.rateDisplayLabel)")
@@ -216,10 +214,10 @@ private struct SpeedPickerPopover: View {
     var onDone: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             Text("Speed")
-                .font(.headline)
-                .padding(.horizontal, 4)
+                .typeStyle(.row, weight: .semibold)
+                .padding(.horizontal, Spacing.xxs)
 
             VStack(spacing: 0) {
                 ForEach(SpeechController.rateOptions, id: \.self) { rate in
@@ -229,16 +227,17 @@ private struct SpeedPickerPopover: View {
                     } label: {
                         HStack {
                             Text(label(for: rate))
-                                .font(.body.monospacedDigit())
-                                .foregroundStyle(.primary)
+                                .typeStyle(.row)
+                                .monospacedDigit()
+                                .foregroundStyle(Palette.ink)
                             Spacer()
                             if abs(speech.rateMultiplier - rate) < 0.01 {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(.tint)
+                                    .foregroundStyle(Palette.accent)
                             }
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
+                        .padding(.horizontal, Spacing.s)
+                        .padding(.vertical, Spacing.s)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -248,9 +247,9 @@ private struct SpeedPickerPopover: View {
                     }
                 }
             }
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+            .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.card))
         }
-        .padding(16)
+        .padding(Spacing.m)
         .frame(minWidth: 220)
     }
 

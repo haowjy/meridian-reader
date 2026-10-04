@@ -69,6 +69,22 @@ final class DesignSystemGalleryTests: XCTestCase {
         }
     }
 
+    /// System controls tint with the asset catalog's AccentColor; it must be `Palette.accent`.
+    func testAccentAssetMatchesThePalette() throws {
+        let asset = try XCTUnwrap(UIColor(named: "AccentColor"))
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            let traits = UITraitCollection(userInterfaceStyle: style)
+            XCTAssertEqual(Self.rgb(asset.resolvedColor(with: traits)),
+                           Self.rgb(UIColor(Palette.accent).resolvedColor(with: traits)), "\(style.rawValue)")
+        }
+    }
+
+    private static func rgb(_ color: UIColor) -> [Int] {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, alpha: CGFloat = 0
+        color.getRed(&r, green: &g, blue: &b, alpha: &alpha)
+        return [r, g, b].map { Int(($0 * 255).rounded()) }
+    }
+
     private static func contrast(_ a: UIColor, _ b: UIColor) -> CGFloat {
         let (la, lb) = (luminance(a), luminance(b))
         return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)

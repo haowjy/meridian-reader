@@ -13,16 +13,17 @@ struct MiniPlayerBar: View {
 
     /// Trailing padding that centers play/pause on slot 5 of `BottomToolbarLayout`.
     static func trailingPadding(rowWidth: CGFloat) -> CGFloat {
-        guard rowWidth > 0 else { return 4 }
-        return max(4, BottomToolbarLayout.slotWidth(rowWidth: rowWidth) / 2 - playSize / 2)
+        guard rowWidth > 0 else { return Spacing.xxs }
+        return max(Spacing.xxs, BottomToolbarLayout.slotWidth(rowWidth: rowWidth) / 2 - playSize / 2)
     }
 
     var body: some View {
         if let id = speech.activeSessionID {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: Spacing.s) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(speech.nowPlayingTitle ?? "Now playing")
-                        .font(.subheadline.weight(.semibold))
+                        .typeStyle(.row, weight: .semibold)
+                        .foregroundStyle(Palette.ink)
                         .lineLimit(1)
                         .accessibilityIdentifier("miniPlayerTitle")
                     MiniPlayerProgress(speech: speech)
@@ -42,7 +43,7 @@ struct MiniPlayerBar: View {
                 } label: {
                     Image(systemName: playing ? "pause.fill" : "play.fill")
                         .font(.title3)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Palette.ink)
                         .frame(width: Self.playSize, height: Self.playSize)
                         .tapTarget(Self.playSize)
                 }
@@ -50,10 +51,10 @@ struct MiniPlayerBar: View {
                 .accessibilityLabel(playing ? "Pause" : "Play")
                 .accessibilityIdentifier("miniPlayerPlayPause")
             }
-            .padding(.leading, 14)
+            .padding(.leading, Spacing.m)
             .padding(.trailing, Self.trailingPadding(rowWidth: width))
-            .padding(.vertical, 4)
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+            .padding(.vertical, Spacing.xxs)
+            .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.card))
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
             .contextMenu {
                 Button("Stop listening", systemImage: "stop.fill") { speech.stop() }
