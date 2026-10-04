@@ -12,6 +12,7 @@ struct MoreMenuPanel: View {
             switch context {
             case .browse(let menu, let perform): browse(menu) { action in close { perform(action) } }
             case .reader(let menu, let perform): reader(menu) { action in close { perform(action) } }
+            case .nowPlaying(let menu, let perform): nowPlaying(menu) { action in close { perform(action) } }
             case .library(let perform): library { action in close { perform(action) } }
             }
         }
@@ -76,6 +77,27 @@ struct MoreMenuPanel: View {
                 .disabled(!menu.canOpenWebsite)
                 .accessibilityLabel("View Website")
                 .accessibilityHint("Opens the article's web page")
+        }
+    }
+
+    @ViewBuilder
+    private func nowPlaying(_ menu: NowPlayingMenu, run: @escaping (NowPlayingMenu.Action) -> Void) -> some View {
+        voiceRow { run(.voiceSettings) }
+        shareRow { run(.share) }
+            .disabled(!menu.canShare)
+        if menu.showsDebug {
+            row("Debug", "ladybug", id: "moreDebug") { run(.listenDebug) }
+        }
+        divider
+        tiles {
+            tile("Bookmarks", "star", id: "moreBookmarks") { run(.bookmarks) }
+            tile("Saved", "books.vertical", id: "moreLibrary") { run(.saved) }
+            tile("History", "clock", id: "moreHistory") { run(.history) }
+            // The playing page in the browser; playback keeps going.
+            tile("Website", "globe", id: "moreWebsite", focus: true) { run(.openWebsite) }
+                .disabled(!menu.canOpenWebsite)
+                .accessibilityLabel("View Website")
+                .accessibilityHint("Opens the playing page in the browser")
         }
     }
 

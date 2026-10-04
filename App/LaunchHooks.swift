@@ -96,8 +96,8 @@ enum LaunchHooks {
         }
     }
 
-    /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): the newest saved article in the ✕
-    /// reader, without needing the network.
+    /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): the newest saved article in the Reader
+    /// sheet over the browser, without needing the network.
     static func openNewestInReader(in context: ModelContext, shell: ShellState) {
         var newest = FetchDescriptor<SavedArticle>(sortBy: [SortDescriptor(\.savedAt, order: .reverse)])
         newest.fetchLimit = 1
@@ -109,7 +109,7 @@ enum LaunchHooks {
             article.document = document
             article.trustedParagraphs = document.paragraphs
         }
-        shell.showReader(article)
+        shell.openReader(article)
     }
 }
 #endif

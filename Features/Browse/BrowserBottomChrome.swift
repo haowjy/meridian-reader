@@ -3,8 +3,8 @@ import SwiftUI
 /// The browser's bottom chrome (`SearchSessionChrome` + the shared `BottomChrome` look):
 ///
 /// ```
-/// [ ▶︎ Now playing title ━━━━━━━──────   ⏸ ]   ← mini player (idle, while something is loaded)
-/// [ 📄 address …                      (🎤) ]   ← reader icon when readable; 🎤 only while searching
+/// ╭ Now Playing bar ───────────────────────╮   ← what you hear (once something has played)
+/// ( 📄 address …                        🎧 )   ← 📄 / 🎧 on readable pages; 🎤 while searching
 /// [ ‹ ]   [ › ]   [ 🔍 ]   [ 📚 ]   [ ⋯ ]    ← five slots; steps aside while searching
 /// ```
 ///
@@ -15,10 +15,11 @@ struct BrowserBottomChrome: View {
     /// Address-bar dictation (nil until the mic is first used).
     let dictation: AddressDictation?
     var onOpenReader: () -> Void
+    /// 🎧: listen to the page now, or pause / resume it when it is what you hear.
+    var onListen: () -> Void
     var onSubmit: () -> Void
     var onMic: () -> Void
     var onOpenLibrary: () -> Void
-    var onOpenNowPlaying: () -> Void
     let menu: () -> MenuContext
 
     @Environment(ShellState.self) private var shell
@@ -35,94 +36,50 @@ struct BrowserBottomChrome: View {
             // Like Safari: the session starts with the page's full address, selected.
             beginText: { web.currentURL?.absoluteString ?? "" }
         ) {
-            // Under the reader overlay the reader is the player; the bar takes over as it leaves.
-            if shell.readerArticle == nil {
-                MiniPlayerBar(speech: speech, onOpen: onOpenNowPlaying)
-                    .padding(.bottom, Spacing.xxs)
-            }
+            NowPlayingBarView(speech: speech, isCovered: shell.reader != nil || shell.isInLibrary)
+                .padding(.bottom, Spacing.xxs)
         } field: { focus in
             addressField(focus)
         } toolbar: {
             toolbar
         }
         .overlay(alignment: .top) { LoadProgressLine(web: web) }
+        .animation(Motion.snappy, value: listenState)
     }
 
     // MARK: - Address field
 
+    /// The page's canonical URL when 🎧 can listen to it (a readable page).
+    private var listenTarget: ListenTarget? {
+        guard !search.isActive, web.hasPage, web.isReaderable, let url = web.currentURL else { return nil }
+        return .webPage(canonicalURL: ArticleIdentity.canonicalURLString(from: url))
+    }
+
+    private var listenState: PlayState? {
+        listenTarget.map(speech.playState(of:))
+    }
+
+    private typealias Field = AddressField<TextFieldBox, MicBox>
+
+    private var readerButton: Field.ReaderButton {
+        if search.isActive { return .searching }
+        if shell.busy == .reader { return .extracting }
+        return web.hasPage && web.isReaderable ? .available : .hidden
+    }
+
     private func addressField(_ focus: FocusState<Bool>.Binding) -> some View {
         @Bindable var search = search
-        return HStack(spacing: Spacing.xs) {
-            leading
-
-            TextField(isDictating && search.text.isEmpty ? "Listening…" : "Search or enter address",
-                      text: $search.text)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(.webSearch)
-                .submitLabel(.go)
-                .focused(focus)
-                .onSubmit(onSubmit)
-                .typeStyle(.row)
-                .foregroundStyle(Palette.ink)
-                .accessibilityIdentifier("addressField")
-
-            if search.isActive {
-                micButton
-            }
+        return Field(reader: readerButton, listen: listenState, onOpenReader: onOpenReader, onListen: onListen) {
+            TextFieldBox(text: $search.text, isDictating: isDictating, focus: focus, onSubmit: onSubmit)
+        } accessory: {
+            MicBox(shown: search.isActive, isDictating: isDictating,
+                   isListening: dictation?.isListening == true, action: onMic)
         }
-        .bottomChromeField(leading: Spacing.s, trailing: search.isActive ? Spacing.xxs : Spacing.s)
         .overlay {
             if isDictating {
                 Capsule().strokeBorder(Palette.accent, lineWidth: 1.5)
             }
         }
-    }
-
-    /// Leading slot: a spinner while extracting for the reader, the reader icon (Safari's
-    /// page-format button) when the page is readable, the search glyph while searching, or an
-    /// empty spacer.
-    @ViewBuilder
-    private var leading: some View {
-        if search.isActive {
-            Image(systemName: "magnifyingglass")
-                .font(.caption)
-                .foregroundStyle(Palette.secondaryInk)
-                .frame(width: Glyph.indicator)
-                .accessibilityHidden(true)
-        } else if shell.busy == .reader {
-            ProgressView()
-                .controlSize(.small)
-                .frame(width: 30, height: 30)
-        } else if web.hasPage && web.isReaderable {
-            Button(action: onOpenReader) {
-                Image(systemName: "doc.plaintext")
-                    .font(.body)
-                    .foregroundStyle(Palette.accent)
-                    .frame(width: 30, height: 30)
-                    .tapTarget(30)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Open in Reader")
-            .accessibilityIdentifier("addressReader")
-            .transition(.opacity)
-        } else {
-            Color.clear
-                .frame(width: Glyph.indicator, height: Glyph.indicator)
-                .accessibilityHidden(true)
-        }
-    }
-
-    private var micButton: some View {
-        Button(action: onMic) {
-            Image(systemName: isDictating ? "waveform" : "mic")
-                .foregroundStyle(isDictating ? Palette.accent : Palette.secondaryInk)
-                .symbolEffect(.variableColor.iterative, isActive: dictation?.isListening == true)
-                .fieldControlFrame()
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(isDictating ? "Stop dictation" : "Dictate")
-        .accessibilityIdentifier("addressMic")
     }
 
     // MARK: - Toolbar
@@ -154,6 +111,47 @@ struct BrowserBottomChrome: View {
         }
         .accessibilityLabel(label)
         .accessibilityIdentifier(id)
+    }
+}
+
+/// The address `TextField` inside the field capsule.
+private struct TextFieldBox: View {
+    @Binding var text: String
+    let isDictating: Bool
+    let focus: FocusState<Bool>.Binding
+    let onSubmit: () -> Void
+
+    var body: some View {
+        TextField(isDictating && text.isEmpty ? "Listening…" : "Search or enter address", text: $text)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .keyboardType(.webSearch)
+            .submitLabel(.go)
+            .focused(focus)
+            .onSubmit(onSubmit)
+            .accessibilityIdentifier("addressField")
+    }
+}
+
+/// 🎤, only while searching.
+private struct MicBox: View {
+    let shown: Bool
+    let isDictating: Bool
+    let isListening: Bool
+    let action: () -> Void
+
+    var body: some View {
+        if shown {
+            Button(action: action) {
+                Image(systemName: isDictating ? "waveform" : "mic")
+                    .foregroundStyle(isDictating ? Palette.accent : Palette.secondaryInk)
+                    .symbolEffect(.variableColor.iterative, isActive: isListening)
+                    .fieldControlFrame()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isDictating ? "Stop dictation" : "Dictate")
+            .accessibilityIdentifier("addressMic")
+        }
     }
 }
 

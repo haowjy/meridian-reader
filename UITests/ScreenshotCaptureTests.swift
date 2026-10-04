@@ -7,9 +7,9 @@ import XCTest
 ///         xcodebuild test … -only-testing:ReaderUITests/ScreenshotCaptureTests
 ///
 /// Each PNG goes to `<dir>/<test>/<name>.png` and is also attached to the test result. The
-/// offline captures use the `reader-test://` pages; `testBrowserSurfaces` and `testBrowseBar`
-/// need the network (favicons, a Wikipedia page, Google suggestions), `testBufferedFill` needs the
-/// Kokoro model installed in the Simulator.
+/// offline captures use the `reader-test://` pages and the demo article; `testBrowseBar` needs the
+/// network (a Wikipedia page, Google suggestions), `testBufferedFill` needs the Kokoro model
+/// installed in the Simulator.
 final class ScreenshotCaptureTests: XCTestCase {
     private var dir: URL!
 
@@ -66,8 +66,8 @@ final class ScreenshotCaptureTests: XCTestCase {
 
     // MARK: - Offline
 
-    /// Toolbars and ⋯ menus on a page and in its reader (developer options off), the reader
-    /// scrolled mid-article, Voice settings down to the version row, and the mini player.
+    /// Toolbars and ⋯ menus on a page and in its Reader (developer options off), the Reader
+    /// scrolled mid-article, Voice settings down to the version row, and the Now Playing bar.
     func testMenusOnPageAndInReader() throws {
         let app = launch(["-resetBookmarks", "-browseTestPages", "-reader.developerOptions", "NO"])
         openTestArticlePage(app)
@@ -100,12 +100,12 @@ final class ScreenshotCaptureTests: XCTestCase {
         app.navigationBars["Listen"].buttons["Done"].tap()
         wait(1)
 
-        app.buttons["listenPlayPause"].tap()
+        app.buttons["listenPlayPause"].tap() // Listen: the Reader turns into Now Playing
         wait(2)
-        app.buttons["readerClose"].tap()
+        app.buttons["readerClose"].tap() // ⌄
         wait(1.5)
-        try shot("8-browse-mini-player")
-        app.buttons["miniPlayerPlayPause"].tap()
+        try shot("8-browse-now-playing-bar")
+        app.buttons["nowPlayingBarPlayPause"].tap()
     }
 
     /// The ⋯ morph closed / mid-animation / open, slowed to 3 s (`-slowMenuAnimation`), on the
@@ -138,25 +138,60 @@ final class ScreenshotCaptureTests: XCTestCase {
         try sequence(button: "readerMore", prefix: "reader")
     }
 
-    /// The scrub bubble frozen mid fine-scrub (`-scrubBubbleDemo`).
+    /// The scrub bubble frozen mid fine-scrub (`-scrubBubbleDemo`), on Now Playing (paused).
     func testScrubBubble() throws {
         let app = launch(["-seedDemoArticle", "-seedDemoParagraphs", "12", "-openLibrary", "-resetBookmarks",
                           "-scrubBubbleDemo"])
         let row = app.cells.staticTexts["Demo Listen Article"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
-        XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 5))
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(play.waitForExistence(timeout: 5))
+        play.tap()
+        wait(1)
+        play.tap()
         wait(2.5)
         try shot("scrub-bubble-fine")
     }
 
-    // MARK: - Network or installed models
+    /// The two states (the screenshot that started the redesign): article A playing while the
+    /// browser shows page B; then B's Reader with A in the bar, Now Playing, and A's page with its
+    /// 🎧 playing. Offline test pages.
+    func testTwoStates() throws {
+        let app = launch(["-resetBookmarks", "-browseTestPages", "-reader.developerOptions", "NO"])
+        openTestArticlePage(app) // A: page two
+        el(app, "addressListen").tap()
+        wait(3)
+        try shot("1-a-playing-on-its-page")
+        app.buttons["browseBack"].tap()
+        let third = app.links["Third page"]
+        XCTAssertTrue(third.waitForExistence(timeout: 10))
+        third.tap()
+        XCTAssertTrue(el(app, "addressListen").waitForExistence(timeout: 10))
+        wait(1.5)
+        try shot("2-browsing-b-while-a-plays")
+        el(app, "addressReader").tap()
+        XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 10))
+        wait(1.5)
+        try shot("3-reader-b-while-a-plays")
+        el(app, "nowPlayingBarOpen").tap()
+        XCTAssertTrue(el(app, "nowPlayingFrom").waitForExistence(timeout: 5))
+        wait(2)
+        try shot("4-now-playing-a")
+        let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
+        from.press(forDuration: 0.05, thenDragTo: from.withOffset(CGVector(dx: 0, dy: -200)),
+                   withVelocity: .slow, thenHoldForDuration: 0.1)
+        wait(1)
+        try shot("5-now-playing-scrolled-back-to-audio")
+        app.buttons["listenPlayPause"].tap()
+    }
 
-    /// Start page with bookmarks, the ⋯ menu, Bookmarks, Library and its reader, the mini player,
-    /// a web page with its reader icon and the reader over it. Uses whatever is saved.
+    /// The start page, the ⋯ menu, Bookmarks, the Library and its Reader, the Now Playing bar on
+    /// the Library and on the start page, and Now Playing. Offline: the demo article and the seeded
+    /// bookmarks (their icons are letter tiles without the network).
     func testBrowserSurfaces() throws {
-        let app = launch(["-seedBookmarks"])
-        wait(8) // bookmark icons load from the network
+        let app = launch(["-seedBookmarks", "-seedDemoArticle", "-seedDemoParagraphs", "12"])
+        wait(2)
         try shot("start")
 
         app.buttons["browseMore"].tap()
@@ -174,38 +209,28 @@ final class ScreenshotCaptureTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5))
         wait(1.2)
         try shot("library")
-        let firstRow = app.cells.element(boundBy: 0)
-        XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
-        firstRow.staticTexts.element(boundBy: 0).tap()
+        app.cells.staticTexts["Demo Listen Article"].tap()
         XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 10))
         wait(2)
         try shot("library-reader")
 
         let play = app.buttons["listenPlayPause"]
-        XCTAssertTrue(play.waitForExistence(timeout: 5))
-        play.tap()
-        wait(3)
-        app.buttons["readerClose"].tap()
+        play.tap() // Listen: Now Playing
+        XCTAssertTrue(el(app, "nowPlayingFrom").waitForExistence(timeout: 5))
+        wait(2.5)
+        try shot("now-playing")
+        app.buttons["readerClose"].tap() // ⌄
+        XCTAssertTrue(el(app, "nowPlayingBar").waitForExistence(timeout: 5))
         wait(1)
-        app.navigationBars["Saved"].swipeDown(velocity: .fast)
+        try shot("library-now-playing-bar")
+        app.buttons["libraryBrowser"].tap()
+        XCTAssertTrue(el(app, "nowPlayingBar").waitForExistence(timeout: 5))
         wait(1.5)
-        XCTAssertTrue(el(app, "miniPlayer").waitForExistence(timeout: 5))
-        try shot("start-mini-player")
-        app.buttons["miniPlayerPlayPause"].tap()
-        wait(0.5)
-
-        let field = app.textFields["addressField"]
-        field.tap()
-        wait(0.6)
-        field.typeText("en.wikipedia.org/wiki/Speech_synthesis\n")
-        XCTAssertTrue(el(app, "addressReader").waitForExistence(timeout: 20), "readable page → reader icon")
-        wait(1)
-        try shot("page-reader-icon")
-        el(app, "addressReader").tap()
-        XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 20))
-        wait(2)
-        try shot("page-reader")
+        try shot("start-now-playing-bar")
+        app.buttons["nowPlayingBarPlayPause"].tap()
     }
+
+    // MARK: - Network or installed models
 
     /// The address bar idle on a page, editing with Recent Searches, editing with Google
     /// suggestions (this test turns them on: no `-uiTesting`), and the ⋯ menu.

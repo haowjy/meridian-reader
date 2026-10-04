@@ -16,6 +16,9 @@ struct ParagraphDocument: Equatable, Sendable {
         return min(1, max(0, Double(offset) / Double(total)))
     }
 
+    /// Length of the whole text in UTF-16 units.
+    var utf16Length: Int { utf16Ranges.last.map(NSMaxRange) ?? 0 }
+
     static let empty = ParagraphDocument(paragraphs: [], utf16Ranges: [], joinedText: "")
 
     /// Prefer HTML block order (headings + paragraphs) so highlight/tap match speech.

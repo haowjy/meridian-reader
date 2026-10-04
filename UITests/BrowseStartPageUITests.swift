@@ -1,7 +1,7 @@
 import XCTest
 
-/// Start page (no page loaded): Continue listening (in-progress saves, tap to resume in the ✕
-/// reader) and Saved (recent saves, Show All → library).
+/// Start page (no page loaded): Continue listening (in-progress saves, tap to open in the Reader
+/// sheet at their spot) and Saved (recent saves, Show All → library).
 final class BrowseStartPageUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
@@ -26,10 +26,10 @@ final class BrowseStartPageUITests: XCTestCase {
         resume.tap()
         let close = app.buttons["readerClose"]
         XCTAssertTrue(close.waitForExistence(timeout: 5))
-        XCTAssertEqual(close.label, "Back to Start Page", "opens in the reader over the start page")
-        let scrubber = el(app, "readerScrubber")
-        XCTAssertTrue(scrubber.waitForExistence(timeout: 5))
-        XCTAssertEqual(scrubber.value as? String, "Paragraph 2 of 3", "resumes at the saved paragraph")
+        XCTAssertEqual(close.label, "Back to Browser", "opens in the Reader sheet over the browser")
+        let listen = app.buttons["listenPlayPause"]
+        XCTAssertTrue(listen.waitForExistence(timeout: 5))
+        XCTAssertTrue(listen.label.hasPrefix("Resume"), "resumes at the saved paragraph: \(listen.label)")
         close.tap()
         XCTAssertTrue(el(app, "startContinue").waitForExistence(timeout: 5))
     }

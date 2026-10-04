@@ -12,12 +12,16 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
 
 ## Contracts that break quietly
 
+- **What you hear.** Play buttons ask `playState(of:)` and press through `press(_:start:)`; never
+  compare session ids in a view. A finished page stays bound (`.finished`); only `stop()` (Stop
+  Listening) unbinds. `onProgress` fires synchronously from `publishPlayback`, so the recorder sees
+  a replaced page's last spot (the `.stop` before the next `bind`).
 - **Position.** Only `PlaybackSessionState` holds it, and a seek publishes it synchronously in
   the same transaction as the UI change; the scrubber relies on that to avoid a snap back. An
   engine never reports a spot before the offset its play started at.
 - **Per-tick cost.** The live offset changes several times a second. Read it only in leaf views
-  (`PlayheadReader`, the mini player's progress); reading it in a screen's body redraws the screen
-  on every tick.
+  (`PlayheadReader`, the Now Playing bar's progress, Now Playing's sentence underline); reading it
+  in a screen's body redraws the screen on every tick.
 - **Model calls.** One at a time (`SynthRenderGate`), never a Core ML call in the background
   (`RenderAdmission`). Every extra Kokoro call is exposure to an uncatchable crash on iOS 26.4+, so
   don't add re-renders: `BrowseSaveWhilePlayingTests` pins the call count.

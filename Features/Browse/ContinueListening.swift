@@ -103,26 +103,3 @@ extension ContinueListening {
         return inProgress(candidates, history: history).compactMap { byID[$0.id] }
     }
 }
-
-/// Notes when listening starts (Continue listening order) without making the browser re-render
-/// on every playhead tick: only this empty view observes the speech controller.
-struct ListenHistoryRecorder: View {
-    @Bindable var speech: SpeechController
-    /// Runs with the active session's id whenever it or its playing state changes.
-    var onChange: (UUID?) -> Void
-
-    private struct Key: Equatable {
-        let id: UUID?
-        let playing: Bool
-    }
-
-    var body: some View {
-        Color.clear
-            .frame(width: 0, height: 0)
-            .accessibilityHidden(true)
-            .onChange(of: Key(id: speech.activeSessionID, playing: speech.isPlaying)) { _, key in
-                if let id = key.id, key.playing { ListenHistory.record(id) }
-                onChange(key.id)
-            }
-    }
-}

@@ -1,7 +1,7 @@
 import XCTest
 
-/// The five-slot bottom toolbar grid shared by Browse and the reader, the ⋯ menu's focus point,
-/// and the mini player's play button over the ⋯ slot.
+/// The five-slot bottom toolbar grid shared by Browse, the Reader sheet and Now Playing, the ⋯
+/// menu's focus point, and the Now Playing bar's play button over the ⋯ slot.
 final class ToolbarGridUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
@@ -20,9 +20,10 @@ final class ToolbarGridUITests: XCTestCase {
         return condition()
     }
 
-    /// Browse `[‹][›][Search][Library][⋯]` and reader `[1×][⏮][▶︎][⏭][⋯]`: 5 equal, evenly spaced slots;
-    /// slot N at the same x on both screens; the mini player's play button over ⋯.
-    func testFiveSlotGridSharedByBrowseAndReader() throws {
+    /// Browse `[‹][›][Search][Library][⋯]`, the Reader `[🔖][ Listen ][⋯]` and Now Playing
+    /// `[1×][⏮][▶︎][⏭][⋯]`: 5 equal, evenly spaced slots; slot N at the same x on every screen, ⋯ in
+    /// slot 5 at the same spot; the bar's play button over ⋯.
+    func testFiveSlotGridSharedByBrowseReaderAndNowPlaying() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-resetBookmarks", "-browseTestPages", "-selectEngine", "apple"]
         app.launch()
@@ -39,54 +40,60 @@ final class ToolbarGridUITests: XCTestCase {
 
         let browse = ["browseBack", "browseForward", "browseSearch", "browseLibrary", "browseMore"]
             .map { el(app, $0).frame }
-        let browseSlots = [0, 1, 2, 3, 4]
-        for (frame, s) in zip(browse, browseSlots) {
+        for (s, frame) in browse.enumerated() {
             XCTAssertEqual(frame.midX, expected[s], accuracy: 1, "browse slot \(s + 1)")
         }
 
+        // The Reader: 🔖 in slot 1, ⋯ in slot 5, exactly where the browser's are.
         icon.tap()
         XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 10))
+        let save = el(app, "readerBookmark").frame
+        let readerMore = app.buttons["readerMore"].frame
+        XCTAssertEqual(save.midX, expected[0], accuracy: 1, "🔖 in slot 1")
+        XCTAssertEqual(readerMore.midX, expected[4], accuracy: 1, "⋯ in slot 5")
+        XCTAssertEqual(readerMore.midY, browse[4].midY, accuracy: 1, "⋯ at the browser's ⋯")
+        XCTAssertEqual(save.midY, readerMore.midY, accuracy: 1, "one row")
+        assertMenuFocus(app, more: readerMore, button: "readerMore")
+
+        // Now Playing: the five-slot transport.
+        app.buttons["listenPlayPause"].tap()
+        XCTAssertTrue(el(app, "nowPlayingFrom").waitForExistence(timeout: 5))
         let play = app.buttons["listenPlayPause"]
-        XCTAssertTrue(play.waitForExistence(timeout: 5))
-        let reader = [app.buttons["listenSpeed"], app.buttons["Previous paragraph"], play,
-                      app.buttons["Next paragraph"], app.buttons["readerMore"]].map(\.frame)
-        for (i, frame) in reader.enumerated() {
-            XCTAssertEqual(frame.midX, expected[i], accuracy: 1, "reader slot \(i + 1)")
-            XCTAssertEqual(frame.midY, reader[4].midY, accuracy: 1, "one row")
+        XCTAssertTrue(waitFor(8) { play.label == "Pause" }, "playing")
+        let transport = [app.buttons["listenSpeed"], app.buttons["Previous paragraph"], play,
+                         app.buttons["Next paragraph"], app.buttons["readerMore"]].map(\.frame)
+        for (i, frame) in transport.enumerated() {
+            XCTAssertEqual(frame.midX, expected[i], accuracy: 1, "Now Playing slot \(i + 1)")
+            XCTAssertEqual(frame.midY, transport[4].midY, accuracy: 1, "one row")
         }
         for i in 1..<5 {
-            XCTAssertEqual(reader[i].midX - reader[i - 1].midX, slot, accuracy: 1, "evenly spaced")
+            XCTAssertEqual(transport[i].midX - transport[i - 1].midX, slot, accuracy: 1, "evenly spaced")
         }
-        // Same x on both screens for the shared slots, ⋯ in slot 5 on both.
-        for (frame, s) in zip(browse, browseSlots) {
-            XCTAssertEqual(reader[s].midX, frame.midX, accuracy: 1, "slot \(s + 1) same x in Browse and the reader")
-        }
-        XCTAssertEqual(reader[4].midY, browse[4].midY, accuracy: 1, "⋯ same y")
+        XCTAssertEqual(transport[4].midY, browse[4].midY, accuracy: 1, "⋯ same y")
+        assertMenuFocus(app, more: transport[4], button: "readerMore")
 
-        // ⋯ menu: Website/Reader icon is slightly up and left of ⋯ (Safari feel) —
-        // not dead-on overlap. Morph still grows from ⋯.
-        app.buttons["readerMore"].tap()
+        // The bar: play/pause over the ⋯ slot.
+        app.buttons["readerClose"].tap()
+        let barPlay = app.buttons["nowPlayingBarPlayPause"]
+        XCTAssertTrue(barPlay.waitForExistence(timeout: 5))
+        XCTAssertEqual(barPlay.frame.midX, expected[4], accuracy: 1, "bar play over ⋯")
+        barPlay.tap()
+    }
+
+    /// ⋯ menu: the bottom-right big button's icon is slightly up and left of ⋯ (Safari feel), not
+    /// dead-on. The morph still grows from ⋯.
+    private func assertMenuFocus(_ app: XCUIApplication, more: CGRect, button: String) {
+        app.buttons[button].tap()
         let focus = el(app, "moreMenuFocus")
         XCTAssertTrue(focus.waitForExistence(timeout: 3))
         wait(1.0)
-        let dx = MorphMenuUITestOffset.width
-        let dy = MorphMenuUITestOffset.height
-        XCTAssertEqual(focus.frame.midX, reader[4].midX - dx, accuracy: 1.5, "focus left of ⋯")
-        XCTAssertEqual(focus.frame.midY, reader[4].midY - dy, accuracy: 1.5, "focus above ⋯")
-        XCTAssertLessThan(focus.frame.midX, reader[4].midX - 4, "deliberately left of ⋯")
-        XCTAssertLessThan(focus.frame.midY, reader[4].midY - 4, "deliberately above ⋯")
-        let panel = el(app, "moreMenuPanel").frame
-        XCTAssertLessThanOrEqual(panel.maxX, window.maxX, "panel stays on screen")
+        let window = app.windows.firstMatch.frame
+        XCTAssertEqual(focus.frame.midX, more.midX - MorphMenuUITestOffset.width, accuracy: 1.5, "focus left of ⋯")
+        XCTAssertEqual(focus.frame.midY, more.midY - MorphMenuUITestOffset.height, accuracy: 1.5, "focus above ⋯")
+        XCTAssertLessThan(focus.frame.midX, more.midX - 4, "deliberately left of ⋯")
+        XCTAssertLessThan(focus.frame.midY, more.midY - 4, "deliberately above ⋯")
+        XCTAssertLessThanOrEqual(el(app, "moreMenuPanel").frame.maxX, window.maxX, "panel stays on screen")
         el(app, "moreMenuDismiss").tap()
         XCTAssertTrue(waitFor { !self.el(app, "moreMenuPanel").exists })
-
-        // Mini player: play/pause sits over the ⋯ slot.
-        play.tap()
-        XCTAssertTrue(waitFor(8) { play.label == "Pause" }, "playing")
-        app.buttons["readerClose"].tap()
-        let mini = app.buttons["miniPlayerPlayPause"]
-        XCTAssertTrue(mini.waitForExistence(timeout: 5))
-        XCTAssertEqual(mini.frame.midX, expected[4], accuracy: 1, "mini player play over ⋯")
-        mini.tap()
     }
 }

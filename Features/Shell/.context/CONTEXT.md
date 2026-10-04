@@ -3,12 +3,19 @@
 What the user sees is in `../../../docs/NAVIGATION.md`. This file holds what to keep in mind while
 changing the shell code.
 
-- **`ShellState` is the navigation model.** Surface (browser or library), the one sheet, the
-  reader overlay and its `ReaderOrigin` (derived from what is under it). Add a screen by adding a
-  case here, not a presentation flag in a view.
+- **`ShellState` is the navigation model** (what you see). Surface (browser or library), the
+  Reader sheet and its `ReaderOrigin` (derived from the surface), Now Playing, the one other sheet.
+  Add a screen by adding a case here, not a presentation flag in a view. It never stores what
+  you hear: `isHearing` (injected) asks the playback session, so `openReader` of the playing page
+  opens Now Playing.
+- **Layers** (`BrowseStartView.layers`): surface → Reader sheet → Now Playing → ⋯ menu → system
+  sheets. A covered layer is out of hit testing and hidden from VoiceOver. The `Sheet` component
+  animates its own rise and close and then calls its `onDismiss` (`closeReader`, `hideNowPlaying`);
+  programmatic closes (Website, navigating) just remove it.
 - **Shared look lives in `../DesignSystem/`**: tokens, `Motion`, `BottomChrome`, the morph
   overlay (`MorphMenu.swift`) and the components. This folder keeps what knows about the app:
-  `ShellState`, the ⋯ panel's rows (`MoreMenuPanel`), the mini player.
+  `ShellState`, the ⋯ panel's rows (`MoreMenuPanel`), the Now Playing bar on a surface
+  (`NowPlayingBarView`).
 - **The ⋯ morph menu measures its focus point** through a preference and places the panel from it.
   Ignore focus changes under 0.5 pt (`MorphMenu.isNewFocus`): pixel rounding of the placement
   nudges the measurement each pass, and without the threshold the panel re-places itself forever

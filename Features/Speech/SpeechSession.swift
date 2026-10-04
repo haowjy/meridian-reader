@@ -13,25 +13,42 @@ struct SpeechSession: Equatable, Sendable, Identifiable {
     var title: String?
     var site: String?
     var artwork: Data?
+    /// The page's canonical URL (web pages): what 🎧 on that page compares against.
+    var canonicalURL: String?
+    /// The page's host ("investopedia.com"): the Now Playing bar's source line.
+    var host: String?
 
     var plainText: String { document.joinedText }
 
     init(id: UUID, document: ParagraphDocument, detectedLanguage: String? = nil,
-         title: String? = nil, site: String? = nil, artwork: Data? = nil) {
+         title: String? = nil, site: String? = nil, artwork: Data? = nil,
+         canonicalURL: String? = nil, host: String? = nil) {
         self.id = id
         self.document = document
         self.detectedLanguage = detectedLanguage
         self.title = title
         self.site = site
         self.artwork = artwork
+        self.canonicalURL = canonicalURL
+        self.host = host
+    }
+
+    /// A page shown in the Reader or extracted for 🎧.
+    init(article: ReaderArticle) {
+        self.init(id: article.id, document: article.document, detectedLanguage: article.detectedLanguage,
+                  title: article.title, site: article.siteName ?? article.siteDomain, artwork: article.faviconData,
+                  canonicalURL: article.canonicalURL, host: article.siteDomain)
     }
 
     /// Uses the paragraphs stored at save time; older saves build and store them once.
     static func saved(_ article: SavedArticle) -> SpeechSession {
         let document = article.listenDocument()
+        let canonical = article.canonicalURL.isEmpty
+            ? ArticleIdentity.canonicalURLString(from: article.urlString) : article.canonicalURL
         return SpeechSession(id: article.id, document: document,
                              detectedLanguage: article.detectedLanguageBackfilling(),
-                             title: article.title, site: article.siteDomain, artwork: article.faviconData)
+                             title: article.title, site: article.siteDomain, artwork: article.faviconData,
+                             canonicalURL: canonical, host: article.siteDomain)
     }
 
     static func reader(

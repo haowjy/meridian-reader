@@ -39,8 +39,8 @@ Core/
 Features/
   Shell/    ShellState, bottom chrome, ⋯ morph menu, search session, motion tokens
   Browse/   start page, browser chrome, page actions (PageArticleService), dictation
-  Reader/   ArticleReaderScreen, scrub row
-  Saved/    library surface, list, pushed reader
+  Reader/   the Reader sheet, Now Playing (text that follows the audio, scrub row, controls)
+  Saved/    library surface, list, save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
 Tests/      unit tests (ReaderTests), Tests/Fakes
 UITests/    UI tests (ReaderUITests)
@@ -49,14 +49,17 @@ UITests/    UI tests (ReaderUITests)
 ## Architecture
 
 - **Composition root.** `AppComposition` is the only place that lists voice libraries; it builds
-  the `EngineRegistry` and the one `SpeechController`, which `ReaderApp` injects through the
-  environment. `AppLaunch.run` does the launch work once: the saved-article migrations (with the
+  the `EngineRegistry`, the one `SpeechController` and the `ShellState`, which `ReaderApp` injects
+  through the environment, and connects the speech stack to the saved-article store
+  (`attachLibrary`: Now Playing's content resolver and the `ListeningProgressRecorder`). `AppLaunch.run` does the launch work once: the saved-article migrations (with the
   Debug launch hooks before and after them), then crash resume. Views only render.
-- **Navigation.** `ShellState` owns the surface (browser or library), the one presented sheet,
-  the reader overlay and where it was opened from (`ReaderOrigin`). Browse and the library share
+- **Navigation.** `ShellState` owns what you see: the surface (browser or library), the Reader
+  sheet and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
+  It asks the playback session what you hear (`isHearing`) and stores nothing about it. Browse and the library share
   one `SearchSession` model.
-- **Listening.** `SpeechController` binds an engine per utterance; `PlaybackSessionState` owns
-  the position; `LocalTTSCoordinator` owns the on-device engine, render queue and audio cache.
+- **Listening.** `SpeechController` binds an engine per utterance and derives what every screen
+  shows of what you hear (`nowPlaying`, `playState(of:)`); `PlaybackSessionState` owns what you
+  hear and its position; `LocalTTSCoordinator` owns the on-device engine, render queue and audio cache.
   Details in `LISTEN_PLAYBACK.md`.
 - **Dependency direction.** Features → Core. Core never imports a voice library (FluidAudio and
   ONNX Runtime live in `Features/Speech/Engines/`). Features never name a concrete extractor.

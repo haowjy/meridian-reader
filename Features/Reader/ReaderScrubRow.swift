@@ -75,8 +75,7 @@ enum ScrubTick: Equatable {
     }
 }
 
-/// Reader bottom row above the listen controls: [scrubber][select paragraph][bookmark] (thumb
-/// reach). The scrubber fills with progress and shows rendered audio as a lighter "buffered" fill
+/// Now Playing's row above the listen controls: [scrubber][select paragraph] (thumb reach). The scrubber fills with progress and shows rendered audio as a lighter "buffered" fill
 /// ahead of it. Dragging:
 /// - grabbing the thumb moves it relative to the finger (no jump); touching elsewhere jumps there;
 /// - sliding the finger up away from the track scrubs slower (½, ¼, fine) for small precise moves;
@@ -94,11 +93,9 @@ struct ReaderScrubRow: View {
     let position: Double
     /// Rendered-audio stretches (0…1), drawn lighter than the progress fill.
     var buffered: [ClosedRange<Double>] = []
-    let isSaved: Bool
     let jumpMode: Bool
     let jumpEnabled: Bool
     var onToggleJump: () -> Void
-    var onToggleSaved: () -> Void
     /// Paragraph under the thumb while dragging (nil when the drag ends).
     var onScrubPreview: (Int?) -> Void
     /// Release: the sentence to play from.
@@ -128,7 +125,7 @@ struct ReaderScrubRow: View {
 
     var body: some View {
         // Styled exactly like the browser's address field: the same field capsule
-        // (`bottomChromeField`), with Jump / bookmark sized and coloured like its mic button.
+        // (`bottomChromeField`), with Jump sized and coloured like its mic button.
         HStack(spacing: Spacing.xxs) {
             scrubber
                 .padding(.trailing, Spacing.xxs)
@@ -143,16 +140,6 @@ struct ReaderScrubRow: View {
             .disabled(!jumpEnabled)
             .accessibilityIdentifier("listenJump")
             .accessibilityLabel(jumpMode ? "Cancel jump to paragraph" : "Jump to a paragraph")
-
-            Button(action: onToggleSaved) {
-                Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                    .foregroundStyle(isSaved ? Palette.accent : Palette.secondaryInk)
-                    .fieldControlFrame()
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("readerBookmark")
-            .accessibilityLabel(isSaved ? "Remove from Saved" : "Save")
-            .accessibilityValue(isSaved ? "Saved" : "Not saved")
         }
         .bottomChromeField(leading: Self.fieldLeading, trailing: Spacing.xxs)
         #if DEBUG

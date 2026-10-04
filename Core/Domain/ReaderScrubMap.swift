@@ -76,6 +76,17 @@ struct ReaderScrubMap: Equatable, Sendable {
     }
 
     /// First words of the target's sentence (the drag bubble).
+    /// The sentence holding `offset` in `paragraph`: UTF-16 offsets into the paragraph's text.
+    func sentenceRange(paragraph: Int, offset: Int) -> Range<Int>? {
+        guard texts.indices.contains(paragraph), sentenceStarts.indices.contains(paragraph) else { return nil }
+        let starts = sentenceStarts[paragraph]
+        let length = texts[paragraph].utf16.count
+        let s = starts.lastIndex { $0 <= offset } ?? 0
+        let start = starts.indices.contains(s) ? starts[s] : 0
+        let end = s + 1 < starts.count ? starts[s + 1] : length
+        return start < end ? start..<end : nil
+    }
+
     func snippet(for target: Target, maxLength: Int = 90) -> String {
         guard texts.indices.contains(target.paragraph) else { return "" }
         let text = texts[target.paragraph] as NSString

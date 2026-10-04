@@ -108,8 +108,8 @@ final class PlaybackRateAndChromeTests: XCTestCase {
         // Browse [‹][›][Search][ ][⋯]: 4 views → slots 0, 1, 2, 4. Reader: 5 views → 0…4.
         XCTAssertEqual((0..<4).map { BottomToolbarLayout.slot(forSubview: $0, count: 4) }, [0, 1, 2, 4])
         XCTAssertEqual((0..<5).map { BottomToolbarLayout.slot(forSubview: $0, count: 5) }, [0, 1, 2, 3, 4])
-        // Mini player play/pause centered on slot 5 (the ⋯ column).
-        let pad = MiniPlayerBar.trailingPadding(rowWidth: width)
-        XCTAssertEqual(width - pad - MiniPlayerBar.playSize / 2, centers[4], accuracy: 1e-9)
+        // The Now Playing bar's play/pause centered on slot 5 (the ⋯ column).
+        let pad = NowPlayingBar.trailingPadding(rowWidth: width)
+        XCTAssertEqual(width - pad - BottomChrome.minTapTarget / 2, centers[4], accuracy: 1e-9)
     }
 }

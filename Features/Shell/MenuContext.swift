@@ -8,9 +8,11 @@ import SwiftUI
 /// - browse:  `[Bookmarks][Saved][History][Reader]`
 /// - reader:  `[Bookmarks][Saved][History][Website]`
 /// - library: `[Bookmarks][History][Browser]`
+/// - Now Playing: `[Bookmarks][Saved][History][Website]`
 enum MenuContext {
     case browse(BrowseMenu, perform: (BrowseMenu.Action) -> Void)
     case reader(ReaderMenu, perform: (ReaderMenu.Action) -> Void)
+    case nowPlaying(NowPlayingMenu, perform: (NowPlayingMenu.Action) -> Void)
     case library(perform: (LibraryMenuAction) -> Void)
 }
 
@@ -33,7 +35,7 @@ struct BrowseMenu {
     var fakeExtractionFailure: Binding<Bool>?
 }
 
-/// The reader's menu (✕ over the browser or ‹ in the library).
+/// The Reader sheet's menu (over the browser or the library).
 struct ReaderMenu {
     enum Action {
         case voiceSettings, toggleSave, toggleBookmark, share, listenDebug
@@ -46,6 +48,20 @@ struct ReaderMenu {
     var canBookmark: Bool
     var canShare: Bool
     /// The article has a web page to go to.
+    var canOpenWebsite: Bool
+    /// Developer options: the Debug row (listen debug panel).
+    var showsDebug: Bool
+}
+
+/// Now Playing's menu: what you hear, not the surface under it.
+struct NowPlayingMenu {
+    enum Action {
+        case voiceSettings, share, listenDebug
+        case bookmarks, saved, history, openWebsite
+    }
+
+    var canShare: Bool
+    /// The playing page has a web page to go to.
     var canOpenWebsite: Bool
     /// Developer options: the Debug row (listen debug panel).
     var showsDebug: Bool

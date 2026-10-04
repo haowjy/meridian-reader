@@ -1,7 +1,8 @@
 import XCTest
 
-/// Navigation rule (docs/NAVIGATION.md): ‹ screens pop with a left-edge swipe, ✕ screens close
-/// with a pull-down. Both must behave exactly like tapping the button.
+/// Navigation rule (docs/NAVIGATION.md): ‹ screens pop with a left-edge swipe; sheets (the Reader,
+/// Now Playing) close with a pull down on their header. Either gesture does exactly what its
+/// button does, and closing never stops audio.
 final class SwipeBackUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
@@ -34,10 +35,17 @@ final class SwipeBackUITests: XCTestCase {
         XCTAssertTrue(waitFor(8) { play.label == "Pause" }, "playback started")
     }
 
-    func testEdgeSwipeBackFromSavedReaderReturnsToSavedAndKeepsPlaying() throws {
+    /// Pulls a sheet down by `header` (an element in its header row), off to the side of it.
+    private func pullDown(_ header: XCUIElement) {
+        let start = header.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).withOffset(CGVector(dx: 140, dy: 0))
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 420)),
+                    withVelocity: .default, thenHoldForDuration: 0)
+        wait(0.8)
+    }
+
+    func testPullDownFromLibraryNowPlayingReturnsToSavedAndKeepsPlaying() throws {
         let app = XCUIApplication()
-        // The library sheet (‹ reader pushes inside it).
-        app.launchArguments = ["-seedDemoArticle", "-uiTesting", "-openLibrary"]
+        app.launchArguments = ["-seedDemoArticle", "-uiTesting", "-openLibrary", "-selectEngine", "apple"]
         app.launch()
 
         let row = app.cells.staticTexts["Demo Listen Article"]
@@ -50,38 +58,41 @@ final class SwipeBackUITests: XCTestCase {
         row.tap()
         let close = app.buttons["readerClose"]
         XCTAssertTrue(close.waitForExistence(timeout: 5))
-        XCTAssertEqual(close.label, "Back to Library", "the library reader's back control says where it goes")
-        startPlayback(app)
+        XCTAssertEqual(close.label, "Back to Library", "the Reader's back pill says where it goes")
+        startPlayback(app) // Listen: the Reader turns into Now Playing
+        let from = app.descendants(matching: .any)["nowPlayingFrom"]
+        XCTAssertTrue(from.waitForExistence(timeout: 5))
 
-        edgeSwipe(app)
-        XCTAssertTrue(waitFor(5) { !close.exists }, "reader popped")
+        pullDown(from)
+        XCTAssertTrue(waitFor(5) { !from.exists }, "Now Playing pulled down")
         XCTAssertTrue(waitFor(5) { row.isHittable }, "Saved list is showing again")
         XCTAssertTrue(app.navigationBars["Saved"].exists, "Saved navigation bar is back")
 
-        // Same as tapping ‹: playback keeps going (the row button shows Pause).
+        // Same as ⌄: playback keeps going (the row button shows Pause).
         let rowPause = app.cells.buttons["Pause"]
-        XCTAssertTrue(rowPause.waitForExistence(timeout: 3), "audio kept playing after swipe-back")
+        XCTAssertTrue(rowPause.waitForExistence(timeout: 3), "audio kept playing after the pull down")
         rowPause.tap()
         XCTAssertTrue(app.cells.buttons["Play"].waitForExistence(timeout: 3))
 
-        // Stack still healthy: reopen, then the back control still pops.
+        // The row of the page you hear opens Now Playing; ⌄ closes it the same way.
         row.tap()
-        XCTAssertTrue(close.waitForExistence(timeout: 5))
+        XCTAssertTrue(from.waitForExistence(timeout: 5))
         close.tap()
-        XCTAssertTrue(waitFor(5) { row.isHittable }, "back control still pops")
+        XCTAssertTrue(waitFor(5) { row.isHittable }, "⌄ closes it too")
     }
 
-    /// A sideways drag on the pushed reader's scrubber scrubs; it never pops the reader (only the
-    /// left-edge swipe does; iOS 26's full-width content swipe is off there).
-    func testScrubberDragInLibraryReaderDoesNotPop() throws {
+    /// A sideways drag on Now Playing's scrubber scrubs; it never closes the sheet.
+    func testScrubberDragInNowPlayingDoesNotClose() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-seedDemoArticle", "-uiTesting", "-openLibrary"]
+        app.launchArguments = ["-seedDemoArticle", "-uiTesting", "-openLibrary", "-selectEngine", "apple"]
         app.launch()
         let row = app.cells.staticTexts["Demo Listen Article"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
-        let close = app.buttons["readerClose"]
-        XCTAssertTrue(close.waitForExistence(timeout: 5))
+        startPlayback(app)
+        let play = app.buttons["listenPlayPause"]
+        play.tap()
+        XCTAssertTrue(waitFor(5) { play.label == "Play" }, "paused")
         let scrubber = app.descendants(matching: .any)["readerScrubber"]
         XCTAssertTrue(scrubber.waitForExistence(timeout: 5))
         wait(1.0) // sentence map built
@@ -90,59 +101,68 @@ final class SwipeBackUITests: XCTestCase {
         scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
             .press(forDuration: 0.05, thenDragTo: scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)))
         wait(0.8)
-        XCTAssertTrue(close.exists, "still in the reader")
+        XCTAssertTrue(app.descendants(matching: .any)["nowPlayingFrom"].exists, "still on Now Playing")
         XCTAssertFalse(row.isHittable, "the list didn't come back")
         XCTAssertNotEqual(scrubber.value as? String, before, "the drag scrubbed")
     }
 
-    /// The back control / pull-down hide the browser's reader; playback keeps going in the mini
-    /// player, and tapping the mini player reopens the reader.
-    func testPullDownClosesBrowseReaderLikeXAndMiniPlayerReopens() throws {
+    /// The back pill and the pull down close the Reader sheet; playback keeps going in the bar,
+    /// and tapping the bar opens Now Playing.
+    func testPullDownClosesTheReaderLikeItsBackPillAndTheBarOpensNowPlaying() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-seedDemoArticle", "-openDemoInBrowseReader", "-uiTesting"]
+        app.launchArguments = ["-uiTesting", "-browseTestPages", "-resetBookmarks", "-selectEngine", "apple"]
         app.launch()
+        // Something playing: page three from its 🎧.
+        let third = app.links["Third page"]
+        XCTAssertTrue(third.waitForExistence(timeout: 10))
+        third.tap()
+        let listen = app.descendants(matching: .any)["addressListen"]
+        XCTAssertTrue(listen.waitForExistence(timeout: 10))
+        listen.tap()
+        XCTAssertTrue(waitFor(8) { listen.label == "Pause" }, "playing")
+        app.buttons["browseBack"].tap()
+        let next = app.links["Next page"]
+        XCTAssertTrue(next.waitForExistence(timeout: 10))
+        next.tap()
+        let reader = app.descendants(matching: .any)["addressReader"]
+        XCTAssertTrue(reader.waitForExistence(timeout: 10))
+        reader.tap()
 
         let close = app.buttons["readerClose"]
-        XCTAssertTrue(close.waitForExistence(timeout: 5))
-        XCTAssertEqual(close.label, "Back to Start Page", "opened over the start page")
-        startPlayback(app)
+        XCTAssertTrue(close.waitForExistence(timeout: 10))
+        XCTAssertEqual(close.label, "Back to Browser", "opened over the browser")
 
-        // Scrolling the article (even downward at the top) must never close the reader.
+        // Scrolling the article (even downward at the top) must never close the Reader.
         let body = app.webViews.firstMatch
         XCTAssertTrue(body.waitForExistence(timeout: 5))
         body.swipeDown()
         wait(0.8)
-        XCTAssertTrue(close.exists, "article scroll does not close the reader")
-        // A sideways drag on the top bar does not close it either.
-        let title = app.staticTexts["readerTitle"]
-        XCTAssertTrue(title.exists)
-        let titleCenter = title.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        titleCenter.press(forDuration: 0.05, thenDragTo: titleCenter.withOffset(CGVector(dx: 120, dy: 10)))
+        XCTAssertTrue(close.exists, "article scroll does not close the Reader")
+        // A sideways drag on the header does not close it either.
+        let header = close.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).withOffset(CGVector(dx: 140, dy: 0))
+        header.press(forDuration: 0.05, thenDragTo: header.withOffset(CGVector(dx: 120, dy: 10)))
         wait(0.8)
-        XCTAssertTrue(close.exists, "horizontal drag does not close the reader")
+        XCTAssertTrue(close.exists, "horizontal drag does not close the Reader")
 
-        // Pull the top bar down → same as the back control.
-        titleCenter.press(forDuration: 0.05, thenDragTo: titleCenter.withOffset(CGVector(dx: 0, dy: 320)),
-                          withVelocity: .default, thenHoldForDuration: 0)
-        XCTAssertTrue(waitFor(5) { !close.exists }, "pull-down closed the reader")
+        // Pull the header down → same as the back pill.
+        pullDown(close)
+        XCTAssertTrue(waitFor(5) { !close.exists }, "pull-down closed the Reader")
         XCTAssertTrue(app.textFields["addressField"].waitForExistence(timeout: 3), "back on the browser")
 
-        // Audio keeps going: the mini player shows it above the toolbar.
-        let mini = app.descendants(matching: .any)["miniPlayer"]
-        XCTAssertTrue(mini.waitForExistence(timeout: 5), "mini player after closing the reader")
-        let miniPlay = app.buttons["miniPlayerPlayPause"]
-        XCTAssertTrue(waitFor(5) { miniPlay.label == "Pause" }, "still playing")
-        XCTAssertEqual(app.staticTexts["miniPlayerTitle"].label, "Demo Listen Article")
+        // Audio keeps going: the bar shows it above the address field.
+        let barPlay = app.buttons["nowPlayingBarPlayPause"]
+        XCTAssertTrue(barPlay.waitForExistence(timeout: 5), "the bar after closing the Reader")
+        XCTAssertTrue(waitFor(5) { barPlay.label == "Pause" }, "still playing")
+        XCTAssertTrue(app.descendants(matching: .any)["nowPlayingBarOpen"].label.contains("Third page"))
 
-        // Tap → the reader is back, mini player gone while it's on screen.
-        app.descendants(matching: .any)["miniPlayerOpen"].tap()
-        XCTAssertTrue(close.waitForExistence(timeout: 5))
-        XCTAssertFalse(mini.exists, "no mini player while the reader is on screen")
-
-        // The back control does the same as the pull-down.
-        close.tap()
-        XCTAssertTrue(mini.waitForExistence(timeout: 5))
-        miniPlay.tap()
-        XCTAssertTrue(waitFor(5) { miniPlay.label == "Play" }, "mini player pauses")
+        // Tap → Now Playing, no bar while it's on screen; ⌄ shrinks it back.
+        app.descendants(matching: .any)["nowPlayingBarOpen"].tap()
+        let from = app.descendants(matching: .any)["nowPlayingFrom"]
+        XCTAssertTrue(from.waitForExistence(timeout: 5))
+        XCTAssertFalse(barPlay.exists, "no bar on Now Playing")
+        app.buttons["readerClose"].tap()
+        XCTAssertTrue(barPlay.waitForExistence(timeout: 5))
+        barPlay.tap()
+        XCTAssertTrue(waitFor(5) { barPlay.label == "Resume" }, "the bar pauses")
     }
 }

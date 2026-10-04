@@ -118,12 +118,13 @@ struct PlayingBars: View {
     let animating: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.playingBarsMove) private var barsMove
 
     /// Heights of the still bars, as fractions of the frame.
     private static let rest: [CGFloat] = [0.35, 0.8, 0.5, 1]
 
     var body: some View {
-        TimelineView(.animation(paused: !animating || reduceMotion)) { context in
+        TimelineView(.animation(paused: !animating || reduceMotion || !barsMove)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             GeometryReader { g in
                 let bar = g.size.width / 7
@@ -141,10 +142,16 @@ struct PlayingBars: View {
     }
 
     private func height(_ i: Int, at t: TimeInterval) -> CGFloat {
-        guard animating, !reduceMotion else { return Self.rest[i] }
+        guard animating, !reduceMotion, barsMove else { return Self.rest[i] }
         let speeds = [5.1, 6.7, 4.3, 5.9]
         return 0.3 + 0.7 * CGFloat(abs(sin(t * speeds[i] + Double(i))))
     }
+}
+
+extension EnvironmentValues {
+    /// Whether `PlayingBars` move while something plays (off: they stay still, as under Reduce
+    /// Motion). UI tests turn it off: an animation that never ends keeps the app from going idle.
+    @Entry var playingBarsMove = true
 }
 
 #if DEBUG

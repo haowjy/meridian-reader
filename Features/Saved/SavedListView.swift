@@ -2,14 +2,14 @@ import SwiftUI
 import SwiftData
 
 /// The library list: every kept article, filtered by `searchText`. Hosted inside `LibrarySurface`,
-/// whose bottom field capsule owns the search text. Opening an article pushes the reader via
-/// `path`.
+/// whose bottom field capsule owns the search text. Opening an article shows it in the Reader
+/// sheet (Now Playing when it is what you hear).
 struct SavedListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.speechController) private var speech
+    @Environment(ShellState.self) private var shell
     @Query(sort: \SavedArticle.savedAt, order: .reverse) private var articles: [SavedArticle]
 
-    @Binding var path: [UUID]
     let searchText: String
 
     private var filtered: [SavedArticle] {
@@ -23,7 +23,7 @@ struct SavedListView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack {
             Group {
                 if articles.isEmpty {
                     ContentUnavailableView(
@@ -36,16 +36,13 @@ struct SavedListView: View {
                 } else {
                     List {
                         ForEach(filtered, id: \.id) { article in
-                            SavedRowView(article: article, speech: speech)
+                            SavedRowView(article: article, speech: speech) {
+                                shell.openSaved(article.id, in: modelContext)
+                            }
                         }
                         .onDelete(perform: delete)
                     }
                 }
-            }
-            // Value-based push: removing the row (Unsave inside the reader) must not pop the
-            // open reader or stop its playback.
-            .navigationDestination(for: UUID.self) { id in
-                OfflineArticleView(articleID: id)
             }
             .navigationTitle("Saved")
             .toolbar {
@@ -72,6 +69,7 @@ struct SavedListView: View {
 private struct SavedRowView: View {
     let article: SavedArticle
     @Bindable var speech: SpeechController
+    let onOpen: () -> Void
 
     private var rowLabel: some View {
                 HStack(alignment: .top, spacing: Spacing.s) {
@@ -96,17 +94,24 @@ private struct SavedRowView: View {
 
     var body: some View {
         HStack(spacing: Spacing.s) {
-            NavigationLink(value: article.id) { rowLabel }
+            rowLabel
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onOpen)
 
+            let state = speech.playState(of: .page(article.id))
             Button {
-                speech.toggle(.saved(article), resumeParagraph: article.playbackParagraphIndex)
+                speech.press(.page(article.id)) {
+                    speech.toggle(.saved(article), resumeParagraph: article.playbackParagraphIndex,
+                                  resumeUTF16Offset: article.playbackUTF16Offset)
+                }
             } label: {
-                Image(systemName: speech.showsPauseIcon(for: article.id) ? "pause.circle.fill" : "play.circle.fill")
+                Image(systemName: state == .playing ? "pause.circle.fill" : "play.circle.fill")
                     .font(.title2)
                     .symbolRenderingMode(.hierarchical)
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel(speech.showsPauseIcon(for: article.id) ? "Pause" : "Play")
+            .accessibilityLabel(state == .playing ? "Pause" : "Play")
         }
         .padding(.vertical, Spacing.xxs)
         .contextMenu {

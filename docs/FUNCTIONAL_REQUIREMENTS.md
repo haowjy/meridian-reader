@@ -10,8 +10,9 @@ the screens look and move: `NAVIGATION.md`. How it is built: `TECHNICAL_SPEC.md`
 |--------|------|
 | **Browser** | The app's home: a start page or a web page, with one bottom bar (address field + toolbar). No tab bar. |
 | **Library** | Every saved article, in place of the browser (same bottom bar shape); toolbar slot 4 swaps between them. |
-| **Reader** | One reader screen for any article: over the browser, or pushed inside the library. |
-| **Mini player** | Above the browser toolbar whenever an article is loaded for playback and the reader isn't showing. |
+| **Reader** | A sheet for reading any page, over the browser or the Library, with its own Listen. |
+| **Now Playing** | A sheet over everything for what you hear: the same paper and text, following the audio, with the player's controls. |
+| **Now Playing bar** | What you hear, on the browser, the start page, the Library and the Reader sheet, from the first play until *Stop Listening* (long-press); it keeps a finished page with ▶. Tap or swipe up → Now Playing. |
 
 ## Browser
 
@@ -25,16 +26,18 @@ the screens look and move: `NAVIGATION.md`. How it is built: `TECHNICAL_SPEC.md`
 | B6 | Bookmarks are site links (URL, title, favicon), independent of saved articles: bookmarking never saves, saving never bookmarks. |
 | B7 | Dictation fills the address field while searching, on-device where the language allows; nothing is submitted automatically, and listening pauses while the mic is open. |
 | B8 | Loading pages needs the network. |
+| B9 | A readable page shows 🎧 at the end of the address field: grey when it isn't what you hear (tap: listen now, replacing what plays once this page is extracted; "Nothing to listen to on this page" when it has too little text), accent with bars when it is (tap: pause / resume). |
 
 ## Reader
 
 | ID | Requirement |
 |----|-------------|
-| R1 | Reader mode is manual: the address field's reader icon or ⋯ → Reader, only on pages that look readable. It never turns on by itself. |
-| R2 | It shows the cleaned article; the paragraph being spoken (or where Play starts) is tinted. The text never scrolls on its own except to follow the user's scrub. |
-| R3 | Listen controls: play / pause, previous / next paragraph, speed (0.75×–2×), a sentence-precise scrubber with fine scrubbing, and "select paragraph" (tap a paragraph to play from it). |
-| R4 | Save / unsave from the reader keeps the screen and playback as they are. |
-| R5 | One close control (bottom left) goes back to where the reader was opened from (web page, start page or library); the pull-down and the edge swipe do the same. Closing never stops audio. |
+| R1 | Reader mode is manual: the address field's reader icon or ⋯ → Reader, only on pages that look readable, or a start-page / Library row. It never turns on by itself. Opening the Reader of the page you hear opens Now Playing instead. |
+| R2 | The Reader shows the cleaned article on paper in the serif reading style, under its title and source. It never scrolls by itself. |
+| R3 | Its Listen ("Listen · 9 min", "Resume · 6 min left", "Listen Again") starts the page at its saved spot and turns the Reader into Now Playing; ☝︎ then a tap on a paragraph listens from there. The Reader has no speed or skip buttons. |
+| R4 | Save / unsave from the Reader or Now Playing keeps the screen and playback as they are. |
+| R5 | The Reader's back pill ("‹ Browser", "‹ Library"), its grabber and a pull down close it to exactly where you were. Closing never stops audio. |
+| R6 | Now Playing follows the audio: the spoken paragraph is tinted and near the middle, its sentence underlined; scrolling stops following and offers *Back to audio*. Controls: play / pause, previous / next paragraph, speed (0.75×–2×), a sentence-precise scrubber with fine scrubbing, ☝︎. Its header says where it plays from; ⊕ saves. At the end it stays, with "✓ Finished" and ▶. ⌄ or a pull down shrinks it into the bar. |
 
 ## Save and library
 

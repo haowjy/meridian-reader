@@ -1,0 +1,197 @@
+import SwiftUI
+
+/// Now Playing's bottom band, top to bottom: the status notes (buffering, the Apple-fallback and
+/// language notes, "✓ Finished", the developer Debug chip), the scrub row (sentence-precise
+/// scrubber and ☝︎ Jump) and the transport row. Notes sit above the scrubber so appearing text
+/// never pushes it when you skip.
+///
+/// Only the leaves that need the live offset read it (`PlayheadReader`), so playback ticks don't
+/// redraw the band.
+struct NowPlayingControls: View {
+    @Bindable var speech: SpeechController
+    let scrubMap: ReaderScrubMap?
+    let detectedLanguage: String?
+    @Binding var jumpMode: Bool
+    let more: AnyView
+    /// Paragraph under the scrub thumb while dragging (nil when the drag ends).
+    let onScrubPreview: (Int?) -> Void
+
+    private var isFinished: Bool { speech.playbackPhase == .finished }
+
+    var body: some View {
+        VStack(spacing: BottomChrome.rowSpacing) {
+            notes
+            // The drag bubble spans the band's width.
+            scrubRow
+                .readerScrubBubble()
+            ListenControllerView(trailing: more, speech: speech)
+                #if DEBUG
+                .overlay(alignment: .topLeading) { positionMarker }
+                #endif
+        }
+    }
+
+    @ViewBuilder
+    private var scrubRow: some View {
+        if let scrubMap {
+            let doc = speech.document
+            let buffered = bufferedSpans(scrubMap)
+            PlayheadReader(speech: speech) { spot in
+                ReaderScrubRow(
+                    map: scrubMap,
+                    position: Self.scrubFraction(scrubMap, document: doc, spot: spot),
+                    buffered: buffered,
+                    jumpMode: jumpMode,
+                    jumpEnabled: !doc.isEmpty,
+                    onToggleJump: { jumpMode.toggle() },
+                    onScrubPreview: onScrubPreview,
+                    onScrubCommit: seek(to:)
+                )
+            }
+        } else {
+            // Holds the capsule's place until the scrub map is built, so nothing shifts.
+            Color.clear
+                .frame(maxWidth: .infinity)
+                .bottomChromeField()
+        }
+    }
+
+    /// Buffering / Apple-fallback / language / finished notes and the developer Debug chip.
+    @ViewBuilder
+    private var notes: some View {
+        let languageNote = speech.languageResolution(detected: detectedLanguage).note
+        if speech.showsListenDebugUI, speech.showBakeDebugOverlay {
+            BakeDebugOverlay(speech: speech) {
+                speech.showListenDebug = true
+            }
+        }
+        if speech.showsListenDebugUI {
+            HStack {
+                Spacer(minLength: 0)
+                Button {
+                    speech.showBakeDebugOverlay.toggle()
+                } label: {
+                    Text(speech.showBakeDebugOverlay ? "Debug ▾" : "Debug")
+                        .typeStyle(.caption, weight: .semibold)
+                        .padding(.horizontal, Spacing.xs)
+                        .padding(.vertical, Spacing.xxs)
+                        .background(
+                            Capsule().fill(speech.showBakeDebugOverlay
+                                           ? Palette.accent.opacity(0.2)
+                                           : Palette.secondaryInk.opacity(0.15))
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("listenBakeDebugChip")
+                .accessibilityLabel(speech.showBakeDebugOverlay ? "Hide bake debug" : "Show bake debug")
+            }
+            .padding(.horizontal, Spacing.xs)
+        }
+        if isFinished {
+            note("✓ Finished", id: "nowPlayingFinished")
+        } else if speech.isBufferingNext {
+            HStack(spacing: Spacing.xs) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Preparing next…")
+                    .accessibilityIdentifier("listenBufferingLabel")
+                Spacer(minLength: 0)
+            }
+            .typeStyle(.caption)
+            .foregroundStyle(Palette.secondaryInk)
+            .padding(.horizontal, Spacing.xs)
+            .accessibilityIdentifier("listenBuffering")
+        } else if let renderNote = speech.renderNote {
+            note(renderNote, id: "listenRenderNote")
+        } else if let languageNote {
+            note(languageNote, id: "listenLanguageNote")
+        }
+    }
+
+    private func note(_ text: String, id: String) -> some View {
+        Text(text)
+            .typeStyle(.caption)
+            .foregroundStyle(Palette.secondaryInk)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.xs)
+            .accessibilityIdentifier(id)
+    }
+
+    #if DEBUG
+    /// UI tests: the exact spot playing / Play starts from ("p=<paragraph> o=<offset in it>").
+    @ViewBuilder
+    private var positionMarker: some View {
+        if LaunchOptions.current.uiTesting {
+            let doc = speech.document
+            PlayheadReader(speech: speech) { spot in
+                Color.clear
+                    .frame(width: 2, height: 2)
+                    .allowsHitTesting(false)
+                    .accessibilityElement()
+                    .accessibilityLabel("Scrub position")
+                    .accessibilityValue(Self.positionMarker(document: doc, spot: spot))
+                    .accessibilityIdentifier("readerScrubOffset")
+            }
+        }
+    }
+
+    private static func positionMarker(document doc: ParagraphDocument, spot: PlayheadSpot) -> String {
+        guard !doc.isEmpty else { return "p=0 o=0" }
+        let start = doc.startUTF16Offset(forParagraph: spot.paragraph)
+        return "p=\(spot.paragraph) o=\(max(0, spot.utf16Offset - start))"
+    }
+    #endif
+
+    /// Scrubber fraction of `spot`. `ReaderScrubMap` keeps a spot inside its paragraph (< 1 of
+    /// it), so the end of a paragraph never reads as the start of the next one.
+    private static func scrubFraction(_ map: ReaderScrubMap, document doc: ParagraphDocument,
+                                      spot: PlayheadSpot) -> Double {
+        guard doc.paragraphs.indices.contains(spot.paragraph) else { return map.fraction(paragraph: spot.paragraph) }
+        return map.fraction(paragraph: spot.paragraph, offset: spot.utf16Offset - doc.startUTF16Offset(forParagraph: spot.paragraph))
+    }
+
+    /// Lighter "buffered" fill (like a video player): stretches of rendered audio, as scrubber
+    /// fractions. Local engine only (Apple speaks live, so there's nothing to show).
+    private func bufferedSpans(_ map: ReaderScrubMap) -> [ClosedRange<Double>] {
+        guard let id = speech.activeSessionID,
+              let ready = speech.bakeReadyParagraphIndices(articleID: id, paragraphCount: speech.document.count,
+                                                           detectedLanguage: detectedLanguage),
+              !ready.isEmpty else { return [] }
+        return map.spans(covering: ready)
+    }
+
+    /// Scrubber release: the playhead to the sentence under the thumb. Playing keeps playing from
+    /// that sentence; paused stays paused there (a real seek, not stop-and-reload); finished just
+    /// moves where ▶ starts.
+    private func seek(to target: ReaderScrubMap.Target) {
+        let doc = speech.document
+        guard !doc.isEmpty else { return }
+        speech.seek(toUTF16Offset: doc.startUTF16Offset(forParagraph: target.paragraph) + target.offset)
+    }
+}
+
+/// A playhead position: paragraph + document UTF-16 offset inside it.
+struct PlayheadSpot: Equatable {
+    var paragraph: Int
+    var utf16Offset: Int
+}
+
+/// Hands `content` the live playhead. The live offset moves several times a second while playing;
+/// reading it here, in its own body, keeps those redraws to `content` instead of the view that
+/// builds it.
+struct PlayheadReader<Content: View>: View {
+    let speech: SpeechController
+    @ViewBuilder let content: (PlayheadSpot) -> Content
+
+    var body: some View {
+        content(PlayheadSpot(paragraph: speech.currentParagraphIndex, utf16Offset: speech.spokenUTF16Offset))
+    }
+}
+
+/// A one-shot "scroll this paragraph into view" (token changes per request).
+struct ReaderScrollRequest: Equatable {
+    let index: Int
+    let token: Int
+}

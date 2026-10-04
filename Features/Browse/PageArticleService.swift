@@ -1,9 +1,9 @@
 import SwiftData
 import Foundation
 
-/// What the browser does with the page it has loaded: show it in the reader, save it, bookmark
-/// it, record it in History. Extraction resolves the article's identity against the library, so
-/// the same page gets the same key (and its cached audio) every time.
+/// What the browser does with the page it has loaded: show it in the Reader, listen to it, save
+/// it, bookmark it, record it in History. Extraction resolves the article's identity against the
+/// library, so the same page gets the same key (and its cached audio) every time.
 @MainActor
 struct PageArticleService {
     let shell: ShellState
@@ -15,17 +15,44 @@ struct PageArticleService {
 
     private var web: WebViewStore { shell.web }
 
-    /// Address-bar reader icon / ⋯ → Reader: the page in the reader overlay. The reader icon spins
-    /// meanwhile.
+    /// Address-bar reader icon / ⋯ → Reader: the page in the Reader sheet (Now Playing when it is
+    /// the page you hear). The reader icon spins meanwhile.
     func openInReader() async throws {
         shell.busy = .reader
         defer { shell.busy = nil }
         let (article, url) = try await extract()
-        shell.showReader(article)
+        shell.openReader(article)
         if article.faviconData == nil {
             let icon = await favicon(for: url)
             shell.updateReader(id: article.id) { if $0.faviconData == nil { $0.faviconData = icon } }
         }
+    }
+
+    /// 🎧: listen to the page now. 🎧 spins while the page is extracted, and what's playing keeps
+    /// playing; it is replaced only once this page has something to say. Returns false when the
+    /// page has nothing to listen to (extraction failed, or found too little text): nothing
+    /// changes, and the caller says so.
+    func listenNow() async -> Bool {
+        guard let url = web.currentURL else { return false }
+        let target = ListenTarget.webPage(canonicalURL: ArticleIdentity.canonicalURLString(from: url))
+        speech.beginPreparing(target)
+        guard let extracted = try? await extract(), ListeningTime.hasEnoughToListen(extracted.article.document) else {
+            if speech.preparingTarget == target { speech.cancelPreparing() }
+            return false
+        }
+        let (article, page) = extracted
+        // Another 🎧 or ▶ took over while this page was extracting.
+        guard speech.preparingTarget == target else { return true }
+        let saved = ArticleLibrary.savedArticle(id: article.id, in: context)
+        speech.localTTS.prepareListenIdentity(key: article.id, paragraphs: article.document.paragraphs,
+                                              trustedParagraphs: article.trustedParagraphs,
+                                              legacyKeys: article.legacyCacheKeys, isLivePlayback: false)
+        speech.listen(to: article, fromParagraph: article.resumeParagraph,
+                      utf16Offset: saved?.playbackUTF16Offset)
+        if article.faviconData == nil, let icon = await favicon(for: page) {
+            speech.setArtwork(icon, for: article.id)
+        }
+        return true
     }
 
     /// ⋯ → Save article. ⋯ spins meanwhile.

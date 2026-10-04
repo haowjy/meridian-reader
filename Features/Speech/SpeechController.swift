@@ -58,17 +58,28 @@ final class SpeechController {
     /// `.playback` / `.spokenAudio`; activated on play/resume, deactivated on stop/finish.
     let audioSession: ListenAudioSession
     /// Lock screen / Control Center info + remote commands (→ `handleRemoteCommand` → Session).
-    let nowPlaying: NowPlayingController
+    let lockScreen: NowPlayingController
     @ObservationIgnored private var interruptionPolicy = ListenInterruptionPolicy()
-    private struct NowPlayingMeta {
+
+    /// What the bound page is (title, site, artwork, canonical URL), from the `SpeechSession` it
+    /// was prepared with. Observed: the bar and 🎧 read it through `nowPlaying` / `playState`.
+    struct SessionMeta: Equatable {
         var id: UUID
         var title: String?
         var site: String?
         var artwork: Data?
+        var canonicalURL: String?
+        var host: String?
     }
-    @ObservationIgnored private var nowPlayingMeta: NowPlayingMeta?
-    /// Called when an article plays to its end (e.g. drop it from "Continue listening").
-    @ObservationIgnored var onArticleFinished: ((UUID) -> Void)?
+    private(set) var sessionMeta: SessionMeta?
+    /// The one target being made ready to play before it is bound (🎧 extracting its page).
+    private(set) var preparingTarget: ListenTarget?
+    /// Where Now Playing's reading content comes from (`nowPlayingContent()`).
+    @ObservationIgnored var contentResolver: NowPlayingContentResolving?
+    /// Told about every position worth keeping (`ListeningProgressRecorder`), synchronously, in the
+    /// same transaction as the change, so a replaced page's last spot is reported before the next
+    /// page binds.
+    @ObservationIgnored var onProgress: ((ListenProgress) -> Void)?
     @ObservationIgnored private var runStateObserver: NSObjectProtocol?
     /// Debug panel snapshot and background-stretch tracking.
     @ObservationIgnored private(set) lazy var diagnostics = ListenDiagnostics(speech: self)
@@ -179,6 +190,7 @@ final class SpeechController {
     /// Copies `playback` into the published properties (only the ones that changed), then
     /// refreshes what is derived from it: the lock screen and the listen-bar status.
     private func publishPlayback() {
+        let before = ListenProgressKey(id: activeSessionID, paragraph: currentParagraphIndex, phase: playbackPhase)
         var nowPlayingChanged = false
         if activeSessionID != playback.articleID { activeSessionID = playback.articleID; nowPlayingChanged = true }
         if document != playback.document { document = playback.document; nowPlayingChanged = true }
@@ -187,6 +199,17 @@ final class SpeechController {
         if spokenUTF16Offset != playback.utf16Offset { spokenUTF16Offset = playback.utf16Offset }
         if nowPlayingChanged { refreshNowPlaying() }
         sampleListenStatus()
+        let after = ListenProgressKey(id: activeSessionID, paragraph: currentParagraphIndex, phase: playbackPhase)
+        if after != before, let id = playback.articleID {
+            onProgress?(ListenProgress(pageKey: id, paragraph: playback.playhead, utf16Offset: playback.utf16Offset,
+                                       phase: playback.phase))
+        }
+    }
+
+    private struct ListenProgressKey: Equatable {
+        var id: UUID?
+        var paragraph: Int
+        var phase: PlaybackPhase
     }
 
     private func sampleListenStatus() {
@@ -202,6 +225,112 @@ final class SpeechController {
         guard activeSessionID == sessionID else { return false }
         _ = listenStatusRevision
         return activeSessionShowsPause()
+    }
+
+    // MARK: - What you hear
+
+    /// The hearing state every surface shows. nil only before anything has played, and after
+    /// Stop Listening; a finished page stays bound (`.finished`), so the bar keeps it with ▶.
+    var nowPlaying: NowPlaying? {
+        guard let id = activeSessionID, !document.isEmpty else { return nil }
+        let meta = sessionMeta?.id == id ? sessionMeta : nil
+        let raw = meta?.host ?? meta?.site ?? ""
+        let host = raw.hasPrefix("www.") ? String(raw.dropFirst(4)) : raw
+        return NowPlaying(pageKey: id, canonicalURL: meta?.canonicalURL, title: meta?.title ?? "Untitled",
+                          source: host, artwork: meta?.artwork, playingFrom: .site(host: host), phase: playbackPhase)
+    }
+
+    /// The one place a ▶ / ⏸ comes from. Reads only session fields, so it is cheap on every
+    /// redraw. What you hear shows `.playing` while audible (or meant to be), else `.paused`:
+    /// `.prepared` and `.finished` show as paused.
+    func playState(of target: ListenTarget) -> PlayState {
+        if preparingTarget == target { return .preparing }
+        guard isCurrent(target) else { return .idle }
+        _ = listenStatusRevision
+        return activeSessionShowsPause() ? .playing : .paused
+    }
+
+    /// Whether `target` is what you hear (bound, in any phase).
+    private func isCurrent(_ target: ListenTarget) -> Bool {
+        guard let id = activeSessionID, !document.isEmpty else { return false }
+        switch target {
+        case .page(let key):
+            return key == id
+        case .webPage(let url):
+            return sessionMeta?.id == id && sessionMeta?.canonicalURL == url
+        }
+    }
+
+    /// A play button was pressed: pause what you hear, resume it (replay from the start once
+    /// finished), or run `start` for something that isn't it (replacing what's playing). Never
+    /// navigates.
+    func press(_ target: ListenTarget, start: () -> Void) {
+        switch playState(of: target) {
+        case .playing:
+            pause()
+        case .paused:
+            interruptionPolicy.noteUserIntent()
+            if playback.phase == .finished {
+                perform(.play(from: 0))
+            } else {
+                playback.reconcile(with: engineSnapshot())
+                perform(playback.phase == .prepared ? .play(from: playback.playhead) : .resume)
+            }
+        case .idle, .preparing:
+            start()
+        }
+    }
+
+    /// `target` is being made ready (its page extracting): its button shows `.preparing`, and
+    /// what's playing keeps playing until it is ready.
+    func beginPreparing(_ target: ListenTarget) {
+        preparingTarget = target
+    }
+
+    /// Preparing failed (or ended): the button goes back to what it was.
+    func cancelPreparing() {
+        preparingTarget = nil
+    }
+
+    /// Plays `article` from `paragraph` (at `utf16Offset` inside it, when given), replacing what's
+    /// playing. The article is remembered for Now Playing, so an unsaved page can be shown.
+    func listen(to article: ReaderArticle, fromParagraph paragraph: Int = 0, utf16Offset: Int? = nil) {
+        guard !article.document.isEmpty else { return }
+        preparingTarget = nil
+        contentResolver?.remember(article)
+        interruptionPolicy.noteUserIntent()
+        let session = SpeechSession(article: article)
+        prepare(session, startingParagraph: paragraph)
+        placeResumeOffset(utf16Offset, paragraph: paragraph)
+        perform(.play(from: paragraph))
+    }
+
+    /// The page's icon arrived after it started playing (🎧 starts before fetching it).
+    func setArtwork(_ data: Data, for pageKey: UUID) {
+        guard sessionMeta?.id == pageKey, sessionMeta?.artwork == nil else { return }
+        sessionMeta?.artwork = data
+        refreshNowPlaying()
+    }
+
+    /// Plays the bound page from `paragraph` (☝︎ in Now Playing).
+    func play(fromParagraph paragraph: Int) {
+        guard isPrepared else { return }
+        interruptionPolicy.noteUserIntent()
+        perform(.play(from: paragraph))
+    }
+
+    /// Scrubber release in Now Playing: the bound page's playhead to document offset `utf16`
+    /// (a sentence start), keeping play / pause as it is.
+    func seek(toUTF16Offset utf16: Int) {
+        guard isPrepared else { return }
+        interruptionPolicy.noteUserIntent()
+        perform(.seekOffset(utf16: utf16))
+    }
+
+    /// The reading content of what you hear, for Now Playing.
+    func nowPlayingContent() async -> ReaderArticle? {
+        guard let id = activeSessionID else { return nil }
+        return await contentResolver?.content(for: id)
     }
 
     /// Listen intent is active but nothing is audible and more audio is on its way (the bound
@@ -280,7 +409,7 @@ final class SpeechController {
         self.appleEngine = appleEngine ?? AppleListenEngine()
         self.localEngine = LocalListenEngine(coordinator: coordinator)
         self.audioSession = audioSession ?? ListenAudioSession()
-        self.nowPlaying = nowPlaying ?? NowPlayingController()
+        self.lockScreen = nowPlaying ?? NowPlayingController()
         self.resumePoints = resumePoints
         let storedLanguage = UserDefaults.standard.string(forKey: languageDefaultsKey)
         let fallback = Locale.current.language.languageCode.map {
@@ -323,7 +452,7 @@ final class SpeechController {
         self.audioSession.configure()
         self.audioSession.onEvent = { [weak self] event in self?.handleAudioSessionEvent(event) }
         self.audioSession.startObserving()
-        self.nowPlaying.attach(rateOptions: Self.rateOptions) { [weak self] command in
+        self.lockScreen.attach(rateOptions: Self.rateOptions) { [weak self] command in
             self?.handleRemoteCommand(command) ?? .noActionableNowPlayingItem
         }
         runStateObserver = NotificationCenter.default.addObserver(
@@ -360,8 +489,10 @@ final class SpeechController {
     // MARK: - Session API (intents)
 
     func prepare(_ session: SpeechSession, startingParagraph: Int = 0) {
-        if session.title != nil || nowPlayingMeta?.id != session.id {
-            nowPlayingMeta = NowPlayingMeta(id: session.id, title: session.title, site: session.site, artwork: session.artwork)
+        if session.title != nil || sessionMeta?.id != session.id {
+            let meta = SessionMeta(id: session.id, title: session.title, site: session.site, artwork: session.artwork,
+                                   canonicalURL: session.canonicalURL, host: session.host)
+            if meta != sessionMeta { sessionMeta = meta }
         }
         let detected = session.detectedLanguage ?? ListenLanguage.detectCached(paragraphs: session.document.paragraphs)
         if sessionDetectedLanguage != detected { sessionDetectedLanguage = detected }
@@ -442,12 +573,6 @@ final class SpeechController {
             ? offset : document.startUTF16Offset(forParagraph: paragraph)
     }
 
-    /// Title of the loaded article (mini player). nil when nothing is loaded.
-    var nowPlayingTitle: String? {
-        guard let id = activeSessionID, nowPlayingMeta?.id == id else { return nil }
-        return nowPlayingMeta?.title
-    }
-
     func pause() {
         interruptionPolicy.noteUserIntent()
         perform(.pause)
@@ -455,11 +580,13 @@ final class SpeechController {
 
     func resume() { perform(.resume) }
 
+    /// Stop Listening: unbinds the page, so the bar goes away.
     func stop() {
         interruptionPolicy.noteUserIntent()
         perform(.stop)
         // Listen preempts bake; on stop, resume gap-fill so save-time work still lands on disk.
         finishSession(restartBake: true)
+        playback.clear()
     }
 
     /// Swap the live session's identity without stopping audio. Only needed when Save lands on a
@@ -467,7 +594,7 @@ final class SpeechController {
     /// so this is a no-op.
     func rekeyActiveSession(from oldID: UUID, to newID: UUID) {
         guard oldID != newID, playback.articleID == oldID else { return }
-        if nowPlayingMeta?.id == oldID { nowPlayingMeta?.id = newID }
+        if sessionMeta?.id == oldID { sessionMeta?.id = newID }
         playback.rekey(to: newID)
         localEngine.rekey(to: newID)
     }
@@ -582,15 +709,15 @@ final class SpeechController {
     private func refreshNowPlaying() {
         guard let id = playback.articleID, playback.isPrepared,
               playback.phase == .playing || playback.phase == .paused else {
-            nowPlaying.update(nil)
+            lockScreen.update(nil)
             return
         }
-        let meta = nowPlayingMeta?.id == id ? nowPlayingMeta : nil
+        let meta = sessionMeta?.id == id ? sessionMeta : nil
         let info = NowPlayingInfo(
             title: meta?.title ?? "Reader", site: meta?.site,
             paragraph: playback.playhead + 1, paragraphCount: playback.paragraphCount,
             isPlaying: playback.phase == .playing, rate: rateMultiplier, artwork: meta?.artwork)
-        nowPlaying.update(info, canNext: playback.playhead + 1 < playback.paragraphCount, canPrevious: true)
+        lockScreen.update(info, canNext: playback.playhead + 1 < playback.paragraphCount, canPrevious: true)
     }
 
     // MARK: - Foreground / background
@@ -695,12 +822,11 @@ final class SpeechController {
                                       startPaused: startPaused, appleVoice: effectiveAppleVoice))
     }
 
-    /// Played to the end (not stopped): note it, then tear the session down.
+    /// Played to the end (not stopped): the engines and the audio session stop, but the page stays
+    /// bound in `.finished`, so the bar keeps it with ▶ (which plays it again).
     private func completeArticle(restartBake: Bool) {
-        let id = playback.articleID
         playback.handle(.finished)
         finishSession(restartBake: restartBake)
-        if let id { onArticleFinished?(id) }
     }
 
     private func finishSession(restartBake: Bool) {
@@ -708,8 +834,7 @@ final class SpeechController {
         let paragraphs = playback.document.paragraphs
         let voiceID = cacheVoiceID
         stopEngines()
-        playback.clear()
-        // Let other apps' audio resume (Browse ✕ / end of article).
+        // Let other apps' audio resume (Stop Listening / end of article).
         audioSession.deactivate()
         if restartBake, let articleID, !paragraphs.isEmpty {
             // Return-to-top gap fill so any paragraphs above the listen playhead still bake.
