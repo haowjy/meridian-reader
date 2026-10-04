@@ -11,9 +11,9 @@ struct ReaderApp: App {
 
     init() {
         do {
-            container = try ModelContainer(for: SavedArticle.self, RecentVisit.self)
+            container = try LibraryStoreConfiguration.makeContainer()
         } catch {
-            fatalError("Couldn't open the saved-article store: \(error)")
+            fatalError("Couldn't open the library stores: \(error)")
         }
         // Foreground/background gate for Core ML synthesis (no model calls in the background).
         AppRunState.shared.observeApplication()

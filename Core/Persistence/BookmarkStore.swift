@@ -35,7 +35,7 @@ final class BookmarkStore {
         }
     }
 
-    static var defaultFileURL: URL {
+    nonisolated static var defaultFileURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return base.appendingPathComponent("Bookmarks", isDirectory: true)
             .appendingPathComponent("bookmarks.json")
