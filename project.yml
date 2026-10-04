@@ -12,10 +12,14 @@ packages:
     # Vendored v0.16.1 with local patches (see Vendor/FluidAudio/VENDORED.md); Reader uses only Kokoro
     path: Vendor/FluidAudio
   onnxruntime:
-    # Debug-only CPU route benchmark (Listen debug → CPU route benchmark). Model is downloaded
-    # at runtime into Application Support, never bundled.
+    # Kokoro's ONNX CPU route (the main local route). The model is downloaded at runtime into
+    # Application Support, never bundled.
     url: https://github.com/microsoft/onnxruntime-swift-package-manager
     exactVersion: 1.24.2
+  ZIPFoundation:
+    # Unzips EPUB files for book import.
+    url: https://github.com/weichsel/ZIPFoundation
+    exactVersion: 0.9.20
 targets:
   Reader:
     type: application
@@ -40,6 +44,8 @@ targets:
         product: FluidAudio
       - package: onnxruntime
         product: onnxruntime
+      - package: ZIPFoundation
+        product: ZIPFoundation
     info:
       path: App/Info.plist
       properties:

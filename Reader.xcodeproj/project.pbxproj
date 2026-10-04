@@ -98,6 +98,7 @@
 		692D4BF4530DD9AE17AF00B8 /* GlobalSynthQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87009D176EB853F6112D132A /* GlobalSynthQueue.swift */; };
 		6AD0815D712810EE2A6FD9E1 /* MorphMenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = B68A159D8370E2690B974D9C /* MorphMenuOverlay.swift */; };
 		6B23C89159B8987FAA28E67D /* PendingBakeJobsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE84C6404C3E5DAC9B565960 /* PendingBakeJobsTests.swift */; };
+		6CD90541E38A9BD37F24D9B7 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 4E62809B08F0408E5D427EE5 /* ZIPFoundation */; };
 		6D712E1E44B60F8925CE7B60 /* DeveloperOptionsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBBA864F23E41A6209B5AC0A /* DeveloperOptionsUITests.swift */; };
 		71BB86E0E24BB3B892F36566 /* KokoroONNXModelPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 844986168E0445237E2AEA19 /* KokoroONNXModelPatch.swift */; };
 		75724E6C0E6177B62F6CAF66 /* TextChunkerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1601DA254E8BC98F2200A465 /* TextChunkerTests.swift */; };
@@ -471,6 +472,7 @@
 			files = (
 				4AB24BD22B4328865FCE3D8C /* FluidAudio in Frameworks */,
 				89D0BFB1E83C1DBA03E0FA55 /* onnxruntime in Frameworks */,
+				6CD90541E38A9BD37F24D9B7 /* ZIPFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1005,6 +1007,7 @@
 			packageProductDependencies = (
 				5B36C5658A23629ECD06CC3E /* FluidAudio */,
 				5AD855B3EF4137581DCD1FA5 /* onnxruntime */,
+				4E62809B08F0408E5D427EE5 /* ZIPFoundation */,
 			);
 			productName = Reader;
 			productReference = 7D1BE4C99722DBE37CC537AA /* Reader.app */;
@@ -1042,6 +1045,7 @@
 			mainGroup = 73CE473A89CFE902C734CE7E;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				B0AAACF323587DC6F5DF61B4 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 				D238BCB274FE747DE7CB1392 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */,
 				01B6B4851E0EA141DB0ED379 /* XCLocalSwiftPackageReference "Vendor/FluidAudio" */,
 			);
@@ -1613,6 +1617,14 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		B0AAACF323587DC6F5DF61B4 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation";
+			requirement = {
+				kind = exactVersion;
+				version = 0.9.20;
+			};
+		};
 		D238BCB274FE747DE7CB1392 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/microsoft/onnxruntime-swift-package-manager";
@@ -1624,6 +1636,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		4E62809B08F0408E5D427EE5 /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B0AAACF323587DC6F5DF61B4 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
+		};
 		5AD855B3EF4137581DCD1FA5 /* onnxruntime */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = D238BCB274FE747DE7CB1392 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */;
