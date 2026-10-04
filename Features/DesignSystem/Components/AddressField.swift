@@ -48,7 +48,7 @@ struct AddressField<Field: View>: View {
         switch reader {
         case .hidden:
             Color.clear
-                .frame(width: Spacing.m, height: Spacing.m)
+                .frame(width: Glyph.indicator, height: Glyph.indicator)
                 .accessibilityHidden(true)
         case .extracting:
             ProgressView()

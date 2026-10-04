@@ -104,7 +104,7 @@ struct PlayStateButton: View {
                 ProgressView().controlSize(.small).tint(Palette.onAccent)
             case .playing, .paused:
                 PlayingBars(animating: state == .playing)
-                    .frame(width: Spacing.l, height: Spacing.l)
+                    .frame(width: Glyph.mark, height: Glyph.mark)
             }
         }
         .accessibilityLabel(title)

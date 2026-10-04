@@ -120,7 +120,10 @@ struct ReaderScrubRow: View {
     /// Grab radius around the thumb (points): a touch this close drags the thumb, no jump.
     static let grabRadius: CGFloat = 26
     /// Room before the track inside the capsule (its rounded end); the drag area reaches into it.
-    private static let fieldLeading = Spacing.m
+    /// Fixed geometry, not spacing: tap-to-seek positions depend on where the track starts.
+    private static let fieldLeading: CGFloat = 14
+    /// How far the drag area reaches above and below the track: the capsule's padding plus 2 pt.
+    private static let dragOvershoot = BottomChrome.fieldVerticalPadding + 2
     private static let space = "readerScrubTrack"
 
     var body: some View {
@@ -181,7 +184,7 @@ struct ReaderScrubRow: View {
             .overlay {
                 Color.clear
                     .contentShape(Rectangle())
-                    .padding(.vertical, -BottomChrome.fieldVerticalPadding)
+                    .padding(.vertical, -Self.dragOvershoot)
                     .padding(.leading, -Self.fieldLeading)
                     .gesture(
                         DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))

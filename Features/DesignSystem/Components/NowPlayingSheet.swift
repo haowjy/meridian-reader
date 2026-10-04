@@ -65,7 +65,7 @@ struct NowPlayingSheet<Reading: View, More: View>: View {
             if showsBackToAudio {
                 PillButton("Back to audio", systemImage: "arrow.down", style: .inverted, size: .compact,
                            action: onBackToAudio)
-                    .shadow(color: .black.opacity(0.2), radius: Spacing.s, y: Spacing.xxs)
+                    .floatingShadow(opacity: 0.2)
                     .transition(.opacity)
             }
             VStack(spacing: BottomChrome.rowSpacing) {

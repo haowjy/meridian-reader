@@ -87,7 +87,7 @@ struct NowPlayingBar: View {
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
-        .shadow(color: .black.opacity(0.14), radius: Spacing.s, y: Spacing.xxs)
+        .floatingShadow()
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
         .contextMenu {
             Button("Stop Listening", systemImage: "stop.fill", action: onStop)

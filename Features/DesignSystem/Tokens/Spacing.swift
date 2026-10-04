@@ -21,13 +21,11 @@ enum Spacing {
     static let bandMargin: CGFloat = s
 }
 
-/// Corner radii. Capsules (fields, pills) are drawn as rounded rectangles of these radii, which
-/// turn into capsules at their default height.
+/// Corner radii. Fields are drawn as true capsules (`Capsule()`, 44 pt tall at the default text
+/// size), so they have no radius token; pills keep `pill` as they grow with Dynamic Type.
 enum Radius {
     /// Cards, grouped lists, sheets, the Now Playing bar.
     static let card: CGFloat = 12
-    /// Field capsules (44 pt tall at the default text size).
-    static let field: CGFloat = 22
     /// Labelled pill buttons (48 pt tall at the default text size).
     static let pill: CGFloat = 24
 }

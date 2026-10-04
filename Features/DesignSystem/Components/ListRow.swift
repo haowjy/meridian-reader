@@ -43,33 +43,43 @@ struct ListRow: View {
     var playState: PlayState = .idle
     var onPlay: (() -> Void)?
 
-    @ScaledMetric(relativeTo: .callout) private var minHeight: CGFloat = 56
+    /// 56 pt at the default text size; larger text grows the row through its content, and the
+    /// minimum only up to `BottomChrome.maxTextGrowth`.
+    @ScaledMetric(relativeTo: .callout) private var scaledMinHeight: CGFloat = 56
 
     var body: some View {
         HStack(spacing: Spacing.s) {
-            leading
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title)
-                    .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
-                    .foregroundStyle(titleColor)
-                    .lineLimit(2)
-                if let subtitle {
-                    Text(subtitle)
-                        .typeStyle(.caption)
-                        .foregroundStyle(Palette.secondaryInk)
-                        .lineLimit(1)
+            // The label reads as one VoiceOver element; ▶ stays its own so play and open are
+            // separate actions once the row sits in a link.
+            HStack(spacing: Spacing.s) {
+                leading
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(title)
+                        .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
+                        .foregroundStyle(titleColor)
+                        .lineLimit(2)
+                    if let subtitle {
+                        Text(subtitle)
+                            .typeStyle(.caption)
+                            .foregroundStyle(Palette.secondaryInk)
+                            .lineLimit(1)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                trailing
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            trailing
+            .accessibilityElement(children: .combine)
+            if let onPlay {
+                PlayStateButton(state: playState, action: onPlay)
+            }
         }
         .padding(.leading, Spacing.m)
         .padding(.trailing, onPlay == nil ? Spacing.m : Spacing.xxs)
         .padding(.vertical, Spacing.xs)
-        .frame(minHeight: minHeight)
+        .frame(minHeight: BottomChrome.grown(scaledMinHeight, from: 56))
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
         .opacity(isDimmed ? 0.6 : 1)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 
     private var isDimmed: Bool {
@@ -111,7 +121,7 @@ struct ListRow: View {
                     }
                 }
             }
-            .frame(width: Spacing.l, height: Spacing.l)
+            .frame(width: Glyph.mark, height: Glyph.mark)
         case .link:
             Image(systemName: "link")
                 .foregroundStyle(Palette.secondaryInk)
@@ -125,12 +135,9 @@ struct ListRow: View {
             if case .page = kind, playState.isCurrent {
                 PlayingBars(animating: playState == .playing)
                     .foregroundStyle(Palette.accent)
-                    .frame(width: Spacing.m, height: Spacing.m)
+                    .frame(width: Glyph.indicator, height: Glyph.indicator)
             }
             status
-        }
-        if let onPlay {
-            PlayStateButton(state: playState, action: onPlay)
         }
     }
 
@@ -182,7 +189,7 @@ struct ProgressRing: View {
                 .stroke(Palette.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
-        .frame(width: Spacing.s, height: Spacing.s)
+        .frame(width: Glyph.ring, height: Glyph.ring)
         .accessibilityHidden(true)
     }
 }

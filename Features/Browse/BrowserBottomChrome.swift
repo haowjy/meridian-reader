@@ -88,7 +88,7 @@ struct BrowserBottomChrome: View {
             Image(systemName: "magnifyingglass")
                 .font(.caption)
                 .foregroundStyle(Palette.secondaryInk)
-                .frame(width: 16)
+                .frame(width: Glyph.indicator)
                 .accessibilityHidden(true)
         } else if shell.busy == .reader {
             ProgressView()
@@ -108,7 +108,7 @@ struct BrowserBottomChrome: View {
             .transition(.opacity)
         } else {
             Color.clear
-                .frame(width: Spacing.m, height: Spacing.m)
+                .frame(width: Glyph.indicator, height: Glyph.indicator)
                 .accessibilityHidden(true)
         }
     }

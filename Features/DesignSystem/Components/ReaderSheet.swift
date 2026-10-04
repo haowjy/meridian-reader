@@ -56,16 +56,23 @@ struct ReaderSheet<Reading: View, Bar: View, More: View>: View {
     }
 
     private var saveButton: some View {
-        Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-            .foregroundStyle(isSaved ? Palette.accent : Palette.ink)
-            .toolbarIconFrame()
-            .onTapGesture(perform: onToggleSave)
-            .onLongPressGesture { onSaveToFolder?() }
-            .accessibilityElement()
-            .accessibilityAddTraits(.isButton)
-            .accessibilityLabel(isSaved ? "Remove from Library" : "Save")
-            .accessibilityAction(.default, onToggleSave)
-            .accessibilityAction(named: "Save to Folder…") { onSaveToFolder?() }
+        Button(action: onToggleSave) {
+            Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
+                .foregroundStyle(isSaved ? Palette.accent : Palette.ink)
+                .toolbarIconFrame()
+        }
+        .buttonStyle(.plain)
+        // Long-press picks a folder; a tap released early still saves.
+        .highPriorityGesture(
+            LongPressGesture().onEnded { _ in onSaveToFolder?() },
+            including: onSaveToFolder == nil ? .subviews : .all
+        )
+        .accessibilityLabel(isSaved ? "Remove from Library" : "Save")
+        .accessibilityActions {
+            if let onSaveToFolder {
+                Button("Save to Folder…", action: onSaveToFolder)
+            }
+        }
     }
 }
 

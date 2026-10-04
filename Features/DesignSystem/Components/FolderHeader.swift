@@ -45,7 +45,7 @@ struct FolderHeader<Actions: View>: View {
             case .book(let cover):
                 HStack(alignment: .bottom, spacing: Spacing.m) {
                     ArtworkTile(image: cover, letter: title, size: coverWidth, isCover: true)
-                        .shadow(color: .black.opacity(0.15), radius: Spacing.s, y: Spacing.xxs)
+                        .floatingShadow(opacity: 0.15)
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
                         Text(title)
                             .typeStyle(.heading)

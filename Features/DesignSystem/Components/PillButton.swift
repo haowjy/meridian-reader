@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A labelled capsule button: the Reader's back pill ("‹ Browser") and Listen, a book's Continue,
 /// Now Playing's "Back to audio". 48 pt tall (36 compact) at the default text size, growing with
-/// Dynamic Type so the label never clips; radius `Radius.pill`.
+/// Dynamic Type up to `BottomChrome.maxTextGrowth` like the rest of the band; radius `Radius.pill`.
 struct PillButton<Leading: View>: View {
     enum Style {
         /// Accent fill: the main action on a screen (Listen, Continue).
@@ -21,7 +21,7 @@ struct PillButton<Leading: View>: View {
 
         var height: CGFloat {
             switch self {
-            case .regular: Radius.pill * 2
+            case .regular: 48
             case .compact: 36
             }
         }
@@ -49,7 +49,7 @@ struct PillButton<Leading: View>: View {
             }
             .foregroundStyle(foreground)
             .padding(.horizontal, Spacing.m)
-            .frame(maxWidth: expands ? .infinity : nil, minHeight: size.height * max(1, scale))
+            .frame(maxWidth: expands ? .infinity : nil, minHeight: BottomChrome.grown(size.height * scale, from: size.height))
             .background(background, in: RoundedRectangle(cornerRadius: Radius.pill, style: .continuous))
             .opacity(isEnabled ? 1 : 0.4)
             .tapTarget(size.height)
