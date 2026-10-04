@@ -163,7 +163,9 @@ struct BottomToolbarLayout: Layout {
 
 /// A toolbar row with one wide control: the first item in slot 1, the last in slot 5 (⋯, so the
 /// morph menu grows from the same spot as everywhere else), and the middle one across slots 2–4
-/// with `Spacing.xs` either side.
+/// with `Spacing.xs` either side. The end items keep the toolbar row's height at its bottom, so
+/// they sit exactly where slot 1 and ⋯ sit in `BottomToolbarLayout` while the wide control may
+/// be taller (a 48 pt pill).
 ///
 /// ```
 /// Reader   [🔖]  [ ▶  Listen · 9 min  ]  [⋯]
@@ -177,13 +179,14 @@ struct BottomToolbarSpanLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         guard subviews.count == 3 else { return }
         let slot = BottomToolbarLayout.slotWidth(rowWidth: bounds.width)
-        let edge = ProposedViewSize(width: slot, height: bounds.height)
+        let edge = ProposedViewSize(width: slot, height: BottomChrome.rowHeight)
+        let edgeY = bounds.maxY - BottomChrome.rowHeight / 2
         subviews[0].place(at: CGPoint(x: bounds.minX + BottomToolbarLayout.slotCenterX(0, rowWidth: bounds.width),
-                                      y: bounds.midY), anchor: .center, proposal: edge)
+                                      y: edgeY), anchor: .center, proposal: edge)
         subviews[1].place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center,
                           proposal: ProposedViewSize(width: slot * 3 - Spacing.xs * 2, height: bounds.height))
         subviews[2].place(at: CGPoint(x: bounds.minX + BottomToolbarLayout.slotCenterX(4, rowWidth: bounds.width),
-                                      y: bounds.midY), anchor: .center, proposal: edge)
+                                      y: edgeY), anchor: .center, proposal: edge)
     }
 }
 
