@@ -26,16 +26,16 @@ struct SearchSessionChrome<Accessory: View, Field: View, Toolbar: View>: View {
             if !session.isActive {
                 accessory()
             }
-            HStack(spacing: 10) {
+            HStack(spacing: Spacing.xs) {
                 field($focused)
                 // ✕ stays while searching, even after a swipe-down lowered the keyboard.
                 if session.isActive {
                     Button(action: onCancel) {
                         Image(systemName: "xmark")
                             .font(.body.weight(.semibold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(Palette.ink)
                             .frame(width: 40, height: 40)
-                            .background(Color(.secondarySystemBackground), in: Circle())
+                            .background(Palette.chrome, in: Circle())
                             .tapTarget(40)
                     }
                     .buttonStyle(.plain)
@@ -47,7 +47,7 @@ struct SearchSessionChrome<Accessory: View, Field: View, Toolbar: View>: View {
                 toolbar()
             }
         }
-        .bottomChromeBand(bottomPadding: session.isActive ? 8 : 0)
+        .bottomChromeBand(bottomPadding: session.isActive ? Spacing.xs : 0)
         .onChange(of: focused) { _, isFocused in
             let wasIdle = !session.isActive
             session.focusChanged(isFocused, beginText: beginText)

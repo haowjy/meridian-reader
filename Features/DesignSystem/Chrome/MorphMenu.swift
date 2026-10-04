@@ -107,8 +107,8 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
             return CGSize(width: max(0, container.width - originX - panelSize.width),
                           height: max(0, container.height - originY - panelSize.height))
         }
-        return CGSize(width: max(8, container.width - button.maxX - overhang),
-                      height: max(8, container.height - button.maxY - overhang))
+        return CGSize(width: max(Spacing.xs, container.width - button.maxX - overhang),
+                      height: max(Spacing.xs, container.height - button.maxY - overhang))
     }
 
     private func panelView(_ shown: Item, buttonSize: CGSize) -> some View {
@@ -230,6 +230,8 @@ struct MorphMenuClose {
 
 enum MorphMenu {
     static let panelSpace = "morphMenuPanel"
+    /// The panel's glass. Deliberately rounder than `Radius.card`: it matches the system's menu
+    /// glass, and the morph grows it out of the round ⋯ button.
     static let cornerRadius: CGFloat = 28
     /// The Website / Reader icon sits this far left and up of the ⋯ (Safari's feel). Measured
     /// from a Safari iOS 26 screenshot, where All Tabs sits inset of the tabs/⋯ control rather
@@ -365,3 +367,60 @@ extension View {
             .animation(MorphMenu.animation, value: hidden)
     }
 }
+
+#if DEBUG
+/// The morph at rest (the ⋯ button), half way, and open, over a stand-in panel.
+struct MorphMenuGallery: View {
+    private let panel = CGSize(width: 300, height: 236)
+    private let button = CGSize(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+
+    var body: some View {
+        PreviewGallery {
+            ForEach([("closed: the ⋯ button", 0.0), ("growing", 0.5), ("open", 1.0)], id: \.1) { name, p in
+                PreviewState(name) {
+                    MorphMenuSamplePanel()
+                        .frame(width: panel.width, height: panel.height)
+                        .modifier(MorphPanelEffect(progress: p, button: button, panelSize: panel,
+                                                   anchor: UnitPoint(x: 0.85, y: 0.82)))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Spacing.xs)
+                        .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.card))
+                }
+            }
+        }
+    }
+}
+
+private struct MorphMenuSamplePanel: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach([("Voice Settings", "person.wave.2"), ("Share", "square.and.arrow.up"),
+                     ("Reload", "arrow.clockwise")], id: \.0) { title, icon in
+                Label(title, systemImage: icon)
+                    .typeStyle(.row)
+                    .foregroundStyle(Palette.ink)
+                    .padding(.horizontal, Spacing.l)
+                    .padding(.vertical, Spacing.s)
+            }
+            Divider().padding(.horizontal, Spacing.m)
+            HStack {
+                ForEach([("Favorites", "star"), ("History", "clock"), ("Reader", "doc.plaintext")], id: \.0) { t, i in
+                    VStack(spacing: Spacing.xs) {
+                        Image(systemName: i).font(.title3)
+                        Text(t).typeStyle(.caption)
+                    }
+                    .foregroundStyle(Palette.ink)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.s)
+                }
+            }
+            .padding(.horizontal, Spacing.xs)
+        }
+        .padding(.vertical, Spacing.xs)
+    }
+}
+
+#Preview("MorphMenu · light", traits: .sizeThatFitsLayout) { MorphMenuGallery().previewVariant(.light) }
+#Preview("MorphMenu · dark", traits: .sizeThatFitsLayout) { MorphMenuGallery().previewVariant(.dark) }
+#Preview("MorphMenu · AX5", traits: .sizeThatFitsLayout) { MorphMenuGallery().previewVariant(.largestText) }
+#endif

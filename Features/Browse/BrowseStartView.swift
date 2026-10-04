@@ -117,6 +117,13 @@ struct BrowseStartView: View {
                 bottomChrome
             }
         }
+        // The page area is clipped to the safe area; when paper shows there (the start page, the
+        // search layer), it continues up under the status bar.
+        .background {
+            if !hasPage || search.isActive {
+                Palette.paper.ignoresSafeArea()
+            }
+        }
     }
 
     private var searchLayer: some View {

@@ -173,8 +173,8 @@ struct HTMLReadingWebView: UIViewRepresentable {
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
             <style>
-              :root { color-scheme: light dark; --hl: rgba(0,122,255,0.08); }
-              @media (prefers-color-scheme: dark) { :root { --hl: rgba(10,132,255,0.16); } }
+              :root { color-scheme: light dark; --hl: rgba(40,112,96,0.10); --jump: #287060; }
+              @media (prefers-color-scheme: dark) { :root { --hl: rgba(95,184,160,0.16); --jump: #5FB8A0; } }
               html { -webkit-tap-highlight-color: transparent; }
               body { margin: 0; padding: 16px 22px 28px; font: -apple-system-body; line-height: 1.55;
                      -webkit-text-size-adjust: 100%; background: transparent; color: inherit; }
@@ -188,10 +188,10 @@ struct HTMLReadingWebView: UIViewRepresentable {
               .reader-active { background: var(--hl); box-shadow: 0 0 0 6px var(--hl); }
               body.reader-jump [data-reader-index] {
                 cursor: pointer;
-                outline: 1px dashed color-mix(in srgb, #007AFF 45%, transparent);
+                outline: 1px dashed color-mix(in srgb, var(--jump) 45%, transparent);
                 outline-offset: 3px;
               }
-              body.reader-jump [data-reader-index]:active { background: color-mix(in srgb, #007AFF 18%, transparent); }
+              body.reader-jump [data-reader-index]:active { background: color-mix(in srgb, var(--jump) 18%, transparent); }
             </style>
             </head>
             <body>

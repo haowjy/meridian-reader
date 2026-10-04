@@ -38,7 +38,7 @@ struct BrowserBottomChrome: View {
             // Under the reader overlay the reader is the player; the bar takes over as it leaves.
             if shell.readerArticle == nil {
                 MiniPlayerBar(speech: speech, onOpen: onOpenNowPlaying)
-                    .padding(.bottom, 4)
+                    .padding(.bottom, Spacing.xxs)
             }
         } field: { focus in
             addressField(focus)
@@ -52,7 +52,7 @@ struct BrowserBottomChrome: View {
 
     private func addressField(_ focus: FocusState<Bool>.Binding) -> some View {
         @Bindable var search = search
-        return HStack(spacing: 8) {
+        return HStack(spacing: Spacing.xs) {
             leading
 
             TextField(isDictating && search.text.isEmpty ? "Listening…" : "Search or enter address",
@@ -63,16 +63,18 @@ struct BrowserBottomChrome: View {
                 .submitLabel(.go)
                 .focused(focus)
                 .onSubmit(onSubmit)
+                .typeStyle(.row)
+                .foregroundStyle(Palette.ink)
                 .accessibilityIdentifier("addressField")
 
             if search.isActive {
                 micButton
             }
         }
-        .bottomChromeField(leading: 12, trailing: search.isActive ? 4 : 12)
+        .bottomChromeField(leading: Spacing.s, trailing: search.isActive ? Spacing.xxs : Spacing.s)
         .overlay {
             if isDictating {
-                Capsule().strokeBorder(Color.accentColor, lineWidth: 1.5)
+                Capsule().strokeBorder(Palette.accent, lineWidth: 1.5)
             }
         }
     }
@@ -85,8 +87,8 @@ struct BrowserBottomChrome: View {
         if search.isActive {
             Image(systemName: "magnifyingglass")
                 .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 16)
+                .foregroundStyle(Palette.secondaryInk)
+                .frame(width: Glyph.indicator)
                 .accessibilityHidden(true)
         } else if shell.busy == .reader {
             ProgressView()
@@ -96,7 +98,7 @@ struct BrowserBottomChrome: View {
             Button(action: onOpenReader) {
                 Image(systemName: "doc.plaintext")
                     .font(.body)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Palette.accent)
                     .frame(width: 30, height: 30)
                     .tapTarget(30)
             }
@@ -106,7 +108,7 @@ struct BrowserBottomChrome: View {
             .transition(.opacity)
         } else {
             Color.clear
-                .frame(width: 16, height: 16)
+                .frame(width: Glyph.indicator, height: Glyph.indicator)
                 .accessibilityHidden(true)
         }
     }
@@ -114,7 +116,7 @@ struct BrowserBottomChrome: View {
     private var micButton: some View {
         Button(action: onMic) {
             Image(systemName: isDictating ? "waveform" : "mic")
-                .foregroundStyle(isDictating ? Color.accentColor : Color.secondary)
+                .foregroundStyle(isDictating ? Palette.accent : Palette.secondaryInk)
                 .symbolEffect(.variableColor.iterative, isActive: dictation?.isListening == true)
                 .fieldControlFrame()
         }
@@ -142,7 +144,7 @@ struct BrowserBottomChrome: View {
         }
         // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI gives
         // disabled buttons, so ‹ / › with no history would look tappable.
-        .tint(.primary)
+        .tint(Palette.ink)
     }
 
     private func button(_ systemImage: String, label: String, id: String,
@@ -164,7 +166,7 @@ private struct LoadProgressLine: View {
         if web.isLoading && web.hasPage {
             GeometryReader { g in
                 Rectangle()
-                    .fill(Color.accentColor)
+                    .fill(Palette.accent)
                     .frame(width: g.size.width * max(0.08, min(1, web.progress)), height: 2)
             }
             .frame(height: 2)

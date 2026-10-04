@@ -44,7 +44,7 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks |
 | `Core/` | No UI: `Domain` (article and paragraph values), `Extraction`, `Persistence` (SwiftData, `ArticleLibrary`), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web`, `Device` |
-| `Features/` | `Shell` (navigation state, bottom chrome, ⋯ menu, motion), `Browse`, `Reader`, `Saved`, `Speech` (playback, engines, settings) |
+| `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, mini player), `Browse`, `Reader`, `Saved`, `Speech` (playback, engines, settings) |
 | `Tests/`, `UITests/` | Unit tests (fakes in `Tests/Fakes/`), UI tests |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Reader uses only Kokoro |
 | `Resources/` | Readability scripts, voice previews, assets |
@@ -59,10 +59,17 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
   Engines report events; the session decides. Nothing else stores or guesses a playhead.
 - **One save path**: `ArticleSaveCoordinator` → `ArticleLibrary.save`. One article per
   canonical URL (`ArticleIdentity`); Save never moves audio or restarts playback.
+- **Screens are built from `Features/DesignSystem/`**: no ad-hoc padding, colour, radius or font
+  size in feature code. Spacing and margins come from `Spacing`, corners from `Radius`, text from
+  `typeStyle(_:)` (`TypeStyle`, Dynamic Type scaled), colour from `Palette` (light and dark). Shared
+  pieces (`PlayStateButton`, `PillButton`, `ListRow`, `NowPlayingBar`, `Sheet`, …) take plain values
+  and closures, never `SpeechController`, SwiftData or `ShellState`, and carry previews in light,
+  dark and the largest text size. A value the scale lacks is a token change, made there.
 - **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `settle`, `dismiss`) and its
   Reduce Motion transitions, not ad-hoc springs.
 - **Bottom chrome**: build controls from `BottomChrome` helpers (`bottomChromeField`,
-  `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) so sizing, Dynamic Type and 44 pt taps stay
+  `fieldControlFrame`, `toolbarIconFrame`, `toolbarTextFrame`, `tapTarget`) and the toolbar layouts
+  (`BottomToolbarLayout`, `BottomToolbarSpanLayout`) so sizing, Dynamic Type and 44 pt taps stay
   consistent.
 - **Voice libraries stay in `Features/Speech/Engines/<Library>/`**, registered in
   `AppComposition`. Shared code never imports one or switches on engine types.

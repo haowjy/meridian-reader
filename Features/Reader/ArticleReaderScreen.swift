@@ -186,7 +186,7 @@ struct ArticleReaderScreen: View {
     /// (`toolbarIconFrame` in `BottomToolbarLayout`), so the menu grows from the same spot.
     private var moreButton: some View {
         MoreMenuButton(id: "readerMore") { .reader(readerMenu, perform: perform) }
-            .foregroundStyle(.primary)
+            .foregroundStyle(Palette.ink)
     }
 
     private var readerMenu: ReaderMenu {
@@ -251,9 +251,9 @@ struct ArticleReaderScreen: View {
     /// under the status bar), same margins. Pull-down-to-close.
     private var topBar: some View {
         topRow
-            .bottomChromeField(leading: 4, trailing: 4)
+            .bottomChromeField(leading: Spacing.xxs, trailing: Spacing.xxs)
             .padding(.horizontal, BottomChrome.horizontalMargin)
-            .padding(.top, 4)
+            .padding(.top, Spacing.xxs)
             .padding(.bottom, BottomChrome.topPadding)
             .background(.bar)
             .contentShape(Rectangle())
@@ -266,17 +266,17 @@ struct ArticleReaderScreen: View {
     /// swipe stay the standard iOS transition.
     private var navigationBarRow: some View {
         topRow
-            .bottomChromeField(leading: 4, trailing: 4)
+            .bottomChromeField(leading: Spacing.xxs, trailing: Spacing.xxs)
     }
 
     /// The title, centered. No close button up here: the back control sits at the bottom left,
     /// within thumb reach.
     private var topRow: some View {
         Text(article.title)
-            .font(.body) // the address field's text size
+            .typeStyle(.row) // the address field's text size
             .lineLimit(1)
             .truncationMode(.tail)
-            .padding(.horizontal, 8)
+            .padding(.horizontal, Spacing.xs)
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier("readerTitle")
             .accessibilityAddTraits(.isHeader)
@@ -310,24 +310,24 @@ struct ArticleReaderScreen: View {
 
     /// Only exists while jump mode is on; floats over the article so nothing reflows.
     private var jumpBanner: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.xs) {
             Image(systemName: "hand.tap.fill")
             Text("Tap a paragraph to play from there")
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
                 .accessibilityIdentifier("listenJumpHint")
-            Spacer(minLength: 4)
+            Spacer(minLength: Spacing.xxs)
             Button("Cancel") { jumpMode = false }
-                .font(.footnote.weight(.semibold))
+                .typeStyle(.caption, weight: .semibold)
                 .accessibilityIdentifier("listenJumpCancel")
         }
-        .font(.footnote)
-        .foregroundStyle(Color.accentColor)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .typeStyle(.caption)
+        .foregroundStyle(Palette.accent)
+        .padding(.horizontal, Spacing.s)
+        .padding(.vertical, Spacing.xs)
         .background(.thinMaterial, in: Capsule())
-        .padding(.horizontal, 10)
-        .padding(.top, 6)
+        .padding(.horizontal, Spacing.s)
+        .padding(.top, Spacing.xs)
     }
 
     // MARK: - Actions
@@ -407,31 +407,5 @@ struct ArticleReaderScreen: View {
     private struct WarmKey: Hashable {
         let id: UUID
         let count: Int
-    }
-}
-
-/// How the reader overlay looks while it is pulled down: like a system sheet, it shrinks a
-/// little (to 96%, over the first third of the screen) and the dim over the browser behind it
-/// lifts as it goes, reaching nothing once the reader is off the screen.
-struct PullDownLook: Equatable {
-    var scale: CGFloat
-    var dim: Double
-
-    static let minScale: CGFloat = 0.96
-    static let maxDim = 0.2
-
-    init(offset: CGFloat, screenHeight: CGFloat) {
-        guard screenHeight > 0, offset > 0 else {
-            self.init(scale: 1, dim: Self.maxDim)
-            return
-        }
-        let progress = min(1, offset / screenHeight)
-        self.init(scale: 1 - (1 - Self.minScale) * min(1, progress * 3),
-                  dim: Self.maxDim * Double(1 - progress))
-    }
-
-    private init(scale: CGFloat, dim: Double) {
-        self.scale = scale
-        self.dim = dim
     }
 }

@@ -40,15 +40,15 @@ struct LibrarySurface: View {
                 .accessibilityIdentifier("libraryChrome")
             }
         }
-        .background(Color(.systemBackground).ignoresSafeArea())
+        .background(Palette.paper.ignoresSafeArea())
     }
 
     private func searchField(_ focus: FocusState<Bool>.Binding) -> some View {
         let clearable = search.isActive && !search.text.isEmpty
-        return HStack(spacing: 8) {
+        return HStack(spacing: Spacing.xs) {
             Image(systemName: "magnifyingglass")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Palette.secondaryInk)
                 .frame(width: 16)
                 .accessibilityHidden(true)
 
@@ -57,6 +57,8 @@ struct LibrarySurface: View {
                 .autocorrectionDisabled()
                 .submitLabel(.search)
                 .focused(focus)
+                .typeStyle(.row)
+                .foregroundStyle(Palette.ink)
                 .accessibilityIdentifier("librarySearchField")
 
             if clearable {
@@ -64,14 +66,14 @@ struct LibrarySurface: View {
                     search.text = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Palette.secondaryInk)
                         .fieldControlFrame()
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
             }
         }
-        .bottomChromeField(leading: 12, trailing: clearable ? 4 : 12)
+        .bottomChromeField(leading: Spacing.s, trailing: clearable ? Spacing.xxs : Spacing.s)
     }
 
     private var toolbar: some View {
@@ -94,7 +96,7 @@ struct LibrarySurface: View {
             MoreMenuButton(id: "libraryMore") { .library(perform: perform) }
         }
         // Same as the browser toolbar: tint keeps disabled buttons dimmed.
-        .tint(.primary)
+        .tint(Palette.ink)
     }
 
     /// The library's own ⋯: nothing in it touches the browser's page.

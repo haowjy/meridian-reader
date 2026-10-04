@@ -135,7 +135,7 @@ struct ArticleListenSurface: View {
 
             // The back control sits left of the scrubber pill (same outside-capsule placement as
             // the search session's ✕), then the shared field capsule for scrub / Jump / bookmark.
-            HStack(spacing: 10) {
+            HStack(spacing: Spacing.xs) {
                 ReaderBackButton(origin: scrubControls.back, action: scrubControls.onBack)
 
                 if let scrubMap {
@@ -216,50 +216,50 @@ struct ArticleListenSurface: View {
                     speech.showBakeDebugOverlay.toggle()
                 } label: {
                     Text(speech.showBakeDebugOverlay ? "Debug ▾" : "Debug")
-                        .font(.caption2.weight(.semibold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
+                        .typeStyle(.caption, weight: .semibold)
+                        .padding(.horizontal, Spacing.xs)
+                        .padding(.vertical, Spacing.xxs)
                         .background(
                             Capsule().fill(speech.showBakeDebugOverlay
-                                           ? Color.accentColor.opacity(0.2)
-                                           : Color.secondary.opacity(0.15))
+                                           ? Palette.accent.opacity(0.2)
+                                           : Palette.secondaryInk.opacity(0.15))
                         )
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("listenBakeDebugChip")
                 .accessibilityLabel(speech.showBakeDebugOverlay ? "Hide bake debug" : "Show bake debug")
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, Spacing.xs)
         }
         if isThisSession, speech.isBufferingNext {
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.xs) {
                 ProgressView()
                     .controlSize(.small)
                 Text("Preparing next…")
                     .accessibilityIdentifier("listenBufferingLabel")
                 Spacer(minLength: 0)
             }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 8)
+            .typeStyle(.caption)
+            .foregroundStyle(Palette.secondaryInk)
+            .padding(.horizontal, Spacing.xs)
             .accessibilityIdentifier("listenBuffering")
         } else if isThisSession, let renderNote = speech.renderNote {
             Text(renderNote)
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .typeStyle(.caption)
+                .foregroundStyle(Palette.secondaryInk)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, Spacing.xs)
                 .accessibilityIdentifier("listenRenderNote")
         } else if let languageNote {
             Text(languageNote)
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .typeStyle(.caption)
+                .foregroundStyle(Palette.secondaryInk)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, Spacing.xs)
                 .accessibilityIdentifier("listenLanguageNote")
         }
     }
@@ -393,9 +393,9 @@ struct ReaderBackButton: View {
         Button(action: action) {
             Image(systemName: origin.backSystemImage)
                 .font(.body.weight(.semibold))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Palette.accent)
                 .frame(width: side, height: side)
-                .background(Color(.secondarySystemBackground), in: Circle())
+                .background(Palette.chrome, in: Circle())
                 .tapTarget(side)
         }
         .buttonStyle(.plain)

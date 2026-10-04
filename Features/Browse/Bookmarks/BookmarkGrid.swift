@@ -12,15 +12,15 @@ struct BookmarkGrid: View {
     @State private var renameText = ""
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: 4),
-                  spacing: 14) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Spacing.xs, alignment: .top), count: 4),
+                  spacing: Spacing.m) {
             ForEach(bookmarks) { bookmark in
                 Button { onOpen(bookmark) } label: {
-                    VStack(spacing: 6) {
+                    VStack(spacing: Spacing.xs) {
                         BookmarkIcon(bookmark: bookmark, size: 60)
                         Text(bookmark.title)
-                            .font(.caption)
-                            .foregroundStyle(.primary)
+                            .typeStyle(.caption)
+                            .foregroundStyle(Palette.ink)
                             // At accessibility sizes a second line would only hold a word broken
                             // mid-way; one truncated line reads better.
                             .lineLimit(typeSize.isAccessibilitySize ? 1 : 2)

@@ -15,7 +15,7 @@ struct MoreMenuPanel: View {
             case .library(let perform): library { action in close { perform(action) } }
             }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, Spacing.xs)
         .frame(width: 300)
     }
 
@@ -116,8 +116,8 @@ struct MoreMenuPanel: View {
 
     private var divider: some View {
         Divider()
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
+            .padding(.horizontal, Spacing.m)
+            .padding(.vertical, Spacing.xs)
     }
 
     // MARK: - Building blocks
@@ -129,28 +129,28 @@ struct MoreMenuPanel: View {
     }
 
     private func rowLabel(_ title: String, _ icon: String, trailing: String? = nil) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: Spacing.m) {
             Image(systemName: icon)
                 .font(.body)
                 .frame(width: 24)
             Text(title)
-                .font(.body)
+                .typeStyle(.row)
             Spacer(minLength: 0)
             if let trailing {
                 Image(systemName: trailing)
                     .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Palette.secondaryInk)
             }
         }
-        .foregroundStyle(.primary)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 11)
+        .foregroundStyle(Palette.ink)
+        .padding(.horizontal, Spacing.l)
+        .padding(.vertical, Spacing.s)
         .contentShape(Rectangle())
     }
 
     private func tiles<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         HStack(spacing: 0) { content() }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, Spacing.xs)
     }
 
     /// A big button. `focus`: its icon is the panel's focus point (placed by `MorphMenuOverlay`
@@ -158,21 +158,21 @@ struct MoreMenuPanel: View {
     private func tile(_ title: String, _ icon: String, id: String, focus: Bool = false,
                       action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 6) {
+            VStack(spacing: Spacing.xs) {
                 Image(systemName: icon)
                     .font(.title3)
                     .morphMenuFocus(focus)
                 Text(title)
-                    .font(.footnote)
+                    .typeStyle(.caption)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .foregroundStyle(Color.primary)
+            .foregroundStyle(Palette.ink)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+            .padding(.vertical, Spacing.s)
             .contentShape(Rectangle())
         }
-        .buttonStyle(MenuRowStyle(cornerRadius: 12))
+        .buttonStyle(MenuRowStyle(cornerRadius: Radius.card))
         .accessibilityIdentifier(id)
     }
 }
@@ -187,7 +187,7 @@ private struct MenuRowStyle: ButtonStyle {
             .opacity(isEnabled ? 1 : 0.35)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(Color.primary.opacity(configuration.isPressed ? 0.08 : 0))
+                    .fill(Palette.ink.opacity(configuration.isPressed ? 0.08 : 0))
             )
     }
 }
