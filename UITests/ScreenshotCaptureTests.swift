@@ -188,9 +188,9 @@ final class ScreenshotCaptureTests: XCTestCase {
             .firstMatch.tap()
     }
 
-    /// The start page, the ⋯ menu, Bookmarks, the Library and its Reader, the Now Playing bar on
+    /// The start page, the ⋯ menu, Favorites, the Library and its Reader, the Now Playing bar on
     /// the Library and on the start page, and Now Playing. Offline: the demo article and the seeded
-    /// bookmarks (their icons are letter tiles without the network).
+    /// favorites (their icons are letter tiles without the network).
     func testBrowserSurfaces() throws {
         let app = launch(["-seedBookmarks", "-seedDemoArticle", "-seedDemoParagraphs", "12"])
         wait(2)
@@ -199,16 +199,16 @@ final class ScreenshotCaptureTests: XCTestCase {
         app.buttons["browseMore"].tap()
         wait(1.2)
         try shot("menu")
-        el(app, "moreBookmarks").tap()
-        XCTAssertTrue(app.navigationBars["Bookmarks"].waitForExistence(timeout: 5))
+        el(app, "moreFavorites").tap()
+        XCTAssertTrue(app.navigationBars["Favorites"].waitForExistence(timeout: 5))
         wait(1)
-        try shot("bookmarks")
-        app.navigationBars["Bookmarks"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        try shot("favorites")
+        app.navigationBars["Favorites"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
         wait(1)
 
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
         wait(1.2)
         try shot("library")
         app.cells.staticTexts["Demo Listen Article"].tap()
@@ -230,6 +230,62 @@ final class ScreenshotCaptureTests: XCTestCase {
         wait(1.5)
         try shot("start-now-playing-bar")
         app.buttons["nowPlayingBarPlayPause"].tap()
+    }
+
+    /// The Library home, a folder (and its ⋯, Edit, the Move tree), a book, and the start page's
+    /// Favorites. Offline: the demo article, book and folders, and the seeded favorites.
+    func testLibrarySurfaces() throws {
+        let app = launch(["-seedDemoArticle", "-seedDemoBook", "-seedDemoFolders", "-seedBookmarks", "-openLibrary"])
+        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 10))
+        wait(1.5)
+        try shot("1-library-home")
+
+        row(app, "Demo Finance").tap()
+        XCTAssertTrue(el(app, "folderScreen").waitForExistence(timeout: 5))
+        wait(1.2)
+        try shot("2-folder")
+        app.buttons["libraryMore"].tap()
+        wait(1.2)
+        try shot("3-folder-menu")
+        dismissMenu(app)
+        el(app, "folderEdit").tap()
+        wait(0.8)
+        row(app, "Index Funds").tap()
+        wait(0.6)
+        try shot("4-folder-edit")
+        el(app, "editMove").tap()
+        XCTAssertTrue(el(app, "moveTree").waitForExistence(timeout: 5))
+        wait(1.2)
+        try shot("5-move-tree")
+        el(app, "moveCancel").tap()
+        wait(0.8)
+        el(app, "folderEdit").tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        wait(1)
+
+        row(app, "The Demo Book").tap()
+        XCTAssertTrue(el(app, "bookScreen").waitForExistence(timeout: 5))
+        wait(1.2)
+        try shot("6-book")
+        el(app, "bookContinue").tap()
+        XCTAssertTrue(el(app, "nowPlayingBar").waitForExistence(timeout: 10))
+        wait(1.5)
+        try shot("7-book-playing")
+        app.buttons["nowPlayingBarPlayPause"].tap()
+        app.buttons["libraryMore"].tap()
+        wait(1.2)
+        try shot("8-book-menu")
+        dismissMenu(app)
+
+        app.buttons["libraryBrowser"].tap()
+        XCTAssertTrue(el(app, "startFavorites").waitForExistence(timeout: 5))
+        wait(1)
+        try shot("9-start-page-favorites")
+    }
+
+    /// A row in a Library list, by its title.
+    private func row(_ app: XCUIApplication, _ title: String) -> XCUIElement {
+        app.cells.staticTexts.matching(NSPredicate(format: "label == %@", title)).firstMatch
     }
 
     // MARK: - Network or installed models

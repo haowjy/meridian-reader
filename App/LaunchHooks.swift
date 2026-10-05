@@ -150,12 +150,16 @@ enum LaunchHooks {
         ], console: true)
     }
 
-    /// `-seedDemoArticle`: replace the saved and played pages with one deterministic article, so
-    /// a stored resume position can't stick at the end between tests (and, with
+    /// `-seedDemoArticle`: replace the saved and played pages, and every folder but Favorites, with
+    /// one deterministic article, so a stored resume position can't stick at the end between tests (and, with
     /// `-seedPlayedPages N`, N pages played without saving). Favorites' links stay
     /// (`-resetBookmarks` / `-seedBookmarks` handle them).
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in library: LibraryStore) {
         let context = library.context
+        // Every folder but Favorites goes too, so the Library home starts the same each time.
+        for folder in library.topLevelFolders() where folder.kind != .favorites {
+            try? library.deleteFolder(folder, keepContents: false)
+        }
         for page in (try? context.fetch(FetchDescriptor<Page>())) ?? [] where !page.isLink {
             context.delete(page)
         }
@@ -216,9 +220,12 @@ enum LaunchHooks {
         speech.localTTS.startBakeIfNeeded(articleID: page.listenKey, paragraphs: paragraphs, voiceID: speech.cacheVoiceID)
     }
 
-    /// `-resetBookmarks` / `-seedBookmarks`: Favorites emptied (saved pages in it go back to the
-    /// pages in no folder), then optionally seeded.
+    /// `-resetBookmarks` / `-seedBookmarks`: Favorites emptied (its subfolders go, their pages
+    /// moving up first; saved pages go back to the pages in no folder), then optionally seeded.
     static func setUpBookmarks(_ setup: LaunchOptions.BookmarkSetup, in library: LibraryStore) {
+        for folder in library.subfolders(of: library.favorites()) {
+            try? library.deleteFolder(folder, keepContents: !folder.kind.isFixed)
+        }
         for page in library.favoritePages() { library.removeFavorite(page) }
         guard setup == .seed else { return }
         let seeds = [

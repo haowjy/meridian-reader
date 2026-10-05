@@ -56,7 +56,12 @@ struct ContinueCard: View {
         .frame(width: width, alignment: .leading)
         .background(playState.isCurrent ? Palette.playingTint : Palette.chrome,
                     in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .accessibilityElement(children: .combine)
+        // One element: the title, then what's left; ▶ is its named action.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue([detail, badge, playState.isCurrent ? (playState == .playing ? "Playing" : "Paused") : nil]
+            .compactMap { $0 }.joined(separator: ", "))
+        .accessibilityAction(named: playState.accessibilityLabel, onPlay)
     }
 }
 
