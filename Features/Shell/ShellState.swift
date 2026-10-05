@@ -76,7 +76,7 @@ final class ShellState {
     }
 
     private(set) var surface: Surface = .browse
-    /// The Reader sheet (nil = closed). Removed by `closeReader()` once its sheet has gone.
+    /// The Reader sheet (nil = closed). Removed by `readerDidClose` once its sheet has gone.
     private(set) var reader: ReaderSheetState?
     /// This showing of Now Playing (nil = down), over the surface and the Reader sheet. It shows
     /// what you hear, so it holds no article of its own. Its close reports the showing it closed
