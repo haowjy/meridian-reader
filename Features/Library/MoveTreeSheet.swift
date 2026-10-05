@@ -76,6 +76,13 @@ struct MoveTreeSheet: View {
                 .listRowBackground(Palette.chrome)
             }
             .libraryListStyle()
+            // The tree has no bottom chrome, and what shows of the sheet ends above its content's
+            // bottom: the toast floats a toolbar row up, where it would sit over chrome.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear.frame(height: 0).overlay(alignment: .top) {
+                    ShellToastLayer().offset(y: -BottomChrome.rowHeight)
+                }
+            }
             .navigationTitle(request.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -85,10 +92,6 @@ struct MoveTreeSheet: View {
                         .accessibilityIdentifier("moveCancel")
                 }
             }
-        }
-        // The tree has no bottom chrome: the toast floats just above the sheet's bottom edge.
-        .overlay(alignment: .bottom) {
-            Color.clear.frame(height: 0).overlay(alignment: .top) { ShellToastLayer() }
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)

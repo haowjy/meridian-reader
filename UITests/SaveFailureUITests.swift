@@ -8,7 +8,8 @@ final class SaveFailureUITests: XCTestCase {
 
     /// Waits for the toast to say `message`.
     private func expectToast(_ app: XCUIApplication, _ message: String, file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertTrue(eventually(5) { self.find(app, "toast").label == message }, "the toast says “\(message)”",
+        let toast = find(app, "toast")
+        XCTAssertTrue(eventually(5) { toast.exists && toast.label == message }, "the toast says “\(message)”",
                       file: file, line: line)
     }
 
