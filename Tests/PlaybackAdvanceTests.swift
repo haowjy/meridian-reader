@@ -10,6 +10,9 @@ final class PlaybackAdvanceTests: XCTestCase {
     private var speech: SpeechController { fixture.speech }
     private var apple: FakeListenEngine { fixture.apple }
     private var cleanups: [() -> Void] = []
+    /// Pages of tests with an on-device engine: stopping may file a bake job for them in the
+    /// process-wide store, which another test's engine would adopt. Removed once all has stopped.
+    private var bakeKeys: [UUID] = []
 
     override func setUp() async throws { fixture = TestSpeech() }
 
@@ -17,6 +20,8 @@ final class PlaybackAdvanceTests: XCTestCase {
         fixture.tearDown()
         cleanups.reversed().forEach { $0() }
         cleanups = []
+        for key in bakeKeys { PendingBakeJobStore.shared.removePending(articleID: key) }
+        bakeKeys = []
     }
 
     /// Plays chapter `index` of `book` from its start, with `book` as the library.
@@ -270,9 +275,7 @@ final class PlaybackAdvanceTests: XCTestCase {
         let page = SpeechSession(id: UUID(), document: ParagraphDocument(parts: ["A page outside any book.", "Its end."]),
                                  detectedLanguage: "en", title: "Page")
         let book = FakeChapterLibrary(chapters: 1)
-        cleanups.append {
-            for key in [page.id, book.key(0)] { PendingBakeJobStore.shared.removePending(articleID: key) }
-        }
+        bakeKeys += [page.id, book.key(0)]
         speech.nextChapters = book
         // Apple speaks while the on-device engine loads, and finishes before it hands over.
         speech.start(page, fromParagraph: 0)
@@ -301,6 +304,7 @@ final class PlaybackAdvanceTests: XCTestCase {
         let provider = FakeEngineProvider()
         let (speech, apple) = makeSpeech(runState: state, provider: provider)
         let book = FakeChapterLibrary(chapters: 2)
+        bakeKeys += book.sessions.map(\.id)
         play(book, chapter: 0, on: speech)
         await speech.localTTS.selectEngine(FakeEngineProvider.fakeID)
         XCTAssertTrue(speech.localTTS.usesLocalEngine)
@@ -330,6 +334,7 @@ final class PlaybackAdvanceTests: XCTestCase {
         let provider = FakeEngineProvider(config: .init(rendersInBackground: true))
         let (speech, apple) = makeSpeech(runState: state, provider: provider)
         let book = FakeChapterLibrary(chapters: 2)
+        bakeKeys += book.sessions.map(\.id)
         play(book, chapter: 0, on: speech)
         await speech.localTTS.selectEngine(FakeEngineProvider.fakeID)
         state.set(.background)
