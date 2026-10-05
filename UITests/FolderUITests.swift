@@ -1,8 +1,9 @@
 import XCTest
 
 /// Folders at any depth: a folder made inside a folder, a page filed there from the Reader's 🔖 in
-/// two taps (long-press, a folder), Delete Folder Only moving the contents up, and Edit moving
-/// several pages at once. Offline: the demo folders and the test pages.
+/// two taps (long-press, a folder), Delete Folder Only moving the contents up (and never offered
+/// with a book), the Move tree's New Folder Inside, and Edit moving several pages at once.
+/// Offline: the demo folders and the test pages.
 final class FolderUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
@@ -44,6 +45,57 @@ final class FolderUITests: XCTestCase {
         folderOnly.tap()
         XCTAssertTrue(eventually(5) { !self.libraryRow(app, "Bonds").exists }, "Bonds is gone")
         XCTAssertTrue(libraryRow(app, "Coupon Basics").waitForExistence(timeout: 5), "its page moved up")
+    }
+
+    /// Edit → a plain folder and a book → Remove: no *Delete Folder Only* (the book can't keep
+    /// its chapters without it); the choices name the book. Keeping folder contents moves the
+    /// folder's page up and deletes the book.
+    func testRemovingAFolderAndABookTogetherNeverOffersFolderOnly() throws {
+        let app = launchLibrary()
+        openFolder(app, "The Demo Book")
+        app.buttons["libraryMore"].tap()
+        tapMenuRow(app, "moreMove")
+        pickInMoveTree(app, "Demo Finance")
+        XCTAssertTrue(app.navigationBars["The Demo Book"].waitForExistence(timeout: 5), "the book, in Demo Finance")
+        app.navigationBars["The Demo Book"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Demo Finance"].waitForExistence(timeout: 5))
+
+        app.buttons["folderEdit"].tap()
+        libraryRow(app, "Bonds").tap()
+        libraryRow(app, "The Demo Book").tap()
+        app.buttons["editRemove"].tap()
+        let keep = app.buttons["deleteBooksKeepFolderContents"].firstMatch
+        XCTAssertTrue(keep.waitForExistence(timeout: 3), "the delete question")
+        XCTAssertFalse(app.buttons["deleteFolderOnly"].exists, "no Delete Folder Only")
+        XCTAssertEqual(keep.label, "Delete Book, Keep Folder Contents")
+        XCTAssertEqual(app.buttons["deleteFolderAndContents"].firstMatch.label, "Delete Everything")
+        XCTAssertTrue(app.staticTexts["“The Demo Book” is deleted with its chapters and downloads either way. The folder holds 1 page."]
+            .exists, "says the book goes either way")
+        keep.tap()
+        XCTAssertTrue(eventually(5) { !self.libraryRow(app, "Bonds").exists }, "Bonds is gone")
+        XCTAssertFalse(libraryRow(app, "The Demo Book").exists, "so is the book")
+        XCTAssertTrue(libraryRow(app, "Coupon Basics").waitForExistence(timeout: 5), "Bonds' page moved up")
+    }
+
+    /// In the Move tree, a folder's long-press → *New Folder Inside* makes the folder in it, and
+    /// what is being moved goes there.
+    func testTheMoveTreeMakesANewFolderInsideAFolder() throws {
+        let app = launchLibrary()
+        openFolder(app, "Demo Finance")
+        libraryRow(app, "Index Funds").press(forDuration: 1.0)
+        let move = app.buttons["Move to…"]
+        XCTAssertTrue(move.waitForExistence(timeout: 3), "the row's menu")
+        move.tap()
+        XCTAssertTrue(find(app, "moveTree").waitForExistence(timeout: 5))
+        moveTreeFolder(app, "Bonds").press(forDuration: 1.0)
+        let inside = app.buttons["moveNewFolderInside"].firstMatch
+        XCTAssertTrue(inside.waitForExistence(timeout: 3), "New Folder Inside")
+        inside.tap()
+        createFolder(app, named: "Short Term")
+        XCTAssertTrue(eventually(5) { !self.libraryRow(app, "Index Funds").exists }, "moved out")
+        openFolder(app, "Bonds")
+        openFolder(app, "Short Term")
+        XCTAssertTrue(libraryRow(app, "Index Funds").waitForExistence(timeout: 5), "in the new folder, inside Bonds")
     }
 
     func testEditMovesSeveralPages() throws {

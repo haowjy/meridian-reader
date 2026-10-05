@@ -281,6 +281,18 @@ final class ScreenshotCaptureTests: XCTestCase {
         XCTAssertTrue(el(app, "startFavorites").waitForExistence(timeout: 5))
         wait(1)
         try shot("9-start-page-favorites")
+
+        app.buttons["browseMore"].tap()
+        let favorites = el(app, "moreFavorites")
+        XCTAssertTrue(favorites.waitForExistence(timeout: 3))
+        wait(0.6)
+        favorites.tap()
+        XCTAssertTrue(el(app, "favoritesMore").waitForExistence(timeout: 5))
+        wait(1.2)
+        try shot("10-favorites-sheet")
+        app.buttons["favoritesMore"].tap()
+        wait(1.2)
+        try shot("11-favorites-sheet-menu")
     }
 
     /// A row in a Library list, by its title.

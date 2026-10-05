@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 
 /// Lookups shared by the Library's UI tests.
@@ -65,12 +66,68 @@ extension XCTestCase {
     func pickInMoveTree(_ app: XCUIApplication, _ name: String) {
         let tree = find(app, "moveTree")
         XCTAssertTrue(tree.waitForExistence(timeout: 5), "the Move tree")
-        let folder = app.buttons.matching(identifier: "moveFolder").matching(NSPredicate(format: "label == %@", name)).firstMatch
+        let folder = moveTreeFolder(app, name)
         if !folder.waitForExistence(timeout: 1) {
             tree.swipeUp()
             idle(0.8)
         }
         XCTAssertTrue(folder.waitForExistence(timeout: 3), "\(name) in the Move tree")
         folder.tap()
+    }
+
+    /// *Library (no folder)* in the open Move tree.
+    func pickInMoveTree(_ app: XCUIApplication, topLevel: Bool) {
+        XCTAssertTrue(find(app, "moveTree").waitForExistence(timeout: 5), "the Move tree")
+        let place = app.buttons["moveTopLevel"]
+        XCTAssertTrue(place.waitForExistence(timeout: 3))
+        place.tap()
+    }
+
+    /// The folder `name` in the open Move tree.
+    func moveTreeFolder(_ app: XCUIApplication, _ name: String) -> XCUIElement {
+        app.buttons.matching(identifier: "moveFolder").matching(NSPredicate(format: "label == %@", name)).firstMatch
+    }
+}
+
+/// Colours read off a screenshot, for claims a test can only see (a tint, dimming).
+enum ScreenColor {
+    /// The median colour (sRGB, 0…1 per channel) of `region` (points) of `shot`: its background,
+    /// whatever text and icons sit on it.
+    static func median(in shot: XCUIScreenshot, region: CGRect) -> [Double]? {
+        guard let pixels = rgba(shot, region: region), !pixels.isEmpty else { return nil }
+        return (0..<3).map { channel in
+            let values = stride(from: channel, to: pixels.count, by: 4).map { Double(pixels[$0]) / 255 }.sorted()
+            return values[values.count / 2]
+        }
+    }
+
+    /// How far apart two colours are (Euclidean, 0…√3).
+    static func distance(_ a: [Double], _ b: [Double]) -> Double {
+        sqrt(zip(a, b).map { ($0 - $1) * ($0 - $1) }.reduce(0, +))
+    }
+
+    /// The contrast of the text in `region` against its background (`StatusBarContrast`'s
+    /// reading: the region's median against its darkest or lightest 0.5%).
+    static func textContrast(in shot: XCUIScreenshot, region: CGRect) -> Double? {
+        StatusBarContrast.read(shot.image, region: region)?.ratio
+    }
+
+    private static func rgba(_ shot: XCUIScreenshot, region: CGRect) -> [UInt8]? {
+        let image = shot.image
+        guard let cg = image.cgImage else { return nil }
+        let scale = image.scale
+        let pixels = CGRect(x: region.minX * scale, y: region.minY * scale,
+                            width: region.width * scale, height: region.height * scale).integral
+        guard let crop = cg.cropping(to: pixels) else { return nil }
+        let (w, h) = (crop.width, crop.height)
+        var bytes = [UInt8](repeating: 0, count: w * h * 4)
+        let drawn = bytes.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8,
+                                          bytesPerRow: w * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(crop, in: CGRect(x: 0, y: 0, width: w, height: h))
+            return true
+        }
+        return drawn ? bytes : nil
     }
 }

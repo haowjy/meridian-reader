@@ -49,6 +49,10 @@ struct LaunchOptions: Equatable {
     /// `-seedDemoBook`: add the demo book and its page in no folder (`DemoBook`), replacing the
     /// ones an earlier launch added. The rest of the library is left alone.
     var seedsDemoBook = false
+    /// `-seedDemoBookPlace N` (with `-seedDemoBook`): the book's place is chapter N (its index in
+    /// `DemoBook.chapters`; 0 is the title page), at its third paragraph, the chapters before it
+    /// finished: a book part-way, for Continue.
+    var demoBookPlace: Int?
     /// `-chainDemoChapters`: once launched, play the demo book from its place (chapter 1 the first
     /// time) and let it carry on (the locked-screen device check).
     var chainsDemoChapters = false
@@ -93,6 +97,7 @@ struct LaunchOptions: Equatable {
         slowMenuAnimation = flags.contains("-slowMenuAnimation")
         rerunsLibraryMigration = flags.contains("-rerunLibraryMigration")
         seedsDemoBook = flags.contains("-seedDemoBook")
+        demoBookPlace = value(after: "-seedDemoBookPlace").flatMap(Int.init)
         chainsDemoChapters = flags.contains("-chainDemoChapters")
         seedsDemoFolders = flags.contains("-seedDemoFolders")
         restoresSurfaceInUITests = flags.contains("-restoreSurface")

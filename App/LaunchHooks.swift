@@ -15,7 +15,7 @@ enum LaunchHooks {
     /// After the migration copy, before the layout pass: the demo seeds.
     static func runSeeds(_ options: LaunchOptions, library: LibraryStore) {
         if let demo = options.demoArticle { seedDemoArticle(demo, in: library) }
-        if options.seedsDemoBook { seedDemoBook(in: library) }
+        if options.seedsDemoBook { seedDemoBook(in: library, place: options.demoBookPlace) }
         if options.seedsDemoFolders { seedDemoFolders(in: library) }
     }
 
@@ -81,7 +81,8 @@ enum LaunchHooks {
     /// no folder by `DemoBook.loosePageMarker`. An address another page already has isn't given
     /// to a seeded page, since the launch's dedupe would merge the two: that chapter goes without
     /// it, and the page in no folder isn't added.
-    static func seedDemoBook(in library: LibraryStore) {
+    /// `place`: the book is part-way, at that chapter's third paragraph (`-seedDemoBookPlace`).
+    static func seedDemoBook(in library: LibraryStore, place: Int? = nil) {
         for folder in demoBooks(in: library) { try? library.deleteFolder(folder, keepContents: false) }
         for page in seededLoosePages(in: library) { library.delete(page) }
         let book = Folder(name: DemoBook.title, kind: .book, sortKey: library.nextFolderSortKey(in: nil))
@@ -95,6 +96,15 @@ enum LaunchHooks {
             page.skipsInPlayback = chapter.skipsInPlayback
             library.context.insert(page)
             page.setFolder(book)
+            if let place, DemoBook.chapters.indices.contains(place) {
+                if index > 0 && index < place { page.finishedAt = .now.addingTimeInterval(-3600) }
+                if index == place {
+                    page.positionParagraph = 2
+                    page.lastPlayedAt = .now.addingTimeInterval(-600)
+                    book.currentPageKey = page.key
+                    book.lastPlayedAt = page.lastPlayedAt
+                }
+            }
         }
         if library.page(url: DemoBook.loosePageURL) == nil {
             let loose = demoPage(DemoBook.loosePage, url: DemoBook.loosePageURL, sortKey: library.nextSortKey(in: nil))
