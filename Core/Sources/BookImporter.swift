@@ -19,6 +19,21 @@ enum ReimportChoice: Equatable, Sendable {
     case cancel
 }
 
+/// The book as read from the file, before its chapters are prepared: what the import sheet shows
+/// while the rest runs. Counts are the cut's; settling may still merge a short chapter.
+struct BookImportPreview: Equatable {
+    var title: String
+    /// The authors, joined.
+    var byline: String?
+    /// A thumbnail of the cover (`CoverThumbnail`).
+    var cover: Data?
+    var chapterCount: Int
+    /// The titles of the chapters that play, in order (untitled ones left out).
+    var chapterTitles: [String]
+    /// Chapters skipped in playback (title page, licence …), by title, in order.
+    var skippedTitles: [String]
+}
+
 enum BookImportOutcome {
     /// A new book folder.
     case added(Folder)
@@ -32,7 +47,10 @@ enum BookImportOutcome {
 enum BookImportError: Error, Equatable, LocalizedError {
     case drmProtected
     case fixedLayout
-    /// Not an EPUB, damaged, over the caps, or no text. The detail is for the log.
+    /// Over `EPUBLimits`' caps: more text, files or bytes than a book needs (a zip bomb lands
+    /// here too).
+    case tooLarge
+    /// Not an EPUB, damaged, or no text. The detail is for the log.
     case unreadable(String)
     /// Books and series hold only their own chapters.
     case notADestination
@@ -47,7 +65,7 @@ enum BookImportError: Error, Equatable, LocalizedError {
         switch error {
         case .drmProtected: self = .drmProtected
         case .fixedLayout: self = .fixedLayout
-        case .tooLarge: self = .unreadable("over the size caps")
+        case .tooLarge: self = .tooLarge
         case .unsafePath(let path): self = .unreadable("unsafe path \(path)")
         case .unreadable(let detail): self = .unreadable(detail)
         }
@@ -57,6 +75,7 @@ enum BookImportError: Error, Equatable, LocalizedError {
         switch self {
         case .drmProtected: String(localized: "This book is copy-protected (DRM), so Meridian can't read it.")
         case .fixedLayout: String(localized: "This is a fixed-layout book; its text can't be read in order.")
+        case .tooLarge: String(localized: "This book is too large to import.")
         case .unreadable: String(localized: "This file isn't a readable EPUB.")
         case .notADestination: String(localized: "Books and series can't hold other pages.")
         case .destinationGone: String(localized: "The folder chosen for this book no longer exists.")
@@ -86,14 +105,17 @@ struct BookImporter {
     var maxCuts = 3
 
     /// `destination`: the folder the book goes in (nil = the top level). A book already in the
-    /// Library stays where it is: `choice` says whether its pages are rebuilt.
+    /// Library stays where it is: `choice` says whether its pages are rebuilt. `read` gets the
+    /// book's title, cover and chapters once the file is read, before anything else.
     func importBook(at fileURL: URL, into destination: Folder?, ifAlreadyInLibrary choice: ReimportChoice,
-                    progress: (BookImportProgress) -> Void = { _ in }) async throws -> BookImportOutcome {
+                    progress: (BookImportProgress) -> Void = { _ in },
+                    read onRead: (BookImportPreview) -> Void = { _ in }) async throws -> BookImportOutcome {
         if let destination, destination.kind.isFixed { throw BookImportError.notADestination }
         let destinationID = destination?.id
         progress(.reading)
         var rules = rules
         var book = try await read(fileURL, rules: rules)
+        onRead(Self.preview(of: book, fallbackTitle: fileURL.deletingPathExtension().lastPathComponent))
         if let existing = library.book(key: book.key), choice == .cancel { return .alreadyInLibrary(existing) }
 
         let normalizer = ListenContentNormalizer()
@@ -130,6 +152,17 @@ struct BookImporter {
         } catch {
             throw BookImportError.couldNotSave
         }
+    }
+
+    static func preview(of book: EPUBBook, fallbackTitle: String) -> BookImportPreview {
+        let authors = book.metadata.authors.joined(separator: ", ")
+        return BookImportPreview(
+            title: book.metadata.title.flatMap { $0.isEmpty ? nil : $0 } ?? fallbackTitle,
+            byline: authors.isEmpty ? nil : authors,
+            cover: book.cover.flatMap { CoverThumbnail.make(from: $0.data) },
+            chapterCount: book.chapters.count,
+            chapterTitles: book.chapters.filter { !$0.skipsInPlayback }.compactMap(\.title),
+            skippedTitles: book.chapters.filter(\.skipsInPlayback).compactMap(\.title))
     }
 
     /// The destination as the library has it now (nil: the top level): it may have been deleted
