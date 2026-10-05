@@ -235,7 +235,8 @@ final class ScreenshotCaptureTests: XCTestCase {
     /// The Library home, a folder (and its ⋯, Edit, the Move tree), a book, and the start page's
     /// Favorites. Offline: the demo article, book and folders, and the seeded favorites.
     func testLibrarySurfaces() throws {
-        let app = launch(["-seedDemoArticle", "-seedDemoBook", "-seedDemoFolders", "-seedBookmarks", "-openLibrary"])
+        let app = launch(["-seedDemoArticle", "-seedDemoBook", "-seedDemoFolders", "-seedBookmarks", "-openLibrary",
+                          "-reader.developerOptions", "NO"])
         XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 10))
         wait(1.5)
         try shot("1-library-home")

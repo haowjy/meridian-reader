@@ -423,7 +423,9 @@ row or Continue card) opens Now Playing instead.
 Debug tools are hidden in normal use: the ⋯ Debug rows (Browse "Debug ›" with Fake extraction
 failure; Reader, Now Playing, Library and Favorites sheet "Debug" → Listen debug panel), Voice
 settings → Listen debug (and Open full panel), the listen bar's Debug pill / bake overlay, and
-long-press ▶︎ → Listen debug panel. Each of these sets `speech.showListenDebug`; the shell's root
+long-press ▶︎ → Listen debug panel. The entry points that open the full panel set
+`speech.showListenDebug` (Browse's Debug › only fakes an extraction failure; the Debug pill
+toggles the bake overlay); the shell's root
 presents the panel (`listenDebugSheet`) while no shell sheet is up, and Voice settings and the
 Favorites sheet present it over themselves. They show only with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
 default in Release builds, on by default in Debug builds. To toggle in any build, long-press the

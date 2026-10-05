@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Developer overlay for local-engine listen gaps / bake queue.
-/// Open: the ⋯ Debug row (Reader, Now Playing, Library), Settings → Listen → Listen debug (toggle
-/// + Open panel), the Debug chip on the listen bar, or long-press play/pause. Each sets
+/// Open: the ⋯ Debug row (Reader, Now Playing, Library, Favorites sheet), Settings → Listen →
+/// Open full panel, the bake overlay, or long-press play/pause. Each sets
 /// `speech.showListenDebug`; `listenDebugSheet` presents it.
 struct ListenDebugPanel: View {
     @Bindable var speech: SpeechController
