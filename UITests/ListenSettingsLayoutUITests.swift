@@ -54,9 +54,14 @@ final class ListenSettingsLayoutUITests: XCTestCase {
             reset.terminate()
         }
 
-        let chooseVoice = app.buttons["Choose voice"] // library sheet toolbar
-        XCTAssertTrue(chooseVoice.waitForExistence(timeout: 10))
-        chooseVoice.tap()
+        // The Library's ⋯ → Voice Settings (the Library home has no voice button of its own).
+        let more = app.buttons["libraryMore"]
+        XCTAssertTrue(more.waitForExistence(timeout: 10))
+        more.tap()
+        let voice = app.descendants(matching: .any).matching(identifier: "moreVoice").firstMatch
+        XCTAssertTrue(voice.waitForExistence(timeout: 3))
+        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        voice.tap()
 
         let heart = app.buttons["voiceRow-af_heart"]
         let bella = app.buttons["voiceRow-af_bella"]
