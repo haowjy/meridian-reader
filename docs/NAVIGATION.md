@@ -249,8 +249,8 @@ opens Now Playing instead.
 - **It looks like the Reader** (same paper, serif and margins); its chrome is the player's. A
   plain-text article (no reading HTML) shows its paragraphs on the same reading page, in both,
   so everything below applies to it too.
-- **"Playing from"** names the site; tapping it closes Now Playing and shows the page in the
-  browser.
+- **"Playing from"** says *Library* for a saved page (tap: Now Playing closes onto the Library)
+  and names the site for a page you haven't saved (tap: the page in the browser).
 - **The text follows the audio.** On each new paragraph it scrolls the spoken one near the middle
   (the `Motion.standard` spring; a jump under Reduce Motion). The spoken paragraph is tinted and
   the current sentence underlined (per chunk on engines that report only chunk starts; no

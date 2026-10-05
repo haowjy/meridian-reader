@@ -69,8 +69,12 @@ final class NowPlayingUITests: XCTestCase {
     func testScrollingAwayOffersBackToAudio() throws {
         let app = launchLongDemo()
         openNowPlayingFromTheLibrary(app)
-        XCTAssertEqual(find(app, "nowPlayingFrom").label, "Playing from example.com")
+        XCTAssertEqual(find(app, "nowPlayingFrom").label, "Playing from Library", "a saved page plays from the Library")
         assertBackToAudioReturnsToTheSpokenParagraph(app)
+
+        find(app, "nowPlayingFrom").tap()
+        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingFrom").exists }, "Now Playing closes")
+        XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5), "on the Library")
     }
 
     /// A plain-text article (no reading HTML) reads on the same page: it follows the audio, offers

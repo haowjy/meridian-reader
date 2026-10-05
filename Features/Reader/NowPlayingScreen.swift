@@ -8,7 +8,8 @@ import SwiftData
 /// - The text follows the audio: each new paragraph scrolls near the middle, the spoken
 ///   paragraph is tinted and its sentence underlined. A drag stops following; Back to audio
 ///   resumes it. Scrubbing scrolls to the paragraph under the thumb.
-/// - "Playing from <site>" closes Now Playing and shows the page in the browser.
+/// - "Playing from": a saved page plays from the Library (tap: the Library); a page you haven't
+///   saved plays from its site (tap: the page in the browser).
 /// - ⊕ saves the page (✓ when saved; tap again to remove it).
 /// - At the end it stays: the text stays, the tint goes, "✓ Finished", ▶ plays it again.
 /// - ⌄ or a pull down shrinks it back into the bar.
@@ -33,13 +34,13 @@ struct NowPlayingScreen: View {
     var body: some View {
         if let now = speech.nowPlaying {
             NowPlayingSheet(
-                playingFrom: now.playingFrom.name,
+                playingFrom: savedID != nil ? "Library" : now.playingFrom.name,
                 isSaved: savedID != nil,
                 showsBackToAudio: !following && !now.isFinished,
                 onCollapse: { [shell, presentation = shell.nowPlayingPresentation] in
                     if let presentation { shell.nowPlayingDidClose(presentation) }
                 },
-                onPlayingFrom: { goToPlayingFrom() },
+                onPlayingFrom: { savedID != nil ? shell.openLibrary() : goToPlayingFrom() },
                 onToggleSave: toggleSaved,
                 onBackToAudio: { following = true }
             ) {
