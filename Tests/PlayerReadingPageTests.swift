@@ -41,6 +41,49 @@ final class PlayerReadingPageTests: XCTestCase {
         }
     }
 
+    /// Through the playback session, as Now Playing passes it on: the paragraph in full ink
+    /// follows the playhead through a skip, a scrub (the paragraph under the thumb while dragged,
+    /// then where it lands) and ⏮, everything is in full ink once the page has finished, and
+    /// replay picks the first paragraph out again.
+    func testTheSpokenParagraphFollowsThePlayheadThroughTheSession() async throws {
+        let test = TestSpeech()
+        defer { test.tearDown() }
+        let speech = test.speech
+        let article = TestSpeech.article("https://example.com/dimming")
+        page.coordinator.look = .player
+        try await page.load(article.displayHTML, blocks: 3)
+
+        func shows(_ spoken: Int?, scrubPreview: Int? = nil, _ what: String) async throws {
+            XCTAssertEqual(speech.spokenParagraph(scrubPreview: scrubPreview), spoken, what)
+            page.coordinator.setActiveParagraph(speech.spokenParagraph(scrubPreview: scrubPreview))
+            let expected = (0..<3).map { spoken == nil || $0 == spoken ? Self.css(Palette.playerInk) : Self.css(Palette.playerDimInk) }
+            var colours: [String?] = []
+            try await page.waitUntil(what, timeout: 3) {
+                colours = []
+                for i in 0..<3 { colours.append(try await self.colour(of: i)) }
+                return colours == expected
+            }
+            XCTAssertEqual(colours, expected, what)
+        }
+
+        speech.listen(to: article)
+        try await shows(0, "listening from the start")
+        speech.skipToNextParagraph()
+        try await shows(1, "⏭")
+        try await shows(2, scrubPreview: 2, "scrubbing over the third paragraph")
+        speech.seek(toUTF16Offset: speech.document.startUTF16Offset(forParagraph: 2))
+        try await shows(2, "the scrub landed")
+        speech.skipToPreviousParagraph()
+        try await shows(1, "⏮")
+        test.apple.emit(.position(paragraph: 2, utf16: speech.document.startUTF16Offset(forParagraph: 2)))
+        try await shows(2, "the engine moved on")
+        test.apple.emit(.finished)
+        XCTAssertEqual(speech.nowPlaying?.isFinished, true)
+        try await shows(nil, "finished: all in full ink")
+        speech.press(.page(article.id)) {}
+        try await shows(0, "replay")
+    }
+
     func testTheHandedOverOffsetStepsOverTheTitleCard() async throws {
         page.coordinator.look = .player
         page.coordinator.setTopView(ReadingTopView(id: 1, view: AnyView(Color.clear.frame(height: 120))))

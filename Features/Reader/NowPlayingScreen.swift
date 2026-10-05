@@ -193,6 +193,16 @@ private struct TitleCardContent {
     let artwork: Image?
 }
 
+extension SpeechController {
+    /// The paragraph Now Playing's text shows as spoken (full ink, the others dimmed): the one a
+    /// scrub is over while it is dragged, else the playhead; none once the page has finished, so
+    /// all of it reads in full ink.
+    func spokenParagraph(scrubPreview: Int?) -> Int? {
+        guard let now = nowPlaying, !now.isFinished else { return nil }
+        return scrubPreview ?? currentParagraphIndex
+    }
+}
+
 /// The text under its title card, the spoken paragraph in full ink and its sentence underlined.
 /// Its own view because the sentence (and the card's time left) follows the live offset, which
 /// moves several times a second: only this leaf (and the web view's bridge, which sends only
@@ -217,7 +227,7 @@ private struct SpokenText: View {
             html: html,
             look: .player,
             topView: titleCard,
-            activeParagraphIndex: finished ? nil : (scrubPreview ?? paragraph),
+            activeParagraphIndex: speech.spokenParagraph(scrubPreview: scrubPreview),
             sentence: finished || scrubPreview != nil ? nil : sentence(paragraph),
             jumpMode: jumpMode,
             scrollRequest: scrollRequest,
