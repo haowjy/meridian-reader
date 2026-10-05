@@ -31,9 +31,10 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 App/        @main, composition root (AppComposition), launch work (AppLaunch), Debug-only launch hooks
 Core/
   Device/       chip / OS gates
-  Domain/       ReaderArticle, ParagraphDocument, ParagraphSplitter, ArticleIdentity, ReaderScrubMap
-  EPUB/         EPUB reading (not wired to import yet): zip container, package, contents, chapter cutting, BookIdentity
-  Extraction/   ArticleExtracting, Readability runner, reader scripts
+  Domain/       ReaderArticle, PageOrigin, ParagraphDocument, ParagraphSplitter, ArticleIdentity, ReaderScrubMap
+  EPUB/         EPUB reading: zip container, package, contents, chapter cutting, BookIdentity
+  Extraction/   ArticleExtracting, Readability runner, ListenContentNormalizer, reader scripts
+  Sources/      PageSource (SingleWebPageSource, EPUBSource), BookImporter, chapter settling, cover thumbnails
   Persistence/  SwiftData models; Library/ (Folder, Page, LibraryStore, LibraryQueries, migration); frozen legacy readers
   TTS/          chunking, render queue, audio cache, run state, engine plumbing (no library imports)
   Web/          WebView + store, URL helpers, favicons, Google suggestions
@@ -73,10 +74,14 @@ UITests/    UI tests (ReaderUITests)
 1. The browser keeps a live `WKWebView` (`WebViewStore`). Reader mode and Save take a snapshot of
    the page's visible DOM (`ReaderVisibleSnapshot.js` drops short invisible text such as anti-copy
    lines).
-2. `ReadabilityArticleExtractor` loads that HTML into an **off-screen** `WKWebView` (the page URL
-   as base for web pages) with the page's JavaScript off, injects Readability.js and the
-   readerable helper, and runs `new Readability(document.cloneNode(true)).parse()`, then
-   normalizes the result (`ReaderNormalize.js`).
+2. `ReadabilityArticleExtractor` loads that HTML into an **off-screen** `WKWebView`
+   (`OffscreenWebView`; the page URL as base for web pages) with the page's JavaScript off,
+   injects Readability.js and the readerable helper, and runs
+   `new Readability(document.cloneNode(true)).parse()`. `ListenContentNormalizer` then runs
+   `ReaderNormalize.js` on the result in the same web view, so every piece of readable text sits
+   in a listen block (loose text in a `<div>`, lines between `<br><br>`, the lead-in of a list
+   item or quote holding blocks). The browser's page reaches the Reader, 🎧 and Save as a
+   `SingleWebPageSource`: one page in no folder, its content normalized like every source's.
 3. The address bar's reader icon and the ⋯ Reader toggle use the same
    `isProbablyReaderable` check, run after each load and same-document URL change.
 
@@ -90,6 +95,11 @@ a second time, fetch, and change the DOM before Readability reads it. The app's 
 **Success and failure.** Save and the reader need a non-empty title and body. Otherwise
 extraction fails with a reason the user sees, and nothing is stored (no bookmark-only save, no
 raw snapshot).
+
+**Book chapters** skip Readability: each chapter's XHTML goes through the normalizer alone, in
+one reused off-screen web view holding a blank standards-mode page, after `ReaderBookChapter.js`
+takes out pictures, embedded media, footnotes and note references and unwraps links (parsed in
+an inert document, so nothing loads). See "Book import" below.
 
 **Swapping the engine.** A new type conforming to `ArticleExtracting`, set in `ReaderApp`; the
 library and speech don't change. `FakeArticleExtractor` backs the Debug "Fake extraction failure"
@@ -128,12 +138,35 @@ dedupe pass. Every library read and write goes through `LibraryStore`; lists use
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
 | `skipsInPlayback`, `fetchStateRaw` | Book chapters and series: what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
-| `locator` | Book chapters: the contents entry (not used yet) |
+| `locator` | Book chapters: where the chapter starts in the book, `href#fragment` |
 
 **`Folder`** (library): `name`, `kindRaw` (`plain`, `book`, `series`, `favorites`), `sortKey`,
 `parent` / `children` (any depth), `pages`, `pageSortRaw`, and for books and series their details
-and place (`currentPageKey`, `lastPlayedAt`, `finishedAt`, written as their chapters play). One
+(`byline`, `coverData`, `sourceIdentifier`, `sourceStateData`, `languageCode`) and place
+(`currentPageKey`, `lastPlayedAt`, `finishedAt`, written as their chapters play). One
 Favorites folder holds the bookmarks; it can't be deleted, renamed or moved below the top level.
+
+**Book import** (`BookImporter`; no screen reaches it yet, the Debug hook `-importTestEPUB`
+does):
+1. `EPUBBookReader` reads and cuts the file off the main thread: DRM and fixed layout are
+   refused, then the package, the contents and every spine file are read and cut at contents
+   anchors, choosing the depth per branch; front and back matter are flagged.
+2. Each chapter is normalized, one at a time, in one hidden web view (above). Progress is a value
+   (`BookImportProgress`: reading, chapters prepared of all of them, storing).
+3. The chapters are settled on their listen blocks (`BookChapterFinalizer`) before any key is
+   kept: a chapter with nothing to read is dropped; a body chapter under 100 words joins the
+   body chapter after it, else the one before, within 30,000 words; a body chapter still over
+   30,000 words makes the book be cut again with a lower cap. An untitled chapter is named by its
+   first words.
+4. `LibraryStore.addBook` stores one `Folder(kind: .book)` (title, authors, a 600 px cover
+   thumbnail, language, the book key as `sourceIdentifier`, the file's SHA-256 in
+   `sourceStateData`) at the destination, with one saved page per chapter in order (key
+   `BookIdentity.chapterKey`, front matter `skipsInPlayback`), all in one save: a failed save
+   keeps nothing.
+5. A book already in the Library (same book key) is left alone, or, with *Replace* (D13),
+   rebuilt in the same folder by `LibraryStore.replaceBook` (`ARTICLE_IDENTITY.md`).
+
+Refusals and failures are `BookImportError`s whose messages a sheet can show as they are.
 
 **Migration (copy-once).** At launch `LibraryStore.migrateLegacy` copies every `SavedArticle`
 row and every bookmark in `bookmarks.json` without a receipt (`LibraryMigrationReceipt`, in the

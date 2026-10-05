@@ -28,8 +28,9 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
   rerun it alone.
 - UI tests drive the app with launch arguments (`App/LaunchOptions.swift`, Debug builds only):
   `-uiTesting` (test markers on, Google suggestions off), `-seedDemoArticle`, `-seedDemoBook`
-  (a demo book; `-chainDemoChapters` plays it), `-browseTestPages` (offline `reader-test://`
-  pages), `-selectEngine apple`. Keep UI tests offline; use the test pages, not live sites.
+  (a demo book; `-chainDemoChapters` plays it), `-importTestEPUB` (a synthetic EPUB through the
+  real import; `-playTestEPUB` plays it), `-browseTestPages` (offline `reader-test://` pages),
+  `-selectEngine apple`. Keep UI tests offline; use the test pages, not live sites.
 - `ScreenshotCaptureTests` is skipped unless `TEST_RUNNER_READER_SCREENSHOTS_DIR=<dir>` is set in
   xcodebuild's environment.
 - `KokoroNaNProbeTests` and `KokoroONNXSessionTests` run only when the Mac research model is at
@@ -45,7 +46,7 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
 | Path | What lives there |
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks |
-| `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `Extraction`, `Persistence` (SwiftData; `Library/`: `Folder`, `Page`, `LibraryStore`, `LibraryQueries`, the migration), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web`, `Device` |
+| `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `Extraction` (Readability, the listen normalizer), `Sources` (`PageSource`s, the book import), `Persistence` (SwiftData; `Library/`: `Folder`, `Page`, `LibraryStore`, `LibraryQueries`, the migration), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web`, `Device` |
 | `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Browse`, `Reader`, `Saved`, `Speech` (playback, engines, settings) |
 | `Tests/`, `UITests/` | Unit tests (fakes in `Tests/Fakes/`), UI tests |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Reader uses only Kokoro |

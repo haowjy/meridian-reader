@@ -29,3 +29,15 @@ strips most of that, but any leak would change a content-based key and re-render
 article. With the URL as the key and a hash per paragraph, a leak costs at most that one
 paragraph. Re-extracting the article when the reader opens is expected (fast, local); it doesn't
 re-render audio.
+
+## Imported books
+
+A book chapter has no web address; its key comes from the book (`BookIdentity`), so importing
+the same file again gives the same keys, and its audio is reused.
+
+| Concern | Rule |
+|---------|------|
+| Book key | SHA-256(namespace `book.v1`, `"identifier"`, the OPF unique identifier, the title) → UUID. The title is in it because editions share identifiers. An identifier that is missing or a placeholder of zeros gives `"file"` and the file's SHA-256 instead. Stored as the book folder's `sourceIdentifier`; one book folder per key. |
+| Chapter key | SHA-256(namespace `book-chapter.v1`, the book key, the spine file's path, the anchor) → UUID, the anchor being the file's start, an id the book gives, or the first block's text and how many chapters before it in that file open the same way. Not through `canonicalURLString`, which drops fragments. `Page.key`; `Page.locator` keeps `href#fragment`. |
+| Final keys | Chapters are settled on their listen blocks before any key is stored (`BookChapterFinalizer`): a chapter dropped or joined to a neighbour leaves no key behind; the chapter it joins keeps its own. |
+| Importing a book already in the Library (D13) | *Cancel* changes nothing. *Replace* rebuilds the pages in the same folder, which keeps its place, its name and its listening (`LibraryStore.replaceBook`). A key match alone doesn't prove a chapter is the same text: a chapter whose key and listen text both match keeps everything; one whose key matches but text changed keeps its audio per paragraph (aligned by text hash) and its position only if the paragraph it is in is still there word for word, else it starts again, and playback of it stops; a chapter under a new key whose text matches an old page takes over that page's position and audio (merged, as dedupe does), and a session playing it follows. Pages no chapter comes from are deleted with their audio. |
