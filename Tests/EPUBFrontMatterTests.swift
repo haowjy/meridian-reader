@@ -156,7 +156,8 @@ final class EPUBFrontMatterTests: XCTestCase {
     }
 
     /// Gutenberg's header and licence become chapters of their own, skipped; the short title area
-    /// between the header and chapter 1 merges into chapter 1.
+    /// between the header and chapter 1 merges into chapter 1, and the licence's opening (before
+    /// the heading the contents names) into the licence.
     func testGutenbergHeaderAndLicenceAreTheirOwnSkippedChapters() throws {
         var epub = SyntheticEPUB()
         epub.addDocument("wrap.xhtml", body: SyntheticEPUB.xhtml(body: """
@@ -168,7 +169,7 @@ final class EPUBFrontMatterTests: XCTestCase {
         epub.addDocument("ch2.xhtml", body: file("c2", "Chapter 2", words: 1_500, seed: 4))
         epub.addDocument("end.xhtml", body: SyntheticEPUB.xhtml(body: """
         \(SyntheticEPUB.chapter(id: "c3", heading: "Chapter 3", words: 1_500, seed: 5))
-        <section class="pg-boilerplate pgheader" id="pg-footer"><p>\(SyntheticEPUB.words(20, seed: 6))</p>
+        <section class="pg-boilerplate pgheader" id="pg-footer"><p>\(SyntheticEPUB.words(200, seed: 6))</p>
         <h2 id="pg-footer-heading">Licence</h2><p>\(SyntheticEPUB.words(3_000, seed: 7))</p></section>
         """))
         epub.contents = [Entry("Chapter 1", "wrap.xhtml#c1"), Entry("Chapter 2", "ch2.xhtml"),
@@ -176,7 +177,8 @@ final class EPUBFrontMatterTests: XCTestCase {
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, ["Project Example Header", "Chapter 1", "Chapter 2", "Chapter 3", "The Licence"])
         XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [true, false, false, false, true])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [203, 1_561, 1_500, 1_500, 3_021])
+        XCTAssertEqual(book.chapters.map(\.wordCount), [203, 1_561, 1_500, 1_500, 3_201],
+                       "the licence's opening, which no entry names, joins the licence")
         XCTAssertFalse(book.chapters[3].xhtml.contains("Licence"), "chapter 3 stops where the licence starts")
         assertBodyChaptersWithinBounds(book)
     }

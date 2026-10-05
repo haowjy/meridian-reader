@@ -39,7 +39,8 @@ struct EPUBCut: Equatable, Sendable {
 /// - a range still over it is split at `h1`, then `h2` headings, else at file boundaries, else
 ///   between blocks;
 /// - a range with no words merges into the next; one under `mergeBelowWords` merges into the
-///   next range of the same kind (body or skipped), else the previous one.
+///   next range of the same kind (body or skipped), else the previous one; so does a skipped
+///   range no entry names, whatever its length.
 ///
 /// Without usable contents, chapters start at `h1` headings, else `h2`, else at each file.
 /// The top of the book, Gutenberg's header and licence, and non-linear files (the nav among them)
@@ -300,7 +301,10 @@ struct EPUBChapterCutter {
                 ranges.remove(at: index)
                 continue
             }
-            if range.words < rules.mergeBelowWords, let into = [index + 1, index - 1].first(where: {
+            // Skipped matter no entry names (the start of Gutenberg's licence) joins skipped
+            // matter beside it at any length, rather than listing as an untitled chapter.
+            let mergesAnyLength = range.skips && range.origin == .unlisted
+            if range.words < rules.mergeBelowWords || mergesAnyLength, let into = [index + 1, index - 1].first(where: {
                 ranges.indices.contains($0) && ranges[$0].skips == range.skips
                     && ranges[$0].words + range.words <= rules.maxWords
             }) {
