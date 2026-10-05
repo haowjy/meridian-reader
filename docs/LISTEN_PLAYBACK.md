@@ -531,7 +531,9 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   playing it, then pull ListenTiming and TTSCache.
 - `-seedDemoBook`: a synthetic book (a skipped title page and three chapters of about a minute and
   a half each) and one page in no folder (`DemoBook`), replacing what an earlier launch seeded and
-  leaving the rest of the library alone. `-chainDemoChapters`: once launched, play it from where
+  leaving the rest of the library alone: it removes only rows it marked (the book by its
+  `sourceIdentifier`, the page by `DemoBook.loosePageMarker`), and gives no seeded page an address
+  another page already has. `-chainDemoChapters`: once launched, play it from where
   Continue would, after the on-device engine has loaded, and let it carry on; each boundary logs
   `chapter_boundary`. Together, the locked-screen chapter-boundary check.
 - `-selectEngine local.kokoro|apple`, `-kokoroUnits <label>` (Core ML route routing).

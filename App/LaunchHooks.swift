@@ -35,33 +35,51 @@ enum LaunchHooks {
 
     /// `-seedDemoBook`: the demo book (a skipped title page and three chapters) and one page in no
     /// folder, replacing the ones an earlier launch seeded, with their audio. Fresh keys each
-    /// launch, so no audio rendered before carries over. Nothing else is touched: it runs on a
-    /// phone with real data for the chapter-boundary device check.
+    /// launch, so no audio rendered before carries over. It runs on a phone with real data (the
+    /// chapter-boundary device check), so it removes only rows it marked itself: the book by its
+    /// `sourceIdentifier`, with its chapters (no page can be moved into a book), and the page in
+    /// no folder by `DemoBook.loosePageMarker`. An address another page already has isn't given
+    /// to a seeded page, since the launch's dedupe would merge the two: that chapter goes without
+    /// it, and the page in no folder isn't added.
     static func seedDemoBook(in library: LibraryStore) {
         for folder in demoBooks(in: library) { try? library.deleteFolder(folder, keepContents: false) }
-        if let loose = library.page(url: DemoBook.loosePageURL) { library.delete(loose) }
+        for page in seededLoosePages(in: library) { library.delete(page) }
         let book = Folder(name: DemoBook.title, kind: .book, sortKey: library.nextFolderSortKey(in: nil))
         book.byline = DemoBook.author
         book.sourceIdentifier = DemoBook.sourceIdentifier
         library.context.insert(book)
         for (index, chapter) in DemoBook.chapters.enumerated() {
-            let page = demoPage(chapter, url: DemoBook.url(ofChapter: index), sortKey: Double(index))
+            let url = DemoBook.url(ofChapter: index)
+            let page = demoPage(chapter, url: library.page(url: url) == nil ? url : nil, sortKey: Double(index))
             page.locator = "chapter-\(index).xhtml"
             page.skipsInPlayback = chapter.skipsInPlayback
             library.context.insert(page)
             page.setFolder(book)
         }
-        let loose = demoPage(DemoBook.loosePage, url: DemoBook.loosePageURL, sortKey: library.nextSortKey(in: nil))
-        library.context.insert(loose)
+        if library.page(url: DemoBook.loosePageURL) == nil {
+            let loose = demoPage(DemoBook.loosePage, url: DemoBook.loosePageURL, sortKey: library.nextSortKey(in: nil))
+            loose.locator = DemoBook.loosePageMarker
+            library.context.insert(loose)
+        } else {
+            library.log("demo seed: \(DemoBook.loosePageURL.absoluteString) is another page's; no page in no folder added")
+        }
         library.commit("demo book seed")
     }
 
+    /// The demo book an earlier seed added, wherever it was moved.
     private static func demoBooks(in library: LibraryStore) -> [Folder] {
-        library.topLevelFolders().filter { $0.sourceIdentifier == DemoBook.sourceIdentifier }
+        let source: String? = DemoBook.sourceIdentifier
+        return (try? library.context.fetch(FetchDescriptor<Folder>(predicate: #Predicate { $0.sourceIdentifier == source }))) ?? []
     }
 
-    private static func demoPage(_ chapter: DemoBook.Chapter, url: URL, sortKey: Double) -> Page {
-        let page = Page(key: UUID(), title: chapter.title, byline: DemoBook.author, urlString: url.absoluteString,
+    /// The page in no folder an earlier seed added, by its marker.
+    private static func seededLoosePages(in library: LibraryStore) -> [Page] {
+        let marker: String? = DemoBook.loosePageMarker
+        return (try? library.context.fetch(FetchDescriptor<Page>(predicate: #Predicate { $0.locator == marker }))) ?? []
+    }
+
+    private static func demoPage(_ chapter: DemoBook.Chapter, url: URL?, sortKey: Double) -> Page {
+        let page = Page(key: UUID(), title: chapter.title, byline: DemoBook.author, urlString: url?.absoluteString,
                         contentState: .saved, addedAt: .now, sortKey: sortKey)
         page.cleanedHTML = chapter.html
         page.plainText = chapter.plainText

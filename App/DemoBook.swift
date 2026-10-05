@@ -58,6 +58,10 @@ enum DemoBook {
         "It is here so a book and a single page can be compared side by side.",
     ])
     static let loosePageURL = URL(string: "https://example.com/demo-loose-page")!
+    /// Marks the page in no folder as the seed's (`Page.locator`, which no other page in no folder
+    /// has: it is a book chapter's place in its book), so the next seed replaces that page and
+    /// no other at its address.
+    static let loosePageMarker = "debug.demo-book.loose-page"
 
     /// The offline test page of chapter `index` (0 is the title page).
     static func url(ofChapter index: Int) -> URL {
