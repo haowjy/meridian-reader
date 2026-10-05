@@ -160,8 +160,10 @@ after the save. A failed save is rolled back with its work, leaving the audio ca
 renders and the resume point as they were. A record is retired only once its postconditions hold
 on disk: the destination's saved audio index aligned with its paragraphs, every file it lists
 there, the merged page's directory gone. A record that fails is kept, with everything after it,
-for the next launch, which does them first (`finishAudioWork`); so is the work of a launch that
-dies after the save. Replay doesn't depend on the source still existing: the audio cache's
+for the next launch; so is the work of a launch that dies after the save. The next launch does
+them first, in `AppComposition.prepareAudioCache` before the first frame: before the launch
+migrations and the prune of unsaved audio clean the cache, before anything reads it, and before
+the engine adopts saved bake jobs (`finishAudioWork`). Replay doesn't depend on the source still existing: the audio cache's
 changes are copy-on-write (`LISTEN_PLAYBACK.md`, Audio cache), so work stopped at any step is
 done again from what is on disk, losing nothing. The resume point moves only from where the work
 found it. Before it changes any audio, a record is checked against the committed page: layout

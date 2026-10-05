@@ -20,7 +20,7 @@ struct ReaderApp: App {
         _library = State(initialValue: library)
         // Foreground/background gate for Core ML synthesis (no model calls in the background).
         AppRunState.shared.observeApplication()
-        AppComposition.runLaunchMaintenance()
+        AppComposition.runLaunchMaintenance(library: library)
         AppComposition.attachLibrary(library)
     }
 

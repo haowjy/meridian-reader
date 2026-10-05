@@ -1,8 +1,9 @@
 import Foundation
 
 /// A one-time launch step. Each checks and sets its own done flag, so it runs once per install,
-/// and it can be deleted once every install has run it. `AppComposition.runLaunchMaintenance`
-/// runs the list right after the speech stack is built, before anything renders or plays.
+/// and it can be deleted once every install has run it. `AppComposition.prepareAudioCache`
+/// runs the list before the first frame, after the library's unfinished audio work and before
+/// anything renders or plays.
 @MainActor
 protocol LaunchMigration {
     func runIfNeeded(_ tts: LocalTTSCoordinator)

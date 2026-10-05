@@ -74,7 +74,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
         )]
     }
 
-    /// One-time launch steps for Kokoro, run by `AppComposition.runLaunchMaintenance`.
+    /// One-time launch steps for Kokoro, run by `AppComposition.prepareAudioCache`.
     static var launchMigrations: [LaunchMigration] { [KokoroAudioCachePurge(), KokoroONNXMainMigration()] }
 
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {

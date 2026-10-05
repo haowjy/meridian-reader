@@ -105,8 +105,8 @@ it is logged as `coreml_stage` in `engine_crash_detected`.
 
 ### One-time launch steps
 
-`FluidAudioProvider.launchMigrations`, run by `AppComposition.runLaunchMaintenance` before
-anything plays: `KokoroAudioCachePurge` (drops Kokoro audio rendered before the NaN patch and
+`FluidAudioProvider.launchMigrations`, run by `AppComposition.prepareAudioCache` before
+anything plays (after the library's unfinished audio work): `KokoroAudioCachePurge` (drops Kokoro audio rendered before the NaN patch and
 the boundary-trimmed joins; `reader.tts.kokoro.audioCacheVersion`) and `KokoroONNXMainMigration`
 (a user that a Core ML crash left on Apple goes back to Kokoro on the ONNX route, at that crash's
 article and paragraph, paused).
