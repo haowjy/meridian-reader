@@ -30,16 +30,18 @@ struct EPUBCutRules: Equatable, Sendable {
 /// Where a chapter is in its book: the part of the chapter's key that comes from the book.
 struct EPUBLocator: Hashable, Sendable {
     enum Anchor: Hashable, Sendable {
-        /// The top of the spine file.
+        /// The top of the spine file: a contents entry naming the file, or a cut with no words
+        /// before it in the file and no id where it falls.
         case fileStart
-        /// An id the book gives: a contents entry's fragment (resolved or not), or the id of the
-        /// element a cut starts at.
+        /// An id the book gives: a contents entry's fragment (resolved or not), or the first id
+        /// where a cut falls among the words (`EPUBTextStream.bookAnchor(at:)`).
         case id(String)
-        /// A cut where the book gives no anchor (or repeats an id): a fingerprint of the
-        /// chapter's first block's text (`EPUBTextStream.firstBlockText`), and how many
-        /// text-anchored chapters before it in the same file have the same fingerprint.
-        /// Attributes, whitespace between tags and inline elements around whole words change
-        /// neither the text nor where the cuts fall, so they keep it.
+        /// A cut where the book gives no anchor (or repeats an id): a fingerprint of the first
+        /// block's text at the cut (`EPUBTextStream.firstBlockText`), and how many chapters before
+        /// it in the same file start with the same text, whatever their anchors. Attributes,
+        /// whitespace between tags and inline elements around whole words change neither the
+        /// text nor where the cuts fall, so they keep it. Chapters that start with the same text
+        /// are told apart only by order (see `EPUBChapterCutter`).
         case text(fingerprint: String, occurrence: Int)
     }
 
@@ -70,10 +72,10 @@ struct EPUBCut: Equatable, Sendable {
 /// - a range over `maxWords` whose entry has children is replaced by its children, recursively;
 /// - a range still over it is split at `h1`, then `h2` headings, then packed (`packed`) so no
 ///   piece is over it;
-/// - a range with no words merges into the next; one under `mergeBelowWords` merges into the
-///   next range of the same kind (body or skipped), else the previous one, if that stays within
-///   `maxWords`; so does a skipped range no entry names, whatever its length. When a range merges
-///   away, the one before it is looked at again with its new neighbour.
+/// - a range with no words merges into the next, before any other merge; then one under
+///   `mergeBelowWords` merges into the next range of the same kind (body or skipped), else the
+///   previous one, if that stays within `maxWords`; so does a skipped range no entry names,
+///   whatever its length.
 ///
 /// Without usable contents, chapters start at `h1` headings, else `h2`, else at each file.
 /// The top of the book, Gutenberg's header and licence, and non-linear files (the nav among them)
@@ -84,6 +86,11 @@ struct EPUBCut: Equatable, Sendable {
 /// words remains only where it can't merge: no neighbouring body chapter can take it without
 /// passing `maxWords` (its neighbours are full, or it has none, as in a whole book under 100
 /// words or a short section between skipped matter with words in it).
+///
+/// **Locators** come from where a cut falls among the words, not which markup event it lands
+/// on (`EPUBTextStream.bookAnchor(at:)`), so whitespace or a wrapper before a heading keeps a
+/// chapter's key. Where the book gives no anchor, chapters are told apart by their first block's
+/// text and, when that repeats in a file, by order: a known limitation (see `located`).
 struct EPUBChapterCutter {
     typealias Position = EPUBTextStream.Position
 
@@ -120,6 +127,9 @@ struct EPUBChapterCutter {
         var title: String?
         var href: String
         var anchor: EPUBLocator.Anchor?
+        /// Where the anchor (or the text anchor made after cutting) is: the range's own start,
+        /// kept when shorter ranges merge into it.
+        var anchorPosition: Position
         var origin: Origin
         var words: Int
         var skips: Bool
@@ -188,8 +198,8 @@ struct EPUBChapterCutter {
     }
 
     private func headingOrFileMarks() -> [Mark] {
-        for level in 1...2 {
-            let starts = stream.elementStarts(from: stream.start, to: stream.end) { $0.localName == "h\(level)" }
+        for heading in ["h1", "h2"] {
+            let starts = stream.elementStarts(from: stream.start, to: stream.end) { $0.localName == heading }
             if !starts.isEmpty {
                 return starts.map { mark(at: $0, title: headingText(at: $0), origin: .derived) }
             }
@@ -295,7 +305,8 @@ struct EPUBChapterCutter {
     private func headingStarts(level: Int, from start: Position, to end: Position) -> [Position] {
         var points: [Position] = []
         var previous = start
-        for candidate in stream.elementStarts(from: start, to: end, where: { $0.localName == "h\(level)" })
+        let heading = "h\(level)"
+        for candidate in stream.elementStarts(from: start, to: end, where: { $0.localName == heading })
         where candidate > previous && stream.words(from: previous, to: candidate) > 0 {
             points.append(candidate)
             previous = candidate
@@ -387,25 +398,23 @@ struct EPUBChapterCutter {
         let bodyWords = stream.bodyWords(from: start, to: piece.end)
         let skips = bodyWords == 0 || (piece.mark.origin == .unlisted && words < rules.unlistedSkipBelowWords)
         return Range(start: start, end: piece.end, title: piece.mark.title, href: piece.mark.href,
-                     anchor: piece.mark.anchor, origin: piece.mark.origin, words: words, skips: skips)
+                     anchor: piece.mark.anchor, anchorPosition: start, origin: piece.mark.origin,
+                     words: words, skips: skips)
     }
 
-    /// Merges short ranges into a neighbour, left to right (see the type's comment for the one
-    /// case a short body range stays). When a range merges away, the range before it is looked
-    /// at again, since its next neighbour changed: a short body range kept from the next body
-    /// range by an empty skipped one between them merges once that one has joined the next.
-    /// Each step keeps a range or merges two, so the work is linear.
+    /// Ranges with no words join the next range first (the last ones, the range before them).
+    /// Then short ranges merge into a neighbour, left to right, each looked at once (see the
+    /// type's comment for the one case a short body range stays). Both passes are linear.
     private func mergingShortRanges(_ ranges: [Range]) -> [Range] {
         var kept: [Range] = []
         // The ranges still to look at, the next one last.
-        var pending = Array(ranges.reversed())
+        var pending = Array(foldingEmptyRanges(ranges).reversed())
         while let range = pending.popLast() {
             switch neighbour(taking: range, previous: kept.last, next: pending.last) {
             case .next:
                 pending[pending.count - 1] = absorbing(range, into: pending[pending.count - 1])
-                if let previous = kept.popLast() { pending.append(previous) }
             case .previous:
-                pending.append(absorbing(range, into: kept.removeLast()))
+                kept[kept.count - 1] = absorbing(range, into: kept[kept.count - 1])
             case nil:
                 kept.append(range)
             }
@@ -413,17 +422,39 @@ struct EPUBChapterCutter {
         return kept
     }
 
+    /// Every range with no words joined to the next range with words (trailing ones to the range
+    /// before them). Done before any other merge, so an empty range is never what another range
+    /// merges into: it would lend the merged chapter its position, which is the next chapter's
+    /// (the same place among the words), and so the next chapter's anchor and first block. It
+    /// also puts a short chapter beside the chapter after an empty skipped range (a plate).
+    private func foldingEmptyRanges(_ ranges: [Range]) -> [Range] {
+        var folded: [Range] = []
+        var empty: Range?
+        for range in ranges {
+            guard range.words > 0 else {
+                empty = empty.map { absorbing($0, into: range) } ?? range
+                continue
+            }
+            folded.append(empty.map { absorbing($0, into: range) } ?? range)
+            empty = nil
+        }
+        if let empty {
+            if let last = folded.popLast() {
+                folded.append(absorbing(empty, into: last))
+            } else {
+                folded.append(empty)
+            }
+        }
+        return folded
+    }
+
     private enum Neighbour {
         case previous, next
     }
 
-    /// The neighbour a range merges into: for a range with no words, the next (else the
-    /// previous); for one under `mergeBelowWords`, the next (else the previous) of the same kind
-    /// that can take it within `maxWords`.
+    /// The neighbour a range under `mergeBelowWords` merges into: the next (else the previous)
+    /// of the same kind that can take it within `maxWords`.
     private func neighbour(taking range: Range, previous: Range?, next: Range?) -> Neighbour? {
-        if range.words == 0 {
-            return next != nil ? .next : previous != nil ? .previous : nil
-        }
         // Skipped matter no entry names (the start of Gutenberg's licence) joins skipped matter
         // beside it at any length, rather than listing as an untitled chapter.
         let mergesAnyLength = range.skips && range.origin == .unlisted
@@ -437,7 +468,7 @@ struct EPUBChapterCutter {
         return nil
     }
 
-    /// The absorbing range keeps its title (unless it has none), anchor and kind.
+    /// The absorbing range keeps its title (unless it has none), anchor (and where it is) and kind.
     private func absorbing(_ range: Range, into primary: Range) -> Range {
         var merged = primary
         merged.start = min(primary.start, range.start)
@@ -451,24 +482,30 @@ struct EPUBChapterCutter {
 
     /// The ranges as cuts with unique locators: the book's anchor where it gives one, else a text
     /// anchor. An anchor already taken (an id the book repeats) is replaced by a text anchor.
+    ///
+    /// A text anchor's occurrence counts every chapter before it in the same file whose first
+    /// block (at its anchor) has the same text, whatever that chapter's anchor, so an id added to
+    /// or dropped from an earlier chapter doesn't renumber it. **Known limitation:** chapters that
+    /// start with the same text are told apart only by order, so adding or removing an earlier
+    /// one that starts the same way (or a change in the cuts that does) renumbers the later ones
+    /// and changes their keys.
     private func located(_ ranges: [Range]) -> [EPUBCut] {
         var taken = Set<EPUBLocator>()
-        var occurrences: [EPUBLocator: Int] = [:]
+        // Per file, per first-block text: chapters so far.
+        var earlier: [String: [String: Int]] = [:]
         return ranges.map { range in
-            var locator = range.anchor.map { EPUBLocator(href: range.href, anchor: $0) }
-            if locator.map(taken.contains) ?? true {
-                let text = stream.firstBlockText(from: range.start, to: range.end, isBlock: Self.blockElements.contains)
-                let fingerprint = Self.fingerprint(text)
-                let first = EPUBLocator(href: range.href, anchor: .text(fingerprint: fingerprint, occurrence: 0))
-                let occurrence = occurrences[first, default: 0]
-                occurrences[first] = occurrence + 1
-                locator = EPUBLocator(href: range.href, anchor: .text(fingerprint: fingerprint, occurrence: occurrence))
+            let text = stream.firstBlockText(from: range.anchorPosition, to: range.end, isBlock: Self.blockElements.contains)
+            let occurrence = earlier[range.href, default: [:]][text, default: 0]
+            earlier[range.href, default: [:]][text, default: 0] += 1
+            func textLocator() -> EPUBLocator {
+                EPUBLocator(href: range.href, anchor: .text(fingerprint: Self.fingerprint(text), occurrence: occurrence))
             }
-            let unique = locator ?? EPUBLocator(href: range.href, anchor: .fileStart)
-            taken.insert(unique)
+            var locator = range.anchor.map { EPUBLocator(href: range.href, anchor: $0) } ?? textLocator()
+            if taken.contains(locator) { locator = textLocator() }
+            taken.insert(locator)
             return EPUBCut(start: range.start, end: range.end,
                            title: range.title ?? firstHeading(from: range.start, to: range.end),
-                           locator: unique, provisionalWordCount: range.words, skipsInPlayback: range.skips)
+                           locator: locator, provisionalWordCount: range.words, skipsInPlayback: range.skips)
         }
     }
 

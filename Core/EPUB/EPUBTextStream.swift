@@ -25,6 +25,10 @@ struct EPUBTextStream: Sendable {
     private let documentIndex: [String: Int]
     /// Per document: it, when it has events, else the next one that has (the last when none has).
     private let nextWithEvents: [Int]
+    /// Per document, by words before a point in it: the first anchor (an id, or a legacy
+    /// `<a name>`, where the document's `anchors` resolves it) on an element opened among the
+    /// points with that many words before them.
+    private let gapAnchors: [[Int: String]]
 
     /// `bodyStart` and `backStart` come from landmarks or the guide: words before the body
     /// starts, and from where back matter starts, are front and back matter.
@@ -34,22 +38,29 @@ struct EPUBTextStream: Sendable {
         var bodyWordsBefore: [[Int]] = []
         var documentWords = [0]
         var documentBodyWords = [0]
+        var gapAnchors: [[Int: String]] = []
         for (documentIndex, document) in documents.enumerated() {
             var all = [0]
             var body = [0]
+            var anchors: [Int: String] = [:]
             all.reserveCapacity(document.events.count + 1)
             body.reserveCapacity(document.events.count + 1)
-            for event in document.events.indices {
+            for (event, element) in document.events.enumerated() {
                 let position = Position(document: documentIndex, event: event)
                 let words = document.words[event]
                 let isMatter = document.inMarkedMatter[event]
                     || bodyStart.map { position < $0 } ?? false
                     || backStart.map { position >= $0 } ?? false
+                if case .open(let tag) = element, anchors[all[event]] == nil {
+                    let names = [tag.attribute("id"), tag.localName == "a" ? tag.attribute("name") : nil]
+                    anchors[all[event]] = names.lazy.compactMap { $0 }.first { !$0.isEmpty && document.anchors[$0] == event }
+                }
                 all.append(all[event] + words)
                 body.append(body[event] + (isMatter ? 0 : words))
             }
             wordsBefore.append(all)
             bodyWordsBefore.append(body)
+            gapAnchors.append(anchors)
             documentWords.append(documentWords[documentIndex] + all[document.events.count])
             documentBodyWords.append(documentBodyWords[documentIndex] + body[document.events.count])
         }
@@ -57,6 +68,7 @@ struct EPUBTextStream: Sendable {
         self.bodyWordsBefore = bodyWordsBefore
         self.documentWords = documentWords
         self.documentBodyWords = documentBodyWords
+        self.gapAnchors = gapAnchors
         var index: [String: Int] = [:]
         for (offset, document) in documents.enumerated() where index[document.path.lowercased()] == nil {
             index[document.path.lowercased()] = offset
@@ -116,16 +128,16 @@ struct EPUBTextStream: Sendable {
         return before(end) - before(start)
     }
 
-    /// The book's own anchor at a position: the top of a file, or the id of the element that
-    /// opens there. Nil when the book gives none.
+    /// The book's own anchor for a cut at a position, from where the cut falls among the words,
+    /// not which markup event it lands on: the first id (or legacy `<a name>`) on an element
+    /// opened between the last word before the position and the first word after it, in its
+    /// file; else the top of the file when no word comes before it there. Nil when the book
+    /// gives neither. So whitespace, comments, or wrappers without an id before a heading don't
+    /// change the anchor, and an id on the heading (or around it) is the anchor wherever it is.
     func bookAnchor(at position: Position) -> EPUBLocator.Anchor? {
-        guard position.event > 0 else { return .fileStart }
-        let document = documents[position.document]
-        if position.event < document.events.count, case .open(let tag) = document.events[position.event],
-           let id = tag.attribute("id"), !id.isEmpty {
-            return .id(id)
-        }
-        return nil
+        let gap = wordsBefore[position.document][position.event]
+        if let id = gapAnchors[position.document][gap] { return .id(id) }
+        return gap == 0 ? .fileStart : nil
     }
 
     /// The text of the first block from `start` (stopping at `end`): its words, whitespace

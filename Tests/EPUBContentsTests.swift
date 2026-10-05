@@ -359,8 +359,8 @@ final class EPUBContentsTests: XCTestCase {
     }
 
     /// A short chapter can't merge into an empty skipped range (a plate) before the next chapter;
-    /// once the plate has joined that chapter, the short one is looked at again and merges too.
-    func testShortChapterMergesOnceAnEmptySkippedRangeBesideItHasMerged() throws {
+    /// empty ranges join the next chapter first, so the short one then merges into it too.
+    func testShortChapterMergesAcrossAnEmptySkippedRange() throws {
         var epub = SyntheticEPUB()
         epub.addDocument("prelude.xhtml", body: chapterFile("prelude", "Prelude", words: 60))
         epub.addDocument("plate.xhtml", body: SyntheticEPUB.xhtml(body: "<div><img src=\"plate.png\" alt=\"\"/></div>"))

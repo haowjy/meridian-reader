@@ -93,6 +93,140 @@ final class BookIdentityTests: XCTestCase {
         XCTAssertEqual(Set(plain.chapters.map(\.key)).count, plain.chapters.count)
     }
 
+    // MARK: - Anchors from where a cut falls
+
+    /// A book with no contents (cut at `h1` headings): each file's sections as given, every
+    /// section 300 words after its heading.
+    private func headingsBook(_ files: [[String]]) -> SyntheticEPUB {
+        var epub = SyntheticEPUB()
+        epub.tableOfContents = .none
+        var seed = 0
+        for (index, sections) in files.enumerated() {
+            let body = sections.map { section -> String in
+                seed += 1
+                return section.replacingOccurrences(of: "FILLER", with: SyntheticEPUB.paragraphs(300, seed: seed))
+            }.joined()
+            epub.addDocument("f\(index + 1).xhtml", body: "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                + "<html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title>Part</title></head><body>\(body)</body></html>")
+        }
+        return epub
+    }
+
+    /// Whitespace, a comment or a wrapper without an id before a heading, at the top of a file or
+    /// inside it, doesn't move any key.
+    func testWhitespaceAndWrappersBeforeAHeadingKeepTheKeys() throws {
+        let variants: [(String) -> String] = [
+            { "<h1>\($0)</h1>FILLER" },
+            { "\n\n  <h1>\($0)</h1>\nFILLER\n" },
+            { "<!-- page -->\n<h1>\($0)</h1>FILLER" },
+            { "<div class=\"part\">\n<h1>\($0)</h1>FILLER</div>\n" },
+        ]
+        let books = try variants.map { section in
+            try headingsBook([[section("Part 1"), section("Part 2")], [section("Part 3"), section("Part 4")]]).read(in: self)
+        }
+        let fingerprint = { (text: String) in EPUBChapterCutter.fingerprint(text) }
+        XCTAssertEqual(books[0].chapters.map(\.locator), [
+            EPUBLocator(href: "OEBPS/f1.xhtml", anchor: .fileStart),
+            EPUBLocator(href: "OEBPS/f1.xhtml", anchor: .text(fingerprint: fingerprint("Part 2"), occurrence: 0)),
+            EPUBLocator(href: "OEBPS/f2.xhtml", anchor: .fileStart),
+            EPUBLocator(href: "OEBPS/f2.xhtml", anchor: .text(fingerprint: fingerprint("Part 4"), occurrence: 0)),
+        ])
+        for (index, book) in books.enumerated().dropFirst() {
+            XCTAssertEqual(book.chapters.map(\.locator), books[0].chapters.map(\.locator), "variant \(index)")
+            XCTAssertEqual(book.chapters.map(\.key), books[0].chapters.map(\.key), "variant \(index)")
+        }
+    }
+
+    /// An id on a heading, or on an element opened just before it with no words between, is the
+    /// chapter's anchor wherever the heading is, at the top of a file or not.
+    func testAnIDOnOrAroundAHeadingIsTheAnchor() throws {
+        let variants: [(String, String) -> String] = [
+            { "<h1 id=\"\($1)\">\($0)</h1>FILLER" },
+            { "\n<h1 id=\"\($1)\">\($0)</h1>\nFILLER" },
+            { "<div class=\"part\">\n<h1 id=\"\($1)\">\($0)</h1>FILLER</div>" },
+            { "<section id=\"\($1)\">\n<h1>\($0)</h1>FILLER</section>" },
+        ]
+        let books = try variants.map { section in
+            try headingsBook([[section("Part 1", "p1"), section("Part 2", "p2")]]).read(in: self)
+        }
+        for (index, book) in books.enumerated() {
+            XCTAssertEqual(book.chapters.map(\.locator), [
+                EPUBLocator(href: "OEBPS/f1.xhtml", anchor: .id("p1")),
+                EPUBLocator(href: "OEBPS/f1.xhtml", anchor: .id("p2")),
+            ], "variant \(index)")
+            XCTAssertEqual(book.chapters.map(\.key), books[0].chapters.map(\.key), "variant \(index)")
+        }
+    }
+
+    /// Gutenberg's shape: the header (skipped matter no entry names), an empty element, then the
+    /// first chapter's heading, whose id the contents names. The empty range between them joins
+    /// the chapter, so the header keeps the id at the top of the file and the chapter its own.
+    func testHeaderBeforeAnEmptyElementKeepsItsOwnAnchor() throws {
+        var epub = SyntheticEPUB()
+        epub.addDocument("book.xhtml", body: SyntheticEPUB.xhtml(body: """
+        <header class="pg-boilerplate pgheader" id="pg-header"><p>\(SyntheticEPUB.words(120, seed: 7))</p></header><div/>
+        <h1 id="start">The Book</h1>
+        \(SyntheticEPUB.paragraphs(600))
+        """))
+        epub.contents = [SyntheticEPUB.Entry("The Book", "book.xhtml#start")]
+        let book = try epub.read(in: self)
+        XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [true, false])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [120, 602])
+        XCTAssertEqual(book.chapters.map(\.locator), [
+            EPUBLocator(href: "OEBPS/book.xhtml", anchor: .id("pg-header")),
+            EPUBLocator(href: "OEBPS/book.xhtml", anchor: .id("start")),
+        ])
+    }
+
+    /// A text anchor is the first block at the chapter's own cut: a short range merging into the
+    /// chapter (or not) doesn't change it.
+    func testAChapterKeepsItsKeyWhetherOrNotAShortRangeMergesIntoIt() throws {
+        func book(epigraphWords: Int) throws -> EPUBBook {
+            let epigraph = "<h1>Epigraph</h1><p>\(SyntheticEPUB.words(epigraphWords, seed: 50))</p>"
+            return try headingsBook([["<h1>Part 1</h1>FILLER", epigraph, "<h1>Part 2</h1>FILLER"]]).read(in: self)
+        }
+        let merged = try book(epigraphWords: 30)
+        let apart = try book(epigraphWords: 200)
+        XCTAssertEqual(merged.titles, ["Part 1", "Part 2"], "the 31-word epigraph merges into Part 2")
+        XCTAssertEqual(apart.titles, ["Part 1", "Epigraph", "Part 2"])
+        XCTAssertEqual(merged.chapters[1].locator, EPUBLocator(href: "OEBPS/f1.xhtml", anchor: .text(
+            fingerprint: EPUBChapterCutter.fingerprint("Part 2"), occurrence: 0)))
+        XCTAssertEqual(merged.chapters[1].key, apart.chapters[2].key)
+    }
+
+    /// Chapters with no anchor of the book's own whose first blocks match are numbered by order
+    /// in their file, counting every earlier chapter that starts the same way. An id added to an
+    /// earlier one keeps the later numbers. **Known limitation:** another chapter starting the same
+    /// way, added before them, renumbers them, so their keys move to other chapters' text.
+    func testChaptersThatStartAlikeAreToldApartByOrder() throws {
+        /// Sections by seed: a heading, then 300 words of the seed's own filler.
+        func book(_ sections: [(heading: String, seed: Int)]) throws -> EPUBBook {
+            try headingsBook([sections.map { "\($0.heading)<p>\(SyntheticEPUB.words(300, seed: $0.seed))</p>" }]).read(in: self)
+        }
+        let interlude = EPUBChapterCutter.fingerprint("Interlude")
+        let plain = try book([("<h1>Opening</h1>", 1), ("<h1>Interlude</h1>", 2), ("<h1>Interlude</h1>", 3), ("<h1>Interlude</h1>", 4)])
+        XCTAssertEqual(plain.chapters.map(\.locator.anchor), [
+            .fileStart,
+            .text(fingerprint: interlude, occurrence: 0),
+            .text(fingerprint: interlude, occurrence: 1),
+            .text(fingerprint: interlude, occurrence: 2),
+        ])
+
+        let withID = try book([("<h1>Opening</h1>", 1), ("<h1 id=\"i2\">Interlude</h1>", 2), ("<h1>Interlude</h1>", 3), ("<h1>Interlude</h1>", 4)])
+        XCTAssertEqual(withID.chapters[1].locator.anchor, .id("i2"))
+        XCTAssertEqual(withID.chapters[2...].map(\.key), plain.chapters[2...].map(\.key), "an id on an earlier chapter renumbers nothing")
+
+        let inserted = try book([("<h1>Opening</h1>", 1), ("<h1>Interlude</h1>", 9), ("<h1>Interlude</h1>", 2),
+                                 ("<h1>Interlude</h1>", 3), ("<h1>Interlude</h1>", 4)])
+        XCTAssertEqual(inserted.chapters[0].key, plain.chapters[0].key)
+        XCTAssertEqual(Set(inserted.chapters.map(\.key)).count, 5)
+        // The known limitation: the interlude with seed 2's text was occurrence 0 and is now 1, so
+        // it carries the key the seed 3 interlude had.
+        XCTAssertEqual(inserted.chapters[2].xhtml, plain.chapters[1].xhtml)
+        XCTAssertNotEqual(inserted.chapters[2].key, plain.chapters[1].key)
+        XCTAssertEqual(inserted.chapters[2].key, plain.chapters[2].key)
+    }
+
     func testDelimitersInsideNamesDontCollide() {
         let bookKey = BookIdentity.bookKey(identifier: identifier, title: "The Synthetic Book", fileFingerprint: "")
         let pairs = [
