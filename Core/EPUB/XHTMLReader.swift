@@ -45,9 +45,11 @@ enum XHTMLEvent: Equatable, Sendable {
 ///
 /// XHTML in real EPUBs is meant to be well-formed XML, but HTML named entities (`&nbsp;`,
 /// `&mdash;`) and the odd stray tag are common, and `XMLParser` gives up at the first one. This
-/// reader never fails: it decodes entities, skips comments, doctypes and processing instructions,
-/// drops `script` and `style` contents, and balances tags (a stray end tag is ignored; an end tag
-/// closes whatever it implies; anything open at the end is closed).
+/// reader accepts any markup within the budget's caps: it decodes entities, skips comments,
+/// doctypes and processing instructions, drops `script` and `style` contents, and balances tags
+/// (a stray end tag is ignored; an end tag closes whatever it implies; anything open at the end
+/// is closed). Past a cap (file size is checked when the file is read; nodes and nesting here)
+/// it throws `EPUBError.tooLarge`. Work is linear in the file's size.
 enum XHTMLReader {
     /// Elements that never have content, written `<br/>`.
     static let voidElements: Set<String> = [
@@ -58,15 +60,15 @@ enum XHTMLReader {
     /// Elements whose content is code, not text; their content is dropped.
     private static let rawTextElements: Set<String> = ["script", "style"]
 
-    static func events(from data: Data) -> [XHTMLEvent] {
-        var tokenizer = Tokenizer(bytes: utf8Bytes(of: data))
-        return tokenizer.run()
+    static func events(from data: Data, budget: MarkupBudget) throws -> [XHTMLEvent] {
+        var tokenizer = Tokenizer(bytes: utf8Bytes(of: data), counter: budget.counter())
+        return try tokenizer.run()
     }
 
-    /// The document as an element tree, for navigation documents (and for package XML that
-    /// `XMLParser` refused). Top-level text is dropped; the root holds the top-level elements.
-    static func tree(from data: Data) -> MarkupElement {
-        tree(from: events(from: data))
+    /// The document as an element tree, for navigation documents and cover pages. Top-level
+    /// text is dropped; the root holds the top-level elements.
+    static func tree(from data: Data, budget: MarkupBudget) throws -> MarkupElement {
+        tree(from: try events(from: data, budget: budget))
     }
 
     static func tree(from events: [XHTMLEvent]) -> MarkupElement {
@@ -108,25 +110,33 @@ enum XHTMLReader {
 
     private struct Tokenizer {
         let bytes: [UInt8]
+        var counter: MarkupCounter
         var index = 0
         var events: [XHTMLEvent] = []
-        /// Local names of open elements, innermost last.
-        var open: [String] = []
+        /// Open elements, innermost last.
+        var open: [(name: String, localName: String)] = []
+        /// How many open elements have each local name, so an end tag that matches none is
+        /// ignored without searching `open`.
+        var openCounts: [String: Int] = [:]
+        /// Text since the last tag, written as one event at the next tag (or the end).
+        var pendingText = ""
 
-        init(bytes: [UInt8]) {
+        init(bytes: [UInt8], counter: MarkupCounter) {
             self.bytes = bytes
+            self.counter = counter
         }
 
-        mutating func run() -> [XHTMLEvent] {
+        mutating func run() throws -> [XHTMLEvent] {
             while index < bytes.count {
                 if bytes[index] == UInt8(ascii: "<") {
-                    readMarkup()
+                    try readMarkup()
                 } else {
                     readText()
                 }
             }
-            while let name = open.popLast() {
-                events.append(.close(name: name))
+            try flushText()
+            while let element = open.popLast() {
+                events.append(.close(name: element.name))
             }
             return events
         }
@@ -139,19 +149,30 @@ enum XHTMLReader {
             appendText(XHTMLReader.decodeEntities(String(decoding: bytes[start..<index], as: UTF8.self)))
         }
 
+        /// Text outside every element is dropped.
         mutating func appendText(_ text: String) {
-            guard !text.isEmpty, !open.isEmpty else { return }
-            if case .text(let previous) = events.last {
-                events[events.count - 1] = .text(previous + text)
-            } else {
-                events.append(.text(text))
-            }
+            guard !open.isEmpty else { return }
+            pendingText += text
+        }
+
+        mutating func flushText() throws {
+            guard !pendingText.isEmpty else { return }
+            try counter.countNodes()
+            events.append(.text(pendingText))
+            pendingText = ""
+        }
+
+        mutating func push(_ name: String, _ localName: String) throws {
+            try counter.checkDepth(open.count + 1)
+            open.append((name, localName))
+            openCounts[localName, default: 0] += 1
         }
 
         // MARK: Markup
 
-        mutating func readMarkup() {
+        mutating func readMarkup() throws {
             if hasPrefix("<!--") {
+                try counter.countNodes()
                 skip(past: "-->")
             } else if hasPrefix("<![CDATA[") {
                 index += 9
@@ -160,20 +181,22 @@ enum XHTMLReader {
                 appendText(String(decoding: bytes[start..<end], as: UTF8.self))
                 index = min(end + 3, bytes.count)
             } else if hasPrefix("<!") {
+                try counter.countNodes()
                 skipDeclaration()
             } else if hasPrefix("<?") {
+                try counter.countNodes()
                 skip(past: "?>")
             } else if hasPrefix("</") {
-                readEndTag()
+                try readEndTag()
             } else if index + 1 < bytes.count, isNameStart(bytes[index + 1]) {
-                readStartTag()
+                try readStartTag()
             } else {
                 index += 1
                 appendText("<")
             }
         }
 
-        mutating func readStartTag() {
+        mutating func readStartTag() throws {
             index += 1
             let name = readName()
             var attributes: [XHTMLAttribute] = []
@@ -207,8 +230,11 @@ enum XHTMLReader {
                     skipWhitespace()
                     value = readAttributeValue()
                 }
+                try counter.countNodes()
                 attributes.append(XHTMLAttribute(name: attributeName, value: value))
             }
+            try counter.countNodes()
+            try flushText()
             let tag = XHTMLTag(name: name, attributes: attributes)
             events.append(.open(tag))
             if selfClosing || XHTMLReader.voidElements.contains(tag.localName) {
@@ -217,18 +243,25 @@ enum XHTMLReader {
                 skipRawText(until: tag.localName)
                 events.append(.close(name: name))
             } else {
-                open.append(name)
+                try push(name, tag.localName)
             }
         }
 
-        mutating func readEndTag() {
+        /// Closes the innermost open element with the end tag's local name, and every element
+        /// inside it; ignored when none is open. Each element is closed once, so this is
+        /// amortized constant time.
+        mutating func readEndTag() throws {
             index += 2
             let name = readName()
             skip(past: ">")
+            try counter.countNodes()
             let local = XHTMLTag.localName(of: name)
-            guard let depth = open.lastIndex(where: { XHTMLTag.localName(of: $0) == local }) else { return }
-            while open.count > depth, let closing = open.popLast() {
-                events.append(.close(name: closing))
+            guard openCounts[local, default: 0] > 0 else { return }
+            try flushText()
+            while let element = open.popLast() {
+                openCounts[element.localName, default: 1] -= 1
+                events.append(.close(name: element.name))
+                if element.localName == local { break }
             }
         }
 

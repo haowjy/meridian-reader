@@ -55,7 +55,7 @@ final class EPUBContentsTests: XCTestCase {
 
     func testNavWinsOverTheNCX() throws {
         let archive = try EPUBContainer(fileURL: partBook(contents: .both).write(in: self))
-        let contents = try EPUBContents.read(EPUBPackage.read(from: archive), from: archive)
+        let contents = try EPUBContents.read(EPUBPackage.read(from: archive, budget: MarkupBudget()), from: archive, budget: MarkupBudget())
         XCTAssertEqual(contents.source, .nav)
         XCTAssertEqual(contents.entries, partTree)
     }
@@ -69,7 +69,7 @@ final class EPUBContentsTests: XCTestCase {
             return empty
         }
         let archive = try EPUBContainer(fileURL: epub.write(in: self, entries: entries))
-        let contents = try EPUBContents.read(EPUBPackage.read(from: archive), from: archive)
+        let contents = try EPUBContents.read(EPUBPackage.read(from: archive, budget: MarkupBudget()), from: archive, budget: MarkupBudget())
         XCTAssertEqual(contents.source, .ncx)
         XCTAssertEqual(contents.entries, partTree)
     }

@@ -14,7 +14,7 @@ final class EPUBPackageTests: XCTestCase {
     }
 
     private func package(of epub: SyntheticEPUB) throws -> EPUBPackage {
-        try EPUBPackage.read(from: EPUBContainer(fileURL: epub.write(in: self)))
+        try EPUBPackage.read(from: EPUBContainer(fileURL: epub.write(in: self)), budget: MarkupBudget())
     }
 
     func testEPUB3MetadataTakesTheUniqueIdentifierMainTitleAndAuthors() throws {
@@ -71,7 +71,7 @@ final class EPUBPackageTests: XCTestCase {
         let opfIndex = try XCTUnwrap(entries.firstIndex { $0.path == epub.opfPath })
         let opf = epub.opf().replacingOccurrences(of: "<itemref idref=\"d1\"/>", with: "<itemref idref=\"pic\"/>\n<itemref idref=\"d1\"/>")
         entries[opfIndex].data = Data(opf.utf8)
-        spine = try EPUBPackage.read(from: EPUBContainer(fileURL: epub.write(in: self, entries: entries))).spine
+        spine = try EPUBPackage.read(from: EPUBContainer(fileURL: epub.write(in: self, entries: entries)), budget: MarkupBudget()).spine
         XCTAssertEqual(spine.map(\.path), ["OEBPS/cover.xhtml", "OEBPS/one.xhtml", "OEBPS/two.xhtml"])
     }
 

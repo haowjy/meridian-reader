@@ -156,6 +156,59 @@ final class EPUBSecurityTests: XCTestCase {
         XCTAssertNoThrow(try EPUBBookReader.read(fileURL: url))
     }
 
+    // MARK: - Damaged files
+
+    private func threeChapterBook() -> SyntheticEPUB {
+        var epub = book()
+        epub.addDocument("three.xhtml", body: SyntheticEPUB.xhtml(body: SyntheticEPUB.chapter(id: "c3", heading: "Chapter Three", words: 400, seed: 2)))
+        epub.contents.append(.init("Chapter Three", "three.xhtml"))
+        return epub
+    }
+
+    private let isUnreadable: (EPUBError) -> Bool = { if case .unreadable = $0 { true } else { false } }
+
+    /// Reads the book with the middle chapter's entry changed by `damage`.
+    private func readWithDamagedMiddleChapter(_ damage: (inout TestZipWriter.Entry) -> Void) throws -> EPUBBook {
+        let epub = threeChapterBook()
+        let entries = epub.entries().map { entry -> TestZipWriter.Entry in
+            guard entry.path == epub.path("two.xhtml") else { return entry }
+            var damaged = entry
+            damage(&damaged)
+            return damaged
+        }
+        return try EPUBBookReader.read(fileURL: epub.write(in: self, entries: entries))
+    }
+
+    func testMissingSpineFileFailsTheImport() throws {
+        let epub = threeChapterBook()
+        let entries = epub.entries().filter { $0.path != epub.path("two.xhtml") }
+        assertEPUBError(try EPUBBookReader.read(fileURL: epub.write(in: self, entries: entries)), matches: isUnreadable)
+    }
+
+    func testSpineFileWithAWrongChecksumFailsTheImport() throws {
+        assertEPUBError(try readWithDamagedMiddleChapter { $0.checksum = 0xDEAD_BEEF }, matches: isUnreadable)
+    }
+
+    func testSpineFileThatCantBeInflatedFailsTheImport() throws {
+        assertEPUBError(try readWithDamagedMiddleChapter { $0.corruptPayload = true }, matches: isUnreadable)
+    }
+
+    func testUndamagedBookReadsAllThreeChapters() throws {
+        let book = try readWithDamagedMiddleChapter { _ in }
+        XCTAssertEqual(book.titles, ["Chapter One", "Chapter Two", "Chapter Three"])
+    }
+
+    func testDamagedCoverIsLeftOutAndTheBookStillReads() throws {
+        var epub = threeChapterBook()
+        epub.extraManifest = "<item id=\"img\" href=\"images/front.jpg\" media-type=\"image/jpeg\" properties=\"cover-image\"/>"
+        var entries = epub.entries()
+        entries.append(TestZipWriter.Entry(path: epub.path("images/front.jpg"), data: Data([0xFF, 0xD8, 0xFF, 0xE0]),
+                                           checksum: 0xDEAD_BEEF))
+        let book = try EPUBBookReader.read(fileURL: epub.write(in: self, entries: entries))
+        XCTAssertNil(book.cover, "a cover is optional: a damaged one is left out")
+        XCTAssertEqual(book.titles, ["Chapter One", "Chapter Two", "Chapter Three"])
+    }
+
     // MARK: - Paths
 
     func testEntryNamesThatClimbOutAreRefused() throws {

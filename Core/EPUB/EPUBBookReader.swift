@@ -38,25 +38,31 @@ struct EPUBChapter: Equatable, Sendable {
 }
 
 /// Reads an EPUB into an `EPUBBook`: refusals first (rights files, then encrypted text or fixed
-/// layout), then the package, the contents, every spine file, and the cut.
+/// layout), then the package, the contents, every spine file, and the cut. Every text file is
+/// read and parsed against one `MarkupBudget`. A spine file that's missing or damaged fails the
+/// import; only the cover is optional.
 enum EPUBBookReader {
     static func read(fileURL: URL, limits: EPUBLimits = .standard, rules: EPUBCutRules = .standard) throws -> EPUBBook {
         let container = try EPUBContainer(fileURL: fileURL, limits: limits)
-        return try read(container, fileFingerprint: try BookIdentity.fileFingerprint(of: fileURL), rules: rules)
+        return try read(container, fileFingerprint: try BookIdentity.fileFingerprint(of: fileURL),
+                        limits: limits, rules: rules)
     }
 
-    static func read(_ archive: EPUBArchive, fileFingerprint: String, rules: EPUBCutRules = .standard) throws -> EPUBBook {
+    static func read(_ archive: EPUBArchive, fileFingerprint: String, limits: EPUBLimits = .standard,
+                     rules: EPUBCutRules = .standard) throws -> EPUBBook {
+        let budget = MarkupBudget(limits: limits)
         try EPUBRefusals.checkRightsFiles(in: archive)
-        let package = try EPUBPackage.read(from: archive)
-        try EPUBRefusals.check(package, in: archive)
-        let contents = try EPUBContents.read(package, from: archive)
+        let package = try EPUBPackage.read(from: archive, budget: budget)
+        try EPUBRefusals.check(package, in: archive, budget: budget)
+        let contents = try EPUBContents.read(package, from: archive, budget: budget)
 
         var documents: [EPUBSpineDocument] = []
         for item in package.spine {
-            guard let data = try archive.dataIfPresent(at: item.path) else { continue }
+            let data = try budget.readText(item.path, from: archive)
             // The nav listed in the spine is the contents page: never read as part of a chapter.
             let isNav = item.path.lowercased() == package.navPath?.lowercased()
-            documents.append(EPUBSpineDocument(path: item.path, data: data, linear: item.linear && !isNav))
+            documents.append(try EPUBSpineDocument(path: item.path, data: data, linear: item.linear && !isNav,
+                                                   budget: budget))
         }
         guard !documents.isEmpty else { throw EPUBError.unreadable("no text documents") }
         let unmarked = EPUBTextStream(documents: documents)
@@ -84,7 +90,7 @@ enum EPUBBookReader {
             )
         }
         return EPUBBook(key: bookKey, fileFingerprint: fileFingerprint, metadata: metadata,
-                        cover: try cover(of: package, in: archive), contents: contents.entries,
+                        cover: try cover(of: package, in: archive, budget: budget), contents: contents.entries,
                         chapters: chapters, spineCount: documents.count)
     }
 
@@ -107,23 +113,33 @@ enum EPUBBookReader {
     }
 
     /// The `cover-image` item, else `<meta name="cover">`, else the guide's cover: the image
-    /// itself, or the first image on the cover page it names.
-    private static func cover(of package: EPUBPackage, in archive: EPUBArchive) throws -> EPUBCover? {
+    /// itself, or the first image on the cover page it names. Optional: a missing or damaged
+    /// cover is left out (caps still throw).
+    private static func cover(of package: EPUBPackage, in archive: EPUBArchive, budget: MarkupBudget) throws -> EPUBCover? {
         var path = package.coverImagePath
         if path == nil, let page = package.guide.first(where: { $0.type == "cover" }) {
             let item = package.manifest.first { $0.path.lowercased() == page.path.lowercased() }
             if item?.mediaType.hasPrefix("image/") == true {
                 path = page.path
-            } else if let data = try archive.dataIfPresent(at: page.path) {
-                let tree = XHTMLReader.tree(from: data)
+            } else if let data = try readOptionalText(page.path, from: archive, budget: budget) {
+                let tree = try XHTMLReader.tree(from: data, budget: budget)
                 let source = tree.firstDescendant(named: "img")?.attribute("src")
                     ?? tree.firstDescendant(named: "image").flatMap { $0.attribute("xlink:href") ?? $0.attribute("href") }
                 path = source.flatMap { EPUBPath.resolve($0, relativeTo: page.path)?.path }
             }
         }
         guard let path, let stored = archive.entryPath(matching: path),
-              let data = try archive.dataIfPresent(at: stored) else { return nil }
+              let data = try archive.optionalData(at: stored) else { return nil }
         let mediaType = package.manifest.first { $0.path.lowercased() == stored.lowercased() }?.mediaType
         return EPUBCover(path: stored, mediaType: mediaType ?? "", data: data)
+    }
+
+    /// A text file that may be missing or damaged without failing the import.
+    private static func readOptionalText(_ path: String, from archive: EPUBArchive, budget: MarkupBudget) throws -> Data? {
+        do {
+            return try budget.readTextIfPresent(path, from: archive)
+        } catch EPUBError.unreadable {
+            return nil
+        }
     }
 }

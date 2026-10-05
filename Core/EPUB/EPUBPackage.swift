@@ -54,21 +54,20 @@ struct EPUBPackage: Equatable, Sendable {
     static let containerPath = "META-INF/container.xml"
     static let xhtmlMediaTypes: Set<String> = ["application/xhtml+xml", "text/html"]
 
-    static func read(from archive: EPUBArchive) throws -> EPUBPackage {
-        guard archive.contains(containerPath),
-              let container = XMLTree.parse(try archive.data(at: containerPath)) else {
-            throw EPUBError.unreadable("no META-INF/container.xml")
-        }
+    static func read(from archive: EPUBArchive, budget: MarkupBudget) throws -> EPUBPackage {
+        guard archive.contains(containerPath) else { throw EPUBError.unreadable("no META-INF/container.xml") }
+        let container = try XMLTree.parse(try budget.readText(containerPath, from: archive), named: containerPath,
+                                          budget: budget)
         let rootfiles = container.descendants(named: "rootfile")
         let chosen = rootfiles.first { $0.attribute("media-type") == "application/oebps-package+xml" }
             ?? rootfiles.first
         guard let fullPath = chosen?.attribute("full-path"),
               let resolved = EPUBPath.resolve(fullPath, relativeTo: ""),
-              let packagePath = archive.entryPath(matching: resolved.path),
-              let opf = XMLTree.parse(try archive.data(at: packagePath)),
-              opf.localName == "package" else {
+              let packagePath = archive.entryPath(matching: resolved.path) else {
             throw EPUBError.unreadable("no package document")
         }
+        let opf = try XMLTree.parse(try budget.readText(packagePath, from: archive), named: packagePath, budget: budget)
+        guard opf.localName == "package" else { throw EPUBError.unreadable("no package document") }
         return try EPUBPackage(opf: opf, packagePath: packagePath, archive: archive)
     }
 

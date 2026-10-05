@@ -7,20 +7,34 @@ enum EPUBError: Error, Equatable {
     case drmProtected
     /// A pre-paginated (fixed-layout) book: its pages are pictures of text with no reading order.
     case fixedLayout
-    /// Over the uncompressed-size or entry-count cap: a zip bomb, or far more than a book needs.
+    /// Over one of `EPUBLimits`' caps: a zip bomb, markup built to exhaust the parser, or far
+    /// more than a book needs.
     case tooLarge
     /// An entry whose path is absolute or climbs out of the archive.
     case unsafePath(String)
-    /// Not a zip, no package document, or no text in it.
+    /// Not a zip; no package document; package XML that isn't well-formed or declares entities;
+    /// a spine file that is missing or damaged; or no text.
     case unreadable(String)
 }
 
-/// Caps applied while opening and reading an EPUB. Text is small (all of a long novel's XHTML
-/// is a few MB); the caps are far above any real book and far below what would exhaust memory.
+/// Caps applied while opening and reading an EPUB, each far above what a real book needs (the
+/// six books the parser was checked on peak at 168 KB per text file, 30,000 markup nodes and
+/// nesting 9 deep). They bound what one import reads and parses; the parsed markup of every
+/// spine file is held while the book is cut, so memory still grows with the book up to them.
 struct EPUBLimits: Equatable, Sendable {
     /// Total bytes after decompression: declared by the archive, and counted again while reading.
     var maxUncompressedBytes: Int64 = 200 * 1024 * 1024
     var maxEntryCount = 5_000
+    /// One text file (a spine document, the nav, the NCX, the OPF), after decompression.
+    var maxTextFileBytes = 16 * 1024 * 1024
+    /// Every text file read for one book, together.
+    var maxTextBytes = 64 * 1024 * 1024
+    /// Elements open at once in one file.
+    var maxNestingDepth = 256
+    /// Markup nodes (start and end tags, attributes, text runs, comments) in one file.
+    var maxNodesPerFile = 500_000
+    /// Markup nodes across the book.
+    var maxNodes = 2_000_000
 
     static let standard = EPUBLimits()
 }
@@ -30,13 +44,30 @@ struct EPUBLimits: Equatable, Sendable {
 protocol EPUBArchive {
     /// The stored path for `path`: an exact match, else the only entry matching it ignoring case.
     func entryPath(matching path: String) -> String?
-    /// The entry's bytes. Throws `EPUBError.tooLarge` once reading would pass the cap.
-    func data(at path: String) throws -> Data
+    /// The entry's bytes. Throws `EPUBError.unreadable` when it's missing or damaged (a CRC
+    /// mismatch, a stream that won't inflate), and `EPUBError.tooLarge` once reading would pass
+    /// the archive's cap or `maxBytes`.
+    func data(at path: String, maxBytes: Int64) throws -> Data
 }
 
 extension EPUBArchive {
     func contains(_ path: String) -> Bool {
         entryPath(matching: path) != nil
+    }
+
+    func data(at path: String) throws -> Data {
+        try data(at: path, maxBytes: .max)
+    }
+
+    /// The entry's bytes, or nil when it's an optional resource (the cover) that's missing or
+    /// damaged. Caps still throw.
+    func optionalData(at path: String) throws -> Data? {
+        guard contains(path) else { return nil }
+        do {
+            return try data(at: path)
+        } catch EPUBError.unreadable {
+            return nil
+        }
     }
 }
 
@@ -84,13 +115,13 @@ final class EPUBContainer: EPUBArchive {
         return caseInsensitive[path.lowercased()] ?? nil
     }
 
-    func data(at path: String) throws -> Data {
+    func data(at path: String, maxBytes: Int64) throws -> Data {
         guard let stored = entryPath(matching: path), let entry = entries[stored] else {
             throw EPUBError.unreadable("missing \(path)")
         }
-        let budget = limits.maxUncompressedBytes - bytesRead
-        let declared = Int64(clamping: entry.uncompressedSize)
-        guard declared <= budget else { throw EPUBError.tooLarge }
+        let budget = max(0, min(limits.maxUncompressedBytes - bytesRead, maxBytes))
+        guard entry.uncompressedSize <= UInt64(budget) else { throw EPUBError.tooLarge }
+        let declared = Int64(entry.uncompressedSize)
         var data = Data()
         data.reserveCapacity(Int(min(declared, 4 * 1024 * 1024)))
         do {

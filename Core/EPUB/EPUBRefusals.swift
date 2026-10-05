@@ -15,11 +15,11 @@ enum EPUBRefusals {
     /// the NCX). Obfuscated fonts (IDPF's and Adobe's font algorithms) and other encrypted
     /// resources are fine: the text never needs them.
     /// Fixed layout: `rendition:layout` pre-paginated, or Apple's display options say so.
-    static func check(_ package: EPUBPackage, in archive: EPUBArchive) throws {
+    /// Either file that isn't well-formed XML is refused.
+    static func check(_ package: EPUBPackage, in archive: EPUBArchive, budget: MarkupBudget) throws {
         if archive.contains(encryptionPath) {
-            guard let encryption = XMLTree.parse(try archive.data(at: encryptionPath)) else {
-                throw EPUBError.unreadable("encryption.xml isn't readable")
-            }
+            let encryption = try XMLTree.parse(try budget.readText(encryptionPath, from: archive),
+                                               named: encryptionPath, budget: budget)
             let textDocuments = Set(
                 (package.spine.map(\.path) + [package.navPath, package.ncxPath].compactMap { $0 })
                     .map { $0.lowercased() }
@@ -32,8 +32,9 @@ enum EPUBRefusals {
             }
         }
         if package.isPrePaginated { throw EPUBError.fixedLayout }
-        if archive.contains(appleDisplayOptionsPath),
-           let options = XMLTree.parse(try archive.data(at: appleDisplayOptionsPath)) {
+        if archive.contains(appleDisplayOptionsPath) {
+            let options = try XMLTree.parse(try budget.readText(appleDisplayOptionsPath, from: archive),
+                                            named: appleDisplayOptionsPath, budget: budget)
             let fixed = options.descendants(named: "option").contains {
                 $0.attribute("name")?.lowercased() == "fixed-layout" && $0.text.lowercased() == "true"
             }

@@ -26,10 +26,12 @@ struct EPUBContents: Equatable, Sendable {
     var source: Source
     var landmarks: [EPUBLandmark]
 
-    static func read(_ package: EPUBPackage, from archive: EPUBArchive) throws -> EPUBContents {
+    /// A contents document that's missing is passed over (cutting falls back to headings); one
+    /// that's damaged, or an NCX that isn't well-formed XML, fails the import.
+    static func read(_ package: EPUBPackage, from archive: EPUBArchive, budget: MarkupBudget) throws -> EPUBContents {
         var landmarks: [EPUBLandmark] = []
-        if let navPath = package.navPath, let data = try archive.dataIfPresent(at: navPath) {
-            let navs = XHTMLReader.tree(from: data).descendants(named: "nav")
+        if let navPath = package.navPath, let data = try budget.readTextIfPresent(navPath, from: archive) {
+            let navs = try XHTMLReader.tree(from: data, budget: budget).descendants(named: "nav")
             landmarks = navs.first { $0.tokens(of: "epub:type").contains("landmarks") }
                 .map { landmarkEntries(in: $0, navPath: navPath, archive: archive) } ?? []
             let toc = navs.first { $0.tokens(of: "epub:type").contains("toc") }
@@ -40,8 +42,8 @@ struct EPUBContents: Equatable, Sendable {
                 return EPUBContents(entries: navEntries, source: .nav, landmarks: landmarks)
             }
         }
-        if let ncxPath = package.ncxPath, let data = try archive.dataIfPresent(at: ncxPath),
-           let navMap = XMLTree.parse(data)?.firstDescendant(named: "navmap") {
+        if let ncxPath = package.ncxPath, let data = try budget.readTextIfPresent(ncxPath, from: archive),
+           let navMap = try XMLTree.parse(data, named: ncxPath, budget: budget).firstDescendant(named: "navmap") {
             let ncxEntries = navMap.elements(named: "navpoint").compactMap {
                 navPoint($0, ncxPath: ncxPath, archive: archive)
             }
@@ -106,17 +108,5 @@ struct EPUBContents: Equatable, Sendable {
 private extension EPUBContentsEntry {
     var hasTarget: Bool {
         path != nil || children.contains(where: \.hasTarget)
-    }
-}
-
-extension EPUBArchive {
-    /// The entry's bytes, or nil when it's missing or can't be unzipped. Caps still throw.
-    func dataIfPresent(at path: String) throws -> Data? {
-        guard contains(path) else { return nil }
-        do {
-            return try data(at: path)
-        } catch EPUBError.unreadable {
-            return nil
-        }
     }
 }

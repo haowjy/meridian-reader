@@ -30,10 +30,10 @@ struct EPUBSpineDocument: Sendable {
     static let boilerplateMarkers: Set<String> = ["pg-boilerplate", "pg-header", "pg-footer", "pgheader", "pgfooter"]
     private static let matterTypes: Set<String> = ["frontmatter", "backmatter"]
 
-    init(path: String, data: Data, linear: Bool) {
+    init(path: String, data: Data, linear: Bool, budget: MarkupBudget) throws {
         self.path = path
         self.linear = linear
-        let all = XHTMLReader.events(from: data)
+        let all = try XHTMLReader.events(from: data, budget: budget)
         var language: String?
         var bodyRange: Range<Int>?
         var bodyTag: XHTMLTag?
@@ -72,7 +72,8 @@ struct EPUBSpineDocument: Sendable {
         var boilerplate: [Range<Int>] = []
 
         let baseMarked = !linear || !(bodyTag?.tokens(of: "epub:type").isDisjoint(with: Self.matterTypes) ?? true)
-        var stack: [(open: Int, marked: Bool, boilerplate: Bool)] = []
+        // `inBoilerplate`: this element or one around it starts a boilerplate span.
+        var stack: [(open: Int, marked: Bool, boilerplate: Bool, inBoilerplate: Bool)] = []
         for (index, event) in events.enumerated() {
             let enclosingMarked = stack.last?.marked ?? baseMarked
             switch event {
@@ -80,11 +81,12 @@ struct EPUBSpineDocument: Sendable {
                 parent[index] = stack.last?.open ?? -1
                 if let id = tag.attribute("id"), anchors[id] == nil { anchors[id] = index }
                 if tag.localName == "a", let name = tag.attribute("name"), names[name] == nil { names[name] = index }
-                let isBoilerplate = Self.isBoilerplate(tag) && !stack.contains { $0.boilerplate }
+                let enclosingBoilerplate = stack.last?.inBoilerplate ?? false
+                let isBoilerplate = !enclosingBoilerplate && Self.isBoilerplate(tag)
                 let isMarked = enclosingMarked || isBoilerplate
                     || !tag.tokens(of: "epub:type").isDisjoint(with: Self.matterTypes)
                 marked[index] = isMarked
-                stack.append((index, isMarked, isBoilerplate))
+                stack.append((index, isMarked, isBoilerplate, enclosingBoilerplate || isBoilerplate))
             case .close:
                 guard let open = stack.popLast() else { continue }
                 parent[index] = open.open
