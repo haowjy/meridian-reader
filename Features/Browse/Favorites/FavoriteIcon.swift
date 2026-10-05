@@ -9,7 +9,7 @@ struct FavoriteIcon: View {
     var body: some View {
         ZStack {
             if let image = icon {
-                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                     .fill(Palette.chrome)
                 Image(uiImage: image)
                     .resizable()
@@ -18,7 +18,7 @@ struct FavoriteIcon: View {
                     .frame(width: size * 0.56, height: size * 0.56)
                     .clipShape(RoundedRectangle(cornerRadius: size * 0.1, style: .continuous))
             } else {
-                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                     .fill(tint.gradient)
                 Text(letter)
                     .font(.system(size: size * 0.44, weight: .semibold, design: .rounded))

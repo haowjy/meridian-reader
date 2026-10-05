@@ -16,6 +16,9 @@ struct SectionHeader: View {
     var actionIdentifier: String?
     var action: () -> Void = {}
 
+    /// The action's text height, for its 44 pt tap area.
+    @ScaledMetric(relativeTo: TypeStyle.row.relativeTo) private var actionHeight = TypeStyle.row.size
+
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
@@ -33,6 +36,7 @@ struct SectionHeader: View {
                     }
                     .typeStyle(.row)
                     .foregroundStyle(Palette.accent)
+                    .tapTarget(actionHeight)
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier(actionIdentifier ?? "")

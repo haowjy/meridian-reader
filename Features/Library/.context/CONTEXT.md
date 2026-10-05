@@ -10,7 +10,13 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   `.folder(id)` for a book's button). Opening never plays; playing never navigates.
 - **Edit and the dialogs live in `LibraryScreenState`**, one per surface (the Library, the
   Favorites sheet), shared through the environment: the bottom bar acts on the selection, and
-  `libraryDialogs` shows delete / rename / new folder once.
+  `libraryDialogs` shows delete / rename / new folder once. The delete question is
+  `FolderDeletePrompt` (unit-tested): never *Folder Only* when a book or series is selected.
+- **One ⋯ for both surfaces.** `LibraryScreenMenu` decides the rows and actions for the screen on
+  top; `LibrarySurface` and `FavoritesSheet` each supply their root and big-button actions. A
+  system sheet hosts its own morph panel (`moreMenuHost`), since the shell's sits under sheets.
+- **Deletes go through `LibraryStore`'s audio journal** (`planDelete`): the audio goes only after
+  the save, and a failed save is rolled back.
 - **Rows for UI tests.** A row's title `Text` is its accessibility element (the status is its
   value; the rest is hidden). XCUITest still lists the texts under an element that ignores its
   children, so a combined element would answer to a title twice; tests find rows by title.

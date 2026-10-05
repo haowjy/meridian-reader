@@ -25,13 +25,17 @@ struct LibraryRouteView: View {
     }
 }
 
-/// The Favorites sheet: the Favorites folder screen, with its own pushes. Its links open in the
-/// browser and its saved pages in the Reader, closing the sheet first.
+/// The Favorites sheet: the Favorites folder screen, with its own pushes, over the same bottom
+/// row as the Library (＋ New Folder in slot 1, ⋯ for the screen on top in slot 5, the same ⋯
+/// as the Library's: `LibraryScreenMenu`). Its links open in the browser and its saved pages in
+/// the Reader, closing the sheet first.
 struct FavoritesSheet: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
+    @Environment(\.speechController) private var speech
     @State private var path: [LibraryRoute]
     @State private var screen = LibraryScreenState()
+    @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
 
     /// `folderID`: open pushed into that subfolder of Favorites.
     init(folderID: UUID? = nil) {
@@ -39,20 +43,28 @@ struct FavoritesSheet: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
-            FolderScreen(folder: library.favorites())
-                .navigationDestination(for: LibraryRoute.self) { LibraryRouteView(route: $0) }
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Done") { shell.sheet = nil }
-                            .accessibilityIdentifier("favoritesDone")
+        VStack(spacing: 0) {
+            NavigationStack(path: $path) {
+                FolderScreen(folder: library.favorites())
+                    .navigationDestination(for: LibraryRoute.self) { LibraryRouteView(route: $0) }
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { shell.sheet = nil }
+                                .accessibilityIdentifier("favoritesDone")
+                        }
                     }
-                    if screen.isEditing {
-                        ToolbarItem(placement: .bottomBar) { LibraryEditBar() }
-                    }
+            }
+            Group {
+                if screen.isEditing {
+                    LibraryEditBar()
+                } else {
+                    toolbar
                 }
+            }
+            .bottomChromeBand()
         }
         .environment(screen)
+        .moreMenuHost()
         .libraryDialogs(screen) {
             path = Array(path.prefix { route in
                 if case .folder(let id) = route { return library.folder(id: id) != nil }
@@ -61,7 +73,38 @@ struct FavoritesSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("favoritesSheet")
+    }
+
+    private var toolbar: some View {
+        BottomToolbarLayout {
+            Button { screen.makeFolder(in: screenMenu.newFolderParent) } label: {
+                Image(systemName: "folder.badge.plus").toolbarIconFrame()
+            }
+            .accessibilityLabel("New Folder")
+            .accessibilityIdentifier("favoritesNewFolder")
+
+            MoreMenuButton(id: "favoritesMore") {
+                let screenMenu = screenMenu
+                return .library(screenMenu.menu, perform: screenMenu.perform)
+            }
+        }
+        .tint(Palette.ink)
+    }
+
+    private var screenMenu: LibraryScreenMenu {
+        LibraryScreenMenu(library: library, speech: speech, shell: shell, screen: screen, root: .favorites,
+                          top: path.last, topLevelSort: $topLevelSort,
+                          showMoved: { _ in path = [] }) { tile in
+            switch tile {
+            case .favorites: path = []
+            case .history: shell.present(.history)
+            default:
+                shell.sheet = nil
+                shell.showBrowser()
+            }
+        }
     }
 }
 

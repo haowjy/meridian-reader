@@ -24,7 +24,7 @@ final class LibraryScreenState {
 
     private(set) var editing: Editing?
     var selection = Set<LibraryItemID>()
-    /// Folders waiting for *Delete Folder Only* / *Delete Folder and Contents* (or *Delete Book*).
+    /// Folders waiting for the delete question (`FolderDeletePrompt`).
     var pendingDelete: [Folder] = []
     var renaming: Folder?
     var renameText = ""
@@ -77,10 +77,10 @@ private struct LibraryDialogs: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .confirmationDialog(deleteTitle, isPresented: deleting, titleVisibility: .visible) {
+            .confirmationDialog(prompt.title, isPresented: deleting, titleVisibility: .visible) {
                 deleteButtons
             } message: {
-                Text(deleteMessage)
+                Text(prompt.message)
             }
             .alert("Rename Folder", isPresented: Binding(get: { state.renaming != nil },
                                                         set: { if !$0 { state.renaming = nil } })) {
@@ -113,62 +113,25 @@ private struct LibraryDialogs: ViewModifier {
         Binding(get: { !state.pendingDelete.isEmpty }, set: { if !$0 { state.pendingDelete = [] } })
     }
 
-    private var isBook: Bool { state.pendingDelete.count == 1 && state.pendingDelete[0].kind.isFixed }
-
-    private var deleteTitle: String {
-        let folders = state.pendingDelete
-        if folders.count == 1 {
-            let folder = folders[0]
-            switch folder.kind {
-            case .book: return "Delete “\(folder.displayName)”?"
-            case .series: return "Delete the series “\(folder.displayName)”?"
-            default: return "Delete the folder “\(folder.displayName)”?"
-            }
+    private var prompt: FolderDeletePrompt {
+        FolderDeletePrompt(folders: state.pendingDelete, contents: library.contents(of:)) { keys in
+            speech.activeSessionID.map(keys.contains) ?? false
         }
-        return "Delete \(folders.count) folders?"
-    }
-
-    private var deleteMessage: String {
-        var total = FolderContents()
-        for folder in state.pendingDelete {
-            let inner = library.contents(of: folder)
-            total.folders += inner.folders
-            total.pages += inner.pages
-            total.books += inner.books
-            total.pageKeys.formUnion(inner.pageKeys)
-        }
-        var lines: [String] = []
-        if isBook {
-            lines.append("Its chapters and their downloads are deleted.")
-        } else if let summary = total.summary {
-            lines.append("It holds \(summary). Delete Folder Only moves them up one level.")
-        }
-        if let playing = speech.activeSessionID, total.pageKeys.contains(playing) {
-            lines.append("Stops what's playing.")
-        }
-        return lines.joined(separator: " ")
     }
 
     @ViewBuilder
     private var deleteButtons: some View {
-        if isBook {
-            Button(state.pendingDelete[0].kind == .series ? "Delete Series" : "Delete Book", role: .destructive) {
-                delete(keepContents: false)
+        ForEach(prompt.choices, id: \.id) { choice in
+            Button(choice.title, role: choice.isDestructive ? .destructive : nil) {
+                delete(keepContents: choice.keepsContents)
             }
-            .accessibilityIdentifier("deleteBook")
-        } else {
-            Button("Delete Folder Only") { delete(keepContents: true) }
-                .accessibilityIdentifier("deleteFolderOnly")
-            Button("Delete Folder and Contents", role: .destructive) { delete(keepContents: false) }
-                .accessibilityIdentifier("deleteFolderAndContents")
+            .accessibilityIdentifier(choice.id)
         }
         Button("Cancel", role: .cancel) { state.pendingDelete = [] }
     }
 
     private func delete(keepContents: Bool) {
-        for folder in state.pendingDelete {
-            try? library.deleteFolder(folder, keepContents: keepContents)
-        }
+        try? library.deleteFolders(state.pendingDelete, keepContents: keepContents)
         state.pendingDelete = []
         state.endEditing()
         onDeleted()

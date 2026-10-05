@@ -3,8 +3,10 @@ import SwiftUI
 
 /// The Move tree: one sheet for Move, *Save to Library…*, 🔖's *Save to Folder…* and *Change
 /// Folder*. The whole tree as one indented list, like Safari's bookmark-folder picker; one tap
-/// files, ✓ marks the current place. Books and series aren't destinations (they take pages only
-/// from their source); a folder being moved, and everything inside it, can't be picked.
+/// files, ✓ marks the current place. *New Folder* makes one at the top level; a folder's
+/// long-press, *New Folder Inside*, makes one in it; either way what is being filed goes into the
+/// new folder. Books and series aren't destinations (they take pages only from their source); a
+/// folder being moved, and everything inside it, can't be picked.
 ///
 /// ```
 /// Move to…                                    ✕
@@ -12,7 +14,7 @@ import SwiftUI
 ///  Library (no folder)
 ///  ★ Favorites
 ///      📁 Serial sites
-///  📁 Fiction                                 ✓
+///  📁 Fiction                                 ✓   ← long-press: New Folder Inside
 ///      📁 Short stories
 /// Books and series can't hold other pages.
 /// ```
@@ -24,6 +26,8 @@ struct MoveTreeSheet: View {
     @Query private var folders: [Folder]
     @State private var naming = false
     @State private var newName = ""
+    /// Where the folder being named goes (nil: the top level).
+    @State private var newParent: Folder?
 
     /// Each folder that can hold others, depth first, with its depth (0 at the top level).
     private var tree: [(folder: Folder, depth: Int)] {
@@ -39,7 +43,7 @@ struct MoveTreeSheet: View {
         NavigationStack {
             List {
                 Section {
-                    Button { naming = true } label: {
+                    Button { name(in: nil) } label: {
                         Label("New Folder", systemImage: "folder.badge.plus")
                             .typeStyle(.row)
                             .foregroundStyle(Palette.accent)
@@ -55,6 +59,12 @@ struct MoveTreeSheet: View {
                         place(folder.displayName, symbol: folder.rowSymbol, depth: entry.depth,
                               isCurrent: request.current == .folder(folder.id),
                               isEnabled: !isMoving(folder), id: "moveFolder") { pick(folder) }
+                            .contextMenu {
+                                if !isMoving(folder) {
+                                    Button("New Folder Inside", systemImage: "folder.badge.plus") { name(in: folder) }
+                                        .accessibilityIdentifier("moveNewFolderInside")
+                                }
+                            }
                     }
                 } footer: {
                     Text("Books and series can't hold other pages.")
@@ -84,7 +94,8 @@ struct MoveTreeSheet: View {
             Button("Create") { createAndPick() }
                 .accessibilityIdentifier("newFolderCreate")
         } message: {
-            Text("It goes at the top level, and this goes into it.")
+            Text(newParent.map { "It goes inside “\($0.displayName)”, and this goes into it." }
+                 ?? "It goes at the top level, and this goes into it.")
         }
     }
 
@@ -128,11 +139,16 @@ struct MoveTreeSheet: View {
         request.onPick(folder)
     }
 
+    private func name(in parent: Folder?) {
+        newParent = parent
+        naming = true
+    }
+
     private func createAndPick() {
         let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         newName = ""
         guard let folder = try? library.makeFolder(name: name.isEmpty ? String(localized: "New Folder") : name,
-                                                   in: nil) else { return }
+                                                   in: newParent) else { return }
         pick(folder)
     }
 }

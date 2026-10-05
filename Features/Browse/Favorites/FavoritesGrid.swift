@@ -73,7 +73,7 @@ struct FavoritesGrid: View {
 
     private func folderIcon(_ folder: Folder) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: Self.tileSize * 0.22, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(Palette.chrome)
             if let cover = folder.coverImage {
                 ArtworkTile(image: cover, letter: folder.displayName, size: Self.tileSize * 0.5, isCover: true)

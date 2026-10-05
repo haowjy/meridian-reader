@@ -72,7 +72,7 @@ struct LibrarySurface: View {
     private var toolbar: some View {
         BottomToolbarLayout {
             Menu {
-                Button("New Folder", systemImage: "folder.badge.plus") { screen.makeFolder(in: newFolderParent) }
+                Button("New Folder", systemImage: "folder.badge.plus") { screen.makeFolder(in: screenMenu.newFolderParent) }
                     .accessibilityIdentifier("libraryNewFolder")
             } label: {
                 Image(systemName: "plus").toolbarIconFrame()
@@ -95,7 +95,10 @@ struct LibrarySurface: View {
             .accessibilityIdentifier("libraryBrowser")
             .accessibilityHint("Return to the browser")
 
-            MoreMenuButton(id: "libraryMore") { .library(menu, perform: perform) }
+            MoreMenuButton(id: "libraryMore") {
+                let screenMenu = screenMenu
+                return .library(screenMenu.menu, perform: screenMenu.perform)
+            }
         }
         // Same as the browser toolbar: tint keeps disabled buttons dimmed.
         .tint(Palette.ink)
@@ -103,46 +106,15 @@ struct LibrarySurface: View {
 
     // MARK: - The screen on top
 
-    /// The folder whose screen is on top (nil: the home or the pages in no folder).
-    private var topFolder: Folder? {
-        guard case .folder(let id)? = shell.libraryPath.last else { return nil }
-        return library.folder(id: id)
-    }
-
-    /// ＋ → New Folder goes in the folder on screen; on a book's screen, beside the book.
-    private var newFolderParent: Folder? {
-        guard let folder = topFolder else { return nil }
-        return folder.kind.isFixed ? folder.parent : folder
-    }
-
-    private var menu: LibraryMenu {
-        if shell.libraryPath.last == .pages {
-            return LibraryMenu(screen: .pages, sort: PageSort(rawValue: topLevelSort) ?? LibraryTopLevel.defaultSort)
-        }
-        guard let folder = topFolder else { return LibraryMenu(screen: .home) }
-        if folder.kind.isFixed { return LibraryMenu(screen: .book(isSeries: folder.kind == .series)) }
-        return LibraryMenu(screen: .folder(isFavorites: folder.kind == .favorites), sort: folder.pageSort)
-    }
-
-    /// The Library's ⋯: nothing in it touches the browser's page.
-    private func perform(_ action: LibraryMenu.Action) {
-        let folder = topFolder
-        switch action {
-        case .voiceSettings: shell.present(.voiceSettings)
-        case .newFolder: screen.makeFolder(in: newFolderParent)
-        case .sort(let sort):
-            if let folder { library.setSort(sort, for: folder) } else { topLevelSort = sort.rawValue }
-        case .rename: if let folder { screen.rename(folder) }
-        case .move:
-            guard let folder else { return }
-            LibraryActions(library: library, speech: speech, shell: shell).move([.folder(folder)]) {
-                shell.libraryPath = library.path(to: folder)
+    private var screenMenu: LibraryScreenMenu {
+        LibraryScreenMenu(library: library, speech: speech, shell: shell, screen: screen, root: .home,
+                          top: shell.libraryPath.last, topLevelSort: $topLevelSort,
+                          showMoved: { shell.libraryPath = library.path(to: $0) }) { tile in
+            switch tile {
+            case .favorites: shell.present(.favorites())
+            case .history: shell.present(.history)
+            default: shell.leaveLibrary()
             }
-        case .deleteFolder: if let folder { screen.confirmDelete([folder]) }
-        case .deleteDownloads: if let folder { library.deleteDownloads(of: folder) }
-        case .favorites: shell.present(.favorites())
-        case .history: shell.present(.history)
-        case .browser: shell.leaveLibrary()
         }
     }
 }
