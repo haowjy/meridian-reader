@@ -163,9 +163,9 @@ the ⋯ slot too.
 subfolders; its links open in the browser and its saved pages in the Reader, closing the sheet
 first. Done, grabber, medium/large. Its bottom row is `[＋][ ][ ][ ][⋯]` on every screen of the
 sheet: ＋ is *New Folder* in the folder on screen, and ⋯ is the Library's ⋯ for that folder
-(*Sort ›, New Folder Inside*, and for a subfolder *Rename, Move…, Delete Folder…*), shown in the
-sheet; its big buttons are **Favorites** (back to the sheet's top), **History**, **Browser**
-(closes the sheet).
+(*Sort ›, New Folder Inside*, and for a subfolder *Rename, Move…, Delete Folder…*; *Debug* with
+developer options on, its panel over the sheet), shown in the sheet; its big buttons are
+**Favorites** (back to the sheet's top), **History**, **Browser** (closes the sheet).
 
 ## The Library
 
@@ -175,8 +175,9 @@ back up. It uses the **same bottom chrome** as the browser: the Now Playing bar,
 capsule and `[＋][ ][🔍][🌐][⋯]`. ＋ is *New Folder*, made in the folder on screen (beside a book,
 on a book's screen). 🌐 shows the browser as it was; 📚 there comes back to the same folder. The
 ⋯ panel follows the screen on top (below), always with big buttons **Favorites**, **History**,
-**Browser**; nothing in it acts on the page under the Library. History closes the Library first;
-Browser is the same swap as 🌐.
+**Browser**, and with developer options on a last row *Debug* (the listen debug panel); nothing
+in it acts on the page under the Library. History closes the Library first; Browser is the same
+swap as 🌐.
 
 ```
 Library                                   large title
@@ -420,9 +421,11 @@ row or Continue card) opens Now Playing instead.
 ## Developer options
 
 Debug tools are hidden in normal use: the ⋯ Debug rows (Browse "Debug ›" with Fake extraction
-failure; reader "Debug" → Listen debug panel), Voice settings → Listen debug (and Open full panel),
-the listen bar's Debug pill / bake overlay, and long-press ▶︎ → Listen debug panel. They show only
-with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
+failure; Reader, Now Playing, Library and Favorites sheet "Debug" → Listen debug panel), Voice
+settings → Listen debug (and Open full panel), the listen bar's Debug pill / bake overlay, and
+long-press ▶︎ → Listen debug panel. Each of these sets `speech.showListenDebug`; the shell's root
+presents the panel (`listenDebugSheet`) while no shell sheet is up, and Voice settings and the
+Favorites sheet present it over themselves. They show only with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
 default in Release builds, on by default in Debug builds. To toggle in any build, long-press the
 **version row** at the bottom of Voice settings for 2 s (haptic + "Developer options on/off"
 confirmation). A Release build clears a stored "on" once, so a Debug pill left from an older build
