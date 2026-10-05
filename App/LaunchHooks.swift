@@ -231,10 +231,13 @@ enum LaunchHooks {
     }
 
     /// `-resetBookmarks` / `-seedBookmarks`: Favorites emptied (its subfolders go, their pages
-    /// moving up first; saved pages go back to the pages in no folder), then optionally seeded.
+    /// moving up first; saved pages go back to the pages in no folder) and back on its default
+    /// sort, then optionally seeded.
     static func setUpBookmarks(_ setup: LaunchOptions.BookmarkSetup, in library: LibraryStore) {
-        for folder in library.subfolders(of: library.favorites()) {
-            try? library.deleteFolder(folder, keepContents: !folder.kind.isFixed)
+        library.setSort(.manual, for: library.favorites())
+        // A subfolder's own subfolders move up into Favorites as it goes; they go next.
+        while let folder = library.subfolders(of: library.favorites()).first {
+            do { try library.deleteFolder(folder, keepContents: !folder.kind.isFixed) } catch { break }
         }
         for page in library.favoritePages() { library.removeFavorite(page) }
         guard setup == .seed else { return }

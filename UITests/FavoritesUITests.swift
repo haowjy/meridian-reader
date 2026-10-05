@@ -13,6 +13,19 @@ final class FavoritesUITests: XCTestCase {
         tapMenuRow(app, "moreFavorite")
     }
 
+    /// ⋯ → Sort › `title`, in the Favorites sheet.
+    private func sortFavorites(_ app: XCUIApplication, _ title: String) {
+        app.buttons["favoritesMore"].tap()
+        let sort = find(app, "moreSort")
+        XCTAssertTrue(sort.waitForExistence(timeout: 3), "⋯ → Sort, in the sheet")
+        idle(0.6)
+        sort.tap()
+        let choice = app.buttons[title].firstMatch
+        XCTAssertTrue(choice.waitForExistence(timeout: 3))
+        choice.tap()
+        idle(0.8)
+    }
+
     private func startPage(_ app: XCUIApplication) {
         app.buttons["browseMore"].tap()
         tapMenuRow(app, "moreNewSearch")
@@ -75,17 +88,12 @@ final class FavoritesUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Favorites"].waitForExistence(timeout: 5), "the Favorites sheet")
         let second = libraryRow(app, "Second page"), third = libraryRow(app, "Third page")
         XCTAssertTrue(third.waitForExistence(timeout: 5))
-        XCTAssertLessThan(second.frame.minY, third.frame.minY, "Manual: in the order added")
+        XCTAssertLessThan(second.frame.minY, third.frame.minY, "Manual (the reset's sort): in the order added")
 
-        app.buttons["favoritesMore"].tap()
-        let sort = find(app, "moreSort")
-        XCTAssertTrue(sort.waitForExistence(timeout: 3), "⋯ → Sort, in the sheet")
-        idle(0.6)
-        sort.tap()
-        let newest = app.buttons["Newest"].firstMatch
-        XCTAssertTrue(newest.waitForExistence(timeout: 3))
-        newest.tap()
+        sortFavorites(app, "Newest")
         XCTAssertTrue(eventually(5) { third.frame.minY < second.frame.minY }, "Newest: the last one added first")
+        sortFavorites(app, "Manual")
+        XCTAssertTrue(eventually(5) { second.frame.minY < third.frame.minY }, "Manual again")
 
         app.buttons["favoritesMore"].tap()
         tapMenuRow(app, "moreNewFolder")
