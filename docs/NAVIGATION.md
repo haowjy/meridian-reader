@@ -143,8 +143,9 @@ the ⋯ slot too.
    the page doesn't move as listening progress changes.
 2. **Continue listening**: pages part-way through (listened and not finished; older saves with a
    playhead past the start), saved or played without saving, most recently listened first, with a
-   thin progress bar and "N min left". Up to 3; Show All opens the library. Tap → the Reader sheet
-   (Now Playing if it is what you hear).
+   thin progress bar and "N min left". Up to 3; Show All lists the rest in place (Show Less folds
+   them back), since pages played without saving and saved pages in Favorites aren't in the
+   library's list. Tap → the Reader sheet (Now Playing if it is what you hear).
 3. **Saved**: the newest saved pages in no folder not already above (up to 4), Show All → the
    library.
 4. **Recent Searches** (local, newest first, Clear).

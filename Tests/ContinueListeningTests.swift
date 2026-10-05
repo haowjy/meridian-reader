@@ -56,6 +56,34 @@ final class ContinueListeningTests: XCTestCase {
         XCTAssertEqual(continuing([link, notInLibrary, chapter]).map(\.key), [notInLibrary.key])
     }
 
+    /// More than three pages played without saving: the start page shows three and offers Show
+    /// All, which lists every one, the oldest too, leaving them out of the Library and unfiled.
+    func testShowAllListsEveryCandidateIncludingPagesNotInTheLibrary() throws {
+        let env = try LibraryTestEnvironment()
+        defer { env.cleanUp() }
+        var played: [UUID] = []
+        for i in 0..<5 {
+            env.now = Date(timeIntervalSince1970: 1_800_000_000 + Double(i) * 60)
+            let page = env.library.recordPlayback(env.article("https://example.com/played-\(i)", title: "Played \(i)"))
+            played.append(page.listenKey)
+        }
+        let newestFirst = Array(played.reversed())
+        let all = LibraryQueries.continuePages(recent: try env.context.fetch(LibraryQueries.recentlyPlayed),
+                                               undated: try env.context.fetch(LibraryQueries.undatedInProgress))
+        XCTAssertEqual(all.map(\.listenKey), newestFirst, "every candidate, most recent first")
+
+        XCTAssertEqual(BrowseStartPage.continueRows(all, expanded: false).map(\.listenKey), Array(newestFirst.prefix(3)))
+        XCTAssertEqual(BrowseStartPage.continueAction(count: all.count, expanded: false), .showAll)
+        XCTAssertEqual(BrowseStartPage.continueRows(all, expanded: true).map(\.listenKey), newestFirst,
+                       "Show All reaches the oldest too")
+        XCTAssertEqual(BrowseStartPage.continueAction(count: all.count, expanded: true), .showLess)
+        XCTAssertNil(BrowseStartPage.continueAction(count: 3, expanded: false), "nothing hidden, no action")
+
+        XCTAssertTrue(all.allSatisfy { !$0.isInLibrary && $0.folder == nil }, "listed, not saved or moved")
+        XCTAssertTrue(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).isEmpty,
+                      "the Library's list can't show them, so Show All lists them here")
+    }
+
     func testRowProgressIsWeightedByTextLength() {
         // 100 + 300 + 100 UTF-16 units; listen text joins them with "\n\n" (starts 0, 102, 404).
         let paragraphs = [String(repeating: "a", count: 100), String(repeating: "b", count: 300),
