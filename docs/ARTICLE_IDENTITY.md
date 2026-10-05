@@ -19,7 +19,7 @@ Unsave only flip the bookmark. (The reader screen itself: `NAVIGATION.md` → "T
 | Per-paragraph reuse | Every cached paragraph stores `textHash` (`ArticleIdentity.paragraphHash`). On open, `ArticleAudioCache.reconcile` keeps matching units, moves shifted ones to their new index and drops edited ones, so only changed paragraphs re-render. |
 | Older caches | v1 ephemeral dirs (URL + content key) are adopted into the v2 key on open when the v2 dir is empty; unhashed saved units are stamped with the saved copy's stored paragraphs. |
 | Duplicates | `LibraryStore.dedupe` (launch, idempotent) merges pages that share a key or a canonical URL (keeper = saved over link, then furthest position, latest play, oldest), copying in content the keeper lacks and merging the other's audio into the keeper, hash-reconciled. Logged as `[Library] dedupe page …`. |
-| Migration | Saved articles (`SavedArticle`, frozen) were copied once into pages with the same key; `library-migration.json` records what was copied, so a page deleted later never comes back and rows made by an older build during a rollback are copied on the next launch. No audio moved. |
+| Migration | Saved articles (`SavedArticle`, frozen) were copied once into pages with the same key; a receipt saved with the copy records what was copied, so a page deleted later never comes back and rows made by an older build during a rollback are copied on the next launch. No audio moved. |
 
 ## Why content is not in the key
 

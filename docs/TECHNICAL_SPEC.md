@@ -97,7 +97,8 @@ page (e.g. `https://example.com`) fails with a reason and saves nothing.
 ## Data
 
 Two SwiftData stores in one container (`LibraryStoreConfiguration`): **library**
-(`Application Support/library.store`: `Folder`, `Page`) and **local**
+(`Application Support/library.store`: `Folder`, `Page`, and the migration's
+`LibraryMigrationReceipt`s) and **local**
 (`Application Support/default.store`, the file the app always used: `RecentVisit`, and
 `SavedArticle`, frozen). The library has its own file because an older build reopening a shared
 store would drop entities it doesn't know; a file it never opens survives a rollback. Library
@@ -130,15 +131,17 @@ and place (`currentPageKey`, `lastPlayedAt`, `finishedAt`). One Favorites folder
 bookmarks; it can't be deleted, renamed or moved below the top level.
 
 **Migration (copy-once).** At launch `LibraryStore.migrateLegacy` copies every `SavedArticle`
-row and every bookmark in `bookmarks.json` not yet listed in the ledger
-(`Application Support/library-migration.json`): saved rows become saved pages in no folder (same
-key, text, position, icon; the listen history becomes `lastPlayedAt` / `finishedAt`), bookmarks
-become link pages in Favorites in file order, and a bookmark for a saved page moves that page
-into Favorites at the bookmark's place. Dedupe runs, the copy is saved, and only then is the
-ledger written. Nothing legacy is written again: the rows, the bookmarks file, the listen history
-and the audio cache stay as they were, so the previous build still works after a rollback. Then
-the launch dedupe pass, the paragraph layout pass on pages and the prune of pages not in the
-Library run. Debug: `-rerunLibraryMigration` empties the library and the ledger and copies again.
+row and every bookmark in `bookmarks.json` without a receipt (`LibraryMigrationReceipt`, in the
+library store): saved rows become saved pages in no folder (same key, text, position, icon; the
+listen history becomes `lastPlayedAt` / `finishedAt`), bookmarks become link pages in Favorites
+in file order, and a bookmark for a saved page moves that page into Favorites at the bookmark's
+place. Dedupe runs, and the pages and a receipt for every item copied are saved together: a
+failed save leaves neither, so the next launch copies again, and a page deleted after the copy
+never comes back. Receipts that can't be read stop the copy. Nothing legacy is written again:
+the rows, the bookmarks file, the listen history and the audio cache stay as they were, so the
+previous build still works after a rollback. Then the launch dedupe pass, the paragraph layout
+pass on pages and the prune of pages not in the Library run. Debug: `-rerunLibraryMigration`
+empties the library and its receipts and copies again.
 
 **`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
 `urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,
@@ -155,7 +158,6 @@ Elsewhere:
 | Bookmarks before the library (frozen; copied into Favorites) | `Application Support/Bookmarks/bookmarks.json` (`LegacyBookmarks`) |
 | Recent searches | UserDefaults `browse.recentSearches` |
 | Last listened / finished before the library (frozen; folded into `Page`) | UserDefaults `reader.listenHistory.v1` (`ListenHistory`) |
-| Library migration ledger | `Application Support/library-migration.json` |
 | Crash-resume point | `ListenResumePointStore` |
 | Rendered audio | `Application Support/TTSCache/<article key>/` (`ArticleAudioCache`) |
 | Pending render jobs | `Application Support/PendingBakeJobs.json` |

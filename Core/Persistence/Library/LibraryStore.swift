@@ -128,16 +128,13 @@ final class LibraryStore {
     }
 }
 
-/// Where the pre-library data lives, read once by the migration: the frozen `bookmarks.json`, the
-/// listen history in UserDefaults, and the migration ledger.
+/// Where the pre-library data lives, read by the migration: the frozen `bookmarks.json` and the
+/// listen history in UserDefaults.
 struct LegacyLibrarySources {
     var bookmarksURL: URL
-    var ledgerURL: URL
     var defaults: UserDefaults
 
     static var standard: LegacyLibrarySources {
-        LegacyLibrarySources(bookmarksURL: LegacyBookmarks.defaultFileURL,
-                             ledgerURL: URL.applicationSupportDirectory.appending(path: "library-migration.json"),
-                             defaults: .standard)
+        LegacyLibrarySources(bookmarksURL: LegacyBookmarks.defaultFileURL, defaults: .standard)
     }
 }

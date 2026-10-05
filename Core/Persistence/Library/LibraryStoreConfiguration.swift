@@ -5,7 +5,7 @@ import SwiftData
 /// - **"local"** holds `SavedArticle` (frozen since the library migration) and `RecentVisit` at
 ///   the URL `ModelContainer(for:)` used before there were two stores, `default.store`, so the
 ///   existing data opens in place;
-/// - **"library"** holds `Folder` and `Page` in `library.store`.
+/// - **"library"** holds `Folder`, `Page` and the migration's receipts in `library.store`.
 ///
 /// The library lives in its own file because an older build reopening a single shared store
 /// would drop the entities it doesn't know; a file it never opens survives a rollback.
@@ -14,7 +14,7 @@ enum LibraryStoreConfiguration {
     static let libraryName = "library"
 
     static var localModels: [any PersistentModel.Type] { [SavedArticle.self, RecentVisit.self] }
-    static var libraryModels: [any PersistentModel.Type] { [Folder.self, Page.self] }
+    static var libraryModels: [any PersistentModel.Type] { [Folder.self, Page.self, LibraryMigrationReceipt.self] }
 
     static var storeDirectory: URL { URL.applicationSupportDirectory }
     /// What `ModelConfiguration()` resolves to (`LibraryStoreConfigurationTests` checks it).

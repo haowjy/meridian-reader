@@ -3,12 +3,13 @@ import SwiftData
 import XCTest
 @testable import Reader
 
-/// A library over an in-memory container, with its own audio cache, defaults, bookmarks file and
-/// ledger in a temp directory. `cleanUp()` removes them.
+/// A library over an in-memory container (or, `fileBacked`, the two store files), with its own
+/// audio cache, defaults and bookmarks file in a temp directory. `cleanUp()` removes them.
 @MainActor
 final class LibraryTestEnvironment {
     let dir: URL
-    let container: ModelContainer
+    private(set) var container: ModelContainer
+    let fileBacked: Bool
     let tts: LocalTTSCoordinator
     let defaults: UserDefaults
     let suite: String
@@ -19,18 +20,36 @@ final class LibraryTestEnvironment {
     var playingKey: UUID?
     private(set) var stoppedKeys: [UUID] = []
 
-    init(container: ModelContainer? = nil) throws {
+    init(fileBacked: Bool = false) throws {
         dir = FileManager.default.temporaryDirectory.appending(path: "LibraryTest-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        self.container = try container ?? LibraryStoreConfiguration.makeInMemoryContainer()
+        self.fileBacked = fileBacked
+        container = try Self.makeContainer(dir: dir, fileBacked: fileBacked)
         suite = "LibraryTest-\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suite)!
         let registry = EngineRegistry(providers: [AppleSpeechProvider(), KokoroStubProvider()], gate: { _ in true })
         tts = LocalTTSCoordinator(engines: registry, defaults: defaults,
                                   audioCache: ArticleAudioCache(root: dir.appending(path: "TTSCache")),
                                   crashGuard: EngineCrashGuard(directory: dir.appending(path: "guard")))
-        legacy = LegacyLibrarySources(bookmarksURL: dir.appending(path: "Bookmarks/bookmarks.json"),
-                                      ledgerURL: dir.appending(path: "library-migration.json"), defaults: defaults)
+        legacy = LegacyLibrarySources(bookmarksURL: dir.appending(path: "Bookmarks/bookmarks.json"), defaults: defaults)
+        library = makeLibrary()
+    }
+
+    /// The store files sit in their own folder, so a test can lock the rest of `dir`.
+    var storeDirectory: URL { dir.appending(path: "Stores") }
+
+    private static func makeContainer(dir: URL, fileBacked: Bool) throws -> ModelContainer {
+        guard fileBacked else { return try LibraryStoreConfiguration.makeInMemoryContainer() }
+        let stores = dir.appending(path: "Stores")
+        return try LibraryStoreConfiguration.makeContainer(localURL: stores.appending(path: "default.store"),
+                                                           libraryURL: stores.appending(path: "library.store"))
+    }
+
+    /// A relaunch from disk: a fresh container on the same store files (file-backed only), and a
+    /// new library over it. Objects fetched before belong to the old container.
+    func relaunch() throws {
+        precondition(fileBacked, "relaunch needs the store files")
+        container = try Self.makeContainer(dir: dir, fileBacked: true)
         library = makeLibrary()
     }
 
@@ -47,6 +66,7 @@ final class LibraryTestEnvironment {
     var cache: ArticleAudioCache { tts.audioCache }
 
     func cleanUp() {
+        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.path)
         defaults.removePersistentDomain(forName: suite)
         try? FileManager.default.removeItem(at: dir)
         ListenResumePointStore.shared.clear()
@@ -55,6 +75,7 @@ final class LibraryTestEnvironment {
     // MARK: Fixtures
 
     func pages() -> [Page] { (try? context.fetch(FetchDescriptor<Page>())) ?? [] }
+    func receipts() -> [LibraryMigrationReceipt] { (try? context.fetch(FetchDescriptor<LibraryMigrationReceipt>())) ?? [] }
     func folders() -> [Folder] { (try? context.fetch(FetchDescriptor<Folder>())) ?? [] }
 
     /// A reader article for `url` with `paragraphs` as its text.

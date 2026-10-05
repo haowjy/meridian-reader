@@ -15,7 +15,7 @@ enum AppLaunch {
         LaunchHooks.runBeforeMigrations(.current, library: library, tts: speech.localTTS)
         #endif
 
-        // Copy saved articles and bookmarks not yet in the ledger, then merge any duplicates.
+        // Copy saved articles and bookmarks without a receipt, then merge any duplicates.
         library.migrateLegacy()
         library.dedupe()
         #if DEBUG

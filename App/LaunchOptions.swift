@@ -40,8 +40,8 @@ struct LaunchOptions: Equatable {
     var scrubBubbleDemo = false
     /// `-slowMenuAnimation`: slow the ⋯ morph so a mid-animation frame can be captured.
     var slowMenuAnimation = false
-    /// `-rerunLibraryMigration`: delete every folder and page and the migration ledger, then
-    /// copy the saved articles and bookmarks again.
+    /// `-rerunLibraryMigration`: delete every folder, page and migration receipt, then copy the
+    /// saved articles and bookmarks again.
     var rerunsLibraryMigration = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)

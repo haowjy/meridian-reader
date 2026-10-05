@@ -3,8 +3,8 @@ import XCTest
 @testable import Reader
 
 /// The copy from saved articles, bookmarks and listen history into the library: same keys, audio
-/// found where it is, Favorites in the bookmarks' order, copy-once by the ledger, and nothing
-/// legacy ever written.
+/// found where it is, Favorites in the bookmarks' order, copy-once by the receipts saved with the
+/// copy, and nothing legacy ever written.
 @MainActor
 final class LibraryMigrationTests: XCTestCase {
     private var env: LibraryTestEnvironment!
@@ -35,7 +35,7 @@ final class LibraryMigrationTests: XCTestCase {
 
         let report = library.migrateLegacy()
         XCTAssertEqual(report.copiedArticles, 1)
-        XCTAssertTrue(report.ledgerWritten)
+        XCTAssertTrue(report.saved)
 
         let page = try XCTUnwrap(library.page(key: legacyID), "the page keeps the row's id as its key")
         XCTAssertEqual(page.title, "Story")
@@ -109,6 +109,35 @@ final class LibraryMigrationTests: XCTestCase {
         XCTAssertEqual(env.pages().count, 1)
     }
 
+    /// What was copied is recorded with the copy itself: even when nothing beside the store files
+    /// can be written, a page deleted, unsaved or removed from Favorites after the copy stays that
+    /// way after a relaunch from a fresh container on the same files.
+    func testTheCopyIsRecordedWithItSoNothingRemovedComesBackAfterARelaunch() throws {
+        env.cleanUp()
+        env = try LibraryTestEnvironment(fileBacked: true)
+        env.legacyRow("https://example.com/deleted", title: "Deleted", savedAt: date(0))
+        env.legacyRow("https://example.com/unsaved", title: "Unsaved", savedAt: date(1))
+        env.legacyRow("https://example.com/kept", title: "Kept", savedAt: date(2))
+        try env.writeBookmarks([SiteBookmark(urlString: "https://example.com/fav", title: "Fav", host: "example.com")])
+        // Only the store folder (and the folders already there) take new files.
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: env.dir.path)
+
+        library.migrateLegacy()
+        XCTAssertEqual(env.pages().count, 4)
+        library.delete(try XCTUnwrap(library.page(url: URL(string: "https://example.com/deleted")!)))
+        library.unsave(try XCTUnwrap(library.page(url: URL(string: "https://example.com/unsaved")!)))
+        library.removeFavorite(try XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
+
+        try env.relaunch()
+        let report = library.migrateLegacy()
+        XCTAssertEqual(report.copiedArticles + report.copiedBookmarks, 0, "everything was recorded as copied")
+        XCTAssertNil(library.page(url: URL(string: "https://example.com/deleted")!), "a deleted page stays deleted")
+        XCTAssertEqual(library.page(url: URL(string: "https://example.com/unsaved")!)?.isInLibrary, false,
+                       "an unsaved page stays out of the Library")
+        XCTAssertNil(library.page(url: URL(string: "https://example.com/fav")!), "a removed favorite stays removed")
+        XCTAssertEqual(try env.context.fetch(LibraryQueries.inLibrary).map(\.title), ["Kept"])
+    }
+
     /// A rollback: the previous build ran in between and saved or bookmarked something new.
     func testRowsAndBookmarksAddedAfterTheFirstRunAreCopied() throws {
         env.legacyRow("https://example.com/1", savedAt: date(0))
@@ -161,42 +190,40 @@ final class LibraryMigrationTests: XCTestCase {
         XCTAssertEqual(env.pages().count, 1)
     }
 
-    func testTheLedgerIsNotWrittenWhenTheSaveFails() throws {
+    /// The pages and their receipts are one save: when it fails, a relaunch from disk finds
+    /// neither, and copies again; once it succeeds, what was deleted after it stays deleted.
+    func testWhenTheSaveFailsNothingIsCopiedOrRecordedAndTheNextLaunchCopies() throws {
         struct SaveFailed: Error {}
-        env.legacyRow("https://example.com/1", savedAt: date(0))
+        env.cleanUp()
+        env = try LibraryTestEnvironment(fileBacked: true)
+        env.legacyRow("https://example.com/1", title: "One", savedAt: date(0))
+        env.legacyRow("https://example.com/2", title: "Two", savedAt: date(1))
         try env.writeBookmarks([SiteBookmark(urlString: "https://example.com/fav", title: "Fav", host: "example.com")])
         library.saveContext = { _ in throw SaveFailed() }
 
         let failed = library.migrateLegacy()
-        XCTAssertFalse(failed.ledgerWritten)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: env.legacy.ledgerURL.path))
+        XCTAssertFalse(failed.saved)
         XCTAssertTrue(env.pages().isEmpty, "nothing half-copied stays behind")
+        XCTAssertTrue(env.receipts().isEmpty)
 
-        library.saveContext = { try $0.save() }
+        try env.relaunch()
+        XCTAssertTrue(env.pages().isEmpty, "nothing reached the store")
+        XCTAssertTrue(env.receipts().isEmpty)
         let retried = library.migrateLegacy()
-        XCTAssertTrue(retried.ledgerWritten)
-        XCTAssertEqual(retried.copiedArticles, 1)
+        XCTAssertTrue(retried.saved)
+        XCTAssertEqual(retried.copiedArticles, 2)
         XCTAssertEqual(retried.copiedBookmarks, 1)
-        XCTAssertEqual(env.pages().count, 2)
-    }
+        XCTAssertEqual(env.receipts().count, 3)
 
-    /// The app died after the copy was saved but before the ledger was written: the next
-    /// launch copies again, and dedupe folds the copies (same keys) into the pages already there.
-    func testACrashBeforeTheLedgerCopiesAgainWithoutDuplicates() throws {
-        let id = UUID()
-        env.legacyRow("https://example.com/1", id: id, savedAt: date(0), position: 2)
-        try env.writeBookmarks([SiteBookmark(urlString: "https://example.com/fav", title: "Fav", host: "example.com")])
-        library.migrateLegacy()
-        try FileManager.default.removeItem(at: env.legacy.ledgerURL)
-
-        let again = env.makeLibrary().migrateLegacy()
-        XCTAssertEqual(again.copiedArticles, 1)
-        XCTAssertEqual(again.copiedBookmarks, 1)
-        XCTAssertEqual(again.mergedDuplicates, 1, "the row's second copy; the bookmark finds its page by address")
-        XCTAssertEqual(env.pages().count, 2, "no duplicate pages")
-        XCTAssertEqual(library.favoritePages().map(\.title), ["Fav"])
-        XCTAssertEqual(library.page(key: id)?.positionParagraph, 2)
-        XCTAssertTrue(again.ledgerWritten)
+        library.delete(try XCTUnwrap(library.page(url: URL(string: "https://example.com/1")!)))
+        library.unsave(try XCTUnwrap(library.page(url: URL(string: "https://example.com/2")!)))
+        library.removeFavorite(try XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
+        try env.relaunch()
+        let again = library.migrateLegacy()
+        XCTAssertEqual(again.copiedArticles + again.copiedBookmarks, 0)
+        XCTAssertNil(library.page(url: URL(string: "https://example.com/1")!))
+        XCTAssertEqual(library.page(url: URL(string: "https://example.com/2")!)?.isInLibrary, false)
+        XCTAssertNil(library.page(url: URL(string: "https://example.com/fav")!))
     }
 
     #if DEBUG
@@ -206,7 +233,7 @@ final class LibraryMigrationTests: XCTestCase {
         library.delete(try XCTUnwrap(library.page(url: URL(string: "https://example.com/1")!)))
         library.resetForMigrationRerun()
         XCTAssertTrue(env.pages().isEmpty)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: env.legacy.ledgerURL.path))
+        XCTAssertTrue(env.receipts().isEmpty)
         XCTAssertEqual(library.migrateLegacy().copiedArticles, 1)
         XCTAssertNotNil(library.page(url: URL(string: "https://example.com/1")!))
     }
