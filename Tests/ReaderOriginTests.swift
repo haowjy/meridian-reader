@@ -77,4 +77,54 @@ final class ReaderOriginTests: XCTestCase {
         XCTAssertNil(shell.reader)
         XCTAssertFalse(shell.isNowPlayingPresented)
     }
+
+    // MARK: - A close that lands late
+
+    /// A Reader's close arrives after its animation. If the shell removed that Reader meanwhile
+    /// and opened another (or replaced it outright), the late close leaves the new one.
+    func testALateReaderCloseLeavesANewerReader() throws {
+        let shell = ShellState()
+        let a = article(), b = article(), c = article()
+        shell.openReader(a)
+        let first = try XCTUnwrap(shell.reader).presentation
+        shell.openLibrary()          // the shell removes A while its close animates
+        shell.openReader(b)
+        shell.readerDidClose(first)  // A's close lands
+        XCTAssertEqual(shell.reader?.article.id, b.id, "B stays")
+
+        let second = try XCTUnwrap(shell.reader).presentation
+        shell.openReader(c)          // replaced outright
+        XCTAssertNotEqual(shell.reader?.presentation, second)
+        shell.readerDidClose(second)
+        XCTAssertEqual(shell.reader?.article.id, c.id, "C stays")
+
+        shell.readerDidClose(try XCTUnwrap(shell.reader).presentation)
+        XCTAssertNil(shell.reader, "its own close closes it")
+    }
+
+    func testAReaderUpdatedInPlaceIsTheSameShowing() throws {
+        let shell = ShellState()
+        let a = article()
+        shell.openReader(a)
+        let showing = try XCTUnwrap(shell.reader).presentation
+        shell.updateReader(id: a.id) { $0.faviconData = Data([1]) }
+        shell.readerDidClose(showing)
+        XCTAssertNil(shell.reader)
+    }
+
+    func testALateNowPlayingCloseLeavesANewerShowing() throws {
+        let shell = ShellState()
+        shell.showNowPlaying()
+        let first = try XCTUnwrap(shell.nowPlayingPresentation)
+        shell.showNowPlaying()
+        XCTAssertEqual(shell.nowPlayingPresentation, first, "already up: the same showing")
+
+        shell.openLibrary()          // the shell takes it down while its close animates
+        shell.showNowPlaying()
+        shell.nowPlayingDidClose(first)
+        XCTAssertTrue(shell.isNowPlayingPresented, "the newer Now Playing stays")
+
+        shell.nowPlayingDidClose(try XCTUnwrap(shell.nowPlayingPresentation))
+        XCTAssertFalse(shell.isNowPlayingPresented, "its own close closes it")
+    }
 }

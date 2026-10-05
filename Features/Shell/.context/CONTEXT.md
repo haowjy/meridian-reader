@@ -10,8 +10,10 @@ changing the shell code.
   opens Now Playing.
 - **Layers** (`BrowseStartView.layers`): surface → Reader sheet → Now Playing → ⋯ menu → system
   sheets. A covered layer is out of hit testing and hidden from VoiceOver. The `Sheet` component
-  animates its own rise and close and then calls its `onDismiss` (`closeReader`, `hideNowPlaying`);
-  programmatic closes (Website, navigating) just remove it.
+  animates its own rise and close and then calls its `onDismiss` (`readerDidClose`,
+  `nowPlayingDidClose`) with the presentation id it was shown with, so a close that lands late
+  can't remove a sheet shown since; each layer is `.id`'d by its presentation, so a replacement
+  starts fresh. Programmatic closes (Website, navigating) just remove it.
 - **Shared look lives in `../DesignSystem/`**: tokens, `Motion`, `BottomChrome`, the morph
   overlay (`MorphMenu.swift`) and the components. This folder keeps what knows about the app:
   `ShellState`, the ⋯ panel's rows (`MoreMenuPanel`), the Now Playing bar on a surface

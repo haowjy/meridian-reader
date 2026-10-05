@@ -36,7 +36,9 @@ struct NowPlayingScreen: View {
                 playingFrom: now.playingFrom.name,
                 isSaved: savedID != nil,
                 showsBackToAudio: !following && !now.isFinished,
-                onCollapse: shell.hideNowPlaying,
+                onCollapse: { [shell, presentation = shell.nowPlayingPresentation] in
+                    if let presentation { shell.nowPlayingDidClose(presentation) }
+                },
                 onPlayingFrom: { goToPlayingFrom() },
                 onToggleSave: toggleSaved,
                 onBackToAudio: { following = true }

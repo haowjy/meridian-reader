@@ -174,10 +174,12 @@ struct BrowseStartView: View {
             }
             if let reader = shell.reader {
                 ReaderSheetScreen(state: reader, speech: speech)
+                    .id(reader.presentation)
                     .covered(shell.isNowPlayingPresented)
             }
             if shell.isNowPlayingPresented {
                 NowPlayingScreen(speech: speech)
+                    .id(shell.nowPlayingPresentation)
             }
         }
     }

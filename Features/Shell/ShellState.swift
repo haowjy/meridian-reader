@@ -21,6 +21,9 @@ enum ReaderOrigin: Equatable {
 struct ReaderSheetState: Equatable {
     var article: ReaderArticle
     var origin: ReaderOrigin
+    /// This showing of the sheet. Its close reports it (`readerDidClose`), so a close that lands
+    /// late can't remove a Reader opened since.
+    let presentation = UUID()
 }
 
 /// The shell's sheets. One at a time, shown by the shell's single `.sheet(item:)`.
@@ -75,9 +78,11 @@ final class ShellState {
     private(set) var surface: Surface = .browse
     /// The Reader sheet (nil = closed). Removed by `closeReader()` once its sheet has gone.
     private(set) var reader: ReaderSheetState?
-    /// Now Playing is up, over the surface and the Reader sheet. It shows what you hear, so it holds
-    /// no article of its own.
-    private(set) var isNowPlayingPresented = false
+    /// This showing of Now Playing (nil = down), over the surface and the Reader sheet. It shows
+    /// what you hear, so it holds no article of its own. Its close reports the showing it closed
+    /// (`nowPlayingDidClose`), so a close that lands late can't take down a newer one.
+    private(set) var nowPlayingPresentation: UUID?
+    var isNowPlayingPresented: Bool { nowPlayingPresentation != nil }
     /// Where Now Playing's text opens: the Reader's scroll offset when its Listen turned it into
     /// Now Playing (it appears in place, without rising). nil = it rises and finds the audio.
     private(set) var nowPlayingOpensAt: CGFloat?
@@ -130,9 +135,15 @@ final class ShellState {
         reader = state
     }
 
-    /// The Reader sheet has gone (its back pill, the grabber's pull down, after its own close
-    /// animation). Playback keeps going.
+    /// Closes the Reader sheet at once (its ⋯ → Saved from the Library). Playback keeps going.
     func closeReader() {
+        reader = nil
+    }
+
+    /// The Reader sheet shown as `presentation` has gone (its back pill, the grabber's pull down,
+    /// after its own close animation). A Reader opened since stays.
+    func readerDidClose(_ presentation: UUID) {
+        guard reader?.presentation == presentation else { return }
         reader = nil
     }
 
@@ -148,7 +159,7 @@ final class ShellState {
             reader = nil
         }
         nowPlayingOpensAt = nil
-        isNowPlayingPresented = true
+        presentNowPlaying()
     }
 
     /// Listen in the Reader (decision D2): the Reader turns into Now Playing where it was, at
@@ -156,13 +167,25 @@ final class ShellState {
     func turnReaderIntoNowPlaying(scrollOffset offset: CGFloat?) {
         reader = nil
         nowPlayingOpensAt = offset
-        isNowPlayingPresented = true
+        presentNowPlaying()
     }
 
-    /// ⌄ or the pull down, after Now Playing's close animation: back to the surface underneath.
+    /// Already up, it stays the same showing.
+    private func presentNowPlaying() {
+        if nowPlayingPresentation == nil { nowPlayingPresentation = UUID() }
+    }
+
+    /// Takes Now Playing down at once, back to the surface underneath.
     func hideNowPlaying() {
-        isNowPlayingPresented = false
+        nowPlayingPresentation = nil
         nowPlayingOpensAt = nil
+    }
+
+    /// ⌄ or the pull down, after the close animation of the showing `presentation`. A Now Playing
+    /// shown since stays.
+    func nowPlayingDidClose(_ presentation: UUID) {
+        guard nowPlayingPresentation == presentation else { return }
+        hideNowPlaying()
     }
 
     // MARK: - Surfaces
@@ -170,7 +193,7 @@ final class ShellState {
     func openLibrary() {
         endAddressSearch()
         reader = nil
-        isNowPlayingPresented = false
+        hideNowPlaying()
         surface = .library
     }
 
@@ -185,8 +208,7 @@ final class ShellState {
     /// The browser, with nothing over it: closes the Reader and Now Playing, leaves the library.
     func showBrowser() {
         reader = nil
-        isNowPlayingPresented = false
-        nowPlayingOpensAt = nil
+        hideNowPlaying()
         leaveLibrary()
     }
 

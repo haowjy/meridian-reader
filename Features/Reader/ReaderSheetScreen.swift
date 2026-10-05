@@ -58,7 +58,7 @@ struct ReaderSheetScreen: View {
             listenTitle: listenTitle,
             listenState: speech.playState(of: .page(article.id)),
             isSaved: isSaved,
-            onClose: shell.closeReader,
+            onClose: { [shell, presentation = state.presentation] in shell.readerDidClose(presentation) },
             onListen: { listen(from: nil) },
             onToggleSave: toggleSaved
         ) {
