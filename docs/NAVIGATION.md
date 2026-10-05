@@ -210,7 +210,8 @@ opens Now Playing instead.
 - **Listen** reads *▶ Listen · 9 min*, *▶ Resume · 6 min left* for a page part-way through, or
   *▶ Listen Again* for a finished one. It starts at the page's saved spot, makes the page what you
   hear (replacing what plays) and turns the Reader into Now Playing in place, at the same scroll
-  position (decision D2): Now Playing sets that offset once its page is laid out, at the end of
+  position (decision D2), measured from where the article text starts, since Now Playing's title
+  card is not the Reader's heading: Now Playing sets that offset once its page is laid out, at the end of
   the page if it can't reach it, and drops it if you drag, scrub, Back to audio, the audio moves
   on or the page reloads first. ☝︎ in the header, then a tap on a paragraph, listens from that
   paragraph (a hint banner with Cancel floats over the text meanwhile). While ☝︎ is on, each
@@ -231,13 +232,15 @@ opens Now Playing instead.
 ┌──────────────────────────────────────┐
 │  ⌄          PLAYING FROM          ⊕  │ ← ⌄ or a pull down: shrink into the bar; ⊕ Save (✓ saved)
 │              example.com             │ ← tap: the page in the browser
-│ Title · example.com · 9 min          │
-│ … serif text; the spoken paragraph   │
-│   tinted, the sentence underlined …  │
+│ ╭ [art] Title                      ╮ │ ← the title card, scrolls with the text
+│ ╰       example.com · 9 min left   ╯ │
+│ … serif text, dimmed; the spoken     │
+│   paragraph in full ink, the         │
+│   sentence underlined …              │
 │            ( Back to audio )         │ ← after you scroll away
 │ Preparing next… / ✓ Finished         │ ← status notes, above the scrubber
 │ ( ━━━━━●━━━━░░░░──  ☝︎ )             │
-│ [1×]  [⏮]  [⏸]  [⏭]  [ ⋯ ]          │
+│ [1×]  [⏮]  (⏸)  [⏭]  [ ⋯ ]          │ ← the big round ⏸ / ▶ in the middle
 └──────────────────────────────────────┘
 ```
 
@@ -246,22 +249,31 @@ opens Now Playing instead.
   (`ShellState.isNowPlayingPresented`) and holds no article of its own: it shows what you hear.
   **⌄ or a pull down shrinks it into the bar**, back on what was underneath (the browser, the
   Library, or a Reader of another page), untouched.
-- **It looks like the Reader** (same paper, serif and margins); its chrome is the player's. A
-  plain-text article (no reading HTML) shows its paragraphs on the same reading page, in both,
-  so everything below applies to it too.
+- **It looks like a player, not the Reader**: deep jade in light and dark mode alike (the
+  `Palette.player…` tokens), with light status bar content and a heavier dim on the strip above
+  it. A **title card** at the top of the text (it scrolls with the text) shows the artwork, the
+  title and *site · N min left* (*✓ Finished* at the end). The text keeps the Reader's serif and
+  margins in **lyrics style**: the spoken paragraph in full ink, the others dimmed, no tint box.
+  The *Back to audio* pill is light with dark text; the scrub capsule, the bubble and the jump
+  hint sit on the player's card colour. The Reader stays on paper. A plain-text article (no
+  reading HTML) shows its paragraphs on the same reading page, in both, so everything below
+  applies to it too.
 - **"Playing from"** says *Library* for a saved page (tap: Now Playing closes onto the Library)
   and names the site for a page you haven't saved (tap: the page in the browser).
 - **The text follows the audio.** On each new paragraph it scrolls the spoken one near the middle
-  (the `Motion.standard` spring; a jump under Reduce Motion). The spoken paragraph is tinted and
-  the current sentence underlined (per chunk on engines that report only chunk starts; no
-  underline before iOS 17.2). Drag the text and following stops; a *Back to audio* pill floats
+  (the `Motion.standard` spring; a jump under Reduce Motion). The spoken paragraph lights up to
+  full ink while the one before dims (a short fade; none under Reduce Motion), and the current
+  sentence is underlined in ink (per chunk on engines that report only chunk starts; no underline
+  before iOS 17.2). Drag the text and following stops; a *Back to audio* pill floats
   over the text just above the controls (no arrow: the spoken paragraph may be above or below).
   Tap it (or start another page) and following resumes. Scrubbing scrolls to the paragraph under
   the thumb.
-- **At the end** it stays on the page: the text stays, the tint goes, a note says "✓ Finished",
-  and ▶ plays the page again.
+- **At the end** it stays on the page: the text stays, all of it in full ink, a note says
+  "✓ Finished", and ▶ plays the page again.
 - **Controls** (today's listen rows): the scrub row and `[1×][⏮][▶︎][⏭][⋯]` in the browser's
-  five-slot grid (1× under ‹, ⏮ under ›, ▶︎ under Search, ⏭ under Library, ⋯ under ⋯). ⏮ ⏭ and
+  five-slot grid (1× under ‹, ⏮ under ›, ▶︎ under Search, ⏭ under Library, ⋯ under ⋯). ▶︎ / ⏸ is a
+  64 pt round button (accent fill, dark glyph; fixed size, like the toolbar glyphs). The row stays
+  44 pt, so every slot sits where it does on the other surfaces; the disc overhangs it. ⏮ ⏭ and
   headphone / lock-screen skips are paragraph skips (D4). A sideways swipe on the row skips too.
 - **Status notes** ("Preparing next…", Apple-fallback / language notes, "✓ Finished", the
   developer-only Debug chip) sit **above** the scrubber so appearing text never pushes it.
