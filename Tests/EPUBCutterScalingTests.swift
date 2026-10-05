@@ -28,9 +28,12 @@ final class EPUBCutterScalingTests: XCTestCase {
     private func timedCut(_ url: URL, rules: EPUBCutRules = .standard,
                           file: StaticString = #filePath, line: UInt = #line) throws -> (cuts: [EPUBCut], seconds: TimeInterval) {
         let (stream, contents) = try prepared(url, rules: rules)
-        let started = Date()
-        let cuts = EPUBChapterCutter(stream: stream, rules: rules).cut(contents: contents)
-        let seconds = Date().timeIntervalSince(started)
+        // A monotonic clock: a wall-clock change during the cut can't make it look fast or slow.
+        var cuts: [EPUBCut] = []
+        let elapsed = ContinuousClock().measure {
+            cuts = EPUBChapterCutter(stream: stream, rules: rules).cut(contents: contents)
+        }
+        let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
         XCTAssertEqual(cuts.first?.start, stream.start, file: file, line: line)
         XCTAssertEqual(cuts.last?.end, stream.end, file: file, line: line)
         XCTAssertTrue(zip(cuts, cuts.dropFirst()).allSatisfy { $0.end == $1.start }, "cuts follow one another", file: file, line: line)
