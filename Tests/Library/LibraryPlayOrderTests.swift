@@ -51,4 +51,33 @@ final class LibraryPlayOrderTests: XCTestCase {
         library.setSort(.title, for: series)
         XCTAssertEqual(series.pageSort, .manual)
     }
+    /// Pages tied on every sort field (same sort key, same or no add date, same title) come back
+    /// in key order, in every sort, from a fresh container on the store, so a folder's order
+    /// never changes between reopenings.
+    func testTiesAreBrokenByThePageKey() throws {
+        env.cleanUp()
+        env = try LibraryTestEnvironment(fileBacked: true)
+        let folder = Folder(name: "Serial", kind: .series)
+        env.context.insert(folder)
+        let byKey = (0..<6).map { _ in UUID() }.sorted { $0.uuidString < $1.uuidString }
+        // Inserted against key order; the three with the highest keys have no add date.
+        for (i, key) in byKey.reversed().enumerated() {
+            let page = Page(key: key, title: "Same", byline: "", urlString: "https://example.com/tie-\(i)",
+                            contentState: .link, addedAt: i < 3 ? nil : env.now, sortKey: 1)
+            env.context.insert(page)
+            page.setFolder(folder)
+        }
+        try env.context.save()
+        let dated = Array(byKey.prefix(3)), undated = Array(byKey.suffix(3))
+        let folderID = folder.id
+
+        try env.relaunch()
+        let expected: [PageSort: [UUID?]] = [.manual: undated + dated, .newest: dated + undated, .title: byKey]
+        for sort in PageSort.allCases {
+            let order = try env.context.fetch(LibraryQueries.pages(inFolder: folderID, sort: sort)).map(\.key)
+            XCTAssertEqual(order, expected[sort], "\(sort)")
+        }
+        let reopened = try XCTUnwrap(env.library.folder(id: folderID))
+        XCTAssertEqual(env.library.playOrder(of: reopened).compactMap(\.key), undated + dated)
+    }
 }

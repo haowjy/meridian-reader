@@ -133,12 +133,13 @@ enum LibraryQueries {
 
     // MARK: Sorts
 
-    /// Equal sort keys fall back to the add date, so the order is stable.
+    /// Ties fall back to the other field, then to the page key, so a folder's order is the same
+    /// every time it is read.
     static func sortDescriptors(_ sort: PageSort) -> [SortDescriptor<Page>] {
         switch sort {
-        case .manual: [SortDescriptor(\Page.sortKey), SortDescriptor(\Page.addedAt)]
-        case .newest: [SortDescriptor(\Page.addedAt, order: .reverse), SortDescriptor(\Page.sortKey)]
-        case .title: [SortDescriptor(\Page.title), SortDescriptor(\Page.sortKey)]
+        case .manual: [SortDescriptor(\Page.sortKey), SortDescriptor(\Page.addedAt), SortDescriptor(\Page.key)]
+        case .newest: [SortDescriptor(\Page.addedAt, order: .reverse), SortDescriptor(\Page.sortKey), SortDescriptor(\Page.key)]
+        case .title: [SortDescriptor(\Page.title), SortDescriptor(\Page.sortKey), SortDescriptor(\Page.key)]
         }
     }
 }
