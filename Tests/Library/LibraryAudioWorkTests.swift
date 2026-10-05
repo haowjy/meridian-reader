@@ -460,32 +460,37 @@ final class LibraryAudioWorkTests: XCTestCase {
         XCTAssertTrue(pendingWork().isEmpty)
     }
 
-    /// A Save, then a delete of that page, each stored with its audio work, and the work waits
-    /// (as if the app had died right after each save). Then the address plays again without
-    /// saving, which makes a page with the same key. The next launch does both records against
-    /// that page as it is now: its audio is neither marked saved (it isn't) nor deleted (it is
-    /// that page's), so it ends on the ephemeral TTL with its files.
+    /// Saves and deletes whose audio work waits (as if the app had died right after each save):
+    /// one page saved then deleted, both records waiting; another saved (its work done: saved
+    /// audio) then deleted, its delete waiting. Both addresses then play again without saving,
+    /// which makes pages with the same keys. The next launch does the records against those
+    /// pages as they are now: their audio is neither saved (they aren't) nor deleted (it is
+    /// theirs), so it ends on the ephemeral TTL with its files.
     func testWaitingAudioWorkFollowsAPagePlayedAgainWithoutSaving() throws {
-        let article = env.article("https://example.com/again", title: "Again")
-        let key = article.id
-        try env.storeAudio(key, paragraphs: article.document.paragraphs)
-        env.cache.markEphemeral(cacheKey: key)
-        let audioBefore = try audioFiles(key).filter { $0.key != "meta.json" }
+        let both = env.article("https://example.com/again", title: "Again")
+        let deleted = env.article("https://example.com/deleted", title: "Deleted")
+        let keys = [both.id, deleted.id]
+        for article in [both, deleted] { try env.storeAudio(article.id, paragraphs: article.document.paragraphs) }
+        env.cache.markEphemeral(cacheKey: both.id)
+        try library.save(deleted)
+        XCTAssertEqual(env.cache.loadMeta(for: deleted.id)?.kind, .saved)
+        let audioBefore = try keys.map { try audioFiles($0).filter { $0.key != "meta.json" } }
         library.saveContext = { try $0.save(); throw SaveFailed() }
-        XCTAssertThrowsError(try library.save(article))
-        library.delete(try XCTUnwrap(library.page(key: key)))
-        XCTAssertNil(library.page(key: key), "the delete was saved")
+        XCTAssertThrowsError(try library.save(both))
+        for key in keys { library.delete(try XCTUnwrap(library.page(key: key))) }
+        XCTAssertTrue(keys.allSatisfy { library.page(key: $0) == nil }, "the deletes were saved")
         library.saveContext = { try $0.save() }
-        library.recordPlayback(article)
-        XCTAssertEqual(env.cache.loadMeta(for: key)?.kind, .ephemeral, "the audio work hadn't run")
+        for article in [both, deleted] { library.recordPlayback(article) }
+        XCTAssertEqual(keys.map { env.cache.loadMeta(for: $0)?.kind }, [.ephemeral, .saved], "the audio work hadn't run")
 
         try env.relaunch()
-        XCTAssertEqual(pendingWork().sorted { $0.sequence < $1.sequence }.map(\.kindRaw), ["saved", "delete"])
-        XCTAssertEqual(library.finishAudioWork().finished, 2)
-        let page = try XCTUnwrap(library.page(key: key), "the page played again")
-        XCTAssertFalse(page.isInLibrary)
-        XCTAssertEqual(env.cache.loadMeta(for: key)?.kind, .ephemeral, "not saved audio: its page isn't saved")
-        XCTAssertEqual(try audioFiles(key).filter { $0.key != "meta.json" }, audioBefore, "its audio stays")
+        XCTAssertEqual(pendingWork().sorted { $0.sequence < $1.sequence }.map(\.kindRaw), ["saved", "delete", "delete"])
+        XCTAssertEqual(library.finishAudioWork().finished, 3)
+        for (key, audio) in zip(keys, audioBefore) {
+            XCTAssertEqual(library.page(key: key)?.isInLibrary, false, "the page played again")
+            XCTAssertEqual(env.cache.loadMeta(for: key)?.kind, .ephemeral, "not saved audio: its page isn't saved")
+            XCTAssertEqual(try audioFiles(key).filter { $0.key != "meta.json" }, audio, "its audio stays")
+        }
         XCTAssertTrue(pendingWork().isEmpty)
     }
 

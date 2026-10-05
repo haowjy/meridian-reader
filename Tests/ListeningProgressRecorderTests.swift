@@ -269,6 +269,45 @@ final class ListeningProgressRecorderTests: XCTestCase {
         XCTAssertNil(try XCTUnwrap(env.library.page(key: key)).finishedAt, "nor after a relaunch")
     }
 
+    /// A saved page opens with newer text while saves fail: the refresh's own save fails, so
+    /// only the context holds that text when 🎧 plays it. The play keeps the article (unlike a
+    /// play of a page whose text is stored), and after a failed edit's rollback the newer text
+    /// is written again with the spot on it. Once saves work both are stored.
+    func testRefreshedTextAndItsSpotSurviveARollbackWhenTheRefreshWasntStored() throws {
+        let url = URL(string: "https://example.com/a")!
+        let page = try library.save(library.readerArticle(url: url, extracted: extracted(["One here.", "Two here."])))
+        let unchanged = try library.save(article("https://example.com/b", title: "B"))
+        let key = page.listenKey
+        failSaves()
+        speech.listen(to: article("https://example.com/b", title: "B"))
+        XCTAssertNotNil(library.pendingListening[unchanged.listenKey]?.startedAt)
+        XCTAssertNil(library.pendingListening[unchanged.listenKey]?.article, "its text is stored: no copy kept")
+
+        let refreshed = library.readerArticle(url: url, extracted: extracted(["One here.", "Two, rewritten.", "Three.", "Four."]))
+        let newer = refreshed.document.paragraphs
+        XCTAssertEqual(page.cachedListenParagraphs, newer, "refreshed on open, not stored")
+        speech.listen(to: refreshed)
+        fixture.apple.emit(.position(paragraph: 3, utf16: refreshed.document.startUTF16Offset(forParagraph: 3)))
+        XCTAssertNotNil(library.pendingListening[key]?.article, "only the context holds the text this play is on")
+
+        XCTAssertThrowsError(try library.makeFolder(name: "Later", in: nil))
+        XCTAssertEqual(page.cachedListenParagraphs, newer, "the text the spot is on is written again")
+        XCTAssertEqual(page.positionParagraph, 3)
+
+        allowSaves()
+        library.commit("next")
+        recorder = nil
+        try env.relaunch()
+        let stored = try XCTUnwrap(env.library.page(key: key))
+        XCTAssertEqual(stored.cachedListenParagraphs, newer)
+        XCTAssertEqual(stored.positionParagraph, 3)
+    }
+
+    private func extracted(_ paragraphs: [String]) -> ExtractedArticle {
+        ExtractedArticle(title: "A", siteName: nil, cleanedHTML: paragraphs.map { "<p>\($0)</p>" }.joined(),
+                         plainText: paragraphs.joined(separator: "\n\n"), excerpt: "")
+    }
+
     // MARK: Deleting the playing page
 
     /// Deleting stops the page's playback as the app does (`AppComposition.makeLibrary`), and
