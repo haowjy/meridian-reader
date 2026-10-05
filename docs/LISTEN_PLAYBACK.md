@@ -160,9 +160,12 @@ same writes also move the book's place (`Folder.currentPageKey`, `lastPlayedAt`,
 again) to the chapter that starts, and the last playable chapter's end finishes the book
 (`LibraryStore+Chapters`). A write whose save fails waits in the context for the next save, and
 a failed edit's rollback doesn't drop it: `LibraryStore` keeps the progress it hasn't stored
-(`PendingListening`: a start and the article it came from, the position, the end) and writes it
-again after the rollback, with the dates it was made at and in the order it played, making again
-a page only a play had made. It is forgotten once a save stores it.
+(`PendingListening`: a start, and the article it came from when the store may not hold that
+text; the position; the end) and writes it again after the rollback, with the dates it was made
+at and in the order it played, making again a page only a play had made. It is forgotten once a
+save stores it. A position recorded while an edit is being staged (stopping the playing page it
+deletes) isn't saved on its own: it waits for the edit's save, so it can't store the edit half
+made.
 
 ### Books and series
 
@@ -391,8 +394,10 @@ highlight and the paragraph picker stay fine-grained.
   held for unfinished library work (`TECHNICAL_SPEC.md`, Audio work waits for the save). Save
   marks the cache saved once the save is stored, and unsave and *Remove from Library* mark it
   ephemeral again, both through the library's audio work; deleting a saved row deletes its audio.
-  Save moves audio only for a page that holds the address under an older key: the reader's audio
-  moves under the page's key and the live session is rekeyed, without a restart.
+  Saving the page that is playing, under its own key, moves no audio. When a page holds the
+  address under an older key, the reader's audio moves under the page's key and the live session
+  is rekeyed, without a restart; saving a page that isn't playing aligns its audio with the saved
+  text and can adopt a legacy v1 cache (`prepareListenIdentity`, as on open).
 - **One voice per article.** The index's top-level `engineID` / `voiceID` is the target voice.
   After a voice or engine switch, the first new-voice write retargets the index; older entries
   stay, stamped stale. Ready / missing counts look only at the target voice, so the queue

@@ -6,14 +6,21 @@ import Foundation
 /// drops every unsaved change in the context, this progress with the edit. So the store keeps it
 /// here until a save stores it, and writes it again after each rollback: progress made while
 /// saves fail is stored once they work again, and the edit that failed stays undone.
+///
+/// It holds one entry per page played while saves fail (each from someone pressing play, or
+/// playback moving on to the next chapter), and the first save that works empties it. An entry
+/// keeps a play's article only when the store may not hold that text. That keeps it small
+/// without a cap; a cap would drop listening the next save could store.
 struct PendingListening {
     struct Position: Equatable {
         var paragraph: Int
         var utf16Offset: Int
     }
 
-    /// The article a play started from: it makes the page again when the rollback dropped the
-    /// page that play made (one the library didn't have), and refreshes its text otherwise.
+    /// The article a play started from, when the store may not hold its text
+    /// (`playbackPage(for:)`): it makes the page again when the rollback dropped the page that
+    /// play made (one the library didn't have), and refreshes its text otherwise, so the position
+    /// is on the paragraphs it was written for. Nil when each play found the page's text stored.
     var article: ReaderArticle?
     /// The latest start: the page dated and unfinished, a chapter its book's place.
     var startedAt: Date?
@@ -61,7 +68,7 @@ extension LibraryStore {
         guard !pendingListening.isEmpty else { return }
         var written: [String] = []
         for (key, pending) in pendingListening.sorted(by: { $0.value.latest < $1.value.latest }) {
-            guard let page = pending.article.map(playbackPage(for:)) ?? page(key: key) else {
+            guard let page = pending.article.map({ playbackPage(for: $0).page }) ?? page(key: key) else {
                 pendingListening[key] = nil
                 log("listening of \(Self.short(key)) dropped: its page is gone")
                 continue

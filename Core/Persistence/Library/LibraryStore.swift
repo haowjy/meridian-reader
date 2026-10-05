@@ -34,6 +34,8 @@ final class LibraryStore {
     @ObservationIgnored var audioPlan = LibraryAudioWorkPlan()
     /// Listening progress written and not stored yet, by page key (`LibraryStore+PendingListening`).
     @ObservationIgnored var pendingListening: [UUID: PendingListening] = [:]
+    /// An edit is being staged (`edit`): `commit` stores nothing until the edit's own save.
+    @ObservationIgnored private(set) var isStagingEdit = false
     @ObservationIgnored let legacy: LegacyLibrarySources
     @ObservationIgnored let now: () -> Date
 
@@ -114,9 +116,15 @@ final class LibraryStore {
     // MARK: - Saving the context
 
     /// Saves pending changes, then does the audio work planned with them; false (logged) when
-    /// SwiftData refuses, and the work waits for the save that stores its changes.
+    /// SwiftData refuses, and the work waits for the save that stores its changes. While an edit
+    /// is being staged (`edit`) it stores nothing and returns false: what was written waits for
+    /// that edit's save, or its rollback.
     @discardableResult
     func commit(_ what: String) -> Bool {
+        guard !isStagingEdit else {
+            log("save (\(what)) waits for the edit being staged")
+            return false
+        }
         do {
             try saveChanges()
         } catch {
@@ -135,15 +143,27 @@ final class LibraryStore {
         pendingListening = [:]
     }
 
-    /// Saves an edit someone asked for (a save, a move, a rename, a mark, a remove): a save that
-    /// fails is rolled back (`rollBack`) and throws `LibraryStoreError.saveFailed`, so the edit
-    /// neither shows as done nor waits in the context for a later save to store, or a later
-    /// rollback to drop.
-    func commitOrRollBack(_ what: String) throws {
+    /// An edit someone asked for (a save, a move, a rename, a mark, a remove, a delete): `stage`
+    /// writes it to the context, then one save stores it. A save that fails is rolled back
+    /// (`rollBack`) and throws `LibraryStoreError.saveFailed`, so the edit neither shows as done
+    /// nor waits in the context for a later save to store, or a later rollback to drop.
+    ///
+    /// While `stage` runs, `commit` stores nothing: it would store the edit half made. `stage`
+    /// can cause a commit: deleting the playing page stops it, and stopping records its position.
+    /// That progress is kept (`PendingListening`): the edit's save stores it, or its rollback
+    /// writes it again. Refusals (`LibraryTreeError`) are thrown before `stage`, which can't fail.
+    @discardableResult
+    func edit<Result>(_ what: String, _ stage: () -> Result) throws -> Result {
+        // An edit made inside another (while its stage runs) is saved with that one.
+        guard !isStagingEdit else { return stage() }
+        isStagingEdit = true
+        let result = stage()
+        isStagingEdit = false
         guard commit(what) else {
             rollBack()
             throw LibraryStoreError.saveFailed
         }
+        return result
     }
 
     /// After a failed save: the context's changes and the audio work planned with them are

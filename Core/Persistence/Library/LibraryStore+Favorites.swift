@@ -80,16 +80,17 @@ extension LibraryStore {
             return try addLink(url: url, title: title, artwork: artwork, in: folder)
         }
         guard !existing.isInFixedFolder else { return nil }
-        if existing.folder !== folder {
-            if existing.addedAt == nil {
-                existing.contentState = .link
-                existing.addedAt = now()
+        try edit("favorite") {
+            if existing.folder !== folder {
+                if existing.addedAt == nil {
+                    existing.contentState = .link
+                    existing.addedAt = now()
+                }
+                existing.sortKey = nextSortKey(in: folder)
+                existing.setFolder(folder)
             }
-            existing.sortKey = nextSortKey(in: folder)
-            existing.setFolder(folder)
+            if existing.artworkData == nil { existing.artworkData = artwork }
         }
-        if existing.artworkData == nil { existing.artworkData = artwork }
-        try commitOrRollBack("favorite")
         return existing
     }
 
@@ -99,9 +100,10 @@ extension LibraryStore {
     func removeFavorite(_ page: Page) throws {
         guard Self.isFavorite(page), !page.isInFixedFolder else { return }
         if page.isSaved {
-            page.sortKey = nextSortKey(in: nil)
-            page.setFolder(nil)
-            try commitOrRollBack("unfavorite saved page")
+            try edit("unfavorite saved page") {
+                page.sortKey = nextSortKey(in: nil)
+                page.setFolder(nil)
+            }
         } else {
             try remove([page])
         }
@@ -110,8 +112,7 @@ extension LibraryStore {
     func renameFavorite(_ page: Page, to title: String) throws {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        page.title = trimmed
-        try commitOrRollBack("rename favorite")
+        try edit("rename favorite") { page.title = trimmed }
     }
 
     /// Takes `data` as the page's icon unless it would replace a usable icon with a smaller one

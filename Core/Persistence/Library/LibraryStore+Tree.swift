@@ -70,27 +70,26 @@ extension LibraryStore {
     @discardableResult
     func makeFolder(name: String, in parent: Folder?) throws -> Folder {
         if let parent, parent.kind.isFixed { throw LibraryTreeError.fixedDestination }
-        let folder = Folder(name: name.trimmingCharacters(in: .whitespacesAndNewlines), kind: .plain,
-                            sortKey: nextFolderSortKey(in: parent), createdAt: now())
-        context.insert(folder)
-        folder.parent = parent
-        try commitOrRollBack("make folder")
-        return folder
+        return try edit("make folder") {
+            let folder = Folder(name: name.trimmingCharacters(in: .whitespacesAndNewlines), kind: .plain,
+                                sortKey: nextFolderSortKey(in: parent), createdAt: now())
+            context.insert(folder)
+            folder.parent = parent
+            return folder
+        }
     }
 
     func rename(_ folder: Folder, to name: String) throws {
         guard folder.kind != .favorites else { throw LibraryTreeError.favoritesIsPinned }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        folder.name = trimmed
-        try commitOrRollBack("rename folder")
+        try edit("rename folder") { folder.name = trimmed }
     }
 
     /// The folder's page order. Books and series stay in source order.
     func setSort(_ sort: PageSort, for folder: Folder) throws {
         guard !folder.kind.isFixed else { return }
-        folder.pageSort = sort
-        try commitOrRollBack("sort")
+        try edit("sort") { folder.pageSort = sort }
     }
 
     /// Moves `items` to the end of `destination` (the top level if nil), in the given order.
@@ -98,23 +97,24 @@ extension LibraryStore {
     /// fails leaves every item where it was, in its order.
     func move(_ items: [LibraryItem], to destination: Folder?) throws {
         for item in items { try checkMove(item, to: destination) }
-        var folderKey = nextFolderSortKey(in: destination)
-        var pageKey = nextSortKey(in: destination)
-        for item in items {
-            switch item {
-            case .folder(let folder):
-                guard folder.parent !== destination else { continue }
-                folder.parent = destination
-                folder.sortKey = folderKey
-                folderKey += 1
-            case .page(let page):
-                guard page.folder !== destination else { continue }
-                page.setFolder(destination)
-                page.sortKey = pageKey
-                pageKey += 1
+        try edit("move") {
+            var folderKey = nextFolderSortKey(in: destination)
+            var pageKey = nextSortKey(in: destination)
+            for item in items {
+                switch item {
+                case .folder(let folder):
+                    guard folder.parent !== destination else { continue }
+                    folder.parent = destination
+                    folder.sortKey = folderKey
+                    folderKey += 1
+                case .page(let page):
+                    guard page.folder !== destination else { continue }
+                    page.setFolder(destination)
+                    page.sortKey = pageKey
+                    pageKey += 1
+                }
             }
         }
-        try commitOrRollBack("move")
     }
 
     private func checkMove(_ item: LibraryItem, to destination: Folder?) throws {
@@ -145,14 +145,15 @@ extension LibraryStore {
     /// folder, page and its audio stay.
     func deleteFolders(_ folders: [Folder], keepContents: Bool) throws {
         if folders.contains(where: { $0.kind == .favorites }) { throw LibraryTreeError.favoritesIsPinned }
-        for folder in folders where !folder.isDeleted {
-            if keepContents && !folder.kind.isFixed {
-                moveContentsUp(folder)
-            } else {
-                deleteRecursively(folder)
+        try edit("delete folder") {
+            for folder in folders where !folder.isDeleted {
+                if keepContents && !folder.kind.isFixed {
+                    moveContentsUp(folder)
+                } else {
+                    deleteRecursively(folder)
+                }
             }
         }
-        try commitOrRollBack("delete folder")
     }
 
     private func moveContentsUp(_ folder: Folder) {
@@ -200,8 +201,7 @@ extension LibraryStore {
             siblings = (try? context.fetch(FetchDescriptor<Page>(predicate: #Predicate { $0.folderID == nil },
                                                                  sortBy: LibraryQueries.sortDescriptors(.manual)))) ?? []
         }
-        FractionalOrder.move(pages, among: siblings, before: before, key: \.sortKey)
-        try commitOrRollBack("reorder")
+        try edit("reorder") { FractionalOrder.move(pages, among: siblings, before: before, key: \.sortKey) }
     }
 
     /// Moves `folders` (siblings under `parent`, or at the top level) to just before `before` (the
@@ -209,8 +209,7 @@ extension LibraryStore {
     /// key.
     func reorderFolders(_ folders: [Folder], in parent: Folder?, before: Folder?) throws {
         let siblings = parent.map(subfolders(of:)) ?? topLevelFolders()
-        FractionalOrder.move(folders, among: siblings, before: before, key: \.sortKey)
-        try commitOrRollBack("reorder folders")
+        try edit("reorder folders") { FractionalOrder.move(folders, among: siblings, before: before, key: \.sortKey) }
     }
 
     /// What deleting `folder` and its contents takes with it, for the confirmation: subfolders,

@@ -260,6 +260,86 @@ final class LibrarySaveFailureTests: XCTestCase {
         XCTAssertFalse(env.folders().contains { $0.name == "Later" }, "the failed edit stays undone")
     }
 
+    /// *Mark as Finished* and *Mark as Unfinished* whose saves fail, on pages played while saves
+    /// fail: each mark stays undone, and the listening written before it is written again (one
+    /// page at its spot and unfinished, the other finished). Once saves work the next save stores
+    /// that listening, and a relaunch agrees; neither mark reached the store.
+    func testMarksThatFailKeepTheListeningWrittenBeforeThem() throws {
+        let a = try library.save(env.article("https://example.com/a"))
+        let b = try library.save(env.article("https://example.com/b"))
+        let (aKey, bKey) = (try XCTUnwrap(a.key), try XCTUnwrap(b.key))
+        let start = env.now
+        failSaves()
+        library.recordPlaybackStarted(a)
+        library.recordPosition(a, paragraph: 1, utf16Offset: 4)
+        env.now = start.addingTimeInterval(30)
+        library.recordPlaybackStarted(b)
+        env.now = start.addingTimeInterval(90)
+        library.recordFinished(b)
+
+        env.now = start.addingTimeInterval(120)
+        XCTAssertThrowsError(try library.setFinished([a], true), "Mark as Finished")
+        XCTAssertThrowsError(try library.setFinished([b], false), "Mark as Unfinished")
+        func check(_ library: LibraryStore, _ when: String) throws {
+            let a = try XCTUnwrap(library.page(key: aKey), when)
+            XCTAssertNil(a.finishedAt, "\(when): Mark as Finished stays undone")
+            XCTAssertEqual(a.lastPlayedAt, start, when)
+            XCTAssertEqual(a.positionParagraph, 1, when)
+            XCTAssertEqual(a.positionUTF16, 4, when)
+            let b = try XCTUnwrap(library.page(key: bKey), when)
+            XCTAssertEqual(b.finishedAt, start.addingTimeInterval(90), "\(when): Mark as Unfinished stays undone")
+            XCTAssertEqual(b.lastPlayedAt, start.addingTimeInterval(90), when)
+        }
+        try check(library, "after the rollbacks")
+
+        allowSaves()
+        library.commit("next")
+        try env.relaunch()
+        try check(env.library, "after a relaunch")
+    }
+
+    /// Continue on a finished book restarts it while saves fail: the restart's own save fails,
+    /// its first chapter starts, then a failed edit rolls everything back. The book stays
+    /// restarted: unfinished, its place the first chapter, which is unfinished and dated; the
+    /// second chapter stays finished. Once saves work it is stored, and a relaunch agrees.
+    func testABookRestartedWhileSavesFailStaysRestartedThroughARollback() throws {
+        let book = Folder(name: "Book", kind: .book)
+        env.context.insert(book)
+        let urls = ["https://example.com/ch1", "https://example.com/ch2"]
+        let chapters = try urls.map { try library.addLink(url: URL(string: $0)!, title: $0, artwork: nil, in: book) }
+        for url in urls { try library.save(env.article(url)) }
+        try library.setFinished(chapters, true)
+        XCTAssertNotNil(book.finishedAt, "finished: every chapter is")
+        let (oneKey, twoKey) = (try XCTUnwrap(chapters[0].key), try XCTUnwrap(chapters[1].key))
+        env.now = env.now.addingTimeInterval(600)
+        let restarted = env.now
+        failSaves()
+
+        let start = try XCTUnwrap(library.continueStart(of: book), "Continue on the finished book")
+        XCTAssertEqual(start.page.key, oneKey, "starts again at its first chapter")
+        XCTAssertNil(book.finishedAt)
+        library.recordPlaybackStarted(start.page)
+        env.now = restarted.addingTimeInterval(60)
+        XCTAssertThrowsError(try library.makeFolder(name: "Later", in: nil))
+        func check(_ library: LibraryStore, _ when: String) throws {
+            let one = try XCTUnwrap(library.page(key: oneKey), when)
+            let book = try XCTUnwrap(one.folder, when)
+            XCTAssertNil(book.finishedAt, "\(when): the book is listened to again")
+            XCTAssertEqual(book.currentPageKey, oneKey, "\(when): its place is the first chapter")
+            XCTAssertEqual(book.lastPlayedAt, restarted, when)
+            XCTAssertNil(one.finishedAt, when)
+            XCTAssertEqual(one.lastPlayedAt, restarted, when)
+            XCTAssertNotNil(library.page(key: twoKey)?.finishedAt, "\(when): the second chapter stays finished")
+        }
+        try check(library, "after the rollback")
+
+        allowSaves()
+        library.commit("next")
+        try env.relaunch()
+        try check(env.library, "after a relaunch")
+        XCTAssertFalse(env.folders().contains { $0.name == "Later" }, "the failed edit stays undone")
+    }
+
     // MARK: The callers
 
     private func actions(_ shell: ShellState) -> LibraryActions {

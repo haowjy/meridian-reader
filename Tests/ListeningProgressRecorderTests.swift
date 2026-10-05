@@ -268,4 +268,107 @@ final class ListeningProgressRecorderTests: XCTestCase {
         try env.relaunch()
         XCTAssertNil(try XCTUnwrap(env.library.page(key: key)).finishedAt, "nor after a relaunch")
     }
+
+    // MARK: Deleting the playing page
+
+    /// Deleting stops the page's playback as the app does (`AppComposition.makeLibrary`), and
+    /// stopping records the spot inside the paragraph.
+    private func stopsPlaybackOnDelete(then afterStop: @escaping () -> Void = {}) {
+        library.stopPlaybackIfPlaying = { [unowned self] key in
+            guard speech.activeSessionID == key else { return }
+            speech.stop()
+            afterStop()
+        }
+    }
+
+    /// *Delete Folder and Contents* reaches the playing page after staging the delete of a page
+    /// before it. Stopping that playback records its spot, and that save would work; the
+    /// delete's own save then fails. Nothing is deleted, by the store or on disk: the position
+    /// waits for the delete's save instead of storing half of it. After the rollback the
+    /// stopped page keeps its spot, stored once saves work, and a relaunch agrees.
+    func testAFolderDeleteThatFailsDeletesNothingThoughStoppingItsPlayingPageRecordsASpot() throws {
+        let shelf = try library.makeFolder(name: "Shelf", in: nil)
+        let inner = try library.makeFolder(name: "Inner", in: shelf)
+        let (shelfID, innerID) = (shelf.id, inner.id)
+        let first = try library.save(article("https://example.com/a", title: "A"), placement: .folder(inner))
+        let playing = try library.save(article("https://example.com/b", title: "B"), placement: .folder(shelf))
+        let (firstKey, playingKey) = (first.listenKey, playing.listenKey)
+        for page in [first, playing] { try env.storeAudio(page.listenKey, paragraphs: page.cachedListenParagraphs ?? []) }
+        let audioBefore = try [firstKey, playingKey].map { try audioFiles($0) }
+        play(playing)
+        let p1 = speech.document.startUTF16Offset(forParagraph: 1)
+        fixture.apple.emit(.position(paragraph: 1, utf16: p1))
+        fixture.apple.emit(.position(paragraph: 1, utf16: p1 + 5))
+        var failing = false
+        library.saveContext = { if failing { throw SaveFailed() }; try $0.save() }
+        stopsPlaybackOnDelete { failing = true }
+
+        XCTAssertThrowsError(try library.deleteFolder(shelf, keepContents: false)) {
+            XCTAssertEqual($0 as? LibraryStoreError, .saveFailed)
+        }
+        XCTAssertNil(speech.nowPlaying, "playback stopped")
+        XCTAssertNotNil(library.folder(id: shelfID))
+        XCTAssertNotNil(library.folder(id: innerID))
+        XCTAssertNotNil(library.page(key: firstKey), "the page staged before the playing one stays")
+        XCTAssertEqual(try [firstKey, playingKey].map { try audioFiles($0) }, audioBefore, "no audio deleted")
+        let stopped = try XCTUnwrap(library.page(key: playingKey))
+        XCTAssertEqual(stopped.positionParagraph, 1)
+        XCTAssertEqual(stopped.positionUTF16, p1 + 5, "the spot stopping recorded")
+
+        allowSaves()
+        library.commit("next")
+        recorder = nil
+        try env.relaunch()
+        XCTAssertNotNil(env.library.folder(id: shelfID), "nothing was deleted")
+        XCTAssertNotNil(env.library.folder(id: innerID))
+        XCTAssertNotNil(env.library.page(key: firstKey))
+        XCTAssertEqual(try [firstKey, playingKey].map { try audioFiles($0) }, audioBefore)
+        let stored = try XCTUnwrap(env.library.page(key: playingKey))
+        XCTAssertEqual(stored.positionParagraph, 1)
+        XCTAssertEqual(stored.positionUTF16, p1 + 5, "stored once saves work")
+    }
+
+    /// A row's *Delete* on the playing page while saves fail: playback stops, the page and its
+    /// audio stay, at the spot stopping recorded, and that spot is stored once saves work.
+    func testDeletingThePlayingPageWhileSavesFailKeepsItAtItsSpot() throws {
+        let page = try library.save(article("https://example.com/a", title: "A"))
+        let key = page.listenKey
+        try env.storeAudio(key, paragraphs: page.cachedListenParagraphs ?? [])
+        let audioBefore = try audioFiles(key)
+        play(page)
+        let p2 = speech.document.startUTF16Offset(forParagraph: 2)
+        fixture.apple.emit(.position(paragraph: 2, utf16: p2))
+        fixture.apple.emit(.position(paragraph: 2, utf16: p2 + 3))
+        stopsPlaybackOnDelete()
+        failSaves()
+
+        library.delete(page)
+        XCTAssertNil(speech.nowPlaying, "playback stopped")
+        let back = try XCTUnwrap(library.page(key: key), "the page stays")
+        XCTAssertEqual(back.positionParagraph, 2)
+        XCTAssertEqual(back.positionUTF16, p2 + 3)
+        XCTAssertEqual(try audioFiles(key), audioBefore, "and its audio")
+
+        allowSaves()
+        notifications.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        recorder = nil
+        try env.relaunch()
+        let stored = try XCTUnwrap(env.library.page(key: key))
+        XCTAssertEqual(stored.positionParagraph, 2)
+        XCTAssertEqual(stored.positionUTF16, p2 + 3)
+        XCTAssertEqual(try audioFiles(key), audioBefore)
+    }
+
+    /// Every file under a key's audio directory in the library's cache, by relative path.
+    private func audioFiles(_ key: UUID) throws -> [String: Data] {
+        let dir = env.cache.directory(for: key)
+        var out: [String: Data] = [:]
+        for name in FileManager.default.subpaths(atPath: dir.path) ?? [] {
+            var isDir: ObjCBool = false
+            let url = dir.appending(path: name)
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), !isDir.boolValue else { continue }
+            out[name] = try Data(contentsOf: url)
+        }
+        return out
+    }
 }

@@ -60,9 +60,9 @@ extension LibraryStore {
     @discardableResult
     func recordPlayback(_ article: ReaderArticle) -> Page {
         let at = now()
-        let page = playbackPage(for: article)
+        let (page, textNotStored) = playbackPage(for: article)
         noteListening(page) {
-            $0.article = article
+            if textNotStored { $0.article = article }
             $0.start(at: at)
         }
         applyStart(page, at: at)
@@ -72,15 +72,20 @@ extension LibraryStore {
     }
 
     /// The page `article` plays: the library's (its text refreshed when it changed), or a new
-    /// page not in the Library.
-    func playbackPage(for article: ReaderArticle) -> Page {
+    /// page not in the Library. `textNotStored`: the store may not hold the text `article` has,
+    /// because the page is new, its text was refreshed now, or it holds changes not stored yet
+    /// (a refresh on open whose save failed, say).
+    func playbackPage(for article: ReaderArticle) -> (page: Page, textNotStored: Bool) {
         let page: Page
+        var textNotStored = true
         if let existing = self.page(key: article.id, canonicalURL: article.canonicalURL) {
             page = existing
+            textNotStored = existing.hasChanges
             let storedFP = page.cachedListenParagraphs.map { ArticleIdentity.contentFingerprint(paragraphs: $0) }
             if !article.document.isEmpty,
                storedFP != ArticleIdentity.contentFingerprint(paragraphs: article.document.paragraphs) {
                 fill(page, from: article)
+                textNotStored = true
             }
         } else {
             page = Page(key: article.id, title: article.title, byline: article.siteDomain,
@@ -92,7 +97,7 @@ extension LibraryStore {
             log("played, not saved: \(article.canonicalURL) key=\(Self.short(article.id))")
         }
         if page.artworkData == nil { page.artworkData = article.faviconData }
-        return page
+        return (page, textNotStored)
     }
 
     /// A page the library has started playing again (a row's ▶, a resume, a replay, the next
@@ -139,6 +144,10 @@ extension LibraryStore {
     /// state and folder, and its audio is left alone.
     @discardableResult
     func save(_ article: ReaderArticle, placement: SavePlacement = .keep, playhead: Int? = nil) throws -> Page {
+        try edit("save") { stageSave(article, placement: placement, playhead: playhead) }
+    }
+
+    private func stageSave(_ article: ReaderArticle, placement: SavePlacement, playhead: Int?) -> Page {
         let destination = placement.folder
         let page: Page
         if let existing = self.page(key: article.id, canonicalURL: article.canonicalURL) {
@@ -170,7 +179,6 @@ extension LibraryStore {
         }
         if let playhead { page.positionParagraph = playhead }
         if let key = page.key { planSaved(key: key) }
-        try commitOrRollBack("save")
         return page
     }
 
@@ -182,11 +190,12 @@ extension LibraryStore {
     func unsave(_ page: Page) throws {
         guard page.isSaved, !page.isInFixedFolder else { return }
         if page.folder != nil {
-            page.contentState = .link
-            // A link's text is a cache of its last play; one never played has nothing to keep.
-            if page.lastPlayedAt == nil { clearText(page) }
-            if let key = page.key { planEphemeral(key: key) }
-            try commitOrRollBack("unsave to link")
+            try edit("unsave to link") {
+                page.contentState = .link
+                // A link's text is a cache of its last play; one never played has nothing to keep.
+                if page.lastPlayedAt == nil { clearText(page) }
+                if let key = page.key { planEphemeral(key: key) }
+            }
             log("unsave \(Self.short(page.key)) → link in \(page.folder?.displayName ?? "-")")
         } else {
             try remove([page])
@@ -203,13 +212,14 @@ extension LibraryStore {
         let canonical = ArticleIdentity.canonicalURLString(from: url)
         let host = url.host ?? url.absoluteString
         let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let page = Page(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: trimmed.isEmpty ? host : trimmed,
-                        byline: host, urlString: url.absoluteString, contentState: .link, addedAt: now(),
-                        sortKey: nextSortKey(in: folder), artworkData: artwork)
-        context.insert(page)
-        page.setFolder(folder)
-        try commitOrRollBack("add link")
-        return page
+        return try edit("add link") {
+            let page = Page(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: trimmed.isEmpty ? host : trimmed,
+                            byline: host, urlString: url.absoluteString, contentState: .link, addedAt: now(),
+                            sortKey: nextSortKey(in: folder), artworkData: artwork)
+            context.insert(page)
+            page.setFolder(folder)
+            return page
+        }
     }
 
     // MARK: - Removing and deleting
@@ -225,19 +235,20 @@ extension LibraryStore {
         let removing = pages.filter { !$0.isInFixedFolder }
         guard !removing.isEmpty else { return }
         var notes: [String] = []
-        for page in removing {
-            if page.isLink && !page.hasText {
-                notes.append("link \(Self.short(page.key)) deleted")
-                context.delete(page)
-                continue
+        try edit("remove") {
+            for page in removing {
+                if page.isLink && !page.hasText {
+                    notes.append("link \(Self.short(page.key)) deleted")
+                    context.delete(page)
+                    continue
+                }
+                page.contentState = .saved
+                page.addedAt = nil
+                page.setFolder(nil)
+                if let key = page.key { planEphemeral(key: key) }
+                notes.append("\(Self.short(page.key)) → not in Library")
             }
-            page.contentState = .saved
-            page.addedAt = nil
-            page.setFolder(nil)
-            if let key = page.key { planEphemeral(key: key) }
-            notes.append("\(Self.short(page.key)) → not in Library")
         }
-        try commitOrRollBack("remove")
         log("remove: \(notes.joined(separator: ", "))")
     }
 
@@ -245,12 +256,12 @@ extension LibraryStore {
     /// is being read), and a book's place on it moves to the chapter before. A save that fails
     /// is rolled back: the page and its audio stay.
     func delete(_ page: Page) {
-        deleteWithoutSaving(page)
-        if !commit("delete page") { rollBack() }
+        _ = try? edit("delete page") { deleteWithoutSaving(page) }
     }
 
-    /// `delete` without the save, for deletes batched into one save. The audio goes through the
-    /// audio journal (`planDelete`), after that save.
+    /// `delete` without the save, for deletes batched into one edit's save. The audio goes
+    /// through the audio journal (`planDelete`), after that save. Stopping the page's playback
+    /// records its position, which waits for that save too (`edit`).
     func deleteWithoutSaving(_ page: Page) {
         if let key = page.key {
             stopPlaybackIfPlaying(key)

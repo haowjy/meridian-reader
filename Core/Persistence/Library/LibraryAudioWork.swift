@@ -8,13 +8,16 @@ enum LibraryAudioWorkKind: String, Codable {
     /// Dedupe merged one page into another: the merged page's audio moves under the kept key.
     case merge
     /// A page was deleted (a row's *Delete*, *Delete Folder and Contents*, *Delete Book*): its
-    /// audio, its pending render and its queued renders go.
+    /// audio, its pending render and its queued renders go, unless a page with its key is back
+    /// by the time it runs.
     case delete
     /// A page left the Library (*Remove from Library*, unsave): its audio goes back on the
-    /// ephemeral TTL, kept for playback until the audio cache's age prune.
+    /// ephemeral TTL, kept for playback until the audio cache's age prune, unless the page is
+    /// saved in the Library again by the time it runs.
     case ephemeral
     /// A page was saved to the Library (Save): its audio is marked saved, out of the ephemeral
-    /// TTL, and its queued render turns non-ephemeral.
+    /// TTL, and its queued render turns non-ephemeral, if the page is still saved in the Library
+    /// when it runs.
     case saved
 }
 

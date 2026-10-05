@@ -7,17 +7,18 @@ extension LibraryStore {
     /// *Mark as Finished* / *Mark as Unfinished* (rows, Edit's *Mark Finished*). A finished page
     /// starts again from its top; a book or series is finished once every chapter that plays is.
     func setFinished(_ pages: [Page], _ finished: Bool) throws {
-        for page in pages {
-            page.finishedAt = finished ? (page.finishedAt ?? now()) : nil
-        }
-        var books: [Folder] = []
-        for page in pages {
-            if let folder = page.folder, folder.kind.isFixed, !books.contains(where: { $0 === folder }) {
-                books.append(folder)
+        try edit(finished ? "mark finished" : "mark unfinished") {
+            for page in pages {
+                page.finishedAt = finished ? (page.finishedAt ?? now()) : nil
             }
+            var books: [Folder] = []
+            for page in pages {
+                if let folder = page.folder, folder.kind.isFixed, !books.contains(where: { $0 === folder }) {
+                    books.append(folder)
+                }
+            }
+            books.forEach(refreshFinished)
         }
-        books.forEach(refreshFinished)
-        try commitOrRollBack(finished ? "mark finished" : "mark unfinished")
     }
 
     /// *Mark All Above as Finished*: every chapter before `page` in play order.
@@ -32,9 +33,10 @@ extension LibraryStore {
     /// directly).
     func setSkipsInPlayback(_ page: Page, _ skips: Bool) throws {
         guard page.skipsInPlayback != skips else { return }
-        page.skipsInPlayback = skips
-        if let folder = page.folder, folder.kind.isFixed { refreshFinished(folder) }
-        try commitOrRollBack(skips ? "skip in playback" : "play in playback")
+        try edit(skips ? "skip in playback" : "play in playback") {
+            page.skipsInPlayback = skips
+            if let folder = page.folder, folder.kind.isFixed { refreshFinished(folder) }
+        }
     }
 
     /// *Delete Downloads* on a book or series: every chapter's audio; the chapters stay saved.

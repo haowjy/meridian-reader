@@ -36,6 +36,8 @@ struct LibraryAudioWorkOutcome: Equatable {
 /// same save; `commit` does it once the save succeeds, after any work an earlier launch left, and
 /// retires each record once its postconditions hold; the next launch finishes whatever is left
 /// (`finishAudioWork`); a save that fails and is rolled back (`rollBack`) leaves every file alone.
+/// Work that waited acts on the pages as they are when it runs: by then a key can belong to a
+/// later page (saved, deleted, then played again without saving), whose audio it keeps.
 extension LibraryStore {
     // MARK: - Planning
 
@@ -281,14 +283,15 @@ extension LibraryStore {
         log("audio \(Self.short(from)) merged into \(Self.short(to)): adopted \(rec.adopted)")
     }
 
-    /// The deleted page's audio directory, pending render and queued renders go. Skipped when a
-    /// page with its key exists again (a later change brought it back while this waited): the
-    /// audio is that page's now.
+    /// The deleted page's audio directory, pending render and queued renders go. When a page with
+    /// its key exists again (a later change brought it back while this waited), the audio is that
+    /// page's now: kept, and saved or ephemeral as that page is (`settleAudio`).
     private func deleteAudio(_ work: LibraryAudioWork) throws {
         guard let key = work.key else { return }
-        if try context.fetch(LibraryQueries.page(key: key)).first != nil {
+        if let page = try context.fetch(LibraryQueries.page(key: key)).first {
             log("audio \(Self.short(key)): its page is back since it was deleted; kept")
             ListenTimingLog.log("library_audio_work", ["kind": "delete", "key": ListenTimingLog.shortKey(key), "skipped": "page back"])
+            try settleAudio(key, page: page)
             return
         }
         try tts.clearListenAudio(for: key)
@@ -297,30 +300,42 @@ extension LibraryStore {
         log("audio \(Self.short(key)) deleted with its page")
     }
 
-    /// The page's audio goes back on the ephemeral TTL (kept, so playback goes on; the cache's
-    /// age prune removes it), with the address the page has now. A page saved again since plans
-    /// its own work after this one (`saved`), which marks the audio saved again.
+    /// The page left the Library: its audio goes back on the ephemeral TTL (kept, so playback
+    /// goes on; the cache's age prune removes it), unless the page is saved in the Library again
+    /// by the time this runs (`settleAudio`).
     private func releaseAudio(_ work: LibraryAudioWork) throws {
         guard let key = work.key else { return }
-        let page = try context.fetch(LibraryQueries.page(key: key)).first
-        tts.markListenCacheEphemeral(key, canonicalURL: page?.canonicalURL)
-        guard tts.audioCache.loadMeta(for: key)?.kind == .ephemeral else { throw LibraryAudioWorkError.notEphemeral(key) }
+        try settleAudio(key, page: try context.fetch(LibraryQueries.page(key: key)).first)
         ListenTimingLog.log("library_audio_work", ["kind": "ephemeral", "key": ListenTimingLog.shortKey(key)])
-        log("audio \(Self.short(key)) back on the ephemeral TTL")
     }
 
-    /// The saved page's audio is saved audio: out of the ephemeral TTL, its queued render no
-    /// longer ephemeral (its renders are saved audio). A page with no audio yet has none to mark.
-    /// A page that left the Library since plans its own work after this one.
+    /// The page was saved: its audio is saved audio, out of the ephemeral TTL, and its queued
+    /// render no longer ephemeral, unless the page has left the Library by the time this runs
+    /// (`settleAudio`).
     private func keepAudio(_ work: LibraryAudioWork) throws {
         guard let key = work.key else { return }
-        tts.migrateListenCache(from: key, to: key)
-        let cache = tts.audioCache
-        guard !cache.hasDirectory(for: key) || cache.loadMeta(for: key)?.kind == .saved else {
-            throw LibraryAudioWorkError.notSaved(key)
-        }
+        try settleAudio(key, page: try context.fetch(LibraryQueries.page(key: key)).first)
         ListenTimingLog.log("library_audio_work", ["kind": "saved", "key": ListenTimingLog.shortKey(key)])
-        log("audio \(Self.short(key)) marked saved with its page")
+    }
+
+    /// `key`'s audio as the page holding the key is now, not as it was when the work was
+    /// planned: a key can belong to a later page by the time the work runs (saved, deleted, then
+    /// played again without saving), and its renders are that page's. Saved audio for a page
+    /// saved in the Library (a page with no audio yet has none to mark); for any other page, or
+    /// none, the ephemeral TTL, with the address the page has now. The files stay either way.
+    private func settleAudio(_ key: UUID, page: Page?) throws {
+        let cache = tts.audioCache
+        if page?.isSavedToLibrary == true {
+            tts.migrateListenCache(from: key, to: key)
+            guard !cache.hasDirectory(for: key) || cache.loadMeta(for: key)?.kind == .saved else {
+                throw LibraryAudioWorkError.notSaved(key)
+            }
+            log("audio \(Self.short(key)) saved with its page")
+        } else {
+            tts.markListenCacheEphemeral(key, canonicalURL: page?.canonicalURL)
+            guard cache.loadMeta(for: key)?.kind == .ephemeral else { throw LibraryAudioWorkError.notEphemeral(key) }
+            log("audio \(Self.short(key)) on the ephemeral TTL (\(page == nil ? "no page" : "not saved in the Library"))")
+        }
     }
 
     /// The crash-resume file and the crash target launch read from it (or from the crash

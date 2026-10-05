@@ -460,6 +460,35 @@ final class LibraryAudioWorkTests: XCTestCase {
         XCTAssertTrue(pendingWork().isEmpty)
     }
 
+    /// A Save, then a delete of that page, each stored with its audio work, and the work waits
+    /// (as if the app had died right after each save). Then the address plays again without
+    /// saving, which makes a page with the same key. The next launch does both records against
+    /// that page as it is now: its audio is neither marked saved (it isn't) nor deleted (it is
+    /// that page's), so it ends on the ephemeral TTL with its files.
+    func testWaitingAudioWorkFollowsAPagePlayedAgainWithoutSaving() throws {
+        let article = env.article("https://example.com/again", title: "Again")
+        let key = article.id
+        try env.storeAudio(key, paragraphs: article.document.paragraphs)
+        env.cache.markEphemeral(cacheKey: key)
+        let audioBefore = try audioFiles(key).filter { $0.key != "meta.json" }
+        library.saveContext = { try $0.save(); throw SaveFailed() }
+        XCTAssertThrowsError(try library.save(article))
+        library.delete(try XCTUnwrap(library.page(key: key)))
+        XCTAssertNil(library.page(key: key), "the delete was saved")
+        library.saveContext = { try $0.save() }
+        library.recordPlayback(article)
+        XCTAssertEqual(env.cache.loadMeta(for: key)?.kind, .ephemeral, "the audio work hadn't run")
+
+        try env.relaunch()
+        XCTAssertEqual(pendingWork().sorted { $0.sequence < $1.sequence }.map(\.kindRaw), ["saved", "delete"])
+        XCTAssertEqual(library.finishAudioWork().finished, 2)
+        let page = try XCTUnwrap(library.page(key: key), "the page played again")
+        XCTAssertFalse(page.isInLibrary)
+        XCTAssertEqual(env.cache.loadMeta(for: key)?.kind, .ephemeral, "not saved audio: its page isn't saved")
+        XCTAssertEqual(try audioFiles(key).filter { $0.key != "meta.json" }, audioBefore, "its audio stays")
+        XCTAssertTrue(pendingWork().isEmpty)
+    }
+
     /// The app dies right after the copy's save, before the audio work: the next launch finds
     /// the work in the store and does it.
     func testWorkLeftByALaunchThatDiedAfterItsSaveIsDoneNextLaunch() throws {
