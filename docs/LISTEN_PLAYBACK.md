@@ -523,6 +523,11 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   fails on device) and holds the render worker while it runs.
 - `-bakeArticle <saved id prefix>`: render that saved article top-down in the foreground without
   playing it, then pull ListenTiming and TTSCache.
+- `-seedDemoBook`: a synthetic book (a skipped title page and three chapters of about a minute and
+  a half each) and one page in no folder (`DemoBook`), replacing what an earlier launch seeded and
+  leaving the rest of the library alone. `-chainDemoChapters`: once launched, play it from where
+  Continue would, after the on-device engine has loaded, and let it carry on; each boundary logs
+  `chapter_boundary`. Together, the locked-screen chapter-boundary check.
 - `-selectEngine local.kokoro|apple`, `-kokoroUnits <label>` (Core ML route routing).
 - **CPU route benchmark** (panel → "CPU route benchmark"): `KokoroONNXSession` at 1–4 threads and
   QoS variants on a fixed 501-phoneme passage and its first three sentences (load ms, cold / warm

@@ -2,7 +2,7 @@ import Foundation
 
 /// Launch work, run once by `ReaderApp` when the first window appears: the library's launch
 /// maintenance, the UI-test / diagnostics hooks from `LaunchOptions` (Debug builds), then crash
-/// resume.
+/// resume, then (Debug) a demo that plays at launch.
 /// Views only render; nothing here waits on a view appearing in a particular order.
 @MainActor
 enum AppLaunch {
@@ -22,6 +22,10 @@ enum AppLaunch {
         #endif
 
         await resumeAfterCrash(library: library, speech: speech, shell: shell)
+
+        #if DEBUG
+        await LaunchHooks.runAfterLaunch(.current, library: library, speech: speech)
+        #endif
     }
 
     /// The library's launch maintenance, then the end of the render queue's launch hold: it

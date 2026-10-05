@@ -171,7 +171,8 @@ struct WebView: UIViewRepresentable {
 /// - `one`: not an article (no 📄 / 🎧), with links to the others;
 /// - `two` ("Second page") and `three` ("Third page"): articles (pass `isProbablyReaderable`);
 /// - `thin` ("Thin page"): readable by that check, but its article text is invisible, so the
-///   saved copy (which drops short invisible text) has almost nothing to listen to.
+///   saved copy (which drops short invisible text) has almost nothing to listen to;
+/// - `book-N`: chapter N of the demo book (`DemoBook`, `-seedDemoBook`).
 final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "reader-test"
 
@@ -191,6 +192,9 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
         let sentence = "This offline test article has a long paragraph so Readability counts it as real reading content. "
         let title: String
         var body: String
+        if let chapter = DemoBook.testPage(name) {
+            return document(title: chapter.title, body: chapter.body)
+        }
         switch name {
         case "two":
             title = "Second page"
@@ -213,7 +217,11 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
                 + "<p><a href=\"reader-test://pages/three\" \(link)>Third page</a></p>"
                 + "<p><a href=\"reader-test://pages/thin\" \(link)>Thin page</a></p>"
         }
-        return """
+        return document(title: title, body: body)
+    }
+
+    private static func document(title: String, body: String) -> String {
+        """
         <html><head><meta name="viewport" content="width=device-width"><title>\(title)</title></head>
         <body style="font: 20px -apple-system; padding: 24px"><h1>\(title)</h1>\(body)</body></html>
         """

@@ -46,6 +46,12 @@ struct LaunchOptions: Equatable {
     /// `-rerunLibraryMigration`: delete every folder, page and migration receipt, then copy the
     /// saved articles and bookmarks again.
     var rerunsLibraryMigration = false
+    /// `-seedDemoBook`: add the demo book and its page in no folder (`DemoBook`), replacing the
+    /// ones an earlier launch added. The rest of the library is left alone.
+    var seedsDemoBook = false
+    /// `-chainDemoChapters`: once launched, play the demo book from its place (chapter 1 the first
+    /// time) and let it carry on (the locked-screen device check).
+    var chainsDemoChapters = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -77,6 +83,8 @@ struct LaunchOptions: Equatable {
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")
         slowMenuAnimation = flags.contains("-slowMenuAnimation")
         rerunsLibraryMigration = flags.contains("-rerunLibraryMigration")
+        seedsDemoBook = flags.contains("-seedDemoBook")
+        chainsDemoChapters = flags.contains("-chainDemoChapters")
     }
 
     /// Live Google suggestions in the address field.

@@ -187,6 +187,7 @@
 		9D17464C910C6313C169EEBC /* FakeEngineProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E8274F1049B3C1060DE5E9F /* FakeEngineProvider.swift */; };
 		9DD976945DF325B6E4903FB6 /* SwipeBackUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5F11F6225C6DDDF8EEC0177 /* SwipeBackUITests.swift */; };
 		9DFD7BBD27932C43BCA3BDE6 /* FluidAudioProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BBE7F8EC03F5E75F9D690AB /* FluidAudioProvider.swift */; };
+		9E865820E37DBF1C199EB37F /* DemoBook.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC75E0C52535316542DD4CCB /* DemoBook.swift */; };
 		9E92F1E37123E9961C6A1FA3 /* LocalListenEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 815D22BAD4ABDBC7E6958A62 /* LocalListenEngine.swift */; };
 		A12D14B7D8D2F2F7010EBB3E /* AppleListenEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67FD55D37561B6724E747269 /* AppleListenEngineTests.swift */; };
 		A16E4F946D5D81E6C896AD40 /* CPURouteBenchSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0162D4426790106244C560DF /* CPURouteBenchSection.swift */; };
@@ -582,6 +583,7 @@
 		C9EBFBA28745B6BB7149553C /* AppleListenEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleListenEngine.swift; sourceTree = "<group>"; };
 		CA3412F43292A5654DADDD29 /* LibraryPlayOrderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryPlayOrderTests.swift; sourceTree = "<group>"; };
 		CB3C8EC74D2AC2765057B0E2 /* PlayheadPositionUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayheadPositionUITests.swift; sourceTree = "<group>"; };
+		CC75E0C52535316542DD4CCB /* DemoBook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoBook.swift; sourceTree = "<group>"; };
 		CEDC1A883B31F3F7D44CE6F6 /* RenderPublicationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderPublicationTests.swift; sourceTree = "<group>"; };
 		CFB2AA6B666E2FF4A4E5A70E /* ReadingProgressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingProgressTests.swift; sourceTree = "<group>"; };
 		D045A8F46A63612137AA62F3 /* BakeConditions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BakeConditions.swift; sourceTree = "<group>"; };
@@ -1054,6 +1056,7 @@
 			children = (
 				EE9BB989753E52B53AF99267 /* AppComposition.swift */,
 				4288B2B096A114C874861C97 /* AppLaunch.swift */,
+				CC75E0C52535316542DD4CCB /* DemoBook.swift */,
 				452929F8850A14555F5A9D1A /* ExtractorEnvironment.swift */,
 				8A3DE3BEBAA5AC8F83EA1617 /* Info.plist */,
 				05D2CC094E191908F9D9D032 /* LaunchHooks.swift */,
@@ -1447,6 +1450,7 @@
 				DF3B392FBA8DDB30E2E861C3 /* ContinueCard.swift in Sources */,
 				E4DAA4EB12D98A6BA89D52E8 /* CoreMLBreadcrumbFile.swift in Sources */,
 				FD39DD34FF05EB8CEE8FD2C3 /* CoreMLCompileCacheJanitor.swift in Sources */,
+				9E865820E37DBF1C199EB37F /* DemoBook.swift in Sources */,
 				50CF2247CD261896E0529376 /* DeveloperOptions.swift in Sources */,
 				9BCE8119CEC69427FFD7152E /* DeviceChipGate.swift in Sources */,
 				5C0DE32ADB8C5FB294FD6A04 /* EngineCrashGuard.swift in Sources */,

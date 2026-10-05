@@ -27,9 +27,9 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
 - Known flake: `PlaybackRateAndChromeTests.testSpeedChangeAppliesInPlaceWithoutRestartingTheUnit`;
   rerun it alone.
 - UI tests drive the app with launch arguments (`App/LaunchOptions.swift`, Debug builds only):
-  `-uiTesting` (test markers on, Google suggestions off), `-seedDemoArticle`, `-browseTestPages`
-  (offline `reader-test://` pages), `-selectEngine apple`. Keep UI tests offline; use the test
-  pages, not live sites.
+  `-uiTesting` (test markers on, Google suggestions off), `-seedDemoArticle`, `-seedDemoBook`
+  (a demo book; `-chainDemoChapters` plays it), `-browseTestPages` (offline `reader-test://`
+  pages), `-selectEngine apple`. Keep UI tests offline; use the test pages, not live sites.
 - `ScreenshotCaptureTests` is skipped unless `TEST_RUNNER_READER_SCREENSHOTS_DIR=<dir>` is set in
   xcodebuild's environment.
 - `KokoroNaNProbeTests` and `KokoroONNXSessionTests` run only when the Mac research model is at
