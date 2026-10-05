@@ -1,7 +1,7 @@
 import Foundation
 
 /// Launch work, run once by `ReaderApp` when the first window appears: the library's launch
-/// maintenance, the UI-test / diagnostics hooks from `LaunchOptions` (Debug builds), then crash
+/// maintenance, the remembered surface (its folders checked, its page reloaded), the UI-test / diagnostics hooks from `LaunchOptions` (Debug builds), then crash
 /// resume, then (Debug) a demo that plays at launch.
 /// Views only render; nothing here waits on a view appearing in a particular order.
 @MainActor
@@ -16,6 +16,7 @@ enum AppLaunch {
         #endif
 
         maintainLibrary(library)
+        shell.restoreAtLaunch { library.folder(id: $0) != nil }
 
         #if DEBUG
         LaunchHooks.runAfterMigrations(.current, library: library, speech: speech, shell: shell)

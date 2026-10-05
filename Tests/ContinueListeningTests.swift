@@ -56,9 +56,9 @@ final class ContinueListeningTests: XCTestCase {
         XCTAssertEqual(continuing([link, notInLibrary, chapter]).map(\.key), [notInLibrary.key])
     }
 
-    /// More than three pages played without saving: the start page shows three and offers Show
-    /// All, which lists every one, the oldest too, leaving them out of the Library and unfiled.
-    func testShowAllListsEveryCandidateIncludingPagesNotInTheLibrary() throws {
+    /// Pages played without saving: Continue on the Library home lists every one (up to its eight
+    /// cards), the oldest too, leaving them out of the Library and unfiled.
+    func testContinueListsEveryCandidateIncludingPagesNotInTheLibrary() throws {
         let env = try LibraryTestEnvironment()
         defer { env.cleanUp() }
         var played: [UUID] = []
@@ -72,16 +72,16 @@ final class ContinueListeningTests: XCTestCase {
                                                undated: try env.context.fetch(LibraryQueries.undatedInProgress))
         XCTAssertEqual(all.map(\.listenKey), newestFirst, "every candidate, most recent first")
 
-        XCTAssertEqual(BrowseStartPage.continueRows(all, expanded: false).map(\.listenKey), Array(newestFirst.prefix(3)))
-        XCTAssertEqual(BrowseStartPage.continueAction(count: all.count, expanded: false), .showAll)
-        XCTAssertEqual(BrowseStartPage.continueRows(all, expanded: true).map(\.listenKey), newestFirst,
-                       "Show All reaches the oldest too")
-        XCTAssertEqual(BrowseStartPage.continueAction(count: all.count, expanded: true), .showLess)
-        XCTAssertNil(BrowseStartPage.continueAction(count: 3, expanded: false), "nothing hidden, no action")
+        let items = LibraryQueries.continueItems(folders: [], recent: try env.context.fetch(LibraryQueries.recentlyPlayed),
+                                                 undated: try env.context.fetch(LibraryQueries.undatedInProgress))
+        XCTAssertEqual(items.compactMap { item -> UUID? in
+            if case .page(let page) = item { return page.listenKey }
+            return nil
+        }, newestFirst, "the Library's Continue cards reach the oldest too")
 
         XCTAssertTrue(all.allSatisfy { !$0.isInLibrary && $0.folder == nil }, "listed, not saved or moved")
         XCTAssertTrue(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).isEmpty,
-                      "the Library's list can't show them, so Show All lists them here")
+                      "the Library's Pages can't show them, so Continue does")
     }
 
     func testRowProgressIsWeightedByTextLength() {
@@ -89,12 +89,12 @@ final class ContinueListeningTests: XCTestCase {
         let paragraphs = [String(repeating: "a", count: 100), String(repeating: "b", count: 300),
                           String(repeating: "c", count: 100)]
         func progress(_ p: Int, _ offset: Int) -> Double {
-            BrowseStartPage.progress(paragraphs: paragraphs, paragraph: p, utf16Offset: offset)
+            PageProgress.fraction(paragraphs: paragraphs, paragraph: p, utf16Offset: offset)
         }
         XCTAssertEqual(progress(0, 0), 0, accuracy: 1e-9)
         XCTAssertEqual(progress(1, 102 + 150), 0.5, accuracy: 1e-9, "halfway through the long middle paragraph")
         XCTAssertEqual(progress(9, 404), 0.8, accuracy: 1e-9, "paragraph index clamps to the last one")
         XCTAssertLessThan(progress(0, 101), 0.2, "a paragraph's end never reads as the next one's start")
-        XCTAssertEqual(BrowseStartPage.progress(paragraphs: [], paragraph: 0, utf16Offset: 0), 0)
+        XCTAssertEqual(PageProgress.fraction(paragraphs: [], paragraph: 0, utf16Offset: 0), 0)
     }
 }

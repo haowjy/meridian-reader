@@ -16,6 +16,44 @@ enum LaunchHooks {
     static func runSeeds(_ options: LaunchOptions, library: LibraryStore) {
         if let demo = options.demoArticle { seedDemoArticle(demo, in: library) }
         if options.seedsDemoBook { seedDemoBook(in: library) }
+        if options.seedsDemoFolders { seedDemoFolders(in: library) }
+    }
+
+    /// The folder `-seedDemoFolders` adds, found by its name at the top level.
+    static let demoFoldersName = "Demo Finance"
+
+    /// `-seedDemoFolders`: "Demo Finance" with the subfolders "Bonds" (holding "Coupon Basics") and
+    /// "Taxes", and three saved pages of its own, one part-way and one finished. Synthetic text,
+    /// `example.com` addresses; an earlier seed's folder and its pages go first.
+    static func seedDemoFolders(in library: LibraryStore) {
+        for folder in library.topLevelFolders() where folder.kind == .plain && folder.name == demoFoldersName {
+            try? library.deleteFolder(folder, keepContents: false)
+        }
+        guard let finance = try? library.makeFolder(name: demoFoldersName, in: nil),
+              let bonds = try? library.makeFolder(name: "Bonds", in: finance),
+              (try? library.makeFolder(name: "Taxes", in: finance)) != nil else { return }
+        func page(_ title: String, slug: String, in folder: Folder, sortKey: Double) -> Page {
+            let paragraphs = (1...6).map { "\(title), paragraph \($0). A synthetic note about saving, yields and the plain arithmetic of interest over a few years." }
+            let page = Page(key: UUID(), title: title, byline: "investing.example.com",
+                            urlString: "https://investing.example.com/\(slug)-\(UUID().uuidString.prefix(6))",
+                            contentState: .saved, addedAt: .now, sortKey: sortKey)
+            page.cleanedHTML = paragraphs.map { "<p>\($0)</p>" }.joined()
+            page.plainText = paragraphs.joined(separator: "\n\n")
+            page.excerpt = paragraphs[0]
+            page.wordCount = SavedArticle.wordCount(of: page.plainText) * 20
+            page.storeListenParagraphs(paragraphs)
+            library.context.insert(page)
+            page.setFolder(folder)
+            return page
+        }
+        _ = page("Coupon Basics", slug: "coupons", in: bonds, sortKey: 0)
+        let yield = page("Seven-Day Yield", slug: "yield", in: finance, sortKey: 0)
+        yield.positionParagraph = 3
+        yield.lastPlayedAt = .now.addingTimeInterval(-3600)
+        let funds = page("Money Market Funds", slug: "funds", in: finance, sortKey: 1)
+        funds.finishedAt = .now.addingTimeInterval(-7200)
+        _ = page("Index Funds", slug: "index", in: finance, sortKey: 2)
+        library.commit("demo folders seed")
     }
 
     /// After the migrations, before crash resume: bake, bookmarks, and where the app starts.
@@ -23,7 +61,9 @@ enum LaunchHooks {
                                    shell: ShellState) {
         if let prefix = options.bakeArticlePrefix { bakeArticle(prefix: prefix, in: library, speech: speech) }
         if let setup = options.bookmarks { setUpBookmarks(setup, in: library) }
-        if options.servesTestPages, let url = URL(string: "reader-test://pages/one") { shell.navigate(to: url) }
+        if options.servesTestPages, !options.restoresSurface, let url = URL(string: "reader-test://pages/one") {
+            shell.navigate(to: url)
+        }
         if options.opensLibrary { shell.openLibrary() }
         if options.opensDemoInReader { openNewestInReader(in: library, shell: shell) }
     }

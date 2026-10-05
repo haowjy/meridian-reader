@@ -4,19 +4,16 @@ import WebKit
 
 /// The browser, and the root of the shell: the web page or start page with its bottom chrome,
 /// the address search layer, and over it the layers `ShellState` says are up, in order: the
-/// library, the Reader sheet, Now Playing, the one ⋯ menu overlay and the one sheet.
+/// library, the Reader sheet, Now Playing, the one ⋯ menu overlay and the one sheet; the shell's
+/// prompt ("Move it to Favorites?") over all of them.
 struct BrowseStartView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.articleExtractor) private var extractor
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Saved pages in no folder, newest first (the start page's Saved).
-    @Query(LibraryQueries.loosePages(sort: .newest)) private var savedPages: [Page]
     /// Every saved page, for address suggestions.
     @Query(LibraryQueries.savedInLibrary) private var allSaved: [Page]
-    @Query(LibraryQueries.recentlyPlayed) private var recentlyPlayed: [Page]
-    @Query(LibraryQueries.undatedInProgress) private var undatedInProgress: [Page]
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
 
     /// Once true, the browse WKWebView stays in the tree (history / back-forward). Starts false so
@@ -27,8 +24,6 @@ struct BrowseStartView: View {
     @AppStorage(RecentSearches.storageKey) private var recentSearchesRaw = ""
     @State private var alertMessage: String?
     @State private var useFakeFailure = false
-    /// A short message over the bottom chrome ("Nothing to listen to on this page").
-    @State private var toast: String?
 
     private var webStore: WebViewStore { shell.web }
     private var search: SearchSession { shell.addressSearch }
@@ -38,8 +33,8 @@ struct BrowseStartView: View {
         shell.isInLibrary || shell.reader != nil || shell.isNowPlayingPresented
     }
 
-    /// The current page, when it is saved in the Library (⋯ → Save / Remove from Saved). Read
-    /// when the menu opens.
+    /// The current page, when it is saved in the Library (⋯ → Save to Library… / Remove from
+    /// Library). Read when the menu opens.
     private var currentSavedPage: Page? {
         guard let url = webStore.currentURL, url.isWeb, let page = library.page(url: url),
               page.isSavedToLibrary else { return nil }
@@ -70,8 +65,20 @@ struct BrowseStartView: View {
             // everything else (the library's navigation bar too).
             .overlay { menuOverlay }
             .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { ShellSheetView(sheet: $0) }
+            .alert(shell.prompt?.title ?? "", isPresented: Binding(get: { shell.prompt != nil },
+                                                                    set: { if !$0 { shell.prompt = nil } }),
+                   presenting: shell.prompt) { prompt in
+                Button("Cancel", role: .cancel) { shell.prompt = nil }
+                Button(prompt.confirmTitle) {
+                    shell.prompt = nil
+                    prompt.confirm()
+                }
+                .accessibilityIdentifier("promptConfirm")
+            } message: { prompt in
+                if let message = prompt.message { Text(message) }
+            }
             .modifier(BrowseAlerts(extractionError: $alertMessage, dictation: dictation))
-            .onChange(of: webStore.currentURL) { _, _ in shell.syncAddressField() }
+            .onChange(of: webStore.currentURL) { _, _ in shell.browserPageChanged() }
             .onChange(of: webStore.isLoading) { _, loading in
                 guard !loading else { return }
                 run { await $0.recordVisit() }
@@ -150,7 +157,7 @@ struct BrowseStartView: View {
             onOpenLibrary: shell.openLibrary,
             menu: { .browse(browseMenu, perform: perform) }
         )
-        .overlay(alignment: .top) { toastLayer }
+        .overlay(alignment: .top) { ShellToastLayer() }
     }
 
     private var menuOverlay: some View {
@@ -183,21 +190,6 @@ struct BrowseStartView: View {
         }
     }
 
-    @ViewBuilder
-    private var toastLayer: some View {
-        if let toast {
-            Toast(message: toast, systemImage: "headphones")
-                .padding(.horizontal, Spacing.pageMargin)
-                // Its bottom edge a gap above the chrome's top.
-                .alignmentGuide(.top) { $0[.bottom] + Spacing.xs }
-                .transition(.opacity)
-                .task {
-                    try? await Task.sleep(for: Toast.duration)
-                    withAnimation(Motion.snappy) { self.toast = nil }
-                }
-        }
-    }
-
     // MARK: - 🎧
 
     /// 🎧: pause / resume when the page is what you hear; otherwise extract it and listen now.
@@ -210,7 +202,10 @@ struct BrowseStartView: View {
             let page = page
             Task {
                 if case .nothingToListenTo = await page.listenNow() {
-                    withAnimation(Motion.snappy) { toast = "Nothing to listen to on this page" }
+                    withAnimation(Motion.snappy) {
+                        shell.showToast(ShellToast(message: String(localized: "Nothing to listen to on this page"),
+                                                   systemImage: "headphones"))
+                    }
                 }
             }
         }
@@ -228,8 +223,8 @@ struct BrowseStartView: View {
             canOpenReader: canOpenReader,
             isSaved: currentSavedPage != nil,
             canSave: hasPage && shell.busy == nil,
-            isBookmarked: currentBookmark != nil,
-            canBookmark: webStore.currentURL.map(LibraryStore.canFavorite) ?? false,
+            isFavorite: library.favorite(for: webStore.currentURL) != nil,
+            canFavorite: webStore.currentURL.map(LibraryStore.canFavorite) ?? false,
             canShare: shareURL != nil,
             fakeExtractionFailure: speech.developerOptionsEnabled ? $useFakeFailure : nil
         )
@@ -239,38 +234,32 @@ struct BrowseStartView: View {
         switch action {
         case .newSearch: shell.showStartPage()
         case .openReader: run { try await $0.openInReader() }
-        case .toggleSave: toggleSave()
-        case .toggleBookmark: run { page in await page.toggleBookmark() }
-        case .bookmarks: shell.present(.bookmarks)
+        case .saveToLibrary: saveToLibrary()
+        case .removeFromLibrary: removeFromLibrary()
+        case .toggleFavorite: page.toggleFavorite()
+        case .favorites: shell.present(.favorites())
         case .reload: webStore.refresh()
         case .share: if let shareURL { shell.present(.share(shareURL)) }
         case .voiceSettings: shell.present(.voiceSettings)
-        case .saved: shell.openLibrary()
         case .history: shell.present(.history)
         }
     }
 
     private var canOpenReader: Bool { hasPage && webStore.isReaderable && shell.busy == nil }
 
-    private var currentBookmark: Page? {
-        library.favorite(for: webStore.currentURL)
-    }
-
     // MARK: - Start page
 
     private var startPage: some View {
-        FavoritesQuery(folderID: library.favorites().id) { favorites in
+        FavoritesQuery(folder: library.favorites()) { favorites, folders in
             BrowseStartPage(
-                bookmarks: favorites,
-                continueListening: LibraryQueries.continuePages(recent: recentlyPlayed, undated: undatedInProgress),
-                saved: savedPages,
+                favorites: favorites,
+                favoriteFolders: folders,
                 recentSearches: recentSearches,
-                onOpenBookmark: { if let url = $0.url { shell.navigate(to: url) } },
-                onShowBookmarks: { shell.present(.bookmarks) },
-                onDeleteBookmark: { library.removeFavorite($0) },
-                onRenameBookmark: { library.renameFavorite($0, to: $1) },
-                onOpenArticle: { shell.openSaved($0.listenKey, in: library) },
-                onShowLibrary: shell.openLibrary,
+                onOpenFavorite: { LibraryActions(library: library, speech: speech, shell: shell).open($0) },
+                onOpenFavoriteFolder: { shell.present(.favorites(folder: $0.id)) },
+                onShowFavorites: { shell.present(.favorites()) },
+                onRemoveFavorite: { library.removeFavorite($0) },
+                onRenameFavorite: { library.renameFavorite($0, to: $1) },
                 onSearch: submit,
                 onClearSearches: { recentSearchesRaw = "" }
             )
@@ -328,14 +317,18 @@ struct BrowseStartView: View {
         }
     }
 
-    /// ⋯ → Save article / Remove from Saved, by canonical URL.
-    private func toggleSave() {
-        if let saved = currentSavedPage {
-            ArticleSaveCoordinator(library: library, speech: speech)
-                .unsave(key: saved.listenKey, canonicalURL: saved.canonicalURL ?? "")
-        } else {
-            run { try await $0.save() }
+    /// ⋯ → Save to Library…: the Move tree, then the page is saved into the folder picked.
+    private func saveToLibrary() {
+        FavoriteFlow(library: library, shell: shell).saveToFolder(title: String(localized: "Save to…"), current: nil) { folder in
+            run { try await $0.save(in: folder) }
         }
+    }
+
+    /// ⋯ → Remove from Library, by canonical URL.
+    private func removeFromLibrary() {
+        guard let saved = currentSavedPage else { return }
+        ArticleSaveCoordinator(library: library, speech: speech)
+            .unsave(key: saved.listenKey, canonicalURL: saved.canonicalURL ?? "")
     }
 }
 

@@ -14,8 +14,9 @@ import SwiftUI
 /// ```
 ///
 /// The back pill, the grabber and a pull down all close it (`onClose`, after it has gone).
-/// 🔖 saves (tap) or files (long-press, `onSaveToFolder`). `more` is the ⋯ button.
-struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View>: View {
+/// 🔖 saves (tap) or files (long-press, `onSaveToFolder`). `more` is the ⋯ button. `floating`
+/// floats just above the bottom band (a toast).
+struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View, Floating: View>: View {
     /// What is underneath: "Browser", "Library".
     let backTitle: String
     let listenTitle: String
@@ -30,6 +31,7 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View>: View 
     @ViewBuilder var text: Reading
     @ViewBuilder var bar: Bar
     @ViewBuilder var more: More
+    @ViewBuilder var floating: Floating
 
     var body: some View {
         Sheet(onDismiss: onClose) {
@@ -55,6 +57,7 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View>: View 
                         }
                     }
                     .bottomChromeBand()
+                    .overlay(alignment: .top) { floating }
                 }
         }
     }
@@ -82,14 +85,14 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View>: View 
     }
 }
 
-extension ReaderSheet where Accessory == EmptyView {
+extension ReaderSheet where Accessory == EmptyView, Floating == EmptyView {
     init(backTitle: String, listenTitle: String, listenState: PlayState, isSaved: Bool,
          onClose: @escaping () -> Void, onListen: @escaping () -> Void, onToggleSave: @escaping () -> Void,
          onSaveToFolder: (() -> Void)? = nil, @ViewBuilder text: () -> Reading, @ViewBuilder bar: () -> Bar,
          @ViewBuilder more: () -> More) {
         self.init(backTitle: backTitle, listenTitle: listenTitle, listenState: listenState, isSaved: isSaved,
                   onClose: onClose, onListen: onListen, onToggleSave: onToggleSave, onSaveToFolder: onSaveToFolder,
-                  accessory: { EmptyView() }, text: text, bar: bar, more: more)
+                  accessory: { EmptyView() }, text: text, bar: bar, more: more, floating: { EmptyView() })
     }
 }
 

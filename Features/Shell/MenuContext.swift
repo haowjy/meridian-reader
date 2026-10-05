@@ -5,22 +5,22 @@ import SwiftUI
 /// surface's buttons.
 ///
 /// Bottom row of big buttons, rightmost (nearest the thumb, the panel's focus point) last:
-/// - browse:  `[Bookmarks][Saved][History][Reader]`
-/// - reader:  `[Bookmarks][Saved][History][Website]`
-/// - library: `[Bookmarks][History][Browser]`
-/// - Now Playing: `[Bookmarks][Saved][History][Website]`
+/// - browse:  `[Favorites][History][Reader]`
+/// - reader:  `[Favorites][History][Website]`
+/// - Now Playing: `[Favorites][History][Website]`
+/// - library: `[Favorites][History][Browser]`
 enum MenuContext {
     case browse(BrowseMenu, perform: (BrowseMenu.Action) -> Void)
     case reader(ReaderMenu, perform: (ReaderMenu.Action) -> Void)
     case nowPlaying(NowPlayingMenu, perform: (NowPlayingMenu.Action) -> Void)
-    case library(perform: (LibraryMenuAction) -> Void)
+    case library(LibraryMenu, perform: (LibraryMenu.Action) -> Void)
 }
 
 /// The web page / start page menu.
 struct BrowseMenu {
     enum Action {
-        case newSearch, toggleSave, toggleBookmark, share, reload, voiceSettings
-        case bookmarks, saved, history, openReader
+        case newSearch, saveToLibrary, removeFromLibrary, toggleFavorite, share, reload, voiceSettings
+        case favorites, history, openReader
     }
 
     var hasPage: Bool
@@ -28,8 +28,8 @@ struct BrowseMenu {
     var canOpenReader: Bool
     var isSaved: Bool
     var canSave: Bool
-    var isBookmarked: Bool
-    var canBookmark: Bool
+    var isFavorite: Bool
+    var canFavorite: Bool
     var canShare: Bool
     /// Developer options: the Debug › submenu with this toggle. nil hides it.
     var fakeExtractionFailure: Binding<Bool>?
@@ -38,14 +38,14 @@ struct BrowseMenu {
 /// The Reader sheet's menu (over the browser or the library).
 struct ReaderMenu {
     enum Action {
-        case voiceSettings, toggleSave, toggleBookmark, share, listenDebug
-        case bookmarks, saved, history, openWebsite
+        case voiceSettings, toggleSave, moveTo, toggleFavorite, share, listenDebug
+        case favorites, history, openWebsite
     }
 
     var isSaved: Bool
     var canSave: Bool
-    var isBookmarked: Bool
-    var canBookmark: Bool
+    var isFavorite: Bool
+    var canFavorite: Bool
     var canShare: Bool
     /// The article has a web page to go to.
     var canOpenWebsite: Bool
@@ -57,7 +57,7 @@ struct ReaderMenu {
 struct NowPlayingMenu {
     enum Action {
         case voiceSettings, share, listenDebug
-        case bookmarks, saved, history, openWebsite
+        case favorites, history, openWebsite
     }
 
     var canShare: Bool
@@ -67,7 +67,24 @@ struct NowPlayingMenu {
     var showsDebug: Bool
 }
 
-/// The library list's menu: nothing in it acts on the browser's page.
-enum LibraryMenuAction {
-    case voiceSettings, bookmarks, history, browser
+/// The Library's menu, for the screen on top: the home, a folder, the top level's pages, a book
+/// or series. Nothing in it acts on the browser's page.
+struct LibraryMenu {
+    enum Screen: Equatable {
+        case home
+        /// A plain folder or Favorites (`isFavorites`: only Sort and New Folder Inside).
+        case folder(isFavorites: Bool)
+        /// The pages in no folder (*Pages · Show All*).
+        case pages
+        case book(isSeries: Bool)
+    }
+
+    enum Action {
+        case voiceSettings, newFolder, sort(PageSort), rename, move, deleteFolder, deleteDownloads
+        case favorites, history, browser
+    }
+
+    var screen: Screen
+    /// The screen's page sort (folders and the top level's pages).
+    var sort: PageSort = .manual
 }

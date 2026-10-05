@@ -30,7 +30,8 @@ struct ContinueCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(alignment: .top) {
-                ArtworkTile(image: artwork, letter: artworkLetter.isEmpty ? title : artworkLetter, size: 48)
+                ArtworkTile(image: artwork, letter: artworkLetter.isEmpty ? title : artworkLetter, size: 48,
+                            fill: playState.isCurrent ? Palette.chrome : Palette.paper)
                 Spacer(minLength: 0)
                 PlayStateButton(state: playState, action: onPlay)
                     .padding(.top, -Spacing.xxs)

@@ -1,24 +1,21 @@
 import SwiftUI
 import SwiftData
 
-/// The shell's one sheet (`ShellState.sheet`). Picking a bookmark or history entry loads it in
-/// the browser.
+/// The shell's one sheet (`ShellState.sheet`). Picking a history entry loads it in the browser;
+/// Favorites and the Move tree are the Library's screens.
 struct ShellSheetView: View {
     let sheet: ShellSheet
 
     @Environment(ShellState.self) private var shell
     @Environment(\.speechController) private var speech
-    @Environment(LibraryStore.self) private var library
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
 
     var body: some View {
         switch sheet {
-        case .bookmarks:
-            BookmarksListView(library: library) { bookmark in
-                open(bookmark.url)
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+        case .favorites(let folder):
+            FavoritesSheet(folderID: folder)
+        case .moveTo(let request):
+            MoveTreeSheet(request: request)
         case .history:
             BrowseHistoryView(visits: Array(recentVisits.prefix(RecentVisit.maxEntries))) { visit in
                 open(visit.url)

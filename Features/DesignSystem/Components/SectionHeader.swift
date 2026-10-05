@@ -12,6 +12,8 @@ struct SectionHeader: View {
     var actionTitle: String?
     /// Draws a › after the action's title (it goes somewhere rather than doing something).
     var actionNavigates = false
+    /// The action button's accessibility identifier.
+    var actionIdentifier: String?
     var action: () -> Void = {}
 
     var body: some View {
@@ -33,6 +35,7 @@ struct SectionHeader: View {
                     .foregroundStyle(Palette.accent)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier(actionIdentifier ?? "")
             }
         }
     }

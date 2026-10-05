@@ -11,8 +11,19 @@ enum AppComposition {
     static let speechController = SpeechController(engines: engineRegistry)
 
     /// What you see. It asks the playback session what you hear, so the Reader of the playing
-    /// page opens as Now Playing.
-    static let shell = ShellState(isHearing: { speechController.playState(of: $0).isCurrent })
+    /// page opens as Now Playing, and reopens on the surface you left (decision D10).
+    static let shell = ShellState(isHearing: { speechController.playState(of: $0).isCurrent },
+                                  memory: .standard, restores: restoresSurface)
+
+    private static var restoresSurface: Bool {
+        #if DEBUG
+        let options = LaunchOptions.current
+        if options.resetsSurface { SurfaceMemoryStore.standard.clear() }
+        return options.restoresSurface
+        #else
+        return true
+        #endif
+    }
 
     /// The listening position recorder (lives as long as the app).
     private static var progressRecorder: ListeningProgressRecorder?

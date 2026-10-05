@@ -118,8 +118,7 @@ struct NowPlayingScreen: View {
         case .voiceSettings: shell.present(.voiceSettings)
         case .share: if let shareURL { shell.present(.share(shareURL)) }
         case .listenDebug: speech.showListenDebug = true
-        case .bookmarks: shell.present(.bookmarks)
-        case .saved: shell.openLibrary()
+        case .favorites: shell.present(.favorites())
         case .history: shell.present(.history)
         case .openWebsite: goToPlayingFrom()
         }

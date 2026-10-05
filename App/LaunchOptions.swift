@@ -52,6 +52,15 @@ struct LaunchOptions: Equatable {
     /// `-chainDemoChapters`: once launched, play the demo book from its place (chapter 1 the first
     /// time) and let it carry on (the locked-screen device check).
     var chainsDemoChapters = false
+    /// `-seedDemoFolders`: add a "Demo Finance" folder with two subfolders and saved pages (one in a
+    /// subfolder), replacing the one an earlier launch added.
+    var seedsDemoFolders = false
+    /// `-restoreSurface` (with `-uiTesting`): reopen on the remembered surface, as a normal launch
+    /// does (decision D10). Without it a UI-test launch starts on the browser, whatever an earlier
+    /// test left, and `-browseTestPages` loads page one.
+    var restoresSurfaceInUITests = false
+    /// `-resetSurface`: forget the remembered surface first, as on a fresh install.
+    var resetsSurface = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -85,7 +94,13 @@ struct LaunchOptions: Equatable {
         rerunsLibraryMigration = flags.contains("-rerunLibraryMigration")
         seedsDemoBook = flags.contains("-seedDemoBook")
         chainsDemoChapters = flags.contains("-chainDemoChapters")
+        seedsDemoFolders = flags.contains("-seedDemoFolders")
+        restoresSurfaceInUITests = flags.contains("-restoreSurface")
+        resetsSurface = flags.contains("-resetSurface")
     }
+
+    /// Whether the app reopens on the surface it was left on.
+    var restoresSurface: Bool { !uiTesting || restoresSurfaceInUITests }
 
     /// Live Google suggestions in the address field.
     var fetchesSuggestions: Bool { !uiTesting }
