@@ -11,19 +11,16 @@ extension LibraryStore {
         var oldParagraphs = 0
         var newParagraphs = 0
         var splitParagraphs = 0
-        var audioSliced = 0
-        var audioMisaligned = 0
-        var audioMoved = 0
-        var audioDropped = 0
     }
 
     /// Paragraph layout v3 (paragraphs over 1,200 characters split at sentence ends, see
     /// `ParagraphSplitter`) and any later `ListenHTMLBlocks.version`: for every page holding text
-    /// on older listen blocks, rebuild its paragraphs, move its position to the same sentence,
-    /// align its cached audio (slice pieces whose chunks line up, move shifted paragraphs,
-    /// re-render only the rest), and remap the crash-resume point and any pending bake job.
-    /// Idempotent: pages are stamped with the version. Logged per page
-    /// (`paragraph_layout_migration`). Saves, unless the caller batches it into its own save.
+    /// on older listen blocks, rebuild its paragraphs and move its position to the same sentence.
+    /// Once that is saved, its cached audio is aligned (pieces whose chunks line up are sliced,
+    /// shifted paragraphs move, only the rest re-renders), and the crash-resume point and any
+    /// pending bake job are remapped (`planAlign`). Idempotent: pages are stamped with the
+    /// version. Logged per page (`paragraph_layout_migration`). Saves, unless the caller batches
+    /// it into its own save.
     @discardableResult
     func migrateParagraphLayout(saving: Bool = true) -> LayoutMigrationReport {
         var report = LayoutMigrationReport()
@@ -31,9 +28,6 @@ extension LibraryStore {
         let stale = ((try? context.fetch(FetchDescriptor<Page>(predicate: #Predicate { $0.listenBlocksVersion < version }))) ?? [])
             .filter(\.hasText)
         guard !stale.isEmpty else { return report }
-        let cache = tts.audioCache
-        let resume = ListenResumePointStore.shared.load()
-        let pendingStore = PendingBakeJobStore.shared
         for page in stale {
             let t0 = ListenTimingLog.now()
             // The list the stored position and audio refer to: the stored v2 blocks when present,
@@ -48,52 +42,22 @@ extension LibraryStore {
             page.storeListenParagraphs(new.paragraphs)
             page.positionParagraph = after.paragraph
             page.positionUTF16 = after.utf16Offset
+            if let key = page.key { planAlign(key: key, old: old.paragraphs, new: new.paragraphs) }
 
-            var split = ArticleAudioCache.SplitRemapResult()
-            var rec = ArticleAudioCache.ReconcileResult()
-            if let key = page.key {
-                if cache.hasCache(for: key) {
-                    cache.stampMissingHashes(articleID: key, paragraphs: old.paragraphs)
-                    split = cache.remapSplitParagraphs(articleID: key, paragraphs: new.paragraphs) {
-                        self.tts.chunkPlan(engineID: $0, text: $1)
-                    }
-                    rec = cache.reconcile(articleID: key, paragraphs: new.paragraphs)
-                }
-                if let r = resume, r.articleKey == key.uuidString {
-                    ListenResumePointStore.shared.save(article: key,
-                                                       paragraph: ParagraphPositionMap.mapParagraphStart(r.paragraph, from: old, to: new),
-                                                       at: r.at)
-                }
-                tts.remapPendingResume(article: key) { ParagraphPositionMap.mapParagraphStart($0, from: old, to: new) }
-                if let job = pendingStore.pendingJobs().first(where: { $0.articleID == key }) {
-                    let start = ParagraphPositionMap.mapParagraphStart(job.priorityStart,
-                                                                       from: ParagraphDocument(parts: job.paragraphs), to: new)
-                    pendingStore.enqueuePending(articleID: key, paragraphs: new.paragraphs, voiceID: job.voiceID,
-                                                plan: BakePriorityPlan(priorityStart: start,
-                                                                       fillGapsFromTopAfterPriority: job.fillGapsFromTopAfterPriority,
-                                                                       paragraphCount: new.count))
-                }
-            }
             let splitCount = old.paragraphs.filter { ParagraphSplitter.pieces($0).count > 1 }.count
             report.articles += 1
             report.oldParagraphs += old.count
             report.newParagraphs += new.count
             report.splitParagraphs += splitCount
-            report.audioSliced += split.sliced
-            report.audioMisaligned += split.misaligned
-            report.audioMoved += rec.remapped
-            report.audioDropped += rec.dropped
             ListenTimingLog.log("paragraph_layout_migration", [
                 "key": page.key.map(ListenTimingLog.shortKey) ?? "-", "old_paragraphs": old.count,
                 "new_paragraphs": new.count, "split": splitCount, "from_stored": storedOld != nil,
                 "pos_old": "\(before.paragraph)@\(before.utf16Offset)", "pos_new": "\(after.paragraph)@\(after.utf16Offset)",
-                "audio_kept": rec.kept, "audio_moved": rec.remapped, "audio_dropped": rec.dropped,
-                "audio_sliced": split.sliced, "audio_misaligned": split.misaligned, "ms": ListenTimingLog.ms(since: t0),
+                "ms": ListenTimingLog.ms(since: t0),
             ])
-            log("layout v\(version) \(Self.short(page.key)): paragraphs \(old.count)→\(new.count) (split \(splitCount)), position \(before.paragraph)→\(after.paragraph), audio kept \(rec.kept) moved \(rec.remapped) sliced \(split.sliced) dropped \(rec.dropped)")
+            log("layout v\(version) \(Self.short(page.key)): paragraphs \(old.count)→\(new.count) (split \(splitCount)), position \(before.paragraph)→\(after.paragraph)")
         }
         if saving { commit("layout migration") }
-        tts.noteBakeMarksChanged()
         return report
     }
 

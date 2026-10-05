@@ -97,8 +97,8 @@ page (e.g. `https://example.com`) fails with a reason and saves nothing.
 ## Data
 
 Two SwiftData stores in one container (`LibraryStoreConfiguration`): **library**
-(`Application Support/library.store`: `Folder`, `Page`, and the migration's
-`LibraryMigrationReceipt`s) and **local**
+(`Application Support/library.store`: `Folder`, `Page`, the migration's
+`LibraryMigrationReceipt`s and pending `LibraryAudioWork`) and **local**
 (`Application Support/default.store`, the file the app always used: `RecentVisit`, and
 `SavedArticle`, frozen). The library has its own file because an older build reopening a shared
 store would drop entities it doesn't know; a file it never opens survives a rollback. Library
@@ -140,10 +140,20 @@ layout, and only then does dedupe merge duplicates, so positions and audio are c
 same paragraphs. The pages and a receipt for every item copied are saved together: a failed save
 leaves neither, so the next launch copies again, and a page deleted after the copy never comes
 back. Receipts that can't be read stop the copy. Nothing legacy is written again: the rows, the
-bookmarks file, the listen history and the audio cache stay as they were, so the previous build
-still works after a rollback. Then the paragraph layout pass, the dedupe pass and the prune of
-pages not in the Library run. Debug: `-rerunLibraryMigration` empties the library and its
-receipts and copies again.
+bookmarks file and the listen history stay as they were, so the previous build still works after
+a rollback, and pages keep their rows' audio keys. Then the paragraph layout pass, the dedupe pass
+and the prune of pages not in the Library run. Debug: `-rerunLibraryMigration` empties the
+library and its receipts and copies again.
+
+**Audio work waits for the save.** The layout pass (audio aligned to the new paragraphs, the
+crash-resume point and pending renders remapped) and dedupe (the merged page's audio moved under
+the kept key and reconciled, its pending render dropped, the resume point and the live session
+moved) change nothing outside the store until the library change is saved. They record
+`LibraryAudioWork` in the same save; `LibraryStore.commit` does it right after the save and
+deletes it. A failed save is rolled back with its work, leaving the audio cache, pending renders
+and the resume point as they were. A launch that dies after the save leaves the records, and the
+next launch does them first (`finishAudioWork`). Every step can run twice: the resume point
+moves only from where the work found it.
 
 **`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
 `urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,

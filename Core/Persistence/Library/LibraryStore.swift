@@ -26,6 +26,8 @@ final class LibraryStore {
     @ObservationIgnored var iconTried = Set<UUID>()
     /// How `commit` saves; tests make it fail.
     @ObservationIgnored var saveContext: (ModelContext) throws -> Void = { try $0.save() }
+    /// Audio work planned with the changes not saved yet (`LibraryStore+AudioWork`).
+    @ObservationIgnored var audioPlan = LibraryAudioWorkPlan()
     @ObservationIgnored let legacy: LegacyLibrarySources
     @ObservationIgnored let now: () -> Date
 
@@ -105,17 +107,19 @@ final class LibraryStore {
 
     // MARK: - Saving the context
 
-    /// Saves pending changes; false (logged) when SwiftData refuses.
+    /// Saves pending changes, then does the audio work planned with them; false (logged) when
+    /// SwiftData refuses, and the work waits for the save that stores its changes.
     @discardableResult
     func commit(_ what: String) -> Bool {
         do {
             try saveContext(context)
-            return true
         } catch {
             log("save failed (\(what)): \(error)")
             ListenTimingLog.log("library_save_failed", ["what": what, "error": "\(error)"])
             return false
         }
+        doPlannedAudioWork()
+        return true
     }
 
     // MARK: - Logging

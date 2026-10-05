@@ -4,7 +4,8 @@ import SwiftData
 /// The copy from the pre-library data into `Folder` / `Page`. Copy-once and non-destructive:
 /// `SavedArticle` rows, `bookmarks.json` and the listen history are read, never written. A page's
 /// key is its row's id, verbatim, so its audio, crash resume and pending bakes stay where they
-/// are. What was copied is recorded as `LibraryMigrationReceipt`s in the same save as the copy.
+/// are. What was copied is recorded as `LibraryMigrationReceipt`s in the same save as the copy;
+/// the audio work of the layout pass and dedupe runs only after that save (`LibraryAudioWork`).
 extension LibraryStore {
     struct MigrationReport: Equatable {
         var copiedArticles = 0
@@ -91,7 +92,7 @@ extension LibraryStore {
         migrateParagraphLayout(saving: false)
         report.mergedDuplicates = dedupe(saving: false).mergedPages
         guard commit("migration copy") else {
-            context.rollback()
+            rollBack()
             log("migration: save failed, nothing copied or recorded; copies again next launch")
             return report
         }

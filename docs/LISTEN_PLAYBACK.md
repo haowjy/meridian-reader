@@ -262,14 +262,15 @@ highlight and the paragraph picker stay fine-grained.
   index. Plain text splits the same way (`ParagraphDocument(plainText:)`).
 - **Migration** (`LibraryStore.migrateParagraphLayout`, run inside the library migration on
   the copied pages before they are deduped, and by `AppLaunch` before the launch dedupe pass and
-  crash resume): library pages holding text with
-  `listenBlocksVersion < 3` get new blocks; the
-  reading position maps by character offset (`ParagraphPositionMap`); the resume point, the
-  in-memory crash-resume target and any pending bake job are remapped; cached audio of unchanged
-  paragraphs moves by text hash, and a split paragraph's CAF is sliced sample-exact
+  crash resume): library pages holding text with `listenBlocksVersion < 3` get new blocks, and
+  the reading position maps by character offset (`ParagraphPositionMap`). Once that is saved
+  (`LibraryAudioWork`, see `TECHNICAL_SPEC.md`), the resume point, the in-memory crash-resume
+  target and any pending bake job are remapped; cached audio of unchanged paragraphs moves by
+  text hash, and a split paragraph's CAF is sliced sample-exact
   (`ArticleAudioCache.remapSplitParagraphs`, by `chunkDurations`) into each piece whose chunk
   plan equals a contiguous run of the old chunks; other pieces re-render. Logged as
-  `paragraph_layout_migration`. The same remap runs for unsaved reader keys in
+  `paragraph_layout_migration` (paragraphs, position) and `library_audio_work` (audio kept,
+  moved, sliced, dropped). The same remap runs for unsaved reader keys in
   `LocalTTSCoordinator.prepareListenIdentity`.
 
 ## Audio cache

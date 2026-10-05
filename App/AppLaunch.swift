@@ -15,6 +15,8 @@ enum AppLaunch {
         LaunchHooks.runBeforeMigrations(.current, library: library, tts: speech.localTTS)
         #endif
 
+        // Audio work an earlier launch saved but didn't finish, before anything plans more.
+        library.finishAudioWork()
         // Copy saved articles and bookmarks without a receipt (layout pass and dedupe included).
         library.migrateLegacy()
         #if DEBUG

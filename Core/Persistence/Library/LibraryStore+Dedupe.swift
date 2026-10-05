@@ -196,28 +196,14 @@ extension LibraryStore {
         context.delete(extra)
     }
 
-    /// Moves `from`'s audio under `to` (per-paragraph hashes decide what is reusable), and
-    /// points every place and the crash-resume point at the keeper.
+    /// Points every place at the keeper now; once this is saved, `from`'s audio moves under `to`
+    /// (per-paragraph hashes decide what is reusable), its pending render is dropped, and the
+    /// crash-resume point and the live session follow (`planMerge`).
     private func mergeAudio(from: UUID, fromPage: Page, into to: UUID, keeper: Page) {
-        let cache = tts.audioCache
-        if cache.hasCache(for: from) {
-            let keeperParagraphs = keeper.cachedListenParagraphs
-            if let keeperParagraphs { cache.stampMissingHashes(articleID: to, paragraphs: keeperParagraphs) }
-            if let extraParagraphs = fromPage.cachedListenParagraphs {
-                cache.stampMissingHashes(articleID: from, paragraphs: extraParagraphs)
-            }
-            try? cache.rekeyCache(from: from, to: to)
-            tts.synthQueue.remove(cacheKey: from)
-            if let keeperParagraphs { cache.reconcile(articleID: to, paragraphs: keeperParagraphs) }
-            tts.noteBakeMarksChanged()
-        }
-        PendingBakeJobStore.shared.removePending(articleID: from)
         let folders = (try? context.fetch(FetchDescriptor<Folder>())) ?? []
         for folder in folders where folder.currentPageKey == from { folder.currentPageKey = to }
-        if let resume = ListenResumePointStore.shared.load(), resume.matches(from) {
-            ListenResumePointStore.shared.save(article: to, paragraph: resume.paragraph, at: resume.at)
-        }
-        keyMerged(from, to)
+        planMerge(from: from, into: to, fromParagraphs: fromPage.cachedListenParagraphs ?? [],
+                  paragraphs: keeper.cachedListenParagraphs ?? [])
     }
 
     // MARK: - Orders
