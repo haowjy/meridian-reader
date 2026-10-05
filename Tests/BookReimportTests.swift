@@ -136,8 +136,28 @@ final class BookReimportTests: XCTestCase {
         XCTAssertNil(page(three))
         XCTAssertFalse(env.cache.hasCache(for: three), "its audio is deleted")
         XCTAssertEqual(env.stoppedKeys, [three], "playback of it stops first")
-        XCTAssertNil(book.currentPageKey, "the place it held is cleared")
+        XCTAssertEqual(book.currentPageKey, two, "the place it held moves to the chapter before it")
         XCTAssertEqual(library.playOrder(of: book).map(\.key), [one, two, four])
+    }
+
+    /// As deleting a chapter does: a dropped place moves back to the nearest chapter that stays,
+    /// under the key that chapter has now; to none when no chapter before it stays.
+    func testADroppedPlaceMovesToTheNearestEarlierChapterThatStays() throws {
+        let book = try addBook()
+        library.recordPlayback(ReaderArticle(page: try XCTUnwrap(page(three))))
+        let four = UUID()
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", textOne),
+                                                                chapter(four, 1, "Four", ["Four is new."])])
+        XCTAssertEqual(book.currentPageKey, one, "two and three are both gone: back to one")
+
+        library.recordPlayback(ReaderArticle(page: try XCTUnwrap(page(four))))
+        let renamed = UUID()
+        try library.replaceBook(book, with: details, chapters: [chapter(renamed, 0, "One", textOne)])
+        XCTAssertEqual(book.currentPageKey, renamed, "one stays under a new key: the place takes it")
+
+        let five = UUID()
+        try library.replaceBook(book, with: details, chapters: [chapter(five, 0, "Five", ["Five is new."])])
+        XCTAssertNil(book.currentPageKey, "the first chapter dropped, nothing before it")
     }
 
     // MARK: - A failed save, and audio work

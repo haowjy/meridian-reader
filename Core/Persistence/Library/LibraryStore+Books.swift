@@ -41,9 +41,10 @@ extension LibraryStore {
     ///
     /// Pages no chapter comes from are deleted; their audio goes once the save succeeds (audio
     /// work, `planDelete`), so a save that fails leaves every page and its audio as they were.
-    /// The book's place follows its chapter, or is cleared. When the chapters' text, order or
-    /// skipping changed, the book stays finished only if its place is a finished chapter with
-    /// nothing playable after it.
+    /// The book's place follows its chapter; when that chapter is dropped, it moves to the
+    /// nearest chapter before it that stays, as deleting a chapter moves it (none if no earlier
+    /// chapter stays). When the chapters' text, order or skipping changed, the book stays
+    /// finished only if its place is a finished chapter with nothing playable after it.
     func replaceBook(_ folder: Folder, with details: FolderDetails, chapters: [PageContent]) throws {
         let old = playOrder(of: folder)
         let place = folder.currentPageKey
@@ -58,13 +59,11 @@ extension LibraryStore {
         for page in plan.dropped { dropChapter(page) }
         apply(details, to: folder)
         var changed = false
-        var newPlace: UUID?
         var pages: [Page] = []
         for (index, chapter) in chapters.enumerated() {
             if let page = plan.byKey[index] {
                 if page.skipsInPlayback != chapter.ref.skipsInPlayback { changed = true }
                 if updateChapter(page, to: chapter, in: folder) { changed = true }
-                if page.key == place { newPlace = place }
                 pages.append(page)
             } else if let from = plan.byText[index] {
                 let page = insertChapter(chapter, in: folder)
@@ -72,7 +71,6 @@ extension LibraryStore {
                 if let fromKey = from.key {
                     planMerge(from: fromKey, into: chapter.ref.key, fromParagraphs: from.cachedListenParagraphs ?? [],
                               paragraphs: chapter.document.paragraphs)
-                    if fromKey == place { newPlace = chapter.ref.key }
                 }
                 if from.skipsInPlayback != chapter.ref.skipsInPlayback { changed = true }
                 context.delete(from)
@@ -82,7 +80,7 @@ extension LibraryStore {
             }
         }
         if old.map(\.key) != pages.map(\.key) { changed = true }
-        folder.currentPageKey = newPlace
+        folder.currentPageKey = Self.place(place, in: old, after: plan, chapters: chapters)
         if changed { settleFinished(folder, chapters: pages) }
         try commitBook("replace book")
         log("book \(folder.name) replaced: \(chapters.count) chapters, \(plan.byKey.count) by key, \(plan.byText.count) by text, \(plan.dropped.count) dropped")
@@ -123,6 +121,18 @@ extension LibraryStore {
         }
         plan.dropped = old.filter { !claimed.contains(ObjectIdentifier($0)) }
         return plan
+    }
+
+    /// The book's place after *Replace*: the key its chapter has now, or, when that chapter is
+    /// dropped, the key of the nearest chapter before it (in the old order) that stays; nil when
+    /// none does.
+    private static func place(_ place: UUID?, in old: [Page], after plan: Replacement,
+                              chapters: [PageContent]) -> UUID? {
+        guard let place, let at = old.firstIndex(where: { $0.key == place }) else { return nil }
+        var kept: [ObjectIdentifier: UUID] = [:]
+        for (index, page) in plan.byKey { kept[ObjectIdentifier(page)] = chapters[index].ref.key }
+        for (index, page) in plan.byText { kept[ObjectIdentifier(page)] = chapters[index].ref.key }
+        return old[...at].reversed().lazy.compactMap { kept[ObjectIdentifier($0)] }.first
     }
 
     /// After *Replace* changed what the book's chapters say or their order: the book stays
