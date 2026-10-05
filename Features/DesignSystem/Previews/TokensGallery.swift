@@ -1,12 +1,16 @@
 #if DEBUG
 import SwiftUI
 
-/// The tokens on one page: colours, the type scale, spacing and radii.
+/// The tokens on one page: colours (the player's too), the type scale, spacing and radii.
 struct TokensGallery: View {
     private let colours: [(String, Color)] = [
         ("paper", Palette.paper), ("chrome", Palette.chrome), ("ink", Palette.ink),
         ("secondaryInk", Palette.secondaryInk), ("accent", Palette.accent), ("onAccent", Palette.onAccent),
         ("playingTint", Palette.playingTint),
+        ("playerBackground", Palette.playerBackground), ("playerChrome", Palette.playerChrome),
+        ("playerCard", Palette.playerCard), ("playerTrack", Palette.playerTrack), ("playerInk", Palette.playerInk),
+        ("playerDimInk", Palette.playerDimInk), ("playerSecondaryInk", Palette.playerSecondaryInk),
+        ("playerAccent", Palette.playerAccent), ("onPlayerAccent", Palette.onPlayerAccent),
     ]
     private let spacing: [(String, CGFloat)] = [
         ("xxs", Spacing.xxs), ("xs", Spacing.xs), ("s", Spacing.s), ("m", Spacing.m), ("l", Spacing.l),
