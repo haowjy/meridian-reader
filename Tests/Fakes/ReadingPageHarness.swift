@@ -54,6 +54,18 @@ final class ReadingPageHarness {
         }
     }
 
+    /// Waits until the scroll view holds the page's whole layout: its content height is the
+    /// document's. The page's DOM is complete when `load` returns, but WebKit hands its layout to
+    /// the scroll view later, possibly in steps (a part of the page first), and the first one puts
+    /// the offset back to the top. A test that scrolls, or reads `maxOffset`, before then acts on
+    /// a page about to change under it; under CPU load that is most of the time.
+    func waitUntilLaidOut(timeout: TimeInterval = 10) async throws {
+        try await waitUntil("laid out", timeout: timeout) {
+            let height = try await self.js("document.documentElement.scrollHeight") as? Double ?? 0
+            return height > 0 && abs(self.scrollView.contentSize.height - CGFloat(height)) < 1
+        }
+    }
+
     /// The window y of the top of paragraph `index`'s first line.
     func windowY(ofParagraph index: Int) async throws -> CGFloat {
         let top = try await js("""

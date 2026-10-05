@@ -163,6 +163,7 @@ final class ReadingHandOverTests: XCTestCase {
         page.coordinator.setTextInsets(ReaderTextInsets(top: 0, bottom: bottomInset))
         try await page.load(ReadingPageHarness.paragraphs(40), blocks: 40,
                             heading: ReaderHeading(title: title, detail: "example.com · 9 min"))
+        try await page.waitUntilLaidOut()
         try await page.waitUntil("Reader laid out", timeout: 3) { page.maxOffset > 1500 && page.coordinator.textTop > 0 }
         return page
     }
@@ -180,6 +181,7 @@ final class ReadingHandOverTests: XCTestCase {
         page.coordinator.setTopView(card(title, dynamicType: dynamicType))
         if waits { page.coordinator.restoreTiming = (quiet: 1.5, limit: 6) }
         try await page.load(ReadingPageHarness.paragraphs(40), blocks: 40, opensAt: opensAt)
+        try await page.waitUntilLaidOut()
         if waits {
             try await page.waitUntil("laid out", timeout: 3) { page.maxOffset > 1500 }
         } else {
