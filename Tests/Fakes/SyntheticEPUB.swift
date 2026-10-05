@@ -275,10 +275,11 @@ func assertEPUBError<T>(_ expression: @autoclosure () throws -> T, matches: (EPU
     }
 }
 
-/// The pass bar for cutting: no body chapter under 100 or over 30,000 words.
+/// The pass bar for cutting, on provisional (raw XHTML) counts: no body chapter under 100 or over
+/// 30,000 words. Not for books where a short chapter can't merge (`EPUBChapterCutter`'s exception).
 func assertBodyChaptersWithinBounds(_ book: EPUBBook, file: StaticString = #filePath, line: UInt = #line) {
     for chapter in book.bodyChapters {
-        XCTAssertTrue((100...30_000).contains(chapter.wordCount),
-                      "\(chapter.title ?? "untitled") has \(chapter.wordCount) words", file: file, line: line)
+        XCTAssertTrue((100...30_000).contains(chapter.provisionalWordCount),
+                      "\(chapter.title ?? "untitled") has \(chapter.provisionalWordCount) words", file: file, line: line)
     }
 }

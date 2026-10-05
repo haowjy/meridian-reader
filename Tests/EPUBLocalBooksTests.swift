@@ -26,19 +26,19 @@ final class EPUBLocalBooksTests: XCTestCase {
                 continue
             }
             let seconds = Date().timeIntervalSince(started)
-            let body = book.bodyChapters.map(\.wordCount).sorted()
+            let body = book.bodyChapters.map(\.provisionalWordCount).sorted()
             report += "\(file.lastPathComponent): \(book.metadata.title ?? "untitled") · \(book.metadata.authors.joined(separator: ", "))\n"
             report += "  spine \(book.spineCount), contents \(book.contents.count) top-level, chapters \(book.chapters.count)"
             report += " (\(book.bodyChapters.count) body); body words min \(body.first ?? 0) / median \(body.isEmpty ? 0 : body[body.count / 2]) / max \(body.last ?? 0)"
             report += String(format: "; read in %.2f s\n", seconds)
             for chapter in book.chapters {
                 let title = chapter.title ?? "untitled"
-                report += "  \(chapter.skipsInPlayback ? "skip" : "    ") \(String(format: "%3d", chapter.ordinal)) \(String(format: "%7d", chapter.wordCount))  \(title.prefix(60))  [\(chapter.spineHrefs.count) file(s)]\n"
+                report += "  \(chapter.skipsInPlayback ? "skip" : "    ") \(String(format: "%3d", chapter.ordinal)) \(String(format: "%7d", chapter.provisionalWordCount))  \(title.prefix(60))  [\(chapter.spineHrefs.count) file(s)]\n"
             }
             report += "\n"
             XCTAssertFalse(book.bodyChapters.isEmpty, file.lastPathComponent)
-            for chapter in book.bodyChapters where !(100...30_000).contains(chapter.wordCount) {
-                XCTFail("\(file.lastPathComponent): \(chapter.title ?? "untitled") has \(chapter.wordCount) words")
+            for chapter in book.bodyChapters where !(100...30_000).contains(chapter.provisionalWordCount) {
+                XCTFail("\(file.lastPathComponent): \(chapter.title ?? "untitled") has \(chapter.provisionalWordCount) words")
             }
         }
         try report.write(to: folder.appendingPathComponent("epub-report.txt"), atomically: true, encoding: .utf8)

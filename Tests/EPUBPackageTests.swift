@@ -54,7 +54,7 @@ final class EPUBPackageTests: XCTestCase {
 
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, ["Chapter One", "Chapter Two"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [400, 500])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [400, 500])
     }
 
     func testSpineKeepsOrderAndLinearityAndLeavesOutNonTextItems() throws {
@@ -122,7 +122,7 @@ final class EPUBPackageTests: XCTestCase {
                                                                       with: "href=\"chapter%20one.xhtml\"").utf8)
         let book = try EPUBBookReader.read(fileURL: epub.write(in: self, entries: entries))
         XCTAssertEqual(book.chapters.map(\.locator), [EPUBLocator(href: "chapter one.xhtml", fragment: "c1")])
-        XCTAssertEqual(book.chapters.first?.wordCount, 300)
+        XCTAssertEqual(book.chapters.first?.provisionalWordCount, 300)
     }
 
     func testEntitiesAndLooseMarkupInAChapterAreRead() throws {
@@ -142,7 +142,7 @@ final class EPUBPackageTests: XCTestCase {
         XCTAssertTrue(chapter.xhtml.contains("Stray &amp;unknown; close isle"), chapter.xhtml)
         XCTAssertFalse(chapter.xhtml.contains("never read"), "script content is never part of a chapter")
         XCTAssertFalse(chapter.xhtml.contains("<script"))
-        XCTAssertEqual(chapter.wordCount, 14)
+        XCTAssertEqual(chapter.provisionalWordCount, 14)
     }
 
     func testUTF16DocumentIsRead() throws {
@@ -155,7 +155,7 @@ final class EPUBPackageTests: XCTestCase {
             .replacingOccurrences(of: "encoding=\"UTF-8\"", with: "encoding=\"UTF-16\"")
         entries[index].data = try XCTUnwrap(xhtml.data(using: .utf16))
         let book = try EPUBBookReader.read(fileURL: epub.write(in: self, entries: entries))
-        XCTAssertEqual(book.chapters.map(\.wordCount), [200])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [200])
     }
 
     // MARK: - Unreadable files

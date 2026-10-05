@@ -133,6 +133,35 @@ struct EPUBTextStream: Sendable {
 
     /// Open events in the range (from `start`, before `end`) of elements `include` accepts.
     func elementStarts(from start: Position, to end: Position, where include: (XHTMLTag) -> Bool) -> [Position] {
+        positions(from: start, to: end) { event in
+            if case .open(let tag) = event { return include(tag) }
+            return false
+        }
+    }
+
+    /// Text events in the range that continue a paragraph cut into runs.
+    func runStarts(from start: Position, to end: Position) -> [Position] {
+        guard start < end else { return [] }
+        var found: [Position] = []
+        for document in start.document...min(end.document, documents.count - 1) {
+            let low = document == start.document ? start.event : 0
+            let high = document == end.document ? end.event : documents[document].events.count
+            found += documents[document].runStarts.filter { $0 >= low && $0 < high }
+                .map { Position(document: document, event: $0) }
+        }
+        return found
+    }
+
+    /// Text events in the range.
+    func textStarts(from start: Position, to end: Position) -> [Position] {
+        positions(from: start, to: end) { event in
+            if case .text = event { return true }
+            return false
+        }
+    }
+
+    private func positions(from start: Position, to end: Position,
+                           where include: (XHTMLEvent) -> Bool) -> [Position] {
         guard start < end else { return [] }
         var found: [Position] = []
         for document in start.document...min(end.document, documents.count - 1) {
@@ -140,10 +169,8 @@ struct EPUBTextStream: Sendable {
             let low = document == start.document ? start.event : 0
             let high = document == end.document ? end.event : events.count
             guard low < high else { continue }
-            for index in low..<high {
-                if case .open(let tag) = events[index], include(tag) {
-                    found.append(Position(document: document, event: index))
-                }
+            for index in low..<high where include(events[index]) {
+                found.append(Position(document: document, event: index))
             }
         }
         return found

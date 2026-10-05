@@ -30,7 +30,9 @@ struct EPUBChapter: Equatable, Sendable {
     var locator: EPUBLocator
     /// Spine files the chapter runs across, in order.
     var spineHrefs: [String]
-    var wordCount: Int
+    /// Words in the chapter's raw XHTML (`EPUBWordCount`), as cutting counted them; part 2
+    /// recounts on the listen blocks.
+    var provisionalWordCount: Int
     /// Wholly front or back matter (or a short unlisted page such as the cover).
     var skipsInPlayback: Bool
     /// The chapter's markup as body-level XHTML, not yet normalized into listen blocks.
@@ -62,7 +64,7 @@ enum EPUBBookReader {
             // The nav listed in the spine is the contents page: never read as part of a chapter.
             let isNav = item.path.lowercased() == package.navPath?.lowercased()
             documents.append(try EPUBSpineDocument(path: item.path, data: data, linear: item.linear && !isNav,
-                                                   budget: budget))
+                                                   maxRunWords: rules.maxRunWords, budget: budget))
         }
         guard !documents.isEmpty else { throw EPUBError.unreadable("no text documents") }
         let unmarked = EPUBTextStream(documents: documents)
@@ -84,7 +86,7 @@ enum EPUBBookReader {
                 title: cut.title,
                 locator: cut.locator,
                 spineHrefs: stream.paths(from: cut.start, to: cut.end),
-                wordCount: cut.wordCount,
+                provisionalWordCount: cut.provisionalWordCount,
                 skipsInPlayback: cut.skipsInPlayback,
                 xhtml: stream.xhtml(from: cut.start, to: cut.end)
             )

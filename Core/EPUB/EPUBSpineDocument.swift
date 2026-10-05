@@ -26,11 +26,15 @@ struct EPUBSpineDocument: Sendable {
     /// `linear="no"` in the spine (or the nav): an auxiliary page, which becomes a skipped
     /// chapter of its own.
     let linear: Bool
+    /// Text events that continue a paragraph's text cut into runs (see `EPUBTextRuns`): the cut
+    /// points inside a paragraph too long to keep whole.
+    let runStarts: [Int]
 
     static let boilerplateMarkers: Set<String> = ["pg-boilerplate", "pg-header", "pg-footer", "pgheader", "pgfooter"]
     private static let matterTypes: Set<String> = ["frontmatter", "backmatter"]
 
-    init(path: String, data: Data, linear: Bool, budget: MarkupBudget) throws {
+    /// `maxRunWords`: text longer than this is cut into runs of at most this many words.
+    init(path: String, data: Data, linear: Bool, maxRunWords: Int, budget: MarkupBudget) throws {
         self.path = path
         self.linear = linear
         let all = try XHTMLReader.events(from: data, budget: budget)
@@ -60,8 +64,20 @@ struct EPUBSpineDocument: Sendable {
             }
         }
         self.language = language?.isEmpty == false ? language : nil
-        let events = bodyRange.map { Array(all[$0]) } ?? Self.withoutHead(all)
+        var events: [XHTMLEvent] = []
+        var runStarts: [Int] = []
+        for event in bodyRange.map({ Array(all[$0]) }) ?? Self.withoutHead(all) {
+            guard case .text(let text) = event, EPUBWordCount.count(text) > maxRunWords else {
+                events.append(event)
+                continue
+            }
+            for (offset, run) in EPUBTextRuns.split(text, maxWords: maxRunWords).enumerated() {
+                if offset > 0 { runStarts.append(events.count) }
+                events.append(.text(run))
+            }
+        }
         self.events = events
+        self.runStarts = runStarts
 
         var parent = [Int](repeating: -1, count: events.count)
         var closing = [Int](repeating: -1, count: events.count)
@@ -169,9 +185,11 @@ extension Collection where Element == XHTMLEvent {
     }
 }
 
-/// Word counts for cutting thresholds: a word is a run of non-space characters holding a letter
-/// or digit. Each Chinese or Japanese character counts as a word, since those scripts don't put
-/// spaces between words.
+/// Provisional word counts for cutting: counted on the raw XHTML's text events, before part 2's
+/// normalizer turns it into listen blocks (which drops footnotes and the like, and doesn't split
+/// a word that inline markup splits into two events). A word is a run of non-space characters
+/// holding a letter or digit. Each Chinese or Japanese character counts as a word, since those
+/// scripts don't put spaces between words.
 enum EPUBWordCount {
     static func count(_ text: String) -> Int {
         var count = 0
@@ -189,19 +207,100 @@ enum EPUBWordCount {
                 tokenHasWordCharacter = false
             } else {
                 inToken = true
-                if scalar.properties.isAlphabetic || scalar.properties.numericType != nil {
-                    tokenHasWordCharacter = true
-                }
+                if isWordCharacter(scalar) { tokenHasWordCharacter = true }
             }
         }
         if inToken, tokenHasWordCharacter { count += 1 }
         return count
     }
 
-    private static func isIdeographic(_ scalar: Unicode.Scalar) -> Bool {
+    static func isWordCharacter(_ scalar: Unicode.Scalar) -> Bool {
+        scalar.properties.isAlphabetic || scalar.properties.numericType != nil
+    }
+
+    static func isIdeographic(_ scalar: Unicode.Scalar) -> Bool {
         switch scalar.value {
         case 0x3040...0x30FF, 0x3400...0x4DBF, 0x4E00...0x9FFF, 0xF900...0xFAFF, 0x20000...0x2A6DF: true
         default: false
         }
+    }
+}
+
+/// Text too long to keep as one cut point, cut into runs: each ends after a sentence in its second
+/// half where one ends there, else between words. A run boundary falls before the whitespace that
+/// follows a word (or beside a Chinese or Japanese character), so the runs' word counts add up to
+/// the text's and each run starts where a reader would pause.
+enum EPUBTextRuns {
+    /// Characters that end a sentence, and closing marks that may follow them.
+    private static let sentenceEnds: Set<Unicode.Scalar> = [".", "!", "?", "\u{2026}", "\u{3002}", "\u{FF01}", "\u{FF1F}"]
+    private static let closingMarks: Set<Unicode.Scalar> = ["\"", "'", ")", "]", "\u{201D}", "\u{2019}", "\u{00BB}", "\u{300D}", "\u{300F}"]
+
+    /// `text` as runs of at most `maxWords` words; joined, they are `text`.
+    static func split(_ text: String, maxWords: Int) -> [String] {
+        let scalars = Array(text.unicodeScalars)
+        // Where a run may end: a scalar index, the words before it, and whether a sentence ends there.
+        var boundaries: [(index: Int, words: Int, sentence: Bool)] = []
+        var words = 0
+        var inToken = false
+        var tokenHasWord = false
+        var tokenEndsSentence = false
+        func endToken(at index: Int) {
+            guard inToken else { return }
+            if tokenHasWord { words += 1 }
+            boundaries.append((index, words, tokenEndsSentence))
+            inToken = false
+            tokenHasWord = false
+            tokenEndsSentence = false
+        }
+        for (index, scalar) in scalars.enumerated() {
+            if scalar.properties.isWhitespace {
+                endToken(at: index)
+            } else if EPUBWordCount.isIdeographic(scalar) {
+                endToken(at: index)
+                words += 1
+                boundaries.append((index + 1, words, false))
+            } else {
+                inToken = true
+                if EPUBWordCount.isWordCharacter(scalar) { tokenHasWord = true }
+                if sentenceEnds.contains(scalar) {
+                    tokenEndsSentence = true
+                } else if !closingMarks.contains(scalar) {
+                    tokenEndsSentence = false
+                }
+            }
+        }
+        endToken(at: scalars.count)
+        let total = words
+
+        var cuts: [Int] = []
+        var startWords = 0
+        var next = 0
+        while total - startWords > maxWords {
+            let limit = startWords + maxWords
+            var lastWord: Int?
+            var lastSentence: Int?
+            while next < boundaries.count, boundaries[next].words <= limit {
+                let boundary = boundaries[next]
+                if boundary.words > startWords {
+                    lastWord = next
+                    if boundary.sentence, boundary.words > startWords + maxWords / 2 { lastSentence = next }
+                }
+                next += 1
+            }
+            guard let chosen = lastSentence ?? lastWord else { break }
+            cuts.append(boundaries[chosen].index)
+            startWords = boundaries[chosen].words
+            next = chosen + 1
+        }
+        guard !cuts.isEmpty else { return [text] }
+        var runs: [String] = []
+        var start = 0
+        for cut in cuts + [scalars.count] where cut > start {
+            var view = String.UnicodeScalarView()
+            view.append(contentsOf: scalars[start..<cut])
+            runs.append(String(view))
+            start = cut
+        }
+        return runs
     }
 }

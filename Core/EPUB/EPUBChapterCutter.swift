@@ -3,14 +3,25 @@ import Foundation
 /// Limits for cutting a book into chapters. A fixed "top level of the contents" rule fails on
 /// real books (chapters nested under one entry; a contents with one entry); these bounds were
 /// checked against books from Gutenberg, Standard Ebooks and the Internet Archive.
+///
+/// Word counts here are provisional: they're counted on the raw XHTML (`EPUBWordCount`), before
+/// the normalizer turns a chapter into listen blocks. Part 2 finalizes cuts, emptiness and sizes
+/// against the listen blocks.
 struct EPUBCutRules: Equatable, Sendable {
-    /// No body chapter longer than this: a longer range is cut deeper in the contents, then at
-    /// its `h1`/`h2` headings, then at file boundaries, then between blocks.
+    /// No piece longer than this: a longer range is cut deeper in the contents, then at its
+    /// `h1`/`h2` headings, then packed at file boundaries, between blocks, between the sentences
+    /// (or words) of a paragraph too long to keep whole, and last at any text.
     var maxWords = 30_000
-    /// A range shorter than this merges into a neighbour of the same kind (body, or skipped).
+    /// A range shorter than this merges into a neighbour of the same kind (body, or skipped)
+    /// that can take it without passing `maxWords`. Packing leaves no piece shorter than this
+    /// where the cut points allow.
     var mergeBelowWords = 150
     /// A range no contents entry names, shorter than this, is skipped in playback (a cover page).
     var unlistedSkipBelowWords = 40
+
+    /// Text longer than this is cut into runs (`EPUBTextRuns`): the cut points inside one
+    /// paragraph, so a paragraph over `maxWords` can still be split under it.
+    var maxRunWords: Int { max(1, maxWords / 10) }
 
     static let standard = EPUBCutRules()
 }
@@ -29,23 +40,29 @@ struct EPUBCut: Equatable, Sendable {
     var end: EPUBTextStream.Position
     var title: String?
     var locator: EPUBLocator
-    var wordCount: Int
+    /// Words in the raw XHTML (`EPUBWordCount`); part 2 recounts on the listen blocks.
+    var provisionalWordCount: Int
     var skipsInPlayback: Bool
 }
 
 /// Cuts the stream into chapters at the contents' anchors, choosing the depth per branch:
 /// - cut at the top level of the contents;
 /// - a range over `maxWords` whose entry has children is replaced by its children, recursively;
-/// - a range still over it is split at `h1`, then `h2` headings, else at file boundaries, else
-///   between blocks;
+/// - a range still over it is split at `h1`, then `h2` headings, then packed (`packed`) so no
+///   piece is over it;
 /// - a range with no words merges into the next; one under `mergeBelowWords` merges into the
-///   next range of the same kind (body or skipped), else the previous one; so does a skipped
-///   range no entry names, whatever its length.
+///   next range of the same kind (body or skipped), else the previous one, if that stays within
+///   `maxWords`; so does a skipped range no entry names, whatever its length.
 ///
 /// Without usable contents, chapters start at `h1` headings, else `h2`, else at each file.
 /// The top of the book, Gutenberg's header and licence, and non-linear files (the nav among them)
 /// are always cut points: text before the first entry is a chapter of its own, and the others are
 /// skipped as whole chapters, never read inside another.
+///
+/// **The bar, provisionally:** no chapter over `maxWords`, always. A body chapter under 100
+/// words remains only where it can't merge: no neighbouring body chapter can take it without
+/// passing `maxWords` (its neighbours are full, or it has none, as in a whole book under 100
+/// words or a short section between skipped matter).
 struct EPUBChapterCutter {
     typealias Position = EPUBTextStream.Position
 
@@ -57,7 +74,7 @@ struct EPUBChapterCutter {
         case contents
         /// A heading or file, for a book without usable contents.
         case derived
-        /// A heading, file or block inside a range that was too long.
+        /// A heading, file, block or run inside a range that was too long.
         case split
         /// The top of the book, or a boilerplate edge: no contents entry names it.
         case unlisted
@@ -82,10 +99,15 @@ struct EPUBChapterCutter {
         var skips: Bool
     }
 
-    private enum SplitPoints {
-        case headings(level: Int)
-        case files
-        case blocks
+    /// Cut points for packing a too-long range, coarsest first; each includes the ones before.
+    private enum PackingLevel: CaseIterable {
+        case files, blocks, runs, text
+    }
+
+    private struct Candidate {
+        var position: Position
+        /// Words from the start of the range.
+        var offset: Int
     }
 
     private static let blockElements: Set<String> = [
@@ -115,7 +137,7 @@ struct EPUBChapterCutter {
         var cuts = mergingShortRanges(ranges).map { range in
             EPUBCut(start: range.start, end: range.end,
                     title: range.title ?? firstHeading(from: range.start, to: range.end),
-                    locator: range.locator, wordCount: range.words, skipsInPlayback: range.skips)
+                    locator: range.locator, provisionalWordCount: range.words, skipsInPlayback: range.skips)
         }
         var seen = Set<EPUBLocator>()
         for index in cuts.indices {
@@ -216,67 +238,116 @@ struct EPUBChapterCutter {
 
     private func split(_ first: Mark, end: Position) -> [(mark: Mark, end: Position)] {
         var pieces = [(mark: first, end: end)]
-        for strategy in [SplitPoints.headings(level: 1), .headings(level: 2), .files, .blocks] {
-            var next: [(mark: Mark, end: Position)] = []
-            for piece in pieces {
-                guard stream.words(from: piece.mark.position, to: piece.end) > rules.maxWords else {
-                    next.append(piece)
-                    continue
-                }
-                let marks = [piece.mark] + splitPoints(strategy, from: piece.mark.position, to: piece.end).map {
-                    if case .headings = strategy {
-                        return mark(at: $0, title: headingText(at: $0), origin: .split)
+        for level in 1...2 {
+            pieces = pieces.flatMap { piece in
+                cutting(piece) { start, end in
+                    headingStarts(level: level, from: start, to: end).map {
+                        mark(at: $0, title: headingText(at: $0), origin: .split)
                     }
-                    return mark(at: $0, title: nil, origin: .split)
-                }
-                for index in marks.indices {
-                    next.append((marks[index], index + 1 < marks.count ? marks[index + 1].position : piece.end))
                 }
             }
-            pieces = next
         }
-        return pieces
+        return pieces.flatMap { piece in
+            cutting(piece) { start, end in
+                packed(from: start, to: end).map { mark(at: $0, title: nil, origin: .split) }
+            }
+        }
     }
 
-    private func splitPoints(_ strategy: SplitPoints, from start: Position, to end: Position) -> [Position] {
-        let candidates: [Position]
-        switch strategy {
-        case .headings(let level):
-            candidates = stream.elementStarts(from: start, to: end) { $0.localName == "h\(level)" }
-        case .files:
-            candidates = (start.document + 1..<stream.documents.count)
-                .map { stream.normalized(Position(document: $0, event: 0)) }
-                .filter { $0 < end }
-        case .blocks:
-            candidates = stream.elementStarts(from: start, to: end) { Self.blockElements.contains($0.localName) }
-        }
-        // Never a cut with no words before it.
+    /// The piece unchanged when it's within `maxWords`, else cut at the marks `cuts` gives.
+    private func cutting(_ piece: (mark: Mark, end: Position),
+                         at cuts: (Position, Position) -> [Mark]) -> [(mark: Mark, end: Position)] {
+        guard stream.words(from: piece.mark.position, to: piece.end) > rules.maxWords else { return [piece] }
+        let marks = [piece.mark] + cuts(piece.mark.position, piece.end)
+        return marks.indices.map { (marks[$0], $0 + 1 < marks.count ? marks[$0 + 1].position : piece.end) }
+    }
+
+    /// Headings of a level in the range, never one with no words before it.
+    private func headingStarts(level: Int, from start: Position, to end: Position) -> [Position] {
         var points: [Position] = []
         var previous = start
-        for candidate in candidates where candidate > previous && candidate < end {
-            guard stream.words(from: previous, to: candidate) > 0 else { continue }
+        for candidate in stream.elementStarts(from: start, to: end, where: { $0.localName == "h\(level)" })
+        where candidate > previous && stream.words(from: previous, to: candidate) > 0 {
             points.append(candidate)
             previous = candidate
         }
-        if case .headings = strategy { return points }
-        return packed(points, from: start, to: end)
+        return points
     }
 
-    /// Of the possible cut points, the ones that make pieces of about equal size, each well under
-    /// the cap: pages of a book that has one file per page are gathered up, not each a chapter.
-    private func packed(_ points: [Position], from start: Position, to end: Position) -> [Position] {
+    /// Cut points that make pieces of about equal size: none over `maxWords`, and none under
+    /// `mergeBelowWords` where the cut points allow. Each cut is the one closest to an even split
+    /// of what's left, taken from the coarsest level that has one: file boundaries (so a book of
+    /// one file per page is gathered into chapters, not one each), then between blocks, between
+    /// the runs of a long paragraph, then at any text. Runs are at most `maxRunWords`, so the last
+    /// level always has a cut within `maxWords`.
+    private func packed(from start: Position, to end: Position) -> [Position] {
         let total = stream.words(from: start, to: end)
         let target = max(1, rules.maxWords * 4 / 5)
-        let pieceCount = max(1, (total + target - 1) / target)
-        let size = total / pieceCount
+        var levels: [PackingLevel: [Candidate]] = [:]
+        func candidates(_ level: PackingLevel) -> [Candidate] {
+            if let cached = levels[level] { return cached }
+            let found = packingCandidates(level, from: start, to: end).map {
+                Candidate(position: $0, offset: stream.words(from: start, to: $0))
+            }
+            levels[level] = found
+            return found
+        }
         var chosen: [Position] = []
-        var pieceStart = start
-        for point in points where stream.words(from: pieceStart, to: point) >= size {
-            guard stream.words(from: point, to: end) > 0 else { break }
-            chosen.append(point)
-            pieceStart = point
+        var pieceStart = 0
+        while total - pieceStart > rules.maxWords {
+            let remaining = total - pieceStart
+            let pieceCount = (remaining + target - 1) / target
+            let ideal = pieceStart + remaining / pieceCount
+            var cut: Candidate?
+            for level in PackingLevel.allCases {
+                cut = closest(in: candidates(level), to: ideal, after: pieceStart, total: total,
+                              minimum: rules.mergeBelowWords)
+                if cut != nil { break }
+            }
+            if cut == nil {
+                cut = closest(in: candidates(.text), to: ideal, after: pieceStart, total: total, minimum: 1)
+            }
+            guard let cut else { break }
+            chosen.append(cut.position)
+            pieceStart = cut.offset
         }
         return chosen
+    }
+
+    /// The candidate closest to `ideal` leaving `minimum`…`maxWords` words since `pieceStart` and
+    /// at least `minimum` after it; the earlier of two equally close. `candidates` are sorted.
+    private func closest(in candidates: [Candidate], to ideal: Int, after pieceStart: Int, total: Int,
+                         minimum: Int) -> Candidate? {
+        let low = pieceStart + minimum
+        let high = min(pieceStart + rules.maxWords, total - minimum)
+        guard low <= high else { return nil }
+        var lower = 0
+        var upper = candidates.count
+        while lower < upper {
+            let middle = (lower + upper) / 2
+            if candidates[middle].offset < low { lower = middle + 1 } else { upper = middle }
+        }
+        var best: Candidate?
+        for candidate in candidates[lower...] {
+            guard candidate.offset <= high else { break }
+            if best.map({ abs(candidate.offset - ideal) < abs($0.offset - ideal) }) ?? true { best = candidate }
+        }
+        return best
+    }
+
+    private func packingCandidates(_ level: PackingLevel, from start: Position, to end: Position) -> [Position] {
+        var positions = (start.document + 1..<stream.documents.count)
+            .map { stream.normalized(Position(document: $0, event: 0)) }
+        if level != .files {
+            positions += stream.elementStarts(from: start, to: end) { Self.blockElements.contains($0.localName) }
+        }
+        if level == .runs || level == .text {
+            positions += stream.runStarts(from: start, to: end)
+        }
+        if level == .text {
+            positions += stream.textStarts(from: start, to: end)
+        }
+        return Set(positions).filter { $0 > start && $0 < end }.sorted()
     }
 
     // MARK: - Classifying and merging
@@ -290,6 +361,7 @@ struct EPUBChapterCutter {
                      origin: piece.mark.origin, words: words, skips: skips)
     }
 
+    /// See the type's comment for the one case a short body range stays.
     private func mergingShortRanges(_ ranges: [Range]) -> [Range] {
         var ranges = ranges
         var index = 0

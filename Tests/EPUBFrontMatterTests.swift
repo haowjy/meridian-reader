@@ -22,7 +22,7 @@ final class EPUBFrontMatterTests: XCTestCase {
                          Entry("Chapter 1", "ch1.xhtml"), Entry("Chapter 2", "ch2.xhtml")]
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, ["Copyright", "Chapter 1", "Chapter 2"], "the short title page merges into the copyright page")
-        XCTAssertEqual(book.chapters.map(\.wordCount), [180, 2_000, 2_000])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [180, 2_000, 2_000])
         XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [true, false, false])
     }
 
@@ -62,7 +62,7 @@ final class EPUBFrontMatterTests: XCTestCase {
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, ["Dedication", "Chapter 1", "Colophon"])
         XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [true, false, true])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [200, 2_000, 201])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [200, 2_000, 201])
     }
 
     func testNonLinearSpineItemIsSkipped() throws {
@@ -83,7 +83,7 @@ final class EPUBFrontMatterTests: XCTestCase {
         epub.contents = [Entry("Chapter 1", "ch1.xhtml"), Entry("Chapter 2", "ch2.xhtml")]
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, ["Chapter 1", "List of Plates", "Chapter 2"], "never read inside chapter 1")
-        XCTAssertEqual(book.chapters.map(\.wordCount), [2_000, 300, 2_000])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [2_000, 300, 2_000])
         XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [false, true, false])
     }
 
@@ -100,7 +100,7 @@ final class EPUBFrontMatterTests: XCTestCase {
         let book = try EPUBBookReader.read(fileURL: epub.write(in: self, entries: entries))
         XCTAssertEqual(book.spineCount, 4)
         XCTAssertEqual(book.titles, ["Title Page", "Contents", "Chapter 1", "Chapter 2"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [200, 7, 2_000, 2_000])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [200, 7, 2_000, 2_000])
         XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [false, true, false, false])
         XCTAssertFalse(book.chapters[0].xhtml.contains("Contents"), "the contents page isn't read with the title page")
     }
@@ -113,7 +113,7 @@ final class EPUBFrontMatterTests: XCTestCase {
         epub.contents = [Entry("Chapter 1", "ch1.xhtml"), Entry("Chapter 2", "ch2.xhtml")]
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, [nil, "Chapter 1", "Chapter 2"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [3, 2_000, 2_000], "a skipped page never merges into the body")
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [3, 2_000, 2_000], "a skipped page never merges into the body")
         XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [true, false, false])
     }
 
@@ -135,7 +135,7 @@ final class EPUBFrontMatterTests: XCTestCase {
         epub.contents = [Entry("Dedication", "dedication.xhtml"), Entry("Chapter 1", "ch1.xhtml")]
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, ["Dedication", "Chapter 1"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [10, 2_000])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [10, 2_000])
         XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [true, false])
     }
 
@@ -151,7 +151,7 @@ final class EPUBFrontMatterTests: XCTestCase {
         epub.contents = [Entry("The Book", "halftitle.xhtml", [Entry("Chapter 1", "ch1.xhtml"), Entry("Chapter 2", "ch2.xhtml")])]
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, ["The Book"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [4_022])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [4_022])
         XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [false])
     }
 
@@ -177,7 +177,7 @@ final class EPUBFrontMatterTests: XCTestCase {
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, ["Project Example Header", "Chapter 1", "Chapter 2", "Chapter 3", "The Licence"])
         XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [true, false, false, false, true])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [203, 1_561, 1_500, 1_500, 3_201],
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [203, 1_561, 1_500, 1_500, 3_201],
                        "the licence's opening, which no entry names, joins the licence")
         XCTAssertFalse(book.chapters[3].xhtml.contains("Licence"), "chapter 3 stops where the licence starts")
         assertBodyChaptersWithinBounds(book)

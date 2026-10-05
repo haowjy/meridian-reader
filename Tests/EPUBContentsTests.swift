@@ -42,7 +42,7 @@ final class EPUBContentsTests: XCTestCase {
         XCTAssertEqual(book.contents, partTree)
         // A short branch is one chapter, cut at the top level and titled by its heading.
         XCTAssertEqual(book.titles, ["Part One", "Afterword"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [1_200, 400])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [1_200, 400])
         XCTAssertEqual(book.chapters.first?.locator, EPUBLocator(href: "OEBPS/one.xhtml", fragment: nil),
                        "a heading that links nowhere starts at its first child")
     }
@@ -99,7 +99,7 @@ final class EPUBContentsTests: XCTestCase {
         let book = try epub.read(in: self)
 
         XCTAssertEqual(book.titles, ["Chapter I", "Chapter II", "Chapter III"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [600, 800, 700])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [600, 800, 700])
         XCTAssertEqual(book.chapters.map(\.locator), [
             EPUBLocator(href: "OEBPS/part1.xhtml", fragment: "c1"),
             EPUBLocator(href: "OEBPS/part1.xhtml", fragment: "c2"),
@@ -128,7 +128,7 @@ final class EPUBContentsTests: XCTestCase {
         """))
         epub.contents = [Entry("A", "one.xhtml#a"), Entry("B", "one.xhtml#b")]
         let book = try epub.read(in: self)
-        XCTAssertEqual(book.chapters.map(\.wordCount), [302, 301])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [302, 301])
         let (a, b) = (book.chapters[0].xhtml, book.chapters[1].xhtml)
         XCTAssertTrue(a.contains("<div class=\"group\" id=\"g\"><h2 id=\"a\">Chapter A</h2>"), a)
         XCTAssertFalse(a.contains("Chapter B"))
@@ -148,7 +148,7 @@ final class EPUBContentsTests: XCTestCase {
         epub.contents = [Entry("Chapter One", "one.xhtml#gone"), Entry("Chapter Two", "two.xhtml#caf%C3%A9")]
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, ["Chapter One", "Chapter Two"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [500, 500])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [500, 500])
         XCTAssertEqual(book.chapters.map(\.locator), [
             EPUBLocator(href: "OEBPS/one.xhtml", fragment: "gone"),
             EPUBLocator(href: "OEBPS/two.xhtml", fragment: "café"),
@@ -161,7 +161,7 @@ final class EPUBContentsTests: XCTestCase {
     func testChaptersNestedUnderOneTopLevelEntryAreCutAtTheirOwnLevel() throws {
         let book = try nestedBook(chapterWords: 8_000).read(in: self)
         XCTAssertEqual(book.titles, ["Title Page", "Chapter 1", "Chapter 2", "Chapter 3", "Chapter 4", "Chapter 5", "Afterword"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [200, 8_002, 8_000, 8_000, 8_000, 8_000, 500],
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [200, 8_002, 8_000, 8_000, 8_000, 8_000, 500],
                        "the two-word half-title merges into chapter 1")
         XCTAssertEqual(book.chapters[1].locator, EPUBLocator(href: "OEBPS/ch1.xhtml", fragment: nil))
         assertBodyChaptersWithinBounds(book)
@@ -170,7 +170,7 @@ final class EPUBContentsTests: XCTestCase {
     func testShortNestedBranchStaysOneChapter() throws {
         let book = try nestedBook(chapterWords: 3_000).read(in: self)
         XCTAssertEqual(book.titles, ["Title Page", "The Book", "Afterword"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [200, 15_002, 500])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [200, 15_002, 500])
     }
 
     private func nestedBook(chapterWords: Int) -> SyntheticEPUB {
@@ -203,7 +203,7 @@ final class EPUBContentsTests: XCTestCase {
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, ["Part 1", "Part 2", "Chapter 7", "Chapter 8"],
                        "Volume I (36k) opens to its parts; Volume II and its one part (32k) open to chapters")
-        XCTAssertEqual(book.chapters.map(\.wordCount), [18_000, 18_000, 16_000, 16_000])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [18_000, 18_000, 16_000, 16_000])
         assertBodyChaptersWithinBounds(book)
     }
 
@@ -220,7 +220,7 @@ final class EPUBContentsTests: XCTestCase {
         epub.contents = [Entry("Notice", "notice.xhtml")]
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, ["Story One", "Story Two", "Story Three"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [12_080, 12_000, 12_000], "the short notice merges forward")
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [12_080, 12_000, 12_000], "the short notice merges forward")
         XCTAssertEqual(book.chapters.map(\.locator.href), ["OEBPS/s1.xhtml", "OEBPS/s2.xhtml", "OEBPS/s3.xhtml"])
         assertBodyChaptersWithinBounds(book)
     }
@@ -232,7 +232,7 @@ final class EPUBContentsTests: XCTestCase {
         }
         epub.contents = [Entry("Notice", "page1.xhtml")]
         let book = try epub.read(in: self)
-        XCTAssertEqual(book.chapters.map(\.wordCount), [20_000, 20_000], "pages are gathered into chapters, not one each")
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [20_000, 20_000], "pages are gathered into chapters, not one each")
         XCTAssertEqual(book.titles, ["Notice", nil])
         XCTAssertEqual(book.chapters.map(\.locator), [
             EPUBLocator(href: "OEBPS/page1.xhtml", fragment: nil), EPUBLocator(href: "OEBPS/page21.xhtml", fragment: nil),
@@ -244,10 +244,90 @@ final class EPUBContentsTests: XCTestCase {
         epub.addDocument("all.xhtml", body: SyntheticEPUB.xhtml(body: SyntheticEPUB.paragraphs(35_000)))
         epub.contents = [Entry("Everything", "all.xhtml")]
         let book = try epub.read(in: self)
-        XCTAssertEqual(book.chapters.map(\.wordCount), [17_520, 17_480])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [17_520, 17_480])
         XCTAssertEqual(book.chapters.map(\.locator.href), ["OEBPS/all.xhtml", "OEBPS/all.xhtml"])
         XCTAssertNotEqual(book.chapters[0].locator, book.chapters[1].locator)
         assertBodyChaptersWithinBounds(book)
+    }
+
+    // MARK: - The maximum
+
+    /// One file, one entry, three paragraphs of 15,000, 20,000 and 5,000 words: no piece passes
+    /// 30,000 even though the first cut point past an even split would make a 35,000-word one.
+    func testPiecesNeverPassTheMaximum() throws {
+        var epub = SyntheticEPUB()
+        epub.addDocument("all.xhtml", body: SyntheticEPUB.xhtml(body: """
+        <p>\(SyntheticEPUB.words(15_000))</p>
+        <p>\(SyntheticEPUB.words(20_000, seed: 1))</p>
+        <p>\(SyntheticEPUB.words(5_000, seed: 2))</p>
+        """))
+        epub.contents = [Entry("Everything", "all.xhtml")]
+        let book = try epub.read(in: self)
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [15_000, 25_000])
+        assertBodyChaptersWithinBounds(book)
+    }
+
+    /// One paragraph over the maximum is split between sentences.
+    func testParagraphOverTheMaximumSplitsBetweenSentences() throws {
+        let sentence = SyntheticEPUB.words(19) + " finch."
+        var epub = SyntheticEPUB()
+        epub.addDocument("all.xhtml", body: SyntheticEPUB.xhtml(body: "<p class=\"run\">" + Array(repeating: sentence, count: 1_800).joined(separator: " ") + "</p>"))
+        epub.contents = [Entry("Everything", "all.xhtml")]
+        let book = try epub.read(in: self)
+        XCTAssertEqual(book.chapters.count, 2)
+        guard book.chapters.count == 2 else { return }
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount).reduce(0, +), 36_000)
+        assertBodyChaptersWithinBounds(book)
+        XCTAssertTrue(book.chapters[0].xhtml.contains("finch.</p>"), "the first part ends at a sentence's end")
+        XCTAssertTrue(book.chapters[1].xhtml.hasPrefix("<p class=\"run\">"), "the paragraph opens again: \(book.chapters[1].xhtml.prefix(40))")
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount).map { $0 % 20 }, [0, 0], "whole sentences on each side")
+    }
+
+    /// One paragraph over the maximum with no sentence ends is split between words.
+    func testParagraphWithoutSentencesSplitsBetweenWords() throws {
+        var epub = SyntheticEPUB()
+        epub.addDocument("all.xhtml", body: SyntheticEPUB.xhtml(body: "<p>\(SyntheticEPUB.words(30_001))</p>"))
+        epub.contents = [Entry("Everything", "all.xhtml")]
+        let book = try epub.read(in: self)
+        XCTAssertEqual(book.chapters.count, 2)
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount).reduce(0, +), 30_001)
+        assertBodyChaptersWithinBounds(book)
+    }
+
+    /// A cut at the last file would leave 60 words alone; the range is balanced between
+    /// paragraphs instead.
+    func testShortTailIsRebalanced() throws {
+        var epub = SyntheticEPUB()
+        epub.addDocument("long.xhtml", body: SyntheticEPUB.xhtml(body: SyntheticEPUB.paragraphs(29_950)))
+        epub.addDocument("tail.xhtml", body: SyntheticEPUB.xhtml(body: SyntheticEPUB.paragraphs(60, seed: 1)))
+        epub.contents = [Entry("Everything", "long.xhtml")]
+        let book = try epub.read(in: self)
+        XCTAssertEqual(book.chapters.count, 2)
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount).reduce(0, +), 30_010)
+        assertBodyChaptersWithinBounds(book)
+    }
+
+    /// The exception to the bar: a short chapter whose neighbours can't take it without passing
+    /// the maximum stays short.
+    func testShortChapterBetweenFullNeighboursStays() throws {
+        var epub = SyntheticEPUB()
+        epub.addDocument("a.xhtml", body: chapterFile("a", "Chapter A", words: 29_950))
+        epub.addDocument("b.xhtml", body: chapterFile("b", "Interlude", words: 60, seed: 1))
+        epub.addDocument("c.xhtml", body: chapterFile("c", "Chapter C", words: 29_950, seed: 2))
+        epub.contents = [Entry("Chapter A", "a.xhtml"), Entry("Interlude", "b.xhtml"), Entry("Chapter C", "c.xhtml")]
+        let book = try epub.read(in: self)
+        XCTAssertEqual(book.titles, ["Chapter A", "Interlude", "Chapter C"])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [29_950, 60, 29_950])
+    }
+
+    /// The other exception: a whole book under 100 words is one short chapter.
+    func testBookUnderAHundredWordsIsOneChapter() throws {
+        var epub = SyntheticEPUB()
+        epub.addDocument("one.xhtml", body: chapterFile("c1", "Note", words: 50))
+        epub.contents = [Entry("Note", "one.xhtml")]
+        let book = try epub.read(in: self)
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [50])
+        XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [false])
     }
 
     // MARK: - Merging tiny entries
@@ -271,7 +351,7 @@ final class EPUBContentsTests: XCTestCase {
         ]
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, ["Chapter 1", "Chapter 2", "Chapter 3"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [2_030, 2_000, 2_008])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [2_030, 2_000, 2_008])
         XCTAssertEqual(book.chapters.map(\.locator.fragment), ["c1", "c2", "c3"],
                        "the chapter a tiny entry merges into keeps its identity")
         XCTAssertTrue(book.chapters[0].xhtml.contains("id=\"epigraph\""))
@@ -284,7 +364,7 @@ final class EPUBContentsTests: XCTestCase {
         epub.contents = [Entry("Illustration", "one.xhtml#c1"), Entry("Chapter 1", "one.xhtml#c1")]
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, ["Chapter 1"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [900])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [900])
     }
 
     // MARK: - No contents
@@ -300,7 +380,7 @@ final class EPUBContentsTests: XCTestCase {
         let book = try epub.read(in: self)
         XCTAssertTrue(book.contents.isEmpty)
         XCTAssertEqual(book.titles, ["First Part", "Second Part", "Third Part"])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [502, 502, 502])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [502, 502, 502])
     }
 
     func testNoContentsOrHeadingsCutsAtFiles() throws {
@@ -311,7 +391,7 @@ final class EPUBContentsTests: XCTestCase {
         }
         let book = try epub.read(in: self)
         XCTAssertEqual(book.titles, [nil, nil, nil])
-        XCTAssertEqual(book.chapters.map(\.wordCount), [300, 300, 300])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [300, 300, 300])
         XCTAssertEqual(book.chapters.map(\.locator.href), ["OEBPS/f1.xhtml", "OEBPS/f2.xhtml", "OEBPS/f3.xhtml"])
     }
 }
