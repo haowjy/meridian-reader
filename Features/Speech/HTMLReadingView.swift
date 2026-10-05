@@ -479,12 +479,17 @@ struct HTMLReadingWebView: UIViewRepresentable {
         }
     }
 
+    /// A paragraph's accessibility label in jump mode ("Paragraph 3") and its hint.
+    static let jumpLabel = "Paragraph"
+    static let jumpHint = "Plays from this paragraph"
+
     /// Injected from `ListenHTMLBlocks.innerSelector` so JS and Swift share one tag list.
     private static var bootstrapJS: String {
         let sel = ListenHTMLBlocks.innerSelector
         return """
         (function() {
           var BLOCK_SEL = '\(sel)';
+          var JUMP_LABEL = '\(jumpLabel)', JUMP_HINT = '\(jumpHint)';
           function textOf(el) {
             return (el.textContent || '').split(String.fromCharCode(160)).join(' ').trim();
           }
@@ -544,9 +549,22 @@ struct HTMLReadingWebView: UIViewRepresentable {
             return range;
           }
           window.__readerJump = false;
+          // While ☝︎ is on each paragraph is a button to assistive tech, "Paragraph N" with the hint
+          // "Plays from this paragraph"; off, it reads as text again.
           window.__readerSetJumpMode = function(on) {
             window.__readerJump = !!on;
             document.body.classList.toggle('reader-jump', !!on);
+            document.querySelectorAll('[data-reader-index]').forEach(function(el) {
+              if (on) {
+                el.setAttribute('role', 'button');
+                el.setAttribute('aria-label', JUMP_LABEL + ' ' + (Number(el.getAttribute('data-reader-index')) + 1));
+                el.setAttribute('aria-description', JUMP_HINT);
+              } else {
+                el.removeAttribute('role');
+                el.removeAttribute('aria-label');
+                el.removeAttribute('aria-description');
+              }
+            });
           };
           window.__readerSetActive = function(index) {
             var el = (index === null || index === undefined) ? null

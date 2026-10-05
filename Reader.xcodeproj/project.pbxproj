@@ -256,6 +256,7 @@
 		F60A918840B40ED64A67E0FC /* SwipeGesturePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5381BC4B9FA9D949E9181A49 /* SwipeGesturePolicyTests.swift */; };
 		F8DC98F28F9DE5B02F01EEBC /* SentenceUnderlineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C714D7E82CCE4FB5E94A94D6 /* SentenceUnderlineTests.swift */; };
 		FA9361E3A671E7B9555BD146 /* ListenUnitSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 987585BC37DEBB61BB60FF01 /* ListenUnitSource.swift */; };
+		FB0D441AC6DC55B10917502F /* JumpModeSemanticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FC37CDBBE9EFE72D3B4856 /* JumpModeSemanticsTests.swift */; };
 		FB8E22BDB273D5EA354BC819 /* EngineRetirementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D1D80182FAF19DE7D6A3338 /* EngineRetirementTests.swift */; };
 		FBC0121D969D01054173F60C /* ParagraphSplitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6E971A9316951A5F68B8716 /* ParagraphSplitTests.swift */; };
 		FBF57728BDA40B062CB6194A /* KokoroSwiftG2PTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1885A03961CEA2CB8DA73F6C /* KokoroSwiftG2PTests.swift */; };
@@ -478,6 +479,7 @@
 		BF48403603C1A064A2224172 /* ReadabilityRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadabilityRunner.swift; sourceTree = "<group>"; };
 		C0063B8777CB5A098250F91B /* ReaderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderApp.swift; sourceTree = "<group>"; };
 		C1A52BD7D8263405657E5B69 /* ListenResumePoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenResumePoint.swift; sourceTree = "<group>"; };
+		C1FC37CDBBE9EFE72D3B4856 /* JumpModeSemanticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JumpModeSemanticsTests.swift; sourceTree = "<group>"; };
 		C22FD14401A6C350892E04A5 /* KokoroCPUInputsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroCPUInputsTests.swift; sourceTree = "<group>"; };
 		C244F2A325BD204F81E8C52C /* AddressDictationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressDictationTests.swift; sourceTree = "<group>"; };
 		C263E05730F21AFFA81CA3C5 /* KokoroONNXSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroONNXSession.swift; sourceTree = "<group>"; };
@@ -693,6 +695,7 @@
 				9D1D80182FAF19DE7D6A3338 /* EngineRetirementTests.swift */,
 				E7A855AE14178DD67AC2F8C6 /* FirstChunkBoundaryTests.swift */,
 				93667398429596A83ECBB3A0 /* HierarchicalChunkerTests.swift */,
+				C1FC37CDBBE9EFE72D3B4856 /* JumpModeSemanticsTests.swift */,
 				C22FD14401A6C350892E04A5 /* KokoroCPUInputsTests.swift */,
 				BBCFFBC66D49C4783EDEB752 /* KokoroNaNProbeTests.swift */,
 				ED03083631B828CDE3E45CC6 /* KokoroONNXSessionTests.swift */,
@@ -1446,6 +1449,7 @@
 				56687F5F6C0D35E591F1B56D /* FakeUnitSource.swift in Sources */,
 				9096907DA5DA96D9F6E14B2F /* FirstChunkBoundaryTests.swift in Sources */,
 				A69EF22F7DD154037FE1142B /* HierarchicalChunkerTests.swift in Sources */,
+				FB0D441AC6DC55B10917502F /* JumpModeSemanticsTests.swift in Sources */,
 				31D108A0F99E0ED177048AF4 /* KokoroCPUInputsTests.swift in Sources */,
 				056D8E004C4CDAB887C9F042 /* KokoroNaNProbeTests.swift in Sources */,
 				C6DACE20B6244E265FE76F72 /* KokoroONNXSessionTests.swift in Sources */,

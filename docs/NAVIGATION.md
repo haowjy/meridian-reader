@@ -213,7 +213,8 @@ opens Now Playing instead.
   position (decision D2): Now Playing sets that offset once its page is laid out, at the end of
   the page if it can't reach it, and drops it if you drag, scrub, Back to audio, the audio moves
   on or the page reloads first. ☝︎ in the header, then a tap on a paragraph, listens from that
-  paragraph (a hint banner with Cancel floats over the text meanwhile).
+  paragraph (a hint banner with Cancel floats over the text meanwhile). While ☝︎ is on, each
+  paragraph is a button to VoiceOver, *Paragraph N*, hint *Plays from this paragraph*.
 - **The Reader never scrolls by itself** and has no speed or skip buttons; reading text never
   moves under you.
 - 🔖 saves / unsaves (filled = saved); it keeps the screen and playback as they are.

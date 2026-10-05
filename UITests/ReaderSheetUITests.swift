@@ -44,6 +44,46 @@ final class ReaderSheetUITests: XCTestCase {
         app.buttons["listenPlayPause"].tap()
     }
 
+    /// A plain-text article (no reading HTML) reads on the same HTML reading page in the Reader.
+    /// With ☝︎ on its paragraphs are buttons, "Paragraph N", and one plays from that paragraph.
+    func testPlainTextReaderReadsOnTheReadingPageAndJumpsByParagraph() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoPlainText", "-openLibrary",
+                               "-selectEngine", "apple"]
+        app.launch()
+        let row = app.cells.staticTexts["Demo Listen Article"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 5), "the Reader")
+        let second = app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Second paragraph'")).firstMatch
+        XCTAssertTrue(second.waitForExistence(timeout: 5), "the paragraphs are on the reading page")
+        XCTAssertFalse(app.descendants(matching: .any)["listenParagraph-0"].exists, "not a native paragraph list")
+        XCTAssertFalse(app.webViews.buttons["Paragraph 2"].exists, "reading: text, not buttons")
+
+        app.buttons["listenJump"].tap()
+        let jump = app.webViews.buttons["Paragraph 2"]
+        XCTAssertTrue(jump.waitForExistence(timeout: 3), "☝︎: each paragraph is a button")
+        XCTAssertTrue(app.webViews.buttons["Paragraph 1"].exists)
+        app.buttons["listenJumpCancel"].tap()
+        XCTAssertTrue(eventually(3) { !jump.exists && second.exists }, "☝︎ off: text again")
+        let hint = app.descendants(matching: .any)["listenJumpHint"]
+        XCTAssertTrue(eventually(3) { !hint.exists }, "the hint has gone")
+        // A ☝︎ tap during the hint's exit (~0.4 s after Cancel) is lost on the Simulator; let it settle.
+        RunLoop.current.run(until: Date().addingTimeInterval(1.5))
+
+        app.buttons["listenJump"].tap()
+        XCTAssertTrue(eventually(3) { app.buttons["listenJump"].label == "Cancel listen from a paragraph" }, "☝︎ on")
+        XCTAssertTrue(jump.waitForExistence(timeout: 3))
+        jump.tap()
+        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "listening turns it into Now Playing")
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
+        play.tap()
+        XCTAssertTrue(eventually(5) { play.label == "Play" })
+        XCTAssertTrue(eventually(3) { (self.find(app, "readerScrubOffset").value as? String)?.hasPrefix("p=1 ") == true },
+                      "from paragraph 2: \(find(app, "readerScrubOffset").value ?? "")")
+    }
+
     func testReaderOverTheLibrary() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-openLibrary", "-selectEngine", "apple"]
