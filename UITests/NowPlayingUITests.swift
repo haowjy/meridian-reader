@@ -106,32 +106,23 @@ final class NowPlayingUITests: XCTestCase {
         XCTAssertTrue(eventually(3) { !card.exists || card.frame.minY < top - 100 }, "it scrolls up with the text")
     }
 
-    /// Listen in the Reader (D2): Now Playing opens with the text exactly where the Reader had it.
+    /// Listen in the Reader (D2): Now Playing opens with the text exactly where the Reader had it,
+    /// though Now Playing's header is taller than the Reader's and the title card replaces the
+    /// title. Within 1 pt: the two pages lay out the same text at the same width, the offset is
+    /// set exactly, and what's left is rounding of the frames the accessibility tree reports.
     func testListenKeepsTheReadersScrollPosition() throws {
-        let app = launchLongDemo()
-        let row = app.cells.staticTexts["Demo Listen Article"]
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
-        row.tap()
-        let listen = app.buttons["listenPlayPause"]
-        XCTAssertTrue(listen.waitForExistence(timeout: 10))
-        let target = paragraph(app, 8)
-        XCTAssertTrue(target.waitForExistence(timeout: 5))
-        for _ in 0..<6 where !isInMiddle(app, target) { dragText(app, by: -260) }
-        XCTAssertTrue(isInMiddle(app, target), "paragraph 9 scrolled into the middle of the Reader")
-        let before = target.frame.minY
+        assertListenKeepsTheLine(launchLongDemo())
+    }
 
-        listen.tap() // plays paragraph 1; the text stays where it is
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Now Playing")
-        let play = app.buttons["listenPlayPause"]
-        XCTAssertTrue(eventually(8) { play.label == "Pause" })
-        play.tap() // paused on paragraph 1, so following has nothing new to move to
-        XCTAssertTrue(eventually(5) { play.label == "Play" })
-        let after = paragraph(app, 8)
-        XCTAssertTrue(eventually(5) { after.exists && self.isInMiddle(app, after) },
-                      "paragraph 9 is still in view, not the top of the page: before \(before), after \(after.frame), "
-                        + "first \(paragraph(app, 0).frame), web views \(app.webViews.count)")
-        XCTAssertEqual(after.frame.minY, before, accuracy: 60, "at the Reader's scroll position")
-        XCTAssertFalse(isInMiddle(app, paragraph(app, 0)), "not scrolled to the spoken paragraph")
+    /// The same at the largest text size, where the two headers differ the most.
+    func testListenKeepsTheReadersScrollPositionAtTheLargestTextSize() throws {
+        // A paragraph is over 1,000 pt tall there: the second one is far enough down.
+        assertListenKeepsTheLine(launchLongDemo(Self.largestText), paragraph: 1)
+    }
+
+    /// The same for a plain-text article (no reading HTML: its paragraphs, on the same page).
+    func testListenKeepsTheReadersScrollPositionForPlainText() throws {
+        assertListenKeepsTheLine(launchLongDemo(["-seedDemoPlainText"]))
     }
 
     func testAtTheEndNowPlayingStaysWithPlay() throws {
@@ -165,47 +156,59 @@ final class NowPlayingUITests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// The demo article, 40 paragraphs long, in the Library, Apple voice at 1×.
-    private func launchLongDemo(_ extra: [String] = []) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoParagraphs", "40", "-openLibrary",
-                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"] + extra
-        app.launch()
-        return app
-    }
+    private static let largestText = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
 
-    private func openNowPlayingFromTheLibrary(_ app: XCUIApplication) {
+    /// Scrolls the first line of paragraph `index` to the middle of the Reader, then Listen: in
+    /// Now Playing that line is where it was on screen, to the point.
+    private func assertListenKeepsTheLine(_ app: XCUIApplication, paragraph index: Int = 8,
+                                          file: StaticString = #filePath, line: UInt = #line) {
         let row = app.cells.staticTexts["Demo Listen Article"]
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertTrue(row.waitForExistence(timeout: 10), file: file, line: line)
         row.tap()
         let listen = app.buttons["listenPlayPause"]
-        XCTAssertTrue(listen.waitForExistence(timeout: 10))
-        listen.tap()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Listen turns the Reader into Now Playing")
+        XCTAssertTrue(listen.waitForExistence(timeout: 10), file: file, line: line)
+        let target = paragraph(app, index)
+        XCTAssertTrue(target.waitForExistence(timeout: 5), file: file, line: line)
+        let middle = app.windows.firstMatch.frame.height * 0.4
+        for _ in 0..<20 where !topIsInMiddle(app, target) {
+            dragText(app, by: max(-300, min(300, middle - target.frame.minY)))
+        }
+        let name = "paragraph \(index + 1)"
+        XCTAssertTrue(topIsInMiddle(app, target), "\(name) scrolled into the middle of the Reader", file: file, line: line)
+        let before = settledTop(of: target)
+
+        listen.tap() // plays paragraph 1; the text stays where it is
+        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Now Playing", file: file, line: line)
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(eventually(8) { play.label == "Pause" }, file: file, line: line)
+        play.tap() // paused on paragraph 1, so following has nothing new to move to
+        XCTAssertTrue(eventually(5) { play.label == "Play" }, file: file, line: line)
+        let after = paragraph(app, index)
+        XCTAssertTrue(eventually(5) { after.exists && self.topIsInMiddle(app, after) },
+                      "\(name) is still in view, not the top of the page: before \(before), after \(after.frame), "
+                        + "first \(paragraph(app, 0).frame), web views \(app.webViews.count)", file: file, line: line)
+        XCTAssertEqual(settledTop(of: after), before, accuracy: 1, "at the Reader's scroll position", file: file, line: line)
+        XCTAssertFalse(isInMiddle(app, paragraph(app, 0)), "not scrolled to the spoken paragraph", file: file, line: line)
     }
 
-    /// Skips to paragraph 7 and pauses there, scrolls it away, then Back to audio: paragraph 7 is
-    /// back in the middle of the text.
-    private func assertBackToAudioReturnsToTheSpokenParagraph(_ app: XCUIApplication) {
-        let back = find(app, "nowPlayingBackToAudio")
-        XCTAssertFalse(back.exists, "following the audio")
-        let play = app.buttons["listenPlayPause"]
-        XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
-        for _ in 0..<6 { app.buttons["Next paragraph"].tap() }
-        play.tap()
-        XCTAssertTrue(eventually(5) { play.label == "Play" }, "paused")
-        XCTAssertTrue(eventually(3) { (self.find(app, "readerScrubOffset").value as? String)?.hasPrefix("p=6 ") == true },
-                      "paused on paragraph 7: \(find(app, "readerScrubOffset").value ?? "")")
-        let spoken = paragraph(app, 6)
-        XCTAssertTrue(eventually(5) { spoken.exists && self.isInMiddle(app, spoken) }, "following: paragraph 7 in view")
+    /// The element's first line is in the reading area: below the header, above the controls.
+    private func topIsInMiddle(_ app: XCUIApplication, _ element: XCUIElement) -> Bool {
+        guard element.exists else { return false }
+        let window = app.windows.firstMatch.frame
+        let y = element.frame.minY
+        return y > window.minY + window.height * 0.25 && y < window.minY + window.height * 0.6
+    }
 
-        for _ in 0..<3 { dragText(app, by: -260) }
-        XCTAssertTrue(back.waitForExistence(timeout: 3), "scrolling away offers Back to audio")
-        XCTAssertFalse(isOnScreen(app, spoken), "paragraph 7 scrolled out of view")
-
-        back.tap()
-        XCTAssertTrue(eventually(3) { !back.exists }, "following again")
-        XCTAssertTrue(eventually(3) { self.isInMiddle(app, spoken) }, "Back to audio brings paragraph 7 into view")
+    /// The element's top once it has stopped moving (a drag's deceleration, a sheet settling).
+    private func settledTop(of element: XCUIElement) -> CGFloat {
+        var last = element.frame.minY
+        for _ in 0..<20 {
+            idle(0.25)
+            let now = element.frame.minY
+            if abs(now - last) < 0.01 { return now }
+            last = now
+        }
+        return last
     }
 
     /// Paragraph `index` of the demo article on the reading page.

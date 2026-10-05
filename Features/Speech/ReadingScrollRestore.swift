@@ -1,6 +1,7 @@
 import CoreGraphics
 
-/// The Reader's scroll offset handed to Now Playing (D2), waiting for the new page's layout.
+/// The Reader's scroll position handed to Now Playing (D2), as this page's scroll offset, waiting
+/// for the page's layout.
 ///
 /// At `didFinish` the scroll view often has no content size yet, and WebKit's first layout puts the
 /// offset back to the top, so the offset is set once the layout can hold it. It belongs to one load

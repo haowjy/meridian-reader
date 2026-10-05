@@ -83,8 +83,9 @@ final class ShellState {
     /// (`nowPlayingDidClose`), so a close that lands late can't take down a newer one.
     private(set) var nowPlayingPresentation: UUID?
     var isNowPlayingPresented: Bool { nowPlayingPresentation != nil }
-    /// Where Now Playing's text opens: the Reader's scroll offset when its Listen turned it into
-    /// Now Playing (it appears in place, without rising). nil = it rises and finds the audio.
+    /// Where Now Playing's text opens: the Reader's scroll position (its reading page's
+    /// `handOverOffset`) when its Listen turned it into Now Playing (it appears in place, without
+    /// rising). nil = it rises and finds the audio.
     private(set) var nowPlayingOpensAt: CGFloat?
     var sheet: ShellSheet?
     /// The open ⋯ menu (nil = closed), rendered by the shell's one `MorphMenuOverlay`.

@@ -51,6 +51,55 @@ final class PlayerReadingPageTests: XCTestCase {
         XCTAssertEqual(page.offset, 1200 + page.coordinator.textTop, accuracy: 1)
     }
 
+    /// The Reader hands its scroll position to Now Playing: the same line is at the same place on
+    /// screen. Between the two, the web view starts lower (Now Playing's header is taller), the
+    /// title and source line give way to the title card, and the insets differ. An HTML and a
+    /// plain-text article, at the default text size and at the largest.
+    func testTheHandedOverLineStaysAtTheSamePlaceOnScreen() async throws {
+        let plain = ParagraphDocument(plainText: (1...40).map {
+            "Line \($0) of the plain text. " + String(repeating: "The tide comes in over the flats. ", count: $0 % 4 + 1)
+        }.joined(separator: "\n\n")).paragraphsHTML
+        let articles = [("HTML", ReadingPageHarness.paragraphs(40)), ("plain text", plain)]
+        let sizes: [(String, UIContentSizeCategory, DynamicTypeSize)] = [
+            ("default", .large, .large), ("AX5", .accessibilityExtraExtraExtraLarge, .accessibility5),
+        ]
+        for (kind, html) in articles {
+            for (sizeName, category, dynamicType) in sizes {
+                let what = "\(kind), \(sizeName)"
+                let textSizes = ReadingStyle.Sizes(traits: UITraitCollection(preferredContentSizeCategory: category))
+                let size = CGSize(width: 402, height: 874)
+
+                let reader = ReadingPageHarness(size: size, viewportTop: 70)
+                reader.coordinator.sizes = textSizes
+                reader.coordinator.setTextInsets(ReaderTextInsets(top: 0, bottom: 140))
+                try await reader.load(html, blocks: 40,
+                                      heading: ReaderHeading(title: "Notes on the Lighthouse", detail: "example.com · 9 min"))
+                try await reader.waitUntil("Reader laid out", timeout: 3) { reader.maxOffset > 1500 }
+                let lineInReader = try await reader.windowY(ofParagraph: 12)
+                reader.scrollView.contentOffset.y += lineInReader - 300
+                let before = try await reader.windowY(ofParagraph: 12)
+                XCTAssertEqual(before, 300, accuracy: 1, "\(what): paragraph 13 mid-screen in the Reader")
+                let handOver = try XCTUnwrap(reader.coordinator.handOverOffset, what)
+
+                let player = ReadingPageHarness(size: size, viewportTop: dynamicType.isAccessibilitySize ? 190 : 120)
+                player.coordinator.look = .player
+                player.coordinator.sizes = textSizes
+                player.coordinator.setTextInsets(ReaderTextInsets(top: 0, bottom: 260))
+                player.coordinator.setTopView(ReadingTopView(id: 1, view: AnyView(
+                    TitleCard(title: "Notes on the Lighthouse", detail: "example.com · 9 min left", artworkLetter: "e")
+                        .environment(\.dynamicTypeSize, dynamicType))))
+                try await player.load(html, blocks: 40, opensAt: handOver)
+                try await player.waitUntil("restored", timeout: 3) { !player.coordinator.isRestoringScroll }
+                let after = try await player.windowY(ofParagraph: 12)
+                XCTAssertNotEqual(player.coordinator.textTop, reader.coordinator.textTop, accuracy: 1,
+                                  "\(what): something different above the text")
+                XCTAssertEqual(after, before, accuracy: 1, "\(what): the same line at the same place on screen")
+                reader.close()
+                player.close()
+            }
+        }
+    }
+
     private func colour(of index: Int) async throws -> String? {
         try await page.js("getComputedStyle(document.querySelector('[data-reader-index=\"\(index)\"]')).color") as? String
     }

@@ -28,19 +28,13 @@ struct ReadingTopView: Equatable {
     static func == (a: ReadingTopView, b: ReadingTopView) -> Bool { a.id == b.id }
 }
 
-/// Lets the owner read the text's scroll offset (the Reader hands it to Now Playing, D2).
+/// Lets the owner read where the text is scrolled to (the Reader hands it to Now Playing, D2).
 @MainActor
 final class ReadingScrollHandle {
-    fileprivate weak var webView: WKWebView?
     fileprivate weak var coordinator: HTMLReadingWebView.Coordinator?
 
-    /// The vertical scroll offset into the article text (from where it starts, below the title
-    /// or the title card), so a page with something else above the text can open with the same
-    /// line in the same place. Nil before the page is up.
-    var offset: CGFloat? {
-        guard let webView else { return nil }
-        return webView.scrollView.contentOffset.y - (coordinator?.textTop ?? 0)
-    }
+    /// Where the text is scrolled to, as `Coordinator.handOverOffset`. Nil before the page is up.
+    var offset: CGFloat? { coordinator?.handOverOffset }
 }
 
 /// Renders an article's reading HTML in the serif reading style (`look`: paper for the Reader,
@@ -67,7 +61,8 @@ struct HTMLReadingView: View {
     /// Scroll a paragraph into view: following a scrub.
     var scrollRequest: ReaderScrollRequest? = nil
     var follows = false
-    /// Where the text opens (a scroll offset), instead of the top or the spoken paragraph.
+    /// Where the text opens (another page's `handOverOffset`: the same line at the same place on
+    /// screen), instead of the top or the spoken paragraph.
     var opensAt: CGFloat? = nil
     var scrollHandle: ReadingScrollHandle? = nil
     /// Room left above / below the text for chrome drawn over it.
@@ -152,7 +147,6 @@ struct HTMLReadingWebView: UIViewRepresentable {
         c.sizes = sizes
         c.look = look
         c.setTopView(topView)
-        scrollHandle?.webView = webView
         scrollHandle?.coordinator = c
         c.load(html: html, heading: heading, opensAt: opensAt)
         return webView
@@ -195,7 +189,6 @@ struct HTMLReadingWebView: UIViewRepresentable {
         c.onTapParagraph = onTapParagraph
         c.onUserScroll = onUserScroll
         c.animates = animates
-        scrollHandle?.webView = webView
         scrollHandle?.coordinator = c
         c.setTextInsets(textInsets)
         c.setTopView(topView)
@@ -223,7 +216,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
         var animates = true
         /// Following the audio (Now Playing). Set before the first load by `makeUIView`.
         var follows = false
-        /// The load in flight opens here (the Reader's offset, handed over to Now Playing).
+        /// The load in flight opens here (the Reader's `handOverOffset`, handed to Now Playing).
         private var opensAt: CGFloat?
         private var loaded = false
         private var pendingActive: Int?
@@ -274,6 +267,28 @@ struct HTMLReadingWebView: UIViewRepresentable {
         /// source line, or the title card's slot); 0 with nothing above it. Measured on load and
         /// whenever what's above changes size.
         private(set) var textTop: CGFloat = 0
+
+        /// The scroll position handed to another page (the Reader's, to Now Playing): how far the
+        /// top of the article text sits above the top of the window. It counts what is above the
+        /// text on the page (the title, or the title card) and where the web view sits on screen
+        /// (the Reader's and Now Playing's headers differ in height, more so at large text
+        /// sizes), so the page that opens at it shows the same line at the same place on screen.
+        /// Nil while the web view is off screen.
+        var handOverOffset: CGFloat? {
+            guard let webView, webView.window != nil else { return nil }
+            return webView.scrollView.contentOffset.y - textTop - viewportTop(of: webView)
+        }
+
+        /// The scroll offset that puts the text where `handOverOffset` says, on this page.
+        private func contentOffset(handedOver offset: CGFloat, in webView: WKWebView) -> CGFloat {
+            offset + textTop + viewportTop(of: webView)
+        }
+
+        /// The window y of the top of the web view's scroll view (its viewport).
+        private func viewportTop(of webView: WKWebView) -> CGFloat {
+            let sv = webView.scrollView
+            return sv.convert(CGPoint(x: 0, y: sv.bounds.minY), to: nil).y
+        }
 
         func setTopView(_ top: ReadingTopView?) {
             guard top?.id != topID else { return }
@@ -608,12 +623,12 @@ struct HTMLReadingWebView: UIViewRepresentable {
             sendTopHeight()
             let sv = webView.scrollView
             if opensAt != nil {
-                // Handed over from the Reader: the text stays exactly where it was, measured from
-                // where the article text starts on each page. A drag or scrub meanwhile drops it.
-                measureTextTop { [weak self, weak sv] in
-                    guard let self, let sv, let opensAt = self.opensAt else { return }
+                // Handed over from the Reader: the text stays exactly where it was on screen (see
+                // `handOverOffset`). A drag or scrub meanwhile drops it.
+                measureTextTop { [weak self, weak webView, weak sv] in
+                    guard let self, let webView, let sv, let opensAt = self.opensAt else { return }
                     self.opensAt = nil
-                    self.open(at: opensAt + self.textTop, in: sv)
+                    self.open(at: self.contentOffset(handedOver: opensAt, in: webView), in: sv)
                 }
             } else if let index = pendingScrollIndex {
                 // Scrubbed while loading: the scrub is the newest request.

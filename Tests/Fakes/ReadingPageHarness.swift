@@ -12,14 +12,16 @@ final class ReadingPageHarness {
     private let window: UIWindow
     private(set) var taps: [Int] = []
 
-    init(size: CGSize = CGSize(width: 390, height: 600)) {
+    /// A window of `size`, the web view filling it below `viewportTop` (where a screen's header
+    /// would end).
+    init(size: CGSize = CGSize(width: 390, height: 600), viewportTop: CGFloat = 0) {
         var forward: (Int) -> Void = { _ in }
         coordinator = HTMLReadingWebView.Coordinator { forward($0) }
         webView = HTMLReadingWebView.makeWebView(coordinator: coordinator)
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         window = scene.map(UIWindow.init(windowScene:)) ?? UIWindow()
         window.frame = CGRect(origin: .zero, size: size)
-        webView.frame = window.bounds
+        webView.frame = CGRect(x: 0, y: viewportTop, width: size.width, height: size.height - viewportTop)
         window.addSubview(webView)
         window.isHidden = false
         forward = { [weak self] in self?.taps.append($0) }
@@ -39,12 +41,21 @@ final class ReadingPageHarness {
     }
 
     /// Loads `html` and waits for the page to finish and number its `blocks` paragraphs.
-    func load(_ html: String, blocks: Int, opensAt: CGFloat? = nil) async throws {
-        coordinator.load(html: html, opensAt: opensAt)
+    func load(_ html: String, blocks: Int, heading: ReaderHeading? = nil, opensAt: CGFloat? = nil) async throws {
+        coordinator.load(html: html, heading: heading, opensAt: opensAt)
         try await waitUntil("page loaded and indexed") {
             guard !self.webView.isLoading else { return false }
             return (try await self.js("document.querySelectorAll('[data-reader-index]').length") as? Int) == blocks
         }
+    }
+
+    /// The window y of the top of paragraph `index`'s first line.
+    func windowY(ofParagraph index: Int) async throws -> CGFloat {
+        let top = try await js("""
+            (function(){ var p = document.querySelector('[data-reader-index="\(index)"]');
+              return p.getBoundingClientRect().top - document.documentElement.getBoundingClientRect().top; })();
+            """) as? Double
+        return scrollView.convert(CGPoint(x: 0, y: CGFloat(top ?? .nan)), to: nil).y
     }
 
     func js(_ source: String) async throws -> Any? {
