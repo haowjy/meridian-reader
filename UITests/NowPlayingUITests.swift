@@ -209,6 +209,48 @@ final class NowPlayingUITests: XCTestCase {
         assertStatusBar(.dark, "on paper again")
     }
 
+    /// Held on the real scrub row, the paragraph under the thumb is the one in full ink on the
+    /// page (Now Playing passes the scrub preview to the reading page), and the rest is dimmed.
+    /// Read from a screenshot taken while the finger holds the thumb: the brightest text in the
+    /// reading area against the title card's full ink before the scrub.
+    func testTheParagraphUnderTheScrubThumbIsInFullInk() throws {
+        let app = launchLongDemo()
+        openNowPlayingFromTheLibrary(app)
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
+        play.tap()
+        XCTAssertTrue(eventually(5) { play.label == "Play" }, "paused on paragraph 1")
+        let scrubber = find(app, "readerScrubber")
+        XCTAssertTrue(scrubber.waitForExistence(timeout: 5))
+        idle(1) // the scrub map
+
+        let card = find(app, "nowPlayingTitleCard")
+        let area = CGRect(x: 0, y: find(app, "nowPlayingFrom").frame.maxY + 8, width: app.windows.firstMatch.frame.width,
+                          height: app.windows.firstMatch.frame.height * 0.6 - find(app, "nowPlayingFrom").frame.maxY)
+        XCTAssertTrue(area.contains(card.frame), "the title card at the top of the reading area")
+        let rest = textLevels(XCUIScreen.main.screenshot(), in: area)
+        let fullInk = try XCTUnwrap(rest.max())
+        XCTAssertTrue(rest.contains { $0 > 0.1 && $0 < fullInk * 0.5 }, "dimmed paragraphs at rest: \(rest)")
+
+        let from = scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.5))
+        let to = scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let held = try XCTUnwrap(screenshot(after: 3) {
+            from.press(forDuration: 0.3, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 3)
+        })
+        let levels = textLevels(held, in: area)
+        let brightest = try XCTUnwrap(levels.max())
+        print("Scrub held: brightest text \(brightest), full ink \(fullInk); lines \(levels)")
+        XCTAssertGreaterThan(brightest, fullInk * 0.85,
+                             "the paragraph under the thumb in full ink: \(brightest) vs \(fullInk), \(levels)")
+        XCTAssertTrue(levels.contains { $0 > 0.1 && $0 < fullInk * 0.5 }, "the rest dimmed: \(levels)")
+
+        // Where it landed: far from paragraph 1, whose full ink can't be what the shot showed.
+        let landed = (find(app, "readerScrubOffset").value as? String) ?? ""
+        let paragraph = Int(landed.dropFirst(2).prefix { $0.isNumber }) ?? 0
+        XCTAssertGreaterThan(paragraph, 10, "scrubbed into the middle: \(landed)")
+        XCTAssertFalse(card.exists && area.intersects(card.frame), "the title card scrolled away")
+    }
+
     func testAtTheEndNowPlayingStaysWithPlay() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-openLibrary", "-selectEngine", "apple",
@@ -307,6 +349,42 @@ final class NowPlayingUITests: XCTestCase {
         let reading = last.map(String.init(describing:)) ?? "no status bar"
         print("Status bar \(what): \(reading)")
         XCTAssertTrue(readable, "\(what): \(reading)", file: file, line: line)
+    }
+
+    /// The brightest pixel of each text line in `area` of `shot` (relative luminance; rows of
+    /// background between lines are skipped): one value per run of rows brighter than the page.
+    private func textLevels(_ shot: XCUIScreenshot, in area: CGRect) -> [Double] {
+        let image = shot.image
+        guard let cg = image.cgImage else { return [] }
+        let scale = image.scale
+        let rect = CGRect(x: area.minX * scale, y: area.minY * scale, width: area.width * scale,
+                          height: area.height * scale).integral
+        guard let crop = cg.cropping(to: rect) else { return [] }
+        let (w, h) = (crop.width, crop.height)
+        var bytes = [UInt8](repeating: 0, count: w * h * 4)
+        bytes.withUnsafeMutableBytes { buffer in
+            CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                      space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)?
+                .draw(crop, in: CGRect(x: 0, y: 0, width: w, height: h))
+        }
+        var lines: [Double] = []
+        var peak = 0.0
+        for y in 0..<h {
+            var row = 0.0
+            for x in 0..<w {
+                let i = (y * w + x) * 4
+                row = max(row, StatusBarContrast.luminance(bytes[i], bytes[i + 1], bytes[i + 2]))
+            }
+            if row > 0.06 {
+                peak = max(peak, row)
+            } else if peak > 0 {
+                lines.append(peak)
+                peak = 0
+            }
+        }
+        if peak > 0 { lines.append(peak) }
+        return lines
     }
 
     /// The demo article, 40 paragraphs long, in the Library, Apple voice at 1×.
