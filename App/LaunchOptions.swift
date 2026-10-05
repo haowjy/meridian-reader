@@ -72,7 +72,7 @@ struct LaunchOptions: Equatable {
     /// a book's Play does.
     var playsTestEPUB = false
     /// `-probeLockedFetch`: once launched, the locked-phone device check of a hidden fetch and a
-    /// silent wait between chapters (`LockedFetchProbe`).
+    /// silent wait between chapters (`LockedFetchProbe`). It runs only in the probe's own install.
     var probesLockedFetch = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)

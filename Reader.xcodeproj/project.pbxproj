@@ -349,6 +349,7 @@
 		EAC7187153FE305132CCA553 /* EPUBBookReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8F455E9FEBA3384F6FA84C /* EPUBBookReader.swift */; };
 		EB2A45A099F89419CCD1B4D9 /* LaunchMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDD574E4F1A2017EC80344A7 /* LaunchMigration.swift */; };
 		EBC121F7F6006A5C6E282A00 /* ListenEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005E3B83AADF8C65544CF419 /* ListenEngine.swift */; };
+		ECFFFE43C1DD4E5B2DF60EFA /* LockedFetchProbeVerdictTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CD5DDBCAAD01C5E087D9D6D /* LockedFetchProbeVerdictTests.swift */; };
 		EE439C569D14FF16A8E2D14D /* AppComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE9BB989753E52B53AF99267 /* AppComposition.swift */; };
 		EECFBF862383ED046527D507 /* ReaderSaveFromPageUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05F617888441C52C9E541AAB /* ReaderSaveFromPageUITests.swift */; };
 		EF6E33FC37B22D0F38C7252F /* ArticleSaveCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F164E2801F5E7C700C0E983 /* ArticleSaveCoordinator.swift */; };
@@ -427,6 +428,7 @@
 		0BBE7F8EC03F5E75F9D690AB /* FluidAudioProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FluidAudioProvider.swift; sourceTree = "<group>"; };
 		0C643CCF7388053094951A28 /* EPUBParserBudgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPUBParserBudgetTests.swift; sourceTree = "<group>"; };
 		0C86372246D1A5C3E897CFDC /* PageSourceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageSourceTests.swift; sourceTree = "<group>"; };
+		0CD5DDBCAAD01C5E087D9D6D /* LockedFetchProbeVerdictTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockedFetchProbeVerdictTests.swift; sourceTree = "<group>"; };
 		0D22A2029C730198D31E0C35 /* FolderDeletePromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderDeletePromptTests.swift; sourceTree = "<group>"; };
 		0D579D6F74B86BE55D7A628B /* LaunchAudioRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAudioRecoveryTests.swift; sourceTree = "<group>"; };
 		0DB7651FDEA2A040FCA8E9A2 /* ChunkPlaybackQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChunkPlaybackQueue.swift; sourceTree = "<group>"; };
@@ -1035,6 +1037,7 @@
 				4F67894C5FFD4A56D174721B /* ListenNowTests.swift */,
 				0204D17A8218C68C98377782 /* ListenPositionTests.swift */,
 				5FC9984E837D4B2AFB4F88AD /* LocalListenPlayerTests.swift */,
+				0CD5DDBCAAD01C5E087D9D6D /* LockedFetchProbeVerdictTests.swift */,
 				C6CF2D46D2AEE207A791CFF2 /* MorphMenuGeometryTests.swift */,
 				8A7DF6892C8A27FE35AC78CE /* NowPlayingMetadataTests.swift */,
 				869A5441CFD6C2E4AE40CBB4 /* PageScriptIsolationTests.swift */,
@@ -1968,6 +1971,7 @@
 				013461A66141FB191088BA41 /* ListeningProgressRecorderTests.swift in Sources */,
 				1D882DA70556B6F069622189 /* ListeningTimeTests.swift in Sources */,
 				C6754806535984F3F07FA7A6 /* LocalListenPlayerTests.swift in Sources */,
+				ECFFFE43C1DD4E5B2DF60EFA /* LockedFetchProbeVerdictTests.swift in Sources */,
 				5ED1E32B4687B6B8EA9288C9 /* MorphMenuGeometryTests.swift in Sources */,
 				83770A1CA931243B339E5817 /* NowPlayingMetadataTests.swift in Sources */,
 				D73AD93F735C1ABF191450D0 /* PageScriptIsolationTests.swift in Sources */,
@@ -2251,15 +2255,17 @@
 		756433C7EE5D1E4BEFB28CC2 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APP_DISPLAY_NAME = "Meridian Reader";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				BUNDLE_ID_SUFFIX = "";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = JMYU8K3WZN;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = App/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Meridian Reader";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(APP_DISPLAY_NAME)";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
@@ -2270,7 +2276,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.jimmyyao.Reader;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jimmyyao.Reader$(BUNDLE_ID_SUFFIX)";
 				PRODUCT_NAME = Reader;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2280,15 +2286,17 @@
 		7F9D220D7AE34A3143B5616E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APP_DISPLAY_NAME = "Meridian Reader";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				BUNDLE_ID_SUFFIX = "";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = JMYU8K3WZN;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = App/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Meridian Reader";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(APP_DISPLAY_NAME)";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
@@ -2299,7 +2307,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.jimmyyao.Reader;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jimmyyao.Reader$(BUNDLE_ID_SUFFIX)";
 				PRODUCT_NAME = Reader;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";

@@ -541,15 +541,21 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   through the real import into the Library's top level, after deleting an earlier launch's
   import of it with its audio. `-playTestEPUB`: once imported, play it from where Continue would
   (chapter 1, not the title page).
-- `-probeLockedFetch`: the locked-phone check web serials need (`LockedFetchProbe`). It plays a
-  two-chapter series held in memory, made of the demo book's text: chapter 1 saved, chapter 2 a
-  link chapter. 60 s after the app goes to the background, `URLPageFetcher` loads and extracts the
-  offline page `reader-test://fetch/hidden-span` (each stage gives up after 15 s). When chapter 1
-  ends, chapter 2's fetch holds playback silent for 5 s, then answers; the background wait limit
-  is raised to 10 s for that launch, so the hold decides. It writes nothing to the library. Log:
-  `Application Support/LockedFetchProbe/probe.jsonl`, this run only (`did_finish`, the snapshot,
-  saved whole as `snapshot.html`, the hold's real length, whether chapter 2 became audible), and
-  the unified log, category `LockedFetchProbe`.
+- `-probeLockedFetch`: the locked-phone check web serials need (`LockedFetchProbe`). It runs only
+  in its own install, a second app built with `BUNDLE_ID_SUFFIX=.probe
+  APP_DISPLAY_NAME="Reader Probe"` (bundle id `com.jimmyyao.Reader.probe`, its own container);
+  in Reader itself it logs `probe_refused` and does nothing. There it picks Apple's voice at 1× and
+  plays a two-chapter series held in memory, made of the demo book's text: chapter 1 saved,
+  chapter 2 a link chapter. 60 s after the app goes to the background, `URLPageFetcher` loads and
+  extracts the offline page `reader-test://fetch/hidden-span` (each stage gives up after 15 s).
+  When chapter 1 ends, chapter 2's fetch holds playback silent for 5 s, then answers; the
+  background wait limit is raised to 10 s for that launch, so the hold decides. Each check ends in
+  a `probe_verdict` line, `pass`, `fail` or `inconclusive` (the run didn't stay in the background
+  with the phone locked, chapter 1 wasn't playing through the fetch, or the app came to the
+  front). Log: `Application Support/LockedFetchProbe/probe.jsonl` in the probe's container, this
+  run only (`did_finish`, the snapshot, saved whole as `snapshot.html`, the hold's real length,
+  whether chapter 2 became audible, and app, lock and audio state on each line), and the unified
+  log, category `LockedFetchProbe`.
 - `-selectEngine local.kokoro|apple`, `-kokoroUnits <label>` (Core ML route routing).
 - **CPU route benchmark** (panel → "CPU route benchmark"): `KokoroONNXSession` at 1–4 threads and
   QoS variants on a fixed 501-phoneme passage and its first three sentences (load ms, cold / warm

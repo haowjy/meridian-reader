@@ -254,8 +254,9 @@ enum LaunchHooks {
     }
 
     /// `-bakeArticle <id prefix>` (e.g. `xcrun devicectl device process launch …
-    /// com.jimmyyao.Reader -bakeArticle 0C25B7EE`): render a saved article's audio top-down
-    /// without playing it, then read ListenTiming / TTSCache.
+    /// com.jimmyyao.Reader -- -bakeArticle 0C25B7EE`; without the `--`, devicectl takes the
+    /// argument for its own flags): render a saved article's audio top-down without playing it,
+    /// then read ListenTiming / TTSCache.
     static func bakeArticle(prefix: String, in library: LibraryStore, speech: SpeechController) {
         let pages = (try? library.context.fetch(FetchDescriptor<Page>())) ?? []
         guard let page = pages.first(where: { $0.hasText && $0.listenKey.uuidString.hasPrefix(prefix) }) else {
