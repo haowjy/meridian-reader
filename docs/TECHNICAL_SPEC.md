@@ -164,12 +164,13 @@ renders and the resume point as they were. A record is retired only once its pos
 on disk: the destination's saved audio index aligned with its paragraphs, every file it lists
 there, the merged page's directory gone. A record that fails is kept, with everything after it,
 for the next launch; so is the work of a launch that dies after the save. Meanwhile the pages
-those records touch (a merge's source and destination) are held (`ArticleAudioCache.heldKeys`):
+those records touch (a merge's source and destination) are held (`ArticleAudioCache.held`):
 the launch's engine purges (which then run again next launch) and the prune leave their audio
-alone, and their pending renders aren't adopted. The next launch does
-them first, in `AppComposition.prepareAudioCache` before the first frame: before the launch
-migrations and the prune of unsaved audio clean the cache, before anything reads it, and before
-the engine adopts saved bake jobs (`finishAudioWork`), which waits for the rest of the launch's
+alone, and their pending renders aren't adopted. Records that can't be read hold all audio this
+way (logged as `library_audio_work_unreadable`) until a run of the work reads them. The next
+launch does them first, in `AppComposition.prepareAudioCache` before the first frame: before the
+launch migrations and the prune of unsaved audio clean the cache, before anything reads it, and
+before the engine adopts saved bake jobs (`finishAudioWork`), which waits for the rest of the launch's
 maintenance too (`LISTEN_PLAYBACK.md`, Pending jobs). Replay doesn't depend on the source still
 existing: the audio cache's changes are copy-on-write (`LISTEN_PLAYBACK.md`, Audio cache), so
 work stopped at any step is done again from what is on disk, losing nothing. The resume point

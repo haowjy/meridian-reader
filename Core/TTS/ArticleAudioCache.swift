@@ -69,11 +69,27 @@ final class ArticleAudioCache {
     /// checked when the index is loaded and when a unit is stored — so reads never touch the
     /// disk; they run on every scrubber redraw and per synth chunk. `.some(nil)`: no index.
     @ObservationIgnored private var indexes: [UUID: IndexFile?] = [:]
-    /// Articles whose audio waits for work a launch couldn't finish (`LibraryStore.finishAudioWork`:
-    /// a merge's source and destination, a page whose paragraphs were rebuilt). Until a later run
-    /// finishes it, the engine purges and the prune leave their directories alone, and their saved
-    /// bake jobs aren't adopted: the work still needs what is there.
-    @ObservationIgnored var heldKeys: Set<UUID> = []
+    /// Audio that waits for library work a launch couldn't finish (`LibraryStore.finishAudioWork`).
+    /// Until a run of that work replaces it, the engine purges and the prune leave it alone, and
+    /// its saved bake jobs aren't adopted: the work still needs what is there.
+    @ObservationIgnored var held: Hold = .nothing
+
+    enum Hold: Equatable {
+        /// These pages' audio: a merge's source and destination, a page whose paragraphs were
+        /// rebuilt.
+        case pages(Set<UUID>)
+        /// Every page's: the stored work couldn't be read, so any audio may be what it needs.
+        case all
+
+        static let nothing = Hold.pages([])
+
+        func contains(_ articleID: UUID) -> Bool {
+            switch self {
+            case .pages(let keys): keys.contains(articleID)
+            case .all: true
+            }
+        }
+    }
     #if DEBUG
     /// Tests: sees each step of a copy-on-write change (`ChangeStep`); throwing stops the change
     /// right there, as if the app died.
@@ -519,7 +535,7 @@ extension ArticleAudioCache {
     }
 
     /// Prune ephemeral caches older than `maxAge` or when total ephemeral size exceeds `maxBytes`.
-    /// Saved caches are never pruned here, nor held ones (`heldKeys`). Choice: survive leaving
+    /// Saved caches are never pruned here, nor held ones (`held`). Choice: survive leaving
     /// Reader + app restart; TTL by age/size.
     @discardableResult
     func pruneEphemeral(
@@ -545,7 +561,7 @@ extension ArticleAudioCache {
         for dir in dirs {
             var isDir: ObjCBool = false
             guard fileManager.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue else { continue }
-            guard let id = UUID(uuidString: dir.lastPathComponent), !heldKeys.contains(id) else { continue }
+            guard let id = UUID(uuidString: dir.lastPathComponent), !held.contains(id) else { continue }
             guard let meta = loadMeta(for: id), meta.kind == .ephemeral else { continue }
             let bytes = directorySize(dir)
             ephemeral.append(Entry(id: id, url: dir, meta: meta, bytes: bytes))
@@ -635,14 +651,14 @@ extension ArticleAudioCache {
         var bytes: Int64 = 0
         var orphanFiles = 0
         var orphanBytes: Int64 = 0
-        /// Articles left alone because they are held (`heldKeys`): purge again once nothing is.
+        /// Articles left alone because they are held (`held`): purge again once nothing is.
         var held = 0
     }
 
     /// Delete every cached unit rendered by `engineID` (all articles), drop those index entries
     /// (so bake marks recompute), and delete CAFs no index references (orphans from older
     /// builds). Undecodable pre-engine-key indexes count as `legacyEngineID`. Held articles
-    /// (`heldKeys`) are left alone and counted. Launch-time only: nothing may be playing or baking.
+    /// (`held`) are left alone and counted. Launch-time only: nothing may be playing or baking.
     @discardableResult
     func purgeEngine(_ engineID: String) -> PurgeReport {
         var report = PurgeReport()
@@ -651,7 +667,7 @@ extension ArticleAudioCache {
         }
         for dir in dirs {
             guard let articleID = UUID(uuidString: dir.lastPathComponent) else { continue }
-            if heldKeys.contains(articleID) {
+            if held.contains(articleID) {
                 report.held += 1
                 continue
             }

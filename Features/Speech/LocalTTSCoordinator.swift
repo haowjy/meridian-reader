@@ -617,11 +617,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// Persisted pending jobs → queue, once the engine is loaded and the launch hold is over. The
     /// focused (active) article stays #1; see `GlobalSynthQueue.adoptPending`. A job for audio
-    /// held for unfinished library work (`ArticleAudioCache.heldKeys`) waits on disk.
+    /// held for unfinished library work (`ArticleAudioCache.held`) waits on disk.
     private func drainPendingIntoQueue() {
         guard usesLocalEngine, !isHeldForLaunch else { return }
         let pending = PendingBakeJobStore.shared.pendingJobs()
-            .filter { localLanguageAllows($0.paragraphs) && !audioCache.heldKeys.contains($0.articleID) }
+            .filter { localLanguageAllows($0.paragraphs) && !audioCache.held.contains($0.articleID) }
         guard !pending.isEmpty else { return }
         print("[SynthQueue] draining \(pending.count) pending job(s)")
         synthQueue.adoptPending(pending.map { job in

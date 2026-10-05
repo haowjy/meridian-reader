@@ -19,11 +19,12 @@ enum LibraryAudioWorkError: Error {
     case notAligned(UUID)
 }
 
-/// What a run of the stored audio work did: how many records it retired, and the pages whose
-/// audio the records left waiting (the one that failed and every one after it) touch.
+/// What a run of the stored audio work did: how many records it retired, and the audio the
+/// records it left waiting need: the pages the one that failed and every one after it touch, or
+/// all of it when the records couldn't be read.
 struct LibraryAudioWorkOutcome: Equatable {
     var finished = 0
-    var waiting: Set<UUID> = []
+    var held = ArticleAudioCache.Hold.nothing
 }
 
 /// Files outside the library store change only after the library change they belong to is saved.
@@ -100,8 +101,8 @@ extension LibraryStore {
 
     /// At launch, before anything reads, cleans or renders the audio cache
     /// (`AppComposition.prepareAudioCache`): work a launch saved but didn't finish. Returns how
-    /// many records were finished and the pages whose audio the rest leave waiting, which the
-    /// cache holds meanwhile (`ArticleAudioCache.heldKeys`).
+    /// many records were finished and the audio the rest leave waiting, which the cache holds
+    /// meanwhile (`ArticleAudioCache.held`).
     @discardableResult
     func finishAudioWork() -> LibraryAudioWorkOutcome {
         performStoredWork(planned: [])
@@ -114,19 +115,22 @@ extension LibraryStore {
     /// is kept for the next launch, and so is everything after it (later work can build on it);
     /// the pages they touch, source and destination, are held in the audio cache until a run
     /// finishes them: the engine purges and the prune leave their audio alone, and their saved
-    /// bake jobs aren't adopted. `planned`: records this process planned, whose crash target was
-    /// read in the numbering the work started from.
+    /// bake jobs aren't adopted. Records that can't be read may need any page's audio, so all
+    /// of it is held until a run reads them. `planned`: records this process planned, whose crash
+    /// target was read in the numbering the work started from.
     @discardableResult
     private func performStoredWork(planned: Set<ObjectIdentifier>) -> LibraryAudioWorkOutcome {
+        var outcome = LibraryAudioWorkOutcome()
+        defer { tts.audioCache.held = outcome.held }
         let rows: [LibraryAudioWork]
         do {
-            rows = try context.fetch(FetchDescriptor<LibraryAudioWork>(sortBy: [SortDescriptor(\.sequence)]))
+            rows = try fetchAudioWork(context)
         } catch {
-            log("audio work unreadable, left for the next launch: \(error)")
-            return LibraryAudioWorkOutcome()
+            outcome.held = .all
+            log("audio work unreadable, all audio held from the purges, the prune and bakes until it reads: \(error)")
+            ListenTimingLog.log("library_audio_work_unreadable", ["error": "\(error)"])
+            return outcome
         }
-        var outcome = LibraryAudioWorkOutcome()
-        defer { tts.audioCache.heldKeys = outcome.waiting }
         guard !rows.isEmpty else { return outcome }
         if planned.isEmpty { log("audio work: finishing \(rows.count) left by an earlier launch") }
         for row in rows {
@@ -134,11 +138,12 @@ extension LibraryStore {
                 try perform(row, live: planned.contains(ObjectIdentifier(row)))
             } catch {
                 let waiting = rows[outcome.finished...]
-                outcome.waiting = Set(waiting.flatMap { [$0.key, $0.fromKey].compactMap { $0 } })
+                let keys = Set(waiting.flatMap { [$0.key, $0.fromKey].compactMap { $0 } })
+                outcome.held = .pages(keys)
                 log("audio work \(row.kindRaw) \(Self.short(row.key)) not finished, kept with \(waiting.count - 1) after it for the next launch: \(error)")
                 ListenTimingLog.log("library_audio_work_failed", [
                     "kind": row.kindRaw, "key": row.key.map(ListenTimingLog.shortKey) ?? "-",
-                    "waiting": waiting.count, "held": outcome.waiting.count, "error": "\(error)",
+                    "waiting": waiting.count, "held": keys.count, "error": "\(error)",
                 ])
                 break
             }

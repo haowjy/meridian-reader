@@ -46,7 +46,8 @@ enum AppComposition {
     /// loads meanwhile. Then the recovery barrier: audio work an earlier launch saved but didn't
     /// finish (`LibraryStore.finishAudioWork`), so that nothing reads, cleans or renders a page's
     /// audio before it is where the library says; work that still can't finish holds the audio
-    /// of the pages it touches (`ArticleAudioCache.heldKeys`) for a later launch. Then the
+    /// of the pages it touches, and work that can't be read holds all of it
+    /// (`ArticleAudioCache.held`), for a later launch. Then the
     /// one-time launch migrations (which can purge an engine's audio and orphan files, held audio
     /// excepted), the chunk scratch (nothing plays at launch) and the prune of unsaved audio
     /// (7 days, 500 MB; held audio excepted).

@@ -26,6 +26,10 @@ final class LibraryStore {
     @ObservationIgnored var iconTried = Set<UUID>()
     /// How `commit` saves; tests make it fail.
     @ObservationIgnored var saveContext: (ModelContext) throws -> Void = { try $0.save() }
+    /// How the stored audio work is read, in order; tests make it fail.
+    @ObservationIgnored var fetchAudioWork: (ModelContext) throws -> [LibraryAudioWork] = {
+        try $0.fetch(FetchDescriptor<LibraryAudioWork>(sortBy: [SortDescriptor(\.sequence)]))
+    }
     /// Audio work planned with the changes not saved yet (`LibraryStore+AudioWork`).
     @ObservationIgnored var audioPlan = LibraryAudioWorkPlan()
     @ObservationIgnored let legacy: LegacyLibrarySources

@@ -146,7 +146,7 @@ final class LaunchAudioRecoveryTests: XCTestCase {
         AppComposition.prepareAudioCache(library: env.library, migrations: [KokoroAudioCachePurge()])
 
         XCTAssertEqual(work(), 1, "the merge still waits")
-        XCTAssertEqual(tts.audioCache.heldKeys, [saved, played])
+        XCTAssertEqual(tts.audioCache.held, .pages([saved, played]))
         XCTAssertEqual(audio(played), merged, "neither the purge nor the prune took the merged audio")
         XCTAssertEqual(env.cache.loadMeta(for: played)?.kind, .ephemeral)
         XCTAssertEqual(env.defaults.integer(forKey: KokoroAudioCachePurge.versionKey), KokoroAudioCachePurge.version - 1,
@@ -161,7 +161,66 @@ final class LaunchAudioRecoveryTests: XCTestCase {
         try env.relaunch()
         AppComposition.prepareAudioCache(library: env.library, migrations: [])
         XCTAssertEqual(work(), 0)
-        XCTAssertEqual(env.tts.audioCache.heldKeys, [])
+        XCTAssertEqual(env.tts.audioCache.held, .nothing)
+        XCTAssertFalse(env.cache.hasDirectory(for: played))
+        XCTAssertEqual(audio(saved), merged, "the kept page has all of the merged audio")
+        env.tts.endLaunchHold()
+    }
+
+    /// An earlier launch saved a dedupe merge (a page played without saving, whose audio is
+    /// unsaved and 30 days old, into the saved page for its address) and died in its audio work.
+    /// The next launch can't read the stored work at all, so it can't tell which pages' audio it
+    /// needs: it holds everything. The engine purge and the prune leave the merged audio alone
+    /// (the purge runs again next launch), and no pending render is adopted, the merged page's
+    /// and the kept page's included. A later launch that can read the work finishes the merge.
+    func testUnreadableWorkHoldsAllAudioFromTheCleanupAndBakes() async throws {
+        let text = ["One paragraph.", "Two paragraphs."]
+        let saved = UUID(), played = UUID()
+        keys = [saved, played]
+        _ = page(saved, "https://example.com/article", paragraphs: text, added: env.now, position: 1)
+        _ = page(played, "https://example.com/article?utm_source=feed", paragraphs: text, added: nil, position: 0)
+        try env.context.save()
+        for (i, line) in text.enumerated() { try env.storeAudio(played, paragraph: i, text: line, level: 0.3 + Float(i) / 10) }
+        env.cache.markEphemeral(cacheKey: played, lastAccess: Date().addingTimeInterval(-30 * 24 * 3600))
+        let merged = audio(played)
+        XCTAssertEqual(merged.count, 2)
+        XCTAssertEqual(env.cache.index(for: played)?.engineID, SpeechEngineID.kokoro.rawValue, "audio the Kokoro purge would take")
+        for key in [saved, played] {
+            PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: text, voiceID: "voiceA",
+                                                      plan: .topDown(paragraphCount: text.count))
+        }
+        env.cache.faultHook = { _ in throw Died() }
+        XCTAssertEqual(env.library.dedupe().mergedPages, 1)
+        XCTAssertEqual(work(), 1, "saved, not done")
+
+        // Next launch: a Kokoro audio purge is due, and the stored work can't be read.
+        env.defaults.set(SpeechEngineID.kokoro.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
+        env.defaults.set(KokoroAudioCachePurge.version - 1, forKey: KokoroAudioCachePurge.versionKey)
+        try env.relaunch()
+        let tts = env.tts
+        tts.synthQueue.bakeConditions = { BakeConditions(thermalState: .serious, isLowPowerModeEnabled: false) }
+        env.library.fetchAudioWork = { _ in throw Died() }
+        AppComposition.prepareAudioCache(library: env.library, migrations: [KokoroAudioCachePurge()])
+
+        XCTAssertEqual(work(), 1, "the merge still waits")
+        XCTAssertEqual(tts.audioCache.held, .all)
+        XCTAssertEqual(audio(played), merged, "neither the purge nor the prune took the merged audio")
+        XCTAssertEqual(env.cache.loadMeta(for: played)?.kind, .ephemeral)
+        XCTAssertEqual(env.defaults.integer(forKey: KokoroAudioCachePurge.versionKey), KokoroAudioCachePurge.version - 1,
+                       "the purge runs again once the work can be read")
+        for _ in 0..<200 where !tts.usesLocalEngine { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertTrue(tts.usesLocalEngine)
+        AppLaunch.maintainLibrary(env.library)
+        for key in [saved, played] {
+            XCTAssertFalse(tts.synthQueue.hasJob(cacheKey: key), "a pending render waits while the work can't be read")
+            XCTAssertTrue(PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == key }, "on disk")
+        }
+
+        // A later launch can read it.
+        try env.relaunch()
+        AppComposition.prepareAudioCache(library: env.library, migrations: [])
+        XCTAssertEqual(work(), 0)
+        XCTAssertEqual(env.tts.audioCache.held, .nothing)
         XCTAssertFalse(env.cache.hasDirectory(for: played))
         XCTAssertEqual(audio(saved), merged, "the kept page has all of the merged audio")
         env.tts.endLaunchHold()
