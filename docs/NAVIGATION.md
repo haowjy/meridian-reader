@@ -91,9 +91,10 @@ the ⋯ slot too.
 - **🎧** (headphones, trailing end of the address field) also shows only on readable pages. It is
   the page's own play button: grey when the page isn't what you hear (tap: listen now: a spinner
   while the page is extracted, what's playing keeps playing until this page is ready, then it
-  replaces it; if extraction fails or finds too little text, 🎧 goes back to grey and a toast
-  says "Nothing to listen to on this page"; Stop Listening, any other ▶ / ⏸ or another 🎧 while
-  it extracts cancels it, silently); jade with moving bars when this page is playing
+  replaces it, at the page's spot if it has one, or from the top if it was heard to the end; if
+  extraction fails or finds too little text, 🎧 goes back to grey and a toast says "Nothing to
+  listen to on this page"; Stop Listening, any other ▶ / ⏸ or another 🎧 while it extracts
+  cancels it, silently); jade with moving bars when this page is playing
   (tap: pause); jade with still bars when it is loaded and paused (tap: resume). It never
   navigates.
 - **⋯** opens a Safari-style menu panel that grows out of the button (covers the ⋯, no arrow):

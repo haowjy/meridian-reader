@@ -97,6 +97,31 @@ final class ListenNowTests: XCTestCase {
         XCTAssertEqual(speech.playState(of: .page(c.listenKey)), .playing)
     }
 
+    /// 🎧 resumes a page the library has at its spot, inside the paragraph; a page heard to the
+    /// end (saved, or played without saving) starts again from the top.
+    func testListenResumesAtTheSpotAndAPageHeardToTheEndStartsOver() async throws {
+        let page = library.save(library.readerArticle(url: pageB, extracted: DelayedExtractor.article(title: "B")))
+        let doc = ParagraphDocument(parts: page.cachedListenParagraphs ?? [])
+        let spot = doc.startUTF16Offset(forParagraph: 1) + 7
+        library.recordPosition(page, paragraph: 1, utf16Offset: spot)
+        var request = tapListen(pageB)
+        try await extractor.waitForPending()
+        extractor.finish(with: DelayedExtractor.article(title: "B"))
+        guard case .started = await request.value else { return XCTFail("B starts") }
+        XCTAssertEqual(speech.currentParagraphIndex, 1, "at its paragraph")
+        XCTAssertEqual(speech.spokenUTF16Offset, spot, "and its spot in it")
+
+        speech.stop()
+        library.recordPosition(page, paragraph: 2, utf16Offset: doc.startUTF16Offset(forParagraph: 2) + 5)
+        library.recordFinished(page)
+        request = tapListen(pageB)
+        try await extractor.waitForPending()
+        extractor.finish(with: DelayedExtractor.article(title: "B"))
+        guard case .started = await request.value else { return XCTFail("B starts again") }
+        XCTAssertEqual(speech.currentParagraphIndex, 0, "heard to the end: from the top")
+        XCTAssertEqual(speech.spokenUTF16Offset, 0)
+    }
+
     func testPausingWhatYouHearDuringExtractionStartsNothing() async throws {
         let a = playA()
         let request = tapListen(pageB)

@@ -53,13 +53,15 @@ struct PageArticleService {
             speech.endPreparing(request)
             return .nothingToListenTo
         }
-        // The page's spot inside its paragraph, when the library has it (saved or played).
+        // The page's spot, when the library has it (saved, or played without saving); a page
+        // heard to the end starts again from the top, as the Reader's Listen Again does.
         let page = library.page(key: article.id, canonicalURL: article.canonicalURL)
+        let heardToTheEnd = page?.finishedAt != nil
         speech.localTTS.prepareListenIdentity(key: article.id, paragraphs: article.document.paragraphs,
                                               trustedParagraphs: article.trustedParagraphs,
                                               legacyKeys: article.legacyCacheKeys, isLivePlayback: false)
-        speech.listen(to: article, fromParagraph: article.resumeParagraph,
-                      utf16Offset: page?.positionUTF16)
+        speech.listen(to: article, fromParagraph: heardToTheEnd ? 0 : article.resumeParagraph,
+                      utf16Offset: heardToTheEnd ? nil : page?.positionUTF16)
         return .started(article)
     }
 
