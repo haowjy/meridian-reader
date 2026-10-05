@@ -28,9 +28,40 @@ enum LaunchHooks {
         if options.opensDemoInReader { openNewestInReader(in: library, shell: shell) }
     }
 
-    /// Last, after crash resume (which wins): `-chainDemoChapters`.
+    /// Last, after crash resume (which wins): `-importTestEPUB`, `-playTestEPUB`, `-chainDemoChapters`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController) async {
+        if options.importsTestEPUB { await importTestEPUB(in: library) }
+        if options.playsTestEPUB { await playTestEPUB(library: library, speech: speech) }
         if options.chainsDemoChapters { await chainDemoChapters(library: library, speech: speech) }
+    }
+
+    /// `-importTestEPUB`: the synthetic EPUB, written to a temporary file and imported into the top
+    /// level through `BookImporter`. An earlier launch's import of it is deleted first, with its
+    /// audio, so the book starts unplayed. Logged as `debug_import_test_epub`.
+    @discardableResult
+    static func importTestEPUB(in library: LibraryStore) async -> Folder? {
+        if let earlier = library.book(key: TestEPUB.bookKey) { try? library.deleteFolder(earlier, keepContents: false) }
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("test-book.epub")
+        defer { try? FileManager.default.removeItem(at: file) }
+        do {
+            try TestEPUB.write(to: file)
+            let outcome = try await BookImporter(library: library).importBook(at: file, into: nil, ifAlreadyInLibrary: .cancel)
+            guard case .added(let book) = outcome else { return nil }
+            ListenTimingLog.log("debug_import_test_epub", ["ok": true, "chapters": library.playOrder(of: book).count], console: true)
+            return book
+        } catch {
+            ListenTimingLog.log("debug_import_test_epub", ["ok": false, "error": "\(error)"], console: true)
+            return nil
+        }
+    }
+
+    /// `-playTestEPUB`: the imported test book plays from its place (chapter 1 the first time).
+    static func playTestEPUB(library: LibraryStore, speech: SpeechController) async {
+        guard let book = library.book(key: TestEPUB.bookKey), let start = await play(book, library: library, speech: speech) else {
+            ListenTimingLog.log("debug_play_test_epub", ["started": false], console: true)
+            return
+        }
+        ListenTimingLog.log("debug_play_test_epub", ["started": true, "title": start.page.title], console: true)
     }
 
     /// `-seedDemoBook`: the demo book (a skipped title page and three chapters) and one page in no
@@ -92,11 +123,20 @@ enum LaunchHooks {
     /// time), after waiting (≤ 20 s) for the on-device engine so it doesn't start on Apple. Logged
     /// as `debug_chain_demo_chapters`; each boundary then logs `chapter_boundary`.
     static func chainDemoChapters(library: LibraryStore, speech: SpeechController) async {
-        guard speech.activeSessionID == nil, let book = demoBooks(in: library).first,
-              let start = library.continueStart(of: book) else {
+        guard let book = demoBooks(in: library).first, let start = await play(book, library: library, speech: speech) else {
             ListenTimingLog.log("debug_chain_demo_chapters", ["started": false], console: true)
             return
         }
+        ListenTimingLog.log("debug_chain_demo_chapters", [
+            "started": true, "key": ListenTimingLog.shortKey(start.page.listenKey), "p": start.paragraph,
+            "engine": speech.activeEngine?.name ?? "—", "build": LocalTTSCoordinator.buildConfiguration,
+        ], console: true)
+    }
+
+    /// Plays `book` from where Continue would, unless something already plays, after waiting
+    /// (≤ 20 s) for the on-device engine so it doesn't start on Apple. Returns where it started.
+    private static func play(_ book: Folder, library: LibraryStore, speech: SpeechController) async -> (page: Page, paragraph: Int)? {
+        guard speech.activeSessionID == nil, let start = library.continueStart(of: book) else { return nil }
         let tts = speech.localTTS
         var waited = 0
         while tts.synth.state.warmingEngineID != nil, waited < 100 {
@@ -104,10 +144,7 @@ enum LaunchHooks {
             waited += 1
         }
         speech.toggle(.page(start.page), resumeParagraph: start.paragraph, resumeUTF16Offset: start.utf16Offset)
-        ListenTimingLog.log("debug_chain_demo_chapters", [
-            "started": true, "key": ListenTimingLog.shortKey(start.page.listenKey), "p": start.paragraph,
-            "engine": speech.activeEngine?.name ?? "—", "build": LocalTTSCoordinator.buildConfiguration,
-        ], console: true)
+        return (start.page, start.paragraph)
     }
 
     /// `-seedDemoArticle`: replace the saved and played pages with one deterministic article, so

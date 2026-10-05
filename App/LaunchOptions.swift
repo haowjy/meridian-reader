@@ -52,6 +52,12 @@ struct LaunchOptions: Equatable {
     /// `-chainDemoChapters`: once launched, play the demo book from its place (chapter 1 the first
     /// time) and let it carry on (the locked-screen device check).
     var chainsDemoChapters = false
+    /// `-importTestEPUB`: import the synthetic EPUB (`TestEPUB`) into the Library's top level
+    /// through the real import, replacing an earlier launch's import of it with its audio.
+    var importsTestEPUB = false
+    /// `-playTestEPUB` (with `-importTestEPUB`): once imported, play the book from its place, as
+    /// a book's Play does.
+    var playsTestEPUB = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -85,6 +91,8 @@ struct LaunchOptions: Equatable {
         rerunsLibraryMigration = flags.contains("-rerunLibraryMigration")
         seedsDemoBook = flags.contains("-seedDemoBook")
         chainsDemoChapters = flags.contains("-chainDemoChapters")
+        importsTestEPUB = flags.contains("-importTestEPUB")
+        playsTestEPUB = flags.contains("-playTestEPUB")
     }
 
     /// Live Google suggestions in the address field.
