@@ -20,7 +20,8 @@ struct RetiredEngineCleanup: LaunchMigration {
         guard !defaults.bool(forKey: engine.doneKey) else { return }
         let cache = tts.audioCache.purgeEngine(engine.id.rawValue)
         let modelBytes = engine.deleteFiles()
-        defaults.set(true, forKey: engine.doneKey)
+        // Audio held for unfinished library work is purged by a later launch.
+        if cache.held == 0 { defaults.set(true, forKey: engine.doneKey) }
         let total = cache.bytes + cache.orphanBytes + modelBytes
         ListenDebugLog.shared.append(
             "retired \(engine.displayName): freed \(FileSizes.label(total)) (models \(FileSizes.label(modelBytes)), "

@@ -171,7 +171,7 @@ final class LibraryAudioWorkTests: XCTestCase {
 
             try env.relaunch()
             try assertNothingLost(env, [rows.merged, rows.kept], needed, "died at step \(k)")
-            XCTAssertEqual(env.library.finishAudioWork(), 1, "step \(k)")
+            XCTAssertEqual(env.library.finishAudioWork().finished, 1, "step \(k)")
             try assertMerged(rows, env, "step \(k):")
             for (i, text) in rows.keptText.enumerated() {
                 XCTAssertEqual(try bytes(env, rows.kept, paragraph: i), needed[text], "step \(k): paragraph \(i)'s own audio")
@@ -258,7 +258,7 @@ final class LibraryAudioWorkTests: XCTestCase {
                           || hashes.contains(ArticleIdentity.paragraphHash(f.new[f.firstPiece])),
                           "died at step \(k): the giant's audio, or its first slice")
 
-            XCTAssertEqual(env.library.finishAudioWork(), 1, "step \(k)")
+            XCTAssertEqual(env.library.finishAudioWork().finished, 1, "step \(k)")
             XCTAssertTrue(env.cache.isAligned(articleID: f.key, paragraphs: f.new), "step \(k)")
             let after = try XCTUnwrap(f.new.firstIndex(of: f.old[f.iAfter]))
             XCTAssertEqual(try bytes(env, f.key, paragraph: after), f.kept[f.old[f.iAfter]],
@@ -283,12 +283,12 @@ final class LibraryAudioWorkTests: XCTestCase {
 
         try env.relaunch()
         env.cache.faultHook = { _ in throw Died() }
-        XCTAssertEqual(library.finishAudioWork(), 0, "still failing")
+        XCTAssertEqual(library.finishAudioWork().finished, 0, "still failing")
         XCTAssertEqual(pendingWork().count, 1, "still kept")
         try assertNothingLost(env, [rows.merged, rows.kept], needed, "while it fails")
 
         try env.relaunch()
-        XCTAssertEqual(library.finishAudioWork(), 1)
+        XCTAssertEqual(library.finishAudioWork().finished, 1)
         try assertMerged(rows)
     }
 
@@ -317,7 +317,7 @@ final class LibraryAudioWorkTests: XCTestCase {
 
         try env.relaunch()
         try assertNothingLost(env, [keptKey], ["Played once.": audio], "after the rename")
-        XCTAssertEqual(library.finishAudioWork(), 1)
+        XCTAssertEqual(library.finishAudioWork().finished, 1)
         XCTAssertFalse(env.cache.hasDirectory(for: mergedKey))
         XCTAssertEqual(try bytes(env, keptKey, paragraph: 0), audio)
         XCTAssertTrue(pendingWork().isEmpty)
@@ -356,7 +356,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         try env.relaunch()
         XCTAssertEqual(env.pages().map(\.key), [rows.kept], "the merge itself was saved")
         XCTAssertEqual(pendingWork().count, 1, "with its audio work")
-        XCTAssertEqual(library.finishAudioWork(), 1)
+        XCTAssertEqual(library.finishAudioWork().finished, 1)
         try assertMerged(rows)
         XCTAssertEqual(library.migrateLegacy().copiedArticles, 0, "the copy was recorded")
     }
@@ -397,7 +397,7 @@ final class LibraryAudioWorkTests: XCTestCase {
 
         try env.relaunch()
         XCTAssertEqual(pendingWork().count, 1, "the done work's record survived")
-        XCTAssertEqual(library.finishAudioWork(), 1)
+        XCTAssertEqual(library.finishAudioWork().finished, 1)
         XCTAssertEqual(ListenResumePointStore.shared.load()?.paragraph, shifted, "moved once")
         XCTAssertEqual(env.cache.entry(articleID: key, paragraphIndex: shifted)?.textHash,
                        ArticleIdentity.paragraphHash(new.paragraphs[shifted]))
@@ -488,7 +488,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         }
 
         try env.relaunch()
-        XCTAssertEqual(library.finishAudioWork(), 1, "retired")
+        XCTAssertEqual(library.finishAudioWork().finished, 1, "retired")
         for (i, text) in fresh.enumerated() {
             XCTAssertEqual(env.cache.entry(articleID: f.key, paragraphIndex: i)?.textHash, ArticleIdentity.paragraphHash(text))
             XCTAssertEqual(try bytes(env, f.key, paragraph: i), rendered[i], "the newer text's audio is untouched")
@@ -514,7 +514,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         let edited = try XCTUnwrap(bytes(env, rows.kept, paragraph: 1))
 
         try env.relaunch()
-        XCTAssertEqual(library.finishAudioWork(), 1)
+        XCTAssertEqual(library.finishAudioWork().finished, 1)
         XCTAssertEqual(try bytes(env, rows.kept, paragraph: 0), needed["Alpha one."], "the merged page's audio fills in")
         XCTAssertEqual(try bytes(env, rows.kept, paragraph: 1), edited, "the newer audio stays")
         XCTAssertEqual(try bytes(env, rows.kept, paragraph: 2), needed["Gamma three."])
@@ -533,7 +533,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         library.delete(try XCTUnwrap(library.page(key: rows.kept)))
 
         try env.relaunch()
-        XCTAssertEqual(library.finishAudioWork(), 1)
+        XCTAssertEqual(library.finishAudioWork().finished, 1)
         XCTAssertTrue(env.cache.hasCache(for: rows.merged), "not deleted outright")
         XCTAssertEqual(env.cache.loadMeta(for: rows.merged)?.kind, .ephemeral)
         XCTAssertFalse(env.cache.hasDirectory(for: rows.kept), "nothing moved under the deleted page's key")

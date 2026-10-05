@@ -162,7 +162,10 @@ after the save. A failed save is rolled back with its work, leaving the audio ca
 renders and the resume point as they were. A record is retired only once its postconditions hold
 on disk: the destination's saved audio index aligned with its paragraphs, every file it lists
 there, the merged page's directory gone. A record that fails is kept, with everything after it,
-for the next launch; so is the work of a launch that dies after the save. The next launch does
+for the next launch; so is the work of a launch that dies after the save. Meanwhile the pages
+those records touch (a merge's source and destination) are held (`ArticleAudioCache.heldKeys`):
+the launch's engine purges (which then run again next launch) and the prune leave their audio
+alone, and their pending renders aren't adopted. The next launch does
 them first, in `AppComposition.prepareAudioCache` before the first frame: before the launch
 migrations and the prune of unsaved audio clean the cache, before anything reads it, and before
 the engine adopts saved bake jobs (`finishAudioWork`), which waits for the rest of the launch's

@@ -19,6 +19,13 @@ enum LibraryAudioWorkError: Error {
     case notAligned(UUID)
 }
 
+/// What a run of the stored audio work did: how many records it retired, and the pages whose
+/// audio the records left waiting (the one that failed and every one after it) touch.
+struct LibraryAudioWorkOutcome: Equatable {
+    var finished = 0
+    var waiting: Set<UUID> = []
+}
+
 /// Files outside the library store change only after the library change they belong to is saved.
 /// The layout pass and dedupe plan their audio work (`planAlign`, `planMerge`) as records in the
 /// same save; `commit` does it once the save succeeds and retires each record once its
@@ -93,9 +100,10 @@ extension LibraryStore {
 
     /// At launch, before anything reads, cleans or renders the audio cache
     /// (`AppComposition.prepareAudioCache`): work a launch saved but didn't finish. Returns how
-    /// many records were finished.
+    /// many records were finished and the pages whose audio the rest leave waiting, which the
+    /// cache holds meanwhile (`ArticleAudioCache.heldKeys`).
     @discardableResult
-    func finishAudioWork() -> Int {
+    func finishAudioWork() -> LibraryAudioWorkOutcome {
         performStoredWork(planned: [])
     }
 
@@ -103,43 +111,48 @@ extension LibraryStore {
     /// (the destination's saved index aligned with its paragraphs and every CAF it lists there,
     /// a merged page's directory gone), whether or not its source still exists: work an app died
     /// in the middle of is simply done again, and every step is idempotent. A record that fails
-    /// is kept for the next launch, and so is everything after it (later work can build on it).
-    /// `planned`: records this process planned, whose crash target was read in the numbering the
-    /// work started from.
+    /// is kept for the next launch, and so is everything after it (later work can build on it);
+    /// the pages they touch, source and destination, are held in the audio cache until a run
+    /// finishes them: the engine purges and the prune leave their audio alone, and their saved
+    /// bake jobs aren't adopted. `planned`: records this process planned, whose crash target was
+    /// read in the numbering the work started from.
     @discardableResult
-    private func performStoredWork(planned: Set<ObjectIdentifier>) -> Int {
+    private func performStoredWork(planned: Set<ObjectIdentifier>) -> LibraryAudioWorkOutcome {
         let rows: [LibraryAudioWork]
         do {
             rows = try context.fetch(FetchDescriptor<LibraryAudioWork>(sortBy: [SortDescriptor(\.sequence)]))
         } catch {
             log("audio work unreadable, left for the next launch: \(error)")
-            return 0
+            return LibraryAudioWorkOutcome()
         }
-        guard !rows.isEmpty else { return 0 }
+        var outcome = LibraryAudioWorkOutcome()
+        defer { tts.audioCache.heldKeys = outcome.waiting }
+        guard !rows.isEmpty else { return outcome }
         if planned.isEmpty { log("audio work: finishing \(rows.count) left by an earlier launch") }
-        var finished = 0
         for row in rows {
             do {
                 try perform(row, live: planned.contains(ObjectIdentifier(row)))
             } catch {
-                log("audio work \(row.kindRaw) \(Self.short(row.key)) not finished, kept with \(rows.count - finished - 1) after it for the next launch: \(error)")
+                let waiting = rows[outcome.finished...]
+                outcome.waiting = Set(waiting.flatMap { [$0.key, $0.fromKey].compactMap { $0 } })
+                log("audio work \(row.kindRaw) \(Self.short(row.key)) not finished, kept with \(waiting.count - 1) after it for the next launch: \(error)")
                 ListenTimingLog.log("library_audio_work_failed", [
                     "kind": row.kindRaw, "key": row.key.map(ListenTimingLog.shortKey) ?? "-",
-                    "waiting": rows.count - finished, "error": "\(error)",
+                    "waiting": waiting.count, "held": outcome.waiting.count, "error": "\(error)",
                 ])
                 break
             }
             context.delete(row)
-            finished += 1
+            outcome.finished += 1
         }
         tts.noteBakeMarksChanged()
-        guard finished > 0 else { return 0 }
+        guard outcome.finished > 0 else { return outcome }
         do {
             try saveContext(context)
         } catch {
             log("audio work done; its records stay until the next save (done again, harmlessly): \(error)")
         }
-        return finished
+        return outcome
     }
 
     private func perform(_ work: LibraryAudioWork, live: Bool) throws {
