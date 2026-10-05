@@ -262,4 +262,45 @@ final class LaunchAudioRecoveryTests: XCTestCase {
         let plan = try XCTUnwrap(tts.synthQueue.planDescription(for: chapter), "adopted once the maintenance finished")
         XCTAssertTrue(plan.contains("paragraphCount: \(new.count)"), "on the new paragraphs: \(plan)")
     }
+
+    /// The launch's maintenance can't save anything: the layout pass and the prune are rolled
+    /// back. It still ends the launch hold: the queue adopts the saved bake jobs as they are (the
+    /// chapter's on its old paragraphs, which the page still holds) and is free to render.
+    func testTheLaunchHoldEndsWhenTheMaintenanceCantSave() async throws {
+        let html = ParagraphSplitTests.chapterHTML
+        let title = "The Boscombe Valley Mystery"
+        let old = ParagraphDocument.forListening(plainText: "", cleanedHTML: html, matchingTitle: title, splitLong: false).paragraphs
+        let chapter = UUID(), stale = UUID()
+        keys = [chapter]
+        let page = Page(key: chapter, title: title, byline: "example.com", urlString: "https://example.com/classics/boscombe-valley",
+                        contentState: .saved, addedAt: env.now)
+        page.cleanedHTML = html
+        page.listenBlocksData = try JSONEncoder().encode(old)
+        page.listenBlocksVersion = 2
+        page.paragraphCount = old.count
+        env.context.insert(page)
+        let unsaved = self.page(stale, "https://example.com/old-news", paragraphs: ["Old news."], added: nil, position: 0)
+        unsaved.canonicalURL = "https://example.com/old-news"
+        unsaved.lastPlayedAt = env.now.addingTimeInterval(-30 * 24 * 3600)
+        try env.context.save()
+        PendingBakeJobStore.shared.enqueuePending(articleID: chapter, paragraphs: old, voiceID: "voiceA",
+                                                  plan: .topDown(paragraphCount: old.count))
+
+        env.defaults.set(SpeechEngineID.kokoro.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
+        try env.relaunch()
+        let tts = env.tts
+        tts.synthQueue.bakeConditions = { BakeConditions(thermalState: .serious, isLowPowerModeEnabled: false) }
+        AppComposition.prepareAudioCache(library: env.library, migrations: [])
+        for _ in 0..<200 where !tts.usesLocalEngine { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertTrue(tts.usesLocalEngine, "the engine loaded before the launch's maintenance ran")
+        env.library.saveContext = { _ in throw Died() }
+        AppLaunch.maintainLibrary(env.library)
+
+        XCTAssertEqual(env.library.page(key: chapter)?.listenBlocksVersion, 2, "the layout pass was rolled back")
+        XCTAssertNotNil(env.library.page(key: stale), "and so was the prune")
+        XCTAssertFalse(tts.isHeldForLaunch)
+        XCTAssertFalse(tts.synthQueue.isHeldForLaunch, "the queue may render")
+        let plan = try XCTUnwrap(tts.synthQueue.planDescription(for: chapter), "the chapter's pending render was adopted")
+        XCTAssertTrue(plan.contains("paragraphCount: \(old.count)"), "as it was saved: \(plan)")
+    }
 }
