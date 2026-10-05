@@ -185,11 +185,11 @@ When the engine reports `finished`, the controller decides before the session se
   screen (it only changes title), so locked listening goes on. The engine is picked again for it.
 - **A link chapter**: `awaitPage` keeps the session playing and silent ("Preparing next…") while
   `fetch` runs, at most 30 s in the foreground and 5 s in the background (iOS may suspend an app
-  holding a silent audio session), then it plays; if the fetch fails or runs out of time,
-  playback ends at the chapter that finished. Play and pause while waiting say what happens when
-  it arrives (paused: bound at its start, silent); they don't restart the chapter that ended,
-  which stays finished. No page fetcher is connected, so a link chapter in the library ends
-  playback there.
+  holding a silent audio session; leaving the foreground during the wait shortens it to 5 s from
+  then), then it plays; if the fetch fails or runs out of time, playback ends at the chapter that
+  finished. Play and pause while waiting say what happens when it arrives (paused: bound at its
+  start, silent); they don't restart the chapter that ended, which stays finished. No page
+  fetcher is connected, so a link chapter in the library ends playback there.
 - **No next chapter** (the end, or a locked one): the session finishes as for any page.
 
 `playPage(key)` (Contents) plays a chapter from its start, and the book carries on from it.

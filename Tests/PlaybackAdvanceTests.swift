@@ -309,6 +309,23 @@ final class PlaybackAdvanceTests: XCTestCase {
         XCTAssertEqual(speech.nowPlaying?.pageKey, book.key(0))
     }
 
+    /// Going to the background during the wait shortens it to the background limit from then.
+    func testTheWaitShortensWhenTheAppGoesToTheBackground() async {
+        let state = AppRunState(phase: .active)
+        let (speech, apple) = makeSpeech(runState: state, provider: nil)
+        speech.chapterFlow.waitLimits = .init(foreground: 30, background: 0.3)
+        let book = FakeChapterLibrary([.init(title: "One"), .init(title: "Two", isLink: true)])
+        book.fetchDelay = 10
+        play(book, chapter: 0, on: speech)
+        finishChapter(apple, on: speech)
+        XCTAssertTrue(speech.isBufferingNext)
+
+        state.set(.background)
+        await waitUntil({ speech.playbackPhase == .finished }, "ends after the background cap from then, not the foreground one",
+                        timeout: 3)
+        XCTAssertEqual(speech.nowPlaying?.pageKey, book.key(0))
+    }
+
     // MARK: - Rendering (D7, D9)
 
     /// Audio held for library work a launch couldn't finish (`ArticleAudioCache.held`) isn't

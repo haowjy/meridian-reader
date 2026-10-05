@@ -23,12 +23,20 @@ struct ChapterFlow {
         var background: TimeInterval = 5
     }
 
+    /// A link chapter being fetched: what plays once it arrives, and when the wait gives up.
+    struct Wait {
+        var key: UUID
+        var folderID: UUID
+        var token: UUID
+        var deadline: CFAbsoluteTime
+    }
+
     var boundary: Boundary?
     /// The chapter whose successor has been staged (once per chapter).
     var stagedAfter: UUID?
     /// The successor's session, loaded when it was staged.
     var nextSession: SpeechSession?
-    var fetchToken: UUID?
+    var wait: Wait?
     var fetch: Task<Void, Never>?
     var fetchTimeout: Task<Void, Never>?
     var waitLimits = WaitLimits()
@@ -143,29 +151,49 @@ extension SpeechController {
 
     /// A series chapter not fetched yet: playback stays playing, silent ("Preparing next…"),
     /// while it is fetched, then carries on. It ends with "Couldn't get the next chapter" if the
-    /// fetch fails or takes longer than the wait limit.
+    /// fetch fails or takes longer than the wait limit: the background one when the app is in
+    /// the background, or goes there during the wait (`shortenChapterWaitInBackground`).
     private func awaitChapter(_ nextKey: UUID, in folderID: UUID) {
         guard let library = nextChapters else { return }
         stopEngines()
         execute(handlePageInput(.awaitPage))
         let token = UUID()
-        chapterFlow.fetchToken = token
         let background = localTTS.synthQueue.runState.phase == .background
         let limit = background ? chapterFlow.waitLimits.background : chapterFlow.waitLimits.foreground
+        chapterFlow.wait = ChapterFlow.Wait(key: nextKey, folderID: folderID, token: token,
+                                            deadline: ListenTimingLog.now() + limit)
         chapterFlow.fetch = Task { [weak self] in
             let fetched = await library.fetch(nextKey)
             self?.chapterFetched(nextKey, fetched: fetched, token: token, in: folderID)
         }
+        scheduleWaitTimeout(after: limit)
+    }
+
+    /// The wait for a link chapter gives up `seconds` from now.
+    private func scheduleWaitTimeout(after seconds: TimeInterval) {
+        guard let wait = chapterFlow.wait else { return }
+        chapterFlow.wait?.deadline = ListenTimingLog.now() + seconds
+        chapterFlow.fetchTimeout?.cancel()
         chapterFlow.fetchTimeout = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(limit * 1_000_000_000))
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            self?.chapterFetched(nextKey, fetched: false, token: token, in: folderID)
+            self?.chapterFetched(wait.key, fetched: false, token: wait.token, in: wait.folderID)
         }
     }
 
+    /// The app went to the background while a link chapter is fetched: iOS may suspend an app
+    /// holding a silent audio session, so the wait ends within the background limit from now.
+    func shortenChapterWaitInBackground() {
+        guard localTTS.synthQueue.runState.phase == .background, let wait = chapterFlow.wait,
+              playback.awaitingPage else { return }
+        let limit = chapterFlow.waitLimits.background
+        guard wait.deadline - ListenTimingLog.now() > limit else { return }
+        scheduleWaitTimeout(after: limit)
+    }
+
     private func chapterFetched(_ nextKey: UUID, fetched: Bool, token: UUID, in folderID: UUID) {
-        guard chapterFlow.fetchToken == token, playback.awaitingPage else { return }
-        chapterFlow.fetchToken = nil
+        guard chapterFlow.wait?.token == token, playback.awaitingPage else { return }
+        chapterFlow.wait = nil
         chapterFlow.fetch?.cancel()
         chapterFlow.fetchTimeout?.cancel()
         guard fetched else {

@@ -798,6 +798,7 @@ final class SpeechController {
                 localEngineChanged()
             }
         }
+        shortenChapterWaitInBackground()
         diagnostics.appPhaseChanged(phase)
     }
 
