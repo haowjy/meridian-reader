@@ -72,7 +72,7 @@ final class SpeechController {
         var site: String?
         var artwork: Data?
         var canonicalURL: String?
-        var host: String?
+        var sourceLabel: String?
         /// The book's or series' name, for a chapter.
         var folderName: String?
     }
@@ -248,7 +248,7 @@ final class SpeechController {
     var nowPlaying: NowPlaying? {
         guard let id = activeSessionID, !document.isEmpty else { return nil }
         let meta = sessionMeta?.id == id ? sessionMeta : nil
-        let raw = meta?.host ?? meta?.site ?? ""
+        let raw = meta?.sourceLabel ?? meta?.site ?? ""
         let host = raw.hasPrefix("www.") ? String(raw.dropFirst(4)) : raw
         return NowPlaying(pageKey: id, canonicalURL: meta?.canonicalURL, title: meta?.title ?? "Untitled",
                           source: meta?.folderName ?? host, artwork: meta?.artwork, playingFrom: .site(host: host),
@@ -546,7 +546,7 @@ final class SpeechController {
     func adoptMeta(of session: SpeechSession) {
         if session.title != nil || sessionMeta?.id != session.id {
             let meta = SessionMeta(id: session.id, title: session.title, site: session.site, artwork: session.artwork,
-                                   canonicalURL: session.canonicalURL, host: session.host,
+                                   canonicalURL: session.canonicalURL, sourceLabel: session.sourceLabel,
                                    folderName: session.folderName)
             if meta != sessionMeta { sessionMeta = meta }
         }

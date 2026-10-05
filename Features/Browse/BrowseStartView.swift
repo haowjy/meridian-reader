@@ -332,7 +332,7 @@ struct BrowseStartView: View {
     private func toggleSave() {
         if let saved = currentSavedPage {
             ArticleSaveCoordinator(library: library, speech: speech)
-                .unsave(key: saved.listenKey, canonicalURL: saved.canonicalURL ?? "")
+                .unsave(key: saved.listenKey, canonicalURL: saved.canonicalURL)
         } else {
             run { try await $0.save() }
         }

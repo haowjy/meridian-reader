@@ -107,7 +107,7 @@ final class ReaderOriginTests: XCTestCase {
         let a = article()
         shell.openReader(a)
         let showing = try XCTUnwrap(shell.reader).presentation
-        shell.updateReader(id: a.id) { $0.faviconData = Data([1]) }
+        shell.updateReader(id: a.id) { $0.artwork = Data([1]) }
         shell.readerDidClose(showing)
         XCTAssertNil(shell.reader)
     }

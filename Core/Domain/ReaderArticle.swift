@@ -7,15 +7,18 @@ import Foundation
 struct ReaderArticle: Equatable, Identifiable {
     /// Listen/cache key. Equals the library page's `key` (see `ArticleIdentity`).
     var id: UUID
-    var urlString: String
-    var canonicalURL: String
+    /// The web address, or the chapter's place in its book.
+    var origin: PageOrigin
     var title: String
-    var siteDomain: String
+    /// The site ("investopedia.com"), or a chapter's author.
+    var sourceLabel: String
+    /// Web pages: the site's own name, from Readability.
     var siteName: String?
     var cleanedHTML: String
     var plainText: String
     var excerpt: String
-    var faviconData: Data?
+    /// The favicon, or a cover thumbnail.
+    var artwork: Data?
     /// Listen blocks (same order as HTML highlight/tap indices). May be empty briefly while an
     /// older page builds them off the main thread.
     var document: ParagraphDocument
@@ -25,7 +28,7 @@ struct ReaderArticle: Equatable, Identifiable {
     var resumeParagraph: Int = 0
     /// Paragraphs known to match any pre-v2 (unhashed) CAFs under `id` — used once to stamp them.
     var trustedParagraphs: [String]? = nil
-    /// Old v1 cache keys that may hold audio for this content (adopted on open).
+    /// Web pages: old v1 cache keys that may hold audio for this content (adopted on open).
     var legacyCacheKeys: [UUID] = []
     /// Detected language stored on the page, if any (see `detectedLanguage`).
     var storedDetectedLanguage: String? = nil
@@ -35,8 +38,6 @@ struct ReaderArticle: Equatable, Identifiable {
     var detectedLanguage: String? {
         storedDetectedLanguage ?? (document.isEmpty ? nil : ListenLanguage.detectCached(paragraphs: document.paragraphs))
     }
-
-    var url: URL? { URL(string: urlString) }
 
     var extracted: ExtractedArticle {
         ExtractedArticle(
@@ -51,10 +52,9 @@ struct ReaderArticle: Equatable, Identifiable {
     /// Fresh Browse extraction. `id` comes from `LibraryStore.readerArticle(url:extracted:)`.
     init(id: UUID, url: URL, extracted: ExtractedArticle, document: ParagraphDocument? = nil) {
         self.id = id
-        self.urlString = url.absoluteString
-        self.canonicalURL = ArticleIdentity.canonicalURLString(from: url)
+        self.origin = .web(url)
         self.title = extracted.title
-        self.siteDomain = url.host ?? extracted.siteName ?? url.absoluteString
+        self.sourceLabel = url.host ?? extracted.siteName ?? url.absoluteString
         self.siteName = extracted.siteName
         self.cleanedHTML = extracted.cleanedHTML
         self.plainText = extracted.plainText
@@ -77,21 +77,24 @@ struct ReaderArticle: Equatable, Identifiable {
 
     /// A library page holding text (saved, played, or a link with a text cache). Uses stored
     /// listen blocks when valid; otherwise `document` is empty and the caller builds it off-main
-    /// (`Page.buildListenDocument`).
+    /// (`Page.buildListenDocument`). A page with a web address is a web page, even a book
+    /// chapter that has one.
     @MainActor
     init(page: Page) {
-        let urlString = page.urlString ?? ""
         self.id = page.listenKey
-        self.urlString = urlString
-        self.canonicalURL = page.canonicalURL ?? ArticleIdentity.canonicalURLString(from: urlString)
+        if let url = page.url {
+            self.origin = .web(url, canonicalURL: page.canonicalURL ?? ArticleIdentity.canonicalURLString(from: url))
+        } else {
+            self.origin = .book(locator: page.locator ?? "")
+        }
         self.title = page.title
-        self.siteDomain = page.byline
+        self.sourceLabel = page.byline
         self.siteName = nil
         let html = page.cleanedHTML
         self.cleanedHTML = html
         self.plainText = page.plainText
         self.excerpt = page.excerpt
-        self.faviconData = page.artworkData
+        self.artwork = page.artworkData
         let cached = page.cachedListenParagraphs
         self.document = cached.map { ParagraphDocument(parts: $0) } ?? .empty
         self.trustedParagraphs = cached

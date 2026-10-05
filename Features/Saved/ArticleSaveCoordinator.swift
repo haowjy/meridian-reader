@@ -38,7 +38,7 @@ struct ArticleSaveCoordinator {
 
     /// Removes the article from Saved (a favorite stays a favorite, as a link). Its audio and
     /// position stay, back on the ephemeral TTL, so a reader showing it keeps playing.
-    func unsave(key: UUID, canonicalURL: String) {
+    func unsave(key: UUID, canonicalURL: String?) {
         guard let page = library.page(key: key, canonicalURL: canonicalURL) else { return }
         library.unsave(page)
     }

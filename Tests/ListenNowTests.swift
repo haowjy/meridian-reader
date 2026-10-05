@@ -35,7 +35,7 @@ final class ListenNowTests: XCTestCase {
         let speech = speech
         return Task {
             await PageArticleService.listen(toPageAt: url, speech: speech, library: library) {
-                let extracted = try await extractor.extract(from: ExtractionContext(url: url, pageTitle: nil,
+                let extracted = try await extractor.extract(from: ExtractionContext(origin: .web(url), pageTitle: nil,
                                                                                     htmlSnapshot: ""))
                 return library.readerArticle(url: url, extracted: extracted)
             }

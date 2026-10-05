@@ -31,7 +31,8 @@ struct ReaderSheetScreen: View {
         self.state = state
         _speech = Bindable(speech)
         let id = state.article.id
-        let canonical = state.article.canonicalURL
+        // A page with no web address is found by its key alone; no page has an empty address.
+        let canonical = state.article.origin.canonicalURL ?? ""
         _pages = Query(filter: #Predicate<Page> { $0.key == id || $0.canonicalURL == canonical })
     }
 
@@ -100,7 +101,7 @@ struct ReaderSheetScreen: View {
 
     private var detail: String {
         let minutes = ListeningTime.minutes(utf16Length: totalLength)
-        return [article.siteDomain, minutes > 0 ? "\(minutes) min" : ""].filter { !$0.isEmpty }
+        return [article.sourceLabel, minutes > 0 ? "\(minutes) min" : ""].filter { !$0.isEmpty }
             .joined(separator: " · ")
     }
 
@@ -141,7 +142,7 @@ struct ReaderSheetScreen: View {
         )
     }
 
-    private var articleURL: URL? { URL(string: article.urlString) }
+    private var articleURL: URL? { article.origin.url }
 
     /// The article's own page, for ⋯ → Website (any loadable page URL, not just http(s)).
     private var websiteURL: URL? {
@@ -175,7 +176,7 @@ struct ReaderSheetScreen: View {
     private func toggleBookmark() {
         guard let url = articleURL, LibraryStore.canFavorite(url) else { return }
         let title = article.title
-        let icon = article.faviconData
+        let icon = article.artwork
         Task {
             await library.toggleFavorite(url: url, title: title, artwork: icon) {
                 await FaviconFetcher.best(for: url, webView: nil)
@@ -206,7 +207,7 @@ struct ReaderSheetScreen: View {
     private func toggleSaved() {
         let saver = ArticleSaveCoordinator(library: library, speech: speech)
         if isSaved {
-            saver.unsave(key: page?.listenKey ?? article.id, canonicalURL: article.canonicalURL)
+            saver.unsave(key: page?.listenKey ?? article.id, canonicalURL: article.origin.canonicalURL)
             return
         }
         let savedID = saver.save(article)

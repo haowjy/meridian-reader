@@ -18,10 +18,11 @@ struct FakeArticleExtractor: ArticleExtracting {
         case .success:
             let trimmed = context.pageTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
             let title = (trimmed?.isEmpty == false) ? trimmed! : "Saved Article"
-            let host = context.url.host ?? context.url.absoluteString
+            let address = context.origin.urlString ?? ""
+            let host = context.origin.url?.host ?? address
             let paragraphs = [
                 "This is a placeholder article extracted by FakeArticleExtractor.",
-                "URL: \(context.url.absoluteString)",
+                "URL: \(address)",
                 "Replace this extractor with Mozilla Readability on the live WKWebView DOM after the spike."
             ]
             let body = paragraphs.joined(separator: "\n\n")
