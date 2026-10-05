@@ -343,6 +343,67 @@ final class LibraryAudioWorkTests: XCTestCase {
         try assertMerged(rows)
     }
 
+    // MARK: Deleting
+
+    /// A saved page in a folder, with audio and a pending render.
+    private func pageWithAudio(_ path: String, in folder: Folder?) throws -> (Page, UUID) {
+        let page = library.save(env.article("https://example.com/\(path)"), placement: .folder(folder))
+        let key = try XCTUnwrap(page.key)
+        try env.storeAudio(key, paragraphs: page.cachedListenParagraphs ?? [])
+        PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: page.cachedListenParagraphs ?? [],
+                                                  voiceID: "voiceA", plan: .topDown(paragraphCount: 2))
+        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: key) }
+        return (page, key)
+    }
+
+    /// Deleting a page, or a folder with its contents, whose save fails: the pages, the folder
+    /// and their audio and pending renders are all still there, and nothing waits to delete
+    /// them later. Once a save works, the delete takes the audio with it.
+    func testAFailedDeleteSaveKeepsThePagesAndTheirAudio() throws {
+        let shelf = try library.makeFolder(name: "Shelf", in: nil)
+        let (loose, looseKey) = try pageWithAudio("loose", in: nil)
+        let (_, shelvedKey) = try pageWithAudio("shelved", in: shelf)
+        let audioBefore = (try audioFiles(looseKey), try audioFiles(shelvedKey))
+        XCTAssertFalse(audioBefore.0.isEmpty)
+        library.saveContext = { _ in throw SaveFailed() }
+
+        library.delete(loose)
+        try library.deleteFolder(shelf, keepContents: false)
+        XCTAssertNotNil(library.page(key: looseKey), "the page is back")
+        XCTAssertNotNil(library.page(key: shelvedKey))
+        XCTAssertNotNil(library.folder(id: shelf.id), "and the folder")
+        XCTAssertEqual(try audioFiles(looseKey), audioBefore.0, "its audio is untouched")
+        XCTAssertEqual(try audioFiles(shelvedKey), audioBefore.1)
+        XCTAssertEqual(Set(PendingBakeJobStore.shared.pendingJobs().map(\.articleID)).intersection([looseKey, shelvedKey]),
+                       [looseKey, shelvedKey], "the pending renders stay")
+        XCTAssertTrue(pendingWork().isEmpty, "nothing waits to delete the audio later")
+
+        try env.relaunch()
+        XCTAssertNotNil(library.page(key: looseKey), "nothing was saved")
+        XCTAssertEqual(try audioFiles(looseKey), audioBefore.0)
+
+        library.delete(try XCTUnwrap(library.page(key: looseKey)))
+        XCTAssertNil(library.page(key: looseKey))
+        XCTAssertFalse(env.cache.hasDirectory(for: looseKey), "a saved delete takes its audio")
+        XCTAssertFalse(PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == looseKey })
+        XCTAssertTrue(pendingWork().isEmpty)
+    }
+
+    /// The app dies right after a delete's save, before its audio went: the next launch deletes
+    /// it.
+    func testADeleteSavedButNotFinishedTakesItsAudioNextLaunch() throws {
+        let (page, key) = try pageWithAudio("doomed", in: nil)
+        library.saveContext = { try $0.save(); throw SaveFailed() }
+        library.delete(page)
+        XCTAssertTrue(env.cache.hasDirectory(for: key), "the audio work hadn't run")
+
+        try env.relaunch()
+        XCTAssertNil(library.page(key: key), "the delete was saved")
+        XCTAssertEqual(library.finishAudioWork().finished, 1)
+        XCTAssertFalse(env.cache.hasDirectory(for: key))
+        XCTAssertTrue(pendingWork().isEmpty)
+    }
+
     /// The app dies right after the copy's save, before the audio work: the next launch finds
     /// the work in the store and does it.
     func testWorkLeftByALaunchThatDiedAfterItsSaveIsDoneNextLaunch() throws {
@@ -551,8 +612,9 @@ final class LibraryAudioWorkTests: XCTestCase {
         XCTAssertEqual(env.tts.pendingResume?.paragraph, 1, "and so is the crash target")
     }
 
-    /// A merge that couldn't finish waits; meanwhile the kept page is deleted. Next launch no page
-    /// holds the merged audio: it is left to the cache's age prune, not moved under a deleted key.
+    /// A merge that couldn't finish waits; meanwhile the kept page is deleted. The delete's save
+    /// does the waiting merge first, then the delete's own audio work: no page holds the merged
+    /// audio, so it is left to the cache's age prune, not moved under a deleted key.
     func testAWaitingMergeWhoseKeptPageIsDeletedLeavesItsAudioToTheAgePrune() throws {
         let (rows, _) = try distinctDuplicateRows(env)
         addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: rows.merged) }
@@ -560,9 +622,10 @@ final class LibraryAudioWorkTests: XCTestCase {
         XCTAssertTrue(library.migrateLegacy().saved)
         env.cache.faultHook = nil
         library.delete(try XCTUnwrap(library.page(key: rows.kept)))
+        XCTAssertTrue(pendingWork().isEmpty, "the waiting merge, then the delete, both done after its save")
 
         try env.relaunch()
-        XCTAssertEqual(library.finishAudioWork().finished, 1)
+        XCTAssertEqual(library.finishAudioWork().finished, 0)
         XCTAssertTrue(env.cache.hasCache(for: rows.merged), "not deleted outright")
         XCTAssertEqual(env.cache.loadMeta(for: rows.merged)?.kind, .ephemeral)
         XCTAssertFalse(env.cache.hasDirectory(for: rows.kept), "nothing moved under the deleted page's key")

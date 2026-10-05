@@ -9,14 +9,14 @@ struct ArticleSaveCoordinator {
     let library: LibraryStore
     let speech: SpeechController
 
-    /// Saves `article` (into `folder`, when given) and returns the saved page's key. That differs from `article.id` only when
-    /// an older page with another key already held this address; its audio and any live session
-    /// are then rekeyed to it. Saving never interrupts playback.
+    /// Saves `article`, filed by `placement`, and returns the saved page's key. That differs from
+    /// `article.id` only when an older page with another key already held this address; its audio
+    /// and any live session are then rekeyed to it. Saving never interrupts playback.
     @discardableResult
-    func save(_ article: ReaderArticle, in folder: Folder? = nil) -> UUID {
+    func save(_ article: ReaderArticle, placement: SavePlacement = .keep) -> UUID {
         let tts = speech.localTTS
         let live = speech.activeSessionID == article.id
-        let page = library.save(article, in: folder, playhead: live ? speech.currentParagraphIndex : nil)
+        let page = library.save(article, placement: placement, playhead: live ? speech.currentParagraphIndex : nil)
         let key = page.listenKey
         if key != article.id {
             tts.migrateListenCache(from: article.id, to: key)

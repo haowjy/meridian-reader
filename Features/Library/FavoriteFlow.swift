@@ -3,7 +3,8 @@ import Foundation
 /// ☆ (*Add to Favorites* in the browser's and the Reader's ⋯) and filing pages into folders from
 /// there. One tap adds a page at the end of Favorites, and a toast offers *Change Folder* (the
 /// Move tree). One page per address: a page filed in another folder asks before it moves, and a
-/// chapter of a book or series offers to move the book instead. ☆ on a favorite removes it.
+/// chapter of a book or series offers to move the book instead (into Favorites, or out of it
+/// when the book is there). ☆ on a favorite removes it.
 @MainActor
 struct FavoriteFlow {
     let library: LibraryStore
@@ -35,12 +36,22 @@ struct FavoriteFlow {
                     try? library.move([.folder(book)], to: library.favorites())
                     shell.showToast(ShellToast(message: "“\(book.displayName)” is in Favorites", systemImage: "star.fill"))
                 }
+        case .moveBookOut(let book):
+            let isSeries = book.kind == .series
+            shell.prompt = ShellPrompt(
+                title: isSeries ? String(localized: "Take Series out of Favorites?") : String(localized: "Take Book out of Favorites?"),
+                message: "This page is a chapter of “\(book.displayName)”, which is in Favorites. Chapters stay in their \(isSeries ? "series" : "book"), so the whole \(isSeries ? "series" : "book") moves to the Library’s top level.",
+                confirmTitle: isSeries ? String(localized: "Move Series Out") : String(localized: "Move Book Out")) {
+                    try? library.move([.folder(book)], to: nil)
+                    shell.showToast(ShellToast(message: "“\(book.displayName)” is out of Favorites", systemImage: "star.slash"))
+                }
         }
     }
 
     /// Saves `article` into a folder picked in the Move tree (*Save to Library…*, 🔖's *Save to
     /// Folder…*): a saved page moves there, an unsaved one is saved there. "Library (no
-    /// folder)" saves it, or takes it out of its folder.
+    /// folder)" (nil) files it in no folder, out of the one it was in (a link in Favorites
+    /// leaves it); `save` passes it on as `SavePlacement.folder`.
     func saveToFolder(title: String, current: MoveRequest.Place?, save: @escaping (Folder?) -> Void) {
         shell.present(.moveTo(MoveRequest(title: title, current: current, onPick: save)))
     }

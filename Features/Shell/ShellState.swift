@@ -268,12 +268,13 @@ final class ShellState {
     // MARK: - Remembering the surface
 
     /// At launch, once the library is open: the path keeps the folders that still exist (up to the
-    /// first that doesn't), and the browser reloads its last page.
+    /// first that doesn't), and the browser reloads its last page: now when it is showing, or the
+    /// first time you go there from the Library (`leaveLibrary`).
     func restoreAtLaunch(folderExists: (UUID) -> Bool) {
         pruneLibraryPath(keeping: folderExists)
-        if let url = pendingBrowserURL {
+        if isBrowsing, let url = pendingBrowserURL {
             pendingBrowserURL = nil
-            if isBrowsing { navigate(to: url) }
+            navigate(to: url)
         }
     }
 

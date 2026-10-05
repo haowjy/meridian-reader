@@ -65,8 +65,8 @@ struct PageArticleService {
         return .started(article)
     }
 
-    /// ⋯ → Save to Library…, once a folder is picked (nil: the page keeps its folder, or goes in
-    /// none). ⋯ spins meanwhile.
+    /// ⋯ → Save to Library…, once a place is picked in the Move tree: the folder, or no folder
+    /// (nil, out of the folder it was in). ⋯ spins meanwhile.
     func save(in folder: Folder?) async throws {
         shell.busy = .save
         defer { shell.busy = nil }
@@ -74,7 +74,7 @@ struct PageArticleService {
         if article.faviconData == nil {
             article.faviconData = await favicon(for: url)
         }
-        ArticleSaveCoordinator(library: library, speech: speech).save(article, in: folder)
+        ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
     }
 
     /// ⋯ → Add to Favorites / Remove from Favorites (`FavoriteFlow`): the page in or out of

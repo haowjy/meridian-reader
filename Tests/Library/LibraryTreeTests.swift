@@ -13,7 +13,7 @@ final class LibraryTreeTests: XCTestCase {
     override func tearDown() async throws { env.cleanUp() }
 
     private func savedPage(_ path: String, in folder: Folder?) -> Page {
-        library.save(env.article("https://example.com/\(path)", title: path), in: folder)
+        library.save(env.article("https://example.com/\(path)", title: path), placement: .folder(folder))
     }
 
     func testFoldersNestToDepthFive() throws {
@@ -94,7 +94,7 @@ final class LibraryTreeTests: XCTestCase {
         let book = Folder(name: "Book", kind: .book)
         env.context.insert(book)
         book.parent = nested
-        let chapter = library.save(env.article("https://example.com/ch1", title: "Ch 1"), in: nil)
+        let chapter = library.save(env.article("https://example.com/ch1", title: "Ch 1"))
         chapter.setFolder(book)
         let page = savedPage("on-shelf", in: shelf)
         let keys = [chapter.key!, page.key!]
@@ -108,6 +108,34 @@ final class LibraryTreeTests: XCTestCase {
         XCTAssertTrue(env.pages().isEmpty)
         for key in keys { XCTAssertFalse(env.cache.hasCache(for: key)) }
         XCTAssertEqual(env.stoppedKeys, [keys[0]], "the playing chapter stopped first")
+    }
+
+    /// A plain folder and a book deleted together, keeping contents: the folder's page moves up,
+    /// the book goes with its chapter and the chapter's audio (a chapter never outlives its
+    /// book). Two books deleted together, keeping contents, go whole too.
+    func testDeletingFoldersKeepingContentsStillDeletesBooksWhole() throws {
+        let shelf = try library.makeFolder(name: "Shelf", in: nil)
+        let inner = savedPage("inner", in: shelf)
+        let books = (1...3).map { n -> (Folder, Page) in
+            let book = Folder(name: "Book \(n)", kind: n == 3 ? .series : .book)
+            env.context.insert(book)
+            let chapter = library.save(env.article("https://example.com/book\(n)/ch1", title: "Ch 1"))
+            chapter.setFolder(book)
+            return (book, chapter)
+        }
+        for (_, chapter) in books { try env.storeAudio(chapter.key!, paragraphs: chapter.cachedListenParagraphs ?? []) }
+        let keys = books.map { $0.1.key! }
+
+        try library.deleteFolders([shelf, books[0].0], keepContents: true)
+        XCTAssertNil(inner.folder, "the folder's page moved up")
+        XCTAssertNotNil(library.page(key: inner.key!))
+        XCTAssertNil(library.page(key: keys[0]), "the book's chapter went with it")
+        XCTAssertFalse(env.cache.hasCache(for: keys[0]), "and its audio")
+
+        try library.deleteFolders([books[1].0, books[2].0], keepContents: true)
+        XCTAssertTrue(env.folders().filter { $0.kind != .favorites }.isEmpty)
+        XCTAssertEqual(env.pages().map(\.key), [inner.key])
+        for key in keys { XCTAssertFalse(env.cache.hasCache(for: key)) }
     }
 
     func testFavoritesCantBeDeletedRenamedOrMovedDown() throws {

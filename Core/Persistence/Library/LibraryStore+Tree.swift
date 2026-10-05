@@ -131,29 +131,44 @@ extension LibraryStore {
     /// Deletes a folder. `keepContents` (*Delete Folder Only*): its subfolders and pages move up
     /// to its parent (the top level if none), after the parent's own contents, in their order.
     /// Otherwise (*Delete Folder and Contents*, *Delete Book*) everything inside goes, books
-    /// included, with their audio; playback of any of it stops first.
+    /// included; playback of any of it stops first, and the audio goes once the delete is saved.
+    /// A book or series is always deleted with its chapters: they never leave it.
     func deleteFolder(_ folder: Folder, keepContents: Bool) throws {
-        guard folder.kind != .favorites else { throw LibraryTreeError.favoritesIsPinned }
-        if keepContents && !folder.kind.isFixed {
-            let parent = folder.parent
-            var folderKey = nextFolderSortKey(in: parent)
-            for child in subfolders(of: folder) {
-                child.parent = parent
-                child.sortKey = folderKey
-                folderKey += 1
+        try deleteFolders([folder], keepContents: keepContents)
+    }
+
+    /// Deletes `folders` in one save, each as `deleteFolder` does: plain folders keep or lose
+    /// their contents by `keepContents`, books and series go with their chapters either way.
+    /// Refuses Favorites, changing nothing. A save that fails is rolled back: every folder, page
+    /// and its audio stay.
+    func deleteFolders(_ folders: [Folder], keepContents: Bool) throws {
+        if folders.contains(where: { $0.kind == .favorites }) { throw LibraryTreeError.favoritesIsPinned }
+        for folder in folders where !folder.isDeleted {
+            if keepContents && !folder.kind.isFixed {
+                moveContentsUp(folder)
+            } else {
+                deleteRecursively(folder)
             }
-            var pageKey = nextSortKey(in: parent)
-            for page in pages(in: folder) {
-                page.setFolder(parent)
-                page.sortKey = pageKey
-                pageKey += 1
-            }
-            log("delete folder \(folder.name), contents moved up")
-            context.delete(folder)
-        } else {
-            deleteRecursively(folder)
         }
-        commit("delete folder")
+        if !commit("delete folder") { rollBack() }
+    }
+
+    private func moveContentsUp(_ folder: Folder) {
+        let parent = folder.parent
+        var folderKey = nextFolderSortKey(in: parent)
+        for child in subfolders(of: folder) {
+            child.parent = parent
+            child.sortKey = folderKey
+            folderKey += 1
+        }
+        var pageKey = nextSortKey(in: parent)
+        for page in pages(in: folder) {
+            page.setFolder(parent)
+            page.sortKey = pageKey
+            pageKey += 1
+        }
+        log("delete folder \(folder.name), contents moved up")
+        context.delete(folder)
     }
 
     /// What *Delete Folder and Contents* would delete, for its confirmation.

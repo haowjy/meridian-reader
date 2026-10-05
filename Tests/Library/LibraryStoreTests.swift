@@ -83,13 +83,66 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertThrowsError(try library.move([.page(chapter)], to: other)) {
             XCTAssertEqual($0 as? LibraryTreeError, .leavesFixedFolder)
         }
-        library.save(env.article("https://example.com/ch1"), in: other)
+        library.save(env.article("https://example.com/ch1"), placement: .folder(other))
         XCTAssertIdentical(chapter.folder, book, "save into another folder keeps it in the book")
         XCTAssertNil(library.addFavorite(url: URL(string: "https://example.com/ch1")!, title: nil, artwork: nil))
         XCTAssertIdentical(chapter.folder, book)
         library.remove(chapter)
         XCTAssertIdentical(chapter.folder, book, "remove isn't for chapters")
         XCTAssertNotNil(chapter.addedAt)
+    }
+
+    /// A series in Favorites makes its chapters favorites, but ☆ on one never takes it out of
+    /// the series (it offers to move the series out instead), whether it is saved or a link, and
+    /// the series' place stays on it.
+    func testRemovingAFavoriteChapterNeverDetachesItFromItsSeries() async throws {
+        let series = Folder(name: "Serial", kind: .series)
+        env.context.insert(series)
+        series.parent = library.favorites()
+        let savedURL = URL(string: "https://example.com/serial/1")!
+        let linkURL = URL(string: "https://example.com/serial/2")!
+        let saved = library.save(env.article(savedURL.absoluteString, title: "Ch 1"))
+        saved.setFolder(series)
+        let link = library.addLink(url: linkURL, title: "Ch 2", artwork: nil, in: series)
+        series.currentPageKey = saved.key
+        XCTAssertTrue(LibraryStore.isFavorite(saved), "in Favorites through its series")
+
+        for (url, chapter) in [(savedURL, saved), (linkURL, link)] {
+            guard case .moveBookOut(let source) = library.favoriteRequest(for: url) else {
+                return XCTFail("☆ on \(chapter.title) offers to move the series out")
+            }
+            XCTAssertIdentical(source, series)
+            library.removeFavorite(chapter)
+            await library.toggleFavorite(url: url, title: nil, artwork: nil) { nil }
+            XCTAssertIdentical(chapter.folder, series, "\(chapter.title) stays in the series")
+            XCTAssertFalse(chapter.isDeleted)
+        }
+        XCTAssertTrue(saved.isSaved)
+        XCTAssertEqual(series.currentPageKey, saved.key, "the series' place is still its chapter")
+
+        try library.move([.folder(series)], to: nil)
+        guard case .moveBook = library.favoriteRequest(for: savedURL) else { return XCTFail("out of Favorites: move it in") }
+    }
+
+    /// *Library (no folder)* in the Move tree files the page in no folder, out of Favorites;
+    /// an ordinary save keeps it where it is; a chapter stays in its book either way.
+    func testPickingNoFolderTakesALinkOutOfFavoritesAndAnOrdinarySaveKeepsIt() throws {
+        let favorites = library.favorites()
+        library.addLink(url: URL(string: "https://example.com/kept")!, title: "Kept", artwork: nil, in: favorites)
+        let kept = library.save(env.article("https://example.com/kept"))
+        XCTAssertIdentical(kept.folder, favorites, "an ordinary save keeps its folder")
+
+        library.addLink(url: URL(string: "https://example.com/out")!, title: "Out", artwork: nil, in: favorites)
+        let out = library.save(env.article("https://example.com/out"), placement: .folder(nil))
+        XCTAssertNil(out.folder, "picked: no folder")
+        XCTAssertTrue(out.isSavedToLibrary)
+        XCTAssertFalse(LibraryStore.isFavorite(out))
+
+        let book = Folder(name: "Book", kind: .book)
+        env.context.insert(book)
+        let chapter = library.addLink(url: URL(string: "https://example.com/ch")!, title: "Ch", artwork: nil, in: book)
+        library.save(env.article("https://example.com/ch"), placement: .folder(nil))
+        XCTAssertIdentical(chapter.folder, book)
     }
 
     func testDeletingABooksPlaceRepointsItToTheChapterBefore() throws {
@@ -187,7 +240,7 @@ final class LibraryStoreTests: XCTestCase {
     }
 
     func testUnsaveKeepsAFavoriteAsALinkAndRemovesALoosePage() throws {
-        let favorite = library.save(env.article("https://example.com/fav"), in: library.favorites())
+        let favorite = library.save(env.article("https://example.com/fav"), placement: .folder(library.favorites()))
         library.unsave(favorite)
         XCTAssertTrue(favorite.isLink)
         XCTAssertEqual(favorite.folder?.kind, .favorites, "still a favorite")

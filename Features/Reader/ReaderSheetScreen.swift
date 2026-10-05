@@ -194,7 +194,7 @@ struct ReaderSheetScreen: View {
                 try? library.move([.page(saved)], to: folder)
                 return
             }
-            let savedID = ArticleSaveCoordinator(library: library, speech: speech).save(article, in: folder)
+            let savedID = ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
             if savedID != article.id { shell.updateReader(id: article.id) { $0.id = savedID } }
         }
     }

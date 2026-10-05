@@ -55,6 +55,26 @@ final class SurfaceMemoryTests: XCTestCase {
         XCTAssertEqual(reopened.libraryPath, [.folder(folder)])
     }
 
+    /// Reopened on the Library, the browser's page waits for 🌐 (no WebKit at a cold launch):
+    /// the launch's restore keeps it, and the first trip to the browser loads it. Relaunching
+    /// again before that still remembers it.
+    func testReopenedOnTheLibraryTheBrowsersPageLoadsWhenYouGoThere() throws {
+        let url = try XCTUnwrap(URL(string: "https://example.com/story"))
+        store.save(SurfaceMemory(base: .library, libraryPath: [], browserURL: url.absoluteString))
+        let shell = ShellState(memory: store, restores: true)
+        shell.restoreAtLaunch { _ in true }
+        XCTAssertTrue(shell.isInLibrary)
+        XCTAssertNil(shell.web.currentURL, "nothing loads under the Library")
+        shell.libraryPath = [.folder(UUID())]
+        XCTAssertEqual(store.load()?.browserURL, url.absoluteString, "still remembered")
+
+        let again = ShellState(memory: store, restores: true)
+        again.restoreAtLaunch { _ in true }
+        again.leaveLibrary()
+        XCTAssertTrue(again.isBrowsing)
+        XCTAssertEqual(again.web.currentURL, url, "🌐: the browser's page, as it was left")
+    }
+
     func testWithoutRestoringItStartsOnTheBrowser() {
         store.save(SurfaceMemory(base: .library, libraryPath: [], browserURL: nil))
         XCTAssertTrue(ShellState(memory: store, restores: false).isBrowsing)

@@ -1,6 +1,22 @@
 import Foundation
 import SwiftData
 
+/// Where a save files the page.
+enum SavePlacement: Equatable {
+    /// An ordinary save (🔖, ⋯ → Save): a page the library has keeps its folder; a new one goes
+    /// in no folder.
+    case keep
+    /// Picked in the Move tree: into this folder, or into no folder (nil, *Library (no folder)*),
+    /// out of the folder it was in.
+    case folder(Folder?)
+
+    /// Where a new page goes.
+    var folder: Folder? {
+        if case .folder(let folder) = self { return folder }
+        return nil
+    }
+}
+
 /// Pages: opening, playing, saving, removing and deleting. One page per canonical URL: every
 /// call finds the existing page for an address before it makes one.
 extension LibraryStore {
@@ -103,11 +119,13 @@ extension LibraryStore {
 
     // MARK: - Saving
 
-    /// Idempotent: the page for this address (or key) becomes saved in place, keeping its folder
-    /// unless `folder` is given; otherwise a new saved page whose key is the reader key. Its
-    /// audio is marked saved. Never touches playback.
+    /// Idempotent: the page for this address (or key) becomes saved in place, filed by
+    /// `placement` (an ordinary save keeps its folder); otherwise a new saved page whose key is
+    /// the reader key. A chapter stays in its book or series whatever the placement. Its audio
+    /// is marked saved. Never touches playback.
     @discardableResult
-    func save(_ article: ReaderArticle, in folder: Folder? = nil, playhead: Int? = nil) -> Page {
+    func save(_ article: ReaderArticle, placement: SavePlacement = .keep, playhead: Int? = nil) -> Page {
+        let destination = placement.folder
         let page: Page
         if let existing = self.page(key: article.id, canonicalURL: article.canonicalURL) {
             page = existing
@@ -117,13 +135,13 @@ extension LibraryStore {
             }
             if page.artworkData == nil { page.artworkData = article.faviconData }
             if page.addedAt == nil {
-                page.sortKey = nextSortKey(in: folder ?? page.folder)
+                page.sortKey = nextSortKey(in: destination ?? page.folder)
             }
             log("save → existing \(Self.short(page.key)) (\(page.contentStateRaw), \(page.isInLibrary ? "in" : "not in") Library)")
         } else {
             page = Page(key: article.id, title: article.title, byline: article.siteDomain,
                         urlString: article.urlString, contentState: .saved, addedAt: nil,
-                        sortKey: nextSortKey(in: folder), artworkData: article.faviconData)
+                        sortKey: nextSortKey(in: destination), artworkData: article.faviconData)
             context.insert(page)
             fill(page, from: article)
             page.positionParagraph = playhead ?? article.resumeParagraph
@@ -131,7 +149,8 @@ extension LibraryStore {
         }
         page.contentState = .saved
         if page.addedAt == nil { page.addedAt = now() }
-        if let folder, !page.isInFixedFolder, page.folder !== folder, !folder.kind.isFixed {
+        if case .folder(let folder) = placement, !page.isInFixedFolder, page.folder !== folder,
+           folder?.kind.isFixed != true {
             page.sortKey = nextSortKey(in: folder)
             page.setFolder(folder)
         }
@@ -198,18 +217,20 @@ extension LibraryStore {
         log("remove \(Self.short(page.key)) → not in Library")
     }
 
-    /// Deletes the page and its audio. Playback of it stops first (its audio is being read), and
-    /// a book's place on it moves to the chapter before.
+    /// Deletes the page, then its audio once that is saved. Playback of it stops first (its audio
+    /// is being read), and a book's place on it moves to the chapter before. A save that fails
+    /// is rolled back: the page and its audio stay.
     func delete(_ page: Page) {
         deleteWithoutSaving(page)
-        commit("delete page")
+        if !commit("delete page") { rollBack() }
     }
 
-    /// `delete` without the save, for deletes batched into one save.
+    /// `delete` without the save, for deletes batched into one save. The audio goes through the
+    /// audio journal (`planDelete`), after that save.
     func deleteWithoutSaving(_ page: Page) {
         if let key = page.key {
             stopPlaybackIfPlaying(key)
-            tts.handleArticleDeleted(key)
+            planDelete(key: key)
         }
         movePlaceOff(page)
         log("delete \(Self.short(page.key))")

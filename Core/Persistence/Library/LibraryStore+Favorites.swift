@@ -11,6 +11,9 @@ enum FavoriteRequest {
     case moveFromFolder(Page, Folder)
     /// A chapter of a book or series: offer to move the book or series instead.
     case moveBook(Folder)
+    /// A chapter of a book or series that is in Favorites: the chapter can't leave it, so offer
+    /// to take the whole book or series out of Favorites.
+    case moveBookOut(Folder)
 }
 
 /// Favorites: the top-level folder that holds what used to be site bookmarks. A favorite is a
@@ -36,13 +39,15 @@ extension LibraryStore {
 
     /// What ☆ on the page at `url` leads to. One page per address: a page filed in another folder
     /// moves to Favorites only once you agree, and a chapter never leaves its book (the book
-    /// can go instead).
+    /// can go in or out of Favorites instead). The book comes first: a chapter of a book in
+    /// Favorites counts as a favorite, but taking it out would detach it.
     func favoriteRequest(for url: URL) -> FavoriteRequest {
         guard let existing = page(url: url) else { return .add }
-        if Self.isFavorite(existing) { return .remove(existing) }
-        if let folder = existing.folder {
-            return folder.kind.isFixed ? .moveBook(folder) : .moveFromFolder(existing, folder)
+        if let source = existing.folder, source.kind.isFixed {
+            return Self.isFavorite(existing) ? .moveBookOut(source) : .moveBook(source)
         }
+        if Self.isFavorite(existing) { return .remove(existing) }
+        if let folder = existing.folder { return .moveFromFolder(existing, folder) }
         return .add
     }
 
@@ -87,9 +92,10 @@ extension LibraryStore {
     }
 
     /// No longer a favorite: a saved page goes back to the pages in no folder, still saved; a
-    /// link page is removed.
+    /// link page is removed. Not for a chapter of a book or series in Favorites (it never leaves
+    /// its source; `favoriteRequest` offers to move the source out).
     func removeFavorite(_ page: Page) {
-        guard Self.isFavorite(page) else { return }
+        guard Self.isFavorite(page), !page.isInFixedFolder else { return }
         if page.isSaved {
             page.sortKey = nextSortKey(in: nil)
             page.setFolder(nil)

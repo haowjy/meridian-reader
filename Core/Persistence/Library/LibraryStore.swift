@@ -126,6 +126,29 @@ final class LibraryStore {
         return true
     }
 
+    /// After a failed save: the context's changes and the audio work planned with them are
+    /// dropped, and every model they changed or deleted reads what the store holds again.
+    ///
+    /// SwiftData's `rollback()` leaves a model already in memory showing the values it rolled
+    /// back, relationships included (a book's `pages` still listing a chapter the change
+    /// inserted), until that model is fetched again; it notifies no observer. Callers hold such
+    /// models (the progress recorder its page, a screen its folder). A fetch returns the same
+    /// instance holding the stored values, so each one is fetched again by its id. Models the
+    /// change inserted leave the context with it.
+    func rollBack() {
+        let touched = context.changedModelsArray + context.deletedModelsArray
+        context.rollback()
+        audioPlan = LibraryAudioWorkPlan()
+        for model in touched { refetch(model) }
+    }
+
+    private func refetch<Model: PersistentModel>(_ model: Model) {
+        let id = model.persistentModelID
+        var descriptor = FetchDescriptor<Model>(predicate: #Predicate { $0.persistentModelID == id })
+        descriptor.fetchLimit = 1
+        _ = try? context.fetch(descriptor)
+    }
+
     // MARK: - Logging
 
     static func short(_ id: UUID?) -> String { id.map { String($0.uuidString.prefix(8)) } ?? "-" }
