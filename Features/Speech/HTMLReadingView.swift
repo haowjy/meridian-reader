@@ -123,11 +123,10 @@ struct HTMLReadingWebView: UIViewRepresentable {
         let webView = Self.makeWebView(coordinator: context.coordinator)
         let c = context.coordinator
         c.textInsets = textInsets
-        c.opensAt = opensAt
         c.follows = follows
         c.sizes = sizes
         scrollHandle?.webView = webView
-        c.load(html: html, heading: heading)
+        c.load(html: html, heading: heading, opensAt: opensAt)
         return webView
     }
 
@@ -191,8 +190,8 @@ struct HTMLReadingWebView: UIViewRepresentable {
         var animates = true
         /// Following the audio (Now Playing). Set before the first load by `makeUIView`.
         var follows = false
-        /// The first load opens here (the Reader's offset, handed over to Now Playing).
-        var opensAt: CGFloat?
+        /// The load in flight opens here (the Reader's offset, handed over to Now Playing).
+        private var opensAt: CGFloat?
         private var loaded = false
         private var pendingActive: Int?
         /// Highlight index the page last received; nil = nothing sent since the page loaded.
@@ -211,7 +210,9 @@ struct HTMLReadingWebView: UIViewRepresentable {
             self.onTapParagraph = onTapParagraph
         }
 
-        func load(html: String, heading: ReaderHeading? = nil) {
+        /// Shows `html`. `opensAt` is where this load opens (the D2 handoff); any other load opens
+        /// at the top, or at the spoken paragraph when following, and drops a restore still waiting.
+        func load(html: String, heading: ReaderHeading? = nil, opensAt: CGFloat? = nil) {
             lastHTML = html
             lastHeading = heading
             userScrolled = false
@@ -219,39 +220,74 @@ struct HTMLReadingWebView: UIViewRepresentable {
             sentActive = nil
             sentSentence = nil
             sentSizes = sizes
+            loadGeneration += 1
+            cancelRestore()
+            self.opensAt = opensAt
             webView?.loadHTMLString(Self.wrap(html, heading: heading, sizes: sizes), baseURL: nil)
         }
 
         /// True once the user has dragged the text (until then it's pinned to the top).
         private var userScrolled = false
-        /// The handed-over offset, waiting for the page to be tall enough to show it.
-        private var pendingOpensAt: CGFloat?
-        private var contentSizeObservation: NSKeyValueObservation?
 
-        /// Opens the text at offset `y`. At `didFinish` the scroll view often has no content size
-        /// yet, and WebKit's first layout then puts the offset back to the top; so the offset is
-        /// held until the content is tall enough, and set just after that layout. A drag first
-        /// cancels it.
+        // MARK: Opening at a handed-over offset (D2)
+
+        /// Counts loads, so a restore (and its timers) only acts on the page it was made for.
+        private var loadGeneration = 0
+        private var restore: ReadingScrollRestore?
+        private var restoreObservations: [NSKeyValueObservation] = []
+        private var lastLayoutChange: CFTimeInterval = 0
+        /// How long layout must stay still before an offset the page can't reach is clamped
+        /// (`quiet`), and the longest a restore waits at all (`limit`), in seconds.
+        var restoreTiming = (quiet: 0.3, limit: 2.0)
+        /// A handed-over offset is still waiting for the page's layout.
+        var isRestoringScroll: Bool { restore != nil }
+
+        /// Opens the text at offset `y` once the page's layout can hold it (`ReadingScrollRestore`).
+        /// Content size, viewport and inset changes each try again.
         private func open(at y: CGFloat, in sv: UIScrollView) {
-            pendingOpensAt = y
-            applyPendingOpensAt(in: sv)
-            guard pendingOpensAt != nil else { return }
-            contentSizeObservation = sv.observe(\.contentSize) { [weak self] sv, _ in
-                DispatchQueue.main.async { self?.applyPendingOpensAt(in: sv) }
+            let generation = loadGeneration
+            restore = ReadingScrollRestore(offset: y, generation: generation)
+            let changed: (UIScrollView) -> Void = { [weak self] _ in
+                DispatchQueue.main.async { self?.layoutChanged(generation) }
+            }
+            restoreObservations = [
+                sv.observe(\.contentSize) { sv, _ in changed(sv) },
+                sv.observe(\.contentInset) { sv, _ in changed(sv) },
+                sv.observe(\.frame) { sv, _ in changed(sv) },
+            ]
+            layoutChanged(generation)
+            DispatchQueue.main.asyncAfter(deadline: .now() + restoreTiming.limit) { [weak self] in
+                self?.advanceRestore(generation, quiet: true, expired: true)
             }
         }
 
-        private func applyPendingOpensAt(in sv: UIScrollView) {
-            guard let y = pendingOpensAt, !userScrolled else {
-                pendingOpensAt = nil
-                contentSizeObservation = nil
-                return
+        private func layoutChanged(_ generation: Int) {
+            guard restore?.generation == generation else { return }
+            let now = CACurrentMediaTime()
+            lastLayoutChange = now
+            advanceRestore(generation, quiet: false, expired: false)
+            let quiet = restoreTiming.quiet
+            DispatchQueue.main.asyncAfter(deadline: .now() + quiet) { [weak self] in
+                guard let self, self.lastLayoutChange == now else { return } // layout moved again
+                self.advanceRestore(generation, quiet: true, expired: false)
             }
-            let maxY = sv.contentSize.height - sv.bounds.height + sv.contentInset.bottom
-            guard sv.contentSize.height > 0, y <= maxY else { return }
+        }
+
+        private func advanceRestore(_ generation: Int, quiet: Bool, expired: Bool) {
+            guard let restore, restore.generation == generation, generation == loadGeneration,
+                  let sv = webView?.scrollView else { return }
+            let layout = ReadingScrollRestore.Layout(
+                contentHeight: sv.contentSize.height, viewportHeight: sv.bounds.height,
+                insetTop: sv.contentInset.top, insetBottom: sv.contentInset.bottom)
+            guard case .scroll(let y) = restore.step(in: layout, quiet: quiet, expired: expired) else { return }
             sv.contentOffset = CGPoint(x: sv.contentOffset.x, y: y)
-            pendingOpensAt = nil
-            contentSizeObservation = nil
+            cancelRestore()
+        }
+
+        /// Drops a waiting restore: a newer scroll (drag, scrub, follow) or another load wins.
+        private func cancelRestore() {
+            restore = nil
+            restoreObservations = []
         }
 
         /// Keeps the scroll view's top / bottom inset equal to the chrome over the text, so the
@@ -266,7 +302,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
             sv.contentInset = inset
             sv.verticalScrollIndicatorInsets = inset
             // Not a scroll of the text: it just keeps the first line below the top chrome.
-            if wasAtTop, !sv.isTracking, opensAt == nil, !follows {
+            if wasAtTop, !sv.isTracking, opensAt == nil, restore == nil, !follows {
                 sv.contentOffset = CGPoint(x: sv.contentOffset.x, y: -insets.top)
             }
         }
@@ -288,6 +324,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
         @objc private func dragged(_ pan: UIPanGestureRecognizer) {
             guard pan.state == .began else { return }
             userScrolled = true
+            cancelRestore()
             if follows {
                 follows = false
                 onUserScroll()
@@ -298,6 +335,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
         func scroll(_ request: ReaderScrollRequest?) {
             guard let request, request.token != lastScrollToken, let webView else { return }
             lastScrollToken = request.token
+            cancelRestore()
             let js = "(function(){ var el = document.querySelector('[data-reader-index=\"\(request.index)\"]');"
                 + " if (el) el.scrollIntoView({block: 'center'}); })();"
             webView.evaluateJavaScript(js, completionHandler: nil)
@@ -315,6 +353,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
         /// rect in the web view's coordinates.
         private func center(paragraph index: Int, animated: Bool) {
             guard let webView, loaded else { return }
+            cancelRestore()
             let js = "(function(){ var el = document.querySelector('[data-reader-index=\"\(index)\"]');"
                 + " if (!el) return null; var r = el.getBoundingClientRect(); return [r.top, r.height]; })();"
             webView.evaluateJavaScript(js) { [weak self, weak webView] result, _ in

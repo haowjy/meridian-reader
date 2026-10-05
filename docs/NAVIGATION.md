@@ -210,7 +210,9 @@ opens Now Playing instead.
 - **Listen** reads *▶ Listen · 9 min*, *▶ Resume · 6 min left* for a page part-way through, or
   *▶ Listen Again* for a finished one. It starts at the page's saved spot, makes the page what you
   hear (replacing what plays) and turns the Reader into Now Playing in place, at the same scroll
-  position (decision D2). ☝︎ in the header, then a tap on a paragraph, listens from that
+  position (decision D2): Now Playing sets that offset once its page is laid out, at the end of
+  the page if it can't reach it, and drops it if you drag, scrub, Back to audio, the audio moves
+  on or the page reloads first. ☝︎ in the header, then a tap on a paragraph, listens from that
   paragraph (a hint banner with Cancel floats over the text meanwhile).
 - **The Reader never scrolls by itself** and has no speed or skip buttons; reading text never
   moves under you.
