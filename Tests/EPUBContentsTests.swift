@@ -43,7 +43,7 @@ final class EPUBContentsTests: XCTestCase {
         // A short branch is one chapter, cut at the top level and titled by its heading.
         XCTAssertEqual(book.titles, ["Part One", "Afterword"])
         XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [1_200, 400])
-        XCTAssertEqual(book.chapters.first?.locator, EPUBLocator(href: "OEBPS/one.xhtml", fragment: nil),
+        XCTAssertEqual(book.chapters.first?.locator, EPUBLocator(href: "OEBPS/one.xhtml", anchor: .fileStart),
                        "a heading that links nowhere starts at its first child")
     }
 
@@ -101,9 +101,9 @@ final class EPUBContentsTests: XCTestCase {
         XCTAssertEqual(book.titles, ["Chapter I", "Chapter II", "Chapter III"])
         XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [600, 800, 700])
         XCTAssertEqual(book.chapters.map(\.locator), [
-            EPUBLocator(href: "OEBPS/part1.xhtml", fragment: "c1"),
-            EPUBLocator(href: "OEBPS/part1.xhtml", fragment: "c2"),
-            EPUBLocator(href: "OEBPS/part2.xhtml", fragment: "c3"),
+            EPUBLocator(href: "OEBPS/part1.xhtml", anchor: .id("c1")),
+            EPUBLocator(href: "OEBPS/part1.xhtml", anchor: .id("c2")),
+            EPUBLocator(href: "OEBPS/part2.xhtml", anchor: .id("c3")),
         ])
         XCTAssertEqual(book.chapters.map(\.spineHrefs), [
             ["OEBPS/part1.xhtml"], ["OEBPS/part1.xhtml", "OEBPS/part2.xhtml"], ["OEBPS/part2.xhtml"],
@@ -150,8 +150,8 @@ final class EPUBContentsTests: XCTestCase {
         XCTAssertEqual(book.titles, ["Chapter One", "Chapter Two"])
         XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [500, 500])
         XCTAssertEqual(book.chapters.map(\.locator), [
-            EPUBLocator(href: "OEBPS/one.xhtml", fragment: "gone"),
-            EPUBLocator(href: "OEBPS/two.xhtml", fragment: "café"),
+            EPUBLocator(href: "OEBPS/one.xhtml", anchor: .id("gone")),
+            EPUBLocator(href: "OEBPS/two.xhtml", anchor: .id("café")),
         ])
     }
 
@@ -163,7 +163,7 @@ final class EPUBContentsTests: XCTestCase {
         XCTAssertEqual(book.titles, ["Title Page", "Chapter 1", "Chapter 2", "Chapter 3", "Chapter 4", "Chapter 5", "Afterword"])
         XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [200, 8_002, 8_000, 8_000, 8_000, 8_000, 500],
                        "the two-word half-title merges into chapter 1")
-        XCTAssertEqual(book.chapters[1].locator, EPUBLocator(href: "OEBPS/ch1.xhtml", fragment: nil))
+        XCTAssertEqual(book.chapters[1].locator, EPUBLocator(href: "OEBPS/ch1.xhtml", anchor: .fileStart))
         assertBodyChaptersWithinBounds(book)
     }
 
@@ -235,7 +235,7 @@ final class EPUBContentsTests: XCTestCase {
         XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [20_000, 20_000], "pages are gathered into chapters, not one each")
         XCTAssertEqual(book.titles, ["Notice", nil])
         XCTAssertEqual(book.chapters.map(\.locator), [
-            EPUBLocator(href: "OEBPS/page1.xhtml", fragment: nil), EPUBLocator(href: "OEBPS/page21.xhtml", fragment: nil),
+            EPUBLocator(href: "OEBPS/page1.xhtml", anchor: .fileStart), EPUBLocator(href: "OEBPS/page21.xhtml", anchor: .fileStart),
         ])
     }
 

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// Limits for cutting a book into chapters. A fixed "top level of the contents" rule fails on
@@ -28,10 +29,29 @@ struct EPUBCutRules: Equatable, Sendable {
 
 /// Where a chapter is in its book: the part of the chapter's key that comes from the book.
 struct EPUBLocator: Hashable, Sendable {
-    /// Package path of the spine file.
+    enum Anchor: Hashable, Sendable {
+        /// The top of the spine file.
+        case fileStart
+        /// An id the book gives: a contents entry's fragment (resolved or not), or the id of the
+        /// element a cut starts at.
+        case id(String)
+        /// A cut where the book gives no anchor (or repeats an id): a fingerprint of the
+        /// chapter's first block's text (`EPUBTextStream.firstBlockText`), and how many
+        /// text-anchored chapters before it in the same file have the same fingerprint.
+        /// Attributes, whitespace between tags and inline elements around whole words change
+        /// neither the text nor where the cuts fall, so they keep it.
+        case text(fingerprint: String, occurrence: Int)
+    }
+
+    /// Package path of the spine file the chapter starts in.
     var href: String
-    /// The contents entry's fragment; for a cut no entry names, the element's id, or `@<event>`.
-    var fragment: String?
+    var anchor: Anchor
+
+    /// The id to scroll to, when the anchor is one.
+    var fragment: String? {
+        if case .id(let id) = anchor { return id }
+        return nil
+    }
 }
 
 /// A chapter cut from the stream, before its markup is written.
@@ -83,7 +103,11 @@ struct EPUBChapterCutter {
     private struct Mark {
         var position: Position
         var title: String?
-        var locator: EPUBLocator
+        /// Package path of the file the mark names (a contents entry's own file, even when it
+        /// has no text and the position is the next file's top).
+        var href: String
+        /// The book's anchor here; nil where it gives none, and a text anchor is made after cutting.
+        var anchor: EPUBLocator.Anchor?
         var origin: Origin
         /// Contents entries below this one, not cut at yet.
         var children: [EPUBContentsEntry] = []
@@ -93,7 +117,8 @@ struct EPUBChapterCutter {
         var start: Position
         var end: Position
         var title: String?
-        var locator: EPUBLocator
+        var href: String
+        var anchor: EPUBLocator.Anchor?
         var origin: Origin
         var words: Int
         var skips: Bool
@@ -110,7 +135,7 @@ struct EPUBChapterCutter {
         var offset: Int
     }
 
-    private static let blockElements: Set<String> = [
+    static let blockElements: Set<String> = [
         "p", "div", "section", "article", "blockquote", "pre", "ul", "ol", "li", "dl", "table",
         "figure", "aside", "header", "footer", "hr", "h1", "h2", "h3", "h4", "h5", "h6",
     ]
@@ -134,20 +159,7 @@ struct EPUBChapterCutter {
             let end = index + 1 < marks.count ? marks[index + 1].position : stream.end
             ranges += split(marks[index], end: end).map(classified)
         }
-        var cuts = mergingShortRanges(ranges).map { range in
-            EPUBCut(start: range.start, end: range.end,
-                    title: range.title ?? firstHeading(from: range.start, to: range.end),
-                    locator: range.locator, provisionalWordCount: range.words, skipsInPlayback: range.skips)
-        }
-        var seen = Set<EPUBLocator>()
-        for index in cuts.indices {
-            if seen.contains(cuts[index].locator) {
-                let start = cuts[index].start
-                cuts[index].locator.fragment = (cuts[index].locator.fragment ?? "") + "@\(start.document).\(start.event)"
-            }
-            seen.insert(cuts[index].locator)
-        }
-        return cuts
+        return located(mergingShortRanges(ranges))
     }
 
     // MARK: - Marks
@@ -156,14 +168,15 @@ struct EPUBChapterCutter {
         let title = entry.title.isEmpty ? nil : entry.title
         if let path = entry.path, let document = stream.documentIndex(ofPath: path),
            let position = stream.position(ofPath: path, fragment: entry.fragment) {
-            let locator = EPUBLocator(href: stream.documents[document].path, fragment: entry.fragment)
-            return Mark(position: position, title: title, locator: locator, origin: .contents, children: entry.children)
+            return Mark(position: position, title: title, href: stream.documents[document].path,
+                        anchor: entry.fragment.map { EPUBLocator.Anchor.id($0) } ?? .fileStart, origin: .contents,
+                        children: entry.children)
         }
         // A heading that links nowhere (or outside the spine) starts where its first child does.
         guard let first = entry.children.compactMap(mark(for:)).min(by: { $0.position < $1.position }) else {
             return nil
         }
-        return Mark(position: first.position, title: title ?? first.title, locator: first.locator,
+        return Mark(position: first.position, title: title ?? first.title, href: first.href, anchor: first.anchor,
                     origin: .contents, children: entry.children)
     }
 
@@ -184,9 +197,8 @@ struct EPUBChapterCutter {
     }
 
     private func mark(at position: Position, title: String?, origin: Origin) -> Mark {
-        let locator = EPUBLocator(href: stream.documents[position.document].path,
-                                  fragment: stream.fragment(at: position))
-        return Mark(position: position, title: title, locator: locator, origin: origin)
+        Mark(position: position, title: title, href: stream.documents[position.document].path,
+             anchor: stream.bookAnchor(at: position), origin: origin)
     }
 
     /// Sorted by position, one mark per position: a named mark wins over an unlisted one, and of
@@ -357,8 +369,8 @@ struct EPUBChapterCutter {
         let words = stream.words(from: start, to: piece.end)
         let bodyWords = stream.bodyWords(from: start, to: piece.end)
         let skips = bodyWords == 0 || (piece.mark.origin == .unlisted && words < rules.unlistedSkipBelowWords)
-        return Range(start: start, end: piece.end, title: piece.mark.title, locator: piece.mark.locator,
-                     origin: piece.mark.origin, words: words, skips: skips)
+        return Range(start: start, end: piece.end, title: piece.mark.title, href: piece.mark.href,
+                     anchor: piece.mark.anchor, origin: piece.mark.origin, words: words, skips: skips)
     }
 
     /// See the type's comment for the one case a short body range stays.
@@ -389,7 +401,7 @@ struct EPUBChapterCutter {
         return ranges
     }
 
-    /// The absorbing range keeps its title (unless it has none), locator and kind.
+    /// The absorbing range keeps its title (unless it has none), anchor and kind.
     private func absorbing(_ range: Range, into primary: Range) -> Range {
         var merged = primary
         merged.start = min(primary.start, range.start)
@@ -397,6 +409,36 @@ struct EPUBChapterCutter {
         merged.words += range.words
         merged.title = primary.title ?? range.title
         return merged
+    }
+
+    // MARK: - Locators
+
+    /// The ranges as cuts with unique locators: the book's anchor where it gives one, else a text
+    /// anchor. An anchor already taken (an id the book repeats) is replaced by a text anchor.
+    private func located(_ ranges: [Range]) -> [EPUBCut] {
+        var taken = Set<EPUBLocator>()
+        var occurrences: [EPUBLocator: Int] = [:]
+        return ranges.map { range in
+            var locator = range.anchor.map { EPUBLocator(href: range.href, anchor: $0) }
+            if locator.map(taken.contains) ?? true {
+                let text = stream.firstBlockText(from: range.start, to: range.end, isBlock: Self.blockElements.contains)
+                let fingerprint = Self.fingerprint(text)
+                let first = EPUBLocator(href: range.href, anchor: .text(fingerprint: fingerprint, occurrence: 0))
+                let occurrence = occurrences[first, default: 0]
+                occurrences[first] = occurrence + 1
+                locator = EPUBLocator(href: range.href, anchor: .text(fingerprint: fingerprint, occurrence: occurrence))
+            }
+            let unique = locator ?? EPUBLocator(href: range.href, anchor: .fileStart)
+            taken.insert(unique)
+            return EPUBCut(start: range.start, end: range.end,
+                           title: range.title ?? firstHeading(from: range.start, to: range.end),
+                           locator: unique, provisionalWordCount: range.words, skipsInPlayback: range.skips)
+        }
+    }
+
+    /// The first 16 bytes of the text's SHA-256, hex.
+    static func fingerprint(_ text: String) -> String {
+        SHA256.hash(data: Data(text.utf8)).prefix(16).map { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: - Titles

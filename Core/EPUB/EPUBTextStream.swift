@@ -110,18 +110,58 @@ struct EPUBTextStream: Sendable {
         return before(end) - before(start)
     }
 
-    /// Stable fragment for a position: its element's id, nil at the top of a file, else `@<event>`
-    /// (`@` can't appear in an XML id, so it never collides with one). These go into chapter keys
-    /// (the audio cache keys), so a change to `XHTMLReader` that numbers events differently
-    /// changes the keys of chapters cut where no id is.
-    func fragment(at position: Position) -> String? {
-        guard position.event > 0 else { return nil }
+    /// The book's own anchor at a position: the top of a file, or the id of the element that
+    /// opens there. Nil when the book gives none.
+    func bookAnchor(at position: Position) -> EPUBLocator.Anchor? {
+        guard position.event > 0 else { return .fileStart }
         let document = documents[position.document]
         if position.event < document.events.count, case .open(let tag) = document.events[position.event],
            let id = tag.attribute("id"), !id.isEmpty {
-            return id
+            return .id(id)
         }
-        return "@\(position.event)"
+        return nil
+    }
+
+    /// The text of the first block from `start` (stopping at `end`): its words, whitespace
+    /// collapsed, at most `maxWords` of them, in Unicode canonical composition. Markup that
+    /// doesn't change the text (attributes, whitespace between tags, inline elements) doesn't
+    /// change it.
+    func firstBlockText(from start: Position, to end: Position, maxWords: Int = 64,
+                        isBlock: (String) -> Bool) -> String {
+        var text = ""
+        var words = 0
+        var inWord = false
+        var sawText = false
+        for documentIndex in start.document...min(end.document, documents.count - 1) {
+            let events = documents[documentIndex].events
+            let low = documentIndex == start.document ? start.event : 0
+            let high = documentIndex == end.document ? end.event : events.count
+            guard low < high else { continue }
+            for event in events[low..<high] {
+                switch event {
+                case .open(let tag):
+                    if sawText, isBlock(tag.localName) { return text.precomposedStringWithCanonicalMapping }
+                case .close(let name):
+                    if sawText, isBlock(XHTMLTag.localName(of: name)) { return text.precomposedStringWithCanonicalMapping }
+                case .text(let chunk):
+                    for character in chunk {
+                        if character.isWhitespace {
+                            inWord = false
+                            continue
+                        }
+                        if !inWord {
+                            if words == maxWords { return text.precomposedStringWithCanonicalMapping }
+                            if words > 0 { text.append(" ") }
+                            words += 1
+                            inWord = true
+                        }
+                        text.append(character)
+                        sawText = true
+                    }
+                }
+            }
+        }
+        return text.precomposedStringWithCanonicalMapping
     }
 
     /// Spine files the range touches, in order.

@@ -4,34 +4,48 @@ import Foundation
 /// Stable keys for imported books and their chapters. The chapter key is the chapter's audio
 /// cache key, so importing the same file again gives the same keys and its audio is reused.
 ///
-/// - **Book key** = SHA-256(book namespace, OPF unique identifier + "\n" + title). The title is
-///   part of it because editions share identifiers (Gutenberg's EPUB2 and EPUB3 files). An
-///   identifier that is missing or a placeholder (`urn:uuid:` of all zeros) is replaced by the
-///   file's SHA-256.
-/// - **Chapter key** = SHA-256(chapter namespace, book key, href + "#" + fragment). It doesn't
-///   go through `ArticleIdentity.canonicalURLString`, which drops fragments: two chapters cut
-///   from one file differ only in their fragment.
+/// Each key is SHA-256(namespace, fields) → UUID, the fields written one after another as their
+/// UTF-8 byte count (8 bytes, big-endian) then their bytes, so no field's content can be read as
+/// a boundary between two.
+/// - **Book key** fields: `"identifier"`, the OPF unique identifier, the title (whitespace
+///   collapsed). The title is part of it because editions share identifiers (Gutenberg's EPUB2
+///   and EPUB3 files). An identifier that is missing or a placeholder (`urn:uuid:` of all zeros)
+///   gives `"file"` and the file's SHA-256 instead.
+/// - **Chapter key** fields: the book key, the spine file's package path, then the anchor:
+///   `"start"`; `"id"` and the id; or `"text"`, the first block's fingerprint and its occurrence.
+///   It doesn't go through `ArticleIdentity.canonicalURLString`, which drops fragments: two
+///   chapters cut from one file differ only in their anchor.
 ///
-/// These namespaces and inputs are persisted identity: changing them needs a migration.
+/// These namespaces and fields are persisted identity: changing them needs a migration.
 enum BookIdentity {
     private static let bookNamespace = "com.jimmyyao.Reader.book.v1"
     private static let chapterNamespace = "com.jimmyyao.Reader.book-chapter.v1"
 
     static func bookKey(identifier: String?, title: String?, fileFingerprint: String) -> UUID {
-        let namespace = Data(bookNamespace.utf8)
         if let identifier = usableIdentifier(identifier) {
-            let title = title?.collapsingWhitespace ?? ""
-            return ArticleIdentity.uuid(from: [namespace, Data((identifier + "\n" + title).utf8)])
+            return key(bookNamespace, ["identifier", identifier, title?.collapsingWhitespace ?? ""])
         }
-        return ArticleIdentity.uuid(from: [namespace, Data(("file\n" + fileFingerprint).utf8)])
+        return key(bookNamespace, ["file", fileFingerprint])
     }
 
     static func chapterKey(bookKey: UUID, locator: EPUBLocator) -> UUID {
-        ArticleIdentity.uuid(from: [
-            Data(chapterNamespace.utf8),
-            Data(bookKey.uuidString.utf8),
-            Data((locator.href + "#" + (locator.fragment ?? "")).utf8),
-        ])
+        var fields = [bookKey.uuidString, locator.href]
+        switch locator.anchor {
+        case .fileStart: fields += ["start"]
+        case .id(let id): fields += ["id", id]
+        case .text(let fingerprint, let occurrence): fields += ["text", fingerprint, String(occurrence)]
+        }
+        return key(chapterNamespace, fields)
+    }
+
+    private static func key(_ namespace: String, _ fields: [String]) -> UUID {
+        var encoded = Data()
+        for field in fields {
+            let bytes = Data(field.utf8)
+            encoded.append(contentsOf: withUnsafeBytes(of: UInt64(bytes.count).bigEndian, Array.init))
+            encoded.append(bytes)
+        }
+        return ArticleIdentity.uuid(from: [Data(namespace.utf8), encoded])
     }
 
     /// The identifier, trimmed, or nil when it's empty or a placeholder of zeros.

@@ -121,7 +121,7 @@ final class EPUBPackageTests: XCTestCase {
         entries[opfIndex].data = Data(epub.opf().replacingOccurrences(of: "href=\"chapter one.xhtml\"",
                                                                       with: "href=\"chapter%20one.xhtml\"").utf8)
         let book = try EPUBBookReader.read(fileURL: epub.write(in: self, entries: entries))
-        XCTAssertEqual(book.chapters.map(\.locator), [EPUBLocator(href: "chapter one.xhtml", fragment: "c1")])
+        XCTAssertEqual(book.chapters.map(\.locator), [EPUBLocator(href: "chapter one.xhtml", anchor: .id("c1"))])
         XCTAssertEqual(book.chapters.first?.provisionalWordCount, 300)
     }
 
