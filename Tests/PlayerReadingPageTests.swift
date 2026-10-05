@@ -87,7 +87,7 @@ final class PlayerReadingPageTests: XCTestCase {
     func testTheHandedOverOffsetStepsOverTheTitleCard() async throws {
         page.coordinator.look = .player
         page.coordinator.setTopView(ReadingTopView(id: 1, view: AnyView(Color.clear.frame(height: 120))))
-        try await page.load(ReadingPageHarness.paragraphs(40), blocks: 40, opensAt: 1200)
+        try await page.load(ReadingPageHarness.paragraphs(40), blocks: 40, opensAt: .text(offset: 1200))
         try await page.waitUntil("restored", timeout: 3) { !self.page.coordinator.isRestoringScroll }
         // The slot plus its margin below.
         XCTAssertEqual(page.coordinator.textTop, 120 + Spacing.l, accuracy: 1)
@@ -122,7 +122,7 @@ final class PlayerReadingPageTests: XCTestCase {
                 reader.scrollView.contentOffset.y += lineInReader - 300
                 let before = try await reader.windowY(ofParagraph: 12)
                 XCTAssertEqual(before, 300, accuracy: 1, "\(what): paragraph 13 mid-screen in the Reader")
-                let handOver = try XCTUnwrap(reader.coordinator.handOverOffset, what)
+                let handOver = try XCTUnwrap(reader.coordinator.handOver, what)
 
                 let player = ReadingPageHarness(size: size, viewportTop: dynamicType.isAccessibilitySize ? 190 : 120)
                 player.coordinator.look = .player

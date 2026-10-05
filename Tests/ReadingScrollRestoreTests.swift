@@ -57,7 +57,7 @@ final class ReadingScrollRestoreTests: XCTestCase {
     }
 
     func testOpensAtTheHandedOverOffset() async throws {
-        try await page.load(ReadingPageHarness.paragraphs(40), blocks: 40, opensAt: 1200)
+        try await page.load(ReadingPageHarness.paragraphs(40), blocks: 40, opensAt: .text(offset: 1200))
         try await page.waitUntil("restored", timeout: 3) { !self.page.coordinator.isRestoringScroll }
         XCTAssertEqual(page.offset, 1200, accuracy: 1)
     }
@@ -66,7 +66,7 @@ final class ReadingScrollRestoreTests: XCTestCase {
     /// over, so a page that grows later doesn't jump back to the old offset.
     func testAnOffsetPastTheEndClampsToTheEndAndFinishes() async throws {
         page.coordinator.restoreTiming = (quiet: 0.3, limit: 2)
-        try await page.load(ReadingPageHarness.paragraphs(8), blocks: 8, opensAt: 5000)
+        try await page.load(ReadingPageHarness.paragraphs(8), blocks: 8, opensAt: .text(offset: 5000))
         let start = Date()
         try await page.waitUntil("restore finished", timeout: 3) { !self.page.coordinator.isRestoringScroll }
         XCTAssertLessThan(Date().timeIntervalSince(start), 2.5, "bounded wait")
@@ -83,7 +83,7 @@ final class ReadingScrollRestoreTests: XCTestCase {
     /// A scrub while the restore waits: the scrub wins, and a later layout doesn't undo it.
     func testAScrubBeforeTheRestoreWins() async throws {
         page.coordinator.restoreTiming = (quiet: 30, limit: 60) // keeps it waiting
-        try await page.load(ReadingPageHarness.paragraphs(8), blocks: 8, opensAt: 5000)
+        try await page.load(ReadingPageHarness.paragraphs(8), blocks: 8, opensAt: .text(offset: 5000))
         try await page.pause(0.3)
         XCTAssertTrue(page.coordinator.isRestoringScroll, "5000 is past the end: still waiting")
 
@@ -100,7 +100,7 @@ final class ReadingScrollRestoreTests: XCTestCase {
     /// A scrub while the page is still loading, before the restore has started: the scrub wins,
     /// once the page can scroll, and the handed-over offset is never applied.
     func testAScrubBeforeThePageFinishesLoadingWins() async throws {
-        page.coordinator.load(html: ReadingPageHarness.paragraphs(40), opensAt: 3000)
+        page.coordinator.load(html: ReadingPageHarness.paragraphs(40), opensAt: .text(offset: 3000))
         page.coordinator.scroll(ReaderScrollRequest(index: 1, token: 1))
         try await page.waitUntil("page loaded and indexed") {
             guard !self.page.webView.isLoading else { return false }
@@ -115,7 +115,7 @@ final class ReadingScrollRestoreTests: XCTestCase {
     /// A new page while the restore waits: it opens at its top; the old offset was for the old page.
     func testAReloadBeforeTheRestoreOpensTheNewPageAtTheTop() async throws {
         page.coordinator.restoreTiming = (quiet: 30, limit: 60)
-        try await page.load(ReadingPageHarness.paragraphs(8), blocks: 8, opensAt: 5000)
+        try await page.load(ReadingPageHarness.paragraphs(8), blocks: 8, opensAt: .text(offset: 5000))
         try await page.pause(0.3)
         XCTAssertTrue(page.coordinator.isRestoringScroll)
 

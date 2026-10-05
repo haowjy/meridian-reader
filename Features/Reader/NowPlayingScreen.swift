@@ -217,7 +217,7 @@ private struct SpokenText: View {
     let jumpMode: Bool
     let scrollRequest: ReaderScrollRequest?
     let follows: Bool
-    let opensAt: CGFloat?
+    let opensAt: ReadingHandOver?
     let onUserScroll: () -> Void
     let onTap: (Int) -> Void
 

@@ -32,6 +32,11 @@ final class ReadingPageHarness {
         window.isHidden = true
     }
 
+    /// Moves the web view's top to `viewportTop` (a header above it growing or shrinking).
+    func moveViewport(top viewportTop: CGFloat) {
+        webView.frame = CGRect(x: 0, y: viewportTop, width: window.bounds.width, height: window.bounds.height - viewportTop)
+    }
+
     var scrollView: UIScrollView { webView.scrollView }
     var offset: CGFloat { scrollView.contentOffset.y }
     /// The farthest the text scrolls down.
@@ -41,7 +46,7 @@ final class ReadingPageHarness {
     }
 
     /// Loads `html` and waits for the page to finish and number its `blocks` paragraphs.
-    func load(_ html: String, blocks: Int, heading: ReaderHeading? = nil, opensAt: CGFloat? = nil) async throws {
+    func load(_ html: String, blocks: Int, heading: ReaderHeading? = nil, opensAt: ReadingHandOver? = nil) async throws {
         coordinator.load(html: html, heading: heading, opensAt: opensAt)
         try await waitUntil("page loaded and indexed") {
             guard !self.webView.isLoading else { return false }

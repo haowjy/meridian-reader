@@ -209,16 +209,26 @@ opens Now Playing instead.
   *‹ Library*. The pill, the grabber and a pull down all close it to exactly where you were.
 - **Listen** reads *▶ Listen · 9 min*, *▶ Resume · 6 min left* for a page part-way through, or
   *▶ Listen Again* for a finished one. It starts at the page's saved spot, makes the page what you
-  hear (replacing what plays) and turns the Reader into Now Playing in place, at the same scroll
-  position (decision D2): the same line stays at the same place on screen, though Now Playing's
-  title card is not the Reader's heading and its header is taller (more so at large text sizes).
-  Now Playing sets that position once its page is laid out, at the end of
-  the page if it can't reach it, and drops it if you drag, scrub, Back to audio, the audio moves
-  on or the page reloads first. ☝︎ in the header, then a tap on a paragraph, listens from that
+  hear (replacing what plays) and turns the Reader into Now Playing in place, where the Reader was
+  (decision D2):
+  - **At the Reader's top** (its first line of text not yet scrolled above the top of the reading
+    area, so the title may be part way up), Now Playing opens at its top, the title card in full.
+  - **Scrolled into the text**, the same line stays at the same place on screen, though Now
+    Playing's title card is not the Reader's heading and its header is taller (more so at large
+    text sizes); the card is then partly or wholly above the reading area.
+  - **When that place can't be reached** (past either end of Now Playing's page), the page goes
+    as far as it can that way, so the line stays in view as near its place as possible. Keeping
+    the line in view wins over showing the card in full.
+
+  Now Playing sets that position once its page is laid out and holds it while the layout
+  settles (the title card measured, the header, a text size change: each keeps the same line).
+  It drops it if you drag, scrub, Back to audio, the audio moves on or the page reloads first. ☝︎ in the header, then a tap on a paragraph, listens from that
   paragraph (a hint banner with Cancel floats over the text meanwhile). While ☝︎ is on, each
   paragraph is a button to VoiceOver, *Paragraph N*, hint *Plays from this paragraph*.
 - **The Reader never scrolls by itself** and has no speed or skip buttons; reading text never
-  moves under you.
+  moves under you. A text size change (Dynamic Type) keeps the line at the top of the reading
+  area where it is, to the character; a page at its top stays at its top. Now Playing does the
+  same, or, while it follows the audio, centres the spoken paragraph again.
 - 🔖 saves / unsaves (filled = saved); it keeps the screen and playback as they are.
 - **⋯** (slot 5, the browser's ⋯ spot): rows *Voice settings, Save / Remove article, Bookmark
   site, Share, Debug* (developer options only); big buttons **Bookmarks / Saved / History /

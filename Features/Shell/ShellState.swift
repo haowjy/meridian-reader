@@ -84,9 +84,9 @@ final class ShellState {
     private(set) var nowPlayingPresentation: UUID?
     var isNowPlayingPresented: Bool { nowPlayingPresentation != nil }
     /// Where Now Playing's text opens: the Reader's scroll position (its reading page's
-    /// `handOverOffset`) when its Listen turned it into Now Playing (it appears in place, without
+    /// `handOver`) when its Listen turned it into Now Playing (it appears in place, without
     /// rising). nil = it rises and finds the audio.
-    private(set) var nowPlayingOpensAt: CGFloat?
+    private(set) var nowPlayingOpensAt: ReadingHandOver?
     var sheet: ShellSheet?
     /// The open ⋯ menu (nil = closed), rendered by the shell's one `MorphMenuOverlay`.
     var menu: MenuContext?
@@ -163,11 +163,11 @@ final class ShellState {
         presentNowPlaying()
     }
 
-    /// Listen in the Reader (decision D2): the Reader turns into Now Playing where it was, at
-    /// scroll offset `offset`.
-    func turnReaderIntoNowPlaying(scrollOffset offset: CGFloat?) {
+    /// Listen in the Reader (decision D2): the Reader turns into Now Playing where it was
+    /// (`handOver`; nil when its page wasn't up, and Now Playing rises as from the bar).
+    func turnReaderIntoNowPlaying(handOver: ReadingHandOver?) {
         reader = nil
-        nowPlayingOpensAt = offset
+        nowPlayingOpensAt = handOver
         presentNowPlaying()
     }
 

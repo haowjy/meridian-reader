@@ -33,8 +33,8 @@ struct ReadingTopView: Equatable {
 final class ReadingScrollHandle {
     fileprivate weak var coordinator: HTMLReadingWebView.Coordinator?
 
-    /// Where the text is scrolled to, as `Coordinator.handOverOffset`. Nil before the page is up.
-    var offset: CGFloat? { coordinator?.handOverOffset }
+    /// Where the text is scrolled to, as `Coordinator.handOver`. Nil before the page is up.
+    var handOver: ReadingHandOver? { coordinator?.handOver }
 }
 
 /// Renders an article's reading HTML in the serif reading style (`look`: paper for the Reader,
@@ -61,9 +61,9 @@ struct HTMLReadingView: View {
     /// Scroll a paragraph into view: following a scrub.
     var scrollRequest: ReaderScrollRequest? = nil
     var follows = false
-    /// Where the text opens (another page's `handOverOffset`: the same line at the same place on
-    /// screen), instead of the top or the spoken paragraph.
-    var opensAt: CGFloat? = nil
+    /// Where the text opens (another page's `handOver`: its top, or the same line at the same place
+    /// on screen), instead of the top or the spoken paragraph.
+    var opensAt: ReadingHandOver? = nil
     var scrollHandle: ReadingScrollHandle? = nil
     /// Room left above / below the text for chrome drawn over it.
     var textInsets = ReaderTextInsets()
@@ -127,7 +127,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
     let jumpMode: Bool
     var scrollRequest: ReaderScrollRequest? = nil
     var follows = false
-    var opensAt: CGFloat?
+    var opensAt: ReadingHandOver?
     var scrollHandle: ReadingScrollHandle?
     var textInsets = ReaderTextInsets()
     var sizes = ReadingStyle.Sizes()
@@ -216,8 +216,8 @@ struct HTMLReadingWebView: UIViewRepresentable {
         var animates = true
         /// Following the audio (Now Playing). Set before the first load by `makeUIView`.
         var follows = false
-        /// The load in flight opens here (the Reader's `handOverOffset`, handed to Now Playing).
-        private var opensAt: CGFloat?
+        /// The load in flight opens here (the Reader's `handOver`, handed to Now Playing).
+        private var opensAt: ReadingHandOver?
         private var loaded = false
         private var pendingActive: Int?
         /// Highlight index the page last received; nil = nothing sent since the page loaded.
@@ -238,7 +238,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
 
         /// Shows `html`. `opensAt` is where this load opens (the D2 handoff); any other load opens
         /// at the top, or at the spoken paragraph when following, and drops a restore still waiting.
-        func load(html: String, heading: ReaderHeading? = nil, opensAt: CGFloat? = nil) {
+        func load(html: String, heading: ReaderHeading? = nil, opensAt: ReadingHandOver? = nil) {
             lastHTML = html
             lastHeading = heading
             userScrolled = false
@@ -251,7 +251,10 @@ struct HTMLReadingWebView: UIViewRepresentable {
             pendingScrollIndex = nil
             self.opensAt = opensAt
             textTop = 0
+            reflowing = false
+            queuedReflow = []
             let top = topHost == nil ? nil : sentTopHeight ?? 0
+            pageTopHeight = top
             webView?.loadHTMLString(Self.wrap(html, heading: heading, top: top, sizes: sizes, look: look), baseURL: nil)
         }
 
@@ -259,8 +262,10 @@ struct HTMLReadingWebView: UIViewRepresentable {
 
         private var topHost: UIHostingController<AnyView>?
         private var topID: AnyHashable?
-        /// The top view's height the page's slot holds; nil = not measured yet.
+        /// The top view's height, measured; nil = not yet.
         private var sentTopHeight: CGFloat?
+        /// The height the page's slot has (or will have, once the change in flight lands).
+        private var pageTopHeight: CGFloat?
         private var measuredTopWidth: CGFloat = 0
 
         /// How far the article text starts below the top of the page's content (the title and
@@ -268,20 +273,27 @@ struct HTMLReadingWebView: UIViewRepresentable {
         /// whenever what's above changes size.
         private(set) var textTop: CGFloat = 0
 
-        /// The scroll position handed to another page (the Reader's, to Now Playing): how far the
-        /// top of the article text sits above the top of the window. It counts what is above the
-        /// text on the page (the title, or the title card) and where the web view sits on screen
-        /// (the Reader's and Now Playing's headers differ in height, more so at large text
-        /// sizes), so the page that opens at it shows the same line at the same place on screen.
-        /// Nil while the web view is off screen.
-        var handOverOffset: CGFloat? {
+        /// The scroll position handed to another page (the Reader's, to Now Playing). At the top
+        /// (the text's first line not yet scrolled above the top of the reading area) it is
+        /// `.top`. Scrolled into the text, it is how far the top of the article text sits above
+        /// the top of the window: that counts what is above the text on the page (the title, or
+        /// the title card) and where the web view sits on screen (the Reader's and Now Playing's
+        /// headers differ in height, more so at large text sizes), so the page that opens at it
+        /// shows the same line at the same place on screen. Nil while the web view is off screen.
+        var handOver: ReadingHandOver? {
             guard let webView, webView.window != nil else { return nil }
-            return webView.scrollView.contentOffset.y - textTop - viewportTop(of: webView)
+            let sv = webView.scrollView
+            // Half a point of slack: a page at its top can sit a fraction off it.
+            guard sv.contentOffset.y + sv.contentInset.top > textTop + 0.5 else { return .top }
+            return .text(offset: sv.contentOffset.y - textTop - viewportTop(of: webView))
         }
 
-        /// The scroll offset that puts the text where `handOverOffset` says, on this page.
-        private func contentOffset(handedOver offset: CGFloat, in webView: WKWebView) -> CGFloat {
-            offset + textTop + viewportTop(of: webView)
+        /// The scroll offset that opens this page where `handOver` says.
+        private func contentOffset(for handOver: ReadingHandOver, in webView: WKWebView) -> CGFloat {
+            switch handOver {
+            case .top: -webView.scrollView.contentInset.top
+            case .text(let offset): offset + textTop + viewportTop(of: webView)
+            }
         }
 
         /// The window y of the top of the web view's scroll view (its viewport).
@@ -335,22 +347,26 @@ struct HTMLReadingWebView: UIViewRepresentable {
             }
         }
 
+        /// Gives the page's slot the top view's height, keeping the line being read in place.
         private func sendTopHeight() {
-            guard loaded, let webView, let height = sentTopHeight else { return }
-            webView.evaluateJavaScript(
-                "(function(){ var t = document.querySelector('.reader-top'); if (t) t.style.height = '\(Int(height))px'; })();",
-                completionHandler: nil)
-            measureTextTop()
+            guard loaded, let height = sentTopHeight, height != pageTopHeight else { return }
+            // What is above the text moves the text by as much, and a hand-over still waiting
+            // works out its offset from `textTop` on the next frame: say so before the page has
+            // answered (it confirms it, see `reflow`).
+            if let old = pageTopHeight, restore != nil { textTop += height - old }
+            pageTopHeight = height
+            reflow(Self.topHeightScript(height))
+        }
+
+        private static func topHeightScript(_ height: CGFloat) -> String {
+            "var t = document.querySelector('.reader-top'); if (t) t.style.height = '\(Int(height))px';"
         }
 
         /// Measures `textTop` (after any style change queued before it), then runs `then`.
         private func measureTextTop(then: (() -> Void)? = nil) {
             guard let webView else { return }
             let generation = loadGeneration
-            let js = "(function(){ var t = document.querySelector('.reader-text'); if (!t) return 0;"
-                + " var b = document.body; return t.getBoundingClientRect().top - b.getBoundingClientRect().top"
-                + " - parseFloat(getComputedStyle(b).paddingTop); })();"
-            webView.evaluateJavaScript(js) { [weak self] result, _ in
+            webView.evaluateJavaScript("window.__readerTextTop()") { [weak self] result, _ in
                 guard let self, generation == self.loadGeneration else { return }
                 self.textTop = CGFloat((result as? Double) ?? 0)
                 then?()
@@ -364,55 +380,53 @@ struct HTMLReadingWebView: UIViewRepresentable {
 
         /// Counts loads, so a restore (and its timers) only acts on the page it was made for.
         private var loadGeneration = 0
-        private var restore: ReadingScrollRestore?
-        private var restoreObservations: [NSKeyValueObservation] = []
-        private var lastLayoutChange: CFTimeInterval = 0
-        /// How long layout must stay still before an offset the page can't reach is clamped
-        /// (`quiet`), and the longest a restore waits at all (`limit`), in seconds.
+        /// A hand-over being put on screen: worked out again on every frame (`restoreFrame`) until
+        /// layout has been still for `restoreTiming.quiet`.
+        private var restore: (handOver: ReadingHandOver, generation: Int, started: CFTimeInterval)?
+        private var restoreLink: CADisplayLink?
+        /// The last frame's target and layout, and when they last changed.
+        private var restoreSeen: (target: CGFloat, layout: ReadingScrollRestore.Layout)?
+        private var restoreSeenChanged: CFTimeInterval = 0
+        /// How long the target and layout must stay still before the restore finishes (and an offset
+        /// the page can't reach is clamped), and the longest a restore lasts at all, in seconds.
         var restoreTiming = (quiet: 0.3, limit: 2.0)
         /// A handed-over offset is still waiting: for the page to load, or for its layout.
         var isRestoringScroll: Bool { restore != nil || opensAt != nil }
 
-        /// Opens the text at offset `y` once the page's layout can hold it (`ReadingScrollRestore`).
-        /// Content size, viewport and inset changes each try again.
-        private func open(at y: CGFloat, in sv: UIScrollView) {
-            let generation = loadGeneration
-            restore = ReadingScrollRestore(offset: y, generation: generation)
-            let changed: (UIScrollView) -> Void = { [weak self] _ in
-                DispatchQueue.main.async { self?.layoutChanged(generation) }
-            }
-            restoreObservations = [
-                sv.observe(\.contentSize) { sv, _ in changed(sv) },
-                sv.observe(\.contentInset) { sv, _ in changed(sv) },
-                sv.observe(\.frame) { sv, _ in changed(sv) },
-            ]
-            layoutChanged(generation)
-            DispatchQueue.main.asyncAfter(deadline: .now() + restoreTiming.limit) { [weak self] in
-                self?.advanceRestore(generation, quiet: true, expired: true)
-            }
-        }
-
-        private func layoutChanged(_ generation: Int) {
-            guard restore?.generation == generation else { return }
+        /// Opens the text where `handOver` says once the page's layout can hold it, and keeps it
+        /// there while the layout settles: the title card measured, the header growing, what is
+        /// above the text changing size (see `ReadingScrollRestore`).
+        private func open(at handOver: ReadingHandOver) {
             let now = CACurrentMediaTime()
-            lastLayoutChange = now
-            advanceRestore(generation, quiet: false, expired: false)
-            let quiet = restoreTiming.quiet
-            DispatchQueue.main.asyncAfter(deadline: .now() + quiet) { [weak self] in
-                guard let self, self.lastLayoutChange == now else { return } // layout moved again
-                self.advanceRestore(generation, quiet: true, expired: false)
-            }
+            restore = (handOver, loadGeneration, now)
+            restoreSeen = nil
+            restoreSeenChanged = now
+            restoreLink?.invalidate()
+            let link = CADisplayLink(target: self, selector: #selector(restoreFrame))
+            link.add(to: .main, forMode: .common)
+            restoreLink = link
+            restoreFrame()
         }
 
-        private func advanceRestore(_ generation: Int, quiet: Bool, expired: Bool) {
-            guard let restore, restore.generation == generation, generation == loadGeneration,
-                  let sv = webView?.scrollView else { return }
+        @objc private func restoreFrame() {
+            guard let restore, restore.generation == loadGeneration, let webView else { return cancelRestore() }
+            let sv = webView.scrollView
+            let target = contentOffset(for: restore.handOver, in: webView)
             let layout = ReadingScrollRestore.Layout(
                 contentHeight: sv.contentSize.height, viewportHeight: sv.bounds.height,
                 insetTop: sv.contentInset.top, insetBottom: sv.contentInset.bottom)
-            guard case .scroll(let y) = restore.step(in: layout, quiet: quiet, expired: expired) else { return }
-            sv.contentOffset = CGPoint(x: sv.contentOffset.x, y: y)
-            cancelRestore()
+            let now = CACurrentMediaTime()
+            if restoreSeen.map({ abs($0.target - target) > 0.01 || $0.layout != layout }) ?? true {
+                restoreSeen = (target, layout)
+                restoreSeenChanged = now
+            }
+            let quiet = now - restoreSeenChanged >= restoreTiming.quiet
+            let expired = now - restore.started >= restoreTiming.limit
+            let step = ReadingScrollRestore(offset: target, generation: restore.generation)
+                .step(in: layout, quiet: quiet, expired: expired)
+            guard case .scroll(let y) = step else { return }
+            if abs(sv.contentOffset.y - y) > 0.01 { sv.contentOffset = CGPoint(x: sv.contentOffset.x, y: y) }
+            if quiet || expired { cancelRestore() }
         }
 
         /// Drops a waiting restore, including one queued for a page still loading: a newer scroll
@@ -420,7 +434,69 @@ struct HTMLReadingWebView: UIViewRepresentable {
         private func cancelRestore() {
             opensAt = nil
             restore = nil
-            restoreObservations = []
+            restoreLink?.invalidate()
+            restoreLink = nil
+        }
+
+        // MARK: Reflow (Dynamic Type, the title card) keeps the line being read
+
+        private var reflowing = false
+        private var queuedReflow: [String] = []
+        /// A reflow is in flight or queued.
+        var isReflowing: Bool { reflowing || !queuedReflow.isEmpty }
+
+        /// Runs `change` (a style change that reflows the page) keeping the line being read where
+        /// it is on screen: the reading anchor, the paragraph and the UTF-16 offset of the first
+        /// character on the line at the top of the reading area, measured before and after the
+        /// change in one go. A page at its top stays at its top; one following the audio centres
+        /// the spoken paragraph again; a hand-over still waiting keeps its line instead. Changes
+        /// run one at a time, so each anchor is measured on the page as the last one left it.
+        private func reflow(_ change: String) {
+            guard loaded, let webView else { return }
+            guard !reflowing else { return queuedReflow.append(change) }
+            reflowing = true
+            let sv = webView.scrollView
+            let generation = loadGeneration
+            let waiting: CGFloat? = if case .text(let offset) = restore?.handOver { offset } else { nil }
+            let atTop = sv.contentOffset.y <= -sv.contentInset.top + 1
+            // The document y of the top of the reading area (for a hand-over, where it will be).
+            let anchorY = waiting.map { textTop + max(0, viewportTop(of: webView) + sv.contentInset.top + $0) }
+                ?? sv.contentOffset.y + sv.contentInset.top
+            let js = "(function(){ var a = window.__readerAnchor(\(Double(anchorY))); \(change)"
+                + " return window.__readerAnchorMoved(a); })();"
+            webView.evaluateJavaScript(js) { [weak self] result, _ in
+                guard let self, generation == self.loadGeneration else { return }
+                self.reflowing = false
+                if let moved = result as? [Double], moved.count == 4 {
+                    self.reflowed(lineBefore: moved[0], lineAfter: moved[1], textTopBefore: moved[2],
+                                  textTopAfter: moved[3], atTop: atTop)
+                }
+                if !self.queuedReflow.isEmpty {
+                    let next = self.queuedReflow.joined(separator: " ")
+                    self.queuedReflow = []
+                    self.reflow(next)
+                }
+            }
+        }
+
+        private func reflowed(lineBefore: Double, lineAfter: Double, textTopBefore: Double, textTopAfter: Double,
+                              atTop: Bool) {
+            guard let sv = webView?.scrollView else { return }
+            textTop = CGFloat(textTopAfter)
+            if let restore {
+                // Still opening: the target follows the line through the text (a change above the
+                // text alone moves `textTop`, which the next frame reads).
+                if case .text(let offset) = restore.handOver {
+                    let moved = (lineAfter - textTopAfter) - (lineBefore - textTopBefore)
+                    self.restore?.handOver = .text(offset: offset + CGFloat(moved))
+                }
+            } else if atTop {
+                sv.contentOffset = CGPoint(x: sv.contentOffset.x, y: -sv.contentInset.top)
+            } else if follows, let index = pendingActive {
+                center(paragraph: index, animated: false)
+            } else {
+                sv.contentOffset = CGPoint(x: sv.contentOffset.x, y: sv.contentOffset.y + CGFloat(lineAfter - lineBefore))
+            }
         }
 
         /// A scrub that came before the page finished loading; it is applied when it does.
@@ -445,10 +521,9 @@ struct HTMLReadingWebView: UIViewRepresentable {
 
         func setSizes(_ sizes: ReadingStyle.Sizes) {
             self.sizes = sizes
-            guard loaded, sizes != sentSizes, let webView else { return }
+            guard loaded, sizes != sentSizes else { return }
             sentSizes = sizes
-            webView.evaluateJavaScript(ReadingStyle.sizesScript(sizes), completionHandler: nil)
-            measureTextTop()
+            reflow(ReadingStyle.sizesScript(sizes))
         }
 
         /// Notes a finger drag: an inset change no longer pins the text to the top, and following
@@ -618,17 +693,20 @@ struct HTMLReadingWebView: UIViewRepresentable {
             setSentence(pendingSentence)
             lastSentJumpMode = nil
             setJumpMode(jumpMode)
-            sentSizes = nil
-            setSizes(sizes)
-            sendTopHeight()
+            // Sizes or the top view that changed while the page loaded: a fresh page, nothing to
+            // keep in place yet.
+            sentSizes = sizes
+            pageTopHeight = sentTopHeight.flatMap { topHost == nil ? nil : $0 }
+            webView.evaluateJavaScript(ReadingStyle.sizesScript(sizes)
+                + (pageTopHeight.map(Self.topHeightScript) ?? ""), completionHandler: nil)
             let sv = webView.scrollView
             if opensAt != nil {
-                // Handed over from the Reader: the text stays exactly where it was on screen (see
-                // `handOverOffset`). A drag or scrub meanwhile drops it.
-                measureTextTop { [weak self, weak webView, weak sv] in
-                    guard let self, let webView, let sv, let opensAt = self.opensAt else { return }
+                // Handed over from the Reader: its top, or the same line at the same place on
+                // screen (see `handOver`). A drag or scrub meanwhile drops it.
+                measureTextTop { [weak self] in
+                    guard let self, let opensAt = self.opensAt else { return }
                     self.opensAt = nil
-                    self.open(at: self.contentOffset(handedOver: opensAt, in: webView), in: sv)
+                    self.open(at: opensAt)
                 }
             } else if let index = pendingScrollIndex {
                 // Scrubbed while loading: the scrub is the newest request.
@@ -640,6 +718,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
                 // A fresh page starts at the top, just below the top chrome.
                 sv.contentOffset = CGPoint(x: sv.contentOffset.x, y: -textInsets.top)
             }
+            if opensAt == nil { measureTextTop() }
         }
     }
 
@@ -742,6 +821,52 @@ struct HTMLReadingWebView: UIViewRepresentable {
             if (el) el.classList.add('reader-active');
             // The player's lyrics style dims the rest only while a paragraph is spoken.
             document.body.classList.toggle('reader-has-active', !!el);
+          };
+          // Document y: what the scroll view calls content y.
+          function docTop(rect) { return rect.top - document.documentElement.getBoundingClientRect().top; }
+          // How far the article text starts below the top of the page's content.
+          window.__readerTextTop = function() {
+            var t = document.querySelector('.reader-text'); if (!t) return 0;
+            var b = document.body;
+            return t.getBoundingClientRect().top - b.getBoundingClientRect().top - parseFloat(getComputedStyle(b).paddingTop);
+          };
+          // The reading anchor at document y `y`: the first paragraph reaching below it, and the
+          // session offset of the first character on its line there (0 when the paragraph starts
+          // below `y`), with that line's top and the text's top. Index -1 on a page without
+          // paragraphs.
+          window.__readerAnchor = function(y) {
+            var textTop = window.__readerTextTop();
+            var els = document.querySelectorAll('[data-reader-index]');
+            if (!els.length) return { index: -1, offset: 0, top: 0, textTop: textTop };
+            var el = els[els.length - 1];
+            for (var i = 0; i < els.length; i++) {
+              var box = els[i].getBoundingClientRect();
+              if (docTop(box) + box.height > y) { el = els[i]; break; }
+            }
+            var anchor = { index: Number(el.getAttribute('data-reader-index')), offset: 0,
+                           top: docTop(el.getBoundingClientRect()), textTop: textTop };
+            if (anchor.top >= y) return anchor;
+            for (var n = 0; ; n++) {
+              var r = rangeIn(el, n, n + 1);
+              if (!r) break;
+              var rect = r.getClientRects()[0]; // none for a space folded away at a line's end
+              if (rect && docTop(rect) + rect.height > y) {
+                anchor.offset = n;
+                anchor.top = docTop(rect);
+                break;
+              }
+            }
+            return anchor;
+          };
+          // Where the anchor's line is now (after a reflow), with the text's top before and after:
+          // [line before, line after, text top before, text top after].
+          window.__readerAnchorMoved = function(a) {
+            var after = window.__readerTextTop();
+            var el = document.querySelector('[data-reader-index="' + a.index + '"]');
+            if (!el) return [0, 0, a.textTop, after];
+            var r = a.offset > 0 ? rangeIn(el, a.offset, a.offset + 1) : null;
+            var rect = r && r.getClientRects()[0];
+            return [a.top, rect ? docTop(rect) : docTop(el.getBoundingClientRect()), a.textTop, after];
           };
           window.__readerSetSentence = function(index, start, end) {
             if (!window.CSS || !CSS.highlights || typeof Highlight === 'undefined') return;

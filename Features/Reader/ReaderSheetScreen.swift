@@ -190,7 +190,7 @@ struct ReaderSheetScreen: View {
     private func listen(from paragraph: Int?) {
         guard sessionReady else { return }
         jumpMode = false
-        let offset = scroll.offset
+        let handOver = scroll.handOver
         if let paragraph {
             speech.listen(to: article, fromParagraph: paragraph)
         } else if isFinished {
@@ -198,7 +198,7 @@ struct ReaderSheetScreen: View {
         } else {
             speech.listen(to: article, fromParagraph: resumeParagraph, utf16Offset: savedRow?.playbackUTF16Offset)
         }
-        shell.turnReaderIntoNowPlaying(scrollOffset: offset)
+        shell.turnReaderIntoNowPlaying(handOver: handOver)
     }
 
     /// 🔖 / ⋯ → Save. Neither direction touches the screen or playback (see the type comment).

@@ -60,10 +60,10 @@ final class ReaderOriginTests: XCTestCase {
     func testListenTurnsTheReaderIntoNowPlayingWhereItWas() {
         let shell = ShellState()
         shell.openReader(article())
-        shell.turnReaderIntoNowPlaying(scrollOffset: 240)
+        shell.turnReaderIntoNowPlaying(handOver: .text(offset: 240))
         XCTAssertNil(shell.reader)
         XCTAssertTrue(shell.isNowPlayingPresented)
-        XCTAssertEqual(shell.nowPlayingOpensAt, 240)
+        XCTAssertEqual(shell.nowPlayingOpensAt, .text(offset: 240))
         shell.hideNowPlaying()
         XCTAssertNil(shell.nowPlayingOpensAt)
         XCTAssertTrue(shell.isBrowsing)
