@@ -183,7 +183,7 @@ extension SpeechController {
     /// Once the chapter's rendering has reached two paragraphs before its end, the next chapter
     /// is staged behind it in the render queue (`GlobalSynthQueue.stageNext`), so its opening is
     /// on disk when it starts, in the background too on the ONNX route. Only on the on-device
-    /// engine; once per chapter.
+    /// engine, not for audio held for unfinished library work; once per chapter.
     func stageNextChapterIfDue() {
         guard let key = playback.articleID, let folderID = playback.folderID, let library = nextChapters,
               chapterFlow.stagedAfter != key, case .local = wantedRoute else { return }

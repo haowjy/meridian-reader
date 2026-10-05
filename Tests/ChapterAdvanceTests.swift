@@ -113,6 +113,31 @@ final class ChapterAdvanceTests: XCTestCase {
         XCTAssertNil(book.finishedAt, "and is no longer finished")
     }
 
+    /// D7 leaves audio held for library work a launch couldn't finish (`ArticleAudioCache.held`),
+    /// after the launch hold has ended too: that work still needs it. Held pages keep theirs;
+    /// with everything held, nothing is trimmed.
+    func testTrimmingLeavesHeldAudio() throws {
+        for holdsAll in [false, true] {
+            let env = try LibraryTestEnvironment()
+            defer { env.cleanUp() }
+            let library: LibraryStore = env.library
+            let (book, pages) = Self.seedBook(in: library, titles: ["One", "Two", "Three", "Four", "Five"])
+            for page in pages.prefix(3) {
+                try env.storeAudio(page.listenKey, paragraphs: page.cachedListenParagraphs ?? [])
+                page.finishedAt = env.now
+            }
+            env.tts.holdRenderingForLaunch()
+            env.cache.held = holdsAll ? .all : .pages([pages[0].listenKey])
+            env.tts.endLaunchHold()
+
+            library.recordPlaybackStarted(pages[4])
+            XCTAssertEqual(book.currentPageKey, pages[4].key, "the place moved three past them")
+            XCTAssertTrue(env.cache.hasCache(for: pages[0].listenKey), "held: kept (all held: \(holdsAll))")
+            XCTAssertEqual(env.cache.hasCache(for: pages[1].listenKey), holdsAll, "not held: trimmed (all held: \(holdsAll))")
+            XCTAssertTrue(env.cache.hasCache(for: pages[2].listenKey), "two behind: kept")
+        }
+    }
+
     func testTheSnapshotFlagsSkippedLinkAndBlockedChapters() throws {
         let env = try LibraryTestEnvironment()
         defer { env.cleanUp() }

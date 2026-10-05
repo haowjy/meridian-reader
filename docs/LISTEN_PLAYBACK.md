@@ -195,12 +195,14 @@ Headphone and lock-screen skips stay paragraph skips (D4).
 
 **Rendering across the boundary.** Once the chapter's rendering has reached two paragraphs before
 its end, the next chapter is staged in the render queue (`GlobalSynthQueue.stageNext`, "Render
-queue"), so its opening is on disk when it starts. In the background on a route that can't render
+queue"), so its opening is on disk when it starts; not when its audio is held for unfinished
+library work (`ArticleAudioCache.held`), which a render would overwrite. In the background on a route that can't render
 there (Core ML), no model call starts, so a chapter not rendered in full plays in Apple's voice
 until the app is in front again, when the on-device engine takes over at the next paragraph (D9).
 The ONNX route renders in the background and keeps its voice. The catch-up bake at the end of a
 page runs only for pages outside books and series, and finished chapters more than 2 behind the
-book's place lose their audio, keeping their text (D7).
+book's place lose their audio, keeping their text (D7), except audio held for unfinished library
+work.
 
 Each boundary logs `chapter_advance` (what plays next) and, once the next chapter is audible,
 `chapter_boundary`: `gap_ms` from the end of one chapter to the first audio of the next, and

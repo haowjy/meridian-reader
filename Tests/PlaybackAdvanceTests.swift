@@ -268,6 +268,33 @@ final class PlaybackAdvanceTests: XCTestCase {
 
     // MARK: - Rendering (D7, D9)
 
+    /// Audio held for library work a launch couldn't finish (`ArticleAudioCache.held`) isn't
+    /// staged, after the launch hold has ended too: a render would replace audio that work still
+    /// needs. Held pages, or all audio.
+    func testHeldAudioIsNotStaged() async {
+        let (speech, _) = makeSpeech(runState: AppRunState(phase: .active), provider: FakeEngineProvider())
+        let tts = speech.localTTS
+        let book = FakeChapterLibrary(chapters: 3)
+        bakeKeys += book.sessions.map(\.id)
+        await tts.selectEngine(FakeEngineProvider.fakeID)
+        XCTAssertTrue(tts.usesLocalEngine)
+        let stage = { (index: Int) in
+            tts.stageNextChapter(cacheKey: book.key(index), after: book.key(index - 1),
+                                 paragraphs: book.sessions[index].document.paragraphs, voiceID: speech.cacheVoiceID)
+        }
+        for hold in [ArticleAudioCache.Hold.pages([book.key(1)]), .all] {
+            tts.holdRenderingForLaunch()
+            tts.audioCache.held = hold
+            tts.endLaunchHold()
+            XCTAssertFalse(stage(1), "\(hold)")
+            XCTAssertNil(tts.synthQueue.stagedCacheKey, "\(hold)")
+            XCTAssertFalse(tts.synthQueue.hasJob(cacheKey: book.key(1)), "\(hold)")
+        }
+        tts.audioCache.held = .pages([book.key(1)])
+        XCTAssertTrue(stage(2), "a chapter whose audio isn't held is staged")
+        XCTAssertEqual(tts.synthQueue.stagedCacheKey, book.key(2))
+    }
+
     /// The catch-up bake that fills a finished page's gaps runs for pages outside books and
     /// series only: a book bakes only the chapter playing and the next one.
     func testTheCatchUpBakeIsOnlyForPagesOutsideBooksAndSeries() async {
