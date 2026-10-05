@@ -32,6 +32,7 @@ App/        @main, composition root (AppComposition), launch work (AppLaunch), D
 Core/
   Device/       chip / OS gates
   Domain/       ReaderArticle, ParagraphDocument, ParagraphSplitter, ArticleIdentity, ReaderScrubMap
+  EPUB/         EPUB reading (not wired to import yet): zip container, package, contents, chapter cutting, BookIdentity
   Extraction/   ArticleExtracting, Readability runner, reader scripts
   Persistence/  SwiftData models; Library/ (Folder, Page, LibraryStore, LibraryQueries, migration); frozen legacy readers
   TTS/          chunking, render queue, audio cache, run state, engine plumbing (no library imports)
