@@ -1,8 +1,10 @@
 import SwiftUI
 
 /// What the Library's rows, cards and headers do, in one place: open a page (the Reader, Now
-/// Playing when it is what you hear, the browser for a link), play a page or a book, file things
-/// with the Move tree. Opening never plays, and playing never navigates.
+/// Playing when it is what you hear, the browser for a link), play a page or a book, mark and
+/// remove pages, file things with the Move tree. Opening never plays, and playing never
+/// navigates. An edit that can't be saved changes nothing and shows a toast; what follows its
+/// success runs only after the save.
 @MainActor
 struct LibraryActions {
     let library: LibraryStore
