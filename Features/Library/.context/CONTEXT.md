@@ -17,6 +17,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   system sheet hosts its own morph panel (`moreMenuHost`), since the shell's sits under sheets.
 - **Deletes go through `LibraryStore`'s audio journal** (`planDelete`): the audio goes only after
   the save, and a failed save is rolled back.
+- **Edits can fail.** `LibraryStore`'s edits roll back a failed save and throw
+  `LibraryStoreError.saveFailed`. Call them through `shell.attempt("Couldn’t …") { try … }` (or
+  `LibraryActions`, which does) and run what follows success (clearing Edit's selection,
+  `onMoved`, `onDeleted`, a success toast) only when it returns non-nil; never `try?`.
 - **Rows for UI tests.** A row's title `Text` is its accessibility element (the status is its
   value; the rest is hidden). XCUITest still lists the texts under an element that ignores its
   children, so a combined element would answer to a title twice; tests find rows by title.

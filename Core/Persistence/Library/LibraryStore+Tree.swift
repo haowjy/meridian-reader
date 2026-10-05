@@ -63,7 +63,8 @@ enum FractionalOrder {
 }
 
 /// The folder tree: making, renaming, moving, sorting and deleting folders. Folders nest to any
-/// depth; books, series and Favorites have the rules in `LibraryTreeError`.
+/// depth; books, series and Favorites have the rules in `LibraryTreeError`. Each change saves at
+/// once; a save that fails is rolled back and throws `LibraryStoreError.saveFailed`.
 extension LibraryStore {
     /// A new plain folder at the end of `parent` (the top level if nil).
     @discardableResult
@@ -73,7 +74,7 @@ extension LibraryStore {
                             sortKey: nextFolderSortKey(in: parent), createdAt: now())
         context.insert(folder)
         folder.parent = parent
-        commit("make folder")
+        try commitOrRollBack("make folder")
         return folder
     }
 
@@ -82,18 +83,19 @@ extension LibraryStore {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         folder.name = trimmed
-        commit("rename folder")
+        try commitOrRollBack("rename folder")
     }
 
     /// The folder's page order. Books and series stay in source order.
-    func setSort(_ sort: PageSort, for folder: Folder) {
+    func setSort(_ sort: PageSort, for folder: Folder) throws {
         guard !folder.kind.isFixed else { return }
         folder.pageSort = sort
-        commit("sort")
+        try commitOrRollBack("sort")
     }
 
     /// Moves `items` to the end of `destination` (the top level if nil), in the given order.
-    /// Refuses the whole move, changing nothing, if any item can't go there.
+    /// Refuses the whole move, changing nothing, if any item can't go there; a move whose save
+    /// fails leaves every item where it was, in its order.
     func move(_ items: [LibraryItem], to destination: Folder?) throws {
         for item in items { try checkMove(item, to: destination) }
         var folderKey = nextFolderSortKey(in: destination)
@@ -112,7 +114,7 @@ extension LibraryStore {
                 pageKey += 1
             }
         }
-        commit("move")
+        try commitOrRollBack("move")
     }
 
     private func checkMove(_ item: LibraryItem, to destination: Folder?) throws {
@@ -139,8 +141,8 @@ extension LibraryStore {
 
     /// Deletes `folders` in one save, each as `deleteFolder` does: plain folders keep or lose
     /// their contents by `keepContents`, books and series go with their chapters either way.
-    /// Refuses Favorites, changing nothing. A save that fails is rolled back: every folder, page
-    /// and its audio stay.
+    /// Refuses Favorites, changing nothing. A save that fails is rolled back and throws: every
+    /// folder, page and its audio stay.
     func deleteFolders(_ folders: [Folder], keepContents: Bool) throws {
         if folders.contains(where: { $0.kind == .favorites }) { throw LibraryTreeError.favoritesIsPinned }
         for folder in folders where !folder.isDeleted {
@@ -150,7 +152,7 @@ extension LibraryStore {
                 deleteRecursively(folder)
             }
         }
-        if !commit("delete folder") { rollBack() }
+        try commitOrRollBack("delete folder")
     }
 
     private func moveContentsUp(_ folder: Folder) {
@@ -189,7 +191,7 @@ extension LibraryStore {
     /// Moves `pages` (siblings in `folder`, or in no folder) to just before `before` (the end if
     /// nil): one fractional `sortKey` write per page, renumbering the siblings in one pass when
     /// a gap gets under `FractionalOrder.minimumGap`. Not for books and series.
-    func reorder(_ pages: [Page], in folder: Folder?, before: Page?) {
+    func reorder(_ pages: [Page], in folder: Folder?, before: Page?) throws {
         guard folder?.kind.isFixed != true else { return }
         let siblings: [Page]
         if let folder {
@@ -199,16 +201,16 @@ extension LibraryStore {
                                                                  sortBy: LibraryQueries.sortDescriptors(.manual)))) ?? []
         }
         FractionalOrder.move(pages, among: siblings, before: before, key: \.sortKey)
-        commit("reorder")
+        try commitOrRollBack("reorder")
     }
 
     /// Moves `folders` (siblings under `parent`, or at the top level) to just before `before` (the
     /// end if nil), the same way. Favorites stays first among the top-level folders whatever its
     /// key.
-    func reorderFolders(_ folders: [Folder], in parent: Folder?, before: Folder?) {
+    func reorderFolders(_ folders: [Folder], in parent: Folder?, before: Folder?) throws {
         let siblings = parent.map(subfolders(of:)) ?? topLevelFolders()
         FractionalOrder.move(folders, among: siblings, before: before, key: \.sortKey)
-        commit("reorder folders")
+        try commitOrRollBack("reorder folders")
     }
 
     /// What deleting `folder` and its contents takes with it, for the confirmation: subfolders,

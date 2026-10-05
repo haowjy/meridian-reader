@@ -48,7 +48,7 @@ final class LibraryPlayOrderTests: XCTestCase {
         XCTAssertEqual(order.map(\.title), ["Chapter 1", "Chapter 2", "Chapter 3"])
         XCTAssertEqual(order.map(\.contentState), [.saved, .link, .link])
         XCTAssertEqual(series.pageSort, .manual, "books and series keep source order")
-        library.setSort(.title, for: series)
+        try library.setSort(.title, for: series)
         XCTAssertEqual(series.pageSort, .manual)
     }
     /// Pages tied on every sort field (same sort key, same or no add date, same title) come back

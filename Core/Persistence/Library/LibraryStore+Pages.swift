@@ -162,26 +162,28 @@ extension LibraryStore {
 
     /// Unsave (🔖, ⋯ → Remove from Saved): a page in a folder stays there as a link (a favorite
     /// stays a favorite); a page in no folder is removed from the Library. Pages in books and
-    /// series aren't unsaved. The audio stays, back on the ephemeral TTL, so playback goes on.
-    func unsave(_ page: Page) {
+    /// series aren't unsaved. The audio stays, back on the ephemeral TTL, so playback goes on. A
+    /// save that fails is rolled back and throws `LibraryStoreError.saveFailed`: still saved.
+    func unsave(_ page: Page) throws {
         guard page.isSaved, !page.isInFixedFolder else { return }
         if page.folder != nil {
             page.contentState = .link
             // A link's text is a cache of its last play; one never played has nothing to keep.
             if page.lastPlayedAt == nil { clearText(page) }
-            commit("unsave to link")
+            try commitOrRollBack("unsave to link")
             if let key = page.key { tts.markListenCacheEphemeral(key, canonicalURL: page.canonicalURL) }
             log("unsave \(Self.short(page.key)) → link in \(page.folder?.displayName ?? "-")")
         } else {
-            remove(page)
+            try remove(page)
         }
     }
 
     // MARK: - Links
 
-    /// A link page for `url` in `folder`, or the existing page for that address (unchanged).
+    /// A link page for `url` in `folder`, or the existing page for that address (unchanged). A
+    /// save that fails is rolled back and throws `LibraryStoreError.saveFailed`.
     @discardableResult
-    func addLink(url: URL, title: String?, artwork: Data?, in folder: Folder?) -> Page {
+    func addLink(url: URL, title: String?, artwork: Data?, in folder: Folder?) throws -> Page {
         if let existing = page(url: url) { return existing }
         let canonical = ArticleIdentity.canonicalURLString(from: url)
         let host = url.host ?? url.absoluteString
@@ -191,7 +193,7 @@ extension LibraryStore {
                         sortKey: nextSortKey(in: folder), artworkData: artwork)
         context.insert(page)
         page.setFolder(folder)
-        commit("add link")
+        try commitOrRollBack("add link")
         return page
     }
 
@@ -200,19 +202,20 @@ extension LibraryStore {
     /// *Remove from Library*: a saved page leaves the Library (`addedAt = nil`, no folder) and is
     /// pruned 7 days after it was last played; its audio turns ephemeral. A link page is deleted,
     /// unless it holds the text of a play, when it is kept like any played page. Not for pages in
-    /// books and series. Never touches playback.
-    func remove(_ page: Page) {
+    /// books and series. Never touches playback. A save that fails is rolled back and throws
+    /// `LibraryStoreError.saveFailed`: the page stays where it was.
+    func remove(_ page: Page) throws {
         guard !page.isInFixedFolder else { return }
         if page.isLink && !page.hasText {
             log("remove link \(Self.short(page.key))")
             context.delete(page)
-            commit("remove link")
+            try commitOrRollBack("remove link")
             return
         }
         page.contentState = .saved
         page.addedAt = nil
         page.setFolder(nil)
-        commit("remove")
+        try commitOrRollBack("remove")
         if let key = page.key { tts.markListenCacheEphemeral(key, canonicalURL: page.canonicalURL) }
         log("remove \(Self.short(page.key)) → not in Library")
     }

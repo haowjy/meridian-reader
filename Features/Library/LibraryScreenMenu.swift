@@ -62,7 +62,11 @@ struct LibraryScreenMenu {
         case .voiceSettings: shell.present(.voiceSettings)
         case .newFolder: screen.makeFolder(in: newFolderParent)
         case .sort(let sort):
-            if let folder { library.setSort(sort, for: folder) } else { topLevelSort.wrappedValue = sort.rawValue }
+            if let folder {
+                shell.attempt(String(localized: "Couldn’t change the sort")) { try library.setSort(sort, for: folder) }
+            } else {
+                topLevelSort.wrappedValue = sort.rawValue
+            }
         case .rename: if let folder { screen.rename(folder) }
         case .move:
             guard let folder else { return }

@@ -62,6 +62,7 @@ struct FavoritesSheet: View {
                 }
             }
             .bottomChromeBand()
+            .overlay(alignment: .top) { ShellToastLayer() }
         }
         .environment(screen)
         .moreMenuHost()
@@ -117,6 +118,8 @@ struct LibraryEditBar: View {
     @Environment(ShellState.self) private var shell
     @Environment(LibraryScreenState.self) private var screen
 
+    private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
+
     private var selectedPages: [Page] {
         screen.selection.compactMap { item in
             if case .page(let key) = item { return library.page(key: key) }
@@ -136,20 +139,19 @@ struct LibraryEditBar: View {
         BottomToolbarSpanLayout {
             Button("Move…") {
                 let items = selectedFolders.map(LibraryItem.folder) + selectedPages.map(LibraryItem.page)
-                LibraryActions(library: library, speech: speech, shell: shell).move(items) { screen.selection = [] }
+                actions.move(items) { screen.selection = [] }
             }
             .toolbarTextFrame()
             .disabled(nothing)
             .accessibilityIdentifier("editMove")
             Button("Mark Finished") {
-                library.setFinished(selectedPages.filter(\.isSaved), true)
-                screen.selection = []
+                if actions.setFinished(selectedPages.filter(\.isSaved), true) { screen.selection = [] }
             }
             .toolbarTextFrame()
             .disabled(selectedPages.allSatisfy { !$0.isSaved })
             .accessibilityIdentifier("editMarkFinished")
             Button("Remove") {
-                for page in selectedPages { library.remove(page) }
+                guard actions.remove(selectedPages) else { return }
                 screen.confirmDelete(selectedFolders)
                 screen.selection = []
             }

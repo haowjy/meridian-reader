@@ -18,16 +18,16 @@ final class BookmarkStoreTests: XCTestCase {
         }()).pngData { ctx in UIColor.red.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: side, height: side)) }
     }
 
-    func testToggleAddsWithABetterIconThenRemoves() async {
+    func testToggleAddsWithABetterIconThenRemoves() async throws {
         let url = URL(string: "https://example.com/story")!
         let tile = png(side: 64)
-        await library.toggleFavorite(url: url, title: "Story", artwork: png(side: 16)) { tile }
+        try await library.toggleFavorite(url: url, title: "Story", artwork: png(side: 16)) { tile }
         XCTAssertEqual(library.favorite(for: url)?.artworkData, tile, "a 16 px icon is upgraded to a tile-sized one")
 
-        await library.toggleFavorite(url: url, title: "Story", artwork: nil) { XCTFail("not asked when removing"); return nil }
+        try await library.toggleFavorite(url: url, title: "Story", artwork: nil) { XCTFail("not asked when removing"); return nil }
         XCTAssertNil(library.favorite(for: url))
 
-        await library.toggleFavorite(url: url, title: "Story", artwork: tile) { XCTFail("already tile-sized"); return nil }
+        try await library.toggleFavorite(url: url, title: "Story", artwork: tile) { XCTFail("already tile-sized"); return nil }
         XCTAssertEqual(library.favorite(for: url)?.artworkData, tile)
     }
 
@@ -40,7 +40,7 @@ final class BookmarkStoreTests: XCTestCase {
 
     func testAddDedupesByCanonicalURLAndPersists() throws {
         let a = try XCTUnwrap(library.addFavorite(url: URL(string: "https://www.example.com/stories/1")!, title: " Story ", artwork: nil))
-        let again = library.addFavorite(url: URL(string: "https://www.example.com/stories/1?utm_source=x#top")!,
+        let again = try library.addFavorite(url: URL(string: "https://www.example.com/stories/1?utm_source=x#top")!,
                                         title: "Other", artwork: nil)
         XCTAssertIdentical(a, again, "same page → one favorite")
         XCTAssertEqual(library.favoritePages().count, 1)
@@ -56,14 +56,14 @@ final class BookmarkStoreTests: XCTestCase {
         let b = try XCTUnwrap(library.addFavorite(url: URL(string: "https://b.example/")!, title: "B", artwork: nil))
         let c = try XCTUnwrap(library.addFavorite(url: URL(string: "https://c.example/")!, title: "C", artwork: nil))
         XCTAssertEqual(a.title, "a.example")
-        library.renameFavorite(a, to: "  Alpha ")
-        library.renameFavorite(b, to: "   ") // ignored
+        try library.renameFavorite(a, to: "  Alpha ")
+        try library.renameFavorite(b, to: "   ") // ignored
         XCTAssertEqual(library.favoritePages().map(\.title), ["Alpha", "B", "C"])
-        library.reorder([c], in: library.favorites(), before: a)
+        try library.reorder([c], in: library.favorites(), before: a)
         XCTAssertEqual(library.favoritePages().map(\.title), ["C", "Alpha", "B"])
-        library.reorder([c], in: library.favorites(), before: nil)
+        try library.reorder([c], in: library.favorites(), before: nil)
         XCTAssertEqual(library.favoritePages().map(\.title), ["Alpha", "B", "C"])
-        library.removeFavorite(b)
+        try library.removeFavorite(b)
         XCTAssertEqual(library.favoritePages().map(\.title), ["Alpha", "C"])
         XCTAssertNil(library.favorite(for: URL(string: "http://localhost/")), "non-matching")
         XCTAssertNil(library.favorite(for: URL(string: "about:blank")))
@@ -73,13 +73,13 @@ final class BookmarkStoreTests: XCTestCase {
     /// bookmark puts it back with the pages in no folder, still saved.
     func testBookmarkingASavedPageFilesItInFavorites() throws {
         let saved = library.save(env.article("https://example.com/saved"))
-        let favorite = library.addFavorite(url: URL(string: "https://example.com/saved")!, title: "Other title", artwork: nil)
+        let favorite = try library.addFavorite(url: URL(string: "https://example.com/saved")!, title: "Other title", artwork: nil)
         XCTAssertIdentical(favorite, saved)
         XCTAssertEqual(saved.folder?.kind, .favorites)
         XCTAssertTrue(saved.isSavedToLibrary)
         XCTAssertTrue(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).isEmpty, "not in the Saved list")
 
-        library.removeFavorite(saved)
+        try library.removeFavorite(saved)
         XCTAssertNil(saved.folder)
         XCTAssertTrue(saved.isSavedToLibrary)
         XCTAssertEqual(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).map(\.title), [saved.title])
@@ -88,7 +88,7 @@ final class BookmarkStoreTests: XCTestCase {
     func testBookmarkingAPagePlayedButNotSavedMakesItALink() throws {
         let played = library.recordPlayback(env.article("https://example.com/played"))
         XCTAssertNil(played.addedAt)
-        library.addFavorite(url: URL(string: "https://example.com/played")!, title: nil, artwork: nil)
+        try library.addFavorite(url: URL(string: "https://example.com/played")!, title: nil, artwork: nil)
         XCTAssertTrue(played.isLink, "Favorites doesn't save")
         XCTAssertNotNil(played.addedAt)
         XCTAssertEqual(played.folder?.kind, .favorites)

@@ -50,7 +50,7 @@ final class LibraryTreeTests: XCTestCase {
         }
         XCTAssertThrowsError(try library.makeFolder(name: "Inside a book", in: book))
 
-        let chapter = library.addLink(url: URL(string: "https://example.com/ch")!, title: "Ch", artwork: nil, in: book)
+        let chapter = try library.addLink(url: URL(string: "https://example.com/ch")!, title: "Ch", artwork: nil, in: book)
         XCTAssertThrowsError(try library.move([.page(loose), .page(chapter)], to: outer)) {
             XCTAssertEqual($0 as? LibraryTreeError, .leavesFixedFolder)
         }
@@ -153,13 +153,13 @@ final class LibraryTreeTests: XCTestCase {
     func testReorderWritesFractionalKeysAndRenumbersWhenTheGapIsTiny() throws {
         let folder = try library.makeFolder(name: "F", in: nil)
         let pages = ["a", "b", "c", "d"].map { savedPage($0, in: folder) }
-        library.reorder([pages[3]], in: folder, before: pages[1])
+        try library.reorder([pages[3]], in: folder, before: pages[1])
         XCTAssertEqual(library.pages(in: folder).map(\.title), ["a", "d", "b", "c"])
-        library.reorder([pages[0]], in: folder, before: nil)
+        try library.reorder([pages[0]], in: folder, before: nil)
         XCTAssertEqual(library.pages(in: folder).map(\.title), ["d", "b", "c", "a"])
         for _ in 0..<80 {
-            library.reorder([pages[2]], in: folder, before: pages[1])
-            library.reorder([pages[1]], in: folder, before: pages[2])
+            try library.reorder([pages[2]], in: folder, before: pages[1])
+            try library.reorder([pages[1]], in: folder, before: pages[2])
         }
         XCTAssertEqual(library.pages(in: folder).map(\.title), ["d", "b", "c", "a"], "many moves never collide")
         let keys = library.pages(in: folder).map(\.sortKey)

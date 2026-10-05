@@ -144,11 +144,16 @@ struct MoveTreeSheet: View {
         naming = true
     }
 
+    /// A folder that can't be saved closes the tree, filing nothing, and the toast says so.
     private func createAndPick() {
         let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         newName = ""
-        guard let folder = try? library.makeFolder(name: name.isEmpty ? String(localized: "New Folder") : name,
-                                                   in: newParent) else { return }
+        guard let folder = shell.attempt(String(localized: "Couldn’t make the folder"), {
+            try library.makeFolder(name: name.isEmpty ? String(localized: "New Folder") : name, in: newParent)
+        }) else {
+            shell.sheet = nil
+            return
+        }
         pick(folder)
     }
 }

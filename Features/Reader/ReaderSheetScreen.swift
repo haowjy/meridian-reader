@@ -191,7 +191,7 @@ struct ReaderSheetScreen: View {
             title: isSaved ? String(localized: "Move to…") : String(localized: "Save to…"), current: current
         ) { [library, speech, shell, article] folder in
             if let saved = library.page(key: article.id, canonicalURL: article.canonicalURL), saved.isSavedToLibrary {
-                try? library.move([.page(saved)], to: folder)
+                shell.attempt(String(localized: "Couldn’t move")) { try library.move([.page(saved)], to: folder) }
                 return
             }
             let savedID = ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
@@ -222,7 +222,9 @@ struct ReaderSheetScreen: View {
     private func toggleSaved() {
         let saver = ArticleSaveCoordinator(library: library, speech: speech)
         if isSaved {
-            saver.unsave(key: page?.listenKey ?? article.id, canonicalURL: article.canonicalURL)
+            shell.attempt(String(localized: "Couldn’t remove from Library")) {
+                try saver.unsave(key: page?.listenKey ?? article.id, canonicalURL: article.canonicalURL)
+            }
             return
         }
         let savedID = saver.save(article)

@@ -261,8 +261,12 @@ struct BrowseStartView: View {
                 onOpenFavorite: { LibraryActions(library: library, speech: speech, shell: shell).open($0) },
                 onOpenFavoriteFolder: { shell.present(.favorites(folder: $0.id)) },
                 onShowFavorites: { shell.present(.favorites()) },
-                onRemoveFavorite: { library.removeFavorite($0) },
-                onRenameFavorite: { library.renameFavorite($0, to: $1) },
+                onRemoveFavorite: { page in
+                    shell.attempt(String(localized: "Couldn’t remove from Favorites")) { try library.removeFavorite(page) }
+                },
+                onRenameFavorite: { page, title in
+                    shell.attempt(String(localized: "Couldn’t rename")) { try library.renameFavorite(page, to: title) }
+                },
                 onSearch: submit,
                 onClearSearches: { recentSearchesRaw = "" }
             )
@@ -330,8 +334,10 @@ struct BrowseStartView: View {
     /// ⋯ → Remove from Library, by canonical URL.
     private func removeFromLibrary() {
         guard let saved = currentSavedPage else { return }
-        ArticleSaveCoordinator(library: library, speech: speech)
-            .unsave(key: saved.listenKey, canonicalURL: saved.canonicalURL ?? "")
+        shell.attempt(String(localized: "Couldn’t remove from Library")) {
+            try ArticleSaveCoordinator(library: library, speech: speech)
+                .unsave(key: saved.listenKey, canonicalURL: saved.canonicalURL ?? "")
+        }
     }
 }
 

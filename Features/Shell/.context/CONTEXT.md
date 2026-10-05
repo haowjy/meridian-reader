@@ -14,7 +14,8 @@ changing the shell code.
   opens Now Playing.
 - **Layers** (`BrowseStartView.layers`): surface → Reader sheet → Now Playing → ⋯ menu → system
   sheets → the shell's prompt. The toast (`ShellToastLayer`) floats over whichever bottom chrome
-  is up (the browser's, the Library's, the Reader's `floating` slot). A covered layer is out of hit testing and hidden from VoiceOver. The `Sheet` component
+  is up (the browser's, the Library's, the Favorites sheet's, the Reader's `floating` slot, Now
+  Playing's controls). `attempt` runs a change that can fail and shows its failure as a toast. A covered layer is out of hit testing and hidden from VoiceOver. The `Sheet` component
   animates its own rise and close and then calls its `onDismiss` (`readerDidClose`,
   `nowPlayingDidClose`) with the presentation id it was shown with, so a close that lands late
   can't remove a sheet shown since; each layer is `.id`'d by its presentation, so a replacement

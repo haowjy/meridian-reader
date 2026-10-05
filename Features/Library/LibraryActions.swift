@@ -67,9 +67,42 @@ struct LibraryActions {
         speech.playPage(key)
     }
 
+    // MARK: - Marks and removing
+
+    /// *Mark as Finished* / *Mark as Unfinished*, Edit's *Mark Finished*. False when it couldn't
+    /// be saved (nothing changed; a toast says so).
+    @discardableResult
+    func setFinished(_ pages: [Page], _ finished: Bool) -> Bool {
+        shell.attempt(finished ? String(localized: "Couldn’t mark as finished") : String(localized: "Couldn’t mark as unfinished")) {
+            try library.setFinished(pages, finished)
+        } != nil
+    }
+
+    /// *Mark All Above as Finished* on a chapter.
+    func markAllAbove(_ page: Page) {
+        shell.attempt(String(localized: "Couldn’t mark as finished")) { try library.markAllAbove(page) }
+    }
+
+    /// *Skip in Playback* / *Play in Playback* on a chapter.
+    func toggleSkipsInPlayback(_ page: Page) {
+        shell.attempt(String(localized: "Couldn’t change Skip in Playback")) {
+            try library.setSkipsInPlayback(page, !page.skipsInPlayback)
+        }
+    }
+
+    /// *Remove from Library* (a row's menu and swipe, Edit's *Remove*), page by page; stops at the
+    /// first one that can't be saved. False then.
+    @discardableResult
+    func remove(_ pages: [Page]) -> Bool {
+        shell.attempt(String(localized: "Couldn’t remove")) { () throws -> Void in
+            for page in pages { try library.remove(page) }
+        } != nil
+    }
+
     // MARK: - Filing
 
-    /// The Move tree for `items`; picking a place moves them there.
+    /// The Move tree for `items`; picking a place moves them there, and `onMoved` runs once the
+    /// move is saved. A move that can't be saved changes nothing, and a toast says so.
     func move(_ items: [LibraryItem], onMoved: @escaping () -> Void = {}) {
         guard !items.isEmpty else { return }
         let current: MoveRequest.Place?
@@ -83,9 +116,11 @@ struct LibraryActions {
             return nil
         })
         let library = library
+        let shell = shell
         shell.present(.moveTo(MoveRequest(title: String(localized: "Move to…"), current: items.count == 1 ? current : nil,
                                           moving: moving) { destination in
-            try? library.move(items, to: destination)
+            guard shell.attempt(String(localized: "Couldn’t move"), { try library.move(items, to: destination) }) != nil
+            else { return }
             onMoved()
         }))
     }

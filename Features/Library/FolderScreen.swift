@@ -58,6 +58,7 @@ private struct FolderContentsList: View {
     let sort: PageSort
 
     @Environment(LibraryStore.self) private var library
+    @Environment(ShellState.self) private var shell
     @Environment(LibraryScreenState.self) private var screen
     @Query private var pages: [Page]
 
@@ -130,12 +131,16 @@ private struct FolderContentsList: View {
 
     private func movePages(from source: IndexSet, to destination: Int) {
         let moving = source.map { pages[$0] }
-        library.reorder(moving, in: folder, before: destination < pages.count ? pages[destination] : nil)
+        shell.attempt(String(localized: "Couldn’t change the order")) {
+            try library.reorder(moving, in: folder, before: destination < pages.count ? pages[destination] : nil)
+        }
     }
 
     private func moveFolders(from source: IndexSet, to destination: Int) {
         let all = subfolders
         let moving = source.map { all[$0] }
-        library.reorderFolders(moving, in: folder, before: destination < all.count ? all[destination] : nil)
+        shell.attempt(String(localized: "Couldn’t change the order")) {
+            try library.reorderFolders(moving, in: folder, before: destination < all.count ? all[destination] : nil)
+        }
     }
 }

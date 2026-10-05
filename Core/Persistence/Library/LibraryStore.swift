@@ -126,6 +126,17 @@ final class LibraryStore {
         return true
     }
 
+    /// Saves an edit someone asked for (a move, a rename, a mark, a remove): a save that fails is
+    /// rolled back (`rollBack`) and throws `LibraryStoreError.saveFailed`, so the edit neither
+    /// shows as done nor waits in the context for a later save to store, or a later rollback to
+    /// drop.
+    func commitOrRollBack(_ what: String) throws {
+        guard commit(what) else {
+            rollBack()
+            throw LibraryStoreError.saveFailed
+        }
+    }
+
     /// After a failed save: the context's changes and the audio work planned with them are
     /// dropped, and every model they changed or deleted reads what the store holds again.
     ///
@@ -157,6 +168,12 @@ final class LibraryStore {
         print("[Library] \(message)")
         ListenDebugLog.shared.append("lib: \(message)")
     }
+}
+
+/// A library write that didn't happen.
+enum LibraryStoreError: Error, Equatable {
+    /// SwiftData refused the save; nothing changed.
+    case saveFailed
 }
 
 /// Where the pre-library data lives, read by the migration: the frozen `bookmarks.json` and the

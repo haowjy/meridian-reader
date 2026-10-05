@@ -210,7 +210,7 @@ Pages · 48                     Show All › pages in no folder, newest first, t
   books alone ask *Delete Book* / *Delete 2 Books*; folders and books together ask *Delete Book,
   Keep Folder Contents* or *Delete Everything*, saying the books go either way
   (`FolderDeletePrompt`). Pages and their audio go together: the audio is deleted once the delete
-  is saved, and a delete that can't be saved leaves both.
+  is saved, and a delete that can't be saved leaves both (and says so, below).
 - **A book or series** (`BookScreen`): the cover, title, author, chapter count and where it came
   from; how far through ("38% · 6 h 10 min left"); the round play button (*▶ Play from Chapter
   1* before anything has played, *▶ Continue · Ch 24*, or jade bars *Playing · Ch 24* while one
@@ -242,6 +242,13 @@ long-press offers *New Folder Inside* (made in it, and the item goes in that). *
 folder)* files the page in no folder, out of the folder it was in (a link in Favorites leaves
 Favorites, saved); an ordinary 🔖 or *Save* keeps a page's folder. Books and series aren't
 destinations; a folder being moved, and everything inside it, can't be picked.
+
+**A change that can't be saved** (a move, *New Folder*, *Rename*, *Sort*, a drag to reorder, a
+mark, *Remove*, a delete, ☆ or a favorite tile's *Rename* / *Remove*, unsaving with 🔖, ⊕ or ⋯ →
+*Remove from Library*) changes nothing, and a toast says so ("Couldn’t move") where a success
+would have shown: Edit keeps its selection, a folder's screen doesn't follow a move that didn't
+happen, ☆ shows no "Added to Favorites", 🔖 / ⊕ stay saved. The toast shows over the Favorites
+sheet and Now Playing too.
 
 **Library search** is the same session as the browser's (`SearchSession` +
 `SearchSessionChrome`): focusing the field (or toolbar Search) hides the toolbar so the field sits

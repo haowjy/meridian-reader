@@ -37,9 +37,10 @@ struct ArticleSaveCoordinator {
     }
 
     /// Removes the article from the Library (a favorite stays a favorite, as a link). Its audio and
-    /// position stay, back on the ephemeral TTL, so a reader showing it keeps playing.
-    func unsave(key: UUID, canonicalURL: String) {
+    /// position stay, back on the ephemeral TTL, so a reader showing it keeps playing. Throws
+    /// `LibraryStoreError.saveFailed` when that can't be saved: it is still saved.
+    func unsave(key: UUID, canonicalURL: String) throws {
         guard let page = library.page(key: key, canonicalURL: canonicalURL) else { return }
-        library.unsave(page)
+        try library.unsave(page)
     }
 }

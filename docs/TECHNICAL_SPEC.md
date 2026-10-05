@@ -109,7 +109,14 @@ store would drop entities it doesn't know; a file it never opens survives a roll
 models are CloudKit-shaped: every property optional or defaulted, no `.unique`, relationships
 optional with `.nullify`; one page per canonical URL is kept by `LibraryStore` and the launch
 dedupe pass. Every library read and write goes through `LibraryStore`; lists use
-`LibraryQueries`.
+`LibraryQueries`. An edit someone asks for (a move; a folder made, renamed, sorted or reordered; a
+mark; a remove, unsave or delete; a favorite added, renamed or removed) saves at once
+(`commitOrRollBack`): a save SwiftData refuses is rolled back (`rollBack`, which fetches the
+models it touched again, so the screens' models read the stored values, relationships included)
+and throws `LibraryStoreError.saveFailed`. So a failed edit never shows as done, and never waits
+in the context for a later save to store or a later rollback to drop. The screens run these
+through `ShellState.attempt`, which shows the failure as a toast; what follows success (Edit's
+selection cleared, a moved folder's screen following it, "Added to Favorites") runs only after it.
 
 **`Page`** (library):
 

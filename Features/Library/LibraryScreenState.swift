@@ -73,6 +73,7 @@ private struct LibraryDialogs: ViewModifier {
     let onDeleted: () -> Void
 
     @Environment(LibraryStore.self) private var library
+    @Environment(ShellState.self) private var shell
     @Environment(\.speechController) private var speech
 
     func body(content: Content) -> some View {
@@ -88,7 +89,9 @@ private struct LibraryDialogs: ViewModifier {
                     .accessibilityIdentifier("renameFolderField")
                 Button("Cancel", role: .cancel) { state.renaming = nil }
                 Button("Rename") {
-                    if let folder = state.renaming { try? library.rename(folder, to: state.renameText) }
+                    if let folder = state.renaming {
+                        shell.attempt(String(localized: "Couldn’t rename")) { try library.rename(folder, to: state.renameText) }
+                    }
                     state.renaming = nil
                 }
             }
@@ -100,8 +103,9 @@ private struct LibraryDialogs: ViewModifier {
                 Button("Create") {
                     let name = state.newFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
                     if let target = state.newFolder {
-                        _ = try? library.makeFolder(name: name.isEmpty ? String(localized: "New Folder") : name,
-                                                    in: target.parent)
+                        shell.attempt(String(localized: "Couldn’t make the folder")) {
+                            try library.makeFolder(name: name.isEmpty ? String(localized: "New Folder") : name, in: target.parent)
+                        }
                     }
                     state.newFolder = nil
                 }
@@ -130,9 +134,14 @@ private struct LibraryDialogs: ViewModifier {
         Button("Cancel", role: .cancel) { state.pendingDelete = [] }
     }
 
+    /// Once the delete is saved, Edit ends and the surface leaves screens of folders that are gone.
+    /// A delete that can't be saved changes nothing, and a toast says so.
     private func delete(keepContents: Bool) {
-        try? library.deleteFolders(state.pendingDelete, keepContents: keepContents)
+        let folders = state.pendingDelete
         state.pendingDelete = []
+        guard shell.attempt(String(localized: "Couldn’t delete"), {
+            try library.deleteFolders(folders, keepContents: keepContents)
+        }) != nil else { return }
         state.endEditing()
         onDeleted()
     }

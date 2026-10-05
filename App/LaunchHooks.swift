@@ -234,12 +234,12 @@ enum LaunchHooks {
     /// moving up first; saved pages go back to the pages in no folder) and back on its default
     /// sort, then optionally seeded.
     static func setUpBookmarks(_ setup: LaunchOptions.BookmarkSetup, in library: LibraryStore) {
-        library.setSort(.manual, for: library.favorites())
+        try? library.setSort(.manual, for: library.favorites())
         // A subfolder's own subfolders move up into Favorites as it goes; they go next.
         while let folder = library.subfolders(of: library.favorites()).first {
             do { try library.deleteFolder(folder, keepContents: !folder.kind.isFixed) } catch { break }
         }
-        for page in library.favoritePages() { library.removeFavorite(page) }
+        for page in library.favoritePages() { try? library.removeFavorite(page) }
         guard setup == .seed else { return }
         let seeds = [
             ("https://www.gutenberg.org/", "Project Gutenberg"),
@@ -249,7 +249,7 @@ enum LaunchHooks {
             ("https://example.com/", "Example"),
         ]
         for (url, title) in seeds {
-            if let url = URL(string: url) { library.addFavorite(url: url, title: title, artwork: nil) }
+            if let url = URL(string: url) { _ = try? library.addFavorite(url: url, title: title, artwork: nil) }
         }
     }
 

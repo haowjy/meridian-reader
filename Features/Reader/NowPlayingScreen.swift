@@ -61,6 +61,7 @@ struct NowPlayingScreen: View {
                         if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
                     }
                 )
+                .overlay(alignment: .top) { ShellToastLayer() }
             }
             .environment(\.sheetRisesOnAppear, shell.nowPlayingOpensAt == nil)
             .task(id: now.pageKey) { await load(now.pageKey) }
@@ -156,7 +157,9 @@ struct NowPlayingScreen: View {
         guard let article else { return }
         let saver = ArticleSaveCoordinator(library: library, speech: speech)
         if let savedKey {
-            saver.unsave(key: savedKey, canonicalURL: article.canonicalURL)
+            guard shell.attempt(String(localized: "Couldn’t remove from Library"), {
+                try saver.unsave(key: savedKey, canonicalURL: article.canonicalURL)
+            }) != nil else { return }
             self.savedKey = nil
         } else {
             savedKey = saver.save(article)

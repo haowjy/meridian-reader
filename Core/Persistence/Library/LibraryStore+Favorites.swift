@@ -18,7 +18,9 @@ enum FavoriteRequest {
 
 /// Favorites: the top-level folder that holds what used to be site bookmarks. A favorite is a
 /// page in it: a link, or a saved page (one page per address, so bookmarking a saved page files
-/// it there). The start page shows its pages as the icon grid.
+/// it there). The start page shows its pages as the icon grid. Adding, removing and renaming a
+/// favorite save at once; a save that fails is rolled back and throws
+/// `LibraryStoreError.saveFailed`.
 extension LibraryStore {
     /// Favorites' pages in their order.
     func favoritePages() -> [Page] {
@@ -57,13 +59,13 @@ extension LibraryStore {
 
     /// ⋯ → Bookmark / Remove Bookmark. A new favorite without a tile-sized icon then asks
     /// `betterIcon` for one.
-    func toggleFavorite(url: URL, title: String?, artwork: Data?, betterIcon: () async -> Data?) async {
+    func toggleFavorite(url: URL, title: String?, artwork: Data?, betterIcon: () async -> Data?) async throws {
         guard Self.canFavorite(url) else { return }
         if let existing = favorite(for: url) {
-            removeFavorite(existing)
+            try removeFavorite(existing)
             return
         }
-        guard let added = addFavorite(url: url, title: title, artwork: artwork),
+        guard let added = try addFavorite(url: url, title: title, artwork: artwork),
               !FaviconFetcher.isTileSized(added.artworkData), let icon = await betterIcon() else { return }
         offerArtwork(icon, for: added)
     }
@@ -72,10 +74,10 @@ extension LibraryStore {
     /// existing page filed there. A page played but not saved becomes a link (Favorites doesn't
     /// save). A chapter of a book or series stays where it is (nil).
     @discardableResult
-    func addFavorite(url: URL, title: String?, artwork: Data?) -> Page? {
+    func addFavorite(url: URL, title: String?, artwork: Data?) throws -> Page? {
         let folder = favorites()
         guard let existing = page(url: url) else {
-            return addLink(url: url, title: title, artwork: artwork, in: folder)
+            return try addLink(url: url, title: title, artwork: artwork, in: folder)
         }
         guard !existing.isInFixedFolder else { return nil }
         if existing.folder !== folder {
@@ -87,29 +89,29 @@ extension LibraryStore {
             existing.setFolder(folder)
         }
         if existing.artworkData == nil { existing.artworkData = artwork }
-        commit("favorite")
+        try commitOrRollBack("favorite")
         return existing
     }
 
     /// No longer a favorite: a saved page goes back to the pages in no folder, still saved; a
     /// link page is removed. Not for a chapter of a book or series in Favorites (it never leaves
     /// its source; `favoriteRequest` offers to move the source out).
-    func removeFavorite(_ page: Page) {
+    func removeFavorite(_ page: Page) throws {
         guard Self.isFavorite(page), !page.isInFixedFolder else { return }
         if page.isSaved {
             page.sortKey = nextSortKey(in: nil)
             page.setFolder(nil)
-            commit("unfavorite saved page")
+            try commitOrRollBack("unfavorite saved page")
         } else {
-            remove(page)
+            try remove(page)
         }
     }
 
-    func renameFavorite(_ page: Page, to title: String) {
+    func renameFavorite(_ page: Page, to title: String) throws {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         page.title = trimmed
-        commit("rename favorite")
+        try commitOrRollBack("rename favorite")
     }
 
     /// Takes `data` as the page's icon unless it would replace a usable icon with a smaller one

@@ -403,6 +403,18 @@ final class ShellState {
         self.toast = toast
     }
 
+    /// Runs a change that can fail, such as a library edit (`LibraryStore` rolls back a save that
+    /// fails, so nothing changed): its result, or nil once a toast has said `failure`.
+    @discardableResult
+    func attempt<Result>(_ failure: String, _ change: () throws -> Result) -> Result? {
+        do {
+            return try change()
+        } catch {
+            showToast(ShellToast(message: failure, systemImage: "exclamationmark.triangle"))
+            return nil
+        }
+    }
+
     /// The toast shown as `id` has had its time (or its action ran). A newer one stays.
     func dismissToast(_ id: UUID) {
         if toast?.id == id { toast = nil }
