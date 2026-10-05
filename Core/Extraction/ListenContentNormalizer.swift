@@ -6,9 +6,9 @@ import WebKit
 /// of a list item or quote that also holds blocks (`ReaderNormalize.js`). Runs in an off-screen
 /// web view (`OffscreenWebView`).
 ///
-/// - **Web pages** run it after Readability, in the web view Readability read the page in.
-///   Fragment parsing follows that document's mode (quirks or standards), so the result is
-///   exactly what the two produced as one script (`ListenContentGoldenTests`).
+/// - **Web pages** run it after Readability, in the web view Readability read the page in: the
+///   document the two shared when they ran as one script, so the output is unchanged
+///   (`ListenContentGoldenTests`).
 /// - **Book chapters** run it without Readability, one at a time in one reused web view holding a
 ///   blank standards-mode page, after pictures, embedded media, footnotes and note references are
 ///   taken out and links unwrapped (`ReaderBookChapter.js`).

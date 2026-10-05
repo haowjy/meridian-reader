@@ -47,7 +47,8 @@ final class ListenContentGoldenTests: XCTestCase {
 
     private static let sentence = "This synthetic article exists only to give the normalizer some loose text to wrap. "
 
-    /// Quirks mode (no doctype), like the test pages.
+    /// Quirks mode (no doctype), like the test pages: a table start tag doesn't close the
+    /// paragraph it's in (Readability then flattens the table).
     private static let looseTextDocument = """
     <html><head><title>Loose text</title></head><body><article>
     <h1>Loose text</h1>
@@ -58,6 +59,7 @@ final class ListenContentGoldenTests: XCTestCase {
     <ul><li>Lead-in text of a list item <ul><li>Nested item one</li><li>Nested item two</li></ul></li></ul>
     <blockquote>Lead-in text of a quote <p>The quoted paragraph.</p></blockquote>
     <div><span>Text in a span, in a div.</span> <a href="#x">A link in the same run.</a></div>
+    <p>A paragraph that runs into a table <table><tr><td>Quirks cell</td></tr></table> and on.</p>
     <p>\(String(repeating: sentence, count: 4))</p>
     </article></body></html>
     """
