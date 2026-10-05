@@ -125,6 +125,70 @@ final class NowPlayingUITests: XCTestCase {
         assertListenKeepsTheLine(launchLongDemo(["-seedDemoPlainText"]))
     }
 
+    /// The round ⏸ / ▶ is taller than the toolbar row: a tap on the part that reaches above or
+    /// below the row, or at its sides, plays and pauses, and never lands on ⏮, ⏭ or ⋯.
+    func testTheRoundButtonsEdgePlaysAndPauses() throws {
+        let app = launchLongDemo()
+        openNowPlayingFromTheLibrary(app)
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
+        play.tap()
+        XCTAssertTrue(eventually(5) { play.label == "Play" }, "paused")
+        let paragraph = { self.find(app, "readerScrubOffset").value as? String }
+        let spot = paragraph()
+        XCTAssertNotNil(spot)
+        let row = app.buttons["Next paragraph"].frame
+        let disc = play.frame
+        XCTAssertGreaterThan(disc.height, row.height + 10, "the disc reaches past the row")
+        // Inside the circle (radius 32): 27 pt above and below the centre is outside the 44 pt row;
+        // 28 pt to the sides is the disc's edge, nearest ⏮ and ⏭.
+        let edges: [(String, CGVector)] = [("top", CGVector(dx: 0, dy: -27)), ("bottom", CGVector(dx: 0, dy: 27)),
+                                           ("left", CGVector(dx: -28, dy: 0)), ("right", CGVector(dx: 28, dy: 0))]
+        for (edge, offset) in edges {
+            let before = play.label
+            play.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).withOffset(offset).tap()
+            XCTAssertTrue(eventually(5) { play.label != before }, "a tap on the \(edge) edge toggles play / pause")
+            XCTAssertFalse(find(app, "moreMenuPanel").exists, "the \(edge) edge doesn't open ⋯")
+            if play.label == "Pause" {
+                play.tap()
+                XCTAssertTrue(eventually(5) { play.label == "Play" })
+            }
+            XCTAssertEqual(paragraph()?.prefix(4), spot?.prefix(4), "the \(edge) edge doesn't skip")
+        }
+    }
+
+    /// The status bar follows what is on top: light over Now Playing, whatever sheet comes over it
+    /// and goes, and after leaving the app and coming back; dark again on paper once it closes.
+    func testTheStatusBarFollowsTheSurfaceOnTop() throws {
+        let app = launchLongDemo()
+        XCTAssertEqual(statusBar(), .dark, "on the Library's paper")
+        openNowPlayingFromTheLibrary(app)
+        XCTAssertTrue(eventually(3) { self.statusBar() == .light }, "light over Now Playing")
+
+        find(app, "readerMore").tap()
+        let voice = find(app, "moreVoice")
+        XCTAssertTrue(voice.waitForExistence(timeout: 3))
+        idle(0.6)
+        voice.tap()
+        XCTAssertTrue(app.navigationBars["Listen"].waitForExistence(timeout: 5), "Voice settings over Now Playing")
+        idle(1)
+        XCTAssertTrue(eventually(3) { self.statusBar() != .unreadable },
+                      "readable over the sheet: \(String(describing: statusBar()))")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(eventually(5) { !app.navigationBars["Listen"].exists })
+        XCTAssertTrue(eventually(3) { self.statusBar() == .light }, "light again on Now Playing")
+
+        XCUIDevice.shared.press(.home)
+        idle(2)
+        app.activate()
+        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 10))
+        XCTAssertTrue(eventually(5) { self.statusBar() == .light }, "still light after coming back")
+
+        app.buttons["Close Now Playing"].tap()
+        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingFrom").exists })
+        XCTAssertTrue(eventually(3) { self.statusBar() == .dark }, "dark again on paper")
+    }
+
     func testAtTheEndNowPlayingStaysWithPlay() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-openLibrary", "-selectEngine", "apple",
@@ -209,6 +273,88 @@ final class NowPlayingUITests: XCTestCase {
             last = now
         }
         return last
+    }
+
+    private enum StatusBarContent: Equatable {
+        /// Light text on a dark strip.
+        case light
+        /// Dark text on a light strip.
+        case dark
+        /// Text the colour of the strip under it.
+        case unreadable
+    }
+
+    /// What the status bar shows, from a screenshot of its leading half (the clock): light or dark
+    /// text, with the strip behind it the other way.
+    private func statusBar() -> StatusBarContent {
+        let shot = XCUIScreen.main.screenshot().image
+        guard let image = shot.cgImage else { return .unreadable }
+        let scale = shot.scale
+        let rect = CGRect(x: 0, y: 12 * scale, width: CGFloat(image.width) * 0.4, height: 30 * scale).integral
+        guard let crop = image.cropping(to: rect) else { return .unreadable }
+        let (w, h) = (crop.width, crop.height)
+        var pixels = [UInt8](repeating: 0, count: w * h * 4)
+        let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8,
+                                          bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(crop, in: CGRect(x: 0, y: 0, width: w, height: h))
+            return true
+        }
+        guard drawn else { return .unreadable }
+        var levels: [Double] = []
+        levels.reserveCapacity(w * h)
+        for i in stride(from: 0, to: pixels.count, by: 4) {
+            levels.append((0.2126 * Double(pixels[i]) + 0.7152 * Double(pixels[i + 1]) + 0.0722 * Double(pixels[i + 2])) / 255)
+        }
+        let strip = levels.sorted()[levels.count / 2]
+        // The clock's pixels: far from the strip's level, the other way.
+        let text = strip < 0.5 ? levels.filter { $0 > 0.8 }.count : levels.filter { $0 < 0.2 }.count
+        guard Double(text) > Double(levels.count) * 0.01 else { return .unreadable }
+        return strip < 0.5 ? .light : .dark
+    }
+
+    /// The demo article, 40 paragraphs long, in the Library, Apple voice at 1×.
+    private func launchLongDemo(_ extra: [String] = []) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoParagraphs", "40", "-openLibrary",
+                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"] + extra
+        app.launch()
+        return app
+    }
+
+    private func openNowPlayingFromTheLibrary(_ app: XCUIApplication) {
+        let row = app.cells.staticTexts["Demo Listen Article"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        let listen = app.buttons["listenPlayPause"]
+        XCTAssertTrue(listen.waitForExistence(timeout: 10))
+        listen.tap()
+        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Listen turns the Reader into Now Playing")
+    }
+
+    /// Skips to paragraph 7 and pauses there, scrolls it away, then Back to audio: paragraph 7 is
+    /// back in the middle of the text.
+    private func assertBackToAudioReturnsToTheSpokenParagraph(_ app: XCUIApplication) {
+        let back = find(app, "nowPlayingBackToAudio")
+        XCTAssertFalse(back.exists, "following the audio")
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
+        for _ in 0..<6 { app.buttons["Next paragraph"].tap() }
+        play.tap()
+        XCTAssertTrue(eventually(5) { play.label == "Play" }, "paused")
+        XCTAssertTrue(eventually(3) { (self.find(app, "readerScrubOffset").value as? String)?.hasPrefix("p=6 ") == true },
+                      "paused on paragraph 7: \(find(app, "readerScrubOffset").value ?? "")")
+        let spoken = paragraph(app, 6)
+        XCTAssertTrue(eventually(5) { spoken.exists && self.isInMiddle(app, spoken) }, "following: paragraph 7 in view")
+
+        for _ in 0..<3 { dragText(app, by: -260) }
+        XCTAssertTrue(back.waitForExistence(timeout: 3), "scrolling away offers Back to audio")
+        XCTAssertFalse(isOnScreen(app, spoken), "paragraph 7 scrolled out of view")
+
+        back.tap()
+        XCTAssertTrue(eventually(3) { !back.exists }, "following again")
+        XCTAssertTrue(eventually(3) { self.isInMiddle(app, spoken) }, "Back to audio brings paragraph 7 into view")
     }
 
     /// Paragraph `index` of the demo article on the reading page.
