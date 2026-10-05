@@ -24,6 +24,7 @@ final class DesignSystemGalleryTests: XCTestCase {
         ("Sheet", AnyView(SheetGallery())),
         ("ReaderSheet", AnyView(ReaderSheetGallery())),
         ("NowPlayingSheet", AnyView(NowPlayingSheetGallery())),
+        ("TitleCard", AnyView(TitleCardGallery())),
         ("Toast", AnyView(ToastGallery())),
         ("BottomToolbar", AnyView(BottomToolbarGallery())),
         ("MorphMenu", AnyView(MorphMenuGallery())),

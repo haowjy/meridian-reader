@@ -32,6 +32,7 @@ enum PlayState: CaseIterable {
 /// | `glyph` (rows, the bar) | ▶ | spinner | ⏸ accent | ▶ accent |
 /// | `badge` (🎧) | grey symbol | spinner | accent disc, moving bars | accent disc, still bars |
 /// | `pill` (Listen, Continue) | filled ▶ title | filled spinner title | tinted moving bars | tinted still bars |
+/// | `disc` (Now Playing's transport) | ▶ on an accent disc | spinner on the disc | ⏸ on the disc | ▶ on the disc |
 struct PlayStateButton: View {
     enum Look: Equatable {
         case glyph
@@ -39,6 +40,9 @@ struct PlayStateButton: View {
         case badge(idleSymbol: String)
         /// A labelled pill; the title says what it plays ("Listen · 9 min", "Playing · Ch 24").
         case pill(title: String, expands: Bool = false)
+        /// A round accent disc, `BottomChrome.transportDiscSize` wide, with a dark glyph on the
+        /// player: Now Playing's centre slot.
+        case disc
     }
 
     let state: PlayState
@@ -50,6 +54,7 @@ struct PlayStateButton: View {
         case .glyph: glyph
         case .badge(let symbol): badge(symbol)
         case .pill(let title, let expands): pill(title, expands: expands)
+        case .disc: PlayStateDisc(state: state, action: action)
         }
     }
 
@@ -112,6 +117,41 @@ struct PlayStateButton: View {
     }
 }
 
+/// The `disc` look: the accent of the palette it sits on (on the player, `playerAccent`), a glyph
+/// in the colour that reads on it. Fixed size, like the toolbar glyphs; the large content viewer
+/// names it at large text sizes.
+private struct PlayStateDisc: View {
+    let state: PlayState
+    let action: () -> Void
+
+    @Environment(\.onPlayerPalette) private var onPlayer
+
+    var body: some View {
+        let glyph = onPlayer ? Palette.onPlayerAccent : Palette.onAccent
+        Button(action: action) {
+            ZStack {
+                Circle().fill(onPlayer ? Palette.playerAccent : Palette.accent)
+                if state == .preparing {
+                    ProgressView().tint(glyph)
+                } else {
+                    Image(systemName: state == .playing ? "pause.fill" : "play.fill")
+                        .font(.system(size: BottomChrome.transportDiscGlyph))
+                        .foregroundStyle(glyph)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+            }
+            .frame(width: BottomChrome.transportDiscSize, height: BottomChrome.transportDiscSize)
+            .contentShape(Circle())
+        }
+        .buttonStyle(PillPressStyle())
+        .accessibilityLabel(state.accessibilityLabel)
+        .accessibilityShowsLargeContentViewer {
+            Image(systemName: state == .playing ? "pause.fill" : "play.fill")
+            Text(state.accessibilityLabel)
+        }
+    }
+}
+
 /// Four level bars: moving while something plays, still while it is paused. Still under Reduce
 /// Motion. Takes the size it is offered and the foreground style around it.
 struct PlayingBars: View {
@@ -165,6 +205,8 @@ struct PlayStateButtonGallery: View {
                         PlayStateButton(state: state, look: .badge(idleSymbol: "headphones")) {}
                         PlayStateButton(state: state, look: .pill(title: Self.title(state))) {}
                     }
+                    PlayStateButton(state: state, look: .disc) {}
+                        .onPlayerPreview()
                 }
             }
         }

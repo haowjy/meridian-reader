@@ -186,6 +186,7 @@
 		BC67428CB98142B5779ACA45 /* PillButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 143B6EBAC2F75E5890E37B2B /* PillButton.swift */; };
 		BD62DED976136748897DED31 /* ReaderNormalize.js in Resources */ = {isa = PBXBuildFile; fileRef = 61A5AD09C8540C6D8EE33271 /* ReaderNormalize.js */; };
 		BF927347C29646CC4A552187 /* NowPlayingControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FD626FCDA5420EA698A4163 /* NowPlayingControls.swift */; };
+		C0571DD02436F9421B21FEEB /* TitleCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19D303A09BA7334BF333B17B /* TitleCard.swift */; };
 		C0D3E0F9DAA3CBACB189F9A5 /* BookmarkGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6A6D96921A73983819C1D38 /* BookmarkGrid.swift */; };
 		C0D69894C9A34788FCDFA9AA /* voice-preview-kokoro-am_puck.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 787D216C6EC495A2192DF934 /* voice-preview-kokoro-am_puck.m4a */; };
 		C0EBF5E67ADB2338075CFBC2 /* ReadingScrollRestore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFC91B80BDF6F419176D9BC /* ReadingScrollRestore.swift */; };
@@ -225,6 +226,7 @@
 		D8BFE78050367C5DAA7BFDC4 /* ReadingScrollRestoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4964F6309C3D6421D0E1155 /* ReadingScrollRestoreTests.swift */; };
 		D92A0B26BB28EBDD3DB82026 /* ReaderChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C182D476232B724A13DCFF /* ReaderChrome.swift */; };
 		D99E1390D2676489508736FC /* ScrubFeedbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 996ADAF59D900EACA8769FAE /* ScrubFeedbackTests.swift */; };
+		DA4A1B3DEB6166027A6750D0 /* StatusBarStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFE357399C5F59171764D32 /* StatusBarStyle.swift */; };
 		DF3B392FBA8DDB30E2E861C3 /* ContinueCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7690A01CA2B4486E547AD46 /* ContinueCard.swift */; };
 		E09DA3B50045D89452C75D3D /* MenuContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EB55F0DE69FFF5ADAA1C1C6 /* MenuContext.swift */; };
 		E2EE38E81310B32D3CEEF6F1 /* DelayedExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABC025597E9FA5FD9A1A6CB /* DelayedExtractor.swift */; };
@@ -315,6 +317,7 @@
 		15FDAF3E418891F42EA99435 /* CoreMLCompileCacheJanitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreMLCompileCacheJanitor.swift; sourceTree = "<group>"; };
 		1601DA254E8BC98F2200A465 /* TextChunkerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextChunkerTests.swift; sourceTree = "<group>"; };
 		1885A03961CEA2CB8DA73F6C /* KokoroSwiftG2PTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroSwiftG2PTests.swift; sourceTree = "<group>"; };
+		19D303A09BA7334BF333B17B /* TitleCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleCard.swift; sourceTree = "<group>"; };
 		1A3342E718F8D3233FC69509 /* ReaderScrubMapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderScrubMapTests.swift; sourceTree = "<group>"; };
 		1A70DF806F5AB8525B043984 /* ListenLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenLanguage.swift; sourceTree = "<group>"; };
 		1A8461D59914A77BA0FF5B5C /* KokoroRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroRoute.swift; sourceTree = "<group>"; };
@@ -503,6 +506,7 @@
 		D2FB53DA2542AEEC7D25D0D9 /* ArticleExtracting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleExtracting.swift; sourceTree = "<group>"; };
 		D94F2B5A6008308776E5FD13 /* AppRunState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRunState.swift; sourceTree = "<group>"; };
 		DA5DD463A3878C69665FF2E4 /* EngineBindingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineBindingTests.swift; sourceTree = "<group>"; };
+		DCFE357399C5F59171764D32 /* StatusBarStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarStyle.swift; sourceTree = "<group>"; };
 		DD39B0E9CFD8BAD090771AAC /* BookmarkStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStoreTests.swift; sourceTree = "<group>"; };
 		DD6C04EB79AE326F483FB522 /* BookmarkIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkIcon.swift; sourceTree = "<group>"; };
 		DE0628F904BC6C85BA45F8DD /* GoogleSuggestClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSuggestClient.swift; sourceTree = "<group>"; };
@@ -755,6 +759,7 @@
 			children = (
 				E1EA2E147F442A41F0D180E7 /* BottomChrome.swift */,
 				48D533C9271531F8EF2537AB /* MorphMenu.swift */,
+				DCFE357399C5F59171764D32 /* StatusBarStyle.swift */,
 			);
 			path = Chrome;
 			sourceTree = "<group>";
@@ -796,6 +801,7 @@
 				85D38063FE5EB7A77F01B424 /* SectionHeader.swift */,
 				750DC247994F10ABD07999A3 /* Sheet.swift */,
 				7EA5D658220D8926D1C30B00 /* ThinProgressBar.swift */,
+				19D303A09BA7334BF333B17B /* TitleCard.swift */,
 				FDDCA4EE53B5892A6C44776E /* Toast.swift */,
 			);
 			path = Components;
@@ -1407,12 +1413,14 @@
 				CE634919E93A43D1B9F0484A /* SpeechSession.swift in Sources */,
 				C859F4B5E41725D2DFA1CCB9 /* SpeechSettingsView.swift in Sources */,
 				CD35155B333936EC71437D7D /* SpeechSwiftProvider.swift in Sources */,
+				DA4A1B3DEB6166027A6750D0 /* StatusBarStyle.swift in Sources */,
 				80020DEA186F050DD0E11A08 /* SubParagraphPosition.swift in Sources */,
 				FC3B64D385BCFAB6698AB9A7 /* SwipeBackSupport.swift in Sources */,
 				E6382B55C3D1037087DEA447 /* SynthQueueContext.swift in Sources */,
 				CD1175210170A0E2C4434611 /* SynthRenderGate.swift in Sources */,
 				CDF8D830F57FE5F34552054F /* TextChunker.swift in Sources */,
 				57E08A82BAA6E125361DACC1 /* ThinProgressBar.swift in Sources */,
+				C0571DD02436F9421B21FEEB /* TitleCard.swift in Sources */,
 				7BE487E11248DE9756A23B55 /* Toast.swift in Sources */,
 				61B6520F1680E8648FE68479 /* TokensGallery.swift in Sources */,
 				4FE46F9FFBD05D3F905246F7 /* Typography.swift in Sources */,

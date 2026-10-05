@@ -11,10 +11,12 @@ struct ArtworkTile: View {
     /// A book cover's proportions (taller than wide) instead of a square.
     var isCover = false
 
+    @Environment(\.onPlayerPalette) private var onPlayer
+
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: size * (isCover ? 0.06 : 0.22), style: .continuous)
         ZStack {
-            shape.fill(Palette.chrome)
+            shape.fill(onPlayer ? Palette.playerTrack : Palette.chrome)
             if let image {
                 image
                     .resizable()
@@ -22,7 +24,7 @@ struct ArtworkTile: View {
             } else {
                 Text(letter.prefix(1).uppercased())
                     .font(.system(size: size * 0.45, weight: .semibold))
-                    .foregroundStyle(Palette.secondaryInk)
+                    .foregroundStyle(onPlayer ? Palette.playerSecondaryInk : Palette.secondaryInk)
             }
         }
         .frame(width: size, height: isCover ? size * 1.45 : size)

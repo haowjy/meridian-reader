@@ -1,16 +1,18 @@
 import SwiftUI
 
 /// What you hear, opened up: a `Sheet` over everything that shrinks back into the Now Playing
-/// bar. It looks like the Reader (paper, serif, margins); its chrome is the player's.
+/// bar. A player, not a page: deep jade in light and dark (`SheetLook.player`), the text in the
+/// Reader's serif but lyrics style (`ReadingStyle.Look.player`), under a title card.
 ///
 /// ```
 /// ┌──────────────────────────────────────┐
 /// │  ⌄          PLAYING FROM          ⊕  │ ← ⌄ or a pull down shrinks it; ⊕ saves (✓ saved)
 /// │          Pride and Prejudice         │ ← tap: go there
-/// │ … `text`: follows the audio …        │
+/// │ `text`: [▣ title, site · N min left] │ ← the title card scrolls with the text
+/// │  dimmed, SPOKEN in full ink, dimmed  │ ← follows the audio
 /// │            ( Back to audio )         │ ← after you scroll away, floating over the text
 /// │ `controls`: status notes, the        │
-/// │ scrubber, [1×] [⏮] [⏸] [⏭] [⋯]       │ ← in the bottom band
+/// │ scrubber, [1×] [⏮] (⏸) [⏭] [⋯]       │ ← in the bottom band, the big round ⏸ in the middle
 /// └──────────────────────────────────────┘
 /// ```
 struct NowPlayingSheet<Reading: View, Controls: View>: View {
@@ -28,7 +30,7 @@ struct NowPlayingSheet<Reading: View, Controls: View>: View {
     @ViewBuilder var controls: Controls
 
     var body: some View {
-        Sheet(onDismiss: onCollapse) {
+        Sheet(onDismiss: onCollapse, look: .player) {
             NowPlayingHeader(playingFrom: playingFrom, isSaved: isSaved, onPlayingFrom: onPlayingFrom,
                              onToggleSave: onToggleSave)
         } content: {
@@ -43,7 +45,7 @@ struct NowPlayingSheet<Reading: View, Controls: View>: View {
     }
 
     /// Floats over the text, so the text keeps running under it. No arrow: the spoken paragraph
-    /// may be above or below.
+    /// may be above or below. Inverted on the player's dark scheme: a light pill, dark text.
     private var backToAudio: some View {
         ZStack {
             if showsBackToAudio {
@@ -58,8 +60,11 @@ struct NowPlayingSheet<Reading: View, Controls: View>: View {
     }
 }
 
-/// Now Playing's transport row in the five-slot grid: `[1×] [⏮] [▶ / ⏸] [⏭] [more]`. The play
-/// button reads "Play" / "Pause" like any player's.
+/// Now Playing's transport row in the five-slot grid: `[1×] [⏮] (⏸) [⏭] [more]`. The play
+/// button is the big round disc and reads "Play" / "Pause" like any player's. The row keeps the
+/// grid's 44 pt height, so every slot (and ⋯) sits where it does on the other surfaces; the
+/// disc reaches past it by half the difference. The row keeps that room above it, and below it
+/// too where the home indicator's inset doesn't already give it (a phone with a Home button).
 struct NowPlayingTransport<More: View>: View {
     let state: PlayState
     let rateLabel: String
@@ -73,6 +78,13 @@ struct NowPlayingTransport<More: View>: View {
     var onPlayLongPress: (() -> Void)?
     @ViewBuilder var more: More
 
+    @Environment(\.onPlayerPalette) private var onPlayer
+    @State private var bottomInset: CGFloat = 0
+
+    private static var discOverhang: CGFloat {
+        (BottomChrome.transportDiscSize - BottomChrome.rowHeight) / 2
+    }
+
     var body: some View {
         BottomToolbarLayout {
             Button(action: onRate) { Text(rateLabel).toolbarTextFrame() }
@@ -81,21 +93,25 @@ struct NowPlayingTransport<More: View>: View {
             Button(action: onSkipBack) { Image(systemName: "backward.end.fill").toolbarIconFrame() }
                 .disabled(!canSkipBack)
                 .accessibilityLabel("Previous paragraph")
-            PlayStateButton(state: state, action: onPlayPause)
+            PlayStateButton(state: state, look: .disc, action: onPlayPause)
                 .accessibilityLabel(state == .playing ? "Pause" : "Play")
                 .accessibilityIdentifier("listenPlayPause")
                 .simultaneousGesture(LongPressGesture(minimumDuration: 0.6).onEnded { _ in onPlayLongPress?() },
                                      including: onPlayLongPress == nil ? .subviews : .all)
+                .frame(height: BottomChrome.rowHeight)
             Button(action: onSkipForward) { Image(systemName: "forward.end.fill").toolbarIconFrame() }
                 .disabled(!canSkipForward)
                 .accessibilityLabel("Next paragraph")
             more
         }
-        .tint(Palette.ink)
+        .padding(.top, Self.discOverhang)
+        .padding(.bottom, max(0, Self.discOverhang - bottomInset))
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomInset = $0 }
+        .tint(onPlayer ? Palette.playerInk : Palette.ink)
     }
 }
 
-/// ⌄, "Playing from <name>", ⊕.
+/// ⌄, "Playing from <name>", ⊕, on the player palette.
 private struct NowPlayingHeader: View {
     let playingFrom: String
     let isSaved: Bool
@@ -118,10 +134,10 @@ private struct NowPlayingHeader: View {
                     Text("PLAYING FROM")
                         .typeStyle(.caption)
                         .tracking(1)
-                        .foregroundStyle(Palette.secondaryInk)
+                        .foregroundStyle(Palette.playerSecondaryInk)
                     Text(playingFrom)
                         .typeStyle(.row, weight: .semibold)
-                        .foregroundStyle(Palette.ink)
+                        .foregroundStyle(Palette.playerInk)
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity)
@@ -132,7 +148,7 @@ private struct NowPlayingHeader: View {
 
             Button(action: onToggleSave) {
                 Image(systemName: isSaved ? "checkmark.circle.fill" : "plus.circle")
-                    .foregroundStyle(isSaved ? Palette.accent : Palette.ink)
+                    .foregroundStyle(isSaved ? Palette.playerAccent : Palette.playerInk)
                     .toolbarIconFrame()
             }
             .frame(width: BottomChrome.minTapTarget)
@@ -140,7 +156,7 @@ private struct NowPlayingHeader: View {
             .accessibilityValue(isSaved ? "Saved" : "Not saved")
             .accessibilityIdentifier("readerBookmark")
         }
-        .tint(Palette.ink)
+        .tint(Palette.playerInk)
         .padding(.horizontal, Spacing.xs)
     }
 }
@@ -161,12 +177,13 @@ struct NowPlayingSheetGallery: View {
     private func frame(_ state: PlayState, note: String?, back: Bool, saved: Bool = false) -> some View {
         NowPlayingSheet(playingFrom: "Pride and Prejudice", isSaved: saved, showsBackToAudio: back,
                         onCollapse: {}) {
-            SampleReading(title: "Chapter 12", detail: "Jane Austen · 15 min", spoken: true)
+            SampleReading(title: "Chapter 12", detail: "Pride and Prejudice · 9 min left", spoken: true,
+                          look: .player)
         } controls: {
             if let note {
                 Text(note)
                     .typeStyle(.caption)
-                    .foregroundStyle(Palette.secondaryInk)
+                    .foregroundStyle(Palette.playerSecondaryInk)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, Spacing.xs)
             }
