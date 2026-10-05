@@ -150,6 +150,42 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertNil(library.page(url: URL(string: "https://example.com/link")!), "a link is deleted")
     }
 
+    /// A link that was played holds that play's text: removing it keeps it as a page played
+    /// without saving (out of the Library and Favorites, still in Continue), pruned 7 days after
+    /// its last play like any other.
+    func testRemovingAPlayedLinkKeepsItAsAPlayedPageUntilThePrune() throws {
+        let url = URL(string: "https://example.com/played-link")!
+        let link = library.addLink(url: url, title: "Played link", artwork: nil, in: library.favorites())
+        library.recordPlayback(env.article(url.absoluteString))
+        let key = try XCTUnwrap(link.key)
+        try env.storeAudio(key, paragraphs: link.cachedListenParagraphs ?? [])
+        XCTAssertTrue(link.isLink && link.hasText)
+
+        library.remove(link)
+        let page = try XCTUnwrap(library.page(url: url), "kept: it holds the text of a play")
+        XCTAssertIdentical(page, link)
+        XCTAssertFalse(page.isInLibrary)
+        XCTAssertNil(page.folder, "out of Favorites")
+        XCTAssertTrue(library.favoritePages().isEmpty)
+        XCTAssertTrue(page.hasText)
+        XCTAssertEqual(page.cachedListenParagraphs?.count, 2)
+        XCTAssertNotNil(page.lastPlayedAt)
+        XCTAssertEqual(env.cache.loadMeta(for: key)?.kind, .ephemeral, "its audio is on the ephemeral TTL")
+        let recent = try env.context.fetch(LibraryQueries.recentlyPlayed)
+        XCTAssertEqual(LibraryQueries.continuePages(recent: recent, undated: []).map(\.key), [key], "still in Continue")
+
+        // Another page played since, so this one isn't the last played.
+        env.now += 1
+        library.recordPlayback(env.article("https://example.com/other"))
+        env.now += 6 * day
+        XCTAssertEqual(library.pruneUnsaved().deletedPages, 0)
+        XCTAssertNotNil(library.page(url: url), "kept for 7 days")
+        env.now += 2 * day
+        library.recordPlayback(env.article("https://example.com/latest"))
+        XCTAssertEqual(library.pruneUnsaved().deletedPages, 2, "it and the other page are pruned")
+        XCTAssertNil(library.page(url: url))
+    }
+
     func testUnsaveKeepsAFavoriteAsALinkAndRemovesALoosePage() throws {
         let favorite = library.save(env.article("https://example.com/fav"), in: library.favorites())
         library.unsave(favorite)

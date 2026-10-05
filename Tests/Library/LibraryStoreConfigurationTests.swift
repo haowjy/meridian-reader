@@ -180,6 +180,8 @@ final class LibraryStoreConfigurationTests: XCTestCase {
         func titles(_ d: FetchDescriptor<Page>) throws -> Set<String> { Set(try context.fetch(d).map(\.title)) }
         let cutoff = now.addingTimeInterval(-7 * 24 * 3600)
         XCTAssertEqual(try titles(LibraryQueries.inLibrary), ["loose", "undated", "link", "chapter"])
+        XCTAssertEqual(try titles(LibraryQueries.savedInLibrary), ["loose", "undated", "chapter"],
+                       "saved and in the Library: not the link, not the pages played without saving")
         for sort in PageSort.allCases {
             XCTAssertEqual(try titles(LibraryQueries.loosePages(sort: sort)), ["loose", "undated"], "\(sort)")
         }
