@@ -39,6 +39,41 @@ final class EPUBCutterScalingTests: XCTestCase {
         return (cuts, seconds)
     }
 
+    /// 150,000 one-word `h1` headings and nothing else: 150,000 ranges, nearly all merged away.
+    func testHundredAndFiftyThousandOneWordHeadings() throws {
+        var epub = SyntheticEPUB()
+        epub.tableOfContents = .none
+        let headings = (0..<150_000).map { "<h1>\(SyntheticEPUB.words(1, seed: $0))</h1>" }.joined()
+        epub.addDocument("all.xhtml", body: SyntheticEPUB.xhtml(body: headings))
+        let (cuts, seconds) = try timedCut(epub.write(in: self))
+        XCTAssertEqual(cuts.count, 1_000, "short headings merge forward into pieces of 150 words")
+        XCTAssertLessThan(seconds, 5, "cut in \(seconds) s")
+    }
+
+    /// 34,000 contents entries naming the same file, each with one child: the children gather on
+    /// one mark, and the file (over the maximum) opens to all of them. The nav is written without
+    /// whitespace so it stays under the node cap.
+    func testManyContentsEntriesOnOneTargetWithChildren() throws {
+        let count = 34_000
+        var epub = SyntheticEPUB()
+        let paragraphs = (0..<count).map { "<p id=\"c\($0)\">\(SyntheticEPUB.words(2, seed: $0))</p>" }.joined()
+        epub.addDocument("all.xhtml", body: SyntheticEPUB.xhtml(body: paragraphs))
+        epub.contents = [Entry("Part", "all.xhtml")]
+        let items = (0..<count).map {
+            "<li><a href=\"all.xhtml\">Part</a><ol><li><a href=\"all.xhtml#c\($0)\">Section</a></li></ol></li>"
+        }.joined()
+        let nav = SyntheticEPUB.xhtml(body: "<nav epub:type=\"toc\"><ol>\(items)</ol></nav>")
+        let entries = epub.entries().map { entry -> TestZipWriter.Entry in
+            guard entry.path == epub.path("nav.xhtml") else { return entry }
+            var replaced = entry
+            replaced.data = Data(nav.utf8)
+            return replaced
+        }
+        let (cuts, seconds) = try timedCut(epub.write(in: self, entries: entries))
+        XCTAssertEqual(cuts.count, 453, "each section is short: they merge into pieces of 150 words")
+        XCTAssertLessThan(seconds, 5, "cut in \(seconds) s")
+    }
+
     /// 5,000 entries over a small maximum, each with 10 children: 5,000 branches to open, one
     /// after another.
     func testManyBranchesToOpen() throws {

@@ -358,6 +358,22 @@ final class EPUBContentsTests: XCTestCase {
         assertBodyChaptersWithinBounds(book)
     }
 
+    /// A short chapter can't merge into an empty skipped range (a plate) before the next chapter;
+    /// once the plate has joined that chapter, the short one is looked at again and merges too.
+    func testShortChapterMergesOnceAnEmptySkippedRangeBesideItHasMerged() throws {
+        var epub = SyntheticEPUB()
+        epub.addDocument("prelude.xhtml", body: chapterFile("prelude", "Prelude", words: 60))
+        epub.addDocument("plate.xhtml", body: SyntheticEPUB.xhtml(body: "<div><img src=\"plate.png\" alt=\"\"/></div>"))
+        epub.addDocument("one.xhtml", body: chapterFile("c1", "Chapter 1", words: 400, seed: 1))
+        epub.contents = [Entry("Prelude", "prelude.xhtml"), Entry("Plate", "plate.xhtml"), Entry("Chapter 1", "one.xhtml")]
+        let book = try epub.read(in: self)
+        XCTAssertEqual(book.titles, ["Chapter 1"])
+        XCTAssertEqual(book.chapters.map(\.provisionalWordCount), [460])
+        XCTAssertEqual(book.chapters.first?.locator, EPUBLocator(href: "OEBPS/one.xhtml", anchor: .fileStart),
+                       "the chapter they merge into keeps its identity")
+        assertBodyChaptersWithinBounds(book)
+    }
+
     func testEntriesOnTheSameBlockMerge() throws {
         var epub = SyntheticEPUB()
         epub.addDocument("one.xhtml", body: chapterFile("c1", "Chapter 1", words: 900))

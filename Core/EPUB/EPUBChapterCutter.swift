@@ -72,7 +72,8 @@ struct EPUBCut: Equatable, Sendable {
 ///   piece is over it;
 /// - a range with no words merges into the next; one under `mergeBelowWords` merges into the
 ///   next range of the same kind (body or skipped), else the previous one, if that stays within
-///   `maxWords`; so does a skipped range no entry names, whatever its length.
+///   `maxWords`; so does a skipped range no entry names, whatever its length. When a range merges
+///   away, the one before it is looked at again with its new neighbour.
 ///
 /// Without usable contents, chapters start at `h1` headings, else `h2`, else at each file.
 /// The top of the book, Gutenberg's header and licence, and non-linear files (the nav among them)
@@ -82,7 +83,7 @@ struct EPUBCut: Equatable, Sendable {
 /// **The bar, provisionally:** no chapter over `maxWords`, always. A body chapter under 100
 /// words remains only where it can't merge: no neighbouring body chapter can take it without
 /// passing `maxWords` (its neighbours are full, or it has none, as in a whole book under 100
-/// words or a short section between skipped matter).
+/// words or a short section between skipped matter with words in it).
 struct EPUBChapterCutter {
     typealias Position = EPUBTextStream.Position
 
@@ -265,6 +266,7 @@ struct EPUBChapterCutter {
 
     private func split(_ first: Mark, end: Position) -> [(mark: Mark, end: Position)] {
         var pieces = [(mark: first, end: end)]
+        guard stream.words(from: first.position, to: end) > rules.maxWords else { return pieces }
         for level in 1...2 {
             pieces = pieces.flatMap { piece in
                 cutting(piece) { start, end in
@@ -388,32 +390,51 @@ struct EPUBChapterCutter {
                      anchor: piece.mark.anchor, origin: piece.mark.origin, words: words, skips: skips)
     }
 
-    /// See the type's comment for the one case a short body range stays.
+    /// Merges short ranges into a neighbour, left to right (see the type's comment for the one
+    /// case a short body range stays). When a range merges away, the range before it is looked
+    /// at again, since its next neighbour changed: a short body range kept from the next body
+    /// range by an empty skipped one between them merges once that one has joined the next.
+    /// Each step keeps a range or merges two, so the work is linear.
     private func mergingShortRanges(_ ranges: [Range]) -> [Range] {
-        var ranges = ranges
-        var index = 0
-        while index < ranges.count, ranges.count > 1 {
-            let range = ranges[index]
-            if range.words == 0 {
-                let into = index + 1 < ranges.count ? index + 1 : index - 1
-                ranges[into] = absorbing(range, into: ranges[into])
-                ranges.remove(at: index)
-                continue
+        var kept: [Range] = []
+        // The ranges still to look at, the next one last.
+        var pending = Array(ranges.reversed())
+        while let range = pending.popLast() {
+            switch neighbour(taking: range, previous: kept.last, next: pending.last) {
+            case .next:
+                pending[pending.count - 1] = absorbing(range, into: pending[pending.count - 1])
+                if let previous = kept.popLast() { pending.append(previous) }
+            case .previous:
+                pending.append(absorbing(range, into: kept.removeLast()))
+            case nil:
+                kept.append(range)
             }
-            // Skipped matter no entry names (the start of Gutenberg's licence) joins skipped
-            // matter beside it at any length, rather than listing as an untitled chapter.
-            let mergesAnyLength = range.skips && range.origin == .unlisted
-            if range.words < rules.mergeBelowWords || mergesAnyLength, let into = [index + 1, index - 1].first(where: {
-                ranges.indices.contains($0) && ranges[$0].skips == range.skips
-                    && ranges[$0].words + range.words <= rules.maxWords
-            }) {
-                ranges[into] = absorbing(range, into: ranges[into])
-                ranges.remove(at: index)
-                continue
-            }
-            index += 1
         }
-        return ranges
+        return kept
+    }
+
+    private enum Neighbour {
+        case previous, next
+    }
+
+    /// The neighbour a range merges into: for a range with no words, the next (else the
+    /// previous); for one under `mergeBelowWords`, the next (else the previous) of the same kind
+    /// that can take it within `maxWords`.
+    private func neighbour(taking range: Range, previous: Range?, next: Range?) -> Neighbour? {
+        if range.words == 0 {
+            return next != nil ? .next : previous != nil ? .previous : nil
+        }
+        // Skipped matter no entry names (the start of Gutenberg's licence) joins skipped matter
+        // beside it at any length, rather than listing as an untitled chapter.
+        let mergesAnyLength = range.skips && range.origin == .unlisted
+        guard range.words < rules.mergeBelowWords || mergesAnyLength else { return nil }
+        func takes(_ neighbour: Range?) -> Bool {
+            guard let neighbour else { return false }
+            return neighbour.skips == range.skips && neighbour.words + range.words <= rules.maxWords
+        }
+        if takes(next) { return .next }
+        if takes(previous) { return .previous }
+        return nil
     }
 
     /// The absorbing range keeps its title (unless it has none), anchor and kind.
