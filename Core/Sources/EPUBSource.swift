@@ -20,12 +20,14 @@ final class EPUBSource: PageSource {
 
     /// Normalizes every chapter of `book`, one at a time in `normalizer`'s one web view, reporting
     /// each one done, and settles them. `fallbackTitle`: the book's name when the package has none.
+    /// A cancelled task stops before its next chapter (`CancellationError`).
     static func prepare(_ book: EPUBBook, fallbackTitle: String, normalizer: ListenContentNormalizer,
                         bar: BookChapterFinalizer.Bar = .standard,
                         progress: (_ done: Int, _ total: Int) -> Void) async throws -> EPUBSource {
         var prepared: [PreparedChapter] = []
         progress(0, book.chapters.count)
         for chapter in book.chapters {
+            try Task.checkCancellation()
             let html = try await normalizer.normalizeBookChapter(chapter.xhtml)
             prepared.append(PreparedChapter(chapter, normalizedHTML: html))
             progress(prepared.count, book.chapters.count)

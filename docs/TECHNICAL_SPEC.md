@@ -153,18 +153,27 @@ does):
    refused, then the package, the contents and every spine file are read and cut at contents
    anchors, choosing the depth per branch; front and back matter are flagged.
 2. Each chapter is normalized, one at a time, in one hidden web view (above). Progress is a value
-   (`BookImportProgress`: reading, chapters prepared of all of them, storing).
+   (`BookImportProgress`: reading, chapters prepared of all of them, storing). Cancelling the
+   importing task stops it between chapters and before anything is stored, keeping nothing.
 3. The chapters are settled on their listen blocks (`BookChapterFinalizer`) before any key is
-   kept: a chapter with nothing to read is dropped; a body chapter under 100 words joins the
-   body chapter after it, else the one before, within 30,000 words; a body chapter still over
-   30,000 words makes the book be cut again with a lower cap. An untitled chapter is named by its
-   first words.
-4. `LibraryStore.addBook` stores one `Folder(kind: .book)` (title, authors, a 600 px cover
+   kept: a chapter with nothing to read is dropped; a book with no body chapter left plays every
+   chapter; a body chapter under 100 words joins the body chapter after it, else the one before,
+   within 30,000 words; a body chapter still over 30,000 words makes the book be cut again with a
+   lower cap, at most three cuts. An untitled chapter is named by its first words.
+4. Before anything is stored, the chapters are held to the size policy on the listen blocks that
+   will be stored (`BookChapterFinalizer.check`): a book with nothing left to read is refused as
+   unreadable; a body chapter still over 30,000 words after the last cut, or one under 100 that a
+   neighbouring body chapter could take, is refused as text that couldn't be prepared. A body
+   chapter under 100 words stays only where no body neighbour can take it within 30,000: its
+   neighbours are full, or it has none (a book under 100 words, a short section between skipped
+   matter). Skipped chapters may be any length.
+5. `LibraryStore.addBook` stores one `Folder(kind: .book)` (title, authors, a 600 px cover
    thumbnail, language, the book key as `sourceIdentifier`, the file's SHA-256 in
-   `sourceStateData`) at the destination, with one saved page per chapter in order (key
+   `sourceStateData`) at the destination, looked up again then (a destination deleted while the
+   book was read fails the import), with one saved page per chapter in order (key
    `BookIdentity.chapterKey`, front matter `skipsInPlayback`), all in one save: a failed save
    keeps nothing.
-5. A book already in the Library (same book key) is left alone, or, with *Replace* (D13),
+6. A book already in the Library (same book key) is left alone, or, with *Replace* (D13),
    rebuilt in the same folder by `LibraryStore.replaceBook` (`ARTICLE_IDENTITY.md`), in one
    save; a dropped chapter's audio goes only once that save succeeds.
 

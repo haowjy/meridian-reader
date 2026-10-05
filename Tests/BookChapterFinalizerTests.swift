@@ -67,6 +67,74 @@ final class BookChapterFinalizerTests: XCTestCase {
         XCTAssertEqual(BookChapterFinalizer.finalize(chapters).map(\.skipsInPlayback), [false, false])
     }
 
+    func testABookOfOnlySkippedMatterJoinsItsShortChaptersOnceTheyAllPlay() {
+        let chapters = [chapter("title", words: 20, skips: true), chapter("rights", words: 30, skips: true),
+                        chapter("preface", words: 200, skips: true)]
+        let out = BookChapterFinalizer.finalize(chapters)
+        XCTAssertEqual(out.map(\.key), [chapters[2].key], "the short ones join the preface")
+        XCTAssertEqual(out.map(\.words), [250])
+        XCTAssertEqual(out.map(\.skipsInPlayback), [false])
+        XCTAssertNil(BookChapterFinalizer.check(out.map(measure)))
+    }
+
+    // MARK: - The size policy, the last check before the library
+
+    private func measure(_ chapter: PreparedChapter) -> BookChapterFinalizer.Measure {
+        .init(title: chapter.title, hasBlocks: !chapter.document.isEmpty, words: chapter.words,
+              skipsInPlayback: chapter.skipsInPlayback)
+    }
+
+    private func body(_ title: String, _ words: Int) -> BookChapterFinalizer.Measure { .init(title: title, words: words) }
+    private func skipped(_ title: String, _ words: Int) -> BookChapterFinalizer.Measure {
+        .init(title: title, words: words, skipsInPlayback: true)
+    }
+
+    func testTheCheckRefusesNothingToReadAndChaptersWithoutBlocks() {
+        XCTAssertEqual(BookChapterFinalizer.check([]), .noText)
+        XCTAssertEqual(BookChapterFinalizer.check([body("One", 500), .init(title: "Blank", hasBlocks: false, words: 0)]),
+                       .emptyChapter(title: "Blank"))
+    }
+
+    func testTheCheckRefusesABodyChapterOverTheMaximumButNotSkippedMatter() {
+        let bar = BookChapterFinalizer.Bar(minWords: 100, maxWords: 1_000)
+        XCTAssertEqual(BookChapterFinalizer.check([body("One", 500), body("Long", 1_001)], bar: bar),
+                       .overBar(title: "Long", words: 1_001))
+        XCTAssertNil(BookChapterFinalizer.check([body("One", 500), skipped("Notes", 5_000)], bar: bar))
+    }
+
+    func testTheCheckRefusesAShortBodyChapterANeighbourCouldTake() {
+        XCTAssertEqual(BookChapterFinalizer.check([body("One", 500), body("Epigraph", 40), body("Two", 500)]),
+                       .short(title: "Epigraph", words: 40))
+        XCTAssertEqual(BookChapterFinalizer.check([skipped("Title", 8), body("Coda", 30), body("One", 500)]),
+                       .short(title: "Coda", words: 30))
+    }
+
+    func testTheCheckKeepsTheStatedExceptionForShortChapters() {
+        let bar = BookChapterFinalizer.Bar(minWords: 100, maxWords: 1_000)
+        XCTAssertNil(BookChapterFinalizer.check([body("One", 960), body("Short", 60), body("Two", 990)], bar: bar),
+                     "its neighbours are full")
+        XCTAssertNil(BookChapterFinalizer.check([skipped("Title", 8), body("Lonely", 60), skipped("Notes", 900)]),
+                     "a short section between skipped matter")
+        XCTAssertNil(BookChapterFinalizer.check([body("Tiny Book", 40)]), "a book under 100 words")
+        XCTAssertNil(BookChapterFinalizer.check([skipped("Title", 3), body("One", 500), skipped("Colophon", 20)]),
+                     "skipped matter may be any length")
+    }
+
+    func testWhatTheFinalizerSettlesPassesTheCheck() {
+        let bar = BookChapterFinalizer.Bar(minWords: 100, maxWords: 1_000)
+        let books: [[PreparedChapter]] = [
+            [chapter("one", words: 500), chapter("epigraph", words: 40), chapter("two", words: 500)],
+            (0..<5).map { chapter("part\($0)", words: 30) },
+            [chapter("one", words: 960), chapter("short", words: 60), chapter("two", words: 990)],
+            [chapter("a", words: 30), chapter("b", words: 20), chapter("full", words: 990), chapter("c", words: 50)],
+            [chapter("title", words: 8, skips: true), chapter("lonely", words: 60), chapter("notes", words: 900, skips: true)],
+            [chapter("title", words: 20, skips: true), chapter("rights", words: 30, skips: true)],
+        ]
+        for (i, book) in books.enumerated() {
+            XCTAssertNil(BookChapterFinalizer.check(BookChapterFinalizer.finalize(book, bar: bar).map(measure), bar: bar), "book \(i)")
+        }
+    }
+
     func testAnUntitledChapterIsNamedByItsFirstWords() {
         let long = PreparedChapter(key: UUID(), title: nil, locator: EPUBLocator(href: "p.xhtml", anchor: .fileStart),
                                    skipsInPlayback: false,

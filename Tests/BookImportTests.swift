@@ -270,4 +270,133 @@ final class BookImportTests: XCTestCase {
         XCTAssertEqual(words.reduce(0, +), 2_700 + 3 * 2, "every word kept")
         XCTAssertEqual(steps.filter { $0 == .reading }.count, 2, "read and cut twice")
     }
+
+    // MARK: - The last check before the library
+
+    /// A book whose every chapter is footnotes: it has text to the parser, and none to read.
+    /// It has `sampleBook`'s title and identifier, so the same book key.
+    static func footnotesOnlyBook() -> SyntheticEPUB {
+        let book = sampleBook()
+        var epub = SyntheticEPUB()
+        epub.title = book.title
+        epub.identifier = book.identifier
+        for (i, name) in ["notes1.xhtml", "notes2.xhtml"].enumerated() {
+            epub.addDocument(name, body: SyntheticEPUB.xhtml(body: """
+            <section id="n\(i)"><aside epub:type="footnote" id="fn\(i)"><p>\(SyntheticEPUB.words(300, seed: 20 + i))</p></aside></section>
+            """))
+        }
+        epub.contents = [.init("Notes One", "notes1.xhtml#n0"), .init("Notes Two", "notes2.xhtml#n1")]
+        return epub
+    }
+
+    private func assertUnreadable(_ body: () async throws -> Void, file: StaticString = #filePath, line: UInt = #line) async {
+        do {
+            try await body()
+            XCTFail("expected the book to be unreadable", file: file, line: line)
+        } catch let error as BookImportError {
+            guard case .unreadable = error else { return XCTFail("\(error)", file: file, line: line) }
+            XCTAssertEqual(error.localizedDescription, "This file isn't a readable EPUB.", file: file, line: line)
+        } catch {
+            XCTFail("\(error)", file: file, line: line)
+        }
+    }
+
+    func testABookWithNothingLeftToReadIsUnreadableAndKeepsNothing() async throws {
+        let epub = Self.footnotesOnlyBook()
+        XCTAssertEqual(try epub.read(in: self).chapters.count, 2, "the parser finds text in it")
+        await assertUnreadable { _ = try await self.importBook(epub) }
+        XCTAssertTrue(env.folders().isEmpty && env.pages().isEmpty, "no empty book folder")
+    }
+
+    func testReplacingABookWithOneWithNothingToReadLeavesItAsItWas() async throws {
+        let book = try added(try await importBook(Self.sampleBook()))
+        let pages = library.playOrder(of: book)
+        let chapterTwo = try XCTUnwrap(pages.first { $0.title == "Chapter 2: The Lighthouse" })
+        library.recordPlayback(ReaderArticle(page: chapterTwo))
+        library.recordPosition(chapterTwo, paragraph: 2, utf16Offset: 10)
+        let empty = Self.footnotesOnlyBook()
+        XCTAssertEqual(try empty.read(in: self).key, try Self.sampleBook().read(in: self).key, "the same book key")
+
+        await assertUnreadable { _ = try await self.importBook(empty, choice: .replace) }
+        XCTAssertEqual(library.playOrder(of: book).map(\.key), pages.map(\.key), "every chapter is still there")
+        XCTAssertEqual(book.currentPageKey, chapterTwo.key)
+        XCTAssertEqual(chapterTwo.positionParagraph, 2)
+        XCTAssertEqual(env.folders().count, 1)
+    }
+
+    func testABodyChapterStillOverTheBarWhenTheCutsRunOutKeepsNothing() async throws {
+        var epub = SyntheticEPUB()
+        let parts = (1...3).map { "<h2>Part \($0)</h2>\n" + SyntheticEPUB.paragraphs(900, seed: $0) }
+        epub.addDocument("long.xhtml", body: SyntheticEPUB.xhtml(body: "<section id=\"l\">" + parts.joined(separator: "\n") + "</section>"))
+        epub.contents = [.init("The Long Chapter", "long.xhtml#l")]
+        var importer = BookImporter(library: library)
+        importer.rules.maxWords = 1_000
+        importer.bar.maxWords = 800
+        importer.maxCuts = 1
+        XCTAssertTrue(try epub.read(in: self, rules: importer.rules).bodyChapters.contains { $0.provisionalWordCount > 800 })
+
+        do {
+            _ = try await importBook(epub, importer: importer)
+            XCTFail("expected a refusal")
+        } catch let error as BookImportError {
+            guard case .couldNotPrepare = error else { return XCTFail("\(error)") }
+            XCTAssertEqual(error.localizedDescription, "Meridian couldn't prepare this book's text.")
+        }
+        XCTAssertTrue(env.folders().isEmpty && env.pages().isEmpty, "nothing kept")
+    }
+
+    // MARK: - Cancelling, and a destination that goes
+
+    /// Runs the import in a task of its own that cancels itself at `step`.
+    private func importCancelled(at step: @escaping (BookImportProgress) -> Bool, _ epub: SyntheticEPUB,
+                                 choice: ReimportChoice = .cancel) async throws -> Result<BookImportOutcome, Error> {
+        let file = try epub.write(in: self)
+        let library = library
+        let task = Task { @MainActor in
+            try await BookImporter(library: library).importBook(at: file, into: nil, ifAlreadyInLibrary: choice) { progress in
+                if step(progress) { withUnsafeCurrentTask { $0?.cancel() } }
+            }
+        }
+        return await task.result
+    }
+
+    func testACancelledImportKeepsNothing() async throws {
+        let steps: [(String, (BookImportProgress) -> Bool)] = [
+            ("between chapters", { if case .preparing(_, 1, _) = $0 { true } else { false } }),
+            ("before storing", { $0 == .storing(title: "The Lantern Keeper") }),
+        ]
+        for (name, step) in steps {
+            let result = try await importCancelled(at: step, Self.sampleBook())
+            guard case .failure(let error) = result else { return XCTFail("\(name): \(result)") }
+            XCTAssertTrue(error is CancellationError, "\(name): \(error)")
+            XCTAssertTrue(env.folders().isEmpty && env.pages().isEmpty, "\(name): nothing kept")
+        }
+    }
+
+    func testACancelledReplaceLeavesTheBookAsItWas() async throws {
+        let book = try added(try await importBook(Self.sampleBook()))
+        let pages = library.playOrder(of: book).map { ($0.key, $0.wordCount) }
+        var edited = Self.sampleBook()
+        edited.documents[3].body = SyntheticEPUB.xhtml(body: SyntheticEPUB.chapter(id: "c3", heading: "Chapter 3: The Tide",
+                                                                                   words: 420, seed: 9))
+        let result = try await importCancelled(at: { $0 == .storing(title: "The Lantern Keeper") }, edited, choice: .replace)
+        guard case .failure(let error) = result, error is CancellationError else { return XCTFail("\(result)") }
+        XCTAssertEqual(library.playOrder(of: book).map(\.key), pages.map(\.0))
+        XCTAssertEqual(library.playOrder(of: book).map(\.wordCount), pages.map(\.1), "the text is the first import's")
+    }
+
+    func testADestinationDeletedWhileTheBookIsReadKeepsNothing() async throws {
+        let shelf = try library.makeFolder(name: "Fiction", in: nil)
+        do {
+            _ = try await importBook(Self.sampleBook(), into: shelf) { step in
+                if case .preparing(_, 1, _) = step { try? self.library.deleteFolder(shelf, keepContents: false) }
+            }
+            XCTFail("expected a refusal")
+        } catch let error as BookImportError {
+            XCTAssertEqual(error, .destinationGone)
+            XCTAssertEqual(error.localizedDescription, "The folder chosen for this book no longer exists.")
+        }
+        XCTAssertTrue(env.folders().isEmpty, "no book folder, anywhere")
+        XCTAssertTrue(env.pages().isEmpty)
+    }
 }

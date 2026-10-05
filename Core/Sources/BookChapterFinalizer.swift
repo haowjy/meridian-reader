@@ -56,13 +56,13 @@ struct PreparedChapter: Equatable, Sendable {
 /// key is kept. The cut was made on the raw XHTML, whose word counts are provisional; the
 /// normalizer drops footnotes and anything that isn't text.
 /// - A chapter with no listen blocks is dropped (a cover picture, an emptied footnote page).
+/// - A book with no body chapter left plays every chapter: they are all body chapters from here.
 /// - A body chapter under the bar's minimum joins the body chapter right after it, else the one
 ///   right before it, if the two stay within the maximum; otherwise it stays. Skipped chapters
 ///   (front and back matter) are kept whatever their length.
-/// - A book with no body chapter left plays every chapter.
 ///
 /// A body chapter over the maximum isn't settled here: the import cuts the book again with a
-/// lower cap (`BookImporter`).
+/// lower cap (`BookImporter`). `check` is the size policy the result is held to.
 enum BookChapterFinalizer {
     /// The pass bar for a body chapter, in words.
     struct Bar: Equatable, Sendable {
@@ -75,6 +75,9 @@ enum BookChapterFinalizer {
     static func finalize(_ chapters: [PreparedChapter], bar: Bar = .standard) -> [PreparedChapter] {
         let minWords = bar.minWords, maxWords = bar.maxWords
         var out = chapters.filter { !$0.document.isEmpty }
+        if !out.contains(where: { !$0.skipsInPlayback }) {
+            for j in out.indices { out[j].skipsInPlayback = false }
+        }
         var i = 0
         while i < out.count {
             let short = out[i]
@@ -93,9 +96,6 @@ enum BookChapterFinalizer {
                 i += 1
             }
         }
-        if !out.contains(where: { !$0.skipsInPlayback }) {
-            for j in out.indices { out[j].skipsInPlayback = false }
-        }
         return out
     }
 
@@ -103,5 +103,59 @@ enum BookChapterFinalizer {
     static func overCap(_ chapters: [PreparedChapter], bar: Bar = .standard) -> Int? {
         let longest = chapters.filter { !$0.skipsInPlayback }.map(\.words).max() ?? 0
         return longest > bar.maxWords ? longest : nil
+    }
+
+    /// A chapter as the size policy sees it: whether it has listen blocks, and their words.
+    struct Measure: Equatable {
+        var title: String
+        var hasBlocks: Bool
+        var words: Int
+        var skipsInPlayback: Bool
+
+        init(title: String, hasBlocks: Bool = true, words: Int, skipsInPlayback: Bool = false) {
+            self.title = title
+            self.hasBlocks = hasBlocks
+            self.words = words
+            self.skipsInPlayback = skipsInPlayback
+        }
+
+        /// What the library will store for the chapter: its listen blocks.
+        init(_ chapter: PageContent) {
+            self.init(title: chapter.title, hasBlocks: !chapter.document.isEmpty,
+                      words: EPUBWordCount.count(chapter.document.joinedText), skipsInPlayback: chapter.ref.skipsInPlayback)
+        }
+    }
+
+    /// Why settled chapters can't be stored.
+    enum Rejection: Equatable {
+        /// Nothing left to read: every chapter normalized to no listen blocks.
+        case noText
+        /// A chapter with no listen blocks.
+        case emptyChapter(title: String)
+        /// A body chapter over the maximum: cutting again didn't bring it under.
+        case overBar(title: String, words: Int)
+        /// A body chapter under the minimum that a neighbouring body chapter could have taken.
+        case short(title: String, words: Int)
+    }
+
+    /// The size policy, held on the listen blocks the library will store, before it stores any:
+    /// at least one chapter, each with something to read; no body chapter over the maximum; and
+    /// none under the minimum, except where no neighbouring body chapter can take it without
+    /// passing the maximum (the cutter's stated exception): its body neighbours are full, or it
+    /// has none, as in a book under 100 words, or a short section between skipped matter.
+    /// Skipped chapters may be any length. nil when the chapters pass.
+    static func check(_ chapters: [Measure], bar: Bar = .standard) -> Rejection? {
+        guard !chapters.isEmpty else { return .noText }
+        if let empty = chapters.first(where: { !$0.hasBlocks }) { return .emptyChapter(title: empty.title) }
+        for (i, chapter) in chapters.enumerated() where !chapter.skipsInPlayback {
+            if chapter.words > bar.maxWords { return .overBar(title: chapter.title, words: chapter.words) }
+            guard chapter.words < bar.minWords else { continue }
+            let canTake = [i - 1, i + 1].contains { j in
+                chapters.indices.contains(j) && !chapters[j].skipsInPlayback
+                    && chapters[j].words + chapter.words <= bar.maxWords
+            }
+            if canTake { return .short(title: chapter.title, words: chapter.words) }
+        }
+        return nil
     }
 }
