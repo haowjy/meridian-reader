@@ -1,8 +1,10 @@
 import SwiftUI
 
 /// The shell's toast (`ShellState.toast`), floating just above the bottom chrome it is attached
-/// to (`.overlay(alignment: .top)` on a band): the browser's, the Library's, the Reader's. It
-/// goes by itself after `Toast.duration` (longer when it has an action).
+/// to (`.overlay(alignment: .top)` on a band): the browser's, the Library's, the Favorites
+/// sheet's, the Reader's, Now Playing's controls; the Move tree has none, so its toast floats over
+/// the sheet's bottom edge. It goes by itself after `Toast.duration` (longer when it has an
+/// action).
 struct ShellToastLayer: View {
     @Environment(ShellState.self) private var shell
 

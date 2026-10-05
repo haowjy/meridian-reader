@@ -72,7 +72,7 @@ final class BookmarkStoreTests: XCTestCase {
     /// One page per address: bookmarking a saved page files it in Favorites; removing the
     /// bookmark puts it back with the pages in no folder, still saved.
     func testBookmarkingASavedPageFilesItInFavorites() throws {
-        let saved = library.save(env.article("https://example.com/saved"))
+        let saved = try library.save(env.article("https://example.com/saved"))
         let favorite = try library.addFavorite(url: URL(string: "https://example.com/saved")!, title: "Other title", artwork: nil)
         XCTAssertIdentical(favorite, saved)
         XCTAssertEqual(saved.folder?.kind, .favorites)

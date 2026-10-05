@@ -324,10 +324,13 @@ struct BrowseStartView: View {
         }
     }
 
-    /// ⋯ → Save to Library…: the Move tree, then the page is saved into the folder picked.
+    /// ⋯ → Save to Library…: the Move tree, then the page is saved into the folder picked. The
+    /// tree closes on the pick, as the page is extracted first; ⋯ spins, and a save that can't
+    /// be stored says so in a toast over the browser.
     private func saveToLibrary() {
         FavoriteFlow(library: library, shell: shell).saveToFolder(title: String(localized: "Save to…"), current: nil) { folder in
             run { try await $0.save(in: folder) }
+            return true
         }
     }
 

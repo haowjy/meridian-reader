@@ -56,8 +56,9 @@ struct FavoriteFlow {
     /// Saves `article` into a folder picked in the Move tree (*Save to Library…*, 🔖's *Save to
     /// Folder…*): a saved page moves there, an unsaved one is saved there. "Library (no
     /// folder)" (nil) files it in no folder, out of the one it was in (a link in Favorites
-    /// leaves it); `save` passes it on as `SavePlacement.folder`.
-    func saveToFolder(title: String, current: MoveRequest.Place?, save: @escaping (Folder?) -> Void) {
+    /// leaves it); `save` passes it on as `SavePlacement.folder`, and returns false when that
+    /// couldn't be saved (the tree stays up).
+    func saveToFolder(title: String, current: MoveRequest.Place?, save: @escaping (Folder?) -> Bool) {
         shell.present(.moveTo(MoveRequest(title: title, current: current, onPick: save)))
     }
 
@@ -71,7 +72,7 @@ struct FavoriteFlow {
                                    actionTitle: String(localized: "Change Folder")) {
             shell.present(.moveTo(MoveRequest(title: String(localized: "Change Folder"),
                                               current: page.folder.map { .folder($0.id) }) { destination in
-                shell.attempt(String(localized: "Couldn’t move")) { try library.move([.page(page)], to: destination) }
+                shell.attempt(String(localized: "Couldn’t move")) { try library.move([.page(page)], to: destination) } != nil
             }))
         })
         guard !FaviconFetcher.isTileSized(page.artworkData) else { return }

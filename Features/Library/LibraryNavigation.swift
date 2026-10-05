@@ -111,7 +111,8 @@ struct FavoritesSheet: View {
 }
 
 /// The bottom bar while a folder screen is in Edit: *Move…*, *Mark Finished*, *Remove*, acting on
-/// the selection (Remove asks before deleting folders).
+/// the selection (Remove asks before deleting folders; `LibraryActions.removeSelection`). The
+/// selection clears once an action is saved and stays when it can't be.
 struct LibraryEditBar: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
@@ -120,41 +121,25 @@ struct LibraryEditBar: View {
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
 
-    private var selectedPages: [Page] {
-        screen.selection.compactMap { item in
-            if case .page(let key) = item { return library.page(key: key) }
-            return nil
-        }
-    }
-
-    private var selectedFolders: [Folder] {
-        screen.selection.compactMap { item in
-            if case .folder(let id) = item { return library.folder(id: id) }
-            return nil
-        }
-    }
-
     var body: some View {
         let nothing = screen.selection.isEmpty
         BottomToolbarSpanLayout {
             Button("Move…") {
-                let items = selectedFolders.map(LibraryItem.folder) + selectedPages.map(LibraryItem.page)
-                actions.move(items) { screen.selection = [] }
+                let selected = actions.selected(in: screen)
+                actions.move(selected.folders.map(LibraryItem.folder) + selected.pages.map(LibraryItem.page)) {
+                    screen.selection = []
+                }
             }
             .toolbarTextFrame()
             .disabled(nothing)
             .accessibilityIdentifier("editMove")
             Button("Mark Finished") {
-                if actions.setFinished(selectedPages.filter(\.isSaved), true) { screen.selection = [] }
+                if actions.setFinished(actions.selected(in: screen).pages.filter(\.isSaved), true) { screen.selection = [] }
             }
             .toolbarTextFrame()
-            .disabled(selectedPages.allSatisfy { !$0.isSaved })
+            .disabled(actions.selected(in: screen).pages.allSatisfy { !$0.isSaved })
             .accessibilityIdentifier("editMarkFinished")
-            Button("Remove") {
-                guard actions.remove(selectedPages) else { return }
-                screen.confirmDelete(selectedFolders)
-                screen.selection = []
-            }
+            Button("Remove") { actions.removeSelection(of: screen) }
             .toolbarTextFrame()
             .disabled(nothing)
             .accessibilityIdentifier("editRemove")

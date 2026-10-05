@@ -121,10 +121,12 @@ extension LibraryStore {
 
     /// Idempotent: the page for this address (or key) becomes saved in place, filed by
     /// `placement` (an ordinary save keeps its folder); otherwise a new saved page whose key is
-    /// the reader key. A chapter stays in its book or series whatever the placement. Its audio
-    /// is marked saved. Never touches playback.
+    /// the reader key. A chapter stays in its book or series whatever the placement. Once that is
+    /// stored, its audio is marked saved. Never touches playback. A save that fails is rolled
+    /// back and throws `LibraryStoreError.saveFailed`: no page is made, an existing one keeps its
+    /// state and folder, and its audio is left alone.
     @discardableResult
-    func save(_ article: ReaderArticle, placement: SavePlacement = .keep, playhead: Int? = nil) -> Page {
+    func save(_ article: ReaderArticle, placement: SavePlacement = .keep, playhead: Int? = nil) throws -> Page {
         let destination = placement.folder
         let page: Page
         if let existing = self.page(key: article.id, canonicalURL: article.canonicalURL) {
@@ -155,26 +157,27 @@ extension LibraryStore {
             page.setFolder(folder)
         }
         if let playhead { page.positionParagraph = playhead }
-        commit("save")
+        try commitOrRollBack("save")
         if let key = page.key { tts.migrateListenCache(from: key, to: key) }
         return page
     }
 
     /// Unsave (🔖, ⋯ → Remove from Saved): a page in a folder stays there as a link (a favorite
     /// stays a favorite); a page in no folder is removed from the Library. Pages in books and
-    /// series aren't unsaved. The audio stays, back on the ephemeral TTL, so playback goes on. A
-    /// save that fails is rolled back and throws `LibraryStoreError.saveFailed`: still saved.
+    /// series aren't unsaved. The audio stays, back on the ephemeral TTL once that is saved
+    /// (`planEphemeral`), so playback goes on. A save that fails is rolled back and throws
+    /// `LibraryStoreError.saveFailed`: still saved.
     func unsave(_ page: Page) throws {
         guard page.isSaved, !page.isInFixedFolder else { return }
         if page.folder != nil {
             page.contentState = .link
             // A link's text is a cache of its last play; one never played has nothing to keep.
             if page.lastPlayedAt == nil { clearText(page) }
+            if let key = page.key { planEphemeral(key: key) }
             try commitOrRollBack("unsave to link")
-            if let key = page.key { tts.markListenCacheEphemeral(key, canonicalURL: page.canonicalURL) }
             log("unsave \(Self.short(page.key)) → link in \(page.folder?.displayName ?? "-")")
         } else {
-            try remove(page)
+            try remove([page])
         }
     }
 
@@ -199,25 +202,31 @@ extension LibraryStore {
 
     // MARK: - Removing and deleting
 
-    /// *Remove from Library*: a saved page leaves the Library (`addedAt = nil`, no folder) and is
-    /// pruned 7 days after it was last played; its audio turns ephemeral. A link page is deleted,
-    /// unless it holds the text of a play, when it is kept like any played page. Not for pages in
-    /// books and series. Never touches playback. A save that fails is rolled back and throws
-    /// `LibraryStoreError.saveFailed`: the page stays where it was.
-    func remove(_ page: Page) throws {
-        guard !page.isInFixedFolder else { return }
-        if page.isLink && !page.hasText {
-            log("remove link \(Self.short(page.key))")
-            context.delete(page)
-            try commitOrRollBack("remove link")
-            return
+    /// *Remove from Library* (a row's menu and swipe, Edit's *Remove*), all of `pages` in one
+    /// save: a saved page leaves the Library (`addedAt = nil`, no folder) and is pruned 7 days
+    /// after it was last played; once that is saved its audio turns ephemeral (`planEphemeral`).
+    /// A link page is deleted, unless it holds the text of a play, when it is kept like any
+    /// played page. Pages in books and series are left alone. Never touches playback. A save
+    /// that fails is rolled back and throws `LibraryStoreError.saveFailed`: every page stays
+    /// where it was, none removed.
+    func remove(_ pages: [Page]) throws {
+        let removing = pages.filter { !$0.isInFixedFolder }
+        guard !removing.isEmpty else { return }
+        var notes: [String] = []
+        for page in removing {
+            if page.isLink && !page.hasText {
+                notes.append("link \(Self.short(page.key)) deleted")
+                context.delete(page)
+                continue
+            }
+            page.contentState = .saved
+            page.addedAt = nil
+            page.setFolder(nil)
+            if let key = page.key { planEphemeral(key: key) }
+            notes.append("\(Self.short(page.key)) → not in Library")
         }
-        page.contentState = .saved
-        page.addedAt = nil
-        page.setFolder(nil)
         try commitOrRollBack("remove")
-        if let key = page.key { tts.markListenCacheEphemeral(key, canonicalURL: page.canonicalURL) }
-        log("remove \(Self.short(page.key)) → not in Library")
+        log("remove: \(notes.joined(separator: ", "))")
     }
 
     /// Deletes the page, then its audio once that is saved. Playback of it stops first (its audio

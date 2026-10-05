@@ -8,7 +8,7 @@ import SwiftData
 /// deletes `Folder` or `Page` rows.
 ///
 /// Lists in views read through `LibraryQueries` (with `@Query`); everything that changes the
-/// library comes here. The one save path is `ArticleSaveCoordinator` → `save(_:in:)`.
+/// library comes here. The one save path is `ArticleSaveCoordinator` → `save(_:placement:playhead:)`.
 @MainActor
 @Observable
 final class LibraryStore {

@@ -1,0 +1,116 @@
+import XCTest
+
+/// Saves and edits that can't be stored (`-failLibrarySaves`: every library save fails once the
+/// app has launched): each says "Couldn’t …" where it was asked for, nothing reads as done, and
+/// what was open stays open. Offline: the test pages and the demo folders.
+final class SaveFailureUITests: XCTestCase {
+    override func setUp() { continueAfterFailure = false }
+
+    /// Waits for the toast to say `message`.
+    private func expectToast(_ app: XCUIApplication, _ message: String, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(eventually(5) { self.find(app, "toast").label == message }, "the toast says “\(message)”",
+                      file: file, line: line)
+    }
+
+    /// Waits for the toast to go, so the next one is a new one.
+    private func expectNoToast(_ app: XCUIApplication) {
+        XCTAssertTrue(eventually(10) { !self.find(app, "toast").exists }, "the toast went")
+    }
+
+    /// The toast floats over the Move tree, which stays up until ✕.
+    private func expectTheTreeStaysUnderTheToast(_ app: XCUIApplication, _ message: String) {
+        let tree = find(app, "moveTree")
+        expectToast(app, message)
+        idle(1)
+        XCTAssertTrue(tree.exists, "the Move tree stays up")
+        let toast = find(app, "toast").frame
+        XCTAssertTrue(tree.frame.contains(CGPoint(x: toast.midX, y: toast.midY)), "the toast is over the tree: \(toast) in \(tree.frame)")
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "move-tree-under-\(message)"
+        shot.lifetime = .keepAlways
+        add(shot)
+        app.buttons["moveCancel"].tap()
+        XCTAssertTrue(eventually(5) { !tree.exists }, "✕ closes it")
+    }
+
+    /// Every way to save a page: the browser's ⋯ → Save to Library…, the Reader's 🔖 and *Save
+    /// to Folder…*, Now Playing's ⊕. Each says "Couldn’t save", and the page stays unsaved.
+    func testASaveThatCantBeStoredSaysSoAndThePageStaysUnsaved() throws {
+        let app = launchTestPages(["-seedDemoArticle", "-failLibrarySaves"])
+        openTestPage(app, "Next page")
+
+        app.buttons["browseMore"].tap()
+        tapMenuRow(app, "moreSave")
+        pickInMoveTree(app, topLevel: true)
+        XCTAssertTrue(eventually(5) { !self.find(app, "moveTree").exists }, "the tree closes as the page is extracted")
+        expectToast(app, "Couldn’t save")
+        expectNoToast(app)
+        app.buttons["browseLibrary"].tap()
+        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+        idle(1)
+        XCTAssertFalse(libraryRow(app, "Second page").exists, "not in the Library")
+        app.buttons["libraryBrowser"].tap()
+
+        find(app, "addressReader").tap()
+        let bookmark = app.buttons["readerBookmark"]
+        XCTAssertTrue(bookmark.waitForExistence(timeout: 10))
+        XCTAssertEqual(bookmark.value as? String, "Not saved")
+        bookmark.tap()
+        expectToast(app, "Couldn’t save")
+        XCTAssertEqual(bookmark.value as? String, "Not saved", "🔖 doesn't fill")
+        expectNoToast(app)
+
+        bookmark.press(forDuration: 1.0)
+        pickInMoveTree(app, topLevel: true)
+        expectTheTreeStaysUnderTheToast(app, "Couldn’t save")
+        XCTAssertEqual(bookmark.value as? String, "Not saved")
+        expectNoToast(app)
+
+        app.buttons["listenPlayPause"].tap()
+        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 10), "Now Playing")
+        let plus = app.buttons["readerBookmark"]
+        XCTAssertEqual(plus.value as? String, "Not saved")
+        plus.tap()
+        expectToast(app, "Couldn’t save")
+        XCTAssertEqual(plus.value as? String, "Not saved", "⊕ stays ⊕")
+        find(app, "listenPlayPause").tap()
+    }
+
+    /// Edit in a folder, on a subfolder: Remove → Cancel keeps it selected; a delete that can't be
+    /// stored keeps the folder, Edit and the selection (Remove asks again); a move that can't be
+    /// stored keeps the Move tree up under its toast, and the selection.
+    func testEditKeepsItsSelectionAndTheMoveTreeWhenNothingCanBeStored() throws {
+        let app = launchLibrary(["-failLibrarySaves"])
+        openFolder(app, "Demo Finance")
+        app.buttons["folderEdit"].tap()
+        libraryRow(app, "Bonds").tap()
+        let remove = app.buttons["editRemove"]
+        XCTAssertTrue(eventually(3) { remove.isEnabled }, "Bonds selected")
+
+        remove.tap()
+        let folderOnly = app.buttons["deleteFolderOnly"].firstMatch
+        XCTAssertTrue(folderOnly.waitForExistence(timeout: 3), "the delete question")
+        let cancel = app.buttons["Cancel"].firstMatch
+        if cancel.exists && cancel.isHittable {
+            cancel.tap()
+        } else {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
+        }
+        XCTAssertTrue(eventually(3) { !folderOnly.exists }, "cancelled")
+        XCTAssertTrue(remove.isEnabled, "Cancel keeps Bonds selected")
+
+        remove.tap()
+        XCTAssertTrue(folderOnly.waitForExistence(timeout: 3), "Remove asks again")
+        folderOnly.tap()
+        expectToast(app, "Couldn’t delete")
+        XCTAssertTrue(libraryRow(app, "Bonds").exists, "Bonds stays")
+        XCTAssertTrue(remove.isEnabled, "still in Edit, Bonds still selected")
+        expectNoToast(app)
+
+        app.buttons["editMove"].tap()
+        pickInMoveTree(app, topLevel: true)
+        expectTheTreeStaysUnderTheToast(app, "Couldn’t move")
+        XCTAssertTrue(app.buttons["editMove"].isEnabled, "Bonds still selected")
+        XCTAssertTrue(libraryRow(app, "Bonds").exists, "and in Demo Finance")
+    }
+}

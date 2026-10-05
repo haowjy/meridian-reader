@@ -152,7 +152,8 @@ struct NowPlayingScreen: View {
         return page.listenKey
     }
 
-    /// ⊕: saving never touches playback.
+    /// ⊕: saving never touches playback. A save or unsave that can't be stored leaves ⊕ as it
+    /// was, and a toast says so.
     private func toggleSaved() {
         guard let article else { return }
         let saver = ArticleSaveCoordinator(library: library, speech: speech)
@@ -161,8 +162,8 @@ struct NowPlayingScreen: View {
                 try saver.unsave(key: savedKey, canonicalURL: article.canonicalURL)
             }) != nil else { return }
             self.savedKey = nil
-        } else {
-            savedKey = saver.save(article)
+        } else if let key = shell.attempt(String(localized: "Couldn’t save"), { try saver.save(article) }) {
+            savedKey = key
         }
     }
 

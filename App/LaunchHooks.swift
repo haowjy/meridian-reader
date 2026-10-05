@@ -66,7 +66,11 @@ enum LaunchHooks {
         }
         if options.opensLibrary { shell.openLibrary() }
         if options.opensDemoInReader { openNewestInReader(in: library, shell: shell) }
+        if options.failsLibrarySaves { library.saveContext = { _ in throw InjectedSaveFailure() } }
     }
+
+    /// `-failLibrarySaves`' refusal.
+    private struct InjectedSaveFailure: Error {}
 
     /// Last, after crash resume (which wins): `-chainDemoChapters`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController) async {

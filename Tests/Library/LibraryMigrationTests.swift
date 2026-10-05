@@ -302,7 +302,7 @@ final class LibraryMigrationTests: XCTestCase {
         library.migrateLegacy()
         let page = try XCTUnwrap(library.page(key: row.id))
         XCTAssertEqual(page.finishedAt, date(1), "finished history folded in")
-        library.save(env.article("https://example.com/1", title: "Edited"))
+        try library.save(env.article("https://example.com/1", title: "Edited"))
         library.delete(page)
 
         XCTAssertEqual(try env.context.fetch(FetchDescriptor<SavedArticle>()).map(\.id), [row.id], "the row is still there")

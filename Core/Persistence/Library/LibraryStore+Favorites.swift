@@ -103,7 +103,7 @@ extension LibraryStore {
             page.setFolder(nil)
             try commitOrRollBack("unfavorite saved page")
         } else {
-            try remove(page)
+            try remove([page])
         }
     }
 

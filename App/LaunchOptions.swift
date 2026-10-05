@@ -65,6 +65,9 @@ struct LaunchOptions: Equatable {
     var restoresSurfaceInUITests = false
     /// `-resetSurface`: forget the remembered surface first, as on a fresh install.
     var resetsSurface = false
+    /// `-failLibrarySaves`: once the launch work is done (seeds, maintenance, bookmarks), every
+    /// library save fails, so UI tests see the edits that can't be saved.
+    var failsLibrarySaves = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -102,6 +105,7 @@ struct LaunchOptions: Equatable {
         seedsDemoFolders = flags.contains("-seedDemoFolders")
         restoresSurfaceInUITests = flags.contains("-restoreSurface")
         resetsSurface = flags.contains("-resetSurface")
+        failsLibrarySaves = flags.contains("-failLibrarySaves")
     }
 
     /// Whether the app reopens on the surface it was left on.

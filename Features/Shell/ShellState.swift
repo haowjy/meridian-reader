@@ -57,7 +57,9 @@ enum ShellSheet: Identifiable, Equatable {
 }
 
 /// One use of the Move tree: what it is for, where the item is now, and what picking a place
-/// does. `onPick` gets the chosen folder, or nil for the top level ("Library (no folder)").
+/// does. `onPick` gets the chosen folder, or nil for the top level ("Library (no folder)"), and
+/// returns false when that couldn't be saved (its toast says so): the tree stays up, so another
+/// place can be picked or the tree cancelled. True closes it.
 struct MoveRequest: Identifiable, Equatable {
     enum Place: Equatable {
         case topLevel
@@ -71,7 +73,7 @@ struct MoveRequest: Identifiable, Equatable {
     var current: Place?
     /// Folders being moved: they and everything inside them can't be picked (no cycles).
     var moving: Set<UUID> = []
-    let onPick: (Folder?) -> Void
+    let onPick: (Folder?) -> Bool
 
     static func == (a: MoveRequest, b: MoveRequest) -> Bool { a.id == b.id }
 }

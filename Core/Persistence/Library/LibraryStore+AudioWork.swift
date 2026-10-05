@@ -18,6 +18,7 @@ struct LibraryAudioWorkPlan {
 enum LibraryAudioWorkError: Error {
     case notAligned(UUID)
     case notDeleted(UUID)
+    case notEphemeral(UUID)
 }
 
 /// What a run of the stored audio work did: how many records it retired, and the audio the
@@ -29,8 +30,8 @@ struct LibraryAudioWorkOutcome: Equatable {
 }
 
 /// Files outside the library store change only after the library change they belong to is saved.
-/// The layout pass, dedupe and deleting pages plan their audio work (`planAlign`, `planMerge`,
-/// `planDelete`) as records in the same save; `commit` does it once the save succeeds, after any
+/// The layout pass, dedupe, deleting pages and pages leaving the Library plan their audio work
+/// (`planAlign`, `planMerge`, `planDelete`, `planEphemeral`) as records in the same save; `commit` does it once the save succeeds, after any
 /// work an earlier launch left, and retires each record once its postconditions hold; the next
 /// launch finishes whatever is left (`finishAudioWork`); a save that fails and is rolled back
 /// (`rollBack`) leaves every file alone.
@@ -65,6 +66,15 @@ extension LibraryStore {
     /// page stays held with it.
     func planDelete(key: UUID) {
         let work = LibraryAudioWork(sequence: nextAudioWorkSequence(), kind: .delete, key: key,
+                                    paragraphs: [], sourceParagraphs: [])
+        context.insert(work)
+        audioPlan.work.append(work)
+    }
+
+    /// The page left the Library (*Remove from Library*, unsave): once that is saved, its audio
+    /// goes back on the ephemeral TTL, in order after the work recorded before it.
+    func planEphemeral(key: UUID) {
+        let work = LibraryAudioWork(sequence: nextAudioWorkSequence(), kind: .ephemeral, key: key,
                                     paragraphs: [], sourceParagraphs: [])
         context.insert(work)
         audioPlan.work.append(work)
@@ -172,6 +182,7 @@ extension LibraryStore {
         case .align: try align(work, live: live)
         case .merge: try merge(work, live: live)
         case .delete: try deleteAudio(work)
+        case .ephemeral: try releaseAudio(work)
         case nil: log("audio work: unknown kind \(work.kindRaw), dropped")
         }
     }
@@ -275,6 +286,23 @@ extension LibraryStore {
         log("audio \(Self.short(key)) deleted with its page")
     }
 
+    /// The page's audio goes back on the ephemeral TTL (kept, so playback goes on; the cache's
+    /// age prune removes it), with the address the page has now. Skipped when the page is saved
+    /// to the Library again (a later save while this waited): its audio is saved audio again.
+    private func releaseAudio(_ work: LibraryAudioWork) throws {
+        guard let key = work.key else { return }
+        let page = try context.fetch(LibraryQueries.page(key: key)).first
+        if page?.isSavedToLibrary == true {
+            log("audio \(Self.short(key)): its page is saved again since it left the Library; kept saved")
+            ListenTimingLog.log("library_audio_work", ["kind": "ephemeral", "key": ListenTimingLog.shortKey(key), "skipped": "saved again"])
+            return
+        }
+        tts.markListenCacheEphemeral(key, canonicalURL: page?.canonicalURL)
+        guard tts.audioCache.loadMeta(for: key)?.kind == .ephemeral else { throw LibraryAudioWorkError.notEphemeral(key) }
+        ListenTimingLog.log("library_audio_work", ["kind": "ephemeral", "key": ListenTimingLog.shortKey(key)])
+        log("audio \(Self.short(key)) back on the ephemeral TTL")
+    }
+
     /// The crash-resume file and the crash target launch read from it (or from the crash
     /// marker) follow the work, onto `paragraphs`: the destination's paragraphs its audio was
     /// just aligned with (for a merge, what the kept page holds now, which may differ from what
@@ -308,7 +336,7 @@ extension LibraryStore {
             guard !to.isEmpty else { return 0 }
             return ParagraphPositionMap.mapParagraphStart(paragraph, from: ParagraphDocument(parts: from),
                                                           to: ParagraphDocument(parts: to))
-        case .merge, .delete, nil:
+        case .merge, .delete, .ephemeral, nil:
             guard !to.isEmpty else { return paragraph }
             if from != to, from.indices.contains(paragraph) {
                 let hash = ArticleIdentity.paragraphHash(from[paragraph])

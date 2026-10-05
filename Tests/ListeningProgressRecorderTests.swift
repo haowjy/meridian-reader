@@ -47,7 +47,7 @@ final class ListeningProgressRecorderTests: XCTestCase {
     /// page's stored spot moved to where it was, including its progress inside the paragraph,
     /// which only the replacement writes.
     func testReplacedPageKeepsItsSpot() async throws {
-        let saved = library.save(article("https://example.com/a", title: "A"))
+        let saved = try library.save(article("https://example.com/a", title: "A"))
         let a = try await listenNow("https://example.com/a", title: "A")
         XCTAssertEqual(a.id, saved.listenKey)
         let p2 = a.document.startUTF16Offset(forParagraph: 2)
@@ -101,9 +101,9 @@ final class ListeningProgressRecorderTests: XCTestCase {
     }
 
     /// Leaving the app writes the live spot inside the paragraph.
-    func testLeavingTheAppKeepsTheSpotInsideTheParagraph() {
+    func testLeavingTheAppKeepsTheSpotInsideTheParagraph() throws {
         let a = article("https://example.com/a", title: "A")
-        let page = library.save(a)
+        let page = try library.save(a)
         speech.listen(to: a)
         let p1 = a.document.startUTF16Offset(forParagraph: 1)
         fixture.apple.emit(.position(paragraph: 1, utf16: p1))
@@ -121,8 +121,8 @@ final class ListeningProgressRecorderTests: XCTestCase {
     }
 
     /// A Saved row's ▶ (no article at hand): its start, pause, end and replay are recorded.
-    func testPauseAndFinishAreRecorded() {
-        let page = library.save(article("https://example.com/a", title: "A"))
+    func testPauseAndFinishAreRecorded() throws {
+        let page = try library.save(article("https://example.com/a", title: "A"))
         let key = page.listenKey
         speech.press(.page(key)) {
             speech.toggle(.page(page), resumeParagraph: page.positionParagraph, resumeUTF16Offset: page.positionUTF16)

@@ -183,7 +183,8 @@ struct ReaderSheetScreen: View {
     }
 
     /// 🔖's long-press (*Save to Folder…*) and ⋯ → Move to…: the Move tree; the page is saved
-    /// into the folder picked (a saved page moves there).
+    /// into the folder picked (a saved page moves there). A save or move that can't be stored
+    /// keeps the tree up, with a toast saying so.
     private func saveToFolder() {
         guard sessionReady else { return }
         let current: MoveRequest.Place? = isSaved ? (page?.folder.map { .folder($0.id) } ?? .topLevel) : nil
@@ -191,11 +192,13 @@ struct ReaderSheetScreen: View {
             title: isSaved ? String(localized: "Move to…") : String(localized: "Save to…"), current: current
         ) { [library, speech, shell, article] folder in
             if let saved = library.page(key: article.id, canonicalURL: article.canonicalURL), saved.isSavedToLibrary {
-                shell.attempt(String(localized: "Couldn’t move")) { try library.move([.page(saved)], to: folder) }
-                return
+                return shell.attempt(String(localized: "Couldn’t move")) { try library.move([.page(saved)], to: folder) } != nil
             }
-            let savedID = ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
+            guard let savedID = shell.attempt(String(localized: "Couldn’t save"), {
+                try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
+            }) else { return false }
             if savedID != article.id { shell.updateReader(id: article.id) { $0.id = savedID } }
+            return true
         }
     }
 
@@ -227,7 +230,7 @@ struct ReaderSheetScreen: View {
             }
             return
         }
-        let savedID = saver.save(article)
+        guard let savedID = shell.attempt(String(localized: "Couldn’t save"), { try saver.save(article) }) else { return }
         if savedID != article.id { shell.updateReader(id: article.id) { $0.id = savedID } }
     }
 

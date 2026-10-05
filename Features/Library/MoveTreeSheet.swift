@@ -6,7 +6,9 @@ import SwiftUI
 /// files, ✓ marks the current place. *New Folder* makes one at the top level; a folder's
 /// long-press, *New Folder Inside*, makes one in it; either way what is being filed goes into the
 /// new folder. Books and series aren't destinations (they take pages only from their source); a
-/// folder being moved, and everything inside it, can't be picked.
+/// folder being moved, and everything inside it, can't be picked. The tree closes once what was
+/// picked is saved; a pick or a new folder that can't be saved leaves it up, with the toast over
+/// it.
 ///
 /// ```
 /// Move to…                                    ✕
@@ -84,6 +86,10 @@ struct MoveTreeSheet: View {
                 }
             }
         }
+        // The tree has no bottom chrome: the toast floats just above the sheet's bottom edge.
+        .overlay(alignment: .bottom) {
+            Color.clear.frame(height: 0).overlay(alignment: .top) { ShellToastLayer() }
+        }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .accessibilityIdentifier("moveTree")
@@ -135,8 +141,7 @@ struct MoveTreeSheet: View {
     }
 
     private func pick(_ folder: Folder?) {
-        shell.sheet = nil
-        request.onPick(folder)
+        request.pick(folder, shell: shell)
     }
 
     private func name(in parent: Folder?) {
@@ -144,16 +149,31 @@ struct MoveTreeSheet: View {
         naming = true
     }
 
-    /// A folder that can't be saved closes the tree, filing nothing, and the toast says so.
     private func createAndPick() {
-        let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = newName
         newName = ""
+        request.pickNewFolder(named: name, in: newParent, library: library, shell: shell)
+    }
+}
+
+extension MoveRequest {
+    /// A place picked in the tree: the tree closes once the pick is saved, unless the pick put
+    /// up another sheet. One that can't be saved leaves it up, under its toast.
+    @MainActor
+    func pick(_ folder: Folder?, shell: ShellState) {
+        guard onPick(folder), shell.sheet == .moveTo(self) else { return }
+        shell.sheet = nil
+    }
+
+    /// *New Folder* / *New Folder Inside*: a folder named `name` ("New Folder" when blank) in
+    /// `parent`, then picked. A folder that can't be saved files nothing and leaves the tree up;
+    /// the toast says so.
+    @MainActor
+    func pickNewFolder(named name: String, in parent: Folder?, library: LibraryStore, shell: ShellState) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let folder = shell.attempt(String(localized: "Couldn’t make the folder"), {
-            try library.makeFolder(name: name.isEmpty ? String(localized: "New Folder") : name, in: newParent)
-        }) else {
-            shell.sheet = nil
-            return
-        }
-        pick(folder)
+            try library.makeFolder(name: trimmed.isEmpty ? String(localized: "New Folder") : trimmed, in: parent)
+        }) else { return }
+        pick(folder, shell: shell)
     }
 }

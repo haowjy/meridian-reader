@@ -141,7 +141,7 @@ final class RenderPublicationTests: XCTestCase {
         XCTAssertEqual(tts.synthQueue.primaryCacheKey, key)
 
         // The browser refreshed the page: ⋯ → Save (as `PageArticleService.save` does).
-        XCTAssertEqual(ArticleSaveCoordinator(library: library, speech: speech).save(refreshed), key)
+        XCTAssertEqual(try ArticleSaveCoordinator(library: library, speech: speech).save(refreshed), key)
         XCTAssertEqual(tts.synthQueue.primaryCacheKey, key, "still #1")
         XCTAssertEqual(tts.synthQueue.isEphemeral(cacheKey: key), false)
         let plan = try XCTUnwrap(tts.synthQueue.planDescription(for: key))

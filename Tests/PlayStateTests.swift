@@ -42,7 +42,7 @@ final class PlayStateTests: XCTestCase {
         let container = try LibraryStoreConfiguration.makeInMemoryContainer()
         self.container = container
         let library = LibraryStore(context: container.mainContext, tts: speech.localTTS)
-        let legacy = library.save(TestSpeech.article(pageA, id: UUID()))
+        let legacy = try library.save(TestSpeech.article(pageA, id: UUID()))
         XCTAssertNotEqual(legacy.listenKey, ArticleIdentity.articleKey(canonicalURL: canonical(pageA)))
         speech.press(.page(legacy.listenKey)) {
             speech.toggle(.page(legacy), resumeParagraph: legacy.positionParagraph,

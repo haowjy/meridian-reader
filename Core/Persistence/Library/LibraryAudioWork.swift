@@ -10,6 +10,9 @@ enum LibraryAudioWorkKind: String, Codable {
     /// A page was deleted (a row's *Delete*, *Delete Folder and Contents*, *Delete Book*): its
     /// audio, its pending render and its queued renders go.
     case delete
+    /// A page left the Library (*Remove from Library*, unsave): its audio goes back on the
+    /// ephemeral TTL, kept for playback until the audio cache's age prune.
+    case ephemeral
 }
 
 /// Work outside the library store that a library change needs once it is saved: the audio cache,
@@ -24,7 +27,7 @@ final class LibraryAudioWork {
     var sequence: Int = 0
     var kindRaw: String = LibraryAudioWorkKind.align.rawValue
     /// The page whose audio ends up aligned: the rebuilt page, or the page kept by a merge; for
-    /// `delete`, the deleted page.
+    /// `delete`, the deleted page; for `ephemeral`, the page that left the Library.
     var key: UUID?
     /// `merge`: the merged page, whose audio moves under `key`.
     var fromKey: UUID?

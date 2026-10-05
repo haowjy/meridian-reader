@@ -66,7 +66,8 @@ struct PageArticleService {
     }
 
     /// ⋯ → Save to Library…, once a place is picked in the Move tree: the folder, or no folder
-    /// (nil, out of the folder it was in). ⋯ spins meanwhile.
+    /// (nil, out of the folder it was in). ⋯ spins meanwhile. A page that can't be extracted
+    /// throws; a save that can't be stored says so in a toast.
     func save(in folder: Folder?) async throws {
         shell.busy = .save
         defer { shell.busy = nil }
@@ -74,7 +75,9 @@ struct PageArticleService {
         if article.faviconData == nil {
             article.faviconData = await favicon(for: url)
         }
-        ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
+        shell.attempt(String(localized: "Couldn’t save")) {
+            try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
+        }
     }
 
     /// ⋯ → Add to Favorites / Remove from Favorites (`FavoriteFlow`): the page in or out of

@@ -49,6 +49,11 @@ final class LibraryScreenState {
         pendingDelete = folders.filter { $0.kind != .favorites }
     }
 
+    /// The delete question was cancelled: nothing is deleted, and Edit keeps its selection.
+    func cancelDelete() {
+        pendingDelete = []
+    }
+
     func rename(_ folder: Folder) {
         renameText = folder.name
         renaming = folder
@@ -114,7 +119,7 @@ private struct LibraryDialogs: ViewModifier {
     }
 
     private var deleting: Binding<Bool> {
-        Binding(get: { !state.pendingDelete.isEmpty }, set: { if !$0 { state.pendingDelete = [] } })
+        Binding(get: { !state.pendingDelete.isEmpty }, set: { if !$0 { state.cancelDelete() } })
     }
 
     private var prompt: FolderDeletePrompt {
@@ -131,18 +136,16 @@ private struct LibraryDialogs: ViewModifier {
             }
             .accessibilityIdentifier(choice.id)
         }
-        Button("Cancel", role: .cancel) { state.pendingDelete = [] }
+        Button("Cancel", role: .cancel) { state.cancelDelete() }
     }
 
     /// Once the delete is saved, Edit ends and the surface leaves screens of folders that are gone.
-    /// A delete that can't be saved changes nothing, and a toast says so.
+    /// A delete that can't be saved changes nothing (Edit keeps its selection), and a toast says so.
     private func delete(keepContents: Bool) {
         let folders = state.pendingDelete
         state.pendingDelete = []
-        guard shell.attempt(String(localized: "Couldn’t delete"), {
-            try library.deleteFolders(folders, keepContents: keepContents)
-        }) != nil else { return }
-        state.endEditing()
+        guard LibraryActions(library: library, speech: speech, shell: shell)
+            .deleteFolders(folders, keepContents: keepContents, in: state) else { return }
         onDeleted()
     }
 }
