@@ -50,6 +50,7 @@ final class NowPlayingUITests: XCTestCase {
         XCTAssertEqual(app.buttons["readerClose"].label, "Back to Browser", "the Reader is still there")
         app.buttons["readerClose"].tap()
         XCTAssertTrue(eventually(5) { !app.buttons["readerClose"].exists })
+        XCTAssertTrue(find(app, "nowPlayingBar").waitForExistence(timeout: 5), "back on the browser, with its bar")
 
         // Over the Library, which stays as it was.
         app.buttons["browseLibrary"].tap()

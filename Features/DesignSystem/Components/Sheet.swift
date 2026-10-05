@@ -22,6 +22,8 @@ struct Sheet<Header: View, Content: View>: View {
     @State private var pull: CGFloat = 0
     @State private var pullAxis: Axis?
     @State private var height: CGFloat = 0
+    /// `onDismiss` has run (it runs once, whichever of the completion and its fallback is first).
+    @State private var dismissed = false
 
     var body: some View {
         let look = PullDownLook(offset: pull, screenHeight: height)
@@ -85,8 +87,9 @@ struct Sheet<Header: View, Content: View>: View {
                 withAnimation(Motion.dismiss(velocity: value.velocity.height, distance: height - pull)) {
                     pull = height
                 } completion: {
-                    onDismiss()
+                    finish()
                 }
+                finishAfterAnimation()
             }
     }
 
@@ -95,8 +98,22 @@ struct Sheet<Header: View, Content: View>: View {
             risen = false
             closed = true
         } completion: {
-            onDismiss()
+            finish()
         }
+        finishAfterAnimation()
+    }
+
+    /// An animation's completion doesn't always arrive (a transition-only change can end without
+    /// one), and a sheet left half-dismissed keeps covering the screen. So the owner also hears
+    /// it just after the animation's length.
+    private func finishAfterAnimation() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + Motion.standardResponse * 1.5) { finish() }
+    }
+
+    private func finish() {
+        guard !dismissed else { return }
+        dismissed = true
+        onDismiss()
     }
 }
 

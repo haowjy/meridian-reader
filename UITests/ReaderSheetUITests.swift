@@ -56,6 +56,6 @@ final class ReaderSheetUITests: XCTestCase {
         XCTAssertEqual(back.label, "Back to Library")
         back.tap()
         XCTAssertTrue(eventually(5) { !back.exists })
-        XCTAssertTrue(row.isHittable, "back on the Library list")
+        XCTAssertTrue(eventually(3) { row.isHittable }, "back on the Library list once the sheet has gone")
     }
 }
