@@ -4,8 +4,9 @@ import XCTest
 /// Cutting stays close to linear for books inside every cap: many headings, many contents entries
 /// on one target, many branches to open, many spine files. Each book is read through the package,
 /// contents and spine against one standard `MarkupBudget`, so it's shown to be under the caps;
-/// only the cut is timed. The bound is generous (these cut in well under a second, even in a Debug
-/// build), so only work that grows with the square of the book trips it.
+/// only the cut is timed. The 5 s bound is generous: these cut in about a second or less in a
+/// Debug build, and took 8–32 s each, optimized, while parts of the cut grew with the square of
+/// the book.
 final class EPUBCutterScalingTests: XCTestCase {
     private typealias Entry = SyntheticEPUB.Entry
 
