@@ -51,6 +51,8 @@ struct ParagraphDocument: Equatable, Sendable {
     /// The paragraphs as reading HTML, one escaped `<p>` each, for text with no HTML of its own (a
     /// plain-text article). The reading page numbers its leaf blocks in order, so block i is
     /// paragraph i and the tint, underline and follow mode line up with the session.
+    /// The text isn't normalized (positions and the audio cache are counted in it): the page maps
+    /// sentence offsets over every space, tab and newline of the paragraph.
     var paragraphsHTML: String {
         paragraphs.map { paragraph in
             let escaped = paragraph.replacingOccurrences(of: "&", with: "&amp;")

@@ -2,8 +2,8 @@ import Foundation
 import SwiftUI
 import WebKit
 
-/// The spoken sentence inside the spoken paragraph: UTF-16 offsets into the paragraph's plain
-/// text (the listen block's text, whitespace collapsed).
+/// The spoken sentence inside the spoken paragraph: UTF-16 offsets into the paragraph's text, as
+/// the session counts them (`ListenHTMLBlocks` text, or a plain-text paragraph as it is).
 struct ReaderSentence: Equatable {
     var paragraph: Int
     var start: Int
@@ -511,20 +511,32 @@ struct HTMLReadingWebView: UIViewRepresentable {
               };
             });
           }
-          // A DOM range over [start, end) of the element's text, counted the way the listen block
-          // text is: whitespace runs (and no-break spaces) as one space, leading space dropped.
+          // A DOM range over [start, end) of the block's text in the session's coordinates: UTF-16
+          // units of the text ListenHTMLBlocks reads from it (every character of its text nodes, a
+          // <br> as one space, script / style skipped, leading whitespace dropped). A plain-text
+          // paragraph is that text exactly, so its spaces, tabs and newlines all count too.
           function rangeIn(el, start, end) {
-            var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-            var count = 0, lastSpace = true, range = document.createRange(), started = false, node;
+            var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+            var count = 0, leading = true, range = document.createRange(), started = false, node;
             while ((node = walker.nextNode())) {
+              if (node.nodeType === Node.ELEMENT_NODE) {
+                if (node.tagName !== 'BR' || leading) continue;
+                if (!started && count >= start) { range.setStartBefore(node); started = true; }
+                if (started && count >= end) { range.setEndBefore(node); return range; }
+                count += 1;
+                continue;
+              }
+              var parent = node.parentNode && node.parentNode.nodeName;
+              if (parent === 'SCRIPT' || parent === 'STYLE') continue;
               var s = node.nodeValue;
               for (var i = 0; i < s.length; i++) {
-                var space = /[\\s\\u00a0]/.test(s[i]);
-                if (space && lastSpace) continue;
+                if (leading) {
+                  if (/\\s/.test(s[i])) continue;
+                  leading = false;
+                }
                 if (!started && count >= start) { range.setStart(node, i); started = true; }
                 if (started && count >= end) { range.setEnd(node, i); return range; }
                 count += 1;
-                lastSpace = space;
               }
             }
             if (!started) return null;
