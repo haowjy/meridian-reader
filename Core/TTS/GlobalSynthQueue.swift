@@ -350,6 +350,21 @@ final class GlobalSynthQueue {
 
     func hasJob(cacheKey: UUID) -> Bool { jobs[cacheKey] != nil }
 
+    /// The article's audio was just aligned with `paragraphs` (Save, or an open with newer text):
+    /// its job renders them from now on, so a render of the text it had isn't published over
+    /// them (`stillWants`). Its place in the queue, voice and plan stay; the plan's start moves
+    /// to the same place in the new text.
+    func updateParagraphs(cacheKey: UUID, paragraphs: [String]) {
+        guard !paragraphs.isEmpty, var job = jobs[cacheKey], job.paragraphs != paragraphs else { return }
+        let start = ParagraphPositionMap.mapParagraphStart(job.plan.priorityStart, from: ParagraphDocument(parts: job.paragraphs),
+                                                           to: ParagraphDocument(parts: paragraphs))
+        job.plan = BakePriorityPlan(priorityStart: start, fillGapsFromTopAfterPriority: job.plan.fillGapsFromTopAfterPriority,
+                                    paragraphCount: paragraphs.count)
+        job.paragraphs = paragraphs
+        jobs[cacheKey] = job
+        kickWorker()
+    }
+
     /// Rekey queued work after Save migrates ephemeral → saved UUID.
     func rekey(from oldKey: UUID, to newKey: UUID) {
         guard oldKey != newKey, let job = jobs[oldKey] else { return }

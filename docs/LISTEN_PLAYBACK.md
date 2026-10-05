@@ -302,9 +302,11 @@ highlight and the paragraph picker stay fine-grained.
   (`paragraph-<id>.caf`). Back on the main actor it is published only if the queue still wants
   that text on that paragraph: its job still has the article with the same text hash there
   (an alignment of the article's audio, opening it with newer text, or clearing, deleting or
-  rekeying it may have landed meanwhile); otherwise it is dropped. Publishing renames it over
-  `p-NNNN.caf` (a CAF that may be playing is never written into) and records it in the same
-  main-actor step, so no alignment runs between the file and its entry
+  rekeying it may have landed meanwhile); otherwise it is dropped. Every alignment of an
+  article's audio with new paragraphs (opening it, Save) gives its job those paragraphs too,
+  keeping the job's place and plan, so a job never renders old text onto them. Publishing renames
+  it over `p-NNNN.caf` (a CAF that may be playing is never written into) and records it in the
+  same main-actor step, so no alignment runs between the file and its entry
   (`RenderPublicationTests`). Replays use the stitched file. Scratch is disposable at launch;
   while an article has a queue job, scratch whose text hash still matches its paragraphs is kept
   (`removeChunkScratch(for:keepingCurrent:)`), because every extra Kokoro call is exposure to the

@@ -1,3 +1,4 @@
+import SwiftData
 import XCTest
 @testable import Reader
 
@@ -8,10 +9,44 @@ import XCTest
 @MainActor
 final class RenderPublicationTests: XCTestCase {
     private var contexts: [FakeQueueContext] = []
+    private var cleanups: [() -> Void] = []
 
     override func tearDown() async throws {
         contexts.forEach { $0.cleanUp() }
         contexts = []
+        cleanups.forEach { $0() }
+        cleanups = []
+    }
+
+    /// The speech stack over the fake on-device engine (loaded), with its own audio cache.
+    private func makeSpeech() async -> SpeechController {
+        let suite = "RenderPublication-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.set(FakeEngineProvider.fakeID.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
+        let registry = EngineRegistry(providers: [AppleSpeechProvider(), FakeEngineProvider()], gate: { _ in true })
+        let root = FileManager.default.temporaryDirectory.appending(path: "RenderPublication-\(UUID().uuidString)")
+        let tts = LocalTTSCoordinator(engines: registry, defaults: defaults,
+                                      audioCache: ArticleAudioCache(root: root.appending(path: "cache")),
+                                      crashGuard: EngineCrashGuard(directory: root.appending(path: "guard")))
+        await tts.selectEngine(FakeEngineProvider.fakeID)
+        let speech = SpeechController(engines: registry, localTTS: tts,
+                                      audioSession: ListenAudioSession(managesSystemSession: false),
+                                      nowPlaying: NowPlayingController(commandCenter: nil, infoCenter: nil),
+                                      appleEngine: FakeListenEngine(), resumePoints: nil)
+        cleanups.append {
+            speech.stop()
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: root)
+        }
+        return speech
+    }
+
+    /// The page at `url` as extracted, with `paragraphs` as its text.
+    private func article(_ url: String, _ paragraphs: [String]) -> ReaderArticle {
+        let u = URL(string: url)!
+        let extracted = ExtractedArticle(title: "Refreshed", siteName: nil, cleanedHTML: paragraphs.map { "<p>\($0)</p>" }.joined(),
+                                         plainText: paragraphs.joined(separator: "\n\n"), excerpt: "")
+        return ReaderArticle(id: ArticleIdentity.articleKey(url: u), url: u, extracted: extracted)
     }
 
     private func waitIdle(_ queue: GlobalSynthQueue, timeout: TimeInterval = 20) async throws {
@@ -76,5 +111,52 @@ final class RenderPublicationTests: XCTestCase {
         let leftovers = (FileManager.default.subpaths(atPath: cache.directory(for: key).path) ?? [])
             .filter { ($0 as NSString).lastPathComponent.hasPrefix("paragraph-") }
         XCTAssertEqual(leftovers, [], "the dropped render's file is gone")
+    }
+
+    /// A page opens in the Reader with [A, B], which makes its job #1 (rendering is held
+    /// meanwhile, as on a hot device, so everything renders after the Save), and the Reader
+    /// closes without listening. The browser refreshes the page, whose text is now [C, A, B], and
+    /// ⋯ → Save saves it. Save aligns the page's audio with the new paragraphs, and the job, still
+    /// #1 with its plan, takes them too: A's render never lands on paragraph 0, and every paragraph
+    /// ends with audio of its own text.
+    func testBrowserSaveOfNewerTextGivesTheReadersJobTheNewParagraphs() async throws {
+        let speech = await makeSpeech()
+        let tts = speech.localTTS
+        XCTAssertTrue(tts.usesLocalEngine)
+        let container = try LibraryStoreConfiguration.makeInMemoryContainer()
+        let library = LibraryStore(context: container.mainContext, tts: tts)
+        let a = "Alpha is the paragraph the page opened with.", b = "Bravo comes after it.", c = "Charlie is new at the top."
+        let opened = article("https://example.com/refreshed", [a, b])
+        let refreshed = article("https://example.com/refreshed", [c, a, b])
+        XCTAssertEqual(opened.document.paragraphs, [a, b])
+        XCTAssertEqual(refreshed.document.paragraphs, [c, a, b])
+        let key = opened.id
+        XCTAssertEqual(refreshed.id, key)
+        let voice = tts.normalizedCacheVoice(speech.cacheVoiceID)
+
+        // Opened in the Reader (as `ReaderSheetScreen.prepareListen` does), then closed.
+        tts.synthQueue.bakeConditions = { BakeConditions(thermalState: .serious, isLowPowerModeEnabled: false) }
+        tts.prepareListenIdentity(key: key, paragraphs: opened.document.paragraphs, isLivePlayback: false)
+        tts.warmListenAudio(cacheKey: key, paragraphs: opened.document.paragraphs, voiceID: speech.cacheVoiceID, isEphemeral: true)
+        XCTAssertEqual(tts.synthQueue.primaryCacheKey, key)
+
+        // The browser refreshed the page: ⋯ → Save (as `PageArticleService.save` does).
+        XCTAssertEqual(ArticleSaveCoordinator(library: library, speech: speech).save(refreshed), key)
+        XCTAssertEqual(tts.synthQueue.primaryCacheKey, key, "still #1")
+        XCTAssertEqual(tts.synthQueue.isEphemeral(cacheKey: key), false)
+        let plan = try XCTUnwrap(tts.synthQueue.planDescription(for: key))
+        XCTAssertTrue(plan.contains("paragraphCount: 3"), "the plan covers the new paragraphs: \(plan)")
+
+        tts.synthQueue.bakeConditions = { BakeConditions(thermalState: .nominal, isLowPowerModeEnabled: false) }
+        tts.synthQueue.bakeConditionsChanged()
+        try await waitIdle(tts.synthQueue)
+
+        let cache = tts.audioCache
+        XCTAssertEqual(cache.entry(articleID: key, paragraphIndex: 0)?.textHash, ArticleIdentity.paragraphHash(c),
+                       "paragraph 0 holds C's audio, not A's")
+        assertSound(cache.index(for: key), cache, key, [c, a, b], "in memory")
+        assertSound(cache.readIndexFile(for: key), cache, key, [c, a, b], "saved")
+        XCTAssertEqual(cache.readyIndices(articleID: key, paragraphCount: 3, engineID: tts.cacheEngineID, voiceID: voice),
+                       [0, 1, 2], "every paragraph rendered")
     }
 }

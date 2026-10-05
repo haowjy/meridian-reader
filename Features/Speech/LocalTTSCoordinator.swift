@@ -553,6 +553,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// - Adopts an old v1 (URL+content) ephemeral dir into `key` when `key` has no cache yet.
     /// - Stamps unhashed legacy entries with `trustedParagraphs` (text known to match the cache).
     /// - Reconciles per-paragraph hashes so only changed paragraphs re-bake.
+    /// - Gives a queued job for `key` the same paragraphs (`GlobalSynthQueue.updateParagraphs`).
     /// Skip while `key` is the live playback session (never move files under the player).
     func prepareListenIdentity(
         key: UUID,
@@ -592,6 +593,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
             // Giant paragraphs split since this audio was rendered (layout v3) keep the pieces
             // whose chunks line up with the old render; the rest re-render.
             let result = try audioCache.reconcile(articleID: key, paragraphs: paragraphs) { self.chunkPlan(engineID: $0, text: $1) }
+            // The job renders what the audio now follows, or it would file renders of its old
+            // text on these paragraphs (Save doesn't reopen a job that is already #1).
+            synthQueue.updateParagraphs(cacheKey: key, paragraphs: paragraphs)
             let msg = "identity \(key.uuidString.prefix(8)) fp=\(ArticleIdentity.contentFingerprint(paragraphs: paragraphs).prefix(8)) kept=\(result.kept) moved=\(result.remapped) dropped=\(result.dropped) legacy=\(result.unverified) split=\(result.splitParagraphs) sliced=\(result.sliced)"
             ListenDebugLog.shared.append(msg)
             print("[Identity] \(msg)")
