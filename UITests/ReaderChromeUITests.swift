@@ -159,6 +159,32 @@ final class ReaderChromeUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(firstTop, close.frame.maxY, "first line starts below the back pill")
     }
 
+    /// With another page playing, the Now Playing bar sits above the Reader's bottom row, and the
+    /// text's last line clears the bar too.
+    func testLastLineClearsAnotherPagesBar() throws {
+        let app = launchTestPages(["-seedDemoArticle", "-seedDemoParagraphs", "40"])
+        openTestPage(app, "Next page")
+        listenHere(app)
+        find(app, "addressListen").tap() // paused: the bar stays, quietly
+        XCTAssertTrue(waitFor(5) { self.find(app, "addressListen").label != "Pause" })
+
+        app.buttons["browseLibrary"].tap()
+        let row = app.cells.staticTexts["Demo Listen Article"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 5))
+        let bar = el(app, "nowPlayingBar")
+        XCTAssertTrue(bar.waitForExistence(timeout: 5), "the other page's bar over the Reader's bottom row")
+        let listen = app.buttons["listenPlayPause"]
+        XCTAssertLessThan(bar.frame.maxY, listen.frame.minY, "the bar is above the bottom row")
+        waitForArticleText(app)
+
+        scrollToEnd(app)
+        let lastBottom = paragraphFrames(app).map(\.maxY).max() ?? 0
+        XCTAssertGreaterThan(lastBottom, bar.frame.minY - 250, "the last paragraph is on screen")
+        XCTAssertLessThanOrEqual(lastBottom, bar.frame.minY, "the last line clears the bar")
+    }
+
     func testLibraryReaderChromeStaysAndPullDownCloses() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-seedDemoArticle", "-seedDemoParagraphs", "40", "-openLibrary",
