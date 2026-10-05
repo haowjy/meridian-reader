@@ -36,6 +36,17 @@ enum PlaybackEngineEvent: Equatable {
     case finished
 }
 
+/// The page itself changing inside a book or series. The controller decides before the session
+/// sees the engine's `finished` (`SpeechController+Advance`); only the end of the book reaches
+/// `.finished`.
+enum PlaybackPageInput: Equatable {
+    /// Carrying on: the next chapter replaces the page in place, at its start. Playing stays
+    /// playing (the engine is told to play it); paused stays paused there. No stop in between.
+    case advance(pageKey: UUID, document: ParagraphDocument, folderID: UUID)
+    /// The next chapter is being fetched: still playing, nothing audible (`awaitingPage`).
+    case awaitPage
+}
+
 /// Live snapshot of the active adapter — used to decide toggle/pause without trusting phase alone.
 struct PlaybackEngineSnapshot: Equatable {
     var isAudible: Bool
@@ -57,10 +68,14 @@ enum PlaybackCommand: Equatable {
 @MainActor
 struct PlaybackSessionState: Equatable {
     private(set) var articleID: UUID?
+    /// The book or series the page is a chapter of (nil: it plays to its end and stops).
+    private(set) var folderID: UUID?
     private(set) var document: ParagraphDocument = .empty
     var playhead: Int = 0
     var utf16Offset: Int = 0
     var phase: PlaybackPhase = .idle
+    /// Playing, between chapters: the next one is being fetched.
+    private(set) var awaitingPage = false
 
     var isPrepared: Bool { articleID != nil && !document.isEmpty }
     var paragraphCount: Int { document.count }
@@ -86,9 +101,11 @@ struct PlaybackSessionState: Equatable {
         playhead = document.isEmpty ? 0 : document.index(containingUTF16Offset: clamped)
     }
 
-    mutating func bind(articleID: UUID, document: ParagraphDocument, startingAt: Int) {
+    mutating func bind(articleID: UUID, document: ParagraphDocument, startingAt: Int, folderID: UUID? = nil) {
         self.articleID = articleID
+        self.folderID = folderID
         self.document = document
+        awaitingPage = false
         let clamped = document.isEmpty ? 0 : max(0, min(startingAt, document.count - 1))
         playhead = clamped
         utf16Offset = document.isEmpty ? 0 : document.startUTF16Offset(forParagraph: clamped)
@@ -103,10 +120,36 @@ struct PlaybackSessionState: Equatable {
 
     mutating func clear() {
         articleID = nil
+        folderID = nil
         document = .empty
         playhead = 0
         utf16Offset = 0
         phase = .idle
+        awaitingPage = false
+    }
+
+    /// The page changing inside a book or series.
+    mutating func handle(_ input: PlaybackPageInput) -> [PlaybackCommand] {
+        switch input {
+        case .advance(let key, let next, let folder):
+            articleID = key
+            folderID = folder
+            document = next
+            playhead = 0
+            utf16Offset = 0
+            awaitingPage = false
+            guard !next.isEmpty else {
+                phase = .idle
+                return []
+            }
+            if phase == .paused { return [] }
+            phase = .playing
+            return [.enginePlay(from: 0)]
+        case .awaitPage:
+            awaitingPage = true
+            phase = .playing
+            return []
+        }
     }
 
     /// Intent → commands. Phase updates that need engine confirmation stay tentative only where noted.
@@ -114,6 +157,23 @@ struct PlaybackSessionState: Equatable {
         _ intent: PlaybackIntent,
         engine: PlaybackEngineSnapshot
     ) -> [PlaybackCommand] {
+        if awaitingPage {
+            // Between chapters nothing is bound: play / pause only say what happens when the next
+            // chapter arrives. Anything else acts on the page as it is, and the wait is over.
+            switch intent {
+            case .pause:
+                phase = .paused
+                return []
+            case .resume:
+                phase = .playing
+                return []
+            case .toggle:
+                phase = phase == .paused ? .playing : .paused
+                return []
+            default:
+                awaitingPage = false
+            }
+        }
         switch intent {
         case .play(let from):
             let clamped = document.isEmpty ? 0 : max(0, min(from, document.count - 1))
@@ -242,6 +302,7 @@ struct PlaybackSessionState: Equatable {
 
         case .finished:
             phase = .finished
+            awaitingPage = false
         }
     }
 
@@ -251,7 +312,7 @@ struct PlaybackSessionState: Equatable {
             phase = .playing
         } else if engine.isPaused {
             phase = .paused
-        } else if phase == .playing || phase == .paused {
+        } else if (phase == .playing || phase == .paused) && !awaitingPage {
             phase = articleID == nil ? .idle : .prepared
         }
     }

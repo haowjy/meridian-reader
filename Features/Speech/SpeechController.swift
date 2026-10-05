@@ -4,7 +4,8 @@ import Observation
 
 /// Listen façade for UI. Phase / playhead live in `playback` (PlaybackSessionState); views read
 /// the published copies below it. Each utterance is bound to one `ListenEngine` (Apple or the
-/// on-device engine), which reports events; engines never clear the session themselves.
+/// on-device engine), which reports events; engines never clear the session themselves. A book
+/// or series carries on from chapter to chapter (`SpeechController+Advance`).
 /// See docs/LISTEN_PLAYBACK.md.
 @MainActor
 @Observable
@@ -36,6 +37,8 @@ final class SpeechController {
     // (scrubber thumb, mini-player fill, progress reporter).
 
     private(set) var activeSessionID: UUID?
+    /// The book or series the bound page is a chapter of (`PlaybackSessionState.folderID`).
+    private(set) var activeFolderID: UUID?
     private(set) var document: ParagraphDocument = .empty
     private(set) var playbackPhase: PlaybackPhase = .idle
     private(set) var currentParagraphIndex = 0
@@ -70,6 +73,8 @@ final class SpeechController {
         var artwork: Data?
         var canonicalURL: String?
         var host: String?
+        /// The book's or series' name, for a chapter.
+        var folderName: String?
     }
     private(set) var sessionMeta: SessionMeta?
     /// The one request making a page ready to play before it is bound (🎧 extracting its page).
@@ -85,6 +90,11 @@ final class SpeechController {
     /// Told about the `ReaderArticle` a page is started from (`listen(to:)`), before its session
     /// binds, so the recorder can keep a page the library doesn't have with its text.
     @ObservationIgnored var onListen: ((ReaderArticle) -> Void)?
+    /// The library as books and series play through it (`SpeechController+Advance`). nil: every
+    /// page plays to its end and stops.
+    @ObservationIgnored var nextChapters: NextChapterProviding?
+    /// Between chapters: what is staged, fetched and timed (`SpeechController+Advance`).
+    @ObservationIgnored var chapterFlow = ChapterFlow()
     @ObservationIgnored private var runStateObserver: NSObjectProtocol?
     /// Debug panel snapshot and background-stretch tracking.
     @ObservationIgnored private(set) lazy var diagnostics = ListenDiagnostics(speech: self)
@@ -125,6 +135,9 @@ final class SpeechController {
         var engine: ListenEngine
         /// Paragraph Apple is finishing before the on-device engine takes over (`EngineHandover`).
         var handoverAfterParagraph: Int?
+        /// Apple speaks a chapter that started in the background on a route that can't render
+        /// there (decision D9); the on-device engine takes over once the app is in front again.
+        var standsInUntilForeground = false
     }
     @ObservationIgnored private var binding: EngineBinding?
     /// The engine every command goes to (nil: nothing speaking or held).
@@ -139,7 +152,7 @@ final class SpeechController {
 
     /// The engine `speak` picks now: the on-device engine once it is loaded and speaks this
     /// article's language, else Apple.
-    private var wantedRoute: ListenRoute {
+    var wantedRoute: ListenRoute {
         guard let id = localTTS.synth.state.readyEngineID, localTTS.engines.supports(id),
               languageResolution.engineID.isLocal else { return .apple }
         return .local(id, voice: localTTS.voice(for: id))
@@ -198,6 +211,7 @@ final class SpeechController {
         let before = ListenProgressKey(id: activeSessionID, paragraph: currentParagraphIndex, phase: playbackPhase)
         var nowPlayingChanged = false
         if activeSessionID != playback.articleID { activeSessionID = playback.articleID; nowPlayingChanged = true }
+        if activeFolderID != playback.folderID { activeFolderID = playback.folderID }
         if document != playback.document { document = playback.document; nowPlayingChanged = true }
         if playbackPhase != playback.phase { playbackPhase = playback.phase; nowPlayingChanged = true }
         if currentParagraphIndex != playback.playhead { currentParagraphIndex = playback.playhead; nowPlayingChanged = true }
@@ -235,7 +249,8 @@ final class SpeechController {
         let raw = meta?.host ?? meta?.site ?? ""
         let host = raw.hasPrefix("www.") ? String(raw.dropFirst(4)) : raw
         return NowPlaying(pageKey: id, canonicalURL: meta?.canonicalURL, title: meta?.title ?? "Untitled",
-                          source: host, artwork: meta?.artwork, playingFrom: .site(host: host), phase: playbackPhase)
+                          source: meta?.folderName ?? host, artwork: meta?.artwork, playingFrom: .site(host: host),
+                          phase: playbackPhase)
     }
 
     /// The one place a ▶ / ⏸ comes from. Reads only session fields, so it is cheap on every
@@ -256,6 +271,8 @@ final class SpeechController {
             return key == id
         case .webPage(let url):
             return sessionMeta?.id == id && sessionMeta?.canonicalURL == url
+        case .folder(let folderID):
+            return activeFolderID == folderID
         }
     }
 
@@ -306,7 +323,7 @@ final class SpeechController {
 
     /// The user asked for something: no auto-resume after an interruption, and a page still being
     /// prepared no longer starts.
-    private func noteUserIntent() {
+    func noteUserIntent() {
         interruptionPolicy.noteUserIntent()
         supersedePreparation()
     }
@@ -318,7 +335,11 @@ final class SpeechController {
         guard !article.document.isEmpty else { return }
         onListen?(article)
         noteUserIntent()
-        let session = SpeechSession(article: article)
+        var session = SpeechSession(article: article)
+        if let folder = nextChapters?.folder(containing: article.id) {
+            session.folderID = folder.id
+            session.folderName = folder.name
+        }
         prepare(session, startingParagraph: paragraph)
         placeResumeOffset(utf16Offset, paragraph: paragraph)
         perform(.play(from: paragraph))
@@ -353,7 +374,8 @@ final class SpeechController {
     }
 
     /// Listen intent is active but nothing is audible and more audio is on its way (the bound
-    /// engine is waiting for it, e.g. the on-device render queue). Not the same as paused.
+    /// engine is waiting for it, e.g. the on-device render queue, or the next chapter is being
+    /// fetched). Not the same as paused.
     var isBufferingNext: Bool {
         _ = listenStatusRevision
         return engineIsBufferingNext()
@@ -372,7 +394,8 @@ final class SpeechController {
     }
 
     private func engineIsBufferingNext() -> Bool {
-        playback.articleID != nil && playback.phase == .playing && activeEngine?.isWaitingForAudio == true
+        guard playback.articleID != nil, playback.phase == .playing else { return false }
+        return playback.awaitingPage || activeEngine?.isWaitingForAudio == true
     }
 
     private func currentRenderNote() -> String? {
@@ -509,16 +532,29 @@ final class SpeechController {
 
     func prepare(_ session: SpeechSession, startingParagraph: Int = 0) {
         supersedePreparation()
+        adoptMeta(of: session)
+        if playback.articleID == session.id, !playback.document.isEmpty { return }
+        execute(playback.handle(.stop, engine: engineSnapshot()))
+        endChapterFlow()
+        playback.bind(articleID: session.id, document: session.document, startingAt: startingParagraph,
+                      folderID: session.folderID)
+    }
+
+    /// What the lock screen, the bar and the language rules show for `session`, before it binds.
+    func adoptMeta(of session: SpeechSession) {
         if session.title != nil || sessionMeta?.id != session.id {
             let meta = SessionMeta(id: session.id, title: session.title, site: session.site, artwork: session.artwork,
-                                   canonicalURL: session.canonicalURL, host: session.host)
+                                   canonicalURL: session.canonicalURL, host: session.host,
+                                   folderName: session.folderName)
             if meta != sessionMeta { sessionMeta = meta }
         }
         let detected = session.detectedLanguage ?? ListenLanguage.detectCached(paragraphs: session.document.paragraphs)
         if sessionDetectedLanguage != detected { sessionDetectedLanguage = detected }
-        if playback.articleID == session.id, !playback.document.isEmpty { return }
-        execute(playback.handle(.stop, engine: engineSnapshot()))
-        playback.bind(articleID: session.id, document: session.document, startingAt: startingParagraph)
+    }
+
+    /// The page changing inside a book or series (`SpeechController+Advance`).
+    func handlePageInput(_ input: PlaybackPageInput) -> [PlaybackCommand] {
+        playback.handle(input)
     }
 
     func toggle(_ session: SpeechSession, resumeParagraph: Int? = nil, resumeUTF16Offset: Int? = nil) {
@@ -609,6 +645,7 @@ final class SpeechController {
     func stop() {
         noteUserIntent()
         perform(.stop)
+        endChapterFlow()
         // Listen preempts bake; on stop, resume gap-fill so save-time work still lands on disk.
         finishSession(restartBake: true)
         playback.clear()
@@ -627,7 +664,8 @@ final class SpeechController {
     /// The on-device engine changed state or voice (`LocalTTSCoordinator.onEngineChange`): move the
     /// live utterance to the engine `speak` would pick now, when `EngineHandover` says so.
     private func localEngineChanged() {
-        guard let bound = binding?.route, playback.phase == .playing || playback.phase == .paused else { return }
+        guard let bound = binding?.route, playback.phase == .playing || playback.phase == .paused,
+              binding?.standsInUntilForeground != true else { return }
         switch EngineHandover.decide(bound: bound, wanted: wantedRoute, phase: playback.phase) {
         case .none:
             binding?.handoverAfterParagraph = nil
@@ -740,7 +778,7 @@ final class SpeechController {
         }
         let meta = sessionMeta?.id == id ? sessionMeta : nil
         let info = NowPlayingInfo(
-            title: meta?.title ?? "Reader", site: meta?.site,
+            title: meta?.title ?? "Reader", site: meta?.site, album: meta?.folderName,
             paragraph: playback.playhead + 1, paragraphCount: playback.paragraphCount,
             isPlaying: playback.phase == .playing, rate: rateMultiplier, artwork: meta?.artwork)
         lockScreen.update(info, canNext: playback.playhead + 1 < playback.paragraphCount, canPrevious: true)
@@ -750,7 +788,14 @@ final class SpeechController {
 
     private func appRunStateChanged() {
         let phase = localTTS.synthQueue.runState.phase
-        if phase == .active { activeEngine?.appDidBecomeActive() }
+        if phase == .active {
+            activeEngine?.appDidBecomeActive()
+            // D9: the chapter Apple took in the background goes back to the on-device engine.
+            if binding?.standsInUntilForeground == true {
+                binding?.standsInUntilForeground = false
+                localEngineChanged()
+            }
+        }
         diagnostics.appPhaseChanged(phase)
     }
 
@@ -761,7 +806,7 @@ final class SpeechController {
         execute(commands)
     }
 
-    private func execute(_ commands: [PlaybackCommand]) {
+    func execute(_ commands: [PlaybackCommand]) {
         for command in commands {
             switch command {
             case .enginePlay(let from):
@@ -799,7 +844,7 @@ final class SpeechController {
         engine.resume()
     }
 
-    private func stopEngines() {
+    func stopEngines() {
         binding = nil
         for engine in listenEngines { engine.stop() }
         sampleListenStatus()
@@ -810,15 +855,20 @@ final class SpeechController {
     private func handle(_ event: PlaybackEngineEvent, from engine: ListenEngine) {
         guard engine === activeEngine else { return }
         switch event {
-        case .becameAudible, .becamePaused:
+        case .becameAudible:
+            playback.handle(event)
+            chapterBecameAudible()
+        case .becamePaused:
             playback.handle(event)
         case .position(let paragraph, _):
+            let moved = paragraph != playback.playhead
             playback.handle(event)
             handOverIfDue(atParagraph: paragraph)
+            if moved { stageNextChapterIfDue() }
         case .statusChanged:
             sampleListenStatus()
         case .finished:
-            completeArticle(restartBake: true)
+            pageEnded(restartBake: true)
         }
     }
 
@@ -828,29 +878,34 @@ final class SpeechController {
         speak(fromUTF16Offset: playback.utf16Offset, startPaused: playback.phase == .paused)
     }
 
-    private func speak(fromUTF16Offset offset: Int, startPaused: Bool) {
+    /// Binds the engine `route` names (the one `speak` would pick, unless given) and plays from
+    /// `offset`. `standsIn`: Apple is taking a chapter the on-device engine can't render in the
+    /// background (D9), until the app is in front again.
+    func speak(fromUTF16Offset offset: Int, startPaused: Bool, route chosen: ListenRoute? = nil,
+               standsIn: Bool = false) {
         if !startPaused { audioSession.activate() }
         stopEngines()
 
         playback.moveTo(utf16: offset)
         let start = playback.utf16Offset
         guard start < (document.joinedText as NSString).length, let articleID = playback.articleID else {
-            completeArticle(restartBake: false)
+            pageEnded(restartBake: false)
             return
         }
 
-        let route = wantedRoute
+        let route = chosen ?? wantedRoute
         let engine = engine(for: route)
-        binding = EngineBinding(route: route, engine: engine)
+        binding = EngineBinding(route: route, engine: engine, standsInUntilForeground: standsIn)
         // The phase already says playing or paused (the intent that led here set it); the engine
         // confirms with its own events.
         engine.play(ListenPlayRequest(articleID: articleID, document: document, utf16Offset: start,
                                       startPaused: startPaused, appleVoice: effectiveAppleVoice))
     }
 
-    /// Played to the end (not stopped): the engines and the audio session stop, but the page stays
-    /// bound in `.finished`, so the bar keeps it with ▶ (which plays it again).
-    private func completeArticle(restartBake: Bool) {
+    /// Played to the end (not stopped) with nothing to carry on to: the engines and the audio
+    /// session stop, but the page stays bound in `.finished`, so the bar keeps it with ▶ (which
+    /// plays it again).
+    func completeArticle(restartBake: Bool) {
         playback.handle(.finished)
         finishSession(restartBake: restartBake)
     }
@@ -859,10 +914,13 @@ final class SpeechController {
         let articleID = playback.articleID
         let paragraphs = playback.document.paragraphs
         let voiceID = cacheVoiceID
+        let isChapter = playback.folderID != nil
         stopEngines()
-        // Let other apps' audio resume (Stop Listening / end of article).
+        // Let other apps' audio resume (Stop Listening / the end of an article or a book).
         audioSession.deactivate()
-        if restartBake, let articleID, !paragraphs.isEmpty {
+        localTTS.synthQueue.unstage()
+        // Books and series don't bake whole (D7): only the chapter playing and the next render.
+        if restartBake, !isChapter, let articleID, !paragraphs.isEmpty {
             // Return-to-top gap fill so any paragraphs above the listen playhead still bake.
             localTTS.startBakeIfNeeded(
                 articleID: articleID,

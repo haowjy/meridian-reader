@@ -37,6 +37,8 @@ enum ListenTarget: Equatable {
     /// A web page by its canonical URL. Canonical strings are compared directly, so a saved
     /// article with a pre-v2 random id still matches the page it came from.
     case webPage(canonicalURL: String)
+    /// A book or series: what you hear while any of its chapters plays.
+    case folder(UUID)
 }
 
 /// One request to make `target` ready to play (🎧 while its page extracts). Compared by identity:
@@ -55,6 +57,29 @@ struct ListenPreparation: Equatable {
 protocol NowPlayingContentResolving: AnyObject {
     /// The reading content for `pageKey`, or nil when it can't be found.
     func content(for pageKey: UUID) async -> ReaderArticle?
+}
+
+/// The library as playback through a book or series sees it (`SpeechController+Advance`).
+/// Injected at the composition root, so the speech stack never touches SwiftData.
+@MainActor
+protocol NextChapterProviding: AnyObject {
+    /// The book or series `pageKey` is a chapter of (nil: a page in no book or series).
+    func folder(containing pageKey: UUID) -> PlaybackFolder?
+    /// The chapters of a book or series in play order, skipped ones included (empty for any
+    /// other folder).
+    func chapters(of folderID: UUID) -> [ChapterAdvance.Chapter]
+    /// A chapter's listening session (paragraphs and what the lock screen shows).
+    func load(_ pageKey: UUID) -> SpeechSession?
+    /// Fetches a link chapter's text, so it can play; false when it couldn't be had.
+    func fetch(_ pageKey: UUID) async -> Bool
+    /// The chapter played to its end and playback carried on past it.
+    func pageFinished(key: UUID)
+}
+
+/// A book or series playback carries on through.
+struct PlaybackFolder: Equatable {
+    var id: UUID
+    var name: String
 }
 
 /// A position the playback session reached that is worth keeping: a new paragraph, a phase

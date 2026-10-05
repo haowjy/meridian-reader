@@ -126,12 +126,13 @@ dedupe pass. Every library read and write goes through `LibraryStore`; lists use
 | `lastPlayedAt`, `finishedAt` | Continue listening |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
-| `locator`, `skipsInPlayback`, `fetchStateRaw` | Book chapters and series (not used yet) |
+| `skipsInPlayback`, `fetchStateRaw` | Book chapters and series: what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
+| `locator` | Book chapters: the contents entry (not used yet) |
 
 **`Folder`** (library): `name`, `kindRaw` (`plain`, `book`, `series`, `favorites`), `sortKey`,
 `parent` / `children` (any depth), `pages`, `pageSortRaw`, and for books and series their details
-and place (`currentPageKey`, `lastPlayedAt`, `finishedAt`). One Favorites folder holds the
-bookmarks; it can't be deleted, renamed or moved below the top level.
+and place (`currentPageKey`, `lastPlayedAt`, `finishedAt`, written as their chapters play). One
+Favorites folder holds the bookmarks; it can't be deleted, renamed or moved below the top level.
 
 **Migration (copy-once).** At launch `LibraryStore.migrateLegacy` copies every `SavedArticle`
 row and every bookmark in `bookmarks.json` without a receipt (`LibraryMigrationReceipt`, in the

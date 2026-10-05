@@ -25,9 +25,11 @@ into ArticleAudioCache, admitted by RenderAdmission.
 | Field | Meaning |
 |--------|---------|
 | `articleID` | Session identity (the saved article's id / `SpeechSession.id`) |
-| `document` | Ordered paragraphs |
+| `folderID` | The book or series the page is a chapter of (nil: it plays to its end and stops) |
+| `document` | Ordered paragraphs (one page: paragraph indices stay page-local in a book) |
 | `playhead` + `utf16Offset` | The position: paragraph and document UTF-16 offset of the spot being spoken |
 | `phase` | `idle → prepared → playing ↔ paused → finished` |
+| `awaitingPage` | Playing, between chapters, while the next one is fetched |
 
 The scrubber, the paragraph highlight, Now Playing and crash resume all read the position from
 here, and every change is published synchronously. `resumePoint` (article + paragraph while
@@ -39,16 +41,20 @@ Phase and position change only through:
 - **intents** from the UI and remote commands: `play`, `pause`, `resume`, `toggle`, `stop`,
   `skip`, `seek`, `seekOffset`;
 - **engine events**: `becameAudible`, `becamePaused`, `position(paragraph, utf16)`, `finished`
-  (`statusChanged` only tells the controller to re-read the listen-bar status).
+  (`statusChanged` only tells the controller to re-read the listen-bar status);
+- **page inputs** inside a book or series (`PlaybackPageInput`, "Books and series" below):
+  `advance` (the next chapter replaces the page in place) and `awaitPage`.
 
 Rules:
 
 - Pause sends `.pause` to the engine; the phase turns paused on `becamePaused`, or at once when
   the engine snapshot already shows it paused.
-- Engines never clear the session. They emit `finished`; the session decides idle / finished.
-- At the end the engines stop, the audio session deactivates and the lock screen clears, but the
-  page stays bound in `finished`: the Now Playing bar keeps it with ▶ and "✓ Finished", and ▶
-  plays it again from the start. Only *Stop Listening* (the bar's long-press) unbinds it.
+- Engines never clear the session. They emit `finished`; the controller decides whether a book
+  carries on, and otherwise the session finishes.
+- At the end of a page (or of a book or series) the engines stop, the audio session deactivates
+  and the lock screen clears, but the page stays bound in `finished`: the Now Playing bar keeps it
+  with ▶ and "✓ Finished", and ▶ plays it again from the start. Only *Stop Listening* (the bar's
+  long-press) unbinds it.
 - `toggle`: playing **or** the engine audible → pause; paused → resume; else play.
 - Seek (scrubber release) moves the playhead and offset; playing keeps playing from there, paused
   stays paused (the engine re-queues without sounding), prepared / finished just move where Play
@@ -58,11 +64,13 @@ Rules:
 
 `SpeechController` derives everything the screens show about what you hear from the session:
 
-- **`nowPlaying`** (`NowPlaying`): the bound page's key, canonical URL, title, source (its host),
-  artwork, where it plays from (`PlayingFrom.site(host:)`) and phase. nil only before anything has
-  played and after Stop Listening.
-- **`playState(of:)`** for a `ListenTarget` (`.page(key)`, or `.webPage(canonicalURL:)`, compared
-  as strings so a saved article with a pre-v2 random id still matches its page): `idle`,
+- **`nowPlaying`** (`NowPlaying`): the bound page's key, canonical URL, title, source (its host,
+  or the book's or series' name for a chapter), artwork, where it plays from
+  (`PlayingFrom.site(host:)`) and phase. nil only before anything has played and after Stop
+  Listening.
+- **`playState(of:)`** for a `ListenTarget` (`.page(key)`, `.webPage(canonicalURL:)`, compared
+  as strings so a saved article with a pre-v2 random id still matches its page, or `.folder(id)`,
+  current while any chapter of that book or series is bound): `idle`,
   `preparing` (the target of the current `beginPreparing` request, e.g. 🎧 while its page is
   extracted; a newer request, Stop Listening and every other playback intent end it, and only a
   request that `isStillPreparing` may start),
@@ -146,7 +154,58 @@ position, dates each start (`lastPlayedAt`, unfinished again) and marks the end 
 holding the page it writes to rather than fetching it per paragraph. A page started from a
 `ReaderArticle` (`SpeechController.onListen`: the Reader's Listen, 🎧) is recorded from it on its
 first start, so a page the library doesn't have is kept with its text: played without saving,
-not in the Library, pruned 7 days after its last play.
+not in the Library, pruned 7 days after its last play. For a chapter of a book or series the
+same writes also move the book's place (`Folder.currentPageKey`, `lastPlayedAt`, unfinished
+again) to the chapter that starts, and the last playable chapter's end finishes the book
+(`LibraryStore+Chapters`).
+
+### Books and series
+
+A book or series carries on from chapter to chapter, then stops; any other page plays to its end
+and stops. `SpeechSession.folderID` (and `folderName`) say which book a page is a chapter of: a
+library page's session fills them (`SpeechSession.page`), and `listen(to:)` asks the library for a
+page started from an article (the Reader's Listen on a chapter). The rule is `ChapterAdvance`,
+pure, on a snapshot of the folder's chapters in their full play order
+(`LibraryStore.chapterSnapshot`, skipped chapters included and flagged): after a chapter, the
+next one that isn't *Skip in Playback*: a saved chapter plays, a series chapter not fetched yet
+(a link) is fetched first, a locked one or one that needs the browser ends playback with its
+notice. Continue on a book (`ChapterAdvance.start`, `LibraryStore.continueStart`) starts at its
+place, at the saved spot while unfinished, else at the next chapter; a finished book starts
+again from its first chapter. The controller reaches the library through `NextChapterProviding`
+(`chapters(of:)`, `load`, `fetch`, `pageFinished`), injected by `AppComposition`, so the speech
+stack never touches SwiftData.
+
+When the engine reports `finished`, the controller decides before the session sees it
+(`SpeechController+Advance`):
+
+- **Next chapter**: the library marks the chapter finished, and the session's `advance` input
+  binds the next one in place at its start, phase still playing. `speak` stops the engines as for
+  any play, but nothing deactivates the audio session, clears the session or clears the lock
+  screen (it only changes title), so locked listening goes on. The engine is picked again for it.
+- **A link chapter**: `awaitPage` keeps the session playing and silent ("Preparing next…") while
+  `fetch` runs, at most 30 s in the foreground and 5 s in the background (iOS may suspend an app
+  holding a silent audio session), then it plays; if the fetch fails or runs out of time,
+  playback ends at the chapter that finished. Play and pause while waiting say what happens when
+  it arrives (paused: bound at its start, silent). No page fetcher is connected, so a link
+  chapter in the library ends playback there.
+- **No next chapter** (the end, or a locked one): the session finishes as for any page.
+
+`playPage(key)` (Contents) plays a chapter from its start, and the book carries on from it.
+Headphone and lock-screen skips stay paragraph skips (D4).
+
+**Rendering across the boundary.** Once the chapter's rendering has reached two paragraphs before
+its end, the next chapter is staged in the render queue (`GlobalSynthQueue.stageNext`, "Render
+queue"), so its opening is on disk when it starts. In the background on a route that can't render
+there (Core ML), no model call starts, so a chapter not rendered in full plays in Apple's voice
+until the app is in front again, when the on-device engine takes over at the next paragraph (D9).
+The ONNX route renders in the background and keeps its voice. The catch-up bake at the end of a
+page runs only for pages outside books and series, and finished chapters more than 2 behind the
+book's place lose their audio, keeping their text (D7).
+
+Each boundary logs `chapter_advance` (what plays next) and, once the next chapter is audible,
+`chapter_boundary`: `gap_ms` from the end of one chapter to the first audio of the next, and
+whether the audio session was `deactivated` or the lock screen cleared in between (neither should
+happen; "Diagnostics").
 
 ## Rendering ahead (on-device engine)
 
@@ -161,7 +220,13 @@ calls never run at once (`SynthRenderGate.shared`). Actions reorder the queue (`
    above it.
 2. Skip / jump / seek → still #1; the cursor moves to the new paragraph.
 3. Open another article → new #1; the previous one is demoted (its cache is kept).
-4. Pending jobs fold in once the engine is ready and the launch's maintenance has finished
+4. The next chapter of a book or series is **staged** (`stageNext`) directly behind #1, ahead of
+   demoted save and bake jobs, at bake-ahead priority (never listener). It renders only its first
+   3 paragraphs until it plays and becomes #1; at that cap it steps aside, so jobs behind it run
+   when it reaches the front early. A later stage replaces it; another page playing, or the end of
+   the book, unstages it (a job that was queued before stays). It counts as playing for admission
+   (`playingCacheKeys`: the article playing and the staged chapter).
+5. Pending jobs fold in once the engine is ready and the launch's maintenance has finished
    (`adoptPending`; Audio cache, Pending jobs): the article being listened to stays #1; any
    other job is #1 only if the queue is empty; the rest keep their plans, demoted.
 
@@ -171,7 +236,7 @@ calls never run at once (`SynthRenderGate.shared`). Actions reorder the queue (`
 |-------|------|
 | Article save | `topDown`: `0…end` |
 | Listen start / jump | `fromPlayhead(p)`: `p…end`, then missing `0..<p` |
-| Playback finished / stopped | `startBakeIfNeeded` (`topDown`): fill leftover gaps |
+| Playback finished / stopped (outside books and series) | `startBakeIfNeeded` (`topDown`): fill leftover gaps |
 
 Saving an article that is #1 keeps its plan; only the job's ephemeral flag flips
 (`GlobalSynthQueue.setEphemeral`).
@@ -187,7 +252,7 @@ Mode is on (`BakeConditions`) and resumes on the change notification. Before eve
 |---|---|---|
 | active | render | render |
 | inactive | render | listener's chunks only; bake-ahead parks |
-| background | listener's chunks + bake-ahead of the playing article; other articles park | no model call: a listener's chunk plays with Apple, bake-ahead parks |
+| background | listener's chunks + bake-ahead of the playing article and the staged next chapter; other articles park | no model call: a listener's chunk plays with Apple, bake-ahead parks |
 
 The renderer checks it again right before each model call (`LocalChunkRenderer`,
 `RenderAdmission.modelCallsAllowed`): no Core ML call ever starts in the background (no GPU
@@ -387,8 +452,10 @@ with `.notifyOthersOnDeactivation` on stop or finish.
 **Lock screen / Control Center** (`NowPlayingController`):
 
 - `MPNowPlayingInfoCenter`: title = article, artist = "site · Paragraph N of M", album = site,
-  chapter number and count, progress N/M, favicon artwork, rate 0 while paused. Shown while
-  playing or paused; cleared on stop or finish.
+  chapter number and count (paragraphs), progress N/M, favicon artwork, rate 0 while paused. For
+  a chapter of a book or series: title = the chapter, artist = "<the book's byline> · Paragraph N
+  of M", album = the book or series, artwork = the chapter's, else the book's cover. Shown while
+  playing or paused, and kept across a chapter boundary; cleared on stop or at the end.
 - `MPRemoteCommandCenter` (decision D4: headphone and lock-screen skips are paragraph skips, like
   the on-screen ⏮ ⏭): play, pause, togglePlayPause, nextTrack (next paragraph),
   previousTrack (previous paragraph, or restart paragraph 1) and changePlaybackRate (snapped to
@@ -435,8 +502,11 @@ Developer options on (`NAVIGATION.md` → "Developer options"):
 **Timing log.** `Application Support/ListenTiming/timing.jsonl` (rotates at 2 MB to
 `timing.1.jsonl`): launch, open, play, model load, every `synth` call (chars, wall ms, audio s,
 phonemes, `mem_mb`), chunk / paragraph ready and failed, waits, first audio, buffering, Apple
-fallback, skips, app phase and background events, remote commands, interruptions, migrations and
-cache prunes. Pull it from a device:
+fallback, skips, app phase and background events, remote commands, interruptions, migrations,
+cache prunes and chapter boundaries (`chapter_advance`, `chapter_staged`, `chapter_boundary`).
+A few lines (`chapter_advance`, `chapter_boundary`) also go to the unified log, readable live in
+Console.app with the filter `subsystem:com.jimmyyao.Reader category:ListenTiming`. Pull the
+file from a device:
 
 ```sh
 xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
@@ -478,4 +548,5 @@ Unit tests by area: `PlaybackSeekTests`, `PlaybackObservationTests`, `ListenPosi
 `EngineBindingTests`, `AppleListenEngineTests`, `LocalListenPlayerTests`, `SynthPipelineTests`,
 `RenderAdmissionTests`, `TextChunkerTests`, `HierarchicalChunkerTests`, `FirstChunkBoundaryTests`,
 `ChunkEdgeTrimTests`, `ParagraphSplitTests`, `ParagraphLayoutMigrationTests`, `VoiceSwitchTests`,
-`BackgroundListeningTests`, `BrowseSaveWhilePlayingTests`.
+`BackgroundListeningTests`, `BrowseSaveWhilePlayingTests`; books and series: `ChapterAdvanceTests`,
+`PlaybackAdvanceTests`, `GlobalSynthQueueStagingTests`, `NowPlayingMetadataTests`.

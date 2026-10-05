@@ -18,6 +18,13 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
   a replaced page's last spot (the `.stop` before the next `bind`). `listen(to:)` hands its article
   to `onListen` before it binds, so the recorder can keep a page the library doesn't have on its
   first start.
+- **Books and series.** The controller decides at a chapter's `finished` before the session sees it
+  (`SpeechController+Advance`): the next chapter is bound with `advance`, in place. Nothing
+  between chapters may deactivate the audio session, clear the session or clear the lock screen
+  (`finishSession` is the end only); locked listening depends on it, and the
+  `chapter_boundary` timing line checks it on a device. The library is reached only through
+  `NextChapterProviding`. A staged next chapter must never render at listener priority or ahead
+  of #1 (`GlobalSynthQueueStagingTests`).
 - **Position.** Only `PlaybackSessionState` holds it, and a seek publishes it synchronously in
   the same transaction as the UI change; the scrubber relies on that to avoid a snap back. An
   engine never reports a spot before the offset its play started at.
