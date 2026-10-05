@@ -243,7 +243,9 @@ opens Now Playing instead.
   (`ShellState.isNowPlayingPresented`) and holds no article of its own: it shows what you hear.
   **⌄ or a pull down shrinks it into the bar**, back on what was underneath (the browser, the
   Library, or a Reader of another page), untouched.
-- **It looks like the Reader** (same paper, serif and margins); its chrome is the player's.
+- **It looks like the Reader** (same paper, serif and margins); its chrome is the player's. A
+  plain-text article (no reading HTML) shows its paragraphs on the same reading page, in both,
+  so everything below applies to it too.
 - **"Playing from"** names the site; tapping it closes Now Playing and shows the page in the
   browser.
 - **The text follows the audio.** On each new paragraph it scrolls the spoken one near the middle

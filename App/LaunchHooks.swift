@@ -52,7 +52,7 @@ enum LaunchHooks {
             urlString: "https://example.com/demo",
             title: demo.title ?? "Demo Listen Article",
             siteDomain: "example.com",
-            cleanedHTML: htmlAll,
+            cleanedHTML: demo.plainTextOnly ? "" : htmlAll,
             plainText: plainAll,
             wordCount: words,
             estimatedMinutes: SavedArticle.estimatedMinutes(words: words),

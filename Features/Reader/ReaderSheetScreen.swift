@@ -84,16 +84,12 @@ struct ReaderSheetScreen: View {
 
     @ViewBuilder
     private var text: some View {
-        if article.displayHTML.contains(where: { !$0.isWhitespace }) {
-            HTMLReadingView(html: article.displayHTML, heading: ReaderHeading(title: article.title, detail: detail),
-                            activeParagraphIndex: nil, jumpMode: jumpMode, scrollHandle: scroll) { index in
-                if jumpMode { listen(from: index) }
-            }
-        } else {
-            ParagraphReadingView(title: article.title, document: article.document, activeParagraphIndex: nil,
-                                 jumpMode: jumpMode) { index in
-                if jumpMode { listen(from: index) }
-            }
+        // A plain-text article reads as its paragraphs, on the same page.
+        let html = article.displayHTML.contains(where: { !$0.isWhitespace })
+            ? article.displayHTML : article.document.paragraphsHTML
+        HTMLReadingView(html: html, heading: ReaderHeading(title: article.title, detail: detail),
+                        activeParagraphIndex: nil, jumpMode: jumpMode, scrollHandle: scroll) { index in
+            if jumpMode { listen(from: index) }
         }
     }
 

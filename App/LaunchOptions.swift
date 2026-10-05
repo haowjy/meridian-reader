@@ -12,6 +12,8 @@ struct LaunchOptions: Equatable {
         var paragraphs = 3
         /// `-seedDemoProgress N`: saved playhead paragraph ("Continue listening" checks).
         var progress = 0
+        /// `-seedDemoPlainText`: the article has no HTML, only its plain text.
+        var plainTextOnly = false
     }
 
     enum BookmarkSetup: Equatable {
@@ -52,7 +54,8 @@ struct LaunchOptions: Equatable {
             demoArticle = DemoArticle(
                 title: value(after: "-seedDemoTitle"),
                 paragraphs: max(3, value(after: "-seedDemoParagraphs").flatMap(Int.init) ?? 3),
-                progress: value(after: "-seedDemoProgress").flatMap(Int.init) ?? 0
+                progress: value(after: "-seedDemoProgress").flatMap(Int.init) ?? 0,
+                plainTextOnly: flags.contains("-seedDemoPlainText")
             )
         }
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")

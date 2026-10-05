@@ -71,26 +71,24 @@ struct NowPlayingScreen: View {
 
     @ViewBuilder
     private func text(_ now: NowPlaying) -> some View {
-        if let article, article.displayHTML.contains(where: { !$0.isWhitespace }) {
-            SpokenText(speech: speech, html: article.displayHTML,
-                       heading: ReaderHeading(title: article.title, detail: detail(now)),
+        if let html = readingHTML(now) {
+            SpokenText(speech: speech, html: html,
+                       heading: ReaderHeading(title: article?.title ?? now.title, detail: detail(now)),
                        finished: now.isFinished, scrubMap: scrubMap, scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,
                        opensAt: shell.nowPlayingOpensAt,
                        onUserScroll: { following = false }, onTap: jump(to:))
-        } else if loadedKey == now.pageKey, !speech.document.isEmpty {
-            // No reading HTML (a plain-text article, or content that can't be found): the paragraphs.
-            ParagraphReadingView(
-                title: now.title,
-                document: speech.document,
-                activeParagraphIndex: now.isFinished ? nil : (scrubPreview ?? speech.currentParagraphIndex),
-                jumpMode: jumpMode,
-                scrollRequest: scrollRequest,
-                onTapParagraph: jump(to:)
-            )
         } else {
             Palette.paper
         }
+    }
+
+    /// The page's reading HTML; for a plain-text article, or content that can't be found, the
+    /// session's paragraphs as HTML, so every page reads, follows and underlines the same way.
+    private func readingHTML(_ now: NowPlaying) -> String? {
+        if let html = article?.displayHTML, html.contains(where: { !$0.isWhitespace }) { return html }
+        guard loadedKey == now.pageKey, !speech.document.isEmpty else { return nil }
+        return speech.document.paragraphsHTML
     }
 
     private func detail(_ now: NowPlaying) -> String {

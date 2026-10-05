@@ -67,28 +67,19 @@ final class NowPlayingUITests: XCTestCase {
     }
 
     func testScrollingAwayOffersBackToAudio() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoParagraphs", "40", "-openLibrary",
-                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"]
-        app.launch()
-        let row = app.cells.staticTexts["Demo Listen Article"]
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
-        row.tap()
-        let listen = app.buttons["listenPlayPause"]
-        XCTAssertTrue(listen.waitForExistence(timeout: 10))
-        listen.tap()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Listen turns the Reader into Now Playing")
+        let app = launchLongDemo()
+        openNowPlayingFromTheLibrary(app)
         XCTAssertEqual(find(app, "nowPlayingFrom").label, "Playing from example.com")
+        assertBackToAudioReturnsToTheSpokenParagraph(app)
+    }
 
-        let back = find(app, "nowPlayingBackToAudio")
-        XCTAssertFalse(back.exists, "following the audio")
-        let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
-        from.press(forDuration: 0.05, thenDragTo: from.withOffset(CGVector(dx: 0, dy: -260)),
-                   withVelocity: .slow, thenHoldForDuration: 0.1)
-        XCTAssertTrue(back.waitForExistence(timeout: 3), "scrolling away offers Back to audio")
-        back.tap()
-        XCTAssertTrue(eventually(3) { !back.exists }, "tapping it follows the audio again")
-        app.buttons["listenPlayPause"].tap()
+    /// A plain-text article (no reading HTML) reads on the same page: it follows the audio, offers
+    /// Back to audio, and Back to audio brings the spoken paragraph back.
+    func testPlainTextArticleReadsTheSameWay() throws {
+        let app = launchLongDemo(["-seedDemoPlainText"])
+        openNowPlayingFromTheLibrary(app)
+        XCTAssertTrue(paragraph(app, 0).waitForExistence(timeout: 5), "the paragraphs on the reading page")
+        assertBackToAudioReturnsToTheSpokenParagraph(app)
     }
 
     func testAtTheEndNowPlayingStaysWithPlay() throws {
@@ -118,5 +109,75 @@ final class NowPlayingUITests: XCTestCase {
         find(app, "nowPlayingBarPlayPause").tap()
         XCTAssertTrue(eventually(5) { self.find(app, "nowPlayingBarPlayPause").label == "Pause" }, "▶ plays it again")
         find(app, "nowPlayingBarPlayPause").tap()
+    }
+
+    // MARK: - Helpers
+
+    /// The demo article, 40 paragraphs long, in the Library, Apple voice at 1×.
+    private func launchLongDemo(_ extra: [String] = []) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoParagraphs", "40", "-openLibrary",
+                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"] + extra
+        app.launch()
+        return app
+    }
+
+    private func openNowPlayingFromTheLibrary(_ app: XCUIApplication) {
+        let row = app.cells.staticTexts["Demo Listen Article"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        let listen = app.buttons["listenPlayPause"]
+        XCTAssertTrue(listen.waitForExistence(timeout: 10))
+        listen.tap()
+        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Listen turns the Reader into Now Playing")
+    }
+
+    /// Skips to paragraph 7 and pauses there, scrolls it away, then Back to audio: paragraph 7 is
+    /// back in the middle of the text.
+    private func assertBackToAudioReturnsToTheSpokenParagraph(_ app: XCUIApplication) {
+        let back = find(app, "nowPlayingBackToAudio")
+        XCTAssertFalse(back.exists, "following the audio")
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
+        for _ in 0..<6 { app.buttons["Next paragraph"].tap() }
+        play.tap()
+        XCTAssertTrue(eventually(5) { play.label == "Play" }, "paused")
+        XCTAssertTrue(eventually(3) { (self.find(app, "readerScrubOffset").value as? String)?.hasPrefix("p=6 ") == true },
+                      "paused on paragraph 7: \(find(app, "readerScrubOffset").value ?? "")")
+        let spoken = paragraph(app, 6)
+        XCTAssertTrue(eventually(5) { spoken.exists && self.isInMiddle(app, spoken) }, "following: paragraph 7 in view")
+
+        for _ in 0..<3 { dragText(app, by: -260) }
+        XCTAssertTrue(back.waitForExistence(timeout: 3), "scrolling away offers Back to audio")
+        XCTAssertFalse(isOnScreen(app, spoken), "paragraph 7 scrolled out of view")
+
+        back.tap()
+        XCTAssertTrue(eventually(3) { !back.exists }, "following again")
+        XCTAssertTrue(eventually(3) { self.isInMiddle(app, spoken) }, "Back to audio brings paragraph 7 into view")
+    }
+
+    /// Paragraph `index` of the demo article on the reading page.
+    private func paragraph(_ app: XCUIApplication, _ index: Int) -> XCUIElement {
+        let opening = ["First paragraph", "Second paragraph", "Third paragraph"]
+        let prefix = index < opening.count ? opening[index] : "Extra paragraph \(index + 1) "
+        return app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
+    }
+
+    private func isOnScreen(_ app: XCUIApplication, _ element: XCUIElement) -> Bool {
+        element.exists && app.windows.firstMatch.frame.intersects(element.frame)
+    }
+
+    /// In the reading area: below the header, above the controls.
+    private func isInMiddle(_ app: XCUIApplication, _ element: XCUIElement) -> Bool {
+        guard element.exists else { return false }
+        let window = app.windows.firstMatch.frame
+        let y = element.frame.midY
+        return y > window.minY + window.height * 0.15 && y < window.minY + window.height * 0.7
+    }
+
+    private func dragText(_ app: XCUIApplication, by dy: CGFloat) {
+        let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+        from.press(forDuration: 0.05, thenDragTo: from.withOffset(CGVector(dx: 0, dy: dy)),
+                   withVelocity: .slow, thenHoldForDuration: 0.1)
     }
 }

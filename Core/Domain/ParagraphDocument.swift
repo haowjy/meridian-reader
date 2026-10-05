@@ -48,6 +48,17 @@ struct ParagraphDocument: Equatable, Sendable {
         ListenHTMLBlocks.splitLongBlocks(stripLeadingTitleHeading(html, matchingTitle: matchingTitle))
     }
 
+    /// The paragraphs as reading HTML, one escaped `<p>` each, for text with no HTML of its own (a
+    /// plain-text article). The reading page numbers its leaf blocks in order, so block i is
+    /// paragraph i and the tint, underline and follow mode line up with the session.
+    var paragraphsHTML: String {
+        paragraphs.map { paragraph in
+            let escaped = paragraph.replacingOccurrences(of: "&", with: "&amp;")
+                .replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
+            return "<p>\(escaped)</p>"
+        }.joined(separator: "\n")
+    }
+
     init(plainText: String, splitLong: Bool = true) {
         let parts = Self.split(plainText)
         self.init(parts: splitLong ? parts.flatMap(ParagraphSplitter.pieces) : parts)
