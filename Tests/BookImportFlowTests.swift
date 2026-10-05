@@ -2,8 +2,9 @@ import XCTest
 @testable import Reader
 
 /// The import sheet's flow (`BookImportFlow`) over the real import: where the book lands, *Add to*
-/// changed while it runs, D13's question, *Cancel*, refusals, a downloaded book waiting for
-/// *Import*, and the book's file in `Imports/` gone however it ends.
+/// changed while it runs (stored there in the import's one save), D13's question, *Cancel*,
+/// refusals, a downloaded book waiting for *Import*, one import sheet at a time, and the book's
+/// file in `Imports/` gone however it ends.
 @MainActor
 final class BookImportFlowTests: XCTestCase {
     private var env: LibraryTestEnvironment!
@@ -32,9 +33,18 @@ final class BookImportFlowTests: XCTestCase {
         try files.copyIn(try (epub ?? BookImportTests.sampleBook()).write(in: self))
     }
 
-    private func start(_ file: URL, into destination: Folder? = nil, waits: Bool = false) -> BookImportFlow {
-        BookImportFlow(file: file, destinationID: destination?.id, waitsForImport: waits, library: library, files: files,
-                       land: { self.landed.append($0) }, close: { self.closes += 1 })
+    private func start(_ file: URL, into destination: Folder? = nil, waits: Bool = false,
+                       library: LibraryStore? = nil) -> BookImportFlow {
+        BookImportFlow(file: file, destinationID: destination?.id, waitsForImport: waits, library: library ?? self.library,
+                       files: files, land: { _, book in self.landed.append(book) }, close: { _ in self.closes += 1 })
+    }
+
+    /// True once `flow` is preparing chapters, after doing `then` in that same main-actor turn:
+    /// the import is between reading and its save, deterministically.
+    private func whilePreparing(_ flow: BookImportFlow, then: () -> Void) -> Bool {
+        guard case .working(.preparing) = flow.phase else { return false }
+        then()
+        return true
     }
 
     private func until(_ what: String, timeout: TimeInterval = 30, _ condition: () -> Bool) async throws {
@@ -74,7 +84,7 @@ final class BookImportFlowTests: XCTestCase {
         XCTAssertEqual(closes, 0, "landing closes the sheet itself")
     }
 
-    func testAddToChangedWhileItRunsMovesTheNewBookThere() async throws {
+    func testAddToChangedWhileItRunsFilesTheNewBookThere() async throws {
         let fiction = try library.makeFolder(name: "Fiction", in: nil)
         let essays = try library.makeFolder(name: "Essays", in: nil)
         let flow = start(try picked(), into: fiction)
@@ -83,7 +93,7 @@ final class BookImportFlowTests: XCTestCase {
         XCTAssertFalse(flow.isChoosingDestination, "the Move tree goes back to the sheet")
         XCTAssertTrue(flow.destination === essays)
         try await until("the landing") { !landed.isEmpty }
-        XCTAssertTrue(try XCTUnwrap(landed.first).parent === essays, "moved to the folder chosen while it ran")
+        XCTAssertTrue(try XCTUnwrap(landed.first).parent === essays, "filed in the folder chosen while it ran")
         XCTAssertEqual(books().count, 1, "imported once")
 
         let top = start(try picked(otherBook()), into: essays)
@@ -92,10 +102,76 @@ final class BookImportFlowTests: XCTestCase {
         XCTAssertNil(landed[1].parent, "Library (no folder): the top level")
     }
 
+    /// The changed *Add to* is in the import's one save: no second save to fail or be cut short
+    /// by the app dying, so the book is there after a relaunch.
+    func testAddToChangedWhileItRunsIsStoredThereInOneSave() async throws {
+        let disk = try LibraryTestEnvironment(fileBacked: true)
+        defer { disk.cleanUp() }
+        let fiction = try disk.library.makeFolder(name: "Fiction", in: nil)
+        let essays = try disk.library.makeFolder(name: "Essays", in: nil)
+        var saves: [String] = []
+        disk.library.saveContext = { context in
+            saves.append("save")
+            guard saves.count == 1 else { throw CocoaError(.fileWriteUnknown) }  // any second save fails
+            try context.save()
+        }
+        let flow = start(try picked(), into: fiction, library: disk.library)
+        try await until("the change, mid-import") { whilePreparing(flow) { flow.choose(essays) } }
+        try await until("the landing") { !landed.isEmpty }
+        XCTAssertEqual(saves.count, 1, "the book and its place are one save")
+        XCTAssertTrue(try XCTUnwrap(landed.first).parent === essays)
+
+        disk.library.saveContext = { try $0.save() }
+        try disk.relaunch()
+        let stored = disk.folders().filter { $0.kind == .book }
+        XCTAssertEqual(stored.count, 1)
+        XCTAssertEqual(stored.first?.parent?.name, "Essays", "reopened, the book is where Add to said")
+    }
+
+    /// The folder chosen while it ran is deleted before the save: the import fails, saying so,
+    /// and keeps nothing; the sheet said so too.
+    func testAChosenFolderDeletedMidImportFailsSayingSo() async throws {
+        let fiction = try library.makeFolder(name: "Fiction", in: nil)
+        let essays = try library.makeFolder(name: "Essays", in: nil)
+        let file = try picked()
+        let flow = start(file, into: fiction)
+        try await until("the change, then the delete") {
+            whilePreparing(flow) {
+                flow.choose(essays)
+                try? library.deleteFolder(essays, keepContents: false)
+                XCTAssertTrue(flow.isDestinationGone, "the sheet's Add to says the folder is gone")
+            }
+        }
+        try await until("the refusal") { if case .failed = flow.phase { true } else { false } }
+        XCTAssertEqual(flow.phase, .failed("The folder chosen for this book no longer exists."))
+        XCTAssertTrue(books().isEmpty, "not filed in the original folder, or anywhere")
+        XCTAssertTrue(env.pages().isEmpty)
+        XCTAssertTrue(landed.isEmpty)
+        XCTAssertTrue(fileIsGone(file))
+        XCTAssertNotNil(library.folder(id: fiction.id))
+    }
+
+    /// The folder the import started in is deleted after another was chosen: the book goes to the
+    /// chosen one.
+    func testTheOriginalFolderDeletedAfterChoosingAnotherDoesntMatter() async throws {
+        let fiction = try library.makeFolder(name: "Fiction", in: nil)
+        let essays = try library.makeFolder(name: "Essays", in: nil)
+        let flow = start(try picked(), into: fiction)
+        try await until("the change, then the delete") {
+            whilePreparing(flow) {
+                flow.choose(essays)
+                try? library.deleteFolder(fiction, keepContents: false)
+            }
+        }
+        try await until("the landing") { !landed.isEmpty }
+        XCTAssertTrue(try XCTUnwrap(landed.first).parent === essays)
+        XCTAssertEqual(books().count, 1)
+    }
+
     func testABookAlreadyInTheLibraryAsksAndReplaceRebuildsItWhereItIs() async throws {
         let fiction = try library.makeFolder(name: "Fiction", in: nil)
         guard case .added(let existing) = try await BookImporter(library: library)
-            .importBook(at: try BookImportTests.sampleBook().write(in: self), into: fiction, ifAlreadyInLibrary: .cancel)
+            .importBook(at: try BookImportTests.sampleBook().write(in: self), into: fiction.id, ifAlreadyInLibrary: .cancel)
         else { return XCTFail("first import") }
         existing.name = "Renamed"
 
@@ -200,6 +276,53 @@ final class BookImportFlowTests: XCTestCase {
         XCTAssertTrue(fileIsGone(file))
         flow.sheetGone()
         XCTAssertEqual(closes, 1, "once")
+    }
+
+    // MARK: - One import sheet at a time
+
+    func testABookArrivingWhileAnImportIsOpenIsRefused() throws {
+        let shell = ShellState()
+        let actions = BookImportActions(library: library, shell: shell, files: files)
+        actions.importDownloaded(try picked())
+        let first = try XCTUnwrap(shell.importFlow)
+
+        let second = try picked(otherBook())
+        actions.importDownloaded(second)
+        XCTAssertTrue(shell.importFlow === first, "the open import stays")
+        XCTAssertTrue(fileIsGone(second), "the second book's file goes")
+        XCTAssertEqual(shell.toast?.message, "Another import is open; “\(second.lastPathComponent)” wasn't imported")
+        first.cancel()
+        XCTAssertNil(shell.importFlow)
+    }
+
+    /// An older flow's sheet going away, its Cancel, or its landing never closes a newer flow's
+    /// sheet, however that one came up.
+    func testAnOldFlowCantCloseOrLandOnANewerOnesSheet() async throws {
+        let shell = ShellState()
+        let actions = BookImportActions(library: library, shell: shell, files: files)
+        actions.importDownloaded(try picked())
+        let old = try XCTUnwrap(shell.importFlow)
+        actions.importPicked(try BookImportTests.sampleBook().write(in: self), into: nil)
+        XCTAssertTrue(shell.importFlow === old)
+
+        let newer = BookImportFlow(file: try picked(otherBook()), destinationID: nil, waitsForImport: true,
+                                   library: library, files: files, land: { _, _ in }, close: { shell.closeImport($0) })
+        shell.present(.importBook(newer))
+        old.sheetGone()
+        XCTAssertEqual(old.phase, .ended)
+        XCTAssertTrue(shell.importFlow === newer, "the old sheet's disappearance leaves the newer one up")
+
+        // A picked book starts at once; it lands while a newer sheet is up.
+        shell.sheet = nil
+        actions.importPicked(try BookImportTests.sampleBook().write(in: self), into: nil)
+        let landing = try XCTUnwrap(shell.importFlow)
+        shell.present(.importBook(newer))
+        try await until("the old import to end") { landing.phase == .ended }
+        XCTAssertEqual(books().count, 1, "it was imported")
+        XCTAssertTrue(shell.importFlow === newer, "its landing leaves the newer sheet up")
+        XCTAssertFalse(shell.isInLibrary, "and doesn't go to its book under the newer sheet")
+        newer.cancel()
+        XCTAssertNil(shell.importFlow, "the newer flow closes its own sheet")
     }
 
     /// A second book (another identifier and title).

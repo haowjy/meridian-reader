@@ -408,6 +408,20 @@ final class ShellState {
         self.sheet = sheet
     }
 
+    /// The import sheet's flow, while it is the sheet up.
+    var importFlow: BookImportFlow? {
+        if case .importBook(let flow) = sheet { flow } else { nil }
+    }
+
+    /// Closes the import sheet if it shows `flow`; true if it did. Another flow's sheet (or
+    /// another sheet) that came up since stays: a flow only closes its own.
+    @discardableResult
+    func closeImport(_ flow: BookImportFlow) -> Bool {
+        guard importFlow === flow else { return false }
+        sheet = nil
+        return true
+    }
+
     /// *Import Book…*: the Files picker, for a book going into `destination`.
     func pickBook(into destination: UUID?) {
         bookPickDestination = destination

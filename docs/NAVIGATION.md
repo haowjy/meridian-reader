@@ -208,15 +208,18 @@ Pages · 48                     Show All › pages in no folder, newest first, t
   sheet (`BookImportSheet`, medium, grows to large) comes up at once: the cover, title, author,
   file and chapter count once read; a progress line ("Reading chapters… 4 / 9"); **Add to**, the
   folder whose screen it started from (else the Library), with *Change*, which pushes the Move
-  tree inside the sheet and works while the import runs (a change moves the new book there when
-  it is done); the first chapters and what is skipped for listening. It can't be pulled down
+  tree inside the sheet and works until the book is being saved (the book is saved there; a
+  chosen folder deleted meanwhile shows as *Deleted folder* and the import stops, saying so); the
+  first chapters and what is skipped for listening. It can't be pulled down
   while it works; *Cancel* stops it and keeps nothing. Done, it closes on the book's screen,
   with *▶ Play from Chapter 1*. A refusal says why in one line with OK: copy-protected (DRM),
   fixed layout, too large, or not a readable EPUB. A book already in the Library asks *“Title”
   is already in the Library*: *Replace* (the same folder, its name and place kept, positions
   kept where chapters match; *Add to* then shows where it is and can't change) or *Cancel*
   (decision D13). An `.epub` link in the browser downloads the book (a toast while it does) into
-  the same sheet, which waits for *Import* (top right), going to the Library unless changed.
+  the same sheet, which waits for *Import* (top right), going to the Library unless changed. One
+  import at a time: a book whose download finishes while the import sheet is up isn't imported,
+  and a toast says so.
 - **Deleting a folder** asks *Delete Folder Only* (its subfolders and pages move up one level,
   after what is already there) or *Delete Folder and Contents*, with what it holds ("2 folders,
   27 pages, 1 book") and "Stops what's playing." when the playing page is inside. A book or

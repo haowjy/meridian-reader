@@ -122,13 +122,14 @@ struct BookImportSheet: View {
     // MARK: - Add to
 
     private var destinationName: String {
-        flow.destination?.displayName ?? String(localized: "Library")
+        if flow.isDestinationGone { return String(localized: "Deleted folder") }
+        return flow.destination?.displayName ?? String(localized: "Library")
     }
 
     private var destinationRow: some View {
         Button { flow.isChoosingDestination = true } label: {
             HStack(spacing: Spacing.s) {
-                Image(systemName: flow.destination == nil ? "books.vertical" : "folder")
+                Image(systemName: flow.destinationID == nil ? "books.vertical" : "folder")
                     .foregroundStyle(Palette.accent)
                     .frame(width: ListRow.leadingWidth)
                     .accessibilityHidden(true)
@@ -148,7 +149,7 @@ struct BookImportSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(flow.isReplacing || flow.phase == .ended)
+        .disabled(!flow.canChangeDestination)
         .accessibilityLabel("Add to \(destinationName)")
         .accessibilityHint(flow.isReplacing ? "" : "Choose another folder")
         .accessibilityIdentifier("importChange")
@@ -156,6 +157,9 @@ struct BookImportSheet: View {
 
     private var destinationNote: String {
         if flow.isReplacing { return String(localized: "Replace keeps the book where it is.") }
+        if flow.isDestinationGone {
+            return String(localized: "The folder chosen for this book was deleted. Choose another, or the import stops.")
+        }
         guard let folder = flow.destination else {
             return String(localized: "The book becomes a folder in the Library, one page per chapter.")
         }

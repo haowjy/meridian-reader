@@ -57,8 +57,9 @@ final class BookImportTests: XCTestCase {
     private func importBook(_ epub: SyntheticEPUB, into destination: Folder? = nil, choice: ReimportChoice = .cancel,
                             importer: BookImporter? = nil,
                             progress: (BookImportProgress) -> Void = { _ in }) async throws -> BookImportOutcome {
-        try await (importer ?? BookImporter(library: library))
-            .importBook(at: try epub.write(in: self), into: destination, ifAlreadyInLibrary: choice, progress: progress)
+        let destinationID = destination?.id
+        return try await (importer ?? BookImporter(library: library))
+            .importBook(at: try epub.write(in: self), into: destinationID, ifAlreadyInLibrary: choice, progress: progress)
     }
 
     private func added(_ outcome: BookImportOutcome, file: StaticString = #filePath, line: UInt = #line) throws -> Folder {

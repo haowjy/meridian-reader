@@ -31,6 +31,13 @@ final class BookImportFilesTests: XCTestCase {
         XCTAssertNotEqual(again, copy, "two picks of one file don't collide")
     }
 
+    func testACopyThatFailsLeavesNothing() throws {
+        let missing = root.appending(path: "gone.epub")
+        XCTAssertThrowsError(try files.copyIn(missing))
+        let left = (try? FileManager.default.contentsOfDirectory(atPath: files.directory.path)) ?? []
+        XCTAssertEqual(left, [], "no folder of its own left in Imports/")
+    }
+
     func testNamesAreFileNamesEndingInEPUB() {
         XCTAssertEqual(BookImportFiles.fileName("pg1342-images-3.epub"), "pg1342-images-3.epub")
         XCTAssertEqual(BookImportFiles.fileName("Unknown"), "Unknown.epub")
@@ -60,5 +67,17 @@ final class BookImportFilesTests: XCTestCase {
         files.clearLeftovers()
         XCTAssertFalse(FileManager.default.fileExists(atPath: files.directory.path))
         XCTAssertNotNil(try? files.newFile(named: "next.epub"), "and the next import makes it again")
+    }
+
+    /// The app's launch sequence clears them, before anything else runs.
+    @MainActor
+    func testTheAppsLaunchClearsLeftovers() async throws {
+        let file = try files.newFile(named: "book.epub")
+        try Data("book".utf8).write(to: file)
+        let env = try LibraryTestEnvironment()
+        let speech = TestSpeech()
+        defer { speech.tearDown(); env.cleanUp() }
+        await AppLaunch.launch(library: env.library, speech: speech.speech, shell: ShellState(), importFiles: files)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: files.directory.path), "Imports/ is gone")
     }
 }

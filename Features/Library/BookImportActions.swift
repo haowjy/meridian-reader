@@ -4,6 +4,10 @@ import Foundation
 /// the Files picker, and the picked file is copied in and imported at once; a book downloaded
 /// from an `.epub` link waits in the sheet for *Import*. Either way the import sheet shows it
 /// (`BookImportFlow`) and lands on the book's screen.
+///
+/// One import at a time: a book arriving while the import sheet is up (a second download
+/// finishing) is not imported; its file goes and a toast says so. Each flow closes and lands
+/// only its own sheet (`ShellState.closeImport`).
 @MainActor
 struct BookImportActions {
     let library: LibraryStore
@@ -40,14 +44,21 @@ struct BookImportActions {
     }
 
     private func start(_ file: URL, into destinationID: UUID?, waitsForImport: Bool) {
+        guard shell.importFlow == nil else {
+            files.discard(file)
+            library.log("import: \(file.lastPathComponent) arrived while another import was open; not imported")
+            shell.showToast(ShellToast(message: String(localized: "Another import is open; “\(file.lastPathComponent)” wasn't imported"),
+                                       systemImage: "exclamationmark.triangle"))
+            return
+        }
         let shell = shell
         let library = library
         let flow = BookImportFlow(file: file, destinationID: destinationID, waitsForImport: waitsForImport,
-                                  library: library, files: files) { book in
-            shell.sheet = nil
+                                  library: library, files: files) { flow, book in
+            guard shell.closeImport(flow) else { return }
             shell.showLibrary(at: library.path(to: book))
-        } close: {
-            if case .importBook = shell.sheet { shell.sheet = nil }
+        } close: { flow in
+            shell.closeImport(flow)
         }
         shell.present(.importBook(flow))
     }

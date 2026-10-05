@@ -188,8 +188,11 @@ Favorites folder holds the bookmarks; it can't be deleted, renamed or moved belo
 Refusals and failures are `BookImportError`s whose messages the sheet shows as they are (DRM,
 fixed layout, over `EPUBLimits`' caps, unreadable). Once the file is read, the importer hands the
 sheet a `BookImportPreview` (title, authors, cover thumbnail, chapter titles, what is skipped).
-*Add to* changed while the import runs moves the new book after it is stored; the importer files
-it where it was when the import started. D13's *Cancel* is the importer's `.cancel` choice: it
+The importer takes *Add to* as a folder id it reads again in its save, so a change while the
+book is read and prepared is stored in that one save; from *Saving the book…* on it can't change,
+and a folder chosen and then deleted fails the import (`destinationGone`). One import sheet is up
+at a time: a book arriving while one is (a second download finishing) is discarded with a toast,
+and a flow closes and lands only its own sheet (`ShellState.closeImport`). D13's *Cancel* is the importer's `.cancel` choice: it
 stops right after reading, and the sheet asks, then runs again with `.replace` on the same copy.
 
 **Migration (copy-once).** At launch `LibraryStore.migrateLegacy` copies every `SavedArticle`

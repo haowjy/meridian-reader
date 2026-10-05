@@ -6,9 +6,10 @@ import Foundation
 ///
 /// - A picked file starts at once; a downloaded one (an `.epub` link) waits in `.ready` for the
 ///   sheet's *Import*.
-/// - *Add to* (`destinationID`) can change while it runs. The importer files the book where it
-///   was when the import started, and a change since moves the new book afterwards; nothing is
-///   imported twice.
+/// - *Add to* (`destinationID`) can change while the book is read and prepared. The importer
+///   looks it up again in its one save, so the book is stored where *Add to* says, durably, with
+///   no second save. It is fixed from *Saving the book…* on. A folder chosen and then deleted
+///   fails the import, saying so (`BookImportError.destinationGone`); the Library is unchanged.
 /// - A book already in the Library stops after reading and asks *Replace* / *Cancel* (decision
 ///   D13). *Replace* runs again on the same file and rebuilds the book where it is.
 /// - *Cancel* stops the import between chapters, before anything is stored; the library is as
@@ -44,15 +45,16 @@ final class BookImportFlow: Identifiable {
 
     private let library: LibraryStore
     private let files: BookImportFiles
-    /// The book is in the Library: close the sheet and show it.
-    private let land: (Folder) -> Void
-    /// Close the sheet.
-    private let close: () -> Void
+    /// The book is in the Library: close this flow's sheet and show the book.
+    private let land: (BookImportFlow, Folder) -> Void
+    /// Close this flow's sheet (not another flow's that came up since).
+    private let close: (BookImportFlow) -> Void
     private var task: Task<Void, Never>?
     private var isCancelled = false
 
     init(file: URL, destinationID: UUID?, waitsForImport: Bool, library: LibraryStore,
-         files: BookImportFiles = .standard, land: @escaping (Folder) -> Void, close: @escaping () -> Void) {
+         files: BookImportFiles = .standard, land: @escaping (BookImportFlow, Folder) -> Void,
+         close: @escaping (BookImportFlow) -> Void) {
         self.file = file
         self.destinationID = destinationID
         self.phase = waitsForImport ? .ready : .working(.reading)
@@ -75,8 +77,20 @@ final class BookImportFlow: Identifiable {
     var title: String { preview?.title ?? file.deletingPathExtension().lastPathComponent }
 
     /// Where the book goes, as the library has it now (nil: the top level, or a folder deleted
-    /// since it was chosen).
+    /// since it was chosen, `isDestinationGone`).
     var destination: Folder? { destinationID.flatMap(library.folder(id:)) }
+
+    /// The folder *Add to* names was deleted: the import would fail, so the sheet says so.
+    var isDestinationGone: Bool { destinationID != nil && destination == nil }
+
+    /// *Change* works: not for *Replace* (the book stays where it is), nor once the book is being
+    /// saved (where it goes is settled then).
+    var canChangeDestination: Bool {
+        switch phase {
+        case .ready, .working(.reading), .working(.preparing): !isReplacing
+        case .working(.storing), .alreadyInLibrary, .failed, .ended: false
+        }
+    }
 
     // MARK: - The sheet's buttons
 
@@ -102,20 +116,20 @@ final class BookImportFlow: Identifiable {
         task?.cancel()
         if task == nil { files.discard(file) }
         phase = .ended
-        close()
+        close(self)
     }
 
     /// OK on a failure.
     func acknowledgeFailure() {
         guard case .failed = phase else { return }
         phase = .ended
-        close()
+        close(self)
     }
 
     /// The Move tree's pick: the book goes there (nil: the top level).
     func choose(_ folder: Folder?) {
         isChoosingDestination = false
-        guard !isReplacing else { return }
+        guard canChangeDestination else { return }
         destinationID = folder?.id
     }
 
@@ -127,18 +141,14 @@ final class BookImportFlow: Identifiable {
     // MARK: - Running
 
     private func run(_ choice: ReimportChoice) {
-        let requestedID = destinationID
         phase = .working(.reading)
         task = Task {
             do {
-                let requested = try requestedID.map { id in
-                    guard let folder = library.folder(id: id) else { throw BookImportError.destinationGone }
-                    return folder
-                }
+                // `destinationID` is read again in the importer's save: *Add to* as it is then.
                 let outcome = try await BookImporter(library: library).importBook(
-                    at: file, into: requested, ifAlreadyInLibrary: choice,
+                    at: file, into: self.destinationID, ifAlreadyInLibrary: choice,
                     progress: progressed, read: { self.preview = $0 })
-                finished(outcome, requestedID: requestedID)
+                finished(outcome)
             } catch {
                 failed(error)
             }
@@ -161,21 +171,14 @@ final class BookImportFlow: Identifiable {
         phase = .failed(message)
     }
 
-    private func finished(_ outcome: BookImportOutcome, requestedID: UUID?) {
+    private func finished(_ outcome: BookImportOutcome) {
         task = nil
         switch outcome {
         case .alreadyInLibrary(let book):
             // The file stays for *Replace*.
             guard !isCancelled else { return files.discard(file) }
             phase = .alreadyInLibrary(book.id)
-        case .added(let book):
-            files.discard(file)
-            if destinationID != requestedID {
-                // *Add to* changed while it ran. A folder deleted since keeps the book where it went.
-                if destinationID == nil || destination != nil { try? library.move([.folder(book)], to: destination) }
-            }
-            end(landingOn: book)
-        case .replaced(let book):
+        case .added(let book), .replaced(let book):
             files.discard(file)
             end(landingOn: book)
         }
@@ -186,7 +189,7 @@ final class BookImportFlow: Identifiable {
     private func end(landingOn book: Folder) {
         guard !isCancelled else { return }
         phase = .ended
-        land(book)
+        land(self, book)
     }
 }
 

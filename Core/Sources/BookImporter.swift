@@ -104,14 +104,18 @@ struct BookImporter {
     var bar = BookChapterFinalizer.Bar.standard
     var maxCuts = 3
 
-    /// `destination`: the folder the book goes in (nil = the top level). A book already in the
-    /// Library stays where it is: `choice` says whether its pages are rebuilt. `read` gets the
-    /// book's title, cover and chapters once the file is read, before anything else.
-    func importBook(at fileURL: URL, into destination: Folder?, ifAlreadyInLibrary choice: ReimportChoice,
+    /// `destinationID`: the folder the book goes in (nil = the top level). It is evaluated when
+    /// the import starts (a book or series is refused before any work) and again in the save, so
+    /// the book is stored, in that one save, wherever it names then: the import sheet's *Add to*
+    /// can change while the book is read. A folder deleted meanwhile fails the import
+    /// (`destinationGone`). A book already in the Library stays where it is: `choice` says whether
+    /// its pages are rebuilt. `read` gets the book's title, cover and chapters once the file is
+    /// read, before anything else.
+    func importBook(at fileURL: URL, into destinationID: @autoclosure () -> UUID?,
+                    ifAlreadyInLibrary choice: ReimportChoice,
                     progress: (BookImportProgress) -> Void = { _ in },
                     read onRead: (BookImportPreview) -> Void = { _ in }) async throws -> BookImportOutcome {
-        if let destination, destination.kind.isFixed { throw BookImportError.notADestination }
-        let destinationID = destination?.id
+        if let folder = try folder(destinationID()), folder.kind.isFixed { throw BookImportError.notADestination }
         progress(.reading)
         var rules = rules
         var book = try await read(fileURL, rules: rules)
@@ -144,7 +148,7 @@ struct BookImporter {
                 try library.replaceBook(existing, with: details, chapters: chapters)
                 return .replaced(existing)
             }
-            return .added(try library.addBook(details, chapters: chapters, in: try folder(destinationID)))
+            return .added(try library.addBook(details, chapters: chapters, in: try folder(destinationID())))
         } catch let error as BookImportError {
             throw error
         } catch LibraryTreeError.fixedDestination {
@@ -165,8 +169,8 @@ struct BookImporter {
             skippedTitles: book.chapters.filter(\.skipsInPlayback).compactMap(\.title))
     }
 
-    /// The destination as the library has it now (nil: the top level): it may have been deleted
-    /// while the book was read.
+    /// The folder `id` names as the library has it now (nil: the top level): it may have been
+    /// deleted while the book was read.
     private func folder(_ id: UUID?) throws -> Folder? {
         guard let id else { return nil }
         guard let folder = library.folder(id: id) else { throw BookImportError.destinationGone }

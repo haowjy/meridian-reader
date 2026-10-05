@@ -10,12 +10,18 @@ struct BookImportFiles {
 
     static let standard = BookImportFiles(directory: URL.applicationSupportDirectory.appending(path: "Imports", directoryHint: .isDirectory))
 
-    /// A copy of the file the picker gave (`url`, security-scoped or not).
+    /// A copy of the file the picker gave (`url`, security-scoped or not). A copy that fails
+    /// leaves nothing here.
     func copyIn(_ url: URL) throws -> URL {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let destination = try newFile(named: url.lastPathComponent)
-        try FileManager.default.copyItem(at: url, to: destination)
+        do {
+            try FileManager.default.copyItem(at: url, to: destination)
+        } catch {
+            discard(destination)
+            throw error
+        }
         return destination
     }
 

@@ -11,8 +11,14 @@ enum AppLaunch {
     static func run(library: LibraryStore, speech: SpeechController, shell: ShellState) async {
         guard !didRun else { return }
         didRun = true
+        await launch(library: library, speech: speech, shell: shell)
+    }
+
+    /// The launch sequence `run` does once. `importFiles`: where book imports keep their files.
+    static func launch(library: LibraryStore, speech: SpeechController, shell: ShellState,
+                       importFiles: BookImportFiles = .standard) async {
         // No import is running yet: a book file a killed import left goes.
-        BookImportFiles.standard.clearLeftovers()
+        importFiles.clearLeftovers()
         #if DEBUG
         LaunchHooks.runBeforeMigrations(.current, library: library, tts: speech.localTTS)
         #endif
