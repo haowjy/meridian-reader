@@ -3,7 +3,8 @@ import XCTest
 
 /// Markup the parser refuses or bounds: text files and nodes over their caps (per file and across
 /// the book), nesting too deep, unmatched end tags (cheap at any depth), package XML that isn't
-/// well-formed or declares entities. Both parsers charge the same budget; neither falls back.
+/// well-formed or declares entities (and package XML that only mentions one, which is read). Both
+/// parsers charge the same budget; neither falls back.
 final class EPUBParserBudgetTests: XCTestCase {
     private typealias Entry = SyntheticEPUB.Entry
 
@@ -156,6 +157,63 @@ final class EPUBParserBudgetTests: XCTestCase {
                             matches: { if case .unreadable = $0 { true } else { false } })
         }
         XCTAssertFalse(XMLTree.declaresEntities(Data("<p>&amp; &lt;</p>".utf8)))
+    }
+
+    private let encodings: [String.Encoding] = [.utf8, .utf16, .utf16LittleEndian, .utf16BigEndian]
+
+    /// `<!ENTITY` written inside a comment, a CDATA section, a processing instruction or a quoted
+    /// literal declares nothing: the document is read.
+    func testEntityTextInCommentsCDATAAndLiteralsIsNotADeclaration() throws {
+        let documents = [
+            "<!-- <!ENTITY t \"x\"> --><p>amber</p>",
+            "<p><![CDATA[<!ENTITY t \"x\">]]></p>",
+            "<?note <!ENTITY t \"x\"> ?><p>amber</p>",
+            "<!DOCTYPE p SYSTEM \"<!ENTITY t.dtd\"><p>amber</p>",
+            "<!DOCTYPE p [<!-- <!ENTITY t \"x\"> --><!ELEMENT p (#PCDATA)>]><p>amber</p>",
+        ]
+        for document in documents {
+            for encoding in encodings {
+                let data = try XCTUnwrap(("<?xml version=\"1.0\"?>" + document).data(using: encoding))
+                XCTAssertFalse(XMLTree.declaresEntities(data), "\(encoding): \(document)")
+                XCTAssertNoThrow(try XMLTree.parse(data, named: "p.xml", budget: MarkupBudget()), "\(encoding): \(document)")
+            }
+        }
+    }
+
+    /// Declarations after a comment, a literal holding `>` or `[`, or a parameter entity are still
+    /// found, in any encoding the parser reads.
+    func testEntityDeclarationsAfterCommentsAndLiteralsAreFound() throws {
+        let documents = [
+            "<!DOCTYPE p [<!ENTITY t \"x\">]><p>&t;</p>",
+            "<!DOCTYPE p [<!-- <!ENTITY a \"1\"> --><!ENTITY t \"x\">]><p>&t;</p>",
+            "<!DOCTYPE p SYSTEM \"a>b[\" [<!ENTITY t \"x\">]><p>&t;</p>",
+            "<!DOCTYPE p [<!ELEMENT p ANY><!ENTITY % pe \"x\">]><p>a</p>",
+            "<!DOCTYPE p [<?note ?><!entity t \"x\">]><p>a</p>",
+        ]
+        for document in documents {
+            for encoding in encodings + [.utf32LittleEndian, .utf32BigEndian] {
+                let data = try XCTUnwrap(("<?xml version=\"1.0\"?>" + document).data(using: encoding))
+                XCTAssertTrue(XMLTree.declaresEntities(data), "\(encoding): \(document)")
+            }
+            assertEPUBError(try XMLTree.parse(Data(document.utf8), named: "p.xml", budget: MarkupBudget()), matches: isUnreadable)
+        }
+    }
+
+    /// The doctypes real package files carry name an external DTD and declare nothing: such a
+    /// book reads, and the DTD isn't fetched.
+    func testOrdinaryExternalDoctypesAreRead() throws {
+        let opfDoctype = "<!DOCTYPE package PUBLIC \"+//ISBN 0-9673008-1-9//DTD OEB 1.2 Package//EN\" "
+            + "\"http://openebook.org/dtds/oeb-1.2/oebpkg12.dtd\">"
+        var epub = book()
+        epub.version = "2.0"
+        epub.tableOfContents = .ncx
+        let opf = epub.opf().replacingOccurrences(of: "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+                                                  with: "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + opfDoctype)
+        XCTAssertFalse(XMLTree.declaresEntities(Data(opf.utf8)))
+        XCTAssertFalse(XMLTree.declaresEntities(Data(epub.ncxDocument().utf8)), "the NCX's NISO doctype")
+        let url = try epub.write(in: self, entries: entries(of: epub, replacing: epub.opfPath, with: opf))
+        let read = try EPUBBookReader.read(fileURL: url)
+        XCTAssertEqual(read.titles, ["Chapter One", "Chapter Two"])
     }
 
     func testContainerThatIsNotWellFormedIsRefused() throws {

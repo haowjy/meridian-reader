@@ -88,7 +88,8 @@ indirect enum MarkupNode: Equatable, Sendable {
 /// Package documents (`container.xml`, the OPF, the NCX, `encryption.xml`, Apple's display
 /// options), parsed strictly with `XMLParser`. These are machine-written XML; one that isn't
 /// well-formed is refused rather than guessed at, and so is one that declares entities: no
-/// entity is expanded and nothing outside the archive is resolved.
+/// entity is expanded and nothing outside the archive is resolved. A doctype that only names an
+/// external DTD (the NCX's, OEB 1.2's) declares nothing and is read; the DTD isn't fetched.
 enum XMLTree {
     /// The root element. Throws `.unreadable` when the XML isn't well-formed, has no element, or
     /// declares an entity; `.tooLarge` past the budget's caps.
@@ -113,13 +114,148 @@ enum XMLTree {
         return parser
     }
 
-    /// An `<!ENTITY` declaration anywhere, in UTF-8 or UTF-16. Checked before parsing, so no
+    /// Whether the document declares an entity: `<!ENTITY` as markup (any letter case), in the
+    /// doctype's internal subset or anywhere else. Comments, CDATA sections, processing
+    /// instructions and quoted literals are stepped over the way XML reads them, so a document
+    /// that only mentions `<!ENTITY` inside one isn't refused. Checked before parsing, so no
     /// internal entity (a billion-laughs chain among them) is ever expanded.
     static func declaresEntities(_ data: Data) -> Bool {
-        let declaration = "<!ENTITY"
-        let patterns = [Data(declaration.utf8), declaration.data(using: .utf16LittleEndian),
-                        declaration.data(using: .utf16BigEndian)].compactMap { $0 }
-        return patterns.contains { data.range(of: $0) != nil }
+        var scanner = EntityDeclarationScanner(characters: asciiCharacters(of: data))
+        return scanner.findsDeclaration()
+    }
+
+    /// The document's characters, one byte each: ASCII as itself, anything else as 0x80. Markup is
+    /// all ASCII, so this is enough to find it. UTF-32 and UTF-16 are told by their byte-order
+    /// mark or by how the first character is written; any other encoding is read byte by byte,
+    /// which keeps ASCII where it is in UTF-8 and the single-byte encodings.
+    private static func asciiCharacters(of data: Data) -> [UInt8] {
+        let bytes = [UInt8](data)
+        let head = Array(bytes.prefix(4)) + Array(repeating: 0xFF, count: max(0, 4 - bytes.count))
+        let width: Int
+        let bigEndian: Bool
+        if head == [0x00, 0x00, 0xFE, 0xFF] || head[0...2] == [0x00, 0x00, 0x00] && head[3] != 0 {
+            (width, bigEndian) = (4, true)
+        } else if head == [0xFF, 0xFE, 0x00, 0x00] || head[0] != 0 && head[1...3] == [0x00, 0x00, 0x00] {
+            (width, bigEndian) = (4, false)
+        } else if head[0...1] == [0xFE, 0xFF] || head[0] == 0 && head[1] != 0 {
+            (width, bigEndian) = (2, true)
+        } else if head[0...1] == [0xFF, 0xFE] || head[0] != 0 && head[1] == 0 {
+            (width, bigEndian) = (2, false)
+        } else {
+            return bytes
+        }
+        var characters: [UInt8] = []
+        characters.reserveCapacity(bytes.count / width)
+        var index = 0
+        while index + width <= bytes.count {
+            var unit: UInt32 = 0
+            for offset in 0..<width {
+                unit = unit << 8 | UInt32(bytes[index + (bigEndian ? offset : width - 1 - offset)])
+            }
+            characters.append(unit < 0x80 ? UInt8(unit) : 0x80)
+            index += width
+        }
+        return characters
+    }
+}
+
+/// Finds an entity declaration the way an XML parser would meet one: at the top level of the
+/// document or of a doctype's internal subset, never inside a comment, CDATA section, processing
+/// instruction or quoted literal. Linear in the document's length.
+private struct EntityDeclarationScanner {
+    let characters: [UInt8]
+    var index = 0
+
+    mutating func findsDeclaration() -> Bool {
+        while index < characters.count {
+            guard characters[index] == UInt8(ascii: "<") else {
+                index += 1
+                continue
+            }
+            if matches("<!--") {
+                skip(past: "-->")
+            } else if matches("<![CDATA[") {
+                skip(past: "]]>")
+            } else if matches("<?") {
+                skip(past: "?>")
+            } else if matches("<!ENTITY", ignoringCase: true) {
+                return true
+            } else if startsTagOrDeclaration() {
+                skipTagOrDeclaration()
+            } else {
+                // `<![INCLUDE[` and the like: what follows is read as markup.
+                index += 1
+            }
+        }
+        return false
+    }
+
+    /// `<` then a name (or `/`), or `<!` then a keyword (`DOCTYPE`, `ELEMENT`, …).
+    private func startsTagOrDeclaration() -> Bool {
+        guard index + 1 < characters.count else { return false }
+        let next = characters[index + 1]
+        if next == UInt8(ascii: "!") {
+            return index + 2 < characters.count && isLetter(characters[index + 2])
+        }
+        return isLetter(next) || next == UInt8(ascii: "/") || next == UInt8(ascii: "_")
+            || next == UInt8(ascii: ":") || next >= 0x80
+    }
+
+    /// From the `<`: past the closing `>`, stepping over quoted literals. Stops before a `[` (a
+    /// doctype's internal subset, whose declarations are scanned as markup again) and before a
+    /// `<` (the tag wasn't closed, and the `<` starts new markup).
+    private mutating func skipTagOrDeclaration() {
+        index += 1
+        var quote: UInt8?
+        while index < characters.count {
+            let character = characters[index]
+            if let open = quote {
+                if character == open { quote = nil }
+            } else if character == UInt8(ascii: "\"") || character == UInt8(ascii: "'") {
+                quote = character
+            } else if character == UInt8(ascii: ">") {
+                index += 1
+                return
+            } else if character == UInt8(ascii: "[") || character == UInt8(ascii: "<") {
+                return
+            }
+            index += 1
+        }
+    }
+
+    /// Past the next `terminator`, or to the end when there's none.
+    private mutating func skip(past terminator: String) {
+        let pattern = Array(terminator.utf8)
+        while index < characters.count, !matches(pattern, ignoringCase: false) {
+            index += 1
+        }
+        index = min(characters.count, index + pattern.count)
+    }
+
+    /// What's stepped over matches exactly, as XML spells it; a declaration matches in any case,
+    /// so a lookalike is refused rather than stepped over.
+    private func matches(_ text: String, ignoringCase: Bool = false) -> Bool {
+        matches(Array(text.utf8), ignoringCase: ignoringCase)
+    }
+
+    private func matches(_ pattern: [UInt8], ignoringCase: Bool) -> Bool {
+        guard index + pattern.count <= characters.count else { return false }
+        for offset in pattern.indices {
+            let character = characters[index + offset]
+            let expected = pattern[offset]
+            guard character == expected || ignoringCase && lowercased(character) == lowercased(expected) else {
+                return false
+            }
+        }
+        return true
+    }
+
+    private func lowercased(_ character: UInt8) -> UInt8 {
+        (UInt8(ascii: "A")...UInt8(ascii: "Z")).contains(character) ? character + 32 : character
+    }
+
+    private func isLetter(_ character: UInt8) -> Bool {
+        (UInt8(ascii: "a")...UInt8(ascii: "z")).contains(lowercased(character))
     }
 }
 
