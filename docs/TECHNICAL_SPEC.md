@@ -49,10 +49,12 @@ UITests/    UI tests (ReaderUITests)
 ## Architecture
 
 - **Composition root.** `AppComposition` is the only place that lists voice libraries; it builds
-  the `EngineRegistry`, the one `SpeechController` and the `ShellState`, which `ReaderApp` injects
-  through the environment, and connects the speech stack to the saved-article store
-  (`attachLibrary`: Now Playing's content resolver and the `ListeningProgressRecorder`). `AppLaunch.run` does the launch work once: the saved-article migrations (with the
-  Debug launch hooks before and after them), then crash resume. Views only render.
+  the `EngineRegistry`, the one `SpeechController`, the `ShellState` and the `LibraryStore`, which
+  `ReaderApp` injects through the environment, and connects the speech stack to the library
+  (`attachLibrary`: Now Playing's content resolver and the `ListeningProgressRecorder`).
+  `AppLaunch.run` does the launch work once: the library's launch maintenance
+  (`maintainLibrary`, which then lets the render queue adopt and render), with the Debug launch
+  hooks before and after it, then crash resume. Views only render.
 - **Navigation.** `ShellState` owns what you see: the surface (browser or library), the Reader
   sheet and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
   It asks the playback session what you hear (`isHearing`) and stores nothing about it. Browse and the library share
@@ -163,13 +165,15 @@ there, the merged page's directory gone. A record that fails is kept, with every
 for the next launch; so is the work of a launch that dies after the save. The next launch does
 them first, in `AppComposition.prepareAudioCache` before the first frame: before the launch
 migrations and the prune of unsaved audio clean the cache, before anything reads it, and before
-the engine adopts saved bake jobs (`finishAudioWork`). Replay doesn't depend on the source still existing: the audio cache's
-changes are copy-on-write (`LISTEN_PLAYBACK.md`, Audio cache), so work stopped at any step is
-done again from what is on disk, losing nothing. The resume point moves only from where the work
-found it. Before it changes any audio, a record is checked against the committed page: layout
-work for a page that holds other paragraphs now is dropped (the page's audio is aligned with what
-it holds when it opens); a merge aligns the merged audio with what the kept page holds now, and
-if the kept page has been deleted, leaves that audio to the cache's age prune.
+the engine adopts saved bake jobs (`finishAudioWork`), which waits for the rest of the launch's
+maintenance too (`LISTEN_PLAYBACK.md`, Pending jobs). Replay doesn't depend on the source still
+existing: the audio cache's changes are copy-on-write (`LISTEN_PLAYBACK.md`, Audio cache), so
+work stopped at any step is done again from what is on disk, losing nothing. The resume point
+moves only from where the work found it. Before it changes any audio, a record is checked against
+the committed page: layout work for a page that holds other paragraphs now is dropped (the page's
+audio is aligned with what it holds when it opens); a merge aligns the merged audio with what the
+kept page holds now, and if the kept page has been deleted, leaves that audio to the cache's age
+prune.
 
 **`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
 `urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,

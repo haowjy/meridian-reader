@@ -157,8 +157,9 @@ calls never run at once (`SynthRenderGate.shared`). Actions reorder the queue (`
    above it.
 2. Skip / jump / seek → still #1; the cursor moves to the new paragraph.
 3. Open another article → new #1; the previous one is demoted (its cache is kept).
-4. Pending jobs fold in once the engine is ready (`adoptPending`): the article being listened to
-   stays #1; any other job is #1 only if the queue is empty; the rest keep their plans, demoted.
+4. Pending jobs fold in once the engine is ready and the launch's maintenance has finished
+   (`adoptPending`; Audio cache, Pending jobs): the article being listened to stays #1; any
+   other job is #1 only if the queue is empty; the rest keep their plans, demoted.
 
 `BakePriorityPlan` is the explicit cursor:
 
@@ -319,7 +320,13 @@ highlight and the paragraph picker stay fine-grained.
 
 **Pending jobs.** Articles saved or opened while the engine was cold are kept as pending bake
 jobs in `Application Support/PendingBakeJobs.json` (`PendingBakeJobStore`) and fold into the
-queue once the engine is ready. Nothing bakes while the app is suspended: the app registers no
+queue once the engine is ready. At launch the queue is held from the first audio-cache step
+(`AppComposition.prepareAudioCache`, before the first frame) until the library's launch
+maintenance has finished (`AppLaunch.maintainLibrary`: left audio work, layout pass, dedupe,
+prune): it adopts no pending job and renders nothing, though the engine loads meanwhile
+(`LocalTTSCoordinator.holdRenderingForLaunch`). So nothing renders on paragraphs that maintenance
+rebuilds or merges, and the jobs it remaps are adopted as it leaves them
+(`LaunchAudioRecoveryTests`). Nothing bakes while the app is suspended: the app registers no
 background task, and full-article rendering in the background is not promised.
 
 **Core ML compile cache.** Core ML adds compiled bundles under

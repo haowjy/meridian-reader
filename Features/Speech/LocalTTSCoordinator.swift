@@ -39,6 +39,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
     private(set) var bakeMarksRevision: UInt64 = 0
     /// Article the user most recently opened / listened to (stays #1 when pending jobs drain).
     private var focusCacheKey: UUID?
+    /// From the start of the launch's audio-cache steps until the library's launch maintenance has
+    /// finished (`holdRenderingForLaunch`, `endLaunchHold`).
+    @ObservationIgnored private(set) var isHeldForLaunch = false
     /// Voice whose files are downloading after the user picked it (Settings shows a spinner).
     private(set) var voiceDownloadID: String?
     /// Last voice download failure (Settings footer); cleared on the next pick.
@@ -167,6 +170,24 @@ final class LocalTTSCoordinator: SynthQueueContext {
         if let newKey { target.articleKey = newKey.uuidString }
         target.paragraph = map(target.paragraph)
         pendingResume = target
+    }
+
+    /// Launch: until `endLaunchHold`, the render queue adopts no saved bake job and renders
+    /// nothing, so nothing renders on paragraphs the launch's maintenance (left audio work, the
+    /// layout pass, dedupe, the prune) is about to rebuild, merge or delete, and the jobs it
+    /// remaps are adopted as it leaves them. The engine still loads meanwhile.
+    func holdRenderingForLaunch() {
+        isHeldForLaunch = true
+        synthQueue.isHeldForLaunch = true
+    }
+
+    /// The launch's maintenance has finished: adopt the saved bake jobs if the engine is loaded
+    /// (else when it is), and render.
+    func endLaunchHold() {
+        guard isHeldForLaunch else { return }
+        isHeldForLaunch = false
+        drainPendingIntoQueue()
+        synthQueue.isHeldForLaunch = false
     }
 
     /// Hand the crash-resume target to the UI once.
@@ -594,10 +615,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return engines.descriptor(id)?.supportsBakeCache == true
     }
 
-    /// Persisted pending jobs → queue. The focused (active) article stays #1; see
-    /// `GlobalSynthQueue.adoptPending`.
+    /// Persisted pending jobs → queue, once the engine is loaded and the launch hold is over. The
+    /// focused (active) article stays #1; see `GlobalSynthQueue.adoptPending`.
     private func drainPendingIntoQueue() {
-        guard usesLocalEngine else { return }
+        guard usesLocalEngine, !isHeldForLaunch else { return }
         let pending = PendingBakeJobStore.shared.pendingJobs()
             .filter { localLanguageAllows($0.paragraphs) }
         guard !pending.isEmpty else { return }

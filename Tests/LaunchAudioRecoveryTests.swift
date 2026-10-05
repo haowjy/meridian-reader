@@ -99,8 +99,46 @@ final class LaunchAudioRecoveryTests: XCTestCase {
 
         for _ in 0..<200 where !tts.usesLocalEngine { try await Task.sleep(for: .milliseconds(20)) }
         XCTAssertTrue(tts.usesLocalEngine, "the engine finished loading after the launch step")
+        AppLaunch.maintainLibrary(env.library)
         let plan = try XCTUnwrap(tts.synthQueue.planDescription(for: chapter), "the chapter's pending render was adopted")
         XCTAssertTrue(plan.contains("paragraphCount: \(new.count)"), "on the new paragraphs: \(plan)")
         XCTAssertFalse(tts.synthQueue.hasJob(cacheKey: played))
+    }
+
+    /// This launch's own layout pass rebuilds a chapter that has a pending render, and the engine
+    /// finished loading before that pass ran. The render queue is held from the launch's first
+    /// audio step until the library's launch maintenance has finished (`AppLaunch`): the loaded
+    /// engine adopts nothing meanwhile, then adopts the chapter's render on its new paragraphs.
+    func testBakesAreAdoptedOnlyOnceThisLaunchsMaintenanceHasFinished() async throws {
+        let html = ParagraphSplitTests.chapterHTML
+        let title = "The Boscombe Valley Mystery"
+        let old = ParagraphDocument.forListening(plainText: "", cleanedHTML: html, matchingTitle: title, splitLong: false).paragraphs
+        let new = ParagraphDocument.forListening(plainText: "", cleanedHTML: html, matchingTitle: title).paragraphs
+        let chapter = UUID()
+        keys = [chapter]
+        let page = Page(key: chapter, title: title, byline: "example.com", urlString: "https://example.com/classics/boscombe-valley",
+                        contentState: .saved, addedAt: env.now)
+        page.cleanedHTML = html
+        page.listenBlocksData = try JSONEncoder().encode(old)
+        page.listenBlocksVersion = 2
+        page.paragraphCount = old.count
+        env.context.insert(page)
+        try env.context.save()
+        PendingBakeJobStore.shared.enqueuePending(articleID: chapter, paragraphs: old, voiceID: "voiceA",
+                                                  plan: .topDown(paragraphCount: old.count))
+
+        env.defaults.set(SpeechEngineID.kokoro.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
+        try env.relaunch()
+        let tts = env.tts
+        tts.synthQueue.bakeConditions = { BakeConditions(thermalState: .serious, isLowPowerModeEnabled: false) }
+        AppComposition.prepareAudioCache(library: env.library, migrations: [])
+        for _ in 0..<200 where !tts.usesLocalEngine { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertTrue(tts.usesLocalEngine, "the engine loaded before the launch's maintenance ran")
+        XCTAssertFalse(tts.synthQueue.hasJob(cacheKey: chapter), "nothing adopted while the launch holds the queue")
+
+        AppLaunch.maintainLibrary(env.library)
+        XCTAssertEqual(env.library.page(key: chapter)?.cachedListenParagraphs, new, "the layout pass rebuilt the chapter")
+        let plan = try XCTUnwrap(tts.synthQueue.planDescription(for: chapter), "adopted once the maintenance finished")
+        XCTAssertTrue(plan.contains("paragraphCount: \(new.count)"), "on the new paragraphs: \(plan)")
     }
 }

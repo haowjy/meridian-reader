@@ -582,6 +582,12 @@ final class GlobalSynthQueue {
         didSet { if !isPausedForProbe { kickWorker() } }
     }
 
+    /// Nothing renders or stitches until the launch's library maintenance has finished
+    /// (`LocalTTSCoordinator.holdRenderingForLaunch`); jobs and chunk requests wait.
+    var isHeldForLaunch = false {
+        didSet { if !isHeldForLaunch { kickWorker() } }
+    }
+
     #if DEBUG
     /// Tests: runs once a paragraph is stitched, before it is published (key, paragraph), as
     /// something landing on the main actor while the stitch was in flight would.
@@ -589,7 +595,7 @@ final class GlobalSynthQueue {
     #endif
 
     private func kickWorker() {
-        guard worker == nil, !isPausedForProbe else { return }
+        guard worker == nil, !isPausedForProbe, !isHeldForLaunch else { return }
         worker = Task { [weak self] in
             await self?.drain()
         }
@@ -604,7 +610,7 @@ final class GlobalSynthQueue {
             drainGrace.end()
             #endif
         }
-        while !isPausedForProbe, let next = nextWorkUnit() {
+        while !isPausedForProbe, !isHeldForLaunch, let next = nextWorkUnit() {
             guard let coordinator else { break }
             // Check the app state before every chunk (see `RenderAdmission`).
             let phase = runState.phase

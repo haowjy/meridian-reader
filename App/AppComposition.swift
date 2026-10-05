@@ -41,15 +41,17 @@ enum AppComposition {
                                                      store: LibraryProgressStore(library: library))
     }
 
-    /// The audio cache at launch, in order. First the recovery barrier: audio work an earlier
-    /// launch saved but didn't finish (`LibraryStore.finishAudioWork`), so that nothing reads,
-    /// cleans or renders a page's audio before it is where the library says. Then the one-time
-    /// launch migrations (which can purge an engine's audio and orphan files), the chunk scratch
-    /// (nothing plays at launch) and the prune of unsaved audio (7 days, 500 MB). All of it runs
-    /// synchronously on the main actor, so the engine, whose load finishes in a main-actor task,
-    /// adopts the saved bake jobs only afterwards, as the recovery left them.
+    /// The audio cache at launch, in order. First the render queue is held: it adopts no saved
+    /// bake job and renders nothing until `AppLaunch.maintainLibrary` has also run the library's
+    /// layout pass, dedupe and prune (`LocalTTSCoordinator.holdRenderingForLaunch`); the engine
+    /// loads meanwhile. Then the recovery barrier: audio work an earlier launch saved but didn't
+    /// finish (`LibraryStore.finishAudioWork`), so that nothing reads, cleans or renders a page's
+    /// audio before it is where the library says. Then the one-time launch migrations (which can
+    /// purge an engine's audio and orphan files), the chunk scratch (nothing plays at launch) and
+    /// the prune of unsaved audio (7 days, 500 MB).
     static func prepareAudioCache(library: LibraryStore, migrations: [LaunchMigration]) {
         let tts = library.tts
+        tts.holdRenderingForLaunch()
         library.finishAudioWork()
         for migration in migrations { migration.runIfNeeded(tts) }
         tts.audioCache.removeAllChunkScratch()

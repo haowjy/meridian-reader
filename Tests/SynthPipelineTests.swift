@@ -48,6 +48,25 @@ final class SynthPipelineTests: XCTestCase {
         XCTAssertLessThan(kokoro.count, chunks.count)
     }
 
+    // MARK: - Launch hold
+
+    /// Held for the launch (`LocalTTSCoordinator.holdRenderingForLaunch`), a queued article
+    /// renders nothing; once released, it renders.
+    func testNothingRendersWhileTheQueueIsHeldForLaunch() async throws {
+        let (queue, ctx) = makeQueue(FakeEngineProvider())
+        queue.isHeldForLaunch = true
+        let key = UUID()
+        queue.openArticle(cacheKey: key, paragraphs: [sentence(1), sentence(2)], voiceID: "fake.a", isEphemeral: false)
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertTrue(ctx.renders.isEmpty, "nothing rendered while held")
+        XCTAssertFalse(queue.isWorkerRunning)
+
+        queue.isHeldForLaunch = false
+        try await waitIdle(queue)
+        XCTAssertEqual(ctx.audioCache.readyIndices(articleID: key, paragraphCount: 2, engineID: ctx.cacheEngineID,
+                                                   voiceID: "fake.a"), [0, 1])
+    }
+
     // MARK: - Overflow → re-split
 
     func testOverflowResplitsRecursivelyInSharedRenderer() async throws {
