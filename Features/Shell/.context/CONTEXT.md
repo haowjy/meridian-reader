@@ -3,13 +3,18 @@
 What the user sees is in `../../../docs/NAVIGATION.md`. This file holds what to keep in mind while
 changing the shell code.
 
-- **`ShellState` is the navigation model** (what you see). Surface (browser or library), the
-  Reader sheet and its `ReaderOrigin` (derived from the surface), Now Playing, the one other sheet.
-  Add a screen by adding a case here, not a presentation flag in a view. It never stores what
+- **`ShellState` is the navigation model** (what you see). Surface (browser or library) and the
+  Library's path (`libraryPath`, bound to the Library's `NavigationStack`), the Reader sheet and
+  its `ReaderOrigin` (derived from the surface), Now Playing, the one other sheet, the toast and
+  the prompt. Add a screen by adding a case here, not a presentation flag in a view. The surface
+  and path are written to `SurfaceMemory` on every change and restored at launch (D10); a UI-test
+  launch doesn't restore unless `-restoreSurface`, so tests start on the browser whatever the
+  last one left. One sheet at a time: the Move tree from inside the Favorites sheet replaces it. It never stores what
   you hear: `isHearing` (injected) asks the playback session, so `openReader` of the playing page
   opens Now Playing.
 - **Layers** (`BrowseStartView.layers`): surface → Reader sheet → Now Playing → ⋯ menu → system
-  sheets. A covered layer is out of hit testing and hidden from VoiceOver. The `Sheet` component
+  sheets → the shell's prompt. The toast (`ShellToastLayer`) floats over whichever bottom chrome
+  is up (the browser's, the Library's, the Reader's `floating` slot). A covered layer is out of hit testing and hidden from VoiceOver. The `Sheet` component
   animates its own rise and close and then calls its `onDismiss` (`readerDidClose`,
   `nowPlayingDidClose`) with the presentation id it was shown with, so a close that lands late
   can't remove a sheet shown since; each layer is `.id`'d by its presentation, so a replacement

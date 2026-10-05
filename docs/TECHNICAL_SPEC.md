@@ -40,7 +40,8 @@ Features/
   Shell/    ShellState, bottom chrome, ⋯ morph menu, search session, motion tokens
   Browse/   start page, browser chrome, page actions (PageArticleService), dictation
   Reader/   the Reader sheet, Now Playing (text that follows the audio, scrub row, controls)
-  Saved/    library surface, list, save coordinator, Now Playing's content and progress store
+  Library/  the Library surface and screens (home, folder, book), rows, the Move tree, Favorites' sheet and ☆
+  Saved/    save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
 Tests/      unit tests (ReaderTests), Tests/Fakes
 UITests/    UI tests (ReaderUITests)
@@ -123,7 +124,7 @@ dedupe pass. Every library read and write goes through `LibraryStore`; lists use
 | `bodyHTML`, `plainTextData` | Offline reading; the listen text comes from the HTML |
 | `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount` |
 | `positionParagraph`, `positionUTF16` | Resume position (paragraph + offset inside the document) |
-| `lastPlayedAt`, `finishedAt` | Continue listening |
+| `lastPlayedAt`, `finishedAt` | Continue, and a row's "✓ Finished" |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
 | `skipsInPlayback`, `fetchStateRaw` | Book chapters and series: what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
