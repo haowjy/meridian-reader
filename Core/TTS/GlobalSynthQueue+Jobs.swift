@@ -48,9 +48,11 @@ extension GlobalSynthQueue {
         case paragraph(URL, startTime: TimeInterval)
     }
 
-    /// The next chapter staged behind #1 (`stageNext`).
+    /// The next chapter staged behind the one playing (`stageNext`).
     struct StagedJob: Equatable {
         var cacheKey: UUID
+        /// The chapter playing when it was staged: the staged job sits right behind its job.
+        var behind: UUID?
         /// Paragraphs from the top it renders before it plays.
         var cap: Int
         /// The job was in the queue before it was staged (a book's demoted bake): unstaging

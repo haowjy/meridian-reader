@@ -9,9 +9,9 @@ import Foundation
 /// 2. `focusPlayhead` — same article stays #1; cursor moves to paragraph→end, then gap-fill top.
 /// 3. Opening a different article demotes the previous #1 (cache kept); worker switches to new #1.
 /// 4. One worker drains #1’s next missing unit, then continues.
-/// 5. `stageNext` — the next chapter of the book or series playing sits right behind #1 and
-///    renders its first paragraphs before demoted work (`playingCacheKeys` admits it in the
-///    background like the playing article).
+/// 5. `stageNext` — the next chapter of the book or series playing sits right behind the playing
+///    chapter's job (at the front once that job is done) and renders its first paragraphs before
+///    any other work (`playingCacheKeys` admits it in the background like the playing article).
 ///
 /// Work granularity is a **synth chunk** (`TextChunker`, sized by the engine's limits), not a whole
 /// paragraph: the worker re-evaluates priority after every chunk (so a playhead request waits
@@ -272,13 +272,16 @@ final class GlobalSynthQueue {
         kickWorker()
     }
 
-    /// The next chapter of the book or series playing, staged directly behind #1, so its opening
-    /// renders before any demoted save or bake job, and in the background too on a route that
-    /// may render there (`playingCacheKeys`). It renders at bake-ahead priority, never
-    /// `.listener`, and only its first `cap` paragraphs until it becomes #1 (it plays), when the
-    /// cap lifts. At its cap it steps aside, so jobs behind it keep running when it reaches the
-    /// front early. A later stage replaces it.
-    func stageNext(cacheKey: UUID, paragraphs: [String], voiceID: String, upTo cap: Int, isEphemeral: Bool) {
+    /// The next chapter of the book or series playing, staged directly behind the job of
+    /// `playing` (the chapter playing), or at the front when that job has left the queue (its
+    /// audio is all rendered): either way ahead of any save or bake job, which in the background
+    /// may have to wait for the foreground. So its opening renders first, in the background too
+    /// on a route that may render there (`playingCacheKeys`). It renders at bake-ahead priority,
+    /// never `.listener`, and only its first `cap` paragraphs until it becomes #1 (it plays), when
+    /// the cap lifts. At its cap it steps aside, so jobs behind it keep running. A later stage
+    /// replaces it.
+    func stageNext(cacheKey: UUID, after playing: UUID?, paragraphs: [String], voiceID: String, upTo cap: Int,
+                   isEphemeral: Bool) {
         guard !paragraphs.isEmpty, stack.first != cacheKey else { return }
         if let staged, staged.cacheKey != cacheKey { unstage() }
         let wasQueued = staged?.wasQueued ?? (jobs[cacheKey] != nil)
@@ -293,12 +296,24 @@ final class GlobalSynthQueue {
                                         plan: .topDown(paragraphCount: paragraphs.count), demoteOrder: demoteCounter,
                                         isEphemeral: isEphemeral)
         }
-        stack.removeAll { $0 == cacheKey }
-        stack.insert(cacheKey, at: min(1, stack.count))
-        staged = StagedJob(cacheKey: cacheKey, cap: cap, wasQueued: wasQueued)
+        staged = StagedJob(cacheKey: cacheKey, behind: playing, cap: cap, wasQueued: wasQueued)
+        placeStaged()
+        let position = stack.firstIndex(of: cacheKey) ?? 0
         ListenTimingLog.log("chapter_staged", ["key": ListenTimingLog.shortKey(cacheKey), "cap": cap,
-                                               "behind": ListenTimingLog.shortKey(stack.first == cacheKey ? nil : stack.first)])
+                                               "behind": ListenTimingLog.shortKey(position > 0 ? stack[position - 1] : nil)])
         kickWorker()
+    }
+
+    /// The staged job's place: right behind the playing chapter's job while that is queued, else
+    /// at the front. Set again before each pick of work, as the queue changes: the playing
+    /// chapter promoted back to #1 (after another page opened) takes it along, and once that
+    /// chapter's job is done it moves to the front rather than wait behind a job that may not
+    /// render in the background.
+    private func placeStaged() {
+        guard let staged, jobs[staged.cacheKey] != nil else { return }
+        stack.removeAll { $0 == staged.cacheKey }
+        let position = staged.behind.flatMap { stack.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
+        stack.insert(staged.cacheKey, at: position)
     }
 
     /// The staged chapter won't play next (another page plays, the book ended): a job staging
@@ -384,6 +399,7 @@ final class GlobalSynthQueue {
             stack[idx] = newKey
         }
         if staged?.cacheKey == oldKey { staged?.cacheKey = newKey }
+        if staged?.behind == oldKey { staged?.behind = newKey }
         for key in chunkWaiters.keys.filter({ $0.cacheKey == oldKey }) {
             let conts = chunkWaiters.removeValue(forKey: key) ?? []
             chunkWaiters[ChunkKey(cacheKey: newKey, index: key.index, chunk: key.chunk), default: []]
@@ -862,9 +878,11 @@ final class GlobalSynthQueue {
     }
 
     /// Next missing unit: from the front job's plan; a front job with nothing left is done and
-    /// leaves. A staged chapter at its cap steps aside for the job behind it.
+    /// leaves. A staged chapter at its cap steps aside for the job behind it; one whose playing
+    /// chapter's job left first is moved to the front (`placeStaged`).
     private func nextWorkUnit() -> (ArticleJob, Int)? {
         guard let coordinator else { return nil }
+        placeStaged()
         var position = 0
         while position < stack.count {
             let key = stack[position]

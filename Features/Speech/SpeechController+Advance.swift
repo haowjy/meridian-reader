@@ -196,7 +196,8 @@ extension SpeechController {
         guard case .ready(let next) = ChapterAdvance.after(key, in: library.chapters(of: folderID)),
               let session = library.load(next) else { return }
         chapterFlow.nextSession = session
-        localTTS.stageNextChapter(cacheKey: next, paragraphs: session.document.paragraphs, voiceID: cacheVoiceID)
+        localTTS.stageNextChapter(cacheKey: next, after: key, paragraphs: session.document.paragraphs,
+                                  voiceID: cacheVoiceID)
     }
 
     /// The bound engine became audible: the boundary it closes goes into the timing log (the

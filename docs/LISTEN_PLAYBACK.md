@@ -220,12 +220,14 @@ calls never run at once (`SynthRenderGate.shared`). Actions reorder the queue (`
    above it.
 2. Skip / jump / seek → still #1; the cursor moves to the new paragraph.
 3. Open another article → new #1; the previous one is demoted (its cache is kept).
-4. The next chapter of a book or series is **staged** (`stageNext`) directly behind #1, ahead of
-   demoted save and bake jobs, at bake-ahead priority (never listener). It renders only its first
-   3 paragraphs until it plays and becomes #1; at that cap it steps aside, so jobs behind it run
-   when it reaches the front early. A later stage replaces it; another page playing, or the end of
-   the book, unstages it (a job that was queued before stays). It counts as playing for admission
-   (`playingCacheKeys`: the article playing and the staged chapter).
+4. The next chapter of a book or series is **staged** (`stageNext`) directly behind the job of
+   the chapter playing, or at the front once that job is done (its audio all rendered), and kept
+   there as the queue changes: ahead of demoted save and bake jobs, which in the background may
+   park and would hold it back. It renders at bake-ahead priority (never listener), and only its
+   first 3 paragraphs until it plays and becomes #1; at that cap it steps aside, so jobs behind it
+   run. A later stage replaces it; another page playing, or the end of the book, unstages it (a
+   job that was queued before stays). It counts as playing for admission (`playingCacheKeys`: the
+   article playing and the staged chapter).
 5. Pending jobs fold in once the engine is ready and the launch's maintenance has finished
    (`adoptPending`; Audio cache, Pending jobs): the article being listened to stays #1; any
    other job is #1 only if the queue is empty; the rest keep their plans, demoted.
