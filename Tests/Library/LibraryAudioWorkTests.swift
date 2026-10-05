@@ -409,8 +409,8 @@ final class LibraryAudioWorkTests: XCTestCase {
     // MARK: Leaving the Library
 
     /// Remove and unsave store, in their save, the work that turns the page's audio ephemeral: a
-    /// launch that died right after the save has it done by the next one, except for a page saved
-    /// again by then, whose audio stays saved.
+    /// launch that died right after the save has it done by the next one. A page saved again
+    /// before that ran ends with saved audio: the Save's own work comes after it.
     func testAudioOfAPageThatLeftTheLibraryTurnsEphemeralEvenAfterACrash() throws {
         let shelf = try library.makeFolder(name: "Shelf", in: nil)
         let (removed, removedKey) = try pageWithAudio("removed", in: nil)
@@ -418,23 +418,45 @@ final class LibraryAudioWorkTests: XCTestCase {
         let (resaved, resavedKey) = try pageWithAudio("resaved", in: nil)
         let keys = [removedKey, unsavedKey, resavedKey]
         for key in keys { env.cache.markSaved(cacheKey: key) }
-        // Saved, then gone before anything else ran.
+        // Each saved, then its work didn't run (as if the app had died right after the save).
         library.saveContext = { try $0.save(); throw SaveFailed() }
         XCTAssertThrowsError(try library.remove([removed, resaved]))
         XCTAssertThrowsError(try library.unsave(unsaved))
+        XCTAssertThrowsError(try library.save(env.article("https://example.com/resaved")))
         for key in keys { XCTAssertEqual(env.cache.loadMeta(for: key)?.kind, .saved, "the audio work hadn't run") }
 
         try env.relaunch()
         XCTAssertEqual(library.page(key: removedKey)?.isInLibrary, false, "the remove was saved")
         XCTAssertEqual(library.page(key: unsavedKey)?.isLink, true, "and the unsave")
-        XCTAssertEqual(pendingWork().count, 3, "with their audio work")
-        try library.save(env.article("https://example.com/resaved"))
-        XCTAssertEqual(pendingWork().count, 3, "a save with no work of its own leaves it for the launch")
-        XCTAssertEqual(library.finishAudioWork().finished, 3)
+        XCTAssertEqual(library.page(key: resavedKey)?.isSavedToLibrary, true, "and the Save after it")
+        XCTAssertEqual(pendingWork().sorted { $0.sequence < $1.sequence }.map(\.kindRaw),
+                       ["ephemeral", "ephemeral", "ephemeral", "saved"], "with their audio work, in order")
+        XCTAssertEqual(library.finishAudioWork().finished, 4)
         XCTAssertEqual(env.cache.loadMeta(for: removedKey)?.kind, .ephemeral)
         XCTAssertEqual(env.cache.loadMeta(for: unsavedKey)?.kind, .ephemeral)
-        XCTAssertEqual(env.cache.loadMeta(for: resavedKey)?.kind, .saved, "saved again: its audio stays saved")
+        XCTAssertEqual(env.cache.loadMeta(for: resavedKey)?.kind, .saved, "saved again: its audio ends saved")
         XCTAssertFalse(try audioFiles(removedKey).isEmpty, "the audio is kept, for playback")
+        XCTAssertTrue(pendingWork().isEmpty)
+    }
+
+    /// Save stores, in its save, the work that marks the page's audio saved: a launch that died
+    /// right after the save has it done by the next one, so a saved page's audio isn't left to
+    /// the ephemeral TTL's prune.
+    func testAudioOfASavedPageIsMarkedSavedEvenAfterACrash() throws {
+        let article = env.article("https://example.com/kept", title: "Kept")
+        try env.storeAudio(article.id, paragraphs: article.document.paragraphs)
+        env.cache.markEphemeral(cacheKey: article.id)
+        // Saved, then gone before anything else ran.
+        library.saveContext = { try $0.save(); throw SaveFailed() }
+        XCTAssertThrowsError(try library.save(article))
+        XCTAssertEqual(env.cache.loadMeta(for: article.id)?.kind, .ephemeral, "the audio work hadn't run")
+
+        try env.relaunch()
+        XCTAssertEqual(library.page(key: article.id)?.isSavedToLibrary, true, "the Save was saved")
+        XCTAssertEqual(pendingWork().map(\.kindRaw), ["saved"], "with its audio work")
+        XCTAssertEqual(library.finishAudioWork().finished, 1)
+        XCTAssertEqual(env.cache.loadMeta(for: article.id)?.kind, .saved)
+        XCTAssertFalse(try audioFiles(article.id).isEmpty)
         XCTAssertTrue(pendingWork().isEmpty)
     }
 

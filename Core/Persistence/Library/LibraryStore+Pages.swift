@@ -55,9 +55,25 @@ extension LibraryStore {
     /// The page started playing: it is dated (`lastPlayedAt`) and unfinished, and a chapter
     /// becomes its book's place. The first play of a page the library doesn't have keeps it as a
     /// page not in the Library (`addedAt == nil`), so it survives a relaunch for 7 days; a link
-    /// page keeps the text as a cache.
+    /// page keeps the text as a cache. This and the writes below are kept until a save stores
+    /// them (`PendingListening`): a rollback doesn't lose them.
     @discardableResult
     func recordPlayback(_ article: ReaderArticle) -> Page {
+        let at = now()
+        let page = playbackPage(for: article)
+        noteListening(page) {
+            $0.article = article
+            $0.start(at: at)
+        }
+        applyStart(page, at: at)
+        commit("record playback")
+        trimChapterAudio(behind: page)
+        return page
+    }
+
+    /// The page `article` plays: the library's (its text refreshed when it changed), or a new
+    /// page not in the Library.
+    func playbackPage(for article: ReaderArticle) -> Page {
         let page: Page
         if let existing = self.page(key: article.id, canonicalURL: article.canonicalURL) {
             page = existing
@@ -76,20 +92,15 @@ extension LibraryStore {
             log("played, not saved: \(article.canonicalURL) key=\(Self.short(article.id))")
         }
         if page.artworkData == nil { page.artworkData = article.faviconData }
-        page.lastPlayedAt = now()
-        page.finishedAt = nil
-        placeChapter(page)
-        commit("record playback")
-        trimChapterAudio(behind: page)
         return page
     }
 
     /// A page the library has started playing again (a row's ▶, a resume, a replay, the next
     /// chapter): dated and unfinished, and a chapter becomes its book's place.
     func recordPlaybackStarted(_ page: Page) {
-        page.lastPlayedAt = now()
-        page.finishedAt = nil
-        placeChapter(page)
+        let at = now()
+        noteListening(page) { $0.start(at: at) }
+        applyStart(page, at: at)
         commit("playback started")
         trimChapterAudio(behind: page)
     }
@@ -97,16 +108,16 @@ extension LibraryStore {
     /// The listening position, written as it moves.
     func recordPosition(_ page: Page, paragraph: Int, utf16Offset: Int) {
         guard page.positionParagraph != paragraph || page.positionUTF16 != utf16Offset else { return }
-        page.positionParagraph = paragraph
-        page.positionUTF16 = utf16Offset
+        noteListening(page) { $0.position = PendingListening.Position(paragraph: paragraph, utf16Offset: utf16Offset) }
+        applyPosition(page, paragraph: paragraph, utf16Offset: utf16Offset)
         commit("position")
     }
 
     /// Played to the end. The last playable chapter of a book or series finishes the book.
     func recordFinished(_ page: Page) {
-        page.finishedAt = now()
-        page.lastPlayedAt = now()
-        noteChapterFinished(page)
+        let at = now()
+        noteListening(page) { $0.finishedAt = at }
+        applyFinish(page, at: at)
         commit("finished")
     }
 
@@ -122,7 +133,8 @@ extension LibraryStore {
     /// Idempotent: the page for this address (or key) becomes saved in place, filed by
     /// `placement` (an ordinary save keeps its folder); otherwise a new saved page whose key is
     /// the reader key. A chapter stays in its book or series whatever the placement. Once that is
-    /// stored, its audio is marked saved. Never touches playback. A save that fails is rolled
+    /// stored, its audio is marked saved (`planSaved`: a launch that dies right after the save
+    /// has it done by the next one). Never touches playback. A save that fails is rolled
     /// back and throws `LibraryStoreError.saveFailed`: no page is made, an existing one keeps its
     /// state and folder, and its audio is left alone.
     @discardableResult
@@ -157,8 +169,8 @@ extension LibraryStore {
             page.setFolder(folder)
         }
         if let playhead { page.positionParagraph = playhead }
+        if let key = page.key { planSaved(key: key) }
         try commitOrRollBack("save")
-        if let key = page.key { tts.migrateListenCache(from: key, to: key) }
         return page
     }
 

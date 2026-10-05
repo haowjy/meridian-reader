@@ -32,6 +32,8 @@ final class LibraryStore {
     }
     /// Audio work planned with the changes not saved yet (`LibraryStore+AudioWork`).
     @ObservationIgnored var audioPlan = LibraryAudioWorkPlan()
+    /// Listening progress written and not stored yet, by page key (`LibraryStore+PendingListening`).
+    @ObservationIgnored var pendingListening: [UUID: PendingListening] = [:]
     @ObservationIgnored let legacy: LegacyLibrarySources
     @ObservationIgnored let now: () -> Date
 
@@ -116,7 +118,7 @@ final class LibraryStore {
     @discardableResult
     func commit(_ what: String) -> Bool {
         do {
-            try saveContext(context)
+            try saveChanges()
         } catch {
             log("save failed (\(what)): \(error)")
             ListenTimingLog.log("library_save_failed", ["what": what, "error": "\(error)"])
@@ -124,6 +126,13 @@ final class LibraryStore {
         }
         doPlannedAudioWork()
         return true
+    }
+
+    /// Saves every change in the context; once that succeeds, the listening progress among them
+    /// is stored.
+    func saveChanges() throws {
+        try saveContext(context)
+        pendingListening = [:]
     }
 
     /// Saves an edit someone asked for (a save, a move, a rename, a mark, a remove): a save that
@@ -138,7 +147,9 @@ final class LibraryStore {
     }
 
     /// After a failed save: the context's changes and the audio work planned with them are
-    /// dropped, and every model they changed or deleted reads what the store holds again.
+    /// dropped, and every model they changed or deleted reads what the store holds again. The
+    /// listening progress among them is then written again (`writeListeningAgain`), for the next
+    /// save to store: a failed edit costs no listening history.
     ///
     /// SwiftData's `rollback()` leaves a model already in memory showing the values it rolled
     /// back, relationships included (a book's `pages` still listing a chapter the change
@@ -151,6 +162,7 @@ final class LibraryStore {
         context.rollback()
         audioPlan = LibraryAudioWorkPlan()
         for model in touched { refetch(model) }
+        writeListeningAgain()
     }
 
     private func refetch<Model: PersistentModel>(_ model: Model) {

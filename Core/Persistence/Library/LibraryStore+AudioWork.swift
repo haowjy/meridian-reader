@@ -19,6 +19,7 @@ enum LibraryAudioWorkError: Error {
     case notAligned(UUID)
     case notDeleted(UUID)
     case notEphemeral(UUID)
+    case notSaved(UUID)
 }
 
 /// What a run of the stored audio work did: how many records it retired, and the audio the
@@ -30,11 +31,11 @@ struct LibraryAudioWorkOutcome: Equatable {
 }
 
 /// Files outside the library store change only after the library change they belong to is saved.
-/// The layout pass, dedupe, deleting pages and pages leaving the Library plan their audio work
-/// (`planAlign`, `planMerge`, `planDelete`, `planEphemeral`) as records in the same save; `commit` does it once the save succeeds, after any
-/// work an earlier launch left, and retires each record once its postconditions hold; the next
-/// launch finishes whatever is left (`finishAudioWork`); a save that fails and is rolled back
-/// (`rollBack`) leaves every file alone.
+/// The layout pass, dedupe, deleting pages, pages leaving the Library and Save plan their audio
+/// work (`planAlign`, `planMerge`, `planDelete`, `planEphemeral`, `planSaved`) as records in the
+/// same save; `commit` does it once the save succeeds, after any work an earlier launch left, and
+/// retires each record once its postconditions hold; the next launch finishes whatever is left
+/// (`finishAudioWork`); a save that fails and is rolled back (`rollBack`) leaves every file alone.
 extension LibraryStore {
     // MARK: - Planning
 
@@ -75,6 +76,15 @@ extension LibraryStore {
     /// goes back on the ephemeral TTL, in order after the work recorded before it.
     func planEphemeral(key: UUID) {
         let work = LibraryAudioWork(sequence: nextAudioWorkSequence(), kind: .ephemeral, key: key,
+                                    paragraphs: [], sourceParagraphs: [])
+        context.insert(work)
+        audioPlan.work.append(work)
+    }
+
+    /// The page was saved to the Library: once that is saved, its audio is marked saved and its
+    /// queued render non-ephemeral, in order after the work recorded before it.
+    func planSaved(key: UUID) {
+        let work = LibraryAudioWork(sequence: nextAudioWorkSequence(), kind: .saved, key: key,
                                     paragraphs: [], sourceParagraphs: [])
         context.insert(work)
         audioPlan.work.append(work)
@@ -170,7 +180,7 @@ extension LibraryStore {
         tts.noteBakeMarksChanged()
         guard outcome.finished > 0 else { return outcome }
         do {
-            try saveContext(context)
+            try saveChanges()
         } catch {
             log("audio work done; its records stay until the next save (done again, harmlessly): \(error)")
         }
@@ -183,6 +193,7 @@ extension LibraryStore {
         case .merge: try merge(work, live: live)
         case .delete: try deleteAudio(work)
         case .ephemeral: try releaseAudio(work)
+        case .saved: try keepAudio(work)
         case nil: log("audio work: unknown kind \(work.kindRaw), dropped")
         }
     }
@@ -287,20 +298,29 @@ extension LibraryStore {
     }
 
     /// The page's audio goes back on the ephemeral TTL (kept, so playback goes on; the cache's
-    /// age prune removes it), with the address the page has now. Skipped when the page is saved
-    /// to the Library again (a later save while this waited): its audio is saved audio again.
+    /// age prune removes it), with the address the page has now. A page saved again since plans
+    /// its own work after this one (`saved`), which marks the audio saved again.
     private func releaseAudio(_ work: LibraryAudioWork) throws {
         guard let key = work.key else { return }
         let page = try context.fetch(LibraryQueries.page(key: key)).first
-        if page?.isSavedToLibrary == true {
-            log("audio \(Self.short(key)): its page is saved again since it left the Library; kept saved")
-            ListenTimingLog.log("library_audio_work", ["kind": "ephemeral", "key": ListenTimingLog.shortKey(key), "skipped": "saved again"])
-            return
-        }
         tts.markListenCacheEphemeral(key, canonicalURL: page?.canonicalURL)
         guard tts.audioCache.loadMeta(for: key)?.kind == .ephemeral else { throw LibraryAudioWorkError.notEphemeral(key) }
         ListenTimingLog.log("library_audio_work", ["kind": "ephemeral", "key": ListenTimingLog.shortKey(key)])
         log("audio \(Self.short(key)) back on the ephemeral TTL")
+    }
+
+    /// The saved page's audio is saved audio: out of the ephemeral TTL, its queued render no
+    /// longer ephemeral (its renders are saved audio). A page with no audio yet has none to mark.
+    /// A page that left the Library since plans its own work after this one.
+    private func keepAudio(_ work: LibraryAudioWork) throws {
+        guard let key = work.key else { return }
+        tts.migrateListenCache(from: key, to: key)
+        let cache = tts.audioCache
+        guard !cache.hasDirectory(for: key) || cache.loadMeta(for: key)?.kind == .saved else {
+            throw LibraryAudioWorkError.notSaved(key)
+        }
+        ListenTimingLog.log("library_audio_work", ["kind": "saved", "key": ListenTimingLog.shortKey(key)])
+        log("audio \(Self.short(key)) marked saved with its page")
     }
 
     /// The crash-resume file and the crash target launch read from it (or from the crash
@@ -336,7 +356,7 @@ extension LibraryStore {
             guard !to.isEmpty else { return 0 }
             return ParagraphPositionMap.mapParagraphStart(paragraph, from: ParagraphDocument(parts: from),
                                                           to: ParagraphDocument(parts: to))
-        case .merge, .delete, .ephemeral, nil:
+        case .merge, .delete, .ephemeral, .saved, nil:
             guard !to.isEmpty else { return paragraph }
             if from != to, from.indices.contains(paragraph) {
                 let hash = ArticleIdentity.paragraphHash(from[paragraph])
