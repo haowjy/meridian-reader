@@ -236,8 +236,11 @@ final class NowPlayingUITests: XCTestCase {
 
     /// Held on the real scrub row, the paragraph under the thumb is the one in full ink on the
     /// page (Now Playing passes the scrub preview to the reading page), and the rest is dimmed.
-    /// Read from a screenshot taken while the finger holds the thumb: the brightest text in the
-    /// reading area against the title card's full ink before the scrub.
+    /// Checked on screenshots taken while the finger holds the thumb, each read on its own: a shot
+    /// counts only if it shows the scrub bubble ("¶ n of 40") with n mid-article, and then the
+    /// reading area must show no title card, paragraph n's lines in full ink (the title card's ink
+    /// before the scrub) and the other paragraphs dimmed. Shots without the bubble were taken
+    /// before the finger came down or after it lifted, and are rejected, never passed.
     func testTheParagraphUnderTheScrubThumbIsInFullInk() throws {
         let app = launchLongDemo()
         openNowPlayingFromTheLibrary(app)
@@ -250,8 +253,9 @@ final class NowPlayingUITests: XCTestCase {
         idle(1) // the scrub map
 
         let card = find(app, "nowPlayingTitleCard")
-        let area = CGRect(x: 0, y: find(app, "nowPlayingFrom").frame.maxY + 8, width: app.windows.firstMatch.frame.width,
-                          height: app.windows.firstMatch.frame.height * 0.6 - find(app, "nowPlayingFrom").frame.maxY)
+        let window = app.windows.firstMatch.frame
+        let top = find(app, "nowPlayingFrom").frame.maxY + 8
+        let area = CGRect(x: 0, y: top, width: window.width, height: window.height * 0.6 - top)
         XCTAssertTrue(area.contains(card.frame), "the title card at the top of the reading area")
         let rest = textLevels(XCUIScreen.main.screenshot(), in: area)
         let fullInk = try XCTUnwrap(rest.max())
@@ -259,23 +263,60 @@ final class NowPlayingUITests: XCTestCase {
 
         let from = scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.5))
         let to = scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        let held = try XCTUnwrap(screenshot(after: 3) {
-            from.press(forDuration: 0.3, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 3)
-        })
-        let levels = textLevels(held, in: area)
-        let brightest = try XCTUnwrap(levels.max())
-        print("Scrub held: brightest text \(brightest), full ink \(fullInk); lines \(levels)")
-        XCTAssertGreaterThan(brightest, fullInk * 0.85,
-                             "the paragraph under the thumb in full ink: \(brightest) vs \(fullInk), \(levels)")
-        XCTAssertTrue(levels.contains { $0 > 0.1 && $0 < fullInk * 0.5 }, "the rest dimmed: \(levels)")
-
-        // Where it landed: far from paragraph 1, whose full ink can't be what the shot showed.
+        let shots = screenshots(at: [1.5, 2.25, 3, 3.75, 4.5]) {
+            from.press(forDuration: 0.3, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 4)
+        }
         let landed = (find(app, "readerScrubOffset").value as? String) ?? ""
-        let paragraph = Int(landed.dropFirst(2).prefix { $0.isNumber }) ?? 0
-        XCTAssertGreaterThan(paragraph, 10, "scrubbed into the middle: \(landed)")
-        XCTAssertFalse(card.exists && area.intersects(card.frame), "the title card scrolled away")
+        XCTAssertGreaterThan(Int(landed.dropFirst(2).prefix { $0.isNumber }) ?? 0, 10, "scrubbed into the middle: \(landed)")
+
+        var held = 0
+        for (i, shot) in shots.enumerated() {
+            let lines = try ScreenText.lines(in: shot)
+            guard let (header, n) = lines.lazy.compactMap({ line in Self.bubbleParagraph(line.text).map { (line, $0) } }).first
+            else {
+                print("Scrub shot \(i): no scrub bubble, taken outside the hold: rejected")
+                continue
+            }
+            guard n > 10 else {
+                print("Scrub shot \(i): bubble on ¶\(n), not yet mid-article: rejected")
+                continue
+            }
+            held += 1
+            let attachment = XCTAttachment(screenshot: shot)
+            attachment.name = "scrub held on ¶\(n)"
+            add(attachment)
+            // The page from under the header down to the bubble (its card starts a line above
+            // its header; it covers the page under it).
+            let page = lines.filter { line in
+                line.frame.midY > top && line.frame.maxY < header.frame.minY - header.frame.height
+            }
+            print("Scrub shot \(i): bubble ¶\(n), full ink \(fullInk); page \(page)")
+            XCTAssertFalse(page.contains { $0.text.contains("Demo Listen") || $0.text.contains("example.com") },
+                           "shot \(i): the title card is out of the measured area: \(page)")
+            let full = page.filter { $0.ink > fullInk * 0.85 }
+            let dimmed = page.filter { $0.ink > 0.1 && $0.ink < fullInk * 0.5 }
+            XCTAssertTrue(full.contains { Self.paragraphNumber($0.text) == n },
+                          "shot \(i): ¶\(n), under the thumb, in full ink: \(page)")
+            XCTAssertFalse(full.contains { Self.paragraphNumber($0.text).map { $0 != n } ?? false },
+                           "shot \(i): only ¶\(n) in full ink: \(full)")
+            XCTAssertTrue(dimmed.contains { Self.paragraphNumber($0.text).map { $0 != n } ?? false },
+                          "shot \(i): the other paragraphs dimmed: \(page)")
+        }
+        XCTAssertGreaterThan(held, 0, "no screenshot showed the held scrub mid-article")
     }
 
+    /// The paragraph a scrub bubble names ("¶ 21 of 40 · sentence 1 of 2" → 21), from its text.
+    private static func bubbleParagraph(_ text: String) -> Int? {
+        guard let match = text.firstMatch(of: #/(\d+)\s*of\s*40\b/#) else { return nil }
+        return Int(match.1)
+    }
+
+    /// The demo paragraph a page line belongs to, where the line says it ("Extra paragraph 21 …",
+    /// "… harbor 21, …").
+    private static func paragraphNumber(_ text: String) -> Int? {
+        guard let match = text.firstMatch(of: #/(?:paragraph|harbor)\s+(\d+)/#) else { return nil }
+        return Int(match.1)
+    }
     func testAtTheEndNowPlayingStaysWithPlay() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-openLibrary", "-selectEngine", "apple",

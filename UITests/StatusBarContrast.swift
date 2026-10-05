@@ -102,18 +102,9 @@ extension XCTestCase {
         return StatusBarContrast.read(screenshot.image, region: StatusBarContrast.clockRegion(statusBar: frame))
     }
 
-    /// A screenshot taken `after` seconds into `gesture`, while it holds (a gesture's call returns
-    /// only once the finger lifts, so the shot is taken from another thread).
+    /// A screenshot taken `after` seconds into `gesture`, while it holds (see `screenshots(at:during:)`).
     func screenshot(after delay: TimeInterval, during gesture: () -> Void) -> XCUIScreenshot? {
-        let taken = expectation(description: "screenshot during the gesture")
-        var shot: XCUIScreenshot?
-        DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
-            shot = XCUIScreen.main.screenshot()
-            taken.fulfill()
-        }
-        gesture()
-        wait(for: [taken], timeout: delay + 10)
-        return shot
+        screenshots(at: [delay], during: gesture).first
     }
 }
 
