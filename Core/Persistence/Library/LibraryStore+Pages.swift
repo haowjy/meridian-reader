@@ -10,11 +10,11 @@ extension LibraryStore {
     /// the address-derived key for a page the library doesn't have. A page holding text (saved,
     /// played, or a link carrying a text cache) is refreshed when the listen text changed; a link
     /// page stays a link.
-    func readerArticle(url: URL, extracted: ExtractedArticle) -> ReaderArticle {
+    func readerArticle(url: URL, extracted: ExtractedArticle, document: ParagraphDocument? = nil) -> ReaderArticle {
         let canonical = ArticleIdentity.canonicalURLString(from: url)
         let existing = page(canonicalURL: canonical)
         let key = existing?.key ?? ArticleIdentity.articleKey(canonicalURL: canonical)
-        var article = ReaderArticle(id: key, url: url, extracted: extracted)
+        var article = ReaderArticle(id: key, url: url, extracted: extracted, document: document)
         let freshFP = ArticleIdentity.contentFingerprint(paragraphs: article.document.paragraphs)
         guard let existing else {
             log("open \(canonical) key=\(Self.short(key)) new fp=\(freshFP.prefix(8))")

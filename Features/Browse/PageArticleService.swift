@@ -99,10 +99,10 @@ struct PageArticleService {
         guard let url = web.currentURL else {
             throw ExtractionError.unavailable(reason: "Open a page first.")
         }
-        let html = try await web.snapshotHTML()
-        let extracted = try await extractor.extract(from: ExtractionContext(origin: .web(url), pageTitle: web.pageTitle,
-                                                                            htmlSnapshot: html))
-        var article = library.readerArticle(url: url, extracted: extracted)
+        let source = SingleWebPageSource(url: url, pageTitle: web.pageTitle, htmlSnapshot: try await web.snapshotHTML(),
+                                         extractor: extractor)
+        let content = try await source.content(of: source.page)
+        var article = library.readerArticle(url: url, extracted: content.extracted, document: content.document)
         if article.artwork == nil {
             article.artwork = recentFavicon(for: url)
         }
