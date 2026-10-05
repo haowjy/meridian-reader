@@ -14,6 +14,9 @@ struct LaunchOptions: Equatable {
         var progress = 0
         /// `-seedDemoPlainText`: the article has no HTML, only its plain text.
         var plainTextOnly = false
+        /// `-seedPlayedPages N`: also N pages played without saving, part-way ("Played Page 1"
+        /// played most recently), so Continue has more rows than it shows folded.
+        var playedPages = 0
     }
 
     enum BookmarkSetup: Equatable {
@@ -58,7 +61,8 @@ struct LaunchOptions: Equatable {
                 title: value(after: "-seedDemoTitle"),
                 paragraphs: max(3, value(after: "-seedDemoParagraphs").flatMap(Int.init) ?? 3),
                 progress: value(after: "-seedDemoProgress").flatMap(Int.init) ?? 0,
-                plainTextOnly: flags.contains("-seedDemoPlainText")
+                plainTextOnly: flags.contains("-seedDemoPlainText"),
+                playedPages: value(after: "-seedPlayedPages").flatMap(Int.init) ?? 0
             )
         }
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")

@@ -28,7 +28,8 @@ enum LaunchHooks {
     }
 
     /// `-seedDemoArticle`: replace the saved and played pages with one deterministic article, so
-    /// a stored resume position can't stick at the end between tests. Favorites' links stay
+    /// a stored resume position can't stick at the end between tests (and, with
+    /// `-seedPlayedPages N`, N pages played without saving). Favorites' links stay
     /// (`-resetBookmarks` / `-seedBookmarks` handle them).
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in library: LibraryStore) {
         let context = library.context
@@ -63,6 +64,16 @@ enum LaunchHooks {
         page.wordCount = SavedArticle.wordCount(of: plainAll)
         page.positionParagraph = demo.progress
         context.insert(page)
+        for i in 0..<demo.playedPages {
+            let text = ["Played page \(i + 1), first paragraph.", "Played page \(i + 1), second paragraph."]
+            let played = Page(key: UUID(), title: "Played Page \(i + 1)", byline: "example.com",
+                              urlString: "https://example.com/played-\(i + 1)", contentState: .saved, addedAt: nil)
+            played.cleanedHTML = text.map { "<p>\($0)</p>" }.joined()
+            played.plainText = text.joined(separator: "\n\n")
+            played.storeListenParagraphs(text)
+            played.lastPlayedAt = Date.now.addingTimeInterval(-60 * Double(i + 1))
+            context.insert(played)
+        }
         library.commit("demo seed")
     }
 

@@ -77,4 +77,30 @@ final class BrowseStartPageUITests: XCTestCase {
         XCTAssertTrue(close.waitForExistence(timeout: 5))
         XCTAssertEqual(close.label, "Back to Library", "library pushes the reader")
     }
+
+    /// Continue folds to three rows; Show All lists the rest in place (pages played without
+    /// saving included, which the Library's list doesn't have), and Show Less folds it again.
+    func testContinueShowAllListsEveryRowInPlace() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-seedDemoArticle", "-seedPlayedPages", "5", "-uiTesting"]
+        app.launch()
+
+        let section = el(app, "startContinue")
+        XCTAssertTrue(section.waitForExistence(timeout: 10), "Continue listening section")
+        let played = section.buttons.matching(NSPredicate(format: "label CONTAINS 'Played Page'"))
+        XCTAssertEqual(played.count, 3, "folded to three")
+        let toggle = el(app, "startContinueShowAll")
+        XCTAssertEqual(toggle.label, "Show All")
+
+        toggle.tap()
+        let fifth = section.buttons.matching(NSPredicate(format: "label CONTAINS 'Played Page 5'")).firstMatch
+        XCTAssertTrue(fifth.waitForExistence(timeout: 5), "the oldest row is listed")
+        XCTAssertEqual(played.count, 5, "every row, in place")
+        XCTAssertFalse(app.navigationBars["Saved"].exists, "still the start page, not the Library")
+        XCTAssertEqual(toggle.label, "Show Less")
+
+        toggle.tap()
+        XCTAssertTrue(fifth.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(played.count, 3, "folded again")
+    }
 }
