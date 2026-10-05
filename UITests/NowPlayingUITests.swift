@@ -125,6 +125,31 @@ final class NowPlayingUITests: XCTestCase {
         assertListenKeepsTheLine(launchLongDemo(["-seedDemoPlainText"]))
     }
 
+    /// Listen in a Reader still at its top: Now Playing opens at its top, the title card in full
+    /// under the header, at the default text size and the largest.
+    func testListenFromTheReadersTopOpensAtTheTopWithTheTitleCardInFull() throws {
+        for extra in [[], Self.largestText] {
+            let app = launchLongDemo(extra)
+            let row = app.cells.staticTexts["Demo Listen Article"]
+            XCTAssertTrue(row.waitForExistence(timeout: 10))
+            row.tap()
+            let listen = app.buttons["listenPlayPause"]
+            XCTAssertTrue(listen.waitForExistence(timeout: 10))
+            idle(1)
+            listen.tap()
+            let header = find(app, "nowPlayingFrom")
+            XCTAssertTrue(header.waitForExistence(timeout: 5))
+            let card = find(app, "nowPlayingTitleCard")
+            XCTAssertTrue(card.waitForExistence(timeout: 5), "the title card")
+            let top = settledTop(of: card)
+            let size = extra.isEmpty ? "default size" : "largest text"
+            XCTAssertGreaterThanOrEqual(top, header.frame.maxY - 1, "\(size): the card's top under the header")
+            XCTAssertLessThan(top, header.frame.maxY + 40, "\(size): at the top of the page")
+            XCTAssertLessThanOrEqual(card.frame.maxY, app.windows.firstMatch.frame.maxY, "\(size): all of it on screen")
+            app.terminate()
+        }
+    }
+
     /// The round ⏸ / ▶ is taller than the toolbar row: a tap on the part that reaches above or
     /// below the row, or at its sides, plays and pauses, and never lands on ⏮, ⏭ or ⋯.
     func testTheRoundButtonsEdgePlaysAndPauses() throws {
