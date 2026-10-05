@@ -10,8 +10,9 @@ import WebKit
 ///   document the two shared when they ran as one script, so the output is unchanged
 ///   (`ListenContentGoldenTests`).
 /// - **Book chapters** run it without Readability, one at a time in one reused web view holding a
-///   blank standards-mode page, after pictures, embedded media, footnotes and note references are
-///   taken out and links unwrapped (`ReaderBookChapter.js`).
+///   blank standards-mode page, after pictures, embedded media, footnote asides, note references
+///   and back-links are taken out and links unwrapped (`ReaderBookChapter.js`). A book's endnotes
+///   stay, on their own back-matter page.
 @MainActor
 final class ListenContentNormalizer {
     private var bookView: WKWebView?

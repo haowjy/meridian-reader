@@ -54,6 +54,18 @@ final class ListenContentNormalizerTests: XCTestCase {
         }
     }
 
+    func testABooksEndnotesStayWithoutTheirLinksBack() async throws {
+        let endnotes = """
+        <section id="endnotes" role="doc-endnotes" epub:type="endnotes footnotes"><h2>Endnotes</h2><ol>
+        <li id="note-1" epub:type="endnote footnote"><p>The first note's text. \
+        <a href="chapter-1.xhtml#noteref-1" role="doc-backlink" epub:type="backlink">↩︎</a></p></li>
+        <li id="note-2" epub:type="endnote footnote"><p>The second note's text.</p></li></ol></section>
+        """
+        let normalized = try await ListenContentNormalizer().normalizeBookChapter(endnotes)
+        XCTAssertEqual(ParagraphDocument.forListening(plainText: "", cleanedHTML: normalized).paragraphs,
+                       ["Endnotes", "The first note's text.", "The second note's text."])
+    }
+
     func testOneNormalizerServesEveryChapterOfABook() async throws {
         let normalizer = ListenContentNormalizer()
         let first = try await normalizer.normalizeBookChapter("<div>First chapter's loose text.</div>")

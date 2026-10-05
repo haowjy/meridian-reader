@@ -98,8 +98,9 @@ raw snapshot).
 
 **Book chapters** skip Readability: each chapter's XHTML goes through the normalizer alone, in
 one reused off-screen web view holding a blank standards-mode page, after `ReaderBookChapter.js`
-takes out pictures, embedded media, footnotes and note references and unwraps links (parsed in
-an inert document, so nothing loads). See "Book import" below.
+takes out pictures, embedded media, footnote asides, note references and links back from notes,
+and unwraps links (parsed in an inert document, so nothing loads). A book's endnotes stay, on
+their own back-matter page. See "Book import" below.
 
 **Swapping the engine.** A new type conforming to `ArticleExtracting`, set in `ReaderApp`; the
 library and speech don't change. `FakeArticleExtractor` backs the Debug "Fake extraction failure"
