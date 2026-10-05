@@ -60,7 +60,7 @@ final class ArticleAudioCache {
 
     /// Bumped when CAF index/files change so reading UI can refresh bake-ready marks.
     private(set) var contentRevision: UInt64 = 0
-    private let fileManager: FileManager
+    let fileManager: FileManager
     /// Cache root (`Application Support/TTSCache` in the app; a temp dir in tests).
     let root: URL
 
@@ -69,6 +69,11 @@ final class ArticleAudioCache {
     /// checked when the index is loaded and when a unit is stored — so reads never touch the
     /// disk; they run on every scrubber redraw and per synth chunk. `.some(nil)`: no index.
     @ObservationIgnored private var indexes: [UUID: IndexFile?] = [:]
+    #if DEBUG
+    /// Tests: sees each step of a copy-on-write change (`ChangeStep`); throwing stops the change
+    /// right there, as if the app died.
+    @ObservationIgnored var faultHook: ((ChangeStep) throws -> Void)?
+    #endif
 
     init(fileManager: FileManager = .default, root: URL = ArticleAudioCache.cacheRoot) {
         self.fileManager = fileManager
@@ -110,12 +115,20 @@ final class ArticleAudioCache {
         try JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
     }
 
+    /// Make `index` the article's index on disk first, then in memory: the one commit point of a
+    /// copy-on-write change (`ArticleAudioCache+Align`). If the write fails, memory still
+    /// matches the disk.
+    func publishIndex(_ index: IndexFile, for articleID: UUID) throws {
+        try JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
+        indexes[articleID] = .some(index)
+    }
+
     /// Forget the in-memory copy (after rewriting the directory on disk); the next read reloads it.
     private func dropIndex(for articleID: UUID) {
         indexes.removeValue(forKey: articleID)
     }
 
-    private func readIndexFile(for articleID: UUID) -> IndexFile? {
+    func readIndexFile(for articleID: UUID) -> IndexFile? {
         guard let data = try? Data(contentsOf: indexURL(for: articleID)) else { return nil }
         return try? JSONDecoder().decode(IndexFile.self, from: data)
     }
@@ -208,7 +221,7 @@ final class ArticleAudioCache {
 
     // MARK: Writes
 
-    private func bumpContentRevision() {
+    func bumpContentRevision() {
         contentRevision &+= 1
     }
 
@@ -429,7 +442,11 @@ extension ArticleAudioCache {
         try? JSONEncoder().encode(meta).write(to: metaURL(for: cacheKey), options: .atomic)
     }
 
-    /// Move/merge CAF cache from ephemeral key → saved UUID. Prefer rename when dest empty.
+    /// Moves an article's audio under another key (Save of a legacy reader key, adopting a v1
+    /// cache); `newKey` ends saved. When `newKey` has no directory, one rename moves it whole, so
+    /// at every instant the audio is under one key or the other. Otherwise copy-on-write: the
+    /// units `newKey` has none for (by paragraph) are copied in under new names, its index is
+    /// saved, and only then is `oldKey`'s directory deleted.
     func rekeyCache(from oldKey: UUID, to newKey: UUID) throws {
         guard oldKey != newKey else {
             markSaved(cacheKey: newKey)
@@ -441,58 +458,31 @@ extension ArticleAudioCache {
             markSaved(cacheKey: newKey)
             return
         }
-
         if !fileManager.fileExists(atPath: dst.path) {
-            try fileManager.createDirectory(at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
             try fileManager.moveItem(at: src, to: dst)
             indexes[oldKey] = .some(nil)
             dropIndex(for: newKey)
+            bumpContentRevision()
+            try step(.movedDirectory)
             markSaved(cacheKey: newKey)
             return
         }
-
-        // Dest exists — copy any missing paragraph files + merge index.
-        let srcIndex = index(for: oldKey)
-        let dstIndex = index(for: newKey)
-        var dstEntries: [IndexFile.ParagraphEntry] = []
-        // Index files without an engine key belong to `legacyEngineID`.
-        var engineID = Self.legacyEngineID
-        var voiceID = "system"
-        if let srcIndex {
-            engineID = srcIndex.engineID
-            voiceID = srcIndex.voiceID
-        } else if let dstIndex {
-            engineID = dstIndex.engineID
-            voiceID = dstIndex.voiceID
-        }
-        if let dstIndex {
-            dstEntries = dstIndex.retargeted(engineID: engineID, voiceID: voiceID).paragraphs
-        }
-        if let srcIndex {
-            for entry in srcIndex.paragraphs {
-                let srcFile = src.appendingPathComponent(entry.file)
-                let dstFile = dst.appendingPathComponent(entry.file)
-                // Keep the destination's unit (and its text hash) when it already has one.
-                guard !isUsableAudioFile(dstFile) else { continue }
-                if fileManager.fileExists(atPath: dstFile.path) {
-                    try fileManager.removeItem(at: dstFile)
-                }
-                try fileManager.copyItem(at: srcFile, to: dstFile)
-                dstEntries.removeAll { $0.index == entry.index }
-                dstEntries.append(entry)
+        let own = index(for: newKey)
+        if let moving = index(for: oldKey) {
+            var placed: [Int: AlignUnit] = [:]
+            for unit in units(of: own, for: newKey, origin: .own) { placed[unit.entry.index] = unit }
+            for unit in units(of: moving, for: oldKey, origin: .adopted) where placed[unit.entry.index] == nil {
+                placed[unit.entry.index] = unit
+            }
+            if placed.values.contains(where: { $0.origin == .adopted }) {
+                try publish(placed, for: newKey, engineID: moving.engineID, voiceID: moving.voiceID)
             }
         }
-        dstEntries.sort { $0.index < $1.index }
-        let index = IndexFile(
-            engineID: engineID,
-            voiceID: voiceID,
-            createdAt: Date(),
-            paragraphs: dstEntries
-        )
-        defer { bumpContentRevision() }
-        try saveIndex(index, for: newKey)
+        try removeUnlisted(articleID: newKey, previous: own)
         markSaved(cacheKey: newKey)
-        try? deleteAudio(for: oldKey)
+        try deleteAudio(for: oldKey)
+        try step(.removedFile)
     }
 
     /// Prune ephemeral caches older than `maxAge` or when total ephemeral size exceeds `maxBytes`.
@@ -570,113 +560,6 @@ extension ArticleAudioCache {
             total += Int64(size)
         }
         return total
-    }
-}
-
-// MARK: - Per-paragraph text reconciliation (identity v2)
-
-extension ArticleAudioCache {
-    struct ReconcileResult: Equatable {
-        var kept = 0
-        var remapped = 0
-        var dropped = 0
-        var unverified = 0
-        var changed: Bool { remapped > 0 || dropped > 0 }
-    }
-
-    /// Stamp entries written before v2 (no `textHash`) with the text they were rendered from.
-    /// Only call with paragraphs known to match the cache (e.g. the saved copy's stored blocks,
-    /// or content whose legacy v1 key equalled this cache dir).
-    func stampMissingHashes(articleID: UUID, paragraphs: [String]) {
-        guard var index = index(for: articleID) else { return }
-        var changed = false
-        for i in index.paragraphs.indices where index.paragraphs[i].textHash == nil {
-            let p = index.paragraphs[i].index
-            guard paragraphs.indices.contains(p) else { continue }
-            index.paragraphs[i].textHash = ArticleIdentity.paragraphHash(paragraphs[p])
-            changed = true
-        }
-        guard changed else { return }
-        try? saveIndex(index, for: articleID)
-    }
-
-    /// Align cached CAFs with `paragraphs` (current listen blocks for this article key):
-    /// keep units whose text hash still matches, move units whose paragraph shifted to its new
-    /// index, and drop units whose text no longer exists. Unhashed legacy entries are kept.
-    @discardableResult
-    func reconcile(articleID: UUID, paragraphs: [String]) -> ReconcileResult {
-        var result = ReconcileResult()
-        guard var index = index(for: articleID), !index.paragraphs.isEmpty else { return result }
-        let dir = directory(for: articleID)
-        let currentHashes = paragraphs.map(ArticleIdentity.paragraphHash)
-        var targetsByHash: [String: [Int]] = [:]
-        for (i, h) in currentHashes.enumerated() { targetsByHash[h, default: []].append(i) }
-
-        var final: [Int: IndexFile.ParagraphEntry] = [:]
-        var moves: [(entry: IndexFile.ParagraphEntry, to: Int)] = []
-        var toDelete: [IndexFile.ParagraphEntry] = []
-
-        // Pass 1: exact matches / unverifiable keep their slot.
-        var pending: [IndexFile.ParagraphEntry] = []
-        for entry in index.paragraphs {
-            guard let hash = entry.textHash else {
-                if paragraphs.indices.contains(entry.index), final[entry.index] == nil {
-                    final[entry.index] = entry
-                    result.unverified += 1
-                } else {
-                    toDelete.append(entry)
-                }
-                continue
-            }
-            if currentHashes.indices.contains(entry.index), currentHashes[entry.index] == hash,
-               final[entry.index] == nil {
-                final[entry.index] = entry
-                result.kept += 1
-            } else {
-                pending.append(entry)
-            }
-        }
-        // Pass 2: shifted paragraphs move to the nearest free index with the same text.
-        for entry in pending {
-            let candidates = (targetsByHash[entry.textHash ?? ""] ?? []).filter { final[$0] == nil }
-            if let target = candidates.min(by: { abs($0 - entry.index) < abs($1 - entry.index) }) {
-                var moved = entry
-                moved.index = target
-                moved.file = String(format: "p-%04d.caf", target)
-                final[target] = moved
-                moves.append((entry, target))
-                result.remapped += 1
-            } else {
-                toDelete.append(entry)
-                result.dropped += 1
-            }
-        }
-        guard result.changed || !toDelete.isEmpty else { return result }
-
-        // Two-phase rename so swaps cannot clobber each other.
-        var staged: [(URL, URL)] = []
-        for move in moves {
-            let src = dir.appendingPathComponent(move.entry.file)
-            let tmp = dir.appendingPathComponent("r-\(UUID().uuidString).caf")
-            if (try? fileManager.moveItem(at: src, to: tmp)) != nil {
-                staged.append((tmp, dir.appendingPathComponent(String(format: "p-%04d.caf", move.to))))
-            } else {
-                final[move.to] = nil
-            }
-        }
-        let keptFiles = Set(final.values.map(\.file))
-        for entry in toDelete where !keptFiles.contains(entry.file) {
-            try? fileManager.removeItem(at: dir.appendingPathComponent(entry.file))
-        }
-        for (tmp, dst) in staged {
-            if fileManager.fileExists(atPath: dst.path) { try? fileManager.removeItem(at: dst) }
-            try? fileManager.moveItem(at: tmp, to: dst)
-        }
-        index.paragraphs = final.values.sorted { $0.index < $1.index }
-        index.createdAt = Date()
-        try? saveIndex(index, for: articleID)
-        bumpContentRevision()
-        return result
     }
 }
 

@@ -555,7 +555,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
                 do {
                     try audioCache.rekeyCache(from: legacy, to: key)
                     // v1 key embedded the content hash, so its units match `paragraphs`.
-                    audioCache.stampMissingHashes(articleID: key, paragraphs: paragraphs)
+                    try audioCache.stampMissingHashes(articleID: key, paragraphs: paragraphs)
                     ListenDebugLog.shared.append("identity adopt v1 \(legacy.uuidString.prefix(8)) → \(key.uuidString.prefix(8))")
                     print("[Identity] adopted legacy cache \(legacy.uuidString.prefix(8)) → \(key.uuidString.prefix(8))")
                 } catch {
@@ -564,17 +564,22 @@ final class LocalTTSCoordinator: SynthQueueContext {
                 break
             }
         }
-        if let trustedParagraphs {
-            audioCache.stampMissingHashes(articleID: key, paragraphs: trustedParagraphs)
+        do {
+            if let trustedParagraphs {
+                try audioCache.stampMissingHashes(articleID: key, paragraphs: trustedParagraphs)
+            }
+            // Giant paragraphs split since this audio was rendered (layout v3) keep the pieces
+            // whose chunks line up with the old render; the rest re-render.
+            let result = try audioCache.reconcile(articleID: key, paragraphs: paragraphs) { self.chunkPlan(engineID: $0, text: $1) }
+            let msg = "identity \(key.uuidString.prefix(8)) fp=\(ArticleIdentity.contentFingerprint(paragraphs: paragraphs).prefix(8)) kept=\(result.kept) moved=\(result.remapped) dropped=\(result.dropped) legacy=\(result.unverified) split=\(result.splitParagraphs) sliced=\(result.sliced)"
+            ListenDebugLog.shared.append(msg)
+            print("[Identity] \(msg)")
+            if result.changed { noteBakeMarksChanged() }
+        } catch {
+            // The last saved index is intact (copy-on-write); the next open tries again.
+            ListenDebugLog.shared.append("identity \(key.uuidString.prefix(8)) align failed: \(error.localizedDescription)")
+            print("[Identity] align failed: \(error.localizedDescription)")
         }
-        // Giant paragraphs split since this audio was rendered (layout v3): keep the pieces
-        // whose chunks line up with the old render, re-render the rest.
-        let split = audioCache.remapSplitParagraphs(articleID: key, paragraphs: paragraphs) { self.chunkPlan(engineID: $0, text: $1) }
-        let result = audioCache.reconcile(articleID: key, paragraphs: paragraphs)
-        let msg = "identity \(key.uuidString.prefix(8)) fp=\(ArticleIdentity.contentFingerprint(paragraphs: paragraphs).prefix(8)) kept=\(result.kept) moved=\(result.remapped) dropped=\(result.dropped) legacy=\(result.unverified) split=\(split.splitParagraphs) sliced=\(split.sliced)"
-        ListenDebugLog.shared.append(msg)
-        print("[Identity] \(msg)")
-        if result.changed { noteBakeMarksChanged() }
     }
 
     /// The render queue's chunk plan for `text` as rendered by `engineID` (nil if unknown engine).

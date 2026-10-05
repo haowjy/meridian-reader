@@ -267,7 +267,7 @@ highlight and the paragraph picker stay fine-grained.
   (`LibraryAudioWork`, see `TECHNICAL_SPEC.md`), the resume point, the in-memory crash-resume
   target and any pending bake job are remapped; cached audio of unchanged paragraphs moves by
   text hash, and a split paragraph's CAF is sliced sample-exact
-  (`ArticleAudioCache.remapSplitParagraphs`, by `chunkDurations`) into each piece whose chunk
+  (`ArticleAudioCache.reconcile`, by `chunkDurations`) into each piece whose chunk
   plan equals a contiguous run of the old chunks; other pieces re-render. Logged as
   `paragraph_layout_migration` (paragraphs, position) and `library_audio_work` (audio kept,
   moved, sliced, dropped). The same remap runs for unsaved reader keys in
@@ -281,6 +281,17 @@ highlight and the paragraph picker stay fine-grained.
   plays. Each entry stores the paragraph's `textHash` and, for stitched paragraphs,
   `chunkDurations` (mid-paragraph seek and resume). The index is read once per article and kept in
   memory; every write goes through it, so ready / playable reads never touch the disk.
+- **Changes are copy-on-write.** Aligning an article's audio with new paragraphs
+  (`reconcile`: shifted units move, split paragraphs are sliced, a merged page's units fill the
+  gaps) and moving it under another key (`rekeyCache`) never remove or rename a CAF the saved
+  index lists before the index replacing it is saved. New CAFs are written first under new names
+  (`m-NNNN-…` for a unit on a new paragraph or from another key, `s-NNNN-…` for a slice;
+  `p-NNNN.caf` stays the render queue's name for paragraph NNNN), the index is saved in one
+  atomic write, and only then is what it no longer lists deleted, with any `m-` / `s-` file an
+  interrupted change left. An app that dies at any step leaves an index whose every CAF exists
+  (a cold load drops nothing), and running the change again finishes it
+  (`ArticleAudioCacheCrashTests` stops each change at every step). A key with no directory takes
+  another's whole, in one rename.
 - Chunk scratch: `chunks/p-NNNN-<texthash>/c-KK.caf`. Once every chunk of a paragraph exists the
   worker stitches them off the main actor into `.stitch-p-NNNN.caf` and renames it over
   `p-NNNN.caf` (a CAF that may be playing is never written into), then records it on the main

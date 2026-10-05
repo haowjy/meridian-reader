@@ -61,7 +61,7 @@ final class ArticleAudioCacheIndexTests: XCTestCase {
         XCTAssertEqual(ready(cache, key), [0, 1, 2])
 
         // p0 removed from the article: p1 / p2 shift up one.
-        cache.reconcile(articleID: key, paragraphs: ["p1", "p2"])
+        try cache.reconcile(articleID: key, paragraphs: ["p1", "p2"])
         XCTAssertEqual(ready(cache, key), [0, 1])
         XCTAssertEqual(cache.entry(articleID: key, paragraphIndex: 0)?.textHash, ArticleIdentity.paragraphHash("p1"))
         XCTAssertEqual(ArticleAudioCache(root: cache.root).index(for: key), cache.index(for: key))

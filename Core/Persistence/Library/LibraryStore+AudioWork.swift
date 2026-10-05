@@ -117,12 +117,10 @@ extension LibraryStore {
         guard let key = work.key else { return }
         let new = work.paragraphs
         let cache = tts.audioCache
-        var split = ArticleAudioCache.SplitRemapResult()
         var rec = ArticleAudioCache.ReconcileResult()
         if cache.hasCache(for: key) {
-            if work.stampsSource { cache.stampMissingHashes(articleID: key, paragraphs: work.sourceParagraphs) }
-            split = cache.remapSplitParagraphs(articleID: key, paragraphs: new) { self.tts.chunkPlan(engineID: $0, text: $1) }
-            rec = cache.reconcile(articleID: key, paragraphs: new)
+            if work.stampsSource { try? cache.stampMissingHashes(articleID: key, paragraphs: work.sourceParagraphs) }
+            rec = (try? cache.reconcile(articleID: key, paragraphs: new) { self.tts.chunkPlan(engineID: $0, text: $1) }) ?? rec
         }
         let pending = PendingBakeJobStore.shared
         if let job = pending.pendingJobs().first(where: { $0.articleID == key }), job.paragraphs != new {
@@ -137,9 +135,9 @@ extension LibraryStore {
         ListenTimingLog.log("library_audio_work", [
             "kind": "align", "key": ListenTimingLog.shortKey(key), "leftover": !live,
             "audio_kept": rec.kept, "audio_moved": rec.remapped, "audio_dropped": rec.dropped,
-            "audio_sliced": split.sliced, "audio_misaligned": split.misaligned,
+            "audio_sliced": rec.sliced, "audio_misaligned": rec.misaligned,
         ])
-        log("audio \(Self.short(key)) aligned: kept \(rec.kept) moved \(rec.remapped) sliced \(split.sliced) dropped \(rec.dropped)")
+        log("audio \(Self.short(key)) aligned: kept \(rec.kept) moved \(rec.remapped) sliced \(rec.sliced) dropped \(rec.dropped)")
     }
 
     private func merge(_ work: LibraryAudioWork, live: Bool) {
@@ -148,10 +146,10 @@ extension LibraryStore {
         let hadAudio = cache.hasCache(for: from)
         if hadAudio {
             let paragraphs = work.paragraphs
-            if work.stampsTarget, !paragraphs.isEmpty { cache.stampMissingHashes(articleID: to, paragraphs: paragraphs) }
-            if work.stampsSource { cache.stampMissingHashes(articleID: from, paragraphs: work.sourceParagraphs) }
+            if work.stampsTarget, !paragraphs.isEmpty { try? cache.stampMissingHashes(articleID: to, paragraphs: paragraphs) }
+            if work.stampsSource { try? cache.stampMissingHashes(articleID: from, paragraphs: work.sourceParagraphs) }
             try? cache.rekeyCache(from: from, to: to)
-            if !paragraphs.isEmpty { cache.reconcile(articleID: to, paragraphs: paragraphs) }
+            if !paragraphs.isEmpty { _ = try? cache.reconcile(articleID: to, paragraphs: paragraphs) }
         }
         tts.synthQueue.remove(cacheKey: from)
         PendingBakeJobStore.shared.removePending(articleID: from)
