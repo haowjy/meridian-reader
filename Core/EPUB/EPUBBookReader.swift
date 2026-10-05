@@ -54,7 +54,9 @@ enum EPUBBookReader {
         var documents: [EPUBSpineDocument] = []
         for item in package.spine {
             guard let data = try archive.dataIfPresent(at: item.path) else { continue }
-            documents.append(EPUBSpineDocument(path: item.path, data: data, linear: item.linear))
+            // The nav listed in the spine is the contents page: never read as part of a chapter.
+            let isNav = item.path.lowercased() == package.navPath?.lowercased()
+            documents.append(EPUBSpineDocument(path: item.path, data: data, linear: item.linear && !isNav))
         }
         guard !documents.isEmpty else { throw EPUBError.unreadable("no text documents") }
         let unmarked = EPUBTextStream(documents: documents)

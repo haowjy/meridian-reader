@@ -1,13 +1,8 @@
 import Foundation
 
 /// One spine file, read for cutting: its body as balanced events, plus what the cutter asks of
-/// it (where each id is, its headings, words per event, which events are front or back matter).
+/// it (where each id is, words per event, which events are front or back matter).
 struct EPUBSpineDocument: Sendable {
-    struct Heading: Equatable, Sendable {
-        var event: Int
-        var level: Int
-    }
-
     let path: String
     /// What's inside `<body>`, in order; opens and closes are balanced.
     let events: [XHTMLEvent]
@@ -20,7 +15,6 @@ struct EPUBSpineDocument: Sendable {
     let closing: [Int]
     /// `id` (or a legacy `<a name>`) → the open event of its element. The first one wins.
     let anchors: [String: Int]
-    let headings: [Heading]
     /// Per event: words in it (text events only).
     let words: [Int]
     /// Per event: inside front or back matter by the markup itself: `epub:type` frontmatter or
@@ -29,12 +23,16 @@ struct EPUBSpineDocument: Sendable {
     /// Gutenberg's header and licence (`pg-boilerplate`, `pg-header`, `pg-footer`), each from its
     /// open event to just past its close. They become chapters of their own.
     let boilerplate: [Range<Int>]
+    /// `linear="no"` in the spine (or the nav): an auxiliary page, which becomes a skipped
+    /// chapter of its own.
+    let linear: Bool
 
     static let boilerplateMarkers: Set<String> = ["pg-boilerplate", "pg-header", "pg-footer", "pgheader", "pgfooter"]
     private static let matterTypes: Set<String> = ["frontmatter", "backmatter"]
 
     init(path: String, data: Data, linear: Bool) {
         self.path = path
+        self.linear = linear
         let all = XHTMLReader.events(from: data)
         var language: String?
         var bodyRange: Range<Int>?
@@ -69,7 +67,6 @@ struct EPUBSpineDocument: Sendable {
         var closing = [Int](repeating: -1, count: events.count)
         var anchors: [String: Int] = [:]
         var names: [String: Int] = [:]
-        var headings: [Heading] = []
         var words = [Int](repeating: 0, count: events.count)
         var marked = [Bool](repeating: false, count: events.count)
         var boilerplate: [Range<Int>] = []
@@ -83,7 +80,6 @@ struct EPUBSpineDocument: Sendable {
                 parent[index] = stack.last?.open ?? -1
                 if let id = tag.attribute("id"), anchors[id] == nil { anchors[id] = index }
                 if tag.localName == "a", let name = tag.attribute("name"), names[name] == nil { names[name] = index }
-                if let level = Self.headingLevel(tag.localName) { headings.append(Heading(event: index, level: level)) }
                 let isBoilerplate = Self.isBoilerplate(tag) && !stack.contains { $0.boilerplate }
                 let isMarked = enclosingMarked || isBoilerplate
                     || !tag.tokens(of: "epub:type").isDisjoint(with: Self.matterTypes)
@@ -106,7 +102,6 @@ struct EPUBSpineDocument: Sendable {
         self.parent = parent
         self.closing = closing
         self.anchors = anchors
-        self.headings = headings
         self.words = words
         self.inMarkedMatter = marked
         self.boilerplate = boilerplate

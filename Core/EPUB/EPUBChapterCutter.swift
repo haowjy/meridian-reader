@@ -1,7 +1,8 @@
 import Foundation
 
-/// Limits for cutting a book into chapters (`docs`: probed on six real books, see the design's
-/// "Choosing chapter depth").
+/// Limits for cutting a book into chapters. A fixed "top level of the contents" rule fails on
+/// real books (chapters nested under one entry; a contents with one entry); these bounds were
+/// checked against books from Gutenberg, Standard Ebooks and the Internet Archive.
 struct EPUBCutRules: Equatable, Sendable {
     /// No body chapter longer than this: a longer range is cut deeper in the contents, then at
     /// its `h1`/`h2` headings, then at file boundaries, then between blocks.
@@ -41,8 +42,9 @@ struct EPUBCut: Equatable, Sendable {
 ///   next range of the same kind (body or skipped), else the previous one.
 ///
 /// Without usable contents, chapters start at `h1` headings, else `h2`, else at each file.
-/// The top of the book and Gutenberg's header and licence are always cut points, so text before
-/// the first entry is a chapter of its own, and the boilerplate is skipped as whole chapters.
+/// The top of the book, Gutenberg's header and licence, and non-linear files (the nav among them)
+/// are always cut points: text before the first entry is a chapter of its own, and the others are
+/// skipped as whole chapters, never read inside another.
 struct EPUBChapterCutter {
     typealias Position = EPUBTextStream.Position
 
@@ -96,11 +98,11 @@ struct EPUBChapterCutter {
         if marks.isEmpty { marks = headingOrFileMarks() }
         marks.append(unlistedMark(at: stream.start))
         for (documentIndex, document) in stream.documents.enumerated() {
-            for span in document.boilerplate {
-                for event in [span.lowerBound, span.upperBound] {
-                    let position = stream.normalized(Position(document: documentIndex, event: event))
-                    if position < stream.end { marks.append(unlistedMark(at: position)) }
-                }
+            var edges = document.boilerplate.flatMap { [$0.lowerBound, $0.upperBound] }
+            if !document.linear { edges += [0, document.events.count] }
+            for event in edges {
+                let position = stream.normalized(Position(document: documentIndex, event: event))
+                if position < stream.end { marks.append(unlistedMark(at: position)) }
             }
         }
         marks = expandingLongBranches(deduplicated(marks))

@@ -75,6 +75,36 @@ final class EPUBFrontMatterTests: XCTestCase {
         XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [false, true, false])
     }
 
+    func testNonLinearPageNoEntryNamesIsItsOwnSkippedChapter() throws {
+        var epub = SyntheticEPUB()
+        epub.addDocument("ch1.xhtml", body: file("c1", "Chapter 1", words: 2_000))
+        epub.addDocument("plates.xhtml", body: file("plates", "List of Plates", words: 300, seed: 1), linear: false)
+        epub.addDocument("ch2.xhtml", body: file("c2", "Chapter 2", words: 2_000, seed: 2))
+        epub.contents = [Entry("Chapter 1", "ch1.xhtml"), Entry("Chapter 2", "ch2.xhtml")]
+        let book = try epub.read(in: self)
+        XCTAssertEqual(book.titles, ["Chapter 1", "List of Plates", "Chapter 2"], "never read inside chapter 1")
+        XCTAssertEqual(book.chapters.map(\.wordCount), [2_000, 300, 2_000])
+        XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [false, true, false])
+    }
+
+    func testNavInTheSpineIsSkipped() throws {
+        var epub = SyntheticEPUB()
+        epub.addDocument("title.xhtml", body: file("title", "Title Page", words: 200))
+        epub.addDocument("ch1.xhtml", body: file("c1", "Chapter 1", words: 2_000, seed: 1))
+        epub.addDocument("ch2.xhtml", body: file("c2", "Chapter 2", words: 2_000, seed: 2))
+        epub.contents = [Entry("Title Page", "title.xhtml"), Entry("Chapter 1", "ch1.xhtml"), Entry("Chapter 2", "ch2.xhtml")]
+        var entries = epub.entries()
+        let opfIndex = try XCTUnwrap(entries.firstIndex { $0.path == epub.opfPath })
+        let opf = epub.opf().replacingOccurrences(of: "<itemref idref=\"d1\"/>", with: "<itemref idref=\"nav\"/>\n<itemref idref=\"d1\"/>")
+        entries[opfIndex].data = Data(opf.utf8)
+        let book = try EPUBBookReader.read(fileURL: epub.write(in: self, entries: entries))
+        XCTAssertEqual(book.spineCount, 4)
+        XCTAssertEqual(book.titles, ["Title Page", "Contents", "Chapter 1", "Chapter 2"])
+        XCTAssertEqual(book.chapters.map(\.wordCount), [200, 7, 2_000, 2_000])
+        XCTAssertEqual(book.chapters.map(\.skipsInPlayback), [false, true, false, false])
+        XCTAssertFalse(book.chapters[0].xhtml.contains("Contents"), "the contents page isn't read with the title page")
+    }
+
     func testShortPageNoEntryNamesIsSkipped() throws {
         var epub = SyntheticEPUB()
         epub.addDocument("cover.xhtml", body: SyntheticEPUB.xhtml(body: "<div><img src=\"cover.jpg\" alt=\"\"/><p>The Synthetic Book</p></div>"))

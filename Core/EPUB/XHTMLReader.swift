@@ -304,7 +304,7 @@ enum XHTMLReader {
             let needle = Array(pattern.utf8)
             var position = index
             while position + needle.count <= bytes.count {
-                if bytes[position] == needle[0], Array(bytes[position..<(position + needle.count)]) == needle {
+                if bytes[position] == needle[0], needle.indices.allSatisfy({ bytes[position + $0] == needle[$0] }) {
                     return position
                 }
                 position += 1
