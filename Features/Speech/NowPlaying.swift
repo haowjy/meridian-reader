@@ -48,13 +48,11 @@ struct ListenPreparation: Equatable {
 
 /// Where Now Playing's text comes from. `SpeechSession` carries the paragraphs, not the reading
 /// HTML, and some starts never had a `ReaderArticle` (a Saved row's ▶, crash resume), so the
-/// content is resolved by key when Now Playing shows. Injected at the composition root, so the
-/// speech stack never touches the library store.
+/// content is resolved by key when Now Playing shows: the playing page in the library, which has
+/// every page that has played (`ListeningProgressRecorder` keeps one played without saving).
+/// Injected at the composition root, so the speech stack never touches the library store.
 @MainActor
 protocol NowPlayingContentResolving: AnyObject {
-    /// A page started from a `ReaderArticle` (the Reader's Listen, 🎧): kept in memory, so an
-    /// unsaved page can still be shown.
-    func remember(_ article: ReaderArticle)
     /// The reading content for `pageKey`, or nil when it can't be found.
     func content(for pageKey: UUID) async -> ReaderArticle?
 }

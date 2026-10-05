@@ -153,12 +153,12 @@ the ⋯ slot too.
 "Last listened" / "finished" are the page's `lastPlayedAt` / `finishedAt` (`LibraryQueries`
 builds Continue from them).
 
-**Bookmarks sheet** (`BookmarksListView`): every page in Favorites, tap to open, swipe to delete, Edit to
-reorder/delete; grabber, medium/large.
+**Bookmarks sheet** (`BookmarksListView`): every page in Favorites, tap to open, swipe to delete,
+Edit to reorder/delete; grabber, medium/large.
 
 **Library surface** (`LibrarySurface` / `SavedListView`): every saved page in no folder, newest
-first. Uses the **same
-bottom chrome shell** as Browse / Reader (search field capsule + five-slot toolbar). Slot 4
+first. Uses the **same bottom chrome shell** as Browse / Reader (search field capsule + five-slot
+toolbar). Slot 4
 shows 🌐 Browser to swap back (restores the prior browse surface). The Now Playing bar sits above
 its search field. Tapping an article opens it in the Reader sheet over the library ("‹ Library";
 Now Playing if it is the article you hear). The row's play button plays without opening. The library's ⋯ is
@@ -332,8 +332,9 @@ opens Now Playing instead.
   re-rendered or restarted. The Apple voice (AVSpeechSynthesizer can't change a running
   utterance's rate) restarts from the word being spoken. The rate is persisted
   (`reader.rateMultiplier`) and the lock screen's playback rate follows it (and can set it).
-- An unsaved page isn't restored after a relaunch (until the library model lands, step 2): Now
-  Playing shows its text only while the app keeps it in memory.
+- A page played without saving is kept for 7 days after its last play, with its text and its
+  spot: after a relaunch it is in Continue listening, opens in the Reader where it was, and Now
+  Playing shows its text.
 
 ## Developer options
 

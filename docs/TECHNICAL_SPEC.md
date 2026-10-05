@@ -51,7 +51,8 @@ UITests/    UI tests (ReaderUITests)
 - **Composition root.** `AppComposition` is the only place that lists voice libraries; it builds
   the `EngineRegistry`, the one `SpeechController`, the `ShellState` and the `LibraryStore`, which
   `ReaderApp` injects through the environment, and connects the speech stack to the library
-  (`attachLibrary`: Now Playing's content resolver and the `ListeningProgressRecorder`).
+  (`attachLibrary`: the library resolves Now Playing's text, and the `ListeningProgressRecorder`
+  writes listening progress to it).
   `AppLaunch.run` does the launch work once: the library's launch maintenance
   (`maintainLibrary`, which then lets the render queue adopt and render), with the Debug launch
   hooks before and after it, then crash resume. Views only render.

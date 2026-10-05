@@ -72,8 +72,8 @@ Rules:
   offset go back to the start); anything
   else runs `start`, which replaces what is playing. Pressing never navigates.
 - **`nowPlayingContent()`**: Now Playing's reading content, asked of the injected
-  `NowPlayingContentResolving` (a saved article from its row; an unsaved page from the
-  `ReaderArticle` it was started with, kept in memory, so it isn't restored after a relaunch).
+  `NowPlayingContentResolving`: the library, which has every page that has played (a page played
+  without saving is kept 7 days after its last play), so it is there after a relaunch too.
 
 ### Engine adapters (`ListenEngine`)
 
@@ -138,11 +138,15 @@ While the phase is playing but nothing is audible and more units remain (`isBuff
 listen bar shows a spinner and "Preparing next…". That is not paused.
 
 The listening position is saved from the session, whatever is on screen, by
-`ListeningProgressRecorder` (built at the composition root): `SpeechController.onProgress`
-reports each new paragraph and every phase change (pause, finish, stop, and the stop that comes
-before a page is replaced) synchronously, and the recorder also writes the live offset when the
-app leaves the foreground. Never per tick. It writes saved articles' position and the listen
-history (`SavedArticleProgressStore`); unsaved pages keep none.
+`ListeningProgressRecorder` (built at the composition root, over `LibraryStore`):
+`SpeechController.onProgress` reports each new paragraph and every phase change (pause, finish,
+stop, and the stop that comes before a page is replaced) synchronously, and the recorder also
+writes the live offset when the app leaves the foreground. Never per tick. It writes the page's
+position, dates each start (`lastPlayedAt`, unfinished again) and marks the end (`finishedAt`),
+holding the page it writes to rather than fetching it per paragraph. A page started from a
+`ReaderArticle` (`SpeechController.onListen`: the Reader's Listen, 🎧) is recorded from it on its
+first start, so a page the library doesn't have is kept with its text: played without saving,
+not in the Library, pruned 7 days after its last play.
 
 ## Rendering ahead (on-device engine)
 

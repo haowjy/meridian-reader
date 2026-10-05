@@ -15,7 +15,9 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
 - **What you hear.** Play buttons ask `playState(of:)` and press through `press(_:start:)`; never
   compare session ids in a view. A finished page stays bound (`.finished`); only `stop()` (Stop
   Listening) unbinds. `onProgress` fires synchronously from `publishPlayback`, so the recorder sees
-  a replaced page's last spot (the `.stop` before the next `bind`).
+  a replaced page's last spot (the `.stop` before the next `bind`). `listen(to:)` hands its article
+  to `onListen` before it binds, so the recorder can keep a page the library doesn't have on its
+  first start.
 - **Position.** Only `PlaybackSessionState` holds it, and a seek publishes it synchronously in
   the same transaction as the UI change; the scrubber relies on that to avoid a snap back. An
   engine never reports a spot before the offset its play started at.

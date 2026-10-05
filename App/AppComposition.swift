@@ -32,13 +32,12 @@ enum AppComposition {
         return library
     }
 
-    /// Connects the speech stack to the library: where Now Playing's text comes from, and where
-    /// listening positions are written. Once, with the app's library.
+    /// Connects the speech stack to the library: Now Playing's text is the playing page's, and
+    /// the recorder writes listening progress to it. Once, with the app's library.
     static func attachLibrary(_ library: LibraryStore) {
         guard progressRecorder == nil else { return }
-        speechController.contentResolver = LibraryContentResolver(library: library)
-        progressRecorder = ListeningProgressRecorder(speech: speechController,
-                                                     store: LibraryProgressStore(library: library))
+        speechController.contentResolver = library
+        progressRecorder = ListeningProgressRecorder(speech: speechController, library: library)
     }
 
     /// The audio cache at launch, in order. First the render queue is held: it adopts no saved

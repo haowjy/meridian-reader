@@ -226,13 +226,12 @@ final class LibraryStoreTests: XCTestCase {
 
     func testFinishedAndPositionAreRecordedAndAReplayClearsFinished() throws {
         let page = library.save(env.article("https://example.com/a"))
-        let key = try XCTUnwrap(page.key)
-        library.recordPosition(key: key, paragraph: 1, utf16Offset: 30)
+        library.recordPosition(page, paragraph: 1, utf16Offset: 30)
         XCTAssertEqual(page.positionParagraph, 1)
         XCTAssertEqual(page.positionUTF16, 30)
-        library.recordFinished(key: key)
+        library.recordFinished(page)
         XCTAssertNotNil(page.finishedAt)
-        library.recordPlaybackStarted(key: key)
+        library.recordPlaybackStarted(page)
         XCTAssertNil(page.finishedAt, "starting it again puts it back in progress")
     }
 }

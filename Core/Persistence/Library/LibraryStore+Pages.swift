@@ -65,17 +65,16 @@ extension LibraryStore {
         return page
     }
 
-    /// A saved page started playing (no article at hand): dated and unfinished.
-    func recordPlaybackStarted(key: UUID) {
-        guard let page = page(key: key) else { return }
+    /// A page the library has started playing again (a row's ▶, a resume, a replay): dated and
+    /// unfinished.
+    func recordPlaybackStarted(_ page: Page) {
         page.lastPlayedAt = now()
         page.finishedAt = nil
         commit("playback started")
     }
 
     /// The listening position, written as it moves.
-    func recordPosition(key: UUID, paragraph: Int, utf16Offset: Int) {
-        guard let page = page(key: key) else { return }
+    func recordPosition(_ page: Page, paragraph: Int, utf16Offset: Int) {
         guard page.positionParagraph != paragraph || page.positionUTF16 != utf16Offset else { return }
         page.positionParagraph = paragraph
         page.positionUTF16 = utf16Offset
@@ -83,8 +82,7 @@ extension LibraryStore {
     }
 
     /// Played to the end.
-    func recordFinished(key: UUID) {
-        guard let page = page(key: key) else { return }
+    func recordFinished(_ page: Page) {
         page.finishedAt = now()
         page.lastPlayedAt = now()
         commit("finished")
