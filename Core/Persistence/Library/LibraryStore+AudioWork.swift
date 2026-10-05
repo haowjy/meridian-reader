@@ -17,6 +17,7 @@ struct LibraryAudioWorkPlan {
 /// A record whose postconditions don't hold after it ran.
 enum LibraryAudioWorkError: Error {
     case notAligned(UUID)
+    case notDeleted(UUID)
 }
 
 /// What a run of the stored audio work did: how many records it retired, and the audio the
@@ -28,10 +29,11 @@ struct LibraryAudioWorkOutcome: Equatable {
 }
 
 /// Files outside the library store change only after the library change they belong to is saved.
-/// The layout pass and dedupe plan their audio work (`planAlign`, `planMerge`) as records in the
-/// same save; `commit` does it once the save succeeds and retires each record once its
-/// postconditions hold; the next launch finishes whatever is left (`finishAudioWork`); a save that
-/// fails and is rolled back (`rollBack`) leaves every file alone.
+/// The layout pass, dedupe and a book's *Replace* plan their audio work (`planAlign`, `planMerge`,
+/// `planDelete`) as records in the same save; `commit` does it once the save succeeds, after any
+/// work an earlier launch left, and retires each record once its postconditions hold; the next
+/// launch finishes whatever is left (`finishAudioWork`); a save that fails and is rolled back
+/// (`rollBack`) leaves every file alone.
 extension LibraryStore {
     // MARK: - Planning
 
@@ -53,6 +55,17 @@ extension LibraryStore {
         work.stampsSource = !audioPlan.aligned.contains(from)
         work.stampsTarget = !audioPlan.aligned.contains(to)
         planResumePoint(work)
+        context.insert(work)
+        audioPlan.work.append(work)
+    }
+
+    /// The deleted page's audio, pending render and queued renders go once the delete is saved,
+    /// in order after the work recorded before it: audio that earlier work still needs (a merge
+    /// from this page, a layout pass on it) is never deleted first, and while that work waits the
+    /// page stays held with it.
+    func planDelete(key: UUID) {
+        let work = LibraryAudioWork(sequence: nextAudioWorkSequence(), kind: .delete, key: key,
+                                    paragraphs: [], sourceParagraphs: [])
         context.insert(work)
         audioPlan.work.append(work)
     }
@@ -164,6 +177,7 @@ extension LibraryStore {
         switch work.kind {
         case .align: try align(work, live: live)
         case .merge: try merge(work, live: live)
+        case .delete: try deleteAudio(work)
         case nil: log("audio work: unknown kind \(work.kindRaw), dropped")
         }
     }
@@ -251,6 +265,22 @@ extension LibraryStore {
         log("audio \(Self.short(from)) merged into \(Self.short(to)): adopted \(rec.adopted)")
     }
 
+    /// The deleted page's audio directory, pending render and queued renders go. Skipped when a
+    /// page with its key exists again (a later change brought it back while this waited): the
+    /// audio is that page's now.
+    private func deleteAudio(_ work: LibraryAudioWork) throws {
+        guard let key = work.key else { return }
+        if try context.fetch(LibraryQueries.page(key: key)).first != nil {
+            log("audio \(Self.short(key)): its page is back since it was deleted; kept")
+            ListenTimingLog.log("library_audio_work", ["kind": "delete", "key": ListenTimingLog.shortKey(key), "skipped": "page back"])
+            return
+        }
+        try tts.clearListenAudio(for: key)
+        guard !tts.audioCache.hasDirectory(for: key) else { throw LibraryAudioWorkError.notDeleted(key) }
+        ListenTimingLog.log("library_audio_work", ["kind": "delete", "key": ListenTimingLog.shortKey(key)])
+        log("audio \(Self.short(key)) deleted with its page")
+    }
+
     /// The crash-resume file and the crash target launch read from it (or from the crash
     /// marker) follow the work, onto `paragraphs`: the destination's paragraphs its audio was
     /// just aligned with (for a merge, what the kept page holds now, which may differ from what
@@ -284,7 +314,7 @@ extension LibraryStore {
             guard !to.isEmpty else { return 0 }
             return ParagraphPositionMap.mapParagraphStart(paragraph, from: ParagraphDocument(parts: from),
                                                           to: ParagraphDocument(parts: to))
-        case .merge, nil:
+        case .merge, .delete, nil:
             guard !to.isEmpty else { return paragraph }
             if from != to, from.indices.contains(paragraph) {
                 let hash = ArticleIdentity.paragraphHash(from[paragraph])

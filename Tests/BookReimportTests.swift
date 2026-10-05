@@ -1,3 +1,4 @@
+import SwiftData
 import XCTest
 @testable import Reader
 
@@ -137,6 +138,186 @@ final class BookReimportTests: XCTestCase {
         XCTAssertEqual(env.stoppedKeys, [three], "playback of it stops first")
         XCTAssertNil(book.currentPageKey, "the place it held is cleared")
         XCTAssertEqual(library.playOrder(of: book).map(\.key), [one, two, four])
+    }
+
+    // MARK: - A failed save, and audio work
+
+    private struct Died: Error {}
+
+    private func audioWork() -> [LibraryAudioWork] {
+        (try? env.context.fetch(FetchDescriptor<LibraryAudioWork>(sortBy: [SortDescriptor(\.sequence)]))) ?? []
+    }
+
+    private func pendingRender(_ key: UUID) -> Bool {
+        PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == key }
+    }
+
+    /// Checked on disk: after a failed save SwiftData's rollback can leave a model already in
+    /// memory showing the values it rolled back, while the store and fresh fetches hold the old
+    /// ones.
+    func testAFailedReplaceKeepsEveryPageAndItsAudio() throws {
+        env.cleanUp()
+        env = try LibraryTestEnvironment(fileBacked: true)
+        let book = try addBook()
+        try env.storeAudio(two, paragraphs: textTwo)
+        try env.storeAudio(three, paragraphs: textThree)
+        PendingBakeJobStore.shared.enqueuePending(articleID: three, paragraphs: textThree, voiceID: "voiceA",
+                                                  plan: .topDown(paragraphCount: 3))
+        let dropped = three
+        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: dropped) }
+        library.recordPlayback(ReaderArticle(page: try XCTUnwrap(page(three))))
+        let four = UUID()
+        let edited = ["Two begins.", "Two goes on, differently now.", "Two ends."]
+        let replacement = [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", edited), chapter(four, 2, "Four", ["Four is new."])]
+
+        library.saveContext = { _ in throw Died() }
+        XCTAssertThrowsError(try library.replaceBook(book, with: details, chapters: replacement)) {
+            XCTAssertEqual($0 as? LibraryStoreError, .saveFailed)
+        }
+        XCTAssertEqual(ready(three), [0, 1, 2], "the dropped chapter's audio is still there")
+        XCTAssertEqual(ready(two), [0, 1, 2], "and so is the edited one's")
+        XCTAssertTrue(pendingRender(three), "and the dropped chapter's pending render")
+        XCTAssertTrue(audioWork().isEmpty, "no work is left to run against a book that didn't change")
+
+        try env.relaunch()
+        let stored = try XCTUnwrap(library.book(key: bookKey))
+        XCTAssertEqual(library.playOrder(of: stored).map(\.key), [one, two, three], "every page is still there")
+        XCTAssertEqual(page(two)?.cachedListenParagraphs, textTwo, "with its text")
+        XCTAssertEqual(stored.currentPageKey, three, "and the book's place")
+        XCTAssertEqual(ready(three), [0, 1, 2])
+        XCTAssertEqual(ready(two), [0, 1, 2])
+        XCTAssertTrue(audioWork().isEmpty)
+
+        try library.replaceBook(stored, with: details, chapters: replacement)
+        XCTAssertNil(page(three))
+        XCTAssertFalse(env.cache.hasDirectory(for: three), "once the save succeeds, its audio goes")
+        XCTAssertFalse(pendingRender(three))
+        XCTAssertEqual(ready(two), [0, 2])
+        XCTAssertTrue(audioWork().isEmpty, "the work is done and retired")
+    }
+
+    func testADroppedChaptersAudioWaitsBehindEarlierAudioWorkThatCantFinish() throws {
+        let book = try addBook()
+        try env.storeAudio(three, paragraphs: textThree)
+        // A first Replace edits chapter three; aligning its audio fails, so that work waits.
+        env.cache.faultHook = { _ in throw Died() }
+        let edited = ["Three begins.", "Three goes on, otherwise.", "Three ends."]
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", textTwo),
+                                                                chapter(three, 2, "Three", edited)])
+        XCTAssertEqual(audioWork().map(\.kind), [.align])
+
+        // A second drops the chapter: deleting its audio waits behind the align, which needs it.
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", textTwo)])
+        XCTAssertNil(page(three))
+        XCTAssertEqual(audioWork().map(\.kind), [.align, .delete])
+        XCTAssertTrue(env.cache.hasCache(for: three), "not deleted while earlier work on it waits")
+        XCTAssertTrue(env.cache.held.contains(three), "and held from the purges, the prune and the D7 trim meanwhile")
+
+        env.cache.faultHook = nil
+        XCTAssertEqual(library.finishAudioWork().finished, 2, "next launch: the align, then the delete")
+        XCTAssertFalse(env.cache.hasDirectory(for: three))
+        XCTAssertFalse(env.cache.held.contains(three))
+        XCTAssertTrue(audioWork().isEmpty)
+    }
+
+    func testAWaitingDeleteLeavesAChapterThatCameBackAlone() throws {
+        let book = try addBook()
+        try env.storeAudio(three, paragraphs: textThree)
+        env.cache.faultHook = { _ in throw Died() }
+        let edited = ["Three begins.", "Three goes on, otherwise.", "Three ends."]
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", textTwo),
+                                                                chapter(three, 2, "Three", edited)])
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", textTwo)])
+        // The chapter comes back before the waiting work can run.
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", textTwo),
+                                                                chapter(three, 2, "Three", edited)])
+        XCTAssertEqual(audioWork().map(\.kind), [.align, .delete])
+
+        env.cache.faultHook = nil
+        XCTAssertEqual(library.finishAudioWork().finished, 2)
+        XCTAssertNotNil(page(three))
+        XCTAssertEqual(ready(three), [0, 2], "its audio is the page's again, aligned, not deleted")
+    }
+
+    // MARK: - Finished chapters whose text changed
+
+    func testARevisedFinishedChapterIsUnfinishedAndContinueStartsItFromTheTop() throws {
+        let book = try addBook()
+        let p2 = try XCTUnwrap(page(two))
+        library.recordPlayback(ReaderArticle(page: p2))
+        library.recordPosition(p2, paragraph: 2, utf16Offset: 40)
+        library.recordFinished(p2)
+        XCTAssertEqual(library.continueStart(of: book)?.page.key, three, "before: Continue goes on to chapter three")
+
+        let revised = ["Two begins.", "Two goes on, revised.", "Two ends."]
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", revised),
+                                                                chapter(three, 2, "Three", textThree)])
+        XCTAssertNil(page(two)?.finishedAt, "what was heard isn't what it says now")
+        let start = try XCTUnwrap(library.continueStart(of: book))
+        XCTAssertEqual(start.page.key, two, "Continue plays the revision")
+        XCTAssertEqual(start.paragraph, 0, "from its top")
+        XCTAssertEqual(start.utf16Offset, 0)
+    }
+
+    func testAFinishedBookWhoseLastChapterIsRevisedIsNoLongerFinished() throws {
+        let book = try addBook()
+        let p3 = try XCTUnwrap(page(three))
+        library.recordPlayback(ReaderArticle(page: p3))
+        library.recordFinished(p3)
+        XCTAssertNotNil(book.finishedAt)
+
+        let revised = ["Three begins.", "Three goes on, revised.", "Three ends."]
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", textTwo),
+                                                                chapter(three, 2, "Three", revised)])
+        XCTAssertNil(book.finishedAt)
+        let start = try XCTUnwrap(library.continueStart(of: book))
+        XCTAssertEqual(start.page.key, three, "Continue plays the revised last chapter, not the book from its start")
+        XCTAssertEqual(start.paragraph, 0)
+    }
+
+    func testAFinishedBookStaysFinishedWhileItsPlaceIsFinishedAndLast() throws {
+        let book = try addBook()
+        let p3 = try XCTUnwrap(page(three))
+        library.recordPlayback(ReaderArticle(page: p3))
+        library.recordFinished(p3)
+        let finished = try XCTUnwrap(book.finishedAt)
+
+        let revised = ["One begins.", "One goes on, revised.", "One ends."]
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", revised), chapter(two, 1, "Two", textTwo),
+                                                                chapter(three, 2, "Three", textThree)])
+        XCTAssertEqual(book.finishedAt, finished, "an earlier chapter's revision doesn't unfinish the book")
+
+        let four = UUID()
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", revised), chapter(two, 1, "Two", textTwo),
+                                                                chapter(three, 2, "Three", textThree),
+                                                                chapter(four, 3, "Four", ["Four is new."])])
+        XCTAssertNil(book.finishedAt, "a chapter after its place: there is more to hear")
+        XCTAssertEqual(library.continueStart(of: book)?.page.key, four)
+    }
+
+    func testTheD7TrimLeavesTheAudioOfARevisedFinishedChapter() throws {
+        let four = UUID(), five = UUID()
+        let textFour = ["Four begins.", "Four goes on.", "Four ends."]
+        let textFive = ["Five begins.", "Five goes on.", "Five ends."]
+        func chapters(one textOfOne: [String]) -> [PageContent] {
+            [chapter(one, 0, "One", textOfOne), chapter(two, 1, "Two", textTwo), chapter(three, 2, "Three", textThree),
+             chapter(four, 3, "Four", textFour), chapter(five, 4, "Five", textFive)]
+        }
+        let book = try library.addBook(details, chapters: chapters(one: textOne), in: nil)
+        try env.storeAudio(one, paragraphs: textOne)
+        try env.storeAudio(two, paragraphs: textTwo)
+        for key in [one, two] {
+            let p = try XCTUnwrap(page(key))
+            library.recordPlayback(ReaderArticle(page: p))
+            library.recordFinished(p)
+        }
+
+        let revised = ["One begins.", "One goes on, revised.", "One ends."]
+        try library.replaceBook(book, with: details, chapters: chapters(one: revised))
+        XCTAssertEqual(ready(one), [0, 2], "the revision keeps the audio of what reads the same")
+        library.recordPlaybackStarted(try XCTUnwrap(page(five)))
+        XCTAssertFalse(env.cache.hasCache(for: two), "a finished chapter more than 2 behind loses its audio")
+        XCTAssertEqual(ready(one), [0, 2], "the revised one, unheard, keeps it")
     }
 
     func testANewBookIsKeptWholeOrNotAtAll() throws {

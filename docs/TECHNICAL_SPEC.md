@@ -165,7 +165,8 @@ does):
    `BookIdentity.chapterKey`, front matter `skipsInPlayback`), all in one save: a failed save
    keeps nothing.
 5. A book already in the Library (same book key) is left alone, or, with *Replace* (D13),
-   rebuilt in the same folder by `LibraryStore.replaceBook` (`ARTICLE_IDENTITY.md`).
+   rebuilt in the same folder by `LibraryStore.replaceBook` (`ARTICLE_IDENTITY.md`), in one
+   save; a dropped chapter's audio goes only once that save succeeds.
 
 Refusals and failures are `BookImportError`s whose messages a sheet can show as they are.
 
@@ -190,17 +191,18 @@ couldn't save). Debug: `-rerunLibraryMigration` empties the library and its rece
 again.
 
 **Audio work waits for the save.** The layout pass (audio aligned to the new paragraphs, the
-crash-resume point and pending renders remapped) and dedupe (the merged page's audio filling the
+crash-resume point and pending renders remapped), dedupe (the merged page's audio filling the
 kept page's paragraphs it has none for, by text, then its directory and pending render dropped;
 the resume point, the crash target read at launch and the live session moved onto the kept page,
-at the paragraph with the same text) change nothing outside the store until the library change
-is saved. They record `LibraryAudioWork` in the same save; `LibraryStore.commit` does it right
+at the paragraph with the same text) and a book's *Replace* (edited chapters aligned, chapters
+found by their text merged, and a dropped chapter's audio, pending render and queued renders
+deleted) change nothing outside the store until the library change is saved. They record `LibraryAudioWork` in the same save; `LibraryStore.commit` does it right
 after the save. A failed save is rolled back with its work, leaving the audio cache, pending
 renders and the resume point as they were. A record is retired only once its postconditions hold
 on disk: the destination's saved audio index aligned with its paragraphs, every file it lists
 there, the merged page's directory gone. A record that fails is kept, with everything after it,
 for the next launch; so is the work of a launch that dies after the save. Meanwhile the pages
-those records touch (a merge's source and destination) are held (`ArticleAudioCache.held`):
+those records touch (a merge's source and destination, a deleted page) are held (`ArticleAudioCache.held`):
 the launch's engine purges (which then run again next launch) and the prune leave their audio
 alone, their pending renders aren't adopted, and a book's playback neither stages them as the
 next chapter nor trims them behind its place (D7). Records that can't be read hold all audio this
@@ -215,7 +217,8 @@ moves only from where the work found it. Before it changes any audio, a record i
 the committed page: layout work for a page that holds other paragraphs now is dropped (the page's
 audio is aligned with what it holds when it opens); a merge aligns the merged audio, and moves
 the resume point, onto what the kept page holds now, and if the kept page has been deleted,
-leaves that audio to the cache's age prune.
+leaves that audio to the cache's age prune; a delete whose page exists again (brought back while
+it waited) leaves its audio to that page.
 
 **`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
 `urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,
