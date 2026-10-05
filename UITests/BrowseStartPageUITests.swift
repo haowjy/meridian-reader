@@ -15,7 +15,8 @@ final class BrowseStartPageUITests: XCTestCase {
 
     func testContinueListeningResumesWhereYouLeftOff() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-seedDemoArticle", "-seedDemoProgress", "1", "-uiTesting"]
+        app.launchArguments = ["-seedDemoArticle", "-seedDemoProgress", "1", "-uiTesting",
+                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"]
         app.launch()
 
         XCTAssertTrue(el(app, "startContinue").waitForExistence(timeout: 10), "Continue listening section")
@@ -29,9 +30,34 @@ final class BrowseStartPageUITests: XCTestCase {
         XCTAssertEqual(close.label, "Back to Browser", "opens in the Reader sheet over the browser")
         let listen = app.buttons["listenPlayPause"]
         XCTAssertTrue(listen.waitForExistence(timeout: 5))
-        XCTAssertTrue(listen.label.hasPrefix("Resume"), "resumes at the saved paragraph: \(listen.label)")
-        close.tap()
+        XCTAssertTrue(listen.label.hasPrefix("Resume"), "offers to resume: \(listen.label)")
+
+        // Resume plays from the saved paragraph: Now Playing's scrubber and the Debug position
+        // marker both read paragraph 2 of 3 (paused at once, so the voice can't move it on).
+        listen.tap()
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(play.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitFor(8) { play.label == "Pause" }, "playing")
+        play.tap()
+        XCTAssertTrue(waitFor(5) { play.label == "Play" }, "paused")
+        let scrubber = el(app, "readerScrubber")
+        XCTAssertTrue(scrubber.waitForExistence(timeout: 5))
+        XCTAssertEqual(scrubber.value as? String, "Paragraph 2 of 3", "resumes at the saved paragraph")
+        let marker = el(app, "readerScrubOffset")
+        XCTAssertTrue(marker.waitForExistence(timeout: 2))
+        XCTAssertEqual((marker.value as? String)?.hasPrefix("p=1 "), true, "session paragraph: \(marker.value ?? "")")
+
+        app.buttons["readerClose"].firstMatch.tap() // ⌄: Now Playing goes, the start page is back
         XCTAssertTrue(el(app, "startContinue").waitForExistence(timeout: 5))
+    }
+
+    private func waitFor(_ timeout: TimeInterval, _ condition: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return condition()
     }
 
     func testSavedSectionShowAllOpensLibrary() throws {
