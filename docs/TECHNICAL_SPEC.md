@@ -109,14 +109,18 @@ store would drop entities it doesn't know; a file it never opens survives a roll
 models are CloudKit-shaped: every property optional or defaulted, no `.unique`, relationships
 optional with `.nullify`; one page per canonical URL is kept by `LibraryStore` and the launch
 dedupe pass. Every library read and write goes through `LibraryStore`; lists use
-`LibraryQueries`. An edit someone asks for (a move; a folder made, renamed, sorted or reordered; a
-mark; a remove, unsave or delete; a favorite added, renamed or removed) saves at once
-(`commitOrRollBack`): a save SwiftData refuses is rolled back (`rollBack`, which fetches the
-models it touched again, so the screens' models read the stored values, relationships included)
-and throws `LibraryStoreError.saveFailed`. So a failed edit never shows as done, and never waits
-in the context for a later save to store or a later rollback to drop. The screens run these
+`LibraryQueries`. An edit someone asks for (a save, including one into a folder; a move; a
+folder made, renamed, sorted or reordered; a mark; a remove of one or several pages, an unsave or
+a delete; a favorite added, renamed or removed) is one save, made at once (`commitOrRollBack`): a
+save SwiftData refuses is rolled back (`rollBack`, which fetches the models it touched again, so
+the screens' models read the stored values, relationships included) and throws
+`LibraryStoreError.saveFailed`. So a failed edit never shows as done, and never waits in the
+context for a later save to store or a later rollback to drop (the rollback also drops any other
+change still unsaved, such as a playback write whose own save failed). The screens run these
 through `ShellState.attempt`, which shows the failure as a toast; what follows success (Edit's
-selection cleared, a moved folder's screen following it, "Added to Favorites") runs only after it.
+selection cleared, a moved folder's screen following it, the Move tree closed, "Added to
+Favorites", a saved article's audio marked saved, moved under the page's key and baked ahead in
+`ArticleSaveCoordinator`) runs only after it.
 
 **`Page`** (library):
 
@@ -164,7 +168,9 @@ again.
 
 **Audio work waits for the save.** Deleting pages (a row's *Delete*, *Delete Folder and
 Contents*, *Delete Book*: the page's audio directory, pending render and queued renders go,
-unless a page with its key exists again by then), the layout pass (audio aligned to the new
+unless a page with its key exists again by then), pages leaving the Library (*Remove from
+Library*, unsave: the audio is kept, back on the ephemeral TTL, unless the page is saved again by
+then), the layout pass (audio aligned to the new
 paragraphs, the crash-resume point and pending renders remapped) and dedupe (the merged page's audio filling the
 kept page's paragraphs it has none for, by text, then its directory and pending render dropped;
 the resume point, the crash target read at launch and the live session moved onto the kept page,
@@ -173,7 +179,7 @@ is saved. They record `LibraryAudioWork` in the same save; `LibraryStore.commit`
 after the save. A failed save is rolled back with its work, leaving the audio cache, pending
 renders and the resume point as they were. A record is retired only once its postconditions hold
 on disk: the destination's saved audio index aligned with its paragraphs, every file it lists
-there, the merged page's directory gone. A record that fails is kept, with everything after it,
+there, the merged page's directory gone, a removed page's audio marked ephemeral. A record that fails is kept, with everything after it,
 for the next launch; so is the work of a launch that dies after the save. Meanwhile the pages
 those records touch (a merge's source and destination) are held (`ArticleAudioCache.held`):
 the launch's engine purges (which then run again next launch) and the prune leave their audio

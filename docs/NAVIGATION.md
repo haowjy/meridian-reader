@@ -200,7 +200,9 @@ Pages · 48                     Show All › pages in no folder, newest first, t
 - **A folder** (`FolderScreen`, Favorites included): its title and counts, subfolders first (by
   their order), then pages by the folder's sort. **Edit** (top right) puts check circles on the
   rows, and drag handles (pages only when the sort is *Manual*); the toolbar becomes *Move…,
-  Mark Finished, Remove* for the selection (Remove asks before deleting folders). ⋯: *Sort ›,
+  Mark Finished, Remove* for the selection. *Remove* takes the selected pages out of the
+  Library at once, then asks before deleting the selected folders, which stay selected until
+  their delete is saved (*Cancel* keeps them selected). ⋯: *Sort ›,
   New Folder Inside, Rename, Move…, Delete Folder…* (Favorites: *Sort* and *New Folder Inside*
   only; it can't be renamed, moved down or deleted).
 - **Deleting a folder** asks *Delete Folder Only* (its subfolders and pages move up one level,
@@ -241,14 +243,22 @@ Favorites and every folder, depth first. One tap files; ✓ marks the current pl
 long-press offers *New Folder Inside* (made in it, and the item goes in that). *Library (no
 folder)* files the page in no folder, out of the folder it was in (a link in Favorites leaves
 Favorites, saved); an ordinary 🔖 or *Save* keeps a page's folder. Books and series aren't
-destinations; a folder being moved, and everything inside it, can't be picked.
+destinations; a folder being moved, and everything inside it, can't be picked. The tree closes
+once what was picked is saved; a pick, or a *New Folder*, that can't be saved leaves it up under
+the toast, to pick again or ✕. The browser's *Save to Library…* closes it on the pick, since the
+page is extracted first (⋯ spins).
 
 **A change that can't be saved** (a move, *New Folder*, *Rename*, *Sort*, a drag to reorder, a
-mark, *Remove*, a delete, ☆ or a favorite tile's *Rename* / *Remove*, unsaving with 🔖, ⊕ or ⋯ →
-*Remove from Library*) changes nothing, and a toast says so ("Couldn’t move") where a success
-would have shown: Edit keeps its selection, a folder's screen doesn't follow a move that didn't
-happen, ☆ shows no "Added to Favorites", 🔖 / ⊕ stay saved. The toast shows over the Favorites
-sheet and Now Playing too.
+mark, *Remove*, a delete, ☆ or a favorite tile's *Rename* / *Remove*, saving or unsaving with 🔖,
+⊕, *Save to Folder…* or ⋯ → *Save to Library…* / *Remove from Library*) isn't stored: the
+library reads as it did before it, and a toast says so ("Couldn’t move", "Couldn’t save") where
+a success would have shown. *Remove* of several pages is one change: all go, or none. A folder's
+screen doesn't follow a move that didn't happen, the Move tree stays up, ☆ shows no "Added to
+Favorites", and 🔖 / ⊕ keep what they showed. In Edit, the selection stays when its change can't
+be saved; Edit's *Remove* is two changes, the pages first and then, after the question, the
+folders, so a folder delete that can't be saved leaves the folders selected but doesn't bring back
+pages already removed. The toast shows over the Favorites sheet, the Move tree and Now Playing
+too.
 
 **Library search** is the same session as the browser's (`SearchSession` +
 `SearchSessionChrome`): focusing the field (or toolbar Search) hides the toolbar so the field sits

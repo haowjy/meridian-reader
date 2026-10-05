@@ -385,8 +385,8 @@ highlight and the paragraph picker stay fine-grained.
 - **Keys** (`ARTICLE_IDENTITY.md`): one per canonical URL, saved or not. Leaving an unsaved
   reader keeps its audio; ephemeral caches are pruned after 7 days or past 500 MB, except audio
   held for unfinished library work (`TECHNICAL_SPEC.md`, Audio work waits for the save). Save
-  only marks the cache saved; unsave marks it ephemeral again; deleting a saved row deletes its
-  audio.
+  only marks the cache saved, once the save is stored; unsave and *Remove from Library* mark it
+  ephemeral again, through the library's audio work; deleting a saved row deletes its audio.
 - **One voice per article.** The index's top-level `engineID` / `voiceID` is the target voice.
   After a voice or engine switch, the first new-voice write retargets the index; older entries
   stay, stamped stale. Ready / missing counts look only at the target voice, so the queue
