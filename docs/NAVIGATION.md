@@ -258,7 +258,8 @@ Favorites", and 🔖 / ⊕ keep what they showed. In Edit, the selection stays w
 be saved; Edit's *Remove* is two changes, the pages first and then, after the question, the
 folders, so a folder delete that can't be saved leaves the folders selected but doesn't bring back
 pages already removed. The toast shows over the Favorites sheet, the Move tree and Now Playing
-too.
+too. Listening goes on being kept meanwhile: where you are in a page, when you last played it and
+whether you finished it are stored once saving works again, even across failed changes.
 
 **Library search** is the same session as the browser's (`SearchSession` +
 `SearchSessionChrome`): focusing the field (or toolbar Search) hides the toolbar so the field sits

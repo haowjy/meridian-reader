@@ -61,7 +61,8 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
   guesses the playing page or a playhead: every ▶ / ⏸ asks `SpeechController.playState(of:)`, the
   bar and Now Playing read `nowPlaying`, and `ListeningProgressRecorder` saves the position.
 - **One save path**: `ArticleSaveCoordinator` → `LibraryStore.save`. One page per canonical URL
-  (`ArticleIdentity`), app-wide; Save never moves audio or restarts playback. Every library read
+  (`ArticleIdentity`), app-wide; Save never restarts playback, and moves audio (rekeying the live
+  session) only when an older page holds the address under another key. Every library read
   and write goes through `LibraryStore` (lists through `LibraryQueries`); `SavedArticle` and
   `bookmarks.json` are frozen (the migration copied them; nothing writes them).
 - **Screens are built from `Features/DesignSystem/`**: no ad-hoc padding, colour, radius or font

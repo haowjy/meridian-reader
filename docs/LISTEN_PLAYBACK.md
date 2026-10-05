@@ -158,7 +158,11 @@ first start, so a page the library doesn't have is kept with its text: played wi
 not in the Library, pruned 7 days after its last play. For a chapter of a book or series the
 same writes also move the book's place (`Folder.currentPageKey`, `lastPlayedAt`, unfinished
 again) to the chapter that starts, and the last playable chapter's end finishes the book
-(`LibraryStore+Chapters`).
+(`LibraryStore+Chapters`). A write whose save fails waits in the context for the next save, and
+a failed edit's rollback doesn't drop it: `LibraryStore` keeps the progress it hasn't stored
+(`PendingListening`: a start and the article it came from, the position, the end) and writes it
+again after the rollback, with the dates it was made at and in the order it played, making again
+a page only a play had made. It is forgotten once a save stores it.
 
 ### Books and series
 
@@ -385,8 +389,10 @@ highlight and the paragraph picker stay fine-grained.
 - **Keys** (`ARTICLE_IDENTITY.md`): one per canonical URL, saved or not. Leaving an unsaved
   reader keeps its audio; ephemeral caches are pruned after 7 days or past 500 MB, except audio
   held for unfinished library work (`TECHNICAL_SPEC.md`, Audio work waits for the save). Save
-  only marks the cache saved, once the save is stored; unsave and *Remove from Library* mark it
-  ephemeral again, through the library's audio work; deleting a saved row deletes its audio.
+  marks the cache saved once the save is stored, and unsave and *Remove from Library* mark it
+  ephemeral again, both through the library's audio work; deleting a saved row deletes its audio.
+  Save moves audio only for a page that holds the address under an older key: the reader's audio
+  moves under the page's key and the live session is rekeyed, without a restart.
 - **One voice per article.** The index's top-level `engineID` / `voiceID` is the target voice.
   After a voice or engine switch, the first new-voice write retargets the index; older entries
   stay, stamped stale. Ready / missing counts look only at the target voice, so the queue

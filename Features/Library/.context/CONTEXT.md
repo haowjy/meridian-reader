@@ -15,8 +15,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **One ⋯ for both surfaces.** `LibraryScreenMenu` decides the rows and actions for the screen on
   top; `LibrarySurface` and `FavoritesSheet` each supply their root and big-button actions. A
   system sheet hosts its own morph panel (`moreMenuHost`), since the shell's sits under sheets.
-- **Deletes and removes go through `LibraryStore`'s audio journal** (`planDelete`,
-  `planEphemeral`): the audio changes only after the save, and a failed save is rolled back.
+- **Deletes, removes and Save go through `LibraryStore`'s audio journal** (`planDelete`,
+  `planEphemeral`, `planSaved`): the audio changes only after the save, and a failed save is
+  rolled back. Save moves audio only when an older page holds the address under another key
+  (`ArticleSaveCoordinator` then rekeys the live session too, without a restart).
 - **Edits can fail.** `LibraryStore`'s edits roll back a failed save and throw
   `LibraryStoreError.saveFailed`. Call them through `shell.attempt("Couldn’t …") { try … }` (or
   `LibraryActions`, which does) and run what follows success (clearing Edit's selection,

@@ -115,12 +115,14 @@ a delete; a favorite added, renamed or removed) is one save, made at once (`comm
 save SwiftData refuses is rolled back (`rollBack`, which fetches the models it touched again, so
 the screens' models read the stored values, relationships included) and throws
 `LibraryStoreError.saveFailed`. So a failed edit never shows as done, and never waits in the
-context for a later save to store or a later rollback to drop (the rollback also drops any other
-change still unsaved, such as a playback write whose own save failed). The screens run these
+context for a later save to store or a later rollback to drop. The rollback drops every other
+change still unsaved too, except listening progress: `LibraryStore` keeps what playback wrote and
+hasn't stored (`PendingListening`) and writes it again after the rollback, making again a page
+only a play had made, so the next save stores it while the edit stays undone. The screens run these
 through `ShellState.attempt`, which shows the failure as a toast; what follows success (Edit's
 selection cleared, a moved folder's screen following it, the Move tree closed, "Added to
-Favorites", a saved article's audio marked saved, moved under the page's key and baked ahead in
-`ArticleSaveCoordinator`) runs only after it.
+Favorites", a saved article's audio moved under the page's key when that is an older key, and
+baked ahead in `ArticleSaveCoordinator`) runs only after it.
 
 **`Page`** (library):
 
@@ -169,8 +171,9 @@ again.
 **Audio work waits for the save.** Deleting pages (a row's *Delete*, *Delete Folder and
 Contents*, *Delete Book*: the page's audio directory, pending render and queued renders go,
 unless a page with its key exists again by then), pages leaving the Library (*Remove from
-Library*, unsave: the audio is kept, back on the ephemeral TTL, unless the page is saved again by
-then), the layout pass (audio aligned to the new
+Library*, unsave: the audio is kept, back on the ephemeral TTL), Save (the audio marked saved and
+its queued render non-ephemeral; a page removed and saved again ends saved, as the records run in
+order), the layout pass (audio aligned to the new
 paragraphs, the crash-resume point and pending renders remapped) and dedupe (the merged page's audio filling the
 kept page's paragraphs it has none for, by text, then its directory and pending render dropped;
 the resume point, the crash target read at launch and the live session moved onto the kept page,
@@ -179,7 +182,8 @@ is saved. They record `LibraryAudioWork` in the same save; `LibraryStore.commit`
 after the save. A failed save is rolled back with its work, leaving the audio cache, pending
 renders and the resume point as they were. A record is retired only once its postconditions hold
 on disk: the destination's saved audio index aligned with its paragraphs, every file it lists
-there, the merged page's directory gone, a removed page's audio marked ephemeral. A record that fails is kept, with everything after it,
+there, the merged page's directory gone, a removed page's audio marked ephemeral, a saved page's
+marked saved. A record that fails is kept, with everything after it,
 for the next launch; so is the work of a launch that dies after the save. Meanwhile the pages
 those records touch (a merge's source and destination) are held (`ArticleAudioCache.held`):
 the launch's engine purges (which then run again next launch) and the prune leave their audio
