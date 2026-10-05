@@ -126,10 +126,10 @@ final class LibraryStore {
         return true
     }
 
-    /// Saves an edit someone asked for (a move, a rename, a mark, a remove): a save that fails is
-    /// rolled back (`rollBack`) and throws `LibraryStoreError.saveFailed`, so the edit neither
-    /// shows as done nor waits in the context for a later save to store, or a later rollback to
-    /// drop.
+    /// Saves an edit someone asked for (a save, a move, a rename, a mark, a remove): a save that
+    /// fails is rolled back (`rollBack`) and throws `LibraryStoreError.saveFailed`, so the edit
+    /// neither shows as done nor waits in the context for a later save to store, or a later
+    /// rollback to drop.
     func commitOrRollBack(_ what: String) throws {
         guard commit(what) else {
             rollBack()
