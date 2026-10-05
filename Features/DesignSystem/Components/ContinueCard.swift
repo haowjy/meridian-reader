@@ -56,12 +56,29 @@ struct ContinueCard: View {
         .frame(width: width, alignment: .leading)
         .background(playState.isCurrent ? Palette.playingTint : Palette.chrome,
                     in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        // One element: the title, then what's left; ▶ is its named action.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(title)
-        .accessibilityValue([detail, badge, playState.isCurrent ? (playState == .playing ? "Playing" : "Paused") : nil]
-            .compactMap { $0 }.joined(separator: ", "))
-        .accessibilityAction(named: playState.accessibilityLabel, onPlay)
+        // One element over the drawn parts: the title, then what's left; ▶ is its named action.
+        .accessibilityHidden(true)
+        .overlay { Color.clear.accessibilityElement().modifier(accessibility) }
+    }
+
+    private var accessibility: ContinueCardAccessibility {
+        ContinueCardAccessibility(title: title, detail: detail, badge: badge, playState: playState, onPlay: onPlay)
+    }
+}
+
+private struct ContinueCardAccessibility: ViewModifier {
+    let title: String
+    let detail: String
+    let badge: String?
+    let playState: PlayState
+    let onPlay: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .accessibilityLabel(title)
+            .accessibilityValue([detail, badge, playState.isCurrent ? (playState == .playing ? "Playing" : "Paused") : nil]
+                .compactMap { $0 }.joined(separator: ", "))
+            .accessibilityAction(named: playState.accessibilityLabel, onPlay)
     }
 }
 

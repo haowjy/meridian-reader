@@ -20,7 +20,8 @@ extension XCTestCase {
 
     /// The cell holding the row titled `title`.
     func libraryCell(_ app: XCUIApplication, _ title: String) -> XCUIElement {
-        app.cells.containing(rowPredicate(title)).firstMatch
+        app.cells.containing(NSPredicate(format: "elementType == %d AND label == %@ AND value LIKE '?*'",
+                                         XCUIElement.ElementType.staticText.rawValue, title)).firstMatch
     }
 
     private func rowPredicate(_ title: String) -> NSPredicate {

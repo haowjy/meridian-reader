@@ -50,29 +50,29 @@ struct ListRow: View {
 
     var body: some View {
         HStack(spacing: Spacing.s) {
-            // The label reads as one VoiceOver element (the title, then its status as the
-            // value); ▶ stays its own so play and open are separate actions.
+            // The title is the row's one VoiceOver element, its status the value (the rest is
+            // hidden); ▶ stays its own so play and open are separate actions.
             HStack(spacing: Spacing.s) {
                 leading
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(title)
                         .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
                         .foregroundStyle(titleColor)
                         .lineLimit(2)
+                        .accessibilityValue(accessibilityStatus)
                     if let subtitle {
                         Text(subtitle)
                             .typeStyle(.caption)
                             .foregroundStyle(Palette.secondaryInk)
                             .lineLimit(1)
+                            .accessibilityHidden(true)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 trailing
+                    .accessibilityHidden(true)
             }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(title)
-            .accessibilityValue(accessibilityStatus)
-            .accessibilityAddTraits(.isStaticText)
             if let onPlay {
                 PlayStateButton(state: playState, action: onPlay)
             }
