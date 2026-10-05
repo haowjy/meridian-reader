@@ -155,8 +155,10 @@ have changed since, and the next launch plans it again (dedupe waits for a layou
 couldn't save). Debug: `-rerunLibraryMigration` empties the library and its receipts and copies
 again.
 
-**Audio work waits for the save.** The layout pass (audio aligned to the new paragraphs, the
-crash-resume point and pending renders remapped) and dedupe (the merged page's audio filling the
+**Audio work waits for the save.** Deleting pages (a row's *Delete*, *Delete Folder and
+Contents*, *Delete Book*: the page's audio directory, pending render and queued renders go,
+unless a page with its key exists again by then), the layout pass (audio aligned to the new
+paragraphs, the crash-resume point and pending renders remapped) and dedupe (the merged page's audio filling the
 kept page's paragraphs it has none for, by text, then its directory and pending render dropped;
 the resume point, the crash target read at launch and the live session moved onto the kept page,
 at the paragraph with the same text) change nothing outside the store until the library change

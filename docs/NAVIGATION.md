@@ -59,7 +59,8 @@ surface uses everything between the status bar and it (safe area respected).
 (`ShellState.libraryPath`, folders that no longer exist dropped), or the browser on its last page,
 reloaded. A fresh install opens the Library. Kept on the device in UserDefaults
 `shell.lastSurface` (`SurfaceMemory`). Reopened on the Library, the browser's last page loads the
-first time you go there. UI-test launches start on the browser unless `-restoreSurface`.
+first time you go there (🌐), and stays remembered until then, across relaunches. UI-test launches
+start on the browser unless `-restoreSurface`.
 
 ```
 ╭ [art] Now playing title              ⏸ ╮   ← the Now Playing bar (once something has played)
@@ -133,7 +134,9 @@ the ⋯ slot too.
   offers *Change Folder* (the Move tree). A page filed in another folder asks *Move it to
   Favorites?* first (one page per address); a chapter of a book or series offers *Move Book (or
   Series) to Favorites* instead, because a chapter never leaves its book. A page in Favorites or
-  one of its subfolders is a favorite: ☆ then reads *Remove from Favorites*.
+  one of its subfolders is a favorite: ☆ then reads *Remove from Favorites*. A chapter whose
+  book or series is in Favorites is a favorite too; its ☆ asks *Take Book (or Series) out of
+  Favorites?* and moves the whole book to the top level, never the chapter alone.
 - **One library**: everything is a page in a folder (or in none). A page is a *link* (an address
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
   without saving (kept 7 days, shown only in Continue and the bar). There is one page per
@@ -158,7 +161,11 @@ the ⋯ slot too.
 
 **Favorites sheet** (`FavoritesSheet`): the Favorites folder screen, with its own pushes into
 subfolders; its links open in the browser and its saved pages in the Reader, closing the sheet
-first. Done, grabber, medium/large.
+first. Done, grabber, medium/large. Its bottom row is `[＋][ ][ ][ ][⋯]` on every screen of the
+sheet: ＋ is *New Folder* in the folder on screen, and ⋯ is the Library's ⋯ for that folder
+(*Sort ›, New Folder Inside*, and for a subfolder *Rename, Move…, Delete Folder…*), shown in the
+sheet; its big buttons are **Favorites** (back to the sheet's top), **History**, **Browser**
+(closes the sheet).
 
 ## The Library
 
@@ -197,7 +204,12 @@ Pages · 48                     Show All › pages in no folder, newest first, t
   only; it can't be renamed, moved down or deleted).
 - **Deleting a folder** asks *Delete Folder Only* (its subfolders and pages move up one level,
   after what is already there) or *Delete Folder and Contents*, with what it holds ("2 folders,
-  27 pages, 1 book") and "Stops what's playing." when the playing page is inside.
+  27 pages, 1 book") and "Stops what's playing." when the playing page is inside. A book or
+  series always goes with its chapters, so a selection holding one never offers *Folder Only*:
+  books alone ask *Delete Book* / *Delete 2 Books*; folders and books together ask *Delete Book,
+  Keep Folder Contents* or *Delete Everything*, saying the books go either way
+  (`FolderDeletePrompt`). Pages and their audio go together: the audio is deleted once the delete
+  is saved, and a delete that can't be saved leaves both.
 - **A book or series** (`BookScreen`): the cover, title, author, chapter count and where it came
   from; how far through ("38% · 6 h 10 min left"); the round play button (*▶ Play from Chapter
   1* before anything has played, *▶ Continue · Ch 24*, or jade bars *Playing · Ch 24* while one
@@ -224,8 +236,11 @@ part-way, or "✓ Finished".
 **The Move tree** (`MoveTreeSheet`): one sheet for *Move to…*, *Save to Library…*, 🔖's *Save to
 Folder…* and *Change Folder*. The whole tree as one indented list (medium, grows to large): *＋
 New Folder* (made at the top level, and the item goes in it), *Library (no folder)*, then
-Favorites and every folder, depth first. One tap files; ✓ marks the current place. Books and
-series aren't destinations; a folder being moved, and everything inside it, can't be picked.
+Favorites and every folder, depth first. One tap files; ✓ marks the current place; a folder's
+long-press offers *New Folder Inside* (made in it, and the item goes in that). *Library (no
+folder)* files the page in no folder, out of the folder it was in (a link in Favorites leaves
+Favorites, saved); an ordinary 🔖 or *Save* keeps a page's folder. Books and series aren't
+destinations; a folder being moved, and everything inside it, can't be picked.
 
 **Library search** is the same session as the browser's (`SearchSession` +
 `SearchSessionChrome`): focusing the field (or toolbar Search) hides the toolbar so the field sits
