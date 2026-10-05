@@ -65,6 +65,7 @@ struct FavoritesSheet: View {
         }
         .environment(screen)
         .moreMenuHost()
+        .listenDebugSheet(speech)
         .libraryDialogs(screen) {
             path = Array(path.prefix { route in
                 if case .folder(let id) = route { return library.folder(id: id) != nil }

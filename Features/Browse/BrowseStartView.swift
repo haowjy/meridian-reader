@@ -65,6 +65,9 @@ struct BrowseStartView: View {
             // everything else (the library's navigation bar too).
             .overlay { menuOverlay }
             .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { ShellSheetView(sheet: $0) }
+            // The ⋯ Debug row (Reader, Now Playing, Library) and long-press ▶: over every layer.
+            // A shell sheet with a Debug entry hosts its own.
+            .listenDebugSheet(speech, hosts: shell.sheet == nil)
             .alert(shell.prompt?.title ?? "", isPresented: Binding(get: { shell.prompt != nil },
                                                                     set: { if !$0 { shell.prompt = nil } }),
                    presenting: shell.prompt) { prompt in

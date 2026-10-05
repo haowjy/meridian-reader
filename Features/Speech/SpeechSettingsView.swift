@@ -43,6 +43,8 @@ struct SpeechSettingsView: View {
                  : "Debug tools are hidden.")
         }
         .onDisappear { preview.stop() }
+        // On the List, not the debug Section: a sheet on a List section doesn't present.
+        .listenDebugSheet(speech)
     }
 
     // MARK: - Engine
@@ -371,9 +373,6 @@ struct SpeechSettingsView: View {
             }
         } footer: {
             Text("When on, a Debug chip appears on the listen bar for a live bake/queue overlay. Long-press play/pause still opens the full panel.")
-        }
-        .sheet(isPresented: $speech.showListenDebug) {
-            ListenDebugPanel(speech: speech)
         }
     }
 }

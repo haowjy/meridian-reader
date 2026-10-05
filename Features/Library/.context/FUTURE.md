@@ -7,5 +7,3 @@
 - *Save Page* on a link row isn't offered (open the link and use 🔖 / ⋯); it needs a fetch that
   doesn't use the visible browser (step 6).
 - The Move tree from inside the Favorites sheet replaces the sheet (one shell sheet at a time).
-- The Library's ⋯ has no *Debug* row (ux.md lists one): the listen debug panel presents only from
-  Now Playing and the Reader. Needs the panel hosted where the Library can show it.

@@ -43,6 +43,12 @@ struct LibraryScreenMenu {
     private var pagesSort: PageSort { PageSort(rawValue: topLevelSort.wrappedValue) ?? LibraryTopLevel.defaultSort }
 
     var menu: LibraryMenu {
+        var menu = screenMenu
+        menu.showsDebug = speech.developerOptionsEnabled
+        return menu
+    }
+
+    private var screenMenu: LibraryMenu {
         if top == .pages { return LibraryMenu(screen: .pages, sort: pagesSort) }
         guard let folder = topFolder else { return LibraryMenu(screen: .home) }
         if folder.kind.isFixed { return LibraryMenu(screen: .book(isSeries: folder.kind == .series)) }
@@ -63,6 +69,7 @@ struct LibraryScreenMenu {
             LibraryActions(library: library, speech: speech, shell: shell).move([.folder(folder)]) { showMoved(folder) }
         case .deleteFolder: if let folder { screen.confirmDelete([folder]) }
         case .deleteDownloads: if let folder { library.deleteDownloads(of: folder) }
+        case .listenDebug: speech.showListenDebug = true
         case .favorites, .history, .browser: tile(action)
         }
     }

@@ -130,6 +130,9 @@ struct MoreMenuPanel: View {
             row("Delete Downloads", "arrow.down.circle", id: "moreDeleteDownloads") { run(.deleteDownloads) }
             row(isSeries ? "Delete Series…" : "Delete Book…", "trash", id: "moreDeleteFolder") { run(.deleteFolder) }
         }
+        if menu.showsDebug {
+            row("Debug", "ladybug", id: "moreDebug") { run(.listenDebug) }
+        }
         divider
         tiles {
             favoritesTile { run(.favorites) }

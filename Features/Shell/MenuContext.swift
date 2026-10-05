@@ -80,11 +80,13 @@ struct LibraryMenu {
     }
 
     enum Action {
-        case voiceSettings, newFolder, sort(PageSort), rename, move, deleteFolder, deleteDownloads
+        case voiceSettings, newFolder, sort(PageSort), rename, move, deleteFolder, deleteDownloads, listenDebug
         case favorites, history, browser
     }
 
     var screen: Screen
     /// The screen's page sort (folders and the top level's pages).
     var sort: PageSort = .manual
+    /// Developer options: the Debug row (listen debug panel), last on every screen.
+    var showsDebug = false
 }
