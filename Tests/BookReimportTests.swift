@@ -238,6 +238,94 @@ final class BookReimportTests: XCTestCase {
         XCTAssertEqual(stored[1].title, "Two")
     }
 
+    /// The app's progress recorder saves the position when playback stops, and that save commits
+    /// whatever the context holds. Replace stops the chapter before changing anything, so when its
+    /// own save then fails, the position is all that was saved.
+    func testStoppingPlaybackForAReplaceThatFailsSavesOnlyThePosition() throws {
+        env.cleanUp()
+        env = try LibraryTestEnvironment(fileBacked: true)
+        let book = try addBook()
+        try env.storeAudio(three, paragraphs: textThree)
+        let p2 = try XCTUnwrap(page(two))
+        library.recordPlayback(ReaderArticle(page: p2))
+        library.recordPosition(p2, paragraph: 1, utf16Offset: 2)
+        env.playingKey = two
+        var failSaves = true
+        library.saveContext = { context in
+            if failSaves { throw Died() }
+            try context.save()
+        }
+        env.onStop = { [unowned self] key in
+            failSaves = false
+            defer { failSaves = true }
+            library.recordPosition(p2, paragraph: 2, utf16Offset: 3)
+            XCTAssertEqual(key, two)
+        }
+
+        var newDetails = details
+        newDetails.byline = "Ben Sample"
+        let edited = ["Two begins.", "Two goes on, differently now.", "Two ends."]
+        XCTAssertThrowsError(try library.replaceBook(book, with: newDetails, chapters: [
+            chapter(one, 0, "One", textOne), chapter(two, 1, "Two", edited), chapter(UUID(), 2, "Four", ["Four is new."]),
+        ]))
+        XCTAssertEqual(env.stoppedKeys, [two], "the edited chapter's playback stopped")
+
+        try env.relaunch()
+        let stored = try XCTUnwrap(library.book(key: bookKey))
+        XCTAssertEqual(library.playOrder(of: stored).map(\.key), [one, two, three], "no chapter dropped or added")
+        XCTAssertEqual(stored.byline, "Ada Example", "no detail changed")
+        XCTAssertEqual(stored.currentPageKey, two)
+        XCTAssertEqual(page(two)?.cachedListenParagraphs, textTwo, "no text changed")
+        XCTAssertEqual(page(two)?.positionParagraph, 2, "the position Stop saved")
+        XCTAssertEqual(page(two)?.positionUTF16, 3)
+        XCTAssertEqual(ready(three), [0, 1, 2], "the dropped chapter's audio")
+        XCTAssertTrue(audioWork().isEmpty)
+    }
+
+    /// Replace saved, and the app died before the audio work ran. A cold launch on the same files
+    /// does the work in the composition's launch step: the dropped chapter's audio and pending
+    /// render go, and nothing else.
+    func testADeleteLeftByALaunchThatDiedAfterReplaceSavedIsDoneAtTheNextLaunch() throws {
+        env.cleanUp()
+        env = try LibraryTestEnvironment(fileBacked: true)
+        let book = try addBook()
+        for (key, text) in [(one, textOne), (two, textTwo), (three, textThree)] {
+            try env.storeAudio(key, paragraphs: text)
+            PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: text, voiceID: "voiceA",
+                                                      plan: .topDown(paragraphCount: 3))
+        }
+        let keys = [one, two, three]
+        addTeardownBlock { @MainActor in for key in keys { PendingBakeJobStore.shared.removePending(articleID: key) } }
+        let web = library.save(env.article("https://example.com/kept", paragraphs: ["Kept one.", "Kept two."]))
+        let webKey = try XCTUnwrap(web.key)
+        try env.storeAudio(webKey, paragraphs: ["Kept one.", "Kept two."])
+        let four = UUID()
+
+        library.saveContext = { try $0.save(); throw Died() }
+        XCTAssertThrowsError(try library.replaceBook(book, with: details, chapters: [
+            chapter(one, 0, "One", textOne), chapter(two, 1, "Two", textTwo), chapter(four, 2, "Four", ["Four is new."]),
+        ]))
+        XCTAssertEqual(ready(three), [0, 1, 2], "died before the work: the audio is still there")
+
+        try env.relaunch()
+        XCTAssertEqual(library.playOrder(of: try XCTUnwrap(library.book(key: bookKey))).map(\.key), [one, two, four],
+                       "the Replace was saved")
+        XCTAssertEqual(audioWork().map(\.kind), [.delete], "with its audio work")
+        XCTAssertEqual(audioWork().first?.key, three)
+
+        AppComposition.prepareAudioCache(library: library, migrations: [])
+        let cold = ArticleAudioCache(root: env.cache.root)
+        XCTAssertFalse(cold.hasDirectory(for: three), "the dropped chapter's audio is gone")
+        XCTAssertFalse(pendingRender(three), "and its pending render")
+        XCTAssertTrue(audioWork().isEmpty, "the work is retired")
+        XCTAssertEqual(env.cache.held, .nothing)
+        for key in [one, two] {
+            XCTAssertEqual(cold.index(for: key)?.paragraphs.count, 3, "the chapters that stay keep their audio")
+            XCTAssertTrue(pendingRender(key), "and their pending renders")
+        }
+        XCTAssertEqual(cold.index(for: webKey)?.paragraphs.count, 2, "and so does a page outside the book")
+    }
+
     func testADroppedChaptersAudioWaitsBehindEarlierAudioWorkThatCantFinish() throws {
         let book = try addBook()
         try env.storeAudio(three, paragraphs: textThree)
