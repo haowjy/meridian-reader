@@ -488,6 +488,15 @@ struct HTMLReadingWebView: UIViewRepresentable {
             if (range) CSS.highlights.set('reader-sentence', new Highlight(range));
           };
           reindex();
+          // The article's own leading heading already says the title: keep only the source line.
+          (function() {
+            var title = document.querySelector('.reader-title');
+            var first = blocks()[0];
+            var norm = function(t) { return (t || '').replace(/\\s+/g, ' ').trim().toLowerCase(); };
+            if (title && first && /^H[1-3]$/.test(first.tagName) && norm(first.textContent) === norm(title.textContent)) {
+              title.style.display = 'none';
+            }
+          })();
         })();
         """
     }

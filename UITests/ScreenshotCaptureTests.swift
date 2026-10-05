@@ -183,7 +183,9 @@ final class ScreenshotCaptureTests: XCTestCase {
                    withVelocity: .slow, thenHoldForDuration: 0.1)
         wait(1)
         try shot("5-now-playing-scrolled-back-to-audio")
-        app.buttons["listenPlayPause"].tap()
+        // B's Reader (with its own Listen) is still under Now Playing: pause by Now Playing's label.
+        app.buttons.matching(identifier: "listenPlayPause").matching(NSPredicate(format: "label == 'Pause'"))
+            .firstMatch.tap()
     }
 
     /// The start page, the ⋯ menu, Bookmarks, the Library and its Reader, the Now Playing bar on
