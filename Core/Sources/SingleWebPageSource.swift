@@ -1,7 +1,8 @@
 import Foundation
 
-/// The page the browser shows, as a source: its snapshot extracted (Readability, then the listen
-/// normalizer). One page in no folder.
+/// One web page, as a source: its snapshot extracted (Readability, then the listen normalizer).
+/// One page in no folder. The browser's page goes through it, and so does a page `URLPageFetcher`
+/// loaded, so the two extract alike.
 @MainActor
 struct SingleWebPageSource: PageSource {
     let url: URL
