@@ -1,6 +1,18 @@
 import Foundation
 import SwiftData
 
+/// What ☆ on a page leads to (`LibraryStore.favoriteRequest`).
+enum FavoriteRequest {
+    /// Not a favorite yet: one tap adds it at the end of Favorites.
+    case add
+    /// Already a favorite: ☆ takes it out.
+    case remove(Page)
+    /// Filed in another folder: ask *Move it to Favorites?*
+    case moveFromFolder(Page, Folder)
+    /// A chapter of a book or series: offer to move the book or series instead.
+    case moveBook(Folder)
+}
+
 /// Favorites: the top-level folder that holds what used to be site bookmarks. A favorite is a
 /// page in it: a link, or a saved page (one page per address, so bookmarking a saved page files
 /// it there). The start page shows its pages as the icon grid.
@@ -10,10 +22,28 @@ extension LibraryStore {
         pages(in: favorites())
     }
 
-    /// The page for `url` when it is a favorite.
+    /// The page for `url` when it is a favorite: in Favorites or one of its subfolders.
     func favorite(for url: URL?) -> Page? {
-        guard let url, Self.canFavorite(url), let page = page(url: url), page.folder?.kind == .favorites else { return nil }
+        guard let url, Self.canFavorite(url), let page = page(url: url), Self.isFavorite(page) else { return nil }
         return page
+    }
+
+    /// In Favorites or one of its subfolders.
+    static func isFavorite(_ page: Page) -> Bool {
+        guard let folder = page.folder else { return false }
+        return folder.kind == .favorites || folder.ancestors.contains { $0.kind == .favorites }
+    }
+
+    /// What ☆ on the page at `url` leads to. One page per address: a page filed in another folder
+    /// moves to Favorites only once you agree, and a chapter never leaves its book (the book
+    /// can go instead).
+    func favoriteRequest(for url: URL) -> FavoriteRequest {
+        guard let existing = page(url: url) else { return .add }
+        if Self.isFavorite(existing) { return .remove(existing) }
+        if let folder = existing.folder {
+            return folder.kind.isFixed ? .moveBook(folder) : .moveFromFolder(existing, folder)
+        }
+        return .add
     }
 
     static func canFavorite(_ url: URL) -> Bool {
@@ -59,7 +89,7 @@ extension LibraryStore {
     /// No longer a favorite: a saved page goes back to the pages in no folder, still saved; a
     /// link page is removed.
     func removeFavorite(_ page: Page) {
-        guard page.folder?.kind == .favorites else { return }
+        guard Self.isFavorite(page) else { return }
         if page.isSaved {
             page.sortKey = nextSortKey(in: nil)
             page.setFolder(nil)

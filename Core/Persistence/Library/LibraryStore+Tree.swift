@@ -19,6 +19,49 @@ enum LibraryTreeError: Error, Equatable {
     case favoritesIsPinned
 }
 
+/// What a folder holds, all the way down (`LibraryStore.contents(of:)`).
+struct FolderContents: Equatable {
+    var folders = 0
+    var pages = 0
+    var books = 0
+    var pageKeys: Set<UUID> = []
+
+    /// "2 folders, 27 pages, 1 book"; nil when empty.
+    var summary: String? {
+        let parts = [(folders, "folder"), (pages, "page"), (books, "book")]
+            .filter { $0.0 > 0 }
+            .map { count, noun in "\(count) \(noun)\(count == 1 ? "" : "s")" }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
+    }
+}
+
+/// Order among siblings as a fractional `Double`: a move writes only the moved items' keys, and
+/// the siblings are renumbered in one pass only once a gap gets too small to split.
+enum FractionalOrder {
+    /// Below this gap the siblings are renumbered.
+    static let minimumGap = 1e-9
+
+    /// Gives `moving` keys that place them, in order, just before `before` among `siblings`
+    /// (ordered by `key`; the end if `before` is nil or one of `moving`).
+    static func move<Item: AnyObject>(_ moving: [Item], among siblings: [Item], before: Item?,
+                                      key: ReferenceWritableKeyPath<Item, Double>) {
+        guard !moving.isEmpty else { return }
+        let movingIDs = Set(moving.map(ObjectIdentifier.init))
+        let rest = siblings.filter { !movingIDs.contains(ObjectIdentifier($0)) }
+        let insertAt = before.flatMap { b in rest.firstIndex { $0 === b } } ?? rest.count
+        let low = insertAt > 0 ? rest[insertAt - 1][keyPath: key] : (rest.first?[keyPath: key] ?? 0) - 1
+        let high = insertAt < rest.count ? rest[insertAt][keyPath: key] : low + Double(moving.count + 1)
+        let step = (high - low) / Double(moving.count + 1)
+        if step < minimumGap {
+            var ordered = rest
+            ordered.insert(contentsOf: moving, at: insertAt)
+            for (i, item) in ordered.enumerated() { item[keyPath: key] = Double(i) }
+        } else {
+            for (i, item) in moving.enumerated() { item[keyPath: key] = low + step * Double(i + 1) }
+        }
+    }
+}
+
 /// The folder tree: making, renaming, moving, sorting and deleting folders. Folders nest to any
 /// depth; books, series and Favorites have the rules in `LibraryTreeError`.
 extension LibraryStore {
@@ -130,7 +173,7 @@ extension LibraryStore {
 
     /// Moves `pages` (siblings in `folder`, or in no folder) to just before `before` (the end if
     /// nil): one fractional `sortKey` write per page, renumbering the siblings in one pass when
-    /// a gap gets under 1e-9. Not for books and series.
+    /// a gap gets under `FractionalOrder.minimumGap`. Not for books and series.
     func reorder(_ pages: [Page], in folder: Folder?, before: Page?) {
         guard folder?.kind.isFixed != true else { return }
         let siblings: [Page]
@@ -140,20 +183,36 @@ extension LibraryStore {
             siblings = (try? context.fetch(FetchDescriptor<Page>(predicate: #Predicate { $0.folderID == nil },
                                                                  sortBy: LibraryQueries.sortDescriptors(.manual)))) ?? []
         }
-        let moving = Set(pages.map(ObjectIdentifier.init))
-        let rest = siblings.filter { !moving.contains(ObjectIdentifier($0)) }
-        let insertAt = before.flatMap { b in rest.firstIndex { $0 === b } } ?? rest.count
-        let low = insertAt > 0 ? rest[insertAt - 1].sortKey : (rest.first?.sortKey ?? 0) - 1
-        let high = insertAt < rest.count ? rest[insertAt].sortKey : low + Double(pages.count + 1)
-        let step = (high - low) / Double(pages.count + 1)
-        if step < 1e-9 {
-            var ordered = rest
-            ordered.insert(contentsOf: pages, at: insertAt)
-            for (i, page) in ordered.enumerated() { page.sortKey = Double(i) }
-        } else {
-            for (i, page) in pages.enumerated() { page.sortKey = low + step * Double(i + 1) }
-        }
+        FractionalOrder.move(pages, among: siblings, before: before, key: \.sortKey)
         commit("reorder")
+    }
+
+    /// Moves `folders` (siblings under `parent`, or at the top level) to just before `before` (the
+    /// end if nil), the same way. Favorites stays first among the top-level folders whatever its
+    /// key.
+    func reorderFolders(_ folders: [Folder], in parent: Folder?, before: Folder?) {
+        let siblings = parent.map(subfolders(of:)) ?? topLevelFolders()
+        FractionalOrder.move(folders, among: siblings, before: before, key: \.sortKey)
+        commit("reorder folders")
+    }
+
+    /// What deleting `folder` and its contents takes with it, for the confirmation: subfolders,
+    /// pages, and books and series (whose chapters aren't counted as pages), and every page key
+    /// (to say "Stops what's playing").
+    func contents(of folder: Folder) -> FolderContents {
+        var total = FolderContents()
+        total.pageKeys.formUnion(pages(in: folder).map(\.listenKey))
+        if folder.kind.isFixed { return total }
+        total.pages += pages(in: folder).count
+        for child in subfolders(of: folder) {
+            if child.kind.isFixed { total.books += 1 } else { total.folders += 1 }
+            let inner = contents(of: child)
+            total.folders += inner.folders
+            total.pages += inner.pages
+            total.books += inner.books
+            total.pageKeys.formUnion(inner.pageKeys)
+        }
+        return total
     }
 
     /// A sort key after every subfolder of `parent` (or every top-level folder).
