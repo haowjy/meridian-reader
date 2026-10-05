@@ -11,8 +11,9 @@ enum LibraryAudioWorkKind: String, Codable {
 
 /// Work outside the library store that a library change needs once it is saved: the audio cache,
 /// pending renders and the crash-resume point. Recorded in the same save as the change, done
-/// right after it (`LibraryStore.commit`), then deleted. A launch that dies in between leaves it
-/// here and the next launch does it (`LibraryStore.finishAudioWork`); every step is idempotent.
+/// right after it (`LibraryStore.commit`), and deleted once its postconditions hold on disk. Work
+/// that fails, or that a launch died in the middle of, stays here and the next launch does it
+/// before anything touches the cache (`LibraryStore.finishAudioWork`); every step is idempotent.
 /// A save that fails leaves the files as they were. Device-local, like the audio cache.
 @Model
 final class LibraryAudioWork {

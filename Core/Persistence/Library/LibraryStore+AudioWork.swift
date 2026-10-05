@@ -21,8 +21,9 @@ enum LibraryAudioWorkError: Error {
 
 /// Files outside the library store change only after the library change they belong to is saved.
 /// The layout pass and dedupe plan their audio work (`planAlign`, `planMerge`) as records in the
-/// same save; `commit` does it once the save succeeds; a launch that died in between finishes it
-/// (`finishAudioWork`); a save that fails and is rolled back (`rollBack`) leaves every file alone.
+/// same save; `commit` does it once the save succeeds and retires each record once its
+/// postconditions hold; the next launch finishes whatever is left (`finishAudioWork`); a save that
+/// fails and is rolled back (`rollBack`) leaves every file alone.
 extension LibraryStore {
     // MARK: - Planning
 
