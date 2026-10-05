@@ -8,7 +8,7 @@ import SwiftUI
 /// │  ⌄          PLAYING FROM          ⊕  │ ← ⌄ or a pull down shrinks it; ⊕ saves (✓ saved)
 /// │          Pride and Prejudice         │ ← tap: go there
 /// │ … `text`: follows the audio …        │
-/// │            ( ↓ Back to audio )       │ ← after you scroll away
+/// │            ( Back to audio )         │ ← after you scroll away, floating over the text
 /// │ `controls`: status notes, the        │
 /// │ scrubber, [1×] [⏮] [⏸] [⏭] [⋯]       │ ← in the bottom band
 /// └──────────────────────────────────────┘
@@ -34,22 +34,26 @@ struct NowPlayingSheet<Reading: View, Controls: View>: View {
         } content: {
             text
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .safeAreaInset(edge: .bottom, spacing: 0) { bottom }
+                .overlay(alignment: .bottom) { backToAudio }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    VStack(spacing: BottomChrome.rowSpacing) { controls }
+                        .bottomChromeBand()
+                }
         }
     }
 
-    private var bottom: some View {
-        VStack(spacing: Spacing.xs) {
+    /// Floats over the text, so the text keeps running under it. No arrow: the spoken paragraph
+    /// may be above or below.
+    private var backToAudio: some View {
+        ZStack {
             if showsBackToAudio {
-                PillButton("Back to audio", systemImage: "arrow.down", style: .inverted, size: .compact,
-                           action: onBackToAudio)
+                PillButton("Back to audio", style: .inverted, size: .compact, action: onBackToAudio)
                     .floatingShadow(opacity: 0.2)
                     .accessibilityIdentifier("nowPlayingBackToAudio")
                     .transition(.opacity)
             }
-            VStack(spacing: BottomChrome.rowSpacing) { controls }
-                .bottomChromeBand()
         }
+        .padding(.bottom, Spacing.s)
         .animation(Motion.snappy, value: showsBackToAudio)
     }
 }

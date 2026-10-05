@@ -122,7 +122,7 @@ struct PillButtonGallery: View {
                 PillButton("Playing · Ch 24", systemImage: "waveform", style: .tinted) {}
             }
             PreviewState("inverted compact · Back to audio") {
-                PillButton("Back to audio", systemImage: "arrow.down", style: .inverted, size: .compact) {}
+                PillButton("Back to audio", style: .inverted, size: .compact) {}
             }
             PreviewState("disabled") {
                 PillButton("Listen", systemImage: "play.fill") {}.disabled(true)

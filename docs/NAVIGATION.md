@@ -234,7 +234,7 @@ opens Now Playing instead.
 │ Title · example.com · 9 min          │
 │ … serif text; the spoken paragraph   │
 │   tinted, the sentence underlined …  │
-│            ( ↓ Back to audio )       │ ← after you scroll away
+│            ( Back to audio )         │ ← after you scroll away
 │ Preparing next… / ✓ Finished         │ ← status notes, above the scrubber
 │ ( ━━━━━●━━━━░░░░──  ☝︎ )             │
 │ [1×]  [⏮]  [⏸]  [⏭]  [ ⋯ ]          │
@@ -254,9 +254,10 @@ opens Now Playing instead.
 - **The text follows the audio.** On each new paragraph it scrolls the spoken one near the middle
   (the `Motion.standard` spring; a jump under Reduce Motion). The spoken paragraph is tinted and
   the current sentence underlined (per chunk on engines that report only chunk starts; no
-  underline before iOS 17.2). Drag the text and following stops; a *↓ Back to audio* pill appears
-  above the controls. Tap it (or start another page) and following resumes. Scrubbing scrolls to
-  the paragraph under the thumb.
+  underline before iOS 17.2). Drag the text and following stops; a *Back to audio* pill floats
+  over the text just above the controls (no arrow: the spoken paragraph may be above or below).
+  Tap it (or start another page) and following resumes. Scrubbing scrolls to the paragraph under
+  the thumb.
 - **At the end** it stays on the page: the text stays, the tint goes, a note says "✓ Finished",
   and ▶ plays the page again.
 - **Controls** (today's listen rows): the scrub row and `[1×][⏮][▶︎][⏭][⋯]` in the browser's
