@@ -23,6 +23,8 @@ struct EPUBTextStream: Sendable {
     private let documentWords: [Int]
     private let documentBodyWords: [Int]
     private let documentIndex: [String: Int]
+    /// Per document: it, when it has events, else the next one that has (the last when none has).
+    private let nextWithEvents: [Int]
 
     /// `bodyStart` and `backStart` come from landmarks or the guide: words before the body
     /// starts, and from where back matter starts, are front and back matter.
@@ -60,6 +62,11 @@ struct EPUBTextStream: Sendable {
             index[document.path.lowercased()] = offset
         }
         documentIndex = index
+        var next = Array(documents.indices)
+        for document in documents.indices.dropLast().reversed() where documents[document].events.isEmpty {
+            next[document] = next[document + 1]
+        }
+        nextWithEvents = next
     }
 
     var start: Position { normalized(Position(document: 0, event: 0)) }
@@ -71,13 +78,12 @@ struct EPUBTextStream: Sendable {
 
     var totalWords: Int { documentWords.last ?? 0 }
 
-    /// The end of a document becomes the start of the next one.
+    /// The end of a document becomes the start of the next one with any events (or of the last).
     func normalized(_ position: Position) -> Position {
-        var position = position
-        while position.document < documents.count - 1, position.event >= documents[position.document].events.count {
-            position = Position(document: position.document + 1, event: 0)
+        guard position.document < documents.count - 1, position.event >= documents[position.document].events.count else {
+            return position
         }
-        return position
+        return Position(document: nextWithEvents[position.document + 1], event: 0)
     }
 
     func documentIndex(ofPath path: String) -> Int? {

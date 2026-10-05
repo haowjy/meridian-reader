@@ -153,7 +153,7 @@ struct EPUBChapterCutter {
                 if position < stream.end { marks.append(unlistedMark(at: position)) }
             }
         }
-        marks = expandingLongBranches(deduplicated(marks))
+        marks = expandingLongBranches(marks)
         var ranges: [Range] = []
         for index in marks.indices {
             let end = index + 1 < marks.count ? marks[index + 1].position : stream.end
@@ -166,9 +166,8 @@ struct EPUBChapterCutter {
 
     private func mark(for entry: EPUBContentsEntry) -> Mark? {
         let title = entry.title.isEmpty ? nil : entry.title
-        if let path = entry.path, let document = stream.documentIndex(ofPath: path),
-           let position = stream.position(ofPath: path, fragment: entry.fragment) {
-            return Mark(position: position, title: title, href: stream.documents[document].path,
+        if let target = target(of: entry) {
+            return Mark(position: target.position, title: title, href: stream.documents[target.document].path,
                         anchor: entry.fragment.map { EPUBLocator.Anchor.id($0) } ?? .fileStart, origin: .contents,
                         children: entry.children)
         }
@@ -178,6 +177,13 @@ struct EPUBChapterCutter {
         }
         return Mark(position: first.position, title: title ?? first.title, href: first.href, anchor: first.anchor,
                     origin: .contents, children: entry.children)
+    }
+
+    /// Where an entry that links into the spine lands, and the spine file it names.
+    private func target(of entry: EPUBContentsEntry) -> (position: Position, document: Int)? {
+        guard let path = entry.path, let document = stream.documentIndex(ofPath: path),
+              let position = stream.position(ofPath: path, fragment: entry.fragment) else { return nil }
+        return (position, document)
     }
 
     private func headingOrFileMarks() -> [Mark] {
@@ -201,49 +207,58 @@ struct EPUBChapterCutter {
              anchor: stream.bookAnchor(at: position), origin: origin)
     }
 
-    /// Sorted by position, one mark per position: a named mark wins over an unlisted one, and of
-    /// two named ones the later (the deeper entry, or the later in the contents) wins, keeping
-    /// both one's children.
-    private func deduplicated(_ marks: [Mark]) -> [Mark] {
-        let sorted = marks.enumerated().sorted {
-            $0.element.position == $1.element.position ? $0.offset < $1.offset : $0.element.position < $1.element.position
-        }.map(\.element)
-        var result: [Mark] = []
-        for mark in sorted {
-            guard let last = result.last, last.position == mark.position else {
-                result.append(mark)
-                continue
-            }
-            if mark.origin == .unlisted { continue }
-            if last.origin == .unlisted {
-                result[result.count - 1] = mark
-                continue
-            }
-            var kept = mark
-            kept.children = last.children + mark.children
-            result[result.count - 1] = kept
-        }
-        return result
-    }
-
     /// Replaces a too-long range whose entry has children with the entry's own start plus its
-    /// children, until no such range is left.
+    /// children, until no such range is left, the earliest such range first (its children can
+    /// shorten the ranges after it). Marks at one position merge as they arrive: a named mark wins
+    /// over an unlisted one, and of two named ones the later (the deeper entry, or the later in the
+    /// contents) wins, keeping both one's children.
+    ///
+    /// Every position a mark can take is one of `marks` or a contents entry's target, so they're
+    /// sorted once into slots. Finding where a mark's range ends, and the earliest range to open,
+    /// is logarithmic; each entry is placed once, and children are kept as the lists they came in.
     private func expandingLongBranches(_ marks: [Mark]) -> [Mark] {
-        var marks = marks
-        var expanded = true
-        while expanded {
-            expanded = false
-            for index in marks.indices where !marks[index].children.isEmpty {
-                let end = index + 1 < marks.count ? marks[index + 1].position : stream.end
-                guard stream.words(from: marks[index].position, to: end) > rules.maxWords else { continue }
-                let children = marks[index].children.compactMap(mark(for:))
-                marks[index].children = []
-                marks = deduplicated(marks + children)
-                expanded = true
-                break
+        var positions = Set(marks.map(\.position))
+        var entries = marks.flatMap(\.children)
+        while let entry = entries.popLast() {
+            if let target = target(of: entry) { positions.insert(target.position) }
+            entries += entry.children
+        }
+        let slots = positions.sorted()
+        let slotOf = Dictionary(uniqueKeysWithValues: slots.enumerated().map { ($1, $0) })
+        var placed = [Mark?](repeating: nil, count: slots.count)
+        // Per slot, the children not opened yet: each placed entry's list, in arrival order.
+        var unopened = [[[EPUBContentsEntry]]](repeating: [], count: slots.count)
+        var occupied = SlotSet(count: slots.count)
+        var waiting = SlotSet(count: slots.count)
+
+        func place(_ mark: Mark) {
+            // Every position a mark can take was given a slot above.
+            guard let slot = slotOf[mark.position] else { preconditionFailure("a mark outside the slots") }
+            if placed[slot] == nil {
+                occupied.insert(slot)
+            } else if mark.origin == .unlisted {
+                return
+            }
+            placed[slot] = mark
+            if !mark.children.isEmpty {
+                unopened[slot].append(mark.children)
+                waiting.insert(slot)
             }
         }
-        return marks
+
+        marks.forEach(place)
+        while let slot = waiting.first() {
+            waiting.remove(slot)
+            let end = occupied.first(after: slot).map { slots[$0] } ?? stream.end
+            // A range within the maximum only shortens as marks are added: it never opens.
+            guard stream.words(from: slots[slot], to: end) > rules.maxWords else { continue }
+            let lists = unopened[slot]
+            unopened[slot] = []
+            for entry in lists.joined() {
+                if let child = mark(for: entry) { place(child) }
+            }
+        }
+        return placed.compactMap { $0 }
     }
 
     // MARK: - Splitting long ranges
@@ -348,7 +363,7 @@ struct EPUBChapterCutter {
     }
 
     private func packingCandidates(_ level: PackingLevel, from start: Position, to end: Position) -> [Position] {
-        var positions = (start.document + 1..<stream.documents.count)
+        var positions = (start.document + 1..<min(end.document + 1, stream.documents.count))
             .map { stream.normalized(Position(document: $0, event: 0)) }
         if level != .files {
             positions += stream.elementStarts(from: start, to: end) { Self.blockElements.contains($0.localName) }
@@ -451,5 +466,73 @@ struct EPUBChapterCutter {
     private func firstHeading(from start: Position, to end: Position) -> String? {
         let headings = stream.elementStarts(from: start, to: end) { EPUBSpineDocument.headingLevel($0.localName) != nil }
         return headings.lazy.compactMap(headingText(at:)).first
+    }
+}
+
+/// A set of slots `0..<count` (a Fenwick tree of counts): insert, remove, and the first member
+/// after a slot, each logarithmic.
+private struct SlotSet {
+    /// 1-based: `tree[i]` counts the members in the `i & -i` slots ending at slot `i - 1`.
+    private var tree: [Int]
+    private var members: [Bool]
+    private let topBit: Int
+
+    init(count: Int) {
+        tree = Array(repeating: 0, count: count + 1)
+        members = Array(repeating: false, count: count)
+        var bit = 1
+        while bit * 2 <= count { bit *= 2 }
+        topBit = bit
+    }
+
+    mutating func insert(_ slot: Int) {
+        guard !members[slot] else { return }
+        members[slot] = true
+        add(1, at: slot)
+    }
+
+    mutating func remove(_ slot: Int) {
+        guard members[slot] else { return }
+        members[slot] = false
+        add(-1, at: slot)
+    }
+
+    /// The smallest member above `slot`, or the smallest of all when `slot` is nil.
+    func first(after slot: Int? = nil) -> Int? {
+        member(ranked: (slot.map(count(through:)) ?? 0) + 1)
+    }
+
+    private mutating func add(_ delta: Int, at slot: Int) {
+        var index = slot + 1
+        while index < tree.count {
+            tree[index] += delta
+            index += index & -index
+        }
+    }
+
+    /// Members at or below `slot`.
+    private func count(through slot: Int) -> Int {
+        var index = slot + 1
+        var total = 0
+        while index > 0 {
+            total += tree[index]
+            index -= index & -index
+        }
+        return total
+    }
+
+    /// The `rank`-th smallest member, from 1; nil when there are fewer.
+    private func member(ranked rank: Int) -> Int? {
+        var index = 0
+        var remaining = rank
+        var bit = topBit
+        while bit > 0 {
+            if index + bit < tree.count, tree[index + bit] < remaining {
+                index += bit
+                remaining -= tree[index]
+            }
+            bit /= 2
+        }
+        return index < members.count ? index : nil
     }
 }
