@@ -15,4 +15,17 @@ final class ListeningTimeTests: XCTestCase {
         let paragraph = String(repeating: "A sentence with several words in it. ", count: 6)
         XCTAssertTrue(ListeningTime.hasEnoughToListen(ParagraphDocument(parts: [paragraph])))
     }
+
+    /// The threshold counts words, not characters: many short words are enough, a few long ones
+    /// aren't.
+    func testTheThresholdCountsWords() {
+        let shortWords = Array(repeating: "I am", count: 13).joined(separator: " ") + "."  // 26 words, 64 units
+        XCTAssertTrue(ListeningTime.hasEnoughToListen(ParagraphDocument(parts: [shortWords])))
+        let longWords = Array(repeating: "internationalization", count: 20).joined(separator: " ")  // 20 words
+        XCTAssertFalse(ListeningTime.hasEnoughToListen(ParagraphDocument(parts: [longWords])))
+        let across = ["One two three four five six seven eight nine ten eleven twelve.",
+                      "Thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty.",
+                      "Twenty-one twenty-two twenty-three twenty-four twenty-five."]
+        XCTAssertTrue(ListeningTime.hasEnoughToListen(ParagraphDocument(parts: across)), "counted across paragraphs")
+    }
 }

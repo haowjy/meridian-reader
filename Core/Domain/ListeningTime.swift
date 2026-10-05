@@ -17,8 +17,19 @@ enum ListeningTime {
     /// stub): about ten seconds of speech.
     static let minimumWords = 25
 
+    /// At least `minimumWords` words (by the system's word boundaries), counted until there are
+    /// enough.
     static func hasEnoughToListen(_ document: ParagraphDocument) -> Bool {
-        Double(document.utf16Length) / unitsPerWord >= Double(minimumWords)
+        var words = 0
+        for paragraph in document.paragraphs {
+            paragraph.enumerateSubstrings(in: paragraph.startIndex..., options: [.byWords, .substringNotRequired]) {
+                _, _, _, stop in
+                words += 1
+                if words >= minimumWords { stop = true }
+            }
+            if words >= minimumWords { return true }
+        }
+        return false
     }
 
     /// Minutes left in `document` from document offset `offset`.
