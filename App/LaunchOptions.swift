@@ -65,6 +65,12 @@ struct LaunchOptions: Equatable {
     var restoresSurfaceInUITests = false
     /// `-resetSurface`: forget the remembered surface first, as on a fresh install.
     var resetsSurface = false
+    /// `-importTestEPUB`: import the synthetic EPUB (`TestEPUB`) into the Library's top level
+    /// through the real import, replacing an earlier launch's import of it with its audio.
+    var importsTestEPUB = false
+    /// `-playTestEPUB` (with `-importTestEPUB`): once imported, play the book from its place, as
+    /// a book's Play does.
+    var playsTestEPUB = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -102,6 +108,8 @@ struct LaunchOptions: Equatable {
         seedsDemoFolders = flags.contains("-seedDemoFolders")
         restoresSurfaceInUITests = flags.contains("-restoreSurface")
         resetsSurface = flags.contains("-resetSurface")
+        importsTestEPUB = flags.contains("-importTestEPUB")
+        playsTestEPUB = flags.contains("-playTestEPUB")
     }
 
     /// Whether the app reopens on the surface it was left on.

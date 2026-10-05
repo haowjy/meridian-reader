@@ -31,8 +31,10 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 App/        @main, composition root (AppComposition), launch work (AppLaunch), Debug-only launch hooks
 Core/
   Device/       chip / OS gates
-  Domain/       ReaderArticle, ParagraphDocument, ParagraphSplitter, ArticleIdentity, ReaderScrubMap
-  Extraction/   ArticleExtracting, Readability runner, reader scripts
+  Domain/       ReaderArticle, PageOrigin, ParagraphDocument, ParagraphSplitter, ArticleIdentity, ReaderScrubMap
+  EPUB/         EPUB reading: zip container, package, contents, chapter cutting, BookIdentity
+  Extraction/   ArticleExtracting, Readability runner, ListenContentNormalizer, reader scripts
+  Sources/      PageSource (SingleWebPageSource, EPUBSource), BookImporter, chapter settling, cover thumbnails
   Persistence/  SwiftData models; Library/ (Folder, Page, LibraryStore, LibraryQueries, migration); frozen legacy readers
   TTS/          chunking, render queue, audio cache, run state, engine plumbing (no library imports)
   Web/          WebView + store, URL helpers, favicons, Google suggestions
@@ -73,10 +75,14 @@ UITests/    UI tests (ReaderUITests)
 1. The browser keeps a live `WKWebView` (`WebViewStore`). Reader mode and Save take a snapshot of
    the page's visible DOM (`ReaderVisibleSnapshot.js` drops short invisible text such as anti-copy
    lines).
-2. `ReadabilityArticleExtractor` loads that HTML into an **off-screen** `WKWebView` (the page URL
-   as base for web pages) with the page's JavaScript off, injects Readability.js and the
-   readerable helper, and runs `new Readability(document.cloneNode(true)).parse()`, then
-   normalizes the result (`ReaderNormalize.js`).
+2. `ReadabilityArticleExtractor` loads that HTML into an **off-screen** `WKWebView`
+   (`OffscreenWebView`; the page URL as base for web pages) with the page's JavaScript off,
+   injects Readability.js and the readerable helper, and runs
+   `new Readability(document.cloneNode(true)).parse()`. `ListenContentNormalizer` then runs
+   `ReaderNormalize.js` on the result in the same web view, so every piece of readable text sits
+   in a listen block (loose text in a `<div>`, lines between `<br><br>`, the lead-in of a list
+   item or quote holding blocks). The browser's page reaches the Reader, 🎧 and Save as a
+   `SingleWebPageSource`: one page in no folder, its content normalized like every source's.
 3. The address bar's reader icon and the ⋯ Reader toggle use the same
    `isProbablyReaderable` check, run after each load and same-document URL change.
 
@@ -90,6 +96,12 @@ a second time, fetch, and change the DOM before Readability reads it. The app's 
 **Success and failure.** Save and the reader need a non-empty title and body. Otherwise
 extraction fails with a reason the user sees, and nothing is stored (no bookmark-only save, no
 raw snapshot).
+
+**Book chapters** skip Readability: each chapter's XHTML goes through the normalizer alone, in
+one reused off-screen web view holding a blank standards-mode page, after `ReaderBookChapter.js`
+takes out pictures, embedded media, footnote asides, note references and links back from notes,
+and unwraps links (parsed in an inert document, so nothing loads). A book's endnotes stay, on
+their own back-matter page. See "Book import" below.
 
 **Swapping the engine.** A new type conforming to `ArticleExtracting`, set in `ReaderApp`; the
 library and speech don't change. `FakeArticleExtractor` backs the Debug "Fake extraction failure"
@@ -109,7 +121,10 @@ store would drop entities it doesn't know; a file it never opens survives a roll
 models are CloudKit-shaped: every property optional or defaulted, no `.unique`, relationships
 optional with `.nullify`; one page per canonical URL is kept by `LibraryStore` and the launch
 dedupe pass. Every library read and write goes through `LibraryStore`; lists use
-`LibraryQueries`.
+`LibraryQueries`. A save that fails is rolled back (`LibraryStore.rollBack`), and each model the
+change touched is then fetched again: SwiftData's rollback alone leaves a folder or page already
+in memory showing the rolled-back values, which whatever holds it (the progress recorder, a
+screen) would go on reading.
 
 **`Page`** (library):
 
@@ -128,12 +143,45 @@ dedupe pass. Every library read and write goes through `LibraryStore`; lists use
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
 | `skipsInPlayback`, `fetchStateRaw` | Book chapters and series: what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
-| `locator` | Book chapters: the contents entry (not used yet) |
+| `locator` | Book chapters: where the chapter starts in the book, `href#fragment` |
 
 **`Folder`** (library): `name`, `kindRaw` (`plain`, `book`, `series`, `favorites`), `sortKey`,
 `parent` / `children` (any depth), `pages`, `pageSortRaw`, and for books and series their details
-and place (`currentPageKey`, `lastPlayedAt`, `finishedAt`, written as their chapters play). One
+(`byline`, `coverData`, `sourceIdentifier`, `sourceStateData`, `languageCode`) and place
+(`currentPageKey`, `lastPlayedAt`, `finishedAt`, written as their chapters play). One
 Favorites folder holds the bookmarks; it can't be deleted, renamed or moved below the top level.
+
+**Book import** (`BookImporter`; no screen reaches it yet, the Debug hook `-importTestEPUB`
+does):
+1. `EPUBBookReader` reads and cuts the file off the main thread: DRM and fixed layout are
+   refused, then the package, the contents and every spine file are read and cut at contents
+   anchors, choosing the depth per branch; front and back matter are flagged.
+2. Each chapter is normalized, one at a time, in one hidden web view (above). Progress is a value
+   (`BookImportProgress`: reading, chapters prepared of all of them, storing). Cancelling the
+   importing task stops it between chapters and before anything is stored, keeping nothing.
+3. The chapters are settled on their listen blocks (`BookChapterFinalizer`) before any key is
+   kept: a chapter with nothing to read is dropped; a book with no body chapter left plays every
+   chapter; a body chapter under 100 words joins the body chapter after it, else the one before,
+   within 30,000 words; a body chapter still over 30,000 words makes the book be cut again with a
+   lower cap, at most three cuts. An untitled chapter is named by its first words.
+4. Before anything is stored, the chapters are held to the size policy on the listen blocks that
+   will be stored (`BookChapterFinalizer.check`): a book with nothing left to read is refused as
+   unreadable; a body chapter still over 30,000 words after the last cut, or one under 100 that a
+   neighbouring body chapter could take, is refused as text that couldn't be prepared. A body
+   chapter under 100 words stays only where no body neighbour can take it within 30,000: its
+   neighbours are full, or it has none (a book under 100 words, a short section between skipped
+   matter). Skipped chapters may be any length.
+5. `LibraryStore.addBook` stores one `Folder(kind: .book)` (title, authors, a 600 px cover
+   thumbnail, language, the book key as `sourceIdentifier`, the file's SHA-256 in
+   `sourceStateData`) at the destination, looked up again then (a destination deleted while the
+   book was read fails the import), with one saved page per chapter in order (key
+   `BookIdentity.chapterKey`, front matter `skipsInPlayback`), all in one save: a failed save
+   keeps nothing.
+6. A book already in the Library (same book key) is left alone, or, with *Replace* (D13),
+   rebuilt in the same folder by `LibraryStore.replaceBook` (`ARTICLE_IDENTITY.md`), in one
+   save; a dropped chapter's audio goes only once that save succeeds.
+
+Refusals and failures are `BookImportError`s whose messages a sheet can show as they are.
 
 **Migration (copy-once).** At launch `LibraryStore.migrateLegacy` copies every `SavedArticle`
 row and every bookmark in `bookmarks.json` without a receipt (`LibraryMigrationReceipt`, in the
@@ -158,17 +206,18 @@ again.
 **Audio work waits for the save.** Deleting pages (a row's *Delete*, *Delete Folder and
 Contents*, *Delete Book*: the page's audio directory, pending render and queued renders go,
 unless a page with its key exists again by then), the layout pass (audio aligned to the new
-paragraphs, the crash-resume point and pending renders remapped) and dedupe (the merged page's audio filling the
+paragraphs, the crash-resume point and pending renders remapped), dedupe (the merged page's audio filling the
 kept page's paragraphs it has none for, by text, then its directory and pending render dropped;
 the resume point, the crash target read at launch and the live session moved onto the kept page,
-at the paragraph with the same text) change nothing outside the store until the library change
-is saved. They record `LibraryAudioWork` in the same save; `LibraryStore.commit` does it right
+at the paragraph with the same text) and a book's *Replace* (edited chapters aligned, chapters
+found by their text merged, and a dropped chapter's audio, pending render and queued renders
+deleted) change nothing outside the store until the library change is saved. They record `LibraryAudioWork` in the same save; `LibraryStore.commit` does it right
 after the save. A failed save is rolled back with its work, leaving the audio cache, pending
 renders and the resume point as they were. A record is retired only once its postconditions hold
 on disk: the destination's saved audio index aligned with its paragraphs, every file it lists
 there, the merged page's directory gone. A record that fails is kept, with everything after it,
 for the next launch; so is the work of a launch that dies after the save. Meanwhile the pages
-those records touch (a merge's source and destination) are held (`ArticleAudioCache.held`):
+those records touch (a merge's source and destination, a deleted page) are held (`ArticleAudioCache.held`):
 the launch's engine purges (which then run again next launch) and the prune leave their audio
 alone, their pending renders aren't adopted, and a book's playback neither stages them as the
 next chapter nor trims them behind its place (D7). Records that can't be read hold all audio this
@@ -183,7 +232,8 @@ moves only from where the work found it. Before it changes any audio, a record i
 the committed page: layout work for a page that holds other paragraphs now is dropped (the page's
 audio is aligned with what it holds when it opens); a merge aligns the merged audio, and moves
 the resume point, onto what the kept page holds now, and if the kept page has been deleted,
-leaves that audio to the cache's age prune.
+leaves that audio to the cache's age prune; a delete whose page exists again (brought back while
+it waited) leaves its audio to that page.
 
 **`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
 `urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,

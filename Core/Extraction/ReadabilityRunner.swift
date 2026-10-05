@@ -1,13 +1,13 @@
 import Foundation
 import WebKit
-import ObjectiveC
 
-/// Runs Mozilla Readability against an HTML snapshot inside an off-screen WKWebView.
+/// Runs Mozilla Readability against an HTML snapshot in an off-screen web view
+/// (`OffscreenWebView`), then the listen normalizer in the same view
+/// (`ListenContentNormalizer`).
 ///
 /// The snapshot is the live page after its own JavaScript ran (`WebViewStore.snapshotHTML`), so
 /// the page's scripts stay off here: running its `<script>` tags and inline handlers a second time
-/// would fire network requests and change the DOM before Readability reads it. Content JavaScript
-/// off still runs this type's `evaluateJavaScript` calls.
+/// would fire network requests and change the DOM before Readability reads it.
 @MainActor
 enum ReadabilityRunner {
     struct ParseResult: Sendable {
@@ -22,8 +22,6 @@ enum ReadabilityRunner {
     static func parse(html: String, baseURL: URL) async throws -> ParseResult {
         let readabilityJS = try loadResource("Readability", ext: "js")
         let readerableJS = (try? loadResource("Readability-readerable", ext: "js")) ?? ""
-        let normalizeJS = ReaderScripts.normalizeContent ?? ""
-        let listenSelector = ListenHTMLBlocks.innerSelector
 
         let bridge = """
         (function() {
@@ -39,9 +37,7 @@ enum ReadabilityRunner {
               ok: true,
               title: article.title || '',
               byline: article.byline || '',
-              content: (typeof __readerNormalizeContent === 'function')
-                ? __readerNormalizeContent(article.content || '', '\(listenSelector)')
-                : (article.content || ''),
+              content: article.content || '',
               textContent: article.textContent || '',
               excerpt: article.excerpt || '',
               siteName: article.siteName || ''
@@ -52,15 +48,13 @@ enum ReadabilityRunner {
         })();
         """
 
-        let config = WKWebViewConfiguration()
-        config.defaultWebpagePreferences.allowsContentJavaScript = false
-        let webView = WKWebView(frame: .zero, configuration: config)
+        let webView = OffscreenWebView.make()
         // Only web base URLs load; other schemes (e.g. the UI tests' `reader-test://` pages) never
         // finish, so parse those against a neutral https base.
         let webBase = baseURL.isWeb
             ? baseURL : URL(string: "https://reader.invalid/")!
-        try await loadHTML(webView, html: html, baseURL: webBase)
-        _ = try await webView.evaluateJavaScript(readabilityJS + "\n" + readerableJS + "\n" + normalizeJS)
+        try await OffscreenWebView.load(webView, html: html, baseURL: webBase)
+        _ = try await webView.evaluateJavaScript(readabilityJS + "\n" + readerableJS)
         let raw = try await webView.evaluateJavaScript(bridge)
         guard let jsonString = raw as? String,
               let data = jsonString.data(using: .utf8),
@@ -73,7 +67,7 @@ enum ReadabilityRunner {
         }
         let title = (obj["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let text = (obj["textContent"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let content = (obj["content"] as? String) ?? ""
+        let content = try await ListenContentNormalizer.normalize((obj["content"] as? String) ?? "", in: webView)
         if title.isEmpty || text.isEmpty || content.isEmpty {
             throw ExtractionError.emptyContent
         }
@@ -113,52 +107,11 @@ enum ReadabilityRunner {
         return try String(contentsOf: url, encoding: .utf8)
     }
 
-    private static func loadHTML(_ webView: WKWebView, html: String, baseURL: URL) async throws {
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-            let nav = NavigationWaiter(continuation: cont)
-            webView.navigationDelegate = nav
-            objc_setAssociatedObject(webView, &Associated.navKey, nav, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-            webView.loadHTMLString(html, baseURL: baseURL)
-        }
-    }
-
     private static func htmlEscape(_ string: String) -> String {
         string
             .replacingOccurrences(of: "&", with: "&amp;")
             .replacingOccurrences(of: "<", with: "&lt;")
             .replacingOccurrences(of: ">", with: "&gt;")
             .replacingOccurrences(of: "\"", with: "&quot;")
-    }
-
-    private enum Associated {
-        static var navKey: UInt8 = 0
-    }
-
-    private final class NavigationWaiter: NSObject, WKNavigationDelegate {
-        private var continuation: CheckedContinuation<Void, Error>?
-        private var finished = false
-
-        init(continuation: CheckedContinuation<Void, Error>) {
-            self.continuation = continuation
-        }
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            finish(.success(()))
-        }
-
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            finish(.failure(ExtractionError.engineFailed(message: error.localizedDescription)))
-        }
-
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            finish(.failure(ExtractionError.engineFailed(message: error.localizedDescription)))
-        }
-
-        private func finish(_ outcome: Swift.Result<Void, Error>) {
-            guard !finished else { return }
-            finished = true
-            continuation?.resume(with: outcome)
-            continuation = nil
-        }
     }
 }

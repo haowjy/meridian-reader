@@ -29,11 +29,11 @@ struct LibraryAudioWorkOutcome: Equatable {
 }
 
 /// Files outside the library store change only after the library change they belong to is saved.
-/// The layout pass, dedupe and deleting pages plan their audio work (`planAlign`, `planMerge`,
-/// `planDelete`) as records in the same save; `commit` does it once the save succeeds, after any
-/// work an earlier launch left, and retires each record once its postconditions hold; the next
-/// launch finishes whatever is left (`finishAudioWork`); a save that fails and is rolled back
-/// (`rollBack`) leaves every file alone.
+/// The layout pass, dedupe, deleting pages and a book's *Replace* plan their audio work
+/// (`planAlign`, `planMerge`, `planDelete`) as records in the same save; `commit` does it once the
+/// save succeeds, after any work an earlier launch left, and retires each record once its
+/// postconditions hold; the next launch finishes whatever is left (`finishAudioWork`); a save that
+/// fails and is rolled back (`rollBack`) leaves every file alone.
 extension LibraryStore {
     // MARK: - Planning
 

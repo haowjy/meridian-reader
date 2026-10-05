@@ -124,7 +124,8 @@ enum ArticleIdentity {
 
     // MARK: - Helpers
 
-    private static func uuid(from parts: [Data]) -> UUID {
+    /// The first 16 bytes of SHA-256 over the parts, joined by a zero byte. Book keys use it too.
+    static func uuid(from parts: [Data]) -> UUID {
         var hasher = SHA256()
         for (i, part) in parts.enumerated() {
             if i > 0 { hasher.update(data: Data([0])) }

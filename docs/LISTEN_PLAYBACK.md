@@ -536,6 +536,11 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   another page already has. `-chainDemoChapters`: once launched, play it from where
   Continue would, after the on-device engine has loaded, and let it carry on; each boundary logs
   `chapter_boundary`. Together, the locked-screen chapter-boundary check.
+- `-importTestEPUB`: a synthetic EPUB built in code (`TestEPUB`: a title page, then the demo
+  book's three chapters, the first with a line loose in a `<div>` and a footnote) imported
+  through the real import into the Library's top level, after deleting an earlier launch's
+  import of it with its audio. `-playTestEPUB`: once imported, play it from where Continue would
+  (chapter 1, not the title page).
 - `-selectEngine local.kokoro|apple`, `-kokoroUnits <label>` (Core ML route routing).
 - **CPU route benchmark** (panel → "CPU route benchmark"): `KokoroONNXSession` at 1–4 threads and
   QoS variants on a fixed 501-phoneme passage and its first three sentences (load ms, cold / warm

@@ -197,11 +197,16 @@ final class ShellState {
     /// The Reader sheet on `article`, over the surface on screen. The page you hear opens as Now
     /// Playing instead: the Reader never shows what is playing.
     func openReader(_ article: ReaderArticle) {
-        if isHearing(.page(article.id)) || isHearing(.webPage(canonicalURL: article.canonicalURL)) {
+        if isHearingPage(of: article) {
             showNowPlaying()
             return
         }
         reader = ReaderSheetState(article: article, origin: isInLibrary ? .library : .browser)
+    }
+
+    /// Whether `article`'s page is what you hear: by key, or a web page by its address.
+    private func isHearingPage(of article: ReaderArticle) -> Bool {
+        isHearing(.page(article.id)) || article.origin.canonicalURL.map { isHearing(.webPage(canonicalURL: $0)) } == true
     }
 
     /// Updates the Reader sheet's article in place (favicon arrived, listen blocks built, Save
@@ -231,8 +236,7 @@ final class ShellState {
     /// so the two never show the same page.
     func showNowPlaying() {
         endAddressSearch()
-        if let article = reader?.article,
-           isHearing(.page(article.id)) || isHearing(.webPage(canonicalURL: article.canonicalURL)) {
+        if let article = reader?.article, isHearingPage(of: article) {
             reader = nil
         }
         nowPlayingOpensAt = nil

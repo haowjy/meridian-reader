@@ -7,8 +7,8 @@ enum LibraryAudioWorkKind: String, Codable {
     case align
     /// Dedupe merged one page into another: the merged page's audio moves under the kept key.
     case merge
-    /// A page was deleted (a row's *Delete*, *Delete Folder and Contents*, *Delete Book*): its
-    /// audio, its pending render and its queued renders go.
+    /// A page was deleted (a row's *Delete*, *Delete Folder and Contents*, *Delete Book*, or a
+    /// chapter a book's *Replace* dropped): its audio, its pending render and its queued renders go.
     case delete
 }
 

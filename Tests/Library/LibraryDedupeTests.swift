@@ -46,6 +46,37 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertEqual(pages.first { $0.key == shared }?.positionParagraph, 4, "the furthest copy is the keeper")
     }
 
+    /// The save fails: the folders and pages callers already hold read what the store holds,
+    /// relationships included, without a fetch (every rolled-back change refreshes what it
+    /// touched, `LibraryStore.rollBack`).
+    func testAFailedSaveLeavesTheFoldersAndPagesHeldAsTheyWere() throws {
+        struct SaveFailed: Error {}
+        let older = Folder(name: "Book", kind: .book, createdAt: env.now)
+        let newer = Folder(name: "Book (copy)", kind: .book, createdAt: env.now + 10)
+        for f in [older, newer] { f.sourceIdentifier = "book-key"; env.context.insert(f) }
+        let shared = UUID()
+        let original = page("https://example.com/ch1", key: shared, in: older)
+        let copy = page("https://example.com/ch1", key: shared, position: 4, in: newer)
+        let onlyInCopy = page("https://example.com/ch2", in: newer)
+        newer.currentPageKey = shared
+        newer.lastPlayedAt = env.now + 20
+        try env.context.save()
+        library.saveContext = { _ in throw SaveFailed() }
+
+        XCTAssertEqual(library.dedupe().mergedFolders, 1)
+        XCTAssertFalse(env.context.hasChanges)
+        XCTAssertFalse(newer.isDeleted)
+        XCTAssertNil(older.currentPageKey, "the older book's place")
+        XCTAssertNil(older.lastPlayedAt)
+        XCTAssertEqual((older.pages ?? []).map(\.key), [shared], "its pages")
+        XCTAssertEqual(Set((newer.pages ?? []).map(\.key)), [shared, onlyInCopy.key], "the copy's")
+        XCTAssertTrue(onlyInCopy.folder === newer)
+        XCTAssertEqual(onlyInCopy.folderID, newer.id)
+        XCTAssertTrue(copy.folder === newer)
+        XCTAssertFalse(original.isDeleted)
+        XCTAssertTrue(original.folder === older)
+    }
+
     func testSavedBeatsLinkAtEqualPositionAndTheKeeperTakesWhatItLacks() throws {
         let link = page("https://example.com/a", key: ArticleIdentity.articleKey(canonicalURL: "https://example.com/a"),
                         state: .link, added: env.now - 100, in: library.favorites())

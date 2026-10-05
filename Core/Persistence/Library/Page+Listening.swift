@@ -25,6 +25,6 @@ extension SpeechSession {
                              title: page.title, site: book?.byline ?? page.byline,
                              artwork: page.artworkData ?? book?.coverData,
                              canonicalURL: page.canonicalURL ?? page.urlString.map { ArticleIdentity.canonicalURLString(from: $0) },
-                             host: page.byline, folderID: book?.id, folderName: book?.displayName)
+                             sourceLabel: page.byline, folderID: book?.id, folderName: book?.displayName)
     }
 }

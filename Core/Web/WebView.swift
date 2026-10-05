@@ -188,7 +188,13 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
 
     func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {}
 
-    private static func page(_ name: String) -> String {
+    /// Every page served, by name.
+    static var pageNames: [String] {
+        ["one", "two", "three", "thin"] + DemoBook.chapters.indices.map { "book-\($0)" }
+    }
+
+    /// The page's HTML; an unknown name is page one.
+    static func page(_ name: String) -> String {
         let sentence = "This offline test article has a long paragraph so Readability counts it as real reading content. "
         let title: String
         var body: String

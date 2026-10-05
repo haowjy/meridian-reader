@@ -26,11 +26,11 @@ extension LibraryStore {
     /// the address-derived key for a page the library doesn't have. A page holding text (saved,
     /// played, or a link carrying a text cache) is refreshed when the listen text changed; a link
     /// page stays a link.
-    func readerArticle(url: URL, extracted: ExtractedArticle) -> ReaderArticle {
+    func readerArticle(url: URL, extracted: ExtractedArticle, document: ParagraphDocument? = nil) -> ReaderArticle {
         let canonical = ArticleIdentity.canonicalURLString(from: url)
         let existing = page(canonicalURL: canonical)
         let key = existing?.key ?? ArticleIdentity.articleKey(canonicalURL: canonical)
-        var article = ReaderArticle(id: key, url: url, extracted: extracted)
+        var article = ReaderArticle(id: key, url: url, extracted: extracted, document: document)
         let freshFP = ArticleIdentity.contentFingerprint(paragraphs: article.document.paragraphs)
         guard let existing else {
             log("open \(canonical) key=\(Self.short(key)) new fp=\(freshFP.prefix(8))")
@@ -40,7 +40,7 @@ extension LibraryStore {
         let stored = existing.cachedListenParagraphs
         article.trustedParagraphs = stored
         article.resumeParagraph = existing.positionParagraph
-        article.faviconData = existing.artworkData
+        article.artwork = existing.artworkData
         let storedFP = stored.map { ArticleIdentity.contentFingerprint(paragraphs: $0) }
         if existing.hasText, storedFP != freshFP {
             fill(existing, from: article)
@@ -59,7 +59,7 @@ extension LibraryStore {
     @discardableResult
     func recordPlayback(_ article: ReaderArticle) -> Page {
         let page: Page
-        if let existing = self.page(key: article.id, canonicalURL: article.canonicalURL) {
+        if let existing = self.page(key: article.id, canonicalURL: article.origin.canonicalURL) {
             page = existing
             let storedFP = page.cachedListenParagraphs.map { ArticleIdentity.contentFingerprint(paragraphs: $0) }
             if !article.document.isEmpty,
@@ -67,15 +67,15 @@ extension LibraryStore {
                 fill(page, from: article)
             }
         } else {
-            page = Page(key: article.id, title: article.title, byline: article.siteDomain,
-                        urlString: article.urlString, contentState: .saved, addedAt: nil,
-                        artworkData: article.faviconData)
+            page = Page(key: article.id, title: article.title, byline: article.sourceLabel,
+                        urlString: article.origin.urlString, contentState: .saved, addedAt: nil,
+                        artworkData: article.artwork)
             context.insert(page)
             fill(page, from: article)
             page.positionParagraph = article.resumeParagraph
-            log("played, not saved: \(article.canonicalURL) key=\(Self.short(article.id))")
+            log("played, not saved: \(article.origin.canonicalURL ?? "-") key=\(Self.short(article.id))")
         }
-        if page.artworkData == nil { page.artworkData = article.faviconData }
+        if page.artworkData == nil { page.artworkData = article.artwork }
         page.lastPlayedAt = now()
         page.finishedAt = nil
         placeChapter(page)
@@ -127,25 +127,25 @@ extension LibraryStore {
     func save(_ article: ReaderArticle, placement: SavePlacement = .keep, playhead: Int? = nil) -> Page {
         let destination = placement.folder
         let page: Page
-        if let existing = self.page(key: article.id, canonicalURL: article.canonicalURL) {
+        if let existing = self.page(key: article.id, canonicalURL: article.origin.canonicalURL) {
             page = existing
             let storedFP = page.cachedListenParagraphs.map { ArticleIdentity.contentFingerprint(paragraphs: $0) }
             if !page.hasText || storedFP != ArticleIdentity.contentFingerprint(paragraphs: article.document.paragraphs) {
                 fill(page, from: article)
             }
-            if page.artworkData == nil { page.artworkData = article.faviconData }
+            if page.artworkData == nil { page.artworkData = article.artwork }
             if page.addedAt == nil {
                 page.sortKey = nextSortKey(in: destination ?? page.folder)
             }
             log("save → existing \(Self.short(page.key)) (\(page.contentStateRaw), \(page.isInLibrary ? "in" : "not in") Library)")
         } else {
-            page = Page(key: article.id, title: article.title, byline: article.siteDomain,
-                        urlString: article.urlString, contentState: .saved, addedAt: nil,
-                        sortKey: nextSortKey(in: destination), artworkData: article.faviconData)
+            page = Page(key: article.id, title: article.title, byline: article.sourceLabel,
+                        urlString: article.origin.urlString, contentState: .saved, addedAt: nil,
+                        sortKey: nextSortKey(in: destination), artworkData: article.artwork)
             context.insert(page)
             fill(page, from: article)
             page.positionParagraph = playhead ?? article.resumeParagraph
-            log("save new \(article.canonicalURL) key=\(Self.short(article.id))")
+            log("save new \(article.origin.canonicalURL ?? "-") key=\(Self.short(article.id))")
         }
         page.contentState = .saved
         if page.addedAt == nil { page.addedAt = now() }
@@ -257,10 +257,10 @@ extension LibraryStore {
     /// The page's text, listen blocks and metadata from `article`; the position is clamped to
     /// the new paragraph count.
     func fill(_ page: Page, from article: ReaderArticle) {
-        page.urlString = article.urlString
-        page.canonicalURL = article.canonicalURL
+        page.urlString = article.origin.urlString
+        page.canonicalURL = article.origin.canonicalURL
         page.title = article.title
-        page.byline = article.siteDomain
+        page.byline = article.sourceLabel
         page.cleanedHTML = article.cleanedHTML
         page.plainText = article.plainText
         page.excerpt = article.excerpt
