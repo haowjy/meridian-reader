@@ -36,9 +36,10 @@ extension LibraryStore {
 
     // MARK: - Playing
 
-    /// The page started playing: it is dated (`lastPlayedAt`) and unfinished. The first play of a
-    /// page the library doesn't have keeps it as a page not in the Library (`addedAt == nil`), so
-    /// it survives a relaunch for 7 days; a link page keeps the text as a cache.
+    /// The page started playing: it is dated (`lastPlayedAt`) and unfinished, and a chapter
+    /// becomes its book's place. The first play of a page the library doesn't have keeps it as a
+    /// page not in the Library (`addedAt == nil`), so it survives a relaunch for 7 days; a link
+    /// page keeps the text as a cache.
     @discardableResult
     func recordPlayback(_ article: ReaderArticle) -> Page {
         let page: Page
@@ -61,16 +62,20 @@ extension LibraryStore {
         if page.artworkData == nil { page.artworkData = article.faviconData }
         page.lastPlayedAt = now()
         page.finishedAt = nil
+        placeChapter(page)
         commit("record playback")
+        trimChapterAudio(behind: page)
         return page
     }
 
-    /// A page the library has started playing again (a row's ▶, a resume, a replay): dated and
-    /// unfinished.
+    /// A page the library has started playing again (a row's ▶, a resume, a replay, the next
+    /// chapter): dated and unfinished, and a chapter becomes its book's place.
     func recordPlaybackStarted(_ page: Page) {
         page.lastPlayedAt = now()
         page.finishedAt = nil
+        placeChapter(page)
         commit("playback started")
+        trimChapterAudio(behind: page)
     }
 
     /// The listening position, written as it moves.
@@ -81,11 +86,19 @@ extension LibraryStore {
         commit("position")
     }
 
-    /// Played to the end.
+    /// Played to the end. The last playable chapter of a book or series finishes the book.
     func recordFinished(_ page: Page) {
         page.finishedAt = now()
         page.lastPlayedAt = now()
+        noteChapterFinished(page)
         commit("finished")
+    }
+
+    /// A chapter became its book's place: finished chapters more than 2 behind it lose their
+    /// audio (D7).
+    private func trimChapterAudio(behind page: Page) {
+        guard let folder = page.folder, folder.kind.isFixed else { return }
+        trimFinishedAudio(folder: folder)
     }
 
     // MARK: - Saving
