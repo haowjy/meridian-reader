@@ -44,7 +44,7 @@ final class SpeechController {
     /// What the listen bar shows from the engine. Engine state isn't observable, so
     /// `sampleListenStatus` takes this on every playback change and every engine
     /// `statusChanged`, and bumps `listenStatusRevision` only when it differs: views that show it
-    /// (`showsPauseIcon`, `isBufferingNext`, `renderNote`) redraw exactly when it changes.
+    /// (`playState(of:)`, `isBufferingNext`, `renderNote`) redraw exactly when it changes.
     private struct ListenStatus: Equatable {
         var showsPause = false
         var bufferingNext = false
@@ -222,13 +222,6 @@ final class SpeechController {
         listenStatusRevision &+= 1
     }
 
-    /// Pause (not Play) on the active session's button.
-    func showsPauseIcon(for sessionID: UUID) -> Bool {
-        guard activeSessionID == sessionID else { return false }
-        _ = listenStatusRevision
-        return activeSessionShowsPause()
-    }
-
     // MARK: - What you hear
 
     /// The hearing state every surface shows. nil only before anything has played, and after
@@ -303,11 +296,16 @@ final class SpeechController {
         if preparation == request { preparation = nil }
     }
 
+    /// Nothing is being prepared any more. Writes only on a change: `playState` readers observe it.
+    private func supersedePreparation() {
+        if preparation != nil { preparation = nil }
+    }
+
     /// The user asked for something: no auto-resume after an interruption, and a page still being
     /// prepared no longer starts.
     private func noteUserIntent() {
         interruptionPolicy.noteUserIntent()
-        preparation = nil
+        supersedePreparation()
     }
 
     /// Plays `article` from `paragraph` (at `utf16Offset` inside it, when given), replacing what's
@@ -506,7 +504,7 @@ final class SpeechController {
     // MARK: - Session API (intents)
 
     func prepare(_ session: SpeechSession, startingParagraph: Int = 0) {
-        preparation = nil
+        supersedePreparation()
         if session.title != nil || sessionMeta?.id != session.id {
             let meta = SessionMeta(id: session.id, title: session.title, site: session.site, artwork: session.artwork,
                                    canonicalURL: session.canonicalURL, host: session.host)
@@ -557,13 +555,13 @@ final class SpeechController {
 
     func skipToPreviousParagraph() {
         guard isPrepared else { return }
-        preparation = nil
+        supersedePreparation()
         perform(.skip(delta: -1))
     }
 
     func skipToNextParagraph() {
         guard isPrepared else { return }
-        preparation = nil
+        supersedePreparation()
         perform(.skip(delta: 1))
     }
 
@@ -599,7 +597,7 @@ final class SpeechController {
     }
 
     func resume() {
-        preparation = nil
+        supersedePreparation()
         perform(.resume)
     }
 
@@ -699,7 +697,7 @@ final class SpeechController {
             setRateMultiplier(nearest)
             return .success
         }
-        preparation = nil
+        supersedePreparation()
         if command == .nextTrack, !canSkipToNextParagraph { return .commandFailed }
         if command == .togglePlayPause { playback.reconcile(with: engineSnapshot()) }
         guard let intent = command.intent else { return .commandFailed }
