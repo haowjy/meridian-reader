@@ -45,7 +45,7 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
 | Path | What lives there |
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks |
-| `Core/` | No UI: `Domain` (article and paragraph values), `Extraction`, `Persistence` (SwiftData; `Library/`: `Folder`, `Page`, `LibraryStore`, `LibraryQueries`, the migration), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web`, `Device` |
+| `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `Extraction`, `Persistence` (SwiftData; `Library/`: `Folder`, `Page`, `LibraryStore`, `LibraryQueries`, the migration), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web`, `Device` |
 | `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Browse`, `Reader`, `Saved`, `Speech` (playback, engines, settings) |
 | `Tests/`, `UITests/` | Unit tests (fakes in `Tests/Fakes/`), UI tests |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Reader uses only Kokoro |
