@@ -111,7 +111,9 @@ struct EPUBTextStream: Sendable {
     }
 
     /// Stable fragment for a position: its element's id, nil at the top of a file, else `@<event>`
-    /// (`@` can't appear in an XML id, so it never collides with one).
+    /// (`@` can't appear in an XML id, so it never collides with one). These go into chapter keys
+    /// (the audio cache keys), so a change to `XHTMLReader` that numbers events differently
+    /// changes the keys of chapters cut where no id is.
     func fragment(at position: Position) -> String? {
         guard position.event > 0 else { return nil }
         let document = documents[position.document]

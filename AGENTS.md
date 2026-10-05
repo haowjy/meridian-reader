@@ -34,6 +34,8 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
   xcodebuild's environment.
 - `KokoroNaNProbeTests` and `KokoroONNXSessionTests` run only when the Mac research model is at
   `~/Developer/tts-audition/bg-research/models/`; otherwise they skip.
+- `EPUBLocalBooksTests` is skipped unless `TEST_RUNNER_READER_EPUB_DIR=<dir>` is set: it reads every
+  `.epub` there (real books stay out of the repo) and writes `<dir>/epub-report.txt`.
 - Release must keep building: test hooks live behind `#if DEBUG`.
 - Timing and speech behavior are measured on a device with a Release build (FluidAudio in Debug
   is ~3× slower). The Simulator can't reproduce the iOS 26.4+ libBNNS crash.
