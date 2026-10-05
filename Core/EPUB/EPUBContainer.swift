@@ -66,8 +66,11 @@ final class EPUBContainer: EPUBArchive {
             let path = entry.path
             guard EPUBPath.isSafeEntryPath(path) else { throw EPUBError.unsafePath(path) }
             guard entry.type == .file else { continue }
-            declaredBytes += Int64(clamping: entry.uncompressedSize)
-            guard declaredBytes <= limits.maxUncompressedBytes else { throw EPUBError.tooLarge }
+            // Compared unsigned before adding: a ZIP64 size can be anything up to 2^64 − 1.
+            guard entry.uncompressedSize <= UInt64(limits.maxUncompressedBytes - declaredBytes) else {
+                throw EPUBError.tooLarge
+            }
+            declaredBytes += Int64(entry.uncompressedSize)
             let stored = EPUBPath.normalizedEntryPath(path)
             guard entries[stored] == nil else { continue }
             entries[stored] = entry

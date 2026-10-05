@@ -1,7 +1,8 @@
 import Foundation
 
 /// A minimal ZIP writer for test fixtures: stored or deflated entries, plus archives a real tool
-/// wouldn't write (names that climb out, headers that understate an entry's size).
+/// wouldn't write (names that climb out, headers that understate an entry's size, a wrong CRC, a
+/// deflate stream that can't be inflated, a ZIP64 size field).
 enum TestZipWriter {
     struct Entry {
         var path: String
@@ -9,6 +10,12 @@ enum TestZipWriter {
         var compressed = true
         /// Written as the uncompressed size in both headers instead of the real one.
         var declaredSize: UInt32?
+        /// Written as the CRC-32 in both headers instead of the real one.
+        var checksum: UInt32?
+        /// The compressed bytes are replaced with a block type deflate doesn't have.
+        var corruptPayload = false
+        /// Written as a ZIP64 extended-information size (the 32-bit fields say 0xFFFFFFFF).
+        var zip64UncompressedSize: UInt64?
     }
 
     static func archive(_ entries: [Entry]) -> Data {
@@ -16,9 +23,17 @@ enum TestZipWriter {
         var central = Data()
         for entry in entries {
             let name = Data(entry.path.utf8)
-            let payload = entry.compressed ? deflate(entry.data) : entry.data
-            let crc = crc32(entry.data)
-            let size = entry.declaredSize ?? UInt32(entry.data.count)
+            var payload = entry.compressed ? deflate(entry.data) : entry.data
+            if entry.corruptPayload { payload = Data(repeating: 0xFF, count: max(payload.count, 16)) }
+            let crc = entry.checksum ?? crc32(entry.data)
+            var size = entry.declaredSize ?? UInt32(entry.data.count)
+            var extra = Data()
+            if let zip64 = entry.zip64UncompressedSize {
+                size = 0xFFFF_FFFF
+                extra.append(uint16: 0x0001)
+                extra.append(uint16: 8)
+                extra.append(uint64: zip64)
+            }
             let method: UInt16 = entry.compressed ? 8 : 0
             let offset = UInt32(output.count)
 
@@ -32,8 +47,9 @@ enum TestZipWriter {
             output.append(uint32: UInt32(payload.count))
             output.append(uint32: size)
             output.append(uint16: UInt16(name.count))
-            output.append(uint16: 0)
+            output.append(uint16: UInt16(extra.count))
             output.append(name)
+            output.append(extra)
             output.append(payload)
 
             central.append(uint32: 0x0201_4B50)
@@ -47,13 +63,14 @@ enum TestZipWriter {
             central.append(uint32: UInt32(payload.count))
             central.append(uint32: size)
             central.append(uint16: UInt16(name.count))
-            central.append(uint16: 0)
+            central.append(uint16: UInt16(extra.count))
             central.append(uint16: 0)
             central.append(uint16: 0)
             central.append(uint16: 0)
             central.append(uint32: UInt32(0o100644) << 16)
             central.append(uint32: offset)
             central.append(name)
+            central.append(extra)
         }
         let centralOffset = UInt32(output.count)
         output.append(central)
@@ -98,5 +115,9 @@ private extension Data {
 
     mutating func append(uint32 value: UInt32) {
         append(contentsOf: (0..<4).map { UInt8((value >> ($0 * 8)) & 0xFF) })
+    }
+
+    mutating func append(uint64 value: UInt64) {
+        append(contentsOf: (0..<8).map { UInt8((value >> ($0 * 8)) & 0xFF) })
     }
 }

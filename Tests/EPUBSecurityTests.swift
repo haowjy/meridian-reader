@@ -137,6 +137,16 @@ final class EPUBSecurityTests: XCTestCase {
         assertEPUBError(try EPUBBookReader.read(fileURL: url), matches: isTooLarge)
     }
 
+    /// A ZIP64 entry declaring 2^64 − 1 bytes after a non-empty entry: refused, not an overflow.
+    func testZIP64SizeAtTheTopOfTheRangeIsRefused() throws {
+        let epub = book()
+        var entries = epub.entries()
+        entries.insert(TestZipWriter.Entry(path: epub.path("images/huge.bin"), data: Data("x".utf8), compressed: false,
+                                           zip64UncompressedSize: .max), at: 1)
+        XCTAssertGreaterThan(entries[0].data.count, 0, "an entry with bytes comes first")
+        assertEPUBError(try EPUBBookReader.read(fileURL: epub.write(in: self, entries: entries)), matches: isTooLarge)
+    }
+
     func testTooManyEntriesAreRefused() throws {
         var epub = book()
         epub.extraFiles = (1...12).map { (epub.path("misc/file\($0).txt"), Data("x".utf8)) }
