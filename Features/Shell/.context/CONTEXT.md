@@ -20,8 +20,12 @@ changing the shell code.
   (`DesignSystem/Chrome/StatusBarStyle.swift`); SwiftUI's own route, a colour scheme for the
   window, would flip the surface underneath. Nothing of the app's covers Now Playing (the Reader
   sits under it); a system sheet over it (Voice settings, Share) leaves the strip above dark, so
-  light stays right there. `NowPlayingUITests.testTheStatusBarFollowsTheSurfaceOnTop` reads the
-  status bar from screenshots, including after leaving the app and coming back.
+  light stays right there. During a pull the dim lifts, and `Sheet` lays a scrim under the
+  status bar (`PullDownLook.statusBarScrim`) that keeps the strip at the resting dim until the
+  sheet is removed: no switch of style mid-gesture, so nothing flickers.
+  `NowPlayingUITests.testTheStatusBarFollowsTheSurfaceOnTop` measures the clock's contrast
+  (`UITests/StatusBarContrast.swift`, ≥ 4.5:1) in screenshots, including after leaving the app
+  and coming back, and while a finger holds the sheet part way down.
 - **Shared look lives in `../DesignSystem/`**: tokens, `Motion`, `BottomChrome`, the morph
   overlay (`MorphMenu.swift`) and the components. This folder keeps what knows about the app:
   `ShellState`, the ⋯ panel's rows (`MoreMenuPanel`), the Now Playing bar on a surface

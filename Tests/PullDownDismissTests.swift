@@ -31,4 +31,19 @@ final class PullDownDismissTests: XCTestCase {
         XCTAssertEqual(gone.dim, 0)
         XCTAssertEqual(PullDownLook(offset: 1200, screenHeight: 900), gone, "clamped past the bottom")
     }
+
+    /// The player's status bar stays light until it has gone, so the strip under it stays as dark
+    /// as at rest however far the sheet is pulled: the dim and the scrim over it let through
+    /// 1 - maxDim of the surface at every pull. At rest there is no scrim.
+    func testThePlayersStatusBarStripStaysAsDarkAsAtRestThroughThePull() {
+        let maxDim = SheetLook.player.maxDim
+        XCTAssertEqual(PullDownLook(offset: 0, screenHeight: 874, maxDim: maxDim).statusBarScrim, 0, "none at rest")
+        for offset in stride(from: 0, through: 874, by: 23) {
+            let look = PullDownLook(offset: CGFloat(offset), screenHeight: 874, maxDim: maxDim)
+            let through = (1 - look.dim) * (1 - look.statusBarScrim)
+            XCTAssertEqual(through, 1 - maxDim, accuracy: 0.0001, "pulled \(offset) pt")
+        }
+        XCTAssertEqual(PullDownLook(offset: 874, screenHeight: 874, maxDim: maxDim).statusBarScrim, maxDim,
+                       accuracy: 0.0001, "the dim gone: the scrim alone")
+    }
 }

@@ -27,6 +27,8 @@ struct Sheet<Header: View, Content: View>: View {
     @State private var pull: CGFloat = 0
     @State private var pullAxis: Axis?
     @State private var height: CGFloat = 0
+    /// The status bar's height (the top safe area), for the player's status bar scrim.
+    @State private var statusBarHeight: CGFloat = 0
     /// `onDismiss` has run (it runs once, whichever of the completion and its fallback is first).
     @State private var dismissed = false
 
@@ -37,6 +39,15 @@ struct Sheet<Header: View, Content: View>: View {
             Color.black.opacity(isUp ? pullLook.dim : 0)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
+            if look == .player, isUp {
+                // The status bar stays light until the sheet has gone, so the strip under it stays
+                // as dark as at rest however far a finger holds the sheet down.
+                Color.black.opacity(pullLook.statusBarScrim)
+                    .frame(height: statusBarHeight)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            }
 
             if isUp {
                 VStack(spacing: 0) {
@@ -65,6 +76,7 @@ struct Sheet<Header: View, Content: View>: View {
             }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusBarHeight = $0 }
         .lightStatusBar(look == .player && isUp)
         .onAppear {
             if risesOnAppear { withAnimation(Motion.standard) { risen = true } }
@@ -193,27 +205,34 @@ extension EnvironmentValues {
 
 /// How a sheet looks while it is pulled down: like a system sheet, it shrinks a little (to 96%,
 /// over the first third of the screen) and the dim behind it lifts as it goes from `maxDim` (the
-/// sheet's at rest), reaching nothing once the sheet is off the screen.
+/// sheet's at rest), reaching nothing once the sheet is off the screen. A sheet with light status
+/// bar content (the player) keeps the strip under the status bar at `maxDim` all the way: a scrim
+/// there (`statusBarScrim`) makes up what the dim has lifted.
 struct PullDownLook: Equatable {
     var scale: CGFloat
     var dim: Double
+    /// Black over the status bar strip, on top of `dim`, that keeps the strip at `maxDim`: none at
+    /// rest, `maxDim` once the dim has gone.
+    var statusBarScrim: Double
 
     static let minScale: CGFloat = 0.96
     static let maxDim = 0.2
 
     init(offset: CGFloat, screenHeight: CGFloat, maxDim: Double = Self.maxDim) {
         guard screenHeight > 0, offset > 0 else {
-            self.init(scale: 1, dim: maxDim)
+            self.init(scale: 1, dim: maxDim, maxDim: maxDim)
             return
         }
         let progress = min(1, offset / screenHeight)
         self.init(scale: 1 - (1 - Self.minScale) * min(1, progress * 3),
-                  dim: maxDim * Double(1 - progress))
+                  dim: maxDim * Double(1 - progress), maxDim: maxDim)
     }
 
-    private init(scale: CGFloat, dim: Double) {
+    private init(scale: CGFloat, dim: Double, maxDim: Double) {
         self.scale = scale
         self.dim = dim
+        // Black at opacity s over black at opacity d lets through (1 - d)(1 - s) of the surface.
+        statusBarScrim = dim < maxDim ? 1 - (1 - maxDim) / (1 - dim) : 0
     }
 }
 

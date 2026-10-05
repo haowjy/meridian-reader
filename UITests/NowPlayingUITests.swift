@@ -157,13 +157,16 @@ final class NowPlayingUITests: XCTestCase {
         }
     }
 
-    /// The status bar follows what is on top: light over Now Playing, whatever sheet comes over it
-    /// and goes, and after leaving the app and coming back; dark again on paper once it closes.
+    /// The status bar is readable (the clock at 4.5:1 or better against the strip under it) over
+    /// whatever is on top: dark on paper, light over Now Playing, over a sheet that comes over it
+    /// and goes, after leaving the app and coming back, and while a finger holds Now Playing part
+    /// way down (the dim lifts, a scrim under the status bar keeps the strip dark); dark again on
+    /// paper once it closes.
     func testTheStatusBarFollowsTheSurfaceOnTop() throws {
         let app = launchLongDemo()
-        XCTAssertEqual(statusBar(), .dark, "on the Library's paper")
+        assertStatusBar(.dark, "on the Library's paper")
         openNowPlayingFromTheLibrary(app)
-        XCTAssertTrue(eventually(3) { self.statusBar() == .light }, "light over Now Playing")
+        assertStatusBar(.light, "over Now Playing")
 
         find(app, "readerMore").tap()
         let voice = find(app, "moreVoice")
@@ -172,21 +175,38 @@ final class NowPlayingUITests: XCTestCase {
         voice.tap()
         XCTAssertTrue(app.navigationBars["Listen"].waitForExistence(timeout: 5), "Voice settings over Now Playing")
         idle(1)
-        XCTAssertTrue(eventually(3) { self.statusBar() != .unreadable },
-                      "readable over the sheet: \(String(describing: statusBar()))")
+        assertStatusBar(nil, "over Voice settings")
         app.buttons["Done"].tap()
         XCTAssertTrue(eventually(5) { !app.navigationBars["Listen"].exists })
-        XCTAssertTrue(eventually(3) { self.statusBar() == .light }, "light again on Now Playing")
+        assertStatusBar(.light, "on Now Playing again")
 
         XCUIDevice.shared.press(.home)
         idle(2)
         app.activate()
         XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 10))
-        XCTAssertTrue(eventually(5) { self.statusBar() == .light }, "still light after coming back")
+        assertStatusBar(.light, "after coming back")
 
-        app.buttons["Close Now Playing"].tap()
+        // Held a third of the way down, two seconds into the hold.
+        let header = find(app, "nowPlayingFrom").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .withOffset(CGVector(dx: 120, dy: 0))
+        let held = try XCTUnwrap(screenshot(after: 2) {
+            header.press(forDuration: 0.1, thenDragTo: header.withOffset(CGVector(dx: 0, dy: 300)),
+                         withVelocity: .slow, thenHoldForDuration: 3.5)
+        })
+        let below = statusBarFrame().maxY
+        let uncovered = try XCTUnwrap(StatusBarContrast.read(
+            held.image, region: CGRect(x: 0, y: below + 40, width: statusBarFrame().width, height: 40)))
+        XCTAssertGreaterThan(uncovered.stripLuminance, 0.1,
+                             "the sheet was down: the dimmed Library shows under the status bar, \(uncovered)")
+        let pulled = try XCTUnwrap(statusBarContrast(held))
+        XCTAssertEqual(pulled.text, .light, "held part way down: \(pulled)")
+        XCTAssertTrue(pulled.isReadable, "held part way down: \(pulled)")
+
+        print("Status bar held part way down: \(pulled)")
+        idle(1.5) // released: it settles back up or carries on down
+        if find(app, "nowPlayingFrom").exists { app.buttons["Close Now Playing"].tap() }
         XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingFrom").exists })
-        XCTAssertTrue(eventually(3) { self.statusBar() == .dark }, "dark again on paper")
+        assertStatusBar(.dark, "on paper again")
     }
 
     func testAtTheEndNowPlayingStaysWithPlay() throws {
@@ -275,43 +295,18 @@ final class NowPlayingUITests: XCTestCase {
         return last
     }
 
-    private enum StatusBarContent: Equatable {
-        /// Light text on a dark strip.
-        case light
-        /// Dark text on a light strip.
-        case dark
-        /// Text the colour of the strip under it.
-        case unreadable
-    }
-
-    /// What the status bar shows, from a screenshot of its leading half (the clock): light or dark
-    /// text, with the strip behind it the other way.
-    private func statusBar() -> StatusBarContent {
-        let shot = XCUIScreen.main.screenshot().image
-        guard let image = shot.cgImage else { return .unreadable }
-        let scale = shot.scale
-        let rect = CGRect(x: 0, y: 12 * scale, width: CGFloat(image.width) * 0.4, height: 30 * scale).integral
-        guard let crop = image.cropping(to: rect) else { return .unreadable }
-        let (w, h) = (crop.width, crop.height)
-        var pixels = [UInt8](repeating: 0, count: w * h * 4)
-        let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
-            guard let context = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8,
-                                          bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
-                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
-            context.draw(crop, in: CGRect(x: 0, y: 0, width: w, height: h))
-            return true
+    /// Waits up to 3 s for the status bar to read `text` (nil: either way) at 4.5:1 or better.
+    private func assertStatusBar(_ text: StatusBarContrast.Text?, _ what: String,
+                                 file: StaticString = #filePath, line: UInt = #line) {
+        var last: StatusBarContrast?
+        let readable = eventually(3) {
+            last = self.statusBarContrast()
+            guard let last else { return false }
+            return last.isReadable && (text == nil || last.text == text)
         }
-        guard drawn else { return .unreadable }
-        var levels: [Double] = []
-        levels.reserveCapacity(w * h)
-        for i in stride(from: 0, to: pixels.count, by: 4) {
-            levels.append((0.2126 * Double(pixels[i]) + 0.7152 * Double(pixels[i + 1]) + 0.0722 * Double(pixels[i + 2])) / 255)
-        }
-        let strip = levels.sorted()[levels.count / 2]
-        // The clock's pixels: far from the strip's level, the other way.
-        let text = strip < 0.5 ? levels.filter { $0 > 0.8 }.count : levels.filter { $0 < 0.2 }.count
-        guard Double(text) > Double(levels.count) * 0.01 else { return .unreadable }
-        return strip < 0.5 ? .light : .dark
+        let reading = last.map(String.init(describing:)) ?? "no status bar"
+        print("Status bar \(what): \(reading)")
+        XCTAssertTrue(readable, "\(what): \(reading)", file: file, line: line)
     }
 
     /// The demo article, 40 paragraphs long, in the Library, Apple voice at 1×.

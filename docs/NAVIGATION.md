@@ -262,7 +262,8 @@ opens Now Playing instead.
   Library, or a Reader of another page), untouched.
 - **It looks like a player, not the Reader**: deep jade in light and dark mode alike (the
   `Palette.player…` tokens), with light status bar content and a heavier dim on the strip above
-  it. A **title card** at the top of the text (it scrolls with the text) shows the artwork, the
+  it. While a finger pulls it down the dim lifts, but the strip under the status bar stays as dark
+  as at rest until the sheet has gone, so the clock stays readable. A **title card** at the top of the text (it scrolls with the text) shows the artwork, the
   title and *site · N min left* (*✓ Finished* at the end). The text keeps the Reader's serif and
   margins in **lyrics style**: the spoken paragraph in full ink, the others dimmed, no tint box
   (a paragraph pressed while ☝︎ is on is in full ink too).
