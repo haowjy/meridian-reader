@@ -123,7 +123,7 @@ struct EPUBPackage: Equatable, Sendable {
         if let coverItem = manifest.first(where: { $0.properties.contains("cover-image") }) {
             coverImagePath = coverItem.path
         } else if let coverRef = metas.first(where: { $0.attribute("name")?.lowercased() == "cover" })?
-                    .attribute("content"),
+                    .attribute("content"), !coverRef.isEmpty,
                   let item = byID[coverRef] ?? manifest.first(where: { $0.path.hasSuffix(coverRef) }),
                   item.mediaType.hasPrefix("image/") {
             coverImagePath = item.path
