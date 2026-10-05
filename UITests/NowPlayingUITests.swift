@@ -82,6 +82,34 @@ final class NowPlayingUITests: XCTestCase {
         assertBackToAudioReturnsToTheSpokenParagraph(app)
     }
 
+    /// Listen in the Reader (D2): Now Playing opens with the text exactly where the Reader had it.
+    func testListenKeepsTheReadersScrollPosition() throws {
+        let app = launchLongDemo()
+        let row = app.cells.staticTexts["Demo Listen Article"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        let listen = app.buttons["listenPlayPause"]
+        XCTAssertTrue(listen.waitForExistence(timeout: 10))
+        let target = paragraph(app, 8)
+        XCTAssertTrue(target.waitForExistence(timeout: 5))
+        for _ in 0..<6 where !isInMiddle(app, target) { dragText(app, by: -260) }
+        XCTAssertTrue(isInMiddle(app, target), "paragraph 9 scrolled into the middle of the Reader")
+        let before = target.frame.minY
+
+        listen.tap() // plays paragraph 1; the text stays where it is
+        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Now Playing")
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(eventually(8) { play.label == "Pause" })
+        play.tap() // paused on paragraph 1, so following has nothing new to move to
+        XCTAssertTrue(eventually(5) { play.label == "Play" })
+        let after = paragraph(app, 8)
+        XCTAssertTrue(eventually(5) { after.exists && self.isInMiddle(app, after) },
+                      "paragraph 9 is still in view, not the top of the page: before \(before), after \(after.frame), "
+                        + "first \(paragraph(app, 0).frame), web views \(app.webViews.count)")
+        XCTAssertEqual(after.frame.minY, before, accuracy: 60, "at the Reader's scroll position")
+        XCTAssertFalse(isInMiddle(app, paragraph(app, 0)), "not scrolled to the spoken paragraph")
+    }
+
     func testAtTheEndNowPlayingStaysWithPlay() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-openLibrary", "-selectEngine", "apple",

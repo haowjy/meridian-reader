@@ -224,6 +224,35 @@ struct HTMLReadingWebView: UIViewRepresentable {
 
         /// True once the user has dragged the text (until then it's pinned to the top).
         private var userScrolled = false
+        /// The handed-over offset, waiting for the page to be tall enough to show it.
+        private var pendingOpensAt: CGFloat?
+        private var contentSizeObservation: NSKeyValueObservation?
+
+        /// Opens the text at offset `y`. At `didFinish` the scroll view often has no content size
+        /// yet, and WebKit's first layout then puts the offset back to the top; so the offset is
+        /// held until the content is tall enough, and set just after that layout. A drag first
+        /// cancels it.
+        private func open(at y: CGFloat, in sv: UIScrollView) {
+            pendingOpensAt = y
+            applyPendingOpensAt(in: sv)
+            guard pendingOpensAt != nil else { return }
+            contentSizeObservation = sv.observe(\.contentSize) { [weak self] sv, _ in
+                DispatchQueue.main.async { self?.applyPendingOpensAt(in: sv) }
+            }
+        }
+
+        private func applyPendingOpensAt(in sv: UIScrollView) {
+            guard let y = pendingOpensAt, !userScrolled else {
+                pendingOpensAt = nil
+                contentSizeObservation = nil
+                return
+            }
+            let maxY = sv.contentSize.height - sv.bounds.height + sv.contentInset.bottom
+            guard sv.contentSize.height > 0, y <= maxY else { return }
+            sv.contentOffset = CGPoint(x: sv.contentOffset.x, y: y)
+            pendingOpensAt = nil
+            contentSizeObservation = nil
+        }
 
         /// Keeps the scroll view's top / bottom inset equal to the chrome over the text, so the
         /// first line starts below it and the last one scrolls clear of it.
@@ -401,7 +430,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
             if let opensAt {
                 // Handed over from the Reader: the text stays exactly where it was.
                 self.opensAt = nil
-                sv.contentOffset = CGPoint(x: sv.contentOffset.x, y: opensAt)
+                open(at: opensAt, in: sv)
             } else if follows, let index = pendingActive {
                 center(paragraph: index, animated: false)
             } else {
