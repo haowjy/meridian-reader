@@ -132,9 +132,9 @@ struct ReaderScrubRow: View {
 
             Button(action: onToggleJump) {
                 Image(systemName: jumpMode ? "hand.tap.fill" : "hand.tap")
-                    .foregroundStyle(jumpMode ? Palette.accent : Palette.secondaryInk)
+                    .foregroundStyle(jumpMode ? Palette.playerAccent : Palette.playerSecondaryInk)
                     .fieldControlFrame()
-                    .background(Circle().fill(jumpMode ? Palette.accent.opacity(0.15) : Color.clear))
+                    .background(Circle().fill(jumpMode ? Palette.playerAccent.opacity(0.15) : Color.clear))
             }
             .buttonStyle(.plain)
             .disabled(!jumpEnabled)
@@ -309,8 +309,8 @@ extension View {
     }
 }
 
-/// Speed chip, then paragraph · sentence over the sentence's first words. The text wraps rather
-/// than truncating at large text sizes.
+/// Speed chip, then paragraph · sentence over the sentence's first words, on a player card. The
+/// text wraps rather than truncating at large text sizes.
 private struct ReaderScrubBubbleView: View {
     let bubble: ReaderScrubBubble
 
@@ -321,22 +321,23 @@ private struct ReaderScrubBubbleView: View {
             if let chip = bubble.speed.chip {
                 Text(chip)
                     .typeStyle(.caption, weight: .bold)
-                    .foregroundStyle(Palette.accent)
+                    .foregroundStyle(Palette.playerAccent)
                     .padding(.horizontal, Spacing.xs)
                     .padding(.vertical, Spacing.xxs)
-                    .background(Palette.accent.opacity(0.15), in: Capsule())
+                    .background(Palette.playerAccent.opacity(0.15), in: Capsule())
                     .accessibilityLabel(bubble.speed.label ?? chip)
                     .accessibilityIdentifier("readerScrubSpeed")
             }
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 header(t, map: map)
                     .typeStyle(.caption, weight: .semibold)
+                    .foregroundStyle(Palette.playerInk)
                     .monospacedDigit()
                     .fixedSize(horizontal: false, vertical: true)
                 Text(map.snippet(for: t))
                     .typeStyle(.caption)
                     .lineLimit(2)
-                    .foregroundStyle(Palette.ink)
+                    .foregroundStyle(Palette.playerInk)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("readerScrubSnippet")
             }
@@ -344,7 +345,7 @@ private struct ReaderScrubBubbleView: View {
         }
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.xs)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .background(Palette.playerCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("readerScrubBubble")
@@ -354,6 +355,6 @@ private struct ReaderScrubBubbleView: View {
         let paragraph = Text("¶ \(t.paragraph + 1) of \(map.paragraphCount)")
         let sentences = map.sentenceCount(paragraph: t.paragraph)
         guard sentences > 1 else { return paragraph }
-        return paragraph + Text(" · sentence \(t.sentence + 1) of \(sentences)").foregroundStyle(Palette.secondaryInk)
+        return paragraph + Text(" · sentence \(t.sentence + 1) of \(sentences)").foregroundStyle(Palette.playerSecondaryInk)
     }
 }

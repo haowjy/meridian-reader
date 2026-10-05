@@ -1,17 +1,19 @@
 import SwiftUI
 import SwiftData
 
-/// Now Playing: what you hear, opened up from the bar (`NowPlayingSheet`). Same paper and serif as
-/// the Reader; its chrome is the player's. Presented over everything by the shell; it holds no
-/// article of its own: it shows `speech.nowPlaying` and the content its resolver finds.
+/// Now Playing: what you hear, opened up from the bar (`NowPlayingSheet`). A player on deep jade
+/// (light and dark alike), the Reader's serif text in lyrics style under a title card. Presented
+/// over everything by the shell; it holds no article of its own: it shows `speech.nowPlaying` and
+/// the content its resolver finds.
 ///
+/// - The title card (artwork, title, "site · N min left") scrolls with the text.
 /// - The text follows the audio: each new paragraph scrolls near the middle, the spoken
-///   paragraph is tinted and its sentence underlined. A drag stops following; Back to audio
-///   resumes it. Scrubbing scrolls to the paragraph under the thumb.
+///   paragraph is in full ink and the others dimmed, its sentence underlined. A drag stops
+///   following; Back to audio resumes it. Scrubbing scrolls to the paragraph under the thumb.
 /// - "Playing from": a saved page plays from the Library (tap: the Library); a page you haven't
 ///   saved plays from its site (tap: the page in the browser).
 /// - ⊕ saves the page (✓ when saved; tap again to remove it).
-/// - At the end it stays: the text stays, the tint goes, "✓ Finished", ▶ plays it again.
+/// - At the end it stays: the text stays, all in full ink, "✓ Finished", ▶ plays it again.
 /// - ⌄ or a pull down shrinks it back into the bar.
 struct NowPlayingScreen: View {
     @Bindable var speech: SpeechController
@@ -54,7 +56,7 @@ struct NowPlayingScreen: View {
                     speech: speech, scrubMap: scrubMap, detectedLanguage: speech.sessionDetectedLanguage,
                     jumpMode: $jumpMode,
                     more: AnyView(MoreMenuButton(id: "readerMore") { .nowPlaying(menu, perform: perform) }
-                        .foregroundStyle(Palette.ink)),
+                        .foregroundStyle(Palette.playerInk)),
                     onScrubPreview: { p in
                         scrubPreview = p
                         if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
@@ -76,13 +78,14 @@ struct NowPlayingScreen: View {
     private func text(_ now: NowPlaying) -> some View {
         if let html = readingHTML(now) {
             SpokenText(speech: speech, html: html,
-                       heading: ReaderHeading(title: article?.title ?? now.title, detail: detail(now)),
+                       card: TitleCardContent(title: article?.title ?? now.title, source: now.source,
+                                              artwork: now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))),
                        finished: now.isFinished, scrubMap: scrubMap, scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,
                        opensAt: shell.nowPlayingOpensAt,
                        onUserScroll: { following = false }, onTap: jump(to:))
         } else {
-            Palette.paper
+            Palette.playerBackground
         }
     }
 
@@ -92,11 +95,6 @@ struct NowPlayingScreen: View {
         if let html = article?.displayHTML, html.contains(where: { !$0.isWhitespace }) { return html }
         guard loadedKey == now.pageKey, !speech.document.isEmpty else { return nil }
         return speech.document.paragraphsHTML
-    }
-
-    private func detail(_ now: NowPlaying) -> String {
-        let minutes = ListeningTime.minutes(utf16Length: speech.document.utf16Length)
-        return [now.source, minutes > 0 ? "\(minutes) min" : ""].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     // MARK: - ⋯
@@ -187,13 +185,22 @@ struct NowPlayingScreen: View {
     }
 }
 
-/// The text with the spoken paragraph tinted and its sentence underlined. Its own view because the
-/// sentence follows the live offset, which moves several times a second: only this leaf (and the
-/// web view's bridge, which sends only changes) redraws for it.
+/// What the title card shows that doesn't move with the playhead.
+private struct TitleCardContent {
+    let title: String
+    /// "example.com".
+    let source: String
+    let artwork: Image?
+}
+
+/// The text under its title card, the spoken paragraph in full ink and its sentence underlined.
+/// Its own view because the sentence (and the card's time left) follows the live offset, which
+/// moves several times a second: only this leaf (and the web view's bridge, which sends only
+/// changes) redraws for it.
 private struct SpokenText: View {
     let speech: SpeechController
     let html: String
-    let heading: ReaderHeading
+    let card: TitleCardContent
     let finished: Bool
     let scrubMap: ReaderScrubMap?
     let scrubPreview: Int?
@@ -208,7 +215,8 @@ private struct SpokenText: View {
         let paragraph = speech.currentParagraphIndex
         HTMLReadingView(
             html: html,
-            heading: heading,
+            look: .player,
+            topView: titleCard,
             activeParagraphIndex: finished ? nil : (scrubPreview ?? paragraph),
             sentence: finished || scrubPreview != nil ? nil : sentence(paragraph),
             jumpMode: jumpMode,
@@ -217,6 +225,21 @@ private struct SpokenText: View {
             opensAt: opensAt,
             onUserScroll: onUserScroll,
             onTapParagraph: onTap
+        )
+    }
+
+    /// The title card, "site · N min left" (or "✓ Finished"). Replaced in the page only when its
+    /// text changes, so once a minute at most while playing.
+    private var titleCard: ReadingTopView {
+        let doc = speech.document
+        let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: speech.spokenUTF16Offset,
+                                             rate: speech.rateMultiplier)
+        let detail = finished ? "✓ Finished"
+            : [card.source, doc.isEmpty ? "" : "\(left) min left"].filter { !$0.isEmpty }.joined(separator: " · ")
+        let letter = card.source.isEmpty ? card.title : card.source
+        return ReadingTopView(
+            id: [card.title, detail, letter, card.artwork == nil ? "" : "artwork"],
+            view: AnyView(TitleCard(title: card.title, detail: detail, artwork: card.artwork, artworkLetter: letter))
         )
     }
 
@@ -229,11 +252,13 @@ private struct SpokenText: View {
     }
 }
 
-/// "Tap a paragraph to play from there", floating over the top of the text while ☝︎ is on.
+/// "Tap a paragraph to play from there", floating over the top of the text while ☝︎ is on. On the
+/// player it sits on a `playerCard` capsule instead of the material.
 struct JumpHint: View {
     let onCancel: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.onPlayerPalette) private var onPlayer
 
     var body: some View {
         HStack(spacing: Spacing.xs) {
@@ -248,12 +273,21 @@ struct JumpHint: View {
                 .accessibilityIdentifier("listenJumpCancel")
         }
         .typeStyle(.caption)
-        .foregroundStyle(Palette.accent)
+        .foregroundStyle(onPlayer ? Palette.playerAccent : Palette.accent)
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.xs)
-        .background(.thinMaterial, in: Capsule())
+        .background { background }
         .padding(.horizontal, Spacing.s)
         .padding(.top, Spacing.xs)
         .transition(.slideAndFade(from: .top, reduceMotion: reduceMotion))
+    }
+
+    @ViewBuilder
+    private var background: some View {
+        if onPlayer {
+            Capsule().fill(Palette.playerCard)
+        } else {
+            Capsule().fill(.thinMaterial)
+        }
     }
 }

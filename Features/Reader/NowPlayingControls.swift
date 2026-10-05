@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Now Playing's bottom band, top to bottom: the status notes (buffering, the Apple-fallback and
+/// Now Playing's bottom band (on the player palette), top to bottom: the status notes (buffering, the Apple-fallback and
 /// language notes, "✓ Finished", the developer Debug chip), the scrub row (sentence-precise
 /// scrubber and ☝︎ Jump) and the transport row. Notes sit above the scrubber so appearing text
 /// never pushes it when you skip.
@@ -77,8 +77,8 @@ struct NowPlayingControls: View {
                         .padding(.vertical, Spacing.xxs)
                         .background(
                             Capsule().fill(speech.showBakeDebugOverlay
-                                           ? Palette.accent.opacity(0.2)
-                                           : Palette.secondaryInk.opacity(0.15))
+                                           ? Palette.playerAccent.opacity(0.2)
+                                           : Palette.playerSecondaryInk.opacity(0.15))
                         )
                 }
                 .buttonStyle(.plain)
@@ -98,7 +98,7 @@ struct NowPlayingControls: View {
                 Spacer(minLength: 0)
             }
             .typeStyle(.caption)
-            .foregroundStyle(Palette.secondaryInk)
+            .foregroundStyle(Palette.playerSecondaryInk)
             .padding(.horizontal, Spacing.xs)
             .accessibilityIdentifier("listenBuffering")
         } else if let renderNote = speech.renderNote {
@@ -111,7 +111,7 @@ struct NowPlayingControls: View {
     private func note(_ text: String, id: String) -> some View {
         Text(text)
             .typeStyle(.caption)
-            .foregroundStyle(Palette.secondaryInk)
+            .foregroundStyle(Palette.playerSecondaryInk)
             .lineLimit(1)
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
