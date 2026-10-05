@@ -71,13 +71,14 @@ final class ColorContrastTests: XCTestCase {
         let pressedWash = Palette.accent.opacity(Palette.washOpacity)
         let pressedPlayerWash = Palette.playerAccent.opacity(Palette.washOpacity)
         let cases = [
-            // The scrub bubble's speed chip (½× / ¼× / Fine): a solid accent fill.
-            Case(name: "speed chip", fore: Palette.onPlayerAccent, fill: Palette.playerAccent, under: Palette.playerCard),
-            // ☝︎ while on, in the scrub capsule.
-            Case(name: "Jump on", fore: Palette.playerAccent, fill: Palette.playerAccentWash,
-                 under: Palette.playerCard, minimum: 3),
+            // The scrub bubble's speed chip (½× / ¼× / Fine), on the bubble: the colours it draws.
+            Case(name: "speed chip", fore: ReaderScrubBubble.chipText, fill: ReaderScrubBubble.chipFill,
+                 under: ReaderScrubBubble.card),
+            // ☝︎ while on, on the scrub row's field capsule.
+            Case(name: "Jump on", fore: ReaderScrubRow.jumpOnGlyph, fill: ReaderScrubRow.jumpOnWash,
+                 under: BottomChrome.fieldFill(onPlayer: true), minimum: 3),
             // The debug chip, on the player's text.
-            Case(name: "debug chip on", fore: Palette.playerInk, fill: Palette.playerAccentWash,
+            Case(name: "debug chip on", fore: NowPlayingControls.debugChipText, fill: NowPlayingControls.debugChipOnFill,
                  under: Palette.playerBackground),
             // A paragraph pressed in jump mode: full ink on the reading page's wash.
             Case(name: "pressed paragraph, player", fore: Palette.playerInk, fill: pressedPlayerWash,

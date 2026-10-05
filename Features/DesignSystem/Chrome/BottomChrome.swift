@@ -22,6 +22,8 @@ enum BottomChrome {
     static let fieldVerticalPadding = Spacing.xxs
     /// Field capsule / toolbar row height.
     static let rowHeight: CGFloat = 44
+    /// The field capsule's fill, on paper chrome or on the player.
+    static func fieldFill(onPlayer: Bool) -> Color { onPlayer ? Palette.playerCard : Palette.chrome }
     /// Toolbar glyph size.
     static let iconSize: CGFloat = 19
     /// Text standing in for a glyph in a toolbar slot (the speed label). Like the glyphs it keeps
@@ -123,7 +125,7 @@ private struct BottomChromeField: ViewModifier {
             .padding(.trailing, trailing)
             .padding(.vertical, BottomChrome.fieldVerticalPadding)
             .frame(height: BottomChrome.grown(height, from: BottomChrome.rowHeight))
-            .background(onPlayer ? Palette.playerCard : Palette.chrome, in: Capsule())
+            .background(BottomChrome.fieldFill(onPlayer: onPlayer), in: Capsule())
     }
 }
 

@@ -16,6 +16,10 @@ struct NowPlayingControls: View {
     /// Paragraph under the scrub thumb while dragging (nil when the drag ends).
     let onScrubPreview: (Int?) -> Void
 
+    /// The debug chip's text, and its fill while on (`ColorContrastTests` checks these).
+    static let debugChipText = Palette.playerInk
+    static let debugChipOnFill = Palette.playerAccentWash
+
     private var isFinished: Bool { speech.playbackPhase == .finished }
 
     var body: some View {
@@ -73,11 +77,11 @@ struct NowPlayingControls: View {
                 } label: {
                     Text(speech.showBakeDebugOverlay ? "Debug ▾" : "Debug")
                         .typeStyle(.caption, weight: .semibold)
-                        .foregroundStyle(Palette.playerInk)
+                        .foregroundStyle(Self.debugChipText)
                         .padding(.horizontal, Spacing.xs)
                         .padding(.vertical, Spacing.xxs)
                         .background(
-                            Capsule().fill(speech.showBakeDebugOverlay ? Palette.playerAccentWash : Palette.playerCard)
+                            Capsule().fill(speech.showBakeDebugOverlay ? Self.debugChipOnFill : Palette.playerCard)
                         )
                 }
                 .buttonStyle(.plain)

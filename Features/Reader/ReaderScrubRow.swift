@@ -122,6 +122,9 @@ struct ReaderScrubRow: View {
     /// How far the drag area reaches above and below the track: the capsule's padding plus 2 pt.
     private static let dragOvershoot = BottomChrome.fieldVerticalPadding + 2
     private static let space = "readerScrubTrack"
+    /// ☝︎ while on: its glyph on a wash, on the field capsule (`ColorContrastTests` checks these).
+    static let jumpOnGlyph = Palette.playerAccent
+    static let jumpOnWash = Palette.playerAccentWash
 
     var body: some View {
         // Styled exactly like the browser's address field: the same field capsule
@@ -132,9 +135,9 @@ struct ReaderScrubRow: View {
 
             Button(action: onToggleJump) {
                 Image(systemName: jumpMode ? "hand.tap.fill" : "hand.tap")
-                    .foregroundStyle(jumpMode ? Palette.playerAccent : Palette.playerSecondaryInk)
+                    .foregroundStyle(jumpMode ? Self.jumpOnGlyph : Palette.playerSecondaryInk)
                     .fieldControlFrame()
-                    .background(Circle().fill(jumpMode ? Palette.playerAccentWash : Color.clear))
+                    .background(Circle().fill(jumpMode ? Self.jumpOnWash : Color.clear))
             }
             .buttonStyle(.plain)
             .disabled(!jumpEnabled)
@@ -263,6 +266,12 @@ struct ReaderScrubRow: View {
 
 /// The scrub bubble while dragging, handed up from `ReaderScrubRow` to the band that draws it.
 struct ReaderScrubBubble {
+    /// The bubble's card, and the speed chip's text on its solid fill (`ColorContrastTests`
+    /// checks these).
+    static let card = Palette.playerCard
+    static let chipText = Palette.onPlayerAccent
+    static let chipFill = Palette.playerAccent
+
     let map: ReaderScrubMap
     let target: ReaderScrubMap.Target
     let speed: ScrubSpeed
@@ -321,10 +330,10 @@ private struct ReaderScrubBubbleView: View {
             if let chip = bubble.speed.chip {
                 Text(chip)
                     .typeStyle(.caption, weight: .bold)
-                    .foregroundStyle(Palette.onPlayerAccent)
+                    .foregroundStyle(ReaderScrubBubble.chipText)
                     .padding(.horizontal, Spacing.xs)
                     .padding(.vertical, Spacing.xxs)
-                    .background(Palette.playerAccent, in: Capsule())
+                    .background(ReaderScrubBubble.chipFill, in: Capsule())
                     .accessibilityLabel(bubble.speed.label ?? chip)
                     .accessibilityIdentifier("readerScrubSpeed")
             }
@@ -345,7 +354,7 @@ private struct ReaderScrubBubbleView: View {
         }
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.xs)
-        .background(Palette.playerCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .background(ReaderScrubBubble.card, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("readerScrubBubble")
