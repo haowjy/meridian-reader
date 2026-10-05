@@ -159,6 +159,8 @@ final class LibraryMigrationTests: XCTestCase {
     /// bytes left untouched, the saved rows copied. If it becomes readable later (the previous
     /// build wrote it during a rollback), its bookmarks are copied then.
     func testACorruptBookmarksFileIsLeftAloneAndNothingIsLost() throws {
+        env.cleanUp()
+        env = try LibraryTestEnvironment(fileBacked: true)
         env.legacyRow("https://example.com/1", savedAt: date(0))
         let corrupt = Data("[{\"urlString\": \"https://example.com/fav\", \"tit".utf8)
         try FileManager.default.createDirectory(at: env.legacy.bookmarksURL.deletingLastPathComponent(),
@@ -178,6 +180,14 @@ final class LibraryMigrationTests: XCTestCase {
         XCTAssertFalse(later.bookmarksUnreadable)
         XCTAssertEqual(later.copiedBookmarks, 1)
         XCTAssertEqual(library.favoritePages().map(\.title), ["Fav"])
+
+        // Copied once: removed, it stays removed when the next launch migrates from the files.
+        library.removeFavorite(try XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
+        try env.relaunch()
+        let again = library.migrateLegacy()
+        XCTAssertEqual(again.copiedArticles + again.copiedBookmarks, 0)
+        XCTAssertTrue(library.favoritePages().isEmpty, "the removed favorite stays removed")
+        XCTAssertNil(library.page(url: URL(string: "https://example.com/fav")!))
     }
 
     /// A rollback: the previous build ran in between and saved or bookmarked something new.
