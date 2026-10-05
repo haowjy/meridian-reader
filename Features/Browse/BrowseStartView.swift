@@ -208,7 +208,7 @@ struct BrowseStartView: View {
         speech.press(target) {
             let page = page
             Task {
-                if await !page.listenNow() {
+                if case .nothingToListenTo = await page.listenNow() {
                     withAnimation(Motion.snappy) { toast = "Nothing to listen to on this page" }
                 }
             }

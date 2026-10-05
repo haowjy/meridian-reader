@@ -63,7 +63,9 @@ Rules:
   played and after Stop Listening.
 - **`playState(of:)`** for a `ListenTarget` (`.page(key)`, or `.webPage(canonicalURL:)`, compared
   as strings so a saved article with a pre-v2 random id still matches its page): `idle`,
-  `preparing` (the one target in `beginPreparing`, e.g. 🎧 while its page is extracted),
+  `preparing` (the target of the current `beginPreparing` request, e.g. 🎧 while its page is
+  extracted; a newer request, Stop Listening and every other playback intent end it, and only a
+  request that `isStillPreparing` may start),
   `playing`, or `paused` (`.prepared` and `.finished` show as paused). Every ▶ / ⏸ / 🎧 comes from
   it.
 - **`press(_:start:)`**: playing → pause; paused → resume (from `.finished`, replay); anything

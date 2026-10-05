@@ -72,8 +72,10 @@ final class SpeechController {
         var host: String?
     }
     private(set) var sessionMeta: SessionMeta?
-    /// The one target being made ready to play before it is bound (🎧 extracting its page).
-    private(set) var preparingTarget: ListenTarget?
+    /// The one request making a page ready to play before it is bound (🎧 extracting its page).
+    /// A newer request, Stop Listening and every other playback intent end it; only the current
+    /// request may start playing (`isStillPreparing`).
+    private(set) var preparation: ListenPreparation?
     /// Where Now Playing's reading content comes from (`nowPlayingContent()`).
     @ObservationIgnored var contentResolver: NowPlayingContentResolving?
     /// Told about every position worth keeping (`ListeningProgressRecorder`), synchronously, in the
@@ -244,7 +246,7 @@ final class SpeechController {
     /// redraw. What you hear shows `.playing` while audible (or meant to be), else `.paused`:
     /// `.prepared` and `.finished` show as paused.
     func playState(of target: ListenTarget) -> PlayState {
-        if preparingTarget == target { return .preparing }
+        if preparation?.target == target { return .preparing }
         guard isCurrent(target) else { return .idle }
         _ = listenStatusRevision
         return activeSessionShowsPause() ? .playing : .paused
@@ -269,7 +271,7 @@ final class SpeechController {
         case .playing:
             pause()
         case .paused:
-            interruptionPolicy.noteUserIntent()
+            noteUserIntent()
             if playback.phase == .finished {
                 perform(.play(from: 0))
             } else {
@@ -282,23 +284,38 @@ final class SpeechController {
     }
 
     /// `target` is being made ready (its page extracting): its button shows `.preparing`, and
-    /// what's playing keeps playing until it is ready.
-    func beginPreparing(_ target: ListenTarget) {
-        preparingTarget = target
+    /// what's playing keeps playing until it is ready. Replaces any earlier request.
+    func beginPreparing(_ target: ListenTarget) -> ListenPreparation {
+        let request = ListenPreparation(target: target)
+        preparation = request
+        return request
     }
 
-    /// Preparing failed (or ended): the button goes back to what it was.
-    func cancelPreparing() {
-        preparingTarget = nil
+    /// Whether `request` is still the one to start: no newer request, Stop Listening or other
+    /// playback intent has come since it began.
+    func isStillPreparing(_ request: ListenPreparation) -> Bool {
+        preparation == request
+    }
+
+    /// `request` failed: its button goes back to what it was. A request already superseded
+    /// changes nothing.
+    func endPreparing(_ request: ListenPreparation) {
+        if preparation == request { preparation = nil }
+    }
+
+    /// The user asked for something: no auto-resume after an interruption, and a page still being
+    /// prepared no longer starts.
+    private func noteUserIntent() {
+        interruptionPolicy.noteUserIntent()
+        preparation = nil
     }
 
     /// Plays `article` from `paragraph` (at `utf16Offset` inside it, when given), replacing what's
     /// playing. The article is remembered for Now Playing, so an unsaved page can be shown.
     func listen(to article: ReaderArticle, fromParagraph paragraph: Int = 0, utf16Offset: Int? = nil) {
         guard !article.document.isEmpty else { return }
-        preparingTarget = nil
         contentResolver?.remember(article)
-        interruptionPolicy.noteUserIntent()
+        noteUserIntent()
         let session = SpeechSession(article: article)
         prepare(session, startingParagraph: paragraph)
         placeResumeOffset(utf16Offset, paragraph: paragraph)
@@ -315,7 +332,7 @@ final class SpeechController {
     /// Plays the bound page from `paragraph` (☝︎ in Now Playing).
     func play(fromParagraph paragraph: Int) {
         guard isPrepared else { return }
-        interruptionPolicy.noteUserIntent()
+        noteUserIntent()
         perform(.play(from: paragraph))
     }
 
@@ -323,7 +340,7 @@ final class SpeechController {
     /// (a sentence start), keeping play / pause as it is.
     func seek(toUTF16Offset utf16: Int) {
         guard isPrepared else { return }
-        interruptionPolicy.noteUserIntent()
+        noteUserIntent()
         perform(.seekOffset(utf16: utf16))
     }
 
@@ -489,6 +506,7 @@ final class SpeechController {
     // MARK: - Session API (intents)
 
     func prepare(_ session: SpeechSession, startingParagraph: Int = 0) {
+        preparation = nil
         if session.title != nil || sessionMeta?.id != session.id {
             let meta = SessionMeta(id: session.id, title: session.title, site: session.site, artwork: session.artwork,
                                    canonicalURL: session.canonicalURL, host: session.host)
@@ -502,7 +520,7 @@ final class SpeechController {
     }
 
     func toggle(_ session: SpeechSession, resumeParagraph: Int? = nil, resumeUTF16Offset: Int? = nil) {
-        interruptionPolicy.noteUserIntent()
+        noteUserIntent()
         if playback.articleID != session.id {
             prepare(session, startingParagraph: resumeParagraph ?? 0)
             placeResumeOffset(resumeUTF16Offset, paragraph: resumeParagraph ?? 0)
@@ -539,11 +557,13 @@ final class SpeechController {
 
     func skipToPreviousParagraph() {
         guard isPrepared else { return }
+        preparation = nil
         perform(.skip(delta: -1))
     }
 
     func skipToNextParagraph() {
         guard isPrepared else { return }
+        preparation = nil
         perform(.skip(delta: 1))
     }
 
@@ -551,7 +571,7 @@ final class SpeechController {
     /// (a proper paused seek, not stop-and-reload). No-op unless `session` is the prepared one.
     func seek(_ session: SpeechSession, toParagraph paragraph: Int) {
         guard isPrepared(sessionID: session.id) else { return }
-        interruptionPolicy.noteUserIntent()
+        noteUserIntent()
         perform(.seek(paragraph: paragraph))
     }
 
@@ -560,7 +580,7 @@ final class SpeechController {
     /// sentence, offset into its audio; Apple: speaks from that character.
     func seek(_ session: SpeechSession, toUTF16Offset utf16: Int) {
         guard isPrepared(sessionID: session.id) else { return }
-        interruptionPolicy.noteUserIntent()
+        noteUserIntent()
         perform(.seekOffset(utf16: utf16))
     }
 
@@ -574,15 +594,18 @@ final class SpeechController {
     }
 
     func pause() {
-        interruptionPolicy.noteUserIntent()
+        noteUserIntent()
         perform(.pause)
     }
 
-    func resume() { perform(.resume) }
+    func resume() {
+        preparation = nil
+        perform(.resume)
+    }
 
     /// Stop Listening: unbinds the page, so the bar goes away.
     func stop() {
-        interruptionPolicy.noteUserIntent()
+        noteUserIntent()
         perform(.stop)
         // Listen preempts bake; on stop, resume gap-fill so save-time work still lands on disk.
         finishSession(restartBake: true)
@@ -676,6 +699,7 @@ final class SpeechController {
             setRateMultiplier(nearest)
             return .success
         }
+        preparation = nil
         if command == .nextTrack, !canSkipToNextParagraph { return .commandFailed }
         if command == .togglePlayPause { playback.reconcile(with: engineSnapshot()) }
         guard let intent = command.intent else { return .commandFailed }

@@ -39,6 +39,13 @@ enum ListenTarget: Equatable {
     case webPage(canonicalURL: String)
 }
 
+/// One request to make `target` ready to play (🎧 while its page extracts). Compared by identity:
+/// two taps on the same page are two requests, and only the newest may start.
+struct ListenPreparation: Equatable {
+    let id = UUID()
+    let target: ListenTarget
+}
+
 /// Where Now Playing's text comes from. `SpeechSession` carries the paragraphs, not the reading
 /// HTML, and some starts never had a `ReaderArticle` (a Saved row's ▶, crash resume), so the
 /// content is resolved by key when Now Playing shows. Injected at the composition root, so the

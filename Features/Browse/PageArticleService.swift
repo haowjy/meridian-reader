@@ -29,30 +29,38 @@ struct PageArticleService {
     }
 
     /// 🎧: listen to the page now. 🎧 spins while the page is extracted, and what's playing keeps
-    /// playing; it is replaced only once this page has something to say. Returns false when the
-    /// page has nothing to listen to (extraction failed, or found too little text): nothing
-    /// changes, and the caller says so.
-    func listenNow() async -> Bool {
-        guard let url = web.currentURL else { return false }
-        let target = ListenTarget.webPage(canonicalURL: ArticleIdentity.canonicalURLString(from: url))
-        speech.beginPreparing(target)
-        guard let extracted = try? await extract(), ListeningTime.hasEnoughToListen(extracted.article.document) else {
-            if speech.preparingTarget == target { speech.cancelPreparing() }
-            return false
+    /// playing; it is replaced only once this page has something to say, and only if nothing
+    /// else was asked for meanwhile (`listen(toPageAt:…)`).
+    func listenNow() async -> ListenNowOutcome {
+        guard let url = web.currentURL else { return .nothingToListenTo }
+        let outcome = await Self.listen(toPageAt: url, speech: speech, context: context) {
+            try await extract().article
         }
-        let (article, page) = extracted
-        // Another 🎧 or ▶ took over while this page was extracting.
-        guard speech.preparingTarget == target else { return true }
+        if case .started(let article) = outcome, article.faviconData == nil, let icon = await favicon(for: url) {
+            speech.setArtwork(icon, for: article.id)
+        }
+        return outcome
+    }
+
+    /// 🎧's decision, apart from the web view: begin a preparation request for the page at `url`,
+    /// run `extract`, then start the article only while that request is still current. Stop
+    /// Listening, another ▶ or another 🎧 during extraction supersedes it, and it starts nothing.
+    static func listen(toPageAt url: URL, speech: SpeechController, context: ModelContext,
+                       extract: () async throws -> ReaderArticle) async -> ListenNowOutcome {
+        let request = speech.beginPreparing(.webPage(canonicalURL: ArticleIdentity.canonicalURLString(from: url)))
+        let article = try? await extract()
+        guard speech.isStillPreparing(request) else { return .superseded }
+        guard let article, ListeningTime.hasEnoughToListen(article.document) else {
+            speech.endPreparing(request)
+            return .nothingToListenTo
+        }
         let saved = ArticleLibrary.savedArticle(id: article.id, in: context)
         speech.localTTS.prepareListenIdentity(key: article.id, paragraphs: article.document.paragraphs,
                                               trustedParagraphs: article.trustedParagraphs,
                                               legacyKeys: article.legacyCacheKeys, isLivePlayback: false)
         speech.listen(to: article, fromParagraph: article.resumeParagraph,
                       utf16Offset: saved?.playbackUTF16Offset)
-        if article.faviconData == nil, let icon = await favicon(for: page) {
-            speech.setArtwork(icon, for: article.id)
-        }
-        return true
+        return .started(article)
     }
 
     /// ⋯ → Save article. ⋯ spins meanwhile.
@@ -111,4 +119,14 @@ struct PageArticleService {
             $0.urlString == urlString || $0.host.caseInsensitiveCompare(host) == .orderedSame
         }?.faviconData
     }
+}
+
+/// What a 🎧 tap came to.
+enum ListenNowOutcome {
+    /// The page plays, replacing what was playing.
+    case started(ReaderArticle)
+    /// Extraction failed or found too little text: nothing changed, and the caller says so.
+    case nothingToListenTo
+    /// Stop Listening, another ▶ or another 🎧 came first: nothing starts and nothing is said.
+    case superseded
 }
