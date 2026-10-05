@@ -45,8 +45,8 @@ exactly what that button does.
   where you're going back to: the sheet follows the finger (up only with rubber-band resistance;
   a drag that starts sideways leaves it in place), shrinks slightly, and the dim behind it lifts.
   Released far enough or flung, it carries on off the bottom at the finger's speed; otherwise it
-  springs back. Under Reduce Motion it fades in and out instead. A sheet is modal for VoiceOver:
-  what is under it is out of reach until it closes.
+  springs back. Under Reduce Motion it fades in and out instead. What is under a sheet takes no
+  touches until it has gone.
 
 ## The app is a browser (no tab bar)
 
