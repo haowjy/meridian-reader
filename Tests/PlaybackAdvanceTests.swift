@@ -250,6 +250,49 @@ final class PlaybackAdvanceTests: XCTestCase {
         XCTAssertEqual(apple.plays.last?.articleID, book.key(1), "▶ plays it")
     }
 
+    /// Pause and resume while a link chapter is fetched say how it starts: nothing restarts the
+    /// chapter that ended, and it stays finished (the recorder doesn't take the resume for a
+    /// replay of it). The fetched chapter then plays. Over the real library.
+    func testPauseAndResumeWhileFetchingLeaveTheEndedChapterFinished() async throws {
+        let env = try LibraryTestEnvironment()
+        cleanups.append { env.cleanUp() }
+        let library: LibraryStore = env.library
+        let series = Folder(name: "Serial", kind: .series)
+        env.context.insert(series)
+        let one = Page(key: UUID(), title: "One", byline: "", urlString: "https://example.com/s/1",
+                       contentState: .saved, addedAt: env.now, sortKey: 0)
+        one.storeListenParagraphs(["Chapter one begins.", "Chapter one ends."])
+        let two = Page(key: UUID(), title: "Two", byline: "", urlString: "https://example.com/s/2",
+                       contentState: .link, addedAt: env.now, sortKey: 1)
+        for page in [one, two] {
+            env.context.insert(page)
+            page.setFolder(series)
+        }
+        library.commit("seed series")
+        let recorder = ListeningProgressRecorder(speech: speech, library: library, notificationCenter: NotificationCenter())
+        cleanups.append { _ = recorder }
+        speech.nextChapters = FetchingLibrary(library, text: ["Chapter two, fetched."], delay: 0.3)
+
+        speech.toggle(.page(one), resumeParagraph: 0)
+        let plays = apple.plays.count
+        finishChapter()
+        XCTAssertTrue(speech.isBufferingNext, "fetching chapter two")
+        XCTAssertNotNil(one.finishedAt, "chapter one is finished")
+
+        speech.pause()
+        speech.resume()
+        XCTAssertEqual(speech.playbackPhase, .playing)
+        XCTAssertEqual(apple.plays.count, plays, "nothing restarts chapter one")
+        XCTAssertNotNil(one.finishedAt, "resuming the wait doesn't make it unfinished")
+
+        await waitUntil({ speech.activeSessionID == two.key }, "chapter two plays once fetched")
+        XCTAssertEqual(apple.plays.last?.articleID, two.key)
+        XCTAssertEqual(speech.playbackPhase, .playing)
+        XCTAssertNotNil(one.finishedAt, "chapter one is still finished")
+        XCTAssertNil(two.finishedAt)
+        XCTAssertEqual(series.currentPageKey, two.key, "the place is chapter two")
+    }
+
     /// In the background the silent wait is short: iOS may suspend an app holding a silent
     /// audio session.
     func testTheWaitInTheBackgroundIsCapped() async {
@@ -374,6 +417,35 @@ final class PlaybackAdvanceTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// The real library, with a fetch that gives a link chapter `text` after `delay`: no page
+    /// fetcher is connected to it yet.
+    @MainActor
+    private final class FetchingLibrary: NextChapterProviding {
+        let library: LibraryStore
+        let text: [String]
+        let delay: TimeInterval
+
+        init(_ library: LibraryStore, text: [String], delay: TimeInterval) {
+            self.library = library
+            self.text = text
+            self.delay = delay
+        }
+
+        func folder(containing pageKey: UUID) -> PlaybackFolder? { library.folder(containing: pageKey) }
+        func chapters(of folderID: UUID) -> [ChapterAdvance.Chapter] { library.chapters(of: folderID) }
+        func load(_ pageKey: UUID) -> SpeechSession? { library.load(pageKey) }
+        func pageFinished(key: UUID) { library.pageFinished(key: key) }
+
+        func fetch(_ pageKey: UUID) async -> Bool {
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard let page = library.page(key: pageKey) else { return false }
+            page.plainText = text.joined(separator: "\n\n")
+            page.storeListenParagraphs(text)
+            library.commit("fetched")
+            return true
+        }
+    }
 
     /// A controller over a scripted Apple engine and, given `provider`, a fake on-device engine
     /// (Apple selected until the test selects it), its render queue on `runState`.

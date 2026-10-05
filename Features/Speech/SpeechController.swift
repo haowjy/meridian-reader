@@ -206,7 +206,9 @@ final class SpeechController {
     var isPlaying: Bool { playbackPhase == .playing }
 
     /// Copies `playback` into the published properties (only the ones that changed), then
-    /// refreshes what is derived from it: the lock screen and the listen-bar status.
+    /// refreshes what is derived from it: the lock screen and the listen-bar status. Progress
+    /// isn't reported while the next chapter is fetched: the page still bound has ended, and
+    /// play / pause then say how the next one starts, not that this one plays again.
     private func publishPlayback() {
         let before = ListenProgressKey(id: activeSessionID, paragraph: currentParagraphIndex, phase: playbackPhase)
         var nowPlayingChanged = false
@@ -219,7 +221,7 @@ final class SpeechController {
         if nowPlayingChanged { refreshNowPlaying() }
         sampleListenStatus()
         let after = ListenProgressKey(id: activeSessionID, paragraph: currentParagraphIndex, phase: playbackPhase)
-        if after != before, let id = playback.articleID {
+        if after != before, let id = playback.articleID, !playback.awaitingPage {
             onProgress?(ListenProgress(pageKey: id, paragraph: playback.playhead, utf16Offset: playback.utf16Offset,
                                        phase: playback.phase))
         }

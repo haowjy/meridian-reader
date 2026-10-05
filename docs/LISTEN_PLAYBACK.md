@@ -148,7 +148,8 @@ listen bar shows a spinner and "Preparing next…". That is not paused.
 The listening position is saved from the session, whatever is on screen, by
 `ListeningProgressRecorder` (built at the composition root, over `LibraryStore`):
 `SpeechController.onProgress` reports each new paragraph and every phase change (pause, finish,
-stop, and the stop that comes before a page is replaced) synchronously, and the recorder also
+stop, and the stop that comes before a page is replaced) synchronously, except while the next
+chapter of a book or series is fetched (the page still bound has ended), and the recorder also
 writes the live offset when the app leaves the foreground. Never per tick. It writes the page's
 position, dates each start (`lastPlayedAt`, unfinished again) and marks the end (`finishedAt`),
 holding the page it writes to rather than fetching it per paragraph. A page started from a
@@ -186,8 +187,9 @@ When the engine reports `finished`, the controller decides before the session se
   `fetch` runs, at most 30 s in the foreground and 5 s in the background (iOS may suspend an app
   holding a silent audio session), then it plays; if the fetch fails or runs out of time,
   playback ends at the chapter that finished. Play and pause while waiting say what happens when
-  it arrives (paused: bound at its start, silent). No page fetcher is connected, so a link
-  chapter in the library ends playback there.
+  it arrives (paused: bound at its start, silent); they don't restart the chapter that ended,
+  which stays finished. No page fetcher is connected, so a link chapter in the library ends
+  playback there.
 - **No next chapter** (the end, or a locked one): the session finishes as for any page.
 
 `playPage(key)` (Contents) plays a chapter from its start, and the book carries on from it.

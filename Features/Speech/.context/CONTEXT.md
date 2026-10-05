@@ -25,7 +25,8 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
   `chapter_boundary` timing line checks it on a device. The library is reached only through
   `NextChapterProviding`. A staged next chapter must never render at listener priority, and sits
   right behind the playing chapter's job (at the front once that is done), never behind a job that
-  parks in the background (`GlobalSynthQueueStagingTests`).
+  parks in the background (`GlobalSynthQueueStagingTests`). While the next chapter is fetched, no
+  progress is reported for the page still bound: it has ended, and a resume there isn't a replay.
 - **Position.** Only `PlaybackSessionState` holds it, and a seek publishes it synchronously in
   the same transaction as the UI change; the scrubber relies on that to avoid a snap back. An
   engine never reports a spot before the offset its play started at.
