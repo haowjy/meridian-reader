@@ -97,6 +97,21 @@ final class ReadingScrollRestoreTests: XCTestCase {
         XCTAssertEqual(page.offset, scrubbed, accuracy: 1, "still where the scrub put it, not at 5000")
     }
 
+    /// A scrub while the page is still loading, before the restore has started: the scrub wins,
+    /// once the page can scroll, and the handed-over offset is never applied.
+    func testAScrubBeforeThePageFinishesLoadingWins() async throws {
+        page.coordinator.load(html: ReadingPageHarness.paragraphs(40), opensAt: 3000)
+        page.coordinator.scroll(ReaderScrollRequest(index: 1, token: 1))
+        try await page.waitUntil("page loaded and indexed") {
+            guard !self.page.webView.isLoading else { return false }
+            return (try await self.page.js("document.querySelectorAll('[data-reader-index]').length") as? Int) == 40
+        }
+        try await page.pause(0.5)
+        XCTAssertFalse(page.coordinator.isRestoringScroll, "the scrub dropped the queued restore")
+        XCTAssertLessThan(page.offset, 1000, "near the second paragraph, not at the handed-over 3000")
+        XCTAssertGreaterThan(page.maxOffset, 3000, "3000 was reachable, so only the scrub kept it away")
+    }
+
     /// A new page while the restore waits: it opens at its top; the old offset was for the old page.
     func testAReloadBeforeTheRestoreOpensTheNewPageAtTheTop() async throws {
         page.coordinator.restoreTiming = (quiet: 30, limit: 60)

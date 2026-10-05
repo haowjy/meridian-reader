@@ -222,6 +222,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
             sentSizes = sizes
             loadGeneration += 1
             cancelRestore()
+            pendingScrollIndex = nil
             self.opensAt = opensAt
             webView?.loadHTMLString(Self.wrap(html, heading: heading, sizes: sizes), baseURL: nil)
         }
@@ -284,11 +285,16 @@ struct HTMLReadingWebView: UIViewRepresentable {
             cancelRestore()
         }
 
-        /// Drops a waiting restore: a newer scroll (drag, scrub, follow) or another load wins.
+        /// Drops a waiting restore, including one queued for a page still loading: a newer scroll
+        /// (drag, scrub, follow) or another load wins.
         private func cancelRestore() {
+            opensAt = nil
             restore = nil
             restoreObservations = []
         }
+
+        /// A scrub that came before the page finished loading; it is applied when it does.
+        private var pendingScrollIndex: Int?
 
         /// Keeps the scroll view's top / bottom inset equal to the chrome over the text, so the
         /// first line starts below it and the last one scrolls clear of it.
@@ -333,10 +339,19 @@ struct HTMLReadingWebView: UIViewRepresentable {
 
         /// Scrub-follow: center the paragraph under the scrub thumb.
         func scroll(_ request: ReaderScrollRequest?) {
-            guard let request, request.token != lastScrollToken, let webView else { return }
+            guard let request, request.token != lastScrollToken, webView != nil else { return }
             lastScrollToken = request.token
             cancelRestore()
-            let js = "(function(){ var el = document.querySelector('[data-reader-index=\"\(request.index)\"]');"
+            guard loaded else {
+                pendingScrollIndex = request.index
+                return
+            }
+            scrollIntoView(paragraph: request.index)
+        }
+
+        private func scrollIntoView(paragraph index: Int) {
+            guard let webView else { return }
+            let js = "(function(){ var el = document.querySelector('[data-reader-index=\"\(index)\"]');"
                 + " if (el) el.scrollIntoView({block: 'center'}); })();"
             webView.evaluateJavaScript(js, completionHandler: nil)
         }
@@ -470,9 +485,13 @@ struct HTMLReadingWebView: UIViewRepresentable {
                 // Handed over from the Reader: the text stays exactly where it was.
                 self.opensAt = nil
                 open(at: opensAt, in: sv)
+            } else if let index = pendingScrollIndex {
+                // Scrubbed while loading: the scrub is the newest request.
+                pendingScrollIndex = nil
+                scrollIntoView(paragraph: index)
             } else if follows, let index = pendingActive {
                 center(paragraph: index, animated: false)
-            } else {
+            } else if !userScrolled {
                 // A fresh page starts at the top, just below the top chrome.
                 sv.contentOffset = CGPoint(x: sv.contentOffset.x, y: -textInsets.top)
             }
