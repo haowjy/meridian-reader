@@ -15,16 +15,17 @@ enum AppLaunch {
         LaunchHooks.runBeforeMigrations(.current, library: library, tts: speech.localTTS)
         #endif
 
-        // Copy saved articles and bookmarks without a receipt, then merge any duplicates.
+        // Copy saved articles and bookmarks without a receipt (layout pass and dedupe included).
         library.migrateLegacy()
-        library.dedupe()
         #if DEBUG
         // After the copy, so no legacy row arrives after a seed; before the layout pass, so a
         // seeded page goes through it like a real one.
         LaunchHooks.runSeeds(.current, library: library)
         #endif
-        // Listen blocks on an older layout: rebuilt, keeping position and usable audio.
+        // Listen blocks on an older layout: rebuilt, keeping position and usable audio. Then
+        // duplicates merge, compared on the same paragraphs.
         library.migrateParagraphLayout()
+        library.dedupe()
         library.pruneUnsaved()
 
         #if DEBUG

@@ -260,8 +260,9 @@ highlight and the paragraph picker stay fine-grained.
   (`ParagraphDocument.readingHTML`) and the listen paragraphs (`ParagraphDocument.forListening`)
   come from the same split HTML, so web-view block index = listen / queue / cache paragraph
   index. Plain text splits the same way (`ParagraphDocument(plainText:)`).
-- **Migration** (`LibraryStore.migrateParagraphLayout`, run by `AppLaunch` after the library
-  migration copy and before crash resume): library pages holding text with
+- **Migration** (`LibraryStore.migrateParagraphLayout`, run inside the library migration on
+  the copied pages before they are deduped, and by `AppLaunch` before the launch dedupe pass and
+  crash resume): library pages holding text with
   `listenBlocksVersion < 3` get new blocks; the
   reading position maps by character offset (`ParagraphPositionMap`); the resume point, the
   in-memory crash-resume target and any pending bake job are remapped; cached audio of unchanged

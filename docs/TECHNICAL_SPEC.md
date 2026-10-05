@@ -135,13 +135,15 @@ row and every bookmark in `bookmarks.json` without a receipt (`LibraryMigrationR
 library store): saved rows become saved pages in no folder (same key, text, position, icon; the
 listen history becomes `lastPlayedAt` / `finishedAt`), bookmarks become link pages in Favorites
 in file order, and a bookmark for a saved page moves that page into Favorites at the bookmark's
-place. Dedupe runs, and the pages and a receipt for every item copied are saved together: a
-failed save leaves neither, so the next launch copies again, and a page deleted after the copy
-never comes back. Receipts that can't be read stop the copy. Nothing legacy is written again:
-the rows, the bookmarks file, the listen history and the audio cache stay as they were, so the
-previous build still works after a rollback. Then the launch dedupe pass, the paragraph layout
-pass on pages and the prune of pages not in the Library run. Debug: `-rerunLibraryMigration`
-empties the library and its receipts and copies again.
+place. The paragraph layout pass then moves copied pages on older listen blocks to today's
+layout, and only then does dedupe merge duplicates, so positions and audio are compared on the
+same paragraphs. The pages and a receipt for every item copied are saved together: a failed save
+leaves neither, so the next launch copies again, and a page deleted after the copy never comes
+back. Receipts that can't be read stop the copy. Nothing legacy is written again: the rows, the
+bookmarks file, the listen history and the audio cache stay as they were, so the previous build
+still works after a rollback. Then the paragraph layout pass, the dedupe pass and the prune of
+pages not in the Library run. Debug: `-rerunLibraryMigration` empties the library and its
+receipts and copies again.
 
 **`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
 `urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,

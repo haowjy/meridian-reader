@@ -23,9 +23,9 @@ extension LibraryStore {
     /// align its cached audio (slice pieces whose chunks line up, move shifted paragraphs,
     /// re-render only the rest), and remap the crash-resume point and any pending bake job.
     /// Idempotent: pages are stamped with the version. Logged per page
-    /// (`paragraph_layout_migration`).
+    /// (`paragraph_layout_migration`). Saves, unless the caller batches it into its own save.
     @discardableResult
-    func migrateParagraphLayout() -> LayoutMigrationReport {
+    func migrateParagraphLayout(saving: Bool = true) -> LayoutMigrationReport {
         var report = LayoutMigrationReport()
         let version = ListenHTMLBlocks.version
         let stale = ((try? context.fetch(FetchDescriptor<Page>(predicate: #Predicate { $0.listenBlocksVersion < version }))) ?? [])
@@ -92,7 +92,7 @@ extension LibraryStore {
             ])
             log("layout v\(version) \(Self.short(page.key)): paragraphs \(old.count)→\(new.count) (split \(splitCount)), position \(before.paragraph)→\(after.paragraph), audio kept \(rec.kept) moved \(rec.remapped) sliced \(split.sliced) dropped \(rec.dropped)")
         }
-        commit("layout migration")
+        if saving { commit("layout migration") }
         tts.noteBakeMarksChanged()
         return report
     }

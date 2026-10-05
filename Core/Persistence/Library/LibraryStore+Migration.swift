@@ -16,10 +16,12 @@ extension LibraryStore {
         var saved = false
     }
 
-    /// Copies every `SavedArticle` row and bookmark without a receipt, folds in the listen
-    /// history, runs dedupe, and saves the pages and their receipts in one save (a failed or
-    /// interrupted save leaves neither, and the next launch copies again). Receipts that can't
-    /// be read stop the copy: copying again then would bring back what was deleted.
+    /// Copies every `SavedArticle` row and bookmark without a receipt and folds in the listen
+    /// history; moves pages on older listen blocks to today's layout, then merges duplicates, so
+    /// positions and audio are compared on the same paragraphs; and saves the pages and their
+    /// receipts in one save (a failed or interrupted save leaves neither, and the next launch
+    /// copies again). Receipts that can't be read stop the copy: copying again then would bring
+    /// back what was deleted.
     @discardableResult
     func migrateLegacy() -> MigrationReport {
         var report = MigrationReport()
@@ -86,6 +88,7 @@ extension LibraryStore {
         for row in rows { context.insert(LibraryMigrationReceipt(legacyID: row.id, source: .savedArticle, copiedAt: copiedAt)) }
         for bookmark in bookmarks { context.insert(LibraryMigrationReceipt(legacyID: bookmark.id, source: .bookmark, copiedAt: copiedAt)) }
 
+        migrateParagraphLayout(saving: false)
         report.mergedDuplicates = dedupe(saving: false).mergedPages
         guard commit("migration copy") else {
             context.rollback()
