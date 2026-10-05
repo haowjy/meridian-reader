@@ -68,7 +68,8 @@ Rules:
   request that `isStillPreparing` may start),
   `playing`, or `paused` (`.prepared` and `.finished` show as paused). Every ▶ / ⏸ / 🎧 comes from
   it.
-- **`press(_:start:)`**: playing → pause; paused → resume (from `.finished`, replay); anything
+- **`press(_:start:)`**: playing → pause; paused → resume (from `.finished`, the session's `.replay`: both the paragraph and the
+  offset go back to the start); anything
   else runs `start`, which replaces what is playing. Pressing never navigates.
 - **`nowPlayingContent()`**: Now Playing's reading content, asked of the injected
   `NowPlayingContentResolving` (a saved article from its row; an unsaved page from the

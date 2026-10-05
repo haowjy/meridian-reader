@@ -273,7 +273,7 @@ final class SpeechController {
         case .paused:
             noteUserIntent()
             if playback.phase == .finished {
-                perform(.play(from: 0))
+                perform(.replay)
             } else {
                 playback.reconcile(with: engineSnapshot())
                 perform(playback.phase == .prepared ? .play(from: playback.playhead) : .resume)

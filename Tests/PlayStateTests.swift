@@ -93,6 +93,40 @@ final class PlayStateTests: XCTestCase {
         XCTAssertEqual(fixture.apple.plays.last?.utf16Offset, 0, "from the start")
     }
 
+    /// D3 on a one-paragraph article: the replay paragraph is the playhead, so both coordinates
+    /// have to reset, or ▶ would carry on from where the voice finished.
+    func testFinishedOneParagraphArticleReplaysFromItsStart() {
+        let url = URL(string: pageA)!
+        let text = "Only one paragraph here. It still has a few sentences in it. This is the last of them."
+        let one = ReaderArticle(id: ArticleIdentity.articleKey(canonicalURL: canonical(pageA)), url: url,
+                                extracted: ExtractedArticle(title: "One", siteName: nil, cleanedHTML: "<p>\(text)</p>",
+                                                            plainText: text, excerpt: ""))
+        XCTAssertEqual(one.document.count, 1)
+        speech.listen(to: one)
+        let nearTheEnd = (text as NSString).length - 10
+        fixture.apple.emit(.position(paragraph: 0, utf16: nearTheEnd))
+        XCTAssertEqual(speech.spokenUTF16Offset, nearTheEnd)
+        fixture.apple.emit(.finished)
+        XCTAssertEqual(speech.playbackPhase, .finished)
+
+        speech.press(.page(one.id)) { XCTFail("▶ replays what you hear") }
+        XCTAssertEqual(fixture.apple.plays.last?.utf16Offset, 0, "from the start, not where it finished")
+        XCTAssertEqual(speech.spokenUTF16Offset, 0)
+        XCTAssertEqual(speech.currentParagraphIndex, 0)
+    }
+
+    /// Ordinary resume still starts where it paused (a scrubbed sentence of a prepared page).
+    func testPreparedPageResumesAtItsSentence() {
+        let a = TestSpeech.article(pageA)
+        speech.prepare(SpeechSession(article: a))
+        let second = a.document.paragraphs[0].firstIndex(of: ".").map {
+            a.document.paragraphs[0].utf16.distance(from: a.document.paragraphs[0].startIndex, to: $0) + 2
+        }!
+        speech.seek(toUTF16Offset: second)
+        speech.press(.page(a.id)) { XCTFail("▶ plays what you hear") }
+        XCTAssertEqual(fixture.apple.plays.last?.utf16Offset, second, "from the scrubbed sentence")
+    }
+
     func testStopListeningUnbinds() {
         let a = TestSpeech.article(pageA)
         speech.listen(to: a)
