@@ -103,6 +103,28 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertIdentical(keeper.folder, series, "a page in a series keeps it")
     }
 
+    /// Crash recovery read its target at launch, before dedupe: when that page is merged away,
+    /// the target in memory follows the resume file onto the kept page, on the same paragraph
+    /// text even though the two pages' paragraphs differ.
+    func testTheCrashTargetReadAtLaunchFollowsTheKeeper() throws {
+        let extra = page("https://example.com/c2", position: 0)
+        extra.storeListenParagraphs(["An intro.", "Alpha one.", "Beta two."])
+        let keeper = page("https://example.com/c2", position: 1)
+        keeper.storeListenParagraphs(["Alpha one.", "Beta two."])
+        ListenResumePointStore.shared.save(article: extra.key!, paragraph: 2, at: env.now)
+        env.tts.pendingResume = ListenResumeTarget(articleKey: extra.key!.uuidString, paragraph: 2, at: env.now, autoPlay: true)
+        try env.context.save()
+
+        XCTAssertEqual(library.dedupe().mergedPages, 1)
+        let target = try XCTUnwrap(env.tts.takePendingResume())
+        XCTAssertIdentical(library.page(matching: target), keeper, "launch resumes the kept page")
+        XCTAssertEqual(target.paragraph, 1, "on \"Beta two.\", its paragraph there")
+        XCTAssertTrue(target.autoPlay)
+        let file = try XCTUnwrap(ListenResumePointStore.shared.load())
+        XCTAssertEqual(file.articleKey, keeper.key?.uuidString)
+        XCTAssertEqual(file.paragraph, 1)
+    }
+
     func testTwoFavoritesMergeIntoTheOlder() throws {
         let older = Folder(name: "", kind: .favorites, createdAt: env.now)
         let newer = Folder(name: "", kind: .favorites, createdAt: env.now + 5)

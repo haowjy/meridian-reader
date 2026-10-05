@@ -159,10 +159,12 @@ final class LocalTTSCoordinator: SynthQueueContext {
         engineCrashNotice = nil
     }
 
-    /// Paragraph layout migration: the crash-resume target was read at init (before the saved
-    /// rows were migrated), so its paragraph is in the old numbering — move it to the new one.
-    func remapPendingResume(article: UUID, _ map: (Int) -> Int) {
+    /// The library moved the page the crash-resume target names, which was read at init, before
+    /// the launch maintenance: its paragraphs were rebuilt, or dedupe merged it into the page
+    /// `newKey`. The target follows, onto the paragraph `map` gives.
+    func remapPendingResume(article: UUID, to newKey: UUID? = nil, _ map: (Int) -> Int) {
         guard var target = pendingResume, target.matches(article) else { return }
+        if let newKey { target.articleKey = newKey.uuidString }
         target.paragraph = map(target.paragraph)
         pendingResume = target
     }

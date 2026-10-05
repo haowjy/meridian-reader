@@ -133,8 +133,7 @@ extension LibraryStore {
                                                           fillGapsFromTopAfterPriority: job.fillGapsFromTopAfterPriority,
                                                           paragraphCount: new.count))
         }
-        moveResumePoint(work)
-        if live { tts.remapPendingResume(article: key) { Self.mapParagraph($0, for: work) } }
+        moveResumePoints(work, live: live)
         ListenTimingLog.log("library_audio_work", [
             "kind": "align", "key": ListenTimingLog.shortKey(key), "leftover": !live,
             "audio_kept": rec.kept, "audio_moved": rec.remapped, "audio_dropped": rec.dropped,
@@ -156,7 +155,7 @@ extension LibraryStore {
         }
         tts.synthQueue.remove(cacheKey: from)
         PendingBakeJobStore.shared.removePending(articleID: from)
-        moveResumePoint(work)
+        moveResumePoints(work, live: live)
         keyMerged(from, to)
         ListenTimingLog.log("library_audio_work", [
             "kind": "merge", "key": ListenTimingLog.shortKey(to), "from": ListenTimingLog.shortKey(from),
@@ -165,30 +164,45 @@ extension LibraryStore {
         log("audio \(Self.short(from)) merged into \(Self.short(to))")
     }
 
-    /// The crash-resume point moves only if it is still where the plan found it, so doing the
-    /// work again never moves it twice.
-    private func moveResumePoint(_ work: LibraryAudioWork) {
-        guard let source = work.sourceKey, let target = work.key,
-              let paragraph = work.resumeParagraph, let at = work.resumeAt else { return }
-        let store = ListenResumePointStore.shared
-        guard let point = store.load(), point.matches(source), point.paragraph == paragraph,
-              abs(point.at.timeIntervalSince(at)) < 0.001 else { return }
-        store.save(article: target, paragraph: Self.mapParagraph(paragraph, for: work), at: point.at)
+    /// The crash-resume file and the crash target launch read from it (or from the crash
+    /// marker) follow the work. The file moves only if it is still where the plan found it, so
+    /// doing the work again never moves it twice. The target in memory moves with any paragraph
+    /// when this process planned the work (it was read before); for work left by an earlier
+    /// launch, only if it still holds the file's old point.
+    private func moveResumePoints(_ work: LibraryAudioWork, live: Bool) {
+        guard let source = work.sourceKey, let target = work.key else { return }
+        let map = { (p: Int) in Self.mapParagraph(p, for: work) }
+        if let paragraph = work.resumeParagraph, let at = work.resumeAt {
+            let store = ListenResumePointStore.shared
+            if let point = store.load(), point.matches(source), point.paragraph == paragraph,
+               abs(point.at.timeIntervalSince(at)) < 0.001 {
+                store.save(article: target, paragraph: map(paragraph), at: point.at)
+            }
+        }
+        guard live || (tts.pendingResume.map { $0.paragraph == work.resumeParagraph } ?? false) else { return }
+        tts.remapPendingResume(article: source, to: target, map)
     }
 
     // MARK: - Positions
 
     /// A paragraph index on the work's source paragraphs, on its target paragraphs: the same
-    /// sentence for a rebuilt page (`align`); unchanged for a merge.
+    /// sentence for a rebuilt page (`align`); for a merge, the kept page's paragraph with the
+    /// same text (the nearest, if several), else the same index within its length.
     static func mapParagraph(_ paragraph: Int, for work: LibraryAudioWork) -> Int {
+        let from = work.sourceParagraphs, to = work.paragraphs
         switch work.kind {
         case .align:
-            let new = work.paragraphs
-            guard !new.isEmpty else { return 0 }
-            return ParagraphPositionMap.mapParagraphStart(paragraph, from: ParagraphDocument(parts: work.sourceParagraphs),
-                                                          to: ParagraphDocument(parts: new))
+            guard !to.isEmpty else { return 0 }
+            return ParagraphPositionMap.mapParagraphStart(paragraph, from: ParagraphDocument(parts: from),
+                                                          to: ParagraphDocument(parts: to))
         case .merge, nil:
-            return paragraph
+            guard !to.isEmpty else { return paragraph }
+            if from != to, from.indices.contains(paragraph) {
+                let hash = ArticleIdentity.paragraphHash(from[paragraph])
+                let same = to.indices.filter { ArticleIdentity.paragraphHash(to[$0]) == hash }
+                if let nearest = same.min(by: { abs($0 - paragraph) < abs($1 - paragraph) }) { return nearest }
+            }
+            return min(max(0, paragraph), to.count - 1)
         }
     }
 }

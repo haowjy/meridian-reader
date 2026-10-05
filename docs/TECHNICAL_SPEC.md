@@ -147,8 +147,9 @@ library and its receipts and copies again.
 
 **Audio work waits for the save.** The layout pass (audio aligned to the new paragraphs, the
 crash-resume point and pending renders remapped) and dedupe (the merged page's audio moved under
-the kept key and reconciled, its pending render dropped, the resume point and the live session
-moved) change nothing outside the store until the library change is saved. They record
+the kept key and reconciled, its pending render dropped, the resume point, the crash target read
+at launch and the live session moved onto the kept page, at the paragraph with the same text)
+change nothing outside the store until the library change is saved. They record
 `LibraryAudioWork` in the same save; `LibraryStore.commit` does it right after the save and
 deletes it. A failed save is rolled back with its work, leaving the audio cache, pending renders
 and the resume point as they were. A launch that dies after the save leaves the records, and the
