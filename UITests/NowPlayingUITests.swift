@@ -86,6 +86,26 @@ final class NowPlayingUITests: XCTestCase {
         assertBackToAudioReturnsToTheSpokenParagraph(app)
     }
 
+    /// The title card says what is playing (title, site or Library, time left) and scrolls with
+    /// the text; the big round button plays and pauses.
+    func testTheTitleCardShowsWhatIsPlayingAndScrollsWithTheText() throws {
+        let app = launchLongDemo()
+        openNowPlayingFromTheLibrary(app)
+        let card = find(app, "nowPlayingTitleCard")
+        XCTAssertTrue(card.waitForExistence(timeout: 5), "the title card")
+        XCTAssertTrue(card.label.contains("Demo Listen Article"), card.label)
+        XCTAssertTrue(card.label.contains("min left"), card.label)
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
+        XCTAssertGreaterThanOrEqual(play.frame.width, 64, "the big round ⏸")
+        play.tap()
+        XCTAssertTrue(eventually(5) { play.label == "Play" }, "it pauses")
+
+        let top = card.frame.minY
+        dragText(app, by: -200)
+        XCTAssertTrue(eventually(3) { !card.exists || card.frame.minY < top - 100 }, "it scrolls up with the text")
+    }
+
     /// Listen in the Reader (D2): Now Playing opens with the text exactly where the Reader had it.
     func testListenKeepsTheReadersScrollPosition() throws {
         let app = launchLongDemo()
