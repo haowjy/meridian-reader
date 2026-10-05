@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The ⋯ and ＋ → New Folder for the Library screen on top, shared by the Library surface and the
+/// The ⋯ and ＋ (*New Folder*, *Import Book…*) for the Library screen on top, shared by the Library surface and the
 /// Favorites sheet: which rows the panel shows (`LibraryMenu`) and what each does there. The host
 /// says which screen is on top and what the panel's big buttons do.
 @MainActor
@@ -34,7 +34,8 @@ struct LibraryScreenMenu {
         }
     }
 
-    /// New Folder goes in the folder on screen; on a book's screen, beside the book.
+    /// New Folder and an imported book go in the folder on screen; on a book's screen, beside the
+    /// book.
     var newFolderParent: Folder? {
         guard let folder = topFolder else { return nil }
         return folder.kind.isFixed ? folder.parent : folder
@@ -45,6 +46,7 @@ struct LibraryScreenMenu {
     var menu: LibraryMenu {
         var menu = screenMenu
         menu.showsDebug = speech.developerOptionsEnabled
+        menu.canImportBook = root == .home && topFolder?.kind != .favorites
         return menu
     }
 
@@ -61,6 +63,7 @@ struct LibraryScreenMenu {
         switch action {
         case .voiceSettings: shell.present(.voiceSettings)
         case .newFolder: screen.makeFolder(in: newFolderParent)
+        case .importBook: BookImportActions(library: library, shell: shell).pickBook(into: newFolderParent)
         case .sort(let sort):
             if let folder { library.setSort(sort, for: folder) } else { topLevelSort.wrappedValue = sort.rawValue }
         case .rename: if let folder { screen.rename(folder) }

@@ -112,10 +112,12 @@ struct MoreMenuPanel: View {
         switch menu.screen {
         case .home:
             voiceRow { run(.voiceSettings) }
+            if menu.canImportBook { importBookRow { run(.importBook) } }
             row("New Folder", "folder.badge.plus", id: "moreNewFolder") { run(.newFolder) }
         case .folder(let isFavorites):
             sortMenu(menu.sort, run: run)
             row("New Folder Inside", "folder.badge.plus", id: "moreNewFolder") { run(.newFolder) }
+            if menu.canImportBook { importBookRow { run(.importBook) } }
             if !isFavorites {
                 row("Rename", "pencil", id: "moreRename") { run(.rename) }
                 row("Move…", "folder", id: "moreMove") { run(.move) }
@@ -169,6 +171,10 @@ struct MoreMenuPanel: View {
 
     private func shareRow(action: @escaping () -> Void) -> some View {
         row("Share", "square.and.arrow.up", id: "moreShare", action: action)
+    }
+
+    private func importBookRow(action: @escaping () -> Void) -> some View {
+        row("Import Book…", "book.closed", id: "moreImportBook", action: action)
     }
 
     private func voiceRow(action: @escaping () -> Void) -> some View {

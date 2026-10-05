@@ -172,8 +172,8 @@ developer options on, its panel over the sheet), shown in the sheet; its big but
 The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
 back up. It uses the **same bottom chrome** as the browser: the Now Playing bar, the search field
-capsule and `[＋][ ][🔍][🌐][⋯]`. ＋ is *New Folder*, made in the folder on screen (beside a book,
-on a book's screen). 🌐 shows the browser as it was; 📚 there comes back to the same folder. The
+capsule and `[＋][ ][🔍][🌐][⋯]`. ＋ is *Import Book…* and *New Folder*, both made in the folder
+on screen (beside a book, on a book's screen). 🌐 shows the browser as it was; 📚 there comes back to the same folder. The
 ⋯ panel follows the screen on top (below), always with big buttons **Favorites**, **History**,
 **Browser**, and with developer options on a last row *Debug* (the listen debug panel); nothing
 in it acts on the page under the Library. History closes the Library first; Browser is the same
@@ -195,14 +195,28 @@ Pages · 48                     Show All › pages in no folder, newest first, t
   Playing if it is what you hear), its ▶ resumes it. **Folders**: the top-level folders.
   **Pages**: the pages in no folder, newest first; Show All pushes them all, sorted by the
   top level's sort (*Manual / Newest / Title*, ⋯ → Sort; kept on the device,
-  `library.topLevel.sort`). An empty Library shows one card, *Find something to listen to*,
-  with *Browse the web*.
+  `library.topLevel.sort`). ⋯: *Voice Settings, Import Book…, New Folder*. An empty Library
+  shows one card, *Find something to listen to*, with *Browse the web* and *Import a book*.
 - **A folder** (`FolderScreen`, Favorites included): its title and counts, subfolders first (by
   their order), then pages by the folder's sort. **Edit** (top right) puts check circles on the
   rows, and drag handles (pages only when the sort is *Manual*); the toolbar becomes *Move…,
   Mark Finished, Remove* for the selection (Remove asks before deleting folders). ⋯: *Sort ›,
-  New Folder Inside, Rename, Move…, Delete Folder…* (Favorites: *Sort* and *New Folder Inside*
-  only; it can't be renamed, moved down or deleted).
+  New Folder Inside, Import Book…, Rename, Move…, Delete Folder…* (Favorites: *Sort* and *New
+  Folder Inside* only; it can't be renamed, moved down or deleted).
+- **Importing a book** (*Import Book…*: ＋, the home's and a folder's ⋯, the empty Library's
+  card) opens the Files picker for EPUBs. The picked file is copied into the app and the import
+  sheet (`BookImportSheet`, medium, grows to large) comes up at once: the cover, title, author,
+  file and chapter count once read; a progress line ("Reading chapters… 4 / 9"); **Add to**, the
+  folder whose screen it started from (else the Library), with *Change*, which pushes the Move
+  tree inside the sheet and works while the import runs (a change moves the new book there when
+  it is done); the first chapters and what is skipped for listening. It can't be pulled down
+  while it works; *Cancel* stops it and keeps nothing. Done, it closes on the book's screen,
+  with *▶ Play from Chapter 1*. A refusal says why in one line with OK: copy-protected (DRM),
+  fixed layout, too large, or not a readable EPUB. A book already in the Library asks *“Title”
+  is already in the Library*: *Replace* (the same folder, its name and place kept, positions
+  kept where chapters match; *Add to* then shows where it is and can't change) or *Cancel*
+  (decision D13). An `.epub` link in the browser downloads the book (a toast while it does) into
+  the same sheet, which waits for *Import* (top right), going to the Library unless changed.
 - **Deleting a folder** asks *Delete Folder Only* (its subfolders and pages move up one level,
   after what is already there) or *Delete Folder and Contents*, with what it holds ("2 folders,
   27 pages, 1 book") and "Stops what's playing." when the playing page is inside. A book or
@@ -235,7 +249,7 @@ part-way, or "✓ Finished".
 | Chapter | the Reader (Now Playing if it's what you hear) | ▶ (not on skipped ones) | *Play from Here, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback, Delete Downloads* | — |
 
 **The Move tree** (`MoveTreeSheet`): one sheet for *Move to…*, *Save to Library…*, 🔖's *Save to
-Folder…* and *Change Folder*. The whole tree as one indented list (medium, grows to large): *＋
+Folder…* and *Change Folder*; the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋
 New Folder* (made at the top level, and the item goes in it), *Library (no folder)*, then
 Favorites and every folder, depth first. One tap files; ✓ marks the current place; a folder's
 long-press offers *New Folder Inside* (made in it, and the item goes in that). *Library (no
@@ -451,6 +465,7 @@ Debug builds (`App/LaunchOptions.swift`).
 | Toolbar 📚 / Library (`LibrarySurface`): the home | 🌐 Browser slot | in-place surface (shared bottom chrome); leave restores browse |
 | Library → a folder, a book or series, Pages · Show All (`FolderScreen`, `BookScreen`) | ‹ system | push (`navigationDestination`) |
 | Move, Save to Library…, Save to Folder…, Change Folder (`MoveTreeSheet`) | ✕ (grabber) | `.sheet`, medium/large |
+| Import Book… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
 | Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |
 | Reader sheet (`ReaderSheetScreen`): 📄, ⋯ → Reader, a Favorites tile, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface; pull the header down |
 | Now Playing (`NowPlayingScreen`): the bar, the Reader of the playing page, Listen, crash resume | ⌄, top left | `Sheet` over everything; pull the header down |

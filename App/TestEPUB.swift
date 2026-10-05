@@ -9,6 +9,8 @@ import ZIPFoundation
 /// normalizer's work shows on screen.
 enum TestEPUB {
     static let title = "The Imported Demo Book"
+    /// Its file's name, as *Import Book…* and the test pages' link give it.
+    static let fileName = "the-imported-demo-book.epub"
     static let author = DemoBook.author
     static let identifier = "urn:uuid:7e57e9b0-0000-4000-8000-000000000001"
     static let looseLine = "This line sits loose in a div, and is read all the same."
@@ -29,6 +31,14 @@ enum TestEPUB {
         try add("OEBPS/content.opf", package, to: archive)
         try add("OEBPS/nav.xhtml", xhtml(navigation), to: archive)
         for (name, body) in documents { try add("OEBPS/\(name)", xhtml(body), to: archive) }
+    }
+
+    /// The EPUB's bytes (the test pages serve them).
+    static func data() throws -> Data {
+        let file = FileManager.default.temporaryDirectory.appending(path: "served-\(UUID().uuidString).epub")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try write(to: file)
+        return try Data(contentsOf: file)
     }
 
     private static func add(_ path: String, _ text: String, to archive: Archive, compressed: Bool = true) throws {

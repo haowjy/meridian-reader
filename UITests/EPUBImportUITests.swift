@@ -1,14 +1,103 @@
 import XCTest
 
-/// A book imported from an EPUB file plays (`-importTestEPUB -playTestEPUB`: the synthetic EPUB
-/// goes through the real import into the Library's top level, then plays as a book's Play does;
-/// Apple voice, offline). It starts at chapter 1, not the title page, and its text is what the
-/// import made of the file: the line loose in a `<div>` is there, the footnote isn't.
-///
-/// Starting from a folder's screen, with the import landing on the new book inside that folder,
-/// waits for the Library screens (step 4).
+/// Importing a book (offline, Apple voice). `-importTestEPUB` makes *Import Book…* take the
+/// synthetic EPUB (`TestEPUB`) instead of the Files picker, which a UI test can't drive; from
+/// there it is the real import sheet and import.
+/// - From a folder's screen, the import lands on the new book inside that folder, and the book's
+///   Play starts chapter 1, not the title page.
+/// - Importing it again asks *Replace* or *Cancel* (decision D13).
+/// - An `.epub` link on a page downloads into the same sheet, which asks before importing.
+/// - `-playTestEPUB` (import at launch, then play): the chapter's text is what the import made
+///   of the file: the line loose in a `<div>` is there, the footnote isn't.
 final class EPUBImportUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
+
+    private let title = "The Imported Demo Book"
+
+    func testImportFromAFolderLandsOnTheNewBookThereAndPlaysChapterOne() throws {
+        let app = launchLibrary(["-importTestEPUB"])
+        openFolder(app, "Demo Finance")
+        app.buttons["libraryMore"].tap()
+        tapMenuRow(app, "moreImportBook")
+
+        // The import sheet shows while it works: under a second for this book, so it isn't waited for.
+        let book = app.navigationBars[title]
+        XCTAssertTrue(book.waitForExistence(timeout: 30), "lands on the new book")
+        XCTAssertTrue(find(app, "bookScreen").exists, "the book's screen")
+        XCTAssertFalse(find(app, "importSheet").exists, "the sheet has gone")
+        XCTAssertTrue(book.buttons["Demo Finance"].exists, "inside Demo Finance (its back button)")
+        XCTAssertTrue(libraryRow(app, "Title Page").exists, "the title page is a chapter")
+        XCTAssertEqual(libraryRow(app, "Title Page").value as? String, "Skipped in playback")
+
+        let play = app.buttons["bookContinue"]
+        XCTAssertTrue(play.label.contains("Play from Chapter 1"), play.label)
+        play.tap()
+        let bar = find(app, "nowPlayingBarOpen")
+        XCTAssertTrue(bar.waitForExistence(timeout: 15), "it plays")
+        XCTAssertTrue(bar.label.contains("Chapter 1: The Harbor"), "chapter 1, not the title page: \(bar.label)")
+        XCTAssertTrue(eventually(10) { self.find(app, "nowPlayingBarPlayPause").label == "Pause" }, "playing")
+        find(app, "nowPlayingBarPlayPause").tap()
+
+        book.buttons["Demo Finance"].tap()
+        XCTAssertTrue(libraryRow(app, title).waitForExistence(timeout: 5), "the book is a row in Demo Finance")
+    }
+
+    func testImportingABookAlreadyInTheLibraryAsksReplaceOrCancel() throws {
+        let app = launchLibrary(["-importTestEPUB"])
+        importFromTheHome(app)
+        XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 30), "imported once")
+        app.navigationBars[title].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+
+        importFromTheHome(app)
+        let ask = app.alerts["“\(title)” is already in the Library"]
+        XCTAssertTrue(ask.waitForExistence(timeout: 30), "D13: Replace or Cancel")
+        XCTAssertTrue(ask.buttons["Replace"].firstMatch.exists)
+        ask.buttons["Cancel"].firstMatch.tap()
+        XCTAssertTrue(eventually(5) { !self.find(app, "importSheet").exists }, "Cancel closes the sheet")
+        XCTAssertTrue(app.navigationBars["Library"].exists, "and stays on the Library")
+        XCTAssertEqual(app.cells.staticTexts.matching(NSPredicate(format: "label == %@", title)).count, 1,
+                       "one book")
+
+        importFromTheHome(app)
+        XCTAssertTrue(ask.waitForExistence(timeout: 30), "asked again")
+        ask.buttons["Replace"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 30), "Replace lands on the book")
+        XCTAssertTrue(libraryRow(app, "Chapter 1: The Harbor").exists, "its chapters")
+    }
+
+    func testAnEPUBLinkOpensTheImportSheetWhichAsksFirst() throws {
+        let app = launchTestPages(["-seedDemoFolders", "-importTestEPUB"])
+        let link = app.links["Download a book"]
+        XCTAssertTrue(link.waitForExistence(timeout: 10), "page one links to a book")
+        link.tap()
+
+        let sheet = find(app, "importSheet")
+        XCTAssertTrue(sheet.waitForExistence(timeout: 15), "the download goes to the import sheet")
+        XCTAssertTrue(app.links["Next page"].exists, "the browser stays on its page")
+        let start = app.buttons["importStart"]
+        XCTAssertTrue(start.waitForExistence(timeout: 3), "it asks first: Import")
+        XCTAssertTrue(find(app, "importHeader").exists, "the book's header")
+        let change = app.buttons["importChange"]
+        XCTAssertTrue(change.label.contains("Library"), change.label)
+
+        change.tap()
+        XCTAssertTrue(find(app, "importAddToTree").waitForExistence(timeout: 5), "Change: the Move tree, in the sheet")
+        moveTreeFolder(app, "Demo Finance").tap()
+        XCTAssertTrue(eventually(5) { change.label.contains("Demo Finance") }, change.label)
+
+        start.tap()
+        XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 30), "lands on the book, in the Library")
+        XCTAssertTrue(app.navigationBars[title].buttons["Demo Finance"].exists, "inside Demo Finance")
+    }
+
+    /// ＋ → *Import Book…* on the screen shown.
+    private func importFromTheHome(_ app: XCUIApplication) {
+        app.buttons["libraryAdd"].tap()
+        let item = app.buttons["libraryImportBook"]
+        XCTAssertTrue(item.waitForExistence(timeout: 3), "＋ → Import Book…")
+        item.tap()
+    }
 
     func testAnImportedBookPlaysChapterOneNotItsTitlePage() throws {
         let app = XCUIApplication()

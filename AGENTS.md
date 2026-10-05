@@ -28,8 +28,8 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
   rerun it alone.
 - UI tests drive the app with launch arguments (`App/LaunchOptions.swift`, Debug builds only):
   `-uiTesting` (test markers on, Google suggestions off), `-seedDemoArticle`, `-seedDemoBook`
-  (a demo book; `-chainDemoChapters` plays it), `-importTestEPUB` (a synthetic EPUB through the
-  real import; `-playTestEPUB` plays it), `-browseTestPages` (offline `reader-test://` pages),
+  (a demo book; `-chainDemoChapters` plays it), `-importTestEPUB` (*Import Book…* takes a
+  synthetic EPUB instead of the Files picker; `-playTestEPUB` imports it at launch and plays it), `-browseTestPages` (offline `reader-test://` pages),
   `-selectEngine apple`. Keep UI tests offline; use the test pages, not live sites.
 - `ScreenshotCaptureTests` is skipped unless `TEST_RUNNER_READER_SCREENSHOTS_DIR=<dir>` is set in
   xcodebuild's environment.

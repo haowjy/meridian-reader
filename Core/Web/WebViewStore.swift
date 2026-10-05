@@ -22,6 +22,17 @@ final class WebViewStore {
     /// Set by the address bar; consumed once by `WebView.updateUIView`.
     var pendingURL: URL?
 
+    /// A book (`.epub`) the page linked to, downloading into `BookImportFiles` instead of showing.
+    enum BookDownload {
+        case started(name: String)
+        /// The file, ready to import.
+        case finished(URL)
+        case failed(name: String)
+    }
+
+    /// Told about each book download (the browser hands a finished one to the import sheet).
+    @ObservationIgnored var onBookDownload: ((BookDownload) -> Void)?
+
     var hasPage: Bool { currentURL != nil }
 
     func load(_ url: URL) {

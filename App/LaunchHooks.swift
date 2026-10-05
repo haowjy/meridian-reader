@@ -17,6 +17,7 @@ enum LaunchHooks {
         if let demo = options.demoArticle { seedDemoArticle(demo, in: library) }
         if options.seedsDemoBook { seedDemoBook(in: library, place: options.demoBookPlace) }
         if options.seedsDemoFolders { seedDemoFolders(in: library) }
+        if options.importsTestEPUB { removeTestEPUB(in: library) }
     }
 
     /// The folder `-seedDemoFolders` adds, found by its name at the top level.
@@ -68,19 +69,27 @@ enum LaunchHooks {
         if options.opensDemoInReader { openNewestInReader(in: library, shell: shell) }
     }
 
-    /// Last, after crash resume (which wins): `-importTestEPUB`, `-playTestEPUB`, `-chainDemoChapters`.
+    /// Last, after crash resume (which wins): `-playTestEPUB`, `-chainDemoChapters`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController) async {
-        if options.importsTestEPUB { await importTestEPUB(in: library) }
-        if options.playsTestEPUB { await playTestEPUB(library: library, speech: speech) }
+        if options.playsTestEPUB {
+            await importTestEPUB(in: library)
+            await playTestEPUB(library: library, speech: speech)
+        }
         if options.chainsDemoChapters { await chainDemoChapters(library: library, speech: speech) }
     }
 
-    /// `-importTestEPUB`: the synthetic EPUB, written to a temporary file and imported into the top
-    /// level through `BookImporter`. An earlier launch's import of it is deleted first, with its
-    /// audio, so the book starts unplayed. Logged as `debug_import_test_epub`.
+    /// `-importTestEPUB`: an earlier launch's import of the synthetic EPUB goes, with its audio,
+    /// so *Import Book…* imports it fresh.
+    static func removeTestEPUB(in library: LibraryStore) {
+        if let earlier = library.book(key: TestEPUB.bookKey) { try? library.deleteFolder(earlier, keepContents: false) }
+    }
+
+    /// `-playTestEPUB`: the synthetic EPUB, written to a temporary file and imported into the top
+    /// level through `BookImporter` (no sheet). An earlier launch's import of it is deleted first,
+    /// with its audio, so the book starts unplayed. Logged as `debug_import_test_epub`.
     @discardableResult
     static func importTestEPUB(in library: LibraryStore) async -> Folder? {
-        if let earlier = library.book(key: TestEPUB.bookKey) { try? library.deleteFolder(earlier, keepContents: false) }
+        removeTestEPUB(in: library)
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("test-book.epub")
         defer { try? FileManager.default.removeItem(at: file) }
         do {

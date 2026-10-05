@@ -65,11 +65,12 @@ struct LaunchOptions: Equatable {
     var restoresSurfaceInUITests = false
     /// `-resetSurface`: forget the remembered surface first, as on a fresh install.
     var resetsSurface = false
-    /// `-importTestEPUB`: import the synthetic EPUB (`TestEPUB`) into the Library's top level
-    /// through the real import, replacing an earlier launch's import of it with its audio.
+    /// `-importTestEPUB`: *Import Book…* imports the synthetic EPUB (`TestEPUB`) instead of
+    /// opening the Files picker, which a UI test can't drive. At launch an earlier import of it is
+    /// deleted, with its audio, so it imports fresh.
     var importsTestEPUB = false
-    /// `-playTestEPUB` (with `-importTestEPUB`): once imported, play the book from its place, as
-    /// a book's Play does.
+    /// `-playTestEPUB`: at launch, import the synthetic EPUB into the Library's top level (no
+    /// sheet), then play it from its place, as a book's Play does.
     var playsTestEPUB = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)

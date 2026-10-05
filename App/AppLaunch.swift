@@ -11,6 +11,8 @@ enum AppLaunch {
     static func run(library: LibraryStore, speech: SpeechController, shell: ShellState) async {
         guard !didRun else { return }
         didRun = true
+        // No import is running yet: a book file a killed import left goes.
+        BookImportFiles.standard.clearLeftovers()
         #if DEBUG
         LaunchHooks.runBeforeMigrations(.current, library: library, tts: speech.localTTS)
         #endif

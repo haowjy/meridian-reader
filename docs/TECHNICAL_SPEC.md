@@ -34,7 +34,7 @@ Core/
   Domain/       ReaderArticle, PageOrigin, ParagraphDocument, ParagraphSplitter, ArticleIdentity, ReaderScrubMap
   EPUB/         EPUB reading: zip container, package, contents, chapter cutting, BookIdentity
   Extraction/   ArticleExtracting, Readability runner, ListenContentNormalizer, reader scripts
-  Sources/      PageSource (SingleWebPageSource, EPUBSource), BookImporter, chapter settling, cover thumbnails
+  Sources/      PageSource (SingleWebPageSource, EPUBSource), BookImporter, chapter settling, cover thumbnails, Imports/ files
   Persistence/  SwiftData models; Library/ (Folder, Page, LibraryStore, LibraryQueries, migration); frozen legacy readers
   TTS/          chunking, render queue, audio cache, run state, engine plumbing (no library imports)
   Web/          WebView + store, URL helpers, favicons, Google suggestions
@@ -42,7 +42,7 @@ Features/
   Shell/    ShellState, bottom chrome, ⋯ morph menu, search session, motion tokens
   Browse/   start page, browser chrome, page actions (PageArticleService), dictation
   Reader/   the Reader sheet, Now Playing (text that follows the audio, scrub row, controls)
-  Library/  the Library surface and screens (home, folder, book), rows, the Move tree, Favorites' sheet and ☆
+  Library/  the Library surface and screens (home, folder, book), rows, the Move tree, Favorites' sheet and ☆, the import sheet
   Saved/    save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
 Tests/      unit tests (ReaderTests), Tests/Fakes
@@ -151,8 +151,12 @@ screen) would go on reading.
 (`currentPageKey`, `lastPlayedAt`, `finishedAt`, written as their chapters play). One
 Favorites folder holds the bookmarks; it can't be deleted, renamed or moved below the top level.
 
-**Book import** (`BookImporter`; no screen reaches it yet, the Debug hook `-importTestEPUB`
-does):
+**Book import** (`BookImporter`, run for the import sheet by `BookImportFlow`):
+0. The file is the import's own copy in `Application Support/Imports/<uuid>/<name>.epub`
+   (`BookImportFiles`): a picked file is copied there under its security-scoped access, and an
+   `.epub` link is downloaded there (`WKDownload`: a main-frame response served as
+   `application/epub+zip`, or named `.epub` and not a web page). The copy is deleted when the
+   import ends, however it ends; launch clears what a killed import left.
 1. `EPUBBookReader` reads and cuts the file off the main thread: DRM and fixed layout are
    refused, then the package, the contents and every spine file are read and cut at contents
    anchors, choosing the depth per branch; front and back matter are flagged.
@@ -181,7 +185,12 @@ does):
    rebuilt in the same folder by `LibraryStore.replaceBook` (`ARTICLE_IDENTITY.md`), in one
    save; a dropped chapter's audio goes only once that save succeeds.
 
-Refusals and failures are `BookImportError`s whose messages a sheet can show as they are.
+Refusals and failures are `BookImportError`s whose messages the sheet shows as they are (DRM,
+fixed layout, over `EPUBLimits`' caps, unreadable). Once the file is read, the importer hands the
+sheet a `BookImportPreview` (title, authors, cover thumbnail, chapter titles, what is skipped).
+*Add to* changed while the import runs moves the new book after it is stored; the importer files
+it where it was when the import started. D13's *Cancel* is the importer's `.cancel` choice: it
+stops right after reading, and the sheet asks, then runs again with `.replace` on the same copy.
 
 **Migration (copy-once).** At launch `LibraryStore.migrateLegacy` copies every `SavedArticle`
 row and every bookmark in `bookmarks.json` without a receipt (`LibraryMigrationReceipt`, in the

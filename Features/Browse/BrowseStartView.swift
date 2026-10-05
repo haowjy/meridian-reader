@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 import WebKit
 
 /// The browser, and the root of the shell: the web page or start page with its bottom chrome,
@@ -65,6 +66,12 @@ struct BrowseStartView: View {
             // everything else (the library's navigation bar too).
             .overlay { menuOverlay }
             .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { ShellSheetView(sheet: $0) }
+            // *Import Book…*: the picked book is copied in and imported (the import sheet).
+            .fileImporter(isPresented: Binding(get: { shell.isPickingBook }, set: { shell.isPickingBook = $0 }),
+                          allowedContentTypes: [.epub]) { result in
+                guard case .success(let url) = result else { return }
+                BookImportActions(library: library, shell: shell).importPicked(url, into: shell.bookPickDestination)
+            }
             // The ⋯ Debug row (Reader, Now Playing, Library) and long-press ▶: over every layer.
             // A shell sheet with a Debug entry hosts its own.
             .listenDebugSheet(speech, hosts: shell.sheet == nil)
@@ -82,6 +89,7 @@ struct BrowseStartView: View {
             }
             .modifier(BrowseAlerts(extractionError: $alertMessage, dictation: dictation))
             .onChange(of: webStore.currentURL) { _, _ in shell.browserPageChanged() }
+            .onAppear { webStore.onBookDownload = bookDownloaded }
             .onChange(of: webStore.isLoading) { _, loading in
                 guard !loading else { return }
                 run { await $0.recordVisit() }
@@ -313,6 +321,20 @@ struct BrowseStartView: View {
     }
 
     /// Runs a page action; a failed extraction shows the alert.
+    /// A tapped `.epub` link downloads instead of showing; the book then waits in the import
+    /// sheet for *Import*.
+    private func bookDownloaded(_ event: WebViewStore.BookDownload) {
+        switch event {
+        case .started(let name):
+            shell.showToast(ShellToast(message: String(localized: "Downloading “\(name)”…"), systemImage: "arrow.down.circle"))
+        case .finished(let file):
+            BookImportActions(library: library, shell: shell).importDownloaded(file)
+        case .failed(let name):
+            shell.showToast(ShellToast(message: String(localized: "Couldn't download “\(name)”"),
+                                       systemImage: "exclamationmark.triangle"))
+        }
+    }
+
     private func run(_ action: @escaping (PageArticleService) async throws -> Void) {
         let page = page
         Task {

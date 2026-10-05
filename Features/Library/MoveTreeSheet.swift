@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 /// The Move tree: one sheet for Move, *Save to Library…*, 🔖's *Save to Folder…* and *Change
-/// Folder*. The whole tree as one indented list, like Safari's bookmark-folder picker; one tap
+/// Folder* (the import sheet's *Add to* pushes the same list, `MoveTreeList`). The whole tree as one indented list, like Safari's bookmark-folder picker; one tap
 /// files, ✓ marks the current place. *New Folder* makes one at the top level; a folder's
 /// long-press, *New Folder Inside*, makes one in it; either way what is being filed goes into the
 /// new folder. Books and series aren't destinations (they take pages only from their source); a
@@ -21,8 +21,40 @@ import SwiftUI
 struct MoveTreeSheet: View {
     let request: MoveRequest
 
-    @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
+
+    var body: some View {
+        NavigationStack {
+            MoveTreeList(current: request.current, moving: request.moving) { folder in
+                shell.sheet = nil
+                request.onPick(folder)
+            }
+            .navigationTitle(request.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { shell.sheet = nil } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel("Cancel")
+                        .accessibilityIdentifier("moveCancel")
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .accessibilityIdentifier("moveTree")
+    }
+}
+
+/// The Move tree's list, for the sheet above and for the import sheet's *Add to*, which pushes it.
+/// `pick` gets the folder tapped, or nil for the top level.
+struct MoveTreeList: View {
+    /// Marked ✓.
+    var current: MoveRequest.Place?
+    /// Folders being moved: they and everything inside them can't be picked (no cycles).
+    var moving: Set<UUID> = []
+    let pick: (Folder?) -> Void
+
+    @Environment(LibraryStore.self) private var library
     @Query private var folders: [Folder]
     @State private var naming = false
     @State private var newName = ""
@@ -40,53 +72,39 @@ struct MoveTreeSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    Button { name(in: nil) } label: {
-                        Label("New Folder", systemImage: "folder.badge.plus")
-                            .typeStyle(.row)
-                            .foregroundStyle(Palette.accent)
-                            .frame(maxWidth: .infinity, minHeight: BottomChrome.minTapTarget, alignment: .leading)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("moveNewFolder")
-                    place(String(localized: "Library (no folder)"), symbol: "books.vertical", depth: 0,
-                          isCurrent: request.current == .topLevel, isEnabled: true, id: "moveTopLevel") { pick(nil) }
-                    ForEach(tree, id: \.folder.id) { entry in
-                        let folder = entry.folder
-                        place(folder.displayName, symbol: folder.rowSymbol, depth: entry.depth,
-                              isCurrent: request.current == .folder(folder.id),
-                              isEnabled: !isMoving(folder), id: "moveFolder") { pick(folder) }
-                            .contextMenu {
-                                if !isMoving(folder) {
-                                    Button("New Folder Inside", systemImage: "folder.badge.plus") { name(in: folder) }
-                                        .accessibilityIdentifier("moveNewFolderInside")
-                                }
+        List {
+            Section {
+                Button { name(in: nil) } label: {
+                    Label("New Folder", systemImage: "folder.badge.plus")
+                        .typeStyle(.row)
+                        .foregroundStyle(Palette.accent)
+                        .frame(maxWidth: .infinity, minHeight: BottomChrome.minTapTarget, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("moveNewFolder")
+                place(String(localized: "Library (no folder)"), symbol: "books.vertical", depth: 0,
+                      isCurrent: current == .topLevel, isEnabled: true, id: "moveTopLevel") { pick(nil) }
+                ForEach(tree, id: \.folder.id) { entry in
+                    let folder = entry.folder
+                    place(folder.displayName, symbol: folder.rowSymbol, depth: entry.depth,
+                          isCurrent: current == .folder(folder.id),
+                          isEnabled: !isMoving(folder), id: "moveFolder") { pick(folder) }
+                        .contextMenu {
+                            if !isMoving(folder) {
+                                Button("New Folder Inside", systemImage: "folder.badge.plus") { name(in: folder) }
+                                    .accessibilityIdentifier("moveNewFolderInside")
                             }
-                    }
-                } footer: {
-                    Text("Books and series can't hold other pages.")
-                        .typeStyle(.caption)
-                        .foregroundStyle(Palette.secondaryInk)
+                        }
                 }
-                .listRowBackground(Palette.chrome)
+            } footer: {
+                Text("Books and series can't hold other pages.")
+                    .typeStyle(.caption)
+                    .foregroundStyle(Palette.secondaryInk)
             }
-            .libraryListStyle()
-            .navigationTitle(request.title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button { shell.sheet = nil } label: { Image(systemName: "xmark") }
-                        .accessibilityLabel("Cancel")
-                        .accessibilityIdentifier("moveCancel")
-                }
-            }
+            .listRowBackground(Palette.chrome)
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-        .accessibilityIdentifier("moveTree")
+        .libraryListStyle()
         .alert("New Folder", isPresented: $naming) {
             TextField("Name", text: $newName)
                 .accessibilityIdentifier("newFolderField")
@@ -131,12 +149,7 @@ struct MoveTreeSheet: View {
 
     /// The folder is one being moved, or inside one.
     private func isMoving(_ folder: Folder) -> Bool {
-        request.moving.contains(folder.id) || folder.ancestors.contains { request.moving.contains($0.id) }
-    }
-
-    private func pick(_ folder: Folder?) {
-        shell.sheet = nil
-        request.onPick(folder)
+        moving.contains(folder.id) || folder.ancestors.contains { moving.contains($0.id) }
     }
 
     private func name(in parent: Folder?) {

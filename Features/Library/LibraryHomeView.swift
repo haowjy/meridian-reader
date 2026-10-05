@@ -156,11 +156,17 @@ struct LibraryHomeView: View {
             Text("Find something to listen to")
                 .typeStyle(.heading)
                 .foregroundStyle(Palette.ink)
-            Text("Pages you save or listen to, and folders you make, show up here.")
+            Text("Pages you save or listen to, books you import and folders you make show up here.")
                 .typeStyle(.row)
                 .foregroundStyle(Palette.secondaryInk)
-            PillButton("Browse the web", style: .filled) { shell.leaveLibrary() }
-                .accessibilityIdentifier("libraryEmptyBrowse")
+            HStack(spacing: Spacing.s) {
+                PillButton("Browse the web", style: .filled) { shell.leaveLibrary() }
+                    .accessibilityIdentifier("libraryEmptyBrowse")
+                PillButton("Import a book", style: .neutral) {
+                    BookImportActions(library: library, shell: shell).pickBook(into: nil)
+                }
+                .accessibilityIdentifier("libraryEmptyImport")
+            }
         }
         .padding(Spacing.m)
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -35,6 +35,8 @@ enum ShellSheet: Identifiable, Equatable {
     case share(URL)
     /// The Move tree: Move, *Save to Library…*, 🔖's *Save to Folder…*, *Change Folder*.
     case moveTo(MoveRequest)
+    /// A book being imported: its progress, *Add to*, and D13's question.
+    case importBook(BookImportFlow)
 
     var id: String {
         switch self {
@@ -43,6 +45,7 @@ enum ShellSheet: Identifiable, Equatable {
         case .voiceSettings: "voiceSettings"
         case .share(let url): "share-\(url.absoluteString)"
         case .moveTo(let request): "moveTo-\(request.id)"
+        case .importBook(let flow): "importBook-\(flow.id)"
         }
     }
 
@@ -51,7 +54,7 @@ enum ShellSheet: Identifiable, Equatable {
     var belongsToBrowser: Bool {
         switch self {
         case .history: true
-        case .favorites, .voiceSettings, .share, .moveTo: false
+        case .favorites, .voiceSettings, .share, .moveTo, .importBook: false
         }
     }
 }
@@ -143,6 +146,10 @@ final class ShellState {
     /// rising). nil = it rises and finds the audio.
     private(set) var nowPlayingOpensAt: ReadingHandOver?
     var sheet: ShellSheet?
+    /// *Import Book…*'s Files picker is up (`pickBook(into:)`).
+    var isPickingBook = false
+    /// Where the picked book goes (nil: the Library's top level).
+    private(set) var bookPickDestination: UUID?
     /// The open ⋯ menu (nil = closed), rendered by the shell's one `MorphMenuOverlay`.
     var menu: MenuContext?
     /// A short message over the bottom chrome of the surface on screen.
@@ -399,6 +406,12 @@ final class ShellState {
     func present(_ sheet: ShellSheet) {
         if sheet.belongsToBrowser { leaveLibrary() }
         self.sheet = sheet
+    }
+
+    /// *Import Book…*: the Files picker, for a book going into `destination`.
+    func pickBook(into destination: UUID?) {
+        bookPickDestination = destination
+        isPickingBook = true
     }
 
     // MARK: - Toasts and prompts
