@@ -3,8 +3,8 @@ import SwiftData
 import WebKit
 
 /// The browser, and the root of the shell: the web page or start page with its bottom chrome,
-/// the address search layer, and over it whichever surface `ShellState` says is up (the
-/// reader overlay or the library), the one ⋯ menu overlay and the one sheet.
+/// the address search layer, and over it the layers `ShellState` says are up, in order: the
+/// library, the Reader sheet, Now Playing, the one ⋯ menu overlay and the one sheet.
 struct BrowseStartView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.articleExtractor) private var extractor
@@ -25,11 +25,16 @@ struct BrowseStartView: View {
     /// Site bookmarks (their own JSON store; not the saved-article model).
     @State private var bookmarkStore = BookmarkStore.shared
     @State private var listenHistory = ListenHistory(defaults: .standard)
+    /// A short message over the bottom chrome ("Nothing to listen to on this page").
+    @State private var toast: String?
 
     private var webStore: WebViewStore { shell.web }
     private var search: SearchSession { shell.addressSearch }
 
-    private var isReaderShown: Bool { shell.readerArticle != nil }
+    /// Something covers the browser (the library, a sheet, Now Playing).
+    private var isCovered: Bool {
+        shell.isInLibrary || shell.reader != nil || shell.isNowPlayingPresented
+    }
 
     /// Bottom-bar bookmark reflects "already saved" for the current page's canonical URL.
     private var currentSavedArticle: SavedArticle? {
@@ -49,25 +54,22 @@ struct BrowseStartView: View {
 
     var body: some View {
         browser
-            // Under the reader overlay the browser stays as it is (so pulling the reader down
-            // reveals it), but it is out of reach until the reader is gone.
-            .allowsHitTesting(!isReaderShown)
-            .accessibilityHidden(isReaderShown)
+            // Under the sheets the browser stays as it is (so pulling one down reveals it), but it
+            // is out of reach until they are gone.
+            .covered(isCovered)
             // While searching, avoid the keyboard so the field sits right above it. Otherwise keep
             // ignoring it (typing into a web page must not resize the page / the web view).
             .ignoresSafeArea(.keyboard, edges: search.isFocused ? [] : .bottom)
             // The reader and the library cover the whole browser, edge to edge. Outside the page
             // ZStack, whose `.clipped()` would cut them at the safe area.
-            .overlay { surfaceOverlay }
+            .overlay { layers }
             // Every surface's ⋯ menu: grows out of its button and covers it (Safari iOS 26), over
             // everything else (the library's navigation bar too).
             .overlay { menuOverlay }
-            .background {
-                ListenHistoryRecorder(speech: speech) { activeID in
-                    listenHistory = ListenHistory(defaults: .standard)
-                    shell.noteActiveSession(activeID)
-                }
-            }
+            // The recorder (composition root) writes the history; the start page re-reads it
+            // when what you hear starts, stops or changes.
+            .onChange(of: speech.activeSessionID) { listenHistory = ListenHistory(defaults: .standard) }
+            .onChange(of: speech.playbackPhase) { listenHistory = ListenHistory(defaults: .standard) }
             .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { ShellSheetView(sheet: $0) }
             .modifier(BrowseAlerts(extractionError: $alertMessage, dictation: dictation))
             .onChange(of: webStore.currentURL) { _, _ in shell.syncAddressField() }
@@ -143,14 +145,13 @@ struct BrowseStartView: View {
             speech: speech,
             dictation: dictation,
             onOpenReader: { run { try await $0.openInReader() } },
+            onListen: listen,
             onSubmit: { submit(search.text) },
             onMic: toggleDictation,
             onOpenLibrary: shell.openLibrary,
-            onOpenNowPlaying: {
-                if let id = speech.activeSessionID { shell.openNowPlaying(id, in: modelContext) }
-            },
             menu: { .browse(browseMenu, perform: perform) }
         )
+        .overlay(alignment: .top) { toastLayer }
     }
 
     private var menuOverlay: some View {
@@ -160,32 +161,60 @@ struct BrowseStartView: View {
         }
     }
 
-    // MARK: - Surfaces
+    // MARK: - Layers
 
-    /// The reader overlay or the library, over the browser.
-    @ViewBuilder
-    private var surfaceOverlay: some View {
-        switch shell.surface {
-        case .browse:
-            EmptyView()
-        case .reader(let article, let origin):
-            readerOverlay(for: article, origin: origin)
-                .transition(.sheet(reduceMotion: reduceMotion))
-        case .library:
-            LibrarySurface(path: Binding(get: { shell.libraryPath }, set: { shell.libraryPath = $0 }))
-                .transition(.opacity)
+    /// The library, the Reader sheet over it (or over the browser), Now Playing over everything.
+    /// Each layer is out of reach and hidden from VoiceOver while one covers it.
+    private var layers: some View {
+        ZStack {
+            if shell.isInLibrary {
+                LibrarySurface()
+                    .covered(shell.reader != nil || shell.isNowPlayingPresented)
+                    .transition(.opacity)
+            }
+            if let reader = shell.reader {
+                ReaderSheetScreen(state: reader, speech: speech)
+                    .id(reader.presentation)
+                    .covered(shell.isNowPlayingPresented)
+            }
+            if shell.isNowPlayingPresented {
+                NowPlayingScreen(speech: speech)
+                    .id(shell.nowPlayingPresentation)
+            }
         }
     }
 
-    private func readerOverlay(for article: ReaderArticle, origin: ReaderOrigin) -> some View {
-        ArticleReaderScreen(
-            article: article,
-            presentation: .overlay,
-            origin: origin,
-            speech: speech,
-            onClose: shell.hideReader,
-            onIdentityChange: { newID in shell.updateReader(id: article.id) { $0.id = newID } }
-        )
+    @ViewBuilder
+    private var toastLayer: some View {
+        if let toast {
+            Toast(message: toast, systemImage: "headphones")
+                .padding(.horizontal, Spacing.pageMargin)
+                // Its bottom edge a gap above the chrome's top.
+                .alignmentGuide(.top) { $0[.bottom] + Spacing.xs }
+                .transition(.opacity)
+                .task {
+                    try? await Task.sleep(for: Toast.duration)
+                    withAnimation(Motion.snappy) { self.toast = nil }
+                }
+        }
+    }
+
+    // MARK: - 🎧
+
+    /// 🎧: pause / resume when the page is what you hear; otherwise extract it and listen now.
+    /// What's playing keeps playing until this page is ready; a page with nothing to listen to
+    /// changes nothing and says so.
+    private func listen() {
+        guard let url = webStore.currentURL else { return }
+        let target = ListenTarget.webPage(canonicalURL: ArticleIdentity.canonicalURLString(from: url))
+        speech.press(target) {
+            let page = page
+            Task {
+                if case .nothingToListenTo = await page.listenNow() {
+                    withAnimation(Motion.snappy) { toast = "Nothing to listen to on this page" }
+                }
+            }
+        }
     }
 
     // MARK: - ⋯ menu
@@ -306,5 +335,14 @@ struct BrowseStartView: View {
         } else {
             run { try await $0.save() }
         }
+    }
+}
+
+private extension View {
+    /// A layer under another one: out of reach and hidden from VoiceOver. It stays in the tree, so
+    /// its state survives.
+    func covered(_ isCovered: Bool) -> some View {
+        allowsHitTesting(!isCovered)
+            .accessibilityHidden(isCovered)
     }
 }

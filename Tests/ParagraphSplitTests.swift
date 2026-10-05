@@ -193,6 +193,15 @@ final class ParagraphSplitTests: XCTestCase {
         let iAfter = iGiant + 1 // unsplit paragraph right after the giant
         XCTAssertEqual(new.paragraphs[ParagraphPositionMap.mapParagraphStart(iAfter, from: old, to: new)], old.paragraphs[iAfter])
     }
+
+    /// A plain-text article reads on the HTML reading page: one escaped block per paragraph, so
+    /// the page's blocks are the listen paragraphs, in order.
+    func testPlainTextBecomesOneReadingBlockPerParagraph() {
+        let doc = ParagraphDocument(plainText: "Fish & chips <cheap>.\n\nSecond one.\n\nThird, \"quoted\".")
+        XCTAssertEqual(doc.paragraphsHTML,
+                       "<p>Fish &amp; chips &lt;cheap&gt;.</p>\n<p>Second one.</p>\n<p>Third, \"quoted\".</p>")
+        XCTAssertEqual(ParagraphDocument(html: doc.paragraphsHTML).paragraphs, doc.paragraphs)
+    }
 }
 
 /// Migration of saved articles + their audio cache to layout v3.

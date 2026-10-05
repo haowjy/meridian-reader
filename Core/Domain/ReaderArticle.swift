@@ -1,9 +1,9 @@
 import Foundation
 
-/// Value snapshot rendered by `ArticleReaderScreen` — the same shape whether the article came
-/// from Browse (fresh extraction) or Saved (SwiftData row). The screen never holds the
-/// `SavedArticle` model itself, so Save/Unsave can flip the bookmark without tearing down the
-/// view or the playing session.
+/// Value snapshot rendered by the Reader sheet (`ReaderSheetScreen`) and Now Playing — the same
+/// shape whether the article came from Browse (fresh extraction) or Saved (SwiftData row). The
+/// screens never hold the `SavedArticle` model itself, so Save/Unsave can flip the bookmark
+/// without tearing down the view or the playing session.
 struct ReaderArticle: Equatable, Identifiable {
     /// Listen/cache key. Equals `SavedArticle.id` once saved (see `ArticleIdentity`).
     var id: UUID

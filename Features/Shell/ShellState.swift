@@ -1,25 +1,29 @@
 import SwiftUI
 import SwiftData
 
-/// Where a reader was opened from: what its back control (bottom-left, beside the scrubber)
-/// returns to. Independent of how the reader is presented (`ReaderPresentation`).
+/// What the Reader sheet sits over, named by its back pill ("‹ Browser", "‹ Library").
 enum ReaderOrigin: Equatable {
-    /// Over a web page in the browser: the address-bar reader icon, ⋯ → Reader, or the mini
-    /// player while a page is loaded. Back reveals that page as it was.
-    case page
-    /// Over the start page: a start-page row, Continue listening, the mini player there, crash
-    /// resume. Back shows the start page.
-    case startPage
-    /// A saved article pushed from the library list. Back pops to the list.
+    /// Over the browser: 📄, ⋯ → Reader, a start-page row.
+    case browser
+    /// Over the Library: a Saved row.
     case library
+
+    /// The back pill's title.
+    var backTitle: String {
+        switch self {
+        case .browser: "Browser"
+        case .library: "Library"
+        }
+    }
 }
 
-/// How the reader screen is shown.
-enum ReaderPresentation: Equatable {
-    /// Full-screen over the browser; its back control or a pull-down on its top row closes it.
-    case overlay
-    /// Pushed inside the library's navigation stack; its back control or the edge swipe pops it.
-    case pushed
+/// The Reader sheet: a page shown for reading over the surface that opened it.
+struct ReaderSheetState: Equatable {
+    var article: ReaderArticle
+    var origin: ReaderOrigin
+    /// This showing of the sheet. Its close reports it (`readerDidClose`), so a close that lands
+    /// late can't remove a Reader opened since.
+    let presentation = UUID()
 }
 
 /// The shell's sheets. One at a time, shown by the shell's single `.sheet(item:)`.
@@ -54,23 +58,35 @@ enum BusyAction: Equatable {
     case save
 }
 
-/// The app's presentation state: one surface (browser, reader or library), at most one sheet,
-/// at most one ⋯ menu.
-/// Every way of leaving a surface goes through here, so invalid combinations (the library over a
-/// reader, a sheet waiting for the library to close) can't be represented.
+/// What you see: one surface (the browser or the Library), the Reader sheet over it, Now Playing
+/// over everything, at most one other sheet, at most one ⋯ menu. What you hear belongs to the
+/// playback session; the shell only asks it (`isHearing`), so opening the Reader of the page you
+/// hear opens Now Playing instead.
+///
+/// Every way of leaving a surface goes through here, so invalid combinations (a Reader of the page
+/// that is playing, the library's Reader left behind on the browser) can't be represented.
 @MainActor
 @Observable
 final class ShellState {
     enum Surface {
         /// The web page or the start page.
         case browse
-        /// The reader overlay over the browser.
-        case reader(ReaderArticle, origin: ReaderOrigin)
-        /// The library list; `path` is its navigation stack (pushed readers).
-        case library(path: [UUID])
+        /// The library list.
+        case library
     }
 
     private(set) var surface: Surface = .browse
+    /// The Reader sheet (nil = closed). Removed by `readerDidClose` once its sheet has gone.
+    private(set) var reader: ReaderSheetState?
+    /// This showing of Now Playing (nil = down), over the surface and the Reader sheet. It shows
+    /// what you hear, so it holds no article of its own. Its close reports the showing it closed
+    /// (`nowPlayingDidClose`), so a close that lands late can't take down a newer one.
+    private(set) var nowPlayingPresentation: UUID?
+    var isNowPlayingPresented: Bool { nowPlayingPresentation != nil }
+    /// Where Now Playing's text opens: the Reader's scroll position (its reading page's
+    /// `handOver`) when its Listen turned it into Now Playing (it appears in place, without
+    /// rising). nil = it rises and finds the audio.
+    private(set) var nowPlayingOpensAt: ReadingHandOver?
     var sheet: ShellSheet?
     /// The open ⋯ menu (nil = closed), rendered by the shell's one `MorphMenuOverlay`.
     var menu: MenuContext?
@@ -80,16 +96,17 @@ final class ShellState {
     let web = WebViewStore()
     /// The browser's address field. Idle, its text is the page's address.
     let addressSearch = SearchSession()
-    /// The unsaved article the mini player reopens: the reader article that became the active
-    /// listening session. Saved articles reopen from the store instead.
-    private(set) var nowPlayingArticle: ReaderArticle?
+    /// Whether a target is what you hear (the playback session answers).
+    private let isHearing: (ListenTarget) -> Bool
+
+    init(isHearing: @escaping (ListenTarget) -> Bool = { _ in false }) {
+        self.isHearing = isHearing
+    }
 
     // MARK: - Surface queries
 
-    /// The reader overlay's article, when it is the surface.
-    var readerArticle: ReaderArticle? {
-        if case .reader(let article, _) = surface { article } else { nil }
-    }
+    /// The Reader sheet's article, when it is open.
+    var readerArticle: ReaderArticle? { reader?.article }
 
     var isBrowsing: Bool {
         if case .browse = surface { true } else { false }
@@ -99,54 +116,101 @@ final class ShellState {
         if case .library = surface { true } else { false }
     }
 
-    /// The library's navigation stack. Writes are ignored once the library is gone, so its
-    /// `NavigationStack` tearing down can't bring it back.
-    var libraryPath: [UUID] {
-        get { if case .library(let path) = surface { path } else { [] } }
-        set { if case .library = surface { surface = .library(path: newValue) } }
+    // MARK: - The Reader sheet
+
+    /// The Reader sheet on `article`, over the surface on screen. The page you hear opens as Now
+    /// Playing instead: the Reader never shows what is playing.
+    func openReader(_ article: ReaderArticle) {
+        if isHearing(.page(article.id)) || isHearing(.webPage(canonicalURL: article.canonicalURL)) {
+            showNowPlaying()
+            return
+        }
+        reader = ReaderSheetState(article: article, origin: isInLibrary ? .library : .browser)
+    }
+
+    /// Updates the Reader sheet's article in place (favicon arrived, listen blocks built, Save
+    /// rekeyed it), if that article is still the one shown.
+    func updateReader(id: UUID, _ change: (inout ReaderArticle) -> Void) {
+        guard var state = reader, state.article.id == id else { return }
+        change(&state.article)
+        reader = state
+    }
+
+    /// Closes the Reader sheet at once (its ⋯ → Saved from the Library). Playback keeps going.
+    func closeReader() {
+        reader = nil
+    }
+
+    /// The Reader sheet shown as `presentation` has gone (its back pill, the grabber's pull down,
+    /// after its own close animation). A Reader opened since stays.
+    func readerDidClose(_ presentation: UUID) {
+        guard reader?.presentation == presentation else { return }
+        reader = nil
+    }
+
+    // MARK: - Now Playing
+
+    /// The bar's tap and swipe up, crash resume. Over everything; the surface and its state (the
+    /// page, the Library) stay as they are underneath. A Reader sheet of the page you hear closes,
+    /// so the two never show the same page.
+    func showNowPlaying() {
+        endAddressSearch()
+        if let article = reader?.article,
+           isHearing(.page(article.id)) || isHearing(.webPage(canonicalURL: article.canonicalURL)) {
+            reader = nil
+        }
+        nowPlayingOpensAt = nil
+        presentNowPlaying()
+    }
+
+    /// Listen in the Reader (decision D2): the Reader turns into Now Playing where it was
+    /// (`handOver`; nil when its page wasn't up, and Now Playing rises as from the bar).
+    func turnReaderIntoNowPlaying(handOver: ReadingHandOver?) {
+        reader = nil
+        nowPlayingOpensAt = handOver
+        presentNowPlaying()
+    }
+
+    /// Already up, it stays the same showing.
+    private func presentNowPlaying() {
+        if nowPlayingPresentation == nil { nowPlayingPresentation = UUID() }
+    }
+
+    /// Takes Now Playing down at once, back to the surface underneath.
+    func hideNowPlaying() {
+        nowPlayingPresentation = nil
+        nowPlayingOpensAt = nil
+    }
+
+    /// ⌄ or the pull down, after the close animation of the showing `presentation`. A Now Playing
+    /// shown since stays.
+    func nowPlayingDidClose(_ presentation: UUID) {
+        guard nowPlayingPresentation == presentation else { return }
+        hideNowPlaying()
     }
 
     // MARK: - Surfaces
 
-    /// The reader overlay on `article`. It returns to the browser as it is underneath: the page
-    /// that's loaded, or the start page.
-    func showReader(_ article: ReaderArticle) {
-        let origin: ReaderOrigin = web.hasPage ? .page : .startPage
-        withAnimation(Motion.standard) { surface = .reader(article, origin: origin) }
-    }
-
-    /// Updates the reader overlay's article in place (favicon arrived, listen blocks built, Save
-    /// rekeyed it), if that article is still the one shown.
-    func updateReader(id: UUID, _ change: (inout ReaderArticle) -> Void) {
-        guard case .reader(var article, let origin) = surface, article.id == id else { return }
-        change(&article)
-        surface = .reader(article, origin: origin)
-    }
-
-    /// The reader's back control / pull-down. Playback keeps going; the mini player takes over.
-    func hideReader() {
-        guard case .reader = surface else { return }
-        withAnimation(Motion.standard) { surface = .browse }
-    }
-
     func openLibrary() {
         endAddressSearch()
-        surface = .library(path: [])
+        reader = nil
+        hideNowPlaying()
+        surface = .library
     }
 
-    /// Back to the browser as it was: the page (or start page) under the library is untouched.
+    /// Back to the browser as it was: the page (or start page) under the library is untouched. A
+    /// Reader opened from the library goes with it.
     func leaveLibrary() {
         guard isInLibrary else { return }
+        if reader?.origin == .library { reader = nil }
         surface = .browse
     }
 
-    /// Leaves the reader or the library for the browser.
+    /// The browser, with nothing over it: closes the Reader and Now Playing, leaves the library.
     func showBrowser() {
-        switch surface {
-        case .browse: break
-        case .reader: hideReader()
-        case .library: leaveLibrary()
-        }
+        reader = nil
+        hideNowPlaying()
+        leaveLibrary()
     }
 
     // MARK: - Pages
@@ -211,8 +275,8 @@ final class ShellState {
 
     // MARK: - Saved articles
 
-    /// A saved article in the reader overlay (start page row, mini player, crash resume). Shows it
-    /// as soon as the row is read; older saves build their listen blocks afterwards.
+    /// A saved article in the Reader sheet (start page row, Saved row): shown as soon as the row is
+    /// read; older saves build their listen blocks afterwards.
     func openSaved(_ id: UUID, in context: ModelContext) {
         Task {
             var shown = false
@@ -221,25 +285,9 @@ final class ShellState {
                     updateReader(id: article.id) { $0 = article }
                 } else {
                     shown = true
-                    showReader(article)
+                    openReader(article)
                 }
             }
         }
-    }
-
-    /// Mini player tap: the reader for whatever is loaded for listening.
-    func openNowPlaying(_ id: UUID, in context: ModelContext) {
-        if ArticleLibrary.savedArticle(id: id, in: context) != nil {
-            openSaved(id, in: context)
-        } else if let article = nowPlayingArticle, article.id == id {
-            showReader(article)
-        }
-    }
-
-    /// The listening session changed: remember the reader article it belongs to, so the mini
-    /// player can bring an unsaved article back.
-    func noteActiveSession(_ id: UUID?) {
-        guard let id, let article = readerArticle, article.id == id else { return }
-        nowPlayingArticle = article
     }
 }

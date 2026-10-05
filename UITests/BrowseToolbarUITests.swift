@@ -194,7 +194,7 @@ final class BrowseToolbarUITests: XCTestCase {
         icon.tap()
         let close = app.buttons["readerClose"]
         XCTAssertTrue(close.waitForExistence(timeout: 10), "reader icon opens the reader")
-        XCTAssertEqual(close.label, "Back to Website", "opened over the page")
+        XCTAssertEqual(close.label, "Back to Browser", "opened over the page")
         close.tap()
         XCTAssertTrue(waitFor("exists == false", close))
 
@@ -207,11 +207,11 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(close.waitForExistence(timeout: 10), "⋯ → Reader opens the reader")
 
         let website = element(app, "moreWebsite")
-        // …where ⋯ sits in the listen bar's bottom-right (no gear) and shows the same panel.
+        // …where ⋯ sits in the Reader's bottom-right (no gear) and shows the same panel.
         XCTAssertFalse(app.buttons["listenQuickSettings"].exists, "no gear: voice settings live in ⋯")
         let readerMore = app.buttons["readerMore"]
         XCTAssertTrue(readerMore.waitForExistence(timeout: 5))
-        // The reader's bottom chrome is the browser's; ⋯ sits in exactly the same cell.
+        // The Reader's bottom row is on the browser's grid; ⋯ sits in exactly the same cell.
         let rf = readerMore.frame
         XCTAssertEqual(rf.midX, browseMoreFrame.midX, accuracy: 1, "⋯ at the same x as the browser's")
         XCTAssertEqual(rf.midY, browseMoreFrame.midY, accuracy: 1, "⋯ at the same y as the browser's")
@@ -321,8 +321,8 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertEqual(app.textFields["addressField"].value as? String, "pages/one")
     }
 
-    /// Open a saved article directly, play, ⋯ → Website: the library closes, the browser
-    /// loads the article's page, and the voice keeps going (mini player).
+    /// Open a saved article, Listen (the Reader turns into Now Playing), ⋯ → Website: Now Playing and
+    /// the library close, the browser loads the article's page, and the voice keeps going (the bar).
     func testSavedArticleWebsiteOpensPageAndKeepsPlaying() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-seedDemoArticle", "-uiTesting", "-openLibrary", "-resetBookmarks", "-reader.rateMultiplier", "1",
@@ -350,8 +350,8 @@ final class BrowseToolbarUITests: XCTestCase {
         let field = app.textFields["addressField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         XCTAssertTrue(waitFor("value CONTAINS 'example.com/demo'", field, timeout: 8), "the article's page is loading")
-        let mini = app.buttons["miniPlayerPlayPause"]
-        XCTAssertTrue(mini.waitForExistence(timeout: 5), "mini player shows")
+        let mini = app.buttons["nowPlayingBarPlayPause"]
+        XCTAssertTrue(mini.waitForExistence(timeout: 5), "the Now Playing bar shows")
         XCTAssertEqual(mini.label, "Pause", "the voice keeps playing")
         RunLoop.current.run(until: Date().addingTimeInterval(1.5))
         XCTAssertEqual(mini.label, "Pause", "…and is still playing")

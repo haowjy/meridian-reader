@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// Composition root. The ONLY place that knows which voice libraries exist: build the engine
 /// registry from providers, then inject it (initializer injection) into the speech stack.
@@ -8,6 +9,22 @@ enum AppComposition {
     static let engineRegistry = EngineRegistry(providers: makeProviders())
 
     static let speechController = SpeechController(engines: engineRegistry)
+
+    /// What you see. It asks the playback session what you hear, so the Reader of the playing
+    /// page opens as Now Playing.
+    static let shell = ShellState(isHearing: { speechController.playState(of: $0).isCurrent })
+
+    /// The listening position recorder (lives as long as the app).
+    private static var progressRecorder: ListeningProgressRecorder?
+
+    /// Connects the speech stack to the saved-article store: where Now Playing's text comes from,
+    /// and where listening positions are written. Once, with the app's main context.
+    static func attachLibrary(_ context: ModelContext) {
+        guard progressRecorder == nil else { return }
+        speechController.contentResolver = SavedArticleContentResolver(context: context)
+        progressRecorder = ListeningProgressRecorder(speech: speechController,
+                                                     store: SavedArticleProgressStore(context: context))
+    }
 
     static func makeProviders() -> [SpeechEngineProvider] {
         var providers: [SpeechEngineProvider] = [

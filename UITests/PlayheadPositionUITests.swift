@@ -29,6 +29,7 @@ final class PlayheadPositionUITests: XCTestCase {
 
     /// Release lands on the sentence under the finger (not the paragraph start); a small fine
     /// scrub back lands on that sentence's start; a paused seek stays paused and Play starts there.
+    /// The scrubber is Now Playing's: Listen in the Reader, then pause.
     func testScrubLandsOnSentenceAndPausedStaysPaused() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-seedDemoArticle", "-uiTesting", "-openLibrary", "-resetBookmarks", "-reader.rateMultiplier", "1",
@@ -37,19 +38,25 @@ final class PlayheadPositionUITests: XCTestCase {
         let row = app.cells.staticTexts["Demo Listen Article"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(play.waitForExistence(timeout: 5))
+        play.tap() // Listen: the Reader turns into Now Playing
+        XCTAssertTrue(waitFor(8) { play.label == "Pause" }, "playing")
+        play.tap()
+        XCTAssertTrue(waitFor(5) { play.label == "Play" }, "paused")
         let scrubber = el(app, "readerScrubber")
         XCTAssertTrue(scrubber.waitForExistence(timeout: 5))
         wait(1.0) // sentence map built
 
-        // Not loaded: a tap in the middle of paragraph 2 → its 2nd sentence ("Extra sentences…").
+        // Paused: a tap in the middle of paragraph 2 → its 2nd sentence ("Extra sentences…").
         scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.52, dy: 0.5)).tap()
         XCTAssertTrue(waitFor { self.position(app)?.p == 1 }, "paragraph 2, got \(String(describing: position(app)))")
         let sentence = try XCTUnwrap(position(app)).o
         XCTAssertGreaterThan(sentence, 0, "a sentence inside the paragraph, not its start")
         XCTAssertEqual(scrubber.value as? String, "Paragraph 2 of 3")
+        XCTAssertEqual(play.label, "Play", "a paused seek stays paused")
 
         // Play starts at that sentence (Apple voice speaks from it), then pause.
-        let play = app.buttons["listenPlayPause"]
         play.tap()
         XCTAssertTrue(waitFor(8) { play.label == "Pause" }, "playing")
         wait(1.0)

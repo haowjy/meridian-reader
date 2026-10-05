@@ -1,9 +1,9 @@
 import SwiftData
 import Foundation
 
-/// What the browser does with the page it has loaded: show it in the reader, save it, bookmark
-/// it, record it in History. Extraction resolves the article's identity against the library, so
-/// the same page gets the same key (and its cached audio) every time.
+/// What the browser does with the page it has loaded: show it in the Reader, listen to it, save
+/// it, bookmark it, record it in History. Extraction resolves the article's identity against the
+/// library, so the same page gets the same key (and its cached audio) every time.
 @MainActor
 struct PageArticleService {
     let shell: ShellState
@@ -15,17 +15,52 @@ struct PageArticleService {
 
     private var web: WebViewStore { shell.web }
 
-    /// Address-bar reader icon / ⋯ → Reader: the page in the reader overlay. The reader icon spins
-    /// meanwhile.
+    /// Address-bar reader icon / ⋯ → Reader: the page in the Reader sheet (Now Playing when it is
+    /// the page you hear). The reader icon spins meanwhile.
     func openInReader() async throws {
         shell.busy = .reader
         defer { shell.busy = nil }
         let (article, url) = try await extract()
-        shell.showReader(article)
+        shell.openReader(article)
         if article.faviconData == nil {
             let icon = await favicon(for: url)
             shell.updateReader(id: article.id) { if $0.faviconData == nil { $0.faviconData = icon } }
         }
+    }
+
+    /// 🎧: listen to the page now. 🎧 spins while the page is extracted, and what's playing keeps
+    /// playing; it is replaced only once this page has something to say, and only if nothing
+    /// else was asked for meanwhile (`listen(toPageAt:…)`).
+    func listenNow() async -> ListenNowOutcome {
+        guard let url = web.currentURL else { return .nothingToListenTo }
+        let outcome = await Self.listen(toPageAt: url, speech: speech, context: context) {
+            try await extract().article
+        }
+        if case .started(let article) = outcome, article.faviconData == nil, let icon = await favicon(for: url) {
+            speech.setArtwork(icon, for: article.id)
+        }
+        return outcome
+    }
+
+    /// 🎧's decision, apart from the web view: begin a preparation request for the page at `url`,
+    /// run `extract`, then start the article only while that request is still current. Stop
+    /// Listening, another ▶ or another 🎧 during extraction supersedes it, and it starts nothing.
+    static func listen(toPageAt url: URL, speech: SpeechController, context: ModelContext,
+                       extract: () async throws -> ReaderArticle) async -> ListenNowOutcome {
+        let request = speech.beginPreparing(.webPage(canonicalURL: ArticleIdentity.canonicalURLString(from: url)))
+        let article = try? await extract()
+        guard speech.isStillPreparing(request) else { return .superseded }
+        guard let article, ListeningTime.hasEnoughToListen(article.document) else {
+            speech.endPreparing(request)
+            return .nothingToListenTo
+        }
+        let saved = ArticleLibrary.savedArticle(id: article.id, in: context)
+        speech.localTTS.prepareListenIdentity(key: article.id, paragraphs: article.document.paragraphs,
+                                              trustedParagraphs: article.trustedParagraphs,
+                                              legacyKeys: article.legacyCacheKeys, isLivePlayback: false)
+        speech.listen(to: article, fromParagraph: article.resumeParagraph,
+                      utf16Offset: saved?.playbackUTF16Offset)
+        return .started(article)
     }
 
     /// ⋯ → Save article. ⋯ spins meanwhile.
@@ -84,4 +119,14 @@ struct PageArticleService {
             $0.urlString == urlString || $0.host.caseInsensitiveCompare(host) == .orderedSame
         }?.faviconData
     }
+}
+
+/// What a 🎧 tap came to.
+enum ListenNowOutcome {
+    /// The page plays, replacing what was playing.
+    case started(ReaderArticle)
+    /// Extraction failed or found too little text: nothing changed, and the caller says so.
+    case nothingToListenTo
+    /// Stop Listening, another ▶ or another 🎧 came first: nothing starts and nothing is said.
+    case superseded
 }

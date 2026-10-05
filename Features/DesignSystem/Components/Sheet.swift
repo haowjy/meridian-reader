@@ -3,8 +3,12 @@ import SwiftUI
 /// The shared sheet: it rises over the surface underneath, carries a grabber, and closes with a
 /// pull down on its header (never on its content, so scrolling and text selection stay free) or
 /// through `dismissSheet` from inside (a back pill, ⌄). While pulled it looks like a system sheet
-/// (`PullDownLook`): it shrinks a little and the dim behind it lifts. Paper, top corners
-/// `Radius.card`. Used by the Reader sheet, Now Playing, Move to… and Import.
+/// (`PullDownLook`): it shrinks a little and the dim behind it lifts. Top corners `Radius.card`.
+/// Used by the Reader sheet, Now Playing, Move to… and Import.
+///
+/// Its `look` is paper, or the player (Now Playing): deep jade in light and dark, a heavier dim
+/// behind it so the strip above reads dark, light status bar content, and the dark colour scheme
+/// plus `onPlayerPalette` for what it holds.
 ///
 /// Present it by inserting it (`if … { Sheet(…) }`); it animates its own rise and, once closed,
 /// calls `onDismiss` for the owner to remove it. Under Reduce Motion it fades instead of moving.
@@ -12,6 +16,7 @@ import SwiftUI
 /// render).
 struct Sheet<Header: View, Content: View>: View {
     let onDismiss: () -> Void
+    var look: SheetLook = .paper
     @ViewBuilder var header: Header
     @ViewBuilder var content: Content
 
@@ -22,14 +27,27 @@ struct Sheet<Header: View, Content: View>: View {
     @State private var pull: CGFloat = 0
     @State private var pullAxis: Axis?
     @State private var height: CGFloat = 0
+    /// The status bar's height (the top safe area), for the player's status bar scrim.
+    @State private var statusBarHeight: CGFloat = 0
+    /// `onDismiss` has run (it runs once, whichever of the completion and its fallback is first).
+    @State private var dismissed = false
 
     var body: some View {
-        let look = PullDownLook(offset: pull, screenHeight: height)
+        let pullLook = PullDownLook(offset: pull, screenHeight: height, maxDim: look.maxDim)
         let isUp = risesOnAppear ? risen : !closed
         ZStack(alignment: .bottom) {
-            Color.black.opacity(isUp ? look.dim : 0)
+            Color.black.opacity(isUp ? pullLook.dim : 0)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
+            if look == .player, isUp {
+                // The status bar stays light until the sheet has gone, so the strip under it stays
+                // as dark as at rest however far a finger holds the sheet down.
+                Color.black.opacity(pullLook.statusBarScrim)
+                    .frame(height: statusBarHeight)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            }
 
             if isUp {
                 VStack(spacing: 0) {
@@ -45,11 +63,12 @@ struct Sheet<Header: View, Content: View>: View {
                 .background {
                     UnevenRoundedRectangle(topLeadingRadius: Radius.card, topTrailingRadius: Radius.card,
                                            style: .continuous)
-                        .fill(Palette.paper)
+                        .fill(look.background)
                         .ignoresSafeArea(edges: .bottom)
                 }
+                .modifier(SheetPalette(look: look))
                 .padding(.top, Spacing.xs)
-                .scaleEffect(look.scale, anchor: .top)
+                .scaleEffect(pullLook.scale, anchor: .top)
                 .offset(y: pull)
                 .transition(.sheet(reduceMotion: reduceMotion))
                 .environment(\.dismissSheet, SheetDismissAction(close))
@@ -57,6 +76,8 @@ struct Sheet<Header: View, Content: View>: View {
             }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusBarHeight = $0 }
+        .lightStatusBar(look == .player && isUp)
         .onAppear {
             if risesOnAppear { withAnimation(Motion.standard) { risen = true } }
         }
@@ -85,8 +106,9 @@ struct Sheet<Header: View, Content: View>: View {
                 withAnimation(Motion.dismiss(velocity: value.velocity.height, distance: height - pull)) {
                     pull = height
                 } completion: {
-                    onDismiss()
+                    finish()
                 }
+                finishAfterAnimation()
             }
     }
 
@@ -95,22 +117,65 @@ struct Sheet<Header: View, Content: View>: View {
             risen = false
             closed = true
         } completion: {
-            onDismiss()
+            finish()
         }
+        finishAfterAnimation()
+    }
+
+    /// An animation's completion doesn't always arrive (a transition-only change can end without
+    /// one), and a sheet left half-dismissed keeps covering the screen. So the owner also hears
+    /// it just after the animation's length.
+    private func finishAfterAnimation() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + Motion.standardResponse * 1.5) { finish() }
+    }
+
+    private func finish() {
+        guard !dismissed else { return }
+        dismissed = true
+        onDismiss()
     }
 }
 
 extension Sheet where Header == EmptyView {
-    init(onDismiss: @escaping () -> Void, @ViewBuilder content: () -> Content) {
-        self.init(onDismiss: onDismiss, header: { EmptyView() }, content: content)
+    init(onDismiss: @escaping () -> Void, look: SheetLook = .paper, @ViewBuilder content: () -> Content) {
+        self.init(onDismiss: onDismiss, look: look, header: { EmptyView() }, content: content)
+    }
+}
+
+/// A sheet's palette.
+enum SheetLook: Equatable {
+    /// Paper, following the appearance: the Reader, Move to…, Import.
+    case paper
+    /// Now Playing: deep jade in both appearances.
+    case player
+
+    var background: Color { self == .player ? Palette.playerBackground : Palette.paper }
+
+    /// The dim behind the sheet at rest. The player's is heavier: the strip above it carries light
+    /// status bar content, so it has to read dark over a light surface.
+    var maxDim: Double { self == .player ? 0.7 : PullDownLook.maxDim }
+}
+
+/// What a player sheet holds draws on the player palette: the dark colour scheme for system
+/// controls and materials, `onPlayerPalette` for the components that sit on both.
+private struct SheetPalette: ViewModifier {
+    let look: SheetLook
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.colorScheme, look == .player ? .dark : colorScheme)
+            .environment(\.onPlayerPalette, look == .player)
     }
 }
 
 /// The bar at the top of a sheet that says it can be pulled down.
 struct SheetGrabber: View {
+    @Environment(\.onPlayerPalette) private var onPlayer
+
     var body: some View {
         Capsule()
-            .fill(Palette.secondaryInk.opacity(0.35))
+            .fill((onPlayer ? Palette.playerSecondaryInk : Palette.secondaryInk).opacity(0.35))
             .frame(width: 36, height: 5)
             .padding(.top, Spacing.xs)
             .padding(.bottom, Spacing.xxs)
@@ -139,28 +204,35 @@ extension EnvironmentValues {
 }
 
 /// How a sheet looks while it is pulled down: like a system sheet, it shrinks a little (to 96%,
-/// over the first third of the screen) and the dim behind it lifts as it goes, reaching nothing
-/// once the sheet is off the screen.
+/// over the first third of the screen) and the dim behind it lifts as it goes from `maxDim` (the
+/// sheet's at rest), reaching nothing once the sheet is off the screen. A sheet with light status
+/// bar content (the player) keeps the strip under the status bar at `maxDim` all the way: a scrim
+/// there (`statusBarScrim`) makes up what the dim has lifted.
 struct PullDownLook: Equatable {
     var scale: CGFloat
     var dim: Double
+    /// Black over the status bar strip, on top of `dim`, that keeps the strip at `maxDim`: none at
+    /// rest, `maxDim` once the dim has gone.
+    var statusBarScrim: Double
 
     static let minScale: CGFloat = 0.96
     static let maxDim = 0.2
 
-    init(offset: CGFloat, screenHeight: CGFloat) {
+    init(offset: CGFloat, screenHeight: CGFloat, maxDim: Double = Self.maxDim) {
         guard screenHeight > 0, offset > 0 else {
-            self.init(scale: 1, dim: Self.maxDim)
+            self.init(scale: 1, dim: maxDim, maxDim: maxDim)
             return
         }
         let progress = min(1, offset / screenHeight)
         self.init(scale: 1 - (1 - Self.minScale) * min(1, progress * 3),
-                  dim: Self.maxDim * Double(1 - progress))
+                  dim: maxDim * Double(1 - progress), maxDim: maxDim)
     }
 
-    private init(scale: CGFloat, dim: Double) {
+    private init(scale: CGFloat, dim: Double, maxDim: Double) {
         self.scale = scale
         self.dim = dim
+        // Black at opacity s over black at opacity d lets through (1 - d)(1 - s) of the surface.
+        statusBarScrim = dim < maxDim ? 1 - (1 - maxDim) / (1 - dim) : 0
     }
 }
 

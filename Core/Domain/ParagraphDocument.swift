@@ -16,6 +16,9 @@ struct ParagraphDocument: Equatable, Sendable {
         return min(1, max(0, Double(offset) / Double(total)))
     }
 
+    /// Length of the whole text in UTF-16 units.
+    var utf16Length: Int { utf16Ranges.last.map(NSMaxRange) ?? 0 }
+
     static let empty = ParagraphDocument(paragraphs: [], utf16Ranges: [], joinedText: "")
 
     /// Prefer HTML block order (headings + paragraphs) so highlight/tap match speech.
@@ -43,6 +46,19 @@ struct ParagraphDocument: Equatable, Sendable {
     /// indices (highlight, Jump taps, render marks) always match speech and the audio cache.
     static func readingHTML(_ html: String, matchingTitle: String?) -> String {
         ListenHTMLBlocks.splitLongBlocks(stripLeadingTitleHeading(html, matchingTitle: matchingTitle))
+    }
+
+    /// The paragraphs as reading HTML, one escaped `<p>` each, for text with no HTML of its own (a
+    /// plain-text article). The reading page numbers its leaf blocks in order, so block i is
+    /// paragraph i and the tint, underline and follow mode line up with the session.
+    /// The text isn't normalized (positions and the audio cache are counted in it): the page maps
+    /// sentence offsets over every space, tab and newline of the paragraph.
+    var paragraphsHTML: String {
+        paragraphs.map { paragraph in
+            let escaped = paragraph.replacingOccurrences(of: "&", with: "&amp;")
+                .replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
+            return "<p>\(escaped)</p>"
+        }.joined(separator: "\n")
     }
 
     init(plainText: String, splitLong: Bool = true) {

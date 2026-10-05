@@ -17,7 +17,15 @@ struct RootView: View {
                 }
             }
             .animation(Motion.snappy, value: speech.localTTS.engineCrashNotice)
+            .environment(\.playingBarsMove, Self.playingBarsMove)
     }
+
+    #if DEBUG
+    /// UI tests (`-uiTesting`): still playing bars, so the app can go idle between test steps.
+    private static let playingBarsMove = !LaunchOptions.current.uiTesting
+    #else
+    private static let playingBarsMove = true
+    #endif
 }
 
 /// One-line, dismissible notice (e.g. "Kokoro stopped unexpectedly; resumed on the stable route.").

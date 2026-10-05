@@ -22,6 +22,8 @@ enum BottomChrome {
     static let fieldVerticalPadding = Spacing.xxs
     /// Field capsule / toolbar row height.
     static let rowHeight: CGFloat = 44
+    /// The field capsule's fill, on paper chrome or on the player.
+    static func fieldFill(onPlayer: Bool) -> Color { onPlayer ? Palette.playerCard : Palette.chrome }
     /// Toolbar glyph size.
     static let iconSize: CGFloat = 19
     /// Text standing in for a glyph in a toolbar slot (the speed label). Like the glyphs it keeps
@@ -31,6 +33,12 @@ enum BottomChrome {
     static let fieldControlSize: CGFloat = 36
     /// The smallest tap area of a control (`tapTarget`), whatever it looks like.
     static let minTapTarget: CGFloat = 44
+    /// Now Playing's round play / pause in the transport's centre slot. Fixed like the toolbar
+    /// glyphs (the large content viewer shows it at large text sizes). The row stays
+    /// `rowHeight`; the disc reaches past it above and below by half the difference.
+    static let transportDiscSize: CGFloat = 64
+    /// The glyph inside the transport disc.
+    static let transportDiscGlyph: CGFloat = 26
     /// How far the field capsule and its controls grow with Dynamic Type, as a multiple of their
     /// default size: enough that text and glyphs never clip, while the chrome stays a band.
     static let maxTextGrowth: CGFloat = 1.5
@@ -43,14 +51,15 @@ enum BottomChrome {
 }
 
 extension View {
-    /// The bottom band: content inset by the standard margins on the system bar material, which
-    /// runs down through the home indicator. `bottomInset` = extra bottom padding when the caller
-    /// is laid out edge to edge (the reader); 0 when it already sits in the safe area (Browse).
+    /// The bottom band: content inset by the standard margins on the system bar material (on the
+    /// player, `playerChrome`), which runs down through the home indicator. `bottomInset` = extra
+    /// bottom padding when the caller is laid out edge to edge (the reader); 0 when it already
+    /// sits in the safe area (Browse).
     func bottomChromeBand(bottomInset: CGFloat = 0, bottomPadding: CGFloat = 0) -> some View {
         self.padding(.horizontal, BottomChrome.horizontalMargin)
             .padding(.top, BottomChrome.topPadding)
             .padding(.bottom, bottomPadding + bottomInset)
-            .background(.bar)
+            .modifier(BottomChromeBandBackground())
     }
 
     /// The field capsule: the browser's address field, the reader's scrub row and title row.
@@ -90,12 +99,25 @@ extension View {
     }
 }
 
+private struct BottomChromeBandBackground: ViewModifier {
+    @Environment(\.onPlayerPalette) private var onPlayer
+
+    func body(content: Content) -> some View {
+        if onPlayer {
+            content.background(Palette.playerChrome)
+        } else {
+            content.background(.bar)
+        }
+    }
+}
+
 /// Fixed height (not minHeight): a Capsule with unbounded height becomes a circle when the layout
 /// proposes a large vertical size (e.g. the idle address bar without the mic's frame).
 private struct BottomChromeField: ViewModifier {
     let leading: CGFloat
     let trailing: CGFloat
     @ScaledMetric(relativeTo: .body) private var height = BottomChrome.rowHeight
+    @Environment(\.onPlayerPalette) private var onPlayer
 
     func body(content: Content) -> some View {
         content
@@ -103,7 +125,7 @@ private struct BottomChromeField: ViewModifier {
             .padding(.trailing, trailing)
             .padding(.vertical, BottomChrome.fieldVerticalPadding)
             .frame(height: BottomChrome.grown(height, from: BottomChrome.rowHeight))
-            .background(Palette.chrome, in: Capsule())
+            .background(BottomChrome.fieldFill(onPlayer: onPlayer), in: Capsule())
     }
 }
 
@@ -163,7 +185,9 @@ struct BottomToolbarLayout: Layout {
 
 /// A toolbar row with one wide control: the first item in slot 1, the last in slot 5 (⋯, so the
 /// morph menu grows from the same spot as everywhere else), and the middle one across slots 2–4
-/// with `Spacing.xs` either side.
+/// with `Spacing.xs` either side. The end items keep the toolbar row's height at its bottom, so
+/// they sit exactly where slot 1 and ⋯ sit in `BottomToolbarLayout` while the wide control may
+/// be taller (a 48 pt pill).
 ///
 /// ```
 /// Reader   [🔖]  [ ▶  Listen · 9 min  ]  [⋯]
@@ -177,13 +201,14 @@ struct BottomToolbarSpanLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         guard subviews.count == 3 else { return }
         let slot = BottomToolbarLayout.slotWidth(rowWidth: bounds.width)
-        let edge = ProposedViewSize(width: slot, height: bounds.height)
+        let edge = ProposedViewSize(width: slot, height: BottomChrome.rowHeight)
+        let edgeY = bounds.maxY - BottomChrome.rowHeight / 2
         subviews[0].place(at: CGPoint(x: bounds.minX + BottomToolbarLayout.slotCenterX(0, rowWidth: bounds.width),
-                                      y: bounds.midY), anchor: .center, proposal: edge)
+                                      y: edgeY), anchor: .center, proposal: edge)
         subviews[1].place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center,
                           proposal: ProposedViewSize(width: slot * 3 - Spacing.xs * 2, height: bounds.height))
         subviews[2].place(at: CGPoint(x: bounds.minX + BottomToolbarLayout.slotCenterX(4, rowWidth: bounds.width),
-                                      y: bounds.midY), anchor: .center, proposal: edge)
+                                      y: edgeY), anchor: .center, proposal: edge)
     }
 }
 

@@ -6,6 +6,7 @@ import SwiftData
 ///
 /// ```
 /// ┌ bar ────────────────────────────────────┐
+/// │ ╭ Now Playing bar ────────────────────╮ │  ← what you hear (once something has played)
 /// │ ( 🔍 Search saved…                   ) │  ← same field capsule as the address bar
 /// │  [ ]   [ ]   [Search]  [🌐]  [⋯]       │  ← idle: slot 4 = Browser; ⋯ stays
 /// └──────────────────────────── home indicator ┘
@@ -14,31 +15,31 @@ import SwiftData
 /// │ ( 🔍 Search saved…              )  (✕) │  ← toolbar hidden; ✕ exits search
 /// ```
 ///
-/// Opening an article pushes the reader inside the surface (path non-empty hides this chrome;
-/// the reader draws its own). Leaving via 🌐 restores the prior browse surface.
+/// Opening an article shows it in the Reader sheet over the library. Leaving via 🌐 restores the
+/// prior browse surface.
 struct LibrarySurface: View {
-    @Binding var path: [UUID]
-
     @Environment(ShellState.self) private var shell
+    @Environment(\.speechController) private var speech
     @State private var search = SearchSession()
 
     var body: some View {
         VStack(spacing: 0) {
-            SavedListView(path: $path, searchText: search.text)
+            SavedListView(searchText: search.text)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .scrollDismissesKeyboard(.interactively)
 
-            if path.isEmpty {
-                SearchSessionChrome(session: search, cancelID: "librarySearchCancel",
-                                    onCancel: { search.end(showing: "") }) { focus in
-                    searchField(focus)
-                } toolbar: {
-                    toolbar
-                }
-                .lowersKeyboardOnPullDown(search)
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("libraryChrome")
+            SearchSessionChrome(session: search, cancelID: "librarySearchCancel",
+                                onCancel: { search.end(showing: "") }) {
+                NowPlayingBarView(speech: speech, isCovered: shell.reader != nil)
+                    .padding(.bottom, Spacing.xxs)
+            } field: { focus in
+                searchField(focus)
+            } toolbar: {
+                toolbar
             }
+            .lowersKeyboardOnPullDown(search)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("libraryChrome")
         }
         .background(Palette.paper.ignoresSafeArea())
     }

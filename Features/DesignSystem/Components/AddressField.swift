@@ -9,10 +9,13 @@ import SwiftUI
 /// ```
 ///
 /// `field` is the text itself: the page's address while idle, the `TextField` while editing.
-struct AddressField<Field: View>: View {
+/// `accessory` sits at the trailing end while editing, in 🎧's place (🎤).
+struct AddressField<Field: View, Accessory: View>: View {
     enum ReaderButton {
-        /// Nothing to read (start page, an unreadable page, while editing): an empty slot.
+        /// Nothing to read (start page, an unreadable page): an empty slot.
         case hidden
+        /// Editing the address: a magnifying glass.
+        case searching
         /// Extracting the page for the Reader: a spinner.
         case extracting
         /// The page is readable: 📄.
@@ -25,6 +28,7 @@ struct AddressField<Field: View>: View {
     var onOpenReader: () -> Void = {}
     var onListen: () -> Void = {}
     @ViewBuilder var field: Field
+    @ViewBuilder var accessory: Accessory
 
     /// The 📄 glyph's frame.
     private static var readerSize: CGFloat { 30 }
@@ -38,9 +42,13 @@ struct AddressField<Field: View>: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             if let listen {
                 PlayStateButton(state: listen, look: .badge(idleSymbol: "headphones"), action: onListen)
+                    .accessibilityIdentifier("addressListen")
+                    .transition(.opacity)
             }
+            accessory
         }
-        .bottomChromeField(leading: Spacing.s, trailing: listen == nil ? Spacing.s : Spacing.xxs)
+        .bottomChromeField(leading: Spacing.s, trailing: listen == nil && Accessory.self == EmptyView.self
+                           ? Spacing.s : Spacing.xxs)
     }
 
     @ViewBuilder
@@ -49,6 +57,12 @@ struct AddressField<Field: View>: View {
         case .hidden:
             Color.clear
                 .frame(width: Glyph.indicator, height: Glyph.indicator)
+                .accessibilityHidden(true)
+        case .searching:
+            Image(systemName: "magnifyingglass")
+                .font(.caption)
+                .foregroundStyle(Palette.secondaryInk)
+                .frame(width: Glyph.indicator)
                 .accessibilityHidden(true)
         case .extracting:
             ProgressView()
@@ -64,7 +78,17 @@ struct AddressField<Field: View>: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Open in Reader")
+            .accessibilityIdentifier("addressReader")
+            .transition(.opacity)
         }
+    }
+}
+
+extension AddressField where Accessory == EmptyView {
+    init(reader: ReaderButton = .hidden, listen: PlayState? = nil, onOpenReader: @escaping () -> Void = {},
+         onListen: @escaping () -> Void = {}, @ViewBuilder field: () -> Field) {
+        self.init(reader: reader, listen: listen, onOpenReader: onOpenReader, onListen: onListen,
+                  field: field, accessory: { EmptyView() })
     }
 }
 
@@ -96,7 +120,11 @@ struct AddressFieldGallery: View {
                 AddressField(reader: .extracting, listen: .idle) { Text("news.example.org") }
             }
             PreviewState("editing") {
-                AddressField { TextField("Search or enter address", text: $text) }
+                AddressField(reader: .searching) {
+                    TextField("Search or enter address", text: $text)
+                } accessory: {
+                    Image(systemName: "mic").foregroundStyle(Palette.secondaryInk).fieldControlFrame()
+                }
             }
         }
     }

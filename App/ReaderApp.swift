@@ -7,7 +7,7 @@ struct ReaderApp: App {
     private let container: ModelContainer
     /// Composition root output (engine registry → SpeechController). See `AppComposition`.
     @State private var speechController = AppComposition.speechController
-    @State private var shell = ShellState()
+    @State private var shell = AppComposition.shell
 
     init() {
         do {
@@ -18,6 +18,7 @@ struct ReaderApp: App {
         // Foreground/background gate for Core ML synthesis (no model calls in the background).
         AppRunState.shared.observeApplication()
         AppComposition.runLaunchMaintenance()
+        AppComposition.attachLibrary(container.mainContext)
     }
 
     var body: some Scene {

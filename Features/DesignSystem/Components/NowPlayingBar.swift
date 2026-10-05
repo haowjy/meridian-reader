@@ -70,8 +70,10 @@ struct NowPlayingBar: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityHint("Opens Now Playing")
             .accessibilityAction(.default, onOpen)
+            .accessibilityIdentifier("nowPlayingBarOpen")
 
             PlayStateButton(state: state, action: onPlayPause)
+                .accessibilityIdentifier("nowPlayingBarPlayPause")
         }
         .padding(.leading, Spacing.xs)
         .padding(.trailing, Self.trailingPadding(rowWidth: width))
@@ -94,6 +96,7 @@ struct NowPlayingBar: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityValue("\(Int((progress * 100).rounded())) percent")
+        .accessibilityIdentifier("nowPlayingBar")
     }
 }
 

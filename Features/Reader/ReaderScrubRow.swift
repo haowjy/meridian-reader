@@ -75,8 +75,7 @@ enum ScrubTick: Equatable {
     }
 }
 
-/// Reader bottom row above the listen controls: [scrubber][select paragraph][bookmark] (thumb
-/// reach). The scrubber fills with progress and shows rendered audio as a lighter "buffered" fill
+/// Now Playing's row above the listen controls: [scrubber][select paragraph] (thumb reach). The scrubber fills with progress and shows rendered audio as a lighter "buffered" fill
 /// ahead of it. Dragging:
 /// - grabbing the thumb moves it relative to the finger (no jump); touching elsewhere jumps there;
 /// - sliding the finger up away from the track scrubs slower (½, ¼, fine) for small precise moves;
@@ -94,11 +93,9 @@ struct ReaderScrubRow: View {
     let position: Double
     /// Rendered-audio stretches (0…1), drawn lighter than the progress fill.
     var buffered: [ClosedRange<Double>] = []
-    let isSaved: Bool
     let jumpMode: Bool
     let jumpEnabled: Bool
     var onToggleJump: () -> Void
-    var onToggleSaved: () -> Void
     /// Paragraph under the thumb while dragging (nil when the drag ends).
     var onScrubPreview: (Int?) -> Void
     /// Release: the sentence to play from.
@@ -125,34 +122,27 @@ struct ReaderScrubRow: View {
     /// How far the drag area reaches above and below the track: the capsule's padding plus 2 pt.
     private static let dragOvershoot = BottomChrome.fieldVerticalPadding + 2
     private static let space = "readerScrubTrack"
+    /// ☝︎ while on: its glyph on a wash, on the field capsule (`ColorContrastTests` checks these).
+    static let jumpOnGlyph = Palette.playerAccent
+    static let jumpOnWash = Palette.playerAccentWash
 
     var body: some View {
         // Styled exactly like the browser's address field: the same field capsule
-        // (`bottomChromeField`), with Jump / bookmark sized and coloured like its mic button.
+        // (`bottomChromeField`), with Jump sized and coloured like its mic button.
         HStack(spacing: Spacing.xxs) {
             scrubber
                 .padding(.trailing, Spacing.xxs)
 
             Button(action: onToggleJump) {
                 Image(systemName: jumpMode ? "hand.tap.fill" : "hand.tap")
-                    .foregroundStyle(jumpMode ? Palette.accent : Palette.secondaryInk)
+                    .foregroundStyle(jumpMode ? Self.jumpOnGlyph : Palette.playerSecondaryInk)
                     .fieldControlFrame()
-                    .background(Circle().fill(jumpMode ? Palette.accent.opacity(0.15) : Color.clear))
+                    .background(Circle().fill(jumpMode ? Self.jumpOnWash : Color.clear))
             }
             .buttonStyle(.plain)
             .disabled(!jumpEnabled)
             .accessibilityIdentifier("listenJump")
             .accessibilityLabel(jumpMode ? "Cancel jump to paragraph" : "Jump to a paragraph")
-
-            Button(action: onToggleSaved) {
-                Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                    .foregroundStyle(isSaved ? Palette.accent : Palette.secondaryInk)
-                    .fieldControlFrame()
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("readerBookmark")
-            .accessibilityLabel(isSaved ? "Remove from Saved" : "Save")
-            .accessibilityValue(isSaved ? "Saved" : "Not saved")
         }
         .bottomChromeField(leading: Self.fieldLeading, trailing: Spacing.xxs)
         #if DEBUG
@@ -276,6 +266,12 @@ struct ReaderScrubRow: View {
 
 /// The scrub bubble while dragging, handed up from `ReaderScrubRow` to the band that draws it.
 struct ReaderScrubBubble {
+    /// The bubble's card, and the speed chip's text on its solid fill (`ColorContrastTests`
+    /// checks these).
+    static let card = Palette.playerCard
+    static let chipText = Palette.onPlayerAccent
+    static let chipFill = Palette.playerAccent
+
     let map: ReaderScrubMap
     let target: ReaderScrubMap.Target
     let speed: ScrubSpeed
@@ -322,8 +318,8 @@ extension View {
     }
 }
 
-/// Speed chip, then paragraph · sentence over the sentence's first words. The text wraps rather
-/// than truncating at large text sizes.
+/// Speed chip, then paragraph · sentence over the sentence's first words, on a player card. The
+/// text wraps rather than truncating at large text sizes.
 private struct ReaderScrubBubbleView: View {
     let bubble: ReaderScrubBubble
 
@@ -334,22 +330,23 @@ private struct ReaderScrubBubbleView: View {
             if let chip = bubble.speed.chip {
                 Text(chip)
                     .typeStyle(.caption, weight: .bold)
-                    .foregroundStyle(Palette.accent)
+                    .foregroundStyle(ReaderScrubBubble.chipText)
                     .padding(.horizontal, Spacing.xs)
                     .padding(.vertical, Spacing.xxs)
-                    .background(Palette.accent.opacity(0.15), in: Capsule())
+                    .background(ReaderScrubBubble.chipFill, in: Capsule())
                     .accessibilityLabel(bubble.speed.label ?? chip)
                     .accessibilityIdentifier("readerScrubSpeed")
             }
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 header(t, map: map)
                     .typeStyle(.caption, weight: .semibold)
+                    .foregroundStyle(Palette.playerInk)
                     .monospacedDigit()
                     .fixedSize(horizontal: false, vertical: true)
                 Text(map.snippet(for: t))
                     .typeStyle(.caption)
                     .lineLimit(2)
-                    .foregroundStyle(Palette.ink)
+                    .foregroundStyle(Palette.playerInk)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("readerScrubSnippet")
             }
@@ -357,7 +354,7 @@ private struct ReaderScrubBubbleView: View {
         }
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.xs)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .background(ReaderScrubBubble.card, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("readerScrubBubble")
@@ -367,6 +364,6 @@ private struct ReaderScrubBubbleView: View {
         let paragraph = Text("¶ \(t.paragraph + 1) of \(map.paragraphCount)")
         let sentences = map.sentenceCount(paragraph: t.paragraph)
         guard sentences > 1 else { return paragraph }
-        return paragraph + Text(" · sentence \(t.sentence + 1) of \(sentences)").foregroundStyle(Palette.secondaryInk)
+        return paragraph + Text(" · sentence \(t.sentence + 1) of \(sentences)").foregroundStyle(Palette.playerSecondaryInk)
     }
 }

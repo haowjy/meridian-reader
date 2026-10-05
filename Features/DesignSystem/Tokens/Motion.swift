@@ -8,8 +8,12 @@ import SwiftUI
 /// committed pull-down). Gestures still follow the finger; that is direct manipulation, not
 /// animation.
 enum Motion {
-    /// Surfaces: the reader overlay, the ⋯ menu morph.
-    static let standard = Animation.spring(response: 0.35, dampingFraction: 0.86)
+    /// Surfaces: the sheets, the ⋯ menu morph, Now Playing following the audio.
+    static let standard = Animation.spring(response: standardResponse, dampingFraction: 1 - standardBounce)
+    /// `standard` as UIKit spring parameters (`UIView.animate(springDuration:bounce:)`), for what
+    /// SwiftUI can't animate: a web view's scroll offset.
+    static let standardResponse: TimeInterval = 0.35
+    static let standardBounce: CGFloat = 0.14
     /// Small state changes: chrome, the scrub thumb, banners.
     static let snappy = Animation.spring(response: 0.25, dampingFraction: 0.9)
     /// A drag released short of committing, springing back to rest.

@@ -27,6 +27,17 @@ extension View {
     }
 }
 
+extension View {
+    /// A component as it sits on the player (Now Playing): on `background` (the band's
+    /// `playerChrome` unless said), with the player's environment.
+    func onPlayerPreview(_ background: Color = Palette.playerChrome) -> some View {
+        padding(Spacing.s)
+            .background(background, in: RoundedRectangle(cornerRadius: Radius.card))
+            .environment(\.colorScheme, .dark)
+            .environment(\.onPlayerPalette, true)
+    }
+}
+
 /// A gallery's page: its states stacked, each under a caption naming it, 390 pt wide (an
 /// iPhone in portrait). Not scrolling, so previews use `.sizeThatFitsLayout` and
 /// `ImageRenderer` sees the whole gallery.
@@ -61,28 +72,43 @@ struct PreviewState<Content: View>: View {
         }
     }
 }
-/// Stand-in reading text for the sheets' previews: a heading and serif paragraphs, the second
-/// tinted as the spoken one (with its sentence underlined) when `spoken` is on.
+/// Stand-in reading text for the sheets' previews: serif paragraphs, the second spoken (its
+/// sentence underlined) when `spoken` is on, in the page's `look`:
+/// - paper: under a heading, the spoken paragraph tinted;
+/// - player: under the title card, lyrics style (the spoken paragraph in full ink, the others
+///   dimmed).
 struct SampleReading: View {
     let title: String
     let detail: String
     var spoken = false
+    var look: ReadingStyle.Look = .paper
 
     var body: some View {
+        let player = look == .player
+        let dimmed = player && spoken ? Palette.playerDimInk : (player ? Palette.playerInk : Palette.ink)
+        let ink = player ? Palette.playerInk : Palette.ink
         VStack(alignment: .leading, spacing: Spacing.m) {
-            ReadingHeading(title: title, detail: detail)
+            if player {
+                TitleCard(title: title, detail: detail, artworkLetter: title)
+                    .padding(.horizontal, Spacing.m - Spacing.pageMargin)
+                    .padding(.bottom, Spacing.l - Spacing.m)
+            } else {
+                ReadingHeading(title: title, detail: detail)
+            }
             Text("Tides rise and fall twice a day along most coasts, pulled by the moon and, more weakly, the sun.")
-            (Text("Where a bay narrows, the water piles up.").underline(spoken, color: Palette.accent)
+                .foregroundStyle(dimmed)
+            (Text("Where a bay narrows, the water piles up.").underline(spoken, color: player ? ink : Palette.accent)
                 + Text(" The difference between high and low water can reach several metres."))
-                .padding(.vertical, spoken ? Spacing.xs : 0)
-                .padding(.horizontal, spoken ? Spacing.s : 0)
-                .background(spoken ? Palette.playingTint : Color.clear,
+                .foregroundStyle(ink)
+                .padding(.vertical, spoken && !player ? Spacing.xs : 0)
+                .padding(.horizontal, spoken && !player ? Spacing.s : 0)
+                .background(spoken && !player ? Palette.playingTint : Color.clear,
                             in: RoundedRectangle(cornerRadius: Radius.card))
-                .padding(.horizontal, spoken ? -Spacing.s : 0)
+                .padding(.horizontal, spoken && !player ? -Spacing.s : 0)
             Text("Fishermen read the tables the way farmers read the weather.")
+                .foregroundStyle(dimmed)
         }
         .typeStyle(.body)
-        .foregroundStyle(Palette.ink)
         .padding(.horizontal, Spacing.pageMargin)
         .padding(.top, Spacing.xs)
     }

@@ -1,8 +1,9 @@
 import XCTest
 
-/// Reader chrome (docs/NAVIGATION.md): like the browser's search bar / toolbar, the top row
-/// and the bottom controls never hide — not on scroll, not on a tap — and there is no progress
-/// line. The text is inset so its first and last lines clear the bars. ‹ swipe-back still pops.
+/// Reader sheet chrome (docs/NAVIGATION.md): like the browser's search bar / toolbar, its header
+/// (grabber, back pill) and its bottom row (the Now Playing bar, 🔖, Listen, ⋯) never hide — not
+/// on scroll, not on a tap — and there is no progress line. The text sits between them, so its
+/// first and last lines clear both. A pull down on the header closes it, like the back pill.
 final class ReaderChromeUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
@@ -96,73 +97,95 @@ final class ReaderChromeUITests: XCTestCase {
         }
 
         let close = app.buttons["readerClose"]
-        let title = app.staticTexts["readerTitle"]
-        let play = app.buttons["listenPlayPause"]
-        let scrubber = el(app, "readerScrubber")
+        let listen = app.buttons["listenPlayPause"]
+        let more = app.buttons["readerMore"]
         XCTAssertTrue(close.waitForExistence(timeout: 10))
         waitForArticleText(app)
-        let titleFrame = title.frame, playFrame = play.frame
+        let closeFrame = close.frame, listenFrame = listen.frame
 
         // Scrolling down: nothing moves or hides, no progress line.
         scrollDown(app)
         scrollDown(app)
         wait(0.8)
-        XCTAssertTrue(shown(app, title) && shown(app, play), "bars stay while scrolling down")
-        XCTAssertEqual(title.frame, titleFrame, "top row didn't move")
-        XCTAssertEqual(play.frame, playFrame, "listen row didn't move")
+        XCTAssertTrue(shown(app, close) && shown(app, listen), "bars stay while scrolling down")
+        XCTAssertEqual(close.frame, closeFrame, "header didn't move")
+        XCTAssertEqual(listen.frame, listenFrame, "bottom row didn't move")
         XCTAssertFalse(el(app, "readerProgressLine").exists, "no progress line")
 
         // A tap on the text doesn't toggle anything.
         tapText(app)
-        XCTAssertTrue(shown(app, close) && shown(app, play), "tap on the text leaves the bars")
+        XCTAssertTrue(shown(app, close) && shown(app, listen), "tap on the text leaves the bars")
         tapText(app)
-        XCTAssertTrue(shown(app, close) && shown(app, play))
+        XCTAssertTrue(shown(app, close) && shown(app, listen))
 
-        // Scrolled to the end, the last line sits above the bottom controls.
+        // Scrolled to the end, the last line sits above the bottom row.
         scrollToEnd(app)
-        XCTAssertEqual(play.frame, playFrame, "still in place at the end")
+        XCTAssertEqual(listen.frame, listenFrame, "still in place at the end")
         let lastBottom = paragraphFrames(app).map(\.maxY).max() ?? 0
-        let barTop = scrubber.frame.minY - 4 - 8 // capsule padding + band top padding
+        let barTop = listen.frame.minY - 8 // band top padding
         XCTAssertGreaterThan(lastBottom, barTop - 250, "the last paragraph is on screen")
-        XCTAssertLessThanOrEqual(lastBottom, barTop, "the last line clears the bottom bar")
+        XCTAssertLessThanOrEqual(lastBottom, barTop, "the last line clears the bottom row")
 
-        // The bars really take touches: play, pause.
-        touch(play)
-        XCTAssertTrue(waitFor(5) { play.label == "Pause" }, "play")
-        touch(play)
-        XCTAssertTrue(waitFor(5) { play.label == "Play" }, "pause")
-
-        // Jump mode: the tap picks a paragraph (starts playback).
-        touch(app.buttons["listenJump"])
-        XCTAssertTrue(el(app, "listenJumpHint").waitForExistence(timeout: 3))
-        tapText(app)
-        XCTAssertTrue(waitFor(8) { play.label == "Pause" }, "jump tap started playback")
-        touch(play)
-
-        // ⋯ menu open / closed keeps the reader; the back control closes it.
-        touch(app.buttons["readerMore"])
+        // ⋯ menu open / closed keeps the Reader.
+        touch(more)
         XCTAssertTrue(el(app, "moreMenuPanel").waitForExistence(timeout: 3))
         el(app, "moreMenuDismiss").tap()
         XCTAssertTrue(waitFor(3) { !el(app, "moreMenuPanel").exists })
         XCTAssertTrue(shown(app, close))
-        touch(close)
-        XCTAssertTrue(waitFor(3) { !close.exists }, "the back control closes the reader")
+
+        // ☝︎ then a tap on the text: that paragraph plays, and the Reader is now Now Playing.
+        touch(app.buttons["listenJump"])
+        XCTAssertTrue(el(app, "listenJumpHint").waitForExistence(timeout: 3))
+        tapText(app)
+        XCTAssertTrue(el(app, "nowPlayingFrom").waitForExistence(timeout: 5), "listening turns it into Now Playing")
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(waitFor(8) { play.label == "Pause" }, "jump tap started playback")
+        touch(play)
+        touch(app.buttons["readerClose"])
+        XCTAssertTrue(waitFor(3) { !el(app, "nowPlayingFrom").exists }, "⌄ closes Now Playing")
+        XCTAssertFalse(app.buttons["Back to Browser"].exists, "the Reader turned into Now Playing; none is left")
     }
 
-    func testBrowseReaderFirstLineClearsTopRow() throws {
+    func testBrowseReaderFirstLineClearsTheHeader() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-seedDemoArticle", "-seedDemoParagraphs", "40", "-openDemoInBrowseReader",
                                "-uiTesting", "-selectEngine", "apple"]
         app.launch()
-        let title = app.staticTexts["readerTitle"]
-        XCTAssertTrue(title.waitForExistence(timeout: 10))
+        let close = app.buttons["readerClose"]
+        XCTAssertTrue(close.waitForExistence(timeout: 10))
         wait(2)
         let texts = app.webViews.staticTexts.allElementsBoundByIndex.map(\.frame).filter { !$0.isEmpty && $0.maxY > 0 }
         let firstTop = texts.map(\.minY).min() ?? 0
-        XCTAssertGreaterThanOrEqual(firstTop, title.frame.maxY, "first line starts below the top row")
+        XCTAssertGreaterThanOrEqual(firstTop, close.frame.maxY, "first line starts below the back pill")
     }
 
-    func testLibraryReaderChromeStaysAndSwipeBackStillPops() throws {
+    /// With another page playing, the Now Playing bar sits above the Reader's bottom row, and the
+    /// text's last line clears the bar too.
+    func testLastLineClearsAnotherPagesBar() throws {
+        let app = launchTestPages(["-seedDemoArticle", "-seedDemoParagraphs", "40"])
+        openTestPage(app, "Next page")
+        listenHere(app)
+        find(app, "addressListen").tap() // paused: the bar stays, quietly
+        XCTAssertTrue(waitFor(5) { self.find(app, "addressListen").label != "Pause" })
+
+        app.buttons["browseLibrary"].tap()
+        let row = app.cells.staticTexts["Demo Listen Article"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 5))
+        let bar = el(app, "nowPlayingBar")
+        XCTAssertTrue(bar.waitForExistence(timeout: 5), "the other page's bar over the Reader's bottom row")
+        let listen = app.buttons["listenPlayPause"]
+        XCTAssertLessThan(bar.frame.maxY, listen.frame.minY, "the bar is above the bottom row")
+        waitForArticleText(app)
+
+        scrollToEnd(app)
+        let lastBottom = paragraphFrames(app).map(\.maxY).max() ?? 0
+        XCTAssertGreaterThan(lastBottom, bar.frame.minY - 250, "the last paragraph is on screen")
+        XCTAssertLessThanOrEqual(lastBottom, bar.frame.minY, "the last line clears the bar")
+    }
+
+    func testLibraryReaderChromeStaysAndPullDownCloses() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-seedDemoArticle", "-seedDemoParagraphs", "40", "-openLibrary",
                                "-uiTesting", "-selectEngine", "apple"]
@@ -181,15 +204,11 @@ final class ReaderChromeUITests: XCTestCase {
         XCTAssertTrue(shown(app, close) && shown(app, app.buttons["listenPlayPause"]), "bars stay")
         XCTAssertFalse(el(app, "readerProgressLine").exists)
 
-        // Edge swipe-back pops. (A synthesized x≈2 edge drag is occasionally not recognised on the
-        // Simulator — the known SwipeBackUITests flake — so it gets one more try.)
-        func edgeSwipe() {
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0.5)).withOffset(CGVector(dx: 2, dy: 0))
-            start.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.5)),
-                        withVelocity: .default, thenHoldForDuration: 0.05)
-        }
-        edgeSwipe()
-        if !waitFor(4, { row.isHittable }) { edgeSwipe() }
-        XCTAssertTrue(waitFor(5) { row.isHittable }, "swipe-back popped to the Saved list")
+        // A pull down on the header closes it, like the back pill.
+        let start = close.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).withOffset(CGVector(dx: 140, dy: 0))
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 420)),
+                    withVelocity: .default, thenHoldForDuration: 0)
+        XCTAssertTrue(waitFor(5) { !close.exists }, "pulled down")
+        XCTAssertTrue(waitFor(5) { row.isHittable }, "back on the Saved list")
     }
 }

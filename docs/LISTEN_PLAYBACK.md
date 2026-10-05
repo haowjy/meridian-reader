@@ -45,12 +45,35 @@ Rules:
 
 - Pause sends `.pause` to the engine; the phase turns paused on `becamePaused`, or at once when
   the engine snapshot already shows it paused.
-- Engines never clear the session. They emit `finished`; the session decides idle / finished and
-  whether to release the article.
+- Engines never clear the session. They emit `finished`; the session decides idle / finished.
+- At the end the engines stop, the audio session deactivates and the lock screen clears, but the
+  page stays bound in `finished`: the Now Playing bar keeps it with ▶ and "✓ Finished", and ▶
+  plays it again from the start. Only *Stop Listening* (the bar's long-press) unbinds it.
 - `toggle`: playing **or** the engine audible → pause; paused → resume; else play.
 - Seek (scrubber release) moves the playhead and offset; playing keeps playing from there, paused
   stays paused (the engine re-queues without sounding), prepared / finished just move where Play
   starts.
+
+### What you hear, as the screens see it
+
+`SpeechController` derives everything the screens show about what you hear from the session:
+
+- **`nowPlaying`** (`NowPlaying`): the bound page's key, canonical URL, title, source (its host),
+  artwork, where it plays from (`PlayingFrom.site(host:)`) and phase. nil only before anything has
+  played and after Stop Listening.
+- **`playState(of:)`** for a `ListenTarget` (`.page(key)`, or `.webPage(canonicalURL:)`, compared
+  as strings so a saved article with a pre-v2 random id still matches its page): `idle`,
+  `preparing` (the target of the current `beginPreparing` request, e.g. 🎧 while its page is
+  extracted; a newer request, Stop Listening and every other playback intent end it, and only a
+  request that `isStillPreparing` may start),
+  `playing`, or `paused` (`.prepared` and `.finished` show as paused). Every ▶ / ⏸ / 🎧 comes from
+  it.
+- **`press(_:start:)`**: playing → pause; paused → resume (from `.finished`, the session's `.replay`: both the paragraph and the
+  offset go back to the start); anything
+  else runs `start`, which replaces what is playing. Pressing never navigates.
+- **`nowPlayingContent()`**: Now Playing's reading content, asked of the injected
+  `NowPlayingContentResolving` (a saved article from its row; an unsaved page from the
+  `ReaderArticle` it was started with, kept in memory, so it isn't restored after a relaunch).
 
 ### Engine adapters (`ListenEngine`)
 
@@ -108,14 +131,18 @@ adapter keeps, bound or not. Adapters report facts; they own no bake policy and 
 
 Views bind to `phase` and the position (and the paragraph highlight derived from them), never a
 second "is playing" flag. The live offset is read only in small leaf views (`PlayheadReader`, the
-mini player's progress), so a tick redraws only those. Highlighting never scrolls the text; the
-user owns scroll (following their own scrub is the one exception, `NAVIGATION.md`).
+Now Playing bar's progress, Now Playing's sentence underline), so a tick redraws only those. The
+Reader never scrolls by itself; Now Playing follows the audio until you scroll (`NAVIGATION.md`).
 
 While the phase is playing but nothing is audible and more units remain (`isBufferingNext`), the
 listen bar shows a spinner and "Preparing next…". That is not paused.
 
-Reading progress is saved on each new paragraph, on pause / stop and when the scene leaves
-`.active`, not per tick (`ListenProgressReporter`).
+The listening position is saved from the session, whatever is on screen, by
+`ListeningProgressRecorder` (built at the composition root): `SpeechController.onProgress`
+reports each new paragraph and every phase change (pause, finish, stop, and the stop that comes
+before a page is replaced) synchronously, and the recorder also writes the live offset when the
+app leaves the foreground. Never per tick. It writes saved articles' position and the listen
+history (`SavedArticleProgressStore`); unsaved pages keep none.
 
 ## Rendering ahead (on-device engine)
 
@@ -314,8 +341,8 @@ accessory and check slots, min height 48), so state changes never move rows
 
 ## Background listening
 
-Leaving the app (Home, lock, app switcher) keeps Listen playing. Closing the reader keeps it
-playing too; the mini player takes over.
+Leaving the app (Home, lock, app switcher) keeps Listen playing. Closing Now Playing or a Reader
+keeps it playing too; the Now Playing bar shows it.
 
 **Audio session** (`ListenAudioSession`): `UIBackgroundModes: [audio]` (`project.yml`). Category
 `.playback`, mode `.spokenAudio`, no options: a mixable (ducking) session never becomes the Now
@@ -328,7 +355,8 @@ with `.notifyOthersOnDeactivation` on stop or finish.
 - `MPNowPlayingInfoCenter`: title = article, artist = "site · Paragraph N of M", album = site,
   chapter number and count, progress N/M, favicon artwork, rate 0 while paused. Shown while
   playing or paused; cleared on stop or finish.
-- `MPRemoteCommandCenter`: play, pause, togglePlayPause, nextTrack (next paragraph),
+- `MPRemoteCommandCenter` (decision D4: headphone and lock-screen skips are paragraph skips, like
+  the on-screen ⏮ ⏭): play, pause, togglePlayPause, nextTrack (next paragraph),
   previousTrack (previous paragraph, or restart paragraph 1) and changePlaybackRate (snapped to
   the listen-bar rates). Skip, seek and position commands are off.
 - Every command goes through `SpeechController.handleRemoteCommand` → `RemoteCommand.intent` →

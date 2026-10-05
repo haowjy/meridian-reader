@@ -99,8 +99,8 @@ struct PillSymbol: View {
     }
 }
 
-/// Pressed: the pill dims a little, like a system button.
-private struct PillPressStyle: ButtonStyle {
+/// Pressed: the pill (or the transport disc) dims a little, like a system button.
+struct PillPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .opacity(configuration.isPressed ? 0.7 : 1)
@@ -122,7 +122,7 @@ struct PillButtonGallery: View {
                 PillButton("Playing · Ch 24", systemImage: "waveform", style: .tinted) {}
             }
             PreviewState("inverted compact · Back to audio") {
-                PillButton("Back to audio", systemImage: "arrow.down", style: .inverted, size: .compact) {}
+                PillButton("Back to audio", style: .inverted, size: .compact) {}
             }
             PreviewState("disabled") {
                 PillButton("Listen", systemImage: "play.fill") {}.disabled(true)

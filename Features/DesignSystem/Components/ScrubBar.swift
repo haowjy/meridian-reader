@@ -2,30 +2,35 @@ import SwiftUI
 
 /// The scrubber's look: track, buffered spans, fill and thumb, at `value` (0…1). Grows a little
 /// while dragged. Draws only; the owner handles the drag (`ScrubBar`, the Reader's scrub row).
+/// On the player the fill and thumb are `playerInk` on a `playerTrack` track.
 struct ScrubTrack: View {
     let value: Double
     /// Spans that already have audio, as fractions of the track.
     var buffered: [ClosedRange<Double>] = []
     var isDragging = false
 
+    @Environment(\.onPlayerPalette) private var onPlayer
+
     var body: some View {
+        let fill = onPlayer ? Palette.playerInk : Palette.accent
+        let empty = onPlayer ? Palette.playerTrack : Palette.secondaryInk.opacity(0.22)
         GeometryReader { g in
             let w = max(1, g.size.width)
             let shown = min(max(0, value), 1)
             let thumb: CGFloat = isDragging ? 20 : 12
             let track: CGFloat = isDragging ? 6 : 4
             ZStack(alignment: .leading) {
-                Capsule().fill(Palette.secondaryInk.opacity(0.22)).frame(height: track)
+                Capsule().fill(empty).frame(height: track)
                 ForEach(Array(buffered.enumerated()), id: \.offset) { _, span in
                     Capsule()
-                        .fill(Palette.accent.opacity(0.28))
+                        .fill(fill.opacity(0.28))
                         .frame(width: max(track, w * (span.upperBound - span.lowerBound)), height: track)
                         .offset(x: w * span.lowerBound)
                 }
                 .accessibilityHidden(true)
-                Capsule().fill(Palette.accent).frame(width: w * shown, height: track)
+                Capsule().fill(fill).frame(width: w * shown, height: track)
                 Circle()
-                    .fill(Palette.accent)
+                    .fill(fill)
                     .frame(width: thumb, height: thumb)
                     .shadow(color: .black.opacity(isDragging ? 0.18 : 0), radius: 3, y: 1)
                     .offset(x: w * shown - thumb / 2)
@@ -56,6 +61,7 @@ struct ScrubBar: View {
     var accessibilityStep = 0.05
 
     @State private var dragValue: Double?
+    @Environment(\.onPlayerPalette) private var onPlayer
 
     var body: some View {
         HStack(spacing: Spacing.s) {
@@ -93,7 +99,7 @@ struct ScrubBar: View {
             Text("\(elapsed) · \(remaining)")
                 .typeStyle(.caption)
                 .monospacedDigit()
-                .foregroundStyle(Palette.secondaryInk)
+                .foregroundStyle(onPlayer ? Palette.playerSecondaryInk : Palette.secondaryInk)
                 .lineLimit(1)
                 .fixedSize()
                 .accessibilityHidden(true)
@@ -122,6 +128,10 @@ struct ScrubBarGallery: View {
             }
             PreviewState("finished") {
                 ScrubBar(value: 1, elapsed: "15:02", remaining: "0 min left") { _ in }
+            }
+            PreviewState("on the player, buffered ahead") {
+                ScrubBar(value: 0.42, buffered: [0.42...0.7], elapsed: "6:10", remaining: "9 min left") { _ in }
+                    .onPlayerPreview()
             }
         }
     }

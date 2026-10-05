@@ -3,12 +3,33 @@
 What the user sees is in `../../../docs/NAVIGATION.md`. This file holds what to keep in mind while
 changing the shell code.
 
-- **`ShellState` is the navigation model.** Surface (browser or library), the one sheet, the
-  reader overlay and its `ReaderOrigin` (derived from what is under it). Add a screen by adding a
-  case here, not a presentation flag in a view.
+- **`ShellState` is the navigation model** (what you see). Surface (browser or library), the
+  Reader sheet and its `ReaderOrigin` (derived from the surface), Now Playing, the one other sheet.
+  Add a screen by adding a case here, not a presentation flag in a view. It never stores what
+  you hear: `isHearing` (injected) asks the playback session, so `openReader` of the playing page
+  opens Now Playing.
+- **Layers** (`BrowseStartView.layers`): surface → Reader sheet → Now Playing → ⋯ menu → system
+  sheets. A covered layer is out of hit testing and hidden from VoiceOver. The `Sheet` component
+  animates its own rise and close and then calls its `onDismiss` (`readerDidClose`,
+  `nowPlayingDidClose`) with the presentation id it was shown with, so a close that lands late
+  can't remove a sheet shown since; each layer is `.id`'d by its presentation, so a replacement
+  starts fresh. Programmatic closes (Website, navigating) just remove it.
+- **Now Playing is the player sheet** (`Sheet(look: .player)`): deep jade in both appearances,
+  the dark colour scheme plus `onPlayerPalette` for what it holds. Its light status bar comes from
+  a clear window that takes no touches, shown just above the app's while the sheet is up
+  (`DesignSystem/Chrome/StatusBarStyle.swift`); SwiftUI's own route, a colour scheme for the
+  window, would flip the surface underneath. Nothing of the app's covers Now Playing (the Reader
+  sits under it); a system sheet over it (Voice settings, Share) leaves the strip above dark, so
+  light stays right there. During a pull the dim lifts, and `Sheet` lays a scrim under the
+  status bar (`PullDownLook.statusBarScrim`) that keeps the strip at the resting dim until the
+  sheet is removed: no switch of style mid-gesture, so nothing flickers.
+  `NowPlayingUITests.testTheStatusBarFollowsTheSurfaceOnTop` measures the clock's contrast
+  (`UITests/StatusBarContrast.swift`, ≥ 4.5:1) in screenshots, including after leaving the app
+  and coming back, and while a finger holds the sheet part way down.
 - **Shared look lives in `../DesignSystem/`**: tokens, `Motion`, `BottomChrome`, the morph
   overlay (`MorphMenu.swift`) and the components. This folder keeps what knows about the app:
-  `ShellState`, the ⋯ panel's rows (`MoreMenuPanel`), the mini player.
+  `ShellState`, the ⋯ panel's rows (`MoreMenuPanel`), the Now Playing bar on a surface
+  (`NowPlayingBarView`).
 - **The ⋯ morph menu measures its focus point** through a preference and places the panel from it.
   Ignore focus changes under 0.5 pt (`MorphMenu.isNewFocus`): pixel rounding of the placement
   nudges the measurement each pass, and without the threshold the panel re-places itself forever

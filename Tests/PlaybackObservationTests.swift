@@ -64,7 +64,7 @@ final class PlaybackObservationTests: XCTestCase {
             _ = speech.currentParagraphIndex
             _ = speech.isPrepared(sessionID: s.id)
             _ = speech.canSkipToNextParagraph
-            _ = speech.showsPauseIcon(for: s.id)
+            _ = speech.playState(of: .page(s.id))
             _ = speech.isBufferingNext
             _ = speech.renderNote
         }

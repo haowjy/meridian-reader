@@ -12,6 +12,8 @@ enum PlaybackPhase: Equatable, Sendable {
 /// What the UI / controller wants.
 enum PlaybackIntent: Equatable {
     case play(from: Int)
+    /// ▶ on a finished page: from the very start, whatever spot the voice finished at.
+    case replay
     case pause
     case resume
     case toggle
@@ -126,6 +128,13 @@ struct PlaybackSessionState: Equatable {
             // while first local unit prepares — reconcile snaps back if engine never starts.
             phase = .playing
             return [.enginePlay(from: clamped)]
+
+        case .replay:
+            guard isPrepared else { return [] }
+            playhead = 0
+            utf16Offset = 0
+            phase = .playing
+            return [.enginePlay(from: 0)]
 
         case .pause:
             guard engine.isAudible || engine.isPaused || phase == .playing || phase == .paused else { return [] }

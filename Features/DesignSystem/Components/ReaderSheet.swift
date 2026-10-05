@@ -5,7 +5,7 @@ import SwiftUI
 /// ```
 /// ┌──────────────────────────────────────┐
 /// │                 ───                  │ ← grabber
-/// │ ( ‹ Browser )                        │ ← back pill names what is underneath
+/// │ ( ‹ Browser )                    ☝︎  │ ← back pill names what is underneath; `accessory`
 /// │ … `text`: ReadingHeading, then serif │
 /// │   text on paper …                    │
 /// │ ╭ `bar` (the Now Playing bar) ─────╮ │ ← what you hear (always another page)
@@ -15,7 +15,7 @@ import SwiftUI
 ///
 /// The back pill, the grabber and a pull down all close it (`onClose`, after it has gone).
 /// 🔖 saves (tap) or files (long-press, `onSaveToFolder`). `more` is the ⋯ button.
-struct ReaderSheet<Reading: View, Bar: View, More: View>: View {
+struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View>: View {
     /// What is underneath: "Browser", "Library".
     let backTitle: String
     let listenTitle: String
@@ -25,6 +25,8 @@ struct ReaderSheet<Reading: View, Bar: View, More: View>: View {
     let onListen: () -> Void
     let onToggleSave: () -> Void
     var onSaveToFolder: (() -> Void)?
+    /// A control at the trailing end of the header row (☝︎ listen from a paragraph).
+    @ViewBuilder var accessory: Accessory
     @ViewBuilder var text: Reading
     @ViewBuilder var bar: Bar
     @ViewBuilder var more: More
@@ -34,6 +36,7 @@ struct ReaderSheet<Reading: View, Bar: View, More: View>: View {
             HStack {
                 SheetBackPill(title: backTitle)
                 Spacer(minLength: 0)
+                accessory
             }
             .padding(.horizontal, Spacing.pageMargin)
             .padding(.bottom, Spacing.xs)
@@ -47,6 +50,7 @@ struct ReaderSheet<Reading: View, Bar: View, More: View>: View {
                             saveButton
                             PlayStateButton(state: listenState, look: .pill(title: listenTitle, expands: true),
                                             action: onListen)
+                                .accessibilityIdentifier("listenPlayPause")
                             more
                         }
                     }
@@ -68,11 +72,24 @@ struct ReaderSheet<Reading: View, Bar: View, More: View>: View {
             including: onSaveToFolder == nil ? .subviews : .all
         )
         .accessibilityLabel(isSaved ? "Remove from Library" : "Save")
+        .accessibilityValue(isSaved ? "Saved" : "Not saved")
+        .accessibilityIdentifier("readerBookmark")
         .accessibilityActions {
             if let onSaveToFolder {
                 Button("Save to Folder…", action: onSaveToFolder)
             }
         }
+    }
+}
+
+extension ReaderSheet where Accessory == EmptyView {
+    init(backTitle: String, listenTitle: String, listenState: PlayState, isSaved: Bool,
+         onClose: @escaping () -> Void, onListen: @escaping () -> Void, onToggleSave: @escaping () -> Void,
+         onSaveToFolder: (() -> Void)? = nil, @ViewBuilder text: () -> Reading, @ViewBuilder bar: () -> Bar,
+         @ViewBuilder more: () -> More) {
+        self.init(backTitle: backTitle, listenTitle: listenTitle, listenState: listenState, isSaved: isSaved,
+                  onClose: onClose, onListen: onListen, onToggleSave: onToggleSave, onSaveToFolder: onSaveToFolder,
+                  accessory: { EmptyView() }, text: text, bar: bar, more: more)
     }
 }
 
@@ -84,6 +101,7 @@ struct SheetBackPill: View {
     var body: some View {
         PillButton(title, systemImage: "chevron.backward", style: .neutral, size: .compact) { dismissSheet() }
             .accessibilityLabel("Back to \(title)")
+            .accessibilityIdentifier("readerClose")
     }
 }
 
