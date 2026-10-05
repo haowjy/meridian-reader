@@ -253,7 +253,8 @@ opens Now Playing instead.
   `Palette.player…` tokens), with light status bar content and a heavier dim on the strip above
   it. A **title card** at the top of the text (it scrolls with the text) shows the artwork, the
   title and *site · N min left* (*✓ Finished* at the end). The text keeps the Reader's serif and
-  margins in **lyrics style**: the spoken paragraph in full ink, the others dimmed, no tint box.
+  margins in **lyrics style**: the spoken paragraph in full ink, the others dimmed, no tint box
+  (a paragraph pressed while ☝︎ is on is in full ink too).
   The *Back to audio* pill is light with dark text; the scrub capsule, the bubble and the jump
   hint sit on the player's card colour. The Reader stays on paper. A plain-text article (no
   reading HTML) shows its paragraphs on the same reading page, in both, so everything below
@@ -293,7 +294,8 @@ opens Now Playing instead.
     you can feel apart: a sentence or paragraph ticks when it is at least 7 pt wide on screen at
     the current speed, so at 1× a long article ticks on paragraphs and the finer speeds tick each
     sentence; either end of the track gives a firmer tick.
-  - **The bubble** (a card as wide as the band) shows the speed as a chip (½×, ¼×, Fine),
+  - **The bubble** (a card as wide as the band) shows the speed as a chip (½×, ¼×, Fine; dark
+    text on the accent),
     "¶ N of M · sentence k of n" and the sentence's first words. It sits just above the capsule
     and, once the finger slides up, rides 44 pt above the finger so the thumb never covers it; at
     large text sizes it wraps rather than truncating.

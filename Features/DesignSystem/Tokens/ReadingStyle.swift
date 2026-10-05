@@ -8,7 +8,8 @@ import UIKit
 ///   accent underline for the spoken sentence.
 /// - `player` (Now Playing), lyrics style on deep jade in both appearances: the spoken paragraph
 ///   in full `playerInk`, the others dimmed (`playerDimInk`), the sentence underlined in
-///   `playerInk`, no tint. With nothing spoken (finished) every paragraph is full ink. The title
+///   `playerInk`, no tint. With nothing spoken (finished) every paragraph is full ink, as is a
+///   paragraph pressed in jump mode (on the accent wash, dimmed ink would not read). The title
 ///   card is a native view over a slot at the top of the page (`.reader-top`).
 ///
 /// Sizes are CSS variables (`--body`, `--title`, `--caption`), so a Dynamic Type change updates
@@ -80,6 +81,7 @@ enum ReadingStyle {
             body.reader-has-active .reader-active { color: var(--ink); }
             [data-reader-index] { transition: color \(Motion.standardResponse)s ease-out; }
             @media (prefers-reduced-motion: reduce) { [data-reader-index] { transition: none; } }
+            body.reader-jump [data-reader-index]:active { color: var(--ink); }
             .reader-top { margin: 0 0 \(Int(Spacing.l))px; }
             """
         }
@@ -111,7 +113,9 @@ enum ReadingStyle {
           outline: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
           outline-offset: 3px;
         }
-        body.reader-jump [data-reader-index]:active { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+        body.reader-jump [data-reader-index]:active {
+          background: color-mix(in srgb, var(--accent) \(Int((Palette.washOpacity * 100).rounded()))%, transparent);
+        }
         """
     }
 

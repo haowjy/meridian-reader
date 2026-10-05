@@ -73,12 +73,11 @@ struct NowPlayingControls: View {
                 } label: {
                     Text(speech.showBakeDebugOverlay ? "Debug ▾" : "Debug")
                         .typeStyle(.caption, weight: .semibold)
+                        .foregroundStyle(Palette.playerInk)
                         .padding(.horizontal, Spacing.xs)
                         .padding(.vertical, Spacing.xxs)
                         .background(
-                            Capsule().fill(speech.showBakeDebugOverlay
-                                           ? Palette.playerAccent.opacity(0.2)
-                                           : Palette.playerSecondaryInk.opacity(0.15))
+                            Capsule().fill(speech.showBakeDebugOverlay ? Palette.playerAccentWash : Palette.playerCard)
                         )
                 }
                 .buttonStyle(.plain)

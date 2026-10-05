@@ -3,7 +3,8 @@ import XCTest
 @testable import Reader
 
 /// The palette's text pairs keep 4.5:1: the app's in both appearances, the player's (Now Playing,
-/// one value in both) on each of its backgrounds.
+/// one value in both) on each of its backgrounds, and what sits on a translucent fill, composited
+/// where the screens use it.
 final class ColorContrastTests: XCTestCase {
     func testTextColoursKeepContrastInBothAppearances() {
         let backgrounds: [(String, Color)] = [
@@ -55,6 +56,68 @@ final class ColorContrastTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(ratio(Palette.playerInk, on: Palette.playerDimInk), 2,
                                         "playerInk stands out from playerDimInk, \(style.rawValue)")
         }
+    }
+
+    /// Translucent fills, composited on what is under them where the screens use them, against
+    /// what sits on them: text at 4.5:1, a glyph at 3:1 (WCAG's non-text contrast).
+    func testWhatSitsOnATranslucentFillKeepsContrast() {
+        struct Case {
+            let name: String
+            let fore: Color
+            let fill: Color
+            let under: Color
+            var minimum: CGFloat = 4.5
+        }
+        let pressedWash = Palette.accent.opacity(Palette.washOpacity)
+        let pressedPlayerWash = Palette.playerAccent.opacity(Palette.washOpacity)
+        let cases = [
+            // The scrub bubble's speed chip (½× / ¼× / Fine): a solid accent fill.
+            Case(name: "speed chip", fore: Palette.onPlayerAccent, fill: Palette.playerAccent, under: Palette.playerCard),
+            // ☝︎ while on, in the scrub capsule.
+            Case(name: "Jump on", fore: Palette.playerAccent, fill: Palette.playerAccentWash,
+                 under: Palette.playerCard, minimum: 3),
+            // The debug chip, on the player's text.
+            Case(name: "debug chip on", fore: Palette.playerInk, fill: Palette.playerAccentWash,
+                 under: Palette.playerBackground),
+            // A paragraph pressed in jump mode: full ink on the reading page's wash.
+            Case(name: "pressed paragraph, player", fore: Palette.playerInk, fill: pressedPlayerWash,
+                 under: Palette.playerBackground),
+            Case(name: "pressed paragraph, Reader", fore: Palette.ink, fill: pressedWash, under: Palette.paper),
+            // The title card's artwork letter, on its tile.
+            Case(name: "artwork letter, player", fore: Palette.playerSecondaryInk, fill: Palette.playerTrack,
+                 under: Palette.playerCard),
+            Case(name: "artwork letter", fore: Palette.secondaryInk, fill: Palette.chrome, under: Palette.paper),
+            // The status bar strip above the player: light status bar content on the dim behind
+            // the sheet, over the lightest surface there can be (a white web page).
+            Case(name: "status bar over the player's dim", fore: .white,
+                 fill: .black.opacity(SheetLook.player.maxDim), under: .white),
+        ]
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            let traits = UITraitCollection(userInterfaceStyle: style)
+            for c in cases {
+                let back = Self.composite(UIColor(c.fill).resolvedColor(with: traits),
+                                          over: UIColor(c.under).resolvedColor(with: traits))
+                let ratio = Self.contrast(UIColor(c.fore).resolvedColor(with: traits), back)
+                XCTAssertGreaterThanOrEqual(ratio, c.minimum, "\(c.name), \(style.rawValue): \(ratio)")
+            }
+        }
+    }
+
+    /// The washes are translucent, so the check above composites them.
+    func testWashesAreTranslucent() {
+        var (r, g, b, alpha): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        UIColor(Palette.playerAccentWash).getRed(&r, green: &g, blue: &b, alpha: &alpha)
+        XCTAssertEqual(alpha, Palette.washOpacity, accuracy: 0.01)
+    }
+
+    /// `fill` (with its alpha) over the opaque `under`.
+    private static func composite(_ fill: UIColor, over under: UIColor) -> UIColor {
+        var (fr, fg, fb, fa): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        var (ur, ug, ub, ua): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        fill.getRed(&fr, green: &fg, blue: &fb, alpha: &fa)
+        under.getRed(&ur, green: &ug, blue: &ub, alpha: &ua)
+        func mix(_ f: CGFloat, _ u: CGFloat) -> CGFloat { f * fa + u * (1 - fa) }
+        return UIColor(red: mix(fr, ur), green: mix(fg, ug), blue: mix(fb, ub), alpha: 1)
     }
 
     private static func contrast(_ a: UIColor, _ b: UIColor) -> CGFloat {

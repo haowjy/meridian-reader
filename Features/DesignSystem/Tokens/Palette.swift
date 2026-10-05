@@ -61,6 +61,15 @@ enum Palette {
     static let playerAccent = Color(light: 0x5FB8A0, dark: 0x5FB8A0)
     /// Glyphs on a `playerAccent` fill.
     static let onPlayerAccent = Color(light: 0x141416, dark: 0x141416)
+
+    // MARK: Washes (translucent fills)
+
+    /// How strong an accent wash is: a tint of the accent behind a glyph in that accent (☝︎ while
+    /// on) or text in ink (a paragraph pressed in jump mode). What sits on one is checked for
+    /// contrast against the wash composited on what is under it.
+    static let washOpacity = 0.15
+    /// `playerAccent` as a wash on the player.
+    static let playerAccentWash = playerAccent.opacity(washOpacity)
 }
 
 extension EnvironmentValues {

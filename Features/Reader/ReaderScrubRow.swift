@@ -134,7 +134,7 @@ struct ReaderScrubRow: View {
                 Image(systemName: jumpMode ? "hand.tap.fill" : "hand.tap")
                     .foregroundStyle(jumpMode ? Palette.playerAccent : Palette.playerSecondaryInk)
                     .fieldControlFrame()
-                    .background(Circle().fill(jumpMode ? Palette.playerAccent.opacity(0.15) : Color.clear))
+                    .background(Circle().fill(jumpMode ? Palette.playerAccentWash : Color.clear))
             }
             .buttonStyle(.plain)
             .disabled(!jumpEnabled)
@@ -321,10 +321,10 @@ private struct ReaderScrubBubbleView: View {
             if let chip = bubble.speed.chip {
                 Text(chip)
                     .typeStyle(.caption, weight: .bold)
-                    .foregroundStyle(Palette.playerAccent)
+                    .foregroundStyle(Palette.onPlayerAccent)
                     .padding(.horizontal, Spacing.xs)
                     .padding(.vertical, Spacing.xxs)
-                    .background(Palette.playerAccent.opacity(0.15), in: Capsule())
+                    .background(Palette.playerAccent, in: Capsule())
                     .accessibilityLabel(bubble.speed.label ?? chip)
                     .accessibilityIdentifier("readerScrubSpeed")
             }
