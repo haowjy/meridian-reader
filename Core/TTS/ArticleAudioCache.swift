@@ -244,22 +244,45 @@ final class ArticleAudioCache {
         directory(for: articleID).appendingPathComponent(String(format: "p-%04d.caf", paragraphIndex))
     }
 
-    /// File half of baking a paragraph, safe off the main actor: stitch `chunkURLs` beside
-    /// `dest`, then rename it over `dest`. Never a write into `dest`: an old-voice CAF at that
-    /// path may be playing right now, and its player keeps reading the old file. Then
-    /// `recordParagraph` on the main actor.
-    nonisolated static func stitchParagraph(_ chunkURLs: [URL], to dest: URL) throws -> ChunkAudioStitcher.Result {
-        let fm = FileManager.default
-        let dir = dest.deletingLastPathComponent()
-        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        let staging = dir.appendingPathComponent(".stitch-" + dest.lastPathComponent)
-        defer { try? fm.removeItem(at: staging) }
+    /// A name of its own to stitch paragraph `paragraphIndex` into, inside the chunk scratch of
+    /// its text: no index lists it and no alignment touches it, and the launch's scratch cleanup
+    /// removes one an app died with.
+    func stitchingURL(articleID: UUID, paragraphIndex: Int, textHash: String) -> URL {
+        chunkDirectory(articleID: articleID, paragraphIndex: paragraphIndex, textHash: textHash)
+            .appendingPathComponent("paragraph-" + UUID().uuidString.prefix(8) + ".caf")
+    }
+
+    /// File half of baking a paragraph, safe off the main actor: stitch `chunkURLs` into
+    /// `staging` (`stitchingURL`). `publishParagraph` then puts it in place on the main actor.
+    nonisolated static func stitchParagraph(_ chunkURLs: [URL], to staging: URL) throws -> ChunkAudioStitcher.Result {
         let result = try ChunkAudioStitcher.stitch(chunkURLs, to: staging)
-        guard hasAudio(at: staging) else { throw emptyAudioError(dest.lastPathComponent) }
-        guard rename(staging.path, dest.path) == 0 else {
-            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        guard hasAudio(at: staging) else {
+            try? FileManager.default.removeItem(at: staging)
+            throw emptyAudioError(staging.lastPathComponent)
         }
         return result
+    }
+
+    /// Index half of baking a paragraph: renames the stitched file over `p-NNNN.caf` and records
+    /// it, in one main-actor step, so no alignment (`reconcile`, `rekeyCache`) runs between the
+    /// file and its entry. A rename, never a write into `p-NNNN.caf`: an old-voice CAF there may
+    /// be playing right now, and its player keeps reading the old file.
+    func publishParagraph(
+        staged: URL,
+        articleID: UUID,
+        paragraphIndex: Int,
+        duration: TimeInterval,
+        engineID: String,
+        voiceID: String,
+        textHash: String,
+        chunkDurations: [Double]?
+    ) throws {
+        let dest = paragraphFileURL(articleID: articleID, paragraphIndex: paragraphIndex)
+        guard rename(staged.path, dest.path) == 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        try recordParagraph(articleID: articleID, paragraphIndex: paragraphIndex, duration: duration,
+                            engineID: engineID, voiceID: voiceID, textHash: textHash, chunkDurations: chunkDurations)
     }
 
     /// Index half of storing a paragraph whose CAF is already at `paragraphFileURL`.

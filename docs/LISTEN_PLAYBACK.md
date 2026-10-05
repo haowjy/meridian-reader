@@ -293,10 +293,15 @@ highlight and the paragraph picker stay fine-grained.
   (`ArticleAudioCacheCrashTests` stops each change at every step). A key with no directory takes
   another's whole, in one rename.
 - Chunk scratch: `chunks/p-NNNN-<texthash>/c-KK.caf`. Once every chunk of a paragraph exists the
-  worker stitches them off the main actor into `.stitch-p-NNNN.caf` and renames it over
-  `p-NNNN.caf` (a CAF that may be playing is never written into), then records it on the main
-  actor. Replays use the stitched file. Scratch is disposable at launch; while an article has a
-  queue job, scratch whose text hash still matches its paragraphs is kept
+  worker stitches them off the main actor into a file of their own in that scratch
+  (`paragraph-<id>.caf`). Back on the main actor it is published only if the queue still wants
+  that text on that paragraph: its job still has the article with the same text hash there
+  (an alignment of the article's audio, opening it with newer text, or clearing, deleting or
+  rekeying it may have landed meanwhile); otherwise it is dropped. Publishing renames it over
+  `p-NNNN.caf` (a CAF that may be playing is never written into) and records it in the same
+  main-actor step, so no alignment runs between the file and its entry
+  (`RenderPublicationTests`). Replays use the stitched file. Scratch is disposable at launch;
+  while an article has a queue job, scratch whose text hash still matches its paragraphs is kept
   (`removeChunkScratch(for:keepingCurrent:)`), because every extra Kokoro call is exposure to the
   libBNNS crash (`BrowseSaveWhilePlayingTests` pins the call count).
 - **Keys** (`ARTICLE_IDENTITY.md`): one per canonical URL, saved or not. Leaving an unsaved
