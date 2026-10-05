@@ -174,9 +174,9 @@ existing: the audio cache's changes are copy-on-write (`LISTEN_PLAYBACK.md`, Aud
 work stopped at any step is done again from what is on disk, losing nothing. The resume point
 moves only from where the work found it. Before it changes any audio, a record is checked against
 the committed page: layout work for a page that holds other paragraphs now is dropped (the page's
-audio is aligned with what it holds when it opens); a merge aligns the merged audio with what the
-kept page holds now, and if the kept page has been deleted, leaves that audio to the cache's age
-prune.
+audio is aligned with what it holds when it opens); a merge aligns the merged audio, and moves
+the resume point, onto what the kept page holds now, and if the kept page has been deleted,
+leaves that audio to the cache's age prune.
 
 **`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
 `urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,

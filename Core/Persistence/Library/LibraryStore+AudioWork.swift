@@ -83,7 +83,7 @@ extension LibraryStore {
         work.resumeParagraph = point.paragraph
         work.resumeAt = point.at
         point.articleKey = target.uuidString
-        point.paragraph = Self.mapParagraph(point.paragraph, for: work)
+        point.paragraph = Self.mapParagraph(point.paragraph, for: work, onto: work.paragraphs)
         audioPlan.resume = point
     }
 
@@ -190,7 +190,7 @@ extension LibraryStore {
                                                           fillGapsFromTopAfterPriority: job.fillGapsFromTopAfterPriority,
                                                           paragraphCount: new.count))
         }
-        moveResumePoints(work, live: live)
+        moveResumePoints(work, onto: new, live: live)
         ListenTimingLog.log("library_audio_work", [
             "kind": "align", "key": ListenTimingLog.shortKey(key), "leftover": !live,
             "audio_kept": rec.kept, "audio_moved": rec.remapped, "audio_dropped": rec.dropped,
@@ -201,9 +201,10 @@ extension LibraryStore {
 
     /// The merged page's audio fills the kept page's paragraphs it has none for (by text), its
     /// directory and pending render go, and the resume point, the crash target and the live
-    /// session follow onto the kept page. Its audio is aligned with the paragraphs the committed
-    /// kept page holds: if they changed since this was planned, the merged audio still finds its
-    /// paragraphs by text, but the kept page's is no longer stamped against the planned ones. If
+    /// session follow onto the kept page. Its audio and the resume point are aligned with the
+    /// paragraphs the committed kept page holds: if they changed since this was planned, the
+    /// merged audio and the resume point still find their paragraphs by text, but the kept page's
+    /// audio is no longer stamped against the planned ones. If
     /// the kept page is gone (deleted since), no page holds the merged audio: it is left to the
     /// cache's age prune, as a deleted page's own would have gone.
     private func merge(_ work: LibraryAudioWork, live: Bool) throws {
@@ -236,7 +237,7 @@ extension LibraryStore {
         }
         tts.synthQueue.remove(cacheKey: from)
         PendingBakeJobStore.shared.removePending(articleID: from)
-        moveResumePoints(work, live: live)
+        moveResumePoints(work, onto: paragraphs, live: live)
         keyMerged(from, to)
         ListenTimingLog.log("library_audio_work", [
             "kind": "merge", "key": ListenTimingLog.shortKey(to), "from": ListenTimingLog.shortKey(from),
@@ -246,13 +247,15 @@ extension LibraryStore {
     }
 
     /// The crash-resume file and the crash target launch read from it (or from the crash
-    /// marker) follow the work. The file moves only if it is still where the plan found it, so
-    /// doing the work again never moves it twice. The target in memory moves with any paragraph
-    /// when this process planned the work (it was read before); for work left by an earlier
-    /// launch, only if it still holds the file's old point.
-    private func moveResumePoints(_ work: LibraryAudioWork, live: Bool) {
+    /// marker) follow the work, onto `paragraphs`: the destination's paragraphs its audio was
+    /// just aligned with (for a merge, what the kept page holds now, which may differ from what
+    /// was planned). The file moves only if it is still where the plan found it, so doing the
+    /// work again never moves it twice. The target in memory moves with any paragraph when this
+    /// process planned the work (it was read before); for work left by an earlier launch, only if
+    /// it still holds the file's old point.
+    private func moveResumePoints(_ work: LibraryAudioWork, onto paragraphs: [String], live: Bool) {
         guard let source = work.sourceKey, let target = work.key else { return }
-        let map = { (p: Int) in Self.mapParagraph(p, for: work) }
+        let map = { (p: Int) in Self.mapParagraph(p, for: work, onto: paragraphs) }
         if let paragraph = work.resumeParagraph, let at = work.resumeAt {
             let store = ListenResumePointStore.shared
             if let point = store.load(), point.matches(source), point.paragraph == paragraph,
@@ -266,11 +269,11 @@ extension LibraryStore {
 
     // MARK: - Positions
 
-    /// A paragraph index on the work's source paragraphs, on its target paragraphs: the same
-    /// sentence for a rebuilt page (`align`); for a merge, the kept page's paragraph with the
-    /// same text (the nearest, if several), else the same index within its length.
-    static func mapParagraph(_ paragraph: Int, for work: LibraryAudioWork) -> Int {
-        let from = work.sourceParagraphs, to = work.paragraphs
+    /// A paragraph index on the work's source paragraphs, on the destination's paragraphs `to`:
+    /// the same sentence for a rebuilt page (`align`); for a merge, the kept page's paragraph
+    /// with the same text (the nearest, if several), else the same index within its length.
+    static func mapParagraph(_ paragraph: Int, for work: LibraryAudioWork, onto to: [String]) -> Int {
+        let from = work.sourceParagraphs
         switch work.kind {
         case .align:
             guard !to.isEmpty else { return 0 }

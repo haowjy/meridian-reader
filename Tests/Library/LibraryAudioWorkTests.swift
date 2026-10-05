@@ -522,6 +522,35 @@ final class LibraryAudioWorkTests: XCTestCase {
         XCTAssertTrue(pendingWork().isEmpty)
     }
 
+    /// A merge that couldn't finish waits, with the crash-resume point on the merged page's
+    /// "Alpha one."; meanwhile the kept page's paragraphs are reordered. Next launch the resume
+    /// point, and the crash target read at launch, land where the kept page holds "Alpha one."
+    /// now: on the same paragraphs its audio is aligned with, not the ones planned.
+    func testAWaitingMergeMovesTheResumePointOntoWhatTheKeptPageHoldsNow() throws {
+        let (rows, _) = try distinctDuplicateRows(env)
+        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: rows.merged) }
+        ListenResumePointStore.shared.save(article: rows.merged, paragraph: 0, at: date(2))
+        env.cache.faultHook = { _ in throw Died() }
+        XCTAssertTrue(library.migrateLegacy().saved)
+        XCTAssertEqual(pendingWork().count, 1, "waiting")
+        env.cache.faultHook = nil
+
+        let reordered = ["Gamma three.", "Alpha one.", "Beta changed."]
+        refresh("https://example.com/dup", title: "Legacy", to: reordered)
+        XCTAssertEqual(library.page(key: rows.kept)?.cachedListenParagraphs, reordered)
+
+        try env.relaunch()
+        env.tts.pendingResume = ListenResumeTarget(articleKey: rows.merged.uuidString, paragraph: 0, at: date(2))
+        XCTAssertEqual(library.finishAudioWork().finished, 1)
+        XCTAssertEqual(env.cache.entry(articleID: rows.kept, paragraphIndex: 1)?.textHash,
+                       ArticleIdentity.paragraphHash("Alpha one."), "the audio follows what the kept page holds")
+        let resume = try XCTUnwrap(ListenResumePointStore.shared.load())
+        XCTAssertEqual(resume.articleKey, rows.kept.uuidString)
+        XCTAssertEqual(resume.paragraph, 1, "the resume point is on \"Alpha one.\" too")
+        XCTAssertEqual(env.tts.pendingResume.map { $0.matches(rows.kept) }, true)
+        XCTAssertEqual(env.tts.pendingResume?.paragraph, 1, "and so is the crash target")
+    }
+
     /// A merge that couldn't finish waits; meanwhile the kept page is deleted. Next launch no page
     /// holds the merged audio: it is left to the cache's age prune, not moved under a deleted key.
     func testAWaitingMergeWhoseKeptPageIsDeletedLeavesItsAudioToTheAgePrune() throws {
