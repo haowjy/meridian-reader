@@ -120,7 +120,10 @@ store would drop entities it doesn't know; a file it never opens survives a roll
 models are CloudKit-shaped: every property optional or defaulted, no `.unique`, relationships
 optional with `.nullify`; one page per canonical URL is kept by `LibraryStore` and the launch
 dedupe pass. Every library read and write goes through `LibraryStore`; lists use
-`LibraryQueries`.
+`LibraryQueries`. A save that fails is rolled back (`LibraryStore.rollBack`), and each model the
+change touched is then fetched again: SwiftData's rollback alone leaves a folder or page already
+in memory showing the rolled-back values, which whatever holds it (the progress recorder, a
+screen) would go on reading.
 
 **`Page`** (library):
 

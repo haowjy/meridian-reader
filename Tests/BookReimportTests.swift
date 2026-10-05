@@ -152,9 +152,7 @@ final class BookReimportTests: XCTestCase {
         PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == key }
     }
 
-    /// Checked on disk: after a failed save SwiftData's rollback can leave a model already in
-    /// memory showing the values it rolled back, while the store and fresh fetches hold the old
-    /// ones.
+    /// Checked on disk, after a relaunch: what the store holds, not only what the context shows.
     func testAFailedReplaceKeepsEveryPageAndItsAudio() throws {
         env.cleanUp()
         env = try LibraryTestEnvironment(fileBacked: true)
@@ -194,6 +192,50 @@ final class BookReimportTests: XCTestCase {
         XCTAssertFalse(pendingRender(three))
         XCTAssertEqual(ready(two), [0, 2])
         XCTAssertTrue(audioWork().isEmpty, "the work is done and retired")
+    }
+
+    /// The book screen holds the folder and the progress recorder holds a chapter's page: after a
+    /// failed Replace they read what the store holds, without a fetch or a relaunch, and a later
+    /// save writes none of the replacement.
+    func testAFailedReplaceLeavesTheBookAndChaptersTheAppHoldsAsTheyWere() throws {
+        let book = try addBook()
+        let (p1, p2, p3) = (try XCTUnwrap(page(one)), try XCTUnwrap(page(two)), try XCTUnwrap(page(three)))
+        library.recordPosition(p2, paragraph: 1, utf16Offset: 3)
+        library.recordPlayback(ReaderArticle(page: p3))
+        library.recordFinished(p3)
+        let finished = try XCTUnwrap(book.finishedAt, "the last chapter finished the book")
+
+        var newDetails = details
+        newDetails.byline = "Ben Sample"
+        let edited = ["Two begins.", "Two goes on, differently now.", "Two ends."]
+        library.saveContext = { _ in throw Died() }
+        XCTAssertThrowsError(try library.replaceBook(book, with: newDetails, chapters: [
+            chapter(one, 0, "One", textOne), chapter(two, 1, "Two, revised", edited), chapter(UUID(), 2, "Four", ["Four is new."]),
+        ])) { XCTAssertEqual($0 as? LibraryStoreError, .saveFailed) }
+
+        XCTAssertFalse(env.context.hasChanges)
+        XCTAssertEqual(book.byline, "Ada Example", "the book's details")
+        XCTAssertEqual(book.currentPageKey, three, "its place")
+        XCTAssertEqual(book.finishedAt, finished, "still finished")
+        XCTAssertEqual(Set((book.pages ?? []).compactMap(\.key)), [one, two, three], "its chapters, none inserted")
+        XCTAssertEqual(p2.title, "Two")
+        XCTAssertEqual(p2.byline, "Ada Example")
+        XCTAssertEqual(p2.cachedListenParagraphs, textTwo, "the edited chapter's text")
+        XCTAssertEqual(p2.positionParagraph, 1, "and position")
+        XCTAssertEqual(p2.positionUTF16, 3)
+        XCTAssertFalse(p3.isDeleted, "the dropped chapter")
+        XCTAssertTrue(p3.folder === book)
+        XCTAssertNotNil(p3.finishedAt)
+
+        library.saveContext = { try $0.save() }
+        library.recordPosition(p1, paragraph: 2, utf16Offset: 0)
+        let store = ModelContext(env.container)
+        let id: UUID? = book.id
+        let stored = try store.fetch(FetchDescriptor<Page>(predicate: #Predicate { $0.folderID == id }, sortBy: [SortDescriptor(\.sortKey)]))
+        XCTAssertEqual(stored.map(\.key), [one, two, three])
+        XCTAssertEqual(stored.map(\.positionParagraph), [2, 1, 0], "the later save wrote its own change")
+        XCTAssertEqual(stored[1].cachedListenParagraphs, textTwo, "and none of the replacement")
+        XCTAssertEqual(stored[1].title, "Two")
     }
 
     func testADroppedChaptersAudioWaitsBehindEarlierAudioWorkThatCantFinish() throws {

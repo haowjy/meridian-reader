@@ -70,12 +70,6 @@ extension LibraryStore {
         audioPlan.work.append(work)
     }
 
-    /// After a failed save: the context's changes and the work planned with them are dropped.
-    func rollBack() {
-        context.rollback()
-        audioPlan = LibraryAudioWorkPlan()
-    }
-
     private func nextAudioWorkSequence() -> Int {
         if audioPlan.work.isEmpty {
             var last = FetchDescriptor<LibraryAudioWork>(sortBy: [SortDescriptor(\.sequence, order: .reverse)])
