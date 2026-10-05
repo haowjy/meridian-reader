@@ -17,7 +17,9 @@ changing the shell code.
   is up (the browser's, the Library's, the Favorites sheet's, the Reader's `floating` slot, Now
   Playing's controls; the Move tree has no chrome, so it floats a toolbar row above that sheet's
   bottom: what shows of a medium-detent sheet ends above its content's bottom, which clips a toast
-  anchored there). `attempt` runs a change that can fail and shows its failure as a toast. A covered layer is out of hit testing and hidden from VoiceOver. The `Sheet` component
+  anchored there). Each layer showing the toast times it out (`ShellState.expireToast`); a layer
+  that goes away first, such as the Move tree closing as the toast comes up, leaves it showing.
+  `attempt` runs a change that can fail and shows its failure as a toast. A covered layer is out of hit testing and hidden from VoiceOver. The `Sheet` component
   animates its own rise and close and then calls its `onDismiss` (`readerDidClose`,
   `nowPlayingDidClose`) with the presentation id it was shown with, so a close that lands late
   can't remove a sheet shown since; each layer is `.id`'d by its presentation, so a replacement

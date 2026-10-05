@@ -422,6 +422,14 @@ final class ShellState {
         if toast?.id == id { toast = nil }
     }
 
+    /// Each place showing the toast shown as `id` waits `duration`, then dismisses it. A wait
+    /// that is cancelled (that place went away, such as a sheet closing just as the toast came
+    /// up) leaves it showing for the others, which wait their own time.
+    func expireToast(_ id: UUID, after duration: Duration) async {
+        guard (try? await Task.sleep(for: duration)) != nil else { return }
+        withAnimation(Motion.snappy) { dismissToast(id) }
+    }
+
     // MARK: - Library pages
 
     /// A library page in the Reader sheet (a row, a Continue card, a favorite): shown as soon as

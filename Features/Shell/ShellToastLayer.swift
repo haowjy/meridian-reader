@@ -4,7 +4,7 @@ import SwiftUI
 /// to (`.overlay(alignment: .top)` on a band): the browser's, the Library's, the Favorites
 /// sheet's, the Reader's, Now Playing's controls; the Move tree has none, so its toast floats a
 /// toolbar row above the sheet's bottom. It goes by itself after `Toast.duration` (longer when it has an
-/// action).
+/// action); a layer that disappears meanwhile doesn't take it with it (`ShellState.expireToast`).
 struct ShellToastLayer: View {
     @Environment(ShellState.self) private var shell
 
@@ -19,8 +19,7 @@ struct ShellToastLayer: View {
             .alignmentGuide(.top) { $0[.bottom] + Spacing.xs }
             .transition(.opacity)
             .task(id: toast.id) {
-                try? await Task.sleep(for: toast.actionTitle == nil ? Toast.duration : Toast.actionDuration)
-                withAnimation(Motion.snappy) { shell.dismissToast(toast.id) }
+                await shell.expireToast(toast.id, after: toast.actionTitle == nil ? Toast.duration : Toast.actionDuration)
             }
         }
     }
