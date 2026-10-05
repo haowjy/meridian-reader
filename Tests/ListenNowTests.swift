@@ -8,6 +8,7 @@ import XCTest
 final class ListenNowTests: XCTestCase {
     private var fixture: TestSpeech!
     private var container: ModelContainer!
+    private var library: LibraryStore!
     private let extractor = DelayedExtractor()
     private var speech: SpeechController { fixture.speech }
 
@@ -17,8 +18,8 @@ final class ListenNowTests: XCTestCase {
 
     override func setUp() async throws {
         fixture = TestSpeech()
-        container = try ModelContainer(for: SavedArticle.self, RecentVisit.self,
-                                       configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        container = try LibraryStoreConfiguration.makeInMemoryContainer()
+        library = LibraryStore(context: container.mainContext, tts: fixture.speech.localTTS)
     }
 
     override func tearDown() async throws { fixture.tearDown() }
@@ -29,14 +30,14 @@ final class ListenNowTests: XCTestCase {
 
     /// 🎧 on the page at `url`, extracting through `extractor`; returns the running request.
     private func tapListen(_ url: URL) -> Task<ListenNowOutcome, Never> {
-        let context = container.mainContext
+        let library = library!
         let extractor = extractor
         let speech = speech
         return Task {
-            await PageArticleService.listen(toPageAt: url, speech: speech, context: context) {
+            await PageArticleService.listen(toPageAt: url, speech: speech, library: library) {
                 let extracted = try await extractor.extract(from: ExtractionContext(url: url, pageTitle: nil,
                                                                                     htmlSnapshot: ""))
-                return ArticleLibrary.readerArticle(url: url, extracted: extracted, in: context)
+                return library.readerArticle(url: url, extracted: extracted)
             }
         }
     }
@@ -76,24 +77,24 @@ final class ListenNowTests: XCTestCase {
 
     func testSavedRowPlayDuringExtractionWins() async throws {
         _ = playA()
-        let c = ArticleLibrary.save(ReaderArticle(id: ArticleIdentity.articleKey(
+        let c = library.save(ReaderArticle(id: ArticleIdentity.articleKey(
             canonicalURL: ArticleIdentity.canonicalURLString(from: pageC)), url: pageC,
-            extracted: DelayedExtractor.article(title: "C")), in: container.mainContext)
+            extracted: DelayedExtractor.article(title: "C")))
         let request = tapListen(pageB)
         try await extractor.waitForPending()
 
         // The Saved row's ▶ (SavedListView).
-        speech.press(.page(c.id)) {
-            speech.toggle(.saved(c), resumeParagraph: c.playbackParagraphIndex,
-                          resumeUTF16Offset: c.playbackUTF16Offset)
+        speech.press(.page(c.listenKey)) {
+            speech.toggle(.page(c), resumeParagraph: c.positionParagraph,
+                          resumeUTF16Offset: c.positionUTF16)
         }
-        XCTAssertEqual(speech.playState(of: .page(c.id)), .playing)
+        XCTAssertEqual(speech.playState(of: .page(c.listenKey)), .playing)
         XCTAssertEqual(speech.playState(of: target(pageB)), .idle)
 
         extractor.finish(with: DelayedExtractor.article(title: "B"))
         guard case .superseded = await request.value else { return XCTFail("B was superseded") }
-        XCTAssertEqual(speech.nowPlaying?.pageKey, c.id, "C keeps playing")
-        XCTAssertEqual(speech.playState(of: .page(c.id)), .playing)
+        XCTAssertEqual(speech.nowPlaying?.pageKey, c.listenKey, "C keeps playing")
+        XCTAssertEqual(speech.playState(of: .page(c.listenKey)), .playing)
     }
 
     func testPausingWhatYouHearDuringExtractionStartsNothing() async throws {

@@ -17,13 +17,28 @@ enum AppComposition {
     /// The listening position recorder (lives as long as the app).
     private static var progressRecorder: ListeningProgressRecorder?
 
-    /// Connects the speech stack to the saved-article store: where Now Playing's text comes from,
-    /// and where listening positions are written. Once, with the app's main context.
-    static func attachLibrary(_ context: ModelContext) {
+    /// The library over `context`, connected to playback: deleting the playing page stops it
+    /// first, and a page merged by dedupe takes the live session's key with it.
+    static func makeLibrary(context: ModelContext) -> LibraryStore {
+        let speech = speechController
+        let library = LibraryStore(context: context, tts: speech.localTTS)
+        library.stopPlaybackIfPlaying = { key in
+            if speech.activeSessionID == key { speech.stop() }
+        }
+        library.keyMerged = { from, to in speech.rekeyActiveSession(from: from, to: to) }
+        // Before the first frame: the start page's grid queries Favorites by its id.
+        library.favorites()
+        library.commit("favorites")
+        return library
+    }
+
+    /// Connects the speech stack to the library: where Now Playing's text comes from, and where
+    /// listening positions are written. Once, with the app's library.
+    static func attachLibrary(_ library: LibraryStore) {
         guard progressRecorder == nil else { return }
-        speechController.contentResolver = SavedArticleContentResolver(context: context)
+        speechController.contentResolver = LibraryContentResolver(library: library)
         progressRecorder = ListeningProgressRecorder(speech: speechController,
-                                                     store: SavedArticleProgressStore(context: context))
+                                                     store: LibraryProgressStore(library: library))
     }
 
     static func makeProviders() -> [SpeechEngineProvider] {

@@ -19,8 +19,13 @@ final class LibraryStore {
     @ObservationIgnored let tts: LocalTTSCoordinator
     /// Stops playback when the page with this key is what's playing (before deleting its audio).
     @ObservationIgnored var stopPlaybackIfPlaying: (UUID) -> Void = { _ in }
-    /// The key of the page that last played; the prune never deletes it.
-    @ObservationIgnored var lastPlayedKey: () -> UUID? = { nil }
+    /// Dedupe merged the page with the first key into the page with the second: whatever holds
+    /// the first key outside the library (the live session, the last-played record) follows.
+    @ObservationIgnored var keyMerged: (UUID, UUID) -> Void = { _, _ in }
+    /// Favorites whose icon `backfillFavoriteIcons` already fetched this launch.
+    @ObservationIgnored var iconTried = Set<UUID>()
+    /// How `commit` saves; tests make it fail.
+    @ObservationIgnored var saveContext: (ModelContext) throws -> Void = { try $0.save() }
     @ObservationIgnored let legacy: LegacyLibrarySources
     @ObservationIgnored let now: () -> Date
 
@@ -104,7 +109,7 @@ final class LibraryStore {
     @discardableResult
     func commit(_ what: String) -> Bool {
         do {
-            try context.save()
+            try saveContext(context)
             return true
         } catch {
             log("save failed (\(what)): \(error)")
@@ -131,7 +136,7 @@ struct LegacyLibrarySources {
     var defaults: UserDefaults
 
     static var standard: LegacyLibrarySources {
-        LegacyLibrarySources(bookmarksURL: BookmarkStore.defaultFileURL,
+        LegacyLibrarySources(bookmarksURL: LegacyBookmarks.defaultFileURL,
                              ledgerURL: URL.applicationSupportDirectory.appending(path: "library-migration.json"),
                              defaults: .standard)
     }

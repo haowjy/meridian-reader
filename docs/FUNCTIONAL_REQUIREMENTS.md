@@ -20,10 +20,10 @@ the screens look and move: `NAVIGATION.md`. How it is built: `TECHNICAL_SPEC.md`
 |----|-------------|
 | B1 | The address field takes a URL (loaded in the in-app web view) or search text (a Google search). |
 | B2 | Pages open only by user action; links navigate normally. ‹ / › are web history. |
-| B3 | The start page shows bookmarks (an icon grid), **Continue listening** (saved articles part-way through, most recent first, with time left), recent **Saved** articles, and Recent Searches. |
+| B3 | The start page shows bookmarks (an icon grid), **Continue listening** (articles part-way through, saved or listened to in the last 7 days without saving, most recent first, with time left), recent **Saved** articles not bookmarked, and Recent Searches. |
 | B4 | While typing: local matches (history, saved articles) first, then live Google suggestions (unofficial endpoint, debounced). If Google fails, only local matches show, with no error. |
 | B5 | History keeps the last 30 visited pages (title, host, favicon), deduped by canonical URL. Clearing history never deletes saved articles. |
-| B6 | Bookmarks are site links (URL, title, favicon), independent of saved articles: bookmarking never saves, saving never bookmarks. |
+| B6 | Bookmarks are site links (URL, title, favicon): bookmarking never saves, saving never bookmarks. One page per address: bookmarking a saved article moves it from the library list to the bookmarks, still saved; unsaving a bookmarked article keeps the bookmark. |
 | B7 | Dictation fills the address field while searching, on-device where the language allows; nothing is submitted automatically, and listening pauses while the mic is open. |
 | B8 | Loading pages needs the network. |
 | B9 | A readable page shows 🎧 at the end of the address field: grey when it isn't what you hear (tap: listen now, replacing what plays once this page is extracted; "Nothing to listen to on this page" when it has too little text), accent with bars when it is (tap: pause / resume). |
@@ -46,7 +46,7 @@ the screens look and move: `NAVIGATION.md`. How it is built: `TECHNICAL_SPEC.md`
 | S1 | Save is available from the browser and the reader, and always runs extraction. |
 | S2 | On success the full article is stored on the device (text, cleaned HTML, metadata). |
 | S3 | On failure Save is blocked with the reason, and nothing is stored. |
-| S4 | One article per canonical URL: saving the same page twice (tracking parameters, fragments) keeps one row. |
+| S4 | One page per canonical URL: saving, bookmarking or listening to the same page twice (tracking parameters, fragments) keeps one page. |
 | S5 | The library lists title, site and date; search filters it; swipe deletes (with its audio). A row's play button plays without opening. |
 
 ## Listening
@@ -56,7 +56,7 @@ the screens look and move: `NAVIGATION.md`. How it is built: `TECHNICAL_SPEC.md`
 | P1 | Apple TTS is the default and always available. Kokoro (on-device, English, A15+) is optional: downloaded on selection, deletable, and used only once ready. Apple speaks whenever Kokoro can't (not downloaded, loading, failed, crashed, another language, a chunk it can't render). |
 | P2 | Playback never goes silent or freezes mid-article: anything the selected engine can't produce is spoken with Apple. |
 | P3 | Each article keeps one voice's audio; switching voice re-renders it, and the old voice plays until each paragraph is replaced. |
-| P4 | The position is remembered per article and resumed later; after a Kokoro crash the app reopens the article at the paragraph that was playing. |
+| P4 | The position is remembered per article and resumed later, for an article listened to without saving too (kept 7 days after it was last played); after a Kokoro crash the app reopens the article at the paragraph that was playing. |
 | P5 | Listening continues in the background, with lock-screen / Control Center controls (play, pause, next / previous paragraph, rate). Calls and unplugged headphones pause; a resumable interruption resumes. |
 | P6 | The article's language is detected; an article the selected engine can't speak uses an Apple voice for its language, without changing settings. |
 | P7 | Saved articles play fully offline. |

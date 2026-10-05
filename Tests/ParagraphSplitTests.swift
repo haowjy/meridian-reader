@@ -1,5 +1,4 @@
 import AVFoundation
-import SwiftData
 import XCTest
 @testable import Reader
 
@@ -204,7 +203,8 @@ final class ParagraphSplitTests: XCTestCase {
     }
 }
 
-/// Migration of saved articles + their audio cache to layout v3.
+/// Layout v3 alignment of an unsaved (ephemeral) cache when the browser opens a page. The
+/// library pages' migration is `LibraryLayoutMigrationTests`.
 @MainActor
 final class ParagraphLayoutMigrationTests: XCTestCase {
     private var cleanups: [() -> Void] = []
@@ -243,95 +243,6 @@ final class ParagraphLayoutMigrationTests: XCTestCase {
                                  duration: Double(samples.count) / 24_000, engineID: SpeechEngineID.kokoro.rawValue,
                                  voiceID: "kstub:af_heart", text: text,
                                  chunkDurations: lengths.count > 1 ? lengths.map { Double($0) / 24_000 } : nil)
-    }
-
-    private func int16Samples(_ url: URL) throws -> [Int16] {
-        let f = try AVAudioFile(forReading: url, commonFormat: .pcmFormatInt16, interleaved: true)
-        let b = AVAudioPCMBuffer(pcmFormat: f.processingFormat, frameCapacity: AVAudioFrameCount(f.length))!
-        try f.read(into: b)
-        return Array(UnsafeBufferPointer(start: b.int16ChannelData![0], count: Int(b.frameLength)))
-    }
-
-    func testSavedArticleMigrationKeepsPositionAndOnlyInvalidatesSplitAudio() throws {
-        let coordinator = makeCoordinator()
-        let cache = coordinator.audioCache
-        let container = try ModelContainer(for: SavedArticle.self, RecentVisit.self,
-                                           configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        let context = container.mainContext
-        let html = ParagraphSplitTests.chapterHTML
-        let title = "The Boscombe Valley Mystery"
-        let oldList = ParagraphDocument.forListening(plainText: "", cleanedHTML: html, matchingTitle: title, splitLong: false)
-        let iGiant = oldList.paragraphs.firstIndex { $0.hasPrefix("“The two McCarthys were seen") }!
-        let first = iGiant + 1 // the opening paragraph's split shifts the giant's first piece by one
-        let oldGiant = oldList.paragraphs[iGiant] as NSString
-        let offset = oldList.utf16Ranges[iGiant].location + oldGiant.range(of: "The head had been beaten").location
-
-        let row = SavedArticle(urlString: "https://example.com/classics/boscombe-valley",
-                               title: title, siteDomain: "example.com", cleanedHTML: html, plainText: "",
-                               wordCount: 2000, estimatedMinutes: 10, excerpt: "",
-                               playbackParagraphIndex: iGiant, playbackUTF16Offset: offset)
-        row.listenBlocksData = try JSONEncoder().encode(oldList.paragraphs)
-        row.listenBlocksVersion = 2
-        context.insert(row)
-        try context.save()
-
-        // Audio as rendered before the split: the giant, the paragraph after it and the last one.
-        let giantPlan = TextChunker.chunks(for: oldList.paragraphs[iGiant], limits: .kokoroCPU)
-        let lengths = giantPlan.indices.map { 2400 + 240 * $0 }
-        try writeStitched(cache, article: row.id, index: iGiant, text: oldList.paragraphs[iGiant], lengths: lengths)
-        let iAfter = iGiant + 1
-        try writeStitched(cache, article: row.id, index: iAfter, text: oldList.paragraphs[iAfter], lengths: [4800])
-        let iLast = oldList.count - 1
-        try writeStitched(cache, article: row.id, index: iLast, text: oldList.paragraphs[iLast], lengths: [4800])
-        ListenResumePointStore.shared.save(article: row.id, paragraph: iAfter)
-        // A crash-resume target read at coordinator init (before migration) — old numbering.
-        coordinator.pendingResume = ListenResumeTarget(articleKey: row.id.uuidString, paragraph: iAfter, at: Date())
-
-        let report = ArticleLibrary.migrateParagraphLayout(in: context, localTTS: coordinator)
-        XCTAssertEqual(report.articles, 1)
-        XCTAssertEqual(report.newParagraphs, report.oldParagraphs + 5)
-        XCTAssertEqual(report.splitParagraphs, 3)
-
-        let new = row.listenDocument()
-        XCTAssertEqual(row.listenBlocksVersion, ListenHTMLBlocks.version)
-        XCTAssertEqual(new.paragraphs, ParagraphDocument.forListening(plainText: "", cleanedHTML: html, matchingTitle: title).paragraphs)
-        // Position: same sentence ("The head had been beaten…" starts the giant's third piece).
-        XCTAssertEqual(row.playbackParagraphIndex, first + 2)
-        XCTAssertTrue(new.paragraphs[row.playbackParagraphIndex].hasPrefix("The head had been beaten"))
-        XCTAssertEqual(row.playbackUTF16Offset, new.utf16Ranges[first + 2].location)
-        // Crash-resume point follows its paragraph.
-        XCTAssertEqual(ListenResumePointStore.shared.load()?.paragraph, iAfter + 3)
-        XCTAssertEqual(coordinator.pendingResume?.paragraph, iAfter + 3, "in-memory crash target remapped too")
-
-        // Unsplit paragraphs keep their audio at the shifted index.
-        let entryAfter = cache.entry(articleID: row.id, paragraphIndex: iAfter + 3)
-        XCTAssertEqual(entryAfter?.textHash, ArticleIdentity.paragraphHash(oldList.paragraphs[iAfter]))
-        XCTAssertEqual(cache.entry(articleID: row.id, paragraphIndex: new.count - 1)?.textHash,
-                       ArticleIdentity.paragraphHash(oldList.paragraphs[iLast]))
-        // Split paragraph: a piece keeps audio only if its chunk plan lines up with the old chunks.
-        var from = 0
-        for k in 0..<3 {
-            let piece = new.paragraphs[first + k]
-            let plan = TextChunker.chunks(for: piece, limits: .kokoroCPU)
-            var q: Int?
-            var s = from
-            while s + plan.count <= giantPlan.count {
-                if Array(giantPlan[s..<(s + plan.count)]) == plan { q = s; break }
-                s += 1
-            }
-            let entry = cache.entry(articleID: row.id, paragraphIndex: first + k)
-            guard let q else { XCTAssertNil(entry, "misaligned piece \(k) must re-render"); continue }
-            from = q + plan.count
-            let e = try XCTUnwrap(entry, "aligned piece \(k) keeps audio")
-            XCTAssertEqual(e.textHash, ArticleIdentity.paragraphHash(piece))
-            let samples = try int16Samples(cache.directory(for: row.id).appendingPathComponent(e.file))
-            XCTAssertEqual(samples.count, lengths[q..<(q + plan.count)].reduce(0, +), "sample-exact slice")
-            XCTAssertEqual(samples.first, Int16(Float(q + 1) / 100 * 32767))
-            XCTAssertEqual(samples.last, Int16(Float(q + plan.count) / 100 * 32767))
-        }
-        XCTAssertNotNil(cache.entry(articleID: row.id, paragraphIndex: first), "the giant's first piece lines up with its old first chunks")
-        // Idempotent.
-        XCTAssertEqual(ArticleLibrary.migrateParagraphLayout(in: context, localTTS: coordinator).articles, 0)
     }
 
     func testBrowseOpenAlignsEphemeralCacheTheSameWay() throws {

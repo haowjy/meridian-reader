@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 
 /// Now Playing: what you hear, opened up from the bar (`NowPlayingSheet`). A player on deep jade
 /// (light and dark alike), the Reader's serif text in lyrics style under a title card. Presented
@@ -18,15 +17,15 @@ import SwiftData
 struct NowPlayingScreen: View {
     @Bindable var speech: SpeechController
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
 
     /// The reading content of the playing page, resolved by key.
     @State private var article: ReaderArticle?
     /// The page whose content has been looked up (found or not).
     @State private var loadedKey: UUID?
-    /// The saved row's id when the page is saved (⊕ shows ✓).
-    @State private var savedID: UUID?
+    /// The page's key when it is saved in the Library (⊕ shows ✓).
+    @State private var savedKey: UUID?
     @State private var following = true
     @State private var jumpMode = false
     @State private var scrubMap: ReaderScrubMap?
@@ -36,13 +35,13 @@ struct NowPlayingScreen: View {
     var body: some View {
         if let now = speech.nowPlaying {
             NowPlayingSheet(
-                playingFrom: savedID != nil ? "Library" : now.playingFrom.name,
-                isSaved: savedID != nil,
+                playingFrom: savedKey != nil ? "Library" : now.playingFrom.name,
+                isSaved: savedKey != nil,
                 showsBackToAudio: !following && !now.isFinished,
                 onCollapse: { [shell, presentation = shell.nowPlayingPresentation] in
                     if let presentation { shell.nowPlayingDidClose(presentation) }
                 },
-                onPlayingFrom: { savedID != nil ? shell.openLibrary() : goToPlayingFrom() },
+                onPlayingFrom: { savedKey != nil ? shell.openLibrary() : goToPlayingFrom() },
                 onToggleSave: toggleSaved,
                 onBackToAudio: { following = true }
             ) {
@@ -137,30 +136,31 @@ struct NowPlayingScreen: View {
     private func load(_ key: UUID) async {
         following = true
         jumpMode = false
-        // ⊕ is right from the first frame; the canonical-URL match below covers older saves.
-        savedID = ArticleLibrary.savedArticle(id: key, in: modelContext)?.id
+        // ⊕ is right from the first frame; the address match below covers older saves.
+        savedKey = savedPageKey(library.page(key: key))
         let loaded = await speech.nowPlayingContent()
         guard speech.activeSessionID == key else { return }
         article = loaded
         loadedKey = key
-        savedID = savedRowID(for: loaded) ?? savedID
+        if let loaded {
+            savedKey = savedPageKey(library.page(key: loaded.id, canonicalURL: loaded.canonicalURL)) ?? savedKey
+        }
     }
 
-    private func savedRowID(for article: ReaderArticle?) -> UUID? {
-        guard let article else { return nil }
-        return (ArticleLibrary.savedArticle(id: article.id, in: modelContext)
-            ?? ArticleLibrary.savedArticle(canonicalURL: article.canonicalURL, in: modelContext))?.id
+    private func savedPageKey(_ page: Page?) -> UUID? {
+        guard let page, page.isSavedToLibrary else { return nil }
+        return page.listenKey
     }
 
     /// ⊕: saving never touches playback.
     private func toggleSaved() {
         guard let article else { return }
-        let saver = ArticleSaveCoordinator(context: modelContext, speech: speech)
-        if let savedID {
-            saver.unsave(id: savedID, canonicalURL: article.canonicalURL)
-            self.savedID = nil
+        let saver = ArticleSaveCoordinator(library: library, speech: speech)
+        if let savedKey {
+            saver.unsave(key: savedKey, canonicalURL: article.canonicalURL)
+            self.savedKey = nil
         } else {
-            savedID = saver.save(article)
+            savedKey = saver.save(article)
         }
     }
 

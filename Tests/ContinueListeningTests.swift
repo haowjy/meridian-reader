@@ -1,48 +1,59 @@
+import SwiftData
 import XCTest
 @testable import Reader
 
+/// Continue: pages part-way through, most recently played first (`LibraryQueries.continuePages`).
+@MainActor
 final class ContinueListeningTests: XCTestCase {
-    private func c(_ id: UUID = UUID(), saved: TimeInterval = 0, p: Int = 0, off: Int = 0, n: Int? = 10) -> ContinueListening.Candidate {
-        .init(id: id, savedAt: Date(timeIntervalSince1970: saved), paragraph: p, utf16Offset: off, paragraphCount: n)
+    private var container: ModelContainer!
+
+    override func setUp() async throws { container = try LibraryStoreConfiguration.makeInMemoryContainer() }
+
+    private func page(added: TimeInterval = 0, played: TimeInterval? = nil, finished: Bool = false, p: Int = 0,
+                      off: Int = 0, n: Int = 10, state: PageContentState = .saved, inLibrary: Bool = true) -> Page {
+        let page = Page(key: UUID(), title: "P", byline: "example.com", urlString: "https://example.com/\(UUID())",
+                        contentState: state, addedAt: inLibrary ? Date(timeIntervalSince1970: added) : nil)
+        container.mainContext.insert(page)
+        page.lastPlayedAt = played.map(Date.init(timeIntervalSince1970:))
+        page.finishedAt = finished ? page.lastPlayedAt : nil
+        page.positionParagraph = p
+        page.positionUTF16 = off
+        page.paragraphCount = n
+        return page
     }
 
-    func testUnstartedArticlesAreNotInProgress() {
-        XCTAssertTrue(ContinueListening.inProgress([c(), c(saved: 5)], history: .init()).isEmpty)
+    private func continuing(_ pages: [Page]) -> [Page] {
+        LibraryQueries.continuePages(recent: pages.filter { $0.lastPlayedAt != nil },
+                                     undated: pages.filter { $0.lastPlayedAt == nil })
     }
 
-    func testLegacyProgressCountsUnlessParkedAtTheEnd() {
-        let mid = c(p: 3), end = c(p: 9, n: 10), unknown = c(p: 2, n: nil)
-        let ids = ContinueListening.inProgress([mid, end, unknown], history: .init()).map(\.id)
-        XCTAssertEqual(Set(ids), [mid.id, unknown.id])
+    func testUnstartedPagesAreNotInProgress() {
+        XCTAssertTrue(continuing([page(), page(added: 5)]).isEmpty)
     }
 
-    func testHistoryOrdersByMostRecentListenAndFinishedDropsOut() {
-        let a = c(saved: 30, p: 1), b = c(saved: 20), d = c(saved: 10, p: 4)
-        var h = ListenHistory()
-        h.touch(b.id, at: Date(timeIntervalSince1970: 200)) // listened at paragraph 0 still counts
-        h.touch(d.id, at: Date(timeIntervalSince1970: 100))
-        h.markFinished(a.id, at: Date(timeIntervalSince1970: 300))
-        XCTAssertEqual(ContinueListening.inProgress([a, b, d], history: h).map(\.id), [b.id, d.id])
-        h.touch(a.id, at: Date(timeIntervalSince1970: 400)) // re-listen: back in progress, first
-        XCTAssertEqual(ContinueListening.inProgress([a, b, d], history: h).map(\.id), [a.id, b.id, d.id])
+    func testUndatedProgressCountsUnlessParkedAtTheEnd() {
+        let mid = page(p: 3), end = page(p: 9, n: 10), unknown = page(p: 2, n: 0)
+        XCTAssertEqual(Set(continuing([mid, end, unknown]).map(\.key)), [mid.key, unknown.key])
     }
 
-    func testHistoryPersistsAndIsCapped() {
-        let suite = "ContinueListeningTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let first = UUID()
-        ListenHistory.record(first, defaults: defaults)
-        XCTAssertEqual(ListenHistory(defaults: defaults).entry(for: first)?.done, false)
-        var h = ListenHistory(defaults: defaults)
-        h.touch(first, at: Date(timeIntervalSince1970: 1)) // make it the oldest
-        for i in 0..<(ListenHistory.maxEntries + 5) {
-            h.touch(UUID(), at: Date(timeIntervalSince1970: Double(1_000_000 + i)))
-        }
-        h.save(to: defaults)
-        let loaded = ListenHistory(defaults: defaults)
-        XCTAssertEqual(loaded.entries.count, ListenHistory.maxEntries)
-        XCTAssertNil(loaded.entry(for: first), "oldest entry is dropped")
+    func testPlayedOrdersByMostRecentAndFinishedDropsOut() {
+        let a = page(added: 30, played: 300, finished: true, p: 1)
+        let b = page(added: 20, played: 200) // listened at paragraph 0 still counts
+        let d = page(added: 10, played: 100, p: 4)
+        let undated = page(added: 40, p: 2)
+        XCTAssertEqual(continuing([a, b, d, undated]).map(\.key), [b.key, d.key, undated.key], "dated first")
+        a.finishedAt = nil // replayed: back in progress, first
+        XCTAssertEqual(continuing([a, b, d, undated]).map(\.key), [a.key, b.key, d.key, undated.key])
+    }
+
+    func testLinksAndChaptersStayOutButPagesNotInTheLibraryShow() {
+        let link = page(played: 100, state: .link)
+        let notInLibrary = page(played: 200, inLibrary: false)
+        let book = Folder(name: "Book", kind: .book)
+        container.mainContext.insert(book)
+        let chapter = page(played: 300, p: 2)
+        chapter.setFolder(book)
+        XCTAssertEqual(continuing([link, notInLibrary, chapter]).map(\.key), [notInLibrary.key])
     }
 
     func testRowProgressIsWeightedByTextLength() {

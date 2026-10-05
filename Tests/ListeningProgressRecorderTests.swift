@@ -8,32 +8,28 @@ import XCTest
 final class ListeningProgressRecorderTests: XCTestCase {
     private var fixture: TestSpeech!
     private var container: ModelContainer!
-    private var defaults: UserDefaults!
-    private let suite = "RecorderTests-\(UUID().uuidString)"
+    private var library: LibraryStore!
     private var recorder: ListeningProgressRecorder?
     private let notifications = NotificationCenter()
 
     override func setUp() async throws {
         fixture = TestSpeech()
-        container = try ModelContainer(for: SavedArticle.self, RecentVisit.self,
-                                       configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        defaults = UserDefaults(suiteName: suite)
+        container = try LibraryStoreConfiguration.makeInMemoryContainer()
+        library = LibraryStore(context: container.mainContext, tts: fixture.speech.localTTS)
         recorder = ListeningProgressRecorder(
             speech: fixture.speech,
-            store: SavedArticleProgressStore(context: container.mainContext, defaults: defaults),
+            store: LibraryProgressStore(library: library),
             notificationCenter: notifications)
     }
 
     override func tearDown() async throws {
         recorder = nil
         fixture.tearDown()
-        defaults.removePersistentDomain(forName: suite)
     }
 
-    private func saved(_ url: String) -> (ReaderArticle, SavedArticle) {
+    private func saved(_ url: String) -> (ReaderArticle, Page) {
         let article = TestSpeech.article(url, title: url)
-        let row = ArticleLibrary.save(article, in: container.mainContext)
-        return (article, row)
+        return (article, library.save(article))
     }
 
     /// 🎧 on a saved article with no screen open, then another page replaces it: the first one's
@@ -46,17 +42,16 @@ final class ListeningProgressRecorderTests: XCTestCase {
         speech.listen(to: a)
         let p2 = a.document.startUTF16Offset(forParagraph: 2)
         fixture.apple.emit(.position(paragraph: 2, utf16: p2))
-        XCTAssertEqual(rowA.playbackParagraphIndex, 2, "written on the new paragraph")
+        XCTAssertEqual(rowA.positionParagraph, 2, "written on the new paragraph")
         fixture.apple.emit(.position(paragraph: 2, utf16: p2 + 3))
-        XCTAssertEqual(rowA.playbackUTF16Offset, p2, "not on the ticks inside the paragraph")
+        XCTAssertEqual(rowA.positionUTF16, p2, "not on the ticks inside the paragraph")
 
         speech.listen(to: b)
         XCTAssertEqual(speech.nowPlaying?.pageKey, b.id)
-        XCTAssertEqual(rowA.playbackParagraphIndex, 2, "the replaced page keeps its paragraph")
-        XCTAssertEqual(rowA.playbackUTF16Offset, p2 + 3, "and its spot in it")
-        let history = ListenHistory(defaults: defaults)
-        XCTAssertNotNil(history.entry(for: a.id), "listened: in Continue")
-        XCTAssertNil(history.entry(for: b.id), "unsaved pages keep no history")
+        XCTAssertEqual(rowA.positionParagraph, 2, "the replaced page keeps its paragraph")
+        XCTAssertEqual(rowA.positionUTF16, p2 + 3, "and its spot in it")
+        XCTAssertNotNil(rowA.lastPlayedAt, "listened: in Continue")
+        XCTAssertNil(library.page(key: b.id), "a page the library doesn't have keeps nothing")
     }
 
     /// Leaving the app writes the live spot inside the paragraph.
@@ -67,15 +62,15 @@ final class ListeningProgressRecorderTests: XCTestCase {
         let p1 = a.document.startUTF16Offset(forParagraph: 1)
         fixture.apple.emit(.position(paragraph: 1, utf16: p1))
         fixture.apple.emit(.position(paragraph: 1, utf16: p1 + 5))
-        XCTAssertEqual(row.playbackUTF16Offset, p1)
+        XCTAssertEqual(row.positionUTF16, p1)
 
         notifications.post(name: UIApplication.willResignActiveNotification, object: nil)
-        XCTAssertEqual(row.playbackParagraphIndex, 1)
-        XCTAssertEqual(row.playbackUTF16Offset, p1 + 5, "the scene leaving writes the live offset")
+        XCTAssertEqual(row.positionParagraph, 1)
+        XCTAssertEqual(row.positionUTF16, p1 + 5, "the scene leaving writes the live offset")
 
         fixture.apple.emit(.position(paragraph: 1, utf16: p1 + 9))
         notifications.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
-        XCTAssertEqual(row.playbackUTF16Offset, p1 + 9, "and so does going to the background")
+        XCTAssertEqual(row.positionUTF16, p1 + 9, "and so does going to the background")
         XCTAssertEqual(speech.nowPlaying?.pageKey, a.id, "it keeps playing")
     }
 
@@ -86,17 +81,17 @@ final class ListeningProgressRecorderTests: XCTestCase {
         let p1 = a.document.startUTF16Offset(forParagraph: 1)
         fixture.apple.emit(.position(paragraph: 1, utf16: p1))
         speech.pause()
-        XCTAssertEqual(row.playbackParagraphIndex, 1)
-        XCTAssertEqual(ListenHistory(defaults: defaults).entry(for: a.id)?.done, false)
+        XCTAssertEqual(row.positionParagraph, 1)
+        XCTAssertNotNil(row.lastPlayedAt)
+        XCTAssertNil(row.finishedAt)
 
         speech.resume()
         fixture.apple.emit(.position(paragraph: 2, utf16: a.document.startUTF16Offset(forParagraph: 2)))
         fixture.apple.emit(.finished)
-        XCTAssertEqual(row.playbackParagraphIndex, 2)
-        XCTAssertEqual(ListenHistory(defaults: defaults).entry(for: a.id)?.done, true, "heard to the end")
+        XCTAssertEqual(row.positionParagraph, 2)
+        XCTAssertNotNil(row.finishedAt, "heard to the end")
 
         speech.press(.page(a.id)) {}
-        XCTAssertEqual(ListenHistory(defaults: defaults).entry(for: a.id)?.done, false,
-                       "playing it again puts it back in progress")
+        XCTAssertNil(row.finishedAt, "playing it again puts it back in progress")
     }
 }

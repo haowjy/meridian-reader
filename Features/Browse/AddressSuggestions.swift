@@ -18,7 +18,7 @@ struct AddressSuggestion: Identifiable, Equatable {
     let kind: Kind
 }
 
-/// A page the address field can suggest: a history visit or a saved article.
+/// A page the address field can suggest: a history visit or a saved page.
 protocol AddressSuggestionSource {
     var id: UUID { get }
     var title: String { get }
@@ -32,8 +32,16 @@ extension RecentVisit: AddressSuggestionSource {
     var suggestionHost: String { host }
 }
 
-extension SavedArticle: AddressSuggestionSource {
-    var suggestionHost: String { siteDomain }
+/// A saved page as a suggestion. Wraps the model (rather than conforming it) because a model's
+/// `id` is its persistent identifier; the icon is read only for rows that match.
+struct SavedPageSuggestion: AddressSuggestionSource {
+    let page: Page
+
+    var id: UUID { page.listenKey }
+    var title: String { page.title }
+    var suggestionHost: String { page.byline }
+    var urlString: String { page.urlString ?? "" }
+    var faviconData: Data? { page.artworkData }
 }
 
 /// What the address field suggests for typed text: matching history first, then saved articles,

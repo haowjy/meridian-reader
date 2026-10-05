@@ -500,7 +500,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
     }
 
-    /// After Save: move ephemeral CAFs onto the SavedArticle UUID and reshuffle the queue key.
+    /// After Save: move ephemeral CAFs onto the saved page's key and reshuffle the queue key.
     func migrateListenCache(from ephemeralKey: UUID, to savedKey: UUID) {
         guard ephemeralKey != savedKey else {
             // Identity v2: saved id == reader key, so Save is just a kind flip (no dir move,

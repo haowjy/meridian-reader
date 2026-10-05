@@ -40,6 +40,9 @@ struct LaunchOptions: Equatable {
     var scrubBubbleDemo = false
     /// `-slowMenuAnimation`: slow the ⋯ morph so a mid-animation frame can be captured.
     var slowMenuAnimation = false
+    /// `-rerunLibraryMigration`: delete every folder and page and the migration ledger, then
+    /// copy the saved articles and bookmarks again.
+    var rerunsLibraryMigration = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -69,6 +72,7 @@ struct LaunchOptions: Equatable {
         bakeArticlePrefix = value(after: "-bakeArticle")?.uppercased()
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")
         slowMenuAnimation = flags.contains("-slowMenuAnimation")
+        rerunsLibraryMigration = flags.contains("-rerunLibraryMigration")
     }
 
     /// Live Google suggestions in the address field.

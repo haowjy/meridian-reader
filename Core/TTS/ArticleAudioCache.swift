@@ -193,6 +193,14 @@ final class ArticleAudioCache {
         return (0..<paragraphCount).filter { !ready.contains($0) }
     }
 
+    /// "Audio ready": every paragraph `0..<paragraphCount` has a CAF rendered with exactly this
+    /// engine and voice (stale units of another voice don't count).
+    func isAudioReady(articleID: UUID, paragraphCount: Int, engineID: String, voiceID: String) -> Bool {
+        paragraphCount > 0
+            && readyIndices(articleID: articleID, paragraphCount: paragraphCount, engineID: engineID,
+                            voiceID: voiceID).count == paragraphCount
+    }
+
     /// Index entry for a ready paragraph (for chunk-boundary offsets).
     func entry(articleID: UUID, paragraphIndex: Int) -> IndexFile.ParagraphEntry? {
         index(for: articleID)?.paragraphs.first { $0.index == paragraphIndex }

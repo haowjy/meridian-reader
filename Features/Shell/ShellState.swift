@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 
 /// What the Reader sheet sits over, named by its back pill ("‹ Browser", "‹ Library").
 enum ReaderOrigin: Equatable {
@@ -273,14 +272,14 @@ final class ShellState {
         self.sheet = sheet
     }
 
-    // MARK: - Saved articles
+    // MARK: - Library pages
 
-    /// A saved article in the Reader sheet (start page row, Saved row): shown as soon as the row is
-    /// read; older saves build their listen blocks afterwards.
-    func openSaved(_ id: UUID, in context: ModelContext) {
+    /// A library page in the Reader sheet (a start page row, a Saved row): shown as soon as the
+    /// page is read; older pages build their listen blocks afterwards.
+    func openSaved(_ id: UUID, in library: LibraryStore) {
         Task {
             var shown = false
-            await ReaderArticle.loadSaved(id: id, in: context) { article in
+            await ReaderArticle.loadSaved(id: id, in: library) { article in
                 if shown {
                     updateReader(id: article.id) { $0 = article }
                 } else {

@@ -1,11 +1,11 @@
 import Foundation
 
 /// Value snapshot rendered by the Reader sheet (`ReaderSheetScreen`) and Now Playing — the same
-/// shape whether the article came from Browse (fresh extraction) or Saved (SwiftData row). The
-/// screens never hold the `SavedArticle` model itself, so Save/Unsave can flip the bookmark
-/// without tearing down the view or the playing session.
+/// shape whether the article came from Browse (fresh extraction) or the library (a `Page`). The
+/// screens never hold the `Page` model itself, so Save/Unsave can flip the bookmark without
+/// tearing down the view or the playing session.
 struct ReaderArticle: Equatable, Identifiable {
-    /// Listen/cache key. Equals `SavedArticle.id` once saved (see `ArticleIdentity`).
+    /// Listen/cache key. Equals the library page's `key` (see `ArticleIdentity`).
     var id: UUID
     var urlString: String
     var canonicalURL: String
@@ -17,7 +17,7 @@ struct ReaderArticle: Equatable, Identifiable {
     var excerpt: String
     var faviconData: Data?
     /// Listen blocks (same order as HTML highlight/tap indices). May be empty briefly while an
-    /// older saved row builds them off the main thread.
+    /// older page builds them off the main thread.
     var document: ParagraphDocument
     /// `cleanedHTML` with a duplicated leading `<h1>` title stripped (done once, not per render).
     var displayHTML: String
@@ -27,10 +27,10 @@ struct ReaderArticle: Equatable, Identifiable {
     var trustedParagraphs: [String]? = nil
     /// Old v1 cache keys that may hold audio for this content (adopted on open).
     var legacyCacheKeys: [UUID] = []
-    /// Detected language stored on the saved row, if any (see `detectedLanguage`).
+    /// Detected language stored on the page, if any (see `detectedLanguage`).
     var storedDetectedLanguage: String? = nil
 
-    /// Article language for Listen (Automatic): the saved row's value, else detected from the
+    /// Article language for Listen (Automatic): the page's stored value, else detected from the
     /// listen blocks (memoized). nil while blocks are still building or text is too short.
     var detectedLanguage: String? {
         storedDetectedLanguage ?? (document.isEmpty ? nil : ListenLanguage.detectCached(paragraphs: document.paragraphs))
@@ -48,7 +48,7 @@ struct ReaderArticle: Equatable, Identifiable {
         )
     }
 
-    /// Fresh Browse extraction. `id` should come from `ArticleLibrary.resolveKey`.
+    /// Fresh Browse extraction. `id` comes from `LibraryStore.readerArticle(url:extracted:)`.
     init(id: UUID, url: URL, extracted: ExtractedArticle, document: ParagraphDocument? = nil) {
         self.id = id
         self.urlString = url.absoluteString
@@ -75,30 +75,28 @@ struct ReaderArticle: Equatable, Identifiable {
         )]
     }
 
-    /// Saved row. Uses stored listen blocks when valid; otherwise `document` is empty and the
-    /// caller builds it off-main (`SavedArticle.buildListenDocument`).
+    /// A library page holding text (saved, played, or a link with a text cache). Uses stored
+    /// listen blocks when valid; otherwise `document` is empty and the caller builds it off-main
+    /// (`Page.buildListenDocument`).
     @MainActor
-    init(saved: SavedArticle) {
-        self.id = saved.id
-        self.urlString = saved.urlString
-        self.canonicalURL = saved.canonicalURL.isEmpty
-            ? ArticleIdentity.canonicalURLString(from: saved.urlString)
-            : saved.canonicalURL
-        self.title = saved.title
-        self.siteDomain = saved.siteDomain
+    init(page: Page) {
+        let urlString = page.urlString ?? ""
+        self.id = page.listenKey
+        self.urlString = urlString
+        self.canonicalURL = page.canonicalURL ?? ArticleIdentity.canonicalURLString(from: urlString)
+        self.title = page.title
+        self.siteDomain = page.byline
         self.siteName = nil
-        self.cleanedHTML = saved.cleanedHTML
-        self.plainText = saved.plainText
-        self.excerpt = saved.excerpt
-        self.faviconData = saved.faviconData
-        let cached = saved.cachedListenParagraphs
+        let html = page.cleanedHTML
+        self.cleanedHTML = html
+        self.plainText = page.plainText
+        self.excerpt = page.excerpt
+        self.faviconData = page.artworkData
+        let cached = page.cachedListenParagraphs
         self.document = cached.map { ParagraphDocument(parts: $0) } ?? .empty
         self.trustedParagraphs = cached
-        self.displayHTML = ParagraphDocument.readingHTML(
-            saved.cleanedHTML,
-            matchingTitle: saved.title
-        )
-        self.resumeParagraph = saved.playbackParagraphIndex
-        self.storedDetectedLanguage = saved.detectedLanguageCode
+        self.displayHTML = ParagraphDocument.readingHTML(html, matchingTitle: page.title)
+        self.resumeParagraph = page.positionParagraph
+        self.storedDetectedLanguage = page.detectedLanguageCode
     }
 }

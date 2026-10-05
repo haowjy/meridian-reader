@@ -18,6 +18,13 @@ enum LibraryQueries {
         FetchDescriptor(predicate: #Predicate<Page> { $0.addedAt != nil })
     }
 
+    /// Every saved page in the Library, newest first (address suggestions).
+    static var savedInLibrary: FetchDescriptor<Page> {
+        let saved = PageContentState.saved.rawValue
+        return FetchDescriptor(predicate: #Predicate<Page> { $0.addedAt != nil && $0.contentStateRaw == saved },
+                               sortBy: [SortDescriptor(\Page.addedAt, order: .reverse)])
+    }
+
     /// The pages in no folder: the Library home's *Pages* (today's Saved list).
     static func loosePages(sort: PageSort) -> FetchDescriptor<Page> {
         FetchDescriptor(predicate: #Predicate<Page> { $0.folderID == nil && $0.addedAt != nil },

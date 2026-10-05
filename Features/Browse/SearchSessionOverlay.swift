@@ -8,7 +8,7 @@ struct SearchSessionOverlay: View {
     let session: SearchSession
     let recentSearches: [String]
     let visits: [RecentVisit]
-    let articles: [SavedArticle]
+    let articles: [Page]
     var isDictating: Bool
     var onSubmit: (String) -> Void
     var onClearRecentSearches: () -> Void
@@ -30,7 +30,7 @@ struct SearchSessionOverlay: View {
     private var suggestions: [AddressSuggestion] {
         guard !showsRecentSearches else { return [] }
         return AddressSuggestions.build(query: session.text, visits: visits.prefix(RecentVisit.maxEntries),
-                                        articles: articles, google: google)
+                                        articles: articles.lazy.map(SavedPageSuggestion.init), google: google)
     }
 
     var body: some View {

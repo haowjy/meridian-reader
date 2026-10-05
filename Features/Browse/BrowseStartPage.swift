@@ -1,21 +1,22 @@
 import SwiftUI
-import SwiftData
 
-/// The browser's start page (no page loaded), Safari-style: a Bookmarks icon grid (site
-/// bookmarks, like Safari Favorites), "Continue listening", recent "Saved" articles with Show All
+/// The browser's start page (no page loaded), Safari-style: a Bookmarks icon grid (Favorites'
+/// pages, like Safari Favorites), "Continue listening", recent "Saved" articles with Show All
 /// (opens the library), then Recent Searches.
 struct BrowseStartPage: View {
-    let bookmarks: [SiteBookmark]
-    /// In-progress saved articles, most recently listened first (all of them; up to 3 shown).
-    let continueListening: [SavedArticle]
-    /// Kept articles, newest first (all of them; the first few not already above are shown).
-    let saved: [SavedArticle]
+    let bookmarks: [Page]
+    /// Pages part-way through, most recently listened first (`LibraryQueries.continuePages`; up
+    /// to 3 shown).
+    let continueListening: [Page]
+    /// Saved pages in no folder, newest first (all of them; the first few not already above are
+    /// shown).
+    let saved: [Page]
     let recentSearches: [String]
-    var onOpenBookmark: (SiteBookmark) -> Void
+    var onOpenBookmark: (Page) -> Void
     var onShowBookmarks: () -> Void
-    var onDeleteBookmark: (SiteBookmark) -> Void
-    var onRenameBookmark: (SiteBookmark, String) -> Void
-    var onOpenArticle: (SavedArticle) -> Void
+    var onDeleteBookmark: (Page) -> Void
+    var onRenameBookmark: (Page, String) -> Void
+    var onOpenArticle: (Page) -> Void
     var onShowLibrary: () -> Void
     var onSearch: (String) -> Void
     var onClearSearches: () -> Void
@@ -27,11 +28,11 @@ struct BrowseStartPage: View {
     /// Width of a recent search's clock glyph.
     private static let searchIconWidth: CGFloat = 20
 
-    private var continueShown: [SavedArticle] { Array(continueListening.prefix(Self.continueLimit)) }
+    private var continueShown: [Page] { Array(continueListening.prefix(Self.continueLimit)) }
 
-    private var savedShown: [SavedArticle] {
-        let skip = Set(continueShown.map(\.id))
-        return Array(saved.filter { !skip.contains($0.id) }.prefix(Self.savedLimit))
+    private var savedShown: [Page] {
+        let skip = Set(continueShown.map(\.listenKey))
+        return Array(saved.filter { !skip.contains($0.listenKey) }.prefix(Self.savedLimit))
     }
 
     var body: some View {
@@ -85,10 +86,10 @@ struct BrowseStartPage: View {
     }
 
     /// Fraction listened, weighted by text length (same measure as the reader's scrubber).
-    static func progress(of article: SavedArticle) -> Double {
+    static func progress(of article: Page) -> Double {
         guard let paragraphs = article.cachedListenParagraphs else { return 0 }
-        return progress(paragraphs: paragraphs, paragraph: article.playbackParagraphIndex,
-                        utf16Offset: article.playbackUTF16Offset)
+        return progress(paragraphs: paragraphs, paragraph: article.positionParagraph,
+                        utf16Offset: article.positionUTF16)
     }
 
     /// `utf16Offset` indexes the article's listen text (`ParagraphDocument.joinedText`). Only
@@ -127,9 +128,9 @@ struct BrowseStartPage: View {
         .accessibilityIdentifier(id)
     }
 
-    private func rows<Row: View>(_ articles: [SavedArticle], @ViewBuilder row: @escaping (SavedArticle) -> Row) -> some View {
+    private func rows<Row: View>(_ articles: [Page], @ViewBuilder row: @escaping (Page) -> Row) -> some View {
         VStack(spacing: 0) {
-            ForEach(articles, id: \.id) { article in
+            ForEach(articles, id: \.listenKey) { article in
                 Button { onOpenArticle(article) } label: {
                     row(article)
                         .padding(.horizontal, Spacing.s)
@@ -137,7 +138,7 @@ struct BrowseStartPage: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                if article.id != articles.last?.id {
+                if article.listenKey != articles.last?.listenKey {
                     Divider().padding(.leading, Spacing.s + ArticleRow.iconSize + Spacing.s)
                 }
             }
@@ -188,7 +189,7 @@ struct BrowseStartPage: View {
 }
 
 private struct ArticleRow: View {
-    let article: SavedArticle
+    let article: Page
     /// Non-nil: a thin progress bar (Continue listening).
     let progress: Double?
 
@@ -197,7 +198,7 @@ private struct ArticleRow: View {
 
     var body: some View {
         HStack(spacing: Spacing.s) {
-            FaviconImage(data: article.faviconData, host: article.siteDomain, size: Self.iconSize)
+            FaviconImage(data: article.artworkData, host: article.byline, size: Self.iconSize)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(article.title)
                     .typeStyle(.row, weight: .semibold)
@@ -219,8 +220,8 @@ private struct ArticleRow: View {
     }
 
     private var subtitle: String {
-        guard let progress else { return "\(article.siteDomain) · \(article.estimatedMinutes) min" }
+        guard let progress else { return "\(article.byline) · \(article.estimatedMinutes) min" }
         let left = max(1, Int((Double(article.estimatedMinutes) * (1 - progress)).rounded()))
-        return "\(article.siteDomain) · \(left) min left"
+        return "\(article.byline) · \(left) min left"
     }
 }

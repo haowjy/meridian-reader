@@ -30,8 +30,8 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
   plans: stitched audio stays playable, but mid-paragraph seek offsets into old audio drift until
   it re-renders. Decide whether that needs a cache purge (`KokoroAudioCachePurge` bumps a version).
 - **Listen blocks are versioned.** Changing `ListenHTMLBlocks` rules means bumping
-  `ListenHTMLBlocks.version`; saved rows rebuild once and positions / audio must be remapped like
-  `ArticleLibrary.migrateParagraphLayout` does.
+  `ListenHTMLBlocks.version`; library pages rebuild once and positions / audio must be remapped
+  like `LibraryStore.migrateParagraphLayout` does.
 - **Engine changes go through `EngineHandover`.** Views call `selectEngine` / `chooseVoice` /
   `deleteModel`; they never restart playback.
 - **Persisted ids and keys** are pinned by `EngineRegistryTests.testPersistedIDsAndCacheKeysUnchanged`.

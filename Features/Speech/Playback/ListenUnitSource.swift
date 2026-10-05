@@ -5,7 +5,7 @@ import Foundation
 /// the render queue. Bound when playback starts and dropped on stop / the next play.
 @MainActor
 protocol ListenUnitSource: AnyObject {
-    /// Cache key of the article (SavedArticle.id or the ephemeral reader key).
+    /// Cache key of the article (the library page's key, or the reader key of an unsaved page).
     var articleID: UUID { get }
     var paragraphs: [String] { get }
     /// Short name of the engine rendering this audio (logs, listen-bar notes).

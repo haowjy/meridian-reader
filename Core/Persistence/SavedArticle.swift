@@ -1,14 +1,18 @@
 import Foundation
 import SwiftData
 
+/// A saved article as the app stored it before the library (`Folder` / `Page`). **Frozen:** the
+/// library migration copies each row once into a `Page` (same key) and nothing writes these rows
+/// again, so a rollback to an older build finds its saves as it left them. The model stays in
+/// the "local" store until a later release removes it.
 @Model
 final class SavedArticle {
-    /// Listen/cache identity. New saves use `ArticleIdentity.articleKey(canonicalURL:)` so the
-    /// Browse reader and Saved share one key; legacy rows keep their random UUID.
+    /// Listen/cache identity, copied verbatim to `Page.key`. Rows saved since identity v2 use
+    /// `ArticleIdentity.articleKey(canonicalURL:)`; older rows keep their random UUID.
     @Attribute(.unique) var id: UUID
     var urlString: String
-    /// `ArticleIdentity.canonicalURLString` — one saved article per canonical URL.
-    /// Empty on rows saved before identity v2 until `ArticleLibrary.migrate` backfills it.
+    /// `ArticleIdentity.canonicalURLString`. Empty on rows saved before identity v2 and never
+    /// backfilled; the migration recomputes it from `urlString`.
     var canonicalURL: String = ""
     var title: String
     var siteDomain: String
@@ -22,14 +26,13 @@ final class SavedArticle {
     var playbackUTF16Offset: Int
     /// Site icon bytes (same idea as RecentVisit); nil until captured.
     @Attribute(.externalStorage) var faviconData: Data?
-    /// Listen paragraphs (JSON `[String]`) built once at save so opening never re-parses HTML.
-    /// Same order as the reader's highlight/tap blocks. See `ListenHTMLBlocks`.
+    /// Listen paragraphs (JSON `[String]`), same order as the reader's highlight / tap blocks.
+    /// See `ListenHTMLBlocks`.
     @Attribute(.externalStorage) var listenBlocksData: Data?
     /// `ListenHTMLBlocks.version` used for `listenBlocksData`; 0 means never built (older saves).
     var listenBlocksVersion: Int = 0
     /// Article language detected from the listen blocks (`ListenLanguage.detect`), e.g. "en",
-    /// "fr". Set whenever listen blocks are stored; nil on older rows until backfilled on open
-    /// (optional attribute → SwiftData lightweight migration).
+    /// "fr"; nil on older rows.
     var detectedLanguageCode: String?
 
     init(
@@ -62,28 +65,6 @@ final class SavedArticle {
         self.playbackUTF16Offset = playbackUTF16Offset
         self.faviconData = faviconData
     }
-
-    convenience init(id: UUID? = nil, url: URL, extracted: ExtractedArticle, faviconData: Data? = nil) {
-        let words = Self.wordCount(of: extracted.plainText)
-        let domain = url.host ?? extracted.siteName ?? url.absoluteString
-        self.init(
-            id: id ?? ArticleIdentity.articleKey(url: url),
-            urlString: url.absoluteString,
-            title: extracted.title,
-            siteDomain: domain,
-            cleanedHTML: extracted.cleanedHTML,
-            plainText: extracted.plainText,
-            wordCount: words,
-            estimatedMinutes: Self.estimatedMinutes(words: words),
-            excerpt: extracted.excerpt,
-            faviconData: faviconData
-        )
-        storeListenParagraphs(Self.buildListenDocument(
-            plainText: plainText,
-            cleanedHTML: cleanedHTML,
-            title: title
-        ).paragraphs)
-    }
 }
 
 // MARK: - Length
@@ -99,62 +80,3 @@ extension SavedArticle {
         max(1, Int((Double(words) / 200.0).rounded(.up)))
     }
 }
-
-// MARK: - Stored listen paragraphs
-
-extension SavedArticle {
-    /// Stored paragraphs when present and built by the current parser rules; nil means rebuild.
-    var cachedListenParagraphs: [String]? {
-        Self.decodeListenParagraphs(listenBlocksData, version: listenBlocksVersion)
-    }
-
-    func storeListenParagraphs(_ paragraphs: [String]) {
-        listenBlocksData = try? JSONEncoder().encode(paragraphs)
-        listenBlocksVersion = ListenHTMLBlocks.version
-        detectedLanguageCode = ListenLanguage.detectCached(paragraphs: paragraphs)
-    }
-
-    /// Stored detected language; older rows detect it from their listen blocks once and store it.
-    @discardableResult
-    func detectedLanguageBackfilling() -> String? {
-        if let detectedLanguageCode { return detectedLanguageCode }
-        guard let paragraphs = cachedListenParagraphs else { return nil }
-        let code = ListenLanguage.detectCached(paragraphs: paragraphs)
-        if let code { detectedLanguageCode = code }
-        return code
-    }
-
-    /// Stored paragraphs if valid, otherwise build them now and store them (one-time backfill).
-    func listenDocument() -> ParagraphDocument {
-        if let cached = cachedListenParagraphs {
-            return ParagraphDocument(parts: cached)
-        }
-        let doc = Self.buildListenDocument(plainText: plainText, cleanedHTML: cleanedHTML, title: title)
-        storeListenParagraphs(doc.paragraphs)
-        return doc
-    }
-
-    /// Stored paragraphs regardless of the rules version (migration only).
-    nonisolated static func decodeAnyListenParagraphs(_ data: Data?) -> [String]? {
-        guard let data else { return nil }
-        return try? JSONDecoder().decode([String].self, from: data)
-    }
-
-    nonisolated static func decodeListenParagraphs(_ data: Data?, version: Int) -> [String]? {
-        guard version == ListenHTMLBlocks.version, let data else { return nil }
-        return try? JSONDecoder().decode([String].self, from: data)
-    }
-
-    nonisolated static func buildListenDocument(
-        plainText: String,
-        cleanedHTML: String,
-        title: String
-    ) -> ParagraphDocument {
-        ParagraphDocument.forListening(
-            plainText: plainText,
-            cleanedHTML: cleanedHTML,
-            matchingTitle: title
-        )
-    }
-}
-

@@ -260,8 +260,9 @@ highlight and the paragraph picker stay fine-grained.
   (`ParagraphDocument.readingHTML`) and the listen paragraphs (`ParagraphDocument.forListening`)
   come from the same split HTML, so web-view block index = listen / queue / cache paragraph
   index. Plain text splits the same way (`ParagraphDocument(plainText:)`).
-- **Migration** (`ArticleLibrary.migrateParagraphLayout`, run by `AppLaunch` before the identity
-  migration and crash resume): saved rows with `listenBlocksVersion < 3` get new blocks; the
+- **Migration** (`LibraryStore.migrateParagraphLayout`, run by `AppLaunch` after the library
+  migration copy and before crash resume): library pages holding text with
+  `listenBlocksVersion < 3` get new blocks; the
   reading position maps by character offset (`ParagraphPositionMap`); the resume point, the
   in-memory crash-resume target and any pending bake job are remapped; cached audio of unchanged
   paragraphs moves by text hash, and a split paragraph's CAF is sliced sample-exact
@@ -314,8 +315,8 @@ Logs `coreml_cache_prune`.
 
 - **Detection** (`ListenLanguage`): `NLLanguageRecognizer` over the first 4,000 characters of the
   listen blocks; needs ≥ 24 letters and confidence ≥ 0.5. Stored in
-  `SavedArticle.detectedLanguageCode` (written with the listen blocks, backfilled on open for
-  older rows); unsaved articles use an in-memory memo. Passed through
+  `Page.detectedLanguageCode` (written with the listen blocks, backfilled on open for older
+  pages); articles the library doesn't have use an in-memory memo. Passed through
   `SpeechSession.detectedLanguage`.
 - **Resolution** (`ListenLanguageResolution.resolve`): "Automatic (match article)" (the default,
   `reader.languageAutomatic`) or a manual language. If the selected engine doesn't speak it

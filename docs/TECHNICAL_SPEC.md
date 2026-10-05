@@ -20,7 +20,7 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 | UI | SwiftUI, `@Observable` state objects; UIKit only where SwiftUI has no equivalent (edge swipe-back, web views) |
 | Browser | `WKWebView` |
 | Extraction | Mozilla Readability.js, bundled (`Resources/Readability/`) |
-| Persistence | SwiftData (`SavedArticle`, `RecentVisit`); small JSON files and UserDefaults for the rest |
+| Persistence | SwiftData, two store files: the library (`Folder`, `Page`) and the local store (`RecentVisit`; `SavedArticle`, frozen); small JSON files and UserDefaults for the rest |
 | Speech | `AVSpeechSynthesizer`; Kokoro via vendored FluidAudio (`Vendor/FluidAudio`) and ONNX Runtime (SPM `onnxruntime` 1.24.2) |
 | Language | `NaturalLanguage` (article language), `Speech` (address-bar dictation) |
 | Project | XcodeGen (`project.yml` → `Reader.xcodeproj`) |
@@ -33,7 +33,7 @@ Core/
   Device/       chip / OS gates
   Domain/       ReaderArticle, ParagraphDocument, ParagraphSplitter, ArticleIdentity, ReaderScrubMap
   Extraction/   ArticleExtracting, Readability runner, reader scripts
-  Persistence/  SwiftData models, ArticleLibrary (save, migrations), BookmarkStore
+  Persistence/  SwiftData models; Library/ (Folder, Page, LibraryStore, LibraryQueries, migration); frozen legacy readers
   TTS/          chunking, render queue, audio cache, run state, engine plumbing (no library imports)
   Web/          WebView + store, URL helpers, favicons, Google suggestions
 Features/
@@ -96,19 +96,54 @@ page (e.g. `https://example.com`) fails with a reason and saves nothing.
 
 ## Data
 
-**`SavedArticle`** (SwiftData):
+Two SwiftData stores in one container (`LibraryStoreConfiguration`): **library**
+(`Application Support/library.store`: `Folder`, `Page`) and **local**
+(`Application Support/default.store`, the file the app always used: `RecentVisit`, and
+`SavedArticle`, frozen). The library has its own file because an older build reopening a shared
+store would drop entities it doesn't know; a file it never opens survives a rollback. Library
+models are CloudKit-shaped: every property optional or defaulted, no `.unique`, relationships
+optional with `.nullify`; one page per canonical URL is kept by `LibraryStore` and the launch
+dedupe pass. Every library read and write goes through `LibraryStore`; lists use
+`LibraryQueries`.
+
+**`Page`** (library):
 
 | Field | Purpose |
 |-------|---------|
-| `id` | Article key (`ARTICLE_IDENTITY.md`); unique |
-| `urlString`, `canonicalURL` | The page; canonical form for dedupe |
-| `title`, `siteDomain`, `excerpt`, `faviconData` | Library rows, Now Playing |
-| `savedAt` | Sort |
-| `cleanedHTML`, `plainText` | Offline reading; the listen text comes from the HTML |
-| `wordCount`, `estimatedMinutes` | Row metadata |
-| `playbackParagraphIndex`, `playbackUTF16Offset` | Resume position (paragraph + offset inside the document) |
+| `key` | Audio cache / listen key (`ARTICLE_IDENTITY.md`); copied verbatim from `SavedArticle.id` at migration, never recomputed |
+| `urlString`, `canonicalURL` | The page; one page per canonical URL |
+| `title`, `byline`, `excerpt`, `artworkData` | Rows, Now Playing (`byline` = site domain for web pages) |
+| `contentStateRaw` | `link` (a favorite; any text is a cache) or `saved` |
+| `addedAt` | When it joined the Library; nil = played without saving (kept 7 days after its last play) |
+| `folder`, `folderID`, `sortKey` | Its folder (none = the pages in no folder) and order there; `folderID` mirrors the relationship for predicates |
+| `bodyHTML`, `plainTextData` | Offline reading; the listen text comes from the HTML |
+| `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount` |
+| `positionParagraph`, `positionUTF16` | Resume position (paragraph + offset inside the document) |
+| `lastPlayedAt`, `finishedAt` | Continue listening |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
+| `locator`, `skipsInPlayback`, `fetchStateRaw` | Book chapters and series (not used yet) |
+
+**`Folder`** (library): `name`, `kindRaw` (`plain`, `book`, `series`, `favorites`), `sortKey`,
+`parent` / `children` (any depth), `pages`, `pageSortRaw`, and for books and series their details
+and place (`currentPageKey`, `lastPlayedAt`, `finishedAt`). One Favorites folder holds the
+bookmarks; it can't be deleted, renamed or moved below the top level.
+
+**Migration (copy-once).** At launch `LibraryStore.migrateLegacy` copies every `SavedArticle`
+row and every bookmark in `bookmarks.json` not yet listed in the ledger
+(`Application Support/library-migration.json`): saved rows become saved pages in no folder (same
+key, text, position, icon; the listen history becomes `lastPlayedAt` / `finishedAt`), bookmarks
+become link pages in Favorites in file order, and a bookmark for a saved page moves that page
+into Favorites at the bookmark's place. Dedupe runs, the copy is saved, and only then is the
+ledger written. Nothing legacy is written again: the rows, the bookmarks file, the listen history
+and the audio cache stay as they were, so the previous build still works after a rollback. Then
+the launch dedupe pass, the paragraph layout pass on pages and the prune of pages not in the
+Library run. Debug: `-rerunLibraryMigration` empties the library and the ledger and copies again.
+
+**`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
+`urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,
+`wordCount`, `estimatedMinutes`, `playbackParagraphIndex`, `playbackUTF16Offset`, `faviconData`,
+`listenBlocksData`, `listenBlocksVersion`, `detectedLanguageCode`). Only the migration reads it.
 
 **`RecentVisit`** (SwiftData): browser history, the last 30 top-level http(s) pages (canonical
 URL, title, host, visit time, favicon), deduped by URL, recorded when a load finishes.
@@ -117,9 +152,10 @@ Elsewhere:
 
 | What | Where |
 |------|-------|
-| Bookmarks (site links: URL, title, favicon) | `Application Support/Bookmarks/bookmarks.json` (`BookmarkStore`) |
+| Bookmarks before the library (frozen; copied into Favorites) | `Application Support/Bookmarks/bookmarks.json` (`LegacyBookmarks`) |
 | Recent searches | UserDefaults `browse.recentSearches` |
-| Last listened / finished per article | UserDefaults (`ListenHistory`) |
+| Last listened / finished before the library (frozen; folded into `Page`) | UserDefaults `reader.listenHistory.v1` (`ListenHistory`) |
+| Library migration ledger | `Application Support/library-migration.json` |
 | Crash-resume point | `ListenResumePointStore` |
 | Rendered audio | `Application Support/TTSCache/<article key>/` (`ArticleAudioCache`) |
 | Pending render jobs | `Application Support/PendingBakeJobs.json` |

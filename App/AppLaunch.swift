@@ -1,49 +1,53 @@
 import Foundation
-import SwiftData
 
-/// Launch work, run once by `ReaderApp` when the first window appears: saved-article migrations,
-/// app-wide callbacks, the UI-test / diagnostics hooks from `LaunchOptions` (Debug builds), then
-/// crash resume.
+/// Launch work, run once by `ReaderApp` when the first window appears: the library's launch
+/// maintenance, the UI-test / diagnostics hooks from `LaunchOptions` (Debug builds), then crash
+/// resume.
 /// Views only render; nothing here waits on a view appearing in a particular order.
 @MainActor
 enum AppLaunch {
     private static var didRun = false
 
-    static func run(context: ModelContext, speech: SpeechController, shell: ShellState) async {
+    static func run(library: LibraryStore, speech: SpeechController, shell: ShellState) async {
         guard !didRun else { return }
         didRun = true
-        let tts = speech.localTTS
         #if DEBUG
-        LaunchHooks.runBeforeMigrations(.current, context: context, tts: tts)
+        LaunchHooks.runBeforeMigrations(.current, library: library, tts: speech.localTTS)
         #endif
 
-        // Paragraph layout v3 first (it needs the stored pre-split blocks): split giant
-        // paragraphs, keeping position and usable audio. Then identity v2: backfill canonical
-        // URLs and merge duplicate saves. Both are idempotent and skip finished rows.
-        ArticleLibrary.migrateParagraphLayout(in: context, localTTS: tts)
-        ArticleLibrary.migrate(in: context, localTTS: tts)
+        // Copy saved articles and bookmarks not yet in the ledger, then merge any duplicates.
+        library.migrateLegacy()
+        library.dedupe()
+        #if DEBUG
+        // After the copy, so no legacy row arrives after a seed; before the layout pass, so a
+        // seeded page goes through it like a real one.
+        LaunchHooks.runSeeds(.current, library: library)
+        #endif
+        // Listen blocks on an older layout: rebuilt, keeping position and usable audio.
+        library.migrateParagraphLayout()
+        library.pruneUnsaved()
 
         #if DEBUG
-        LaunchHooks.runAfterMigrations(.current, context: context, speech: speech, shell: shell)
+        LaunchHooks.runAfterMigrations(.current, library: library, speech: speech, shell: shell)
         #endif
 
-        await resumeAfterCrash(context: context, speech: speech, shell: shell)
+        await resumeAfterCrash(library: library, speech: speech, shell: shell)
     }
 
-    /// Kokoro crashed last session: reopen the article in Now Playing at the paragraph that was
+    /// Kokoro crashed last session: reopen the page in Now Playing at the paragraph that was
     /// playing — playing again (on the ONNX route, once it's loaded) if the crash just happened,
-    /// else paused there. Runs after the layout migration, so the stored paragraph uses the current numbering.
-    private static func resumeAfterCrash(context: ModelContext, speech: SpeechController, shell: ShellState) async {
+    /// else paused there. Runs after the layout migration, so the stored paragraph uses the
+    /// current numbering.
+    private static func resumeAfterCrash(library: LibraryStore, speech: SpeechController, shell: ShellState) async {
         let tts = speech.localTTS
         guard let target = tts.takePendingResume() else { return }
-        let rows = (try? context.fetch(FetchDescriptor<SavedArticle>())) ?? []
-        guard let article = rows.first(where: { target.matches($0.id) }) else {
+        guard let page = library.page(matching: target), page.hasText else {
             ListenTimingLog.log("kokoro_resume", ["ok": false, "why": "article not found", "key": String(target.articleKey.prefix(8))])
             return
         }
-        let session = SpeechSession.saved(article)
+        let session = SpeechSession.page(page)
         let p = min(max(0, target.paragraph), max(0, session.document.count - 1))
-        article.playbackParagraphIndex = p
+        page.positionParagraph = p
         if target.autoPlay {
             // Wait (≤20 s) for the Kokoro host so the resume doesn't start on Apple.
             var waited = 0
@@ -57,7 +61,7 @@ enum AppLaunch {
         }
         shell.showNowPlaying()
         ListenTimingLog.log("kokoro_resume", [
-            "ok": true, "key": ListenTimingLog.shortKey(article.id), "p": p, "auto_play": target.autoPlay,
+            "ok": true, "key": ListenTimingLog.shortKey(page.listenKey), "p": p, "auto_play": target.autoPlay,
             "local": tts.usesLocalEngine,
         ])
     }
