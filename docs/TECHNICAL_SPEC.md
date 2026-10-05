@@ -148,15 +148,20 @@ and the prune of pages not in the Library run. Debug: `-rerunLibraryMigration` e
 library and its receipts and copies again.
 
 **Audio work waits for the save.** The layout pass (audio aligned to the new paragraphs, the
-crash-resume point and pending renders remapped) and dedupe (the merged page's audio moved under
-the kept key and reconciled, its pending render dropped, the resume point, the crash target read
-at launch and the live session moved onto the kept page, at the paragraph with the same text)
-change nothing outside the store until the library change is saved. They record
-`LibraryAudioWork` in the same save; `LibraryStore.commit` does it right after the save and
-deletes it. A failed save is rolled back with its work, leaving the audio cache, pending renders
-and the resume point as they were. A launch that dies after the save leaves the records, and the
-next launch does them first (`finishAudioWork`). Every step can run twice: the resume point
-moves only from where the work found it.
+crash-resume point and pending renders remapped) and dedupe (the merged page's audio filling the
+kept page's paragraphs it has none for, by text, then its directory and pending render dropped;
+the resume point, the crash target read at launch and the live session moved onto the kept page,
+at the paragraph with the same text) change nothing outside the store until the library change
+is saved. They record `LibraryAudioWork` in the same save; `LibraryStore.commit` does it right
+after the save. A failed save is rolled back with its work, leaving the audio cache, pending
+renders and the resume point as they were. A record is retired only once its postconditions hold
+on disk: the destination's saved audio index aligned with its paragraphs, every file it lists
+there, the merged page's directory gone. A record that fails is kept, with everything after it,
+for the next launch, which does them first (`finishAudioWork`); so is the work of a launch that
+dies after the save. Replay doesn't depend on the source still existing: the audio cache's
+changes are copy-on-write (`LISTEN_PLAYBACK.md`, Audio cache), so work stopped at any step is
+done again from what is on disk, losing nothing. The resume point moves only from where the work
+found it.
 
 **`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
 `urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,

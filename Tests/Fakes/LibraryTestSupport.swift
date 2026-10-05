@@ -10,7 +10,7 @@ final class LibraryTestEnvironment {
     let dir: URL
     private(set) var container: ModelContainer
     let fileBacked: Bool
-    let tts: LocalTTSCoordinator
+    private(set) var tts: LocalTTSCoordinator
     let defaults: UserDefaults
     let suite: String
     let legacy: LegacyLibrarySources
@@ -27,10 +27,7 @@ final class LibraryTestEnvironment {
         container = try Self.makeContainer(dir: dir, fileBacked: fileBacked)
         suite = "LibraryTest-\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suite)!
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), KokoroStubProvider()], gate: { _ in true })
-        tts = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                  audioCache: ArticleAudioCache(root: dir.appending(path: "TTSCache")),
-                                  crashGuard: EngineCrashGuard(directory: dir.appending(path: "guard")))
+        tts = Self.makeTTS(dir: dir, defaults: defaults)
         legacy = LegacyLibrarySources(bookmarksURL: dir.appending(path: "Bookmarks/bookmarks.json"), defaults: defaults)
         library = makeLibrary()
     }
@@ -45,11 +42,21 @@ final class LibraryTestEnvironment {
                                                            libraryURL: stores.appending(path: "library.store"))
     }
 
-    /// A relaunch from disk: a fresh container on the same store files (file-backed only), and a
-    /// new library over it. Objects fetched before belong to the old container.
+    /// A coordinator over the audio cache in `dir/TTSCache`, its crash guard in `dir/guard`.
+    static func makeTTS(dir: URL, defaults: UserDefaults) -> LocalTTSCoordinator {
+        let registry = EngineRegistry(providers: [AppleSpeechProvider(), KokoroStubProvider()], gate: { _ in true })
+        return LocalTTSCoordinator(engines: registry, defaults: defaults,
+                                   audioCache: ArticleAudioCache(root: dir.appending(path: "TTSCache")),
+                                   crashGuard: EngineCrashGuard(directory: dir.appending(path: "guard")))
+    }
+
+    /// A relaunch from disk: a fresh container on the same store files (file-backed only), a
+    /// fresh coordinator and audio cache over the same directory (nothing kept in memory), and a
+    /// new library over them. Objects fetched before belong to the old container.
     func relaunch() throws {
         precondition(fileBacked, "relaunch needs the store files")
         container = try Self.makeContainer(dir: dir, fileBacked: true)
+        tts = Self.makeTTS(dir: dir, defaults: defaults)
         library = makeLibrary()
     }
 
@@ -114,10 +121,10 @@ final class LibraryTestEnvironment {
         defaults.set(try? JSONEncoder().encode(dict), forKey: ListenHistory.storageKey)
     }
 
-    /// Stores a rendered paragraph for `key` (a short tone), as a finished bake would.
-    func storeAudio(_ key: UUID, paragraph: Int, text: String, voice: String = "voiceA") throws {
+    /// Stores a rendered paragraph for `key` (a short tone of `level`), as a finished bake would.
+    func storeAudio(_ key: UUID, paragraph: Int, text: String, voice: String = "voiceA", level: Float = 0.1) throws {
         let tmp = dir.appending(path: "tone-\(UUID().uuidString).caf")
-        try LocalPCMWriter.write([Float](repeating: 0.1, count: 2400), sampleRate: 24_000, to: tmp)
+        try LocalPCMWriter.write([Float](repeating: level, count: 2400), sampleRate: 24_000, to: tmp)
         try cache.storeParagraph(articleID: key, paragraphIndex: paragraph, sourceURL: tmp, duration: 0.1,
                                  engineID: tts.cacheEngineID, voiceID: voice, text: text)
     }

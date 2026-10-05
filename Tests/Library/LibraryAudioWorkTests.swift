@@ -56,25 +56,271 @@ final class LibraryAudioWorkTests: XCTestCase {
         return out
     }
 
-    private func pendingWork() -> [LibraryAudioWork] {
-        (try? env.context.fetch(FetchDescriptor<LibraryAudioWork>())) ?? []
+    private func pendingWork(_ env: LibraryTestEnvironment? = nil) -> [LibraryAudioWork] {
+        ((try? (env ?? self.env).context.fetch(FetchDescriptor<LibraryAudioWork>())) ?? [])
     }
 
     /// The kept page has every paragraph's audio it can use, the merged copy's files are gone,
     /// its pending render is dropped and the crash-resume point names the kept page.
-    private func assertMerged(_ rows: DuplicateRows, file: StaticString = #filePath, line: UInt = #line) throws {
-        XCTAssertEqual(env.pages().map(\.key), [rows.kept], "one page, the further one", file: file, line: line)
+    private func assertMerged(_ rows: DuplicateRows, _ env: LibraryTestEnvironment? = nil, _ note: String = "",
+                              file: StaticString = #filePath, line: UInt = #line) throws {
+        let env = env ?? self.env!
+        XCTAssertEqual(env.pages().map(\.key), [rows.kept], "\(note) one page, the further one", file: file, line: line)
         for (i, text) in rows.keptText.enumerated() {
             XCTAssertEqual(env.cache.entry(articleID: rows.kept, paragraphIndex: i)?.textHash,
-                           ArticleIdentity.paragraphHash(text), "paragraph \(i)", file: file, line: line)
+                           ArticleIdentity.paragraphHash(text), "\(note) paragraph \(i)", file: file, line: line)
         }
-        XCTAssertFalse(env.cache.hasCache(for: rows.merged), file: file, line: line)
-        XCTAssertFalse(PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == rows.merged }, file: file, line: line)
-        let resume = try XCTUnwrap(ListenResumePointStore.shared.load(), file: file, line: line)
-        XCTAssertNotNil(library.page(matching: resume), "the resume point names a page that exists", file: file, line: line)
-        XCTAssertEqual(resume.articleKey, rows.kept.uuidString, file: file, line: line)
-        XCTAssertEqual(resume.paragraph, 1, file: file, line: line)
-        XCTAssertTrue(pendingWork().isEmpty, "nothing left to do", file: file, line: line)
+        XCTAssertFalse(env.cache.hasDirectory(for: rows.merged), note, file: file, line: line)
+        XCTAssertFalse(PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == rows.merged }, note, file: file, line: line)
+        let resume = try XCTUnwrap(ListenResumePointStore.shared.load(), note, file: file, line: line)
+        XCTAssertNotNil(env.library.page(matching: resume), "\(note) the resume point names a page that exists", file: file, line: line)
+        XCTAssertEqual(resume.articleKey, rows.kept.uuidString, note, file: file, line: line)
+        XCTAssertEqual(resume.paragraph, 1, note, file: file, line: line)
+        XCTAssertTrue(pendingWork(env).isEmpty, "\(note) nothing left to do", file: file, line: line)
+    }
+
+    // MARK: Interrupted work
+
+    private struct Died: Error {}
+
+    /// A fault hook that lets `k` steps of the audio cache's changes through, then fails every
+    /// later one: the app died at step `k`.
+    private func dieAt(_ k: Int) -> (ArticleAudioCache.ChangeStep) throws -> Void {
+        var seen = 0
+        return { _ in
+            if seen >= k { throw Died() }
+            seen += 1
+        }
+    }
+
+    /// How many steps `run` takes in the audio cache, uninterrupted, in a fresh environment.
+    private func steps(of fixture: (LibraryTestEnvironment) throws -> Void,
+                       _ run: (LibraryStore) -> Void) throws -> Int {
+        let env = try LibraryTestEnvironment(fileBacked: true)
+        defer { cleanUp(env) }
+        try fixture(env)
+        var count = 0
+        env.cache.faultHook = { _ in count += 1 }
+        run(env.library)
+        XCTAssertTrue(pendingWork(env).isEmpty, "the uninterrupted run finishes")
+        return count
+    }
+
+    private func cleanUp(_ env: LibraryTestEnvironment) {
+        for key in env.pages().compactMap(\.key) { PendingBakeJobStore.shared.removePending(articleID: key) }
+        env.cleanUp()
+    }
+
+    /// A cold load (a new cache over the same directory) finds every CAF the saved indexes list,
+    /// and each `needed` rendering (text → its bytes) under one of `keys`.
+    private func assertNothingLost(_ env: LibraryTestEnvironment, _ keys: [UUID], _ needed: [String: Data], _ note: String,
+                                   file: StaticString = #filePath, line: UInt = #line) throws {
+        let cold = ArticleAudioCache(root: env.cache.root)
+        var found: [String: [Data]] = [:]
+        for key in keys {
+            XCTAssertEqual(cold.index(for: key)?.paragraphs.count, cold.readIndexFile(for: key)?.paragraphs.count,
+                           "\(note): a cold load drops nothing", file: file, line: line)
+            for e in cold.index(for: key)?.paragraphs ?? [] {
+                found[e.textHash ?? "-", default: []].append(try Data(contentsOf: cold.directory(for: key).appending(path: e.file)))
+            }
+        }
+        for (text, bytes) in needed {
+            XCTAssertTrue(found[ArticleIdentity.paragraphHash(text)]?.contains(bytes) == true,
+                          "\(note): \(text.prefix(30)) still has its audio", file: file, line: line)
+        }
+    }
+
+    private func bytes(_ env: LibraryTestEnvironment, _ key: UUID, paragraph: Int) throws -> Data? {
+        guard let e = env.cache.entry(articleID: key, paragraphIndex: paragraph) else { return nil }
+        return try Data(contentsOf: env.cache.directory(for: key).appending(path: e.file))
+    }
+
+    /// `duplicateRows` with every rendering its own bytes; returns what the kept page ends up
+    /// with: text → the bytes it keeps.
+    private func distinctDuplicateRows(_ env: LibraryTestEnvironment) throws -> (DuplicateRows, [String: Data]) {
+        let rows = DuplicateRows()
+        env.legacyRow("https://example.com/dup?utm_source=feed", id: rows.merged, savedAt: date(0), paragraphs: rows.mergedText)
+        env.legacyRow("https://example.com/dup", id: rows.kept, savedAt: date(1), paragraphs: rows.keptText, position: 2)
+        for (i, text) in rows.mergedText.enumerated() {
+            try env.storeAudio(rows.merged, paragraph: i, text: text, level: 0.2 + Float(i) / 10)
+        }
+        try env.storeAudio(rows.kept, paragraph: 1, text: "Beta changed.", level: 0.7)
+        PendingBakeJobStore.shared.enqueuePending(articleID: rows.merged, paragraphs: rows.mergedText, voiceID: "voiceA",
+                                                  plan: .topDown(paragraphCount: 3))
+        ListenResumePointStore.shared.save(article: rows.merged, paragraph: 1, at: date(2))
+        var needed: [String: Data] = [:]
+        needed["Alpha one."] = try bytes(env, rows.merged, paragraph: 0)
+        needed["Gamma three."] = try bytes(env, rows.merged, paragraph: 2)
+        needed["Beta changed."] = try bytes(env, rows.kept, paragraph: 1)
+        return (rows, needed)
+    }
+
+    /// The migration's merge, with the app dying at each step of its audio work: a cold relaunch
+    /// finds every paragraph's audio the kept page needs, under one key or the other, and finishes
+    /// the merge, whether the merged page's directory is still there or already gone.
+    func testAMergeStoppedAtAnyStepLosesNoAudioAndIsFinishedNextLaunch() throws {
+        let count = try steps(of: { _ = try self.distinctDuplicateRows($0) }, { $0.migrateLegacy() })
+        XCTAssertGreaterThan(count, 3)
+        for k in 0..<count {
+            let env = try LibraryTestEnvironment(fileBacked: true)
+            defer { cleanUp(env) }
+            let (rows, needed) = try distinctDuplicateRows(env)
+            env.cache.faultHook = dieAt(k)
+            XCTAssertTrue(env.library.migrateLegacy().saved, "step \(k)")
+            XCTAssertEqual(pendingWork(env).count, 1, "step \(k): unfinished work is kept")
+
+            try env.relaunch()
+            try assertNothingLost(env, [rows.merged, rows.kept], needed, "died at step \(k)")
+            XCTAssertEqual(env.library.finishAudioWork(), 1, "step \(k)")
+            try assertMerged(rows, env, "step \(k):")
+            for (i, text) in rows.keptText.enumerated() {
+                XCTAssertEqual(try bytes(env, rows.kept, paragraph: i), needed[text], "step \(k): paragraph \(i)'s own audio")
+            }
+        }
+    }
+
+    /// Writes a stitched CAF like the queue does: chunk k's samples are all `level + k / 100`.
+    private func writeStitched(_ env: LibraryTestEnvironment, _ key: UUID, _ index: Int, _ text: String,
+                               lengths: [Int], level: Float) throws -> Data {
+        var samples: [Float] = []
+        for (k, n) in lengths.enumerated() { samples += [Float](repeating: level + Float(k) / 100, count: n) }
+        let tmp = env.dir.appending(path: "stitch-\(UUID().uuidString).caf")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        try LocalPCMWriter.write(samples, sampleRate: 24_000, to: tmp)
+        let url = try env.cache.storeParagraph(articleID: key, paragraphIndex: index, sourceURL: tmp,
+                                               duration: Double(samples.count) / 24_000, engineID: SpeechEngineID.kokoro.rawValue,
+                                               voiceID: "kstub:af_heart", text: text,
+                                               chunkDurations: lengths.count > 1 ? lengths.map { Double($0) / 24_000 } : nil)
+        return try Data(contentsOf: url)
+    }
+
+    private struct LayoutFixture {
+        let key: UUID
+        let old: [String]
+        let new: [String]
+        let iAfter: Int
+        let firstPiece: Int
+        /// Text → bytes of the renderings that keep their text: the paragraph after the giant, the last.
+        let kept: [String: Data]
+        let giant: (text: String, bytes: Data)
+    }
+
+    /// A saved page on the pre-split blocks (public-domain chapter) with audio for its giant
+    /// paragraph (stitched), the one after it and the last; the resume point and a pending render
+    /// on the old numbering.
+    private func layoutFixture(_ env: LibraryTestEnvironment) throws -> LayoutFixture {
+        let html = ParagraphSplitTests.chapterHTML
+        let title = "The Boscombe Valley Mystery"
+        let old = ParagraphDocument.forListening(plainText: "", cleanedHTML: html, matchingTitle: title, splitLong: false).paragraphs
+        let new = ParagraphDocument.forListening(plainText: "", cleanedHTML: html, matchingTitle: title).paragraphs
+        let iGiant = old.firstIndex { $0.hasPrefix("“The two McCarthys were seen") }!
+        let key = UUID()
+        let page = Page(key: key, title: title, byline: "example.com",
+                        urlString: "https://example.com/classics/boscombe-valley", contentState: .saved, addedAt: env.now)
+        page.cleanedHTML = html
+        page.listenBlocksData = try JSONEncoder().encode(old)
+        page.listenBlocksVersion = 2
+        page.paragraphCount = old.count
+        env.context.insert(page)
+        try env.context.save()
+        let plan = TextChunker.chunks(for: old[iGiant], limits: .kokoroCPU)
+        let giant = try writeStitched(env, key, iGiant, old[iGiant], lengths: plan.indices.map { 2400 + 240 * $0 }, level: 0.1)
+        var kept: [String: Data] = [:]
+        kept[old[iGiant + 1]] = try writeStitched(env, key, iGiant + 1, old[iGiant + 1], lengths: [4800], level: 0.5)
+        kept[old[old.count - 1]] = try writeStitched(env, key, old.count - 1, old[old.count - 1], lengths: [4800], level: 0.6)
+        ListenResumePointStore.shared.save(article: key, paragraph: iGiant + 1, at: date(1))
+        PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: old, voiceID: "voiceA",
+                                                  plan: .topDown(paragraphCount: old.count))
+        return LayoutFixture(key: key, old: old, new: new, iAfter: iGiant + 1, firstPiece: iGiant + 1, kept: kept,
+                             giant: (old[iGiant], giant))
+    }
+
+    /// The layout pass, with the app dying at each step of its audio work: a cold relaunch finds
+    /// every rendering (the giant paragraph's, or its slices) and finishes the work: unchanged
+    /// paragraphs moved to their new index, the giant sliced, the resume point and the pending
+    /// render on the new numbering.
+    func testALayoutPassStoppedAtAnyStepLosesNoAudioAndIsFinishedNextLaunch() throws {
+        let count = try steps(of: { _ = try self.layoutFixture($0) }, { $0.migrateParagraphLayout() })
+        XCTAssertGreaterThan(count, 3)
+        for k in 0..<count {
+            let env = try LibraryTestEnvironment(fileBacked: true)
+            defer { cleanUp(env) }
+            let f = try layoutFixture(env)
+            env.cache.faultHook = dieAt(k)
+            env.library.migrateParagraphLayout()
+            XCTAssertEqual(pendingWork(env).count, 1, "step \(k): unfinished work is kept")
+
+            try env.relaunch()
+            try assertNothingLost(env, [f.key], f.kept, "died at step \(k)")
+            let cold = ArticleAudioCache(root: env.cache.root)
+            let hashes = Set((cold.index(for: f.key)?.paragraphs ?? []).compactMap(\.textHash))
+            XCTAssertTrue(hashes.contains(ArticleIdentity.paragraphHash(f.giant.text))
+                          || hashes.contains(ArticleIdentity.paragraphHash(f.new[f.firstPiece])),
+                          "died at step \(k): the giant's audio, or its first slice")
+
+            XCTAssertEqual(env.library.finishAudioWork(), 1, "step \(k)")
+            XCTAssertTrue(env.cache.isAligned(articleID: f.key, paragraphs: f.new), "step \(k)")
+            let after = try XCTUnwrap(f.new.firstIndex(of: f.old[f.iAfter]))
+            XCTAssertEqual(try bytes(env, f.key, paragraph: after), f.kept[f.old[f.iAfter]],
+                           "step \(k): the paragraph after the giant moved with its audio")
+            XCTAssertEqual(try bytes(env, f.key, paragraph: f.new.count - 1), f.kept[f.old[f.old.count - 1]], "step \(k)")
+            XCTAssertEqual(env.cache.entry(articleID: f.key, paragraphIndex: f.firstPiece)?.textHash,
+                           ArticleIdentity.paragraphHash(f.new[f.firstPiece]), "step \(k): the first piece is sliced")
+            XCTAssertEqual(ListenResumePointStore.shared.load()?.paragraph, after, "step \(k): the resume point follows")
+            XCTAssertEqual(PendingBakeJobStore.shared.pendingJobs().first { $0.articleID == f.key }?.paragraphs, f.new, "step \(k)")
+            XCTAssertTrue(pendingWork(env).isEmpty, "step \(k)")
+        }
+    }
+
+    /// Work whose audio change fails isn't retired: it waits, with nothing lost, for a launch
+    /// where it can finish.
+    func testWorkThatFailsIsKeptUntilALaunchCanFinishIt() throws {
+        let (rows, needed) = try distinctDuplicateRows(env)
+        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: rows.merged) }
+        env.cache.faultHook = { _ in throw Died() }
+        XCTAssertTrue(library.migrateLegacy().saved)
+        XCTAssertEqual(pendingWork().count, 1, "not retired")
+
+        try env.relaunch()
+        env.cache.faultHook = { _ in throw Died() }
+        XCTAssertEqual(library.finishAudioWork(), 0, "still failing")
+        XCTAssertEqual(pendingWork().count, 1, "still kept")
+        try assertNothingLost(env, [rows.merged, rows.kept], needed, "while it fails")
+
+        try env.relaunch()
+        XCTAssertEqual(library.finishAudioWork(), 1)
+        try assertMerged(rows)
+    }
+
+    /// Two links for one address, neither holding text; the merged one still has audio from
+    /// when it was played. The merge moves its directory whole; the app dies right after the
+    /// rename. The next launch finds the audio under the kept key and retires the work.
+    func testAMergeStoppedRightAfterMovingTheDirectoryIsFinishedNextLaunch() throws {
+        let canonical = "https://example.com/link"
+        let kept = Page(key: UUID(), title: "Link", byline: "example.com", urlString: canonical, contentState: .link, addedAt: date(0))
+        let merged = Page(key: UUID(), title: "Link", byline: "example.com", urlString: canonical + "?utm_source=feed",
+                          contentState: .link, addedAt: date(1))
+        for page in [kept, merged] {
+            page.canonicalURL = canonical
+            env.context.insert(page)
+        }
+        try env.context.save()
+        let keptKey = try XCTUnwrap(kept.key), mergedKey = try XCTUnwrap(merged.key)
+        try env.storeAudio(mergedKey, paragraph: 0, text: "Played once.", level: 0.3)
+        let audio = try XCTUnwrap(bytes(env, mergedKey, paragraph: 0))
+
+        var steps: [ArticleAudioCache.ChangeStep] = []
+        env.cache.faultHook = { steps.append($0); throw Died() }
+        XCTAssertEqual(library.dedupe().mergedPages, 1)
+        XCTAssertEqual(steps, [.movedDirectory], "died right after the rename")
+        XCTAssertEqual(pendingWork().count, 1)
+
+        try env.relaunch()
+        try assertNothingLost(env, [keptKey], ["Played once.": audio], "after the rename")
+        XCTAssertEqual(library.finishAudioWork(), 1)
+        XCTAssertFalse(env.cache.hasDirectory(for: mergedKey))
+        XCTAssertEqual(try bytes(env, keptKey, paragraph: 0), audio)
+        XCTAssertTrue(pendingWork().isEmpty)
     }
 
     /// The copy's save fails after dedupe merged two copies: the audio, the pending render and

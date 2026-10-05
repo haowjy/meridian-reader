@@ -98,6 +98,11 @@ final class ArticleAudioCache {
         fileManager.fileExists(atPath: indexURL(for: articleID).path)
     }
 
+    /// The article has a cache directory, with or without an index.
+    func hasDirectory(for articleID: UUID) -> Bool {
+        fileManager.fileExists(atPath: directory(for: articleID).path)
+    }
+
     // MARK: Index (in memory)
 
     /// The article's index — usable entries only — or nil when it has none.

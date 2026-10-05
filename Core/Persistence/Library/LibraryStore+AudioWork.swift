@@ -14,6 +14,11 @@ struct LibraryAudioWorkPlan {
     var aligned: Set<UUID> = []
 }
 
+/// A record whose postconditions don't hold after it ran.
+enum LibraryAudioWorkError: Error {
+    case notAligned(UUID)
+}
+
 /// Files outside the library store change only after the library change they belong to is saved.
 /// The layout pass and dedupe plan their audio work (`planAlign`, `planMerge`) as records in the
 /// same save; `commit` does it once the save succeeds; a launch that died in between finishes it
@@ -76,52 +81,83 @@ extension LibraryStore {
 
     // MARK: - Doing it
 
-    /// Right after a successful save: the work planned with it, in order.
+    /// Right after a successful save: the stored work in order, the work just planned after any
+    /// an earlier launch couldn't finish.
     func doPlannedAudioWork() {
         guard !audioPlan.work.isEmpty else { return }
-        let work = audioPlan.work.sorted { $0.sequence < $1.sequence }
+        let planned = Set(audioPlan.work.map(ObjectIdentifier.init))
         audioPlan = LibraryAudioWorkPlan()
-        perform(work, live: true)
+        performStoredWork(planned: planned)
     }
 
-    /// At launch, before the library's other maintenance: work a launch saved but didn't finish.
+    /// At launch, before anything reads, cleans or renders the audio cache
+    /// (`AppComposition.prepareAudioCache`): work a launch saved but didn't finish. Returns how
+    /// many records were finished.
     @discardableResult
     func finishAudioWork() -> Int {
-        let left = (try? context.fetch(FetchDescriptor<LibraryAudioWork>(sortBy: [SortDescriptor(\.sequence)]))) ?? []
-        guard !left.isEmpty else { return 0 }
-        log("audio work: finishing \(left.count) left by an earlier launch")
-        perform(left, live: false)
-        return left.count
+        performStoredWork(planned: [])
     }
 
-    /// `live`: planned by this process, so the crash target it read at launch is in the
-    /// numbering the work started from.
-    private func perform(_ work: [LibraryAudioWork], live: Bool) {
-        for item in work {
-            switch item.kind {
-            case .align: align(item, live: live)
-            case .merge: merge(item, live: live)
-            case nil: log("audio work: unknown kind \(item.kindRaw), dropped")
+    /// Does each record, in order, and retires it only once its postconditions hold on disk
+    /// (the destination's saved index aligned with its paragraphs and every CAF it lists there,
+    /// a merged page's directory gone), whether or not its source still exists: work an app died
+    /// in the middle of is simply done again, and every step is idempotent. A record that fails
+    /// is kept for the next launch, and so is everything after it (later work can build on it).
+    /// `planned`: records this process planned, whose crash target was read in the numbering the
+    /// work started from.
+    @discardableResult
+    private func performStoredWork(planned: Set<ObjectIdentifier>) -> Int {
+        let rows: [LibraryAudioWork]
+        do {
+            rows = try context.fetch(FetchDescriptor<LibraryAudioWork>(sortBy: [SortDescriptor(\.sequence)]))
+        } catch {
+            log("audio work unreadable, left for the next launch: \(error)")
+            return 0
+        }
+        guard !rows.isEmpty else { return 0 }
+        if planned.isEmpty { log("audio work: finishing \(rows.count) left by an earlier launch") }
+        var finished = 0
+        for row in rows {
+            do {
+                try perform(row, live: planned.contains(ObjectIdentifier(row)))
+            } catch {
+                log("audio work \(row.kindRaw) \(Self.short(row.key)) not finished, kept with \(rows.count - finished - 1) after it for the next launch: \(error)")
+                ListenTimingLog.log("library_audio_work_failed", [
+                    "kind": row.kindRaw, "key": row.key.map(ListenTimingLog.shortKey) ?? "-",
+                    "waiting": rows.count - finished, "error": "\(error)",
+                ])
+                break
             }
-            context.delete(item)
+            context.delete(row)
+            finished += 1
         }
         tts.noteBakeMarksChanged()
+        guard finished > 0 else { return 0 }
         do {
             try saveContext(context)
         } catch {
             log("audio work done; its records stay until the next save (done again, harmlessly): \(error)")
         }
+        return finished
     }
 
-    private func align(_ work: LibraryAudioWork, live: Bool) {
+    private func perform(_ work: LibraryAudioWork, live: Bool) throws {
+        switch work.kind {
+        case .align: try align(work, live: live)
+        case .merge: try merge(work, live: live)
+        case nil: log("audio work: unknown kind \(work.kindRaw), dropped")
+        }
+    }
+
+    /// `key`'s audio is aligned with its rebuilt paragraphs (stamped with the old ones first,
+    /// split paragraphs sliced), then its pending render and the resume point follow.
+    private func align(_ work: LibraryAudioWork, live: Bool) throws {
         guard let key = work.key else { return }
         let new = work.paragraphs
         let cache = tts.audioCache
-        var rec = ArticleAudioCache.ReconcileResult()
-        if cache.hasCache(for: key) {
-            if work.stampsSource { try? cache.stampMissingHashes(articleID: key, paragraphs: work.sourceParagraphs) }
-            rec = (try? cache.reconcile(articleID: key, paragraphs: new) { self.tts.chunkPlan(engineID: $0, text: $1) }) ?? rec
-        }
+        if work.stampsSource { try cache.stampMissingHashes(articleID: key, paragraphs: work.sourceParagraphs) }
+        let rec = try cache.reconcile(articleID: key, paragraphs: new) { self.tts.chunkPlan(engineID: $0, text: $1) }
+        guard cache.isAligned(articleID: key, paragraphs: new) else { throw LibraryAudioWorkError.notAligned(key) }
         let pending = PendingBakeJobStore.shared
         if let job = pending.pendingJobs().first(where: { $0.articleID == key }), job.paragraphs != new {
             let start = ParagraphPositionMap.mapParagraphStart(job.priorityStart, from: ParagraphDocument(parts: job.paragraphs),
@@ -140,16 +176,25 @@ extension LibraryStore {
         log("audio \(Self.short(key)) aligned: kept \(rec.kept) moved \(rec.remapped) sliced \(rec.sliced) dropped \(rec.dropped)")
     }
 
-    private func merge(_ work: LibraryAudioWork, live: Bool) {
+    /// The merged page's audio fills the kept page's paragraphs it has none for (by text), its
+    /// directory and pending render go, and the resume point, the crash target and the live
+    /// session follow onto the kept page.
+    private func merge(_ work: LibraryAudioWork, live: Bool) throws {
         guard let from = work.fromKey, let to = work.key else { return }
         let cache = tts.audioCache
-        let hadAudio = cache.hasCache(for: from)
-        if hadAudio {
-            let paragraphs = work.paragraphs
-            if work.stampsTarget, !paragraphs.isEmpty { try? cache.stampMissingHashes(articleID: to, paragraphs: paragraphs) }
-            if work.stampsSource { try? cache.stampMissingHashes(articleID: from, paragraphs: work.sourceParagraphs) }
-            try? cache.rekeyCache(from: from, to: to)
-            if !paragraphs.isEmpty { _ = try? cache.reconcile(articleID: to, paragraphs: paragraphs) }
+        let paragraphs = work.paragraphs
+        if work.stampsTarget, !paragraphs.isEmpty { try cache.stampMissingHashes(articleID: to, paragraphs: paragraphs) }
+        if work.stampsSource { try cache.stampMissingHashes(articleID: from, paragraphs: work.sourceParagraphs) }
+        var rec = ArticleAudioCache.ReconcileResult()
+        if paragraphs.isEmpty {
+            try cache.rekeyCache(from: from, to: to)
+        } else {
+            rec = try cache.reconcile(articleID: to, paragraphs: paragraphs, adopting: from) {
+                self.tts.chunkPlan(engineID: $0, text: $1)
+            }
+        }
+        guard !cache.hasDirectory(for: from), paragraphs.isEmpty || cache.isAligned(articleID: to, paragraphs: paragraphs) else {
+            throw LibraryAudioWorkError.notAligned(to)
         }
         tts.synthQueue.remove(cacheKey: from)
         PendingBakeJobStore.shared.removePending(articleID: from)
@@ -157,9 +202,9 @@ extension LibraryStore {
         keyMerged(from, to)
         ListenTimingLog.log("library_audio_work", [
             "kind": "merge", "key": ListenTimingLog.shortKey(to), "from": ListenTimingLog.shortKey(from),
-            "had_audio": hadAudio, "leftover": !live,
+            "audio_adopted": rec.adopted, "leftover": !live,
         ])
-        log("audio \(Self.short(from)) merged into \(Self.short(to))")
+        log("audio \(Self.short(from)) merged into \(Self.short(to)): adopted \(rec.adopted)")
     }
 
     /// The crash-resume file and the crash target launch read from it (or from the crash

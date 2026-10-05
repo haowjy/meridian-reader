@@ -89,18 +89,19 @@ extension ArticleAudioCache {
         let merged = source.flatMap { index(for: $0) }
         var units = self.units(of: own, for: articleID, origin: .own)
         if let source { units += self.units(of: merged, for: source, origin: .adopted) }
+        var placed: [Int: AlignUnit] = [:]
         if !units.isEmpty {
             let slices = try self.slices(of: units, paragraphs: paragraphs, into: directory(for: articleID),
                                          chunkPlan: chunkPlan, &result)
-            let placed = place(slices + units, on: paragraphs, &result)
-            let unchanged = placed.count == own?.paragraphs.count
-                && placed.allSatisfy { $0.value.origin == .own && $0.value.entry.index == $0.key }
-            // The saved index can list CAFs the loaded one left out (missing or empty files).
-            if !unchanged || readIndexFile(for: articleID) != own, let base = own ?? merged {
-                try publish(placed, for: articleID, engineID: base.engineID, voiceID: base.voiceID)
-            }
+            placed = place(slices + units, on: paragraphs, &result)
         }
-        if let source, fileManager.fileExists(atPath: directory(for: source).path) {
+        let unchanged = placed.count == (own?.paragraphs.count ?? 0)
+            && placed.allSatisfy { $0.value.origin == .own && $0.value.entry.index == $0.key }
+        // The saved index can list CAFs the loaded one left out (missing or empty files).
+        if let base = own ?? merged, !unchanged || readIndexFile(for: articleID) != own {
+            try publish(placed, for: articleID, engineID: base.engineID, voiceID: base.voiceID)
+        }
+        if let source, hasDirectory(for: source) {
             if merged != nil { markSaved(cacheKey: articleID) }
             try deleteAudio(for: source)
             try step(.removedFile)
