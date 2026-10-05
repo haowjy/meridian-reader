@@ -13,6 +13,9 @@ extension LibraryStore {
         /// Bookmarks whose page was already saved: that page moved into Favorites (D6).
         var savedIntoFavorites = 0
         var mergedDuplicates = 0
+        /// `bookmarks.json` holds bytes that don't decode: none of it was copied or recorded, and
+        /// the file is left as it is (a later launch copies it if it becomes readable).
+        var bookmarksUnreadable = false
         /// The copy and its receipts were saved.
         var saved = false
     }
@@ -38,7 +41,14 @@ extension LibraryStore {
         func isCopied(_ id: UUID, _ source: LegacySource) -> Bool { copied.contains("\(source.rawValue)|\(id)") }
         let rows = ((try? context.fetch(FetchDescriptor<SavedArticle>(sortBy: [SortDescriptor(\.savedAt)]))) ?? [])
             .filter { !isCopied($0.id, .savedArticle) }
-        let bookmarks = LegacyBookmarks.load(from: legacy.bookmarksURL).filter { !isCopied($0.id, .bookmark) }
+        var bookmarks: [SiteBookmark] = []
+        do {
+            bookmarks = try LegacyBookmarks.load(from: legacy.bookmarksURL).filter { !isCopied($0.id, .bookmark) }
+        } catch {
+            report.bookmarksUnreadable = true
+            log("migration: bookmarks.json unreadable, left as it is, nothing copied from it: \(error)")
+            ListenTimingLog.log("library_migration", ["error": "bookmarks unreadable: \(error)"])
+        }
         let favorites = favorites()
         guard !rows.isEmpty || !bookmarks.isEmpty else {
             commit("ensure favorites")

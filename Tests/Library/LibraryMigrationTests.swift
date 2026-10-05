@@ -138,6 +138,48 @@ final class LibraryMigrationTests: XCTestCase {
         XCTAssertEqual(try env.context.fetch(LibraryQueries.inLibrary).map(\.title), ["Kept"])
     }
 
+    /// An empty bookmarks file (no bytes, or an empty list) copies no favorites, isn't an error,
+    /// and stays as it was; the saved rows are copied as usual.
+    func testAnEmptyBookmarksFileCopiesNothingAndStaysAsItWas() throws {
+        env.legacyRow("https://example.com/1", savedAt: date(0))
+        for bytes in [Data(), Data("[]".utf8)] {
+            try FileManager.default.createDirectory(at: env.legacy.bookmarksURL.deletingLastPathComponent(),
+                                                    withIntermediateDirectories: true)
+            try bytes.write(to: env.legacy.bookmarksURL)
+            let report = env.makeLibrary().migrateLegacy()
+            XCTAssertFalse(report.bookmarksUnreadable, "\(bytes.count) bytes")
+            XCTAssertEqual(report.copiedBookmarks, 0)
+            XCTAssertTrue(library.favoritePages().isEmpty)
+            XCTAssertEqual(try Data(contentsOf: env.legacy.bookmarksURL), bytes)
+        }
+        XCTAssertNotNil(library.page(url: URL(string: "https://example.com/1")!))
+    }
+
+    /// A bookmarks file that doesn't decode: logged, nothing copied or recorded from it, its
+    /// bytes left untouched, the saved rows copied. If it becomes readable later (the previous
+    /// build wrote it during a rollback), its bookmarks are copied then.
+    func testACorruptBookmarksFileIsLeftAloneAndNothingIsLost() throws {
+        env.legacyRow("https://example.com/1", savedAt: date(0))
+        let corrupt = Data("[{\"urlString\": \"https://example.com/fav\", \"tit".utf8)
+        try FileManager.default.createDirectory(at: env.legacy.bookmarksURL.deletingLastPathComponent(),
+                                                withIntermediateDirectories: true)
+        try corrupt.write(to: env.legacy.bookmarksURL)
+
+        let report = library.migrateLegacy()
+        XCTAssertTrue(report.bookmarksUnreadable)
+        XCTAssertTrue(report.saved)
+        XCTAssertEqual(report.copiedArticles, 1, "the saved rows still come over")
+        XCTAssertEqual(report.copiedBookmarks, 0)
+        XCTAssertEqual(try Data(contentsOf: env.legacy.bookmarksURL), corrupt, "the bytes are untouched")
+        XCTAssertFalse(env.receipts().contains { $0.source == .bookmark }, "nothing recorded from it")
+
+        try env.writeBookmarks([SiteBookmark(urlString: "https://example.com/fav", title: "Fav", host: "example.com")])
+        let later = env.makeLibrary().migrateLegacy()
+        XCTAssertFalse(later.bookmarksUnreadable)
+        XCTAssertEqual(later.copiedBookmarks, 1)
+        XCTAssertEqual(library.favoritePages().map(\.title), ["Fav"])
+    }
+
     /// A rollback: the previous build ran in between and saved or bookmarked something new.
     func testRowsAndBookmarksAddedAfterTheFirstRunAreCopied() throws {
         env.legacyRow("https://example.com/1", savedAt: date(0))

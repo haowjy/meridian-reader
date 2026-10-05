@@ -139,7 +139,9 @@ place. The paragraph layout pass then moves copied pages on older listen blocks 
 layout, and only then does dedupe merge duplicates, so positions and audio are compared on the
 same paragraphs. The pages and a receipt for every item copied are saved together: a failed save
 leaves neither, so the next launch copies again, and a page deleted after the copy never comes
-back. Receipts that can't be read stop the copy. Nothing legacy is written again: the rows, the
+back. Receipts that can't be read stop the copy. A bookmarks file that doesn't decode is logged
+and left as it is: nothing is copied or recorded from it, so it is copied if it becomes readable.
+Nothing legacy is written again: the rows, the
 bookmarks file and the listen history stay as they were, so the previous build still works after
 a rollback, and pages keep their rows' audio keys. Then the paragraph layout pass, the dedupe pass
 and the prune of pages not in the Library run. Debug: `-rerunLibraryMigration` empties the

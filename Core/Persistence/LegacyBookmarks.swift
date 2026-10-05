@@ -20,9 +20,10 @@ enum LegacyBookmarks {
             .appending(path: "bookmarks.json")
     }
 
-    /// The bookmarks in the user's order; none when the file is missing or unreadable.
-    static func load(from url: URL) -> [SiteBookmark] {
-        guard let data = try? Data(contentsOf: url) else { return [] }
-        return (try? JSONDecoder().decode([SiteBookmark].self, from: data)) ?? []
+    /// The bookmarks in the user's order; none when the file is missing or empty. Throws when
+    /// the file holds bytes that don't decode (the caller leaves them as they are).
+    static func load(from url: URL) throws -> [SiteBookmark] {
+        guard let data = try? Data(contentsOf: url), !data.isEmpty else { return [] }
+        return try JSONDecoder().decode([SiteBookmark].self, from: data)
     }
 }
