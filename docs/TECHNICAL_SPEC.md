@@ -144,8 +144,11 @@ and left as it is: nothing is copied or recorded from it, so it is copied if it 
 Nothing legacy is written again: the rows, the
 bookmarks file and the listen history stay as they were, so the previous build still works after
 a rollback, and pages keep their rows' audio keys. Then the paragraph layout pass, the dedupe pass
-and the prune of pages not in the Library run. Debug: `-rerunLibraryMigration` empties the
-library and its receipts and copies again.
+and the prune of pages not in the Library run. Each saves on its own; a save that fails is rolled
+back with the audio work it planned, so no later save can store that work against pages that
+have changed since, and the next launch plans it again (dedupe waits for a layout pass that
+couldn't save). Debug: `-rerunLibraryMigration` empties the library and its receipts and copies
+again.
 
 **Audio work waits for the save.** The layout pass (audio aligned to the new paragraphs, the
 crash-resume point and pending renders remapped) and dedupe (the merged page's audio filling the
@@ -161,7 +164,10 @@ for the next launch, which does them first (`finishAudioWork`); so is the work o
 dies after the save. Replay doesn't depend on the source still existing: the audio cache's
 changes are copy-on-write (`LISTEN_PLAYBACK.md`, Audio cache), so work stopped at any step is
 done again from what is on disk, losing nothing. The resume point moves only from where the work
-found it.
+found it. Before it changes any audio, a record is checked against the committed page: layout
+work for a page that holds other paragraphs now is dropped (the page's audio is aligned with what
+it holds when it opens); a merge aligns the merged audio with what the kept page holds now, and
+if the kept page has been deleted, leaves that audio to the cache's age prune.
 
 **`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
 `urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,

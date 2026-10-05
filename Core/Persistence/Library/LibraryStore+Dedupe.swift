@@ -14,7 +14,8 @@ extension LibraryStore {
     }
 
     /// Runs every rule, folders first (so a book's pages don't end up split), then saves once
-    /// (unless the caller batches it into its own save).
+    /// (unless the caller batches it into its own save). A failed save is rolled back with its
+    /// planned audio work; the next launch merges again.
     @discardableResult
     func dedupe(saving: Bool = true) -> DedupeReport {
         var report = DedupeReport()
@@ -25,7 +26,11 @@ extension LibraryStore {
         repairFolderIDs(&report)
         dedupePages(&report)
         if report != DedupeReport() {
-            if saving { commit("dedupe") }
+            if saving, !commit("dedupe") {
+                rollBack()
+                log("dedupe: save failed, rolled back; the next launch merges again")
+                return report
+            }
             log("dedupe: \(report)")
         }
         return report

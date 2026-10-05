@@ -11,6 +11,8 @@ extension LibraryStore {
         var oldParagraphs = 0
         var newParagraphs = 0
         var splitParagraphs = 0
+        /// Its own save failed: nothing changed, and the next launch plans it again.
+        var rolledBack = false
     }
 
     /// Paragraph layout v3 (paragraphs over 1,200 characters split at sentence ends, see
@@ -20,7 +22,8 @@ extension LibraryStore {
     /// shifted paragraphs move, only the rest re-renders), and the crash-resume point and any
     /// pending bake job are remapped (`planAlign`). Idempotent: pages are stamped with the
     /// version. Logged per page (`paragraph_layout_migration`). Saves, unless the caller batches
-    /// it into its own save.
+    /// it into its own save; a save that fails is rolled back with its planned audio work, so a
+    /// later save can't store it against pages that have changed since.
     @discardableResult
     func migrateParagraphLayout(saving: Bool = true) -> LayoutMigrationReport {
         var report = LayoutMigrationReport()
@@ -57,7 +60,11 @@ extension LibraryStore {
             ])
             log("layout v\(version) \(Self.short(page.key)): paragraphs \(old.count)→\(new.count) (split \(splitCount)), position \(before.paragraph)→\(after.paragraph)")
         }
-        if saving { commit("layout migration") }
+        if saving, !commit("layout migration") {
+            rollBack()
+            report.rolledBack = true
+            log("layout migration: save failed, rolled back; the next launch plans it again")
+        }
         return report
     }
 
@@ -71,7 +78,7 @@ extension LibraryStore {
     /// Pages not in the Library and not played for 7 days are deleted, except the page played
     /// most recently (what the Now Playing bar restores). Their audio is already ephemeral; the
     /// audio cache's own age and size prune removes it. Link pages' text caches unplayed for 7
-    /// days are cleared; the links stay.
+    /// days are cleared; the links stay. A failed save is rolled back (the next launch prunes).
     @discardableResult
     func pruneUnsaved() -> PruneReport {
         var report = PruneReport()
@@ -89,7 +96,7 @@ extension LibraryStore {
             page.lastPlayedAt = nil
             report.clearedLinkCaches += 1
         }
-        if report != PruneReport() { commit("prune") }
+        if report != PruneReport(), !commit("prune") { rollBack() }
         return report
     }
 

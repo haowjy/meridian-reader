@@ -25,9 +25,9 @@ enum AppLaunch {
         LaunchHooks.runSeeds(.current, library: library)
         #endif
         // Listen blocks on an older layout: rebuilt, keeping position and usable audio. Then
-        // duplicates merge, compared on the same paragraphs.
-        library.migrateParagraphLayout()
-        library.dedupe()
+        // duplicates merge, compared on the same paragraphs (so not if the layout pass couldn't
+        // save: both run again next launch).
+        if !library.migrateParagraphLayout().rolledBack { library.dedupe() }
         library.pruneUnsaved()
 
         #if DEBUG

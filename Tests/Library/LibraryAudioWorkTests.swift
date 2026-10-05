@@ -404,4 +404,140 @@ final class LibraryAudioWorkTests: XCTestCase {
         XCTAssertEqual(try audioFiles(key).keys.sorted(), files, "the audio is as the first run left it")
         XCTAssertTrue(pendingWork().isEmpty)
     }
+
+    // MARK: Work checked against the committed page
+
+    /// The page at `url` opened with newer text, as the reader does (`readerArticle`).
+    private func refresh(_ url: String, title: String, to paragraphs: [String]) {
+        let extracted = ExtractedArticle(title: title, siteName: nil, cleanedHTML: paragraphs.map { "<p>\($0)</p>" }.joined(),
+                                         plainText: paragraphs.joined(separator: "\n\n"), excerpt: "")
+        _ = library.readerArticle(url: URL(string: url)!, extracted: extracted)
+    }
+
+    private let boscombeURL = "https://example.com/classics/boscombe-valley"
+    private let boscombeTitle = "The Boscombe Valley Mystery"
+
+    /// The launch's layout pass can't save. It is rolled back with its planned audio work: the
+    /// page is opened with newer text and that is rendered while saves still fail, and the save
+    /// that finally succeeds stores the newer page without aligning its audio to the old plan.
+    func testAFailedLayoutSaveIsRolledBackSoALaterSaveCantRunItOnNewerText() throws {
+        let f = try layoutFixture(env)
+        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: f.key) }
+        var failing = true
+        library.saveContext = { context in
+            if failing { throw SaveFailed() }
+            try context.save()
+        }
+        XCTAssertTrue(library.migrateParagraphLayout().rolledBack)
+        XCTAssertTrue(pendingWork().isEmpty, "no audio work left planned")
+        XCTAssertEqual(library.page(key: f.key)?.listenBlocksVersion, 2, "the page is as it was")
+
+        let fresh = ["A newer first paragraph.", "A newer second paragraph."]
+        refresh(boscombeURL, title: boscombeTitle, to: fresh)
+        var rendered: [Data] = []
+        for (i, text) in fresh.enumerated() {
+            try env.storeAudio(f.key, paragraph: i, text: text, level: 0.3 + Float(i) / 10)
+            rendered.append(try XCTUnwrap(bytes(env, f.key, paragraph: i)))
+        }
+
+        failing = false
+        XCTAssertTrue(library.commit("later"))
+        XCTAssertEqual(library.page(key: f.key)?.cachedListenParagraphs, fresh)
+        for (i, text) in fresh.enumerated() {
+            XCTAssertEqual(env.cache.entry(articleID: f.key, paragraphIndex: i)?.textHash, ArticleIdentity.paragraphHash(text))
+            XCTAssertEqual(try bytes(env, f.key, paragraph: i), rendered[i], "the newer text's audio is all there")
+        }
+        XCTAssertTrue(pendingWork().isEmpty)
+    }
+
+    /// A layout pass whose save failed is planned again by the next launch.
+    func testAFailedLayoutSaveIsPlannedAgainNextLaunch() throws {
+        let f = try layoutFixture(env)
+        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: f.key) }
+        library.saveContext = { _ in throw SaveFailed() }
+        XCTAssertTrue(library.migrateParagraphLayout().rolledBack)
+
+        try env.relaunch()
+        let report = library.migrateParagraphLayout()
+        XCTAssertEqual(report.articles, 1)
+        XCTAssertFalse(report.rolledBack)
+        XCTAssertTrue(env.cache.isAligned(articleID: f.key, paragraphs: f.new))
+        XCTAssertEqual(env.cache.entry(articleID: f.key, paragraphIndex: f.firstPiece)?.textHash,
+                       ArticleIdentity.paragraphHash(f.new[f.firstPiece]))
+        XCTAssertTrue(pendingWork().isEmpty)
+    }
+
+    /// Layout work that couldn't finish waits; meanwhile the page is opened with newer text, which
+    /// is rendered. Next launch the work no longer matches the page and is dropped, leaving the
+    /// newer audio alone.
+    func testWaitingLayoutWorkWhosePageChangedSinceIsDropped() throws {
+        let f = try layoutFixture(env)
+        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: f.key) }
+        env.cache.faultHook = { _ in throw Died() }
+        library.migrateParagraphLayout()
+        XCTAssertEqual(pendingWork().count, 1, "waiting")
+        env.cache.faultHook = nil
+
+        let fresh = ["A newer first paragraph.", "A newer second paragraph."]
+        refresh(boscombeURL, title: boscombeTitle, to: fresh)
+        XCTAssertEqual(library.page(key: f.key)?.cachedListenParagraphs, fresh)
+        var rendered: [Data] = []
+        for (i, text) in fresh.enumerated() {
+            try env.storeAudio(f.key, paragraph: i, text: text, level: 0.3 + Float(i) / 10)
+            rendered.append(try XCTUnwrap(bytes(env, f.key, paragraph: i)))
+        }
+
+        try env.relaunch()
+        XCTAssertEqual(library.finishAudioWork(), 1, "retired")
+        for (i, text) in fresh.enumerated() {
+            XCTAssertEqual(env.cache.entry(articleID: f.key, paragraphIndex: i)?.textHash, ArticleIdentity.paragraphHash(text))
+            XCTAssertEqual(try bytes(env, f.key, paragraph: i), rendered[i], "the newer text's audio is untouched")
+        }
+        XCTAssertTrue(pendingWork().isEmpty)
+    }
+
+    /// A merge that couldn't finish waits; meanwhile the kept page is opened with newer text and
+    /// its changed paragraph rendered. Next launch the merged audio fills what the kept page holds
+    /// now, and the newer audio stays.
+    func testAWaitingMergeFollowsWhatTheKeptPageHoldsNow() throws {
+        let (rows, needed) = try distinctDuplicateRows(env)
+        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: rows.merged) }
+        env.cache.faultHook = { _ in throw Died() }
+        XCTAssertTrue(library.migrateLegacy().saved)
+        XCTAssertEqual(pendingWork().count, 1, "waiting")
+        env.cache.faultHook = nil
+
+        let fresh = ["Alpha one.", "Beta edited again.", "Gamma three."]
+        refresh("https://example.com/dup", title: "Legacy", to: fresh)
+        XCTAssertEqual(library.page(key: rows.kept)?.cachedListenParagraphs, fresh)
+        try env.storeAudio(rows.kept, paragraph: 1, text: "Beta edited again.", level: 0.9)
+        let edited = try XCTUnwrap(bytes(env, rows.kept, paragraph: 1))
+
+        try env.relaunch()
+        XCTAssertEqual(library.finishAudioWork(), 1)
+        XCTAssertEqual(try bytes(env, rows.kept, paragraph: 0), needed["Alpha one."], "the merged page's audio fills in")
+        XCTAssertEqual(try bytes(env, rows.kept, paragraph: 1), edited, "the newer audio stays")
+        XCTAssertEqual(try bytes(env, rows.kept, paragraph: 2), needed["Gamma three."])
+        XCTAssertFalse(env.cache.hasDirectory(for: rows.merged))
+        XCTAssertTrue(pendingWork().isEmpty)
+    }
+
+    /// A merge that couldn't finish waits; meanwhile the kept page is deleted. Next launch no page
+    /// holds the merged audio: it is left to the cache's age prune, not moved under a deleted key.
+    func testAWaitingMergeWhoseKeptPageIsDeletedLeavesItsAudioToTheAgePrune() throws {
+        let (rows, _) = try distinctDuplicateRows(env)
+        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: rows.merged) }
+        env.cache.faultHook = { _ in throw Died() }
+        XCTAssertTrue(library.migrateLegacy().saved)
+        env.cache.faultHook = nil
+        library.delete(try XCTUnwrap(library.page(key: rows.kept)))
+
+        try env.relaunch()
+        XCTAssertEqual(library.finishAudioWork(), 1)
+        XCTAssertTrue(env.cache.hasCache(for: rows.merged), "not deleted outright")
+        XCTAssertEqual(env.cache.loadMeta(for: rows.merged)?.kind, .ephemeral)
+        XCTAssertFalse(env.cache.hasDirectory(for: rows.kept), "nothing moved under the deleted page's key")
+        XCTAssertFalse(PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == rows.merged })
+        XCTAssertTrue(pendingWork().isEmpty)
+    }
 }

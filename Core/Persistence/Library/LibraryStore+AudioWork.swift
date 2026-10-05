@@ -150,10 +150,19 @@ extension LibraryStore {
     }
 
     /// `key`'s audio is aligned with its rebuilt paragraphs (stamped with the old ones first,
-    /// split paragraphs sliced), then its pending render and the resume point follow.
+    /// split paragraphs sliced), then its pending render and the resume point follow. Skipped
+    /// when the committed page holds other paragraphs now (it changed since this was planned):
+    /// aligning with the planned ones could drop audio rendered for what it holds, which is
+    /// aligned when the page opens. A page that is gone (merged by a later record, or deleted
+    /// with its audio) doesn't stop it.
     private func align(_ work: LibraryAudioWork, live: Bool) throws {
         guard let key = work.key else { return }
         let new = work.paragraphs
+        if let page = try context.fetch(LibraryQueries.page(key: key)).first, (page.cachedListenParagraphs ?? []) != new {
+            log("audio \(Self.short(key)): the page changed since its layout work was planned; skipped")
+            ListenTimingLog.log("library_audio_work", ["kind": "align", "key": ListenTimingLog.shortKey(key), "skipped": "page changed"])
+            return
+        }
         let cache = tts.audioCache
         if work.stampsSource { try cache.stampMissingHashes(articleID: key, paragraphs: work.sourceParagraphs) }
         let rec = try cache.reconcile(articleID: key, paragraphs: new) { self.tts.chunkPlan(engineID: $0, text: $1) }
@@ -178,12 +187,27 @@ extension LibraryStore {
 
     /// The merged page's audio fills the kept page's paragraphs it has none for (by text), its
     /// directory and pending render go, and the resume point, the crash target and the live
-    /// session follow onto the kept page.
+    /// session follow onto the kept page. Its audio is aligned with the paragraphs the committed
+    /// kept page holds: if they changed since this was planned, the merged audio still finds its
+    /// paragraphs by text, but the kept page's is no longer stamped against the planned ones. If
+    /// the kept page is gone (deleted since), no page holds the merged audio: it is left to the
+    /// cache's age prune, as a deleted page's own would have gone.
     private func merge(_ work: LibraryAudioWork, live: Bool) throws {
         guard let from = work.fromKey, let to = work.key else { return }
         let cache = tts.audioCache
-        let paragraphs = work.paragraphs
-        if work.stampsTarget, !paragraphs.isEmpty { try cache.stampMissingHashes(articleID: to, paragraphs: paragraphs) }
+        guard let keeper = try context.fetch(LibraryQueries.page(key: to)).first else {
+            if cache.hasDirectory(for: from) { cache.markEphemeral(cacheKey: from) }
+            tts.synthQueue.remove(cacheKey: from)
+            PendingBakeJobStore.shared.removePending(articleID: from)
+            log("audio \(Self.short(from)): the page it merged into is gone; left to the age prune")
+            ListenTimingLog.log("library_audio_work", ["kind": "merge", "key": ListenTimingLog.shortKey(to),
+                                                       "from": ListenTimingLog.shortKey(from), "skipped": "kept page gone"])
+            return
+        }
+        let paragraphs = keeper.cachedListenParagraphs ?? []
+        if work.stampsTarget, !paragraphs.isEmpty, paragraphs == work.paragraphs {
+            try cache.stampMissingHashes(articleID: to, paragraphs: paragraphs)
+        }
         if work.stampsSource { try cache.stampMissingHashes(articleID: from, paragraphs: work.sourceParagraphs) }
         var rec = ArticleAudioCache.ReconcileResult()
         if paragraphs.isEmpty {
