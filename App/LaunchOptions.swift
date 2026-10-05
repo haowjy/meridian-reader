@@ -71,6 +71,9 @@ struct LaunchOptions: Equatable {
     /// `-playTestEPUB` (with `-importTestEPUB`): once imported, play the book from its place, as
     /// a book's Play does.
     var playsTestEPUB = false
+    /// `-probeLockedFetch`: once launched, the locked-phone device check of a hidden fetch and a
+    /// silent wait between chapters (`LockedFetchProbe`).
+    var probesLockedFetch = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -110,6 +113,7 @@ struct LaunchOptions: Equatable {
         resetsSurface = flags.contains("-resetSurface")
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")
+        probesLockedFetch = flags.contains("-probeLockedFetch")
     }
 
     /// Whether the app reopens on the surface it was left on.

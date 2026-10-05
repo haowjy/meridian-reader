@@ -68,11 +68,13 @@ enum LaunchHooks {
         if options.opensDemoInReader { openNewestInReader(in: library, shell: shell) }
     }
 
-    /// Last, after crash resume (which wins): `-importTestEPUB`, `-playTestEPUB`, `-chainDemoChapters`.
+    /// Last, after crash resume (which wins): `-importTestEPUB`, `-playTestEPUB`, `-chainDemoChapters`,
+    /// `-probeLockedFetch`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController) async {
         if options.importsTestEPUB { await importTestEPUB(in: library) }
         if options.playsTestEPUB { await playTestEPUB(library: library, speech: speech) }
         if options.chainsDemoChapters { await chainDemoChapters(library: library, speech: speech) }
+        if options.probesLockedFetch { await LockedFetchProbe.run(speech: speech) }
     }
 
     /// `-importTestEPUB`: the synthetic EPUB, written to a temporary file and imported into the top
