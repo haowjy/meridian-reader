@@ -21,9 +21,12 @@ final class LibraryStore {
     /// revised (before its audio is deleted or aligned), or a key a waiting merge would move onto
     /// such a page (`keysWaitingToMerge`).
     @ObservationIgnored var stopPlaybackIfPlaying: (UUID) -> Void = { _ in }
-    /// Dedupe merged the page with the first key into the page with the second: whatever holds
-    /// the first key outside the library (the live session, the last-played record) follows.
-    @ObservationIgnored var keyMerged: (UUID, UUID) -> Void = { _, _ in }
+    /// A merge (dedupe, a *Replace* finding a chapter's text under a new key) moved the page with
+    /// the first key into the page with the second, which holds the text the third names
+    /// (`textFingerprint(of:)`, nil for none): whatever holds the first key outside the library
+    /// follows, the live session only while it plays that text
+    /// (`SpeechController.rekeyActiveSession`).
+    @ObservationIgnored var keyMerged: (UUID, UUID, String?) -> Void = { _, _, _ in }
     /// Favorites whose icon `backfillFavoriteIcons` already fetched this launch.
     @ObservationIgnored var iconTried = Set<UUID>()
     /// How `commit` saves; tests make it fail.
@@ -36,6 +39,8 @@ final class LibraryStore {
     @ObservationIgnored var audioPlan = LibraryAudioWorkPlan()
     /// Listening progress written and not stored yet, by page key (`LibraryStore+PendingListening`).
     @ObservationIgnored var pendingListening: [UUID: PendingListening] = [:]
+    /// The last stored text `textFingerprint(of:)` hashed, with its fingerprint.
+    @ObservationIgnored var lastTextHashed: (data: Data, fingerprint: String)?
     /// An edit is being staged (`edit`): `commit` stores nothing until the edit's own save.
     @ObservationIgnored private(set) var isStagingEdit = false
     @ObservationIgnored let legacy: LegacyLibrarySources

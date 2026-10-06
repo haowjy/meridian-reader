@@ -37,6 +37,9 @@ final class SpeechController {
     // (scrubber thumb, mini-player fill, progress reporter).
 
     private(set) var activeSessionID: UUID?
+    /// The text the bound page plays (`PlaybackSessionState.textFingerprint`). Not observed: it
+    /// changes only with the page, and nothing draws it.
+    var activeTextFingerprint: String? { playback.textFingerprint }
     /// The book or series the bound page is a chapter of (`PlaybackSessionState.folderID`).
     private(set) var activeFolderID: UUID?
     private(set) var document: ParagraphDocument = .empty
@@ -222,8 +225,8 @@ final class SpeechController {
         sampleListenStatus()
         let after = ListenProgressKey(id: activeSessionID, paragraph: currentParagraphIndex, phase: playbackPhase)
         if after != before, let id = playback.articleID, !playback.awaitingPage {
-            onProgress?(ListenProgress(pageKey: id, paragraph: playback.playhead, utf16Offset: playback.utf16Offset,
-                                       phase: playback.phase))
+            onProgress?(ListenProgress(pageKey: id, text: playback.textFingerprint, paragraph: playback.playhead,
+                                       utf16Offset: playback.utf16Offset, phase: playback.phase))
         }
     }
 
@@ -653,11 +656,22 @@ final class SpeechController {
         playback.clear()
     }
 
-    /// Swap the live session's identity without stopping audio. Only needed when Save lands on a
-    /// different id than the reader key (legacy saved row found mid-read); v2 saves reuse the key,
-    /// so this is a no-op.
-    func rekeyActiveSession(from oldID: UUID, to newID: UUID) {
+    /// The page keyed `oldID` is keyed `newID` now and holds `text` (`ArticleIdentity`
+    /// fingerprint): Save landed on an older page holding the address under another key, or a
+    /// merge moved a page's audio under the kept page's key (`LibraryStore.keyMerged`). A live
+    /// session on `oldID` playing that text takes the new key without stopping audio. One playing
+    /// other text stops (Stop Listening), as playback of a page being revised does: a key can name
+    /// other text by the time a merge runs (a *Replace* revised the kept chapter, or brought
+    /// another chapter back under it), and its positions would be stored on text it isn't
+    /// playing.
+    func rekeyActiveSession(from oldID: UUID, to newID: UUID, text: String?) {
         guard oldID != newID, playback.articleID == oldID else { return }
+        guard let text, text == playback.textFingerprint else {
+            ListenTimingLog.log("session_rekey", ["from": ListenTimingLog.shortKey(oldID),
+                                                  "to": ListenTimingLog.shortKey(newID), "stopped": "other text"])
+            stop()
+            return
+        }
         if sessionMeta?.id == oldID { sessionMeta?.id = newID }
         playback.rekey(to: newID)
         localEngine.rekey(to: newID)

@@ -123,7 +123,7 @@ final class LibraryDedupeTests: XCTestCase {
         series.currentPageKey = extra.key
         ListenResumePointStore.shared.save(article: extra.key!, paragraph: 1)
         var merged: [(UUID, UUID)] = []
-        library.keyMerged = { merged.append(($0, $1)) }
+        library.keyMerged = { from, to, _ in merged.append((from, to)) }
         try env.context.save()
 
         library.dedupe()

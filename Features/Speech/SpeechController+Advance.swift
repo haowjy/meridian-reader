@@ -65,11 +65,11 @@ extension SpeechController {
         switch decision {
         case .play(let next):
             beginBoundary(from: key)
-            library.pageFinished(key: key)
+            library.pageFinished(key: key, text: playback.textFingerprint)
             advance(to: next, in: folderID)
         case .waitForFetch(let next):
             beginBoundary(from: key)
-            library.pageFinished(key: key)
+            library.pageFinished(key: key, text: playback.textFingerprint)
             awaitChapter(next, in: folderID)
         case .end(let notice):
             if let notice { ListenDebugLog.shared.append("chapter: \(notice)") }

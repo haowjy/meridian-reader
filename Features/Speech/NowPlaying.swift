@@ -72,8 +72,9 @@ protocol NextChapterProviding: AnyObject {
     func load(_ pageKey: UUID) -> SpeechSession?
     /// Fetches a link chapter's text, so it can play; false when it couldn't be had.
     func fetch(_ pageKey: UUID) async -> Bool
-    /// The chapter played to its end and playback carried on past it.
-    func pageFinished(key: UUID)
+    /// The chapter played to its end, playing `text` (`PlaybackSessionState.textFingerprint`), and
+    /// playback carried on past it. Marked finished only while its page holds that text.
+    func pageFinished(key: UUID, text: String?)
 }
 
 /// A book or series playback carries on through.
@@ -86,6 +87,9 @@ struct PlaybackFolder: Equatable {
 /// change (pause, finish, stop), a page being replaced. Delivered to `ListeningProgressRecorder`.
 struct ListenProgress: Equatable {
     var pageKey: UUID
+    /// The text it was reached in (`PlaybackSessionState.textFingerprint`): it is stored only on a
+    /// page holding that text.
+    var text: String?
     var paragraph: Int
     var utf16Offset: Int
     var phase: PlaybackPhase

@@ -29,14 +29,15 @@ enum AppComposition {
     private static var progressRecorder: ListeningProgressRecorder?
 
     /// The library over `context`, connected to playback: deleting the playing page stops it
-    /// first, and a page merged by dedupe takes the live session's key with it.
+    /// first, and a merged page takes the live session's key with it while the kept page holds
+    /// the text it plays (otherwise the session stops).
     static func makeLibrary(context: ModelContext) -> LibraryStore {
         let speech = speechController
         let library = LibraryStore(context: context, tts: speech.localTTS)
         library.stopPlaybackIfPlaying = { key in
             if speech.activeSessionID == key { speech.stop() }
         }
-        library.keyMerged = { from, to in speech.rekeyActiveSession(from: from, to: to) }
+        library.keyMerged = { from, to, text in speech.rekeyActiveSession(from: from, to: to, text: text) }
         // Before the first frame: the start page's grid queries Favorites by its id.
         library.favorites()
         library.commit("favorites")

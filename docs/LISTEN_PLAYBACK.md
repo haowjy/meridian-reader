@@ -167,6 +167,20 @@ page only a play had made. It is forgotten once a save stores it. A position rec
 edit is being staged (stopping the playing page it deletes) isn't saved on its own: it waits for
 the edit's save, so it can't store the edit half made.
 
+Progress lands only on the text that was played. The session carries a fingerprint of its
+document (`PlaybackSessionState.textFingerprint`, `ArticleIdentity.contentFingerprint` of its
+paragraphs, hashed once per page bound), and every write (a start, a position, an end, the
+chapter carried past) goes to the page for the session's key only while that page holds the same
+text (`LibraryStore.holds`, which compares the stored listen blocks and keeps the last hash, so a
+paragraph's write costs no hash). A key can name other text by then: a book's *Replace* brought
+another chapter back under it, the page was refreshed on open while it played, a paused session
+resumed or a staged next chapter is older than its page. Such a session plays on in its own text
+and nothing it reaches is written; the page keeps its own listening. Kept progress is in one text
+too: a rollback writes it again only on a page holding the text it was made in, and a play of
+other text on the page starts it over. A session moves to another key only onto a page holding
+its text: a merge whose kept page holds other text when it runs, or a Save landing on an older
+page while the session plays older text, stops it instead (`rekeyActiveSession`).
+
 ### Books and series
 
 A book or series carries on from chapter to chapter, then stops; any other page plays to its end
@@ -396,8 +410,9 @@ highlight and the paragraph picker stay fine-grained.
   ephemeral again, both through the library's audio work; deleting a saved row deletes its audio.
   Saving the page that is playing, under its own key, moves no audio. When a page holds the
   address under an older key, the reader's audio moves under the page's key and the live session
-  is rekeyed, without a restart; saving a page that isn't playing aligns its audio with the saved
-  text and can adopt a legacy v1 cache (`prepareListenIdentity`, as on open).
+  is rekeyed, without a restart, while it plays the saved text (otherwise it stops); saving a
+  page that isn't playing aligns its audio with the saved text and can adopt a legacy v1 cache
+  (`prepareListenIdentity`, as on open).
 - **One voice per article.** The index's top-level `engineID` / `voiceID` is the target voice.
   After a voice or engine switch, the first new-voice write retargets the index; older entries
   stay, stamped stale. Ready / missing counts look only at the target voice, so the queue
@@ -520,7 +535,8 @@ Developer options on (`NAVIGATION.md` → "Developer options"):
 `timing.1.jsonl`): launch, open, play, model load, every `synth` call (chars, wall ms, audio s,
 phonemes, `mem_mb`), chunk / paragraph ready and failed, waits, first audio, buffering, Apple
 fallback, skips, app phase and background events, remote commands, interruptions, migrations,
-cache prunes and chapter boundaries (`chapter_advance`, `chapter_staged`, `chapter_boundary`).
+cache prunes, chapter boundaries (`chapter_advance`, `chapter_staged`, `chapter_boundary`) and a
+session stopped rather than moved onto a key holding other text (`session_rekey`).
 A few lines (`chapter_advance`, `chapter_boundary`) also go to the unified log, readable live in
 Console.app with the filter `subsystem:com.jimmyyao.Reader category:ListenTiming`. Pull the
 file from a device:

@@ -71,6 +71,11 @@ struct PlaybackSessionState: Equatable {
     /// The book or series the page is a chapter of (nil: it plays to its end and stops).
     private(set) var folderID: UUID?
     private(set) var document: ParagraphDocument = .empty
+    /// The text `document` holds (`ArticleIdentity.contentFingerprint` of its paragraphs), set
+    /// with it: hashed once per page bound, never per position. Progress is stored on a page, and
+    /// the session follows its key to another page, only while that page holds this text
+    /// (`LibraryStore.holds`). nil while nothing is bound.
+    private(set) var textFingerprint: String?
     var playhead: Int = 0
     var utf16Offset: Int = 0
     var phase: PlaybackPhase = .idle
@@ -105,6 +110,7 @@ struct PlaybackSessionState: Equatable {
         self.articleID = articleID
         self.folderID = folderID
         self.document = document
+        textFingerprint = ArticleIdentity.contentFingerprint(paragraphs: document.paragraphs)
         awaitingPage = false
         let clamped = document.isEmpty ? 0 : max(0, min(startingAt, document.count - 1))
         playhead = clamped
@@ -122,6 +128,7 @@ struct PlaybackSessionState: Equatable {
         articleID = nil
         folderID = nil
         document = .empty
+        textFingerprint = nil
         playhead = 0
         utf16Offset = 0
         phase = .idle
@@ -135,6 +142,7 @@ struct PlaybackSessionState: Equatable {
             articleID = key
             folderID = folder
             document = next
+            textFingerprint = ArticleIdentity.contentFingerprint(paragraphs: next.paragraphs)
             playhead = 0
             utf16Offset = 0
             awaitingPage = false

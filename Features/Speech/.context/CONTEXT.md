@@ -33,6 +33,12 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
   failed edit's rollback. Progress set straight on a `Page` is lost to the next rollback. A
   write made while an edit is staged (the position stopping records when the playing page is
   deleted) waits for that edit's save.
+- **Progress follows the text.** `PlaybackSessionState.textFingerprint` is set with the document
+  (`bind`, `advance`) and travels in every `ListenProgress`. The recorder, `pageFinished` and a
+  rollback's rewrite store progress only on a page holding that text (`LibraryStore.holds`), and
+  `rekeyActiveSession` moves the session only onto a page holding it, else stops it. Anything
+  new that writes a position, start or end onto a page, or moves the session to another key,
+  goes through the same check.
 - **Position.** Only `PlaybackSessionState` holds it, and a seek publishes it synchronously in
   the same transaction as the UI change; the scrubber relies on that to avoid a snap back. An
   engine never reports a spot before the offset its play started at.

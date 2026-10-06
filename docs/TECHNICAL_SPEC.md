@@ -130,7 +130,9 @@ and throws `LibraryStoreError.saveFailed`. So a failed edit never shows as done,
 in the context for a later save to store or a later rollback to drop. The rollback drops every
 other change still unsaved too, except listening progress: `LibraryStore` keeps what playback
 wrote and hasn't stored (`PendingListening`) and writes it again after the rollback, making again
-a page only a play had made, so the next save stores it while the edit stays undone. Nothing is
+a page only a play had made, so the next save stores it while the edit stays undone. It is written
+again only on a page holding the text it was made in (`LibraryStore.holds`), as playback writes
+it only on a page holding the text playing (`LISTEN_PLAYBACK.md`). Nothing is
 saved while an edit is being staged: deleting the playing page stops it, and the position
 stopping records waits for the delete's save instead of storing the delete half made. The screens
 run these through `ShellState.attempt`, which shows the failure as a toast (the import sheet
@@ -272,8 +274,13 @@ key (its delete or merge) decides instead. A session playing the merged key keep
 merge runs, so a *Replace* that revises or drops the kept page, or a delete of it, stops that
 session with the kept page's own (`keysWaitingToMerge`, which applies the merge's rule: no page
 holds the merged key and no later record names it). Otherwise the merge would move it onto
-revised text it isn't playing, and record positions in the old text there, or leave it on a key
-no page holds.
+revised text it isn't playing, or leave it on a key no page holds. Under those stops, which
+follow the sequences a *Replace* can make, sits the rule that holds for all of them: the merge
+moves the session only onto a kept page holding the text it plays and otherwise stops it
+(`SpeechController.rekeyActiveSession`, given the kept page's text by `keyMerged`), and
+listening is written only on a page holding the text playing, so no order of later *Replace*s (a
+key brought back with other text, a kept key that comes back after its text moved on) puts one
+text's positions on another.
 
 **`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
 `urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,

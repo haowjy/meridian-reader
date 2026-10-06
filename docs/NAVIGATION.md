@@ -225,8 +225,11 @@ Pages · 48                     Show All › pages in no folder, newest first, t
   and a toast over the sheet says so.
 - **Deleting a folder** asks *Delete Folder Only* (its subfolders and pages move up one level,
   after what is already there) or *Delete Folder and Contents*, with what it holds ("2 folders,
-  27 pages, 1 book") and "Stops what's playing." when the playing page is inside (or a waiting
-  merge would move it onto a page inside, `LibraryStore.keysWaitingToMerge`). A book or
+  27 pages, 1 book") and, when the playing page is inside (or a waiting merge would move it onto
+  a page inside, `LibraryStore.keysWaitingToMerge`), which choices stop it: "Stops what's
+  playing." when every choice deletes it, else the one that does, by name ("Delete Folder and
+  Contents stops what's playing."), since *Delete Folder Only* keeps the pages and keeping a
+  folder's contents beside a book deletes only the book. A book or
   series always goes with its chapters, so a selection holding one never offers *Folder Only*:
   books alone ask *Delete Book* / *Delete 2 Books*; folders and books together ask *Delete Book,
   Keep Folder Contents* or *Delete Everything*, saying the books go either way

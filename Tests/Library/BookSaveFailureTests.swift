@@ -241,9 +241,9 @@ final class BookSaveFailureTests: XCTestCase {
     /// returns the merges reported so far.
     private func sessionFollowsMerges() -> () -> [[UUID]] {
         var merged: [[UUID]] = []
-        library.keyMerged = { [unowned self] from, to in
+        library.keyMerged = { [unowned self] from, to, text in
             merged.append([from, to])
-            speech.rekeyActiveSession(from: from, to: to)
+            speech.rekeyActiveSession(from: from, to: to, text: text)
         }
         return { merged }
     }

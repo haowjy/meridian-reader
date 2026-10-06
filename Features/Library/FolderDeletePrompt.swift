@@ -20,15 +20,19 @@ struct FolderDeletePrompt: Equatable {
     var choices: [Choice]
 
     /// `contents`: what a folder holds (`LibraryStore.contents(of:)`); `isPlaying`: whether any
-    /// of these page keys is what you hear.
+    /// of these page keys is what you hear. "Stops what's playing." is said of the choices that
+    /// delete the page playing: every choice for a book's chapter; for a plain folder's page, the
+    /// choice deleting the contents, by name.
     init(folders: [Folder], contents: (Folder) -> FolderContents, isPlaying: (Set<UUID>) -> Bool) {
         let plain = folders.filter { !$0.kind.isFixed }
         let fixed = folders.filter { $0.kind.isFixed }
         var inside = FolderContents()
         var keys = Set<UUID>()
+        var bookKeys = Set<UUID>()
         for folder in folders {
             let inner = contents(folder)
             keys.formUnion(inner.pageKeys)
+            if folder.kind.isFixed { bookKeys.formUnion(inner.pageKeys) }
             guard !folder.kind.isFixed else { continue }
             inside.folders += inner.folders
             inside.pages += inner.pages
@@ -74,7 +78,15 @@ struct FolderDeletePrompt: Equatable {
                 Choice(title: "Delete Everything", keepsContents: false, id: "deleteFolderAndContents"),
             ]
         }
-        if isPlaying(keys) { lines.append("Stops what's playing.") }
+        // A choice keeping contents deletes only the books and series (`LibraryStore.deleteFolders`).
+        let playingBooks = isPlaying(bookKeys)
+        let playingAll = playingBooks || isPlaying(keys)
+        let stopping = choices.filter { $0.keepsContents ? playingBooks : playingAll }
+        if stopping.count == choices.count {
+            lines.append("Stops what's playing.")
+        } else if let choice = stopping.first {
+            lines.append("\(choice.title) stops what's playing.")
+        }
         message = lines.joined(separator: " ")
     }
 

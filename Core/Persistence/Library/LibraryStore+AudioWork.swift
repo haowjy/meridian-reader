@@ -252,12 +252,13 @@ extension LibraryStore {
 
     /// The merged page's audio fills the kept page's paragraphs it has none for (by text), its
     /// directory and pending render go, and the resume point, the crash target and the live
-    /// session follow onto the kept page. Its audio and the resume point are aligned with the
-    /// paragraphs the committed kept page holds: if they changed since this was planned, the
-    /// merged audio and the resume point still find their paragraphs by text, but the kept page's
-    /// audio is no longer stamped against the planned ones. If
-    /// the kept page is gone (deleted since), no page holds the merged audio: it is left to the
-    /// cache's age prune, as a deleted page's own would have gone.
+    /// session follow onto the kept page: the session only while it plays the text the kept page
+    /// holds now, and otherwise it stops (`keyMerged`). Its audio and the resume point are aligned
+    /// with the paragraphs the committed kept page holds: if they changed since this was planned,
+    /// the merged audio and the resume point still find their paragraphs by text, but the kept
+    /// page's audio is no longer stamped against the planned ones. If the kept page is gone
+    /// (deleted since), no page holds the merged audio: it is left to the cache's age prune, as a
+    /// deleted page's own would have gone.
     ///
     /// All of that only while the merged key is still the merged page's. A later change can give
     /// the key to another page while this waits (a *Replace* bringing a chapter back under it):
@@ -310,7 +311,7 @@ extension LibraryStore {
         tts.synthQueue.remove(cacheKey: from)
         PendingBakeJobStore.shared.removePending(articleID: from)
         moveResumePoints(work, onto: paragraphs, live: live)
-        keyMerged(from, to)
+        keyMerged(from, to, textFingerprint(of: keeper))
         ListenTimingLog.log("library_audio_work", [
             "kind": "merge", "key": ListenTimingLog.shortKey(to), "from": ListenTimingLog.shortKey(from),
             "audio_adopted": rec.adopted, "leftover": !live,

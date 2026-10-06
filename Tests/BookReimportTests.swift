@@ -14,7 +14,7 @@ final class BookReimportTests: XCTestCase {
 
     override func setUp() async throws {
         env = try LibraryTestEnvironment()
-        library.keyMerged = { [unowned self] in merged.append(($0, $1)) }
+        library.keyMerged = { [unowned self] from, to, _ in merged.append((from, to)) }
     }
 
     override func tearDown() async throws { env.cleanUp() }
