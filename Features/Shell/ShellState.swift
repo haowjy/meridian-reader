@@ -60,7 +60,9 @@ enum ShellSheet: Identifiable, Equatable {
 }
 
 /// One use of the Move tree: what it is for, where the item is now, and what picking a place
-/// does. `onPick` gets the chosen folder, or nil for the top level ("Library (no folder)").
+/// does. `onPick` gets the chosen folder, or nil for the top level ("Library (no folder)"), and
+/// returns false when that couldn't be saved (its toast says so): the tree stays up, so another
+/// place can be picked or the tree cancelled. True closes it.
 struct MoveRequest: Identifiable, Equatable {
     enum Place: Equatable {
         case topLevel
@@ -74,7 +76,7 @@ struct MoveRequest: Identifiable, Equatable {
     var current: Place?
     /// Folders being moved: they and everything inside them can't be picked (no cycles).
     var moving: Set<UUID> = []
-    let onPick: (Folder?) -> Void
+    let onPick: (Folder?) -> Bool
 
     static func == (a: MoveRequest, b: MoveRequest) -> Bool { a.id == b.id }
 }
@@ -434,9 +436,29 @@ final class ShellState {
         self.toast = toast
     }
 
+    /// Runs a change that can fail, such as a library edit (`LibraryStore` rolls back a save that
+    /// fails, so nothing changed): its result, or nil once a toast has said `failure`.
+    @discardableResult
+    func attempt<Result>(_ failure: String, _ change: () throws -> Result) -> Result? {
+        do {
+            return try change()
+        } catch {
+            showToast(ShellToast(message: failure, systemImage: "exclamationmark.triangle"))
+            return nil
+        }
+    }
+
     /// The toast shown as `id` has had its time (or its action ran). A newer one stays.
     func dismissToast(_ id: UUID) {
         if toast?.id == id { toast = nil }
+    }
+
+    /// Each place showing the toast shown as `id` waits `duration`, then dismisses it. A wait
+    /// that is cancelled (that place went away, such as a sheet closing just as the toast came
+    /// up) leaves it showing for the others, which wait their own time.
+    func expireToast(_ id: UUID, after duration: Duration) async {
+        guard (try? await Task.sleep(for: duration)) != nil else { return }
+        withAnimation(Motion.snappy) { dismissToast(id) }
     }
 
     // MARK: - Library pages

@@ -12,10 +12,10 @@ final class FolderDeletePromptTests: XCTestCase {
     override func setUp() async throws { env = try LibraryTestEnvironment() }
     override func tearDown() async throws { env.cleanUp() }
 
-    private func fixed(_ name: String, _ kind: FolderKind) -> Folder {
+    private func fixed(_ name: String, _ kind: FolderKind) throws -> Folder {
         let folder = Folder(name: name, kind: kind)
         env.context.insert(folder)
-        library.addLink(url: URL(string: "https://example.com/\(name.lowercased())/ch1")!, title: "Ch 1", artwork: nil, in: folder)
+        try library.addLink(url: URL(string: "https://example.com/\(name.lowercased())/ch1")!, title: "Ch 1", artwork: nil, in: folder)
         return folder
     }
 
@@ -25,7 +25,7 @@ final class FolderDeletePromptTests: XCTestCase {
 
     func testPlainFoldersOfferFolderOnly() throws {
         let shelf = try library.makeFolder(name: "Shelf", in: nil)
-        library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: shelf)
+        try library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: shelf)
         let one = prompt([shelf])
         XCTAssertEqual(one.title, "Delete the folder “Shelf”?")
         XCTAssertEqual(one.message, "It holds 1 page. Delete Folder Only moves them up one level.")
@@ -41,8 +41,8 @@ final class FolderDeletePromptTests: XCTestCase {
     /// and the message says the book goes either way.
     func testAFolderAndABookNeverOfferFolderOnly() throws {
         let shelf = try library.makeFolder(name: "Shelf", in: nil)
-        library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: shelf)
-        let book = fixed("Novel", .book)
+        try library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: shelf)
+        let book = try fixed("Novel", .book)
         let mixed = prompt([shelf, book], playing: true)
         XCTAssertEqual(mixed.title, "Delete 1 folder and the book?")
         XCTAssertFalse(mixed.choices.contains { $0.id == "deleteFolderOnly" || $0.title.contains("Only") })
@@ -53,16 +53,16 @@ final class FolderDeletePromptTests: XCTestCase {
 
     /// Several books (or a book and a series): one choice, deleting them whole.
     func testSeveralBooksOfferOnlyDeletingThemWhole() throws {
-        let books = prompt([fixed("One", .book), fixed("Two", .book)])
+        let books = try prompt([fixed("One", .book), fixed("Two", .book)])
         XCTAssertEqual(books.title, "Delete 2 books?")
         XCTAssertEqual(books.choices.map(\.title), ["Delete 2 Books"])
         XCTAssertEqual(books.choices.map(\.keepsContents), [false])
         XCTAssertEqual(books.message, "Their chapters and downloads are deleted.")
 
-        let mixedKinds = prompt([fixed("Three", .book), fixed("Serial", .series), try library.makeFolder(name: "Shelf", in: nil)])
+        let mixedKinds = try prompt([fixed("Three", .book), fixed("Serial", .series), library.makeFolder(name: "Shelf", in: nil)])
         XCTAssertEqual(mixedKinds.title, "Delete 1 folder and 1 book and 1 series?")
         XCTAssertEqual(mixedKinds.choices.first?.title, "Delete 1 Book and 1 Series, Keep Folder Contents")
 
-        XCTAssertEqual(prompt([fixed("Single", .series)]).choices.map(\.title), ["Delete Series"])
+        XCTAssertEqual(try prompt([fixed("Single", .series)]).choices.map(\.title), ["Delete Series"])
     }
 }

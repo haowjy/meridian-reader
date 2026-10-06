@@ -200,9 +200,11 @@ Pages · 48                     Show All › pages in no folder, newest first, t
 - **A folder** (`FolderScreen`, Favorites included): its title and counts, subfolders first (by
   their order), then pages by the folder's sort. **Edit** (top right) puts check circles on the
   rows, and drag handles (pages only when the sort is *Manual*); the toolbar becomes *Move…,
-  Mark Finished, Remove* for the selection (Remove asks before deleting folders). ⋯: *Sort ›,
-  New Folder Inside, Import Book…, Rename, Move…, Delete Folder…* (Favorites: *Sort* and *New
-  Folder Inside* only; it can't be renamed, moved down or deleted).
+  Mark Finished, Remove* for the selection. *Remove* takes the selected pages out of the
+  Library at once, then asks before deleting the selected folders, which stay selected until
+  their delete is saved (*Cancel* keeps them selected). ⋯: *Sort ›, New Folder Inside, Import
+  Book…, Rename, Move…, Delete Folder…* (Favorites: *Sort* and *New Folder Inside* only; it can't
+  be renamed, moved down or deleted).
 - **Importing a book** (*Import Book…*: ＋, the home's and a folder's ⋯, the empty Library's
   card) opens the Files picker for EPUBs. The picked file is copied into the app and the import
   sheet (`BookImportSheet`, medium, grows to large) comes up at once: the cover, title, author,
@@ -213,13 +215,14 @@ Pages · 48                     Show All › pages in no folder, newest first, t
   first chapters and what is skipped for listening. It can't be pulled down
   while it works; *Cancel* stops it and keeps nothing. Done, it closes on the book's screen,
   with *▶ Play from Chapter 1*. A refusal says why in one line with OK: copy-protected (DRM),
-  fixed layout, too large, or not a readable EPUB. A book already in the Library asks *“Title”
+  fixed layout, too large, or not a readable EPUB; so does an import or *Replace* whose save
+  fails, which keeps nothing. A book already in the Library asks *“Title”
   is already in the Library*: *Replace* (the same folder, its name and place kept, positions
   kept where chapters match; *Add to* then shows where it is and can't change) or *Cancel*
   (decision D13). An `.epub` link in the browser downloads the book (a toast while it does) into
   the same sheet, which waits for *Import* (top right), going to the Library unless changed. One
   import at a time: a book whose download finishes while the import sheet is up isn't imported,
-  and a toast says so.
+  and a toast over the sheet says so.
 - **Deleting a folder** asks *Delete Folder Only* (its subfolders and pages move up one level,
   after what is already there) or *Delete Folder and Contents*, with what it holds ("2 folders,
   27 pages, 1 book") and "Stops what's playing." when the playing page is inside. A book or
@@ -227,7 +230,7 @@ Pages · 48                     Show All › pages in no folder, newest first, t
   books alone ask *Delete Book* / *Delete 2 Books*; folders and books together ask *Delete Book,
   Keep Folder Contents* or *Delete Everything*, saying the books go either way
   (`FolderDeletePrompt`). Pages and their audio go together: the audio is deleted once the delete
-  is saved, and a delete that can't be saved leaves both.
+  is saved, and a delete that can't be saved leaves both (and says so, below).
 - **A book or series** (`BookScreen`): the cover, title, author, chapter count and where it came
   from; how far through ("38% · 6 h 10 min left"); the round play button (*▶ Play from Chapter
   1* before anything has played, *▶ Continue · Ch 24*, or jade bars *Playing · Ch 24* while one
@@ -258,7 +261,24 @@ Favorites and every folder, depth first. One tap files; ✓ marks the current pl
 long-press offers *New Folder Inside* (made in it, and the item goes in that). *Library (no
 folder)* files the page in no folder, out of the folder it was in (a link in Favorites leaves
 Favorites, saved); an ordinary 🔖 or *Save* keeps a page's folder. Books and series aren't
-destinations; a folder being moved, and everything inside it, can't be picked.
+destinations; a folder being moved, and everything inside it, can't be picked. The tree closes
+once what was picked is saved; a pick, or a *New Folder*, that can't be saved leaves it up under
+the toast, to pick again or ✕ (in the import sheet, a *New Folder* that can't be saved leaves the
+tree up the same way). The browser's *Save to Library…* closes it on the pick, since the
+page is extracted first (⋯ spins).
+
+**A change that can't be saved** (a move, *New Folder*, *Rename*, *Sort*, a drag to reorder, a
+mark, *Remove*, a delete, ☆ or a favorite tile's *Rename* / *Remove*, saving or unsaving with 🔖,
+⊕, *Save to Folder…* or ⋯ → *Save to Library…* / *Remove from Library*) isn't stored: the
+library reads as it did before it, and a toast says so ("Couldn’t move", "Couldn’t save") where
+a success would have shown. *Remove* of several pages is one change: all go, or none. A folder's
+screen doesn't follow a move that didn't happen, the Move tree stays up, ☆ shows no "Added to
+Favorites", and 🔖 / ⊕ keep what they showed. In Edit, the selection stays when its change can't
+be saved; Edit's *Remove* is two changes, the pages first and then, after the question, the
+folders, so a folder delete that can't be saved leaves the folders selected but doesn't bring back
+pages already removed. The toast shows over the Favorites sheet, the Move tree, the import sheet
+and Now Playing too. Listening goes on being kept meanwhile: where you are in a page, when you last played it and
+whether you finished it are stored once saving works again, even across failed changes.
 
 **Library search** is the same session as the browser's (`SearchSession` +
 `SearchSessionChrome`): focusing the field (or toolbar Search) hides the toolbar so the field sits

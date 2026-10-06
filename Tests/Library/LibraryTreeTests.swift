@@ -12,8 +12,8 @@ final class LibraryTreeTests: XCTestCase {
     override func setUp() async throws { env = try LibraryTestEnvironment() }
     override func tearDown() async throws { env.cleanUp() }
 
-    private func savedPage(_ path: String, in folder: Folder?) -> Page {
-        library.save(env.article("https://example.com/\(path)", title: path), placement: .folder(folder))
+    private func savedPage(_ path: String, in folder: Folder?) throws -> Page {
+        try library.save(env.article("https://example.com/\(path)", title: path), placement: .folder(folder))
     }
 
     func testFoldersNestToDepthFive() throws {
@@ -27,7 +27,7 @@ final class LibraryTreeTests: XCTestCase {
         let deepest = try XCTUnwrap(parent)
         XCTAssertEqual(deepest.depth, 5)
         XCTAssertEqual(deepest.ancestors.map(\.name), ["Level 4", "Level 3", "Level 2", "Level 1"])
-        let page = savedPage("deep", in: deepest)
+        let page = try savedPage("deep", in: deepest)
         XCTAssertIdentical(page.folder, deepest)
         XCTAssertEqual(page.folderID, deepest.id)
         XCTAssertEqual(library.subfolders(of: chain[2]).map(\.name), ["Level 4"])
@@ -41,7 +41,7 @@ final class LibraryTreeTests: XCTestCase {
 
         let book = Folder(name: "Book", kind: .book)
         env.context.insert(book)
-        let loose = savedPage("loose", in: nil)
+        let loose = try savedPage("loose", in: nil)
         XCTAssertThrowsError(try library.move([.page(loose)], to: book)) {
             XCTAssertEqual($0 as? LibraryTreeError, .fixedDestination)
         }
@@ -50,7 +50,7 @@ final class LibraryTreeTests: XCTestCase {
         }
         XCTAssertThrowsError(try library.makeFolder(name: "Inside a book", in: book))
 
-        let chapter = library.addLink(url: URL(string: "https://example.com/ch")!, title: "Ch", artwork: nil, in: book)
+        let chapter = try library.addLink(url: URL(string: "https://example.com/ch")!, title: "Ch", artwork: nil, in: book)
         XCTAssertThrowsError(try library.move([.page(loose), .page(chapter)], to: outer)) {
             XCTAssertEqual($0 as? LibraryTreeError, .leavesFixedFolder)
         }
@@ -66,11 +66,11 @@ final class LibraryTreeTests: XCTestCase {
 
     func testDeleteFolderOnlyMovesItsContentsUpOneLevelInOrder() throws {
         let parent = try library.makeFolder(name: "Parent", in: nil)
-        let existing = savedPage("existing", in: parent)
+        let existing = try savedPage("existing", in: parent)
         let doomed = try library.makeFolder(name: "Doomed", in: parent)
         let sub1 = try library.makeFolder(name: "Sub 1", in: doomed)
         let sub2 = try library.makeFolder(name: "Sub 2", in: doomed)
-        let pages = ["p1", "p2", "p3"].map { savedPage($0, in: doomed) }
+        let pages = try ["p1", "p2", "p3"].map { try savedPage($0, in: doomed) }
         let key = try XCTUnwrap(pages[0].key)
         try env.storeAudio(key, paragraphs: pages[0].cachedListenParagraphs ?? [])
 
@@ -94,9 +94,9 @@ final class LibraryTreeTests: XCTestCase {
         let book = Folder(name: "Book", kind: .book)
         env.context.insert(book)
         book.parent = nested
-        let chapter = library.save(env.article("https://example.com/ch1", title: "Ch 1"))
+        let chapter = try library.save(env.article("https://example.com/ch1", title: "Ch 1"))
         chapter.setFolder(book)
-        let page = savedPage("on-shelf", in: shelf)
+        let page = try savedPage("on-shelf", in: shelf)
         let keys = [chapter.key!, page.key!]
         for (key, p) in zip(keys, [chapter, page]) { try env.storeAudio(key, paragraphs: p.cachedListenParagraphs ?? []) }
         XCTAssertEqual(library.contentsCount(of: shelf).folders, 2)
@@ -115,11 +115,11 @@ final class LibraryTreeTests: XCTestCase {
     /// book). Two books deleted together, keeping contents, go whole too.
     func testDeletingFoldersKeepingContentsStillDeletesBooksWhole() throws {
         let shelf = try library.makeFolder(name: "Shelf", in: nil)
-        let inner = savedPage("inner", in: shelf)
-        let books = (1...3).map { n -> (Folder, Page) in
+        let inner = try savedPage("inner", in: shelf)
+        let books = try (1...3).map { n -> (Folder, Page) in
             let book = Folder(name: "Book \(n)", kind: n == 3 ? .series : .book)
             env.context.insert(book)
-            let chapter = library.save(env.article("https://example.com/book\(n)/ch1", title: "Ch 1"))
+            let chapter = try library.save(env.article("https://example.com/book\(n)/ch1", title: "Ch 1"))
             chapter.setFolder(book)
             return (book, chapter)
         }
@@ -152,14 +152,14 @@ final class LibraryTreeTests: XCTestCase {
 
     func testReorderWritesFractionalKeysAndRenumbersWhenTheGapIsTiny() throws {
         let folder = try library.makeFolder(name: "F", in: nil)
-        let pages = ["a", "b", "c", "d"].map { savedPage($0, in: folder) }
-        library.reorder([pages[3]], in: folder, before: pages[1])
+        let pages = try ["a", "b", "c", "d"].map { try savedPage($0, in: folder) }
+        try library.reorder([pages[3]], in: folder, before: pages[1])
         XCTAssertEqual(library.pages(in: folder).map(\.title), ["a", "d", "b", "c"])
-        library.reorder([pages[0]], in: folder, before: nil)
+        try library.reorder([pages[0]], in: folder, before: nil)
         XCTAssertEqual(library.pages(in: folder).map(\.title), ["d", "b", "c", "a"])
         for _ in 0..<80 {
-            library.reorder([pages[2]], in: folder, before: pages[1])
-            library.reorder([pages[1]], in: folder, before: pages[2])
+            try library.reorder([pages[2]], in: folder, before: pages[1])
+            try library.reorder([pages[1]], in: folder, before: pages[2])
         }
         XCTAssertEqual(library.pages(in: folder).map(\.title), ["d", "b", "c", "a"], "many moves never collide")
         let keys = library.pages(in: folder).map(\.sortKey)

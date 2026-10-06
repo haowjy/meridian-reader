@@ -2,11 +2,14 @@ import SwiftData
 import SwiftUI
 
 /// The Move tree: one sheet for Move, *Save to Library…*, 🔖's *Save to Folder…* and *Change
-/// Folder* (the import sheet's *Add to* pushes the same list, `MoveTreeList`). The whole tree as one indented list, like Safari's bookmark-folder picker; one tap
-/// files, ✓ marks the current place. *New Folder* makes one at the top level; a folder's
+/// Folder* (the import sheet's *Add to* pushes the same list, `MoveTreeList`). The whole tree as
+/// one indented list, like Safari's bookmark-folder picker; one tap files, ✓ marks the current
+/// place. *New Folder* makes one at the top level; a folder's
 /// long-press, *New Folder Inside*, makes one in it; either way what is being filed goes into the
 /// new folder. Books and series aren't destinations (they take pages only from their source); a
-/// folder being moved, and everything inside it, can't be picked.
+/// folder being moved, and everything inside it, can't be picked. The tree closes once what was
+/// picked is saved; a pick or a new folder that can't be saved leaves it up, with the toast over
+/// it.
 ///
 /// ```
 /// Move to…                                    ✕
@@ -22,13 +25,16 @@ struct MoveTreeSheet: View {
     let request: MoveRequest
 
     @Environment(ShellState.self) private var shell
+    @Environment(LibraryStore.self) private var library
 
     var body: some View {
         NavigationStack {
             MoveTreeList(current: request.current, moving: request.moving) { folder in
-                shell.sheet = nil
-                request.onPick(folder)
+                request.pick(folder, shell: shell)
+            } pickNewFolder: { name, parent in
+                request.pickNewFolder(named: name, in: parent, library: library, shell: shell)
             }
+            .sheetToastLayer()
             .navigationTitle(request.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -46,15 +52,17 @@ struct MoveTreeSheet: View {
 }
 
 /// The Move tree's list, for the sheet above and for the import sheet's *Add to*, which pushes it.
-/// `pick` gets the folder tapped, or nil for the top level.
+/// `pick` gets the folder tapped, or nil for the top level; `pickNewFolder` the name given to *New
+/// Folder* (or *New Folder Inside*) and where it goes, for the caller to make the folder and pick
+/// it (`MoveRequest.pickNewFolder`, `BookImportFlow.chooseNewFolder`).
 struct MoveTreeList: View {
     /// Marked ✓.
     var current: MoveRequest.Place?
     /// Folders being moved: they and everything inside them can't be picked (no cycles).
     var moving: Set<UUID> = []
     let pick: (Folder?) -> Void
+    let pickNewFolder: (_ name: String, _ parent: Folder?) -> Void
 
-    @Environment(LibraryStore.self) private var library
     @Query private var folders: [Folder]
     @State private var naming = false
     @State private var newName = ""
@@ -158,10 +166,37 @@ struct MoveTreeList: View {
     }
 
     private func createAndPick() {
-        let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = newName
         newName = ""
-        guard let folder = try? library.makeFolder(name: name.isEmpty ? String(localized: "New Folder") : name,
-                                                   in: newParent) else { return }
-        pick(folder)
+        pickNewFolder(name, newParent)
+    }
+
+    /// *New Folder* / *New Folder Inside*: a folder named `name` ("New Folder" when blank) in
+    /// `parent`, or nil when it can't be saved, once the toast has said so.
+    @MainActor
+    static func makeFolder(named name: String, in parent: Folder?, library: LibraryStore, shell: ShellState) -> Folder? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return shell.attempt(String(localized: "Couldn’t make the folder")) {
+            try library.makeFolder(name: trimmed.isEmpty ? String(localized: "New Folder") : trimmed, in: parent)
+        }
+    }
+}
+
+extension MoveRequest {
+    /// A place picked in the tree: the tree closes once the pick is saved, unless the pick put
+    /// up another sheet. One that can't be saved leaves it up, under its toast.
+    @MainActor
+    func pick(_ folder: Folder?, shell: ShellState) {
+        guard onPick(folder), shell.sheet == .moveTo(self) else { return }
+        shell.sheet = nil
+    }
+
+    /// *New Folder* / *New Folder Inside*: a folder named `name` ("New Folder" when blank) in
+    /// `parent`, then picked. A folder that can't be saved files nothing and leaves the tree up;
+    /// the toast says so.
+    @MainActor
+    func pickNewFolder(named name: String, in parent: Folder?, library: LibraryStore, shell: ShellState) {
+        guard let folder = MoveTreeList.makeFolder(named: name, in: parent, library: library, shell: shell) else { return }
+        pick(folder, shell: shell)
     }
 }

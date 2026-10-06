@@ -27,6 +27,12 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
   right behind the playing chapter's job (at the front once that is done), never behind a job that
   parks in the background (`GlobalSynthQueueStagingTests`). While the next chapter is fetched, no
   progress is reported for the page still bound: it has ended, and a resume there isn't a replay.
+- **Listening progress outlives rollbacks through the store only.** The recorder writes through
+  `LibraryStore`'s `recordPlayback` / `recordPlaybackStarted` / `recordPosition` /
+  `recordFinished`, which keep what isn't stored (`PendingListening`) and write it again after a
+  failed edit's rollback. Progress set straight on a `Page` is lost to the next rollback. A
+  write made while an edit is staged (the position stopping records when the playing page is
+  deleted) waits for that edit's save.
 - **Position.** Only `PlaybackSessionState` holds it, and a seek publishes it synchronously in
   the same transaction as the UI change; the scrubber relies on that to avoid a snap back. An
   engine never reports a spot before the offset its play started at.

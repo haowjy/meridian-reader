@@ -316,7 +316,7 @@ final class BookReimportTests: XCTestCase {
         }
         let keys = [one, two, three]
         addTeardownBlock { @MainActor in for key in keys { PendingBakeJobStore.shared.removePending(articleID: key) } }
-        let web = library.save(env.article("https://example.com/kept", paragraphs: ["Kept one.", "Kept two."]))
+        let web = try library.save(env.article("https://example.com/kept", paragraphs: ["Kept one.", "Kept two."]))
         let webKey = try XCTUnwrap(web.key)
         try env.storeAudio(webKey, paragraphs: ["Kept one.", "Kept two."])
         let four = UUID()

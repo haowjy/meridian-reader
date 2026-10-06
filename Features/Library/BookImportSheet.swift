@@ -20,10 +20,14 @@ import SwiftUI
 /// Skipped for listening: Title Page. Still there to read.
 /// ```
 ///
-/// A book already in the Library asks *Replace* or *Cancel* (decision D13); a refusal says why
-/// in one line, with OK. Done, the sheet closes on the book's screen.
+/// A book already in the Library asks *Replace* or *Cancel* (decision D13); a refusal, or an
+/// import or *Replace* whose save fails, says why in one line, with OK. Done, the sheet closes on
+/// the book's screen. The shell's toast floats over the sheet and its *Add to* tree (a folder that
+/// can't be made, another book arriving).
 struct BookImportSheet: View {
     @Bindable var flow: BookImportFlow
+
+    @Environment(ShellState.self) private var shell
 
     var body: some View {
         NavigationStack {
@@ -54,12 +58,17 @@ struct BookImportSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
             .navigationDestination(isPresented: $flow.isChoosingDestination) {
-                MoveTreeList(current: flow.destinationID.map { .folder($0) } ?? .topLevel) { flow.choose($0) }
-                    .navigationTitle(String(localized: "Add to"))
-                    .navigationBarTitleDisplayMode(.inline)
-                    .accessibilityIdentifier("importAddToTree")
+                MoveTreeList(current: flow.destinationID.map { .folder($0) } ?? .topLevel) {
+                    flow.choose($0)
+                } pickNewFolder: {
+                    flow.chooseNewFolder(named: $0, in: $1, shell: shell)
+                }
+                .navigationTitle(String(localized: "Add to"))
+                .navigationBarTitleDisplayMode(.inline)
+                .accessibilityIdentifier("importAddToTree")
             }
         }
+        .sheetToastLayer()
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(flow.isWorking)

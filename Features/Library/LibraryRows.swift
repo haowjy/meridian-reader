@@ -24,7 +24,7 @@ struct LibraryPageRow: View {
             .opensOnTap(isEditing ? nil : { actions.open(page) })
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                Button("Remove", role: .destructive) { library.remove(page) }
+                Button("Remove", role: .destructive) { actions.remove([page]) }
             }
     }
 
@@ -36,9 +36,9 @@ struct LibraryPageRow: View {
         Button("Move to…", systemImage: "folder") { actions.move([.page(page)]) }
         if page.isSaved {
             if page.finishedAt == nil {
-                Button("Mark as Finished", systemImage: "checkmark.circle") { library.setFinished([page], true) }
+                Button("Mark as Finished", systemImage: "checkmark.circle") { actions.setFinished([page], true) }
             } else {
-                Button("Mark as Unfinished", systemImage: "circle") { library.setFinished([page], false) }
+                Button("Mark as Unfinished", systemImage: "circle") { actions.setFinished([page], false) }
             }
         }
         if page.url?.isWeb == true {
@@ -47,7 +47,7 @@ struct LibraryPageRow: View {
         if page.isSaved, library.hasDownloads(page) {
             Button("Delete Downloads", systemImage: "arrow.down.circle") { library.deleteDownloads(page) }
         }
-        Button("Remove from Library", systemImage: "trash", role: .destructive) { library.remove(page) }
+        Button("Remove from Library", systemImage: "trash", role: .destructive) { actions.remove([page]) }
     }
 }
 
@@ -122,17 +122,17 @@ struct LibraryChapterRow: View {
         if !page.isLink {
             Button("Play from Here", systemImage: "play.fill") { actions.playFromStart(page) }
             if page.finishedAt == nil {
-                Button("Mark as Finished", systemImage: "checkmark.circle") { library.setFinished([page], true) }
+                Button("Mark as Finished", systemImage: "checkmark.circle") { actions.setFinished([page], true) }
             } else {
-                Button("Mark as Unfinished", systemImage: "circle") { library.setFinished([page], false) }
+                Button("Mark as Unfinished", systemImage: "circle") { actions.setFinished([page], false) }
             }
             Button("Mark All Above as Finished", systemImage: "checkmark.circle.badge.questionmark") {
-                library.markAllAbove(page)
+                actions.markAllAbove(page)
             }
         }
         Button(page.skipsInPlayback ? "Play in Playback" : "Skip in Playback",
                systemImage: page.skipsInPlayback ? "play.circle" : "forward.end") {
-            library.setSkipsInPlayback(page, !page.skipsInPlayback)
+            actions.toggleSkipsInPlayback(page)
         }
         if library.hasDownloads(page) {
             Button("Delete Downloads", systemImage: "arrow.down.circle") { library.deleteDownloads(page) }

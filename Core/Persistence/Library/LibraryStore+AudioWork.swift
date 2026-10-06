@@ -18,6 +18,8 @@ struct LibraryAudioWorkPlan {
 enum LibraryAudioWorkError: Error {
     case notAligned(UUID)
     case notDeleted(UUID)
+    case notEphemeral(UUID)
+    case notSaved(UUID)
 }
 
 /// What a run of the stored audio work did: how many records it retired, and the audio the
@@ -29,11 +31,14 @@ struct LibraryAudioWorkOutcome: Equatable {
 }
 
 /// Files outside the library store change only after the library change they belong to is saved.
-/// The layout pass, dedupe, deleting pages and a book's *Replace* plan their audio work
-/// (`planAlign`, `planMerge`, `planDelete`) as records in the same save; `commit` does it once the
-/// save succeeds, after any work an earlier launch left, and retires each record once its
+/// The layout pass, dedupe, deleting pages (a book's *Replace* dropping chapters among them),
+/// pages leaving the Library and Save plan their audio work (`planAlign`, `planMerge`,
+/// `planDelete`, `planEphemeral`, `planSaved`) as records in the same save; `commit` does it once
+/// the save succeeds, after any work an earlier launch left, and retires each record once its
 /// postconditions hold; the next launch finishes whatever is left (`finishAudioWork`); a save that
-/// fails and is rolled back (`rollBack`) leaves every file alone.
+/// fails and is rolled back (`rollBack`) leaves every file alone. Work that waited acts on the
+/// pages as they are when it runs: by then a key can belong to a later page (saved, deleted, then
+/// played again without saving), whose audio it keeps.
 extension LibraryStore {
     // MARK: - Planning
 
@@ -65,6 +70,24 @@ extension LibraryStore {
     /// page stays held with it.
     func planDelete(key: UUID) {
         let work = LibraryAudioWork(sequence: nextAudioWorkSequence(), kind: .delete, key: key,
+                                    paragraphs: [], sourceParagraphs: [])
+        context.insert(work)
+        audioPlan.work.append(work)
+    }
+
+    /// The page left the Library (*Remove from Library*, unsave): once that is saved, its audio
+    /// goes back on the ephemeral TTL, in order after the work recorded before it.
+    func planEphemeral(key: UUID) {
+        let work = LibraryAudioWork(sequence: nextAudioWorkSequence(), kind: .ephemeral, key: key,
+                                    paragraphs: [], sourceParagraphs: [])
+        context.insert(work)
+        audioPlan.work.append(work)
+    }
+
+    /// The page was saved to the Library: once that is saved, its audio is marked saved and its
+    /// queued render non-ephemeral, in order after the work recorded before it.
+    func planSaved(key: UUID) {
+        let work = LibraryAudioWork(sequence: nextAudioWorkSequence(), kind: .saved, key: key,
                                     paragraphs: [], sourceParagraphs: [])
         context.insert(work)
         audioPlan.work.append(work)
@@ -160,7 +183,7 @@ extension LibraryStore {
         tts.noteBakeMarksChanged()
         guard outcome.finished > 0 else { return outcome }
         do {
-            try saveContext(context)
+            try saveChanges()
         } catch {
             log("audio work done; its records stay until the next save (done again, harmlessly): \(error)")
         }
@@ -172,6 +195,8 @@ extension LibraryStore {
         case .align: try align(work, live: live)
         case .merge: try merge(work, live: live)
         case .delete: try deleteAudio(work)
+        case .ephemeral: try releaseAudio(work)
+        case .saved: try keepAudio(work)
         case nil: log("audio work: unknown kind \(work.kindRaw), dropped")
         }
     }
@@ -259,20 +284,59 @@ extension LibraryStore {
         log("audio \(Self.short(from)) merged into \(Self.short(to)): adopted \(rec.adopted)")
     }
 
-    /// The deleted page's audio directory, pending render and queued renders go. Skipped when a
-    /// page with its key exists again (a later change brought it back while this waited): the
-    /// audio is that page's now.
+    /// The deleted page's audio directory, pending render and queued renders go. When a page with
+    /// its key exists again (a later change brought it back while this waited), the audio is that
+    /// page's now: kept, and saved or ephemeral as that page is (`settleAudio`).
     private func deleteAudio(_ work: LibraryAudioWork) throws {
         guard let key = work.key else { return }
-        if try context.fetch(LibraryQueries.page(key: key)).first != nil {
+        if let page = try context.fetch(LibraryQueries.page(key: key)).first {
             log("audio \(Self.short(key)): its page is back since it was deleted; kept")
             ListenTimingLog.log("library_audio_work", ["kind": "delete", "key": ListenTimingLog.shortKey(key), "skipped": "page back"])
+            try settleAudio(key, page: page)
             return
         }
         try tts.clearListenAudio(for: key)
         guard !tts.audioCache.hasDirectory(for: key) else { throw LibraryAudioWorkError.notDeleted(key) }
         ListenTimingLog.log("library_audio_work", ["kind": "delete", "key": ListenTimingLog.shortKey(key)])
         log("audio \(Self.short(key)) deleted with its page")
+    }
+
+    /// The page left the Library: its audio goes back on the ephemeral TTL (kept, so playback
+    /// goes on; the cache's age prune removes it), unless the page is saved in the Library again
+    /// by the time this runs (`settleAudio`).
+    private func releaseAudio(_ work: LibraryAudioWork) throws {
+        guard let key = work.key else { return }
+        try settleAudio(key, page: try context.fetch(LibraryQueries.page(key: key)).first)
+        ListenTimingLog.log("library_audio_work", ["kind": "ephemeral", "key": ListenTimingLog.shortKey(key)])
+    }
+
+    /// The page was saved: its audio is saved audio, out of the ephemeral TTL, and its queued
+    /// render no longer ephemeral, unless the page has left the Library by the time this runs
+    /// (`settleAudio`).
+    private func keepAudio(_ work: LibraryAudioWork) throws {
+        guard let key = work.key else { return }
+        try settleAudio(key, page: try context.fetch(LibraryQueries.page(key: key)).first)
+        ListenTimingLog.log("library_audio_work", ["kind": "saved", "key": ListenTimingLog.shortKey(key)])
+    }
+
+    /// `key`'s audio as the page holding the key is now, not as it was when the work was
+    /// planned: a key can belong to a later page by the time the work runs (saved, deleted, then
+    /// played again without saving), and its renders are that page's. Saved audio for a page
+    /// saved in the Library (a page with no audio yet has none to mark); for any other page, or
+    /// none, the ephemeral TTL, with the address the page has now. The files stay either way.
+    private func settleAudio(_ key: UUID, page: Page?) throws {
+        let cache = tts.audioCache
+        if page?.isSavedToLibrary == true {
+            tts.migrateListenCache(from: key, to: key)
+            guard !cache.hasDirectory(for: key) || cache.loadMeta(for: key)?.kind == .saved else {
+                throw LibraryAudioWorkError.notSaved(key)
+            }
+            log("audio \(Self.short(key)) saved with its page")
+        } else {
+            tts.markListenCacheEphemeral(key, canonicalURL: page?.canonicalURL)
+            guard cache.loadMeta(for: key)?.kind == .ephemeral else { throw LibraryAudioWorkError.notEphemeral(key) }
+            log("audio \(Self.short(key)) on the ephemeral TTL (\(page == nil ? "no page" : "not saved in the Library"))")
+        }
     }
 
     /// The crash-resume file and the crash target launch read from it (or from the crash
@@ -308,7 +372,7 @@ extension LibraryStore {
             guard !to.isEmpty else { return 0 }
             return ParagraphPositionMap.mapParagraphStart(paragraph, from: ParagraphDocument(parts: from),
                                                           to: ParagraphDocument(parts: to))
-        case .merge, .delete, nil:
+        case .merge, .delete, .ephemeral, .saved, nil:
             guard !to.isEmpty else { return paragraph }
             if from != to, from.indices.contains(paragraph) {
                 let hash = ArticleIdentity.paragraphHash(from[paragraph])

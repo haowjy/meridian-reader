@@ -14,16 +14,19 @@ extension LibraryStore {
     }
 
     /// A new book folder at the end of `destination` (the top level if nil), with one page per
-    /// chapter, saved in one go: nothing is kept if the save fails.
+    /// chapter, in one edit (`edit`): a save that fails is rolled back and throws
+    /// `LibraryStoreError.saveFailed`, and nothing is kept.
     @discardableResult
     func addBook(_ details: FolderDetails, chapters: [PageContent], in destination: Folder?) throws -> Folder {
         if let destination, destination.kind.isFixed { throw LibraryTreeError.fixedDestination }
-        let folder = Folder(name: details.title, kind: .book, sortKey: nextFolderSortKey(in: destination), createdAt: now())
-        apply(details, to: folder)
-        context.insert(folder)
-        folder.parent = destination
-        for chapter in chapters { insertChapter(chapter, in: folder) }
-        try commitBook("add book")
+        let folder = try edit("add book") {
+            let folder = Folder(name: details.title, kind: .book, sortKey: nextFolderSortKey(in: destination), createdAt: now())
+            apply(details, to: folder)
+            context.insert(folder)
+            folder.parent = destination
+            for chapter in chapters { insertChapter(chapter, in: folder) }
+            return folder
+        }
         log("book \(details.title): \(chapters.count) chapters in \(destination?.displayName ?? "the top level")")
         return folder
     }
@@ -41,6 +44,8 @@ extension LibraryStore {
     ///
     /// Pages no chapter comes from are deleted; their audio goes once the save succeeds (audio
     /// work, `planDelete`), so a save that fails leaves every page and its audio as they were.
+    /// It is one edit (`edit`): a save that fails is rolled back and throws
+    /// `LibraryStoreError.saveFailed`, and the book reads as it did.
     /// The book's place follows its chapter; when that chapter is dropped, it moves to the
     /// nearest chapter before it that stays, as deleting a chapter moves it (none if no earlier
     /// chapter stays). When the chapters' text, order or skipping changed, the book stays
@@ -49,40 +54,42 @@ extension LibraryStore {
         let old = playOrder(of: folder)
         let place = folder.currentPageKey
         let plan = Self.replacement(of: old, with: chapters)
-        // Playback of a chapter that goes or changes stops before anything changes: stopping
-        // records its position, which saves, and that save must not carry half a replacement.
+        // Playback of a chapter that goes or changes stops before anything changes, so no page
+        // changes under it; the position stopping records is saved on its own. The edit keeps
+        // the replacement whole: nothing commits while it is staged.
         for page in plan.dropped { if let key = page.key { stopPlaybackIfPlaying(key) } }
         for (index, page) in plan.byKey where !Self.reads(page, as: chapters[index]) {
             if let key = page.key { stopPlaybackIfPlaying(key) }
         }
 
-        for page in plan.dropped { dropChapter(page) }
-        apply(details, to: folder)
-        var changed = false
-        var pages: [Page] = []
-        for (index, chapter) in chapters.enumerated() {
-            if let page = plan.byKey[index] {
-                if page.skipsInPlayback != chapter.ref.skipsInPlayback { changed = true }
-                if updateChapter(page, to: chapter, in: folder) { changed = true }
-                pages.append(page)
-            } else if let from = plan.byText[index] {
-                let page = insertChapter(chapter, in: folder)
-                carryListening(from: from, to: page)
-                if let fromKey = from.key {
-                    planMerge(from: fromKey, into: chapter.ref.key, fromParagraphs: from.cachedListenParagraphs ?? [],
-                              paragraphs: chapter.document.paragraphs)
+        try edit("replace book") {
+            for page in plan.dropped { dropChapter(page) }
+            apply(details, to: folder)
+            var changed = false
+            var pages: [Page] = []
+            for (index, chapter) in chapters.enumerated() {
+                if let page = plan.byKey[index] {
+                    if page.skipsInPlayback != chapter.ref.skipsInPlayback { changed = true }
+                    if updateChapter(page, to: chapter, in: folder) { changed = true }
+                    pages.append(page)
+                } else if let from = plan.byText[index] {
+                    let page = insertChapter(chapter, in: folder)
+                    carryListening(from: from, to: page)
+                    if let fromKey = from.key {
+                        planMerge(from: fromKey, into: chapter.ref.key, fromParagraphs: from.cachedListenParagraphs ?? [],
+                                  paragraphs: chapter.document.paragraphs)
+                    }
+                    if from.skipsInPlayback != chapter.ref.skipsInPlayback { changed = true }
+                    context.delete(from)
+                    pages.append(page)
+                } else {
+                    pages.append(insertChapter(chapter, in: folder))
                 }
-                if from.skipsInPlayback != chapter.ref.skipsInPlayback { changed = true }
-                context.delete(from)
-                pages.append(page)
-            } else {
-                pages.append(insertChapter(chapter, in: folder))
             }
+            if old.map(\.key) != pages.map(\.key) { changed = true }
+            folder.currentPageKey = Self.place(place, in: old, after: plan, chapters: chapters)
+            if changed { settleFinished(folder, chapters: pages) }
         }
-        if old.map(\.key) != pages.map(\.key) { changed = true }
-        folder.currentPageKey = Self.place(place, in: old, after: plan, chapters: chapters)
-        if changed { settleFinished(folder, chapters: pages) }
-        try commitBook("replace book")
         log("book \(folder.name) replaced: \(chapters.count) chapters, \(plan.byKey.count) by key, \(plan.byText.count) by text, \(plan.dropped.count) dropped")
     }
 
@@ -227,13 +234,6 @@ extension LibraryStore {
         page.addedAt = old.addedAt ?? page.addedAt
     }
 
-    private func commitBook(_ what: String) throws {
-        guard commit(what) else {
-            rollBack()
-            throw LibraryStoreError.saveFailed
-        }
-    }
-
     private static func locator(of ref: PageRef) -> String? {
         switch ref.locator {
         case .book(let locator): locator.pageLocator
@@ -255,8 +255,3 @@ extension LibraryStore {
     }
 }
 
-/// A library write that didn't happen.
-enum LibraryStoreError: Error, Equatable {
-    /// SwiftData refused the save; nothing changed.
-    case saveFailed
-}

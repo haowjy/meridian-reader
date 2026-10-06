@@ -72,6 +72,9 @@ struct LaunchOptions: Equatable {
     /// `-playTestEPUB`: at launch, import the synthetic EPUB into the Library's top level (no
     /// sheet), then play it from its place, as a book's Play does.
     var playsTestEPUB = false
+    /// `-failLibrarySaves`: once the launch work is done (seeds, maintenance, bookmarks), every
+    /// library save fails, so UI tests see the edits that can't be saved.
+    var failsLibrarySaves = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -111,6 +114,7 @@ struct LaunchOptions: Equatable {
         resetsSurface = flags.contains("-resetSurface")
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")
+        failsLibrarySaves = flags.contains("-failLibrarySaves")
     }
 
     /// Whether the app reopens on the surface it was left on.

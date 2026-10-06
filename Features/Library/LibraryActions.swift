@@ -1,8 +1,10 @@
 import SwiftUI
 
-/// What the Library's rows, cards and headers do, in one place: open a page (the Reader, Now
-/// Playing when it is what you hear, the browser for a link), play a page or a book, file things
-/// with the Move tree. Opening never plays, and playing never navigates.
+/// What the Library's rows, cards, headers and Edit's bar do, in one place: open a page (the
+/// Reader, Now Playing when it is what you hear, the browser for a link), play a page or a book,
+/// mark and remove pages, delete folders, file things with the Move tree. Opening never plays,
+/// and playing never navigates. Each edit is one save: one that can't be saved changes nothing
+/// and shows a toast, and what follows its success runs only after the save.
 @MainActor
 struct LibraryActions {
     let library: LibraryStore
@@ -67,9 +69,79 @@ struct LibraryActions {
         speech.playPage(key)
     }
 
+    // MARK: - Marks and removing
+
+    /// *Mark as Finished* / *Mark as Unfinished*, Edit's *Mark Finished*. False when it couldn't
+    /// be saved (nothing changed; a toast says so).
+    @discardableResult
+    func setFinished(_ pages: [Page], _ finished: Bool) -> Bool {
+        shell.attempt(finished ? String(localized: "Couldn’t mark as finished") : String(localized: "Couldn’t mark as unfinished")) {
+            try library.setFinished(pages, finished)
+        } != nil
+    }
+
+    /// *Mark All Above as Finished* on a chapter.
+    func markAllAbove(_ page: Page) {
+        shell.attempt(String(localized: "Couldn’t mark as finished")) { try library.markAllAbove(page) }
+    }
+
+    /// *Skip in Playback* / *Play in Playback* on a chapter.
+    func toggleSkipsInPlayback(_ page: Page) {
+        shell.attempt(String(localized: "Couldn’t change Skip in Playback")) {
+            try library.setSkipsInPlayback(page, !page.skipsInPlayback)
+        }
+    }
+
+    /// *Remove from Library* (a row's menu and swipe, Edit's *Remove*), all of `pages` in one
+    /// save. False when it couldn't be saved: none removed, and a toast says so.
+    @discardableResult
+    func remove(_ pages: [Page]) -> Bool {
+        shell.attempt(String(localized: "Couldn’t remove")) { try library.remove(pages) } != nil
+    }
+
+    // MARK: - Edit
+
+    /// The folders and pages Edit's selection on `screen` names.
+    func selected(in screen: LibraryScreenState) -> (folders: [Folder], pages: [Page]) {
+        var folders: [Folder] = []
+        var pages: [Page] = []
+        for item in screen.selection {
+            switch item {
+            case .folder(let id): if let folder = library.folder(id: id) { folders.append(folder) }
+            case .page(let key): if let page = library.page(key: key) { pages.append(page) }
+            }
+        }
+        return (folders, pages)
+    }
+
+    /// Edit's *Remove*: the selected pages leave the Library in one save, and leave the
+    /// selection; the selected folders then wait for the delete question, still selected until
+    /// their delete is saved (`deleteFolders`) and still selected if it is cancelled. Pages that
+    /// can't be removed leave everything as it was, the selection too, and nothing is asked.
+    func removeSelection(of screen: LibraryScreenState) {
+        let (folders, pages) = selected(in: screen)
+        guard remove(pages) else { return }
+        screen.selection = Set(folders.map { LibraryItemID.folder($0.id) })
+        screen.confirmDelete(folders)
+    }
+
+    /// The delete question's answer (`libraryDialogs`): once the delete is saved, Edit ends, its
+    /// selection with it. A delete that can't be saved changes nothing: a toast says so, and Edit
+    /// keeps its selection. False then.
+    @discardableResult
+    func deleteFolders(_ folders: [Folder], keepContents: Bool, in screen: LibraryScreenState) -> Bool {
+        guard shell.attempt(String(localized: "Couldn’t delete"), {
+            try library.deleteFolders(folders, keepContents: keepContents)
+        }) != nil else { return false }
+        screen.endEditing()
+        return true
+    }
+
     // MARK: - Filing
 
-    /// The Move tree for `items`; picking a place moves them there.
+    /// The Move tree for `items`; picking a place moves them there, and `onMoved` runs once the
+    /// move is saved. A move that can't be saved changes nothing and leaves the tree up, and a
+    /// toast says so.
     func move(_ items: [LibraryItem], onMoved: @escaping () -> Void = {}) {
         guard !items.isEmpty else { return }
         let current: MoveRequest.Place?
@@ -83,10 +155,13 @@ struct LibraryActions {
             return nil
         })
         let library = library
+        let shell = shell
         shell.present(.moveTo(MoveRequest(title: String(localized: "Move to…"), current: items.count == 1 ? current : nil,
                                           moving: moving) { destination in
-            try? library.move(items, to: destination)
+            guard shell.attempt(String(localized: "Couldn’t move"), { try library.move(items, to: destination) }) != nil
+            else { return false }
             onMoved()
+            return true
         }))
     }
 }

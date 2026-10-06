@@ -44,22 +44,22 @@ extension LibraryStore {
         return (page, page.positionParagraph, page.positionUTF16)
     }
 
-    /// A chapter started playing: its book's or series' place moves to it, and the book is
-    /// listened to again (dated, unfinished). Saved by the caller.
-    func placeChapter(_ page: Page) {
+    /// A chapter started playing at `date`: its book's or series' place moves to it, and the
+    /// book is listened to again (dated, unfinished). Saved by the caller.
+    func placeChapter(_ page: Page, at date: Date) {
         guard let folder = page.folder, folder.kind.isFixed, let key = page.key else { return }
         folder.currentPageKey = key
-        folder.lastPlayedAt = now()
+        folder.lastPlayedAt = date
         folder.finishedAt = nil
     }
 
-    /// A chapter played to its end: the book or series is finished when no playable chapter
-    /// comes after it. Saved by the caller.
-    func noteChapterFinished(_ page: Page) {
+    /// A chapter played to its end at `date`: the book or series is finished when no playable
+    /// chapter comes after it. Saved by the caller.
+    func noteChapterFinished(_ page: Page, at date: Date) {
         guard let folder = page.folder, folder.kind.isFixed else { return }
-        folder.lastPlayedAt = now()
+        folder.lastPlayedAt = date
         if ChapterAdvance.after(page.listenKey, in: chapterSnapshot(of: folder)) == .none {
-            folder.finishedAt = now()
+            folder.finishedAt = date
         }
     }
 }

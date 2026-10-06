@@ -49,6 +49,11 @@ final class LibraryScreenState {
         pendingDelete = folders.filter { $0.kind != .favorites }
     }
 
+    /// The delete question was cancelled: nothing is deleted, and Edit keeps its selection.
+    func cancelDelete() {
+        pendingDelete = []
+    }
+
     func rename(_ folder: Folder) {
         renameText = folder.name
         renaming = folder
@@ -73,6 +78,7 @@ private struct LibraryDialogs: ViewModifier {
     let onDeleted: () -> Void
 
     @Environment(LibraryStore.self) private var library
+    @Environment(ShellState.self) private var shell
     @Environment(\.speechController) private var speech
 
     func body(content: Content) -> some View {
@@ -88,7 +94,9 @@ private struct LibraryDialogs: ViewModifier {
                     .accessibilityIdentifier("renameFolderField")
                 Button("Cancel", role: .cancel) { state.renaming = nil }
                 Button("Rename") {
-                    if let folder = state.renaming { try? library.rename(folder, to: state.renameText) }
+                    if let folder = state.renaming {
+                        shell.attempt(String(localized: "Couldn’t rename")) { try library.rename(folder, to: state.renameText) }
+                    }
                     state.renaming = nil
                 }
             }
@@ -100,8 +108,9 @@ private struct LibraryDialogs: ViewModifier {
                 Button("Create") {
                     let name = state.newFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
                     if let target = state.newFolder {
-                        _ = try? library.makeFolder(name: name.isEmpty ? String(localized: "New Folder") : name,
-                                                    in: target.parent)
+                        shell.attempt(String(localized: "Couldn’t make the folder")) {
+                            try library.makeFolder(name: name.isEmpty ? String(localized: "New Folder") : name, in: target.parent)
+                        }
                     }
                     state.newFolder = nil
                 }
@@ -110,7 +119,7 @@ private struct LibraryDialogs: ViewModifier {
     }
 
     private var deleting: Binding<Bool> {
-        Binding(get: { !state.pendingDelete.isEmpty }, set: { if !$0 { state.pendingDelete = [] } })
+        Binding(get: { !state.pendingDelete.isEmpty }, set: { if !$0 { state.cancelDelete() } })
     }
 
     private var prompt: FolderDeletePrompt {
@@ -127,13 +136,16 @@ private struct LibraryDialogs: ViewModifier {
             }
             .accessibilityIdentifier(choice.id)
         }
-        Button("Cancel", role: .cancel) { state.pendingDelete = [] }
+        Button("Cancel", role: .cancel) { state.cancelDelete() }
     }
 
+    /// Once the delete is saved, Edit ends and the surface leaves screens of folders that are gone.
+    /// A delete that can't be saved changes nothing (Edit keeps its selection), and a toast says so.
     private func delete(keepContents: Bool) {
-        try? library.deleteFolders(state.pendingDelete, keepContents: keepContents)
+        let folders = state.pendingDelete
         state.pendingDelete = []
-        state.endEditing()
+        guard LibraryActions(library: library, speech: speech, shell: shell)
+            .deleteFolders(folders, keepContents: keepContents, in: state) else { return }
         onDeleted()
     }
 }

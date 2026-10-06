@@ -77,7 +77,7 @@ final class ListenNowTests: XCTestCase {
 
     func testSavedRowPlayDuringExtractionWins() async throws {
         _ = playA()
-        let c = library.save(ReaderArticle(id: ArticleIdentity.articleKey(
+        let c = try library.save(ReaderArticle(id: ArticleIdentity.articleKey(
             canonicalURL: ArticleIdentity.canonicalURLString(from: pageC)), url: pageC,
             extracted: DelayedExtractor.article(title: "C")))
         let request = tapListen(pageB)
@@ -100,7 +100,7 @@ final class ListenNowTests: XCTestCase {
     /// 🎧 resumes a page the library has at its spot, inside the paragraph; a page heard to the
     /// end (saved, or played without saving) starts again from the top.
     func testListenResumesAtTheSpotAndAPageHeardToTheEndStartsOver() async throws {
-        let page = library.save(library.readerArticle(url: pageB, extracted: DelayedExtractor.article(title: "B")))
+        let page = try library.save(library.readerArticle(url: pageB, extracted: DelayedExtractor.article(title: "B")))
         let doc = ParagraphDocument(parts: page.cachedListenParagraphs ?? [])
         let spot = doc.startUTF16Offset(forParagraph: 1) + 7
         library.recordPosition(page, paragraph: 1, utf16Offset: spot)
