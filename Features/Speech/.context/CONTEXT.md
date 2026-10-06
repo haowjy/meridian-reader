@@ -36,9 +36,10 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
 - **Progress follows the text.** `PlaybackSessionState.textFingerprint` is set with the document
   (`bind`, `advance`) and travels in every `ListenProgress`. The recorder, `pageFinished` and a
   rollback's rewrite store progress only on a page holding that text (`LibraryStore.holds`), and
-  `rekeyActiveSession` moves the session only onto a page holding it, else stops it. Anything
-  new that writes a position, start or end onto a page, or moves the session to another key,
-  goes through the same check.
+  `rekeyActiveSession` moves the session only onto a page holding it, else stops it. The crash
+  resume file carries it too, and `AppLaunch.resumeAfterCrash` applies its paragraph only on a
+  page holding it. Anything new that writes a position, start or end onto a page, or moves the
+  session to another key, goes through the same check.
 - **Position.** Only `PlaybackSessionState` holds it, and a seek publishes it synchronously in
   the same transaction as the UI change; the scrubber relies on that to avoid a snap back. An
   engine never reports a spot before the offset its play started at.

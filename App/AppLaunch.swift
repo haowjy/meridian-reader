@@ -61,6 +61,14 @@ enum AppLaunch {
     /// playing — playing again (on the ONNX route, once it's loaded) if the crash just happened,
     /// else paused there. Runs after the layout migration, so the stored paragraph uses the
     /// current numbering.
+    ///
+    /// The paragraph counts only on a page holding the text it was played in (`LibraryStore.holds`):
+    /// a key can hold other text by the time of the crash (the page was refreshed on open while an
+    /// older session played on, a *Replace* brought another chapter back under it), and a
+    /// paragraph of one text means nothing in another. A target that names no text (a crash
+    /// marker's, or a resume file an older build wrote) counts only when it is the page's own
+    /// stored paragraph. Otherwise the page opens paused at its own stored spot and keeps its own
+    /// position. The position is the recorder's to store, from the session this binds.
     private static func resumeAfterCrash(library: LibraryStore, speech: SpeechController, shell: ShellState) async {
         let tts = speech.localTTS
         guard let target = tts.takePendingResume() else { return }
@@ -69,9 +77,10 @@ enum AppLaunch {
             return
         }
         let session = SpeechSession.page(page)
-        let p = min(max(0, target.paragraph), max(0, session.document.count - 1))
-        page.positionParagraph = p
-        if target.autoPlay {
+        let inText = target.text.map { library.holds(page, text: $0) } ?? (target.paragraph == page.positionParagraph)
+        let p = inText ? min(max(0, target.paragraph), max(0, session.document.count - 1)) : page.positionParagraph
+        let autoPlay = inText && target.autoPlay
+        if autoPlay {
             // Wait (≤20 s) for the Kokoro host so the resume doesn't start on Apple.
             var waited = 0
             while tts.synth.state.warmingEngineID != nil, waited < 100 {
@@ -80,12 +89,12 @@ enum AppLaunch {
             }
             speech.start(session, fromParagraph: p)
         } else {
-            speech.prepare(session, startingParagraph: p)
+            speech.prepare(session, startingParagraph: p, utf16: page.positionUTF16)
         }
         shell.showNowPlaying()
         ListenTimingLog.log("kokoro_resume", [
-            "ok": true, "key": ListenTimingLog.shortKey(page.listenKey), "p": p, "auto_play": target.autoPlay,
-            "local": tts.usesLocalEngine,
+            "ok": true, "key": ListenTimingLog.shortKey(page.listenKey), "p": p, "auto_play": autoPlay,
+            "text": inText ? "same" : target.text == nil ? "unknown" : "other", "local": tts.usesLocalEngine,
         ])
     }
 }

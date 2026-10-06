@@ -1,8 +1,9 @@
 import Foundation
 @testable import Reader
 
-/// A `SpeechController` over a scripted Apple engine, with no system audio session, lock screen,
-/// resume file or shared defaults. `tearDown` stops it and removes its temporary files.
+/// A `SpeechController` over a scripted Apple engine, with no system audio session, lock screen
+/// or shared defaults, and no resume file unless the test passes one (`resumePoints`). `tearDown`
+/// stops it and removes its temporary files.
 @MainActor
 final class TestSpeech {
     let speech: SpeechController
@@ -10,7 +11,7 @@ final class TestSpeech {
     private let suite = "TestSpeech-\(UUID().uuidString)"
     private let root = FileManager.default.temporaryDirectory.appendingPathComponent("TestSpeech-\(UUID().uuidString)")
 
-    init() {
+    init(resumePoints: ListenResumePointStore? = nil) {
         let defaults = UserDefaults(suiteName: suite)!
         let registry = EngineRegistry(providers: [AppleSpeechProvider()], gate: { _ in true })
         let coordinator = LocalTTSCoordinator(engines: registry, defaults: defaults,
@@ -19,7 +20,7 @@ final class TestSpeech {
         speech = SpeechController(engines: registry, localTTS: coordinator,
                                   audioSession: ListenAudioSession(managesSystemSession: false),
                                   nowPlaying: NowPlayingController(commandCenter: nil, infoCenter: nil),
-                                  appleEngine: apple, resumePoints: nil)
+                                  appleEngine: apple, resumePoints: resumePoints)
     }
 
     func tearDown() {

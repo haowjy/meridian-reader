@@ -136,24 +136,57 @@ final class LibraryDedupeTests: XCTestCase {
 
     /// Crash recovery read its target at launch, before dedupe: when that page is merged away,
     /// the target in memory follows the resume file onto the kept page, on the same paragraph
-    /// text even though the two pages' paragraphs differ.
+    /// text even though the two pages' paragraphs differ, and in the text the kept page holds,
+    /// so crash resume applies it there.
     func testTheCrashTargetReadAtLaunchFollowsTheKeeper() throws {
         let extra = page("https://example.com/c2", position: 0)
-        extra.storeListenParagraphs(["An intro.", "Alpha one.", "Beta two."])
+        let played = ["An intro.", "Alpha one.", "Beta two."]
+        extra.storeListenParagraphs(played)
         let keeper = page("https://example.com/c2", position: 1)
         keeper.storeListenParagraphs(["Alpha one.", "Beta two."])
-        ListenResumePointStore.shared.save(article: extra.key!, paragraph: 2, at: env.now)
-        env.tts.pendingResume = ListenResumeTarget(articleKey: extra.key!.uuidString, paragraph: 2, at: env.now, autoPlay: true)
+        let text = ArticleIdentity.contentFingerprint(paragraphs: played)
+        ListenResumePointStore.shared.save(article: extra.key!, paragraph: 2, text: text, at: env.now)
+        env.tts.pendingResume = ListenResumeTarget(articleKey: extra.key!.uuidString, paragraph: 2, text: text,
+                                                   at: env.now, autoPlay: true)
         try env.context.save()
 
         XCTAssertEqual(library.dedupe().mergedPages, 1)
         let target = try XCTUnwrap(env.tts.takePendingResume())
         XCTAssertIdentical(library.page(matching: target), keeper, "launch resumes the kept page")
         XCTAssertEqual(target.paragraph, 1, "on \"Beta two.\", its paragraph there")
+        XCTAssertTrue(library.holds(keeper, text: target.text), "in the text the kept page holds")
         XCTAssertTrue(target.autoPlay)
         let file = try XCTUnwrap(ListenResumePointStore.shared.load())
         XCTAssertEqual(file.articleKey, keeper.key?.uuidString)
         XCTAssertEqual(file.paragraph, 1)
+        XCTAssertEqual(file.text, target.text)
+    }
+
+    /// The resume file and the crash target name a paragraph of other text than the merged page
+    /// holds (a session that played on in an older text). The merge moves them to the kept page
+    /// but doesn't map that paragraph through text it isn't in: they keep their paragraph and
+    /// text, which the kept page doesn't hold, so crash resume won't apply it there.
+    func testACrashTargetInOtherTextFollowsTheKeeperWithoutMapping() throws {
+        let extra = page("https://example.com/c3", position: 0)
+        extra.storeListenParagraphs(["An intro.", "Alpha one.", "Beta two."])
+        let keeper = page("https://example.com/c3", position: 1)
+        keeper.storeListenParagraphs(["Alpha one.", "Beta two."])
+        let older = ArticleIdentity.contentFingerprint(paragraphs: ["An older intro.", "Older one.", "Older two."])
+        ListenResumePointStore.shared.save(article: extra.key!, paragraph: 2, text: older, at: env.now)
+        env.tts.pendingResume = ListenResumeTarget(articleKey: extra.key!.uuidString, paragraph: 2, text: older,
+                                                   at: env.now, autoPlay: true)
+        try env.context.save()
+
+        XCTAssertEqual(library.dedupe().mergedPages, 1)
+        let target = try XCTUnwrap(env.tts.takePendingResume())
+        XCTAssertIdentical(library.page(matching: target), keeper, "it follows the kept page")
+        XCTAssertEqual(target.paragraph, 2, "its paragraph unmapped")
+        XCTAssertEqual(target.text, older, "still in the text it was played in")
+        XCTAssertFalse(library.holds(keeper, text: target.text))
+        let file = try XCTUnwrap(ListenResumePointStore.shared.load())
+        XCTAssertEqual(file.articleKey, keeper.key?.uuidString)
+        XCTAssertEqual(file.paragraph, 2)
+        XCTAssertEqual(file.text, older)
     }
 
     func testTwoFavoritesMergeIntoTheOlder() throws {

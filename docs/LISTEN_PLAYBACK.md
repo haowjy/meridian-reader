@@ -33,8 +33,8 @@ into ArticleAudioCache, admitted by RenderAdmission.
 
 The scrubber, the paragraph highlight, Now Playing and crash resume all read the position from
 here, and every change is published synchronously. `resumePoint` (article + paragraph while
-playing, nil otherwise) is what crash resume reopens; the controller writes it to
-`ListenResumePointStore` whenever it changes.
+playing, with the text fingerprint; nil otherwise) is what crash resume reopens; the controller
+writes it to `ListenResumePointStore` whenever it changes.
 
 Phase and position change only through:
 
@@ -180,6 +180,19 @@ too: a rollback writes it again only on a page holding the text it was made in, 
 other text on the page starts it over. A session moves to another key only onto a page holding
 its text: a merge whose kept page holds other text when it runs, or a Save landing on an older
 page while the session plays older text, stops it instead (`rekeyActiveSession`).
+
+Crash resume follows the text too. The resume file keeps the playing paragraph with the
+session's text fingerprint, and the layout pass and merges that move it map the paragraph into
+the text they move it to and give it that text's fingerprint (a point in other text than the page
+they move keeps its paragraph and text). At launch (`AppLaunch.resumeAfterCrash`) the paragraph is
+applied only on a page holding that text: then the page plays again there (a crash under 20
+minutes ago while playing) or opens paused there, as before. On a page holding other text by then
+(refreshed on open while an older session played on, another chapter brought back under its key)
+the page opens in Now Playing paused at its own stored spot, paragraph and offset, and keeps it;
+nothing plays until ▶. A target that names no text (the crash marker's, used when nothing was
+playing, or a resume file an older build wrote) counts only when it is the page's own stored
+paragraph, which the recorder writes on every paragraph; otherwise it opens the page paused at its
+own spot the same way. The position is then the recorder's to store, from the session bound.
 
 ### Books and series
 
@@ -361,9 +374,9 @@ highlight and the paragraph picker stay fine-grained.
   the copied pages before they are deduped, and by `AppLaunch` before the launch dedupe pass and
   crash resume): library pages holding text with `listenBlocksVersion < 3` get new blocks, and
   the reading position maps by character offset (`ParagraphPositionMap`). Once that is saved
-  (`LibraryAudioWork`, see `TECHNICAL_SPEC.md`), the resume point, the in-memory crash-resume
-  target and any pending bake job are remapped; cached audio of unchanged paragraphs moves by
-  text hash, and a split paragraph's CAF is sliced sample-exact
+  (`LibraryAudioWork`, see `TECHNICAL_SPEC.md`), the resume point and the in-memory crash-resume
+  target (with the new text's fingerprint) and any pending bake job are remapped; cached audio of
+  unchanged paragraphs moves by text hash, and a split paragraph's CAF is sliced sample-exact
   (`ArticleAudioCache.reconcile`, by `chunkDurations`) into each piece whose chunk
   plan equals a contiguous run of the old chunks; other pieces re-render. Logged as
   `paragraph_layout_migration` (paragraphs, position) and `library_audio_work` (audio kept,

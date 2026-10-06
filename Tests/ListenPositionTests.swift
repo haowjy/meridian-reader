@@ -70,7 +70,8 @@ final class ListenPositionTests: XCTestCase {
         XCTAssertNil(s.resumePoint, "prepared: nothing to auto-play after a crash")
 
         XCTAssertEqual(s.handle(.play(from: 1), engine: silent), [.enginePlay(from: 1)])
-        XCTAssertEqual(s.resumePoint, .init(article: id, paragraph: 1))
+        XCTAssertEqual(s.resumePoint, .init(article: id, paragraph: 1,
+                                            text: ArticleIdentity.contentFingerprint(paragraphs: doc.paragraphs)))
         s.handle(.position(paragraph: 2, utf16: doc.startUTF16Offset(forParagraph: 2) + 1))
         XCTAssertEqual(s.playhead, 2)
         XCTAssertEqual(s.resumePoint?.paragraph, 2)
@@ -131,6 +132,8 @@ final class ListenPositionTests: XCTestCase {
         speech.start(s, fromParagraph: 0)
         XCTAssertEqual(store.load()?.paragraph, 0)
         XCTAssertTrue(store.load()?.matches(s.id) == true)
+        XCTAssertEqual(store.load()?.text, ArticleIdentity.contentFingerprint(paragraphs: s.document.paragraphs),
+                       "with the text it is a paragraph of")
         apple.emit(.position(paragraph: 1, utf16: s.document.startUTF16Offset(forParagraph: 1)))
         XCTAssertEqual(store.load()?.paragraph, 1)
         speech.pause()

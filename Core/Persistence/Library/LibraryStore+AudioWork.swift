@@ -110,13 +110,11 @@ extension LibraryStore {
             audioPlan.resume = ListenResumePointStore.shared.load()
             audioPlan.resumeLoaded = true
         }
-        guard let source = work.sourceKey, let target = work.key, var point = audioPlan.resume,
+        guard let source = work.sourceKey, work.key != nil, let point = audioPlan.resume,
               point.matches(source) else { return }
         work.resumeParagraph = point.paragraph
         work.resumeAt = point.at
-        point.articleKey = target.uuidString
-        point.paragraph = Self.mapParagraph(point.paragraph, for: work, onto: work.paragraphs)
-        audioPlan.resume = point
+        audioPlan.resume = Self.move(point, by: work, onto: work.paragraphs)
     }
 
     // MARK: - Doing it
@@ -375,24 +373,42 @@ extension LibraryStore {
     }
 
     /// The crash-resume file and the crash target launch read from it (or from the crash
-    /// marker) follow the work, onto `paragraphs`: the destination's paragraphs its audio was
-    /// just aligned with (for a merge, what the kept page holds now, which may differ from what
-    /// was planned). The file moves only if it is still where the plan found it, so doing the
+    /// marker) follow the work (`move`), onto `paragraphs`: the destination's paragraphs its audio
+    /// was just aligned with (for a merge, what the kept page holds now, which may differ from
+    /// what was planned). The file moves only if it is still where the plan found it, so doing the
     /// work again never moves it twice. The target in memory moves with any paragraph when this
     /// process planned the work (it was read before); for work left by an earlier launch, only if
     /// it still holds the file's old point.
     private func moveResumePoints(_ work: LibraryAudioWork, onto paragraphs: [String], live: Bool) {
         guard let source = work.sourceKey, let target = work.key else { return }
-        let map = { (p: Int) in Self.mapParagraph(p, for: work, onto: paragraphs) }
         if let paragraph = work.resumeParagraph, let at = work.resumeAt {
             let store = ListenResumePointStore.shared
             if let point = store.load(), point.matches(source), point.paragraph == paragraph,
                abs(point.at.timeIntervalSince(at)) < 0.001 {
-                store.save(article: target, paragraph: map(paragraph), at: point.at)
+                let moved = Self.move(point, by: work, onto: paragraphs)
+                store.save(article: target, paragraph: moved.paragraph, text: moved.text, at: point.at)
             }
         }
         guard live || (tts.pendingResume.map { $0.paragraph == work.resumeParagraph } ?? false) else { return }
-        tts.remapPendingResume(article: source, to: target, map)
+        tts.remapPendingResume(article: source) { Self.move($0, by: work, onto: paragraphs) }
+    }
+
+    /// A crash-resume point once `work` has moved its page onto `paragraphs`: under the work's
+    /// key and, when it is a paragraph of the text the work moved (`sourceParagraphs`), on that
+    /// paragraph's place there (`mapParagraph`), in the text `paragraphs` hold. A point that names
+    /// no text (an older build's file, a crash marker) is mapped the same way and still names
+    /// none. A point in other text (a session that played on in an older text than its page's)
+    /// keeps its paragraph and text: crash resume applies it only on a page holding that text.
+    static func move(_ point: ListenResumeTarget, by work: LibraryAudioWork, onto paragraphs: [String]) -> ListenResumeTarget {
+        guard let target = work.key else { return point }
+        var moved = point
+        moved.articleKey = target.uuidString
+        if let text = point.text {
+            guard text == ArticleIdentity.contentFingerprint(paragraphs: work.sourceParagraphs) else { return moved }
+            moved.text = ArticleIdentity.contentFingerprint(paragraphs: paragraphs)
+        }
+        moved.paragraph = mapParagraph(point.paragraph, for: work, onto: paragraphs)
+        return moved
     }
 
     // MARK: - Sessions a waiting merge would move

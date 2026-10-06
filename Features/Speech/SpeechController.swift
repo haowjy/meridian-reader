@@ -412,7 +412,7 @@ final class SpeechController {
     private func saveResumePoint() {
         guard let resumePoints else { return }
         if let point = playback.resumePoint {
-            resumePoints.save(article: point.article, paragraph: point.paragraph)
+            resumePoints.save(article: point.article, paragraph: point.paragraph, text: point.text)
         } else {
             resumePoints.clear()
         }
@@ -535,14 +535,16 @@ final class SpeechController {
 
     // MARK: - Session API (intents)
 
-    func prepare(_ session: SpeechSession, startingParagraph: Int = 0) {
+    /// Binds `session` paused at `startingParagraph`: at its start, or at document offset `utf16`
+    /// when that lies in it. A session already bound to it stays as it is.
+    func prepare(_ session: SpeechSession, startingParagraph: Int = 0, utf16: Int? = nil) {
         supersedePreparation()
         adoptMeta(of: session)
         if playback.articleID == session.id, !playback.document.isEmpty { return }
         execute(playback.handle(.stop, engine: engineSnapshot()))
         endChapterFlow()
         playback.bind(articleID: session.id, document: session.document, startingAt: startingParagraph,
-                      folderID: session.folderID)
+                      utf16: utf16, folderID: session.folderID)
     }
 
     /// What the lock screen, the bar and the language rules show for `session`, before it binds.

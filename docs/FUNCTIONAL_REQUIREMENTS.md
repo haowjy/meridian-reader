@@ -64,7 +64,7 @@ its last page (reloaded). A fresh install opens the Library.
 | P1 | Apple TTS is the default and always available. Kokoro (on-device, English, A15+) is optional: downloaded on selection, deletable, and used only once ready. Apple speaks whenever Kokoro can't (not downloaded, loading, failed, crashed, another language, a chunk it can't render). |
 | P2 | Playback never goes silent or freezes mid-article: anything the selected engine can't produce is spoken with Apple. |
 | P3 | Each article keeps one voice's audio; switching voice re-renders it, and the old voice plays until each paragraph is replaced. |
-| P4 | The position is remembered per article and resumed later, for an article listened to without saving too (kept 7 days after it was last played); after a Kokoro crash the app reopens the article at the paragraph that was playing. |
+| P4 | The position is remembered per article and resumed later, for an article listened to without saving too (kept 7 days after it was last played); after a Kokoro crash the app reopens the article at the paragraph that was playing, or at its own spot, paused, when its text has changed since. |
 | P5 | Listening continues in the background, with lock-screen / Control Center controls (play, pause, next / previous paragraph, rate). Calls and unplugged headphones pause; a resumable interruption resumes. |
 | P6 | The article's language is detected; an article the selected engine can't speak uses an Apple voice for its language, without changing settings. |
 | P7 | Saved articles play fully offline. |

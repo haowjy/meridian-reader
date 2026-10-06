@@ -85,16 +85,17 @@ struct PlaybackSessionState: Equatable {
     var isPrepared: Bool { articleID != nil && !document.isEmpty }
     var paragraphCount: Int { document.count }
 
-    /// What crash-resume reopens: the article and paragraph while playing; nil when paused,
-    /// stopped or finished (nothing to auto-play).
+    /// What crash-resume reopens: the article and paragraph while playing, with the text the
+    /// paragraph is in; nil when paused, stopped or finished (nothing to auto-play).
     var resumePoint: ResumePoint? {
         guard phase == .playing, let articleID, isPrepared else { return nil }
-        return ResumePoint(article: articleID, paragraph: playhead)
+        return ResumePoint(article: articleID, paragraph: playhead, text: textFingerprint)
     }
 
     struct ResumePoint: Equatable {
         var article: UUID
         var paragraph: Int
+        var text: String?
     }
 
     /// Move the position to document offset `utf16` (clamped to the text): where the next
@@ -106,7 +107,10 @@ struct PlaybackSessionState: Equatable {
         playhead = document.isEmpty ? 0 : document.index(containingUTF16Offset: clamped)
     }
 
-    mutating func bind(articleID: UUID, document: ParagraphDocument, startingAt: Int, folderID: UUID? = nil) {
+    /// Binds `document` at paragraph `startingAt`: at its start, or at document offset `utf16`
+    /// when that lies in the paragraph (a stored spot inside it).
+    mutating func bind(articleID: UUID, document: ParagraphDocument, startingAt: Int, utf16: Int? = nil,
+                       folderID: UUID? = nil) {
         self.articleID = articleID
         self.folderID = folderID
         self.document = document
@@ -114,7 +118,11 @@ struct PlaybackSessionState: Equatable {
         awaitingPage = false
         let clamped = document.isEmpty ? 0 : max(0, min(startingAt, document.count - 1))
         playhead = clamped
-        utf16Offset = document.isEmpty ? 0 : document.startUTF16Offset(forParagraph: clamped)
+        if let utf16, !document.isEmpty, document.index(containingUTF16Offset: utf16) == clamped {
+            utf16Offset = utf16
+        } else {
+            utf16Offset = document.isEmpty ? 0 : document.startUTF16Offset(forParagraph: clamped)
+        }
         phase = document.isEmpty ? .idle : .prepared
     }
 

@@ -297,7 +297,7 @@ Elsewhere:
 | Bookmarks before the library (frozen; copied into Favorites) | `Application Support/Bookmarks/bookmarks.json` (`LegacyBookmarks`) |
 | Recent searches | UserDefaults `browse.recentSearches` |
 | Last listened / finished before the library (frozen; folded into `Page`) | UserDefaults `reader.listenHistory.v1` (`ListenHistory`) |
-| Crash-resume point | `ListenResumePointStore` |
+| Crash-resume point (key, paragraph, text fingerprint, time) | `Application Support/ListenTiming/listen_resume.json` (`ListenResumePointStore`) |
 | Rendered audio | `Application Support/TTSCache/<article key>/` (`ArticleAudioCache`) |
 | Pending render jobs | `Application Support/PendingBakeJobs.json` |
 | Timing log | `Application Support/ListenTiming/` |
