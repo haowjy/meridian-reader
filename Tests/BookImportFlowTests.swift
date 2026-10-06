@@ -3,8 +3,8 @@ import XCTest
 
 /// The import sheet's flow (`BookImportFlow`) over the real import: where the book lands, *Add to*
 /// changed while it runs (stored there in the import's one save), D13's question, *Cancel*,
-/// refusals, a downloaded book waiting for *Import*, one import sheet at a time, and the book's
-/// file in `Imports/` gone however it ends.
+/// refusals, saves that fail, a downloaded book waiting for *Import*, one import sheet at a time,
+/// and the book's file in `Imports/` gone however it ends.
 @MainActor
 final class BookImportFlowTests: XCTestCase {
     private var env: LibraryTestEnvironment!
@@ -247,6 +247,80 @@ final class BookImportFlowTests: XCTestCase {
         flow.acknowledgeFailure()
         XCTAssertEqual(flow.phase, .ended)
         XCTAssertEqual(closes, 1)
+    }
+
+    /// The import's one save fails: the sheet says so in its one line, nothing is kept (no book,
+    /// no chapter, nothing waiting in the context), and the file goes.
+    func testAnImportWhoseSaveFailsSaysSoAndKeepsNothing() async throws {
+        let fiction = try library.makeFolder(name: "Fiction", in: nil)
+        library.saveContext = { _ in throw CocoaError(.fileWriteUnknown) }
+        let file = try picked()
+        let flow = start(file, into: fiction)
+        try await until("the failure") { if case .failed = flow.phase { true } else { false } }
+        XCTAssertEqual(flow.phase, .failed("Meridian couldn't save the book. Try again."))
+        XCTAssertFalse(env.context.hasChanges, "nothing waits for a later save")
+        XCTAssertTrue(books().isEmpty)
+        XCTAssertTrue(env.pages().isEmpty)
+        XCTAssertTrue(fiction.children?.isEmpty ?? true)
+        XCTAssertTrue(landed.isEmpty)
+        XCTAssertTrue(fileIsGone(file))
+        flow.acknowledgeFailure()
+        XCTAssertEqual(closes, 1)
+    }
+
+    /// D13's *Replace* whose save fails: the sheet says so, and the book is as it was.
+    func testAReplaceWhoseSaveFailsSaysSoAndLeavesTheBookAsItWas() async throws {
+        guard case .added(let existing) = try await BookImporter(library: library)
+            .importBook(at: try BookImportTests.sampleBook().write(in: self), into: nil, ifAlreadyInLibrary: .cancel)
+        else { return XCTFail("first import") }
+        let chapters = library.playOrder(of: existing).map(\.key)
+        let texts = library.playOrder(of: existing).map(\.cachedListenParagraphs)
+        let file = try picked(revisedBook())
+        let flow = start(file)
+        try await until("D13's question") { flow.phase == .alreadyInLibrary(existing.id) }
+
+        library.saveContext = { _ in throw CocoaError(.fileWriteUnknown) }
+        flow.replace()
+        try await until("the failure") { if case .failed = flow.phase { true } else { false } }
+        XCTAssertEqual(flow.phase, .failed("Meridian couldn't save the book. Try again."))
+        XCTAssertFalse(env.context.hasChanges, "nothing waits for a later save")
+        XCTAssertEqual(books().count, 1)
+        XCTAssertEqual(library.playOrder(of: existing).map(\.key), chapters, "every chapter is still there")
+        XCTAssertEqual(library.playOrder(of: existing).map(\.cachedListenParagraphs), texts, "with its text")
+        XCTAssertTrue(landed.isEmpty)
+        XCTAssertTrue(fileIsGone(file))
+    }
+
+    /// *New Folder* in *Add to*'s tree that can't be saved: no folder, *Add to* unchanged, the
+    /// tree stays up and a toast says so. Once saves work, the folder is made and chosen.
+    func testANewFolderInAddToThatCantBeSavedChoosesNothing() throws {
+        let fiction = try library.makeFolder(name: "Fiction", in: nil)
+        let shell = ShellState()
+        let flow = start(try picked(), into: fiction, waits: true)
+        flow.isChoosingDestination = true
+        library.saveContext = { _ in throw CocoaError(.fileWriteUnknown) }
+
+        flow.chooseNewFolder(named: "Essays", in: fiction, shell: shell)
+        XCTAssertFalse(env.folders().contains { $0.name == "Essays" }, "no folder")
+        XCTAssertEqual(flow.destinationID, fiction.id, "Add to is unchanged")
+        XCTAssertTrue(flow.isChoosingDestination, "the tree stays up")
+        XCTAssertEqual(shell.toast?.message, "Couldn’t make the folder")
+
+        library.saveContext = { try $0.save() }
+        flow.chooseNewFolder(named: "  ", in: fiction, shell: shell)
+        let made = try XCTUnwrap(env.folders().first { $0.name == "New Folder" }, "a blank name makes New Folder")
+        XCTAssertTrue(made.parent === fiction, "inside the folder it was asked in")
+        XCTAssertEqual(flow.destinationID, made.id, "and the book goes there")
+        XCTAssertFalse(flow.isChoosingDestination, "the tree goes back to the sheet")
+        flow.cancel()
+    }
+
+    /// The sample book with its second chapter's text changed (the same identifier).
+    private func revisedBook() -> SyntheticEPUB {
+        var epub = BookImportTests.sampleBook()
+        let two = epub.documents.firstIndex { $0.name == "two.xhtml" }!
+        epub.documents[two].body = epub.documents[two].body.replacingOccurrences(of: "<p>", with: "<p>Revised. ")
+        return epub
     }
 
     func testATooLargeBookSaysSo() {
