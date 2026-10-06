@@ -161,11 +161,11 @@ again) to the chapter that starts, and the last playable chapter's end finishes 
 (`LibraryStore+Chapters`). A write whose save fails waits in the context for the next save, and
 a failed edit's rollback doesn't drop it: `LibraryStore` keeps the progress it hasn't stored
 (`PendingListening`: a start, and the text it played when the store may not hold it, from the
-article it came from or a copy of the page's own; the position; the end) and writes it again after the rollback, with the dates it was made
-at and in the order it played, making again a page only a play had made. It is forgotten once a
-save stores it. A position recorded while an edit is being staged (stopping the playing page it
-deletes) isn't saved on its own: it waits for the edit's save, so it can't store the edit half
-made.
+article it came from or a copy of the page's own; the position; the end) and writes it again
+after the rollback, with the dates it was made at and in the order it played, making again a
+page only a play had made. It is forgotten once a save stores it. A position recorded while an
+edit is being staged (stopping the playing page it deletes) isn't saved on its own: it waits for
+the edit's save, so it can't store the edit half made.
 
 ### Books and series
 
