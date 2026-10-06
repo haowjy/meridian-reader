@@ -6,7 +6,8 @@ import XCTest
 /// An imported book's *Replace* under the library's save rules: it is one edit
 /// (`LibraryStore.edit`), so stopping the chapter it changes never stores half of it, and the
 /// listening that stop records outlives a Replace that fails. A dropped or merged chapter's audio
-/// work acts on the page holding its key when it runs, as every audio record does.
+/// work acts on the page holding its key when it runs, as every audio record does, and a session
+/// a waiting merge would move stops when a Replace or delete changes the chapter it would move to.
 @MainActor
 final class BookSaveFailureTests: XCTestCase {
     private var fixture: TestSpeech!
@@ -410,5 +411,160 @@ final class BookSaveFailureTests: XCTestCase {
         XCTAssertEqual(try (0..<textNew.count).map { try bytes(five, paragraph: $0) }, audio, "after a relaunch")
         XCTAssertFalse(env.cache.hasDirectory(for: renamed), "after a relaunch")
         XCTAssertTrue(audioWork(in: env.context).isEmpty)
+    }
+
+    // MARK: - A session a waiting merge would move
+
+    /// Chapter three as `renamed` revises it: its first paragraph is longer, so the second,
+    /// unchanged, starts elsewhere; its last is changed.
+    private let revisedThree = ["Three begins, now at more length.", "Three goes on.", "Three ends, revised."]
+
+    private func withRevisedRenamed(_ more: [PageContent] = []) -> [PageContent] {
+        [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", editedTwo), chapter(renamed, 2, "Three", revisedThree)] + more
+    }
+
+    /// Chapter three plays to its second paragraph; a Replace edits chapter two and finds three's
+    /// text under `renamed`, carrying the spot there. Aligning two's audio fails, so the merge that
+    /// would move the session onto `renamed` waits, and the session plays on under key three.
+    /// Every audio step fails until the caller lets them through.
+    private func playThreeWhileItsMergeWaits() throws
+        -> (book: Folder, carried: (paragraph: Int, utf16: Int), merged: () -> [[UUID]]) {
+        let book = try addBook()
+        try env.storeAudio(two, paragraphs: textTwo)
+        try env.storeAudio(three, paragraphs: textThree)
+        let merged = sessionFollowsMerges()
+        stopsPlaybackOnReplace()
+        play(try XCTUnwrap(library.page(key: three)))
+        let spot = listen(to: 1)
+        env.cache.faultHook = { _ in throw SaveFailed() }
+        try library.replaceBook(book, with: details, chapters: withRenamed)
+        XCTAssertEqual(audioWork(in: env.context).map(\.kind), [.align, .merge], "the merge waits behind the align")
+        XCTAssertEqual(speech.activeSessionID, three, "the session plays on under the merged key")
+        XCTAssertNotNil(speech.nowPlaying)
+        assertSpot(library, renamed, spot, "the spot is carried")
+        return (book, spot, merged)
+    }
+
+    /// Lets the waiting work through and runs it with an unrelated save; then the engine reports
+    /// the next paragraph of chapter three's old text, as it would if that session still played.
+    private func runWaitingWorkThenHearTheOldText() throws {
+        env.cache.faultHook = nil
+        _ = try library.save(env.article("https://example.com/elsewhere"))
+        XCTAssertTrue(audioWork(in: env.context).isEmpty, "the waiting work ran and is retired")
+        fixture.apple.emit(.position(paragraph: 2, utf16: ParagraphDocument(parts: textThree).utf16Ranges[2].location))
+    }
+
+    /// Chapter three plays while its merge into `renamed` waits, and a second Replace revises
+    /// `renamed`. The session stops with that Replace, as playback of the revised chapter does:
+    /// the merge, which follows what `renamed` holds when it runs, would otherwise move it onto
+    /// the revised text and record positions in the old text there. No page holds key three, so
+    /// the stop records nothing; `renamed` keeps the spot carried to it, carried on into the
+    /// revision. The merge then runs with no live session to move, and nothing more is recorded.
+    /// A relaunch agrees.
+    func testAReplaceRevisingAKeptChapterStopsTheSessionAWaitingMergeWouldMoveOntoIt() throws {
+        let (book, carried, merged) = try playThreeWhileItsMergeWaits()
+        try library.replaceBook(book, with: details, chapters: withRevisedRenamed())
+        XCTAssertNil(speech.nowPlaying, "the session stopped with the Replace")
+        XCTAssertNil(speech.activeSessionID)
+        XCTAssertEqual(library.page(key: renamed)?.cachedListenParagraphs, revisedThree)
+        let revised = (paragraph: 1, utf16: ParagraphDocument(parts: revisedThree).utf16Ranges[1].location)
+        XCTAssertNotEqual(revised.utf16, carried.utf16, "the unchanged paragraph starts elsewhere in the revision")
+        assertSpot(library, renamed, revised, "the carried spot, carried on into the revision")
+        XCTAssertEqual(audioWork(in: env.context).map(\.kind), [.align, .merge, .align], "the merge still waits")
+
+        try runWaitingWorkThenHearTheOldText()
+        XCTAssertEqual(merged(), [[three, renamed]], "the merge ran")
+        XCTAssertFalse(env.cache.hasDirectory(for: three), "and took chapter three's audio")
+        XCTAssertNil(speech.activeSessionID, "with no live session to move")
+        assertSpot(library, renamed, revised, "no position in the old text is recorded on the revised chapter")
+
+        recorder = nil
+        try env.relaunch()
+        assertSpot(env.library, renamed, revised, "after a relaunch")
+        XCTAssertTrue(audioWork(in: env.context).isEmpty)
+    }
+
+    /// As above, but the second Replace drops `renamed`. The session stops with it: the merge
+    /// would find no page to move it onto and leave it playing a key no page holds. When the
+    /// work runs, nothing is moved and nothing recorded. A relaunch agrees.
+    func testAReplaceDroppingAKeptChapterStopsTheSessionAWaitingMergeWouldMoveOntoIt() throws {
+        let (book, _, merged) = try playThreeWhileItsMergeWaits()
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", editedTwo)])
+        XCTAssertNil(speech.nowPlaying, "the session stopped with the Replace")
+        XCTAssertNil(library.page(key: renamed), "the kept chapter is dropped")
+        XCTAssertEqual(audioWork(in: env.context).map(\.kind), [.align, .merge, .delete], "all wait behind the align")
+
+        try runWaitingWorkThenHearTheOldText()
+        XCTAssertTrue(merged().isEmpty, "the merge found no page to move anything onto")
+        XCTAssertNil(speech.activeSessionID)
+        XCTAssertNil(library.page(key: three), "no page is made for the stopped session")
+
+        recorder = nil
+        try env.relaunch()
+        XCTAssertEqual(env.library.playOrder(of: try XCTUnwrap(env.library.book(key: bookKey))).map(\.key), [one, two])
+        XCTAssertNil(env.library.page(key: three))
+        XCTAssertTrue(audioWork(in: env.context).isEmpty)
+    }
+
+    /// While chapter three's merge into `renamed` waits, `renamed` is deleted (a row's *Delete*).
+    /// The session on key three stops with the delete, even one whose save fails: that chapter
+    /// then stays, at the spot carried to it, and nothing of the stopped session is recorded on
+    /// it. Once a delete is saved and the work runs, no session is moved. A relaunch agrees.
+    func testDeletingAKeptChapterStopsTheSessionAWaitingMergeWouldMoveOntoIt() throws {
+        let (_, carried, merged) = try playThreeWhileItsMergeWaits()
+        failSaves()
+        library.delete(try XCTUnwrap(library.page(key: renamed)))
+        XCTAssertNil(speech.nowPlaying, "the session stopped with the delete")
+        assertSpot(library, renamed, carried, "the delete's save failed: the chapter stays, at the spot carried to it")
+        XCTAssertEqual(audioWork(in: env.context).map(\.kind), [.align, .merge], "only the merge waits")
+
+        allowSaves()
+        library.delete(try XCTUnwrap(library.page(key: renamed)))
+        XCTAssertNil(library.page(key: renamed))
+        XCTAssertEqual(audioWork(in: env.context).map(\.kind), [.align, .merge, .delete])
+        try runWaitingWorkThenHearTheOldText()
+        XCTAssertTrue(merged().isEmpty, "the merge found no page to move anything onto")
+        XCTAssertNil(speech.activeSessionID)
+        XCTAssertNil(library.page(key: three), "no page is made for the stopped session")
+
+        recorder = nil
+        try env.relaunch()
+        XCTAssertEqual(env.library.playOrder(of: try XCTUnwrap(env.library.book(key: bookKey))).map(\.key), [one, two])
+        XCTAssertTrue(audioWork(in: env.context).isEmpty)
+    }
+
+    /// The merge into `renamed` waits; a Replace brings key three back with new text, which is
+    /// played. A Replace revising `renamed` leaves that session alone: it is the returned
+    /// chapter's, which the waiting merge doesn't move.
+    func testAReplaceRevisingAKeptChapterLeavesAChapterBackUnderTheMergedKeyPlaying() throws {
+        let (book, _) = try mergeThreeIntoRenamedThatWaits()
+        stopsPlaybackOnReplace()
+        try library.replaceBook(book, with: details, chapters: withRenamed + [chapter(three, 3, "Three again", textNew)])
+        _ = try playNewThree(to: 1)
+        try library.replaceBook(book, with: details, chapters: withRevisedRenamed([chapter(three, 3, "Three again", textNew)]))
+        XCTAssertEqual(speech.activeSessionID, three, "the chapter back under key three plays on")
+        XCTAssertNotNil(speech.nowPlaying)
+    }
+
+    /// Key three comes back with new text and is played, and a later Replace finds that text under
+    /// `five`: a second merge of key three waits after the first. A Replace revising `renamed`
+    /// leaves the session alone, since the later merge, into `five`, is the one that moves it; it
+    /// does once the work runs.
+    func testAReplaceRevisingAKeptChapterLeavesASessionALaterMergeMovesElsewhere() throws {
+        let (book, _) = try mergeThreeIntoRenamedThatWaits()
+        let merged = sessionFollowsMerges()
+        stopsPlaybackOnReplace()
+        try library.replaceBook(book, with: details, chapters: withRenamed + [chapter(three, 3, "Three again", textNew)])
+        _ = try playNewThree(to: 1)
+        try library.replaceBook(book, with: details, chapters: withRenamed + [chapter(five, 3, "Three again", textNew)])
+        XCTAssertEqual(audioWork(in: env.context).map(\.kind), [.align, .merge, .merge], "both merges wait")
+        try library.replaceBook(book, with: details, chapters: withRevisedRenamed([chapter(five, 3, "Three again", textNew)]))
+        XCTAssertEqual(speech.activeSessionID, three, "the session plays on, for the later merge to move")
+        XCTAssertNotNil(speech.nowPlaying)
+
+        env.cache.faultHook = nil
+        _ = try library.save(env.article("https://example.com/elsewhere"))
+        XCTAssertEqual(merged(), [[three, five]], "only the later merge moves it")
+        XCTAssertEqual(speech.activeSessionID, five)
     }
 }

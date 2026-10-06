@@ -38,12 +38,13 @@ extension LibraryStore {
     /// - the page with its key and other text keeps its audio where paragraphs match (aligned by
     ///   text), and its position only if the paragraph it is in is still there, word for word; it
     ///   is no longer finished (a finished one starts again from its top), and playback of it
-    ///   stops;
+    ///   stops, as does a session a waiting merge would move onto it (`keysWaitingToMerge`);
     /// - otherwise the page with the same listen text, under another key, hands over its
     ///   position and its audio (merged under the new key), and a session playing it follows.
     ///
-    /// Pages no chapter comes from are deleted; their audio goes once the save succeeds (audio
-    /// work, `planDelete`), so a save that fails leaves every page and its audio as they were.
+    /// Pages no chapter comes from are deleted, after playback of them stops (and of a session a
+    /// waiting merge would move onto them); their audio goes once the save succeeds (audio work,
+    /// `planDelete`), so a save that fails leaves every page and its audio as they were.
     /// It is one edit (`edit`): a save that fails is rolled back and throws
     /// `LibraryStoreError.saveFailed`, and the book reads as it did.
     /// The book's place follows its chapter; when that chapter is dropped, it moves to the
@@ -54,13 +55,13 @@ extension LibraryStore {
         let old = playOrder(of: folder)
         let place = folder.currentPageKey
         let plan = Self.replacement(of: old, with: chapters)
-        // Playback of a chapter that goes or changes stops before anything changes, so no page
-        // changes under it; the position stopping records is saved on its own. The edit keeps
-        // the replacement whole: nothing commits while it is staged.
-        for page in plan.dropped { if let key = page.key { stopPlaybackIfPlaying(key) } }
-        for (index, page) in plan.byKey where !Self.reads(page, as: chapters[index]) {
-            if let key = page.key { stopPlaybackIfPlaying(key) }
-        }
+        // Playback of a chapter that goes or changes stops before anything changes, and so does a
+        // session a waiting merge would move onto one (`keysWaitingToMerge`), so no page changes
+        // under a session; the position stopping records is saved on its own. The edit keeps the
+        // replacement whole: nothing commits while it is staged.
+        let changing = plan.dropped.compactMap(\.key)
+            + plan.byKey.filter { !Self.reads($0.value, as: chapters[$0.key]) }.compactMap { $0.value.key }
+        for key in changing + keysWaitingToMerge(into: Set(changing)) { stopPlaybackIfPlaying(key) }
 
         try edit("replace book") {
             for page in plan.dropped { dropChapter(page) }

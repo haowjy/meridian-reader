@@ -164,10 +164,7 @@ extension LibraryStore {
         }
         guard !rows.isEmpty else { return outcome }
         if planned.isEmpty { log("audio work: finishing \(rows.count) left by an earlier launch") }
-        var lastNaming: [UUID: Int] = [:]
-        for (index, row) in rows.enumerated() {
-            for key in [row.key, row.fromKey].compactMap({ $0 }) { lastNaming[key] = index }
-        }
+        let lastNaming = Self.lastNaming(rows)
         for (index, row) in rows.enumerated() {
             do {
                 try perform(row, live: planned.contains(ObjectIdentifier(row)),
@@ -194,6 +191,15 @@ extension LibraryStore {
             log("audio work done; its records stay until the next save (done again, harmlessly): \(error)")
         }
         return outcome
+    }
+
+    /// For each key the records name (`key` or `fromKey`), the index of the last record naming it.
+    private static func lastNaming(_ rows: [LibraryAudioWork]) -> [UUID: Int] {
+        var last: [UUID: Int] = [:]
+        for (index, row) in rows.enumerated() {
+            for key in [row.key, row.fromKey].compactMap({ $0 }) { last[key] = index }
+        }
+        return last
     }
 
     /// `namedLater`: whether a record after this one names the key.
@@ -386,6 +392,34 @@ extension LibraryStore {
         }
         guard live || (tts.pendingResume.map { $0.paragraph == work.resumeParagraph } ?? false) else { return }
         tts.remapPendingResume(article: source, to: target, map)
+    }
+
+    // MARK: - Sessions a waiting merge would move
+
+    /// The keys a live session can be playing that a waiting merge would move onto one of `keys`'
+    /// pages when it runs (`keyMerged`): the merged key of each stored merge into one of them,
+    /// while no page holds that key and no record after the merge names it (the rule `merge`
+    /// moves a session by). *Replace* and deleting a page stop these sessions along with the pages
+    /// they revise, drop or delete. Otherwise the merge, which follows what the kept page holds
+    /// when it runs, would move the session onto a revised page whose text it isn't playing, and
+    /// positions in the old text would be recorded there; or, with the kept page gone, it would
+    /// leave the session playing a key no page holds. Records that can't be read name none.
+    func keysWaitingToMerge(into keys: Set<UUID>) -> [UUID] {
+        guard !keys.isEmpty else { return [] }
+        let rows: [LibraryAudioWork]
+        do {
+            rows = try fetchAudioWork(context)
+        } catch {
+            log("audio work unreadable; no session its merges would move is stopped: \(error)")
+            return []
+        }
+        let lastNaming = Self.lastNaming(rows)
+        return rows.indices.compactMap { index in
+            let row = rows[index]
+            guard row.kind == .merge, let to = row.key, keys.contains(to), let from = row.fromKey,
+                  lastNaming[from] == index, page(key: from) == nil else { return nil }
+            return from
+        }
     }
 
     // MARK: - Positions

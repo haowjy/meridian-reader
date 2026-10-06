@@ -262,8 +262,9 @@ extension LibraryStore {
     }
 
     /// Deletes the page, then its audio once that is saved. Playback of it stops first (its audio
-    /// is being read), and a book's place on it moves to the chapter before. A save that fails
-    /// is rolled back: the page and its audio stay.
+    /// is being read), and so does a session a waiting merge would move onto it
+    /// (`keysWaitingToMerge`); a book's place on it moves to the chapter before. A save that
+    /// fails is rolled back: the page and its audio stay.
     func delete(_ page: Page) {
         _ = try? edit("delete page") { deleteWithoutSaving(page) }
     }
@@ -273,7 +274,7 @@ extension LibraryStore {
     /// records its position, which waits for that save too (`edit`).
     func deleteWithoutSaving(_ page: Page) {
         if let key = page.key {
-            stopPlaybackIfPlaying(key)
+            for playing in [key] + keysWaitingToMerge(into: [key]) { stopPlaybackIfPlaying(playing) }
             planDelete(key: key)
         }
         movePlaceOff(page)

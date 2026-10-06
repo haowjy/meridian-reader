@@ -17,7 +17,9 @@ final class LibraryStore {
 
     @ObservationIgnored let context: ModelContext
     @ObservationIgnored let tts: LocalTTSCoordinator
-    /// Stops playback when the page with this key is what's playing (before deleting its audio).
+    /// Stops playback when the session is playing this key: a page about to be deleted or
+    /// revised (before its audio is deleted or aligned), or a key a waiting merge would move onto
+    /// such a page (`keysWaitingToMerge`).
     @ObservationIgnored var stopPlaybackIfPlaying: (UUID) -> Void = { _ in }
     /// Dedupe merged the page with the first key into the page with the second: whatever holds
     /// the first key outside the library (the live session, the last-played record) follows.

@@ -268,7 +268,12 @@ it waited) leaves its audio to that page. So does a merge whose merged key a pag
 book's *Replace* brought the chapter back): it moves and deletes nothing under that key, drops
 none of its renders, moves no resume point and rekeys no session, and the audio is saved or
 ephemeral as that page is; if that page is gone again by then, the later record that names the
-key (its delete or merge) decides instead.
+key (its delete or merge) decides instead. A session playing the merged key keeps it until the
+merge runs, so a *Replace* that revises or drops the kept page, or a delete of it, stops that
+session with the kept page's own (`keysWaitingToMerge`, which applies the merge's rule: no page
+holds the merged key and no later record names it). Otherwise the merge would move it onto
+revised text it isn't playing, and record positions in the old text there, or leave it on a key
+no page holds.
 
 **`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
 `urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,
