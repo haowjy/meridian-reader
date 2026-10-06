@@ -264,7 +264,11 @@ the committed page: layout work for a page that holds other paragraphs now is dr
 audio is aligned with what it holds when it opens); a merge aligns the merged audio, and moves
 the resume point, onto what the kept page holds now, and if the kept page has been deleted,
 leaves that audio to the cache's age prune; a delete whose page exists again (brought back while
-it waited) leaves its audio to that page.
+it waited) leaves its audio to that page. So does a merge whose merged key a page holds again (a
+book's *Replace* brought the chapter back): it moves and deletes nothing under that key, drops
+none of its renders, moves no resume point and rekeys no session, and the audio is saved or
+ephemeral as that page is; if that page is gone again by then, the later record that names the
+key (its delete or merge) decides instead.
 
 **`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
 `urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,

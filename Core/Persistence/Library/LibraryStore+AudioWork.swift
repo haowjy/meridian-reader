@@ -38,7 +38,8 @@ struct LibraryAudioWorkOutcome: Equatable {
 /// postconditions hold; the next launch finishes whatever is left (`finishAudioWork`); a save that
 /// fails and is rolled back (`rollBack`) leaves every file alone. Work that waited acts on the
 /// pages as they are when it runs: by then a key can belong to a later page (saved, deleted, then
-/// played again without saving), whose audio it keeps.
+/// played again without saving, or a chapter a later *Replace* brought back), whose audio it
+/// keeps.
 extension LibraryStore {
     // MARK: - Planning
 
@@ -140,14 +141,14 @@ extension LibraryStore {
 
     /// Does each record, in order, and retires it only once its postconditions hold on disk
     /// (the destination's saved index aligned with its paragraphs and every CAF it lists there,
-    /// a merged page's directory gone), whether or not its source still exists: work an app died
-    /// in the middle of is simply done again, and every step is idempotent. A record that fails
-    /// is kept for the next launch, and so is everything after it (later work can build on it);
-    /// the pages they touch, source and destination, are held in the audio cache until a run
-    /// finishes them: the engine purges and the prune leave their audio alone, and their saved
-    /// bake jobs aren't adopted. Records that can't be read may need any page's audio, so all
-    /// of it is held until a run reads them. `planned`: records this process planned, whose crash
-    /// target was read in the numbering the work started from.
+    /// a merged page's directory gone), whether or not its source's audio is still there: work
+    /// an app died in the middle of is simply done again, and every step is idempotent. A
+    /// record that fails is kept for the next launch, and so is everything after it (later work
+    /// can build on it); the pages they touch, source and destination, are held in the audio
+    /// cache until a run finishes them: the engine purges and the prune leave their audio
+    /// alone, and their saved bake jobs aren't adopted. Records that can't be read may need any
+    /// page's audio, so all of it is held until a run reads them. `planned`: records this
+    /// process planned, whose crash target was read in the numbering the work started from.
     @discardableResult
     private func performStoredWork(planned: Set<ObjectIdentifier>) -> LibraryAudioWorkOutcome {
         var outcome = LibraryAudioWorkOutcome()
@@ -163,9 +164,14 @@ extension LibraryStore {
         }
         guard !rows.isEmpty else { return outcome }
         if planned.isEmpty { log("audio work: finishing \(rows.count) left by an earlier launch") }
-        for row in rows {
+        var lastNaming: [UUID: Int] = [:]
+        for (index, row) in rows.enumerated() {
+            for key in [row.key, row.fromKey].compactMap({ $0 }) { lastNaming[key] = index }
+        }
+        for (index, row) in rows.enumerated() {
             do {
-                try perform(row, live: planned.contains(ObjectIdentifier(row)))
+                try perform(row, live: planned.contains(ObjectIdentifier(row)),
+                            namedLater: { (lastNaming[$0] ?? index) > index })
             } catch {
                 let waiting = rows[outcome.finished...]
                 let keys = Set(waiting.flatMap { [$0.key, $0.fromKey].compactMap { $0 } })
@@ -190,10 +196,11 @@ extension LibraryStore {
         return outcome
     }
 
-    private func perform(_ work: LibraryAudioWork, live: Bool) throws {
+    /// `namedLater`: whether a record after this one names the key.
+    private func perform(_ work: LibraryAudioWork, live: Bool, namedLater: (UUID) -> Bool) throws {
         switch work.kind {
         case .align: try align(work, live: live)
-        case .merge: try merge(work, live: live)
+        case .merge: try merge(work, live: live, sourceNamedLater: work.fromKey.map(namedLater) ?? false)
         case .delete: try deleteAudio(work)
         case .ephemeral: try releaseAudio(work)
         case .saved: try keepAudio(work)
@@ -245,8 +252,29 @@ extension LibraryStore {
     /// audio is no longer stamped against the planned ones. If
     /// the kept page is gone (deleted since), no page holds the merged audio: it is left to the
     /// cache's age prune, as a deleted page's own would have gone.
-    private func merge(_ work: LibraryAudioWork, live: Bool) throws {
+    ///
+    /// All of that only while the merged key is still the merged page's. A later change can give
+    /// the key to another page while this waits (a *Replace* bringing a chapter back under it):
+    /// then the audio, renders, resume point and session under the key are that page's, and the
+    /// record moves none of them and rekeys nothing. A page holding the key now keeps its audio,
+    /// saved or ephemeral as it is (`settleAudio`); once that page is gone again, the record after
+    /// this one that names the key (its delete or merge, `sourceNamedLater`) decides, as it would
+    /// for the page it was planned with.
+    private func merge(_ work: LibraryAudioWork, live: Bool, sourceNamedLater: Bool) throws {
         guard let from = work.fromKey, let to = work.key else { return }
+        if let page = try context.fetch(LibraryQueries.page(key: from)).first {
+            log("audio \(Self.short(from)): its page is back since it was merged into \(Self.short(to)); kept")
+            ListenTimingLog.log("library_audio_work", ["kind": "merge", "key": ListenTimingLog.shortKey(to),
+                                                       "from": ListenTimingLog.shortKey(from), "skipped": "merged page back"])
+            try settleAudio(from, page: page)
+            return
+        }
+        if sourceNamedLater {
+            log("audio \(Self.short(from)): a later page held its key; left to the work recorded after this")
+            ListenTimingLog.log("library_audio_work", ["kind": "merge", "key": ListenTimingLog.shortKey(to),
+                                                       "from": ListenTimingLog.shortKey(from), "skipped": "key reused"])
+            return
+        }
         let cache = tts.audioCache
         guard let keeper = try context.fetch(LibraryQueries.page(key: to)).first else {
             if cache.hasDirectory(for: from) { cache.markEphemeral(cacheKey: from) }

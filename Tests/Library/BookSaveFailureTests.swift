@@ -5,8 +5,8 @@ import XCTest
 
 /// An imported book's *Replace* under the library's save rules: it is one edit
 /// (`LibraryStore.edit`), so stopping the chapter it changes never stores half of it, and the
-/// listening that stop records outlives a Replace that fails. A dropped chapter's audio work acts
-/// on the page holding its key when it runs, as every audio record does.
+/// listening that stop records outlives a Replace that fails. A dropped or merged chapter's audio
+/// work acts on the page holding its key when it runs, as every audio record does.
 @MainActor
 final class BookSaveFailureTests: XCTestCase {
     private var fixture: TestSpeech!
@@ -204,5 +204,211 @@ final class BookSaveFailureTests: XCTestCase {
         XCTAssertEqual(env.cache.readyIndices(articleID: three, paragraphCount: 3, engineID: env.tts.cacheEngineID, voiceID: "voiceA"),
                        [0, 2], "the chapter that came back keeps its audio, aligned to its text")
         XCTAssertEqual(env.cache.loadMeta(for: three)?.kind, .saved, "saved, as the chapter is")
+    }
+
+    // MARK: - A merged chapter's audio work
+
+    /// The chapter text that comes back under key `three` in place of `textThree`.
+    private let textNew = ["A new third chapter opens.", "It takes its own way.", "And it closes."]
+    /// Chapter three's text moves here (`renamed`), then the new text moves on to `five`.
+    private let renamed = UUID(), five = UUID()
+
+    private var withRenamed: [PageContent] {
+        [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", editedTwo), chapter(renamed, 2, "Three", textThree)]
+    }
+
+    /// A Replace edits chapter two and finds chapter three's text under `renamed`, with chapter
+    /// three at a spot and the crash-resume point on it. Aligning two's audio fails, so that work
+    /// and the merge after it wait. Every audio step fails until the caller lets them through
+    /// (`env.cache.faultHook = nil`).
+    private func mergeThreeIntoRenamedThatWaits() throws -> (book: Folder, spot: (paragraph: Int, utf16: Int)) {
+        let book = try addBook()
+        try env.storeAudio(two, paragraphs: textTwo)
+        try env.storeAudio(three, paragraphs: textThree)
+        let spot = (paragraph: 1, utf16: ParagraphDocument(parts: textThree).utf16Ranges[1].location + 4)
+        library.recordPosition(try XCTUnwrap(library.page(key: three)), paragraph: spot.paragraph, utf16Offset: spot.utf16)
+        ListenResumePointStore.shared.save(article: three, paragraph: spot.paragraph, at: env.now)
+        env.cache.faultHook = { _ in throw SaveFailed() }
+        try library.replaceBook(book, with: details, chapters: withRenamed)
+        XCTAssertEqual(audioWork(in: env.context).map(\.kind), [.align, .merge], "the merge waits behind the align")
+        XCTAssertEqual(library.page(key: renamed)?.positionParagraph, spot.paragraph, "the spot is carried")
+        XCTAssertTrue(env.cache.hasDirectory(for: three), "nothing moved yet")
+        return (book, spot)
+    }
+
+    /// Merges reach the live session as the app wires them (`AppComposition.makeLibrary`);
+    /// returns the merges reported so far.
+    private func sessionFollowsMerges() -> () -> [[UUID]] {
+        var merged: [[UUID]] = []
+        library.keyMerged = { [unowned self] from, to in
+            merged.append([from, to])
+            speech.rekeyActiveSession(from: from, to: to)
+        }
+        return { merged }
+    }
+
+    /// Chapter three's new text, rendered under its key (each paragraph's audio its own bytes),
+    /// with a pending render waiting for the engine.
+    private func renderNewThree() throws {
+        for (i, text) in textNew.enumerated() { try env.storeAudio(three, paragraph: i, text: text, level: 0.4 + Float(i) / 10) }
+        PendingBakeJobStore.shared.enqueuePending(articleID: three, paragraphs: textNew, voiceID: "voiceA",
+                                                  plan: .topDown(paragraphCount: textNew.count))
+        addTeardownBlock { @MainActor in
+            for key in [self.three, self.renamed, self.five] { PendingBakeJobStore.shared.removePending(articleID: key) }
+        }
+    }
+
+    /// The audio files under `key` other than the cache's meta file, which marking saved rewrites.
+    private func renders(_ key: UUID) throws -> [String: Data] {
+        try audioFiles(key).filter { $0.key != "meta.json" }
+    }
+
+    private func bytes(_ key: UUID, paragraph: Int) throws -> Data? {
+        guard let entry = env.cache.entry(articleID: key, paragraphIndex: paragraph) else { return nil }
+        return try Data(contentsOf: env.cache.directory(for: key).appending(path: entry.file))
+    }
+
+    private func pendingRender(_ key: UUID) -> Bool {
+        PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == key }
+    }
+
+    /// Plays chapter three (its new text) to `paragraph`; returns the spot.
+    private func playNewThree(to paragraph: Int) throws -> (paragraph: Int, utf16: Int) {
+        play(try XCTUnwrap(library.page(key: three)))
+        XCTAssertEqual(speech.activeSessionID, three)
+        return listen(to: paragraph)
+    }
+
+    /// Playback reaches `paragraph`; returns the spot that records.
+    private func listen(to paragraph: Int) -> (paragraph: Int, utf16: Int) {
+        let start = speech.document.startUTF16Offset(forParagraph: paragraph)
+        fixture.apple.emit(.position(paragraph: paragraph, utf16: start))
+        return (paragraph, start)
+    }
+
+    private func assertSpot(_ library: LibraryStore, _ key: UUID, _ spot: (paragraph: Int, utf16: Int), _ note: String,
+                            file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertEqual(library.page(key: key)?.positionParagraph, spot.paragraph, note, file: file, line: line)
+        XCTAssertEqual(library.page(key: key)?.positionUTF16, spot.utf16, note, file: file, line: line)
+    }
+
+    /// Replace finds chapter three's text under `renamed`, and the merge waits. A second Replace
+    /// keeps `renamed` and brings key three back with new text, which is rendered and played.
+    /// Saving an unrelated article then runs the waiting merge. Key three is the new chapter's
+    /// now: its audio, its pending render, its session and the crash-resume point on it stay
+    /// three's, nothing moves under `renamed`, no session is rekeyed, and listening goes on being
+    /// recorded on three, while `renamed` keeps the spot it was given. A relaunch agrees.
+    func testAWaitingMergeLeavesAChapterBackUnderItsKeyAndItsSessionAlone() throws {
+        let (book, carried) = try mergeThreeIntoRenamedThatWaits()
+        let merged = sessionFollowsMerges()
+        stopsPlaybackOnReplace()
+        try library.replaceBook(book, with: details, chapters: withRenamed + [chapter(three, 3, "Three again", textNew)])
+        XCTAssertEqual(library.page(key: three)?.cachedListenParagraphs, textNew, "key three is back, with new text")
+        XCTAssertEqual(audioWork(in: env.context).map(\.kind), [.align, .merge], "the merge still waits")
+        env.cache.faultHook = nil
+        try renderNewThree()
+        let audio = try renders(three)
+        _ = try playNewThree(to: 1)
+
+        _ = try library.save(env.article("https://example.com/elsewhere"))
+        XCTAssertTrue(audioWork(in: env.context).isEmpty, "the waiting merge ran with the article's audio work, and is retired")
+        XCTAssertTrue(merged().isEmpty, "no session is rekeyed")
+        XCTAssertEqual(speech.activeSessionID, three, "the session is still chapter three's")
+        XCTAssertEqual(try renders(three), audio, "chapter three keeps its audio")
+        XCTAssertEqual(env.cache.loadMeta(for: three)?.kind, .saved, "saved, as the chapter is")
+        XCTAssertTrue(pendingRender(three), "and its pending render")
+        XCTAssertEqual(ListenResumePointStore.shared.load()?.articleKey, three.uuidString, "and the crash-resume point")
+        XCTAssertFalse(env.cache.hasDirectory(for: renamed), "nothing moved under the merge's key")
+
+        let spot = listen(to: 2)
+        assertSpot(library, three, spot, "listening is recorded on chapter three")
+        assertSpot(library, renamed, carried, "the merged chapter keeps its own spot")
+
+        recorder = nil
+        try env.relaunch()
+        assertSpot(env.library, three, spot, "after a relaunch")
+        assertSpot(env.library, renamed, carried, "after a relaunch")
+        XCTAssertEqual(try renders(three), audio, "after a relaunch")
+        XCTAssertFalse(env.cache.hasDirectory(for: renamed), "after a relaunch")
+        XCTAssertTrue(pendingRender(three), "after a relaunch")
+        XCTAssertTrue(audioWork(in: env.context).isEmpty)
+    }
+
+    /// As above, but the second Replace also drops `renamed`, so the waiting merge finds no page
+    /// to merge into. Key three is the new chapter's: its audio is kept, marked saved as the
+    /// chapter is (not left to the age prune as audio no page holds), its pending render stays,
+    /// and its session and listening stay three's. A relaunch agrees.
+    func testAWaitingMergeWithNoKeptPageLeavesAChapterBackUnderItsKeySaved() throws {
+        let (book, _) = try mergeThreeIntoRenamedThatWaits()
+        let merged = sessionFollowsMerges()
+        stopsPlaybackOnReplace()
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", editedTwo),
+                                                                chapter(three, 2, "Three again", textNew)])
+        XCTAssertNil(library.page(key: renamed), "the kept page is dropped")
+        XCTAssertEqual(audioWork(in: env.context).map(\.kind), [.align, .merge, .delete], "all wait behind the align")
+        env.cache.faultHook = nil
+        try renderNewThree()
+        // The record has to settle the audio: it starts on the ephemeral TTL.
+        env.cache.markEphemeral(cacheKey: three)
+        let audio = try renders(three)
+        _ = try playNewThree(to: 1)
+
+        _ = try library.save(env.article("https://example.com/elsewhere"))
+        XCTAssertTrue(audioWork(in: env.context).isEmpty, "the align, the merge and the delete ran and are retired")
+        XCTAssertTrue(merged().isEmpty, "no session is rekeyed")
+        XCTAssertEqual(speech.activeSessionID, three)
+        XCTAssertEqual(try renders(three), audio, "chapter three keeps its audio")
+        XCTAssertEqual(env.cache.loadMeta(for: three)?.kind, .saved, "saved, as the chapter is")
+        XCTAssertTrue(pendingRender(three), "and its pending render")
+        XCTAssertFalse(env.cache.hasDirectory(for: renamed))
+
+        let spot = listen(to: 2)
+        assertSpot(library, three, spot, "listening is recorded on chapter three")
+
+        recorder = nil
+        try env.relaunch()
+        assertSpot(env.library, three, spot, "after a relaunch")
+        XCTAssertNil(env.library.page(key: renamed))
+        XCTAssertEqual(try renders(three), audio, "after a relaunch")
+        XCTAssertEqual(env.cache.loadMeta(for: three)?.kind, .saved, "after a relaunch")
+        XCTAssertTrue(pendingRender(three), "after a relaunch")
+        XCTAssertTrue(audioWork(in: env.context).isEmpty)
+    }
+
+    /// Key three comes back with new text while the merge into `renamed` waits, and is played;
+    /// a third Replace finds that text under `five`, so it merges again, and the playing session
+    /// follows. Both merges run in the third Replace's save. The first finds that a later record
+    /// names key three (the chapter that had it since): it leaves the key to that record, which
+    /// moves the new text's audio and session to `five`. Nothing goes to `renamed`, and
+    /// listening is recorded on `five`. A relaunch agrees.
+    func testAWaitingMergeLeavesAKeyThatCameBackAndMergedAgainToTheLaterMerge() throws {
+        let (book, carried) = try mergeThreeIntoRenamedThatWaits()
+        let merged = sessionFollowsMerges()
+        stopsPlaybackOnReplace()
+        try library.replaceBook(book, with: details, chapters: withRenamed + [chapter(three, 3, "Three again", textNew)])
+        env.cache.faultHook = nil
+        try renderNewThree()
+        let audio = try (0..<textNew.count).map { try XCTUnwrap(bytes(three, paragraph: $0)) }
+        _ = try playNewThree(to: 1)
+
+        try library.replaceBook(book, with: details, chapters: withRenamed + [chapter(five, 3, "Three again", textNew)])
+        XCTAssertTrue(audioWork(in: env.context).isEmpty, "both merges ran in the Replace's save, and are retired")
+        XCTAssertEqual(merged(), [[three, five]], "only the later merge moves the session")
+        XCTAssertEqual(speech.activeSessionID, five, "the session follows the new text")
+        XCTAssertEqual(try (0..<textNew.count).map { try bytes(five, paragraph: $0) }, audio, "its audio too")
+        XCTAssertFalse(env.cache.hasDirectory(for: three))
+        XCTAssertFalse(env.cache.hasDirectory(for: renamed), "none of it went to the first merge's page")
+
+        let spot = listen(to: 2)
+        assertSpot(library, five, spot, "listening is recorded on the new text's chapter")
+        assertSpot(library, renamed, carried, "the first merge's page keeps its own spot")
+
+        recorder = nil
+        try env.relaunch()
+        assertSpot(env.library, five, spot, "after a relaunch")
+        assertSpot(env.library, renamed, carried, "after a relaunch")
+        XCTAssertEqual(try (0..<textNew.count).map { try bytes(five, paragraph: $0) }, audio, "after a relaunch")
+        XCTAssertFalse(env.cache.hasDirectory(for: renamed), "after a relaunch")
+        XCTAssertTrue(audioWork(in: env.context).isEmpty)
     }
 }
