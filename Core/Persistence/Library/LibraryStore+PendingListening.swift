@@ -9,16 +9,18 @@ import Foundation
 ///
 /// It holds one entry per page played while saves fail (each from someone pressing play, or
 /// playback moving on to the next chapter), and the first save that works empties it. An entry
-/// keeps a play's article only when the store may not hold that text. That keeps it small
-/// without a cap; a cap would drop listening the next save could store.
+/// keeps a play's text only when the store may not hold it: the page is new, the play refreshed
+/// its text, or it holds changes not stored yet. That keeps it small without a cap; a cap would
+/// drop listening the next save could store.
 struct PendingListening {
     struct Position: Equatable {
         var paragraph: Int
         var utf16Offset: Int
     }
 
-    /// The article a play started from, when the store may not hold its text
-    /// (`playbackPage(for:)`): it makes the page again when the rollback dropped the page that
+    /// The text of the latest play that may not find it stored: the article it started from
+    /// (`playbackPage(for:)`), or a copy of the library page's text as it started
+    /// (`recordPlaybackStarted`). It makes the page again when the rollback dropped the page a
     /// play made (one the library didn't have), and refreshes its text otherwise, so the position
     /// is on the paragraphs it was written for. Nil when each play found the page's text stored.
     var article: ReaderArticle?

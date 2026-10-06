@@ -303,6 +303,94 @@ final class ListeningProgressRecorderTests: XCTestCase {
         XCTAssertEqual(stored.positionParagraph, 3)
     }
 
+    /// The same refresh, played from the page's Library row (`LibraryActions.play`: a
+    /// `SpeechSession.page` start, no article) before the Reader plays it. The start keeps a copy
+    /// of the page's text, since only the context holds it (a row's ▶ on a page whose text is
+    /// stored keeps none). After a failed edit's rollback the newer text is back with the spot on
+    /// paragraph 3, not the spot on the two stored paragraphs; once saves work both are stored.
+    func testRefreshedTextPlayedFromItsRowSurvivesARollbackWhenTheRefreshWasntStored() throws {
+        let url = URL(string: "https://example.com/a")!
+        let page = try library.save(library.readerArticle(url: url, extracted: extracted(["One here.", "Two here."])))
+        let unchanged = try library.save(article("https://example.com/b", title: "B"))
+        let key = page.listenKey
+        let rows = LibraryActions(library: library, speech: speech, shell: ShellState())
+        failSaves()
+        rows.play(unchanged)
+        XCTAssertEqual(speech.nowPlaying?.pageKey, unchanged.listenKey)
+        XCTAssertNotNil(library.pendingListening[unchanged.listenKey]?.startedAt)
+        XCTAssertNil(library.pendingListening[unchanged.listenKey]?.article, "its text is stored: no copy kept")
+
+        let newer = library.readerArticle(url: url, extracted: extracted(["One here.", "Two, rewritten.", "Three.", "Four."]))
+            .document.paragraphs
+        XCTAssertEqual(page.cachedListenParagraphs, newer, "refreshed on open, not stored")
+        rows.play(page)
+        XCTAssertEqual(speech.nowPlaying?.pageKey, key)
+        XCTAssertEqual(speech.document.paragraphs, newer, "the row plays the text the page holds")
+        let p3 = speech.document.startUTF16Offset(forParagraph: 3)
+        fixture.apple.emit(.position(paragraph: 3, utf16: p3))
+        XCTAssertEqual(library.pendingListening[key]?.article?.document.paragraphs, newer,
+                       "only the context holds the text this play is on: a copy is kept")
+
+        XCTAssertThrowsError(try library.makeFolder(name: "Later", in: nil))
+        XCTAssertEqual(page.cachedListenParagraphs, newer, "the text the spot is on is written again")
+        XCTAssertEqual(page.positionParagraph, 3)
+        XCTAssertEqual(page.positionUTF16, p3)
+
+        allowSaves()
+        library.commit("next")
+        recorder = nil
+        try env.relaunch()
+        let stored = try XCTUnwrap(env.library.page(key: key))
+        XCTAssertEqual(stored.cachedListenParagraphs, newer)
+        XCTAssertEqual(stored.positionParagraph, 3)
+        XCTAssertEqual(stored.positionUTF16, p3)
+        XCTAssertFalse(env.folders().contains { $0.name == "Later" }, "the failed edit stays undone")
+    }
+
+    /// A book chapter with no address, whose listen blocks aren't built yet, plays from its row
+    /// while saves fail: the session builds them (`Page.listenDocument`), only in the context.
+    /// After a failed edit's rollback the start's copy writes them again with the spot on them,
+    /// and the chapter still has no address: the copy's empty one isn't written to it.
+    func testAChapterWithNoAddressKeepsNoneWhenARollbackWritesItsTextAgain() throws {
+        let book = Folder(name: "Book", kind: .book)
+        env.context.insert(book)
+        let chapter = Page(key: UUID(), title: "Chapter 1", byline: "An Author", urlString: nil,
+                           contentState: .saved, addedAt: env.now)
+        let paragraphs = ["The first paragraph.", "The second paragraph.", "The third paragraph."]
+        chapter.plainText = paragraphs.joined(separator: "\n\n")
+        chapter.cleanedHTML = paragraphs.map { "<p>\($0)</p>" }.joined()
+        env.context.insert(chapter)
+        chapter.setFolder(book)
+        XCTAssertTrue(library.commit("chapter"))
+        XCTAssertNil(chapter.cachedListenParagraphs, "no listen blocks yet")
+        let key = try XCTUnwrap(chapter.key)
+        failSaves()
+
+        LibraryActions(library: library, speech: speech, shell: ShellState()).play(chapter)
+        let built = speech.document.paragraphs
+        XCTAssertEqual(built.count, 3)
+        XCTAssertEqual(chapter.cachedListenParagraphs, built, "built as it starts, not stored")
+        let p1 = speech.document.startUTF16Offset(forParagraph: 1)
+        fixture.apple.emit(.position(paragraph: 1, utf16: p1))
+
+        XCTAssertThrowsError(try library.makeFolder(name: "Later", in: nil))
+        XCTAssertEqual(chapter.cachedListenParagraphs, built, "written again")
+        XCTAssertEqual(chapter.positionParagraph, 1)
+        XCTAssertNil(chapter.urlString, "still no address")
+        XCTAssertNil(chapter.canonicalURL)
+
+        allowSaves()
+        library.commit("next")
+        recorder = nil
+        try env.relaunch()
+        let stored = try XCTUnwrap(env.library.page(key: key))
+        XCTAssertEqual(stored.cachedListenParagraphs, built)
+        XCTAssertEqual(stored.positionParagraph, 1)
+        XCTAssertEqual(stored.positionUTF16, p1)
+        XCTAssertNil(stored.urlString)
+        XCTAssertNil(stored.canonicalURL)
+    }
+
     private func extracted(_ paragraphs: [String]) -> ExtractedArticle {
         ExtractedArticle(title: "A", siteName: nil, cleanedHTML: paragraphs.map { "<p>\($0)</p>" }.joined(),
                          plainText: paragraphs.joined(separator: "\n\n"), excerpt: "")

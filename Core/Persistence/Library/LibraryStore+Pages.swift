@@ -100,11 +100,20 @@ extension LibraryStore {
         return (page, textNotStored)
     }
 
-    /// A page the library has started playing again (a row's ▶, a resume, a replay, the next
-    /// chapter): dated and unfinished, and a chapter becomes its book's place.
+    /// A page the library has started playing again (a row's ▶, a Continue card, a resume, a
+    /// replay, the next chapter): dated and unfinished, and a chapter becomes its book's place.
+    /// It plays the text the page holds now. When the page holds changes not stored yet (a
+    /// refresh on open whose save failed, say), the store may not hold that text: it is kept
+    /// with the progress (`ReaderArticle(page:)`), as `recordPlayback` keeps its article, so a
+    /// rollback puts the text back with the position on it. A page with nothing unsaved keeps
+    /// no copy.
     func recordPlaybackStarted(_ page: Page) {
         let at = now()
-        noteListening(page) { $0.start(at: at) }
+        let textNotStored = page.hasChanges
+        noteListening(page) {
+            if textNotStored { $0.article = ReaderArticle(page: page) }
+            $0.start(at: at)
+        }
         applyStart(page, at: at)
         commit("playback started")
         trimChapterAudio(behind: page)
@@ -290,10 +299,13 @@ extension LibraryStore {
     }
 
     /// The page's text, listen blocks and metadata from `article`; the position is clamped to
-    /// the new paragraph count.
+    /// the new paragraph count. An article made from a page with no address (a book chapter,
+    /// `ReaderArticle(page:)`) has an empty one: the page keeps none.
     func fill(_ page: Page, from article: ReaderArticle) {
-        page.urlString = article.urlString
-        page.canonicalURL = article.canonicalURL
+        if !article.urlString.isEmpty {
+            page.urlString = article.urlString
+            page.canonicalURL = article.canonicalURL
+        }
         page.title = article.title
         page.byline = article.siteDomain
         page.cleanedHTML = article.cleanedHTML

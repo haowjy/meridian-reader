@@ -494,6 +494,74 @@ final class LibraryAudioWorkTests: XCTestCase {
         XCTAssertTrue(pendingWork().isEmpty)
     }
 
+    // MARK: Each record on its own
+
+    /// `kind` records for `keys`, waiting in the store as a launch that died right after their
+    /// save leaves them, with no record after them: each one decides its key's audio alone.
+    private func leaveWaiting(_ kind: LibraryAudioWorkKind, for keys: [UUID]) throws {
+        XCTAssertTrue(pendingWork().isEmpty)
+        for (sequence, key) in keys.enumerated() {
+            env.context.insert(LibraryAudioWork(sequence: sequence, kind: kind, key: key, paragraphs: [], sourceParagraphs: []))
+        }
+        try env.context.save()
+    }
+
+    /// The audio files of `keys` other than the cache's meta file, which a kind change rewrites.
+    private func renders(_ keys: [UUID]) throws -> [[String: Data]] {
+        try keys.map { try audioFiles($0).filter { $0.key != "meta.json" } }
+    }
+
+    /// A waiting `saved` record marks saved only the audio of a page saved in the Library when
+    /// it runs. A key whose page isn't (played without saving), or that no page holds, ends on
+    /// the ephemeral TTL with its files: the record doesn't count on a later one to undo it.
+    /// Each key's audio starts with the other kind, so the record has to change it.
+    func testAWaitingSavedRecordMarksSavedOnlyAPageSavedInTheLibraryNow() throws {
+        let played = env.article("https://example.com/played", title: "Played")
+        library.recordPlayback(played)
+        let (_, savedKey) = try pageWithAudio("saved", in: nil)
+        let keys = [played.id, UUID(), savedKey]
+        for key in keys.dropLast() {
+            try env.storeAudio(key, paragraphs: played.document.paragraphs)
+            env.cache.markSaved(cacheKey: key)
+        }
+        env.cache.markEphemeral(cacheKey: savedKey)
+        let audioBefore = try renders(keys)
+        try leaveWaiting(.saved, for: keys)
+
+        try env.relaunch()
+        XCTAssertEqual(library.page(key: played.id)?.isInLibrary, false)
+        XCTAssertNil(library.page(key: keys[1]))
+        XCTAssertEqual(library.finishAudioWork().finished, 3)
+        XCTAssertEqual(keys.map { env.cache.loadMeta(for: $0)?.kind }, [.ephemeral, .ephemeral, .saved],
+                       "saved audio only for the page saved in the Library")
+        XCTAssertEqual(try renders(keys), audioBefore, "every file stays")
+        XCTAssertTrue(pendingWork().isEmpty)
+    }
+
+    /// A waiting `ephemeral` record puts on the ephemeral TTL only the audio of a page that isn't
+    /// saved in the Library when it runs. A key whose page is saved in the Library (again) ends
+    /// with saved audio: the record doesn't count on the Save's record to undo it. Each key's
+    /// audio starts with the other kind, so the record has to change it.
+    func testAWaitingEphemeralRecordReleasesOnlyAPageNotSavedInTheLibraryNow() throws {
+        let (_, savedKey) = try pageWithAudio("saved", in: nil)
+        let (left, leftKey) = try pageWithAudio("left", in: nil)
+        try library.remove([left])
+        let keys = [savedKey, leftKey]
+        env.cache.markEphemeral(cacheKey: savedKey)
+        env.cache.markSaved(cacheKey: leftKey)
+        let audioBefore = try renders(keys)
+        try leaveWaiting(.ephemeral, for: keys)
+
+        try env.relaunch()
+        XCTAssertEqual(library.page(key: savedKey)?.isSavedToLibrary, true)
+        XCTAssertEqual(library.page(key: leftKey)?.isInLibrary, false)
+        XCTAssertEqual(library.finishAudioWork().finished, 2)
+        XCTAssertEqual(keys.map { env.cache.loadMeta(for: $0)?.kind }, [.saved, .ephemeral],
+                       "the page saved in the Library keeps saved audio")
+        XCTAssertEqual(try renders(keys), audioBefore, "every file stays")
+        XCTAssertTrue(pendingWork().isEmpty)
+    }
+
     /// The app dies right after the copy's save, before the audio work: the next launch finds
     /// the work in the store and does it.
     func testWorkLeftByALaunchThatDiedAfterItsSaveIsDoneNextLaunch() throws {
