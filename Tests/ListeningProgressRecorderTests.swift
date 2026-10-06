@@ -347,6 +347,36 @@ final class ListeningProgressRecorderTests: XCTestCase {
         XCTAssertFalse(env.folders().contains { $0.name == "Later" }, "the failed edit stays undone")
     }
 
+    /// Saves failing, a refreshed page plays in the Reader (its article kept) and is stopped,
+    /// then opens with newer text still and plays from its row. The row's copy replaces the earlier article: the
+    /// rollback writes the text the spot was played on, not the earlier play's.
+    func testARowPlayKeepsTheNewerTextOverAnEarlierPlaysArticle() throws {
+        let url = URL(string: "https://example.com/a")!
+        let page = try library.save(library.readerArticle(url: url, extracted: extracted(["One here.", "Two here."])))
+        let key = page.listenKey
+        failSaves()
+        speech.listen(to: library.readerArticle(url: url, extracted: extracted(["One here.", "Two, rewritten.", "Three."])))
+        XCTAssertEqual(library.pendingListening[key]?.article?.document.paragraphs.count, 3)
+        speech.stop()
+
+        let newest = library.readerArticle(url: url, extracted: extracted(["One here.", "Two, again.", "Three.", "Four."]))
+            .document.paragraphs
+        LibraryActions(library: library, speech: speech, shell: ShellState()).play(page)
+        XCTAssertEqual(speech.document.paragraphs, newest)
+        fixture.apple.emit(.position(paragraph: 3, utf16: speech.document.startUTF16Offset(forParagraph: 3)))
+
+        XCTAssertThrowsError(try library.makeFolder(name: "Later", in: nil))
+        XCTAssertEqual(page.cachedListenParagraphs, newest, "the text the spot was played on")
+        XCTAssertEqual(page.positionParagraph, 3)
+        allowSaves()
+        library.commit("next")
+        recorder = nil
+        try env.relaunch()
+        let stored = try XCTUnwrap(env.library.page(key: key))
+        XCTAssertEqual(stored.cachedListenParagraphs, newest)
+        XCTAssertEqual(stored.positionParagraph, 3)
+    }
+
     /// A book chapter with no address, whose listen blocks aren't built yet, plays from its row
     /// while saves fail: the session builds them (`Page.listenDocument`), only in the context.
     /// After a failed edit's rollback the start's copy writes them again with the spot on them,
