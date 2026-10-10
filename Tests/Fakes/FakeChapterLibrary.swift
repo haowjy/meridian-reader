@@ -63,7 +63,7 @@ final class FakeChapterLibrary: NextChapterProviding {
         return fetchResult
     }
 
-    func pageFinished(key: UUID) {
+    func pageFinished(key: UUID, text: String?) {
         finished.append(key)
         if let index = sessions.firstIndex(where: { $0.id == key }) { chapters[index].isFinished = true }
     }

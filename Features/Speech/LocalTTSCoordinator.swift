@@ -163,13 +163,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
     }
 
     /// The library moved the page the crash-resume target names, which was read at init, before
-    /// the launch maintenance: its paragraphs were rebuilt, or dedupe merged it into the page
-    /// `newKey`. The target follows, onto the paragraph `map` gives.
-    func remapPendingResume(article: UUID, to newKey: UUID? = nil, _ map: (Int) -> Int) {
-        guard var target = pendingResume, target.matches(article) else { return }
-        if let newKey { target.articleKey = newKey.uuidString }
-        target.paragraph = map(target.paragraph)
-        pendingResume = target
+    /// the launch maintenance: its paragraphs were rebuilt, or a merge moved it into another
+    /// page. The target follows, as `move` places it.
+    func remapPendingResume(article: UUID, _ move: (ListenResumeTarget) -> ListenResumeTarget) {
+        guard let target = pendingResume, target.matches(article) else { return }
+        pendingResume = move(target)
     }
 
     /// Launch: until `endLaunchHold`, the render queue adopts no saved bake job and renders

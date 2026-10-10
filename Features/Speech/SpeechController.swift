@@ -37,6 +37,9 @@ final class SpeechController {
     // (scrubber thumb, mini-player fill, progress reporter).
 
     private(set) var activeSessionID: UUID?
+    /// The text the bound page plays (`PlaybackSessionState.textFingerprint`). Not observed: it
+    /// changes only with the page, and nothing draws it.
+    var activeTextFingerprint: String? { playback.textFingerprint }
     /// The book or series the bound page is a chapter of (`PlaybackSessionState.folderID`).
     private(set) var activeFolderID: UUID?
     private(set) var document: ParagraphDocument = .empty
@@ -72,7 +75,7 @@ final class SpeechController {
         var site: String?
         var artwork: Data?
         var canonicalURL: String?
-        var host: String?
+        var sourceLabel: String?
         /// The book's or series' name, for a chapter.
         var folderName: String?
     }
@@ -222,8 +225,8 @@ final class SpeechController {
         sampleListenStatus()
         let after = ListenProgressKey(id: activeSessionID, paragraph: currentParagraphIndex, phase: playbackPhase)
         if after != before, let id = playback.articleID, !playback.awaitingPage {
-            onProgress?(ListenProgress(pageKey: id, paragraph: playback.playhead, utf16Offset: playback.utf16Offset,
-                                       phase: playback.phase))
+            onProgress?(ListenProgress(pageKey: id, text: playback.textFingerprint, paragraph: playback.playhead,
+                                       utf16Offset: playback.utf16Offset, phase: playback.phase))
         }
     }
 
@@ -248,7 +251,7 @@ final class SpeechController {
     var nowPlaying: NowPlaying? {
         guard let id = activeSessionID, !document.isEmpty else { return nil }
         let meta = sessionMeta?.id == id ? sessionMeta : nil
-        let raw = meta?.host ?? meta?.site ?? ""
+        let raw = meta?.sourceLabel ?? meta?.site ?? ""
         let host = raw.hasPrefix("www.") ? String(raw.dropFirst(4)) : raw
         return NowPlaying(pageKey: id, canonicalURL: meta?.canonicalURL, title: meta?.title ?? "Untitled",
                           source: meta?.folderName ?? host, artwork: meta?.artwork, playingFrom: .site(host: host),
@@ -409,7 +412,7 @@ final class SpeechController {
     private func saveResumePoint() {
         guard let resumePoints else { return }
         if let point = playback.resumePoint {
-            resumePoints.save(article: point.article, paragraph: point.paragraph)
+            resumePoints.save(article: point.article, paragraph: point.paragraph, text: point.text)
         } else {
             resumePoints.clear()
         }
@@ -532,21 +535,23 @@ final class SpeechController {
 
     // MARK: - Session API (intents)
 
-    func prepare(_ session: SpeechSession, startingParagraph: Int = 0) {
+    /// Binds `session` paused at `startingParagraph`: at its start, or at document offset `utf16`
+    /// when that lies in it. A session already bound to it stays as it is.
+    func prepare(_ session: SpeechSession, startingParagraph: Int = 0, utf16: Int? = nil) {
         supersedePreparation()
         adoptMeta(of: session)
         if playback.articleID == session.id, !playback.document.isEmpty { return }
         execute(playback.handle(.stop, engine: engineSnapshot()))
         endChapterFlow()
         playback.bind(articleID: session.id, document: session.document, startingAt: startingParagraph,
-                      folderID: session.folderID)
+                      utf16: utf16, folderID: session.folderID)
     }
 
     /// What the lock screen, the bar and the language rules show for `session`, before it binds.
     func adoptMeta(of session: SpeechSession) {
         if session.title != nil || sessionMeta?.id != session.id {
             let meta = SessionMeta(id: session.id, title: session.title, site: session.site, artwork: session.artwork,
-                                   canonicalURL: session.canonicalURL, host: session.host,
+                                   canonicalURL: session.canonicalURL, sourceLabel: session.sourceLabel,
                                    folderName: session.folderName)
             if meta != sessionMeta { sessionMeta = meta }
         }
@@ -653,11 +658,22 @@ final class SpeechController {
         playback.clear()
     }
 
-    /// Swap the live session's identity without stopping audio. Only needed when Save lands on a
-    /// different id than the reader key (legacy saved row found mid-read); v2 saves reuse the key,
-    /// so this is a no-op.
-    func rekeyActiveSession(from oldID: UUID, to newID: UUID) {
+    /// The page keyed `oldID` is keyed `newID` now and holds `text` (`ArticleIdentity`
+    /// fingerprint): Save landed on an older page holding the address under another key, or a
+    /// merge moved a page's audio under the kept page's key (`LibraryStore.keyMerged`). A live
+    /// session on `oldID` playing that text takes the new key without stopping audio. One playing
+    /// other text stops (Stop Listening), as playback of a page being revised does: a key can name
+    /// other text by the time a merge runs (a *Replace* revised the kept chapter, or brought
+    /// another chapter back under it), and its positions would be stored on text it isn't
+    /// playing.
+    func rekeyActiveSession(from oldID: UUID, to newID: UUID, text: String?) {
         guard oldID != newID, playback.articleID == oldID else { return }
+        guard let text, text == playback.textFingerprint else {
+            ListenTimingLog.log("session_rekey", ["from": ListenTimingLog.shortKey(oldID),
+                                                  "to": ListenTimingLog.shortKey(newID), "stopped": "other text"])
+            stop()
+            return
+        }
         if sessionMeta?.id == oldID { sessionMeta?.id = newID }
         playback.rekey(to: newID)
         localEngine.rekey(to: newID)

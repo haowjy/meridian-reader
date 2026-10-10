@@ -46,14 +46,14 @@ final class ArticleSaveFailureTests: XCTestCase {
         failSaves()
 
         assertSaveFails(article)
-        XCTAssertNil(library.page(key: article.id, canonicalURL: article.canonicalURL), "no page")
+        XCTAssertNil(library.page(key: article.id, canonicalURL: article.origin.canonicalURL), "no page")
         XCTAssertEqual(cache.loadMeta(for: article.id)?.kind, .ephemeral, "its audio isn't marked saved")
 
         allowSaves()
         try library.makeFolder(name: "Later", in: nil)
-        XCTAssertNil(library.page(key: article.id, canonicalURL: article.canonicalURL), "a later save didn't make it")
+        XCTAssertNil(library.page(key: article.id, canonicalURL: article.origin.canonicalURL), "a later save didn't make it")
         try env.relaunch()
-        XCTAssertNil(env.library.page(key: article.id, canonicalURL: article.canonicalURL), "nor is it there after a relaunch")
+        XCTAssertNil(env.library.page(key: article.id, canonicalURL: article.origin.canonicalURL), "nor is it there after a relaunch")
         XCTAssertTrue(env.folders().contains { $0.name == "Later" }, "the later save itself stored")
     }
 

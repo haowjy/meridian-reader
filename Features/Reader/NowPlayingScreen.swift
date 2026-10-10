@@ -105,12 +105,12 @@ struct NowPlayingScreen: View {
     }
 
     private var websiteURL: URL? {
-        guard let url = article?.url, url.scheme != nil, url.host?.isEmpty == false else { return nil }
+        guard let url = article?.origin.url, url.scheme != nil, url.host?.isEmpty == false else { return nil }
         return url
     }
 
     private var shareURL: URL? {
-        guard let url = article?.url, url.isWeb else { return nil }
+        guard let url = article?.origin.url, url.isWeb else { return nil }
         return url
     }
 
@@ -143,7 +143,7 @@ struct NowPlayingScreen: View {
         article = loaded
         loadedKey = key
         if let loaded {
-            savedKey = savedPageKey(library.page(key: loaded.id, canonicalURL: loaded.canonicalURL)) ?? savedKey
+            savedKey = savedPageKey(library.page(key: loaded.id, canonicalURL: loaded.origin.canonicalURL)) ?? savedKey
         }
     }
 
@@ -159,7 +159,7 @@ struct NowPlayingScreen: View {
         let saver = ArticleSaveCoordinator(library: library, speech: speech)
         if let savedKey {
             guard shell.attempt(String(localized: "Couldn’t remove from Library"), {
-                try saver.unsave(key: savedKey, canonicalURL: article.canonicalURL)
+                try saver.unsave(key: savedKey, canonicalURL: article.origin.canonicalURL)
             }) != nil else { return }
             self.savedKey = nil
         } else if let key = shell.attempt(String(localized: "Couldn’t save"), { try saver.save(article) }) {

@@ -23,6 +23,11 @@ final class FolderDeletePromptTests: XCTestCase {
         FolderDeletePrompt(folders: folders, contents: library.contents(of:)) { _ in playing }
     }
 
+    /// The prompt while the page keyed `playing` is what you hear.
+    private func prompt(_ folders: [Folder], playing key: UUID?) -> FolderDeletePrompt {
+        FolderDeletePrompt(folders: folders, contents: library.contents(of:)) { keys in key.map(keys.contains) ?? false }
+    }
+
     func testPlainFoldersOfferFolderOnly() throws {
         let shelf = try library.makeFolder(name: "Shelf", in: nil)
         try library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: shelf)
@@ -64,5 +69,25 @@ final class FolderDeletePromptTests: XCTestCase {
         XCTAssertEqual(mixedKinds.choices.first?.title, "Delete 1 Book and 1 Series, Keep Folder Contents")
 
         XCTAssertEqual(try prompt([fixed("Single", .series)]).choices.map(\.title), ["Delete Series"])
+    }
+
+    /// "Stops what's playing." is said of the choices that delete the page playing: *Delete
+    /// Folder Only* keeps a plain folder's pages, and keeping contents beside a book deletes only
+    /// the book. A chapter of the book playing is stopped by every choice.
+    func testOnlyTheChoicesThatDeleteThePagePlayingSayTheyStopIt() throws {
+        let shelf = try library.makeFolder(name: "Shelf", in: nil)
+        let page = try library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: shelf)
+        XCTAssertEqual(prompt([shelf], playing: page.listenKey).message,
+                       "It holds 1 page. Delete Folder Only moves them up one level. Delete Folder and Contents stops what's playing.")
+
+        let book = try fixed("Novel", .book)
+        let chapter = try XCTUnwrap(library.pages(in: book).first)
+        XCTAssertEqual(prompt([shelf, book], playing: page.listenKey).message,
+                       "“Novel” is deleted with its chapters and downloads either way. The folder holds 1 page. Delete Everything stops what's playing.")
+        XCTAssertEqual(prompt([shelf, book], playing: chapter.listenKey).message,
+                       "“Novel” is deleted with its chapters and downloads either way. The folder holds 1 page. Stops what's playing.")
+        XCTAssertEqual(prompt([book], playing: chapter.listenKey).message, "Its chapters and their downloads are deleted. Stops what's playing.")
+        XCTAssertEqual(prompt([shelf, book], playing: UUID()).message,
+                       "“Novel” is deleted with its chapters and downloads either way. The folder holds 1 page.")
     }
 }

@@ -452,7 +452,7 @@ final class PlaybackAdvanceTests: XCTestCase {
         func folder(containing pageKey: UUID) -> PlaybackFolder? { library.folder(containing: pageKey) }
         func chapters(of folderID: UUID) -> [ChapterAdvance.Chapter] { library.chapters(of: folderID) }
         func load(_ pageKey: UUID) -> SpeechSession? { library.load(pageKey) }
-        func pageFinished(key: UUID) { library.pageFinished(key: key) }
+        func pageFinished(key: UUID, text: String?) { library.pageFinished(key: key, text: text) }
 
         func fetch(_ pageKey: UUID) async -> Bool {
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))

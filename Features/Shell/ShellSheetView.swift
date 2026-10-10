@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 /// The shell's one sheet (`ShellState.sheet`). Picking a history entry loads it in the browser;
-/// Favorites and the Move tree are the Library's screens.
+/// Favorites, the Move tree and the import sheet are the Library's screens.
 struct ShellSheetView: View {
     let sheet: ShellSheet
 
@@ -16,6 +16,8 @@ struct ShellSheetView: View {
             FavoritesSheet(folderID: folder)
         case .moveTo(let request):
             MoveTreeSheet(request: request)
+        case .importBook(let flow):
+            BookImportSheet(flow: flow)
         case .history:
             BrowseHistoryView(visits: Array(recentVisits.prefix(RecentVisit.maxEntries))) { visit in
                 open(visit.url)

@@ -151,7 +151,37 @@ struct WebView: UIViewRepresentable {
             decisionHandler(.allow)
         }
 
+        // MARK: - Books
+
+        /// A book (an EPUB) the page links to is downloaded, not shown.
         func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationResponse: WKNavigationResponse,
+            decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
+        ) {
+            decisionHandler(navigationResponse.isForMainFrame && Self.isBook(navigationResponse.response) ? .download : .allow)
+        }
+
+        func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+            download.delegate = self
+        }
+
+        /// Served as an EPUB, or named like one and not a web page.
+        static func isBook(_ response: URLResponse) -> Bool {
+            let type = response.mimeType?.lowercased()
+            if type == "application/epub+zip" { return true }
+            guard type != "text/html", type != "application/xhtml+xml" else { return false }
+            return (response.suggestedFilename ?? response.url?.lastPathComponent ?? "").lowercased().hasSuffix(".epub")
+        }
+
+        /// Where each download in flight goes, and its name.
+        private var bookDownloads: [ObjectIdentifier: (file: URL, name: String)] = [:]
+
+        private func tell(_ event: WebViewStore.BookDownload) {
+            Task { @MainActor in store.onBookDownload?(event) }
+        }
+
+                func webView(
             _ webView: WKWebView,
             createWebViewWith configuration: WKWebViewConfiguration,
             for navigationAction: WKNavigationAction,
@@ -165,10 +195,34 @@ struct WebView: UIViewRepresentable {
     }
 }
 
+extension WebView.Coordinator: WKDownloadDelegate {
+    func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String,
+                  completionHandler: @escaping (URL?) -> Void) {
+        guard let file = try? BookImportFiles.standard.newFile(named: suggestedFilename) else {
+            tell(.failed(name: suggestedFilename))
+            return completionHandler(nil)
+        }
+        bookDownloads[ObjectIdentifier(download)] = (file, file.lastPathComponent)
+        tell(.started(name: file.lastPathComponent))
+        completionHandler(file)
+    }
+
+    func downloadDidFinish(_ download: WKDownload) {
+        guard let book = bookDownloads.removeValue(forKey: ObjectIdentifier(download)) else { return }
+        tell(.finished(book.file))
+    }
+
+    func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+        guard let book = bookDownloads.removeValue(forKey: ObjectIdentifier(download)) else { return }
+        BookImportFiles.standard.discard(book.file)
+        tell(.failed(name: book.name))
+    }
+}
+
 #if DEBUG
 /// UI tests only (`LaunchOptions.servesTestPages`): offline pages at `reader-test://pages/…` (real
 /// navigations, so they get real back/forward history):
-/// - `one`: not an article (no 📄 / 🎧), with links to the others;
+/// - `one`: not an article (no 📄 / 🎧), with links to the others and to a book (`bookLink`);
 /// - `two` ("Second page") and `three` ("Third page"): articles (pass `isProbablyReaderable`);
 /// - `thin` ("Thin page"): readable by that check, but its article text is invisible, so the
 ///   saved copy (which drops short invisible text) has almost nothing to listen to;
@@ -188,7 +242,13 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
 
     func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {}
 
-    private static func page(_ name: String) -> String {
+    /// Every page served, by name.
+    static var pageNames: [String] {
+        ["one", "two", "three", "thin"] + DemoBook.chapters.indices.map { "book-\($0)" }
+    }
+
+    /// The page's HTML; an unknown name is page one.
+    static func page(_ name: String) -> String {
         let sentence = "This offline test article has a long paragraph so Readability counts it as real reading content. "
         let title: String
         var body: String
@@ -216,8 +276,23 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
             body = "<p><a href=\"reader-test://pages/two\" \(link)>Next page</a></p>"
                 + "<p><a href=\"reader-test://pages/three\" \(link)>Third page</a></p>"
                 + "<p><a href=\"reader-test://pages/thin\" \(link)>Thin page</a></p>"
+                + "<p><a id=\"book\" href=\"#\" \(link)>Download a book</a></p>"
+                + bookLink
         }
         return document(title: title, body: body)
+    }
+
+    /// Points page one's "Download a book" at the synthetic EPUB (`TestEPUB`) as a `blob:` URL
+    /// served as `application/epub+zip`: WebKit downloads that as it would a book from the web
+    /// (it makes no downloads from a custom scheme like this one).
+    private static var bookLink: String {
+        guard let book = try? TestEPUB.data() else { return "" }
+        return """
+        <script>
+        const bytes = Uint8Array.from(atob("\(book.base64EncodedString())"), c => c.charCodeAt(0));
+        document.getElementById("book").href = URL.createObjectURL(new Blob([bytes], { type: "application/epub+zip" }));
+        </script>
+        """
     }
 
     private static func document(title: String, body: String) -> String {

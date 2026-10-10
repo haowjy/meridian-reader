@@ -32,8 +32,8 @@ extension LibraryStore: NextChapterProviding {
         return false
     }
 
-    func pageFinished(key: UUID) {
-        guard let page = page(key: key) else { return }
+    func pageFinished(key: UUID, text: String?) {
+        guard let page = page(key: key), holds(page, text: text) else { return }
         recordFinished(page)
     }
 }

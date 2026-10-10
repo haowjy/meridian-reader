@@ -98,7 +98,9 @@ Kokoro answers with `KokoroCrashRecovery`:
 - an ONNX crash → ONNX again and the same resume; a second ONNX crash without 40 healthy calls in
   between → Apple, with a notice in Settings ("Tap Kokoro to try again");
 - resume auto-plays when the crash was under 20 minutes ago and something was playing
-  (`ListenResumePoint`).
+  (`ListenResumePoint`);
+- the paragraph is applied only on a page that still holds the text it was played in; otherwise
+  the page opens paused at its own spot (`AppLaunch.resumeAfterCrash`, `LISTEN_PLAYBACK.md`).
 
 On the Core ML route `coreml_breadcrumb.json` names the model and stage that was about to run;
 it is logged as `coreml_stage` in `engine_crash_detected`.

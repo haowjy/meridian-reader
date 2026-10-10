@@ -28,12 +28,15 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
   rerun it alone.
 - UI tests drive the app with launch arguments (`App/LaunchOptions.swift`, Debug builds only):
   `-uiTesting` (test markers on, Google suggestions off), `-seedDemoArticle`, `-seedDemoBook`
-  (a demo book; `-chainDemoChapters` plays it), `-browseTestPages` (offline `reader-test://`
-  pages), `-selectEngine apple`. Keep UI tests offline; use the test pages, not live sites.
+  (a demo book; `-chainDemoChapters` plays it), `-importTestEPUB` (*Import Book…* takes a
+  synthetic EPUB instead of the Files picker; `-playTestEPUB` imports it at launch and plays it), `-browseTestPages` (offline `reader-test://` pages),
+  `-selectEngine apple`. Keep UI tests offline; use the test pages, not live sites.
 - `ScreenshotCaptureTests` is skipped unless `TEST_RUNNER_READER_SCREENSHOTS_DIR=<dir>` is set in
   xcodebuild's environment.
 - `KokoroNaNProbeTests` and `KokoroONNXSessionTests` run only when the Mac research model is at
   `~/Developer/tts-audition/bg-research/models/`; otherwise they skip.
+- `EPUBLocalBooksTests` is skipped unless `TEST_RUNNER_READER_EPUB_DIR=<dir>` is set: it reads every
+  `.epub` there (real books stay out of the repo) and writes `<dir>/epub-report.txt`.
 - Release must keep building: test hooks live behind `#if DEBUG`.
 - Timing and speech behavior are measured on a device with a Release build (FluidAudio in Debug
   is ~3× slower). The Simulator can't reproduce the iOS 26.4+ libBNNS crash.
@@ -43,7 +46,7 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
 | Path | What lives there |
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks |
-| `Core/` | No UI: `Domain` (article and paragraph values), `Extraction`, `Persistence` (SwiftData; `Library/`: `Folder`, `Page`, `LibraryStore`, `LibraryQueries`, the migration), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web`, `Device` |
+| `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `Extraction` (Readability, the listen normalizer), `Sources` (`PageSource`s, the book import), `Persistence` (SwiftData; `Library/`: `Folder`, `Page`, `LibraryStore`, `LibraryQueries`, the migration), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web`, `Device` |
 | `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Library` (the Library's screens, rows, the Move tree, Favorites), `Browse`, `Reader`, `Saved` (the save path), `Speech` (playback, engines, settings) |
 | `Tests/`, `UITests/` | Unit tests (fakes in `Tests/Fakes/`), UI tests |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Reader uses only Kokoro |

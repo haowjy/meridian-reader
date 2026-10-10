@@ -46,6 +46,37 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertEqual(pages.first { $0.key == shared }?.positionParagraph, 4, "the furthest copy is the keeper")
     }
 
+    /// The save fails: the folders and pages callers already hold read what the store holds,
+    /// relationships included, without a fetch (every rolled-back change refreshes what it
+    /// touched, `LibraryStore.rollBack`).
+    func testAFailedSaveLeavesTheFoldersAndPagesHeldAsTheyWere() throws {
+        struct SaveFailed: Error {}
+        let older = Folder(name: "Book", kind: .book, createdAt: env.now)
+        let newer = Folder(name: "Book (copy)", kind: .book, createdAt: env.now + 10)
+        for f in [older, newer] { f.sourceIdentifier = "book-key"; env.context.insert(f) }
+        let shared = UUID()
+        let original = page("https://example.com/ch1", key: shared, in: older)
+        let copy = page("https://example.com/ch1", key: shared, position: 4, in: newer)
+        let onlyInCopy = page("https://example.com/ch2", in: newer)
+        newer.currentPageKey = shared
+        newer.lastPlayedAt = env.now + 20
+        try env.context.save()
+        library.saveContext = { _ in throw SaveFailed() }
+
+        XCTAssertEqual(library.dedupe().mergedFolders, 1)
+        XCTAssertFalse(env.context.hasChanges)
+        XCTAssertFalse(newer.isDeleted)
+        XCTAssertNil(older.currentPageKey, "the older book's place")
+        XCTAssertNil(older.lastPlayedAt)
+        XCTAssertEqual((older.pages ?? []).map(\.key), [shared], "its pages")
+        XCTAssertEqual(Set((newer.pages ?? []).map(\.key)), [shared, onlyInCopy.key], "the copy's")
+        XCTAssertTrue(onlyInCopy.folder === newer)
+        XCTAssertEqual(onlyInCopy.folderID, newer.id)
+        XCTAssertTrue(copy.folder === newer)
+        XCTAssertFalse(original.isDeleted)
+        XCTAssertTrue(original.folder === older)
+    }
+
     func testSavedBeatsLinkAtEqualPositionAndTheKeeperTakesWhatItLacks() throws {
         let link = page("https://example.com/a", key: ArticleIdentity.articleKey(canonicalURL: "https://example.com/a"),
                         state: .link, added: env.now - 100, in: library.favorites())
@@ -92,7 +123,7 @@ final class LibraryDedupeTests: XCTestCase {
         series.currentPageKey = extra.key
         ListenResumePointStore.shared.save(article: extra.key!, paragraph: 1)
         var merged: [(UUID, UUID)] = []
-        library.keyMerged = { merged.append(($0, $1)) }
+        library.keyMerged = { from, to, _ in merged.append((from, to)) }
         try env.context.save()
 
         library.dedupe()
@@ -105,24 +136,57 @@ final class LibraryDedupeTests: XCTestCase {
 
     /// Crash recovery read its target at launch, before dedupe: when that page is merged away,
     /// the target in memory follows the resume file onto the kept page, on the same paragraph
-    /// text even though the two pages' paragraphs differ.
+    /// text even though the two pages' paragraphs differ, and in the text the kept page holds,
+    /// so crash resume applies it there.
     func testTheCrashTargetReadAtLaunchFollowsTheKeeper() throws {
         let extra = page("https://example.com/c2", position: 0)
-        extra.storeListenParagraphs(["An intro.", "Alpha one.", "Beta two."])
+        let played = ["An intro.", "Alpha one.", "Beta two."]
+        extra.storeListenParagraphs(played)
         let keeper = page("https://example.com/c2", position: 1)
         keeper.storeListenParagraphs(["Alpha one.", "Beta two."])
-        ListenResumePointStore.shared.save(article: extra.key!, paragraph: 2, at: env.now)
-        env.tts.pendingResume = ListenResumeTarget(articleKey: extra.key!.uuidString, paragraph: 2, at: env.now, autoPlay: true)
+        let text = ArticleIdentity.contentFingerprint(paragraphs: played)
+        ListenResumePointStore.shared.save(article: extra.key!, paragraph: 2, text: text, at: env.now)
+        env.tts.pendingResume = ListenResumeTarget(articleKey: extra.key!.uuidString, paragraph: 2, text: text,
+                                                   at: env.now, autoPlay: true)
         try env.context.save()
 
         XCTAssertEqual(library.dedupe().mergedPages, 1)
         let target = try XCTUnwrap(env.tts.takePendingResume())
         XCTAssertIdentical(library.page(matching: target), keeper, "launch resumes the kept page")
         XCTAssertEqual(target.paragraph, 1, "on \"Beta two.\", its paragraph there")
+        XCTAssertTrue(library.holds(keeper, text: target.text), "in the text the kept page holds")
         XCTAssertTrue(target.autoPlay)
         let file = try XCTUnwrap(ListenResumePointStore.shared.load())
         XCTAssertEqual(file.articleKey, keeper.key?.uuidString)
         XCTAssertEqual(file.paragraph, 1)
+        XCTAssertEqual(file.text, target.text)
+    }
+
+    /// The resume file and the crash target name a paragraph of other text than the merged page
+    /// holds (a session that played on in an older text). The merge moves them to the kept page
+    /// but doesn't map that paragraph through text it isn't in: they keep their paragraph and
+    /// text, which the kept page doesn't hold, so crash resume won't apply it there.
+    func testACrashTargetInOtherTextFollowsTheKeeperWithoutMapping() throws {
+        let extra = page("https://example.com/c3", position: 0)
+        extra.storeListenParagraphs(["An intro.", "Alpha one.", "Beta two."])
+        let keeper = page("https://example.com/c3", position: 1)
+        keeper.storeListenParagraphs(["Alpha one.", "Beta two."])
+        let older = ArticleIdentity.contentFingerprint(paragraphs: ["An older intro.", "Older one.", "Older two."])
+        ListenResumePointStore.shared.save(article: extra.key!, paragraph: 2, text: older, at: env.now)
+        env.tts.pendingResume = ListenResumeTarget(articleKey: extra.key!.uuidString, paragraph: 2, text: older,
+                                                   at: env.now, autoPlay: true)
+        try env.context.save()
+
+        XCTAssertEqual(library.dedupe().mergedPages, 1)
+        let target = try XCTUnwrap(env.tts.takePendingResume())
+        XCTAssertIdentical(library.page(matching: target), keeper, "it follows the kept page")
+        XCTAssertEqual(target.paragraph, 2, "its paragraph unmapped")
+        XCTAssertEqual(target.text, older, "still in the text it was played in")
+        XCTAssertFalse(library.holds(keeper, text: target.text))
+        let file = try XCTUnwrap(ListenResumePointStore.shared.load())
+        XCTAssertEqual(file.articleKey, keeper.key?.uuidString)
+        XCTAssertEqual(file.paragraph, 2)
+        XCTAssertEqual(file.text, older)
     }
 
     func testTwoFavoritesMergeIntoTheOlder() throws {

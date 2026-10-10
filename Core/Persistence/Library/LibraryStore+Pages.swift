@@ -26,11 +26,11 @@ extension LibraryStore {
     /// the address-derived key for a page the library doesn't have. A page holding text (saved,
     /// played, or a link carrying a text cache) is refreshed when the listen text changed; a link
     /// page stays a link.
-    func readerArticle(url: URL, extracted: ExtractedArticle) -> ReaderArticle {
+    func readerArticle(url: URL, extracted: ExtractedArticle, document: ParagraphDocument? = nil) -> ReaderArticle {
         let canonical = ArticleIdentity.canonicalURLString(from: url)
         let existing = page(canonicalURL: canonical)
         let key = existing?.key ?? ArticleIdentity.articleKey(canonicalURL: canonical)
-        var article = ReaderArticle(id: key, url: url, extracted: extracted)
+        var article = ReaderArticle(id: key, url: url, extracted: extracted, document: document)
         let freshFP = ArticleIdentity.contentFingerprint(paragraphs: article.document.paragraphs)
         guard let existing else {
             log("open \(canonical) key=\(Self.short(key)) new fp=\(freshFP.prefix(8))")
@@ -40,7 +40,7 @@ extension LibraryStore {
         let stored = existing.cachedListenParagraphs
         article.trustedParagraphs = stored
         article.resumeParagraph = existing.positionParagraph
-        article.faviconData = existing.artworkData
+        article.artwork = existing.artworkData
         let storedFP = stored.map { ArticleIdentity.contentFingerprint(paragraphs: $0) }
         if existing.hasText, storedFP != freshFP {
             fill(existing, from: article)
@@ -78,7 +78,7 @@ extension LibraryStore {
     func playbackPage(for article: ReaderArticle) -> (page: Page, textNotStored: Bool) {
         let page: Page
         var textNotStored = true
-        if let existing = self.page(key: article.id, canonicalURL: article.canonicalURL) {
+        if let existing = self.page(key: article.id, canonicalURL: article.origin.canonicalURL) {
             page = existing
             textNotStored = existing.hasChanges
             let storedFP = page.cachedListenParagraphs.map { ArticleIdentity.contentFingerprint(paragraphs: $0) }
@@ -88,15 +88,15 @@ extension LibraryStore {
                 textNotStored = true
             }
         } else {
-            page = Page(key: article.id, title: article.title, byline: article.siteDomain,
-                        urlString: article.urlString, contentState: .saved, addedAt: nil,
-                        artworkData: article.faviconData)
+            page = Page(key: article.id, title: article.title, byline: article.sourceLabel,
+                        urlString: article.origin.urlString, contentState: .saved, addedAt: nil,
+                        artworkData: article.artwork)
             context.insert(page)
             fill(page, from: article)
             page.positionParagraph = article.resumeParagraph
-            log("played, not saved: \(article.canonicalURL) key=\(Self.short(article.id))")
+            log("played, not saved: \(article.origin.canonicalURL ?? "-") key=\(Self.short(article.id))")
         }
-        if page.artworkData == nil { page.artworkData = article.faviconData }
+        if page.artworkData == nil { page.artworkData = article.artwork }
         return (page, textNotStored)
     }
 
@@ -159,25 +159,25 @@ extension LibraryStore {
     private func stageSave(_ article: ReaderArticle, placement: SavePlacement, playhead: Int?) -> Page {
         let destination = placement.folder
         let page: Page
-        if let existing = self.page(key: article.id, canonicalURL: article.canonicalURL) {
+        if let existing = self.page(key: article.id, canonicalURL: article.origin.canonicalURL) {
             page = existing
             let storedFP = page.cachedListenParagraphs.map { ArticleIdentity.contentFingerprint(paragraphs: $0) }
             if !page.hasText || storedFP != ArticleIdentity.contentFingerprint(paragraphs: article.document.paragraphs) {
                 fill(page, from: article)
             }
-            if page.artworkData == nil { page.artworkData = article.faviconData }
+            if page.artworkData == nil { page.artworkData = article.artwork }
             if page.addedAt == nil {
                 page.sortKey = nextSortKey(in: destination ?? page.folder)
             }
             log("save → existing \(Self.short(page.key)) (\(page.contentStateRaw), \(page.isInLibrary ? "in" : "not in") Library)")
         } else {
-            page = Page(key: article.id, title: article.title, byline: article.siteDomain,
-                        urlString: article.urlString, contentState: .saved, addedAt: nil,
-                        sortKey: nextSortKey(in: destination), artworkData: article.faviconData)
+            page = Page(key: article.id, title: article.title, byline: article.sourceLabel,
+                        urlString: article.origin.urlString, contentState: .saved, addedAt: nil,
+                        sortKey: nextSortKey(in: destination), artworkData: article.artwork)
             context.insert(page)
             fill(page, from: article)
             page.positionParagraph = playhead ?? article.resumeParagraph
-            log("save new \(article.canonicalURL) key=\(Self.short(article.id))")
+            log("save new \(article.origin.canonicalURL ?? "-") key=\(Self.short(article.id))")
         }
         page.contentState = .saved
         if page.addedAt == nil { page.addedAt = now() }
@@ -262,8 +262,9 @@ extension LibraryStore {
     }
 
     /// Deletes the page, then its audio once that is saved. Playback of it stops first (its audio
-    /// is being read), and a book's place on it moves to the chapter before. A save that fails
-    /// is rolled back: the page and its audio stay.
+    /// is being read), and so does a session a waiting merge would move onto it
+    /// (`keysWaitingToMerge`); a book's place on it moves to the chapter before. A save that
+    /// fails is rolled back: the page and its audio stay.
     func delete(_ page: Page) {
         _ = try? edit("delete page") { deleteWithoutSaving(page) }
     }
@@ -273,7 +274,7 @@ extension LibraryStore {
     /// records its position, which waits for that save too (`edit`).
     func deleteWithoutSaving(_ page: Page) {
         if let key = page.key {
-            stopPlaybackIfPlaying(key)
+            for playing in [key] + keysWaitingToMerge(into: [key]) { stopPlaybackIfPlaying(playing) }
             planDelete(key: key)
         }
         movePlaceOff(page)
@@ -299,15 +300,17 @@ extension LibraryStore {
     }
 
     /// The page's text, listen blocks and metadata from `article`; the position is clamped to
-    /// the new paragraph count. An article made from a page with no address (a book chapter,
-    /// `ReaderArticle(page:)`) has an empty one: the page keeps none.
+    /// the new paragraph count. A web article writes its address. An article with none (a book
+    /// chapter's, `PageOrigin.book`, as `ReaderArticle(page:)` makes it from a page with no
+    /// address) leaves the page's alone: a copy made from a page writes back the page's own
+    /// values, and an address-less page stays address-less.
     func fill(_ page: Page, from article: ReaderArticle) {
-        if !article.urlString.isEmpty {
-            page.urlString = article.urlString
-            page.canonicalURL = article.canonicalURL
+        if let url = article.origin.url {
+            page.urlString = url.absoluteString
+            page.canonicalURL = article.origin.canonicalURL
         }
         page.title = article.title
-        page.byline = article.siteDomain
+        page.byline = article.sourceLabel
         page.cleanedHTML = article.cleanedHTML
         page.plainText = article.plainText
         page.excerpt = article.excerpt

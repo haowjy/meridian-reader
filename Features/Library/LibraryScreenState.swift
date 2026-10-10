@@ -123,8 +123,9 @@ private struct LibraryDialogs: ViewModifier {
     }
 
     private var prompt: FolderDeletePrompt {
+        // The delete also stops a session a waiting merge would move onto a page inside.
         FolderDeletePrompt(folders: state.pendingDelete, contents: library.contents(of:)) { keys in
-            speech.activeSessionID.map(keys.contains) ?? false
+            speech.activeSessionID.map { keys.union(library.keysWaitingToMerge(into: keys)).contains($0) } ?? false
         }
     }
 

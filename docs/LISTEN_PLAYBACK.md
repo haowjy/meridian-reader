@@ -33,8 +33,8 @@ into ArticleAudioCache, admitted by RenderAdmission.
 
 The scrubber, the paragraph highlight, Now Playing and crash resume all read the position from
 here, and every change is published synchronously. `resumePoint` (article + paragraph while
-playing, nil otherwise) is what crash resume reopens; the controller writes it to
-`ListenResumePointStore` whenever it changes.
+playing, with the text fingerprint; nil otherwise) is what crash resume reopens; the controller
+writes it to `ListenResumePointStore` whenever it changes.
 
 Phase and position change only through:
 
@@ -166,6 +166,33 @@ after the rollback, with the dates it was made at and in the order it played, ma
 page only a play had made. It is forgotten once a save stores it. A position recorded while an
 edit is being staged (stopping the playing page it deletes) isn't saved on its own: it waits for
 the edit's save, so it can't store the edit half made.
+
+Progress lands only on the text that was played. The session carries a fingerprint of its
+document (`PlaybackSessionState.textFingerprint`, `ArticleIdentity.contentFingerprint` of its
+paragraphs, hashed once per page bound), and every write (a start, a position, an end, the
+chapter carried past) goes to the page for the session's key only while that page holds the same
+text (`LibraryStore.holds`, which compares the stored listen blocks and keeps the last hash, so a
+paragraph's write costs no hash). A key can name other text by then: a book's *Replace* brought
+another chapter back under it, the page was refreshed on open while it played, a paused session
+resumed or a staged next chapter is older than its page. Such a session plays on in its own text
+and nothing it reaches is written; the page keeps its own listening. Kept progress is in one text
+too: a rollback writes it again only on a page holding the text it was made in, and a play of
+other text on the page starts it over. A session moves to another key only onto a page holding
+its text: a merge whose kept page holds other text when it runs, or a Save landing on an older
+page while the session plays older text, stops it instead (`rekeyActiveSession`).
+
+Crash resume follows the text too. The resume file keeps the playing paragraph with the
+session's text fingerprint, and the layout pass and merges that move it map the paragraph into
+the text they move it to and give it that text's fingerprint (a point in other text than the page
+they move keeps its paragraph and text). At launch (`AppLaunch.resumeAfterCrash`) the paragraph is
+applied only on a page holding that text: then the page plays again there (a crash under 20
+minutes ago while playing) or opens paused there, as before. On a page holding other text by then
+(refreshed on open while an older session played on, another chapter brought back under its key)
+the page opens in Now Playing paused at its own stored spot, paragraph and offset, and keeps it;
+nothing plays until ▶. A target that names no text (the crash marker's, used when nothing was
+playing, or a resume file an older build wrote) counts only when it is the page's own stored
+paragraph, which the recorder writes on every paragraph; otherwise it opens the page paused at its
+own spot the same way. The position is then the recorder's to store, from the session bound.
 
 ### Books and series
 
@@ -347,9 +374,9 @@ highlight and the paragraph picker stay fine-grained.
   the copied pages before they are deduped, and by `AppLaunch` before the launch dedupe pass and
   crash resume): library pages holding text with `listenBlocksVersion < 3` get new blocks, and
   the reading position maps by character offset (`ParagraphPositionMap`). Once that is saved
-  (`LibraryAudioWork`, see `TECHNICAL_SPEC.md`), the resume point, the in-memory crash-resume
-  target and any pending bake job are remapped; cached audio of unchanged paragraphs moves by
-  text hash, and a split paragraph's CAF is sliced sample-exact
+  (`LibraryAudioWork`, see `TECHNICAL_SPEC.md`), the resume point and the in-memory crash-resume
+  target (with the new text's fingerprint) and any pending bake job are remapped; cached audio of
+  unchanged paragraphs moves by text hash, and a split paragraph's CAF is sliced sample-exact
   (`ArticleAudioCache.reconcile`, by `chunkDurations`) into each piece whose chunk
   plan equals a contiguous run of the old chunks; other pieces re-render. Logged as
   `paragraph_layout_migration` (paragraphs, position) and `library_audio_work` (audio kept,
@@ -396,8 +423,9 @@ highlight and the paragraph picker stay fine-grained.
   ephemeral again, both through the library's audio work; deleting a saved row deletes its audio.
   Saving the page that is playing, under its own key, moves no audio. When a page holds the
   address under an older key, the reader's audio moves under the page's key and the live session
-  is rekeyed, without a restart; saving a page that isn't playing aligns its audio with the saved
-  text and can adopt a legacy v1 cache (`prepareListenIdentity`, as on open).
+  is rekeyed, without a restart, while it plays the saved text (otherwise it stops); saving a
+  page that isn't playing aligns its audio with the saved text and can adopt a legacy v1 cache
+  (`prepareListenIdentity`, as on open).
 - **One voice per article.** The index's top-level `engineID` / `voiceID` is the target voice.
   After a voice or engine switch, the first new-voice write retargets the index; older entries
   stay, stamped stale. Ready / missing counts look only at the target voice, so the queue
@@ -520,7 +548,8 @@ Developer options on (`NAVIGATION.md` → "Developer options"):
 `timing.1.jsonl`): launch, open, play, model load, every `synth` call (chars, wall ms, audio s,
 phonemes, `mem_mb`), chunk / paragraph ready and failed, waits, first audio, buffering, Apple
 fallback, skips, app phase and background events, remote commands, interruptions, migrations,
-cache prunes and chapter boundaries (`chapter_advance`, `chapter_staged`, `chapter_boundary`).
+cache prunes, chapter boundaries (`chapter_advance`, `chapter_staged`, `chapter_boundary`) and a
+session stopped rather than moved onto a key holding other text (`session_rekey`).
 A few lines (`chapter_advance`, `chapter_boundary`) also go to the unified log, readable live in
 Console.app with the filter `subsystem:com.jimmyyao.Reader category:ListenTiming`. Pull the
 file from a device:
@@ -547,6 +576,13 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   another page already has. `-chainDemoChapters`: once launched, play it from where
   Continue would, after the on-device engine has loaded, and let it carry on; each boundary logs
   `chapter_boundary`. Together, the locked-screen chapter-boundary check.
+- `-importTestEPUB`: *Import Book…* takes a synthetic EPUB built in code (`TestEPUB`: a title
+  page, then the demo book's three chapters, the first with a line loose in a `<div>` and a
+  footnote) instead of opening the Files picker, which a UI test can't drive; the import sheet
+  and import are the real ones. At launch an earlier import of it is deleted with its audio.
+  `-playTestEPUB`: at launch, import it into the Library's top level (no sheet), then play it from
+  where Continue would (chapter 1, not the title page). The offline test pages' page one links to
+  the same book as a `blob:` URL, for the `.epub` link path.
 - `-selectEngine local.kokoro|apple`, `-kokoroUnits <label>` (Core ML route routing).
 - **CPU route benchmark** (panel → "CPU route benchmark"): `KokoroONNXSession` at 1–4 threads and
   QoS variants on a fixed 501-phoneme passage and its first three sentences (load ms, cold / warm

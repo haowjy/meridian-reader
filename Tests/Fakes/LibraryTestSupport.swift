@@ -19,6 +19,9 @@ final class LibraryTestEnvironment {
     /// Keys `stopPlaybackIfPlaying` was asked about while they were "playing".
     var playingKey: UUID?
     private(set) var stoppedKeys: [UUID] = []
+    /// What stopping the playing key does besides being recorded: the app's progress recorder
+    /// saves the position on Stop.
+    var onStop: ((UUID) -> Void)?
 
     init(fileBacked: Bool = false) throws {
         dir = FileManager.default.temporaryDirectory.appending(path: "LibraryTest-\(UUID().uuidString)")
@@ -64,7 +67,10 @@ final class LibraryTestEnvironment {
     func makeLibrary() -> LibraryStore {
         let store = LibraryStore(context: container.mainContext, tts: tts, legacy: legacy, now: { [unowned self] in now })
         store.stopPlaybackIfPlaying = { [unowned self] key in
-            if key == playingKey { stoppedKeys.append(key); playingKey = nil }
+            guard key == playingKey else { return }
+            stoppedKeys.append(key)
+            playingKey = nil
+            onStop?(key)
         }
         return store
     }

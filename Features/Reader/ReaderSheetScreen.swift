@@ -32,7 +32,8 @@ struct ReaderSheetScreen: View {
         self.state = state
         _speech = Bindable(speech)
         let id = state.article.id
-        let canonical = state.article.canonicalURL
+        // A page with no web address is found by its key alone; no page has an empty address.
+        let canonical = state.article.origin.canonicalURL ?? ""
         _pages = Query(filter: #Predicate<Page> { $0.key == id || $0.canonicalURL == canonical })
     }
 
@@ -104,7 +105,7 @@ struct ReaderSheetScreen: View {
 
     private var detail: String {
         let minutes = ListeningTime.minutes(utf16Length: totalLength)
-        return [article.siteDomain, minutes > 0 ? "\(minutes) min" : ""].filter { !$0.isEmpty }
+        return [article.sourceLabel, minutes > 0 ? "\(minutes) min" : ""].filter { !$0.isEmpty }
             .joined(separator: " · ")
     }
 
@@ -145,7 +146,7 @@ struct ReaderSheetScreen: View {
         )
     }
 
-    private var articleURL: URL? { URL(string: article.urlString) }
+    private var articleURL: URL? { article.origin.url }
 
     /// The article's own page, for ⋯ → Website (any loadable page URL, not just http(s)).
     private var websiteURL: URL? {
@@ -177,7 +178,7 @@ struct ReaderSheetScreen: View {
     /// ☆: the article's page in or out of Favorites (`FavoriteFlow`).
     private func toggleFavorite() {
         guard let url = articleURL, LibraryStore.canFavorite(url) else { return }
-        FavoriteFlow(library: library, shell: shell).toggle(url: url, title: article.title, artwork: article.faviconData) {
+        FavoriteFlow(library: library, shell: shell).toggle(url: url, title: article.title, artwork: article.artwork) {
             await FaviconFetcher.best(for: url, webView: nil)
         }
     }
@@ -191,7 +192,7 @@ struct ReaderSheetScreen: View {
         FavoriteFlow(library: library, shell: shell).saveToFolder(
             title: isSaved ? String(localized: "Move to…") : String(localized: "Save to…"), current: current
         ) { [library, speech, shell, article] folder in
-            if let saved = library.page(key: article.id, canonicalURL: article.canonicalURL), saved.isSavedToLibrary {
+            if let saved = library.page(key: article.id, canonicalURL: article.origin.canonicalURL), saved.isSavedToLibrary {
                 return shell.attempt(String(localized: "Couldn’t move")) { try library.move([.page(saved)], to: folder) } != nil
             }
             guard let savedID = shell.attempt(String(localized: "Couldn’t save"), {
@@ -226,7 +227,7 @@ struct ReaderSheetScreen: View {
         let saver = ArticleSaveCoordinator(library: library, speech: speech)
         if isSaved {
             shell.attempt(String(localized: "Couldn’t remove from Library")) {
-                try saver.unsave(key: page?.listenKey ?? article.id, canonicalURL: article.canonicalURL)
+                try saver.unsave(key: page?.listenKey ?? article.id, canonicalURL: article.origin.canonicalURL)
             }
             return
         }

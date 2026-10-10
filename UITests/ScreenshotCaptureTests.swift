@@ -296,6 +296,59 @@ final class ScreenshotCaptureTests: XCTestCase {
         try shot("11-favorites-sheet-menu")
     }
 
+    /// Importing a book (`-importTestEPUB`): the Library's ⋯ and ＋ with *Import Book…*, the import
+    /// sheet for a book downloaded from page one's link (medium and large), its *Add to* tree,
+    /// the book it lands on, and D13's question when it's imported again.
+    func testBookImport() throws {
+        let app = launch(["-browseTestPages", "-resetBookmarks", "-seedDemoFolders", "-importTestEPUB",
+                          "-reader.developerOptions", "NO"])
+        let link = app.links["Download a book"]
+        XCTAssertTrue(link.waitForExistence(timeout: 10))
+        app.buttons["browseLibrary"].tap()
+        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+        wait(1)
+        app.buttons["libraryMore"].tap()
+        wait(1.2)
+        try shot("1-library-menu")
+        dismissMenu(app)
+        app.buttons["libraryAdd"].tap()
+        wait(1)
+        try shot("2-add-menu")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
+        wait(0.6)
+        app.buttons["libraryBrowser"].tap()
+
+        XCTAssertTrue(link.waitForExistence(timeout: 5))
+        link.tap()
+        XCTAssertTrue(el(app, "importSheet").waitForExistence(timeout: 15))
+        wait(1.5)
+        try shot("3-import-sheet")
+        el(app, "importHeader").swipeUp()
+        wait(1)
+        try shot("4-import-sheet-large")
+        el(app, "importChange").tap()
+        XCTAssertTrue(el(app, "importAddToTree").waitForExistence(timeout: 5))
+        wait(1)
+        try shot("5-import-add-to")
+        app.buttons.matching(identifier: "moveFolder").matching(NSPredicate(format: "label == %@", "Demo Finance")).firstMatch.tap()
+        wait(1)
+        try shot("6-import-sheet-changed")
+        el(app, "importStart").tap()
+        XCTAssertTrue(el(app, "bookScreen").waitForExistence(timeout: 30))
+        wait(1.2)
+        try shot("7-landed-book")
+
+        app.buttons["libraryAdd"].tap()
+        let item = app.buttons["libraryImportBook"]
+        XCTAssertTrue(item.waitForExistence(timeout: 3))
+        item.tap()
+        let ask = app.alerts.firstMatch
+        XCTAssertTrue(ask.waitForExistence(timeout: 30))
+        wait(1)
+        try shot("8-already-in-library")
+        ask.buttons["Cancel"].firstMatch.tap()
+    }
+
     /// A row in a Library list, by its title.
     private func row(_ app: XCUIApplication, _ title: String) -> XCUIElement {
         app.cells.staticTexts.matching(NSPredicate(format: "label == %@", title)).firstMatch

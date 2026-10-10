@@ -8,7 +8,8 @@ import SwiftUI
 /// ┌ bar ────────────────────────────────────┐
 /// │ ╭ Now Playing bar ────────────────────╮ │  ← what you hear (once something has played)
 /// │ ( 🔍 Search Library                  ) │  ← same field capsule as the address bar
-/// │  [＋]  [ ]   [Search]  [🌐]  [⋯]       │  ← ＋ New Folder; 🌐 the browser; ⋯ for the screen
+/// │  [＋]  [ ]   [Search]  [🌐]  [⋯]       │  ← ＋ Import Book…, New Folder; 🌐 the browser; ⋯
+///                                                  for the screen
 /// └──────────────────────────── home indicator ┘
 /// ```
 ///
@@ -72,6 +73,10 @@ struct LibrarySurface: View {
     private var toolbar: some View {
         BottomToolbarLayout {
             Menu {
+                Button("Import Book…", systemImage: "book.closed") {
+                    BookImportActions(library: library, shell: shell).pickBook(into: screenMenu.newFolderParent)
+                }
+                .accessibilityIdentifier("libraryImportBook")
                 Button("New Folder", systemImage: "folder.badge.plus") { screen.makeFolder(in: screenMenu.newFolderParent) }
                     .accessibilityIdentifier("libraryNewFolder")
             } label: {

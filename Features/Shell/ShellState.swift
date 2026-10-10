@@ -35,6 +35,8 @@ enum ShellSheet: Identifiable, Equatable {
     case share(URL)
     /// The Move tree: Move, *Save to Library…*, 🔖's *Save to Folder…*, *Change Folder*.
     case moveTo(MoveRequest)
+    /// A book being imported: its progress, *Add to*, and D13's question.
+    case importBook(BookImportFlow)
 
     var id: String {
         switch self {
@@ -43,6 +45,7 @@ enum ShellSheet: Identifiable, Equatable {
         case .voiceSettings: "voiceSettings"
         case .share(let url): "share-\(url.absoluteString)"
         case .moveTo(let request): "moveTo-\(request.id)"
+        case .importBook(let flow): "importBook-\(flow.id)"
         }
     }
 
@@ -51,7 +54,7 @@ enum ShellSheet: Identifiable, Equatable {
     var belongsToBrowser: Bool {
         switch self {
         case .history: true
-        case .favorites, .voiceSettings, .share, .moveTo: false
+        case .favorites, .voiceSettings, .share, .moveTo, .importBook: false
         }
     }
 }
@@ -145,6 +148,10 @@ final class ShellState {
     /// rising). nil = it rises and finds the audio.
     private(set) var nowPlayingOpensAt: ReadingHandOver?
     var sheet: ShellSheet?
+    /// *Import Book…*'s Files picker is up (`pickBook(into:)`).
+    var isPickingBook = false
+    /// Where the picked book goes (nil: the Library's top level).
+    private(set) var bookPickDestination: UUID?
     /// The open ⋯ menu (nil = closed), rendered by the shell's one `MorphMenuOverlay`.
     var menu: MenuContext?
     /// A short message over the bottom chrome of the surface on screen.
@@ -199,11 +206,16 @@ final class ShellState {
     /// The Reader sheet on `article`, over the surface on screen. The page you hear opens as Now
     /// Playing instead: the Reader never shows what is playing.
     func openReader(_ article: ReaderArticle) {
-        if isHearing(.page(article.id)) || isHearing(.webPage(canonicalURL: article.canonicalURL)) {
+        if isHearingPage(of: article) {
             showNowPlaying()
             return
         }
         reader = ReaderSheetState(article: article, origin: isInLibrary ? .library : .browser)
+    }
+
+    /// Whether `article`'s page is what you hear: by key, or a web page by its address.
+    private func isHearingPage(of article: ReaderArticle) -> Bool {
+        isHearing(.page(article.id)) || article.origin.canonicalURL.map { isHearing(.webPage(canonicalURL: $0)) } == true
     }
 
     /// Updates the Reader sheet's article in place (favicon arrived, listen blocks built, Save
@@ -233,8 +245,7 @@ final class ShellState {
     /// so the two never show the same page.
     func showNowPlaying() {
         endAddressSearch()
-        if let article = reader?.article,
-           isHearing(.page(article.id)) || isHearing(.webPage(canonicalURL: article.canonicalURL)) {
+        if let article = reader?.article, isHearingPage(of: article) {
             reader = nil
         }
         nowPlayingOpensAt = nil
@@ -397,6 +408,26 @@ final class ShellState {
     func present(_ sheet: ShellSheet) {
         if sheet.belongsToBrowser { leaveLibrary() }
         self.sheet = sheet
+    }
+
+    /// The import sheet's flow, while it is the sheet up.
+    var importFlow: BookImportFlow? {
+        if case .importBook(let flow) = sheet { flow } else { nil }
+    }
+
+    /// Closes the import sheet if it shows `flow`; true if it did. Another flow's sheet (or
+    /// another sheet) that came up since stays: a flow only closes its own.
+    @discardableResult
+    func closeImport(_ flow: BookImportFlow) -> Bool {
+        guard importFlow === flow else { return false }
+        sheet = nil
+        return true
+    }
+
+    /// *Import Book…*: the Files picker, for a book going into `destination`.
+    func pickBook(into destination: UUID?) {
+        bookPickDestination = destination
+        isPickingBook = true
     }
 
     // MARK: - Toasts and prompts

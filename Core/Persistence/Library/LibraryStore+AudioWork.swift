@@ -31,13 +31,15 @@ struct LibraryAudioWorkOutcome: Equatable {
 }
 
 /// Files outside the library store change only after the library change they belong to is saved.
-/// The layout pass, dedupe, deleting pages, pages leaving the Library and Save plan their audio
-/// work (`planAlign`, `planMerge`, `planDelete`, `planEphemeral`, `planSaved`) as records in the
-/// same save; `commit` does it once the save succeeds, after any work an earlier launch left, and
-/// retires each record once its postconditions hold; the next launch finishes whatever is left
-/// (`finishAudioWork`); a save that fails and is rolled back (`rollBack`) leaves every file alone.
-/// Work that waited acts on the pages as they are when it runs: by then a key can belong to a
-/// later page (saved, deleted, then played again without saving), whose audio it keeps.
+/// The layout pass, dedupe, deleting pages (a book's *Replace* dropping chapters among them),
+/// pages leaving the Library and Save plan their audio work (`planAlign`, `planMerge`,
+/// `planDelete`, `planEphemeral`, `planSaved`) as records in the same save; `commit` does it once
+/// the save succeeds, after any work an earlier launch left, and retires each record once its
+/// postconditions hold; the next launch finishes whatever is left (`finishAudioWork`); a save that
+/// fails and is rolled back (`rollBack`) leaves every file alone. Work that waited acts on the
+/// pages as they are when it runs: by then a key can belong to a later page (saved, deleted, then
+/// played again without saving, or a chapter a later *Replace* brought back), whose audio it
+/// keeps.
 extension LibraryStore {
     // MARK: - Planning
 
@@ -108,13 +110,11 @@ extension LibraryStore {
             audioPlan.resume = ListenResumePointStore.shared.load()
             audioPlan.resumeLoaded = true
         }
-        guard let source = work.sourceKey, let target = work.key, var point = audioPlan.resume,
+        guard let source = work.sourceKey, work.key != nil, let point = audioPlan.resume,
               point.matches(source) else { return }
         work.resumeParagraph = point.paragraph
         work.resumeAt = point.at
-        point.articleKey = target.uuidString
-        point.paragraph = Self.mapParagraph(point.paragraph, for: work, onto: work.paragraphs)
-        audioPlan.resume = point
+        audioPlan.resume = Self.move(point, by: work, onto: work.paragraphs)
     }
 
     // MARK: - Doing it
@@ -139,14 +139,14 @@ extension LibraryStore {
 
     /// Does each record, in order, and retires it only once its postconditions hold on disk
     /// (the destination's saved index aligned with its paragraphs and every CAF it lists there,
-    /// a merged page's directory gone), whether or not its source still exists: work an app died
-    /// in the middle of is simply done again, and every step is idempotent. A record that fails
-    /// is kept for the next launch, and so is everything after it (later work can build on it);
-    /// the pages they touch, source and destination, are held in the audio cache until a run
-    /// finishes them: the engine purges and the prune leave their audio alone, and their saved
-    /// bake jobs aren't adopted. Records that can't be read may need any page's audio, so all
-    /// of it is held until a run reads them. `planned`: records this process planned, whose crash
-    /// target was read in the numbering the work started from.
+    /// a merged page's directory gone), whether or not its source's audio is still there: work
+    /// an app died in the middle of is simply done again, and every step is idempotent. A
+    /// record that fails is kept for the next launch, and so is everything after it (later work
+    /// can build on it); the pages they touch, source and destination, are held in the audio
+    /// cache until a run finishes them: the engine purges and the prune leave their audio
+    /// alone, and their saved bake jobs aren't adopted. Records that can't be read may need any
+    /// page's audio, so all of it is held until a run reads them. `planned`: records this
+    /// process planned, whose crash target was read in the numbering the work started from.
     @discardableResult
     private func performStoredWork(planned: Set<ObjectIdentifier>) -> LibraryAudioWorkOutcome {
         var outcome = LibraryAudioWorkOutcome()
@@ -162,9 +162,11 @@ extension LibraryStore {
         }
         guard !rows.isEmpty else { return outcome }
         if planned.isEmpty { log("audio work: finishing \(rows.count) left by an earlier launch") }
-        for row in rows {
+        let lastNaming = Self.lastNaming(rows)
+        for (index, row) in rows.enumerated() {
             do {
-                try perform(row, live: planned.contains(ObjectIdentifier(row)))
+                try perform(row, live: planned.contains(ObjectIdentifier(row)),
+                            namedLater: { (lastNaming[$0] ?? index) > index })
             } catch {
                 let waiting = rows[outcome.finished...]
                 let keys = Set(waiting.flatMap { [$0.key, $0.fromKey].compactMap { $0 } })
@@ -189,10 +191,20 @@ extension LibraryStore {
         return outcome
     }
 
-    private func perform(_ work: LibraryAudioWork, live: Bool) throws {
+    /// For each key the records name (`key` or `fromKey`), the index of the last record naming it.
+    private static func lastNaming(_ rows: [LibraryAudioWork]) -> [UUID: Int] {
+        var last: [UUID: Int] = [:]
+        for (index, row) in rows.enumerated() {
+            for key in [row.key, row.fromKey].compactMap({ $0 }) { last[key] = index }
+        }
+        return last
+    }
+
+    /// `namedLater`: whether a record after this one names the key.
+    private func perform(_ work: LibraryAudioWork, live: Bool, namedLater: (UUID) -> Bool) throws {
         switch work.kind {
         case .align: try align(work, live: live)
-        case .merge: try merge(work, live: live)
+        case .merge: try merge(work, live: live, sourceNamedLater: work.fromKey.map(namedLater) ?? false)
         case .delete: try deleteAudio(work)
         case .ephemeral: try releaseAudio(work)
         case .saved: try keepAudio(work)
@@ -238,14 +250,36 @@ extension LibraryStore {
 
     /// The merged page's audio fills the kept page's paragraphs it has none for (by text), its
     /// directory and pending render go, and the resume point, the crash target and the live
-    /// session follow onto the kept page. Its audio and the resume point are aligned with the
-    /// paragraphs the committed kept page holds: if they changed since this was planned, the
-    /// merged audio and the resume point still find their paragraphs by text, but the kept page's
-    /// audio is no longer stamped against the planned ones. If
-    /// the kept page is gone (deleted since), no page holds the merged audio: it is left to the
-    /// cache's age prune, as a deleted page's own would have gone.
-    private func merge(_ work: LibraryAudioWork, live: Bool) throws {
+    /// session follow onto the kept page: the session only while it plays the text the kept page
+    /// holds now, and otherwise it stops (`keyMerged`). Its audio and the resume point are aligned
+    /// with the paragraphs the committed kept page holds: if they changed since this was planned,
+    /// the merged audio and the resume point still find their paragraphs by text, but the kept
+    /// page's audio is no longer stamped against the planned ones. If the kept page is gone
+    /// (deleted since), no page holds the merged audio: it is left to the cache's age prune, as a
+    /// deleted page's own would have gone.
+    ///
+    /// All of that only while the merged key is still the merged page's. A later change can give
+    /// the key to another page while this waits (a *Replace* bringing a chapter back under it):
+    /// then the audio, renders, resume point and session under the key are that page's, and the
+    /// record moves none of them and rekeys nothing. A page holding the key now keeps its audio,
+    /// saved or ephemeral as it is (`settleAudio`); once that page is gone again, the record after
+    /// this one that names the key (its delete or merge, `sourceNamedLater`) decides, as it would
+    /// for the page it was planned with.
+    private func merge(_ work: LibraryAudioWork, live: Bool, sourceNamedLater: Bool) throws {
         guard let from = work.fromKey, let to = work.key else { return }
+        if let page = try context.fetch(LibraryQueries.page(key: from)).first {
+            log("audio \(Self.short(from)): its page is back since it was merged into \(Self.short(to)); kept")
+            ListenTimingLog.log("library_audio_work", ["kind": "merge", "key": ListenTimingLog.shortKey(to),
+                                                       "from": ListenTimingLog.shortKey(from), "skipped": "merged page back"])
+            try settleAudio(from, page: page)
+            return
+        }
+        if sourceNamedLater {
+            log("audio \(Self.short(from)): a later page held its key; left to the work recorded after this")
+            ListenTimingLog.log("library_audio_work", ["kind": "merge", "key": ListenTimingLog.shortKey(to),
+                                                       "from": ListenTimingLog.shortKey(from), "skipped": "key reused"])
+            return
+        }
         let cache = tts.audioCache
         guard let keeper = try context.fetch(LibraryQueries.page(key: to)).first else {
             if cache.hasDirectory(for: from) { cache.markEphemeral(cacheKey: from) }
@@ -275,7 +309,7 @@ extension LibraryStore {
         tts.synthQueue.remove(cacheKey: from)
         PendingBakeJobStore.shared.removePending(articleID: from)
         moveResumePoints(work, onto: paragraphs, live: live)
-        keyMerged(from, to)
+        keyMerged(from, to, textFingerprint(of: keeper))
         ListenTimingLog.log("library_audio_work", [
             "kind": "merge", "key": ListenTimingLog.shortKey(to), "from": ListenTimingLog.shortKey(from),
             "audio_adopted": rec.adopted, "leftover": !live,
@@ -339,24 +373,70 @@ extension LibraryStore {
     }
 
     /// The crash-resume file and the crash target launch read from it (or from the crash
-    /// marker) follow the work, onto `paragraphs`: the destination's paragraphs its audio was
-    /// just aligned with (for a merge, what the kept page holds now, which may differ from what
-    /// was planned). The file moves only if it is still where the plan found it, so doing the
+    /// marker) follow the work (`move`), onto `paragraphs`: the destination's paragraphs its audio
+    /// was just aligned with (for a merge, what the kept page holds now, which may differ from
+    /// what was planned). The file moves only if it is still where the plan found it, so doing the
     /// work again never moves it twice. The target in memory moves with any paragraph when this
     /// process planned the work (it was read before); for work left by an earlier launch, only if
     /// it still holds the file's old point.
     private func moveResumePoints(_ work: LibraryAudioWork, onto paragraphs: [String], live: Bool) {
         guard let source = work.sourceKey, let target = work.key else { return }
-        let map = { (p: Int) in Self.mapParagraph(p, for: work, onto: paragraphs) }
         if let paragraph = work.resumeParagraph, let at = work.resumeAt {
             let store = ListenResumePointStore.shared
             if let point = store.load(), point.matches(source), point.paragraph == paragraph,
                abs(point.at.timeIntervalSince(at)) < 0.001 {
-                store.save(article: target, paragraph: map(paragraph), at: point.at)
+                let moved = Self.move(point, by: work, onto: paragraphs)
+                store.save(article: target, paragraph: moved.paragraph, text: moved.text, at: point.at)
             }
         }
         guard live || (tts.pendingResume.map { $0.paragraph == work.resumeParagraph } ?? false) else { return }
-        tts.remapPendingResume(article: source, to: target, map)
+        tts.remapPendingResume(article: source) { Self.move($0, by: work, onto: paragraphs) }
+    }
+
+    /// A crash-resume point once `work` has moved its page onto `paragraphs`: under the work's
+    /// key and, when it is a paragraph of the text the work moved (`sourceParagraphs`), on that
+    /// paragraph's place there (`mapParagraph`), in the text `paragraphs` hold. A point that names
+    /// no text (an older build's file, a crash marker) is mapped the same way and still names
+    /// none. A point in other text (a session that played on in an older text than its page's)
+    /// keeps its paragraph and text: crash resume applies it only on a page holding that text.
+    static func move(_ point: ListenResumeTarget, by work: LibraryAudioWork, onto paragraphs: [String]) -> ListenResumeTarget {
+        guard let target = work.key else { return point }
+        var moved = point
+        moved.articleKey = target.uuidString
+        if let text = point.text {
+            guard text == ArticleIdentity.contentFingerprint(paragraphs: work.sourceParagraphs) else { return moved }
+            moved.text = ArticleIdentity.contentFingerprint(paragraphs: paragraphs)
+        }
+        moved.paragraph = mapParagraph(point.paragraph, for: work, onto: paragraphs)
+        return moved
+    }
+
+    // MARK: - Sessions a waiting merge would move
+
+    /// The keys a live session can be playing that a waiting merge would move onto one of `keys`'
+    /// pages when it runs (`keyMerged`): the merged key of each stored merge into one of them,
+    /// while no page holds that key and no record after the merge names it (the rule `merge`
+    /// moves a session by). *Replace* and deleting a page stop these sessions along with the pages
+    /// they revise, drop or delete. Otherwise the merge, which follows what the kept page holds
+    /// when it runs, would move the session onto a revised page whose text it isn't playing, and
+    /// positions in the old text would be recorded there; or, with the kept page gone, it would
+    /// leave the session playing a key no page holds. Records that can't be read name none.
+    func keysWaitingToMerge(into keys: Set<UUID>) -> [UUID] {
+        guard !keys.isEmpty else { return [] }
+        let rows: [LibraryAudioWork]
+        do {
+            rows = try fetchAudioWork(context)
+        } catch {
+            log("audio work unreadable; no session its merges would move is stopped: \(error)")
+            return []
+        }
+        let lastNaming = Self.lastNaming(rows)
+        return rows.indices.compactMap { index in
+            let row = rows[index]
+            guard row.kind == .merge, let to = row.key, keys.contains(to), let from = row.fromKey,
+                  lastNaming[from] == index, page(key: from) == nil else { return nil }
+            return from
+        }
     }
 
     // MARK: - Positions

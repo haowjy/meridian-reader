@@ -5,11 +5,14 @@ import SwiftData
 enum LibraryAudioWorkKind: String, Codable {
     /// A page's listen paragraphs were rebuilt (the layout pass): its audio follows them.
     case align
-    /// Dedupe merged one page into another: the merged page's audio moves under the kept key.
+    /// Dedupe merged one page into another, or a book's *Replace* found a chapter's text under a
+    /// new key: the merged page's audio moves under the kept key, and a session playing it
+    /// follows, unless a later page holds the merged key by the time it runs. While it waits, a
+    /// *Replace* or delete that revises, drops or deletes the kept page stops that session.
     case merge
-    /// A page was deleted (a row's *Delete*, *Delete Folder and Contents*, *Delete Book*): its
-    /// audio, its pending render and its queued renders go, unless a page with its key is back
-    /// by the time it runs.
+    /// A page was deleted (a row's *Delete*, *Delete Folder and Contents*, *Delete Book*, or a
+    /// chapter a book's *Replace* dropped): its audio, its pending render and its queued renders
+    /// go, unless a page with its key is back by the time it runs.
     case delete
     /// A page left the Library (*Remove from Library*, unsave): its audio goes back on the
     /// ephemeral TTL, kept for playback until the audio cache's age prune, unless the page is

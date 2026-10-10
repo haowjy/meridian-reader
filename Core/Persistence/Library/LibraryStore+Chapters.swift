@@ -6,8 +6,14 @@ extension LibraryStore {
     /// The folder's chapters in play order, skipped ones included. A link page plays (after its
     /// fetch) only in a series; a locked one, or one that needs the browser, says why it can't.
     func chapterSnapshot(of folder: Folder) -> [ChapterAdvance.Chapter] {
+        chapterSnapshot(of: folder, pages: playOrder(of: folder))
+    }
+
+    /// The snapshot of `pages`, the folder's chapters in play order (before they are saved, for
+    /// *Replace*).
+    func chapterSnapshot(of folder: Folder, pages: [Page]) -> [ChapterAdvance.Chapter] {
         guard folder.kind.isFixed else { return [] }
-        return playOrder(of: folder).map { page in
+        return pages.map { page in
             ChapterAdvance.Chapter(key: page.listenKey, isLink: page.isLink,
                                    skipsInPlayback: page.skipsInPlayback || (page.isLink && folder.kind != .series),
                                    isFinished: page.finishedAt != nil,

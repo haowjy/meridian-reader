@@ -17,8 +17,16 @@ import UIKit
 ///   past is marked finished by the controller (`NextChapterProviding.pageFinished`), since the
 ///   session moves straight to the next one.
 ///
-/// It holds the page it writes to, so a position isn't a fetch. What it writes is stored by the
-/// next save that works: a failed edit's rollback doesn't drop it (`PendingListening`).
+/// Progress lands only on the text that was played: each write goes to the page for the session's
+/// key only while that page holds the text the session plays (`LibraryStore.holds`, against the
+/// fingerprint `ListenProgress` carries). A key can name other text by then: a *Replace* brought
+/// another chapter back under it, a page was refreshed on open while it played, a resumed or
+/// staged session holds a document older than its page. Such a session plays on and nothing it
+/// reaches is written; the page keeps its own listening.
+///
+/// It holds the page it writes to, so a position isn't a fetch, and the comparison costs a look at
+/// the stored text, not a hash. What it writes is stored by the next save that works: a failed
+/// edit's rollback doesn't drop it (`PendingListening`).
 @MainActor
 final class ListeningProgressRecorder {
     private let speech: SpeechController
@@ -53,28 +61,41 @@ final class ListeningProgressRecorder {
         return current
     }
 
+    /// The page for `key` while it holds `text`, the text the session plays: nil when no page has
+    /// the key or it holds other text.
+    private func page(_ key: UUID, holding text: String?) -> Page? {
+        guard let page = page(key), library.holds(page, text: text) else { return nil }
+        return page
+    }
+
     private func record(_ progress: ListenProgress) {
         let key = progress.pageKey
         if progress.phase == .playing {
             if listening != key {
                 listening = key
-                recordStart(of: key)
+                recordStart(of: key, text: progress.text)
             }
         } else {
             listening = nil
         }
-        guard let page = page(key) else { return }
+        guard let page = page(key, holding: progress.text) else { return }
         library.recordPosition(page, paragraph: progress.paragraph, utf16Offset: progress.utf16Offset)
         if progress.phase == .finished { library.recordFinished(page) }
     }
 
     /// Listening started (or resumed) on the page: it moves to the front of Continue listening and
-    /// stops counting as finished. Its first start from an article keeps or refreshes its text.
-    private func recordStart(of key: UUID) {
+    /// stops counting as finished. Its first start from an article keeps or refreshes its text,
+    /// when the session plays that article's text; a session bound before keeps its own document
+    /// (`SpeechController.prepare`), and is recorded like any other, on a page holding it.
+    private func recordStart(of key: UUID, text: String?) {
         if let article = startedFrom, article.id == key {
             startedFrom = nil
-            current = library.recordPlayback(article)
-        } else if let page = page(key) {
+            if ArticleIdentity.contentFingerprint(paragraphs: article.document.paragraphs) == text {
+                current = library.recordPlayback(article)
+                return
+            }
+        }
+        if let page = page(key, holding: text) {
             library.recordPlaybackStarted(page)
         }
     }
@@ -82,7 +103,7 @@ final class ListeningProgressRecorder {
     /// The live spot, including the offset inside the paragraph (which `onProgress` doesn't report
     /// tick by tick), then whatever else is pending.
     private func sceneLeft() {
-        if let id = speech.activeSessionID, let page = page(id) {
+        if let id = speech.activeSessionID, let page = page(id, holding: speech.activeTextFingerprint) {
             library.recordPosition(page, paragraph: speech.currentParagraphIndex, utf16Offset: speech.spokenUTF16Offset)
         }
         library.commit("scene left")

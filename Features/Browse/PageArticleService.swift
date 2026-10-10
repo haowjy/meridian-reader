@@ -21,9 +21,9 @@ struct PageArticleService {
         defer { shell.busy = nil }
         let (article, url) = try await extract()
         shell.openReader(article)
-        if article.faviconData == nil {
+        if article.artwork == nil {
             let icon = await favicon(for: url)
-            shell.updateReader(id: article.id) { if $0.faviconData == nil { $0.faviconData = icon } }
+            shell.updateReader(id: article.id) { if $0.artwork == nil { $0.artwork = icon } }
         }
     }
 
@@ -35,7 +35,7 @@ struct PageArticleService {
         let outcome = await Self.listen(toPageAt: url, speech: speech, library: library) {
             try await extract().article
         }
-        if case .started(let article) = outcome, article.faviconData == nil, let icon = await favicon(for: url) {
+        if case .started(let article) = outcome, article.artwork == nil, let icon = await favicon(for: url) {
             speech.setArtwork(icon, for: article.id)
         }
         return outcome
@@ -55,7 +55,7 @@ struct PageArticleService {
         }
         // The page's spot, when the library has it (saved, or played without saving); a page
         // heard to the end starts again from the top, as the Reader's Listen Again does.
-        let page = library.page(key: article.id, canonicalURL: article.canonicalURL)
+        let page = library.page(key: article.id, canonicalURL: article.origin.canonicalURL)
         let heardToTheEnd = page?.finishedAt != nil
         speech.localTTS.prepareListenIdentity(key: article.id, paragraphs: article.document.paragraphs,
                                               trustedParagraphs: article.trustedParagraphs,
@@ -72,8 +72,8 @@ struct PageArticleService {
         shell.busy = .save
         defer { shell.busy = nil }
         var (article, url) = try await extract()
-        if article.faviconData == nil {
-            article.faviconData = await favicon(for: url)
+        if article.artwork == nil {
+            article.artwork = await favicon(for: url)
         }
         shell.attempt(String(localized: "Couldn’t save")) {
             try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
@@ -104,12 +104,12 @@ struct PageArticleService {
         guard let url = web.currentURL else {
             throw ExtractionError.unavailable(reason: "Open a page first.")
         }
-        let html = try await web.snapshotHTML()
-        let extracted = try await extractor.extract(from: ExtractionContext(url: url, pageTitle: web.pageTitle,
-                                                                            htmlSnapshot: html))
-        var article = library.readerArticle(url: url, extracted: extracted)
-        if article.faviconData == nil {
-            article.faviconData = recentFavicon(for: url)
+        let source = SingleWebPageSource(url: url, pageTitle: web.pageTitle, htmlSnapshot: try await web.snapshotHTML(),
+                                         extractor: extractor)
+        let content = try await source.content(of: source.page)
+        var article = library.readerArticle(url: url, extracted: content.extracted, document: content.document)
+        if article.artwork == nil {
+            article.artwork = recentFavicon(for: url)
         }
         return (article, url)
     }

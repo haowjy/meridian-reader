@@ -80,11 +80,14 @@ struct LibraryMenu {
     }
 
     enum Action {
-        case voiceSettings, newFolder, sort(PageSort), rename, move, deleteFolder, deleteDownloads, listenDebug
+        case voiceSettings, newFolder, importBook, sort(PageSort), rename, move, deleteFolder, deleteDownloads, listenDebug
         case favorites, history, browser
     }
 
     var screen: Screen
+    /// *Import Book…* on the home and plain folders (the Library surface; the Favorites sheet
+    /// has none, since the Files picker can't open over a sheet).
+    var canImportBook = false
     /// The screen's page sort (folders and the top level's pages).
     var sort: PageSort = .manual
     /// Developer options: the Debug row (listen debug panel), last on every screen.

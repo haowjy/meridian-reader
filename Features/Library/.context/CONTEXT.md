@@ -33,7 +33,13 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **The Move tree's pick reports success.** `MoveRequest.onPick` returns false when the change
   couldn't be saved, and the tree stays up (`MoveRequest.pick`); return true only once it is
   saved (the browser's *Save to Library…*, which extracts first, returns true and reports its own
-  failure).
+  failure). `MoveTreeList` is the tree itself, shared with the import sheet's *Add to*: it hands
+  a pick and a *New Folder* name to its caller, and both callers make the folder through
+  `MoveTreeList.makeFolder` (`attempt`), so one that can't be saved picks nothing and leaves the
+  tree up.
+- **A book import is one edit.** `addBook` and `replaceBook` stage inside `edit`; the import
+  sheet shows a failed save as its one-line failure (`BookImportError.couldNotSave`), not a
+  toast. *Replace* stops the chapters it changes before it stages anything.
 - **Rows for UI tests.** A row's title `Text` is its accessibility element (the status is its
   value; the rest is hidden). XCUITest still lists the texts under an element that ignores its
   children, so a combined element would answer to a title twice; tests find rows by title.
