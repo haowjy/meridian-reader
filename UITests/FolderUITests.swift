@@ -87,7 +87,13 @@ final class FolderUITests: XCTestCase {
         XCTAssertTrue(move.waitForExistence(timeout: 3), "the row's menu")
         move.tap()
         XCTAssertTrue(find(app, "moveTree").waitForExistence(timeout: 5))
-        moveTreeFolder(app, "Bonds").press(forDuration: 1.0)
+        // At the medium detent Bonds is the last row, cut off by the sheet's bottom edge, where
+        // a long-press lands as a tap (it picked Bonds) instead of opening the menu. Open the
+        // sheet to full height so the row is wholly on screen first.
+        find(app, "moveTree").swipeUp()
+        let bonds = moveTreeFolder(app, "Bonds")
+        XCTAssertTrue(eventually(3) { bonds.isHittable && bonds.frame.maxY < app.frame.maxY - 80 }, "Bonds on screen")
+        bonds.press(forDuration: 1.0)
         let inside = app.buttons["moveNewFolderInside"].firstMatch
         XCTAssertTrue(inside.waitForExistence(timeout: 3), "New Folder Inside")
         inside.tap()
