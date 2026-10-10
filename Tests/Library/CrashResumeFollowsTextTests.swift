@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Crash resume applies the paragraph that was playing only on a page holding the text it was
 /// played in; otherwise the page opens paused at its own spot and keeps it. Each test runs the

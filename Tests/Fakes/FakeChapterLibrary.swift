@@ -1,5 +1,5 @@
 import Foundation
-@testable import Reader
+@testable import MeridianReader
 
 /// A book (or series) for playback to carry on through, in memory: `NextChapterProviding`
 /// without SwiftData. Records the chapters it was told finished and the fetches it was asked for;

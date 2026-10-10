@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The folder tree: nesting, moves and their refusals, both kinds of folder delete, Favorites'
 /// rules, and the fractional order.

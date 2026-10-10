@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Cutting stays close to linear for books inside every cap: many headings, many contents entries
 /// on one target, many branches to open, many spine files. Each book is read through the package,

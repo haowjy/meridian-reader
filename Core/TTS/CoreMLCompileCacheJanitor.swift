@@ -25,7 +25,7 @@ enum CoreMLCompileCacheJanitor {
     }
 
     /// Changes with every install: iOS puts each installed binary in a fresh
-    /// `/…/Bundle/Application/<UUID>/Reader.app` container. (Bundle file dates are no use: on
+    /// `/…/Bundle/Application/<UUID>/MeridianReader.app` container. (Bundle file dates are no use: on
     /// device they read as the epoch, so a date stamp matched the "never ran" default of 0.)
     static var installID: String {
         Bundle.main.bundleURL.deletingLastPathComponent().lastPathComponent

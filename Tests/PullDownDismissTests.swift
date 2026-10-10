@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// A committed pull-down carries on at the release speed, and the reader overlay looks like a
 /// sheet while it is pulled: slightly smaller, with the dim behind it lifting.

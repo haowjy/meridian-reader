@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// *Replace* (decision D13): the book's pages rebuilt in the same folder. A chapter keeps what was
 /// listened to only where its text shows it is the same chapter: a key match alone doesn't carry

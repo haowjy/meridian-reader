@@ -1,6 +1,6 @@
 import SwiftUI
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The palette's text pairs keep 4.5:1: the app's in both appearances, the player's (Now Playing,
 /// one value in both) on each of its backgrounds, and what sits on a translucent fill, composited

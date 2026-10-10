@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The whole background / route admission matrix, one row per case.
 final class RenderAdmissionTests: XCTestCase {

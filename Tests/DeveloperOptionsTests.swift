@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Developer options (Debug rows, Listen debug): on by default in Debug builds, off in Release,
 /// and a stored unlock from an older build is cleared once on Release.

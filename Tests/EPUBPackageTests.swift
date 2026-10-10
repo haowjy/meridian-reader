@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The package document: `container.xml` → OPF, metadata, spine and cover, for EPUB2 and EPUB3.
 final class EPUBPackageTests: XCTestCase {

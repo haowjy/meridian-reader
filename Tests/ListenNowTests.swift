@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// 🎧 extracts its page before it plays. Each tap is its own request: Stop Listening, another ▶
 /// or another 🎧 during extraction supersedes it, and only the current request may start.

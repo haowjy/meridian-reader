@@ -1,6 +1,6 @@
 import XCTest
 import SwiftUI
-@testable import Reader
+@testable import MeridianReader
 
 /// Swipe-to-dismiss rules shared by the ⋯ menu panel and the reader overlay's pull-down: axis
 /// fixed by the first movement, rubber-banded upward drags, and the release threshold.

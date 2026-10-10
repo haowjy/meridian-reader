@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// With ☝︎ on, each paragraph of the reading page is a button to assistive tech: "Paragraph N",
 /// with the hint "Plays from this paragraph". Off, the paragraphs read as text again.

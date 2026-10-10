@@ -56,7 +56,7 @@ struct NowPlayingInfo: Equatable {
     /// Subtitle line (MPMediaItemPropertyArtist): the lock screen shows title + this line.
     var subtitle: String { [site, progressLabel].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ") }
     /// MPMediaItemPropertyAlbumTitle: the book or series, else the site.
-    var albumTitle: String { album ?? site ?? "Reader" }
+    var albumTitle: String { album ?? site ?? "Meridian Reader" }
 
     var dictionary: [String: Any] {
         var d: [String: Any] = [

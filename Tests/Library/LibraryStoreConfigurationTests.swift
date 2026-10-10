@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The two-store layout against the real models, on file-backed stores: today's store opens
 /// under the "local" configuration, the library sits in its own file, an older build's view of

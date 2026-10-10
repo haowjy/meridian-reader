@@ -796,7 +796,7 @@ final class SpeechController {
         }
         let meta = sessionMeta?.id == id ? sessionMeta : nil
         let info = NowPlayingInfo(
-            title: meta?.title ?? "Reader", site: meta?.site, album: meta?.folderName,
+            title: meta?.title ?? "Meridian Reader", site: meta?.site, album: meta?.folderName,
             paragraph: playback.playhead + 1, paragraphCount: playback.paragraphCount,
             isPlaying: playback.phase == .playing, rate: rateMultiplier, artwork: meta?.artwork)
         lockScreen.update(info, canNext: playback.playhead + 1 < playback.paragraphCount, canPrevious: true)

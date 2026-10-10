@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Decision D10: the shell remembers the surface you left (the Library with its path, or the
 /// browser and its page) and reopens on it; with nothing remembered (a fresh install) it opens

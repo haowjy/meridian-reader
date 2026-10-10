@@ -1,6 +1,6 @@
 # TTS engines
 
-Reader speaks with **Apple TTS** (always available, the default and the fallback) or **Kokoro**,
+Meridian Reader speaks with **Apple TTS** (always available, the default and the fallback) or **Kokoro**,
 an optional on-device neural voice. Voice libraries plug in behind one registry, so the listen
 core never imports a library or switches on engine types. How playback, rendering and the audio
 cache use an engine is in `LISTEN_PLAYBACK.md`.

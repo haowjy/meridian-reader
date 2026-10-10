@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Markup the parser refuses or bounds: text files and nodes over their caps (per file and across
 /// the book), nesting too deep, unmatched end tags (cheap at any depth), package XML that isn't

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Scrubber seek: keeps play/pause state (paused seek must not start audio or reload).
 @MainActor

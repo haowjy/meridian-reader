@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// A library over an in-memory container (or, `fileBacked`, the two store files), with its own
 /// audio cache, defaults and bookmarks file in a temp directory. `cleanUp()` removes them.

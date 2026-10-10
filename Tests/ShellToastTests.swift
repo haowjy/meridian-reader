@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The shell's toast goes by itself once a place showing it has waited its time; a place that
 /// goes away meanwhile (a sheet closing just as the toast comes up) doesn't take it with it.

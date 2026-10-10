@@ -1,6 +1,6 @@
 import XCTest
 import SwiftUI
-@testable import Reader
+@testable import MeridianReader
 
 /// The ⋯ morph grows the glass's frame and corner radius (never a stretch): from the button's
 /// circle to the panel, with the point it grows out of kept in place.

@@ -1,5 +1,5 @@
 import Foundation
-@testable import Reader
+@testable import MeridianReader
 
 /// An extractor that holds every extraction until the test lets it finish (or fail), so a test
 /// can act while a page is still extracting.

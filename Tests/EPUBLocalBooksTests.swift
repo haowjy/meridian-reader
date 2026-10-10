@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Reads real EPUBs kept outside the repo and reports how each was cut, then imports each and
 /// reports its chapters as stored, settled on their listen blocks. Skipped unless

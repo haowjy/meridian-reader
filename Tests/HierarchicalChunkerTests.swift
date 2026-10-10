@@ -1,6 +1,6 @@
 import AVFoundation
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Audio chunking of giant run-on paragraphs. Fixture text is public domain: Arthur Conan Doyle,
 /// "The Boscombe Valley Mystery" (1891). Joins between chunks must fall where a reader pauses

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 @MainActor
 private final class MockRecognizer: DictationRecognizing {

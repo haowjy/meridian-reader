@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Files outside the library store (the audio cache, pending renders, the crash-resume point)
 /// change only after the library change they belong to is saved: a failed save leaves them as

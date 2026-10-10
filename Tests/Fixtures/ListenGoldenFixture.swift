@@ -1,4 +1,4 @@
-@testable import Reader
+@testable import MeridianReader
 
 /// What web extraction produced when Readability and the listen normalizer ran as one script,
 /// recorded from that build (`5ebb02f`) for `ListenContentGoldenTests`. Never re-record

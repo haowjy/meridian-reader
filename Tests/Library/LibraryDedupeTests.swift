@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Every rule of the launch dedupe pass (the cases sync and a migration copy can make).
 @MainActor

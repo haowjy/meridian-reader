@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// A book's or series' chapters in play order: by `sortKey`, skipped ones kept and flagged, link
 /// chapters included.

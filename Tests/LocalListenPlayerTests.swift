@@ -1,6 +1,6 @@
 import AVFoundation
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The local listen player over a fake unit source. The producer fills the player buffer and then
 /// stops; the next unit to end starts it again (no polling while the buffer is full). The

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Web extraction is Readability, then the listen normalizer (`ListenContentNormalizer`). For
 /// every offline test page, and two synthetic documents that give the normalizer work (loose

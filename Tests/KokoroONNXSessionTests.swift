@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// End-to-end ONNX Runtime check against the Mac Python reference (onnxruntime 1.2x, same fp16
 /// model, same phonemes/vocab/af_heart row 500): 657000 samples, RMS ≈ 0.0722.

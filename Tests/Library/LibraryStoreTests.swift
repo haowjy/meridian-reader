@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Pages through `LibraryStore`: one page per address in every state, save / link / play /
 /// remove / delete, and what each does to the audio and to playback.

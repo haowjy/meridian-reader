@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Bake-ahead renders at a lower priority than chunks someone is listening to, and waits while
 /// the device is hot or in Low Power Mode; listener chunks always render.

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The table of contents (EPUB3 nav, EPUB2 NCX) and cutting the book at its anchors: depth chosen
 /// per branch, chapters across files, tiny entries merged, fallbacks for sparse or missing contents.

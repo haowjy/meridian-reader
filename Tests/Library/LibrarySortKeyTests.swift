@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Order among siblings is a fractional `sortKey`: a move writes only what moved, many moves never
 /// collide, and the siblings are renumbered in one pass once a gap would get under 1e-9. Edit's

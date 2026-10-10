@@ -1,6 +1,6 @@
 import UIKit
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// An EPUB through the whole import: read and cut, each chapter normalized in the hidden web view,
 /// settled on its listen blocks, then stored as one book folder at the destination, with progress

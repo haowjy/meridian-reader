@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Continue: pages part-way through, most recently played first (`LibraryQueries.continuePages`).
 @MainActor

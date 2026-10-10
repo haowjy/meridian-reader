@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Refusals: DRM (an encrypted text document or a rights file; obfuscated fonts are fine), fixed
 /// layout, zip bombs (size and entry caps, checked again while inflating), and paths that climb

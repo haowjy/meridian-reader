@@ -88,7 +88,7 @@ enum KokoroCrashRecovery {
     }
 
     static let resumedNotice = "Kokoro stopped unexpectedly; resumed on the stable route."
-    static let appleNotice = "Kokoro stopped unexpectedly twice on the stable route, so Reader switched to the Apple voice. Tap Kokoro in Settings to try again."
+    static let appleNotice = "Kokoro stopped unexpectedly twice on the stable route, so Meridian Reader switched to the Apple voice. Tap Kokoro in Settings to try again."
 
     /// `crashedRoute` nil = legacy marker (older builds only ran Core ML).
     static func onCrash(route crashedRoute: KokoroRoute?, onnxCrashCount: inout Int) -> Outcome {

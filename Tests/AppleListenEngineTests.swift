@@ -1,6 +1,6 @@
 import AVFoundation
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Apple's article end is the live utterance's `didFinish`, not a guess from the last word's
 /// offset; callbacks from an utterance that was stopped or replaced are dropped.

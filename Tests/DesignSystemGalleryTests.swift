@@ -1,6 +1,6 @@
 import SwiftUI
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Every design-system gallery (the states its previews show) renders in light, dark and the
 /// largest text size, and the accent asset matches the palette. Contrast: `ColorContrastTests`.

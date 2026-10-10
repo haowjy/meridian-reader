@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// `-importTestEPUB`: the synthetic EPUB goes through the real import into the top level, fresh
 /// each launch, and plays from chapter 1, not its title page.

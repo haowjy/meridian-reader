@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Registry / capability tests. Also pins the persisted ids + cache voice keys so the DI
 /// refactor can't silently invalidate existing Kokoro caches or settings.

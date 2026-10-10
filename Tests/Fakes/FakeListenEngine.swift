@@ -1,5 +1,5 @@
 import Foundation
-@testable import Reader
+@testable import MeridianReader
 
 /// Scripted `ListenEngine` (stands in for Apple's synthesizer): records commands and confirms
 /// pause / resume at once, as an engine that holds its audio immediately would; the test emits the

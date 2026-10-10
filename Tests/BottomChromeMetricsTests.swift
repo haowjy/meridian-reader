@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The field capsule and its controls grow with Dynamic Type, within limits.
 final class BottomChromeMetricsTests: XCTestCase {

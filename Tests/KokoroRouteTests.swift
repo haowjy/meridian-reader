@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// ONNX-main Kokoro: route selection, crash auto-recover, resume target, crash-marker parsing,
 /// Core ML breadcrumb attribution, first-chunk sizing and the head-start rule.

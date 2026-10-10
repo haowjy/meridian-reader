@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// One article per canonical URL: tracking parameters, fragments and host case never make a
 /// second article (or a second Saved row) for the same page.

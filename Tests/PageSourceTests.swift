@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Sources hand out pages and their normalized content the same way, whatever the pages are.
 @MainActor

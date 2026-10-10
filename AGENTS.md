@@ -6,24 +6,25 @@ Single user, no backend. SwiftUI, SwiftData, iOS 17+, iPhone portrait.
 
 ## Build and test
 
-The Xcode project is generated: edit `project.yml`, never `Reader.xcodeproj` by hand. After adding,
-moving or deleting a Swift file, run `xcodegen generate` and commit the regenerated project with
-the change.
+The Xcode project is generated: edit `project.yml`, never `MeridianReader.xcodeproj` by hand. After
+adding, moving or deleting a Swift file, run `xcodegen generate` and commit the regenerated project
+with the change.
 
 ```sh
 xcodegen generate
-xcodebuild test -project Reader.xcodeproj -scheme Reader -only-testing:ReaderTests \
+xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
+  -only-testing:MeridianReaderTests \
   -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath <dd>
-xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release \
+xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -configuration Release \
   -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath <dd>
 ```
 
-- One scheme, `Reader`, with two test targets: `ReaderTests` (unit, `Tests/`) and `ReaderUITests`
-  (`UITests/`). Use a separate `-derivedDataPath` per worktree.
+- One scheme, `MeridianReader`, with two test targets: `MeridianReaderTests` (unit, `Tests/`) and
+  `MeridianReaderUITests` (`UITests/`). Use a separate `-derivedDataPath` per worktree.
 - **The machine is memory-starved.** While working, run only the test classes you touched
-  (`-only-testing:ReaderTests/<Class>`). Run the full `ReaderTests` once at the end, then the full
-  `ReaderUITests` once, under `gtimeout`. A UI test that stalls with the app idle: rerun it alone,
-  once.
+  (`-only-testing:MeridianReaderTests/<Class>`). Run the full `MeridianReaderTests` once at the end,
+  then the full `MeridianReaderUITests` once, under `gtimeout`. A UI test that stalls with the app
+  idle: rerun it alone, once.
 - Known flake: `PlaybackRateAndChromeTests.testSpeedChangeAppliesInPlaceWithoutRestartingTheUnit`;
   rerun it alone.
 - UI tests drive the app with launch arguments (`App/LaunchOptions.swift`, Debug builds only):
@@ -49,7 +50,7 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
 | `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `Extraction` (Readability, the listen normalizer), `Sources` (`PageSource`s, the book import), `Persistence` (SwiftData; `Library/`: `Folder`, `Page`, `LibraryStore`, `LibraryQueries`, the migration), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web`, `Device` |
 | `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Library` (the Library's screens, rows, the Move tree, Favorites), `Browse`, `Reader`, `Saved` (the save path), `Speech` (playback, engines, settings) |
 | `Tests/`, `UITests/` | Unit tests (fakes in `Tests/Fakes/`), UI tests |
-| `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Reader uses only Kokoro |
+| `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
 | `Resources/` | Readability scripts, voice previews, assets |
 | `docs/` | How the app behaves and why (below) |
 

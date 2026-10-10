@@ -1,5 +1,5 @@
 import Foundation
-@testable import Reader
+@testable import MeridianReader
 
 /// A `SpeechController` over a scripted Apple engine, with no system audio session, lock screen
 /// or shared defaults, and no resume file unless the test passes one (`resumePoints`). `tearDown`

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The underlined sentence on the reading page is the sentence the session is at: the page maps
 /// the session's UTF-16 offsets onto the DOM, counting the paragraph's text exactly as the session

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Every change `ArticleAudioCache` makes to an article's audio is copy-on-write: stopped at any
 /// step (the fault hook throws there, as if the app died), a cold load of the cache (a new

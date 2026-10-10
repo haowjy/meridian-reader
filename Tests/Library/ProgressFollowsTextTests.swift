@@ -1,7 +1,7 @@
 import SwiftData
 import UIKit
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Listening progress lands only on the text that was played: a start, a position or an end is
 /// stored on a page only while that page holds the text the session plays, a rollback writes it

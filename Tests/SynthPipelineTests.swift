@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Shared synth pipeline with the fake engine: chunking by capabilities, overflow → re-split,
 /// hard failure → Apple fallback (never skip), and queue priority.

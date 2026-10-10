@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Chatterbox Nano removal: selection migrates (Kokoro if installed, else Apple), Nano-keyed
 /// cached audio + index entries and orphan CAFs are deleted, model files are deleted once.

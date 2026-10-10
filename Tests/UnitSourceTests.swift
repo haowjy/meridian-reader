@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Playback-unit identity: which units of one paragraph would replay the same audio, and where
 /// an Apple fallback restarts the engine after the background.

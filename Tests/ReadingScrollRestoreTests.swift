@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Now Playing opens at the Reader's offset (D2) once the page's layout can hold it. The offset
 /// belongs to one load; a scrub, follow, drag or new load drops it; and it never waits for ever: an

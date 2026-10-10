@@ -8,13 +8,13 @@ Readability, save it, and listen offline with Apple's voices or Kokoro running o
 ```bash
 cd ~/repos/meridian-reader
 xcodegen generate
-open Reader.xcodeproj
+open MeridianReader.xcodeproj
 ```
 
-Pick an iOS Simulator or a device and run the `Reader` scheme. The home-screen name is
-**Meridian Reader**. The target and bundle id stay `Reader` / `com.jimmyyao.Reader` so existing
-installs keep their data. Measure speech timing on a device with a Release build; FluidAudio is
-about 3× slower in Debug.
+Pick an iOS Simulator or a device and run the `MeridianReader` scheme. The home-screen name is
+**Meridian Reader**. The app target and product are `MeridianReader`; its bundle id stays
+`com.jimmyyao.Reader` so existing installs keep their data. Measure speech timing on a device with
+a Release build; FluidAudio is about 3× slower in Debug.
 
 Requirements: Xcode with the iOS 17+ SDK and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 (`brew install xcodegen`).

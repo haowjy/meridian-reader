@@ -1,7 +1,7 @@
 import UIKit
 import WebKit
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The reading page's real web view and coordinator, in a window of its own (WebKit lays out and
 /// reports content size only for a view in a window), for tests that need WebKit's layout or DOM.

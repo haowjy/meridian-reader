@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The session owns the position. Engines report it (the on-device engine from player time,
 /// through `ListenPositionMapper`), Pause turns the phase only once the engine confirms, and the

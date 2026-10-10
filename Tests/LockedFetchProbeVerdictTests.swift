@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The device probe's verdicts. The owner runs it once on a locked phone, and the Simulator can't
 /// lock (protected data is always available there), so its pass and fail are pinned here.

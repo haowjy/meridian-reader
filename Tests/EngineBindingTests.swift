@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The engine that speaks is chosen once, when speaking starts, and keeps every command until the
 /// next `speak` or stop. An on-device engine that finishes warming up mid-playback must not take

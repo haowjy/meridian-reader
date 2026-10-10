@@ -1,7 +1,7 @@
 import AVFoundation
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Paragraph layout v3 on library pages: giant paragraphs split, the position kept on the same
 /// sentence, cached audio sliced or moved where it still lines up, crash resume remapped.

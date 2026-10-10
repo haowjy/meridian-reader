@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The render queue stitches a paragraph off the main actor and publishes it on the main actor
 /// only if the queue still wants that text on that paragraph. An alignment of the article's audio

@@ -19,9 +19,9 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Reader uses the microphone when you tap the mic in the Browse address bar, so you can say what to search for.</string>
+	<string>Meridian Reader uses the microphone when you tap the mic in the Browse address bar, so you can say what to search for.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Reader turns what you say into text for the Browse address bar. Recognition runs on your iPhone when your language supports it.</string>
+	<string>Meridian Reader turns what you say into text for the Browse address bar. Recognition runs on your iPhone when your language supports it.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

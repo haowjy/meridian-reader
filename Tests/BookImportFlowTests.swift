@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The import sheet's flow (`BookImportFlow`) over the real import: where the book lands, *Add to*
 /// changed while it runs (stored there in the import's one save), D13's question, *Cancel*,

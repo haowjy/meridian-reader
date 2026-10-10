@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The copy from saved articles, bookmarks and listen history into the library: same keys, audio
 /// found where it is, Favorites in the bookmarks' order, copy-once by the receipts saved with the

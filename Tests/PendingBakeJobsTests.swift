@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Pending bake jobs live in a small JSON file; jobs older builds left in UserDefaults move there
 /// on the first load.

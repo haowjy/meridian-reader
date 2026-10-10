@@ -1,7 +1,7 @@
 import SwiftData
 import UIKit
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// An imported book's *Replace* under the library's save rules: it is one edit
 /// (`LibraryStore.edit`), so stopping the chapter it changes never stores half of it, and the

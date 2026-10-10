@@ -1,5 +1,5 @@
 import Foundation
-@testable import Reader
+@testable import MeridianReader
 
 /// Deterministic test engine: a 440 Hz tone (or silence) of 50 ms per character, with
 /// configurable latency, per-call cap (→ `LocalSynthError.inputTooLong`) and hard failures.

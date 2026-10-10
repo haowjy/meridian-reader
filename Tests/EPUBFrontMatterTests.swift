@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Front and back matter are skipped as whole chapters, and only chapters wholly inside them:
 /// landmarks, the EPUB2 guide, `epub:type`, `linear="no"`, short unlisted pages, and

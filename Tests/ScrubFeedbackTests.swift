@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Scrubber feedback: haptic ticks only where boundaries are far enough apart to feel, a firm
 /// tick at the ends, and a bubble that rides above the finger.

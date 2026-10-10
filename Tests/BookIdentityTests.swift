@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Book and chapter keys: the same file gives the same keys on every import (they're audio cache
 /// keys), chapters cut from one file differ by anchor, markup that doesn't change the text keeps

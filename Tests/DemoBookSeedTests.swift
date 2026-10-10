@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// `-seedDemoBook` runs on a phone with real data (the chapter-boundary device check): each
 /// launch replaces what an earlier one seeded, and only that. A page of the user's at one of the

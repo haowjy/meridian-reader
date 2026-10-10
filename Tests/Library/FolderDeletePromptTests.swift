@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The question deleting folders asks: *Delete Folder Only* only when nothing selected is a book
 /// or series (books always go with their chapters), and the books named in every choice and in

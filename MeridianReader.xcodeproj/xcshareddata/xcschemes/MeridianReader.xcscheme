@@ -15,10 +15,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "4FF2F419C3D2B210459D9DF7"
-               BuildableName = "Reader.app"
-               BlueprintName = "Reader"
-               ReferencedContainer = "container:Reader.xcodeproj">
+               BlueprintIdentifier = "8A61C4D97EF1D05E167E3218"
+               BuildableName = "MeridianReader.app"
+               BlueprintName = "MeridianReader"
+               ReferencedContainer = "container:MeridianReader.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -32,10 +32,10 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "4FF2F419C3D2B210459D9DF7"
-            BuildableName = "Reader.app"
-            BlueprintName = "Reader"
-            ReferencedContainer = "container:Reader.xcodeproj">
+            BlueprintIdentifier = "8A61C4D97EF1D05E167E3218"
+            BuildableName = "MeridianReader.app"
+            BlueprintName = "MeridianReader"
+            ReferencedContainer = "container:MeridianReader.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <Testables>
@@ -44,10 +44,10 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "39EE394081F27533C5E85A19"
-               BuildableName = "ReaderTests.xctest"
-               BlueprintName = "ReaderTests"
-               ReferencedContainer = "container:Reader.xcodeproj">
+               BlueprintIdentifier = "056724A95F436833A1D83EFE"
+               BuildableName = "MeridianReaderTests.xctest"
+               BlueprintName = "MeridianReaderTests"
+               ReferencedContainer = "container:MeridianReader.xcodeproj">
             </BuildableReference>
          </TestableReference>
          <TestableReference
@@ -55,10 +55,10 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "034B4CA2FC95049CD7ACA6DC"
-               BuildableName = "ReaderUITests.xctest"
-               BlueprintName = "ReaderUITests"
-               ReferencedContainer = "container:Reader.xcodeproj">
+               BlueprintIdentifier = "5082070DABAF25BBCA7EDEAA"
+               BuildableName = "MeridianReaderUITests.xctest"
+               BlueprintName = "MeridianReaderUITests"
+               ReferencedContainer = "container:MeridianReader.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -79,10 +79,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "4FF2F419C3D2B210459D9DF7"
-            BuildableName = "Reader.app"
-            BlueprintName = "Reader"
-            ReferencedContainer = "container:Reader.xcodeproj">
+            BlueprintIdentifier = "8A61C4D97EF1D05E167E3218"
+            BuildableName = "MeridianReader.app"
+            BlueprintName = "MeridianReader"
+            ReferencedContainer = "container:MeridianReader.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <CommandLineArguments>
@@ -98,10 +98,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "4FF2F419C3D2B210459D9DF7"
-            BuildableName = "Reader.app"
-            BlueprintName = "Reader"
-            ReferencedContainer = "container:Reader.xcodeproj">
+            BlueprintIdentifier = "8A61C4D97EF1D05E167E3218"
+            BuildableName = "MeridianReader.app"
+            BlueprintName = "MeridianReader"
+            ReferencedContainer = "container:MeridianReader.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <CommandLineArguments>

@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Every play button asks one question, `playState(of:)`: is this what you hear, and is it playing.
 @MainActor

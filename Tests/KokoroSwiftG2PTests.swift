@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The ONNX route's pure-Swift BART G2P must match FluidAudio's Core ML `G2PModel` (same fp16
 /// weights, read from the mlmodelc) so switching routes does not change pronunciation.

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Browse → Save → open in Reader while another saved article plays. Opening the reader for the
 /// just-saved article (not the live session) must keep the chunk scratch of the paragraph the

@@ -1,6 +1,6 @@
 import AVFoundation
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Speed changes apply in place (player time-stretch, no restart / re-queue), developer
 /// options default per build, the five-slot bottom toolbar grid.

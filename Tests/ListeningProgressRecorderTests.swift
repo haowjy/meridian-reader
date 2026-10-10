@@ -1,6 +1,6 @@
 import UIKit
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Listening progress is saved into the library from the playback session, not from a screen.
 @MainActor

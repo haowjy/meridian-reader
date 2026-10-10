@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// One voice per article: after a voice (or engine) switch, old-voice CAFs stay playable until
 /// each paragraph is re-rendered, re-rendering replaces that paragraph's file, bake marks count

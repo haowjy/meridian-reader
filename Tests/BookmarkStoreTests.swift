@@ -1,6 +1,6 @@
 import XCTest
 import UIKit
-@testable import Reader
+@testable import MeridianReader
 
 /// Bookmarks are Favorites' pages (`LibraryStore+Favorites`): toggled from ⋯, deduped by
 /// canonical URL, renamed, reordered, removed, with a tile-sized icon when one can be found.

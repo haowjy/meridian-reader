@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Reader scrubber: position ↔ paragraph mapping and buffered spans.
 final class ReaderScrubMapTests: XCTestCase {

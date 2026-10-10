@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 final class AddressSuggestionsTests: XCTestCase {
     private struct Page: AddressSuggestionSource {

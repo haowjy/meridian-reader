@@ -1,5 +1,5 @@
 import Foundation
-@testable import Reader
+@testable import MeridianReader
 
 /// `ListenUnitSource` for player tests: every paragraph is rendered as `rendered` (nil: nothing
 /// rendered, and every chunk fails as an engine error), one chunk per paragraph, an idle worker.

@@ -1,6 +1,6 @@
 # Listen playback
 
-How Reader speaks an article: Apple TTS, or Kokoro on the device (engines: `TTS_ENGINES.md`).
+How Meridian Reader speaks an article: Apple TTS, or Kokoro on the device (engines: `TTS_ENGINES.md`).
 One ownership story, so Play continues, Pause matches what you hear, and rendering ahead makes
 starts fast.
 
@@ -490,7 +490,7 @@ keeps it playing too; the Now Playing bar shows it.
 
 **Audio session** (`ListenAudioSession`): `UIBackgroundModes: [audio]` (`project.yml`). Category
 `.playback`, mode `.spokenAudio`, no options: a mixable (ducking) session never becomes the Now
-Playing app, so other apps' audio pauses while Reader speaks, like a podcast app. Only the
+Playing app, so other apps' audio pauses while Meridian Reader speaks, like a podcast app. Only the
 category is set at launch; the session activates when playback starts or resumes and deactivates
 with `.notifyOthersOnDeactivation` on stop or finish.
 
@@ -585,8 +585,8 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   the same book as a `blob:` URL, for the `.epub` link path.
 - `-probeLockedFetch`: the locked-phone check web serials need (`LockedFetchProbe`). It runs only
   in its own install, a second app built with `BUNDLE_ID_SUFFIX=.probe
-  APP_DISPLAY_NAME="Reader Probe"` (bundle id `com.jimmyyao.Reader.probe`, its own container);
-  in Reader itself it logs `probe_refused` and does nothing. There it picks Apple's voice at 1× and
+  APP_DISPLAY_NAME="Meridian Reader Probe"` (bundle id `com.jimmyyao.Reader.probe`, its own container);
+  in Meridian Reader itself it logs `probe_refused` and does nothing. There it picks Apple's voice at 1× and
   plays a two-chapter series held in memory, made of the demo book's text: chapter 1 saved,
   chapter 2 a link chapter. 60 s after the app goes to the background, `URLPageFetcher` loads and
   extracts the offline page `reader-test://fetch/hidden-span` (each stage gives up after 15 s).

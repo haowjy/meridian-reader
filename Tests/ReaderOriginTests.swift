@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The Reader sheet returns to the surface underneath (the browser as it was, or the library),
 /// and its back pill names it. The Reader never shows what you hear: opening the page that is

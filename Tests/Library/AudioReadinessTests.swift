@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// "Audio ready": every listen paragraph (`Page.paragraphCount`) rendered in the current voice.
 /// Derived from the audio cache, so a voice change, the trim of finished chapters, Delete

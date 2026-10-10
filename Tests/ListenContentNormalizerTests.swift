@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The listen normalizer on its own: text sitting loose in a `<div>` becomes a listen block, so it
 /// is read and spoken; a book chapter loses what isn't text to read.

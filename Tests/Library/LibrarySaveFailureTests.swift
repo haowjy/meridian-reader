@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// A library edit whose save fails is rolled back and throws `LibraryStoreError.saveFailed`: the
 /// models the screens hold read as before (relationships and order too), nothing waits in the

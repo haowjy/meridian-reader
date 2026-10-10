@@ -1,7 +1,7 @@
 import XCTest
 
 /// Measurement probe (not part of the normal suite): Kokoro listen → Home for 40 s → back.
-/// Run with `TEST_RUNNER_READER_BG_PROBE=1 xcodebuild test … -only-testing:ReaderUITests/BackgroundListenProbeUITests`
+/// Run with `TEST_RUNNER_READER_BG_PROBE=1 xcodebuild test … -only-testing:MeridianReaderUITests/BackgroundListenProbeUITests`
 /// then read `Application Support/ListenTiming/timing.jsonl` in the Simulator app container
 /// (`app_phase`, `bg_unit`, `bg_deferred`, `synth`, `synth_blocked_bg`, `fallback_apple`).
 final class BackgroundListenProbeUITests: XCTestCase {

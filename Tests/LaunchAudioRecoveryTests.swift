@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The launch finishes the audio work an earlier launch left before anything cleans, reads or
 /// renders the audio cache. Driven through the composition's launch step

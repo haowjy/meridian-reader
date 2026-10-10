@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Chapters settled on their listen blocks, before any key is kept: empty ones go, short body
 /// chapters join a neighbour, front and back matter stay as they are.

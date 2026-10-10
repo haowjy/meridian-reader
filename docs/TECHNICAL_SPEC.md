@@ -23,7 +23,7 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 | Persistence | SwiftData, two store files: the library (`Folder`, `Page`) and the local store (`RecentVisit`; `SavedArticle`, frozen); small JSON files and UserDefaults for the rest |
 | Speech | `AVSpeechSynthesizer`; Kokoro via vendored FluidAudio (`Vendor/FluidAudio`) and ONNX Runtime (SPM `onnxruntime` 1.24.2) |
 | Language | `NaturalLanguage` (article language), `Speech` (address-bar dictation) |
-| Project | XcodeGen (`project.yml` → `Reader.xcodeproj`) |
+| Project | XcodeGen (`project.yml` → `MeridianReader.xcodeproj`) |
 
 ## Layout
 
@@ -45,8 +45,8 @@ Features/
   Library/  the Library surface and screens (home, folder, book), rows, the Move tree, Favorites' sheet and ☆, the import sheet
   Saved/    save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
-Tests/      unit tests (ReaderTests), Tests/Fakes
-UITests/    UI tests (ReaderUITests)
+Tests/      unit tests (MeridianReaderTests), Tests/Fakes
+UITests/    UI tests (MeridianReaderUITests)
 ```
 
 ## Architecture

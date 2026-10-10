@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The first (fast-start) chunk of a paragraph must end at a sentence end or a clause boundary
 /// (`; : —`, comma, before and/but/which/when…), never between bare words, and its join gets the

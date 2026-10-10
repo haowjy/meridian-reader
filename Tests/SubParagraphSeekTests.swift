@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Scrubbing snaps to sentence starts and playback resumes at that sentence (not the
 /// paragraph start); fine-scrub speeds; chunk ↔ paragraph offset mapping for the local engine.

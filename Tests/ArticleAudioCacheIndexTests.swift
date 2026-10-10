@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// `ArticleAudioCache` reads each article's `index.json` once and answers from memory: writes go
 /// through to disk, missing / empty CAFs are dropped when the index is loaded.

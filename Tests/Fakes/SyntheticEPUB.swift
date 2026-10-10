@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Builds EPUB files from strings for tests. Every word in them is generated here, so no book
 /// text enters the repo.

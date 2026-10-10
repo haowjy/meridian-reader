@@ -210,11 +210,11 @@ final class SystemDictationRecognizer: DictationRecognizing {
             SFSpeechRecognizer.requestAuthorization { cont.resume(returning: $0) }
         }
         guard speechStatus == .authorized else {
-            return .denied("Speech recognition is off for Reader. You can turn it on in Settings › Reader.")
+            return .denied("Speech recognition is off for Meridian Reader. You can turn it on in Settings › Meridian Reader.")
         }
         let micGranted = await AVAudioApplication.requestRecordPermission()
         guard micGranted else {
-            return .denied("Microphone access is off for Reader. You can turn it on in Settings › Reader.")
+            return .denied("Microphone access is off for Meridian Reader. You can turn it on in Settings › Meridian Reader.")
         }
         guard let recognizer, recognizer.isAvailable else {
             return .denied("Dictation isn’t available for your language right now.")

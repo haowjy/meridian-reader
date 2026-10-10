@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The rule for books and series (`ChapterAdvance`): a chapter carries on to the next playable
 /// one, and Continue starts at the book's place. Pure, then on the library's snapshot.

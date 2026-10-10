@@ -28,7 +28,7 @@ enum LocalSynthError: LocalizedError {
         case .inputTooLong(let detail): return detail
         case .emptyText: return "Nothing to synthesize."
         case .engineUnavailable(let detail): return detail
-        case .deferredInBackground: return "On-device voice paused while Reader is in the background."
+        case .deferredInBackground: return "On-device voice paused while Meridian Reader is in the background."
         }
     }
 }

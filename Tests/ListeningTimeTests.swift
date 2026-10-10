@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Listening-time estimates and the "nothing to listen to" threshold behind 🎧's toast.
 final class ListeningTimeTests: XCTestCase {

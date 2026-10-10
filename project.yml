@@ -1,4 +1,4 @@
-name: Reader
+name: MeridianReader
 options:
   bundleIdPrefix: com.jimmyyao
   deploymentTarget:
@@ -9,7 +9,7 @@ settings:
   DEVELOPMENT_TEAM: JMYU8K3WZN
 packages:
   FluidAudio:
-    # Vendored v0.16.1 with local patches (see Vendor/FluidAudio/VENDORED.md); Reader uses only Kokoro
+    # Vendored v0.16.1 with local patches (see Vendor/FluidAudio/VENDORED.md); Meridian Reader uses only Kokoro
     path: Vendor/FluidAudio
   onnxruntime:
     # Kokoro's ONNX CPU route (the main local route). The model is downloaded at runtime into
@@ -21,7 +21,7 @@ packages:
     url: https://github.com/weichsel/ZIPFoundation
     exactVersion: 0.9.20
 targets:
-  Reader:
+  MeridianReader:
     type: application
     platform: iOS
     sources:
@@ -51,11 +51,11 @@ targets:
       properties:
         UIBackgroundModes:
           - audio
-        NSMicrophoneUsageDescription: Reader uses the microphone when you tap the mic in the Browse address bar, so you can say what to search for.
-        NSSpeechRecognitionUsageDescription: Reader turns what you say into text for the Browse address bar. Recognition runs on your iPhone when your language supports it.
+        NSMicrophoneUsageDescription: Meridian Reader uses the microphone when you tap the mic in the Browse address bar, so you can say what to search for.
+        NSSpeechRecognitionUsageDescription: Meridian Reader turns what you say into text for the Browse address bar. Recognition runs on your iPhone when your language supports it.
     settings:
       # The locked-fetch probe's install overrides these two on the xcodebuild command line
-      # (`BUNDLE_ID_SUFFIX=.probe APP_DISPLAY_NAME="Reader Probe"`, see `App/LockedFetchProbe.swift`):
+      # (`BUNDLE_ID_SUFFIX=.probe APP_DISPLAY_NAME="Meridian Reader Probe"`, see `App/LockedFetchProbe.swift`):
       # a second app, with its own data container and its own name on the home screen. They are
       # variables, not overrides of PRODUCT_BUNDLE_IDENTIFIER, so they reach only this target and
       # not the packages' resource bundles. A normal build leaves them as they are here.
@@ -64,7 +64,7 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: com.jimmyyao.Reader$(BUNDLE_ID_SUFFIX)
       DEVELOPMENT_TEAM: JMYU8K3WZN
       CODE_SIGN_STYLE: Automatic
-      PRODUCT_NAME: Reader
+      PRODUCT_NAME: MeridianReader
       GENERATE_INFOPLIST_FILE: YES
       # System controls tint with the asset; it mirrors `Palette.accent` (DesignSystemGalleryTests).
       ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -80,29 +80,29 @@ targets:
       OTHER_LDFLAGS: $(inherited)
     scheme:
       testTargets:
-        - ReaderTests
-        - ReaderUITests
+        - MeridianReaderTests
+        - MeridianReaderUITests
 
-  ReaderTests:
+  MeridianReaderTests:
     type: bundle.unit-test
     platform: iOS
     sources:
       - path: Tests
     dependencies:
-      - target: Reader
+      - target: MeridianReader
     settings:
       GENERATE_INFOPLIST_FILE: YES
       PRODUCT_BUNDLE_IDENTIFIER: com.jimmyyao.ReaderTests
-      TEST_HOST: $(BUILT_PRODUCTS_DIR)/Reader.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Reader
+      TEST_HOST: $(BUILT_PRODUCTS_DIR)/MeridianReader.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MeridianReader
       BUNDLE_LOADER: $(TEST_HOST)
 
-  ReaderUITests:
+  MeridianReaderUITests:
     type: bundle.ui-testing
     platform: iOS
     sources:
       - path: UITests
     dependencies:
-      - target: Reader
+      - target: MeridianReader
     settings:
       GENERATE_INFOPLIST_FILE: YES
       PRODUCT_BUNDLE_IDENTIFIER: com.jimmyyao.ReaderUITests

@@ -1,7 +1,7 @@
 import MediaPlayer
 import UIKit
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// What the lock screen shows: for a chapter, its title, the book's byline with the paragraph,
 /// the book as the album and the book's cover when the chapter has no artwork; for a page in no

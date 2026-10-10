@@ -4,7 +4,7 @@ import XCTest
 /// Skipped unless a directory is given in xcodebuild's environment:
 ///
 ///     TEST_RUNNER_READER_SCREENSHOTS_DIR=/tmp/reader-shots \
-///         xcodebuild test … -only-testing:ReaderUITests/ScreenshotCaptureTests
+///         xcodebuild test … -only-testing:MeridianReaderUITests/ScreenshotCaptureTests
 ///
 /// Each PNG goes to `<dir>/<test>/<name>.png` and is also attached to the test result. The
 /// offline captures use the `reader-test://` pages and the demo article; `testBrowseBar` needs the

@@ -1,6 +1,6 @@
 import WebKit
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Article HTML is untrusted. The off-screen parse view and the reader view run only the app's
 /// own JavaScript (Readability, the reader bootstrap, highlight / scroll / jump calls); the

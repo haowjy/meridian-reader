@@ -1,6 +1,6 @@
 import SwiftUI
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Listen in the Reader hands its scroll position to Now Playing (D2), on the real reading pages:
 /// - from the Reader's top, Now Playing opens at its top with the title card in full;

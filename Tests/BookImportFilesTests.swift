@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// `Imports/`: a picked or downloaded book is copied in under its own name, in a folder of its
 /// own, and deleted with that folder; launch clears what a killed import left.

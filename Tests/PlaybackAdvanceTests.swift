@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Playback through a book or series (`SpeechController+Advance`): when a chapter ends the next
 /// one is bound and spoken in place, without deactivating the audio session, unbinding the page or

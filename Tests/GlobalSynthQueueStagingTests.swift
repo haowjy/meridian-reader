@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The next chapter of a book or series renders its opening ahead of its turn
 /// (`GlobalSynthQueue.stageNext`): right behind the playing chapter (at the front once its job is

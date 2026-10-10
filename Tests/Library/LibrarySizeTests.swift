@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// A long series on a file-backed store: its play order and its folder screen's page fetch stay
 /// under 100 ms each (iOS 17 has no `#Index`, so these are table scans on `folderID`).

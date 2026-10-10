@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// ONNX fp16 Kokoro NaN: text that renders all-NaN audio with the unpatched model, and the model
 /// patch (`KokoroONNXModelPatch`) that fixes it. Simulator-only; needs the Mac research model.

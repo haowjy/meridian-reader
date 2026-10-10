@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Which main-frame responses the browser downloads as a book (`WebView.Coordinator.isBook`):
 /// one served as an EPUB, or one named `.epub` that isn't a web page. Everything else shows.

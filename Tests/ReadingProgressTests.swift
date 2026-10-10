@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// How far through an article a playhead offset is (the mini player's fill), from the paragraph
 /// ranges rather than by measuring the joined text.

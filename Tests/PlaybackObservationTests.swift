@@ -1,6 +1,6 @@
 import Observation
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Views observe `SpeechController`'s published playback values one by one. The offset inside
 /// a paragraph moves several times a second while playing; it must not redraw views that show

@@ -1,6 +1,6 @@
 import AVFoundation
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Giant paragraphs split for display, navigation and audio.
 /// Fixture text is public domain: Arthur Conan Doyle, "The Boscombe Valley Mystery" (1891).

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Chunker invariants. Paragraphs of 1–2.5k chars must be cut into engine-sized calls with nothing
 /// dropped (an overflowing call would lose the paragraph; see docs/LISTEN_PLAYBACK.md § Chunking).

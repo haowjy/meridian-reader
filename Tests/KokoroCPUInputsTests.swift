@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// CPU route (ONNX) input tensors: BOS/EOS padding with 0, voice-pack style row = len - 1
 /// (clamped), speed, caps; plus the gain-matched WAV writer used for the A/B sample.

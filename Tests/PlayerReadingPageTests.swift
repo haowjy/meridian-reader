@@ -1,6 +1,6 @@
 import SwiftUI
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Now Playing's reading page: lyrics style (the spoken paragraph in full ink, the rest dimmed,
 /// everything in full ink when nothing is spoken) and the title card's slot, which the Reader's

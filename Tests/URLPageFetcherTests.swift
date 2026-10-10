@@ -1,7 +1,7 @@
 import UIKit
 import WebKit
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// The hidden fetcher reads a page as the browser does: its snapshot drops the short text the
 /// page's CSS hides, and the page extracts exactly as the browser's own copy of it does.

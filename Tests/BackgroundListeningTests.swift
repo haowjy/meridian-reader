@@ -1,6 +1,6 @@
 import AVFoundation
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Background listening: remote commands → Session, interruptions / route changes, and the
 /// foreground/background Core ML switch (fake engine; no model call may start in background).

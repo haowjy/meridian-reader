@@ -1,5 +1,5 @@
 import Foundation
-@testable import Reader
+@testable import MeridianReader
 
 extension ArticleAudioCache {
     struct EmptyFixtureAudio: Error {}

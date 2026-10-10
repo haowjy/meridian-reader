@@ -1,5 +1,5 @@
 import XCTest
-@testable import Reader
+@testable import MeridianReader
 
 /// Settings → Listen: curated Kokoro voices, voice download-on-select, and article language
 /// resolution (Automatic vs manual, unsupported language → Apple for that article).
