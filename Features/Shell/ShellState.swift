@@ -4,7 +4,7 @@ import SwiftUI
 enum ReaderOrigin: Equatable {
     /// Over the browser: 📄, ⋯ → Reader, a start-page row.
     case browser
-    /// Over the Library: a page row, a Continue card, the Favorites sheet opened there.
+    /// Over the Library: a page row, the Favorites sheet opened there.
     case library
 
     /// The back pill's title.
@@ -314,7 +314,7 @@ final class ShellState {
         libraryPath = Array(libraryPath[..<gone])
     }
 
-    /// "Playing from", a search result, a Continue card: the Library at `folder` (pushed under
+    /// "Playing from", a search result: the Library at `folder` (pushed under
     /// the folders above it).
     func showLibrary(at path: [LibraryRoute]) {
         openLibrary()
@@ -463,7 +463,7 @@ final class ShellState {
 
     // MARK: - Library pages
 
-    /// A library page in the Reader sheet (a row, a Continue card, a favorite): shown as soon as
+    /// A library page in the Reader sheet (a row, a favorite): shown as soon as
     /// the page is read; older pages build their listen blocks afterwards.
     func openSaved(_ id: UUID, in library: LibraryStore) {
         Task {

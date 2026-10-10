@@ -120,10 +120,10 @@ final class BrowseToolbarUITests: XCTestCase {
 
         // 📚 → the library surface (shared chrome); Browser slot returns to the page.
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5), "library surface")
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5), "library surface")
         XCTAssertTrue(element(app, "libraryBrowser").waitForExistence(timeout: 3), "Browser swap slot")
         element(app, "libraryBrowser").tap()
-        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Library"]), "back on the browser")
+        XCTAssertTrue(waitFor("exists == false", app.libraryHome), "back on the browser")
         XCTAssertTrue(back.isEnabled, "page state kept")
 
         // History → the visited pages; tapping one opens it.
@@ -279,7 +279,7 @@ final class BrowseToolbarUITests: XCTestCase {
         readerMore.tap()
         element(app, "moreHistory").tap()
         XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 8), "history sheet")
-        XCTAssertFalse(app.navigationBars["Library"].exists, "library closed first")
+        XCTAssertFalse(app.libraryHome.exists, "library closed first")
     }
 
     /// The library's ⋯ is its own menu: nothing in it acts on the page hidden under the library.
@@ -287,7 +287,7 @@ final class BrowseToolbarUITests: XCTestCase {
         let app = launch(testPage: true)
         XCTAssertTrue(app.links["Next page"].waitForExistence(timeout: 10))
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5), "library surface")
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5), "library surface")
 
         let libraryMore = app.buttons["libraryMore"]
         let moreFrame = libraryMore.frame
@@ -303,7 +303,7 @@ final class BrowseToolbarUITests: XCTestCase {
         // History leaves the library first; the page underneath is still there.
         element(app, "moreHistory").tap()
         XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 5), "history sheet")
-        XCTAssertFalse(app.navigationBars["Library"].exists, "library closed first")
+        XCTAssertFalse(app.libraryHome.exists, "library closed first")
         app.navigationBars["History"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
         XCTAssertTrue(waitFor("exists == false", app.navigationBars["History"]))
@@ -311,12 +311,12 @@ final class BrowseToolbarUITests: XCTestCase {
 
         // Browser (big button) returns to the page as it was.
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         libraryMore.tap()
         XCTAssertTrue(element(app, "moreBrowser").waitForExistence(timeout: 3))
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
         element(app, "moreBrowser").tap()
-        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Library"]), "library left")
+        XCTAssertTrue(waitFor("exists == false", app.libraryHome), "library left")
         XCTAssertTrue(app.links["Next page"].exists, "page kept")
         XCTAssertEqual(app.textFields["addressField"].value as? String, "pages/one")
     }
@@ -346,7 +346,7 @@ final class BrowseToolbarUITests: XCTestCase {
         website.tap()
 
         XCTAssertTrue(waitFor("exists == false", close, timeout: 8), "reader closed")
-        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Library"], timeout: 8), "library closed")
+        XCTAssertTrue(waitFor("exists == false", app.libraryHome, timeout: 8), "library closed")
         let field = app.textFields["addressField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         XCTAssertTrue(waitFor("value CONTAINS 'example.com/demo'", field, timeout: 8), "the article's page is loading")

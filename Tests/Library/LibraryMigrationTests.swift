@@ -16,11 +16,6 @@ final class LibraryMigrationTests: XCTestCase {
     private let day: TimeInterval = 24 * 3600
     private func date(_ days: Double) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + days * day) }
 
-    private func continuePages() throws -> [Page] {
-        LibraryQueries.continuePages(recent: try env.context.fetch(LibraryQueries.recentlyPlayed),
-                                     undated: try env.context.fetch(LibraryQueries.undatedInProgress))
-    }
-
     func testLegacyRandomIDRowKeepsItsKeyAudioHistoryAndCrashResume() throws {
         let legacyID = UUID() // a pre-identity-v2 random id, not the URL's key
         let url = "https://example.com/story?utm_source=feed"
@@ -54,7 +49,7 @@ final class LibraryMigrationTests: XCTestCase {
 
         XCTAssertTrue(env.cache.hasCache(for: legacyID), "the audio is found under the same key")
         XCTAssertEqual(try Data(contentsOf: env.cache.indexURL(for: legacyID)), indexBefore, "and wasn't rewritten")
-        XCTAssertEqual(try continuePages().map(\.key), [legacyID], "in Continue")
+        XCTAssertTrue(PageProgress.isPartWay(page), "part-way: its row shows the time left")
         let target = try XCTUnwrap(ListenResumePointStore.shared.load())
         XCTAssertIdentical(library.page(matching: target), page, "crash resume finds it")
         let oldMarker = ListenResumeTarget(articleKey: String(legacyID.uuidString.prefix(8)), paragraph: 2, at: date(3))

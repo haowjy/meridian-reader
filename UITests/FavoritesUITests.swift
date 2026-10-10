@@ -122,7 +122,7 @@ final class FavoritesUITests: XCTestCase {
         pickInMoveTree(app, topLevel: true)
         // (The browser's ⋯ says Saved for web pages only; the Library shows it.)
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         XCTAssertTrue(libraryRow(app, "Second page").waitForExistence(timeout: 15), "saved, under Pages (no folder)")
         openFolder(app, "Favorites")
         XCTAssertFalse(libraryRow(app, "Second page").exists, "and no longer in Favorites")

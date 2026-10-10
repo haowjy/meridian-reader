@@ -8,8 +8,8 @@ import SwiftUI
 /// ┌ bar ────────────────────────────────────┐
 /// │ ╭ Now Playing bar ────────────────────╮ │  ← what you hear (once something has played)
 /// │ ( 🔍 Search Library                  ) │  ← same field capsule as the address bar
-/// │  [＋]  [ ]   [Search]  [🌐]  [⋯]       │  ← ＋ Import Book…, New Folder; 🌐 the browser; ⋯
-///                                                  for the screen
+/// │  [＋]  [★]   [Search]  [🌐]  [⋯]       │  ← ＋ Import Book…, New Folder; ★ pushes Favorites;
+///                                                  🌐 the browser; ⋯ for the screen
 /// └──────────────────────────── home indicator ┘
 /// ```
 ///
@@ -85,7 +85,11 @@ struct LibrarySurface: View {
             .accessibilityLabel("Add")
             .accessibilityIdentifier("libraryAdd")
 
-            Color.clear.frame(minHeight: BottomChrome.rowHeight)
+            Button(action: showFavorites) {
+                Image(systemName: "star").toolbarIconFrame()
+            }
+            .accessibilityLabel("Favorites")
+            .accessibilityIdentifier("libraryFavorites")
 
             Button { search.begin() } label: {
                 Image(systemName: "magnifyingglass").toolbarIconFrame()
@@ -107,6 +111,14 @@ struct LibrarySurface: View {
         }
         // Same as the browser toolbar: tint keeps disabled buttons dimmed.
         .tint(Palette.ink)
+    }
+
+    /// ★: pushes the Favorites folder over the screen you're on (nothing when it is already on
+    /// top), so ‹ comes back to where you were.
+    private func showFavorites() {
+        let route = LibraryRoute.folder(library.favorites().id)
+        guard shell.libraryPath.last != route else { return }
+        shell.libraryPath.append(route)
     }
 
     // MARK: - The screen on top

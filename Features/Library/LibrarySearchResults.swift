@@ -36,7 +36,8 @@ struct LibrarySearchResults: View {
                     ForEach(found, id: \.id) { folder in
                         Button { open(folder) } label: {
                             ListRow(kind: .folder(symbol: folder.rowSymbol, count: folder.itemCount, cover: folder.coverImage),
-                                    title: folder.displayName, subtitle: location(of: folder.parent))
+                                    title: folder.displayName, subtitle: location(of: folder.parent),
+                                    opensScreen: true)
                         }
                         .buttonStyle(.plain)
                     }

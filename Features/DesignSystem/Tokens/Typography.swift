@@ -14,7 +14,7 @@ import SwiftUI
 enum TypeStyle: CaseIterable {
     /// A page's title in the Reader and Now Playing.
     case title
-    /// Section headers ("Continue", "Recent Searches").
+    /// Top-level headers on a screen without a title ("Recent Searches"); a book's title.
     case heading
     /// Reading text.
     case body

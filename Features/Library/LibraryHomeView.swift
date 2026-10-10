@@ -1,88 +1,81 @@
 import SwiftData
 import SwiftUI
 
-/// The top of the tree: Continue (books, series and part-way pages to resume), the top-level
-/// folders (Favorites first), then *Pages*, the pages in no folder (first five, newest first;
-/// *Show All* pushes the rest).
+/// The top of the tree: the title (in the list, so it scrolls away; no navigation bar), the
+/// top-level folders (Favorites first), then *Pages*: pages played without saving, marked "Not
+/// saved", then the pages in no folder (first five in all, newest first; *Show All* pushes the
+/// rest). Nothing here appears or goes away because playback starts or ends: rows carry their own
+/// place and ▶, and the Now Playing bar resumes the last thing you heard.
 ///
 /// ```
-/// Library                                   large title
-/// Continue
-///  ╭ cover ╮ ╭ [i] ╮ ╭ [i] ╮  →             horizontal cards, most recent first, max 8
-/// Folders
-///  ★ Favorites 12   📁 Fiction 3            books and series show their cover
-/// Pages · 48                     Show All › pages in no folder, newest first, first 5
+/// Library                                   title, scrolls away
+/// ★  Favorites                        2  ›  folders first, no header
+/// ▣  Pride and Prejudice                 ▶  a book: its place and its own ▶
+///    Ch 24 · ◐ 6 h 10 min left
+/// Pages · 3                      Show All ›
+/// [i] Notes on Tides                     ▶  played, not saved (D5)
+///     example.org · Not saved · 4 min left
+/// [i] Seven-Day Yield                    ▶
 /// ```
 struct LibraryHomeView: View {
     @Environment(LibraryStore.self) private var library
-    @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
 
-    @Query(LibraryQueries.continueFolders) private var continueFolders: [Folder]
-    @Query(LibraryQueries.recentlyPlayed) private var recentlyPlayed: [Page]
-    @Query(LibraryQueries.undatedInProgress) private var undatedInProgress: [Page]
+    @Query(LibraryQueries.playedNotSaved) private var notSaved: [Page]
     @Query private var folders: [Folder]
     @Query private var loosePages: [Page]
 
-    /// How many of the pages in no folder the home shows before *Show All*.
+    /// How many pages the home shows before *Show All*.
     static let pagesShown = 5
 
     init(pageSort: PageSort) {
         _loosePages = Query(LibraryQueries.loosePages(sort: pageSort))
     }
 
-    private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
-
-    private var continueItems: [ContinueItem] {
-        LibraryQueries.continueItems(folders: continueFolders, recent: recentlyPlayed, undated: undatedInProgress)
-    }
-
     private var topLevelFolders: [Folder] {
         LibraryStore.ordered(folders.filter { $0.parent == nil })
     }
 
+    /// *Pages*: played without saving first, then the pages in no folder.
+    private var pages: [Page] { notSaved + loosePages }
+
     /// Nothing to show but an empty Favorites.
     private var isEmpty: Bool {
-        continueItems.isEmpty && loosePages.isEmpty && topLevelFolders.allSatisfy { $0.kind == .favorites && $0.itemCount == 0 }
+        pages.isEmpty && topLevelFolders.allSatisfy { $0.kind == .favorites && $0.itemCount == 0 }
     }
 
     var body: some View {
+        let pages = pages
         List {
+            Section {
+                ForEach(topLevelFolders, id: \.id) { folder in
+                    LibraryFolderRow(folder: folder)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Palette.chrome)
+            } header: {
+                Text("Library")
+                    .typeStyle(.title, design: .default)
+                    .foregroundStyle(Palette.ink)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("libraryTitle")
+                    .libraryHeader()
+            }
             if isEmpty {
                 Section { emptyCard }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
             }
-            let items = continueItems
-            if !items.isEmpty {
+            if !pages.isEmpty {
                 Section {
-                    continueRow(items)
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                } header: {
-                    SectionHeader(title: String(localized: "Continue")).libraryHeader()
-                }
-                .accessibilityIdentifier("libraryContinue")
-            }
-            Section {
-                ForEach(topLevelFolders, id: \.id) { folder in
-                    LibraryFolderRow(folder: folder)
-                }
-                .listRowInsets(.folderRow)
-                .listRowBackground(Palette.chrome)
-            } header: {
-                SectionHeader(title: String(localized: "Folders")).libraryHeader()
-            }
-            if !loosePages.isEmpty {
-                Section {
-                    ForEach(loosePages.prefix(Self.pagesShown), id: \.listenKey) { page in
+                    ForEach(pages.prefix(Self.pagesShown), id: \.listenKey) { page in
                         LibraryPageRow(page: page)
                     }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Palette.chrome)
                 } header: {
-                    SectionHeader(title: "Pages · \(loosePages.count)",
-                                  actionTitle: loosePages.count > Self.pagesShown ? String(localized: "Show All") : nil,
+                    SectionHeader(title: "Pages · \(pages.count)",
+                                  actionTitle: pages.count > Self.pagesShown ? String(localized: "Show All") : nil,
                                   actionNavigates: true, actionIdentifier: "libraryPagesShowAll") {
                         shell.libraryPath.append(.pages)
                     }
@@ -92,73 +85,21 @@ struct LibraryHomeView: View {
             }
         }
         .libraryListStyle()
+        .animation(Motion.standard, value: pages.map(\.listenKey))
         .navigationTitle("Library")
+        .toolbar(.hidden, for: .navigationBar)
         .accessibilityIdentifier("libraryHome")
-    }
-
-    // MARK: - Continue
-
-    private func continueRow(_ items: [ContinueItem]) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: Spacing.s) {
-                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                    card(item)
-                }
-            }
-            .padding(.vertical, Spacing.xxs)
-        }
-        // The List's page margin already insets this row; the List's content margin is inherited by
-        // this nested scroll view too, so zero it here or the cards sit a second margin in.
-        .contentMargins(.horizontal, 0, for: .scrollContent)
-        .scrollClipDisabled()
-    }
-
-    @ViewBuilder
-    private func card(_ item: ContinueItem) -> some View {
-        switch item {
-        case .folder(let folder):
-            let chapter = folder.currentPageKey.flatMap(library.page(key:))
-            ContinueCard(title: chapter?.title ?? folder.displayName,
-                         detail: chapterDetail(folder: folder, chapter: chapter),
-                         artwork: folder.coverImage, artworkLetter: folder.displayName,
-                         progress: chapter.map(PageProgress.fraction(of:)) ?? 0,
-                         playState: actions.playState(of: folder)) {
-                actions.playBook(folder)
-            }
-            .onTapGesture { shell.libraryPath.append(.folder(folder.id)) }
-            .accessibilityAction { shell.libraryPath.append(.folder(folder.id)) }
-            .accessibilityIdentifier("continueCard")
-        case .page(let page):
-            ContinueCard(title: page.title, detail: pageDetail(page), artwork: page.artworkImage,
-                         artworkLetter: page.byline.siteLetter, progress: PageProgress.fraction(of: page),
-                         playState: actions.playState(of: page),
-                         badge: page.isInLibrary ? nil : String(localized: "Not saved")) {
-                actions.play(page)
-            }
-            .onTapGesture { actions.open(page) }
-            .accessibilityAction { actions.open(page) }
-            .accessibilityIdentifier("continueCard")
-        }
-    }
-
-    private func chapterDetail(folder: Folder, chapter: Page?) -> String {
-        guard let chapter, case .partWay(_, let left) = PageProgress.of(chapter) else { return folder.displayName }
-        return "\(folder.displayName) · \(left) min left"
-    }
-
-    private func pageDetail(_ page: Page) -> String {
-        if case .partWay(_, let left) = PageProgress.of(page) { return "\(left) min left" }
-        return page.byline
     }
 
     // MARK: - Empty
 
+    /// Below Favorites, low in the list: what the toolbar does, with the two first-run actions.
     private var emptyCard: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text("Find something to listen to")
-                .typeStyle(.heading)
+                .typeStyle(.row, weight: .semibold)
                 .foregroundStyle(Palette.ink)
-            Text("Pages you save or listen to, books you import and folders you make show up here.")
+            Text("Tap 🌐 to find a page, or ＋ to import a book. Pages you save or listen to, books you import and folders you make show up here.")
                 .typeStyle(.row)
                 .foregroundStyle(Palette.secondaryInk)
             HStack(spacing: Spacing.s) {
@@ -178,25 +119,21 @@ struct LibraryHomeView: View {
     }
 }
 
-extension EdgeInsets {
-    /// A folder row: flush, except the trailing edge, so the system disclosure › sits at the same
-    /// inset as the row's own content instead of against the card's edge.
-    static let folderRow = EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: Spacing.m)
-}
-
 extension View {
     /// A section header in the Library's lists: in line with the cards (no extra header inset).
     func libraryHeader() -> some View {
         textCase(nil)
-            .listRowInsets(EdgeInsets(top: Spacing.m, leading: 0, bottom: Spacing.xs, trailing: 0))
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: Spacing.xs, trailing: 0))
     }
 
-    /// The Library's lists: grouped cards on paper, at the page margin.
+    /// The Library's lists: grouped cards on paper, at the page margin, `Spacing.l` between
+    /// sections.
     func libraryListStyle() -> some View {
         listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Palette.paper)
             .contentMargins(.horizontal, Spacing.pageMargin, for: .scrollContent)
+            .listSectionSpacing(Spacing.l)
             .environment(\.defaultMinListRowHeight, 0)
     }
 }

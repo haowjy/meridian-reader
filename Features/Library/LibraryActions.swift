@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// What the Library's rows, cards, headers and Edit's bar do, in one place: open a page (the
+/// What the Library's rows, headers and Edit's bar do, in one place: open a page (the
 /// Reader, Now Playing when it is what you hear, the browser for a link), play a page or a book,
 /// mark and remove pages, delete folders, file things with the Move tree. Opening never plays,
 /// and playing never navigates. Each edit is one save: one that can't be saved changes nothing
@@ -41,6 +41,18 @@ struct LibraryActions {
     /// *Play from Here* on a chapter: from its start.
     func playFromStart(_ page: Page) {
         speech.playPage(page.listenKey)
+    }
+
+    /// *Save* on a page played without saving (decision D5): into the Library's top level
+    /// through the one save path, its audio kept and playback untouched. False when it couldn't
+    /// be saved (a toast says so).
+    @discardableResult
+    func save(_ page: Page) -> Bool {
+        var article = ReaderArticle(page: page)
+        if article.document.isEmpty { article.document = page.listenDocument() }
+        return shell.attempt(String(localized: "Couldn’t save")) {
+            try ArticleSaveCoordinator(library: library, speech: speech).save(article)
+        } != nil
     }
 
     func share(_ page: Page) {

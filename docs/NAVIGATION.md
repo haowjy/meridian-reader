@@ -25,7 +25,9 @@ exactly what that button does.
 - **Don't hide the whole navigation bar on a pushed screen** (`.toolbar(.hidden, for: .navigationBar)`)
   when the screen below shows one. The bar is shared by the stack, so mid-swipe the parent's bar
   (large title, search field, toolbar buttons) pops in full-width on top of the page you're leaving.
-  Keep the bar visible and stable; that gives the standard push/pop look.
+  Keep the bar visible and stable; that gives the standard push/pop look. (The Library home, the
+  stack's root, has no bar: its title is the first thing in its list. The screens pushed over it
+  keep theirs.)
 - Don't build swipe-back by hand. Push with `NavigationStack`; with the system back button it just
   works, with a custom one add `.edgeSwipeBack()`.
 - A custom back control should just `dismiss()`; put "leaving" side effects in `onDisappear` so
@@ -79,7 +81,7 @@ clipping; toolbar glyphs keep their size and show in the large content viewer on
 Every control takes taps in at least 44 × 44 pt (`tapTarget`), whatever its drawn size: the
 address-field 📄 and 🎧, the ✕ beside a search field, the Now Playing bar's play/pause, the
 capsule's 36 pt controls. **Five equal slots, evenly spaced, one grid for every row:** Browse is
-`[‹][›][Search][Library][⋯]`, the Library surface `[＋][ ][Search][Browser][⋯]`, the Reader
+`[‹][›][Search][Library][⋯]`, the Library surface `[＋][★][Search][Browser][⋯]`, the Reader
 `[🔖][ ▶ Listen · 9 min ][⋯]` (the pill spans slots 2–4) and Now Playing `[1×][⏮][▶︎][⏭][⋯]`. Slot 4 is the Library↔Browser swap (📚 on Browse, 🌐 on Library — same
 muscle memory as the morph-menu Reader↔Website near ⋯). Leading items fill slots 1, 2, 3…; the
 last item (⋯) always sits in slot 5, so every icon in slot N is at the same x and the ⋯ menu
@@ -139,7 +141,8 @@ the ⋯ slot too.
   Favorites?* and moves the whole book to the top level, never the chapter alone.
 - **One library**: everything is a page in a folder (or in none). A page is a *link* (an address
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
-  without saving (kept 7 days, shown only in Continue and the bar). There is one page per
+  without saving (kept 7 days, shown at the top of the Library's *Pages* as "Not saved", and in
+  the bar). There is one page per
   address: saving a favorite saves it in place; unsaving a page in a folder leaves it there as a
   link. 🔖 = saved, ☆ = favorite.
 - **The Now Playing bar** (`NowPlayingBarView` → `NowPlayingBar`) is the one thing that shows what
@@ -172,34 +175,39 @@ developer options on, its panel over the sheet), shown in the sheet; its big but
 The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
 back up. It uses the **same bottom chrome** as the browser: the Now Playing bar, the search field
-capsule and `[＋][ ][🔍][🌐][⋯]`. ＋ is *Import Book…* and *New Folder*, both made in the folder
-on screen (beside a book, on a book's screen). 🌐 shows the browser as it was; 📚 there comes back to the same folder. The
+capsule and `[＋][★][🔍][🌐][⋯]`. ＋ is *Import Book…* and *New Folder*, both made in the folder
+on screen (beside a book, on a book's screen). ★ pushes Favorites over the screen you're on (‹
+comes back). 🌐 shows the browser as it was; 📚 there comes back to the same folder. The
 ⋯ panel follows the screen on top (below), always with big buttons **Favorites**, **History**,
 **Browser**, and with developer options on a last row *Debug* (the listen debug panel); nothing
 in it acts on the page under the Library. History closes the Library first; Browser is the same
 swap as 🌐.
 
 ```
-Library                                   large title
-Continue
- ╭ cover ╮ ╭ [i] ╮ ╭ [i] ╮  →             horizontal cards, most recent first, up to 8
-Folders
- ★ Favorites                12  ›         Favorites first, then your folders by their order;
- 📖 Pride and Prejudice     61  ›         books and series show their cover
-Pages · 48                     Show All › pages in no folder, newest first, the first 5
+Library                                   title in the list, scrolls away (no navigation bar)
+★  Favorites                       12  ›  Favorites first, then your folders by their order
+▣  Pride and Prejudice                 ▶  a book or series: its place and its own ▶
+   Ch 24 · ◐ 6 h 10 min left
+Pages · 48                     Show All › not saved first, then pages in no folder; the first 5
+[i] Notes on Tides                     ▶
+    example.org · Not saved · 4 min left
 ```
 
-- **The home** (`LibraryHomeView`): **Continue** cards (`ContinueCard`) for books and series
-  played and not finished (the chapter they resume at) and pages part-way through, saved or
-  played without saving ("Not saved"); a tap opens it (a book's screen; a page's Reader, or Now
-  Playing if it is what you hear), its ▶ resumes it. **Folders**: the top-level folders.
-  **Pages**: the pages in no folder, newest first; Show All pushes them all, sorted by the
-  top level's sort (*Manual / Newest / Title*, ⋯ → Sort; kept on the device,
-  `library.topLevel.sort`). ⋯: *Voice Settings, Import Book…, New Folder*. An empty Library
-  shows one card, *Find something to listen to*, with *Browse the web* and *Import a book*.
+- **The home** (`LibraryHomeView`): nothing on it appears or goes away because playback starts
+  or ends. The bar's ▶ resumes what you last heard, and rows carry their own place and ▶
+  (decision D14). First the top-level folders, with no header; a book or series
+  row shows its place and time left ("Ch 24 · 6 h 10 min left", a ring) and its ▶ resumes it
+  there without opening it. Then **Pages**: the pages played without saving, newest played first,
+  marked "Not saved" (long-press → *Save* puts one in the Library), then the pages in no folder,
+  newest first; Show All pushes them all (the not-saved ones on top), sorted by the top level's
+  sort (*Manual / Newest / Title*, ⋯ → Sort; kept on the device, `library.topLevel.sort`). A row
+  added while you watch (a save, a first play) animates in. ⋯: *Voice Settings, Import Book…, New
+  Folder*. An empty Library shows Favorites, then one card, *Find something to listen to*: "Tap
+  🌐 to find a page, or ＋ to import a book", with *Browse the web* and *Import a book*.
 - **A folder** (`FolderScreen`, Favorites included): its title and counts, subfolders first (by
-  their order), then pages by the folder's sort. **Edit** (top right) puts check circles on the
-  rows, and drag handles (pages only when the sort is *Manual*); the toolbar becomes *Move…,
+  their order), then pages by the folder's sort. **Edit** (top right), or *Select* in a row's
+  long-press menu (Edit with that row selected), puts check circles on the rows, and drag handles
+  (pages only when the sort is *Manual*); the toolbar becomes *Move…,
   Mark Finished, Remove* for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
   their delete is saved (*Cancel* keeps them selected). ⋯: *Sort ›, New Folder Inside, Import
@@ -247,13 +255,16 @@ Pages · 48                     Show All › pages in no folder, newest first, t
 **Rows** are `ListRow`s. A tap opens the row; its menu is a long-press (decision D11); swipe left
 removes. Rows that can play keep their ▶ (`PlayStateButton`): it plays the row (replacing what
 plays) or pauses / resumes it when it is what you hear, and never navigates. The playing row is
-tinted, with still or moving bars. Rows show a length ("18 min"), "6 min left" with a small ring
-part-way, or "✓ Finished".
+tinted, with still or moving bars. Under the title, after the site, rows show a length ("18
+min"), "6 min left" with a small ring part-way, or "✓ Finished", so the title keeps the row's
+width. ▶ / ⏸ and a folder's › share one trailing column, centred on the ⋯ slot as the bar's ⏸
+is; a folder's count sits just before its ›. On a folder screen every row's menu starts with
+*Select*.
 
 | Row | Tap | Trailing | Menu (long-press) | Swipe left |
 |---|---|---|---|---|
-| Folder, Favorites | opens it (push) | count | *Move to…, Rename, Delete…* (Favorites: none) | Delete… |
-| Book or series | opens it (push) | count | *Continue, Play from Start, Move to…, Rename, Delete Book…* | Delete… |
+| Folder, Favorites | opens it (push) | count, › | *Move to…, Rename, Delete…* (Favorites: none) | Delete… |
+| Book or series | opens it (push) | ▶ (resumes at its place; the place under the title) | *Continue, Play from Start, Move to…, Rename, Delete Book…* | Delete… |
 | Saved page | the Reader (Now Playing if it's what you hear) | ▶ | *Move to…, Mark as Finished / Unfinished, Share, Delete Downloads* (when it has audio)*, Remove from Library* | Remove |
 | Link page | the page, in the browser | — | *Move to…, Share, Remove from Library* | Remove |
 | Chapter | the Reader (Now Playing if it's what you hear) | ▶ (not on skipped ones) | *Play from Here, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback, Delete Downloads* | — |
@@ -266,6 +277,7 @@ long-press offers *New Folder Inside* (made in it, and the item goes in that). *
 folder)* files the page in no folder, out of the folder it was in (a link in Favorites leaves
 Favorites, saved); an ordinary 🔖 or *Save* keeps a page's folder. Books and series aren't
 destinations; a folder being moved, and everything inside it, can't be picked. The tree closes
+| Page played without saving ("Not saved", top of *Pages*) | the Reader (Now Playing if it's what you hear) | ▶ | *Save, Share* | — |
 once what was picked is saved; a pick, or a *New Folder*, that can't be saved leaves it up under
 the toast, to pick again or ✕ (in the import sheet, a *New Folder* that can't be saved leaves the
 tree up the same way). The browser's *Save to Library…* closes it on the pick, since the
@@ -316,7 +328,7 @@ the Library), the **Reader sheet** over it for reading any page, and **Now Playi
 everything for what you hear. The Now Playing bar is the one bridge between them: tapping it opens
 Now Playing. Navigating never changes what you hear, and a play button never navigates. The Reader
 never shows the page you hear: opening the Reader of that page (📄, a Favorites tile, a Library
-row or Continue card) opens Now Playing instead.
+row) opens Now Playing instead.
 
 ### The Reader sheet
 
@@ -456,7 +468,7 @@ row or Continue card) opens Now Playing instead.
   utterance's rate) restarts from the word being spoken. The rate is persisted
   (`reader.rateMultiplier`) and the lock screen's playback rate follows it (and can set it).
 - A page played without saving is kept for 7 days after its last play, with its text and its
-  spot: after a relaunch it is in the Library's Continue, opens in the Reader where it was, and
+  spot: after a relaunch it is at the top of the Library's *Pages*, opens in the Reader where it was, and
   Now Playing shows its text.
 
 ## Developer options

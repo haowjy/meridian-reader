@@ -83,7 +83,7 @@ final class DeveloperOptionsUITests: XCTestCase {
         XCTAssertTrue(panel.waitForExistence(timeout: 5), "the panel over the Library")
         panel.buttons["Done"].tap()
         XCTAssertTrue(eventually(5) { !panel.exists }, "Done closes it")
-        XCTAssertTrue(app.navigationBars["Library"].exists, "back on the Library")
+        XCTAssertTrue(app.libraryHome.exists, "back on the Library")
 
         app.buttons["libraryMore"].tap()
         tapMenuRow(app, "moreFavorites")

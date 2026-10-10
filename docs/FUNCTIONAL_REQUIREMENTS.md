@@ -8,7 +8,7 @@ the screens look and move: `NAVIGATION.md`. How it is built: `TECHNICAL_SPEC.md`
 
 | Surface | Role |
 |--------|------|
-| **Library** | The folder tree: Continue, the folders (Favorites first, books and series among them) and the pages in no folder, then folder → folder at any depth. Same bottom bar shape as the browser; toolbar slot 4 swaps between them. No tab bar. |
+| **Library** | The folder tree: the folders (Favorites first, books and series among them), then the pages in no folder (pages played without saving on top), then folder → folder at any depth. Same bottom bar shape as the browser; toolbar slot 4 swaps between them. No tab bar. |
 | **Browser** | A start page (Favorites, Recent Searches) or a web page, with one bottom bar (address field + toolbar). |
 | **Reader** | A sheet for reading any page, over the browser or the Library, with its own Listen. |
 | **Now Playing** | A sheet over everything for what you hear: a player in deep jade (light and dark alike) with a title card, the Reader's text in lyrics style following the audio, and the player's controls. |
@@ -35,7 +35,7 @@ its last page (reloaded). A fresh install opens the Library.
 
 | ID | Requirement |
 |----|-------------|
-| R1 | Reader mode is manual: the address field's reader icon or ⋯ → Reader, only on pages that look readable, or a Favorites tile, a Library row or Continue card. It never turns on by itself. Opening the Reader of the page you hear opens Now Playing instead. |
+| R1 | Reader mode is manual: the address field's reader icon or ⋯ → Reader, only on pages that look readable, or a Favorites tile or a Library row. It never turns on by itself. Opening the Reader of the page you hear opens Now Playing instead. |
 | R2 | The Reader shows the cleaned article on paper in the serif reading style, under its title and source. It never scrolls by itself. |
 | R3 | Its Listen ("Listen · 9 min", "Resume · 6 min left", "Listen Again") starts the page at its saved spot and turns the Reader into Now Playing; ☝︎ then a tap on a paragraph listens from there. The Reader has no speed or skip buttons. |
 | R4 | Save / unsave from the Reader or Now Playing keeps the screen and playback as they are. 🔖's long-press saves the page into a folder picked in the Move tree. |
@@ -52,7 +52,7 @@ its last page (reloaded). A fresh install opens the Library.
 | S4 | One page per canonical URL: saving, adding to Favorites or listening to the same page twice (tracking parameters, fragments) keeps one page, in at most one folder. |
 | S5 | Folders nest to any depth. A folder lists its subfolders, then its pages by its sort (Manual, Newest, Title); Edit selects rows to move, mark finished or remove, and drags them when Manual. Folders can be made, renamed, moved and deleted: *Delete Folder Only* moves the contents up one level, *Delete Folder and Contents* deletes everything inside with its audio; a book or series is always deleted with its chapters, so *Folder Only* isn't offered for one. A delete that can't be saved leaves the pages and their audio. Favorites can't be deleted, renamed or moved below the top level. |
 | S6 | Rows show a length, "N min left" part-way or "✓ Finished", and the playing row is tinted. A tap opens a row (the Reader, Now Playing for what you hear, the browser for a link); its ▶ plays it without opening; a long-press is its menu (Move to…, Mark as Finished, Share, Delete Downloads, Remove from Library); swipe left removes it. |
-| S7 | Continue on the Library home lists up to 8 books, series and pages part-way through, most recently played first; each card resumes with its ▶. |
+| S7 | Nothing on the Library home appears or goes away because playback starts or ends. A book or series row shows its place and time left ("Ch 24 · 6 h 10 min left") and its ▶ resumes it there without opening it; a part-way page's row shows the time left and its ▶ resumes it; the Now Playing bar's ▶ resumes what you last heard. Pages played without saving show at the top of *Pages*, "Not saved", with *Save* in their menu. |
 | S8 | A book or series opens to its details, a Continue / Play from Start button, and its chapters in source order (front matter skipped in playback, *Skip in Playback* per chapter, *Jump to current*); it can't be reordered. Playing any chapter carries on through the book, then stops. |
 | S9 | Search in the Library covers titles, sites, folder names and authors across the tree, and offers *Search the web*. |
 | S10 | *Import Book…* (the Library's ＋ and ⋯, the empty Library) imports a DRM-free EPUB picked in Files, or one an `.epub` link in the browser downloads (asked first), as a book: one folder with one page per chapter, front matter skipped in playback. The import shows its progress, can be cancelled (keeping nothing), and files the book in *Add to* (the folder it started from, else the Library), which can change while it runs; it then opens the book. One import runs at a time. Copy-protected, fixed-layout, too-large and unreadable files are refused with a one-line reason. A book already in the Library asks *Replace* (same folder, places kept where chapters match) or *Cancel*. |

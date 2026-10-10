@@ -66,7 +66,7 @@ final class SwipeBackUITests: XCTestCase {
         pullDown(from)
         XCTAssertTrue(waitFor(5) { !from.exists }, "Now Playing pulled down")
         XCTAssertTrue(waitFor(5) { row.isHittable }, "the Library home is showing again")
-        XCTAssertTrue(app.navigationBars["Library"].exists, "the Library navigation bar is back")
+        XCTAssertTrue(app.libraryHome.exists, "the Library home is back")
 
         // Same as ⌄: playback keeps going (the row button shows Pause).
         let rowPause = app.cells.buttons["Pause"]

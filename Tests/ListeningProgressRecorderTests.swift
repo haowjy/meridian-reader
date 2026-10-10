@@ -96,10 +96,8 @@ final class ListeningProgressRecorderTests: XCTestCase {
         XCTAssertEqual(page.positionParagraph, 1)
         XCTAssertEqual(page.positionUTF16, p1 + 4, "where it was paused, inside the paragraph")
 
-        let recent = try env.context.fetch(LibraryQueries.recentlyPlayed)
-        let undated = try env.context.fetch(LibraryQueries.undatedInProgress)
-        XCTAssertEqual(LibraryQueries.continuePages(recent: recent, undated: undated).map(\.listenKey), [b.id],
-                       "in Continue")
+        XCTAssertEqual(try env.context.fetch(LibraryQueries.playedNotSaved).map(\.listenKey), [b.id],
+                       "at the top of the Library's Pages, not saved")
 
         var opened: ReaderArticle?
         await ReaderArticle.loadSaved(id: b.id, in: env.library) { opened = $0 }

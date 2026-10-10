@@ -83,7 +83,7 @@ final class ListeningProgressRecorder {
         if progress.phase == .finished { library.recordFinished(page) }
     }
 
-    /// Listening started (or resumed) on the page: it moves to the front of Continue listening and
+    /// Listening started (or resumed) on the page: it is dated (most recently played) and
     /// stops counting as finished. Its first start from an article keeps or refreshes its text,
     /// when the session plays that article's text; a session bound before keeps its own document
     /// (`SpeechController.prepare`), and is recorded like any other, on a page holding it.

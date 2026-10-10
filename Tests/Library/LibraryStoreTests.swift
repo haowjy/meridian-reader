@@ -204,7 +204,7 @@ final class LibraryStoreTests: XCTestCase {
     }
 
     /// A link that was played holds that play's text: removing it keeps it as a page played
-    /// without saving (out of the Library and Favorites, still in Continue), pruned 7 days after
+    /// without saving (out of the Library and Favorites, at the top of Pages as "Not saved"), pruned 7 days after
     /// its last play like any other.
     func testRemovingAPlayedLinkKeepsItAsAPlayedPageUntilThePrune() throws {
         let url = URL(string: "https://example.com/played-link")!
@@ -224,8 +224,7 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertEqual(page.cachedListenParagraphs?.count, 2)
         XCTAssertNotNil(page.lastPlayedAt)
         XCTAssertEqual(env.cache.loadMeta(for: key)?.kind, .ephemeral, "its audio is on the ephemeral TTL")
-        let recent = try env.context.fetch(LibraryQueries.recentlyPlayed)
-        XCTAssertEqual(LibraryQueries.continuePages(recent: recent, undated: []).map(\.key), [key], "still in Continue")
+        XCTAssertEqual(try env.context.fetch(LibraryQueries.playedNotSaved).map(\.key), [key], "in Pages, not saved")
 
         // Another page played since, so this one isn't the last played.
         env.now += 1

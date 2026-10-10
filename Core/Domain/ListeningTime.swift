@@ -32,6 +32,13 @@ enum ListeningTime {
         return false
     }
 
+    /// A length as rows and headers show it: "9 min", "1 h", "6 h 10 min".
+    static func label(minutes: Int) -> String {
+        guard minutes >= 60 else { return "\(minutes) min" }
+        let rest = minutes % 60
+        return rest == 0 ? "\(minutes / 60) h" : "\(minutes / 60) h \(rest) min"
+    }
+
     /// Minutes left in `document` from document offset `offset`.
     static func minutesLeft(in document: ParagraphDocument, fromUTF16Offset offset: Int, rate: Double = 1) -> Int {
         minutes(utf16Length: max(0, document.utf16Length - offset), rate: rate)

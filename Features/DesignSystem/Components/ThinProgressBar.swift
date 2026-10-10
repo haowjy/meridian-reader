@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A 3 pt progress capsule (mini player, Continue cards and rows, the Now Playing bar).
+/// A 3 pt progress capsule (a book's or series' header).
 struct ThinProgressBar: View {
     let value: Double
 

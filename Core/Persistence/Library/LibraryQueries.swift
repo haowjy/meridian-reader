@@ -6,11 +6,6 @@ import SwiftData
 /// relationship (iOS 17 can't always translate it); they use `Page.folderID`. Optional dates are
 /// compared through `?? distantPast`.
 enum LibraryQueries {
-    /// Continue lists at most this many books, series and pages.
-    static let continueLimit = 8
-    /// The page half of Continue looks at this many most recently played pages.
-    static let continueCandidateLimit = 50
-
     // MARK: Pages
 
     /// Every page in the Library, any folder.
@@ -36,28 +31,15 @@ enum LibraryQueries {
         FetchDescriptor(predicate: #Predicate<Page> { $0.folderID == id }, sortBy: sortDescriptors(sort))
     }
 
-    /// The most recently played pages, any state (Continue filters them in code).
-    static var recentlyPlayed: FetchDescriptor<Page> {
+    /// Pages played without saving (decision D5), most recently played first: the top of the
+    /// Library home's *Pages* and the *Pages* screen, marked "Not saved", until the 7-day prune
+    /// (`prunable`) deletes them. Book chapters never qualify (they are always in their folder).
+    static var playedNotSaved: FetchDescriptor<Page> {
         let past = Date.distantPast
-        var descriptor = FetchDescriptor(predicate: #Predicate<Page> { ($0.lastPlayedAt ?? past) > past },
-                                         sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse)])
-        descriptor.fetchLimit = continueCandidateLimit
-        return descriptor
-    }
-
-    /// Pages listened to part-way before listening was dated (no `lastPlayedAt`): position past
-    /// the start, unfinished. Continue lists them after the dated ones, newest first.
-    static var undatedInProgress: FetchDescriptor<Page> {
-        let past = Date.distantPast
-        // Both positions are non-negative: the sum is past zero when either is.
-        let predicate = #Predicate<Page> { page in
-            (page.lastPlayedAt ?? past) == past && (page.finishedAt ?? past) == past
-                && page.positionParagraph + page.positionUTF16 > 0
-        }
-        var descriptor = FetchDescriptor<Page>(predicate: predicate,
-                                               sortBy: [SortDescriptor(\Page.addedAt, order: .reverse)])
-        descriptor.fetchLimit = continueCandidateLimit
-        return descriptor
+        let saved = PageContentState.saved.rawValue
+        return FetchDescriptor(predicate: #Predicate<Page> {
+            $0.addedAt == nil && $0.folderID == nil && $0.contentStateRaw == saved && ($0.lastPlayedAt ?? past) > past
+        }, sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse), SortDescriptor(\Page.key)])
     }
 
     /// Titles, bylines and excerpts across the tree, in the Library only.
@@ -98,20 +80,6 @@ enum LibraryQueries {
     }
 
     // MARK: Folders
-
-    /// Books and series played and not finished, most recent first (Continue's folder half).
-    static var continueFolders: FetchDescriptor<Folder> {
-        let past = Date.distantPast
-        let book = FolderKind.book.rawValue
-        let series = FolderKind.series.rawValue
-        var descriptor = FetchDescriptor(
-            predicate: #Predicate<Folder> {
-                ($0.kindRaw == book || $0.kindRaw == series) && ($0.lastPlayedAt ?? past) > past && $0.finishedAt == nil
-            },
-            sortBy: [SortDescriptor(\Folder.lastPlayedAt, order: .reverse)])
-        descriptor.fetchLimit = continueLimit
-        return descriptor
-    }
 
     static func folder(id: UUID) -> FetchDescriptor<Folder> {
         var descriptor = FetchDescriptor(predicate: #Predicate<Folder> { $0.id == id })

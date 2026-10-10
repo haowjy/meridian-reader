@@ -208,7 +208,7 @@ final class ScreenshotCaptureTests: XCTestCase {
         wait(1)
 
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         wait(1.2)
         try shot("library")
         app.cells.staticTexts["Demo Listen Article"].tap()
@@ -237,7 +237,7 @@ final class ScreenshotCaptureTests: XCTestCase {
     func testLibrarySurfaces() throws {
         let app = launch(["-seedDemoArticle", "-seedDemoBook", "-seedDemoFolders", "-seedBookmarks", "-openLibrary",
                           "-reader.developerOptions", "NO"])
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10))
         wait(1.5)
         try shot("1-library-home")
 
@@ -305,7 +305,7 @@ final class ScreenshotCaptureTests: XCTestCase {
         let link = app.links["Download a book"]
         XCTAssertTrue(link.waitForExistence(timeout: 10))
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         wait(1)
         app.buttons["libraryMore"].tap()
         wait(1.2)

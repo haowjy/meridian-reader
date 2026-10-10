@@ -3,20 +3,25 @@ import SwiftUI
 /// Every row in the Library, a folder, a book's contents and the Move tree.
 ///
 /// ```
-/// 📁 Bonds                                   4        folder: count
-/// [i] Coupon Basics         ✓ Finished       ▶        page
-/// [i] Seven-Day Yield   ▂▅▇ 9 min left       ⏸        page, playing: tinted
-///  ◐  Chapter 24            6 min left       ▶        chapter, part-way
-/// 🔗  serials.example.com   not fetched yet           link: lighter
+/// 📁 Bonds                                    4  ›   folder: count, then ›
+/// ▣  Pride and Prejudice                         ▶   book: its place and its own ▶
+///    Ch 24 · ◐ 6 h 10 min left
+/// [i] Coupon Basics                              ▶   page: status under the title
+///     investing.example.com · ✓ Finished
+/// [i] Seven-Day Yield                            ⏸   page, playing: tinted, bars
+///     investing.example.com · ▂▅▇ 9 min left
+///  ◐  Chapter 24                                 ▶   chapter, part-way
+///     6 min left
+/// 🔗  serials.example.com                            link: lighter
 /// ```
 ///
-/// The row draws; tapping it is the caller's (a `NavigationLink`, a button). The trailing ▶ / ⏸
-/// is a `PlayStateButton` that calls `onPlay`; rows without `onPlay` (folders, plain links)
-/// have none.
+/// The row draws; tapping it is the caller's (a `NavigationLink`, a button). The status sits
+/// under the title so the title keeps the row's width. ▶ / ⏸ (`onPlay`) and › (`opensScreen`)
+/// share one trailing column, centred on the toolbar's ⋯ slot like the Now Playing bar's ⏸.
 struct ListRow: View {
     enum Kind {
         /// A folder (or Favorites, a book, a series): its symbol, or a book's cover when it has
-        /// one, and how many things are in it.
+        /// one, and how many things are in it (shown before › on a row without ▶).
         case folder(symbol: String = "folder", count: Int, cover: Image? = nil)
         /// A saved page: its site icon (or a letter tile).
         case page(artwork: Image? = nil, letter: String)
@@ -38,15 +43,19 @@ struct ListRow: View {
 
     let kind: Kind
     let title: String
-    /// Under the title: the site, "not fetched yet".
+    /// Under the title, before the status: the site, "Ch 24", "not fetched yet".
     var subtitle: String?
     var progress: Progress = .unplayed(minutes: nil)
     var playState: PlayState = .idle
+    /// Tapping the row opens a screen: › in the trailing column (unless the row has ▶).
+    var opensScreen = false
     var onPlay: (() -> Void)?
 
     /// 56 pt at the default text size; larger text grows the row through its content, and the
     /// minimum only up to `BottomChrome.maxTextGrowth`.
     @ScaledMetric(relativeTo: .callout) private var scaledMinHeight: CGFloat = 56
+    /// The row's width, for the trailing column's place (`trailingColumnPadding`).
+    @State private var width: CGFloat = 0
 
     var body: some View {
         HStack(spacing: Spacing.s) {
@@ -61,29 +70,139 @@ struct ListRow: View {
                         .foregroundStyle(titleColor)
                         .lineLimit(2)
                         .accessibilityValue(accessibilityStatus)
-                    if let subtitle {
-                        Text(subtitle)
-                            .typeStyle(.caption)
-                            .foregroundStyle(Palette.secondaryInk)
-                            .lineLimit(1)
-                            .accessibilityHidden(true)
-                    }
+                    secondLine
+                        .accessibilityHidden(true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                trailing
-                    .accessibilityHidden(true)
+                if let count = folderCount {
+                    Text("\(count)")
+                        .typeStyle(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.secondaryInk)
+                        .fixedSize()
+                        .accessibilityHidden(true)
+                }
             }
-            if let onPlay {
-                PlayStateButton(state: playState, action: onPlay)
-            }
+            trailingColumn
         }
         .padding(.leading, Spacing.m)
-        .padding(.trailing, onPlay == nil ? Spacing.m : Spacing.xxs)
+        .padding(.trailing, hasTrailingColumn ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
         .padding(.vertical, Spacing.xs)
         .frame(minHeight: BottomChrome.grown(scaledMinHeight, from: 56))
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
         .opacity(isDimmed ? 0.6 : 1)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
         .accessibilityElement(children: .contain)
+    }
+
+    /// Trailing padding that centres the 44 pt trailing column on the toolbar's ⋯ slot, for a
+    /// row `rowWidth` wide in a list at the page margin: the toolbar row is wider by the
+    /// difference between the page and band margins on each side.
+    static func trailingColumnPadding(rowWidth: CGFloat) -> CGFloat {
+        guard rowWidth > 0 else { return Spacing.xxs }
+        let inset = Spacing.pageMargin - Spacing.bandMargin
+        return max(0, NowPlayingBar.trailingPadding(rowWidth: rowWidth + 2 * inset) - inset)
+    }
+
+    // MARK: - Trailing column
+
+    private var hasTrailingColumn: Bool { onPlay != nil || opensScreen }
+
+    @ViewBuilder
+    private var trailingColumn: some View {
+        if let onPlay {
+            PlayStateButton(state: playState, action: onPlay)
+        } else if opensScreen {
+            Image(systemName: "chevron.right")
+                .typeStyle(.caption, weight: .semibold)
+                .foregroundStyle(Palette.secondaryInk)
+                .frame(width: BottomChrome.minTapTarget)
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// A folder row without ▶ shows its count just before ›.
+    private var folderCount: Int? {
+        guard onPlay == nil, case .folder(_, let count, _) = kind else { return nil }
+        return count
+    }
+
+    // MARK: - Second line
+
+    /// The subtitle, then the status: "investing.example.com · ◐ 6 min left". The subtitle
+    /// truncates, the status doesn't; when both can't share a line (large text), the status goes
+    /// under the subtitle.
+    @ViewBuilder
+    private var secondLine: some View {
+        let status = statusText
+        if subtitle != nil || status != nil {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: Spacing.xxs) {
+                    if let subtitle {
+                        subtitleText(subtitle)
+                        if status != nil { Text("·").foregroundStyle(Palette.secondaryInk) }
+                    }
+                    if let status { statusView(status) }
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    if let subtitle { subtitleText(subtitle) }
+                    if let status { statusView(status) }
+                }
+            }
+            .typeStyle(.caption)
+        }
+    }
+
+    private func subtitleText(_ subtitle: String) -> some View {
+        Text(subtitle)
+            .foregroundStyle(Palette.secondaryInk)
+            .lineLimit(1)
+    }
+
+    private func statusView(_ status: String) -> some View {
+        HStack(spacing: Spacing.xxs) {
+            switch statusMark {
+            case .bars:
+                PlayingBars(animating: playState == .playing)
+                    .frame(width: Glyph.ring, height: Glyph.ring)
+            case .ring(let fraction):
+                ProgressRing(fraction: fraction)
+            case nil:
+                EmptyView()
+            }
+            Text(status)
+        }
+        .foregroundStyle(playState.isCurrent ? Palette.accent : Palette.secondaryInk)
+        .monospacedDigit()
+        .lineLimit(1)
+        .fixedSize()
+    }
+
+    private enum StatusMark {
+        case bars
+        case ring(Double)
+    }
+
+    /// Bars while it is what you hear, a ring part-way; a chapter shows these in its leading
+    /// column instead.
+    private var statusMark: StatusMark? {
+        if case .chapter = kind { return nil }
+        if playState.isCurrent { return .bars }
+        if case .partWay(let fraction, _) = progress { return .ring(fraction) }
+        return nil
+    }
+
+    /// "18 min", "6 min left", "✓ Finished", "skipped"; nil for a folder row with its count.
+    private var statusText: String? {
+        if folderCount != nil { return nil }
+        switch (kind, progress) {
+        case (_, .unplayed(let minutes?)): return ListeningTime.label(minutes: minutes)
+        case (_, .unplayed(nil)): return nil
+        case (_, .partWay(_, let left)): return "\(ListeningTime.label(minutes: left)) left"
+        case (.chapter, .finished): return String(localized: "Finished")
+        case (_, .finished): return String(localized: "✓ Finished")
+        case (_, .skipped): return String(localized: "skipped")
+        }
     }
 
     /// What VoiceOver reads after the title: the subtitle and the status line.
@@ -91,13 +210,16 @@ struct ListRow: View {
         var parts: [String] = []
         if let subtitle { parts.append(subtitle) }
         if playState.isCurrent { parts.append(playState == .playing ? "Playing" : "Paused") }
-        switch (kind, progress) {
-        case (.folder(_, let count, _), _): parts.append("\(count) items")
-        case (_, .unplayed(let minutes?)): parts.append("\(minutes) min")
-        case (_, .unplayed(nil)): break
-        case (_, .partWay(_, let left)): parts.append("\(left) min left")
-        case (_, .finished): parts.append("Finished")
-        case (_, .skipped): parts.append("Skipped in playback")
+        if let count = folderCount {
+            parts.append("\(count) items")
+        } else {
+            switch progress {
+            case .unplayed(let minutes?): parts.append(ListeningTime.label(minutes: minutes))
+            case .unplayed(nil): break
+            case .partWay(_, let left): parts.append("\(ListeningTime.label(minutes: left)) left")
+            case .finished: parts.append("Finished")
+            case .skipped: parts.append("Skipped in playback")
+            }
         }
         return parts.joined(separator: ", ")
     }
@@ -152,50 +274,6 @@ struct ListRow: View {
         }
     }
 
-    @ViewBuilder
-    private var trailing: some View {
-        HStack(spacing: Spacing.xs) {
-            if case .page = kind, playState.isCurrent {
-                PlayingBars(animating: playState == .playing)
-                    .foregroundStyle(Palette.accent)
-                    .frame(width: Glyph.indicator, height: Glyph.indicator)
-            }
-            status
-        }
-    }
-
-    @ViewBuilder
-    private var status: some View {
-        Group {
-            switch (kind, progress) {
-            case (.folder(_, let count, _), _):
-                Text("\(count)")
-            case (_, .unplayed(let minutes?)):
-                Text("\(minutes) min")
-            case (_, .unplayed(nil)):
-                EmptyView()
-            case (.page, .partWay(let fraction, let left)):
-                HStack(spacing: Spacing.xxs) {
-                    if !playState.isCurrent { ProgressRing(fraction: fraction) }
-                    Text("\(left) min left")
-                }
-            case (_, .partWay(_, let left)):
-                Text("\(left) min left")
-            case (.chapter, .finished):
-                Text("Finished")
-            case (_, .finished):
-                Text("✓ Finished")
-            case (_, .skipped):
-                Text("skipped")
-            }
-        }
-        .typeStyle(.caption)
-        .monospacedDigit()
-        .foregroundStyle(playState.isCurrent ? Palette.accent : Palette.secondaryInk)
-        .lineLimit(1)
-        .fixedSize()
-    }
-
     /// Width of the leading symbol or artwork.
     static let leadingWidth: CGFloat = 32
     /// A book cover in a folder row: narrower than the slot, so its height (1.45×) stays inside
@@ -225,26 +303,39 @@ struct ListRowGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("folder") {
-                ListRow(kind: .folder(count: 4), title: "Bonds")
-                ListRow(kind: .folder(symbol: "star.fill", count: 12), title: "Favorites")
-                ListRow(kind: .folder(symbol: "book.closed", count: 61, cover: nil), title: "Pride and Prejudice",
-                        subtitle: "Jane Austen")
-                ListRow(kind: .folder(count: 3, cover: Image(systemName: "photo")), title: "A book with a cover")
+                ListRow(kind: .folder(count: 4), title: "Bonds", opensScreen: true)
+                ListRow(kind: .folder(symbol: "star.fill", count: 12), title: "Favorites", opensScreen: true)
+                ListRow(kind: .folder(count: 3, cover: Image(systemName: "photo")), title: "A book with a cover",
+                        opensScreen: true)
+            }
+            PreviewState("book: unplayed, part-way, playing") {
+                ListRow(kind: .folder(symbol: "book.closed", count: 61), title: "Pride and Prejudice",
+                        subtitle: "Jane Austen", progress: .unplayed(minutes: 645), opensScreen: true, onPlay: {})
+                ListRow(kind: .folder(symbol: "book.closed", count: 61), title: "Pride and Prejudice",
+                        subtitle: "Ch 24", progress: .partWay(fraction: 0.38, minutesLeft: 370), opensScreen: true,
+                        onPlay: {})
+                ListRow(kind: .folder(symbol: "books.vertical", count: 108), title: "The Lighthouse Keeper",
+                        subtitle: "Ch 14", progress: .partWay(fraction: 0.12, minutesLeft: 1210), playState: .playing,
+                        opensScreen: true, onPlay: {})
             }
             PreviewState("page, unplayed") {
                 ListRow(kind: .page(letter: "M"), title: "Money Market Funds", subtitle: "investing.example.com",
                         progress: .unplayed(minutes: 12), onPlay: {})
             }
-            PreviewState("page, part-way") {
+            PreviewState("page, part-way; played, not saved") {
                 ListRow(kind: .page(letter: "B"), title: "Bond Ladders", subtitle: "investing.example.com",
                         progress: .partWay(fraction: 0.4, minutesLeft: 6), onPlay: {})
+                ListRow(kind: .page(letter: "N"), title: "Notes on Tides", subtitle: "example.org · Not saved",
+                        progress: .partWay(fraction: 0.6, minutesLeft: 4), onPlay: {})
             }
             PreviewState("page, playing") {
-                ListRow(kind: .page(letter: "S"), title: "Seven-Day Yield", subtitle: "investing.example.com",
-                        progress: .partWay(fraction: 0.58, minutesLeft: 9), playState: .playing, onPlay: {})
+                ListRow(kind: .page(letter: "S"), title: "Seven-Day Yield: Definition, Calculation, and Example",
+                        subtitle: "investing.example.com", progress: .partWay(fraction: 0.58, minutesLeft: 9),
+                        playState: .playing, onPlay: {})
             }
             PreviewState("page, finished") {
-                ListRow(kind: .page(letter: "C"), title: "Coupon Basics", progress: .finished, onPlay: {})
+                ListRow(kind: .page(letter: "C"), title: "Coupon Basics", subtitle: "investing.example.com",
+                        progress: .finished, onPlay: {})
             }
             PreviewState("chapter: finished, playing, part-way, unplayed, skipped") {
                 VStack(spacing: 0) {

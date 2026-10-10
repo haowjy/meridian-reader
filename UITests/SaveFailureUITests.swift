@@ -48,7 +48,7 @@ final class SaveFailureUITests: XCTestCase {
         expectToast(app, "Couldn’t save")
         expectNoToast(app)
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         idle(1)
         XCTAssertFalse(libraryRow(app, "Second page").exists, "not in the Library")
         app.buttons["libraryBrowser"].tap()
@@ -157,7 +157,7 @@ final class SaveFailureUITests: XCTestCase {
         XCTAssertTrue(eventually(5) { !self.find(app, "importSheet").exists }, "OK closes the sheet")
 
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         idle(1)
         XCTAssertFalse(libraryRow(app, "The Imported Demo Book").exists, "no book in the Library")
     }

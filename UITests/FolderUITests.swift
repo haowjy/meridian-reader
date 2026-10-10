@@ -2,7 +2,8 @@ import XCTest
 
 /// Folders at any depth: a folder made inside a folder, a page filed there from the Reader's 🔖 in
 /// two taps (long-press, a folder), Delete Folder Only moving the contents up (and never offered
-/// with a book), the Move tree's New Folder Inside, and Edit moving several pages at once.
+/// with a book), the Move tree's New Folder Inside, Edit moving several pages at once, and
+/// long-press → *Select* entering Edit with that row selected.
 /// Offline: the demo folders and the test pages.
 final class FolderUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
@@ -119,5 +120,25 @@ final class FolderUITests: XCTestCase {
         openFolder(app, "Taxes")
         XCTAssertTrue(libraryRow(app, "Seven-Day Yield").waitForExistence(timeout: 5))
         XCTAssertTrue(libraryRow(app, "Index Funds").exists)
+    }
+
+    /// *Select* in a row's long-press menu: Edit from the thumb, the row already selected, so the
+    /// bar acts on it at once.
+    func testSelectFromARowsMenuEntersEditWithItSelected() throws {
+        let app = launchLibrary()
+        openFolder(app, "Demo Finance")
+        libraryRow(app, "Index Funds").press(forDuration: 1.0)
+        let select = app.buttons["Select"]
+        XCTAssertTrue(select.waitForExistence(timeout: 3), "Select in the menu")
+        select.tap()
+        let move = app.buttons["editMove"]
+        XCTAssertTrue(move.waitForExistence(timeout: 3), "Edit's bar")
+        XCTAssertTrue(move.isEnabled, "with the row selected")
+        XCTAssertEqual(app.buttons["folderEdit"].label, "Done")
+        move.tap()
+        pickInMoveTree(app, "Taxes")
+        app.buttons["folderEdit"].tap()
+        XCTAssertTrue(eventually(5) { !self.libraryRow(app, "Index Funds").exists }, "moved out")
+        XCTAssertTrue(libraryRow(app, "Seven-Day Yield").exists, "only that row")
     }
 }

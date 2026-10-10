@@ -162,7 +162,7 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `bodyHTML`, `plainTextData` | Offline reading; the listen text comes from the HTML |
 | `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount` |
 | `positionParagraph`, `positionUTF16` | Resume position (paragraph + offset inside the document) |
-| `lastPlayedAt`, `finishedAt` | Continue, and a row's "✓ Finished" |
+| `lastPlayedAt`, `finishedAt` | the "Not saved" pages' order and prune, and a row's "✓ Finished" |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
 | `skipsInPlayback`, `fetchStateRaw` | Book chapters and series: what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |

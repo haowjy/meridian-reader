@@ -27,7 +27,8 @@ struct BrowseStartPage: View {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 if hasFavorites {
                     VStack(alignment: .leading, spacing: Spacing.s) {
-                        SectionHeader(title: String(localized: "Favorites"), actionTitle: String(localized: "Show All"),
+                        SectionHeader(title: String(localized: "Favorites"), size: .page,
+                                      actionTitle: String(localized: "Show All"),
                                       actionNavigates: true, actionIdentifier: "startFavoritesShowAll",
                                       action: onShowFavorites)
                         FavoritesGrid(pages: Array(favorites.prefix(Self.favoriteLimit)),

@@ -39,7 +39,7 @@ final class Page {
     /// Book chapters: "href#fragment" of the contents entry.
     var locator: String?
     var contentStateRaw: String = PageContentState.link.rawValue
-    /// nil = not in the Library: played without saving. Shows only in Continue and the bar;
+    /// nil = not in the Library: played without saving. Shows at the top of *Pages*, "Not saved", and in the bar;
     /// pruned 7 days after it was last played.
     var addedAt: Date?
     /// Order inside its folder, or among pages with no folder.

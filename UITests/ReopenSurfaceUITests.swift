@@ -16,7 +16,7 @@ final class ReopenSurfaceUITests: XCTestCase {
         again.launch()
         XCTAssertTrue(again.staticTexts["Second page"].waitForExistence(timeout: 10), "the browser, on its page")
         XCTAssertEqual(again.textFields["addressField"].value as? String, "pages/two")
-        XCTAssertFalse(again.navigationBars["Library"].exists)
+        XCTAssertFalse(again.libraryHome.exists)
     }
 
     func testLeftOnAFolderReopensTheLibraryThere() throws {
@@ -39,7 +39,7 @@ final class ReopenSurfaceUITests: XCTestCase {
         let app = launchTestPages()
         openTestPage(app, "Next page")
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         openFolder(app, "Favorites")
         app.terminate()
 
@@ -56,6 +56,6 @@ final class ReopenSurfaceUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-selectEngine", "apple", "-restoreSurface", "-resetSurface"]
         app.launch()
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 10), "the Library home")
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10), "the Library home")
     }
 }

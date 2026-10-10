@@ -97,44 +97,27 @@ struct BookScreen: View {
         return "Added \(folder.createdAt.formatted(.dateTime.day().month(.abbreviated)))"
     }
 
-    /// The chapters that play, by length: how far through, and what's left.
-    private var progress: (fraction: Double?, label: String?) {
-        let playable = chapters.filter { !$0.skipsInPlayback && !$0.isLink }
-        let total = playable.reduce(0) { $0 + $1.estimatedMinutes }
-        guard total > 0, playable.contains(where: { $0.finishedAt != nil || PageProgress.isPartWay($0) }) else {
-            return (nil, nil)
-        }
-        let left = playable.reduce(0) { sum, chapter in
-            switch PageProgress.of(chapter) {
-            case .finished: sum
-            case .partWay(_, let minutes): sum + minutes
-            default: sum + chapter.estimatedMinutes
-            }
-        }
-        let fraction = 1 - Double(left) / Double(total)
-        return (fraction, "\(Int((fraction * 100).rounded()))% · \(Self.duration(minutes: left)) left")
+    /// The place, how far through and what's left, from the chapters that play.
+    private var bookProgress: BookProgress {
+        let playing = actions.playState(of: folder).isCurrent ? speech.activeSessionID : nil
+        return BookProgress(folder: folder, chapters: chapters, playingKey: playing, library: library)
     }
 
-    static func duration(minutes: Int) -> String {
-        minutes < 60 ? "\(minutes) min" : "\(minutes / 60) h \(minutes % 60) min"
+    /// The header's bar and "38% · 6 h 10 min left", once a chapter is finished or part-way.
+    private var progress: (fraction: Double?, label: String?) {
+        let book = bookProgress
+        guard let fraction = book.fraction else { return (nil, nil) }
+        return (fraction, "\(Int((fraction * 100).rounded()))% · \(ListeningTime.label(minutes: book.minutesLeft)) left")
     }
 
     // MARK: - Continue
 
     /// The chapter Continue resumes (or the one playing).
-    private var currentKey: UUID? {
-        if actions.playState(of: folder).isCurrent, let playing = speech.activeSessionID { return playing }
-        switch ChapterAdvance.start(library.chapterSnapshot(of: folder), place: folder.currentPageKey) {
-        case .ready(let key), .pending(let key): return key
-        case .unavailable, .none: return nil
-        }
-    }
+    private var currentKey: UUID? { bookProgress.currentKey }
 
     /// "Continue · Ch 24", "Play from Chapter 1" before anything has played, "Playing · Ch 24".
     private var continueTitle: String {
-        let number = currentKey.flatMap { key in
-            chapters.filter { !$0.skipsInPlayback }.firstIndex { $0.listenKey == key }
-        }.map { $0 + 1 }
+        let number = bookProgress.chapterNumber
         if actions.playState(of: folder).isCurrent {
             return number.map { "Playing · Ch \($0)" } ?? String(localized: "Playing")
         }

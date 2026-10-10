@@ -100,7 +100,7 @@ extension LibraryStore {
         return (page, textNotStored)
     }
 
-    /// A page the library has started playing again (a row's ▶, a Continue card, a resume, a
+    /// A page the library has started playing again (a row's ▶, a book's Continue, a resume, a
     /// replay, the next chapter): dated and unfinished, and a chapter becomes its book's place.
     /// It plays the text the page holds now. When the page holds changes not stored yet (a
     /// refresh on open whose save failed, say), the store may not hold that text: it is kept

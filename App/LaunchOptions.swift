@@ -10,12 +10,12 @@ struct LaunchOptions: Equatable {
         var title: String?
         /// `-seedDemoParagraphs N`: a longer article (background-listening probe). At least 3.
         var paragraphs = 3
-        /// `-seedDemoProgress N`: saved playhead paragraph ("Continue listening" checks).
+        /// `-seedDemoProgress N`: saved playhead paragraph (resume checks).
         var progress = 0
         /// `-seedDemoPlainText`: the article has no HTML, only its plain text.
         var plainTextOnly = false
         /// `-seedPlayedPages N`: also N pages played without saving, part-way ("Played Page 1"
-        /// played most recently), so Continue has more rows than it shows folded.
+        /// played most recently): the "Not saved" rows at the top of the Library's *Pages*.
         var playedPages = 0
     }
 
@@ -51,7 +51,7 @@ struct LaunchOptions: Equatable {
     var seedsDemoBook = false
     /// `-seedDemoBookPlace N` (with `-seedDemoBook`): the book's place is chapter N (its index in
     /// `DemoBook.chapters`; 0 is the title page), at its third paragraph, the chapters before it
-    /// finished: a book part-way, for Continue.
+    /// finished: a book part-way, for its row's place and ▶.
     var demoBookPlace: Int?
     /// `-chainDemoChapters`: once launched, play the demo book from its place (chapter 1 the first
     /// time) and let it carry on (the locked-screen device check).

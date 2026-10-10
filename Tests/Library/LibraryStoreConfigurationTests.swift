@@ -187,16 +187,14 @@ final class LibraryStoreConfigurationTests: XCTestCase {
         }
         XCTAssertEqual(try titles(LibraryQueries.pages(inFolder: favorites.id)), ["link"])
         XCTAssertEqual(try titles(LibraryQueries.pages(inFolder: book.id)), ["chapter"])
-        XCTAssertEqual(try context.fetch(LibraryQueries.recentlyPlayed).map(\.title).first, "loose")
-        XCTAssertEqual(try titles(LibraryQueries.recentlyPlayed), ["loose", "link", "unsaved-old", "unsaved-new"])
-        XCTAssertEqual(try titles(LibraryQueries.undatedInProgress), ["undated"])
+        XCTAssertEqual(try context.fetch(LibraryQueries.playedNotSaved).map(\.title), ["unsaved-new", "unsaved-old"],
+                       "played without saving, most recent first")
         XCTAssertEqual(try titles(LibraryQueries.search("LOOS")), ["loose"])
         XCTAssertEqual(try titles(LibraryQueries.search("unsaved")), [], "pages not in the Library aren't found")
         XCTAssertEqual(try titles(LibraryQueries.prunable(before: cutoff)), ["unsaved-old"])
         XCTAssertEqual(try titles(LibraryQueries.staleLinkCaches(before: cutoff)), ["link"])
         XCTAssertEqual(try titles(LibraryQueries.page(key: loose.key!)), ["loose"])
         XCTAssertEqual(try titles(LibraryQueries.pages(canonicalURL: "https://example.com/link")), ["link"])
-        XCTAssertEqual(try context.fetch(LibraryQueries.continueFolders).map(\.name), ["A Book"])
         XCTAssertEqual(try context.fetch(LibraryQueries.folder(id: book.id)).map(\.name), ["A Book"])
         XCTAssertEqual(try context.fetch(LibraryQueries.favorites).count, 1)
         XCTAssertEqual(try context.fetch(LibraryQueries.searchFolders("book")).map(\.name), ["A Book"])

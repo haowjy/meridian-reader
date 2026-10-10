@@ -17,7 +17,6 @@ final class DesignSystemGalleryTests: XCTestCase {
         ("SearchField", AnyView(SearchFieldGallery())),
         ("SectionHeader", AnyView(SectionHeaderGallery())),
         ("ListRow", AnyView(ListRowGallery())),
-        ("ContinueCard", AnyView(ContinueCardGallery())),
         ("FolderHeader", AnyView(FolderHeaderGallery())),
         ("ScrubBar", AnyView(ScrubBarGallery())),
         ("NowPlayingBar", AnyView(NowPlayingBarGallery())),

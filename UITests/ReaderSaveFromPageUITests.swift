@@ -69,7 +69,7 @@ final class ReaderSaveFromPageUITests: XCTestCase {
 
         // Library: exactly one row for the page, and its reader is the same screen.
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         let rows = app.cells.staticTexts.matching(NSPredicate(format: "label == %@", "Second page"))
         XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5))
         XCTAssertEqual(rows.count, 1, "Saved must not contain duplicates")

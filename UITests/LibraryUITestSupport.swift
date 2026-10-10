@@ -1,6 +1,14 @@
 import UIKit
 import XCTest
 
+extension XCUIApplication {
+    /// The Library home. It has no navigation bar (its title is the first thing in its list), so
+    /// it is found by its list; a pushed screen covers it, and it leaves the hierarchy then.
+    var libraryHome: XCUIElement {
+        descendants(matching: .any).matching(identifier: "libraryHome").firstMatch
+    }
+}
+
 /// Lookups shared by the Library's UI tests.
 extension XCTestCase {
     /// The Library on the demo article, book and folders, the Apple voice, no favorites.
@@ -9,12 +17,12 @@ extension XCTestCase {
         app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoBook", "-seedDemoFolders", "-resetBookmarks",
                                "-selectEngine", "apple", "-reader.rateMultiplier", "1"] + extra + ["-openLibrary"]
         app.launch()
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 10), "the Library")
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10), "the Library")
         return app
     }
 
     /// The title of a row in a Library list: its label is the title and its value the status
-    /// (which a Continue card's inner text, with the same title, doesn't have).
+    /// (which other texts with the same title, such as the Now Playing bar's, don't have).
     func libraryRow(_ app: XCUIApplication, _ title: String) -> XCUIElement {
         app.cells.staticTexts.matching(rowPredicate(title)).firstMatch
     }

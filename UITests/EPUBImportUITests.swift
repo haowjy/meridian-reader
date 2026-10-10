@@ -47,7 +47,7 @@ final class EPUBImportUITests: XCTestCase {
         importFromTheHome(app)
         XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 30), "imported once")
         app.navigationBars[title].buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
 
         importFromTheHome(app)
         let ask = app.alerts["“\(title)” is already in the Library"]
@@ -55,7 +55,7 @@ final class EPUBImportUITests: XCTestCase {
         XCTAssertTrue(ask.buttons["Replace"].firstMatch.exists)
         ask.buttons["Cancel"].firstMatch.tap()
         XCTAssertTrue(eventually(5) { !self.find(app, "importSheet").exists }, "Cancel closes the sheet")
-        XCTAssertTrue(app.navigationBars["Library"].exists, "and stays on the Library")
+        XCTAssertTrue(app.libraryHome.exists, "and stays on the Library")
         XCTAssertEqual(app.cells.staticTexts.matching(NSPredicate(format: "label == %@", title)).count, 1,
                        "one book")
 

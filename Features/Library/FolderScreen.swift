@@ -2,18 +2,21 @@ import SwiftData
 import SwiftUI
 
 /// One screen for every folder at every depth, Favorites included, and for the top level's pages
-/// (*Pages · Show All*, `folder == nil`): the header, subfolders first (by their order), then
-/// pages by the folder's sort. Edit puts check circles on the rows (and drag handles when the
-/// sort is *Manual*); the surface's bottom bar then acts on the selection.
+/// (*Pages · Show All*, `folder == nil`, with pages played without saving on top): the header,
+/// subfolders first (by their order), then pages by the folder's sort. *Edit*, or *Select* in a
+/// row's long-press menu, puts check circles on the rows (and drag handles when the sort is
+/// *Manual*); the surface's bottom bar then acts on the selection.
 ///
 /// ```
 /// ‹ Library                Finance                    Edit
 /// Finance
 /// 2 folders · 7 pages
-///  📁 Bonds                               4
-///  [i] Coupon Basics        ✓ Finished       ▶
-///  [i] Seven-Day Yield  ▂▅▇ 9 min left       ⏸   ← playing: tinted, with bars
-///  [i] investing.example.com  🔗                  (link: lighter, no ▶)
+///  📁 Bonds                             4  ›
+///  [i] Coupon Basics                        ▶
+///      investing.example.com · ✓ Finished
+///  [i] Seven-Day Yield                      ⏸   ← playing: tinted, with bars
+///      investing.example.com · ▂▅▇ 9 min left
+///  🔗  investing.example.com                     (link: lighter, no ▶)
 /// ```
 struct FolderScreen: View {
     /// nil: the pages in no folder.
@@ -61,6 +64,9 @@ private struct FolderContentsList: View {
     @Environment(ShellState.self) private var shell
     @Environment(LibraryScreenState.self) private var screen
     @Query private var pages: [Page]
+    /// The top level's pages only: pages played without saving, shown above the rest and out of
+    /// Edit (they aren't in the Library to move, mark or remove).
+    @Query(LibraryQueries.playedNotSaved) private var playedNotSaved: [Page]
 
     init(folder: Folder?, sort: PageSort) {
         self.folder = folder
@@ -74,6 +80,17 @@ private struct FolderContentsList: View {
 
     private var subfolders: [Folder] { folder.map { LibraryStore.ordered($0.children ?? []) } ?? [] }
     private var isEditing: Bool { screen.isEditing(folderID: folder?.id) }
+    private var notSaved: [Page] { folder == nil && !isEditing ? playedNotSaved : [] }
+
+    /// *Select* on a row: Edit, with that row selected.
+    private func select(_ item: LibraryItemID) -> () -> Void {
+        { [screen, folder] in
+            withAnimation(Motion.snappy) {
+                screen.beginEditing(folderID: folder?.id)
+                screen.selection = [item]
+            }
+        }
+    }
 
     var body: some View {
         @Bindable var screen = screen
@@ -88,18 +105,23 @@ private struct FolderContentsList: View {
             if !subfolders.isEmpty {
                 Section {
                     ForEach(subfolders, id: \.id) { child in
-                        LibraryFolderRow(folder: child)
+                        LibraryFolderRow(folder: child, onSelect: select(.folder(child.id)))
                             .tag(LibraryItemID.folder(child.id))
                     }
                     .onMove(perform: isEditing ? moveFolders : nil)
-                    .listRowInsets(.folderRow)
+                    .listRowInsets(EdgeInsets())
                     .listRowBackground(Palette.chrome)
                 }
             }
-            if !pages.isEmpty {
+            if !pages.isEmpty || !notSaved.isEmpty {
                 Section {
-                    ForEach(pages, id: \.listenKey) { page in
+                    ForEach(notSaved, id: \.listenKey) { page in
                         LibraryPageRow(page: page)
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Palette.chrome)
+                    ForEach(pages, id: \.listenKey) { page in
+                        LibraryPageRow(page: page, onSelect: select(.page(page.listenKey)))
                             .tag(LibraryItemID.page(page.listenKey))
                     }
                     .onMove(perform: isEditing && sort == .manual ? movePages : nil)
@@ -107,7 +129,7 @@ private struct FolderContentsList: View {
                     .listRowBackground(Palette.chrome)
                 }
             }
-            if subfolders.isEmpty && pages.isEmpty {
+            if subfolders.isEmpty && pages.isEmpty && notSaved.isEmpty {
                 Text(folder?.kind == .favorites
                      ? "Add pages with ☆ in the browser or the Reader."
                      : "Move pages here, or save them here from the Reader’s 🔖.")
@@ -117,6 +139,7 @@ private struct FolderContentsList: View {
             }
         }
         .libraryListStyle()
+        .animation(Motion.standard, value: notSaved.map(\.listenKey))
         .environment(\.editMode, .constant(isEditing ? .active : .inactive))
         .accessibilityIdentifier("folderScreen")
     }

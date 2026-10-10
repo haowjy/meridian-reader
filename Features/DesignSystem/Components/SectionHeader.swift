@@ -4,10 +4,19 @@ import SwiftUI
 /// home and the start page.
 ///
 /// ```
-/// Continue                               Show All ›
+/// Pages · 48                             Show All ›
 /// ```
 struct SectionHeader: View {
+    enum Size {
+        /// Under a screen title (the Library's lists): `row` semibold in secondary ink, so the
+        /// screen title stays the largest thing.
+        case list
+        /// The top level of a screen without a title (the start page): `heading`.
+        case page
+    }
+
     let title: String
+    var size: Size = .list
     /// The trailing action's title; nil: no action.
     var actionTitle: String?
     /// Draws a › after the action's title (it goes somewhere rather than doing something).
@@ -22,8 +31,8 @@ struct SectionHeader: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
-                .typeStyle(.heading)
-                .foregroundStyle(Palette.ink)
+                .typeStyle(size == .list ? .row : .heading, weight: size == .list ? .semibold : nil)
+                .foregroundStyle(size == .list ? Palette.secondaryInk : Palette.ink)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: Spacing.xs)
             if let actionTitle {
@@ -49,7 +58,10 @@ struct SectionHeader: View {
 struct SectionHeaderGallery: View {
     var body: some View {
         PreviewGallery {
-            PreviewState("title only") { SectionHeader(title: "Continue") }
+            PreviewState("title only") { SectionHeader(title: "Chapters") }
+            PreviewState("page size, the start page") {
+                SectionHeader(title: "Favorites", size: .page, actionTitle: "Show All", actionNavigates: true)
+            }
             PreviewState("with Show All") {
                 SectionHeader(title: "Pages · 48", actionTitle: "Show All", actionNavigates: true)
             }
