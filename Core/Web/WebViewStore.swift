@@ -60,23 +60,11 @@ final class WebViewStore {
         pageTitle = currentURL == nil ? nil : webView.title
     }
 
+    /// The page as extraction reads it (`PageSnapshot`).
     func snapshotHTML() async throws -> String {
         guard let webView else {
             throw ExtractionError.engineFailed(message: "WebView isn’t ready yet.")
         }
-        let plain = "document.documentElement ? document.documentElement.outerHTML : document.body.outerHTML"
-        // Prefer a snapshot without short invisible text (anti-copy lines hidden by site CSS,
-        // which the saved copy can't hide because it drops the site's stylesheets).
-        var result: Any?
-        if let visibleJS = ReaderScripts.visibleSnapshot {
-            result = try? await webView.evaluateJavaScript(visibleJS + "\n__readerVisibleSnapshot();")
-        }
-        if (result as? String)?.isEmpty ?? true {
-            result = try await webView.evaluateJavaScript(plain)
-        }
-        guard let html = result as? String, !html.isEmpty else {
-            throw ExtractionError.emptyContent
-        }
-        return html
+        return try await PageSnapshot.html(of: webView)
     }
 }

@@ -73,13 +73,15 @@ enum LaunchHooks {
     /// `-failLibrarySaves`' refusal.
     private struct InjectedSaveFailure: Error {}
 
-    /// Last, after crash resume (which wins): `-playTestEPUB`, `-chainDemoChapters`.
+    /// Last, after crash resume (which wins): `-playTestEPUB`, `-chainDemoChapters`,
+    /// `-probeLockedFetch`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController) async {
         if options.playsTestEPUB {
             await importTestEPUB(in: library)
             await playTestEPUB(library: library, speech: speech)
         }
         if options.chainsDemoChapters { await chainDemoChapters(library: library, speech: speech) }
+        if options.probesLockedFetch { await LockedFetchProbe.run(speech: speech) }
     }
 
     /// `-importTestEPUB`: an earlier launch's import of the synthetic EPUB goes, with its audio,
@@ -265,8 +267,9 @@ enum LaunchHooks {
     }
 
     /// `-bakeArticle <id prefix>` (e.g. `xcrun devicectl device process launch …
-    /// com.jimmyyao.Reader -bakeArticle 0C25B7EE`): render a saved article's audio top-down
-    /// without playing it, then read ListenTiming / TTSCache.
+    /// com.jimmyyao.Reader -- -bakeArticle 0C25B7EE`; without the `--`, devicectl takes the
+    /// argument for its own flags): render a saved article's audio top-down without playing it,
+    /// then read ListenTiming / TTSCache.
     static func bakeArticle(prefix: String, in library: LibraryStore, speech: SpeechController) {
         let pages = (try? library.context.fetch(FetchDescriptor<Page>())) ?? []
         guard let page = pages.first(where: { $0.hasText && $0.listenKey.uuidString.hasPrefix(prefix) }) else {

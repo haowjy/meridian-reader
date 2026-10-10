@@ -73,8 +73,8 @@ UITests/    UI tests (ReaderUITests)
 ## Extraction
 
 1. The browser keeps a live `WKWebView` (`WebViewStore`). Reader mode and Save take a snapshot of
-   the page's visible DOM (`ReaderVisibleSnapshot.js` drops short invisible text such as anti-copy
-   lines).
+   the page's visible DOM (`PageSnapshot`: `ReaderVisibleSnapshot.js` drops short invisible text
+   such as anti-copy lines).
 2. `ReadabilityArticleExtractor` loads that HTML into an **off-screen** `WKWebView`
    (`OffscreenWebView`; the page URL as base for web pages) with the page's JavaScript off,
    injects Readability.js and the readerable helper, and runs
@@ -85,6 +85,14 @@ UITests/    UI tests (ReaderUITests)
    `SingleWebPageSource`: one page in no folder, its content normalized like every source's.
 3. The address bar's reader icon and the ⋯ Reader toggle use the same
    `isProbablyReaderable` check, run after each load and same-document URL change.
+
+**Fetching a page out of sight** (`URLPageFetcher`; nothing reaches it yet but the Debug hook
+`-probeLockedFetch`): a fresh `WKWebView` the size of the app's window, placed off its left edge
+(the page lays out at the browser's width, in a view WebKit counts as on screen), with the
+browser's cookies (the default website data store) and page scripts off. It
+loads the page, takes the same snapshot and extracts it through `SingleWebPageSource`, so a page
+reads the same as from the browser (`URLPageFetcherTests`). Loading, the snapshot and extraction
+each give up after a time limit, since WebKit's processes can be suspended in the background.
 
 Snapshot plus off-screen, rather than injecting into the visible page: the user's page is never
 mutated, injected scripts don't fight the page's CSP, and content rendered by JavaScript is
