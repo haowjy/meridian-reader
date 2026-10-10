@@ -277,6 +277,7 @@ is; a folder's count sits just before its ›. On a folder screen every row's me
 | Folder, Favorites | opens it (push) | count, › | *Move to…, Rename, Delete…* (Favorites: none) | Delete… |
 | Book or series | opens it (push) | ▶ (resumes at its place; the place under the title) | *Continue, Play from Start, Move to…, Rename, Delete Book…* | Delete… |
 | Saved page | the Reader (Now Playing if it's what you hear) | ▶ | *Move to…, Mark as Finished / Unfinished, Share, Delete Downloads* (when it has audio)*, Remove from Library* | Remove |
+| Page played without saving ("Not saved", top of *Pages*) | the Reader (Now Playing if it's what you hear) | ▶ | *Save, Share* | — |
 | Link page | the page, in the browser | — | *Move to…, Share, Remove from Library* | Remove |
 | Chapter | the Reader (Now Playing if it's what you hear) | ▶ (not on skipped ones) | *Play from Here, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback, Delete Downloads* | — |
 
@@ -288,7 +289,6 @@ long-press offers *New Folder Inside* (made in it, and the item goes in that). *
 folder)* files the page in no folder, out of the folder it was in (a link in Favorites leaves
 Favorites, saved); an ordinary 🔖 or *Save* keeps a page's folder. Books and series aren't
 destinations; a folder being moved, and everything inside it, can't be picked. The tree closes
-| Page played without saving ("Not saved", top of *Pages*) | the Reader (Now Playing if it's what you hear) | ▶ | *Save, Share* | — |
 once what was picked is saved; a pick, or a *New Folder*, that can't be saved leaves it up under
 the toast, to pick again or ✕ (in the import sheet, a *New Folder* that can't be saved leaves the
 tree up the same way). The browser's *Save to Library…* closes it on the pick, since the
