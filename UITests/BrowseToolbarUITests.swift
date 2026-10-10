@@ -1,8 +1,8 @@
 import XCTest
 
 /// Browser bottom bar: no tab bar, toolbar `[‹][›][Search][Library][⋯]` (⋯ = the morph menu panel
-/// with Bookmarks / Saved / History), the address-field reader icon (readable pages only), site
-/// bookmarks, and edit mode that cancels via ✕ or a pull-down (restoring the page address).
+/// with Favorites / History), the address-field reader icon (readable pages only), Favorites,
+/// and edit mode that cancels via ✕ or a pull-down (restoring the page address).
 final class BrowseToolbarUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
@@ -104,26 +104,26 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(waitFor("hasKeyboardFocus == false", field))
         XCTAssertTrue(back.isEnabled, "still on the same page")
 
-        // ⋯ panel: action rows, then the big Saved / History buttons.
+        // ⋯ panel: action rows, then the big Favorites / History / Reader buttons.
         let browseMoreFrame = app.buttons["browseMore"].frame
         app.buttons["browseMore"].tap()
         assertMenuAligned(app, more: browseMoreFrame, button: "moreReaderToggle")
-        for id in ["moreNewSearch", "moreSave", "moreBookmark", "moreShare", "moreReload",
-                   "moreVoice", "moreDebug", "moreBookmarks", "moreLibrary", "moreHistory", "moreReaderToggle"] {
+        for id in ["moreNewSearch", "moreSave", "moreFavorite", "moreShare", "moreReload",
+                   "moreVoice", "moreDebug", "moreFavorites", "moreHistory", "moreReaderToggle"] {
             XCTAssertTrue(element(app, id).waitForExistence(timeout: 3), "⋯ has \(id)")
         }
+        XCTAssertFalse(element(app, "moreLibrary").exists, "the Library is slot 4, not a big button")
         XCTAssertFalse(element(app, "moreReader").exists, "the Open in Reader row is gone (bottom-right toggle)")
         XCTAssertTrue(element(app, "moreMenuPanel").exists, "Safari-style panel (no popover arrow)")
         element(app, "moreReload").tap()
         XCTAssertTrue(waitFor("exists == false", element(app, "moreReload")), "panel closes")
 
-        // Saved → the library surface (shared chrome); Browser slot returns to the page.
-        app.buttons["browseMore"].tap()
-        element(app, "moreLibrary").tap()
-        XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5), "library surface")
+        // 📚 → the library surface (shared chrome); Browser slot returns to the page.
+        app.buttons["browseLibrary"].tap()
+        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5), "library surface")
         XCTAssertTrue(element(app, "libraryBrowser").waitForExistence(timeout: 3), "Browser swap slot")
         element(app, "libraryBrowser").tap()
-        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Saved"]), "swipe down dismisses")
+        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Library"]), "back on the browser")
         XCTAssertTrue(back.isEnabled, "page state kept")
 
         // History → the visited pages; tapping one opens it.
@@ -223,8 +223,8 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(website.isEnabled)
         XCTAssertFalse(toggle.exists, "no Reader toggle inside the reader")
         assertMenuAligned(app, more: rf, button: "moreWebsite")
-        for id in ["moreVoice", "moreSave", "moreBookmark", "moreShare", "moreDebug",
-                   "moreBookmarks", "moreLibrary", "moreHistory"] {
+        for id in ["moreVoice", "moreSave", "moreFavorite", "moreShare", "moreDebug",
+                   "moreFavorites", "moreHistory"] {
             XCTAssertTrue(element(app, id).exists, "reader ⋯ has \(id)")
         }
         XCTAssertFalse(element(app, "moreNewSearch").exists, "browser-only rows stay out of the reader menu")
@@ -236,15 +236,15 @@ final class BrowseToolbarUITests: XCTestCase {
         app.navigationBars["Listen"].buttons["Done"].tap()
         XCTAssertTrue(waitFor("exists == false", app.navigationBars["Listen"]))
 
-        // Bookmark the site from the reader (wait for the morph to finish growing before tapping
+        // Add the page to Favorites from the reader (wait for the morph to finish growing before tapping
         // a row: mid-animation the rows are still scaled toward the ⋯ button).
         readerMore.tap()
         XCTAssertTrue(website.waitForExistence(timeout: 3))
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
-        element(app, "moreBookmark").tap()
+        element(app, "moreFavorite").tap()
         XCTAssertTrue(waitFor("exists == false", website), "panel closes")
         readerMore.tap()
-        XCTAssertTrue(waitFor("label == 'Remove Bookmark'", element(app, "moreBookmark")), "bookmarked from the reader")
+        XCTAssertTrue(waitFor("label == 'Remove from Favorites'", element(app, "moreFavorite")), "a favorite from the reader")
 
         // Website → back to the web page (already loaded: revealed, not reloaded).
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
@@ -279,7 +279,7 @@ final class BrowseToolbarUITests: XCTestCase {
         readerMore.tap()
         element(app, "moreHistory").tap()
         XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 8), "history sheet")
-        XCTAssertFalse(app.navigationBars["Saved"].exists, "library closed first")
+        XCTAssertFalse(app.navigationBars["Library"].exists, "library closed first")
     }
 
     /// The library's ⋯ is its own menu: nothing in it acts on the page hidden under the library.
@@ -287,23 +287,23 @@ final class BrowseToolbarUITests: XCTestCase {
         let app = launch(testPage: true)
         XCTAssertTrue(app.links["Next page"].waitForExistence(timeout: 10))
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5), "library surface")
+        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5), "library surface")
 
         let libraryMore = app.buttons["libraryMore"]
         let moreFrame = libraryMore.frame
         libraryMore.tap()
         assertMenuAligned(app, more: moreFrame, button: "moreBrowser")
-        for id in ["moreVoice", "moreBookmarks", "moreHistory", "moreBrowser"] {
+        for id in ["moreVoice", "moreNewFolder", "moreFavorites", "moreHistory", "moreBrowser"] {
             XCTAssertTrue(element(app, id).exists, "library ⋯ has \(id)")
         }
-        for id in ["moreNewSearch", "moreReload", "moreSave", "moreBookmark", "moreShare", "moreReaderToggle", "moreLibrary"] {
+        for id in ["moreNewSearch", "moreReload", "moreSave", "moreFavorite", "moreShare", "moreReaderToggle", "moreLibrary"] {
             XCTAssertFalse(element(app, id).exists, "page actions stay out of the library menu: \(id)")
         }
 
         // History leaves the library first; the page underneath is still there.
         element(app, "moreHistory").tap()
         XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 5), "history sheet")
-        XCTAssertFalse(app.navigationBars["Saved"].exists, "library closed first")
+        XCTAssertFalse(app.navigationBars["Library"].exists, "library closed first")
         app.navigationBars["History"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
         XCTAssertTrue(waitFor("exists == false", app.navigationBars["History"]))
@@ -311,12 +311,12 @@ final class BrowseToolbarUITests: XCTestCase {
 
         // Browser (big button) returns to the page as it was.
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
         libraryMore.tap()
         XCTAssertTrue(element(app, "moreBrowser").waitForExistence(timeout: 3))
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
         element(app, "moreBrowser").tap()
-        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Saved"]), "library left")
+        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Library"]), "library left")
         XCTAssertTrue(app.links["Next page"].exists, "page kept")
         XCTAssertEqual(app.textFields["addressField"].value as? String, "pages/one")
     }
@@ -346,7 +346,7 @@ final class BrowseToolbarUITests: XCTestCase {
         website.tap()
 
         XCTAssertTrue(waitFor("exists == false", close, timeout: 8), "reader closed")
-        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Saved"], timeout: 8), "library closed")
+        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Library"], timeout: 8), "library closed")
         let field = app.textFields["addressField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         XCTAssertTrue(waitFor("value CONTAINS 'example.com/demo'", field, timeout: 8), "the article's page is loading")
@@ -358,35 +358,35 @@ final class BrowseToolbarUITests: XCTestCase {
         mini.tap()
     }
 
-    func testBookmarkShowsOnStartPageAndDeletes() throws {
+    func testFavoriteShowsOnStartPageAndDeletes() throws {
         let app = launch(testPage: true)
         XCTAssertTrue(app.links["Next page"].waitForExistence(timeout: 10))
         app.buttons["browseMore"].tap()
-        let bookmark = element(app, "moreBookmark")
-        XCTAssertTrue(bookmark.waitForExistence(timeout: 3))
-        XCTAssertEqual(bookmark.label, "Bookmark")
-        bookmark.tap()
-        XCTAssertTrue(waitFor("exists == false", bookmark), "panel closes")
+        let favorite = element(app, "moreFavorite")
+        XCTAssertTrue(favorite.waitForExistence(timeout: 3))
+        XCTAssertEqual(favorite.label, "Add to Favorites")
+        favorite.tap()
+        XCTAssertTrue(waitFor("exists == false", favorite), "panel closes")
 
         app.buttons["browseMore"].tap()
-        XCTAssertTrue(waitFor("label == 'Remove Bookmark'", element(app, "moreBookmark")), "now bookmarked")
+        XCTAssertTrue(waitFor("label == 'Remove from Favorites'", element(app, "moreFavorite")), "now a favorite")
         element(app, "moreNewSearch").tap() // → start page
 
-        let tile = app.buttons.matching(identifier: "bookmarkTile").firstMatch
-        XCTAssertTrue(tile.waitForExistence(timeout: 5), "bookmark grid on the start page")
+        let tile = app.buttons.matching(identifier: "favoriteTile").firstMatch
+        XCTAssertTrue(tile.waitForExistence(timeout: 5), "Favorites grid on the start page")
         XCTAssertEqual(tile.label, "First page")
 
-        // Bookmarks list from the grid's Show All.
-        element(app, "startBookmarksShowAll").tap()
-        XCTAssertTrue(app.navigationBars["Bookmarks"].waitForExistence(timeout: 5))
-        let bar = app.navigationBars["Bookmarks"]
+        // The Favorites sheet from the grid's Show All.
+        element(app, "startFavoritesShowAll").tap()
+        XCTAssertTrue(app.navigationBars["Favorites"].waitForExistence(timeout: 5))
+        let bar = app.navigationBars["Favorites"]
         bar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
-        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Bookmarks"]))
+        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Favorites"]))
 
-        // Long-press → Delete.
+        // Long-press → Remove from Favorites.
         tile.press(forDuration: 1.0)
-        let delete = app.buttons["Delete"]
+        let delete = app.buttons["Remove from Favorites"]
         XCTAssertTrue(delete.waitForExistence(timeout: 3))
         delete.tap()
         XCTAssertTrue(waitFor("exists == false", tile), "deleted")

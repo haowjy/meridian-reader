@@ -17,7 +17,7 @@ final class AudioReadinessTests: XCTestCase {
                               "The third paragraph of the page."]
 
     func testReadyWhenEveryParagraphIsStoredForTheCurrentVoice() throws {
-        let page = library.save(env.article("https://example.com/a", paragraphs: paragraphs))
+        let page = try library.save(env.article("https://example.com/a", paragraphs: paragraphs))
         let key = try XCTUnwrap(page.key)
         XCTAssertEqual(page.paragraphCount, 3)
         XCTAssertFalse(library.isAudioReady(page, voiceID: "voiceA"), "nothing rendered")
@@ -30,7 +30,7 @@ final class AudioReadinessTests: XCTestCase {
     }
 
     func testAVoiceChangeMakesItNotReadyUntilRerendered() throws {
-        let page = library.save(env.article("https://example.com/a", paragraphs: paragraphs))
+        let page = try library.save(env.article("https://example.com/a", paragraphs: paragraphs))
         let key = try XCTUnwrap(page.key)
         try env.storeAudio(key, paragraphs: paragraphs, voice: "voiceA")
         XCTAssertTrue(library.isAudioReady(page, voiceID: "voiceA"))
@@ -44,7 +44,7 @@ final class AudioReadinessTests: XCTestCase {
     }
 
     func testDeleteDownloadsMakesItNotReady() throws {
-        let page = library.save(env.article("https://example.com/a", paragraphs: paragraphs))
+        let page = try library.save(env.article("https://example.com/a", paragraphs: paragraphs))
         try env.storeAudio(page.key!, paragraphs: paragraphs)
         library.deleteDownloads(page)
         XCTAssertFalse(library.isAudioReady(page, voiceID: "voiceA"))
@@ -52,7 +52,7 @@ final class AudioReadinessTests: XCTestCase {
     }
 
     func testARemapFollowsTheNewParagraphs() throws {
-        let page = library.save(env.article("https://example.com/a", paragraphs: paragraphs))
+        let page = try library.save(env.article("https://example.com/a", paragraphs: paragraphs))
         let key = try XCTUnwrap(page.key)
         try env.storeAudio(key, paragraphs: paragraphs)
         XCTAssertTrue(library.isAudioReady(page, voiceID: "voiceA"))
@@ -77,7 +77,7 @@ final class AudioReadinessTests: XCTestCase {
         env.context.insert(book)
         var chapters: [Page] = []
         for n in 0..<6 {
-            let page = library.save(env.article("https://example.com/ch\(n)", paragraphs: paragraphs))
+            let page = try library.save(env.article("https://example.com/ch\(n)", paragraphs: paragraphs))
             page.setFolder(book)
             page.sortKey = Double(n)
             if n < 5 { page.finishedAt = env.now }

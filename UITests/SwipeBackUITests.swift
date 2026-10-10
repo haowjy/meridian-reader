@@ -53,7 +53,7 @@ final class SwipeBackUITests: XCTestCase {
 
         // Root screen: an edge swipe does nothing and must not wedge the navigation stack.
         edgeSwipe(app)
-        XCTAssertTrue(row.isHittable, "still on the Saved list")
+        XCTAssertTrue(row.isHittable, "still on the Library home")
 
         row.tap()
         let close = app.buttons["readerClose"]
@@ -65,14 +65,15 @@ final class SwipeBackUITests: XCTestCase {
 
         pullDown(from)
         XCTAssertTrue(waitFor(5) { !from.exists }, "Now Playing pulled down")
-        XCTAssertTrue(waitFor(5) { row.isHittable }, "Saved list is showing again")
-        XCTAssertTrue(app.navigationBars["Saved"].exists, "Saved navigation bar is back")
+        XCTAssertTrue(waitFor(5) { row.isHittable }, "the Library home is showing again")
+        XCTAssertTrue(app.navigationBars["Library"].exists, "the Library navigation bar is back")
 
         // Same as ⌄: playback keeps going (the row button shows Pause).
         let rowPause = app.cells.buttons["Pause"]
         XCTAssertTrue(rowPause.waitForExistence(timeout: 3), "audio kept playing after the pull down")
         rowPause.tap()
-        XCTAssertTrue(app.cells.buttons["Play"].waitForExistence(timeout: 3))
+        // The row's ▶ is the design system's PlayStateButton: paused, what you hear reads "Resume".
+        XCTAssertTrue(app.cells.buttons["Resume"].waitForExistence(timeout: 3))
 
         // The row of the page you hear opens Now Playing; ⌄ closes it the same way.
         row.tap()

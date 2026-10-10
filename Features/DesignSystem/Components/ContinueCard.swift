@@ -30,7 +30,8 @@ struct ContinueCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(alignment: .top) {
-                ArtworkTile(image: artwork, letter: artworkLetter.isEmpty ? title : artworkLetter, size: 48)
+                ArtworkTile(image: artwork, letter: artworkLetter.isEmpty ? title : artworkLetter, size: 48,
+                            fill: playState.isCurrent ? Palette.chrome : Palette.paper)
                 Spacer(minLength: 0)
                 PlayStateButton(state: playState, action: onPlay)
                     .padding(.top, -Spacing.xxs)
@@ -55,7 +56,29 @@ struct ContinueCard: View {
         .frame(width: width, alignment: .leading)
         .background(playState.isCurrent ? Palette.playingTint : Palette.chrome,
                     in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .accessibilityElement(children: .combine)
+        // One element over the drawn parts: the title, then what's left; ▶ is its named action.
+        .accessibilityHidden(true)
+        .overlay { Color.clear.accessibilityElement().modifier(accessibility) }
+    }
+
+    private var accessibility: ContinueCardAccessibility {
+        ContinueCardAccessibility(title: title, detail: detail, badge: badge, playState: playState, onPlay: onPlay)
+    }
+}
+
+private struct ContinueCardAccessibility: ViewModifier {
+    let title: String
+    let detail: String
+    let badge: String?
+    let playState: PlayState
+    let onPlay: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .accessibilityLabel(title)
+            .accessibilityValue([detail, badge, playState.isCurrent ? (playState == .playing ? "Playing" : "Paused") : nil]
+                .compactMap { $0 }.joined(separator: ", "))
+            .accessibilityAction(named: playState.accessibilityLabel, onPlay)
     }
 }
 

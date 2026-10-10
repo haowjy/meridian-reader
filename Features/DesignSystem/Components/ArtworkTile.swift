@@ -10,13 +10,16 @@ struct ArtworkTile: View {
     var size: CGFloat = 36
     /// A book cover's proportions (taller than wide) instead of a square.
     var isCover = false
+    /// The tile behind a letter: `chrome` on paper; things drawn on chrome (rows, cards) pass
+    /// `paper`, so the tile still shows.
+    var fill = Palette.chrome
 
     @Environment(\.onPlayerPalette) private var onPlayer
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: size * (isCover ? 0.06 : 0.22), style: .continuous)
         ZStack {
-            shape.fill(onPlayer ? Palette.playerTrack : Palette.chrome)
+            shape.fill(onPlayer ? Palette.playerTrack : fill)
             if let image {
                 image
                     .resizable()

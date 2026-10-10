@@ -20,7 +20,7 @@ final class ToolbarGridUITests: XCTestCase {
         return condition()
     }
 
-    /// Browse `[‹][›][Search][Library][⋯]`, the Reader `[🔖][ Listen ][⋯]` and Now Playing
+    /// Browse `[‹][›][Search][Library][⋯]`, the Library `[＋][ ][Search][Browser][⋯]`, the Reader `[🔖][ Listen ][⋯]` and Now Playing
     /// `[1×][⏮][▶︎][⏭][⋯]`: 5 equal, evenly spaced slots; slot N at the same x on every screen, ⋯ in
     /// slot 5 at the same spot; the bar's play button over ⋯.
     func testFiveSlotGridSharedByBrowseReaderAndNowPlaying() throws {
@@ -43,6 +43,19 @@ final class ToolbarGridUITests: XCTestCase {
         for (s, frame) in browse.enumerated() {
             XCTAssertEqual(frame.midX, expected[s], accuracy: 1, "browse slot \(s + 1)")
         }
+
+        // The Library: ＋ in slot 1, Search in 3, Browser in 4, ⋯ in 5, on the same grid.
+        app.buttons["browseLibrary"].tap()
+        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+        let library = [(0, "libraryAdd"), (2, "librarySearch"), (3, "libraryBrowser"), (4, "libraryMore")]
+        for (s, id) in library {
+            let frame = el(app, id).frame
+            XCTAssertEqual(frame.midX, expected[s], accuracy: 1, "library slot \(s + 1): \(id)")
+            XCTAssertEqual(frame.midY, browse[4].midY, accuracy: 1, "library \(id) on the browser's row")
+        }
+        assertMenuFocus(app, more: el(app, "libraryMore").frame, button: "libraryMore")
+        app.buttons["libraryBrowser"].tap()
+        XCTAssertTrue(icon.waitForExistence(timeout: 5))
 
         // The Reader: 🔖 in slot 1, ⋯ in slot 5, exactly where the browser's are.
         icon.tap()

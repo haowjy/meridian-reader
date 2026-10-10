@@ -15,7 +15,45 @@ enum LaunchHooks {
     /// After the migration copy, before the layout pass: the demo seeds.
     static func runSeeds(_ options: LaunchOptions, library: LibraryStore) {
         if let demo = options.demoArticle { seedDemoArticle(demo, in: library) }
-        if options.seedsDemoBook { seedDemoBook(in: library) }
+        if options.seedsDemoBook { seedDemoBook(in: library, place: options.demoBookPlace) }
+        if options.seedsDemoFolders { seedDemoFolders(in: library) }
+    }
+
+    /// The folder `-seedDemoFolders` adds, found by its name at the top level.
+    static let demoFoldersName = "Demo Finance"
+
+    /// `-seedDemoFolders`: "Demo Finance" with the subfolders "Bonds" (holding "Coupon Basics") and
+    /// "Taxes", and three saved pages of its own, one part-way and one finished. Synthetic text,
+    /// `example.com` addresses; an earlier seed's folder and its pages go first.
+    static func seedDemoFolders(in library: LibraryStore) {
+        for folder in library.topLevelFolders() where folder.kind == .plain && folder.name == demoFoldersName {
+            try? library.deleteFolder(folder, keepContents: false)
+        }
+        guard let finance = try? library.makeFolder(name: demoFoldersName, in: nil),
+              let bonds = try? library.makeFolder(name: "Bonds", in: finance),
+              (try? library.makeFolder(name: "Taxes", in: finance)) != nil else { return }
+        func page(_ title: String, slug: String, in folder: Folder, sortKey: Double) -> Page {
+            let paragraphs = (1...6).map { "\(title), paragraph \($0). A synthetic note about saving, yields and the plain arithmetic of interest over a few years." }
+            let page = Page(key: UUID(), title: title, byline: "investing.example.com",
+                            urlString: "https://investing.example.com/\(slug)-\(UUID().uuidString.prefix(6))",
+                            contentState: .saved, addedAt: .now, sortKey: sortKey)
+            page.cleanedHTML = paragraphs.map { "<p>\($0)</p>" }.joined()
+            page.plainText = paragraphs.joined(separator: "\n\n")
+            page.excerpt = paragraphs[0]
+            page.wordCount = SavedArticle.wordCount(of: page.plainText) * 20
+            page.storeListenParagraphs(paragraphs)
+            library.context.insert(page)
+            page.setFolder(folder)
+            return page
+        }
+        _ = page("Coupon Basics", slug: "coupons", in: bonds, sortKey: 0)
+        let yield = page("Seven-Day Yield", slug: "yield", in: finance, sortKey: 0)
+        yield.positionParagraph = 3
+        yield.lastPlayedAt = .now.addingTimeInterval(-3600)
+        let funds = page("Money Market Funds", slug: "funds", in: finance, sortKey: 1)
+        funds.finishedAt = .now.addingTimeInterval(-7200)
+        _ = page("Index Funds", slug: "index", in: finance, sortKey: 2)
+        library.commit("demo folders seed")
     }
 
     /// After the migrations, before crash resume: bake, bookmarks, and where the app starts.
@@ -23,10 +61,16 @@ enum LaunchHooks {
                                    shell: ShellState) {
         if let prefix = options.bakeArticlePrefix { bakeArticle(prefix: prefix, in: library, speech: speech) }
         if let setup = options.bookmarks { setUpBookmarks(setup, in: library) }
-        if options.servesTestPages, let url = URL(string: "reader-test://pages/one") { shell.navigate(to: url) }
+        if options.servesTestPages, !options.restoresSurface, let url = URL(string: "reader-test://pages/one") {
+            shell.navigate(to: url)
+        }
         if options.opensLibrary { shell.openLibrary() }
         if options.opensDemoInReader { openNewestInReader(in: library, shell: shell) }
+        if options.failsLibrarySaves { library.saveContext = { _ in throw InjectedSaveFailure() } }
     }
+
+    /// `-failLibrarySaves`' refusal.
+    private struct InjectedSaveFailure: Error {}
 
     /// Last, after crash resume (which wins): `-chainDemoChapters`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController) async {
@@ -41,7 +85,8 @@ enum LaunchHooks {
     /// no folder by `DemoBook.loosePageMarker`. An address another page already has isn't given
     /// to a seeded page, since the launch's dedupe would merge the two: that chapter goes without
     /// it, and the page in no folder isn't added.
-    static func seedDemoBook(in library: LibraryStore) {
+    /// `place`: the book is part-way, at that chapter's third paragraph (`-seedDemoBookPlace`).
+    static func seedDemoBook(in library: LibraryStore, place: Int? = nil) {
         for folder in demoBooks(in: library) { try? library.deleteFolder(folder, keepContents: false) }
         for page in seededLoosePages(in: library) { library.delete(page) }
         let book = Folder(name: DemoBook.title, kind: .book, sortKey: library.nextFolderSortKey(in: nil))
@@ -55,6 +100,15 @@ enum LaunchHooks {
             page.skipsInPlayback = chapter.skipsInPlayback
             library.context.insert(page)
             page.setFolder(book)
+            if let place, DemoBook.chapters.indices.contains(place) {
+                if index > 0 && index < place { page.finishedAt = .now.addingTimeInterval(-3600) }
+                if index == place {
+                    page.positionParagraph = 2
+                    page.lastPlayedAt = .now.addingTimeInterval(-600)
+                    book.currentPageKey = page.key
+                    book.lastPlayedAt = page.lastPlayedAt
+                }
+            }
         }
         if library.page(url: DemoBook.loosePageURL) == nil {
             let loose = demoPage(DemoBook.loosePage, url: DemoBook.loosePageURL, sortKey: library.nextSortKey(in: nil))
@@ -110,12 +164,16 @@ enum LaunchHooks {
         ], console: true)
     }
 
-    /// `-seedDemoArticle`: replace the saved and played pages with one deterministic article, so
-    /// a stored resume position can't stick at the end between tests (and, with
+    /// `-seedDemoArticle`: replace the saved and played pages, and every folder but Favorites, with
+    /// one deterministic article, so a stored resume position can't stick at the end between tests (and, with
     /// `-seedPlayedPages N`, N pages played without saving). Favorites' links stay
     /// (`-resetBookmarks` / `-seedBookmarks` handle them).
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in library: LibraryStore) {
         let context = library.context
+        // Every folder but Favorites goes too, so the Library home starts the same each time.
+        for folder in library.topLevelFolders() where folder.kind != .favorites {
+            try? library.deleteFolder(folder, keepContents: false)
+        }
         for page in (try? context.fetch(FetchDescriptor<Page>())) ?? [] where !page.isLink {
             context.delete(page)
         }
@@ -176,10 +234,16 @@ enum LaunchHooks {
         speech.localTTS.startBakeIfNeeded(articleID: page.listenKey, paragraphs: paragraphs, voiceID: speech.cacheVoiceID)
     }
 
-    /// `-resetBookmarks` / `-seedBookmarks`: Favorites emptied (saved pages in it go back to the
-    /// pages in no folder), then optionally seeded.
+    /// `-resetBookmarks` / `-seedBookmarks`: Favorites emptied (its subfolders go, their pages
+    /// moving up first; saved pages go back to the pages in no folder) and back on its default
+    /// sort, then optionally seeded.
     static func setUpBookmarks(_ setup: LaunchOptions.BookmarkSetup, in library: LibraryStore) {
-        for page in library.favoritePages() { library.removeFavorite(page) }
+        try? library.setSort(.manual, for: library.favorites())
+        // A subfolder's own subfolders move up into Favorites as it goes; they go next.
+        while let folder = library.subfolders(of: library.favorites()).first {
+            do { try library.deleteFolder(folder, keepContents: !folder.kind.isFixed) } catch { break }
+        }
+        for page in library.favoritePages() { try? library.removeFavorite(page) }
         guard setup == .seed else { return }
         let seeds = [
             ("https://www.gutenberg.org/", "Project Gutenberg"),
@@ -189,7 +253,7 @@ enum LaunchHooks {
             ("https://example.com/", "Example"),
         ]
         for (url, title) in seeds {
-            if let url = URL(string: url) { library.addFavorite(url: url, title: title, artwork: nil) }
+            if let url = URL(string: url) { _ = try? library.addFavorite(url: url, title: title, artwork: nil) }
         }
     }
 

@@ -13,7 +13,7 @@ struct MoreMenuPanel: View {
             case .browse(let menu, let perform): browse(menu) { action in close { perform(action) } }
             case .reader(let menu, let perform): reader(menu) { action in close { perform(action) } }
             case .nowPlaying(let menu, let perform): nowPlaying(menu) { action in close { perform(action) } }
-            case .library(let perform): library { action in close { perform(action) } }
+            case .library(let menu, let perform): library(menu) { action in close { perform(action) } }
             }
         }
         .padding(.vertical, Spacing.xs)
@@ -24,11 +24,16 @@ struct MoreMenuPanel: View {
 
     @ViewBuilder
     private func browse(_ menu: BrowseMenu, run: @escaping (BrowseMenu.Action) -> Void) -> some View {
-        row("New search", "magnifyingglass", id: "moreNewSearch") { run(.newSearch) }
-        saveRow(isSaved: menu.isSaved) { run(.toggleSave) }
-            .disabled(!menu.canSave)
-        bookmarkRow(isBookmarked: menu.isBookmarked) { run(.toggleBookmark) }
-            .disabled(!menu.canBookmark)
+        row("New Search", "magnifyingglass", id: "moreNewSearch") { run(.newSearch) }
+        if menu.isSaved {
+            row("Remove from Library", "bookmark.slash", id: "moreSave") { run(.removeFromLibrary) }
+                .disabled(!menu.canSave)
+        } else {
+            row("Save to Library…", "bookmark", id: "moreSave") { run(.saveToLibrary) }
+                .disabled(!menu.canSave)
+        }
+        favoriteRow(isFavorite: menu.isFavorite) { run(.toggleFavorite) }
+            .disabled(!menu.canFavorite)
         shareRow { run(.share) }
             .disabled(!menu.canShare)
         row("Reload", "arrow.clockwise", id: "moreReload") { run(.reload) }
@@ -44,8 +49,7 @@ struct MoreMenuPanel: View {
         }
         divider
         tiles {
-            tile("Bookmarks", "star", id: "moreBookmarks") { run(.bookmarks) }
-            tile("Saved", "books.vertical", id: "moreLibrary") { run(.saved) }
+            favoritesTile { run(.favorites) }
             tile("History", "clock", id: "moreHistory") { run(.history) }
             tile("Reader", "doc.plaintext", id: "moreReaderToggle", focus: true) { run(.openReader) }
                 .disabled(!menu.canOpenReader)
@@ -56,20 +60,23 @@ struct MoreMenuPanel: View {
 
     @ViewBuilder
     private func reader(_ menu: ReaderMenu, run: @escaping (ReaderMenu.Action) -> Void) -> some View {
-        voiceRow { run(.voiceSettings) }
-        saveRow(isSaved: menu.isSaved) { run(.toggleSave) }
+        row(menu.isSaved ? "Remove from Library" : "Save to Library", menu.isSaved ? "bookmark.slash" : "bookmark",
+            id: "moreSave") { run(.toggleSave) }
             .disabled(!menu.canSave)
-        bookmarkRow(isBookmarked: menu.isBookmarked) { run(.toggleBookmark) }
-            .disabled(!menu.canBookmark)
+        if menu.isSaved {
+            row("Move to…", "folder", id: "moreMove") { run(.moveTo) }
+        }
+        favoriteRow(isFavorite: menu.isFavorite) { run(.toggleFavorite) }
+            .disabled(!menu.canFavorite)
         shareRow { run(.share) }
             .disabled(!menu.canShare)
+        voiceRow { run(.voiceSettings) }
         if menu.showsDebug {
             row("Debug", "ladybug", id: "moreDebug") { run(.listenDebug) }
         }
         divider
         tiles {
-            tile("Bookmarks", "star", id: "moreBookmarks") { run(.bookmarks) }
-            tile("Saved", "books.vertical", id: "moreLibrary") { run(.saved) }
+            favoritesTile { run(.favorites) }
             tile("History", "clock", id: "moreHistory") { run(.history) }
             // Reader off = the article's own web page, wherever the reader was opened from.
             // Playback keeps going.
@@ -90,8 +97,7 @@ struct MoreMenuPanel: View {
         }
         divider
         tiles {
-            tile("Bookmarks", "star", id: "moreBookmarks") { run(.bookmarks) }
-            tile("Saved", "books.vertical", id: "moreLibrary") { run(.saved) }
+            favoritesTile { run(.favorites) }
             tile("History", "clock", id: "moreHistory") { run(.history) }
             // The playing page in the browser; playback keeps going.
             tile("Website", "globe", id: "moreWebsite", focus: true) { run(.openWebsite) }
@@ -102,11 +108,34 @@ struct MoreMenuPanel: View {
     }
 
     @ViewBuilder
-    private func library(run: @escaping (LibraryMenuAction) -> Void) -> some View {
-        voiceRow { run(.voiceSettings) }
+    private func library(_ menu: LibraryMenu, run: @escaping (LibraryMenu.Action) -> Void) -> some View {
+        switch menu.screen {
+        case .home:
+            voiceRow { run(.voiceSettings) }
+            row("New Folder", "folder.badge.plus", id: "moreNewFolder") { run(.newFolder) }
+        case .folder(let isFavorites):
+            sortMenu(menu.sort, run: run)
+            row("New Folder Inside", "folder.badge.plus", id: "moreNewFolder") { run(.newFolder) }
+            if !isFavorites {
+                row("Rename", "pencil", id: "moreRename") { run(.rename) }
+                row("Move…", "folder", id: "moreMove") { run(.move) }
+                row("Delete Folder…", "trash", id: "moreDeleteFolder") { run(.deleteFolder) }
+            }
+        case .pages:
+            sortMenu(menu.sort, run: run)
+            voiceRow { run(.voiceSettings) }
+        case .book(let isSeries):
+            row("Rename", "pencil", id: "moreRename") { run(.rename) }
+            row("Move…", "folder", id: "moreMove") { run(.move) }
+            row("Delete Downloads", "arrow.down.circle", id: "moreDeleteDownloads") { run(.deleteDownloads) }
+            row(isSeries ? "Delete Series…" : "Delete Book…", "trash", id: "moreDeleteFolder") { run(.deleteFolder) }
+        }
+        if menu.showsDebug {
+            row("Debug", "ladybug", id: "moreDebug") { run(.listenDebug) }
+        }
         divider
         tiles {
-            tile("Bookmarks", "star", id: "moreBookmarks") { run(.bookmarks) }
+            favoritesTile { run(.favorites) }
             tile("History", "clock", id: "moreHistory") { run(.history) }
             tile("Browser", "globe", id: "moreBrowser", focus: true) { run(.browser) }
                 .accessibilityLabel("Browser")
@@ -116,16 +145,26 @@ struct MoreMenuPanel: View {
 
     // MARK: - Shared rows
 
-    private func saveRow(isSaved: Bool, action: @escaping () -> Void) -> some View {
-        // Saved article = the bookmark glyph (same as the reader's save button); site bookmarks
-        // use the star.
-        row(isSaved ? "Remove from Saved" : "Save article", isSaved ? "bookmark.slash" : "bookmark",
-            id: "moreSave", action: action)
+    private func sortMenu(_ current: PageSort, run: @escaping (LibraryMenu.Action) -> Void) -> some View {
+        Menu {
+            ForEach(PageSort.allCases, id: \.self) { sort in
+                Button { run(.sort(sort)) } label: {
+                    if sort == current { Label(sort.title, systemImage: "checkmark") } else { Text(sort.title) }
+                }
+            }
+        } label: {
+            rowLabel("Sort", "arrow.up.arrow.down", trailing: "chevron.right")
+        }
+        .accessibilityIdentifier("moreSort")
     }
 
-    private func bookmarkRow(isBookmarked: Bool, action: @escaping () -> Void) -> some View {
-        row(isBookmarked ? "Remove Bookmark" : "Bookmark", isBookmarked ? "star.slash" : "star",
-            id: "moreBookmark", action: action)
+    private func favoriteRow(isFavorite: Bool, action: @escaping () -> Void) -> some View {
+        row(isFavorite ? "Remove from Favorites" : "Add to Favorites", isFavorite ? "star.slash" : "star",
+            id: "moreFavorite", action: action)
+    }
+
+    private func favoritesTile(action: @escaping () -> Void) -> some View {
+        tile("Favorites", "star", id: "moreFavorites", action: action)
     }
 
     private func shareRow(action: @escaping () -> Void) -> some View {
@@ -133,7 +172,7 @@ struct MoreMenuPanel: View {
     }
 
     private func voiceRow(action: @escaping () -> Void) -> some View {
-        row("Voice settings", "person.wave.2", id: "moreVoice", action: action)
+        row("Voice Settings", "person.wave.2", id: "moreVoice", action: action)
     }
 
     private var divider: some View {
@@ -214,9 +253,21 @@ private struct MenuRowStyle: ButtonStyle {
     }
 }
 
-/// The ⋯ toolbar button (browser, library, reader listen bar): opens `menu()` in the shell's
-/// morph panel, grown from this button's frame. Its glyph fades while a menu is open, so the
-/// button reads as turning into the panel.
+extension PageSort {
+    /// Its name in the Sort menu.
+    var title: String {
+        switch self {
+        case .manual: String(localized: "Manual")
+        case .newest: String(localized: "Newest")
+        case .title: String(localized: "Title")
+        }
+    }
+}
+
+/// The ⋯ toolbar button (browser, library, reader listen bar, the Favorites sheet): opens
+/// `menu()` in the morph panel, grown from this button's frame: the shell's, or the sheet's it
+/// sits in (`moreMenuHost`). Its glyph fades while a menu is open, so the button reads as turning
+/// into the panel.
 struct MoreMenuButton: View {
     let id: String
     /// Shows a spinner instead of the glyph (⋯ → Save extracting).
@@ -224,10 +275,19 @@ struct MoreMenuButton: View {
     let menu: () -> MenuContext
 
     @Environment(ShellState.self) private var shell
+    @Environment(SheetMoreMenu.self) private var sheetMenu: SheetMoreMenu?
     @State private var frame: CGRect = .zero
 
+    private var isOpen: Bool { sheetMenu.map { $0.menu != nil } ?? (shell.menu != nil) }
+
     var body: some View {
-        Button { shell.openMenu(menu(), from: frame) } label: {
+        Button {
+            if let sheetMenu {
+                sheetMenu.open(menu(), from: frame)
+            } else {
+                shell.openMenu(menu(), from: frame)
+            }
+        } label: {
             Group {
                 if isBusy {
                     ProgressView()
@@ -239,7 +299,42 @@ struct MoreMenuButton: View {
         }
         .accessibilityLabel("More")
         .accessibilityIdentifier(id)
-        .morphMenuButtonHidden(shell.menu != nil)
+        .morphMenuButtonHidden(isOpen)
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }
+    }
+}
+
+/// The ⋯ panel of a system sheet (the Favorites sheet): the shell's one morph overlay sits under
+/// sheets, so a sheet with a ⋯ hosts its own (`moreMenuHost`), and its ⋯ buttons open there.
+@MainActor
+@Observable
+final class SheetMoreMenu {
+    var menu: MenuContext?
+    private(set) var anchor: CGRect = .zero
+
+    func open(_ context: MenuContext, from anchor: CGRect) {
+        self.anchor = anchor
+        menu = context
+    }
+}
+
+extension View {
+    /// Hosts the ⋯ panel for the `MoreMenuButton`s inside this view (a sheet's content), over it.
+    func moreMenuHost() -> some View {
+        modifier(SheetMoreMenuHost())
+    }
+}
+
+private struct SheetMoreMenuHost: ViewModifier {
+    @State private var host = SheetMoreMenu()
+
+    func body(content: Content) -> some View {
+        content
+            .environment(host)
+            .overlay {
+                MorphMenuOverlay(item: Binding(get: { host.menu }, set: { host.menu = $0 }), anchor: host.anchor) { context, close in
+                    MoreMenuPanel(context: context, close: close)
+                }
+            }
     }
 }

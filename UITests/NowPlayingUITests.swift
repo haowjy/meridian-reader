@@ -54,14 +54,14 @@ final class NowPlayingUITests: XCTestCase {
 
         // Over the Library, which stays as it was.
         app.buttons["browseLibrary"].tap()
-        XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
         let bar = find(app, "nowPlayingBarOpen")
         XCTAssertTrue(bar.waitForExistence(timeout: 5), "the bar shows on the Library")
         bar.tap()
         XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5))
         pullDown(app, from: "nowPlayingFrom")
         XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingFrom").exists })
-        XCTAssertTrue(app.navigationBars["Saved"].exists, "back on the Library")
+        XCTAssertTrue(app.navigationBars["Library"].exists, "back on the Library")
         XCTAssertTrue(app.cells.staticTexts["Demo Listen Article"].exists, "its list as it was")
         find(app, "nowPlayingBarPlayPause").tap()
     }
@@ -74,7 +74,7 @@ final class NowPlayingUITests: XCTestCase {
 
         find(app, "nowPlayingFrom").tap()
         XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingFrom").exists }, "Now Playing closes")
-        XCTAssertTrue(app.navigationBars["Saved"].waitForExistence(timeout: 5), "on the Library")
+        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5), "on the Library")
     }
 
     /// A plain-text article (no reading HTML) reads on the same page: it follows the audio, offers

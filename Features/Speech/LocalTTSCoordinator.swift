@@ -399,10 +399,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         bakeMarksRevision &+= 1
     }
 
-    func handleArticleDeleted(_ articleID: UUID) {
-        try? clearListenAudio(for: articleID)
-    }
-
     func bakeTasksCount(for articleID: UUID) -> Int {
         synthQueue.pendingUnitCount(for: articleID)
     }

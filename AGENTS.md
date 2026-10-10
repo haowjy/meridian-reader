@@ -44,7 +44,7 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks |
 | `Core/` | No UI: `Domain` (article and paragraph values), `Extraction`, `Persistence` (SwiftData; `Library/`: `Folder`, `Page`, `LibraryStore`, `LibraryQueries`, the migration), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web`, `Device` |
-| `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Browse`, `Reader`, `Saved`, `Speech` (playback, engines, settings) |
+| `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Library` (the Library's screens, rows, the Move tree, Favorites), `Browse`, `Reader`, `Saved` (the save path), `Speech` (playback, engines, settings) |
 | `Tests/`, `UITests/` | Unit tests (fakes in `Tests/Fakes/`), UI tests |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Reader uses only Kokoro |
 | `Resources/` | Readability scripts, voice previews, assets |
@@ -52,15 +52,20 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
 
 ## Rules that cut across directories
 
-- **`ShellState` owns navigation** (what you see): which surface shows (browser or library), the
-  Reader sheet and what it sits over, whether Now Playing is up, the one other sheet. Views ask
-  it; they don't keep their own presentation flags.
+- **`ShellState` owns navigation** (what you see): which surface shows (browser or library) and
+  the Library's path, the Reader sheet and what it sits over, whether Now Playing is up, the one
+  other sheet, the toast and prompt. It remembers the surface for the next launch. Views ask it;
+  they don't keep their own presentation flags.
 - **`PlaybackSessionState` owns what you hear**: the playing page, its position (paragraph +
   UTF-16 offset) and phase. Engines report events; the session decides. Nothing else stores or
   guesses the playing page or a playhead: every ▶ / ⏸ asks `SpeechController.playState(of:)`, the
   bar and Now Playing read `nowPlaying`, and `ListeningProgressRecorder` saves the position.
 - **One save path**: `ArticleSaveCoordinator` → `LibraryStore.save`. One page per canonical URL
-  (`ArticleIdentity`), app-wide; Save never moves audio or restarts playback. Every library read
+  (`ArticleIdentity`), app-wide. Save never restarts playback. Saving the page that is playing,
+  under its own key, only marks its audio saved. Otherwise Save can move audio: under an older
+  page's key when one holds the address (rekeying the live session), and, for a page that isn't
+  playing, into its key from a legacy v1 cache and onto its saved text
+  (`prepareListenIdentity`). Every library read
   and write goes through `LibraryStore` (lists through `LibraryQueries`); `SavedArticle` and
   `bookmarks.json` are frozen (the migration copied them; nothing writes them).
 - **Screens are built from `Features/DesignSystem/`**: no ad-hoc padding, colour, radius or font
@@ -102,4 +107,4 @@ xcodebuild build -project Reader.xcodeproj -scheme Reader -configuration Release
 
 Directory-scoped working notes live next to the code in `<dir>/.context/CONTEXT.md` (deferred
 items in `<dir>/.context/FUTURE.md`); read them before changing that directory:
-`Features/Speech/.context/`, `Features/Shell/.context/`.
+`Features/Speech/.context/`, `Features/Shell/.context/`, `Features/Library/.context/`.

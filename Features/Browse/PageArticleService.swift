@@ -1,7 +1,7 @@
 import Foundation
 
 /// What the browser does with the page it has loaded: show it in the Reader, listen to it, save
-/// it, bookmark it, record it in History. Extraction resolves the article's identity against the
+/// it, add it to Favorites, record it in History. Extraction resolves the article's identity against the
 /// library, so the same page gets the same key (and its cached audio) every time.
 @MainActor
 struct PageArticleService {
@@ -65,23 +65,28 @@ struct PageArticleService {
         return .started(article)
     }
 
-    /// ⋯ → Save article. ⋯ spins meanwhile.
-    func save() async throws {
+    /// ⋯ → Save to Library…, once a place is picked in the Move tree: the folder, or no folder
+    /// (nil, out of the folder it was in). ⋯ spins meanwhile. A page that can't be extracted
+    /// throws; a save that can't be stored says so in a toast.
+    func save(in folder: Folder?) async throws {
         shell.busy = .save
         defer { shell.busy = nil }
         var (article, url) = try await extract()
         if article.faviconData == nil {
             article.faviconData = await favicon(for: url)
         }
-        ArticleSaveCoordinator(library: library, speech: speech).save(article)
+        shell.attempt(String(localized: "Couldn’t save")) {
+            try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
+        }
     }
 
-    /// ⋯ → Bookmark / Remove Bookmark: the page in or out of Favorites (a link, or the saved
-    /// page filed there; see `LibraryStore.toggleFavorite`).
-    func toggleBookmark() async {
+    /// ⋯ → Add to Favorites / Remove from Favorites (`FavoriteFlow`): the page in or out of
+    /// Favorites, asking first when it is filed elsewhere.
+    func toggleFavorite() {
         guard let url = web.currentURL, LibraryStore.canFavorite(url) else { return }
         let liveTitle = web.webView?.title.flatMap { $0.isEmpty ? nil : $0 }
-        await library.toggleFavorite(url: url, title: liveTitle ?? web.pageTitle, artwork: recentFavicon(for: url)) {
+        FavoriteFlow(library: library, shell: shell).toggle(url: url, title: liveTitle ?? web.pageTitle,
+                                                            artwork: recentFavicon(for: url)) {
             await favicon(for: url)
         }
     }

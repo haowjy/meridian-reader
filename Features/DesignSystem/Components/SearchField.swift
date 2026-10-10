@@ -11,6 +11,8 @@ struct SearchField: View {
     var prompt = "Search Library"
     /// Ties the field to the caller's focus (the search session); nil: the field keeps its own.
     var focus: FocusState<Bool>.Binding?
+    /// The text field's accessibility identifier.
+    var fieldIdentifier = "searchField"
     var onSubmit: () -> Void = {}
 
     var body: some View {
@@ -29,6 +31,7 @@ struct SearchField: View {
                 .autocorrectionDisabled()
                 .submitLabel(.search)
                 .onSubmit(onSubmit)
+                .accessibilityIdentifier(fieldIdentifier)
 
             if clearable {
                 Button {

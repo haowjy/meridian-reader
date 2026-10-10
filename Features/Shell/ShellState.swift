@@ -4,7 +4,7 @@ import SwiftUI
 enum ReaderOrigin: Equatable {
     /// Over the browser: 📄, ⋯ → Reader, a start-page row.
     case browser
-    /// Over the Library: a Saved row.
+    /// Over the Library: a page row, a Continue card, the Favorites sheet opened there.
     case library
 
     /// The back pill's title.
@@ -27,28 +27,78 @@ struct ReaderSheetState: Equatable {
 
 /// The shell's sheets. One at a time, shown by the shell's single `.sheet(item:)`.
 enum ShellSheet: Identifiable, Equatable {
-    case bookmarks
+    /// The Favorites folder screen (pushed into `folder`, one of its subfolders, when given): its
+    /// links open in the browser, its saved pages in the Reader.
+    case favorites(folder: UUID? = nil)
     case history
     case voiceSettings
     case share(URL)
+    /// The Move tree: Move, *Save to Library…*, 🔖's *Save to Folder…*, *Change Folder*.
+    case moveTo(MoveRequest)
 
     var id: String {
         switch self {
-        case .bookmarks: "bookmarks"
+        case .favorites(let folder): "favorites-\(folder?.uuidString ?? "")"
         case .history: "history"
         case .voiceSettings: "voiceSettings"
         case .share(let url): "share-\(url.absoluteString)"
+        case .moveTo(let request): "moveTo-\(request.id)"
         }
     }
 
-    /// Bookmarks and History list browser destinations, so they belong to the browser: presenting
-    /// one from the library leaves the library first. The others show over whatever is on screen.
+    /// History lists browser destinations, so it belongs to the browser: presenting it from the
+    /// library leaves the library first. The others show over whatever is on screen.
     var belongsToBrowser: Bool {
         switch self {
-        case .bookmarks, .history: true
-        case .voiceSettings, .share: false
+        case .history: true
+        case .favorites, .voiceSettings, .share, .moveTo: false
         }
     }
+}
+
+/// One use of the Move tree: what it is for, where the item is now, and what picking a place
+/// does. `onPick` gets the chosen folder, or nil for the top level ("Library (no folder)"), and
+/// returns false when that couldn't be saved (its toast says so): the tree stays up, so another
+/// place can be picked or the tree cancelled. True closes it.
+struct MoveRequest: Identifiable, Equatable {
+    enum Place: Equatable {
+        case topLevel
+        case folder(UUID)
+    }
+
+    let id = UUID()
+    /// "Move to…", "Save to…".
+    var title: String
+    /// Marked ✓.
+    var current: Place?
+    /// Folders being moved: they and everything inside them can't be picked (no cycles).
+    var moving: Set<UUID> = []
+    let onPick: (Folder?) -> Bool
+
+    static func == (a: MoveRequest, b: MoveRequest) -> Bool { a.id == b.id }
+}
+
+/// A short message over the bottom chrome, with an optional action ("Added to Favorites ·
+/// Change Folder").
+struct ShellToast: Identifiable, Equatable {
+    let id = UUID()
+    var message: String
+    var systemImage: String?
+    var actionTitle: String?
+    var action: (() -> Void)?
+
+    static func == (a: ShellToast, b: ShellToast) -> Bool { a.id == b.id }
+}
+
+/// A question with one confirming choice and Cancel ("Move it to Favorites?").
+struct ShellPrompt: Identifiable, Equatable {
+    let id = UUID()
+    var title: String
+    var message: String?
+    var confirmTitle: String
+    let confirm: () -> Void
+
+    static func == (a: ShellPrompt, b: ShellPrompt) -> Bool { a.id == b.id }
 }
 
 /// Page extraction in progress (spinner on the address-bar reader icon, or on ⋯ for Save).
@@ -57,8 +107,9 @@ enum BusyAction: Equatable {
     case save
 }
 
-/// What you see: one surface (the browser or the Library), the Reader sheet over it, Now Playing
-/// over everything, at most one other sheet, at most one ⋯ menu. What you hear belongs to the
+/// What you see: one surface (the browser or the Library at a folder), the Reader sheet over it,
+/// Now Playing over everything, at most one other sheet, at most one ⋯ menu. The surface and the
+/// Library's path are remembered, and the app reopens on them (decision D10). What you hear belongs to the
 /// playback session; the shell only asks it (`isHearing`), so opening the Reader of the page you
 /// hear opens Now Playing instead.
 ///
@@ -70,11 +121,18 @@ final class ShellState {
     enum Surface {
         /// The web page or the start page.
         case browse
-        /// The library list.
+        /// The Library, at `libraryPath`.
         case library
     }
 
-    private(set) var surface: Surface = .browse
+    private(set) var surface: Surface = .browse {
+        didSet { remember() }
+    }
+    /// The Library's pushed screens, nearest the home first (`[.folder(Fiction), .folder(Short
+    /// stories)]`). Kept while the browser is up, so 🌐 and back return to the same folder.
+    var libraryPath: [LibraryRoute] = [] {
+        didSet { remember() }
+    }
     /// The Reader sheet (nil = closed). Removed by `readerDidClose` once its sheet has gone.
     private(set) var reader: ReaderSheetState?
     /// This showing of Now Playing (nil = down), over the surface and the Reader sheet. It shows
@@ -89,6 +147,10 @@ final class ShellState {
     var sheet: ShellSheet?
     /// The open ⋯ menu (nil = closed), rendered by the shell's one `MorphMenuOverlay`.
     var menu: MenuContext?
+    /// A short message over the bottom chrome of the surface on screen.
+    private(set) var toast: ShellToast?
+    /// A question waiting for an answer.
+    var prompt: ShellPrompt?
     /// Global frame of the ⋯ button the open menu grows from.
     private(set) var menuAnchor: CGRect = .zero
     var busy: BusyAction?
@@ -98,8 +160,25 @@ final class ShellState {
     /// Whether a target is what you hear (the playback session answers).
     private let isHearing: (ListenTarget) -> Bool
 
-    init(isHearing: @escaping (ListenTarget) -> Bool = { _ in false }) {
+    /// Where the surface is remembered (nil: not remembered, as in unit tests).
+    private let memory: SurfaceMemoryStore?
+    /// The browser page to reload at launch (`restoreAtLaunch`).
+    private var pendingBrowserURL: URL?
+
+    /// `restores`: open on the remembered surface, or the Library when there is none (a fresh
+    /// install). Otherwise the browser's start page.
+    init(isHearing: @escaping (ListenTarget) -> Bool = { _ in false }, memory: SurfaceMemoryStore? = nil,
+         restores: Bool = false) {
         self.isHearing = isHearing
+        self.memory = memory
+        guard restores, let memory else { return }
+        if let last = memory.load() {
+            surface = last.base == .library ? .library : .browse
+            libraryPath = last.libraryPath
+            pendingBrowserURL = last.browserURL.flatMap(URL.init(string:))
+        } else {
+            surface = .library
+        }
     }
 
     // MARK: - Surface queries
@@ -188,6 +267,49 @@ final class ShellState {
         hideNowPlaying()
     }
 
+    // MARK: - Remembering the surface
+
+    /// At launch, once the library is open: the path keeps the folders that still exist (up to the
+    /// first that doesn't), and the browser reloads its last page: now when it is showing, or the
+    /// first time you go there from the Library (`leaveLibrary`).
+    func restoreAtLaunch(folderExists: (UUID) -> Bool) {
+        pruneLibraryPath(keeping: folderExists)
+        if isBrowsing, let url = pendingBrowserURL {
+            pendingBrowserURL = nil
+            navigate(to: url)
+        }
+    }
+
+    /// The browser's page changed: its address field, and the page to reopen on.
+    func browserPageChanged() {
+        syncAddressField()
+        remember()
+    }
+
+    private func remember() {
+        guard let memory else { return }
+        memory.save(SurfaceMemory(base: isInLibrary ? .library : .browse, libraryPath: libraryPath,
+                                  browserURL: (web.currentURL ?? pendingBrowserURL)?.absoluteString))
+    }
+
+    // MARK: - Library navigation
+
+    /// The Library's path up to the first folder that no longer exists (it was deleted).
+    func pruneLibraryPath(keeping folderExists: (UUID) -> Bool) {
+        guard let gone = libraryPath.firstIndex(where: { route in
+            if case .folder(let id) = route { return !folderExists(id) }
+            return false
+        }) else { return }
+        libraryPath = Array(libraryPath[..<gone])
+    }
+
+    /// "Playing from", a search result, a Continue card: the Library at `folder` (pushed under
+    /// the folders above it).
+    func showLibrary(at path: [LibraryRoute]) {
+        openLibrary()
+        libraryPath = path
+    }
+
     // MARK: - Surfaces
 
     func openLibrary() {
@@ -203,6 +325,11 @@ final class ShellState {
         guard isInLibrary else { return }
         if reader?.origin == .library { reader = nil }
         surface = .browse
+        // Reopened on the Library: the browser's last page loads the first time you go there.
+        if let url = pendingBrowserURL, web.currentURL == nil {
+            pendingBrowserURL = nil
+            navigate(to: url)
+        }
     }
 
     /// The browser, with nothing over it: closes the Reader and Now Playing, leaves the library.
@@ -272,10 +399,41 @@ final class ShellState {
         self.sheet = sheet
     }
 
+    // MARK: - Toasts and prompts
+
+    func showToast(_ toast: ShellToast) {
+        self.toast = toast
+    }
+
+    /// Runs a change that can fail, such as a library edit (`LibraryStore` rolls back a save that
+    /// fails, so nothing changed): its result, or nil once a toast has said `failure`.
+    @discardableResult
+    func attempt<Result>(_ failure: String, _ change: () throws -> Result) -> Result? {
+        do {
+            return try change()
+        } catch {
+            showToast(ShellToast(message: failure, systemImage: "exclamationmark.triangle"))
+            return nil
+        }
+    }
+
+    /// The toast shown as `id` has had its time (or its action ran). A newer one stays.
+    func dismissToast(_ id: UUID) {
+        if toast?.id == id { toast = nil }
+    }
+
+    /// Each place showing the toast shown as `id` waits `duration`, then dismisses it. A wait
+    /// that is cancelled (that place went away, such as a sheet closing just as the toast came
+    /// up) leaves it showing for the others, which wait their own time.
+    func expireToast(_ id: UUID, after duration: Duration) async {
+        guard (try? await Task.sleep(for: duration)) != nil else { return }
+        withAnimation(Motion.snappy) { dismissToast(id) }
+    }
+
     // MARK: - Library pages
 
-    /// A library page in the Reader sheet (a start page row, a Saved row): shown as soon as the
-    /// page is read; older pages build their listen blocks afterwards.
+    /// A library page in the Reader sheet (a row, a Continue card, a favorite): shown as soon as
+    /// the page is read; older pages build their listen blocks afterwards.
     func openSaved(_ id: UUID, in library: LibraryStore) {
         Task {
             var shown = false

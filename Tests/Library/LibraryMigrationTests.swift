@@ -102,7 +102,7 @@ final class LibraryMigrationTests: XCTestCase {
         XCTAssertEqual(env.folders().count, 1)
 
         library.delete(try XCTUnwrap(library.page(url: URL(string: "https://example.com/1")!)))
-        library.removeFavorite(try XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
+        try library.removeFavorite(XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
         env.makeLibrary().migrateLegacy()
         XCTAssertNil(library.page(url: URL(string: "https://example.com/1")!), "a deleted page never comes back")
         XCTAssertNil(library.page(url: URL(string: "https://example.com/fav")!), "nor a removed favorite")
@@ -125,8 +125,8 @@ final class LibraryMigrationTests: XCTestCase {
         library.migrateLegacy()
         XCTAssertEqual(env.pages().count, 4)
         library.delete(try XCTUnwrap(library.page(url: URL(string: "https://example.com/deleted")!)))
-        library.unsave(try XCTUnwrap(library.page(url: URL(string: "https://example.com/unsaved")!)))
-        library.removeFavorite(try XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
+        try library.unsave(XCTUnwrap(library.page(url: URL(string: "https://example.com/unsaved")!)))
+        try library.removeFavorite(XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
 
         try env.relaunch()
         let report = library.migrateLegacy()
@@ -182,7 +182,7 @@ final class LibraryMigrationTests: XCTestCase {
         XCTAssertEqual(library.favoritePages().map(\.title), ["Fav"])
 
         // Copied once: removed, it stays removed when the next launch migrates from the files.
-        library.removeFavorite(try XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
+        try library.removeFavorite(XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
         try env.relaunch()
         let again = library.migrateLegacy()
         XCTAssertEqual(again.copiedArticles + again.copiedBookmarks, 0)
@@ -197,7 +197,7 @@ final class LibraryMigrationTests: XCTestCase {
         try env.writeBookmarks([fav])
         library.migrateLegacy()
         // Removed in this build.
-        library.removeFavorite(try XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
+        try library.removeFavorite(XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
 
         env.legacyRow("https://example.com/2", title: "During rollback", savedAt: date(5))
         // The old build's user also removed it and bookmarked it again (a new id).
@@ -268,8 +268,8 @@ final class LibraryMigrationTests: XCTestCase {
         XCTAssertEqual(env.receipts().count, 3)
 
         library.delete(try XCTUnwrap(library.page(url: URL(string: "https://example.com/1")!)))
-        library.unsave(try XCTUnwrap(library.page(url: URL(string: "https://example.com/2")!)))
-        library.removeFavorite(try XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
+        try library.unsave(XCTUnwrap(library.page(url: URL(string: "https://example.com/2")!)))
+        try library.removeFavorite(XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
         try env.relaunch()
         let again = library.migrateLegacy()
         XCTAssertEqual(again.copiedArticles + again.copiedBookmarks, 0)
@@ -302,7 +302,7 @@ final class LibraryMigrationTests: XCTestCase {
         library.migrateLegacy()
         let page = try XCTUnwrap(library.page(key: row.id))
         XCTAssertEqual(page.finishedAt, date(1), "finished history folded in")
-        library.save(env.article("https://example.com/1", title: "Edited"))
+        try library.save(env.article("https://example.com/1", title: "Edited"))
         library.delete(page)
 
         XCTAssertEqual(try env.context.fetch(FetchDescriptor<SavedArticle>()).map(\.id), [row.id], "the row is still there")

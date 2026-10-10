@@ -41,17 +41,26 @@ exactly what that button does.
   drag starts only on the header, so it never competes with scrolling, text selection or ☝︎ taps.
   The header and the bottom row never hide, so the header is always there to pull.
 - It moves like a system sheet: it rises from the bottom and leaves the same way. The surface
-  stays as it is underneath (the page or start page, the Library list), so the pull reveals
+  stays as it is underneath (the page or start page, the Library's screen), so the pull reveals
   where you're going back to: the sheet follows the finger (up only with rubber-band resistance;
   a drag that starts sideways leaves it in place), shrinks slightly, and the dim behind it lifts.
   Released far enough or flung, it carries on off the bottom at the finger's speed; otherwise it
   springs back. Under Reduce Motion it fades in and out instead. What is under a sheet takes no
   touches until it has gone.
 
-## The app is a browser (no tab bar)
+## Two surfaces: the Library and the browser (no tab bar)
 
-There is no Saved | Browse tab bar anywhere. `RootView` shows `BrowseStartView`; all chrome is one
-bottom bar, and the page uses everything between the status bar and it (safe area respected).
+There is no tab bar. The app has two surfaces, swapped by slot 4 (📚 on the browser, 🌐 on the
+Library): the **Library**, the folder tree, and the **browser**, a web page or the start page.
+`BrowseStartView` hosts both (`ShellState.surface`); all chrome is one bottom bar, and each
+surface uses everything between the status bar and it (safe area respected).
+
+**The app reopens on the surface you left** (decision D10): the Library at the folder you were in
+(`ShellState.libraryPath`, folders that no longer exist dropped), or the browser on its last page,
+reloaded. A fresh install opens the Library. Kept on the device in UserDefaults
+`shell.lastSurface` (`SurfaceMemory`). Reopened on the Library, the browser's last page loads the
+first time you go there (🌐), and stays remembered until then, across relaunches. UI-test launches
+start on the browser unless `-restoreSurface`.
 
 ```
 ╭ [art] Now playing title              ⏸ ╮   ← the Now Playing bar (once something has played)
@@ -60,9 +69,8 @@ bottom bar, and the page uses everything between the status bar and it (safe are
 [ ‹ ]   [ › ]   [ 🔍 ]   [ 📚 ]   [ ⋯ ]    ← 5 equal slots (slot 4 = Library↔Browser)
 ```
 
-**One bottom-chrome design**, shared with the Reader and Now Playing so the bottom of the screen
-barely changes between them
-the bottom of the screen (`Features/DesignSystem/Chrome/BottomChrome.swift`): the band
+**One bottom-chrome design**, shared by the browser, the Library, the Reader and Now Playing so
+the bottom of the screen barely changes between them (`Features/DesignSystem/Chrome/BottomChrome.swift`): the band
 (`bottomChromeBand`: 12 pt margins, 8 pt top padding, system bar material through the home
 indicator), the field capsule (`bottomChromeField`: 44 pt, chrome-coloured capsule; 36 pt body-size controls
 inside, like 🎤), and the toolbar row (`BottomToolbarLayout` + `toolbarIconFrame`: 44 pt, plain
@@ -71,7 +79,7 @@ clipping; toolbar glyphs keep their size and show in the large content viewer on
 Every control takes taps in at least 44 × 44 pt (`tapTarget`), whatever its drawn size: the
 address-field 📄 and 🎧, the ✕ beside a search field, the Now Playing bar's play/pause, the
 capsule's 36 pt controls. **Five equal slots, evenly spaced, one grid for every row:** Browse is
-`[‹][›][Search][Library][⋯]`, the Library surface `[ ][ ][Search][Browser][⋯]`, the Reader
+`[‹][›][Search][Library][⋯]`, the Library surface `[＋][ ][Search][Browser][⋯]`, the Reader
 `[🔖][ ▶ Listen · 9 min ][⋯]` (the pill spans slots 2–4) and Now Playing `[1×][⏮][▶︎][⏭][⋯]`. Slot 4 is the Library↔Browser swap (📚 on Browse, 🌐 on Library — same
 muscle memory as the morph-menu Reader↔Website near ⋯). Leading items fill slots 1, 2, 3…; the
 last item (⋯) always sits in slot 5, so every icon in slot N is at the same x and the ⋯ menu
@@ -98,13 +106,14 @@ the ⋯ slot too.
   (tap: pause); jade with still bars when it is loaded and paused (tap: resume). It never
   navigates.
 - **⋯** opens a Safari-style menu panel that grows out of the button (covers the ⋯, no arrow):
-  rows *New search, Save article / Remove from Saved (🔖),
-  Bookmark / Remove Bookmark (☆), Share, Reload, Voice settings, Debug ›* (Debug only with
-  developer options on — see "Developer options" below), then a row of big
-  buttons **Bookmarks**, **Saved**, **History**, and **Reader** (rightmost, nearest the thumb,
-  like Safari's All Tabs). The Reader toggle is disabled on the start page and on pages that
-  aren't readable; on a readable page tapping it switches into reader mode. Actions that present
-  something (Share, Voice settings, Bookmarks, Saved, History) run after the panel has closed.
+  rows *New Search, Save to Library… / Remove from Library (🔖), Add to Favorites / Remove from
+  Favorites (☆), Share, Reload, Voice Settings, Debug ›* (Debug only with developer options on —
+  see "Developer options" below), then a row of big buttons **Favorites**, **History**, and
+  **Reader** (rightmost, nearest the thumb, like Safari's All Tabs). *Save to Library…* opens the
+  Move tree and saves the page into the folder picked. The Reader toggle is disabled on the start
+  page and on pages that aren't readable; on a readable page tapping it switches into reader
+  mode. Actions that present something (Share, Voice Settings, Favorites, History, the Move tree)
+  run after the panel has closed.
 - **The ⋯ panel** (`MorphMenuOverlay`: one overlay for the browser toolbar ⋯, the library
   toolbar ⋯, the Reader's ⋯ and Now Playing's ⋯; its rows come from the surface that opened it,
   `MenuContext`) is not a popover: it is placed so the bottom-right button's icon (Reader,
@@ -121,13 +130,18 @@ the ⋯ slot too.
   so a horizontal drag leaves the panel in place and a drag that drifts sideways doesn't make it
   jump. The sheets' pull-down follows the same rules. Light glass on iOS 26 (thick material
   before). Debug › is a native `Menu`.
-- **Bookmarks vs Saved**: a *bookmark* is a page in the library's Favorites folder: usually a
-  link (URL, title, favicon — e.g. a story's index page) with no text or audio. A *saved article*
-  is a saved page (text + audio). Bookmarking never saves and saving never bookmarks, but there is
-  one page per address: bookmarking a saved page moves it into Favorites (it leaves the library
-  list and shows in the start page's grid, still saved), removing that bookmark puts it back in
-  the list, and unsaving a bookmarked page leaves the bookmark. Star = bookmark, 🔖 = saved
-  article.
+- **☆ Add to Favorites**: one tap adds the page as a link at the end of Favorites, and a toast
+  offers *Change Folder* (the Move tree). A page filed in another folder asks *Move it to
+  Favorites?* first (one page per address); a chapter of a book or series offers *Move Book (or
+  Series) to Favorites* instead, because a chapter never leaves its book. A page in Favorites or
+  one of its subfolders is a favorite: ☆ then reads *Remove from Favorites*. A chapter whose
+  book or series is in Favorites is a favorite too; its ☆ asks *Take Book (or Series) out of
+  Favorites?* and moves the whole book to the top level, never the chapter alone.
+- **One library**: everything is a page in a folder (or in none). A page is a *link* (an address
+  you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
+  without saving (kept 7 days, shown only in Continue and the bar). There is one page per
+  address: saving a favorite saves it in place; unsaving a page in a folder leaves it there as a
+  link. 🔖 = saved, ☆ = favorite.
 - **The Now Playing bar** (`NowPlayingBarView` → `NowPlayingBar`) is the one thing that shows what
   you hear: a floating card 8 pt above the field capsule with the page's artwork (favicon or a
   letter tile), its title, "<site> · N min left", a thin progress line along its bottom edge, and
@@ -138,39 +152,121 @@ the ⋯ slot too.
   *Stop Listening* (unloads the page; the bar goes).
 
 **Start page** (no page loaded), Safari-style:
-1. **Bookmarks**: a Favorites-style icon grid (favicon, or a coloured letter tile when there is
-   no usable favicon, with the title below), 4 per row, up to 8; Show All → the bookmarks sheet.
-   Tap → open the site; long-press → Rename… / Delete. First because it's stable: the top of
-   the page doesn't move as listening progress changes.
-2. **Continue listening**: pages part-way through (listened and not finished; older saves with a
-   playhead past the start), saved or played without saving, most recently listened first, with a
-   thin progress bar and "N min left". Up to 3; Show All lists the rest in place (Show Less folds
-   them back), since pages played without saving and saved pages in Favorites aren't in the
-   library's list. Tap → the Reader sheet (Now Playing if it is what you hear).
-3. **Saved**: the newest saved pages in no folder not already above (up to 4), Show All → the
-   library.
-4. **Recent Searches** (local, newest first, Clear).
+1. **Favorites**: the Favorites folder as Safari shows it, a grid of its pages (favicon, or a
+   coloured letter tile when there is no usable favicon, with the title below), then its
+   subfolders as folder tiles; 4 per row, up to 8. Show All → the Favorites sheet. A page tile
+   opens the page (a link in the browser, a saved page in the Reader); a folder tile opens the
+   Favorites sheet at that folder; long-press a page tile → Rename… / Remove from Favorites.
+2. **Recent Searches** (local, newest first, Clear).
 
-"Last listened" / "finished" are the page's `lastPlayedAt` / `finishedAt` (`LibraryQueries`
-builds Continue from them).
+**Favorites sheet** (`FavoritesSheet`): the Favorites folder screen, with its own pushes into
+subfolders; its links open in the browser and its saved pages in the Reader, closing the sheet
+first. Done, grabber, medium/large. Its bottom row is `[＋][ ][ ][ ][⋯]` on every screen of the
+sheet: ＋ is *New Folder* in the folder on screen, and ⋯ is the Library's ⋯ for that folder
+(*Sort ›, New Folder Inside*, and for a subfolder *Rename, Move…, Delete Folder…*; *Debug* with
+developer options on, its panel over the sheet), shown in the sheet; its big buttons are
+**Favorites** (back to the sheet's top), **History**, **Browser** (closes the sheet).
 
-**Bookmarks sheet** (`BookmarksListView`): every page in Favorites, tap to open, swipe to delete,
-Edit to reorder/delete; grabber, medium/large.
+## The Library
 
-**Library surface** (`LibrarySurface` / `SavedListView`): every saved page in no folder, newest
-first. Uses the **same bottom chrome shell** as Browse / Reader (search field capsule + five-slot
-toolbar). Slot 4
-shows 🌐 Browser to swap back (restores the prior browse surface). The Now Playing bar sits above
-its search field. Tapping an article opens it in the Reader sheet over the library ("‹ Library";
-Now Playing if it is the article you hear). The row's play button plays without opening. The library's ⋯ is
-its own menu — *Voice settings*, then big buttons **Bookmarks**, **History**, **Browser** — and
-nothing in it acts on the page under the library. Bookmarks and History close the library
-first; Browser is the same swap as 🌐.
+The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
+`ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
+back up. It uses the **same bottom chrome** as the browser: the Now Playing bar, the search field
+capsule and `[＋][ ][🔍][🌐][⋯]`. ＋ is *New Folder*, made in the folder on screen (beside a book,
+on a book's screen). 🌐 shows the browser as it was; 📚 there comes back to the same folder. The
+⋯ panel follows the screen on top (below), always with big buttons **Favorites**, **History**,
+**Browser**, and with developer options on a last row *Debug* (the listen debug panel); nothing
+in it acts on the page under the Library. History closes the Library first; Browser is the same
+swap as 🌐.
 
-**Library search** is the same session as Browse's (`SearchSession` + `SearchSessionChrome`):
-focusing the field (or toolbar Search) hides the toolbar icons so the field sits above the
-keyboard with a round ✕; swipe-down / scroll lowers the keyboard but **stays in search mode**
-(typed text and ✕ kept); ✕ exits and clears the filter. Idle chrome keeps Search / 🌐 / ⋯.
+```
+Library                                   large title
+Continue
+ ╭ cover ╮ ╭ [i] ╮ ╭ [i] ╮  →             horizontal cards, most recent first, up to 8
+Folders
+ ★ Favorites                12  ›         Favorites first, then your folders by their order;
+ 📖 Pride and Prejudice     61  ›         books and series show their cover
+Pages · 48                     Show All › pages in no folder, newest first, the first 5
+```
+
+- **The home** (`LibraryHomeView`): **Continue** cards (`ContinueCard`) for books and series
+  played and not finished (the chapter they resume at) and pages part-way through, saved or
+  played without saving ("Not saved"); a tap opens it (a book's screen; a page's Reader, or Now
+  Playing if it is what you hear), its ▶ resumes it. **Folders**: the top-level folders.
+  **Pages**: the pages in no folder, newest first; Show All pushes them all, sorted by the
+  top level's sort (*Manual / Newest / Title*, ⋯ → Sort; kept on the device,
+  `library.topLevel.sort`). An empty Library shows one card, *Find something to listen to*,
+  with *Browse the web*.
+- **A folder** (`FolderScreen`, Favorites included): its title and counts, subfolders first (by
+  their order), then pages by the folder's sort. **Edit** (top right) puts check circles on the
+  rows, and drag handles (pages only when the sort is *Manual*); the toolbar becomes *Move…,
+  Mark Finished, Remove* for the selection. *Remove* takes the selected pages out of the
+  Library at once, then asks before deleting the selected folders, which stay selected until
+  their delete is saved (*Cancel* keeps them selected). ⋯: *Sort ›,
+  New Folder Inside, Rename, Move…, Delete Folder…* (Favorites: *Sort* and *New Folder Inside*
+  only; it can't be renamed, moved down or deleted).
+- **Deleting a folder** asks *Delete Folder Only* (its subfolders and pages move up one level,
+  after what is already there) or *Delete Folder and Contents*, with what it holds ("2 folders,
+  27 pages, 1 book") and "Stops what's playing." when the playing page is inside. A book or
+  series always goes with its chapters, so a selection holding one never offers *Folder Only*:
+  books alone ask *Delete Book* / *Delete 2 Books*; folders and books together ask *Delete Book,
+  Keep Folder Contents* or *Delete Everything*, saying the books go either way
+  (`FolderDeletePrompt`). Pages and their audio go together: the audio is deleted once the delete
+  is saved, and a delete that can't be saved leaves both (and says so, below).
+- **A book or series** (`BookScreen`): the cover, title, author, chapter count and where it came
+  from; how far through ("38% · 6 h 10 min left"); the round play button (*▶ Play from Chapter
+  1* before anything has played, *▶ Continue · Ch 24*, or jade bars *Playing · Ch 24* while one
+  of its chapters plays: tap pauses) and *Play from Start*; then the chapters in their source
+  order. No Edit. Front matter shows dimmed with "skipped" (it still opens for reading); *Jump
+  to current* scrolls to the chapter Continue resumes. Playing any chapter carries on through the
+  book, then stops. ⋯: *Rename, Move…, Delete Downloads, Delete Book…*. A series is the same
+  screen; its chapters not fetched yet are lighter link rows ("not fetched yet").
+
+**Rows** are `ListRow`s. A tap opens the row; its menu is a long-press (decision D11); swipe left
+removes. Rows that can play keep their ▶ (`PlayStateButton`): it plays the row (replacing what
+plays) or pauses / resumes it when it is what you hear, and never navigates. The playing row is
+tinted, with still or moving bars. Rows show a length ("18 min"), "6 min left" with a small ring
+part-way, or "✓ Finished".
+
+| Row | Tap | Trailing | Menu (long-press) | Swipe left |
+|---|---|---|---|---|
+| Folder, Favorites | opens it (push) | count | *Move to…, Rename, Delete…* (Favorites: none) | Delete… |
+| Book or series | opens it (push) | count | *Continue, Play from Start, Move to…, Rename, Delete Book…* | Delete… |
+| Saved page | the Reader (Now Playing if it's what you hear) | ▶ | *Move to…, Mark as Finished / Unfinished, Share, Delete Downloads* (when it has audio)*, Remove from Library* | Remove |
+| Link page | the page, in the browser | — | *Move to…, Share, Remove from Library* | Remove |
+| Chapter | the Reader (Now Playing if it's what you hear) | ▶ (not on skipped ones) | *Play from Here, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback, Delete Downloads* | — |
+
+**The Move tree** (`MoveTreeSheet`): one sheet for *Move to…*, *Save to Library…*, 🔖's *Save to
+Folder…* and *Change Folder*. The whole tree as one indented list (medium, grows to large): *＋
+New Folder* (made at the top level, and the item goes in it), *Library (no folder)*, then
+Favorites and every folder, depth first. One tap files; ✓ marks the current place; a folder's
+long-press offers *New Folder Inside* (made in it, and the item goes in that). *Library (no
+folder)* files the page in no folder, out of the folder it was in (a link in Favorites leaves
+Favorites, saved); an ordinary 🔖 or *Save* keeps a page's folder. Books and series aren't
+destinations; a folder being moved, and everything inside it, can't be picked. The tree closes
+once what was picked is saved; a pick, or a *New Folder*, that can't be saved leaves it up under
+the toast, to pick again or ✕. The browser's *Save to Library…* closes it on the pick, since the
+page is extracted first (⋯ spins).
+
+**A change that can't be saved** (a move, *New Folder*, *Rename*, *Sort*, a drag to reorder, a
+mark, *Remove*, a delete, ☆ or a favorite tile's *Rename* / *Remove*, saving or unsaving with 🔖,
+⊕, *Save to Folder…* or ⋯ → *Save to Library…* / *Remove from Library*) isn't stored: the
+library reads as it did before it, and a toast says so ("Couldn’t move", "Couldn’t save") where
+a success would have shown. *Remove* of several pages is one change: all go, or none. A folder's
+screen doesn't follow a move that didn't happen, the Move tree stays up, ☆ shows no "Added to
+Favorites", and 🔖 / ⊕ keep what they showed. In Edit, the selection stays when its change can't
+be saved; Edit's *Remove* is two changes, the pages first and then, after the question, the
+folders, so a folder delete that can't be saved leaves the folders selected but doesn't bring back
+pages already removed. The toast shows over the Favorites sheet, the Move tree and Now Playing
+too. Listening goes on being kept meanwhile: where you are in a page, when you last played it and
+whether you finished it are stored once saving works again, even across failed changes.
+
+**Library search** is the same session as the browser's (`SearchSession` +
+`SearchSessionChrome`): focusing the field (or toolbar Search) hides the toolbar so the field sits
+above the keyboard with a round ✕; swipe-down / scroll lowers the keyboard but **stays in search
+mode**; ✕ exits. While there is text, the results cover the Library's screens: folders (by name,
+or a book's author) and pages (titles, sites, excerpts) across the whole tree, then *Search the
+web for "…"*, which opens the browser.
 
 **Editing the address** (a ✕ state, so it closes like one):
 - The toolbar steps aside and the field sits right above the keyboard, with a round ✕ to its right.
@@ -196,8 +292,8 @@ What you **see** and what you **hear** are separate, in three layers: the surfac
 the Library), the **Reader sheet** over it for reading any page, and **Now Playing** over
 everything for what you hear. The Now Playing bar is the one bridge between them: tapping it opens
 Now Playing. Navigating never changes what you hear, and a play button never navigates. The Reader
-never shows the page you hear: opening the Reader of that page (📄, a start-page or Library row)
-opens Now Playing instead.
+never shows the page you hear: opening the Reader of that page (📄, a Favorites tile, a Library
+row or Continue card) opens Now Playing instead.
 
 ### The Reader sheet
 
@@ -213,7 +309,7 @@ opens Now Playing instead.
 ```
 
 - **A sheet over the surface that opened it** (`ReaderSheetScreen`, `ShellState.reader`). From
-  the browser (📄, ⋯ → Reader, a start-page row) the pill reads *‹ Browser*; from the Library
+  the browser (📄, ⋯ → Reader, a Favorites tile) the pill reads *‹ Browser*; from the Library
   *‹ Library*. The pill, the grabber and a pull down all close it to exactly where you were.
 - **Listen** reads *▶ Listen · 9 min*, *▶ Resume · 6 min left* for a page part-way through, or
   *▶ Listen Again* for a finished one. It starts at the page's saved spot, makes the page what you
@@ -237,11 +333,14 @@ opens Now Playing instead.
   moves under you. A text size change (Dynamic Type) keeps the line at the top of the reading
   area where it is, to the character; a page at its top stays at its top. Now Playing does the
   same, or, while it follows the audio, centres the spoken paragraph again.
-- 🔖 saves / unsaves (filled = saved); it keeps the screen and playback as they are.
-- **⋯** (slot 5, the browser's ⋯ spot): rows *Voice settings, Save / Remove article, Bookmark
-  site, Share, Debug* (developer options only); big buttons **Bookmarks / Saved / History /
-  Website** — *Website* (the Reader off) shows the page in the browser, wherever the Reader was
-  opened from; from the library, the library closes first. Playback never stops.
+- 🔖 saves / unsaves (tap; filled = saved), or files the page (long-press → *Save to Folder…*,
+  the Move tree: saved there, or moved there when already saved); it keeps the screen and
+  playback as they are.
+- **⋯** (slot 5, the browser's ⋯ spot): rows *Save / Remove from Library, Move to…* (a saved
+  page)*, Add to Favorites, Share, Voice Settings, Debug* (developer options only); big buttons
+  **Favorites / History / Website** — *Website* (the Reader off) shows the page in the browser,
+  wherever the Reader was opened from; from the library, the library closes first. Playback
+  never stops.
 - The text sits between the header and the bottom row, so its first line starts below the back
   pill and its last line scrolls clear of the bottom row (UI tests check both).
 
@@ -298,8 +397,8 @@ opens Now Playing instead.
   headphone / lock-screen skips are paragraph skips (D4). A sideways swipe on the row skips too.
 - **Status notes** ("Preparing next…", Apple-fallback / language notes, "✓ Finished", the
   developer-only Debug chip) sit **above** the scrubber so appearing text never pushes it.
-- **⋯**: rows *Voice settings, Share, Debug* (developer options only); big buttons **Bookmarks /
-  Saved / History / Website**.
+- **⋯**: rows *Voice Settings, Share, Debug* (developer options only); big buttons **Favorites /
+  History / Website**.
 - **Scrubber** (sentence-precise): fill = progress (weighted by text length; with a local
   voice the thumb moves smoothly inside a paragraph, estimated from the player's time); the
   lighter fill ahead of it is audio already rendered (local voices; Apple speaks live so there is
@@ -334,15 +433,19 @@ opens Now Playing instead.
   utterance's rate) restarts from the word being spoken. The rate is persisted
   (`reader.rateMultiplier`) and the lock screen's playback rate follows it (and can set it).
 - A page played without saving is kept for 7 days after its last play, with its text and its
-  spot: after a relaunch it is in Continue listening, opens in the Reader where it was, and Now
-  Playing shows its text.
+  spot: after a relaunch it is in the Library's Continue, opens in the Reader where it was, and
+  Now Playing shows its text.
 
 ## Developer options
 
 Debug tools are hidden in normal use: the ⋯ Debug rows (Browse "Debug ›" with Fake extraction
-failure; reader "Debug" → Listen debug panel), Voice settings → Listen debug (and Open full panel),
-the listen bar's Debug pill / bake overlay, and long-press ▶︎ → Listen debug panel. They show only
-with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
+failure; Reader, Now Playing, Library and Favorites sheet "Debug" → Listen debug panel), Voice
+settings → Listen debug (and Open full panel), the listen bar's Debug pill / bake overlay, and
+long-press ▶︎ → Listen debug panel. The entry points that open the full panel set
+`speech.showListenDebug` (Browse's Debug › only fakes an extraction failure; the Debug pill
+toggles the bake overlay); the shell's root
+presents the panel (`listenDebugSheet`) while no shell sheet is up, and Voice settings and the
+Favorites sheet present it over themselves. They show only with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
 default in Release builds, on by default in Debug builds. To toggle in any build, long-press the
 **version row** at the bottom of Voice settings for 2 s (haptic + "Developer options on/off"
 confirmation). A Release build clears a stored "on" once, so a Debug pill left from an older build
@@ -362,10 +465,12 @@ Debug builds (`App/LaunchOptions.swift`).
 | ⋯ → Voice settings (`SpeechSettingsView`) | Done | `.sheet` |
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | — (grabber) | `.sheet`, medium/large |
-| ⋯ → Bookmarks / start page Show All (`BookmarksListView`) | — (grabber) | `.sheet`, medium/large |
-| ⋯ → Saved / toolbar Library / start page Show All → library (`LibrarySurface`) | 🌐 Browser slot | in-place surface (shared bottom chrome); leave restores browse |
-| Library → Choose voice (`SpeechSettingsView`) | ‹ system | push (`NavigationLink`) |
-| Reader sheet (`ReaderSheetScreen`): 📄, ⋯ → Reader, a start-page row, a Library row | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface; pull the header down |
+| ⋯ → Favorites / start page Show All / a folder tile (`FavoritesSheet`) | Done (grabber) | `.sheet`, medium/large; folders push inside it |
+| Toolbar 📚 / Library (`LibrarySurface`): the home | 🌐 Browser slot | in-place surface (shared bottom chrome); leave restores browse |
+| Library → a folder, a book or series, Pages · Show All (`FolderScreen`, `BookScreen`) | ‹ system | push (`navigationDestination`) |
+| Move, Save to Library…, Save to Folder…, Change Folder (`MoveTreeSheet`) | ✕ (grabber) | `.sheet`, medium/large |
+| Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |
+| Reader sheet (`ReaderSheetScreen`): 📄, ⋯ → Reader, a Favorites tile, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface; pull the header down |
 | Now Playing (`NowPlayingScreen`): the bar, the Reader of the playing page, Listen, crash resume | ⌄, top left | `Sheet` over everything; pull the header down |
 | Listen debug panel | Done | `.sheet` |
 | Speed picker | — | popover |

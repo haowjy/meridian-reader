@@ -11,8 +11,9 @@ import SwiftData
 ///   the page's saved spot, and turns the Reader into Now Playing where it was (decision D2).
 ///   ☝︎ in the header, then a tap on a paragraph, listens from that paragraph.
 /// - The text never scrolls by itself.
-/// - 🔖 saves / unsaves; ⋯ is the reader menu (Voice settings, Save, Bookmark, Share, Debug;
-///   Bookmarks / Saved / History / Website).
+/// - 🔖 saves / unsaves (tap) or files the page (long-press, *Save to Folder…*: the Move tree);
+///   ⋯ is the reader menu (Save / Remove from Library, Move to…, Add to Favorites, Share, Voice
+///   Settings, Debug; Favorites / History / Website).
 ///
 /// Save / Unsave only flips 🔖: the article key is already the saved id (identity v2), so the
 /// view and any playing audio are untouched.
@@ -61,7 +62,8 @@ struct ReaderSheetScreen: View {
             isSaved: isSaved,
             onClose: { [shell, presentation = state.presentation] in shell.readerDidClose(presentation) },
             onListen: { listen(from: nil) },
-            onToggleSave: toggleSaved
+            onToggleSave: toggleSaved,
+            onSaveToFolder: saveToFolder
         ) {
             jumpButton
         } text: {
@@ -75,6 +77,8 @@ struct ReaderSheetScreen: View {
         } more: {
             MoreMenuButton(id: "readerMore") { .reader(readerMenu, perform: perform) }
                 .foregroundStyle(Palette.ink)
+        } floating: {
+            ShellToastLayer()
         }
         .task(id: WarmKey(id: article.id, count: article.document.count)) {
             prepareListen()
@@ -133,8 +137,8 @@ struct ReaderSheetScreen: View {
         ReaderMenu(
             isSaved: isSaved,
             canSave: sessionReady,
-            isBookmarked: library.favorite(for: articleURL) != nil,
-            canBookmark: articleURL.map(LibraryStore.canFavorite) ?? false,
+            isFavorite: library.favorite(for: articleURL) != nil,
+            canFavorite: articleURL.map(LibraryStore.canFavorite) ?? false,
             canShare: shareURL != nil,
             canOpenWebsite: websiteURL != nil,
             showsDebug: speech.developerOptionsEnabled
@@ -158,12 +162,11 @@ struct ReaderSheetScreen: View {
         switch action {
         case .voiceSettings: shell.present(.voiceSettings)
         case .toggleSave: toggleSaved()
-        case .toggleBookmark: toggleBookmark()
+        case .moveTo: saveToFolder()
+        case .toggleFavorite: toggleFavorite()
         case .share: if let shareURL { shell.present(.share(shareURL)) }
         case .listenDebug: speech.showListenDebug = true
-        case .bookmarks: shell.present(.bookmarks)
-        // Opened from the library, you're already in Saved: go back to the list.
-        case .saved: if state.origin == .library { shell.closeReader() } else { shell.openLibrary() }
+        case .favorites: shell.present(.favorites())
         case .history: shell.present(.history)
         // Reader off = the article's own web page in the browser, wherever the Reader was opened
         // from. Playback keeps going.
@@ -171,15 +174,31 @@ struct ReaderSheetScreen: View {
         }
     }
 
-    /// The article's page in or out of Favorites (`LibraryStore.toggleFavorite`).
-    private func toggleBookmark() {
+    /// ☆: the article's page in or out of Favorites (`FavoriteFlow`).
+    private func toggleFavorite() {
         guard let url = articleURL, LibraryStore.canFavorite(url) else { return }
-        let title = article.title
-        let icon = article.faviconData
-        Task {
-            await library.toggleFavorite(url: url, title: title, artwork: icon) {
-                await FaviconFetcher.best(for: url, webView: nil)
+        FavoriteFlow(library: library, shell: shell).toggle(url: url, title: article.title, artwork: article.faviconData) {
+            await FaviconFetcher.best(for: url, webView: nil)
+        }
+    }
+
+    /// 🔖's long-press (*Save to Folder…*) and ⋯ → Move to…: the Move tree; the page is saved
+    /// into the folder picked (a saved page moves there). A save or move that can't be stored
+    /// keeps the tree up, with a toast saying so.
+    private func saveToFolder() {
+        guard sessionReady else { return }
+        let current: MoveRequest.Place? = isSaved ? (page?.folder.map { .folder($0.id) } ?? .topLevel) : nil
+        FavoriteFlow(library: library, shell: shell).saveToFolder(
+            title: isSaved ? String(localized: "Move to…") : String(localized: "Save to…"), current: current
+        ) { [library, speech, shell, article] folder in
+            if let saved = library.page(key: article.id, canonicalURL: article.canonicalURL), saved.isSavedToLibrary {
+                return shell.attempt(String(localized: "Couldn’t move")) { try library.move([.page(saved)], to: folder) } != nil
             }
+            guard let savedID = shell.attempt(String(localized: "Couldn’t save"), {
+                try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
+            }) else { return false }
+            if savedID != article.id { shell.updateReader(id: article.id) { $0.id = savedID } }
+            return true
         }
     }
 
@@ -206,10 +225,12 @@ struct ReaderSheetScreen: View {
     private func toggleSaved() {
         let saver = ArticleSaveCoordinator(library: library, speech: speech)
         if isSaved {
-            saver.unsave(key: page?.listenKey ?? article.id, canonicalURL: article.canonicalURL)
+            shell.attempt(String(localized: "Couldn’t remove from Library")) {
+                try saver.unsave(key: page?.listenKey ?? article.id, canonicalURL: article.canonicalURL)
+            }
             return
         }
-        let savedID = saver.save(article)
+        guard let savedID = shell.attempt(String(localized: "Couldn’t save"), { try saver.save(article) }) else { return }
         if savedID != article.id { shell.updateReader(id: article.id) { $0.id = savedID } }
     }
 

@@ -17,7 +17,8 @@ import UIKit
 ///   past is marked finished by the controller (`NextChapterProviding.pageFinished`), since the
 ///   session moves straight to the next one.
 ///
-/// It holds the page it writes to, so a position isn't a fetch.
+/// It holds the page it writes to, so a position isn't a fetch. What it writes is stored by the
+/// next save that works: a failed edit's rollback doesn't drop it (`PendingListening`).
 @MainActor
 final class ListeningProgressRecorder {
     private let speech: SpeechController
@@ -43,7 +44,9 @@ final class ListeningProgressRecorder {
         }
     }
 
-    /// The library's page for `key`: the held one, or fetched once when the session moves on.
+    /// The library's page for `key`: the held one, or fetched once when the session moves on, or
+    /// when a rollback dropped the one held (a page its first play made, which the library makes
+    /// again).
     private func page(_ key: UUID) -> Page? {
         if let current, current.listenKey == key, !current.isDeleted, current.modelContext != nil { return current }
         current = library.page(key: key)

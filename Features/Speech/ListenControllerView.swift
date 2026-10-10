@@ -10,7 +10,6 @@ struct ListenControllerView: View {
 
     @Bindable var speech: SpeechController
     @State private var showSpeedPopover = false
-    @State private var showListenDebug = false
 
     private var state: PlayState {
         speech.activeSessionID.map { speech.playState(of: .page($0)) } ?? .idle
@@ -29,10 +28,7 @@ struct ListenControllerView: View {
                 guard let id = speech.activeSessionID else { return }
                 speech.press(.page(id)) {}
             },
-            onPlayLongPress: speech.developerOptionsEnabled ? {
-                showListenDebug = true
-                speech.showListenDebug = true
-            } : nil
+            onPlayLongPress: speech.developerOptionsEnabled ? { speech.showListenDebug = true } : nil
         ) {
             if let trailing {
                 trailing
@@ -49,15 +45,6 @@ struct ListenControllerView: View {
             .presentationCompactAdaptation(.popover)
         }
         .simultaneousGesture(paragraphSwipe)
-        .sheet(isPresented: $showListenDebug) {
-            ListenDebugPanel(speech: speech)
-        }
-        .onChange(of: speech.showListenDebug) { _, open in
-            showListenDebug = open
-        }
-        .onChange(of: showListenDebug) { _, open in
-            speech.showListenDebug = open
-        }
         .onChange(of: speech.listenDebugEnabled) { _, enabled in
             if !enabled { speech.showBakeDebugOverlay = false }
         }

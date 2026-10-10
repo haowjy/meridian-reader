@@ -40,7 +40,8 @@ Features/
   Shell/    ShellState, bottom chrome, ⋯ morph menu, search session, motion tokens
   Browse/   start page, browser chrome, page actions (PageArticleService), dictation
   Reader/   the Reader sheet, Now Playing (text that follows the audio, scrub row, controls)
-  Saved/    library surface, list, save coordinator, Now Playing's content and progress store
+  Library/  the Library surface and screens (home, folder, book), rows, the Move tree, Favorites' sheet and ☆
+  Saved/    save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
 Tests/      unit tests (ReaderTests), Tests/Fakes
 UITests/    UI tests (ReaderUITests)
@@ -108,7 +109,22 @@ store would drop entities it doesn't know; a file it never opens survives a roll
 models are CloudKit-shaped: every property optional or defaulted, no `.unique`, relationships
 optional with `.nullify`; one page per canonical URL is kept by `LibraryStore` and the launch
 dedupe pass. Every library read and write goes through `LibraryStore`; lists use
-`LibraryQueries`.
+`LibraryQueries`. An edit someone asks for (a save, including one into a folder; a move; a
+folder made, renamed, sorted or reordered; a mark; a remove of one or several pages, an unsave or
+a delete; a favorite added, renamed or removed) is one save, made at once (`LibraryStore.edit`): a
+save SwiftData refuses is rolled back (`rollBack`, which fetches the models it touched again, so
+the screens' models read the stored values, relationships included) and throws
+`LibraryStoreError.saveFailed`. So a failed edit never shows as done, and never waits in the
+context for a later save to store or a later rollback to drop. The rollback drops every other
+change still unsaved too, except listening progress: `LibraryStore` keeps what playback wrote and
+hasn't stored (`PendingListening`) and writes it again after the rollback, making again a page
+only a play had made, so the next save stores it while the edit stays undone. Nothing is saved
+while an edit is being staged: deleting the playing page stops it, and the position stopping
+records waits for the delete's save instead of storing the delete half made. The screens run these
+through `ShellState.attempt`, which shows the failure as a toast; what follows success (Edit's
+selection cleared, a moved folder's screen following it, the Move tree closed, "Added to
+Favorites", a saved article's audio moved under the page's key when that is an older key, and
+baked ahead in `ArticleSaveCoordinator`) runs only after it.
 
 **`Page`** (library):
 
@@ -123,7 +139,7 @@ dedupe pass. Every library read and write goes through `LibraryStore`; lists use
 | `bodyHTML`, `plainTextData` | Offline reading; the listen text comes from the HTML |
 | `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount` |
 | `positionParagraph`, `positionUTF16` | Resume position (paragraph + offset inside the document) |
-| `lastPlayedAt`, `finishedAt` | Continue listening |
+| `lastPlayedAt`, `finishedAt` | Continue, and a row's "✓ Finished" |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
 | `skipsInPlayback`, `fetchStateRaw` | Book chapters and series: what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
@@ -154,8 +170,11 @@ have changed since, and the next launch plans it again (dedupe waits for a layou
 couldn't save). Debug: `-rerunLibraryMigration` empties the library and its receipts and copies
 again.
 
-**Audio work waits for the save.** The layout pass (audio aligned to the new paragraphs, the
-crash-resume point and pending renders remapped) and dedupe (the merged page's audio filling the
+**Audio work waits for the save.** Deleting pages (a row's *Delete*, *Delete Folder and
+Contents*, *Delete Book*: the page's audio directory, pending render and queued renders go),
+pages leaving the Library (*Remove from Library*, unsave: the audio is kept, back on the
+ephemeral TTL), Save (the audio marked saved and its queued render non-ephemeral), the layout pass (audio aligned to the new
+paragraphs, the crash-resume point and pending renders remapped) and dedupe (the merged page's audio filling the
 kept page's paragraphs it has none for, by text, then its directory and pending render dropped;
 the resume point, the crash target read at launch and the live session moved onto the kept page,
 at the paragraph with the same text) change nothing outside the store until the library change
@@ -163,7 +182,11 @@ is saved. They record `LibraryAudioWork` in the same save; `LibraryStore.commit`
 after the save. A failed save is rolled back with its work, leaving the audio cache, pending
 renders and the resume point as they were. A record is retired only once its postconditions hold
 on disk: the destination's saved audio index aligned with its paragraphs, every file it lists
-there, the merged page's directory gone. A record that fails is kept, with everything after it,
+there, the merged page's directory gone, a deleted page's audio gone, and otherwise the audio
+saved or ephemeral as its page is. Delete, remove and Save records act on the page holding the key
+when they run, not as it was planned: by then the key can belong to a later page (saved, deleted,
+then played again without saving), whose audio stays, saved only if that page is saved in the
+Library. A record that fails is kept, with everything after it,
 for the next launch; so is the work of a launch that dies after the save. Meanwhile the pages
 those records touch (a merge's source and destination) are held (`ArticleAudioCache.held`):
 the launch's engine purges (which then run again next launch) and the prune leave their audio

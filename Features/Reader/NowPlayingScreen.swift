@@ -61,6 +61,7 @@ struct NowPlayingScreen: View {
                         if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
                     }
                 )
+                .overlay(alignment: .top) { ShellToastLayer() }
             }
             .environment(\.sheetRisesOnAppear, shell.nowPlayingOpensAt == nil)
             .task(id: now.pageKey) { await load(now.pageKey) }
@@ -118,8 +119,7 @@ struct NowPlayingScreen: View {
         case .voiceSettings: shell.present(.voiceSettings)
         case .share: if let shareURL { shell.present(.share(shareURL)) }
         case .listenDebug: speech.showListenDebug = true
-        case .bookmarks: shell.present(.bookmarks)
-        case .saved: shell.openLibrary()
+        case .favorites: shell.present(.favorites())
         case .history: shell.present(.history)
         case .openWebsite: goToPlayingFrom()
         }
@@ -152,15 +152,18 @@ struct NowPlayingScreen: View {
         return page.listenKey
     }
 
-    /// ⊕: saving never touches playback.
+    /// ⊕: saving never touches playback. A save or unsave that can't be stored leaves ⊕ as it
+    /// was, and a toast says so.
     private func toggleSaved() {
         guard let article else { return }
         let saver = ArticleSaveCoordinator(library: library, speech: speech)
         if let savedKey {
-            saver.unsave(key: savedKey, canonicalURL: article.canonicalURL)
+            guard shell.attempt(String(localized: "Couldn’t remove from Library"), {
+                try saver.unsave(key: savedKey, canonicalURL: article.canonicalURL)
+            }) != nil else { return }
             self.savedKey = nil
-        } else {
-            savedKey = saver.save(article)
+        } else if let key = shell.attempt(String(localized: "Couldn’t save"), { try saver.save(article) }) {
+            savedKey = key
         }
     }
 
