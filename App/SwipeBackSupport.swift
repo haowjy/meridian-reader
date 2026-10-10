@@ -33,6 +33,15 @@ enum SwipeGesturePolicy {
         translation > verticalCommitDistance || predicted > verticalCommitPrediction
     }
 
+    /// Where a drag released at `velocity` (points per second) is heading, for a UIKit pan that
+    /// has no predicted end of its own: a quarter second's travel at that speed. With the commit
+    /// rule above, a pull from rest commits once flung at about 700 pt/s.
+    static func projectedTranslation(_ translation: CGFloat, velocity: CGFloat) -> CGFloat {
+        translation + velocity * releaseProjection
+    }
+
+    private static let releaseProjection: CGFloat = 0.25
+
     static func horizontalDirection(translation: CGSize, predicted: CGSize) -> SwipeGestureDirection? {
         guard abs(translation.width) > abs(translation.height) * axisDominance else { return nil }
         guard abs(translation.width) > horizontalCommitDistance

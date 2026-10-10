@@ -1,10 +1,11 @@
 import SwiftUI
 
 /// The shared sheet: it rises over the surface underneath, carries a grabber, and closes with a
-/// pull down on its header (never on its content, so scrolling and text selection stay free) or
-/// through `dismissSheet` from inside (a back pill, ⌄). While pulled it looks like a system sheet
-/// (`PullDownLook`): it shrinks a little and the dim behind it lifts. Top corners `Radius.card`.
-/// Used by the Reader sheet, Now Playing, Move to… and Import.
+/// pull down on its header, a pull down on its scrolling body that begins with the body at its top
+/// (`SheetPullHandoff`; one that begins mid-content only scrolls), or through `dismissSheet` from
+/// inside (a back pill, ⌄). While pulled it looks like a system sheet (`PullDownLook`): it shrinks
+/// a little and the dim behind it lifts. Top corners `Radius.card`. Used by the Reader sheet and
+/// Now Playing.
 ///
 /// Its `look` is paper, or the player (Now Playing): deep jade in light and dark, a heavier dim
 /// behind it so the strip above reads dark, light status bar content, and the dark colour scheme
@@ -31,10 +32,12 @@ struct Sheet<Header: View, Content: View>: View {
     @State private var statusBarHeight: CGFloat = 0
     /// `onDismiss` has run (it runs once, whichever of the completion and its fallback is first).
     @State private var dismissed = false
+    @State private var pullHandoff = SheetPullHandoff()
 
     var body: some View {
         let pullLook = PullDownLook(offset: pull, screenHeight: height, maxDim: look.maxDim)
         let isUp = risesOnAppear ? risen : !closed
+        let _ = wire(pullHandoff)
         ZStack(alignment: .bottom) {
             Color.black.opacity(isUp ? pullLook.dim : 0)
                 .ignoresSafeArea()
@@ -59,6 +62,7 @@ struct Sheet<Header: View, Content: View>: View {
                     .gesture(pullDown)
                     content
                         .frame(maxHeight: .infinity, alignment: .top)
+                        .environment(\.sheetPullHandoff, pullHandoff)
                 }
                 .background {
                     UnevenRoundedRectangle(topLeadingRadius: Radius.card, topTrailingRadius: Radius.card,
@@ -96,20 +100,42 @@ struct Sheet<Header: View, Content: View>: View {
             .onEnded { value in
                 let vertical = pullAxis == .vertical
                 pullAxis = nil
-                guard vertical, SwipeGesturePolicy.shouldCommitDownwardDismiss(
-                    translation: value.translation.height, predicted: value.predictedEndTranslation.height
-                ) else {
-                    withAnimation(Motion.settle) { pull = 0 }
-                    return
-                }
-                guard !reduceMotion, height > 0 else { return close() }
-                withAnimation(Motion.dismiss(velocity: value.velocity.height, distance: height - pull)) {
-                    pull = height
-                } completion: {
-                    finish()
-                }
-                finishAfterAnimation()
+                guard vertical else { return withAnimation(Motion.settle) { pull = 0 } }
+                release(translation: value.translation.height, predicted: value.predictedEndTranslation.height,
+                        velocity: value.velocity.height)
             }
+    }
+
+    /// The scrolling body's pull, handed over at its top: the same follow and release as the
+    /// header's (`SheetPullHandoff`). The body only reports pulls down, so there's no rubber band.
+    /// Rewired on each pass so the release sees this pass's values (Reduce Motion, `onDismiss`).
+    private func wire(_ handoff: SheetPullHandoff) {
+        handoff.changed = { offset in
+            guard !dismissed, pullAxis == nil else { return }
+            pull = offset
+        }
+        handoff.ended = { offset, velocity in
+            guard !dismissed, pullAxis == nil else { return }
+            release(translation: offset,
+                    predicted: SwipeGesturePolicy.projectedTranslation(offset, velocity: velocity),
+                    velocity: velocity)
+        }
+    }
+
+    /// A vertical pull let go: far enough down or flung, the sheet carries on off the screen at
+    /// the finger's speed and closes; otherwise it springs back.
+    private func release(translation: CGFloat, predicted: CGFloat, velocity: CGFloat) {
+        guard SwipeGesturePolicy.shouldCommitDownwardDismiss(translation: translation, predicted: predicted) else {
+            withAnimation(Motion.settle) { pull = 0 }
+            return
+        }
+        guard !reduceMotion, height > 0 else { return close() }
+        withAnimation(Motion.dismiss(velocity: velocity, distance: height - pull)) {
+            pull = height
+        } completion: {
+            finish()
+        }
+        finishAfterAnimation()
     }
 
     private func close() {

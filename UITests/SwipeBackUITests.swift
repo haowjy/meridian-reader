@@ -1,8 +1,9 @@
 import XCTest
 
 /// Navigation rule (docs/NAVIGATION.md): ‹ screens pop with a left-edge swipe; sheets (the Reader,
-/// Now Playing) close with a pull down on their header. Either gesture does exactly what its
-/// button does, and closing never stops audio.
+/// Now Playing) close with a pull down on their header (or on their text from its top,
+/// `SheetPullFromTextUITests`). Either gesture does exactly what its button does, and closing
+/// never stops audio.
 final class SwipeBackUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
@@ -133,12 +134,6 @@ final class SwipeBackUITests: XCTestCase {
         XCTAssertTrue(close.waitForExistence(timeout: 10))
         XCTAssertEqual(close.label, "Back to Browser", "opened over the browser")
 
-        // Scrolling the article (even downward at the top) must never close the Reader.
-        let body = app.webViews.firstMatch
-        XCTAssertTrue(body.waitForExistence(timeout: 5))
-        body.swipeDown()
-        wait(0.8)
-        XCTAssertTrue(close.exists, "article scroll does not close the Reader")
         // A sideways drag on the header does not close it either.
         let header = close.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).withOffset(CGVector(dx: 140, dy: 0))
         header.press(forDuration: 0.05, thenDragTo: header.withOffset(CGVector(dx: 120, dy: 10)))

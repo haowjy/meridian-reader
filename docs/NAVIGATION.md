@@ -4,8 +4,8 @@
 grabber), you can pull it down.** Either gesture must do exactly what tapping the button does.
 
 The two reading sheets have no ✕: the Reader closes with its labelled back pill ("‹ Browser",
-"‹ Library"), Now Playing with ⌄. Both carry a grabber and pull down from their header, which does
-exactly what that button does.
+"‹ Library"), Now Playing with ⌄. Both carry a grabber and pull down from their header, or from
+their text when it is at its top, which does exactly what that button does.
 
 | Button | Presentation | Gesture | Provided by |
 |--------|--------------|---------|-------------|
@@ -36,19 +36,30 @@ exactly what that button does.
 
 ## ✕ = modal + swipe-down
 
-- `.sheet`: swipe-down is built in (show the grabber). A Done/Cancel/✕ button is optional.
+- `.sheet`: swipe-down is built in (show the grabber), from the header or from a scrolling body at
+  its top: the Favorites sheet, the Move tree, the import sheet (except while it works), History,
+  Voice Settings. A Done/Cancel/✕ button is optional.
 - The Reader and Now Playing are the design system's `Sheet` (in place, not a `.sheet` or
   `fullScreenCover`): pulling the header (grabber, back pill or ⌄ row) down calls the same close
   action as its button. Closing never stops audio: the Now Playing bar shows what is playing. The
-  drag starts only on the header, so it never competes with scrolling, text selection or ☝︎ taps.
-  The header and the bottom row never hide, so the header is always there to pull.
+  header and the bottom row never hide, so the header is always there to pull.
+- **The text pulls the sheet too, from its top**, so a sheet closes one-handed from the lower half
+  of the screen (`SheetPullHandoff`). A drag on the text that begins with the text at its top and
+  goes down moves the sheet instead of bouncing the text, which stays put; moving back up lowers
+  the sheet first, then scrolls the text again. A drag that begins anywhere else in the text only
+  scrolls, even once the text reaches its top: reading back up never closes the sheet. Sideways
+  drags, text selection and ☝︎ taps are untouched, and the scrubber and the bottom row aren't
+  text, so they never pull. In Now Playing a pull alone keeps following the audio (it moves
+  nothing); once the drag moves the text, following stops as for any drag.
 - It moves like a system sheet: it rises from the bottom and leaves the same way. The surface
   stays as it is underneath (the page or start page, the Library's screen), so the pull reveals
   where you're going back to: the sheet follows the finger (up only with rubber-band resistance;
   a drag that starts sideways leaves it in place), shrinks slightly, and the dim behind it lifts.
-  Released far enough or flung, it carries on off the bottom at the finger's speed; otherwise it
-  springs back. Under Reduce Motion it fades in and out instead. What is under a sheet takes no
-  touches until it has gone.
+  Released far enough (72 pt) or flung (where a quarter second more at the release speed would
+  take it past 180 pt; about 700 pt/s from rest), it carries on off the bottom at the finger's
+  speed; otherwise it springs back (`Motion.settle`). The header and the text use the same rule.
+  Under Reduce Motion it fades in and out instead. What is under a sheet takes no touches until it
+  has gone.
 
 ## Two surfaces: the Library and the browser (no tab bar)
 
@@ -400,8 +411,8 @@ row) opens Now Playing instead.
 - **Opens from** the bar (tap, swipe up), from opening the Reader of the page that is playing,
   from Listen in the Reader (in place, D2) and from crash resume. It presents over everything
   (`ShellState.isNowPlayingPresented`) and holds no article of its own: it shows what you hear.
-  **⌄ or a pull down shrinks it into the bar**, back on what was underneath (the browser, the
-  Library, or a Reader of another page), untouched.
+  **⌄ or a pull down (on the header, or on the text at its top) shrinks it into the bar**, back on
+  what was underneath (the browser, the Library, or a Reader of another page), untouched.
 - **It looks like a player, not the Reader**: deep jade in light and dark mode alike (the
   `Palette.player…` tokens), with light status bar content and a heavier dim on the strip above
   it. While a finger pulls it down the dim lifts, but the strip under the status bar stays as dark
@@ -419,8 +430,9 @@ row) opens Now Playing instead.
   (the `Motion.standard` spring; a jump under Reduce Motion). The spoken paragraph lights up to
   full ink while the one before dims (a short fade; none under Reduce Motion), and the current
   sentence is underlined in ink (per chunk on engines that report only chunk starts; no underline
-  before iOS 17.2). Drag the text and following stops; a *Back to audio* pill floats
-  over the text just above the controls (no arrow: the spoken paragraph may be above or below).
+  before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
+  doesn't move the text, so following goes on); a *Back to audio* pill floats over the text just
+  above the controls (no arrow: the spoken paragraph may be above or below).
   Tap it (or start another page) and following resumes. Scrubbing scrolls to the paragraph under
   the thumb.
 - **At the end** it stays on the page: the text stays, all of it in full ink, a note says

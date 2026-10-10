@@ -188,6 +188,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
         let c = context.coordinator
         c.onTapParagraph = onTapParagraph
         c.onUserScroll = onUserScroll
+        c.pullHandoff.handoff = context.environment.sheetPullHandoff
         c.animates = animates
         scrollHandle?.coordinator = c
         c.setTextInsets(textInsets)
@@ -526,21 +527,24 @@ struct HTMLReadingWebView: UIViewRepresentable {
             reflow(ReadingStyle.sizesScript(sizes))
         }
 
-        /// Notes a finger drag: an inset change no longer pins the text to the top, and following
-        /// stops. The pan recognizer, because WebKit owns the scroll view's delegate; programmatic
-        /// scrolls never reach it.
-        func observeDragging(_ scrollView: UIScrollView) {
-            scrollView.panGestureRecognizer.addTarget(self, action: #selector(dragged(_:)))
-        }
+        /// Hands a pull at the top of the text to the sheet around it (`SheetPullHandoff`).
+        let pullHandoff = ScrollPullHandoff()
 
-        @objc private func dragged(_ pan: UIPanGestureRecognizer) {
-            guard pan.state == .began else { return }
-            userScrolled = true
-            cancelRestore()
-            if follows {
+        /// Notes a finger drag through the scroll view's pan (WebKit owns its delegate;
+        /// programmatic scrolls never reach it): an inset change no longer pins the text to the
+        /// top, and a waiting restore is dropped. Following stops once the drag moves the text: a
+        /// pull of the sheet alone (a pull down from the top) keeps following, as it moves nothing.
+        func observeDragging(_ scrollView: UIScrollView) {
+            pullHandoff.onDragBegan = { [weak self] in
+                self?.userScrolled = true
+                self?.cancelRestore()
+            }
+            pullHandoff.onScroll = { [weak self] in
+                guard let self, follows else { return }
                 follows = false
                 onUserScroll()
             }
+            pullHandoff.attach(to: scrollView)
         }
 
         /// Scrub-follow: center the paragraph under the scrub thumb.
@@ -578,7 +582,9 @@ struct HTMLReadingWebView: UIViewRepresentable {
             let js = "(function(){ var el = document.querySelector('[data-reader-index=\"\(index)\"]');"
                 + " if (!el) return null; var r = el.getBoundingClientRect(); return [r.top, r.height]; })();"
             webView.evaluateJavaScript(js) { [weak self, weak webView] result, _ in
-                guard let self, let webView, self.follows, let rect = result as? [Double], rect.count == 2 else { return }
+                // While the sheet is pulled the text is held at its top; the next paragraph centres.
+                guard let self, let webView, self.follows, !self.pullHandoff.isPulling,
+                      let rect = result as? [Double], rect.count == 2 else { return }
                 let sv = webView.scrollView
                 let visible = sv.bounds.height - sv.contentInset.top - sv.contentInset.bottom
                 let center = CGFloat(rect[0] + rect[1] / 2)

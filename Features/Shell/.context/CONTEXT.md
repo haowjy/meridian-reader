@@ -52,5 +52,9 @@ changing the shell code.
   tap area through `tapTarget`.
 - **Gestures.** Drags that dismiss or collapse lock their axis on the first movement and rubber-band
   the wrong direction (`SwipeGesturePolicy`, `App/SwipeBackSupport.swift`); releases seed the
-  spring with the finger's speed, capped (`Motion.dismiss`, `Motion.maxReleaseVelocity`). Under
+  spring with the finger's speed, capped (`Motion.dismiss`, `Motion.maxReleaseVelocity`). A
+  `Sheet`'s scrolling body pulls it from its top: `Sheet` puts a `SheetPullHandoff` in its
+  content's environment, and a UIKit scroll view there feeds it through `ScrollPullHandoff` (a
+  target on its pan, after the scroll view's own). New scrolling content in a `Sheet` needs that
+  hook, or it only scrolls. Under
   Reduce Motion, slides and the morph become fades (`Motion.slideAndFade`, `Motion.sheet`).
