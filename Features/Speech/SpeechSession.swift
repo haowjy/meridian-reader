@@ -40,17 +40,6 @@ struct SpeechSession: Equatable, Sendable, Identifiable {
                   canonicalURL: article.canonicalURL, host: article.siteDomain)
     }
 
-    /// Uses the paragraphs stored at save time; older saves build and store them once.
-    static func saved(_ article: SavedArticle) -> SpeechSession {
-        let document = article.listenDocument()
-        let canonical = article.canonicalURL.isEmpty
-            ? ArticleIdentity.canonicalURLString(from: article.urlString) : article.canonicalURL
-        return SpeechSession(id: article.id, document: document,
-                             detectedLanguage: article.detectedLanguageBackfilling(),
-                             title: article.title, site: article.siteDomain, artwork: article.faviconData,
-                             canonicalURL: canonical, host: article.siteDomain)
-    }
-
     static func reader(
         id: UUID,
         plainText: String,

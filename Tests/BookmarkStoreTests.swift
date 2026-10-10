@@ -2,18 +2,15 @@ import XCTest
 import UIKit
 @testable import Reader
 
+/// Bookmarks are Favorites' pages (`LibraryStore+Favorites`): toggled from ⋯, deduped by
+/// canonical URL, renamed, reordered, removed, with a tile-sized icon when one can be found.
 @MainActor
 final class BookmarkStoreTests: XCTestCase {
-    private var file: URL!
+    private var env: LibraryTestEnvironment!
+    private var library: LibraryStore { env.library }
 
-    override func setUp() async throws {
-        file = FileManager.default.temporaryDirectory
-            .appendingPathComponent("BookmarkStoreTests-\(UUID().uuidString)/bookmarks.json")
-    }
-
-    override func tearDown() async throws {
-        try? FileManager.default.removeItem(at: file.deletingLastPathComponent())
-    }
+    override func setUp() async throws { env = try LibraryTestEnvironment() }
+    override func tearDown() async throws { env.cleanUp() }
 
     private func png(side: CGFloat) -> Data {
         UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: {
@@ -22,57 +19,78 @@ final class BookmarkStoreTests: XCTestCase {
     }
 
     func testToggleAddsWithABetterIconThenRemoves() async {
-        let store = BookmarkStore(fileURL: file)
         let url = URL(string: "https://example.com/story")!
         let tile = png(side: 64)
-        await store.toggle(url: url, title: "Story", faviconData: png(side: 16)) { tile }
-        XCTAssertEqual(store.bookmark(for: url)?.faviconData, tile, "a 16 px icon is upgraded to a tile-sized one")
+        await library.toggleFavorite(url: url, title: "Story", artwork: png(side: 16)) { tile }
+        XCTAssertEqual(library.favorite(for: url)?.artworkData, tile, "a 16 px icon is upgraded to a tile-sized one")
 
-        await store.toggle(url: url, title: "Story", faviconData: nil) { XCTFail("not asked when removing"); return nil }
-        XCTAssertNil(store.bookmark(for: url))
+        await library.toggleFavorite(url: url, title: "Story", artwork: nil) { XCTFail("not asked when removing"); return nil }
+        XCTAssertNil(library.favorite(for: url))
 
-        await store.toggle(url: url, title: "Story", faviconData: tile) { XCTFail("already tile-sized"); return nil }
-        XCTAssertEqual(store.bookmark(for: url)?.faviconData, tile)
+        await library.toggleFavorite(url: url, title: "Story", artwork: tile) { XCTFail("already tile-sized"); return nil }
+        XCTAssertEqual(library.favorite(for: url)?.artworkData, tile)
     }
 
-    func testOfferFaviconNeverReplacesAUsableIconWithASmallerOne() {
-        let store = BookmarkStore(fileURL: file)
+    func testOfferArtworkNeverReplacesAUsableIconWithASmallerOne() throws {
         let tile = png(side: 64)
-        let b = store.add(url: URL(string: "https://example.com/")!, title: nil, faviconData: tile)
-        store.offerFavicon(png(side: 16), for: b.id)
-        XCTAssertEqual(store.bookmarks.first?.faviconData, tile)
+        let page = try XCTUnwrap(library.addFavorite(url: URL(string: "https://example.com/")!, title: nil, artwork: tile))
+        library.offerArtwork(png(side: 16), for: page)
+        XCTAssertEqual(library.favoritePages().first?.artworkData, tile)
     }
 
-    func testAddDedupesByCanonicalURLAndPersists() {
-        let store = BookmarkStore(fileURL: file)
-        let a = store.add(url: URL(string: "https://www.example.com/stories/1")!, title: " Story ", faviconData: nil)
-        let again = store.add(url: URL(string: "https://www.example.com/stories/1?utm_source=x#top")!,
-                              title: "Other", faviconData: nil)
-        XCTAssertEqual(a.id, again.id, "same page → one bookmark")
-        XCTAssertEqual(store.bookmarks.count, 1)
+    func testAddDedupesByCanonicalURLAndPersists() throws {
+        let a = try XCTUnwrap(library.addFavorite(url: URL(string: "https://www.example.com/stories/1")!, title: " Story ", artwork: nil))
+        let again = library.addFavorite(url: URL(string: "https://www.example.com/stories/1?utm_source=x#top")!,
+                                        title: "Other", artwork: nil)
+        XCTAssertIdentical(a, again, "same page → one favorite")
+        XCTAssertEqual(library.favoritePages().count, 1)
         XCTAssertEqual(a.title, "Story")
-        XCTAssertNotNil(store.bookmark(for: URL(string: "https://www.example.com/stories/1?utm_medium=y")))
+        XCTAssertNotNil(library.favorite(for: URL(string: "https://www.example.com/stories/1?utm_medium=y")))
 
-        let reloaded = BookmarkStore(fileURL: file)
-        XCTAssertEqual(reloaded.bookmarks, store.bookmarks, "persists to its own file")
+        let relaunched = env.makeLibrary()
+        XCTAssertEqual(relaunched.favoritePages().map(\.title), ["Story"], "kept in the library store")
     }
 
-    func testTitleFallsBackToHostAndRenameMoveRemove() {
-        let store = BookmarkStore(fileURL: file)
-        let a = store.add(url: URL(string: "https://a.example/")!, title: nil, faviconData: nil)
-        let b = store.add(url: URL(string: "https://b.example/")!, title: "B", faviconData: nil)
-        let c = store.add(url: URL(string: "https://c.example/")!, title: "C", faviconData: nil)
+    func testTitleFallsBackToHostAndRenameMoveRemove() throws {
+        let a = try XCTUnwrap(library.addFavorite(url: URL(string: "https://a.example/")!, title: nil, artwork: nil))
+        let b = try XCTUnwrap(library.addFavorite(url: URL(string: "https://b.example/")!, title: "B", artwork: nil))
+        let c = try XCTUnwrap(library.addFavorite(url: URL(string: "https://c.example/")!, title: "C", artwork: nil))
         XCTAssertEqual(a.title, "a.example")
-        store.rename(id: a.id, to: "  Alpha ")
-        store.rename(id: b.id, to: "   ") // ignored
-        XCTAssertEqual(store.bookmarks.map(\.title), ["Alpha", "B", "C"])
-        store.move(fromOffsets: [2], toOffset: 0)
-        XCTAssertEqual(store.bookmarks.map(\.id), [c.id, a.id, b.id])
-        store.move(fromOffsets: [0], toOffset: 3)
-        XCTAssertEqual(store.bookmarks.map(\.id), [a.id, b.id, c.id])
-        store.remove(id: b.id)
-        XCTAssertEqual(store.bookmarks.map(\.id), [a.id, c.id])
-        XCTAssertNil(store.bookmark(for: URL(string: "http://localhost/")) , "non-matching")
-        XCTAssertNil(store.bookmark(for: URL(string: "about:blank")))
+        library.renameFavorite(a, to: "  Alpha ")
+        library.renameFavorite(b, to: "   ") // ignored
+        XCTAssertEqual(library.favoritePages().map(\.title), ["Alpha", "B", "C"])
+        library.reorder([c], in: library.favorites(), before: a)
+        XCTAssertEqual(library.favoritePages().map(\.title), ["C", "Alpha", "B"])
+        library.reorder([c], in: library.favorites(), before: nil)
+        XCTAssertEqual(library.favoritePages().map(\.title), ["Alpha", "B", "C"])
+        library.removeFavorite(b)
+        XCTAssertEqual(library.favoritePages().map(\.title), ["Alpha", "C"])
+        XCTAssertNil(library.favorite(for: URL(string: "http://localhost/")), "non-matching")
+        XCTAssertNil(library.favorite(for: URL(string: "about:blank")))
+    }
+
+    /// One page per address: bookmarking a saved page files it in Favorites; removing the
+    /// bookmark puts it back with the pages in no folder, still saved.
+    func testBookmarkingASavedPageFilesItInFavorites() throws {
+        let saved = library.save(env.article("https://example.com/saved"))
+        let favorite = library.addFavorite(url: URL(string: "https://example.com/saved")!, title: "Other title", artwork: nil)
+        XCTAssertIdentical(favorite, saved)
+        XCTAssertEqual(saved.folder?.kind, .favorites)
+        XCTAssertTrue(saved.isSavedToLibrary)
+        XCTAssertTrue(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).isEmpty, "not in the Saved list")
+
+        library.removeFavorite(saved)
+        XCTAssertNil(saved.folder)
+        XCTAssertTrue(saved.isSavedToLibrary)
+        XCTAssertEqual(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).map(\.title), [saved.title])
+    }
+
+    func testBookmarkingAPagePlayedButNotSavedMakesItALink() throws {
+        let played = library.recordPlayback(env.article("https://example.com/played"))
+        XCTAssertNil(played.addedAt)
+        library.addFavorite(url: URL(string: "https://example.com/played")!, title: nil, artwork: nil)
+        XCTAssertTrue(played.isLink, "Favorites doesn't save")
+        XCTAssertNotNil(played.addedAt)
+        XCTAssertEqual(played.folder?.kind, .favorites)
     }
 }

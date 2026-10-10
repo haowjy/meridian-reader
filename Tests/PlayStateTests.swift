@@ -1,3 +1,4 @@
+import SwiftData
 import XCTest
 @testable import Reader
 
@@ -5,6 +6,8 @@ import XCTest
 @MainActor
 final class PlayStateTests: XCTestCase {
     private var fixture: TestSpeech!
+    /// The library store of a test that needs one.
+    private var container: ModelContainer?
     private var speech: SpeechController { fixture.speech }
 
     override func setUp() async throws { fixture = TestSpeech() }
@@ -33,13 +36,21 @@ final class PlayStateTests: XCTestCase {
         XCTAssertEqual(speech.nowPlaying?.playingFrom, .site(host: "example.com"))
     }
 
-    func testLegacyRandomIDSavedArticleMatchesItsWebPage() {
-        // A save from before identity v2 keeps a random id; the page is found by canonical URL.
-        let legacy = TestSpeech.article(pageA, id: UUID())
-        XCTAssertNotEqual(legacy.id, ArticleIdentity.articleKey(canonicalURL: canonical(pageA)))
-        speech.listen(to: legacy)
+    func testLegacyRandomKeyPageMatchesItsWebPage() throws {
+        // A save from before identity v2 became a page with its random key; played from its row
+        // (no article at hand), its web page still matches it by canonical URL.
+        let container = try LibraryStoreConfiguration.makeInMemoryContainer()
+        self.container = container
+        let library = LibraryStore(context: container.mainContext, tts: speech.localTTS)
+        let legacy = library.save(TestSpeech.article(pageA, id: UUID()))
+        XCTAssertNotEqual(legacy.listenKey, ArticleIdentity.articleKey(canonicalURL: canonical(pageA)))
+        speech.press(.page(legacy.listenKey)) {
+            speech.toggle(.page(legacy), resumeParagraph: legacy.positionParagraph,
+                          resumeUTF16Offset: legacy.positionUTF16)
+        }
         XCTAssertEqual(speech.playState(of: .webPage(canonicalURL: canonical(pageA))), .playing)
-        XCTAssertEqual(speech.playState(of: .page(legacy.id)), .playing)
+        XCTAssertEqual(speech.playState(of: .page(legacy.listenKey)), .playing)
+        XCTAssertEqual(speech.playState(of: .webPage(canonicalURL: canonical(pageB))), .idle, "another page")
     }
 
     func testPausedThenResumed() {

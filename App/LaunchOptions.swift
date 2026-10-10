@@ -14,6 +14,9 @@ struct LaunchOptions: Equatable {
         var progress = 0
         /// `-seedDemoPlainText`: the article has no HTML, only its plain text.
         var plainTextOnly = false
+        /// `-seedPlayedPages N`: also N pages played without saving, part-way ("Played Page 1"
+        /// played most recently), so Continue has more rows than it shows folded.
+        var playedPages = 0
     }
 
     enum BookmarkSetup: Equatable {
@@ -40,6 +43,9 @@ struct LaunchOptions: Equatable {
     var scrubBubbleDemo = false
     /// `-slowMenuAnimation`: slow the ⋯ morph so a mid-animation frame can be captured.
     var slowMenuAnimation = false
+    /// `-rerunLibraryMigration`: delete every folder, page and migration receipt, then copy the
+    /// saved articles and bookmarks again.
+    var rerunsLibraryMigration = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -55,7 +61,8 @@ struct LaunchOptions: Equatable {
                 title: value(after: "-seedDemoTitle"),
                 paragraphs: max(3, value(after: "-seedDemoParagraphs").flatMap(Int.init) ?? 3),
                 progress: value(after: "-seedDemoProgress").flatMap(Int.init) ?? 0,
-                plainTextOnly: flags.contains("-seedDemoPlainText")
+                plainTextOnly: flags.contains("-seedDemoPlainText"),
+                playedPages: value(after: "-seedPlayedPages").flatMap(Int.init) ?? 0
             )
         }
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")
@@ -69,6 +76,7 @@ struct LaunchOptions: Equatable {
         bakeArticlePrefix = value(after: "-bakeArticle")?.uppercased()
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")
         slowMenuAnimation = flags.contains("-slowMenuAnimation")
+        rerunsLibraryMigration = flags.contains("-rerunLibraryMigration")
     }
 
     /// Live Google suggestions in the address field.

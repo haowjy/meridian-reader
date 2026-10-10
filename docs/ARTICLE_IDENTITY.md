@@ -10,14 +10,16 @@ Unsave only flip the bookmark. (The reader screen itself: `NAVIGATION.md` → "T
 |---------|------|
 | Canonical URL | Lowercased scheme and host, no fragment, default port dropped, tracking parameters removed (`utm_*`, `fbclid`, `gclid`, `mc_*`, `igshid`, `si`, …), trailing slash trimmed except at the root (`ArticleIdentity.canonicalURLString`, `ArticleIdentityTests`). |
 | Article key | `ArticleIdentity.articleKey(canonicalURL:)` = SHA-256(namespace v2, canonical URL) → UUID. No content in the key. |
-| Saved row | `SavedArticle.canonicalURL`. Saves use `id = article key`; rows saved before identity v2 keep their random id and are found by canonical URL. |
-| Open from a page | A saved row for the canonical URL → its id, playhead and filled bookmark; else the URL key. |
-| Save | `ArticleLibrary.save` is idempotent: an existing row for the canonical URL is reused (content refreshed if the listen text changed); else a row is inserted with `id = reader key`. The audio cache is only marked saved and the queue job turns non-ephemeral; nothing moves, the session and playhead are untouched. |
-| Unsave | The row is deleted; its audio stays, marked ephemeral (pruned after 7 days or past 500 MB). Deleting from the library list deletes the audio too. |
+| Library page | `Page.canonicalURL`, one page per canonical URL app-wide, whatever its state (link, saved, or played without saving). `Page.key` is the audio cache key: pages made since identity v2 use the article key; pages copied from saves made before it keep that save's random id, copied verbatim at migration and never recomputed, and are found by canonical URL. |
+| Open from a page | `LibraryStore.readerArticle`: the page for the canonical URL → its key, position and filled bookmark (if saved); else the URL key. A page holding text is refreshed when the listen text changed; a link stays a link. |
+| Save | `LibraryStore.save` (through `ArticleSaveCoordinator`) is idempotent: the page for the canonical URL turns saved in place, keeping its folder; else a page is inserted with `key = reader key`. The audio cache is only marked saved and the queue job turns non-ephemeral; nothing moves, the session and playhead are untouched. |
+| Play without saving | The first play of a page the library doesn't have keeps it as a page not in the Library (`addedAt == nil`) with its text and position, pruned 7 days after it was last played. Playing a link keeps it a link and its text as a cache. |
+| Unsave | A favorite stays in Favorites as a link; a page in no folder leaves the Library (kept 7 days as a played page). Its audio stays, marked ephemeral (pruned after 7 days or past 500 MB). Deleting from the library list deletes the page and its audio. |
 | Content change | `ArticleIdentity.contentFingerprint(paragraphs:)`, over the listen blocks after anti-copy stripping, only detects change. |
 | Per-paragraph reuse | Every cached paragraph stores `textHash` (`ArticleIdentity.paragraphHash`). On open, `ArticleAudioCache.reconcile` keeps matching units, moves shifted ones to their new index and drops edited ones, so only changed paragraphs re-render. |
 | Older caches | v1 ephemeral dirs (URL + content key) are adopted into the v2 key on open when the v2 dir is empty; unhashed saved units are stamped with the saved copy's stored paragraphs. |
-| Duplicates | `ArticleLibrary.migrate` (launch, idempotent) backfills `canonicalURL` and merges rows that share it (keeper = furthest playhead, then oldest), merging their audio into the keeper, hash-reconciled. Logged as `[ArticleLibrary] merge duplicate …`. |
+| Duplicates | `LibraryStore.dedupe` (launch, idempotent) merges pages that share a key or a canonical URL (keeper = saved over link, then furthest position, latest play, oldest), copying in content the keeper lacks and, once that is saved, merging the other's audio into the keeper, hash-reconciled (`LibraryAudioWork`). Logged as `[Library] dedupe page …`. |
+| Migration | Saved articles (`SavedArticle`, frozen) were copied once into pages with the same key; a receipt saved with the copy records what was copied, so a page deleted later never comes back and rows made by an older build during a rollback are copied on the next launch. No audio moved. |
 
 ## Why content is not in the key
 

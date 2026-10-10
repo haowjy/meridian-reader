@@ -6,12 +6,17 @@ import WebKit
 /// the address search layer, and over it the layers `ShellState` says are up, in order: the
 /// library, the Reader sheet, Now Playing, the one ⋯ menu overlay and the one sheet.
 struct BrowseStartView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(LibraryStore.self) private var library
     @Environment(\.articleExtractor) private var extractor
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Query(sort: \SavedArticle.savedAt, order: .reverse) private var articles: [SavedArticle]
+    /// Saved pages in no folder, newest first (the start page's Saved).
+    @Query(LibraryQueries.loosePages(sort: .newest)) private var savedPages: [Page]
+    /// Every saved page, for address suggestions.
+    @Query(LibraryQueries.savedInLibrary) private var allSaved: [Page]
+    @Query(LibraryQueries.recentlyPlayed) private var recentlyPlayed: [Page]
+    @Query(LibraryQueries.undatedInProgress) private var undatedInProgress: [Page]
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
 
     /// Once true, the browse WKWebView stays in the tree (history / back-forward). Starts false so
@@ -22,9 +27,6 @@ struct BrowseStartView: View {
     @AppStorage(RecentSearches.storageKey) private var recentSearchesRaw = ""
     @State private var alertMessage: String?
     @State private var useFakeFailure = false
-    /// Site bookmarks (their own JSON store; not the saved-article model).
-    @State private var bookmarkStore = BookmarkStore.shared
-    @State private var listenHistory = ListenHistory(defaults: .standard)
     /// A short message over the bottom chrome ("Nothing to listen to on this page").
     @State private var toast: String?
 
@@ -36,11 +38,12 @@ struct BrowseStartView: View {
         shell.isInLibrary || shell.reader != nil || shell.isNowPlayingPresented
     }
 
-    /// Bottom-bar bookmark reflects "already saved" for the current page's canonical URL.
-    private var currentSavedArticle: SavedArticle? {
-        guard let url = webStore.currentURL, url.isWeb else { return nil }
-        let canonical = ArticleIdentity.canonicalURLString(from: url)
-        return articles.first { $0.canonicalURL == canonical }
+    /// The current page, when it is saved in the Library (⋯ → Save / Remove from Saved). Read
+    /// when the menu opens.
+    private var currentSavedPage: Page? {
+        guard let url = webStore.currentURL, url.isWeb, let page = library.page(url: url),
+              page.isSavedToLibrary else { return nil }
+        return page
     }
 
     private var hasPage: Bool { webStore.hasPage }
@@ -66,10 +69,6 @@ struct BrowseStartView: View {
             // Every surface's ⋯ menu: grows out of its button and covers it (Safari iOS 26), over
             // everything else (the library's navigation bar too).
             .overlay { menuOverlay }
-            // The recorder (composition root) writes the history; the start page re-reads it
-            // when what you hear starts, stops or changes.
-            .onChange(of: speech.activeSessionID) { listenHistory = ListenHistory(defaults: .standard) }
-            .onChange(of: speech.playbackPhase) { listenHistory = ListenHistory(defaults: .standard) }
             .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { ShellSheetView(sheet: $0) }
             .modifier(BrowseAlerts(extractionError: $alertMessage, dictation: dictation))
             .onChange(of: webStore.currentURL) { _, _ in shell.syncAddressField() }
@@ -133,7 +132,7 @@ struct BrowseStartView: View {
             session: search,
             recentSearches: recentSearches,
             visits: recentVisits,
-            articles: articles,
+            articles: allSaved,
             isDictating: dictation?.isActive == true,
             onSubmit: submit,
             onClearRecentSearches: { recentSearchesRaw = "" }
@@ -227,10 +226,10 @@ struct BrowseStartView: View {
         BrowseMenu(
             hasPage: hasPage,
             canOpenReader: canOpenReader,
-            isSaved: currentSavedArticle != nil,
+            isSaved: currentSavedPage != nil,
             canSave: hasPage && shell.busy == nil,
             isBookmarked: currentBookmark != nil,
-            canBookmark: webStore.currentURL.map(BookmarkStore.isBookmarkable) ?? false,
+            canBookmark: webStore.currentURL.map(LibraryStore.canFavorite) ?? false,
             canShare: shareURL != nil,
             fakeExtractionFailure: speech.developerOptionsEnabled ? $useFakeFailure : nil
         )
@@ -241,7 +240,7 @@ struct BrowseStartView: View {
         case .newSearch: shell.showStartPage()
         case .openReader: run { try await $0.openInReader() }
         case .toggleSave: toggleSave()
-        case .toggleBookmark: run { page in await page.toggleBookmark(in: bookmarkStore) }
+        case .toggleBookmark: run { page in await page.toggleBookmark() }
         case .bookmarks: shell.present(.bookmarks)
         case .reload: webStore.refresh()
         case .share: if let shareURL { shell.present(.share(shareURL)) }
@@ -253,28 +252,30 @@ struct BrowseStartView: View {
 
     private var canOpenReader: Bool { hasPage && webStore.isReaderable && shell.busy == nil }
 
-    private var currentBookmark: SiteBookmark? {
-        bookmarkStore.bookmark(for: webStore.currentURL)
+    private var currentBookmark: Page? {
+        library.favorite(for: webStore.currentURL)
     }
 
     // MARK: - Start page
 
     private var startPage: some View {
-        BrowseStartPage(
-            bookmarks: bookmarkStore.bookmarks,
-            continueListening: ContinueListening.articles(articles, history: listenHistory),
-            saved: articles,
-            recentSearches: recentSearches,
-            onOpenBookmark: { if let url = $0.url { shell.navigate(to: url) } },
-            onShowBookmarks: { shell.present(.bookmarks) },
-            onDeleteBookmark: { bookmarkStore.remove(id: $0.id) },
-            onRenameBookmark: { bookmarkStore.rename(id: $0.id, to: $1) },
-            onOpenArticle: { shell.openSaved($0.id, in: modelContext) },
-            onShowLibrary: shell.openLibrary,
-            onSearch: submit,
-            onClearSearches: { recentSearchesRaw = "" }
-        )
-        .task(id: bookmarkStore.bookmarks.count) { await bookmarkStore.backfillIcons() }
+        FavoritesQuery(folderID: library.favorites().id) { favorites in
+            BrowseStartPage(
+                bookmarks: favorites,
+                continueListening: LibraryQueries.continuePages(recent: recentlyPlayed, undated: undatedInProgress),
+                saved: savedPages,
+                recentSearches: recentSearches,
+                onOpenBookmark: { if let url = $0.url { shell.navigate(to: url) } },
+                onShowBookmarks: { shell.present(.bookmarks) },
+                onDeleteBookmark: { library.removeFavorite($0) },
+                onRenameBookmark: { library.renameFavorite($0, to: $1) },
+                onOpenArticle: { shell.openSaved($0.listenKey, in: library) },
+                onShowLibrary: shell.openLibrary,
+                onSearch: submit,
+                onClearSearches: { recentSearchesRaw = "" }
+            )
+            .task(id: favorites.count) { await library.backfillFavoriteIcons() }
+        }
     }
 
     // MARK: - Address
@@ -316,7 +317,7 @@ struct BrowseStartView: View {
     private var page: PageArticleService {
         PageArticleService(shell: shell,
                            extractor: useFakeFailure ? FakeArticleExtractor(mode: .failure) : extractor,
-                           context: modelContext, speech: speech, recentVisits: recentVisits)
+                           library: library, speech: speech, recentVisits: recentVisits)
     }
 
     /// Runs a page action; a failed extraction shows the alert.
@@ -329,9 +330,9 @@ struct BrowseStartView: View {
 
     /// ⋯ → Save article / Remove from Saved, by canonical URL.
     private func toggleSave() {
-        if let saved = currentSavedArticle {
-            ArticleSaveCoordinator(context: modelContext, speech: speech)
-                .unsave(id: saved.id, canonicalURL: saved.canonicalURL)
+        if let saved = currentSavedPage {
+            ArticleSaveCoordinator(library: library, speech: speech)
+                .unsave(key: saved.listenKey, canonicalURL: saved.canonicalURL ?? "")
         } else {
             run { try await $0.save() }
         }

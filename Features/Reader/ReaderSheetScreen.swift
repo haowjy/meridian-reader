@@ -20,9 +20,10 @@ struct ReaderSheetScreen: View {
     let state: ReaderSheetState
     @Bindable var speech: SpeechController
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
-    @Query private var savedRows: [SavedArticle]
+    /// The article's library page, if it has one (saved, played, or a favorite).
+    @Query private var pages: [Page]
     @State private var jumpMode = false
     @State private var scroll = ReadingScrollHandle()
 
@@ -31,25 +32,25 @@ struct ReaderSheetScreen: View {
         _speech = Bindable(speech)
         let id = state.article.id
         let canonical = state.article.canonicalURL
-        _savedRows = Query(filter: #Predicate<SavedArticle> { $0.id == id || $0.canonicalURL == canonical })
+        _pages = Query(filter: #Predicate<Page> { $0.key == id || $0.canonicalURL == canonical })
     }
 
     private var article: ReaderArticle { state.article }
 
-    private var savedRow: SavedArticle? {
-        savedRows.first { $0.id == article.id } ?? savedRows.first
+    private var page: Page? {
+        pages.first { $0.key == article.id } ?? pages.first
     }
 
-    private var isSaved: Bool { savedRow != nil }
+    private var isSaved: Bool { page?.isSavedToLibrary == true }
 
     private var sessionReady: Bool { !article.document.isEmpty }
 
     private var resumeParagraph: Int {
-        savedRow?.playbackParagraphIndex ?? article.resumeParagraph
+        page?.positionParagraph ?? article.resumeParagraph
     }
 
     private var isFinished: Bool {
-        ListenHistory(defaults: .standard).entry(for: article.id)?.done == true
+        page?.finishedAt != nil
     }
 
     var body: some View {
@@ -132,8 +133,8 @@ struct ReaderSheetScreen: View {
         ReaderMenu(
             isSaved: isSaved,
             canSave: sessionReady,
-            isBookmarked: articleURL.flatMap { BookmarkStore.shared.bookmark(for: $0) } != nil,
-            canBookmark: articleURL.map(BookmarkStore.isBookmarkable) ?? false,
+            isBookmarked: library.favorite(for: articleURL) != nil,
+            canBookmark: articleURL.map(LibraryStore.canFavorite) ?? false,
             canShare: shareURL != nil,
             canOpenWebsite: websiteURL != nil,
             showsDebug: speech.developerOptionsEnabled
@@ -170,13 +171,13 @@ struct ReaderSheetScreen: View {
         }
     }
 
-    /// Site bookmark for the article's page (URL, title, icon only; independent of Save).
+    /// The article's page in or out of Favorites (`LibraryStore.toggleFavorite`).
     private func toggleBookmark() {
-        guard let url = articleURL, BookmarkStore.isBookmarkable(url) else { return }
+        guard let url = articleURL, LibraryStore.canFavorite(url) else { return }
         let title = article.title
         let icon = article.faviconData
         Task {
-            await BookmarkStore.shared.toggle(url: url, title: title, faviconData: icon) {
+            await library.toggleFavorite(url: url, title: title, artwork: icon) {
                 await FaviconFetcher.best(for: url, webView: nil)
             }
         }
@@ -196,16 +197,16 @@ struct ReaderSheetScreen: View {
         } else if isFinished {
             speech.listen(to: article, fromParagraph: 0)
         } else {
-            speech.listen(to: article, fromParagraph: resumeParagraph, utf16Offset: savedRow?.playbackUTF16Offset)
+            speech.listen(to: article, fromParagraph: resumeParagraph, utf16Offset: page?.positionUTF16)
         }
         shell.turnReaderIntoNowPlaying(handOver: handOver)
     }
 
     /// 🔖 / ⋯ → Save. Neither direction touches the screen or playback (see the type comment).
     private func toggleSaved() {
-        let saver = ArticleSaveCoordinator(context: modelContext, speech: speech)
+        let saver = ArticleSaveCoordinator(library: library, speech: speech)
         if isSaved {
-            saver.unsave(id: savedRow?.id ?? article.id, canonicalURL: article.canonicalURL)
+            saver.unsave(key: page?.listenKey ?? article.id, canonicalURL: article.canonicalURL)
             return
         }
         let savedID = saver.save(article)

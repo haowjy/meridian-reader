@@ -8,12 +8,13 @@ struct ShellSheetView: View {
 
     @Environment(ShellState.self) private var shell
     @Environment(\.speechController) private var speech
+    @Environment(LibraryStore.self) private var library
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
 
     var body: some View {
         switch sheet {
         case .bookmarks:
-            BookmarksListView(store: BookmarkStore.shared) { bookmark in
+            BookmarksListView(library: library) { bookmark in
                 open(bookmark.url)
             }
             .presentationDetents([.medium, .large])

@@ -11,10 +11,11 @@ struct KokoroAudioCachePurge: LaunchMigration {
         let defaults = tts.defaults
         guard defaults.integer(forKey: Self.versionKey) < Self.version else { return }
         let r = tts.audioCache.purgeEngine(SpeechEngineID.kokoro.rawValue)
-        defaults.set(Self.version, forKey: Self.versionKey)
+        // Audio held for unfinished library work is purged by a later launch.
+        if r.held == 0 { defaults.set(Self.version, forKey: Self.versionKey) }
         ListenTimingLog.log("kokoro_audio_cache_purge", [
             "version": Self.version, "articles": r.articles, "paragraphs": r.paragraphs,
-            "bytes": r.bytes, "orphan_files": r.orphanFiles, "orphan_bytes": r.orphanBytes,
+            "bytes": r.bytes, "orphan_files": r.orphanFiles, "orphan_bytes": r.orphanBytes, "held": r.held,
         ])
         ListenDebugLog.shared.append(
             "Kokoro audio cache v\(Self.version): removed \(r.paragraphs) saved paragraphs in \(r.articles) articles "

@@ -105,9 +105,11 @@ it is logged as `coreml_stage` in `engine_crash_detected`.
 
 ### One-time launch steps
 
-`FluidAudioProvider.launchMigrations`, run by `AppComposition.runLaunchMaintenance` before
-anything plays: `KokoroAudioCachePurge` (drops Kokoro audio rendered before the NaN patch and
-the boundary-trimmed joins; `reader.tts.kokoro.audioCacheVersion`) and `KokoroONNXMainMigration`
+`FluidAudioProvider.launchMigrations`, run by `AppComposition.prepareAudioCache` before
+anything plays (after the library's unfinished audio work): `KokoroAudioCachePurge` (drops Kokoro
+audio rendered before the NaN patch and the boundary-trimmed joins;
+`reader.tts.kokoro.audioCacheVersion`; audio held for library work that couldn't finish is left
+for a later launch's purge) and `KokoroONNXMainMigration`
 (a user that a Core ML crash left on Apple goes back to Kokoro on the ONNX route, at that crash's
 article and paragraph, paused).
 
@@ -140,7 +142,8 @@ Persisted values never change: engine ids (`apple`, `local.kokoro`), cache voice
 **Retired engines.** A provider lists engines it no longer ships in `retiredEngines` (id, display
 name, done flag, replacement, file deleter). A stored selection of one maps to the replacement when
 that is installed, else Apple, and the `RetiredEngineCleanup` launch migration deletes its cached
-audio and model files once. FluidAudio lists one: Chatterbox Nano (`local.chatterbox-nano`), the
+audio and model files once (again on a later launch if audio was held for unfinished library
+work). FluidAudio lists one: Chatterbox Nano (`local.chatterbox-nano`), the
 engine that also owns index files written without an engine id. `EngineRetirementTests` covers it.
 
 Test seam: `Tests/Fakes/FakeEngineProvider.swift` (tone/silence PCM, latency, per-call cap →

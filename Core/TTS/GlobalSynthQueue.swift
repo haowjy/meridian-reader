@@ -350,6 +350,21 @@ final class GlobalSynthQueue {
 
     func hasJob(cacheKey: UUID) -> Bool { jobs[cacheKey] != nil }
 
+    /// The article's audio was just aligned with `paragraphs` (Save, or an open with newer text):
+    /// its job renders them from now on, so a render of the text it had isn't published over
+    /// them (`stillWants`). Its place in the queue, voice and plan stay; the plan's start moves
+    /// to the same place in the new text.
+    func updateParagraphs(cacheKey: UUID, paragraphs: [String]) {
+        guard !paragraphs.isEmpty, var job = jobs[cacheKey], job.paragraphs != paragraphs else { return }
+        let start = ParagraphPositionMap.mapParagraphStart(job.plan.priorityStart, from: ParagraphDocument(parts: job.paragraphs),
+                                                           to: ParagraphDocument(parts: paragraphs))
+        job.plan = BakePriorityPlan(priorityStart: start, fillGapsFromTopAfterPriority: job.plan.fillGapsFromTopAfterPriority,
+                                    paragraphCount: paragraphs.count)
+        job.paragraphs = paragraphs
+        jobs[cacheKey] = job
+        kickWorker()
+    }
+
     /// Rekey queued work after Save migrates ephemeral → saved UUID.
     func rekey(from oldKey: UUID, to newKey: UUID) {
         guard oldKey != newKey, let job = jobs[oldKey] else { return }
@@ -491,6 +506,12 @@ final class GlobalSynthQueue {
         "\(key.uuidString)|\(index)|\(hash)"
     }
 
+    /// The queue still has `cacheKey` with the text of hash `hash` on paragraph `index`.
+    private func stillWants(_ cacheKey: UUID, _ index: Int, _ hash: String) -> Bool {
+        guard let hashes = jobs[cacheKey]?.paragraphHashes, hashes.indices.contains(index) else { return false }
+        return hashes[index] == hash
+    }
+
     // MARK: - Diagnostics
 
     /// Currently rendering unit (nil when idle between units / empty queue).
@@ -576,8 +597,20 @@ final class GlobalSynthQueue {
         didSet { if !isPausedForProbe { kickWorker() } }
     }
 
+    /// Nothing renders or stitches until the launch's library maintenance has finished
+    /// (`LocalTTSCoordinator.holdRenderingForLaunch`); jobs and chunk requests wait.
+    var isHeldForLaunch = false {
+        didSet { if !isHeldForLaunch { kickWorker() } }
+    }
+
+    #if DEBUG
+    /// Tests: runs once a paragraph is stitched, before it is published (key, paragraph), as
+    /// something landing on the main actor while the stitch was in flight would.
+    var beforePublishing: ((UUID, Int) -> Void)?
+    #endif
+
     private func kickWorker() {
-        guard worker == nil, !isPausedForProbe else { return }
+        guard worker == nil, !isPausedForProbe, !isHeldForLaunch else { return }
         worker = Task { [weak self] in
             await self?.drain()
         }
@@ -592,7 +625,7 @@ final class GlobalSynthQueue {
             drainGrace.end()
             #endif
         }
-        while !isPausedForProbe, let next = nextWorkUnit() {
+        while !isPausedForProbe, !isHeldForLaunch, let next = nextWorkUnit() {
             guard let coordinator else { break }
             // Check the app state before every chunk (see `RenderAdmission`).
             let phase = runState.phase
@@ -659,28 +692,38 @@ final class GlobalSynthQueue {
                         continue
                     }
                 }
-                // All chunks present → stitch them into the paragraph CAF off the main actor (a
-                // read / convert / write of the whole paragraph), then record it here.
-                let dest = cache.paragraphFileURL(articleID: job.cacheKey, paragraphIndex: index)
+                // All chunks present → stitch them off the main actor (a read / convert / write
+                // of the whole paragraph) into a file of their own, then publish it here only if
+                // the queue still wants this text on this paragraph. Meanwhile the article's audio
+                // may have been aligned with other paragraphs (opening it with newer text, a
+                // merge) and its job given them, or the article left the queue (audio cleared,
+                // deleted, rekeyed): a render of the old paragraph isn't filed on the new one.
+                let staged = cache.stitchingURL(articleID: job.cacheKey, paragraphIndex: index, textHash: hash)
                 let stitched: ChunkAudioStitcher.Result
                 do {
                     stitched = try await Task.detached(priority: priority.taskPriority) {
-                        try ArticleAudioCache.stitchParagraph(chunkURLs, to: dest)
+                        try ArticleAudioCache.stitchParagraph(chunkURLs, to: staged)
                     }.value
                 } catch where !chunkURLs.allSatisfy(cache.isUsableAudioFile) {
                     // The chunk scratch went away meanwhile (engine / voice change, identity
                     // prep): not this paragraph's failure — look again.
+                    try? FileManager.default.removeItem(at: staged)
                     activeBakeCacheKey = nil
                     activeBakeIndex = nil
                     continue
                 }
-                guard jobs[job.cacheKey] != nil else {
-                    // The article left the queue meanwhile (audio cleared, article deleted).
+                #if DEBUG
+                beforePublishing?(job.cacheKey, index)
+                #endif
+                guard stillWants(job.cacheKey, index, hash), cache.isUsableAudioFile(staged) else {
+                    try? FileManager.default.removeItem(at: staged)
+                    ListenTimingLog.log("paragraph_discarded", ["key": ListenTimingLog.shortKey(job.cacheKey), "p": index])
                     activeBakeCacheKey = nil
                     activeBakeIndex = nil
                     continue
                 }
-                try cache.recordParagraph(
+                try cache.publishParagraph(
+                    staged: staged,
                     articleID: job.cacheKey,
                     paragraphIndex: index,
                     duration: stitched.duration,

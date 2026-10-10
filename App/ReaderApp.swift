@@ -8,17 +8,20 @@ struct ReaderApp: App {
     /// Composition root output (engine registry → SpeechController). See `AppComposition`.
     @State private var speechController = AppComposition.speechController
     @State private var shell = AppComposition.shell
+    @State private var library: LibraryStore
 
     init() {
         do {
-            container = try ModelContainer(for: SavedArticle.self, RecentVisit.self)
+            container = try LibraryStoreConfiguration.makeContainer()
         } catch {
-            fatalError("Couldn't open the saved-article store: \(error)")
+            fatalError("Couldn't open the library stores: \(error)")
         }
+        let library = AppComposition.makeLibrary(context: container.mainContext)
+        _library = State(initialValue: library)
         // Foreground/background gate for Core ML synthesis (no model calls in the background).
         AppRunState.shared.observeApplication()
-        AppComposition.runLaunchMaintenance()
-        AppComposition.attachLibrary(container.mainContext)
+        AppComposition.runLaunchMaintenance(library: library)
+        AppComposition.attachLibrary(library)
     }
 
     var body: some Scene {
@@ -27,8 +30,9 @@ struct ReaderApp: App {
                 .environment(\.articleExtractor, extractor)
                 .environment(\.speechController, speechController)
                 .environment(shell)
+                .environment(library)
                 .task {
-                    await AppLaunch.run(context: container.mainContext, speech: speechController, shell: shell)
+                    await AppLaunch.run(library: library, speech: speechController, shell: shell)
                 }
         }
         .modelContainer(container)

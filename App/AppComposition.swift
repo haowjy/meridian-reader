@@ -17,13 +17,50 @@ enum AppComposition {
     /// The listening position recorder (lives as long as the app).
     private static var progressRecorder: ListeningProgressRecorder?
 
-    /// Connects the speech stack to the saved-article store: where Now Playing's text comes from,
-    /// and where listening positions are written. Once, with the app's main context.
-    static func attachLibrary(_ context: ModelContext) {
+    /// The library over `context`, connected to playback: deleting the playing page stops it
+    /// first, and a page merged by dedupe takes the live session's key with it.
+    static func makeLibrary(context: ModelContext) -> LibraryStore {
+        let speech = speechController
+        let library = LibraryStore(context: context, tts: speech.localTTS)
+        library.stopPlaybackIfPlaying = { key in
+            if speech.activeSessionID == key { speech.stop() }
+        }
+        library.keyMerged = { from, to in speech.rekeyActiveSession(from: from, to: to) }
+        // Before the first frame: the start page's grid queries Favorites by its id.
+        library.favorites()
+        library.commit("favorites")
+        return library
+    }
+
+    /// Connects the speech stack to the library: Now Playing's text is the playing page's, and
+    /// the recorder writes listening progress to it. Once, with the app's library.
+    static func attachLibrary(_ library: LibraryStore) {
         guard progressRecorder == nil else { return }
-        speechController.contentResolver = SavedArticleContentResolver(context: context)
-        progressRecorder = ListeningProgressRecorder(speech: speechController,
-                                                     store: SavedArticleProgressStore(context: context))
+        speechController.contentResolver = library
+        progressRecorder = ListeningProgressRecorder(speech: speechController, library: library)
+    }
+
+    /// The audio cache at launch, in order. First the render queue is held: it adopts no saved
+    /// bake job and renders nothing until `AppLaunch.maintainLibrary` has also run the library's
+    /// layout pass, dedupe and prune (`LocalTTSCoordinator.holdRenderingForLaunch`); the engine
+    /// loads meanwhile. Then the recovery barrier: audio work an earlier launch saved but didn't
+    /// finish (`LibraryStore.finishAudioWork`), so that nothing reads, cleans or renders a page's
+    /// audio before it is where the library says; work that still can't finish holds the audio
+    /// of the pages it touches, and work that can't be read holds all of it
+    /// (`ArticleAudioCache.held`), for a later launch. Then the
+    /// one-time launch migrations (which can purge an engine's audio and orphan files, held audio
+    /// excepted), the chunk scratch (nothing plays at launch) and the prune of unsaved audio
+    /// (7 days, 500 MB; held audio excepted).
+    static func prepareAudioCache(library: LibraryStore, migrations: [LaunchMigration]) {
+        let tts = library.tts
+        tts.holdRenderingForLaunch()
+        library.finishAudioWork()
+        for migration in migrations { migration.runIfNeeded(tts) }
+        tts.audioCache.removeAllChunkScratch()
+        let pruned = tts.audioCache.pruneEphemeral()
+        if pruned.removed > 0 {
+            print("[TTSCache] pruned ephemeral removed=\(pruned.removed) freed=\(pruned.freedBytes)")
+        }
     }
 
     static func makeProviders() -> [SpeechEngineProvider] {
@@ -42,19 +79,13 @@ enum AppComposition {
         engines.retiredEngines.map(RetiredEngineCleanup.init) + FluidAudioProvider.launchMigrations
     }
 
-    /// Launch housekeeping, before anything renders or plays: the one-time launch migrations, the
-    /// audio cache's per-launch cleanup, the background-GPU probe, and pruning Core ML's
-    /// compiled-model cache of bundles from previous installs (once per install, background).
-    static func runLaunchMaintenance() {
-        let tts = speechController.localTTS
-        for migration in launchMigrations(for: engineRegistry) { migration.runIfNeeded(tts) }
-        // Nothing is playing at launch: per-chunk synth scratch from last session is disposable.
-        tts.audioCache.removeAllChunkScratch()
-        // Unsaved reader audio: prune by age (7 days) / size (500 MB).
-        let pruned = tts.audioCache.pruneEphemeral()
-        if pruned.removed > 0 {
-            print("[TTSCache] pruned ephemeral removed=\(pruned.removed) freed=\(pruned.freedBytes)")
-        }
+    /// Launch housekeeping, in `ReaderApp.init`, before the first frame and before anything
+    /// renders or plays: the audio cache's launch steps (`prepareAudioCache`), the background-GPU
+    /// probe, and pruning Core ML's compiled-model cache of bundles from previous installs (once
+    /// per install, background).
+    static func runLaunchMaintenance(library: LibraryStore) {
+        let tts = library.tts
+        prepareAudioCache(library: library, migrations: launchMigrations(for: engineRegistry))
         ListenTimingLog.log("app_launch", ["engine": tts.selectedEngineID.rawValue, "build": LocalTTSCoordinator.buildConfiguration])
         #if DEBUG
         // Debug probe: can this device get GPU time in background continued-processing tasks?

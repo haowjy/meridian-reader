@@ -1,19 +1,28 @@
+import SwiftData
 import SwiftUI
 
-/// All bookmarks: tap to open, swipe or Edit to delete / reorder.
+/// All of Favorites' pages: tap to open, swipe or Edit to delete / reorder.
 struct BookmarksListView: View {
-    @Bindable var store: BookmarkStore
-    var onOpen: (SiteBookmark) -> Void
+    let library: LibraryStore
+    var onOpen: (Page) -> Void
+
+    @Query private var favorites: [Page]
+
+    init(library: LibraryStore, onOpen: @escaping (Page) -> Void) {
+        self.library = library
+        self.onOpen = onOpen
+        _favorites = Query(LibraryQueries.pages(inFolder: library.favorites().id))
+    }
 
     var body: some View {
         NavigationStack {
             Group {
-                if store.bookmarks.isEmpty {
+                if favorites.isEmpty {
                     ContentUnavailableView("No bookmarks", systemImage: "star",
                                            description: Text("Open a site, then ⋯ → Bookmark."))
                 } else {
                     List {
-                        ForEach(store.bookmarks) { bookmark in
+                        ForEach(favorites, id: \.listenKey) { bookmark in
                             Button { onOpen(bookmark) } label: {
                                 HStack(spacing: 12) {
                                     BookmarkIcon(bookmark: bookmark, size: 32)
@@ -22,7 +31,7 @@ struct BookmarksListView: View {
                                             .font(.body)
                                             .foregroundStyle(.primary)
                                             .lineLimit(1)
-                                        Text(bookmark.host)
+                                        Text(bookmark.byline)
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                             .lineLimit(1)
@@ -30,8 +39,14 @@ struct BookmarksListView: View {
                                 }
                             }
                         }
-                        .onDelete { store.remove(atOffsets: $0) }
-                        .onMove { store.move(fromOffsets: $0, toOffset: $1) }
+                        .onDelete { offsets in
+                            for page in offsets.map({ favorites[$0] }) { library.removeFavorite(page) }
+                        }
+                        .onMove { source, destination in
+                            let moving = source.map { favorites[$0] }
+                            let before = destination < favorites.count ? favorites[destination] : nil
+                            library.reorder(moving, in: library.favorites(), before: before)
+                        }
                     }
                     .listStyle(.plain)
                 }
@@ -39,7 +54,7 @@ struct BookmarksListView: View {
             .navigationTitle("Bookmarks")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                if !store.bookmarks.isEmpty {
+                if !favorites.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) { EditButton() }
                 }
             }

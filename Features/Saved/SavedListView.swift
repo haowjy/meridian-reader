@@ -1,23 +1,24 @@
 import SwiftUI
 import SwiftData
 
-/// The library list: every kept article, filtered by `searchText`. Hosted inside `LibrarySurface`,
-/// whose bottom field capsule owns the search text. Opening an article shows it in the Reader
-/// sheet (Now Playing when it is what you hear).
+/// The library list: the saved pages in no folder (favorites show on the start page instead),
+/// newest first, filtered by `searchText`. Hosted inside `LibrarySurface`, whose bottom field
+/// capsule owns the search text. Opening an article shows it in the Reader sheet (Now Playing
+/// when it is what you hear).
 struct SavedListView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
-    @Query(sort: \SavedArticle.savedAt, order: .reverse) private var articles: [SavedArticle]
+    @Query(LibraryQueries.loosePages(sort: .newest)) private var articles: [Page]
 
     let searchText: String
 
-    private var filtered: [SavedArticle] {
+    private var filtered: [Page] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return articles }
         return articles.filter {
             $0.title.localizedCaseInsensitiveContains(q)
-                || $0.siteDomain.localizedCaseInsensitiveContains(q)
+                || $0.byline.localizedCaseInsensitiveContains(q)
                 || $0.excerpt.localizedCaseInsensitiveContains(q)
         }
     }
@@ -35,9 +36,9 @@ struct SavedListView: View {
                     ContentUnavailableView.search(text: searchText)
                 } else {
                     List {
-                        ForEach(filtered, id: \.id) { article in
+                        ForEach(filtered, id: \.listenKey) { article in
                             SavedRowView(article: article, speech: speech) {
-                                shell.openSaved(article.id, in: modelContext)
+                                shell.openSaved(article.listenKey, in: library)
                             }
                         }
                         .onDelete(perform: delete)
@@ -59,7 +60,7 @@ struct SavedListView: View {
     }
 
     private func delete(at offsets: IndexSet) {
-        let saver = ArticleSaveCoordinator(context: modelContext, speech: speech)
+        let saver = ArticleSaveCoordinator(library: library, speech: speech)
         for row in offsets.map({ filtered[$0] }) {
             saver.delete(row)
         }
@@ -67,19 +68,19 @@ struct SavedListView: View {
 }
 
 private struct SavedRowView: View {
-    let article: SavedArticle
+    let article: Page
     @Bindable var speech: SpeechController
     let onOpen: () -> Void
 
     private var rowLabel: some View {
                 HStack(alignment: .top, spacing: Spacing.s) {
-                    FaviconImage(data: article.faviconData, host: article.siteDomain)
+                    FaviconImage(data: article.artworkData, host: article.byline)
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
                         Text(article.title)
                             .typeStyle(.row, weight: .semibold)
                             .foregroundStyle(Palette.ink)
                             .lineLimit(2)
-                        Text("\(article.siteDomain) · \(article.savedAt.formatted(date: .abbreviated, time: .omitted))")
+                        Text("\(article.byline) · \((article.addedAt ?? .now).formatted(date: .abbreviated, time: .omitted))")
                             .typeStyle(.caption)
                             .foregroundStyle(Palette.secondaryInk)
                         if !article.excerpt.isEmpty {
@@ -99,11 +100,11 @@ private struct SavedRowView: View {
                 .contentShape(Rectangle())
                 .onTapGesture(perform: onOpen)
 
-            let state = speech.playState(of: .page(article.id))
+            let state = speech.playState(of: .page(article.listenKey))
             Button {
-                speech.press(.page(article.id)) {
-                    speech.toggle(.saved(article), resumeParagraph: article.playbackParagraphIndex,
-                                  resumeUTF16Offset: article.playbackUTF16Offset)
+                speech.press(.page(article.listenKey)) {
+                    speech.toggle(.page(article), resumeParagraph: article.positionParagraph,
+                                  resumeUTF16Offset: article.positionUTF16)
                 }
             } label: {
                 Image(systemName: state == .playing ? "pause.circle.fill" : "play.circle.fill")
@@ -115,9 +116,9 @@ private struct SavedRowView: View {
         }
         .padding(.vertical, Spacing.xxs)
         .contextMenu {
-            if speech.localTTS.hasListenAudio(for: article.id) {
+            if speech.localTTS.hasListenAudio(for: article.listenKey) {
                 Button("Clear listen audio", role: .destructive) {
-                    try? speech.localTTS.clearListenAudio(for: article.id)
+                    try? speech.localTTS.clearListenAudio(for: article.listenKey)
                 }
             }
         }

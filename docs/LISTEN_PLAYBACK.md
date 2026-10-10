@@ -72,8 +72,8 @@ Rules:
   offset go back to the start); anything
   else runs `start`, which replaces what is playing. Pressing never navigates.
 - **`nowPlayingContent()`**: Now Playing's reading content, asked of the injected
-  `NowPlayingContentResolving` (a saved article from its row; an unsaved page from the
-  `ReaderArticle` it was started with, kept in memory, so it isn't restored after a relaunch).
+  `NowPlayingContentResolving`: the library, which has every page that has played (a page played
+  without saving is kept 7 days after its last play), so it is there after a relaunch too.
 
 ### Engine adapters (`ListenEngine`)
 
@@ -138,11 +138,15 @@ While the phase is playing but nothing is audible and more units remain (`isBuff
 listen bar shows a spinner and "Preparing next…". That is not paused.
 
 The listening position is saved from the session, whatever is on screen, by
-`ListeningProgressRecorder` (built at the composition root): `SpeechController.onProgress`
-reports each new paragraph and every phase change (pause, finish, stop, and the stop that comes
-before a page is replaced) synchronously, and the recorder also writes the live offset when the
-app leaves the foreground. Never per tick. It writes saved articles' position and the listen
-history (`SavedArticleProgressStore`); unsaved pages keep none.
+`ListeningProgressRecorder` (built at the composition root, over `LibraryStore`):
+`SpeechController.onProgress` reports each new paragraph and every phase change (pause, finish,
+stop, and the stop that comes before a page is replaced) synchronously, and the recorder also
+writes the live offset when the app leaves the foreground. Never per tick. It writes the page's
+position, dates each start (`lastPlayedAt`, unfinished again) and marks the end (`finishedAt`),
+holding the page it writes to rather than fetching it per paragraph. A page started from a
+`ReaderArticle` (`SpeechController.onListen`: the Reader's Listen, 🎧) is recorded from it on its
+first start, so a page the library doesn't have is kept with its text: played without saving,
+not in the Library, pruned 7 days after its last play.
 
 ## Rendering ahead (on-device engine)
 
@@ -157,8 +161,9 @@ calls never run at once (`SynthRenderGate.shared`). Actions reorder the queue (`
    above it.
 2. Skip / jump / seek → still #1; the cursor moves to the new paragraph.
 3. Open another article → new #1; the previous one is demoted (its cache is kept).
-4. Pending jobs fold in once the engine is ready (`adoptPending`): the article being listened to
-   stays #1; any other job is #1 only if the queue is empty; the rest keep their plans, demoted.
+4. Pending jobs fold in once the engine is ready and the launch's maintenance has finished
+   (`adoptPending`; Audio cache, Pending jobs): the article being listened to stays #1; any
+   other job is #1 only if the queue is empty; the rest keep their plans, demoted.
 
 `BakePriorityPlan` is the explicit cursor:
 
@@ -260,14 +265,17 @@ highlight and the paragraph picker stay fine-grained.
   (`ParagraphDocument.readingHTML`) and the listen paragraphs (`ParagraphDocument.forListening`)
   come from the same split HTML, so web-view block index = listen / queue / cache paragraph
   index. Plain text splits the same way (`ParagraphDocument(plainText:)`).
-- **Migration** (`ArticleLibrary.migrateParagraphLayout`, run by `AppLaunch` before the identity
-  migration and crash resume): saved rows with `listenBlocksVersion < 3` get new blocks; the
-  reading position maps by character offset (`ParagraphPositionMap`); the resume point, the
-  in-memory crash-resume target and any pending bake job are remapped; cached audio of unchanged
-  paragraphs moves by text hash, and a split paragraph's CAF is sliced sample-exact
-  (`ArticleAudioCache.remapSplitParagraphs`, by `chunkDurations`) into each piece whose chunk
+- **Migration** (`LibraryStore.migrateParagraphLayout`, run inside the library migration on
+  the copied pages before they are deduped, and by `AppLaunch` before the launch dedupe pass and
+  crash resume): library pages holding text with `listenBlocksVersion < 3` get new blocks, and
+  the reading position maps by character offset (`ParagraphPositionMap`). Once that is saved
+  (`LibraryAudioWork`, see `TECHNICAL_SPEC.md`), the resume point, the in-memory crash-resume
+  target and any pending bake job are remapped; cached audio of unchanged paragraphs moves by
+  text hash, and a split paragraph's CAF is sliced sample-exact
+  (`ArticleAudioCache.reconcile`, by `chunkDurations`) into each piece whose chunk
   plan equals a contiguous run of the old chunks; other pieces re-render. Logged as
-  `paragraph_layout_migration`. The same remap runs for unsaved reader keys in
+  `paragraph_layout_migration` (paragraphs, position) and `library_audio_work` (audio kept,
+  moved, sliced, dropped). The same remap runs for unsaved reader keys in
   `LocalTTSCoordinator.prepareListenIdentity`.
 
 ## Audio cache
@@ -278,16 +286,36 @@ highlight and the paragraph picker stay fine-grained.
   plays. Each entry stores the paragraph's `textHash` and, for stitched paragraphs,
   `chunkDurations` (mid-paragraph seek and resume). The index is read once per article and kept in
   memory; every write goes through it, so ready / playable reads never touch the disk.
+- **Changes are copy-on-write.** Aligning an article's audio with new paragraphs
+  (`reconcile`: shifted units move, split paragraphs are sliced, a merged page's units fill the
+  gaps) and moving it under another key (`rekeyCache`) never remove or rename a CAF the saved
+  index lists before the index replacing it is saved. New CAFs are written first under new names
+  (`m-NNNN-…` for a unit on a new paragraph or from another key, `s-NNNN-…` for a slice;
+  `p-NNNN.caf` stays the render queue's name for paragraph NNNN), the index is saved in one
+  atomic write, and only then is what it no longer lists deleted, with any `m-` / `s-` file an
+  interrupted change left. An app that dies at any step leaves an index whose every CAF exists
+  (a cold load drops nothing), and running the change again finishes it
+  (`ArticleAudioCacheCrashTests` stops each change at every step). A key with no directory takes
+  another's whole, in one rename.
 - Chunk scratch: `chunks/p-NNNN-<texthash>/c-KK.caf`. Once every chunk of a paragraph exists the
-  worker stitches them off the main actor into `.stitch-p-NNNN.caf` and renames it over
-  `p-NNNN.caf` (a CAF that may be playing is never written into), then records it on the main
-  actor. Replays use the stitched file. Scratch is disposable at launch; while an article has a
-  queue job, scratch whose text hash still matches its paragraphs is kept
+  worker stitches them off the main actor into a file of their own in that scratch
+  (`paragraph-<id>.caf`). Back on the main actor it is published only if the queue still wants
+  that text on that paragraph: its job still has the article with the same text hash there
+  (an alignment of the article's audio, opening it with newer text, or clearing, deleting or
+  rekeying it may have landed meanwhile); otherwise it is dropped. Every alignment of an
+  article's audio with new paragraphs (opening it, Save) gives its job those paragraphs too,
+  keeping the job's place and plan, so a job never renders old text onto them. Publishing renames
+  it over `p-NNNN.caf` (a CAF that may be playing is never written into) and records it in the
+  same main-actor step, so no alignment runs between the file and its entry
+  (`RenderPublicationTests`). Replays use the stitched file. Scratch is disposable at launch;
+  while an article has a queue job, scratch whose text hash still matches its paragraphs is kept
   (`removeChunkScratch(for:keepingCurrent:)`), because every extra Kokoro call is exposure to the
   libBNNS crash (`BrowseSaveWhilePlayingTests` pins the call count).
 - **Keys** (`ARTICLE_IDENTITY.md`): one per canonical URL, saved or not. Leaving an unsaved
-  reader keeps its audio; ephemeral caches are pruned after 7 days or past 500 MB. Save only marks
-  the cache saved; unsave marks it ephemeral again; deleting a saved row deletes its audio.
+  reader keeps its audio; ephemeral caches are pruned after 7 days or past 500 MB, except audio
+  held for unfinished library work (`TECHNICAL_SPEC.md`, Audio work waits for the save). Save
+  only marks the cache saved; unsave marks it ephemeral again; deleting a saved row deletes its
+  audio.
 - **One voice per article.** The index's top-level `engineID` / `voiceID` is the target voice.
   After a voice or engine switch, the first new-voice write retargets the index; older entries
   stay, stamped stale. Ready / missing counts look only at the target voice, so the queue
@@ -300,7 +328,13 @@ highlight and the paragraph picker stay fine-grained.
 
 **Pending jobs.** Articles saved or opened while the engine was cold are kept as pending bake
 jobs in `Application Support/PendingBakeJobs.json` (`PendingBakeJobStore`) and fold into the
-queue once the engine is ready. Nothing bakes while the app is suspended: the app registers no
+queue once the engine is ready. At launch the queue is held from the first audio-cache step
+(`AppComposition.prepareAudioCache`, before the first frame) until the library's launch
+maintenance has finished (`AppLaunch.maintainLibrary`: left audio work, layout pass, dedupe,
+prune): it adopts no pending job and renders nothing, though the engine loads meanwhile
+(`LocalTTSCoordinator.holdRenderingForLaunch`). So nothing renders on paragraphs that maintenance
+rebuilds or merges, and the jobs it remaps are adopted as it leaves them
+(`LaunchAudioRecoveryTests`). Nothing bakes while the app is suspended: the app registers no
 background task, and full-article rendering in the background is not promised.
 
 **Core ML compile cache.** Core ML adds compiled bundles under
@@ -314,8 +348,8 @@ Logs `coreml_cache_prune`.
 
 - **Detection** (`ListenLanguage`): `NLLanguageRecognizer` over the first 4,000 characters of the
   listen blocks; needs ≥ 24 letters and confidence ≥ 0.5. Stored in
-  `SavedArticle.detectedLanguageCode` (written with the listen blocks, backfilled on open for
-  older rows); unsaved articles use an in-memory memo. Passed through
+  `Page.detectedLanguageCode` (written with the listen blocks, backfilled on open for older
+  pages); articles the library doesn't have use an in-memory memo. Passed through
   `SpeechSession.detectedLanguage`.
 - **Resolution** (`ListenLanguageResolution.resolve`): "Automatic (match article)" (the default,
   `reader.languageAutomatic`) or a manual language. If the selected engine doesn't speak it

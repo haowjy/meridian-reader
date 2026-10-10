@@ -1,8 +1,9 @@
 import Foundation
 
 /// A one-time launch step. Each checks and sets its own done flag, so it runs once per install,
-/// and it can be deleted once every install has run it. `AppComposition.runLaunchMaintenance`
-/// runs the list right after the speech stack is built, before anything renders or plays.
+/// and it can be deleted once every install has run it. `AppComposition.prepareAudioCache`
+/// runs the list before the first frame, after the library's unfinished audio work and before
+/// anything renders or plays.
 @MainActor
 protocol LaunchMigration {
     func runIfNeeded(_ tts: LocalTTSCoordinator)
@@ -19,7 +20,8 @@ struct RetiredEngineCleanup: LaunchMigration {
         guard !defaults.bool(forKey: engine.doneKey) else { return }
         let cache = tts.audioCache.purgeEngine(engine.id.rawValue)
         let modelBytes = engine.deleteFiles()
-        defaults.set(true, forKey: engine.doneKey)
+        // Audio held for unfinished library work is purged by a later launch.
+        if cache.held == 0 { defaults.set(true, forKey: engine.doneKey) }
         let total = cache.bytes + cache.orphanBytes + modelBytes
         ListenDebugLog.shared.append(
             "retired \(engine.displayName): freed \(FileSizes.label(total)) (models \(FileSizes.label(modelBytes)), "

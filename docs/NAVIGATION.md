@@ -91,9 +91,10 @@ the ⋯ slot too.
 - **🎧** (headphones, trailing end of the address field) also shows only on readable pages. It is
   the page's own play button: grey when the page isn't what you hear (tap: listen now: a spinner
   while the page is extracted, what's playing keeps playing until this page is ready, then it
-  replaces it; if extraction fails or finds too little text, 🎧 goes back to grey and a toast
-  says "Nothing to listen to on this page"; Stop Listening, any other ▶ / ⏸ or another 🎧 while
-  it extracts cancels it, silently); jade with moving bars when this page is playing
+  replaces it, at the page's spot if it has one, or from the top if it was heard to the end; if
+  extraction fails or finds too little text, 🎧 goes back to grey and a toast says "Nothing to
+  listen to on this page"; Stop Listening, any other ▶ / ⏸ or another 🎧 while it extracts
+  cancels it, silently); jade with moving bars when this page is playing
   (tap: pause); jade with still bars when it is loaded and paused (tap: resume). It never
   navigates.
 - **⋯** opens a Safari-style menu panel that grows out of the button (covers the ⋯, no arrow):
@@ -120,11 +121,13 @@ the ⋯ slot too.
   so a horizontal drag leaves the panel in place and a drag that drifts sideways doesn't make it
   jump. The sheets' pull-down follows the same rules. Light glass on iOS 26 (thick material
   before). Debug › is a native `Menu`.
-- **Bookmarks vs Saved**: a *bookmark* is just a site link (URL, title, favicon — e.g. a story's
-  index page), kept in its own small JSON store (`BookmarkStore`,
-  Application Support/Bookmarks/bookmarks.json); no text or audio. A *saved article* is the
-  reader article (text + audio) in SwiftData. The two are independent: bookmarking never saves,
-  saving never bookmarks. Star = bookmark, 🔖 = saved article.
+- **Bookmarks vs Saved**: a *bookmark* is a page in the library's Favorites folder: usually a
+  link (URL, title, favicon — e.g. a story's index page) with no text or audio. A *saved article*
+  is a saved page (text + audio). Bookmarking never saves and saving never bookmarks, but there is
+  one page per address: bookmarking a saved page moves it into Favorites (it leaves the library
+  list and shows in the start page's grid, still saved), removing that bookmark puts it back in
+  the list, and unsaving a bookmarked page leaves the bookmark. Star = bookmark, 🔖 = saved
+  article.
 - **The Now Playing bar** (`NowPlayingBarView` → `NowPlayingBar`) is the one thing that shows what
   you hear: a floating card 8 pt above the field capsule with the page's artwork (favicon or a
   letter tile), its title, "<site> · N min left", a thin progress line along its bottom edge, and
@@ -139,19 +142,24 @@ the ⋯ slot too.
    no usable favicon, with the title below), 4 per row, up to 8; Show All → the bookmarks sheet.
    Tap → open the site; long-press → Rename… / Delete. First because it's stable: the top of
    the page doesn't move as listening progress changes.
-2. **Continue listening**: saved articles part-way through (listened and not finished; older saves
-   with a playhead past the start), most recently listened first, with a thin progress bar and
-   "N min left". Up to 3; Show All opens the library. Tap → the Reader sheet (Now Playing if it is what you hear).
-3. **Saved**: the newest kept articles not already above (up to 4), Show All → the library.
+2. **Continue listening**: pages part-way through (listened and not finished; older saves with a
+   playhead past the start), saved or played without saving, most recently listened first, with a
+   thin progress bar and "N min left". Up to 3; Show All lists the rest in place (Show Less folds
+   them back), since pages played without saving and saved pages in Favorites aren't in the
+   library's list. Tap → the Reader sheet (Now Playing if it is what you hear).
+3. **Saved**: the newest saved pages in no folder not already above (up to 4), Show All → the
+   library.
 4. **Recent Searches** (local, newest first, Clear).
 
-"Last listened" / "finished" live in `ListenHistory` (UserDefaults), not in the SwiftData row.
+"Last listened" / "finished" are the page's `lastPlayedAt` / `finishedAt` (`LibraryQueries`
+builds Continue from them).
 
-**Bookmarks sheet** (`BookmarksListView`): every bookmark, tap to open, swipe to delete, Edit to
-reorder/delete; grabber, medium/large.
+**Bookmarks sheet** (`BookmarksListView`): every page in Favorites, tap to open, swipe to delete,
+Edit to reorder/delete; grabber, medium/large.
 
-**Library surface** (`LibrarySurface` / `SavedListView`): every kept article. Uses the **same
-bottom chrome shell** as Browse / Reader (search field capsule + five-slot toolbar). Slot 4
+**Library surface** (`LibrarySurface` / `SavedListView`): every saved page in no folder, newest
+first. Uses the **same bottom chrome shell** as Browse / Reader (search field capsule + five-slot
+toolbar). Slot 4
 shows 🌐 Browser to swap back (restores the prior browse surface). The Now Playing bar sits above
 its search field. Tapping an article opens it in the Reader sheet over the library ("‹ Library";
 Now Playing if it is the article you hear). The row's play button plays without opening. The library's ⋯ is
@@ -325,8 +333,9 @@ opens Now Playing instead.
   re-rendered or restarted. The Apple voice (AVSpeechSynthesizer can't change a running
   utterance's rate) restarts from the word being spoken. The rate is persisted
   (`reader.rateMultiplier`) and the lock screen's playback rate follows it (and can set it).
-- An unsaved page isn't restored after a relaunch (until the library model lands, step 2): Now
-  Playing shows its text only while the app keeps it in memory.
+- A page played without saving is kept for 7 days after its last play, with its text and its
+  spot: after a relaunch it is in Continue listening, opens in the Reader where it was, and Now
+  Playing shows its text.
 
 ## Developer options
 

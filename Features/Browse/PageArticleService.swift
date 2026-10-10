@@ -1,4 +1,3 @@
-import SwiftData
 import Foundation
 
 /// What the browser does with the page it has loaded: show it in the Reader, listen to it, save
@@ -8,7 +7,7 @@ import Foundation
 struct PageArticleService {
     let shell: ShellState
     let extractor: any ArticleExtracting
-    let context: ModelContext
+    let library: LibraryStore
     let speech: SpeechController
     /// Recently visited pages: their icon stands in until the page's own is fetched.
     let recentVisits: [RecentVisit]
@@ -33,7 +32,7 @@ struct PageArticleService {
     /// else was asked for meanwhile (`listen(toPageAt:…)`).
     func listenNow() async -> ListenNowOutcome {
         guard let url = web.currentURL else { return .nothingToListenTo }
-        let outcome = await Self.listen(toPageAt: url, speech: speech, context: context) {
+        let outcome = await Self.listen(toPageAt: url, speech: speech, library: library) {
             try await extract().article
         }
         if case .started(let article) = outcome, article.faviconData == nil, let icon = await favicon(for: url) {
@@ -45,7 +44,7 @@ struct PageArticleService {
     /// 🎧's decision, apart from the web view: begin a preparation request for the page at `url`,
     /// run `extract`, then start the article only while that request is still current. Stop
     /// Listening, another ▶ or another 🎧 during extraction supersedes it, and it starts nothing.
-    static func listen(toPageAt url: URL, speech: SpeechController, context: ModelContext,
+    static func listen(toPageAt url: URL, speech: SpeechController, library: LibraryStore,
                        extract: () async throws -> ReaderArticle) async -> ListenNowOutcome {
         let request = speech.beginPreparing(.webPage(canonicalURL: ArticleIdentity.canonicalURLString(from: url)))
         let article = try? await extract()
@@ -54,12 +53,15 @@ struct PageArticleService {
             speech.endPreparing(request)
             return .nothingToListenTo
         }
-        let saved = ArticleLibrary.savedArticle(id: article.id, in: context)
+        // The page's spot, when the library has it (saved, or played without saving); a page
+        // heard to the end starts again from the top, as the Reader's Listen Again does.
+        let page = library.page(key: article.id, canonicalURL: article.canonicalURL)
+        let heardToTheEnd = page?.finishedAt != nil
         speech.localTTS.prepareListenIdentity(key: article.id, paragraphs: article.document.paragraphs,
                                               trustedParagraphs: article.trustedParagraphs,
                                               legacyKeys: article.legacyCacheKeys, isLivePlayback: false)
-        speech.listen(to: article, fromParagraph: article.resumeParagraph,
-                      utf16Offset: saved?.playbackUTF16Offset)
+        speech.listen(to: article, fromParagraph: heardToTheEnd ? 0 : article.resumeParagraph,
+                      utf16Offset: heardToTheEnd ? nil : page?.positionUTF16)
         return .started(article)
     }
 
@@ -71,14 +73,15 @@ struct PageArticleService {
         if article.faviconData == nil {
             article.faviconData = await favicon(for: url)
         }
-        ArticleSaveCoordinator(context: context, speech: speech).save(article)
+        ArticleSaveCoordinator(library: library, speech: speech).save(article)
     }
 
-    /// ⋯ → Bookmark / Remove Bookmark (URL, title, icon only; independent of Save).
-    func toggleBookmark(in store: BookmarkStore) async {
-        guard let url = web.currentURL, BookmarkStore.isBookmarkable(url) else { return }
+    /// ⋯ → Bookmark / Remove Bookmark: the page in or out of Favorites (a link, or the saved
+    /// page filed there; see `LibraryStore.toggleFavorite`).
+    func toggleBookmark() async {
+        guard let url = web.currentURL, LibraryStore.canFavorite(url) else { return }
         let liveTitle = web.webView?.title.flatMap { $0.isEmpty ? nil : $0 }
-        await store.toggle(url: url, title: liveTitle ?? web.pageTitle, faviconData: recentFavicon(for: url)) {
+        await library.toggleFavorite(url: url, title: liveTitle ?? web.pageTitle, artwork: recentFavicon(for: url)) {
             await favicon(for: url)
         }
     }
@@ -87,7 +90,7 @@ struct PageArticleService {
     func recordVisit() async {
         guard let url = web.currentURL, url.isWeb else { return }
         let icon = await favicon(for: url)
-        RecentVisitRecorder.record(url: url, title: web.pageTitle, faviconData: icon, in: context)
+        RecentVisitRecorder.record(url: url, title: web.pageTitle, faviconData: icon, in: library.context)
     }
 
     // MARK: - Pieces
@@ -99,7 +102,7 @@ struct PageArticleService {
         let html = try await web.snapshotHTML()
         let extracted = try await extractor.extract(from: ExtractionContext(url: url, pageTitle: web.pageTitle,
                                                                             htmlSnapshot: html))
-        var article = ArticleLibrary.readerArticle(url: url, extracted: extracted, in: context)
+        var article = library.readerArticle(url: url, extracted: extracted)
         if article.faviconData == nil {
             article.faviconData = recentFavicon(for: url)
         }

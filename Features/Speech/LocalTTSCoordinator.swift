@@ -39,6 +39,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
     private(set) var bakeMarksRevision: UInt64 = 0
     /// Article the user most recently opened / listened to (stays #1 when pending jobs drain).
     private var focusCacheKey: UUID?
+    /// From the start of the launch's audio-cache steps until the library's launch maintenance has
+    /// finished (`holdRenderingForLaunch`, `endLaunchHold`).
+    @ObservationIgnored private(set) var isHeldForLaunch = false
     /// Voice whose files are downloading after the user picked it (Settings shows a spinner).
     private(set) var voiceDownloadID: String?
     /// Last voice download failure (Settings footer); cleared on the next pick.
@@ -159,12 +162,32 @@ final class LocalTTSCoordinator: SynthQueueContext {
         engineCrashNotice = nil
     }
 
-    /// Paragraph layout migration: the crash-resume target was read at init (before the saved
-    /// rows were migrated), so its paragraph is in the old numbering — move it to the new one.
-    func remapPendingResume(article: UUID, _ map: (Int) -> Int) {
+    /// The library moved the page the crash-resume target names, which was read at init, before
+    /// the launch maintenance: its paragraphs were rebuilt, or dedupe merged it into the page
+    /// `newKey`. The target follows, onto the paragraph `map` gives.
+    func remapPendingResume(article: UUID, to newKey: UUID? = nil, _ map: (Int) -> Int) {
         guard var target = pendingResume, target.matches(article) else { return }
+        if let newKey { target.articleKey = newKey.uuidString }
         target.paragraph = map(target.paragraph)
         pendingResume = target
+    }
+
+    /// Launch: until `endLaunchHold`, the render queue adopts no saved bake job and renders
+    /// nothing, so nothing renders on paragraphs the launch's maintenance (left audio work, the
+    /// layout pass, dedupe, the prune) is about to rebuild, merge or delete, and the jobs it
+    /// remaps are adopted as it leaves them. The engine still loads meanwhile.
+    func holdRenderingForLaunch() {
+        isHeldForLaunch = true
+        synthQueue.isHeldForLaunch = true
+    }
+
+    /// The launch's maintenance has finished: adopt the saved bake jobs if the engine is loaded
+    /// (else when it is), and render.
+    func endLaunchHold() {
+        guard isHeldForLaunch else { return }
+        isHeldForLaunch = false
+        drainPendingIntoQueue()
+        synthQueue.isHeldForLaunch = false
     }
 
     /// Hand the crash-resume target to the UI once.
@@ -500,7 +523,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
     }
 
-    /// After Save: move ephemeral CAFs onto the SavedArticle UUID and reshuffle the queue key.
+    /// After Save: move ephemeral CAFs onto the saved page's key and reshuffle the queue key.
     func migrateListenCache(from ephemeralKey: UUID, to savedKey: UUID) {
         guard ephemeralKey != savedKey else {
             // Identity v2: saved id == reader key, so Save is just a kind flip (no dir move,
@@ -530,6 +553,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// - Adopts an old v1 (URL+content) ephemeral dir into `key` when `key` has no cache yet.
     /// - Stamps unhashed legacy entries with `trustedParagraphs` (text known to match the cache).
     /// - Reconciles per-paragraph hashes so only changed paragraphs re-bake.
+    /// - Gives a queued job for `key` the same paragraphs (`GlobalSynthQueue.updateParagraphs`).
     /// Skip while `key` is the live playback session (never move files under the player).
     func prepareListenIdentity(
         key: UUID,
@@ -553,7 +577,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
                 do {
                     try audioCache.rekeyCache(from: legacy, to: key)
                     // v1 key embedded the content hash, so its units match `paragraphs`.
-                    audioCache.stampMissingHashes(articleID: key, paragraphs: paragraphs)
+                    try audioCache.stampMissingHashes(articleID: key, paragraphs: paragraphs)
                     ListenDebugLog.shared.append("identity adopt v1 \(legacy.uuidString.prefix(8)) → \(key.uuidString.prefix(8))")
                     print("[Identity] adopted legacy cache \(legacy.uuidString.prefix(8)) → \(key.uuidString.prefix(8))")
                 } catch {
@@ -562,17 +586,25 @@ final class LocalTTSCoordinator: SynthQueueContext {
                 break
             }
         }
-        if let trustedParagraphs {
-            audioCache.stampMissingHashes(articleID: key, paragraphs: trustedParagraphs)
+        do {
+            if let trustedParagraphs {
+                try audioCache.stampMissingHashes(articleID: key, paragraphs: trustedParagraphs)
+            }
+            // Giant paragraphs split since this audio was rendered (layout v3) keep the pieces
+            // whose chunks line up with the old render; the rest re-render.
+            let result = try audioCache.reconcile(articleID: key, paragraphs: paragraphs) { self.chunkPlan(engineID: $0, text: $1) }
+            // The job renders what the audio now follows, or it would file renders of its old
+            // text on these paragraphs (Save doesn't reopen a job that is already #1).
+            synthQueue.updateParagraphs(cacheKey: key, paragraphs: paragraphs)
+            let msg = "identity \(key.uuidString.prefix(8)) fp=\(ArticleIdentity.contentFingerprint(paragraphs: paragraphs).prefix(8)) kept=\(result.kept) moved=\(result.remapped) dropped=\(result.dropped) legacy=\(result.unverified) split=\(result.splitParagraphs) sliced=\(result.sliced)"
+            ListenDebugLog.shared.append(msg)
+            print("[Identity] \(msg)")
+            if result.changed { noteBakeMarksChanged() }
+        } catch {
+            // The last saved index is intact (copy-on-write); the next open tries again.
+            ListenDebugLog.shared.append("identity \(key.uuidString.prefix(8)) align failed: \(error.localizedDescription)")
+            print("[Identity] align failed: \(error.localizedDescription)")
         }
-        // Giant paragraphs split since this audio was rendered (layout v3): keep the pieces
-        // whose chunks line up with the old render, re-render the rest.
-        let split = audioCache.remapSplitParagraphs(articleID: key, paragraphs: paragraphs) { self.chunkPlan(engineID: $0, text: $1) }
-        let result = audioCache.reconcile(articleID: key, paragraphs: paragraphs)
-        let msg = "identity \(key.uuidString.prefix(8)) fp=\(ArticleIdentity.contentFingerprint(paragraphs: paragraphs).prefix(8)) kept=\(result.kept) moved=\(result.remapped) dropped=\(result.dropped) legacy=\(result.unverified) split=\(split.splitParagraphs) sliced=\(split.sliced)"
-        ListenDebugLog.shared.append(msg)
-        print("[Identity] \(msg)")
-        if result.changed { noteBakeMarksChanged() }
     }
 
     /// The render queue's chunk plan for `text` as rendered by `engineID` (nil if unknown engine).
@@ -587,12 +619,13 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return engines.descriptor(id)?.supportsBakeCache == true
     }
 
-    /// Persisted pending jobs → queue. The focused (active) article stays #1; see
-    /// `GlobalSynthQueue.adoptPending`.
+    /// Persisted pending jobs → queue, once the engine is loaded and the launch hold is over. The
+    /// focused (active) article stays #1; see `GlobalSynthQueue.adoptPending`. A job for audio
+    /// held for unfinished library work (`ArticleAudioCache.held`) waits on disk.
     private func drainPendingIntoQueue() {
-        guard usesLocalEngine else { return }
+        guard usesLocalEngine, !isHeldForLaunch else { return }
         let pending = PendingBakeJobStore.shared.pendingJobs()
-            .filter { localLanguageAllows($0.paragraphs) }
+            .filter { localLanguageAllows($0.paragraphs) && !audioCache.held.contains($0.articleID) }
         guard !pending.isEmpty else { return }
         print("[SynthQueue] draining \(pending.count) pending job(s)")
         synthQueue.adoptPending(pending.map { job in

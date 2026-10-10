@@ -82,6 +82,9 @@ final class SpeechController {
     /// same transaction as the change, so a replaced page's last spot is reported before the next
     /// page binds.
     @ObservationIgnored var onProgress: ((ListenProgress) -> Void)?
+    /// Told about the `ReaderArticle` a page is started from (`listen(to:)`), before its session
+    /// binds, so the recorder can keep a page the library doesn't have with its text.
+    @ObservationIgnored var onListen: ((ReaderArticle) -> Void)?
     @ObservationIgnored private var runStateObserver: NSObjectProtocol?
     /// Debug panel snapshot and background-stretch tracking.
     @ObservationIgnored private(set) lazy var diagnostics = ListenDiagnostics(speech: self)
@@ -309,10 +312,11 @@ final class SpeechController {
     }
 
     /// Plays `article` from `paragraph` (at `utf16Offset` inside it, when given), replacing what's
-    /// playing. The article is remembered for Now Playing, so an unsaved page can be shown.
+    /// playing. The article goes to `onListen` first, so a page the library doesn't have is kept
+    /// once it plays.
     func listen(to article: ReaderArticle, fromParagraph paragraph: Int = 0, utf16Offset: Int? = nil) {
         guard !article.document.isEmpty else { return }
-        contentResolver?.remember(article)
+        onListen?(article)
         noteUserIntent()
         let session = SpeechSession(article: article)
         prepare(session, startingParagraph: paragraph)
