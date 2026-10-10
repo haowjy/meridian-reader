@@ -68,7 +68,7 @@ struct LibraryHomeView: View {
                 ForEach(topLevelFolders, id: \.id) { folder in
                     LibraryFolderRow(folder: folder)
                 }
-                .listRowInsets(EdgeInsets())
+                .listRowInsets(.folderRow)
                 .listRowBackground(Palette.chrome)
             } header: {
                 SectionHeader(title: String(localized: "Folders")).libraryHeader()
@@ -107,7 +107,9 @@ struct LibraryHomeView: View {
             }
             .padding(.vertical, Spacing.xxs)
         }
-        .contentMargins(.horizontal, Spacing.pageMargin, for: .scrollContent)
+        // The List's page margin already insets this row; the List's content margin is inherited by
+        // this nested scroll view too, so zero it here or the cards sit a second margin in.
+        .contentMargins(.horizontal, 0, for: .scrollContent)
         .scrollClipDisabled()
     }
 
@@ -174,6 +176,12 @@ struct LibraryHomeView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("libraryEmpty")
     }
+}
+
+extension EdgeInsets {
+    /// A folder row: flush, except the trailing edge, so the system disclosure › sits at the same
+    /// inset as the row's own content instead of against the card's edge.
+    static let folderRow = EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: Spacing.m)
 }
 
 extension View {

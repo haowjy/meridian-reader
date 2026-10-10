@@ -92,7 +92,7 @@ private struct FolderContentsList: View {
                             .tag(LibraryItemID.folder(child.id))
                     }
                     .onMove(perform: isEditing ? moveFolders : nil)
-                    .listRowInsets(EdgeInsets())
+                    .listRowInsets(.folderRow)
                     .listRowBackground(Palette.chrome)
                 }
             }
