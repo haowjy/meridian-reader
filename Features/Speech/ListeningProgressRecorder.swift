@@ -12,6 +12,10 @@ import UIKit
 ///   Listening, a page being replaced, which stops the old one first) and when the app leaves the
 ///   foreground, never on the playhead's sub-paragraph ticks.
 /// - Playing to the end marks the page finished.
+/// - A chapter of a book or series that starts becomes the book's place; the last playable
+///   chapter's end finishes the book (`LibraryStore+Chapters`). A chapter that playback carries on
+///   past is marked finished by the controller (`NextChapterProviding.pageFinished`), since the
+///   session moves straight to the next one.
 ///
 /// It holds the page it writes to, so a position isn't a fetch.
 @MainActor

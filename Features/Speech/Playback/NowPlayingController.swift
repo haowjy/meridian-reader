@@ -39,10 +39,13 @@ enum RemoteCommandOutcome: Equatable {
 }
 
 /// What the lock screen shows. Paragraph progress is "N of M" (audio duration isn't known up
-/// front for on-device synthesis, so no fake elapsed-time scrubber).
+/// front for on-device synthesis, so no fake elapsed-time scrubber). For a chapter, the title is
+/// the chapter's, `site` the book's byline and `album` the book's or series' name.
 struct NowPlayingInfo: Equatable {
     var title: String
     var site: String?
+    /// The book or series (nil: a page in none, whose album is its site).
+    var album: String? = nil
     var paragraph: Int
     var paragraphCount: Int
     var isPlaying: Bool
@@ -52,12 +55,14 @@ struct NowPlayingInfo: Equatable {
     var progressLabel: String { "Paragraph \(paragraph) of \(paragraphCount)" }
     /// Subtitle line (MPMediaItemPropertyArtist): the lock screen shows title + this line.
     var subtitle: String { [site, progressLabel].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ") }
+    /// MPMediaItemPropertyAlbumTitle: the book or series, else the site.
+    var albumTitle: String { album ?? site ?? "Reader" }
 
     var dictionary: [String: Any] {
         var d: [String: Any] = [
             MPMediaItemPropertyTitle: title,
             MPMediaItemPropertyArtist: subtitle,
-            MPMediaItemPropertyAlbumTitle: site ?? "Reader",
+            MPMediaItemPropertyAlbumTitle: albumTitle,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
             MPNowPlayingInfoPropertyChapterNumber: max(0, paragraph - 1),
             MPNowPlayingInfoPropertyChapterCount: paragraphCount,
@@ -78,6 +83,9 @@ final class NowPlayingController {
     private let commandCenter: MPRemoteCommandCenter?
     private let infoCenter: MPNowPlayingInfoCenter?
     private(set) var lastInfo: NowPlayingInfo?
+    /// Times the lock screen was cleared: the chapter-boundary timing log checks it isn't
+    /// between chapters.
+    private(set) var clearCount = 0
     private var registered = false
 
     init(commandCenter: MPRemoteCommandCenter? = .shared(), infoCenter: MPNowPlayingInfoCenter? = .default()) {
@@ -120,6 +128,7 @@ final class NowPlayingController {
     /// Publish (or clear with nil). Skips identical updates (the playhead ticks often).
     func update(_ info: NowPlayingInfo?, canNext: Bool = true, canPrevious: Bool = true) {
         guard info != lastInfo else { return }
+        if info == nil { clearCount += 1 }
         lastInfo = info
         if let c = commandCenter, registered {
             c.nextTrackCommand.isEnabled = info != nil && canNext

@@ -126,12 +126,13 @@ dedupe pass. Every library read and write goes through `LibraryStore`; lists use
 | `lastPlayedAt`, `finishedAt` | Continue listening |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
-| `locator`, `skipsInPlayback`, `fetchStateRaw` | Book chapters and series (not used yet) |
+| `skipsInPlayback`, `fetchStateRaw` | Book chapters and series: what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
+| `locator` | Book chapters: the contents entry (not used yet) |
 
 **`Folder`** (library): `name`, `kindRaw` (`plain`, `book`, `series`, `favorites`), `sortKey`,
 `parent` / `children` (any depth), `pages`, `pageSortRaw`, and for books and series their details
-and place (`currentPageKey`, `lastPlayedAt`, `finishedAt`). One Favorites folder holds the
-bookmarks; it can't be deleted, renamed or moved below the top level.
+and place (`currentPageKey`, `lastPlayedAt`, `finishedAt`, written as their chapters play). One
+Favorites folder holds the bookmarks; it can't be deleted, renamed or moved below the top level.
 
 **Migration (copy-once).** At launch `LibraryStore.migrateLegacy` copies every `SavedArticle`
 row and every bookmark in `bookmarks.json` without a receipt (`LibraryMigrationReceipt`, in the
@@ -166,7 +167,8 @@ there, the merged page's directory gone. A record that fails is kept, with every
 for the next launch; so is the work of a launch that dies after the save. Meanwhile the pages
 those records touch (a merge's source and destination) are held (`ArticleAudioCache.held`):
 the launch's engine purges (which then run again next launch) and the prune leave their audio
-alone, and their pending renders aren't adopted. Records that can't be read hold all audio this
+alone, their pending renders aren't adopted, and a book's playback neither stages them as the
+next chapter nor trims them behind its place (D7). Records that can't be read hold all audio this
 way (logged as `library_audio_work_unreadable`) until a run of the work reads them. The next
 launch does them first, in `AppComposition.prepareAudioCache` before the first frame: before the
 launch migrations and the prune of unsaved audio clean the cache, before anything reads it, and

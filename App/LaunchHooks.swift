@@ -12,9 +12,10 @@ enum LaunchHooks {
         if options.rerunsLibraryMigration { library.resetForMigrationRerun() }
     }
 
-    /// After the migration copy, before the layout pass: the demo seed.
+    /// After the migration copy, before the layout pass: the demo seeds.
     static func runSeeds(_ options: LaunchOptions, library: LibraryStore) {
         if let demo = options.demoArticle { seedDemoArticle(demo, in: library) }
+        if options.seedsDemoBook { seedDemoBook(in: library) }
     }
 
     /// After the migrations, before crash resume: bake, bookmarks, and where the app starts.
@@ -25,6 +26,88 @@ enum LaunchHooks {
         if options.servesTestPages, let url = URL(string: "reader-test://pages/one") { shell.navigate(to: url) }
         if options.opensLibrary { shell.openLibrary() }
         if options.opensDemoInReader { openNewestInReader(in: library, shell: shell) }
+    }
+
+    /// Last, after crash resume (which wins): `-chainDemoChapters`.
+    static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController) async {
+        if options.chainsDemoChapters { await chainDemoChapters(library: library, speech: speech) }
+    }
+
+    /// `-seedDemoBook`: the demo book (a skipped title page and three chapters) and one page in no
+    /// folder, replacing the ones an earlier launch seeded, with their audio. Fresh keys each
+    /// launch, so no audio rendered before carries over. It runs on a phone with real data (the
+    /// chapter-boundary device check), so it removes only rows it marked itself: the book by its
+    /// `sourceIdentifier`, with its chapters (no page can be moved into a book), and the page in
+    /// no folder by `DemoBook.loosePageMarker`. An address another page already has isn't given
+    /// to a seeded page, since the launch's dedupe would merge the two: that chapter goes without
+    /// it, and the page in no folder isn't added.
+    static func seedDemoBook(in library: LibraryStore) {
+        for folder in demoBooks(in: library) { try? library.deleteFolder(folder, keepContents: false) }
+        for page in seededLoosePages(in: library) { library.delete(page) }
+        let book = Folder(name: DemoBook.title, kind: .book, sortKey: library.nextFolderSortKey(in: nil))
+        book.byline = DemoBook.author
+        book.sourceIdentifier = DemoBook.sourceIdentifier
+        library.context.insert(book)
+        for (index, chapter) in DemoBook.chapters.enumerated() {
+            let url = DemoBook.url(ofChapter: index)
+            let page = demoPage(chapter, url: library.page(url: url) == nil ? url : nil, sortKey: Double(index))
+            page.locator = "chapter-\(index).xhtml"
+            page.skipsInPlayback = chapter.skipsInPlayback
+            library.context.insert(page)
+            page.setFolder(book)
+        }
+        if library.page(url: DemoBook.loosePageURL) == nil {
+            let loose = demoPage(DemoBook.loosePage, url: DemoBook.loosePageURL, sortKey: library.nextSortKey(in: nil))
+            loose.locator = DemoBook.loosePageMarker
+            library.context.insert(loose)
+        } else {
+            library.log("demo seed: \(DemoBook.loosePageURL.absoluteString) is another page's; no page in no folder added")
+        }
+        library.commit("demo book seed")
+    }
+
+    /// The demo book an earlier seed added, wherever it was moved.
+    private static func demoBooks(in library: LibraryStore) -> [Folder] {
+        let source: String? = DemoBook.sourceIdentifier
+        return (try? library.context.fetch(FetchDescriptor<Folder>(predicate: #Predicate { $0.sourceIdentifier == source }))) ?? []
+    }
+
+    /// The page in no folder an earlier seed added, by its marker.
+    private static func seededLoosePages(in library: LibraryStore) -> [Page] {
+        let marker: String? = DemoBook.loosePageMarker
+        return (try? library.context.fetch(FetchDescriptor<Page>(predicate: #Predicate { $0.locator == marker }))) ?? []
+    }
+
+    private static func demoPage(_ chapter: DemoBook.Chapter, url: URL?, sortKey: Double) -> Page {
+        let page = Page(key: UUID(), title: chapter.title, byline: DemoBook.author, urlString: url?.absoluteString,
+                        contentState: .saved, addedAt: .now, sortKey: sortKey)
+        page.cleanedHTML = chapter.html
+        page.plainText = chapter.plainText
+        page.excerpt = String(chapter.plainText.prefix(140))
+        page.wordCount = SavedArticle.wordCount(of: chapter.plainText)
+        return page
+    }
+
+    /// `-chainDemoChapters`: plays the demo book from where Continue would (chapter 1 the first
+    /// time), after waiting (≤ 20 s) for the on-device engine so it doesn't start on Apple. Logged
+    /// as `debug_chain_demo_chapters`; each boundary then logs `chapter_boundary`.
+    static func chainDemoChapters(library: LibraryStore, speech: SpeechController) async {
+        guard speech.activeSessionID == nil, let book = demoBooks(in: library).first,
+              let start = library.continueStart(of: book) else {
+            ListenTimingLog.log("debug_chain_demo_chapters", ["started": false], console: true)
+            return
+        }
+        let tts = speech.localTTS
+        var waited = 0
+        while tts.synth.state.warmingEngineID != nil, waited < 100 {
+            try? await Task.sleep(for: .milliseconds(200))
+            waited += 1
+        }
+        speech.toggle(.page(start.page), resumeParagraph: start.paragraph, resumeUTF16Offset: start.utf16Offset)
+        ListenTimingLog.log("debug_chain_demo_chapters", [
+            "started": true, "key": ListenTimingLog.shortKey(start.page.listenKey), "p": start.paragraph,
+            "engine": speech.activeEngine?.name ?? "—", "build": LocalTTSCoordinator.buildConfiguration,
+        ], console: true)
     }
 
     /// `-seedDemoArticle`: replace the saved and played pages with one deterministic article, so

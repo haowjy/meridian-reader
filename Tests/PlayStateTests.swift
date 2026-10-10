@@ -146,6 +146,27 @@ final class PlayStateTests: XCTestCase {
         XCTAssertEqual(speech.playState(of: .page(a.id)), .idle)
     }
 
+    /// A book or series is what you hear while any of its chapters plays, through every chapter.
+    func testAFolderIsPlayingWhileAChapterOfItPlays() {
+        let book = FakeChapterLibrary(chapters: 2)
+        let other = FakeChapterLibrary(chapters: 1)
+        speech.nextChapters = book
+        XCTAssertEqual(speech.playState(of: .folder(book.folder.id)), .idle)
+        speech.start(book.sessions[0], fromParagraph: 0)
+        XCTAssertEqual(speech.playState(of: .folder(book.folder.id)), .playing)
+        XCTAssertEqual(speech.playState(of: .folder(other.folder.id)), .idle, "another book")
+        XCTAssertEqual(speech.playState(of: .page(book.key(0))), .playing)
+
+        fixture.apple.emit(.finished)
+        XCTAssertEqual(speech.playState(of: .folder(book.folder.id)), .playing, "chapter 2: the same book")
+        XCTAssertEqual(speech.playState(of: .page(book.key(0))), .idle, "chapter 1 no longer")
+
+        speech.press(.folder(book.folder.id)) { XCTFail("what you hear pauses") }
+        XCTAssertEqual(speech.playState(of: .folder(book.folder.id)), .paused)
+        speech.listen(to: TestSpeech.article(pageA))
+        XCTAssertEqual(speech.playState(of: .folder(book.folder.id)), .idle, "a page in no folder replaced it")
+    }
+
     func testPressOnSomethingElseRunsStart() {
         let a = TestSpeech.article(pageA)
         speech.listen(to: a)

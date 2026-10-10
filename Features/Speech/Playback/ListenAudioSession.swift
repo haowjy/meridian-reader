@@ -52,6 +52,9 @@ final class ListenAudioSession {
     let managesSystemSession: Bool
     private(set) var isActive = false
     private(set) var activationCount = 0
+    /// Deactivations made here (not those iOS makes for an interruption): the chapter-boundary
+    /// timing log checks none happens between chapters.
+    private(set) var deactivationCount = 0
     var onEvent: ((ListenAudioEvent) -> Void)?
     private var tokens: [NSObjectProtocol] = []
 
@@ -84,6 +87,7 @@ final class ListenAudioSession {
     func deactivate() {
         guard isActive else { return }
         isActive = false
+        deactivationCount += 1
         guard managesSystemSession else { return }
         do {
             try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)

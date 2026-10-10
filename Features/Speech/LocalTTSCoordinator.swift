@@ -486,6 +486,24 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
     }
 
+    /// Paragraphs of the next chapter rendered before it plays (`stageNextChapter`).
+    static let stagedChapterParagraphs = 3
+
+    /// The next chapter of the book or series playing (`playing`) renders its opening before its
+    /// turn (`GlobalSynthQueue.stageNext`), so it starts without waiting for the model. False when
+    /// nothing renders ahead (Apple, a model still loading, a language the engine doesn't speak),
+    /// and for audio held for unfinished library work (`ArticleAudioCache.held`), which a render
+    /// would overwrite before that work reads it.
+    @discardableResult
+    func stageNextChapter(cacheKey: UUID, after playing: UUID, paragraphs: [String], voiceID: String) -> Bool {
+        guard !paragraphs.isEmpty, wantsLocalBake, usesLocalEngine, localLanguageAllows(paragraphs),
+              !audioCache.held.contains(cacheKey) else { return false }
+        synthQueue.stageNext(cacheKey: cacheKey, after: playing, paragraphs: paragraphs,
+                             voiceID: normalizedCacheVoice(voiceID), upTo: Self.stagedChapterParagraphs,
+                             isEphemeral: audioCache.loadMeta(for: cacheKey)?.kind == .ephemeral)
+        return true
+    }
+
     /// On article save: enqueue (demoted if something else is #1) top → down.
     func startBakeIfNeeded(articleID: UUID, paragraphs: [String], voiceID: String) {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }

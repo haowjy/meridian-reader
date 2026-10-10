@@ -9,6 +9,9 @@ import Foundation
 /// 2. `focusPlayhead` — same article stays #1; cursor moves to paragraph→end, then gap-fill top.
 /// 3. Opening a different article demotes the previous #1 (cache kept); worker switches to new #1.
 /// 4. One worker drains #1’s next missing unit, then continues.
+/// 5. `stageNext` — the next chapter of the book or series playing sits right behind the playing
+///    chapter's job (at the front once that job is done) and renders its first paragraphs before
+///    any other work (`playingCacheKeys` admits it in the background like the playing article).
 ///
 /// Work granularity is a **synth chunk** (`TextChunker`, sized by the engine's limits), not a whole
 /// paragraph: the worker re-evaluates priority after every chunk (so a playhead request waits
@@ -42,38 +45,12 @@ import Foundation
 /// a concrete engine — the app passes `LocalTTSCoordinator`, tests pass a fake.
 @MainActor
 final class GlobalSynthQueue {
-    struct ArticleJob: Equatable {
-        var cacheKey: UUID
-        var paragraphs: [String] {
-            didSet {
-                if paragraphs != oldValue { paragraphHashes = paragraphs.map(ArticleIdentity.paragraphHash) }
-            }
-        }
-        /// `ArticleIdentity.paragraphHash` of each paragraph (chunk scratch dirs, failure marks):
-        /// hashed when the text is set, not again for every chunk the worker picks.
-        private(set) var paragraphHashes: [String]
-        var voiceID: String
-        var plan: BakePriorityPlan
-        /// FIFO demotion order among non-#1 articles (lower = older / demoted earlier).
-        var demoteOrder: Int
-        var isEphemeral: Bool
-
-        init(cacheKey: UUID, paragraphs: [String], voiceID: String, plan: BakePriorityPlan,
-             demoteOrder: Int, isEphemeral: Bool) {
-            self.cacheKey = cacheKey
-            self.paragraphs = paragraphs
-            self.paragraphHashes = paragraphs.map(ArticleIdentity.paragraphHash)
-            self.voiceID = voiceID
-            self.plan = plan
-            self.demoteOrder = demoteOrder
-            self.isEphemeral = isEphemeral
-        }
-    }
-
     private weak var coordinator: SynthQueueContext?
     private var jobs: [UUID: ArticleJob] = [:]
     /// Ordered stack: `stack[0]` is current #1.
     private var stack: [UUID] = []
+    /// The next chapter of the book or series playing, rendering its opening ahead (`stageNext`).
+    private var staged: StagedJob?
     private var demoteCounter = 0
     private var worker: Task<Void, Never>?
     private var chunkWaiters: [ChunkKey: [CheckedContinuation<ChunkResolution, Error>]] = [:]
@@ -99,14 +76,6 @@ final class GlobalSynthQueue {
         var cacheKey: UUID
         var index: Int
         var chunk: Int
-    }
-
-    /// What the producer should play for (paragraph, chunk).
-    enum ChunkResolution {
-        /// Per-chunk CAF (paragraph still building, or kept scratch).
-        case chunk(URL)
-        /// Paragraph already stitched; play `url` from `startTime` (chunk boundary).
-        case paragraph(URL, startTime: TimeInterval)
     }
 
     /// Foreground / background gate for Core ML (injectable for tests).
@@ -185,11 +154,17 @@ final class GlobalSynthQueue {
     /// The active host renders without Core ML/GPU and may run while backgrounded.
     private var rendersInBackground: Bool { coordinator?.activeRouteRendersInBackground ?? false }
 
+    /// The audio that renders in the background on a route that may (`RenderAdmission`): the
+    /// article playing and the chapter staged to play after it.
+    var playingCacheKeys: Set<UUID> {
+        Set([coordinator?.playingCacheKey, staged?.cacheKey].compactMap { $0 })
+    }
+
     /// `RenderAdmission` for audio of `cacheKey` now.
     private func admission(isLiveRequest: Bool, cacheKey: UUID?) -> RenderAdmission {
         RenderAdmission.decide(phase: runState.phase, rendersInBackground: rendersInBackground,
                                isLiveRequest: isLiveRequest,
-                               isPlayingArticle: cacheKey != nil && cacheKey == coordinator?.playingCacheKey)
+                               isPlayingArticle: cacheKey.map(playingCacheKeys.contains) ?? false)
     }
 
     private func failAllLiveWaiters(_ error: Error) {
@@ -297,14 +272,61 @@ final class GlobalSynthQueue {
         kickWorker()
     }
 
-    /// Pending bake job (persisted by `PendingBakeJobStore`).
-    struct PendingWork: Equatable {
-        var cacheKey: UUID
-        var paragraphs: [String]
-        var voiceID: String
-        var priorityStart: Int
-        var isEphemeral: Bool
+    /// The next chapter of the book or series playing, staged directly behind the job of
+    /// `playing` (the chapter playing), or at the front when that job has left the queue (its
+    /// audio is all rendered): either way ahead of any save or bake job, which in the background
+    /// may have to wait for the foreground. So its opening renders first, in the background too
+    /// on a route that may render there (`playingCacheKeys`). It renders at bake-ahead priority,
+    /// never `.listener`, and only its first `cap` paragraphs until it becomes #1 (it plays), when
+    /// the cap lifts. At its cap it steps aside, so jobs behind it keep running. A later stage
+    /// replaces it.
+    func stageNext(cacheKey: UUID, after playing: UUID?, paragraphs: [String], voiceID: String, upTo cap: Int,
+                   isEphemeral: Bool) {
+        guard !paragraphs.isEmpty, stack.first != cacheKey else { return }
+        if let staged, staged.cacheKey != cacheKey { unstage() }
+        let wasQueued = staged?.wasQueued ?? (jobs[cacheKey] != nil)
+        if var job = jobs[cacheKey] {
+            job.paragraphs = paragraphs
+            job.voiceID = voiceID
+            job.isEphemeral = isEphemeral
+            jobs[cacheKey] = job
+        } else {
+            demoteCounter += 1
+            jobs[cacheKey] = ArticleJob(cacheKey: cacheKey, paragraphs: paragraphs, voiceID: voiceID,
+                                        plan: .topDown(paragraphCount: paragraphs.count), demoteOrder: demoteCounter,
+                                        isEphemeral: isEphemeral)
+        }
+        staged = StagedJob(cacheKey: cacheKey, behind: playing, cap: cap, wasQueued: wasQueued)
+        placeStaged()
+        let position = stack.firstIndex(of: cacheKey) ?? 0
+        ListenTimingLog.log("chapter_staged", ["key": ListenTimingLog.shortKey(cacheKey), "cap": cap,
+                                               "behind": ListenTimingLog.shortKey(position > 0 ? stack[position - 1] : nil)])
+        kickWorker()
     }
+
+    /// The staged job's place: right behind the playing chapter's job while that is queued, else
+    /// at the front. Set again before each pick of work, as the queue changes: the playing
+    /// chapter promoted back to #1 (after another page opened) takes it along, and once that
+    /// chapter's job is done it moves to the front rather than wait behind a job that may not
+    /// render in the background.
+    private func placeStaged() {
+        guard let staged, jobs[staged.cacheKey] != nil else { return }
+        stack.removeAll { $0 == staged.cacheKey }
+        let position = staged.behind.flatMap { stack.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
+        stack.insert(staged.cacheKey, at: position)
+    }
+
+    /// The staged chapter won't play next (another page plays, the book ended): a job staging
+    /// made leaves the queue (its audio stays); one queued before stays where staging put it.
+    func unstage() {
+        guard let staged else { return }
+        self.staged = nil
+        guard !staged.wasQueued else { return }
+        jobs[staged.cacheKey] = nil
+        stack.removeAll { $0 == staged.cacheKey }
+    }
+
+    var stagedCacheKey: UUID? { staged?.cacheKey }
 
     /// Fold persisted pending jobs into the queue after the local engine warms.
     ///
@@ -337,6 +359,7 @@ final class GlobalSynthQueue {
     func remove(cacheKey: UUID) {
         jobs[cacheKey] = nil
         stack.removeAll { $0 == cacheKey }
+        if staged?.cacheKey == cacheKey { staged = nil }
         failWaiters(cacheKey: cacheKey, error: CancellationError())
     }
 
@@ -375,6 +398,8 @@ final class GlobalSynthQueue {
         if let idx = stack.firstIndex(of: oldKey) {
             stack[idx] = newKey
         }
+        if staged?.cacheKey == oldKey { staged?.cacheKey = newKey }
+        if staged?.behind == oldKey { staged?.behind = newKey }
         for key in chunkWaiters.keys.filter({ $0.cacheKey == oldKey }) {
             let conts = chunkWaiters.removeValue(forKey: key) ?? []
             chunkWaiters[ChunkKey(cacheKey: newKey, index: key.index, chunk: key.chunk), default: []]
@@ -587,9 +612,11 @@ final class GlobalSynthQueue {
         }
     }
 
+    /// `cacheKey` becomes #1. A staged chapter that becomes #1 is playing: its cap lifts.
     private func promoteToPrimary(_ cacheKey: UUID) {
         stack.removeAll { $0 == cacheKey }
         stack.insert(cacheKey, at: 0)
+        if staged?.cacheKey == cacheKey { staged = nil }
     }
 
     /// Debug engine probe: hold the worker between chunks so probe timings aren't interleaved.
@@ -850,12 +877,17 @@ final class GlobalSynthQueue {
         }
     }
 
-    /// Next missing unit: always from current #1’s plan; if #1 complete, advance stack.
+    /// Next missing unit: from the front job's plan; a front job with nothing left is done and
+    /// leaves. A staged chapter at its cap steps aside for the job behind it; one whose playing
+    /// chapter's job left first is moved to the front (`placeStaged`).
     private func nextWorkUnit() -> (ArticleJob, Int)? {
         guard let coordinator else { return nil }
-        while let primary = stack.first {
-            guard let job = jobs[primary] else {
-                stack.removeFirst()
+        placeStaged()
+        var position = 0
+        while position < stack.count {
+            let key = stack[position]
+            guard let job = jobs[key] else {
+                stack.remove(at: position)
                 continue
             }
             let missing = coordinator.audioCache.missingIndices(
@@ -868,13 +900,20 @@ final class GlobalSynthQueue {
                 guard job.paragraphHashes.indices.contains(idx) else { return false }
                 return !failedUnits.contains(failedID(job.cacheKey, idx, job.paragraphHashes[idx]))
             }
-            if let index = ordered.first {
+            if let staged, staged.cacheKey == key {
+                if let index = ordered.first(where: { $0 < staged.cap }) { return (job, index) }
+                if !ordered.isEmpty {
+                    position += 1
+                    continue
+                }
+            } else if let index = ordered.first {
                 return (job, index)
             }
-            // #1 fully baked — demote off the front and try next.
+            // Fully baked: off the queue, and try the next.
             finishJob(job, missing: missing)
-            jobs[primary] = nil
-            stack.removeFirst()
+            jobs[key] = nil
+            stack.remove(at: position)
+            if staged?.cacheKey == key { staged = nil }
             print("[SynthQueue] complete key=\(job.cacheKey.uuidString.prefix(8))")
         }
         return nil
@@ -897,6 +936,7 @@ final class GlobalSynthQueue {
             }
             return false
         }
+        if let staged, jobs[staged.cacheKey] == nil { self.staged = nil }
     }
 
     /// Article done: drop its persisted pending job; if every paragraph is in the job's voice,

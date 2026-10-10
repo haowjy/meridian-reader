@@ -32,11 +32,13 @@ enum AppComposition {
         return library
     }
 
-    /// Connects the speech stack to the library: Now Playing's text is the playing page's, and
-    /// the recorder writes listening progress to it. Once, with the app's library.
+    /// Connects the speech stack to the library: Now Playing's text is the playing page's, books
+    /// and series carry on through their chapters, and the recorder writes listening progress to
+    /// it. Once, with the app's library.
     static func attachLibrary(_ library: LibraryStore) {
         guard progressRecorder == nil else { return }
         speechController.contentResolver = library
+        speechController.nextChapters = library
         progressRecorder = ListeningProgressRecorder(speech: speechController, library: library)
     }
 

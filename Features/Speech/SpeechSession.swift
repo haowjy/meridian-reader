@@ -17,12 +17,17 @@ struct SpeechSession: Equatable, Sendable, Identifiable {
     var canonicalURL: String?
     /// The page's host ("investopedia.com"): the Now Playing bar's source line.
     var host: String?
+    /// The book or series this page is a chapter of: playback carries on through its chapters
+    /// (`ChapterAdvance`). nil for any other page, which plays to its end and stops.
+    var folderID: UUID?
+    /// The book's or series' name: the lock screen's album, the bar's source.
+    var folderName: String?
 
     var plainText: String { document.joinedText }
 
     init(id: UUID, document: ParagraphDocument, detectedLanguage: String? = nil,
          title: String? = nil, site: String? = nil, artwork: Data? = nil,
-         canonicalURL: String? = nil, host: String? = nil) {
+         canonicalURL: String? = nil, host: String? = nil, folderID: UUID? = nil, folderName: String? = nil) {
         self.id = id
         self.document = document
         self.detectedLanguage = detectedLanguage
@@ -31,6 +36,8 @@ struct SpeechSession: Equatable, Sendable, Identifiable {
         self.artwork = artwork
         self.canonicalURL = canonicalURL
         self.host = host
+        self.folderID = folderID
+        self.folderName = folderName
     }
 
     /// A page shown in the Reader or extracted for 🎧.

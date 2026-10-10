@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Append-only JSONL timing log for Listen / local-engine latency analysis.
 ///
@@ -14,7 +15,9 @@ import Foundation
 /// `app_launch`, `kokoro_init_start/end`, `reader_open`, `play`, `first_audio`,
 /// `synth` (one engine call: chars, wall_ms, audio_s, ok, err), `chunk_ready`, `paragraph_ready`,
 /// `unit_wait` (producer waited for a chunk: wait_ms, worker_busy_other, other_key/p),
-/// `buffering` (Preparing next interval: p, dur_ms), `fallback_apple`, `skip`, `engine_probe`, `retired_engine_cleanup`.
+/// `buffering` (Preparing next interval: p, dur_ms), `fallback_apple`, `skip`, `engine_probe`, `retired_engine_cleanup`,
+/// `chapter_advance` (a chapter ended: what plays next), `chapter_staged`, `chapter_boundary` (the
+/// next chapter became audible: gap_ms, deactivated, lock_screen_cleared).
 enum ListenTimingLog {
     private static let queue = DispatchQueue(label: "reader.listen-timing", qos: .utility)
     private static let maxBytes: UInt64 = 2 * 1024 * 1024
@@ -34,7 +37,13 @@ enum ListenTimingLog {
         Int(((CFAbsoluteTimeGetCurrent() - start) * 1000).rounded())
     }
 
-    static func log(_ event: String, _ fields: [String: Any] = [:]) {
+    /// Lines also sent to the unified log (`console`), readable live in Console.app with the
+    /// filter `subsystem:com.jimmyyao.Reader category:ListenTiming`.
+    private static let console = Logger(subsystem: "com.jimmyyao.Reader", category: "ListenTiming")
+
+    /// Appends one line. `console`: the line goes to the unified log too (a few events a device
+    /// check reads as they happen, such as `chapter_boundary`).
+    static func log(_ event: String, _ fields: [String: Any] = [:], console mirrored: Bool = false) {
         var obj = fields
         obj["t"] = (Date().timeIntervalSince1970 * 1000).rounded() / 1000
         obj["ev"] = event
@@ -43,6 +52,9 @@ enum ListenTimingLog {
                   let data = try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys])
             else { return }
             write(data + Data("\n".utf8))
+            if mirrored, let line = String(data: data, encoding: .utf8) {
+                console.notice("\(line, privacy: .public)")
+            }
         }
     }
 
