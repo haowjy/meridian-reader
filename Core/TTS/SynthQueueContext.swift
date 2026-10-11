@@ -21,6 +21,11 @@ protocol SynthQueueContext: AnyObject {
     /// Article whose audio is playing right now (nil = none): its renders run at listener
     /// priority, and it is the only article baked ahead in the background.
     var playingCacheKey: UUID? { get }
+    /// Listening time ready ahead of the playhead of the article playing: seconds of rendered
+    /// audio the player can play without another render, at the listen speed. Counted up to
+    /// `limit`; 0 when nothing plays. Background bursts start and stop on it
+    /// (`BackgroundRenderWatermarks`).
+    func readyAheadSeconds(upTo limit: TimeInterval) -> TimeInterval
 }
 
 extension SynthQueueContext {

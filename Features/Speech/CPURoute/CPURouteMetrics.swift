@@ -31,14 +31,6 @@ enum CPURouteMetrics {
         #endif
     }
 
-    /// User + system CPU time of the whole process (all threads, incl. ORT's pool), seconds.
-    static func cpuSeconds() -> Double {
-        var r = rusage()
-        getrusage(RUSAGE_SELF, &r)
-        func s(_ t: timeval) -> Double { Double(t.tv_sec) + Double(t.tv_usec) / 1_000_000 }
-        return s(r.ru_utime) + s(r.ru_stime)
-    }
-
     static func mb(_ bytes: UInt64) -> Double { (Double(bytes) / 1_048_576 * 10).rounded() / 10 }
 
     static var thermal: String {

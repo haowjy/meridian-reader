@@ -234,10 +234,10 @@ final class CPURouteBench {
     private nonisolated static func timed(_ session: KokoroONNXSession, _ inputs: KokoroCPUInputs,
                                           qos: DispatchQoS.QoSClass) async throws -> Timed {
         try await KokoroONNXSession.onQueue(qos) {
-            let cpu0 = CPURouteMetrics.cpuSeconds()
+            let cpu0 = ProcessCPUTime.seconds
             let t0 = CFAbsoluteTimeGetCurrent()
             let samples = try session.run(inputs)
-            return Timed(samples: samples, wall: CFAbsoluteTimeGetCurrent() - t0, cpu: CPURouteMetrics.cpuSeconds() - cpu0)
+            return Timed(samples: samples, wall: CFAbsoluteTimeGetCurrent() - t0, cpu: ProcessCPUTime.seconds - cpu0)
         }
     }
 

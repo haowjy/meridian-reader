@@ -1,9 +1,10 @@
+import AVFoundation
 import Foundation
 @testable import MeridianReader
 
 /// `ListenUnitSource` for player tests: every paragraph is rendered as `rendered` (nil: nothing
-/// rendered, and every chunk fails as an engine error), one chunk per paragraph, an idle worker.
-/// `prepare` can be held open with a gate (a model load in flight).
+/// rendered, and every chunk fails as an engine error) except those in `unrendered`, one chunk per
+/// paragraph, an idle worker. `prepare` can be held open with a gate (a model load in flight).
 @MainActor
 final class FakeUnitSource: ListenUnitSource {
     struct EngineFailure: LocalizedError { var errorDescription: String? { "fake engine failure" } }
@@ -13,6 +14,9 @@ final class FakeUnitSource: ListenUnitSource {
     let engineName = "Fake"
     var rendersInBackground = false
     private let rendered: URL?
+    private let renderedDuration: TimeInterval
+    /// Paragraphs with no rendered audio (`renderedParagraph` is nil).
+    var unrendered: Set<Int> = []
     private let prepareGate: TestGate?
     /// Texts rendered with Apple, in order.
     private(set) var appleRenders: [String] = []
@@ -21,6 +25,8 @@ final class FakeUnitSource: ListenUnitSource {
     init(paragraphs: [String], rendered: URL?, prepareGate: TestGate? = nil) {
         self.paragraphs = paragraphs
         self.rendered = rendered
+        self.renderedDuration = rendered.flatMap { try? AVAudioFile(forReading: $0) }
+            .map { Double($0.length) / $0.fileFormat.sampleRate } ?? 0
         self.prepareGate = prepareGate
     }
 
@@ -29,7 +35,8 @@ final class FakeUnitSource: ListenUnitSource {
     }
 
     func renderedParagraph(_ paragraph: Int) -> RenderedParagraph? {
-        rendered.map { RenderedParagraph(url: $0, chunkDurations: nil) }
+        guard !unrendered.contains(paragraph) else { return nil }
+        return rendered.map { RenderedParagraph(url: $0, duration: renderedDuration, chunkDurations: nil) }
     }
 
     func chunks(paragraph: Int) -> [String] { [paragraphs[paragraph]] }

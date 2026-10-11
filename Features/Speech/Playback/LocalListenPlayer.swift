@@ -108,6 +108,33 @@ final class LocalListenPlayer {
     /// The next paragraph the producer will enqueue.
     var nextParagraphToProduce: Int { nextProduceIndex }
 
+    /// Listening time the player can play from here without another render, in seconds at the
+    /// listen speed: the rest of the unit playing, the units queued, then the paragraphs after them
+    /// already rendered, up to the first that isn't (one with nothing speakable is no gap). Counts
+    /// up to `limit`; 0 when stopped. The render queue's background bursts start and stop on it.
+    func readyAheadSeconds(upTo limit: TimeInterval) -> TimeInterval {
+        guard let source else { return 0 }
+        let rate = Double(max(player.playbackRate, 0.1))
+        var audio = player.bufferedSecondsAhead
+        var index = nextProduceIndex
+        if nextProduceChunk > 0 {
+            // Mid-paragraph: the rest of it counts once it is stitched (chunk durations known).
+            guard let durations = source.renderedParagraph(index)?.chunkDurations,
+                  durations.count > nextProduceChunk else { return audio / rate }
+            audio += durations[nextProduceChunk...].reduce(0, +)
+            index += 1
+        }
+        while index < source.paragraphs.count, audio / rate < limit {
+            if let rendered = source.renderedParagraph(index) {
+                audio += rendered.duration
+            } else if !source.chunks(paragraph: index).isEmpty {
+                break
+            }
+            index += 1
+        }
+        return audio / rate
+    }
+
     // MARK: - Listen debug
     var debugEpoch: Int { epoch }
     var debugCurrentCAF: String { player.currentFileName ?? "—" }

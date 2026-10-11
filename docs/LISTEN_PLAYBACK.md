@@ -235,7 +235,9 @@ queue"), so its opening is on disk when it starts; not when its audio is held fo
 library work (`ArticleAudioCache.held`), which a render would overwrite. In the background on a route that can't render
 there (Core ML), no model call starts, so a chapter not rendered in full plays in Apple's voice
 until the app is in front again, when the on-device engine takes over at the next paragraph (D9).
-The ONNX route renders in the background and keeps its voice. The catch-up bake at the end of a
+The ONNX route renders in the background and keeps its voice; there the next chapter's opening
+renders in a background burst, once less than 4 min of the chapter playing is ready ahead
+("Rendering in the background"). The catch-up bake at the end of a
 page runs only for pages outside books and series, and finished chapters more than 2 behind the
 book's place lose their audio, keeping their text (D7), except audio held for unfinished library
 work.
@@ -292,7 +294,7 @@ Mode is on (`BakeConditions`) and resumes on the change notification. Before eve
 |---|---|---|
 | active | render | render |
 | inactive | render | listener's chunks only; bake-ahead parks |
-| background | listener's chunks + bake-ahead of the playing article and the staged next chapter; other articles park | no model call: a listener's chunk plays with Apple, bake-ahead parks |
+| background | listener's chunks; bake-ahead of the playing article and the staged next chapter during a burst (below); other articles park | no model call: a listener's chunk plays with Apple, bake-ahead parks |
 
 The renderer checks it again right before each model call (`LocalChunkRenderer`,
 `RenderAdmission.modelCallsAllowed`): no Core ML call ever starts in the background (no GPU
@@ -524,13 +526,37 @@ and resume goes through session intents):
 | Media services reset | Reconfigure the category and pause |
 
 **Rendering in the background.** `AppRunState` mirrors `UIApplication` (active / inactive /
-background), thread-safe; admission follows the table in "Render queue". On the ONNX route the
-playing article keeps rendering. On the Core ML route a paragraph that isn't rendered yet plays
-with Apple (`AVSpeechSynthesizer.write` into a temp CAF, played in order, not cached) until the
-app is back in the foreground; a chunk that failed because of backgrounding is never replaced
-with Apple audio in the cache. `BackgroundGrace` (`beginBackgroundTask`) holds `ReaderListenGap`
-while the player waits for audio in the background and `ReaderSynthDrain` so a chunk in flight at
-backgrounding can finish and write its CAF; neither permits GPU work.
+background), thread-safe; admission follows the table in "Render queue". On the Core ML route a
+paragraph that isn't rendered yet plays with Apple (`AVSpeechSynthesizer.write` into a temp CAF,
+played in order, not cached) until the app is back in the foreground; a chunk that failed because
+of backgrounding is never replaced with Apple audio in the cache.
+
+The ONNX route renders in the background, within limits: rendering a whole article back to back
+there got the app killed by iOS about a minute after the phone locked (3 threads, 1.0–1.3 GB).
+So in the background:
+
+- **One thread.** Kokoro's ONNX session runs 1 intra-op thread in the background and the
+  configured count (3) in front. ONNX Runtime fixes the count when a session is built, so the
+  first call after a phase change rebuilds the session, between chunks (`KokoroONNXSessionSlot`,
+  `kokoro_cpu_threads_switch`); the old session is released first.
+- **Bursts between watermarks** (`BackgroundRenderWatermarks`, `BackgroundRenderBursts`). The
+  measure is the listening time ready ahead: the rest of the unit playing, the units queued in the
+  player and the rendered paragraphs after them up to the first gap, in seconds at the listen
+  speed (`LocalListenPlayer.readyAheadSeconds`). Bake-ahead of the playing article (and of the
+  staged next chapter) starts a burst below 4 min and renders chunk after chunk until 8 min are
+  ready; between the two marks nothing new starts. Between bursts the worker is idle: each unit
+  that starts playing, and a resume, wakes it if less than 4 min is left (no timer, no polling).
+  A chunk the player is waiting for renders whatever is ready ahead. Only paragraphs from the
+  playhead on render in the background: after listening from mid-article, the paragraphs above
+  the playhead wait for the foreground (they add nothing ahead, so a burst rendering them would
+  never reach 8 min). In front (inactive included) the marks don't apply.
+- **No background task per chunk.** Playing audio keeps the app alive while it renders.
+  `BackgroundGrace` (`beginBackgroundTask`) holds `ReaderSynthDrain` only so the chunk in flight
+  when the app leaves the foreground can finish and write its CAF, and `ReaderListenGap` while the
+  player waits for audio in the background; neither permits GPU work.
+
+When rendering can't keep up (one thread, a fast listen speed), the head-start rule and the
+fallbacks above still apply: a paragraph that would starve playback plays with Apple.
 
 ## Diagnostics
 
@@ -549,8 +575,11 @@ Developer options on (`NAVIGATION.md` → "Developer options"):
 `timing.1.jsonl`): launch, open, play, model load, every `synth` call (chars, wall ms, audio s,
 phonemes, `mem_mb`), chunk / paragraph ready and failed, waits, first audio, buffering, Apple
 fallback, skips, app phase and background events, remote commands, interruptions, migrations,
-cache prunes, chapter boundaries (`chapter_advance`, `chapter_staged`, `chapter_boundary`) and a
-session stopped rather than moved onto a key holding other text (`session_rekey`).
+cache prunes, chapter boundaries (`chapter_advance`, `chapter_staged`, `chapter_boundary`), a
+session stopped rather than moved onto a key holding other text (`session_rekey`), background
+bursts (`bg_render_burst_start` with `ready_ahead_s`; `bg_render_burst_stop` with `ready_ahead_s`,
+`reason`, `chunks`, `wall_s`, `cpu_s` and `cpu_pct`, the process's CPU over wall time, 100 = one
+core) and ONNX thread switches (`kokoro_cpu_threads_switch`).
 A few lines (`chapter_advance`, `chapter_boundary`) also go to the unified log, readable live in
 Console.app with the filter `subsystem:com.jimmyyao.Reader category:ListenTiming`. Pull the
 file from a device:
@@ -616,8 +645,9 @@ Measure on a device with a **Release** build: FluidAudio in Debug is ~3× slower
 - Consecutive paragraphs have near-zero gaps when rendered ahead.
 - A unit Kokoro can't render plays with Apple; playback never goes silent or freezes.
 - Skip / jump re-prioritizes from the new playhead; after listening from mid-article, rendering
-  returns to the top so the whole article ends up on disk.
-- Background: baked audio plays, the playing article keeps rendering on the ONNX route, nothing
+  returns to the top (in front) so the whole article ends up on disk.
+- Background: baked audio plays, the playing article renders in bursts on one thread on the ONNX
+  route (`bg_render_burst_*` lines; the app survives a locked listen), nothing
   renders with Core ML.
 
 Unit tests by area: `PlaybackSeekTests`, `PlaybackObservationTests`, `ListenPositionTests`,
@@ -625,4 +655,5 @@ Unit tests by area: `PlaybackSeekTests`, `PlaybackObservationTests`, `ListenPosi
 `RenderAdmissionTests`, `TextChunkerTests`, `HierarchicalChunkerTests`, `FirstChunkBoundaryTests`,
 `ChunkEdgeTrimTests`, `ParagraphSplitTests`, `ParagraphLayoutMigrationTests`, `VoiceSwitchTests`,
 `BackgroundListeningTests`, `BrowseSaveWhilePlayingTests`; books and series: `ChapterAdvanceTests`,
-`PlaybackAdvanceTests`, `GlobalSynthQueueStagingTests`, `NowPlayingMetadataTests`.
+`PlaybackAdvanceTests`, `GlobalSynthQueueStagingTests`, `NowPlayingMetadataTests`; background
+rendering: `BackgroundRenderBurstTests`, `KokoroBackgroundThreadsTests`.

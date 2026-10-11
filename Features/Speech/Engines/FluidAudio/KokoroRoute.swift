@@ -34,6 +34,16 @@ struct KokoroRouteSettings {
     /// audio; ORT with 3 threads ran ≈4–5× real time on the M3 Mac. Debug-overridable.
     static let defaultThreads = 3
     static let threadRange = 1...6
+    /// ONNX intra-op threads while the app is in the background, whatever `cpuThreads` says: iOS
+    /// kills a backgrounded app that keeps several cores busy (it died about a minute after the
+    /// phone locked, rendering at 3 threads).
+    static let backgroundThreads = 1
+
+    /// Threads for a model call in `phase`: `configured` while the app is in front (inactive
+    /// included), `backgroundThreads` in the background.
+    static func onnxThreads(configured: Int, phase: AppRunState.Phase) -> Int {
+        phase == .background ? backgroundThreads : configured
+    }
 
     let defaults: UserDefaults
 

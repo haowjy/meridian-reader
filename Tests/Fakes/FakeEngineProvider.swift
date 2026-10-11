@@ -160,6 +160,10 @@ final class FakeQueueContext: SynthQueueContext, SynthChunkRendering {
     var activeRouteRendersInBackground: Bool { host.rendersInBackground }
     /// Article "playing" right now (listener priority; background bake-ahead scope on the CPU route).
     var playingCacheKey: UUID?
+    /// Listening time ready ahead of the playhead, asked before each background bake-ahead chunk
+    /// (0: none, so a background burst runs until nothing is left).
+    var readyAhead: () -> TimeInterval = { 0 }
+    func readyAheadSeconds(upTo limit: TimeInterval) -> TimeInterval { min(readyAhead(), limit) }
     func noteBakeMarksChanged() {}
     func bakeCompleted(cacheKey: UUID) { completed.append(cacheKey) }
 

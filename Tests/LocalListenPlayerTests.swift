@@ -89,6 +89,30 @@ final class LocalListenPlayerTests: XCTestCase {
         XCTAssertFalse(player.isSpeaking)
     }
 
+    /// The listening time ready ahead (what background rendering starts and stops on): the units in
+    /// the player, then the rendered paragraphs after them up to the first gap, at the listen speed.
+    func testReadyAheadCountsBufferedThenRenderedAudioToTheFirstGapAtTheListenSpeed() async throws {
+        let queue = ChunkPlaybackQueue(maxBuffered: 8)
+        let baked = try tone(seconds: 30)
+        let player = makePlayer(queue)
+        defer { player.stop() }
+        XCTAssertEqual(player.readyAheadSeconds(upTo: 10_000), 0, "stopped")
+
+        let source = FakeUnitSource(paragraphs: (0..<12).map { "Paragraph \($0)." }, rendered: baked)
+        source.unrendered = [10]
+        try await player.play(source, from: 0, chunk: 0, fractionInChunk: 0)
+        await settle { player.nextParagraphToProduce == 8 && !player.isProducing }
+        player.pause()
+        let elapsed = queue.currentPosition?.time ?? 0
+        // 8 units in the player + paragraphs 8 and 9; paragraph 10 isn't rendered.
+        XCTAssertEqual(player.readyAheadSeconds(upTo: 10_000), 10 * 30 - elapsed, accuracy: 0.5)
+        XCTAssertEqual(player.readyAheadSeconds(upTo: 100), 8 * 30 - elapsed, accuracy: 0.5,
+                       "past the limit, later paragraphs aren't counted")
+
+        player.setPlaybackRate(2)
+        XCTAssertEqual(player.readyAheadSeconds(upTo: 10_000), (10 * 30 - elapsed) / 2, accuracy: 0.5)
+    }
+
     func testAChunkTheEngineCannotRenderPlaysWithApple() async throws {
         let queue = ChunkPlaybackQueue(maxBuffered: 8)
         let player = makePlayer(queue)

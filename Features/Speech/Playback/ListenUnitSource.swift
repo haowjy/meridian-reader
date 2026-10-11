@@ -36,6 +36,8 @@ protocol ListenUnitSource: AnyObject {
 
 struct RenderedParagraph: Equatable {
     var url: URL
+    /// Seconds of audio in `url` (at 1×).
+    var duration: TimeInterval
     /// Durations of the chunks stitched into `url` (nil: a single render, or unknown).
     var chunkDurations: [TimeInterval]?
 }
@@ -84,7 +86,8 @@ final class QueueUnitSource: ListenUnitSource {
         guard let url = cache.playableAudioURL(articleID: articleID, paragraphIndex: paragraph,
                                                engineID: cacheEngineID, voiceID: voiceKey),
               cache.isUsableAudioFile(url) else { return nil }
-        return RenderedParagraph(url: url, chunkDurations: chunkDurations(paragraph: paragraph))
+        let entry = cache.entry(articleID: articleID, paragraphIndex: paragraph)
+        return RenderedParagraph(url: url, duration: entry?.duration ?? 0, chunkDurations: entry?.chunkDurations)
     }
 
     /// Rendered in this play's voice (not an older voice's file awaiting re-render).
