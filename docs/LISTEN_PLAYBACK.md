@@ -25,7 +25,7 @@ into ArticleAudioCache, admitted by RenderAdmission.
 | Field | Meaning |
 |--------|---------|
 | `articleID` | Session identity (the saved article's id / `SpeechSession.id`) |
-| `folderID` | The book or series the page is a chapter of (nil: it plays to its end and stops) |
+| `folderID` | The folder the page is in, which playback carries on through (nil: it plays to its end and stops) |
 | `document` | Ordered paragraphs (one page: paragraph indices stay page-local in a book) |
 | `playhead` + `utf16Offset` | The position: paragraph and document UTF-16 offset of the spot being spoken |
 | `phase` | `idle → prepared → playing ↔ paused → finished` |
@@ -42,7 +42,7 @@ Phase and position change only through:
   `skip`, `seek`, `seekOffset`;
 - **engine events**: `becameAudible`, `becamePaused`, `position(paragraph, utf16)`, `finished`
   (`statusChanged` only tells the controller to re-read the listen-bar status);
-- **page inputs** inside a book or series (`PlaybackPageInput`, "Books and series" below):
+- **page inputs** inside a folder (`PlaybackPageInput`, "Books, series and folders" below):
   `advance` (the next chapter replaces the page in place) and `awaitPage`.
 
 Rules:
@@ -66,11 +66,11 @@ Rules:
 
 - **`nowPlaying`** (`NowPlaying`): the bound page's key, canonical URL, title, source (its host,
   or the book's or series' name for a chapter), artwork, where it plays from
-  (`PlayingFrom.site(host:)`) and phase. nil only before anything has played and after Stop
+  (`PlayingFrom.folder(id:name:)` for a page in a folder, else `.site(host:)`) and phase. nil only before anything has played and after Stop
   Listening.
 - **`playState(of:)`** for a `ListenTarget` (`.page(key)`, `.webPage(canonicalURL:)`, compared
   as strings so a saved article with a pre-v2 random id still matches its page, or `.folder(id)`,
-  current while any chapter of that book or series is bound): `idle`,
+  current while any page of that folder is bound): `idle`,
   `preparing` (the target of the current `beginPreparing` request, e.g. 🎧 while its page is
   extracted; a newer request, Stop Listening and every other playback intent end it, and only a
   request that `isStillPreparing` may start),
@@ -155,10 +155,11 @@ position, dates each start (`lastPlayedAt`, unfinished again) and marks the end 
 holding the page it writes to rather than fetching it per paragraph. A page started from a
 `ReaderArticle` (`SpeechController.onListen`: the Reader's Listen, 🎧) is recorded from it on its
 first start, so a page the library doesn't have is kept with its text: played without saving,
-not in the Library, pruned 7 days after its last play. For a chapter of a book or series the
-same writes also move the book's place (`Folder.currentPageKey`, `lastPlayedAt`, unfinished
-again) to the chapter that starts, and the last playable chapter's end finishes the book
-(`LibraryStore+Chapters`). A write whose save fails waits in the context for the next save, and
+not in the Library, pruned 7 days after its last play. For a page in a folder (a book's or
+series' chapter, or a page in any folder you made or Favorites) the same writes also move the
+folder's place (`Folder.currentPageKey`, `lastPlayedAt`, unfinished again) to the page that
+starts, and the last playable page's end finishes the folder (`LibraryStore+Chapters`). A page
+filed elsewhere takes the place off its old folder (to the page before it). A write whose save fails waits in the context for the next save, and
 a failed edit's rollback doesn't drop it: `LibraryStore` keeps the progress it hasn't stored
 (`PendingListening`: a start, and the text it played when the store may not hold it, from the
 article it came from or a copy of the page's own; the position; the end) and writes it again
@@ -194,19 +195,25 @@ playing, or a resume file an older build wrote) counts only when it is the page'
 paragraph, which the recorder writes on every paragraph; otherwise it opens the page paused at its
 own spot the same way. The position is then the recorder's to store, from the session bound.
 
-### Books and series
+### Books, series and folders
 
-A book or series carries on from chapter to chapter, then stops; any other page plays to its end
-and stops. `SpeechSession.folderID` (and `folderName`) say which book a page is a chapter of: a
-library page's session fills them (`SpeechSession.page`), and `listen(to:)` asks the library for a
-page started from an article (the Reader's Listen on a chapter). The rule is `ChapterAdvance`,
-pure, on a snapshot of the folder's chapters in their full play order
-(`LibraryStore.chapterSnapshot`, skipped chapters included and flagged): after a chapter, the
-next one that isn't *Skip in Playback*: a saved chapter plays, a series chapter not fetched yet
-(a link) is fetched first, a locked one or one that needs the browser ends playback with its
-notice. Continue on a book (`ChapterAdvance.start`, `LibraryStore.continueStart`) starts at its
-place, at the saved spot while unfinished, else at the next chapter; a finished book starts
-again from its first chapter. The controller reaches the library through `NextChapterProviding`
+A page in a folder carries on through it, page to page, then stops; a page in no folder plays to
+its end and stops. A book or series plays in its source order; any other folder (Favorites, a
+folder you made) in its sort, which is the order its screen shows (decision D15).
+`SpeechSession.folder` (`PlaybackFolder`: id, name, whether it is a book or series) says which
+folder a page is in: a library page's session fills it (`SpeechSession.page`), and `listen(to:)`
+asks the library for a page started from an article (the Reader's Listen, 🎧). A book's name is
+the bar's source; any other folder's pages keep their site there, and Now Playing's "Playing
+from" names the folder either way. The rule is `ChapterAdvance`, pure, on a snapshot of the
+folder's pages in their full play order (`LibraryStore.chapterSnapshot`, skipped ones included
+and flagged): after a page, the next one that isn't skipped: a saved page plays, a series
+chapter not fetched yet (a link) is fetched first, a locked one or one that needs the browser
+ends playback with its notice. A link page outside a series has nothing to fetch it, so it is
+skipped. Continue on a folder (`ChapterAdvance.start`, `LibraryStore.continueStart`) starts at its
+place (the page that last played, which the recorder keeps), at the saved spot while
+unfinished, else at the next page; with no place yet, at the first page's own saved spot; a
+finished folder starts again from its first page. Catch-up baking at the end of a page, and the
+D7 trim of finished chapters' audio, stay with books and series. The controller reaches the library through `NextChapterProviding`
 (`chapters(of:)`, `load`, `fetch`, `pageFinished`), injected by `AppComposition`, so the speech
 stack never touches SwiftData.
 

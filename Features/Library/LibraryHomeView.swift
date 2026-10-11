@@ -5,7 +5,9 @@ import SwiftUI
 /// top-level folders (Favorites first), then *Pages*: pages played without saving, marked "Not
 /// saved", then the pages in no folder (first five in all, newest first; *Show All* pushes the
 /// rest). Nothing here appears or goes away because playback starts or ends: rows carry their own
-/// place and ▶, and the Now Playing bar resumes the last thing you heard.
+/// place and ▶, and the Now Playing bar resumes the last thing you heard. A long press lifts a row
+/// to drop on a folder or between rows (`LibraryDrag`); placing a page between pages makes the
+/// top level's sort *Manual*.
 ///
 /// ```
 /// Library                                   title, scrolls away

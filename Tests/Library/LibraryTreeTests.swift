@@ -153,13 +153,13 @@ final class LibraryTreeTests: XCTestCase {
     func testReorderWritesFractionalKeysAndRenumbersWhenTheGapIsTiny() throws {
         let folder = try library.makeFolder(name: "F", in: nil)
         let pages = try ["a", "b", "c", "d"].map { try savedPage($0, in: folder) }
-        try library.reorder([pages[3]], in: folder, before: pages[1])
+        try library.arrange([pages[3]], in: folder, before: pages[1], shownIn: .manual)
         XCTAssertEqual(library.pages(in: folder).map(\.title), ["a", "d", "b", "c"])
-        try library.reorder([pages[0]], in: folder, before: nil)
+        try library.arrange([pages[0]], in: folder, before: nil, shownIn: .manual)
         XCTAssertEqual(library.pages(in: folder).map(\.title), ["d", "b", "c", "a"])
         for _ in 0..<80 {
-            try library.reorder([pages[2]], in: folder, before: pages[1])
-            try library.reorder([pages[1]], in: folder, before: pages[2])
+            try library.arrange([pages[2]], in: folder, before: pages[1], shownIn: .manual)
+            try library.arrange([pages[1]], in: folder, before: pages[2], shownIn: .manual)
         }
         XCTAssertEqual(library.pages(in: folder).map(\.title), ["d", "b", "c", "a"], "many moves never collide")
         let keys = library.pages(in: folder).map(\.sortKey)

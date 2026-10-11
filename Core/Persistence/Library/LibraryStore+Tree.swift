@@ -109,6 +109,7 @@ extension LibraryStore {
                     folderKey += 1
                 case .page(let page):
                     guard page.folder !== destination else { continue }
+                    movePlaceOff(page)
                     page.setFolder(destination)
                     page.sortKey = pageKey
                     pageKey += 1
@@ -117,17 +118,25 @@ extension LibraryStore {
         }
     }
 
-    private func checkMove(_ item: LibraryItem, to destination: Folder?) throws {
-        if let destination, destination.kind.isFixed { throw LibraryTreeError.fixedDestination }
+    /// Why `item` can't go into `destination` (the top level if nil), or nil when it can: the
+    /// rules every move, Move tree pick and drop follows (`LibraryTreeError`). Asked while a row is
+    /// dragged over a folder, so the folder shows whether it takes the drop.
+    func moveRefusal(_ item: LibraryItem, to destination: Folder?) -> LibraryTreeError? {
+        if let destination, destination.kind.isFixed { return .fixedDestination }
         switch item {
         case .folder(let folder):
-            if folder.kind == .favorites, destination != nil { throw LibraryTreeError.favoritesIsPinned }
+            if folder.kind == .favorites, destination != nil { return .favoritesIsPinned }
             if let destination, destination === folder || destination.ancestors.contains(where: { $0 === folder }) {
-                throw LibraryTreeError.cycle
+                return .cycle
             }
         case .page(let page):
-            if page.isInFixedFolder, page.folder !== destination { throw LibraryTreeError.leavesFixedFolder }
+            if page.isInFixedFolder, page.folder !== destination { return .leavesFixedFolder }
         }
+        return nil
+    }
+
+    private func checkMove(_ item: LibraryItem, to destination: Folder?) throws {
+        if let refusal = moveRefusal(item, to: destination) { throw refusal }
     }
 
     /// Deletes a folder. `keepContents` (*Delete Folder Only*): its subfolders and pages move up
@@ -189,27 +198,48 @@ extension LibraryStore {
         context.delete(folder)
     }
 
-    /// Moves `pages` (siblings in `folder`, or in no folder) to just before `before` (the end if
-    /// nil): one fractional `sortKey` write per page, renumbering the siblings in one pass when
-    /// a gap gets under `FractionalOrder.minimumGap`. Not for books and series.
-    func reorder(_ pages: [Page], in folder: Folder?, before: Page?) throws {
-        guard folder?.kind.isFixed != true else { return }
-        let siblings: [Page]
-        if let folder {
-            siblings = (try? context.fetch(LibraryQueries.pages(inFolder: folder.id, sort: .manual))) ?? []
-        } else {
-            siblings = (try? context.fetch(FetchDescriptor<Page>(predicate: #Predicate { $0.folderID == nil },
-                                                                 sortBy: LibraryQueries.sortDescriptors(.manual)))) ?? []
+    /// Places `pages` just before `before` (the end if nil) among the pages of `folder` (the top
+    /// level if nil), in their order, coming from wherever they are: Edit's drag handles, and a
+    /// row dropped between rows. One fractional `sortKey` write per page, renumbering the siblings
+    /// in one pass when a gap gets under `FractionalOrder.minimumGap`.
+    ///
+    /// The order becomes the folder's own (*Manual*). `shownIn` is the sort the pages are shown
+    /// in, where the drop was made: when it isn't *Manual*, the siblings are first numbered in
+    /// that order, so the page lands between the rows it was dropped between. (The top level's
+    /// sort is kept on the device, `LibraryTopLevel`; its caller switches it.)
+    ///
+    /// Refuses, changing nothing, what `move` refuses: a book's or series' order is its source's,
+    /// so nothing is placed in one and its chapters don't leave it. One save; a save that fails
+    /// leaves every page where it was, in its order.
+    func arrange(_ pages: [Page], in folder: Folder?, before: Page?, shownIn sort: PageSort) throws {
+        for page in pages { try checkMove(.page(page), to: folder) }
+        try edit("arrange") {
+            let shown = folder.map { LibraryQueries.pages(inFolder: $0.id, sort: sort) } ?? LibraryQueries.loosePages(sort: sort)
+            let siblings = (try? context.fetch(shown)) ?? []
+            if sort != .manual {
+                for (index, page) in siblings.enumerated() { page.sortKey = Double(index) }
+            }
+            folder?.pageSort = .manual
+            for page in pages where page.folder !== folder {
+                movePlaceOff(page)
+                page.setFolder(folder)
+            }
+            FractionalOrder.move(pages, among: siblings, before: before, key: \.sortKey)
         }
-        try edit("reorder") { FractionalOrder.move(pages, among: siblings, before: before, key: \.sortKey) }
     }
 
-    /// Moves `folders` (siblings under `parent`, or at the top level) to just before `before` (the
-    /// end if nil), the same way. Favorites stays first among the top-level folders whatever its
-    /// key.
-    func reorderFolders(_ folders: [Folder], in parent: Folder?, before: Folder?) throws {
-        let siblings = parent.map(subfolders(of:)) ?? topLevelFolders()
-        try edit("reorder folders") { FractionalOrder.move(folders, among: siblings, before: before, key: \.sortKey) }
+    /// Places `folders` just before `before` (the end if nil) among the subfolders of `parent`
+    /// (the top level if nil), coming from wherever they are, the same way. Favorites stays first
+    /// among the top-level folders whatever its key. Refuses, changing nothing, what `move`
+    /// refuses: a folder into itself or below itself, into a book or series, Favorites below the
+    /// top level.
+    func arrange(_ folders: [Folder], in parent: Folder?, before: Folder?) throws {
+        for folder in folders { try checkMove(.folder(folder), to: parent) }
+        try edit("arrange folders") {
+            let siblings = parent.map(subfolders(of:)) ?? topLevelFolders()
+            for folder in folders where folder.parent !== parent { folder.parent = parent }
+            FractionalOrder.move(folders, among: siblings, before: before, key: \.sortKey)
+        }
     }
 
     /// What deleting `folder` and its contents takes with it, for the confirmation: subfolders,

@@ -290,8 +290,8 @@ extension LibraryStore {
 
     // MARK: - Pieces
 
-    /// A book's or series' place (`currentPageKey`) on `page` moves to the chapter before it
-    /// (none if it was the first).
+    /// A folder's place (`currentPageKey`) on `page`, which leaves it or goes, moves to the page
+    /// before it (none if it was the first).
     func movePlaceOff(_ page: Page) {
         guard let folder = page.folder, let key = page.key, folder.currentPageKey == key else { return }
         let order = playOrder(of: folder)

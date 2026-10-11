@@ -65,6 +65,28 @@ final class PlaybackAdvanceTests: XCTestCase {
         XCTAssertEqual(speech.activeFolderID, book.folder.id)
     }
 
+    /// A folder you made carries on the same way; it is what the pages play from, and the bar
+    /// keeps each page's own site.
+    func testAFolderOfPagesCarriesOnPageToPage() {
+        let folder = FakeChapterLibrary(name: "Finance", isFixed: false, [.init(title: "Page 1"), .init(title: "Page 2")])
+        play(folder, chapter: 0)
+        apple.emit(.becameAudible)
+        XCTAssertEqual(speech.nowPlaying?.playingFrom, .folder(id: folder.folder.id, name: "Finance"))
+        XCTAssertEqual(speech.nowPlaying?.source, "An Author", "the page's site, not the folder")
+        finishChapter()
+
+        XCTAssertEqual(speech.activeSessionID, folder.key(1), "page 2 is what you hear")
+        XCTAssertEqual(speech.playbackPhase, .playing)
+        XCTAssertEqual(apple.plays.last?.articleID, folder.key(1))
+        XCTAssertEqual(folder.finished, [folder.key(0)])
+        apple.emit(.becameAudible)
+        XCTAssertEqual(speech.playState(of: .folder(folder.folder.id)), .playing, "the folder's ▶ shows it playing")
+
+        finishChapter()
+        XCTAssertEqual(speech.playbackPhase, .finished, "the end of the folder")
+        XCTAssertEqual(speech.activeSessionID, folder.key(1))
+    }
+
     func testNoDeactivateUnbindOrLockScreenClearBetweenChapters() {
         let book = FakeChapterLibrary(chapters: 3)
         var phases: [PlaybackPhase] = []

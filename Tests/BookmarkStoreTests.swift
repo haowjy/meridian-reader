@@ -59,9 +59,9 @@ final class BookmarkStoreTests: XCTestCase {
         try library.renameFavorite(a, to: "  Alpha ")
         try library.renameFavorite(b, to: "   ") // ignored
         XCTAssertEqual(library.favoritePages().map(\.title), ["Alpha", "B", "C"])
-        try library.reorder([c], in: library.favorites(), before: a)
+        try library.arrange([c], in: library.favorites(), before: a, shownIn: .manual)
         XCTAssertEqual(library.favoritePages().map(\.title), ["C", "Alpha", "B"])
-        try library.reorder([c], in: library.favorites(), before: nil)
+        try library.arrange([c], in: library.favorites(), before: nil, shownIn: .manual)
         XCTAssertEqual(library.favoritePages().map(\.title), ["Alpha", "B", "C"])
         try library.removeFavorite(b)
         XCTAssertEqual(library.favoritePages().map(\.title), ["Alpha", "C"])

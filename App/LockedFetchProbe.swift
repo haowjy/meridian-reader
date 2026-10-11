@@ -445,7 +445,7 @@ private final class ProbeSeries: NextChapterProviding {
     static let keys = [UUID(uuidString: "596065A8-A114-4311-A72A-1B77FBB26BB9")!,
                        UUID(uuidString: "8D5CDA6E-764D-48C0-9A1C-12CED91A7BA6")!]
     static let folder = PlaybackFolder(id: UUID(uuidString: "B27C9A65-67F1-41B6-B116-EFDC26AA94F1")!,
-                                       name: "Locked Fetch Probe")
+                                       name: "Locked Fetch Probe", isFixed: true)
 
     /// Chapter 1: the demo book's first two chapters (a little over two minutes in Apple's voice
     /// at 1×); chapter 2: its third.
@@ -460,8 +460,7 @@ private final class ProbeSeries: NextChapterProviding {
         let texts = [DemoBook.chapters[1].paragraphs + DemoBook.chapters[2].paragraphs, DemoBook.chapters[3].paragraphs]
         sessions = zip(Self.keys, texts).enumerated().map { index, chapter in
             SpeechSession(id: chapter.0, document: ParagraphDocument(parts: chapter.1), detectedLanguage: "en",
-                          title: "Probe Chapter \(index + 1)", site: DemoBook.author, folderID: Self.folder.id,
-                          folderName: Self.folder.name)
+                          title: "Probe Chapter \(index + 1)", site: DemoBook.author, folder: Self.folder)
         }
     }
 

@@ -50,7 +50,7 @@ struct LibrarySearchResults: View {
             if !pages.isEmpty {
                 Section {
                     ForEach(pages, id: \.listenKey) { page in
-                        LibraryPageRow(page: page)
+                        LibraryPageRow(page: page, drags: false)
                     }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Palette.chrome)

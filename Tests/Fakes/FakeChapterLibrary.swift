@@ -22,13 +22,13 @@ final class FakeChapterLibrary: NextChapterProviding {
     var fetchResult = true
     var fetchDelay: TimeInterval = 0
 
-    init(name: String = "The Book", _ specs: [Spec]) {
-        let folder = PlaybackFolder(id: UUID(), name: name)
+    /// `isFixed`: a book or series; false for a folder you made.
+    init(name: String = "The Book", isFixed: Bool = true, _ specs: [Spec]) {
+        let folder = PlaybackFolder(id: UUID(), name: name, isFixed: isFixed)
         self.folder = folder
         sessions = specs.map { spec in
             SpeechSession(id: UUID(), document: ParagraphDocument(parts: spec.paragraphs.map { "\(spec.title): \($0)" }),
-                          detectedLanguage: "en", title: spec.title, site: "An Author", folderID: folder.id,
-                          folderName: name)
+                          detectedLanguage: "en", title: spec.title, site: "An Author", folder: folder)
         }
         chapters = zip(sessions, specs).map { session, spec in
             ChapterAdvance.Chapter(key: session.id, isLink: spec.isLink, skipsInPlayback: spec.skips,

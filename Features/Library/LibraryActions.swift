@@ -60,23 +60,24 @@ struct LibraryActions {
         shell.present(.share(url))
     }
 
-    // MARK: - Books and series
+    // MARK: - Folders
 
     func playState(of folder: Folder) -> PlayState {
         speech.playState(of: .folder(folder.id))
     }
 
-    /// The book's round button: pause or resume while one of its chapters is what you hear;
-    /// otherwise Continue from its place (`LibraryStore.continueStart`).
-    func playBook(_ folder: Folder) {
+    /// A folder's ▶ and its screen's round button (a book, a series, Favorites, a folder you
+    /// made): pause or resume while one of its pages is what you hear; otherwise Continue from
+    /// its place (`LibraryStore.continueStart`), carrying on page to page in its order.
+    func playFolder(_ folder: Folder) {
         speech.press(.folder(folder.id)) {
             guard let start = library.continueStart(of: folder) else { return }
             speech.toggle(.page(start.page), resumeParagraph: start.paragraph, resumeUTF16Offset: start.utf16Offset)
         }
     }
 
-    /// *Play from Start*: the first chapter that plays, from its top.
-    func playBookFromStart(_ folder: Folder) {
+    /// *Play from Start*: the first page that plays, from its top.
+    func playFolderFromStart(_ folder: Folder) {
         guard case .ready(let key) = ChapterAdvance.start(library.chapterSnapshot(of: folder), place: nil) else { return }
         speech.playPage(key)
     }
@@ -175,6 +176,78 @@ struct LibraryActions {
             onMoved()
             return true
         }))
+    }
+}
+
+// MARK: - Dragging
+
+extension LibraryActions {
+    /// The folder or page a dragged row stands for.
+    func item(_ id: LibraryItemID) -> LibraryItem? {
+        switch id {
+        case .folder(let id): library.folder(id: id).map(LibraryItem.folder)
+        case .page(let key): library.page(key: key).map(LibraryItem.page)
+        }
+    }
+
+    /// Whether the row `id` may be dropped into the folder row `row`: what the Move tree allows
+    /// (`LibraryStore.moveRefusal`), so never into a book or series, nor a folder into itself or
+    /// below itself. False when `row` isn't a folder.
+    func canFile(_ id: LibraryItemID, into row: LibraryItemID) -> Bool {
+        guard case .folder(let folderID) = row, let folder = library.folder(id: folderID), let item = item(id) else { return false }
+        return library.moveRefusal(item, to: folder) == nil
+    }
+
+    /// A row dropped on a folder row: filed at the end of that folder, as Move does. False when
+    /// it can't go there, or the move couldn't be saved (a toast says so).
+    func file(_ id: LibraryItemID, into folderID: UUID) -> Bool {
+        guard canFile(id, into: .folder(folderID)), let item = item(id), let folder = library.folder(id: folderID) else { return false }
+        return shell.attempt(String(localized: "Couldn’t move")) { try library.move([item], to: folder) } != nil
+    }
+
+    /// Whether the row `id` may be placed beside the row `row`: a page beside a page in the
+    /// Library, a folder beside a folder, in a container that takes it (not a book's order).
+    func canPlace(_ id: LibraryItemID, beside row: LibraryItemID) -> Bool {
+        guard let item = item(id), let neighbour = self.item(row) else { return false }
+        switch (item, neighbour) {
+        case (.page, .page(let page)):
+            return page.isInLibrary && library.moveRefusal(item, to: page.folder) == nil
+        case (.folder, .folder(let folder)):
+            return library.moveRefusal(item, to: folder.parent) == nil
+        default:
+            return false
+        }
+    }
+
+    /// A row dropped on the `edge` of the row `row`: placed there among `row`'s siblings
+    /// (`LibraryStore.arrange`). A page's folder (or the top level) becomes *Manual*, numbered
+    /// first in the order on screen. nil when it was let go where it already is; false when it
+    /// can't go there or the change couldn't be saved (a toast says so).
+    func place(_ id: LibraryItemID, beside row: LibraryItemID, edge: VerticalEdge) -> Bool? {
+        guard canPlace(id, beside: row), let item = item(id), let neighbour = self.item(row) else { return false }
+        switch (item, neighbour) {
+        case (.page(let page), .page(let other)):
+            let folder = other.folder
+            let sort = folder?.pageSort ?? LibraryTopLevel.sort
+            let siblings = folder.map { library.pages(in: $0) } ?? library.loosePages(sort: sort)
+            guard case .before(let before) = LibraryDropSlot.placement(of: page, beside: other, edge: edge, siblings: siblings)
+            else { return nil }
+            let placed = shell.attempt(String(localized: "Couldn’t change the order")) {
+                try library.arrange([page], in: folder, before: before, shownIn: sort)
+            } != nil
+            if placed, folder == nil { LibraryTopLevel.sort = .manual }
+            return placed
+        case (.folder(let folder), .folder(let other)):
+            let parent = other.parent
+            let siblings = parent.map(library.subfolders(of:)) ?? library.topLevelFolders()
+            guard case .before(let before) = LibraryDropSlot.placement(of: folder, beside: other, edge: edge, siblings: siblings)
+            else { return nil }
+            return shell.attempt(String(localized: "Couldn’t change the order")) {
+                try library.arrange([folder], in: parent, before: before)
+            } != nil
+        default:
+            return false
+        }
     }
 }
 

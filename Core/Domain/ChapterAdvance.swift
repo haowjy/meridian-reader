@@ -1,12 +1,13 @@
 import Foundation
 
-/// The rule for books and series: when a chapter ends, the next playable chapter starts; when
-/// there is none, playback stops. Pure, so it is tested without SwiftData: it works on a snapshot
-/// of the folder's chapters in their full play order (`LibraryStore.chapterSnapshot`), skipped
-/// chapters included, so a chapter marked *Skip in Playback* while it played is still found.
+/// The rule for folders (books and series, and any other folder, decision D15): when a page ends,
+/// the next playable page starts; when there is none, playback stops. Pure, so it is tested
+/// without SwiftData: it works on a snapshot of the folder's pages in their full play order
+/// (`LibraryStore.chapterSnapshot`), skipped ones included, so a chapter marked *Skip in
+/// Playback* while it played is still found.
 ///
-/// A chapter is playable when it isn't skipped: a saved chapter, or a series chapter not fetched
-/// yet (a link), which is fetched first.
+/// A page is playable when it isn't skipped: a saved page, or a series chapter not fetched yet
+/// (a link), which is fetched first. A link anywhere else is skipped.
 enum ChapterAdvance {
     struct Chapter: Equatable {
         var key: UUID

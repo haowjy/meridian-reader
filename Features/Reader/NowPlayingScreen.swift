@@ -9,8 +9,9 @@ import SwiftUI
 /// - The text follows the audio: each new paragraph scrolls near the middle, the spoken
 ///   paragraph is in full ink and the others dimmed, its sentence underlined. A drag stops
 ///   following; Back to audio resumes it. Scrubbing scrolls to the paragraph under the thumb.
-/// - "Playing from": a saved page plays from the Library (tap: the Library); a page you haven't
-///   saved plays from its site (tap: the page in the browser).
+/// - "Playing from": a page in a folder plays from that folder (a book, a series, Favorites, a
+///   folder you made; tap: the Library at it); a saved page in no folder from the Library (tap:
+///   the Library); a page you haven't saved from its site (tap: the page in the browser).
 /// - ⊕ saves the page (✓ when saved; tap again to remove it).
 /// - At the end it stays: the text stays, all in full ink, "✓ Finished", ▶ plays it again.
 /// - ⌄ or a pull down shrinks it back into the bar.
@@ -35,13 +36,13 @@ struct NowPlayingScreen: View {
     var body: some View {
         if let now = speech.nowPlaying {
             NowPlayingSheet(
-                playingFrom: savedKey != nil ? "Library" : now.playingFrom.name,
+                playingFrom: playingFromName(now),
                 isSaved: savedKey != nil,
                 showsBackToAudio: !following && !now.isFinished,
                 onCollapse: { [shell, presentation = shell.nowPlayingPresentation] in
                     if let presentation { shell.nowPlayingDidClose(presentation) }
                 },
-                onPlayingFrom: { savedKey != nil ? shell.openLibrary() : goToPlayingFrom() },
+                onPlayingFrom: { showPlayingFrom(now) },
                 onToggleSave: toggleSaved,
                 onBackToAudio: { following = true }
             ) {
@@ -126,6 +127,23 @@ struct NowPlayingScreen: View {
     }
 
     // MARK: - Actions
+
+    private func playingFromName(_ now: NowPlaying) -> String {
+        if case .folder = now.playingFrom { return now.playingFrom.name }
+        return savedKey != nil ? String(localized: "Library") : now.playingFrom.name
+    }
+
+    /// "Playing from": the Library at the folder, the Library, or the page in the browser.
+    /// Playback keeps going.
+    private func showPlayingFrom(_ now: NowPlaying) {
+        if case .folder(let id, _) = now.playingFrom, let folder = library.folder(id: id) {
+            shell.showLibrary(at: library.path(to: folder))
+        } else if savedKey != nil {
+            shell.openLibrary()
+        } else {
+            goToPlayingFrom()
+        }
+    }
 
     /// "Playing from" a site (and ⋯ → Website): the page in the browser. Playback keeps going.
     private func goToPlayingFrom() {

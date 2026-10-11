@@ -200,6 +200,8 @@ Library                                   title in the list, scrolls away (no na
 ★  Favorites                       12  ›  Favorites first, then your folders by their order
 ▣  Pride and Prejudice                 ▶  a book or series: its place and its own ▶
    Ch 24   ◐ 6 h 10 min left
+📁 Finance                             ▶  a folder whose pages play: the same, its page as the place
+   Seven-Day Yield   ◐ 52 min left
 Pages  48                      Show All › not saved first, then pages in no folder; the first 5
 [i] Notes on Tides                     ▶
     example.org   Not saved   ◐ 4 min left
@@ -217,7 +219,7 @@ commas.
   or ends. The bar's ▶ resumes what you last heard, and rows carry their own place and ▶
   (decision D14). First the top-level folders, with no header; a book or series
   row shows its place and time left ("Ch 24", then a ring and "6 h 10 min left") and its ▶ resumes it
-  there without opening it. Then **Pages**: the pages played without saving, newest played first,
+  there without opening it, and so does a folder whose pages play (decision D15). Then **Pages**: the pages played without saving, newest played first,
   marked "Not saved" (long-press → *Save* puts one in the Library), then the pages in no folder,
   newest first; Show All pushes them all (the not-saved ones on top), sorted by the top level's
   sort (*Manual / Newest / Title*, ⋯ → Sort; kept on the device, `library.topLevel.sort`). A row
@@ -225,7 +227,11 @@ commas.
   Folder*. An empty Library shows Favorites, then one card, *Find something to listen to*: "Tap
   🌐 to find a page, or ＋ to import a book", with *Browse the web* and *Import a book*.
 - **A folder** (`FolderScreen`, Favorites included): its title and counts, subfolders first (by
-  their order), then pages by the folder's sort. **Edit** (top right), or *Select* in a row's
+  their order), then pages by the folder's sort. A folder with pages that play has a book's
+  header (decision D15): how far through, the round play button (*▶ Play* before anything in it
+  has played, *▶ **Continue** 3 of 7*, or jade bars *Playing 3 of 7*: tap pauses) and *Play from
+  Start*; it plays its own pages (not its subfolders') in the order shown, page to page, link
+  pages skipped. **Edit** (top right), or *Select* in a row's
   long-press menu (Edit with that row selected), puts check circles on the rows, and drag handles
   (pages only when the sort is *Manual*); the toolbar becomes *Move…,
   Mark Finished, Remove* for the selection. *Remove* takes the selected pages out of the
@@ -268,13 +274,14 @@ commas.
   Chapter 1* before anything has played, *▶ **Continue** Ch 24*, or jade bars *Playing Ch 24*
   while one
   of its chapters plays: tap pauses) and *Play from Start*; then the chapters in their source
-  order. No Edit. Front matter shows dimmed with "skipped" (it still opens for reading); *Jump
-  to current* scrolls to the chapter Continue resumes. Playing any chapter carries on through the
-  book, then stops. ⋯: *Rename, Move…, Delete Downloads, Delete Book…*. A series is the same
+  order. No Edit, and no dragging: its chapters keep the source's order, don't leave it, and
+  nothing is dropped into it. Front matter shows dimmed with "skipped" (it still opens for
+  reading); *Jump to current* scrolls to the chapter Continue resumes. Playing any chapter carries
+  on through the book, then stops. ⋯: *Rename, Move…, Delete Downloads, Delete Book…*. A series is the same
   screen; its chapters not fetched yet are lighter link rows ("not fetched yet").
 
-**Rows** are `ListRow`s. A tap opens the row; its menu is a long-press (decision D11); swipe left
-removes. Rows that can play keep their ▶ (`PlayStateButton`): it plays the row (replacing what
+**Rows** are `ListRow`s. A tap opens the row; its menu is a long-press (decision D11), and a
+long press that moves lifts the row into a drag (below); swipe left removes. Rows that can play keep their ▶ (`PlayStateButton`): it plays the row (replacing what
 plays) or pauses / resumes it when it is what you hear, and never navigates. The playing row is
 tinted, with still or moving bars. Under the title, after the site, rows show a length ("18
 min"), "6 min left" with a small ring part-way, or "✓ Finished", so the title keeps the row's
@@ -282,9 +289,29 @@ width. ▶ / ⏸ and a folder's › share one trailing column, centred on the �
 is; a folder's count sits just before its ›. On a folder screen every row's menu starts with
 *Select*.
 
+**Folders play like books** (decision D15). Playing a page that is in a folder (its row's ▶, the
+Reader's Listen, 🎧 on its page, the folder's own ▶) carries on through the folder, page to
+page, then stops; a page in no folder plays to its end and stops. A book's order is its
+source's; any other folder's (Favorites too) is its sort, which is yours. Link pages are passed
+over, as a book's skipped chapters are. The page that last played is the folder's place: its
+row shows the place and the time left and its ▶ resumes there, as a book's does; before
+anything in it has played, the first page starts where it was left. Now Playing's "Playing
+from" names the folder.
+
+**Dragging rows** (decision D15), on the home, folder screens and Favorites, without Edit: a
+long press lifts a row (its menu, which the press opened, goes as it moves). Let go on a folder
+row (its middle, for a folder) to file it at the end of that folder; the folder lights up in the
+accent while it takes the row, with a tick. Let go between rows to place it there, a line
+marking the place: a page among pages, a folder among folders (over a folder row's top or bottom
+quarter); placing a page makes its folder's sort *Manual* (the top level's too), numbered first
+as it was shown. A row lands with a success tick; a refused one with an error buzz. A book or
+series takes no drops (the drag shows ⊘), nor does a folder dragged over itself or a folder
+inside it, and a book's chapters, Favorites, a page played without saving and rows in Edit don't
+lift. The list doesn't scroll by itself while a row is dragged.
+
 | Row | Tap | Trailing | Menu (long-press) | Swipe left |
 |---|---|---|---|---|
-| Folder, Favorites | opens it (push) | count, › | *Move to…, Rename, Delete…* (Favorites: none) | Delete… |
+| Folder, Favorites | opens it (push) | count, ›; ▶ when its pages play (resumes at its place; the place under the title) | *Continue, Play from Start* (when its pages play)*, Move to…, Rename, Delete…* (Favorites: only the first two) | Delete… |
 | Book or series | opens it (push) | ▶ (resumes at its place; the place under the title) | *Continue, Play from Start, Move to…, Rename, Delete Book…* | Delete… |
 | Saved page | the Reader (Now Playing if it's what you hear) | ▶ | *Move to…, Mark as Finished / Unfinished, Share, Delete Downloads* (when it has audio)*, Remove from Library* | Remove |
 | Page played without saving ("Not saved", top of *Pages*) | the Reader (Now Playing if it's what you hear) | ▶ | *Save, Share* | — |
@@ -304,7 +331,8 @@ the toast, to pick again or ✕ (in the import sheet, a *New Folder* that can't 
 tree up the same way). The browser's *Save to Library…* closes it on the pick, since the
 page is extracted first (⋯ spins).
 
-**A change that can't be saved** (a move, *New Folder*, *Rename*, *Sort*, a drag to reorder, a
+**A change that can't be saved** (a move, *New Folder*, *Rename*, *Sort*, a drop on a folder or
+between rows, a
 mark, *Remove*, a delete, ☆ or a favorite tile's *Rename* / *Remove*, saving or unsaving with 🔖,
 ⊕, *Save to Folder…* or ⋯ → *Save to Library…* / *Remove from Library*) isn't stored: the
 library reads as it did before it, and a toast says so ("Couldn’t move", "Couldn’t save") where
@@ -435,8 +463,10 @@ row) opens Now Playing instead.
   hint sit on the player's card colour. The Reader stays on paper. A plain-text article (no
   reading HTML) shows its paragraphs on the same reading page, in both, so everything below
   applies to it too.
-- **"Playing from"** says *Library* for a saved page (tap: Now Playing closes onto the Library)
-  and names the site for a page you haven't saved (tap: the page in the browser).
+- **"Playing from"** names the folder the page is in, a book, a series, Favorites or one you made
+  (tap: Now Playing closes onto the Library at that folder); says *Library* for a saved page in
+  no folder (tap: the Library); and names the site for a page you haven't saved (tap: the page
+  in the browser).
 - **The text follows the audio.** On each new paragraph it scrolls the spoken one near the middle
   (the `Motion.standard` spring; a jump under Reduce Motion). The spoken paragraph lights up to
   full ink while the one before dims (a short fade; none under Reduce Motion), and the current

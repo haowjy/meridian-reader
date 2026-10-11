@@ -7,7 +7,22 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   change goes through `LibraryStore` (never `context.delete` here). What rows do is in
   `LibraryActions`, so a row and a header play and open the same way.
 - **Play buttons ask `playState(of:)` and press through `press(_:start:)`** (`.page(key)` for rows,
-  `.folder(id)` for a book's button). Opening never plays; playing never navigates.
+  `.folder(id)` for a folder's button: a book's, or any folder whose pages play). Opening never
+  plays; playing never navigates. `FolderProgress` is what a folder's row and header show (its
+  place, how far, time left), for books and plain folders alike.
+- **Drops don't reach a SwiftUI List** (on this iOS, neither `onDrop`, `dropDestination` nor
+  `onInsert` fire over one). So rows only lift (`libraryDrag`, SwiftUI's `onDrag`, which hands
+  over from the long-press menu natively) and report their frames (`libraryDropRow`); the
+  surface lays a UIKit `UIDropInteraction` over itself while a row is dragged
+  (`libraryDropZone`), finds the row under the drag on the screen on top (`LibraryScreenKey`),
+  and files or places through `LibraryActions` (`file`, `place`) with `LibraryStore`'s refusals
+  (`moveRefusal`). Its `sessionDidEnd` is what ends a drag. The zone takes only the drag's hit
+  tests (`UIDragEvent`), never a touch: a row lifts as its long press opens the menu, and let go
+  there no drag starts, so the next touch, with no drop session in, ends that lift.
+- **A draggable row's open menu never lets XCUITest go idle** (the platform's lift and menu
+  together; `.draggable` does the same): every UI action while the menu is up waits ~60 s. Tests
+  that open a draggable row's menu take ~2 min each; run FolderUITests in two halves.
+  Every surface (the Library, the Favorites sheet) needs its own zone and screen key.
 - **Edit and the dialogs live in `LibraryScreenState`**, one per surface (the Library, the
   Favorites sheet), shared through the environment: the bottom bar acts on the selection, and
   `libraryDialogs` shows delete / rename / new folder once. The delete question is

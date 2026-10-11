@@ -1,13 +1,16 @@
 import Foundation
 
-/// Where the playing page lives, shown as "Playing from …" and as the bar's source. A page in no
-/// folder plays from its site.
+/// Where the playing page lives, shown as "Playing from …": the folder it is in (a book, a series,
+/// Favorites or a folder you made), which playback carries on through; a page in no folder plays
+/// from its site.
 enum PlayingFrom: Equatable {
+    case folder(id: UUID, name: String)
     case site(host: String)
 
-    /// "investopedia.com".
+    /// "Pride and Prejudice", "Finance", "investopedia.com".
     var name: String {
         switch self {
+        case .folder(_, let name): name
         case .site(let host): host
         }
     }
@@ -20,7 +23,8 @@ struct NowPlaying: Equatable {
     /// Web pages: what 🎧 compares against.
     var canonicalURL: String?
     var title: String
-    /// "investopedia.com".
+    /// The book or series for a chapter ("Pride and Prejudice"), else the site
+    /// ("investopedia.com").
     var source: String
     var artwork: Data?
     var playingFrom: PlayingFrom
@@ -37,7 +41,8 @@ enum ListenTarget: Equatable {
     /// A web page by its canonical URL. Canonical strings are compared directly, so a saved
     /// article with a pre-v2 random id still matches the page it came from.
     case webPage(canonicalURL: String)
-    /// A book or series: what you hear while any of its chapters plays.
+    /// A folder (a book, a series, Favorites, a folder you made): what you hear while any of its
+    /// pages plays.
     case folder(UUID)
 }
 
@@ -59,14 +64,14 @@ protocol NowPlayingContentResolving: AnyObject {
     func content(for pageKey: UUID) async -> ReaderArticle?
 }
 
-/// The library as playback through a book or series sees it (`SpeechController+Advance`).
-/// Injected at the composition root, so the speech stack never touches SwiftData.
+/// The library as playback through a folder sees it (`SpeechController+Advance`): a book's or
+/// series' chapters, or the pages of any other folder. Injected at the composition root, so the
+/// speech stack never touches SwiftData.
 @MainActor
 protocol NextChapterProviding: AnyObject {
-    /// The book or series `pageKey` is a chapter of (nil: a page in no book or series).
+    /// The folder `pageKey` is in (nil: a page in no folder).
     func folder(containing pageKey: UUID) -> PlaybackFolder?
-    /// The chapters of a book or series in play order, skipped ones included (empty for any
-    /// other folder).
+    /// The folder's pages in play order, skipped ones included.
     func chapters(of folderID: UUID) -> [ChapterAdvance.Chapter]
     /// A chapter's listening session (paragraphs and what the lock screen shows).
     func load(_ pageKey: UUID) -> SpeechSession?
@@ -77,10 +82,13 @@ protocol NextChapterProviding: AnyObject {
     func pageFinished(key: UUID, text: String?)
 }
 
-/// A book or series playback carries on through.
-struct PlaybackFolder: Equatable {
+/// A folder playback carries on through.
+struct PlaybackFolder: Equatable, Sendable {
     var id: UUID
     var name: String
+    /// A book or series: its pages are chapters, and the bar's source names it. Any other
+    /// folder's pages show their site there.
+    var isFixed: Bool
 }
 
 /// A position the playback session reached that is worth keeping: a new paragraph, a phase

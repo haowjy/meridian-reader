@@ -37,6 +37,7 @@ struct LibrarySurface: View {
                     LibrarySearchResults(text: search.text.trimmingCharacters(in: .whitespaces)) {
                         search.end(showing: "")
                     }
+                    .environment(\.libraryScreenKey, .search)
                     .background(Palette.paper.ignoresSafeArea())
                 }
             }
@@ -62,6 +63,8 @@ struct LibrarySurface: View {
             .accessibilityIdentifier("libraryChrome")
         }
         .background(Palette.paper.ignoresSafeArea())
+        .libraryDropZone(screen, top: shell.libraryPath.last.map(LibraryScreenKey.route) ?? .home,
+                         actions: LibraryActions(library: library, speech: speech, shell: shell))
         .environment(screen)
         .libraryDialogs(screen) {
             shell.pruneLibraryPath { library.folder(id: $0) != nil }

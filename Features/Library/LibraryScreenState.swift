@@ -31,6 +31,23 @@ final class LibraryScreenState {
     var newFolder: NewFolder?
     var newFolderName = ""
 
+    /// The row being dragged, from the moment it lifts (`libraryDrag`) until it is let go: the
+    /// drop zone takes the drop only meanwhile (`libraryDropZone`).
+    private(set) var dragging: LibraryItemID?
+    /// The folder row under the drag that takes it: highlighted.
+    private(set) var dropTarget: UUID?
+    /// The row the drag would be placed beside, and on which side: marked with a line.
+    private(set) var insertion: Insertion?
+    /// Drops that landed and drops that were refused, for their haptics.
+    private(set) var landedDrops = 0
+    private(set) var refusedDrops = 0
+    /// Where the rows on screen are, for the drop zone. Not observed: rows write it as they move.
+    @ObservationIgnored let dropRows = LibraryDropRows()
+    struct Insertion: Equatable {
+        var id: LibraryItemID
+        var edge: VerticalEdge
+    }
+
     var isEditing: Bool { editing != nil }
 
     func isEditing(folderID: UUID?) -> Bool { editing == Editing(folderID: folderID) }
@@ -43,6 +60,35 @@ final class LibraryScreenState {
     func endEditing() {
         editing = nil
         selection = []
+    }
+
+    // MARK: - Dragging
+
+    /// A row lifted into a drag: the drop zone takes it from here (`libraryDropZone`), and ends
+    /// it wherever it is let go.
+    func beginDrag(_ id: LibraryItemID) {
+        dragging = id
+        show(.nothing)
+    }
+
+    /// What letting go here would do: a folder highlighted, or a line beside a row.
+    func show(_ aim: LibraryDropAim) {
+        let target: UUID? = if case .into(let id) = aim { id } else { nil }
+        let line: Insertion? = if case .beside(let id, let edge) = aim { Insertion(id: id, edge: edge) } else { nil }
+        if dropTarget != target { dropTarget = target }
+        if insertion != line { insertion = line }
+    }
+
+    /// The drag ended: `landed` when it filed or placed the row, false when it was refused or
+    /// couldn't be saved; nil when it changed nothing (let go where it was, or nowhere).
+    func endDrop(landed: Bool?) {
+        dragging = nil
+        show(.nothing)
+        switch landed {
+        case true?: landedDrops += 1
+        case false?: refusedDrops += 1
+        case nil: break
+        }
     }
 
     func confirmDelete(_ folders: [Folder]) {

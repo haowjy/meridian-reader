@@ -36,7 +36,7 @@ enum PlaybackEngineEvent: Equatable {
     case finished
 }
 
-/// The page itself changing inside a book or series. The controller decides before the session
+/// The page itself changing inside a folder. The controller decides before the session
 /// sees the engine's `finished` (`SpeechController+Advance`); only the end of the book reaches
 /// `.finished`.
 enum PlaybackPageInput: Equatable {
@@ -68,7 +68,8 @@ enum PlaybackCommand: Equatable {
 @MainActor
 struct PlaybackSessionState: Equatable {
     private(set) var articleID: UUID?
-    /// The book or series the page is a chapter of (nil: it plays to its end and stops).
+    /// The folder the page is in, which playback carries on through (nil: it plays to its end
+    /// and stops).
     private(set) var folderID: UUID?
     private(set) var document: ParagraphDocument = .empty
     /// The text `document` holds (`ArticleIdentity.contentFingerprint` of its paragraphs), set
@@ -143,7 +144,7 @@ struct PlaybackSessionState: Equatable {
         awaitingPage = false
     }
 
-    /// The page changing inside a book or series.
+    /// The page changing inside a folder.
     mutating func handle(_ input: PlaybackPageInput) -> [PlaybackCommand] {
         switch input {
         case .advance(let key, let next, let folder):

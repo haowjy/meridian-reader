@@ -3,14 +3,19 @@ import SwiftUI
 
 /// One screen for every folder at every depth, Favorites included, and for the top level's pages
 /// (*Pages · Show All*, `folder == nil`, with pages played without saving on top): the header,
-/// subfolders first (by their order), then pages by the folder's sort. *Edit*, or *Select* in a
-/// row's long-press menu, puts check circles on the rows (and drag handles when the sort is
-/// *Manual*); the surface's bottom bar then acts on the selection.
+/// subfolders first (by their order), then pages by the folder's sort. A folder whose pages play
+/// has a book's header buttons: *Continue* (it plays page to page in this order) and *Play from
+/// Start*. *Edit*, or *Select* in a row's long-press menu, puts check circles on the rows (and drag
+/// handles when the sort is *Manual*); the surface's bottom bar then acts on the selection. Out of
+/// Edit, a long press lifts a row to drop on a folder or between rows (`LibraryDrag`); placing a
+/// page between pages makes the sort *Manual*.
 ///
 /// ```
 /// ‹ Library                Finance                    Edit
 /// Finance
 /// 2 folders   7 pages
+/// ━━━━━━━━━━░░░░░░░░  38%   52 min left
+///  ( ▶ Continue  3 of 7 )        Play from Start
 ///  📁 Bonds                             4  ›
 ///  [i] Coupon Basics                        ▶
 ///      investing.example.com   ✓ Finished
@@ -53,6 +58,12 @@ struct FolderScreen: View {
 enum LibraryTopLevel {
     static let sortKey = "library.topLevel.sort"
     static let defaultSort = PageSort.newest
+
+    /// The sort, outside a view (views read it through `@AppStorage(sortKey)`).
+    static var sort: PageSort {
+        get { UserDefaults.standard.string(forKey: sortKey).flatMap(PageSort.init(rawValue:)) ?? defaultSort }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: sortKey) }
+    }
 }
 
 /// The folder's list, made with its sort (a query is fixed when its view is made).
@@ -62,6 +73,7 @@ private struct FolderContentsList: View {
 
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
+    @Environment(\.speechController) private var speech
     @Environment(LibraryScreenState.self) private var screen
     @Query private var pages: [Page]
     /// The top level's pages only: pages played without saving, shown above the rest and out of
@@ -80,6 +92,7 @@ private struct FolderContentsList: View {
 
     private var subfolders: [Folder] { folder.map { LibraryStore.ordered($0.children ?? []) } ?? [] }
     private var isEditing: Bool { screen.isEditing(folderID: folder?.id) }
+    private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
     private var notSaved: [Page] { folder == nil && !isEditing ? playedNotSaved : [] }
 
     /// *Select* on a row: Edit, with that row selected.
@@ -98,7 +111,7 @@ private struct FolderContentsList: View {
             Section {
                 EmptyView()
             } header: {
-                FolderHeader(title: folder?.displayName ?? String(localized: "Pages"), detail: counts)
+                header
                     .libraryHeader()
                     .padding(.horizontal, -Spacing.pageMargin)
             }
@@ -144,6 +157,45 @@ private struct FolderContentsList: View {
         .accessibilityIdentifier("folderScreen")
     }
 
+    // MARK: - Header
+
+    @ViewBuilder
+    private var header: some View {
+        let title = folder?.displayName ?? String(localized: "Pages")
+        let progress = folder.map(progress(of:))
+        if let folder, let progress, progress.hasPagesToPlay {
+            let bar = progress.header
+            FolderHeader(title: title, detail: counts, progress: bar.fraction, progressLabel: bar.label) {
+                HStack(spacing: Spacing.s) {
+                    let play = continueTitle(folder, progress)
+                    PlayStateButton(state: actions.playState(of: folder), look: .pill(title: play.title, detail: play.detail)) {
+                        actions.playFolder(folder)
+                    }
+                    .accessibilityIdentifier("folderContinue")
+                    PillButton(String(localized: "Play from Start"), style: .neutral) { actions.playFolderFromStart(folder) }
+                        .accessibilityIdentifier("folderPlayFromStart")
+                }
+            }
+        } else {
+            FolderHeader(title: title, detail: counts)
+        }
+    }
+
+    /// Where the folder is in its pages (the ones on screen, in this order).
+    private func progress(of folder: Folder) -> FolderProgress {
+        let playing = actions.playState(of: folder).isCurrent ? speech.activeSessionID : nil
+        return FolderProgress(folder: folder, pages: pages, playingKey: playing, library: library)
+    }
+
+    /// The round button's title and the lighter place after it: "Continue" "3 of 7", "Playing"
+    /// "3 of 7"; "Play" before anything in it has played.
+    private func continueTitle(_ folder: Folder, _ progress: FolderProgress) -> (title: String, detail: String?) {
+        let place = progress.number.map { "\($0) of \(progress.playingCount)" }
+        if actions.playState(of: folder).isCurrent { return (String(localized: "Playing"), place) }
+        if folder.currentPageKey == nil { return (String(localized: "Play"), nil) }
+        return (String(localized: "Continue"), place)
+    }
+
     /// ["2 folders", "7 pages"].
     private var counts: [String] {
         var parts: [String] = []
@@ -155,7 +207,7 @@ private struct FolderContentsList: View {
     private func movePages(from source: IndexSet, to destination: Int) {
         let moving = source.map { pages[$0] }
         shell.attempt(String(localized: "Couldn’t change the order")) {
-            try library.reorder(moving, in: folder, before: destination < pages.count ? pages[destination] : nil)
+            try library.arrange(moving, in: folder, before: destination < pages.count ? pages[destination] : nil, shownIn: .manual)
         }
     }
 
@@ -163,7 +215,7 @@ private struct FolderContentsList: View {
         let all = subfolders
         let moving = source.map { all[$0] }
         shell.attempt(String(localized: "Couldn’t change the order")) {
-            try library.reorderFolders(moving, in: folder, before: destination < all.count ? all[destination] : nil)
+            try library.arrange(moving, in: folder, before: destination < all.count ? all[destination] : nil)
         }
     }
 }

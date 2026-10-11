@@ -1,6 +1,6 @@
 import Foundation
 
-/// What the controller keeps between chapters of a book or series: the next chapter staged to
+/// What the controller keeps between pages of a folder: the next one staged to
 /// render, a link chapter being fetched, and the boundary the timing log measures.
 struct ChapterFlow {
     /// A chapter that ended, until the next one is audible (`chapter_boundary`).
@@ -42,10 +42,11 @@ struct ChapterFlow {
     var waitLimits = WaitLimits()
 }
 
-/// Playback through a book or series: when a chapter ends, the next playable one starts in place,
-/// without deactivating the audio session, clearing the session or the lock screen; when there is
-/// none, playback stops as for any page. The rule is `ChapterAdvance`; the library is reached
-/// through `nextChapters`. See docs/LISTEN_PLAYBACK.md, "Books and series".
+/// Playback through a folder (a book or series, or any folder, decision D15): when a page ends,
+/// the next playable one starts in place, without deactivating the audio session, clearing the
+/// session or the lock screen; when there is none, playback stops as for any page. The rule is
+/// `ChapterAdvance`; the library is reached through `nextChapters`. See docs/LISTEN_PLAYBACK.md,
+/// "Books, series and folders".
 extension SpeechController {
     static let nextChapterUnavailable = "Couldn't get the next chapter"
 

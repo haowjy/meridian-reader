@@ -8,6 +8,11 @@ struct LibraryRouteView: View {
     @Environment(LibraryStore.self) private var library
 
     var body: some View {
+        screen.environment(\.libraryScreenKey, .route(route))
+    }
+
+    @ViewBuilder
+    private var screen: some View {
         switch route {
         case .folder(let id):
             if let folder = library.folder(id: id) {
@@ -37,6 +42,9 @@ struct FavoritesSheet: View {
     @State private var screen = LibraryScreenState()
     @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
 
+    /// The sheet's root, Favorites, as the screen its rows are on.
+    private var favoritesKey: LibraryScreenKey { .route(.folder(library.favorites().id)) }
+
     /// `folderID`: open pushed into that subfolder of Favorites.
     init(folderID: UUID? = nil) {
         _path = State(initialValue: folderID.map { [.folder($0)] } ?? [])
@@ -46,6 +54,7 @@ struct FavoritesSheet: View {
         VStack(spacing: 0) {
             NavigationStack(path: $path) {
                 FolderScreen(folder: library.favorites())
+                    .environment(\.libraryScreenKey, favoritesKey)
                     .navigationDestination(for: LibraryRoute.self) { LibraryRouteView(route: $0) }
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
@@ -64,6 +73,8 @@ struct FavoritesSheet: View {
             .bottomChromeBand()
             .overlay(alignment: .top) { ShellToastLayer() }
         }
+        .libraryDropZone(screen, top: path.last.map(LibraryScreenKey.route) ?? favoritesKey,
+                         actions: LibraryActions(library: library, speech: speech, shell: shell))
         .environment(screen)
         .moreMenuHost()
         .listenDebugSheet(speech)

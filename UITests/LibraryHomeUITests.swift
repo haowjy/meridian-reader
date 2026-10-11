@@ -3,8 +3,10 @@ import XCTest
 /// The Library home: its sections, a row's ▶ (the row tints while the bar shows the page, and
 /// nothing on the home moves), a book row's place and ▶ (resumes it without opening it), a page
 /// played without saving ("Not saved", *Save*), ★ in slot 2, search across the tree (a page in a
-/// nested folder; *Search the web*), and 🌐 there and back keeping both the page and the
-/// Library's place. Offline, Apple voice.
+/// nested folder; *Search the web*), 🌐 there and back keeping both the page and the
+/// Library's place, and dragging rows without Edit: a page onto a folder files it, a page between
+/// pages reorders them (and the sort becomes Manual), a book refuses the drop. Offline, Apple
+/// voice.
 final class LibraryHomeUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
@@ -148,5 +150,51 @@ final class LibraryHomeUITests: XCTestCase {
 
         app.buttons["browseLibrary"].tap()
         XCTAssertTrue(app.navigationBars["Favorites"].waitForExistence(timeout: 5), "back at the same folder")
+    }
+
+    // MARK: - Dragging rows
+
+    /// Long-press a page and drag it onto a folder: it leaves *Pages* and is in the folder.
+    func testDraggingAPageOntoAFolderFilesIt() throws {
+        let app = launchLibrary()
+        XCTAssertTrue(libraryRow(app, "Demo Finance").waitForExistence(timeout: 5))
+        dragRow(app, "Demo Listen Article", to: rowPoint(app, "Demo Finance"))
+        XCTAssertTrue(eventually(5) { !self.libraryRow(app, "Demo Listen Article").exists }, "it left Pages")
+        XCTAssertFalse(app.buttons["Remove from Library"].exists, "the row's menu went as it lifted")
+        openFolder(app, "Demo Finance")
+        XCTAssertTrue(libraryRow(app, "Demo Listen Article").waitForExistence(timeout: 5), "filed in Demo Finance")
+    }
+
+    /// Pages show newest first; dragging the last one above the first puts it there, and it stays
+    /// there because the sort became *Manual*, numbered as it was shown (the stored order is the
+    /// reverse, so falling back to it would show another order).
+    func testDraggingAPageBetweenPagesReordersThemAndMakesTheSortManual() throws {
+        let app = launchLibrary(["-seedLoosePages", "2"])
+        let titles = ["Demo Listen Article", "Loose Page 1", "Loose Page 2"]
+        for title in titles { XCTAssertTrue(libraryRow(app, title).waitForExistence(timeout: 5), title) }
+        XCTAssertEqual(order(app, titles), titles, "newest first")
+
+        dragRow(app, "Loose Page 2", to: rowPoint(app, "Demo Listen Article", dy: 0.15))
+        let wanted = ["Loose Page 2", "Demo Listen Article", "Loose Page 1"]
+        XCTAssertTrue(eventually(5) { self.order(app, titles) == wanted }, "dropped on top: \(order(app, titles))")
+        idle(1)
+        XCTAssertEqual(order(app, titles), wanted, "and it stays: the sort is Manual")
+    }
+
+    /// A book takes no drops: the page stays in *Pages* and the book's chapters are unchanged.
+    func testDroppingAPageOnABookIsRefused() throws {
+        let app = launchLibrary()
+        XCTAssertTrue(libraryRow(app, "The Demo Book").waitForExistence(timeout: 5))
+        dragRow(app, "Demo Listen Article", to: rowPoint(app, "The Demo Book"))
+        idle(1)
+        XCTAssertTrue(libraryRow(app, "Demo Listen Article").exists, "still in Pages")
+        libraryRow(app, "The Demo Book").tap()
+        XCTAssertTrue(find(app, "bookScreen").waitForExistence(timeout: 5))
+        XCTAssertFalse(libraryRow(app, "Demo Listen Article").exists, "not in the book")
+    }
+
+    /// `titles` in the order their rows sit on screen.
+    private func order(_ app: XCUIApplication, _ titles: [String]) -> [String] {
+        titles.sorted { libraryCell(app, $0).frame.minY < libraryCell(app, $1).frame.minY }
     }
 }

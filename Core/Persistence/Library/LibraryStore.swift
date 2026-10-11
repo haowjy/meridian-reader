@@ -106,10 +106,16 @@ final class LibraryStore {
         (try? context.fetch(LibraryQueries.pages(inFolder: folder.id, sort: folder.pageSort))) ?? []
     }
 
-    /// A book's or series' chapters by `sortKey`, skipped ones included (`skipsInPlayback`
-    /// flags them). The book screen, Contents and chapter advance all read this order.
+    /// The pages in the Library in no folder, in `sort`.
+    func loosePages(sort: PageSort) -> [Page] {
+        (try? context.fetch(LibraryQueries.loosePages(sort: sort))) ?? []
+    }
+
+    /// The order a folder plays in: a book's or series' chapters by `sortKey`, skipped ones
+    /// included (`skipsInPlayback` flags them); any other folder's pages in its sort, as its
+    /// screen lists them. The book screen, Contents and carrying on all read this order.
     func playOrder(of folder: Folder) -> [Page] {
-        (try? context.fetch(LibraryQueries.pages(inFolder: folder.id, sort: .manual))) ?? []
+        pages(in: folder)
     }
 
     static func ordered(_ folders: [Folder]) -> [Folder] {

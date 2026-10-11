@@ -26,5 +26,18 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Meridian Reader Library item</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.jimmyyao.reader.library-item</string>
+		</dict>
+	</array>
 </dict>
 </plist>

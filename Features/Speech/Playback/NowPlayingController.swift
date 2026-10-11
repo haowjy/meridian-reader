@@ -44,7 +44,7 @@ enum RemoteCommandOutcome: Equatable {
 struct NowPlayingInfo: Equatable {
     var title: String
     var site: String?
-    /// The book or series (nil: a page in none, whose album is its site).
+    /// The folder the page is in (nil: a page in none, whose album is its site).
     var album: String? = nil
     var paragraph: Int
     var paragraphCount: Int
@@ -56,7 +56,7 @@ struct NowPlayingInfo: Equatable {
     /// Subtitle line (MPMediaItemPropertyArtist): the lock screen shows title + this line, plain
     /// text, so its parts are joined with an en dash ("example.com – Paragraph 2 of 9").
     var subtitle: String { [site, progressLabel].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " – ") }
-    /// MPMediaItemPropertyAlbumTitle: the book or series, else the site.
+    /// MPMediaItemPropertyAlbumTitle: the folder, else the site.
     var albumTitle: String { album ?? site ?? "Meridian Reader" }
 
     var dictionary: [String: Any] {

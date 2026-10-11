@@ -53,6 +53,13 @@ targets:
           - audio
         NSMicrophoneUsageDescription: Meridian Reader uses the microphone when you tap the mic in the Browse address bar, so you can say what to search for.
         NSSpeechRecognitionUsageDescription: Meridian Reader turns what you say into text for the Browse address bar. Recognition runs on your iPhone when your language supports it.
+        # A Library row being dragged (`UTType.libraryItem`): the app's own type, so only the
+        # Library's folders and lists take the drop.
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.jimmyyao.reader.library-item
+            UTTypeDescription: Meridian Reader Library item
+            UTTypeConformsTo:
+              - public.data
     settings:
       # The locked-fetch probe's install overrides these two on the xcodebuild command line
       # (`BUNDLE_ID_SUFFIX=.probe APP_DISPLAY_NAME="Meridian Reader Probe"`, see `App/LockedFetchProbe.swift`):

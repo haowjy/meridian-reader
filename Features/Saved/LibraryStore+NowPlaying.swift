@@ -9,11 +9,12 @@ extension LibraryStore: NowPlayingContentResolving {
     }
 }
 
-/// Books and series carry on chapter to chapter through the library (`SpeechController+Advance`).
+/// A page in a folder carries on through it, page to page (`SpeechController+Advance`): a book or
+/// series in source order, any other folder in its sort.
 extension LibraryStore: NextChapterProviding {
     func folder(containing pageKey: UUID) -> PlaybackFolder? {
-        guard let folder = page(key: pageKey)?.folder, folder.kind.isFixed else { return nil }
-        return PlaybackFolder(id: folder.id, name: folder.displayName)
+        guard let folder = page(key: pageKey)?.folder else { return nil }
+        return PlaybackFolder(folder)
     }
 
     func chapters(of folderID: UUID) -> [ChapterAdvance.Chapter] {
@@ -35,5 +36,11 @@ extension LibraryStore: NextChapterProviding {
     func pageFinished(key: UUID, text: String?) {
         guard let page = page(key: key), holds(page, text: text) else { return }
         recordFinished(page)
+    }
+}
+
+extension PlaybackFolder {
+    init(_ folder: Folder) {
+        self.init(id: folder.id, name: folder.displayName, isFixed: folder.kind.isFixed)
     }
 }

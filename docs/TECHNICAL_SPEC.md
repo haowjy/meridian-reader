@@ -169,9 +169,10 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `locator` | Book chapters: where the chapter starts in the book, `href#fragment` |
 
 **`Folder`** (library): `name`, `kindRaw` (`plain`, `book`, `series`, `favorites`), `sortKey`,
-`parent` / `children` (any depth), `pages`, `pageSortRaw`, and for books and series their details
-(`byline`, `coverData`, `sourceIdentifier`, `sourceStateData`, `languageCode`) and place
-(`currentPageKey`, `lastPlayedAt`, `finishedAt`, written as their chapters play). One
+`parent` / `children` (any depth), `pages`, `pageSortRaw`, for books and series their details
+(`byline`, `coverData`, `sourceIdentifier`, `sourceStateData`, `languageCode`), and for every
+folder its place (`currentPageKey`, `lastPlayedAt`, `finishedAt`, written as its pages play:
+every folder plays page to page, a book in source order, any other folder in its sort). One
 Favorites folder holds the bookmarks; it can't be deleted, renamed or moved below the top level.
 
 **Book import** (`BookImporter`, run for the import sheet by `BookImportFlow`):

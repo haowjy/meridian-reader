@@ -2,7 +2,8 @@ import XCTest
 
 /// A book carries on from chapter to chapter (`-seedDemoBook -chainDemoChapters`: the demo book
 /// plays from chapter 1 at launch; Apple voice, offline). Now Playing follows it into the next
-/// chapter, and a Reader opened on an earlier chapter stays on that chapter.
+/// chapter, and a Reader opened on an earlier chapter stays on that chapter. A folder you made
+/// plays the same way, page to page in its order, from its row's ▶.
 final class ChapterAdvanceUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
@@ -56,6 +57,31 @@ final class ChapterAdvanceUITests: XCTestCase {
         XCTAssertTrue(readerBar.exists && !readerBar.label.contains("Chapter 1"),
                       "the bar has what you hear, a later chapter: \(readerBar.label)")
         find(app, "nowPlayingBarPlayPause").tap()
+    }
+
+    /// Demo Finance's ▶ (`-seedDemoFolders`: Seven-Day Yield, Money Market Funds, Index Funds, in
+    /// that order): its first page plays, Now Playing says it plays from the folder, and when the
+    /// page ends the second one plays.
+    func testAFoldersPlayPlaysItsFirstPageThenItsSecond() throws {
+        let app = launchLibrary()
+        let cell = libraryCell(app, "Demo Finance")
+        XCTAssertTrue(cell.waitForExistence(timeout: 5))
+        cell.buttons["Play"].tap()
+        let bar = find(app, "nowPlayingBarOpen")
+        XCTAssertTrue(bar.waitForExistence(timeout: 10), "the bar shows what you hear")
+        XCTAssertTrue(eventually(10) { bar.label.contains("Seven-Day Yield") }, "page 1: \(bar.label)")
+        XCTAssertTrue(eventually(5) { (self.libraryRow(app, "Demo Finance").value as? String)?.contains("Playing") == true },
+                      "the folder's row says it plays")
+
+        bar.tap()
+        let card = find(app, "nowPlayingTitleCard")
+        XCTAssertTrue(card.waitForExistence(timeout: 5), "Now Playing")
+        XCTAssertEqual(find(app, "nowPlayingFrom").label, "Playing from Demo Finance")
+        // Its last paragraph, then let it end.
+        for _ in 0..<5 { app.buttons["Next paragraph"].tap() }
+        XCTAssertTrue(eventually(40) { card.label.contains("Money Market Funds") }, "page 2: \(card.label)")
+        XCTAssertTrue(eventually(5) { app.buttons["listenPlayPause"].label == "Pause" }, "still playing")
+        app.buttons["listenPlayPause"].tap()
     }
 
     /// The demo book's paragraph starting with `prefix`, on the reading page shown.

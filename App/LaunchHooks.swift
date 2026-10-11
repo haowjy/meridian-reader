@@ -214,10 +214,12 @@ enum LaunchHooks {
 
     /// `-seedDemoArticle`: replace the saved and played pages, and every folder but Favorites, with
     /// one deterministic article, so a stored resume position can't stick at the end between tests (and, with
-    /// `-seedPlayedPages N`, N pages played without saving). Favorites' links stay
-    /// (`-resetBookmarks` / `-seedBookmarks` handle them).
+    /// `-seedPlayedPages N`, N pages played without saving; with `-seedLoosePages N`, N more saved
+    /// pages in no folder). Favorites' links stay (`-resetBookmarks` / `-seedBookmarks` handle
+    /// them). The top level's sort goes back to its default.
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in library: LibraryStore) {
         let context = library.context
+        UserDefaults.standard.removeObject(forKey: LibraryTopLevel.sortKey)
         // Every folder but Favorites goes too, so the Library home starts the same each time.
         for folder in library.topLevelFolders() where folder.kind != .favorites {
             try? library.deleteFolder(folder, keepContents: false)
@@ -262,6 +264,17 @@ enum LaunchHooks {
             played.storeListenParagraphs(text)
             played.lastPlayedAt = Date.now.addingTimeInterval(-60 * Double(i + 1))
             context.insert(played)
+        }
+        for i in 0..<demo.loosePages {
+            let text = ["Loose page \(i + 1), first paragraph.", "Loose page \(i + 1), second paragraph."]
+            let loose = Page(key: UUID(), title: "Loose Page \(i + 1)", byline: "example.com",
+                             urlString: "https://example.com/loose-\(i + 1)", contentState: .saved,
+                             addedAt: page.addedAt?.addingTimeInterval(-60 * Double(i + 1)),
+                             sortKey: page.sortKey - Double(demo.loosePages - i))
+            loose.cleanedHTML = text.map { "<p>\($0)</p>" }.joined()
+            loose.plainText = text.joined(separator: "\n\n")
+            loose.storeListenParagraphs(text)
+            context.insert(loose)
         }
         library.commit("demo seed")
     }

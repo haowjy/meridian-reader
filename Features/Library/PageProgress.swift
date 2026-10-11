@@ -31,45 +31,62 @@ enum PageProgress {
     }
 }
 
-/// A book or series as its row and its screen show it: the chapter Continue resumes (or the one
-/// playing), its number, how far through the playable chapters are, and what's left.
-struct BookProgress {
-    /// The chapter Continue resumes, or the one playing.
+/// A folder as its row and its screen show it (a book, a series, or any folder whose pages play):
+/// the page Continue resumes (or the one playing), its number among the pages that play, how far
+/// through they are, and what's left.
+struct FolderProgress {
+    /// The page Continue resumes, or the one playing.
     let currentKey: UUID?
-    /// `currentKey`'s number among the chapters that play ("Ch 24").
-    let chapterNumber: Int?
-    /// 0…1 by length; nil before any chapter is finished or part-way.
+    /// `currentKey`'s number among the pages that play ("Ch 24", "3 of 7").
+    let number: Int?
+    /// How many pages play (link pages and skipped chapters don't; a series' link chapters do).
+    let playingCount: Int
+    /// 0…1 by length; nil before any page that plays is finished or part-way.
     let fraction: Double?
-    /// The playable chapters' length left (all of it before anything has played).
+    /// The playable pages' length left (all of it before anything has played).
     let minutesLeft: Int
+    /// A page with text plays: a plain folder or Favorites gets its ▶ (a book or series always
+    /// has one).
+    let hasPagesToPlay: Bool
+    /// Every page with text that plays is finished.
+    let isFinished: Bool
 
-    /// `chapters` in play order (`LibraryStore.playOrder`); `playingKey`: the chapter playing,
-    /// when one of this book's is what you hear.
+    /// `pages` in play order (`LibraryStore.playOrder`); `playingKey`: the page playing, when one
+    /// of this folder's is what you hear.
     @MainActor
-    init(folder: Folder, chapters: [Page], playingKey: UUID?, library: LibraryStore) {
+    init(folder: Folder, pages: [Page], playingKey: UUID?, library: LibraryStore) {
+        let snapshot = library.chapterSnapshot(of: folder, pages: pages)
         if let playingKey {
             currentKey = playingKey
         } else {
-            switch ChapterAdvance.start(library.chapterSnapshot(of: folder, pages: chapters), place: folder.currentPageKey) {
+            switch ChapterAdvance.start(snapshot, place: folder.currentPageKey) {
             case .ready(let key), .pending(let key): currentKey = key
             case .unavailable, .none: currentKey = nil
             }
         }
-        chapterNumber = currentKey.flatMap { key in
-            chapters.filter { !$0.skipsInPlayback }.firstIndex { $0.listenKey == key }
-        }.map { $0 + 1 }
+        let plays = zip(pages, snapshot).filter { !$0.1.skipsInPlayback }.map(\.0)
+        playingCount = plays.count
+        number = currentKey.flatMap { key in plays.firstIndex { $0.listenKey == key } }.map { $0 + 1 }
 
-        let playable = chapters.filter { !$0.skipsInPlayback && !$0.isLink }
-        let total = playable.reduce(0) { $0 + $1.estimatedMinutes }
-        let left = playable.reduce(0) { sum, chapter in
-            switch PageProgress.of(chapter) {
+        let timed = plays.filter { !$0.isLink }
+        hasPagesToPlay = !timed.isEmpty
+        isFinished = hasPagesToPlay && timed.allSatisfy { $0.finishedAt != nil }
+        let total = timed.reduce(0) { $0 + $1.estimatedMinutes }
+        let left = timed.reduce(0) { sum, page in
+            switch PageProgress.of(page) {
             case .finished: sum
             case .partWay(_, let minutes): sum + minutes
-            default: sum + chapter.estimatedMinutes
+            default: sum + page.estimatedMinutes
             }
         }
         minutesLeft = left
-        let started = playable.contains { $0.finishedAt != nil || PageProgress.isPartWay($0) }
+        let started = timed.contains { $0.finishedAt != nil || PageProgress.isPartWay($0) }
         fraction = total > 0 && started ? 1 - Double(left) / Double(total) : nil
+    }
+
+    /// The header's bar and ["38%", "6 h 10 min left"], once a page is finished or part-way.
+    var header: (fraction: Double?, label: [String]) {
+        guard let fraction else { return (nil, []) }
+        return (fraction, ["\(Int((fraction * 100).rounded()))%", "\(ListeningTime.label(minutes: minutesLeft)) left"])
     }
 }

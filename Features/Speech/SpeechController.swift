@@ -40,7 +40,8 @@ final class SpeechController {
     /// The text the bound page plays (`PlaybackSessionState.textFingerprint`). Not observed: it
     /// changes only with the page, and nothing draws it.
     var activeTextFingerprint: String? { playback.textFingerprint }
-    /// The book or series the bound page is a chapter of (`PlaybackSessionState.folderID`).
+    /// The folder the bound page is in, which playback carries on through
+    /// (`PlaybackSessionState.folderID`).
     private(set) var activeFolderID: UUID?
     private(set) var document: ParagraphDocument = .empty
     private(set) var playbackPhase: PlaybackPhase = .idle
@@ -76,8 +77,9 @@ final class SpeechController {
         var artwork: Data?
         var canonicalURL: String?
         var sourceLabel: String?
-        /// The book's or series' name, for a chapter.
-        var folderName: String?
+        /// The folder the page is in: "Playing from", the lock screen's album, and for a chapter
+        /// the bar's source.
+        var folder: PlaybackFolder?
     }
     private(set) var sessionMeta: SessionMeta?
     /// The one request making a page ready to play before it is bound (🎧 extracting its page).
@@ -93,7 +95,7 @@ final class SpeechController {
     /// Told about the `ReaderArticle` a page is started from (`listen(to:)`), before its session
     /// binds, so the recorder can keep a page the library doesn't have with its text.
     @ObservationIgnored var onListen: ((ReaderArticle) -> Void)?
-    /// The library as books and series play through it (`SpeechController+Advance`). nil: every
+    /// The library as folders play through it (`SpeechController+Advance`). nil: every
     /// page plays to its end and stops.
     @ObservationIgnored var nextChapters: NextChapterProviding?
     /// Between chapters: what is staged, fetched and timed (`SpeechController+Advance`).
@@ -253,9 +255,11 @@ final class SpeechController {
         let meta = sessionMeta?.id == id ? sessionMeta : nil
         let raw = meta?.sourceLabel ?? meta?.site ?? ""
         let host = raw.hasPrefix("www.") ? String(raw.dropFirst(4)) : raw
+        let folder = meta?.folder
+        let playingFrom: PlayingFrom = folder.map { .folder(id: $0.id, name: $0.name) } ?? .site(host: host)
         return NowPlaying(pageKey: id, canonicalURL: meta?.canonicalURL, title: meta?.title ?? "Untitled",
-                          source: meta?.folderName ?? host, artwork: meta?.artwork, playingFrom: .site(host: host),
-                          phase: playbackPhase)
+                          source: folder?.isFixed == true ? folder?.name ?? host : host, artwork: meta?.artwork,
+                          playingFrom: playingFrom, phase: playbackPhase)
     }
 
     /// The one place a ▶ / ⏸ comes from. Reads only session fields, so it is cheap on every
@@ -341,10 +345,7 @@ final class SpeechController {
         onListen?(article)
         noteUserIntent()
         var session = SpeechSession(article: article)
-        if let folder = nextChapters?.folder(containing: article.id) {
-            session.folderID = folder.id
-            session.folderName = folder.name
-        }
+        session.folder = nextChapters?.folder(containing: article.id)
         prepare(session, startingParagraph: paragraph)
         placeResumeOffset(utf16Offset, paragraph: paragraph)
         perform(.play(from: paragraph))
@@ -552,14 +553,14 @@ final class SpeechController {
         if session.title != nil || sessionMeta?.id != session.id {
             let meta = SessionMeta(id: session.id, title: session.title, site: session.site, artwork: session.artwork,
                                    canonicalURL: session.canonicalURL, sourceLabel: session.sourceLabel,
-                                   folderName: session.folderName)
+                                   folder: session.folder)
             if meta != sessionMeta { sessionMeta = meta }
         }
         let detected = session.detectedLanguage ?? ListenLanguage.detectCached(paragraphs: session.document.paragraphs)
         if sessionDetectedLanguage != detected { sessionDetectedLanguage = detected }
     }
 
-    /// The page changing inside a book or series (`SpeechController+Advance`).
+    /// The page changing inside a folder (`SpeechController+Advance`).
     func handlePageInput(_ input: PlaybackPageInput) -> [PlaybackCommand] {
         playback.handle(input)
     }
@@ -796,7 +797,7 @@ final class SpeechController {
         }
         let meta = sessionMeta?.id == id ? sessionMeta : nil
         let info = NowPlayingInfo(
-            title: meta?.title ?? "Meridian Reader", site: meta?.site, album: meta?.folderName,
+            title: meta?.title ?? "Meridian Reader", site: meta?.site, album: meta?.folder?.name,
             paragraph: playback.playhead + 1, paragraphCount: playback.paragraphCount,
             isPlaying: playback.phase == .playing, rate: rateMultiplier, artwork: meta?.artwork)
         lockScreen.update(info, canNext: playback.playhead + 1 < playback.paragraphCount, canPrevious: true)
@@ -933,7 +934,7 @@ final class SpeechController {
         let articleID = playback.articleID
         let paragraphs = playback.document.paragraphs
         let voiceID = cacheVoiceID
-        let isChapter = playback.folderID != nil
+        let isChapter = sessionMeta?.id == articleID && sessionMeta?.folder?.isFixed == true
         stopEngines()
         // Let other apps' audio resume (Stop Listening / the end of an article or a book).
         audioSession.deactivate()

@@ -23,6 +23,9 @@ import SwiftUI
 /// tertiary, the status in the accent while it is what you hear. ▶ / ⏸ (`onPlay`) and ›
 /// (`opensScreen`) share one trailing column, centred on the toolbar's ⋯ slot like the Now
 /// Playing bar's ⏸.
+///
+/// A folder row under a dragged row that it takes (`isDropTarget`) is washed and outlined in the
+/// accent, with a selection tick as it lights up.
 struct ListRow: View {
     enum Kind {
         /// A folder (or Favorites, a book, a series): its symbol, or a book's cover when it has
@@ -57,6 +60,10 @@ struct ListRow: View {
     /// Tapping the row opens a screen: › in the trailing column (unless the row has ▶).
     var opensScreen = false
     var onPlay: (() -> Void)?
+    /// A dragged row is over this one, and it takes the drop (a folder it would be filed in).
+    var isDropTarget = false
+    /// A dragged row would be placed beside this one, on this side: a line marks the place.
+    var insertionEdge: VerticalEdge?
 
     /// 56 pt at the default text size; larger text grows the row through its content, and the
     /// minimum only up to `BottomChrome.maxTextGrowth`.
@@ -99,7 +106,13 @@ struct ListRow: View {
         .padding(.vertical, Spacing.xs)
         .frame(minHeight: BottomChrome.grown(scaledMinHeight, from: 56))
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
+        .overlay { dropHighlight }
+        .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) { insertionLine }
         .opacity(isDimmed ? 0.6 : 1)
+        .animation(Motion.snappy, value: isDropTarget)
+        .animation(Motion.snappy, value: insertionEdge)
+        .sensoryFeedback(.selection, trigger: isDropTarget) { _, isTarget in isTarget }
+        .sensoryFeedback(.selection, trigger: insertionEdge) { _, edge in edge != nil }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
         .accessibilityElement(children: .contain)
     }
@@ -111,6 +124,43 @@ struct ListRow: View {
         guard rowWidth > 0 else { return Spacing.xxs }
         let inset = Spacing.pageMargin - Spacing.bandMargin
         return max(0, NowPlayingBar.trailingPadding(rowWidth: rowWidth + 2 * inset) - inset)
+    }
+
+    /// The accent wash and outline of a drop target, inset so the outline clears the card's
+    /// rounded corners.
+    private var dropHighlight: some View {
+        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+            .fill(Palette.accent.opacity(Palette.washOpacity))
+            .strokeBorder(Palette.accent, lineWidth: Self.dropOutlineWidth)
+            .padding(Spacing.xxs)
+            .opacity(isDropTarget ? 1 : 0)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    static let dropOutlineWidth: CGFloat = 2
+
+    /// Where a dragged row would go: an accent line along the row's edge, from the title's
+    /// leading edge, with a ring at its start (as iOS marks a drop between rows).
+    @ViewBuilder
+    private var insertionLine: some View {
+        if insertionEdge != nil {
+            HStack(spacing: 0) {
+                Circle()
+                    .strokeBorder(Palette.accent, lineWidth: Self.dropOutlineWidth)
+                    .frame(width: Spacing.xs, height: Spacing.xs)
+                Capsule()
+                    .fill(Palette.accent)
+                    .frame(height: Self.dropOutlineWidth)
+            }
+            .padding(.leading, Spacing.m + ListRow.leadingWidth)
+            .padding(.trailing, Spacing.m)
+            // Centred on the edge, half in this row and half in its neighbour's gap.
+            .offset(y: (insertionEdge == .bottom ? 1 : -1) * Spacing.xs / 2)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .transition(.opacity)
+        }
     }
 
     // MARK: - Trailing column
@@ -209,6 +259,8 @@ struct ListRow: View {
         if let subtitle { parts.append(subtitle) }
         if let note { parts.append(note) }
         if playState.isCurrent { parts.append(playState == .playing ? "Playing" : "Paused") }
+        if isDropTarget { parts.append("Drop to move here") }
+        if insertionEdge != nil { parts.append("Drop to place here") }
         if let count = folderCount {
             parts.append("\(count) items")
         } else {
@@ -306,6 +358,17 @@ struct ListRowGallery: View {
                 ListRow(kind: .folder(symbol: "star.fill", count: 12), title: "Favorites", opensScreen: true)
                 ListRow(kind: .folder(count: 3, cover: Image(systemName: "photo")), title: "A book with a cover",
                         opensScreen: true)
+            }
+            PreviewState("folder, a dragged row over it") {
+                ListRow(kind: .folder(count: 4), title: "Bonds", opensScreen: true, isDropTarget: true)
+            }
+            PreviewState("a page with a dragged row about to be placed above it") {
+                ListRow(kind: .page(letter: "M"), title: "Money Market Funds", subtitle: "investing.example.com",
+                        progress: .unplayed(minutes: 12), onPlay: {}, insertionEdge: .top)
+            }
+            PreviewState("folder of pages: its place and its ▶") {
+                ListRow(kind: .folder(count: 7), title: "Finance", subtitle: "Seven-Day Yield",
+                        progress: .partWay(fraction: 0.3, minutesLeft: 52), opensScreen: true, onPlay: {})
             }
             PreviewState("book: unplayed, part-way, playing") {
                 ListRow(kind: .folder(symbol: "book.closed", count: 61), title: "Pride and Prejudice",

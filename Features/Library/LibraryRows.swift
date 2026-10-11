@@ -3,19 +3,29 @@ import SwiftUI
 /// A page row: a saved page (its ▶), a link (lighter, 🔗, no ▶), or a page played without saving
 /// ("Not saved", *Save* in its menu; decision D5). Tap opens it (the Reader, Now Playing when it is
 /// what you hear, the browser for a link); long-press is its menu (decision D11); swipe left
-/// removes it from the Library. While its screen is in Edit the List's selection takes the tap.
+/// removes it from the Library. A page in the Library lifts into a drag from the long press, to
+/// be filed in a folder or placed between rows (`LibraryDrag`). While its screen is in Edit the
+/// List's selection takes the tap.
 struct LibraryPageRow: View {
     let page: Page
     /// *Select* in the menu: enters Edit with this row selected (folder screens only).
     var onSelect: (() -> Void)?
+    /// Lifts into a drag (not in search results, which have nowhere to drop it).
+    var drags = true
 
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
+    @Environment(LibraryScreenState.self) private var screen
     @Environment(\.editMode) private var editMode
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
+
+    private var dragID: LibraryItemID? {
+        guard drags, !isEditing, page.isInLibrary, !page.isInFixedFolder else { return nil }
+        return .page(page.listenKey)
+    }
 
     var body: some View {
         ListRow(kind: page.isLink ? .link : .page(artwork: page.artworkImage, letter: page.byline.siteLetter),
@@ -23,8 +33,11 @@ struct LibraryPageRow: View {
                 note: page.isLink || page.isInLibrary ? nil : String(localized: "Not saved"),
                 progress: page.isLink ? .unplayed(minutes: nil) : PageProgress.of(page),
                 playState: page.isLink ? .idle : actions.playState(of: page),
-                onPlay: page.isLink || isEditing ? nil : { actions.play(page) })
+                onPlay: page.isLink || isEditing ? nil : { actions.play(page) },
+                insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil)
             .opensOnTap(isEditing ? nil : { actions.open(page) })
+            .libraryDropRow(.page(page.listenKey), in: screen)
+            .libraryDrag(dragID, in: screen)
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
                 if page.isInLibrary {
@@ -63,10 +76,12 @@ struct LibraryPageRow: View {
     }
 }
 
-/// A folder row (a plain folder, Favorites, a book or series): pushes its screen. A book or
-/// series also shows its place ("Ch 24", then "6 h 10 min left") and its own ▶, which resumes it
-/// there; other folders show their count and ›. Long-press is its menu; swipe left asks to delete
-/// it (not Favorites).
+/// A folder row (a plain folder, Favorites, a book or series): pushes its screen. A folder whose
+/// pages play (a book or series always) shows its place ("Ch 24", or the page it is at), the time
+/// left and its own ▶, which resumes it there and carries on page to page; any other folder shows
+/// its count and ›. Long-press is its menu, and lifts it into a drag (not Favorites); a dragged
+/// row let go on it is filed in it, unless it is a book or series. Swipe left asks to delete it
+/// (not Favorites).
 struct LibraryFolderRow: View {
     let folder: Folder
     /// *Select* in the menu: enters Edit with this row selected (folder screens only).
@@ -82,7 +97,8 @@ struct LibraryFolderRow: View {
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
 
     var body: some View {
-        row
+        let progress = folderProgress
+        row(progress)
             // The link sits behind the row, so the List draws no disclosure of its own: the
             // row's › shares the ▶ column. Selecting the cell (a tap) follows it; in Edit the
             // List's selection takes the tap instead.
@@ -92,7 +108,9 @@ struct LibraryFolderRow: View {
                     .accessibilityHidden(true)
             }
             .accessibilityIdentifier("folderRow")
-            .contextMenu { menu }
+            .libraryDropRow(.folder(folder.id), in: screen)
+            .libraryDrag(folder.kind == .favorites || isEditing ? nil : .folder(folder.id), in: screen)
+            .contextMenu { menu(progress) }
             .swipeActions(edge: .trailing) {
                 if folder.kind != .favorites {
                     Button("Delete", role: .destructive) { screen.confirmDelete([folder]) }
@@ -100,47 +118,63 @@ struct LibraryFolderRow: View {
             }
     }
 
+    /// Its pages in play order, from the relationship (sorted here as `playOrder` sorts, so a home
+    /// with a long series doesn't fetch on every redraw), and where it is in them.
+    private var folderProgress: FolderProgress {
+        let pages = (folder.pages ?? []).sorted(using: LibraryQueries.sortDescriptors(folder.pageSort))
+        let state = actions.playState(of: folder)
+        return FolderProgress(folder: folder, pages: pages, playingKey: state.isCurrent ? speech.activeSessionID : nil,
+                              library: library)
+    }
+
+    private func plays(_ progress: FolderProgress) -> Bool {
+        folder.kind.isFixed || progress.hasPagesToPlay
+    }
+
     @ViewBuilder
-    private var row: some View {
+    private func row(_ progress: FolderProgress) -> some View {
         let kind = ListRow.Kind.folder(symbol: folder.rowSymbol, count: folder.itemCount, cover: folder.coverImage)
-        if folder.kind.isFixed {
-            let state = actions.playState(of: folder)
-            // From the relationship, sorted here as `playOrder` sorts, so a home with a long
-            // series doesn't fetch on every redraw.
-            let chapters = (folder.pages ?? []).sorted(using: LibraryQueries.sortDescriptors(.manual))
-            let book = BookProgress(folder: folder, chapters: chapters,
-                                    playingKey: state.isCurrent ? speech.activeSessionID : nil, library: library)
-            ListRow(kind: kind, title: folder.displayName, subtitle: place(book), progress: progress(book),
-                    playState: state, opensScreen: true,
-                    onPlay: isEditing ? nil : { actions.playBook(folder) })
+        let isDropTarget = screen.dropTarget == folder.id
+        let edge = screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil
+        if plays(progress) {
+            ListRow(kind: kind, title: folder.displayName, subtitle: place(progress), progress: rowProgress(progress),
+                    playState: actions.playState(of: folder), opensScreen: true,
+                    onPlay: isEditing ? nil : { actions.playFolder(folder) }, isDropTarget: isDropTarget,
+                    insertionEdge: edge)
         } else {
-            ListRow(kind: kind, title: folder.displayName, opensScreen: true)
+            ListRow(kind: kind, title: folder.displayName, opensScreen: true, isDropTarget: isDropTarget,
+                    insertionEdge: edge)
         }
     }
 
-    /// "Ch 24" once it has a place; before that, the author or site.
-    private func place(_ book: BookProgress) -> String? {
-        if folder.currentPageKey != nil || book.fraction != nil, folder.finishedAt == nil,
-           let number = book.chapterNumber {
-            return "Ch \(number)"
+    /// Once it has a place: "Ch 24" in a book or series, the page's title in any other folder.
+    /// Before that, a book's author or a series' site.
+    private func place(_ progress: FolderProgress) -> String? {
+        let started = folder.currentPageKey != nil || progress.fraction != nil
+        if folder.kind.isFixed {
+            if started, folder.finishedAt == nil, let number = progress.number { return "Ch \(number)" }
+            return folder.byline
         }
-        return folder.byline
+        guard started, !progress.isFinished, let key = progress.currentKey else { return nil }
+        return folder.pages?.first { $0.listenKey == key }?.title
     }
 
-    private func progress(_ book: BookProgress) -> ListRow.Progress {
-        if folder.finishedAt != nil { return .finished }
-        if let fraction = book.fraction { return .partWay(fraction: fraction, minutesLeft: book.minutesLeft) }
-        return .unplayed(minutes: book.minutesLeft > 0 ? book.minutesLeft : nil)
+    /// A book is finished when its last chapter is; any other folder when every page that plays
+    /// is (pages added later play on from it).
+    private func rowProgress(_ progress: FolderProgress) -> ListRow.Progress {
+        if folder.kind.isFixed ? folder.finishedAt != nil : progress.isFinished { return .finished }
+        if let fraction = progress.fraction { return .partWay(fraction: fraction, minutesLeft: progress.minutesLeft) }
+        return .unplayed(minutes: progress.minutesLeft > 0 ? progress.minutesLeft : nil)
     }
 
     @ViewBuilder
-    private var menu: some View {
+    private func menu(_ progress: FolderProgress) -> some View {
         if let onSelect {
             Button("Select", systemImage: "checkmark.circle", action: onSelect)
         }
-        if folder.kind.isFixed {
-            Button("Continue", systemImage: "play.fill") { actions.playBook(folder) }
-            Button("Play from Start", systemImage: "backward.end") { actions.playBookFromStart(folder) }
+        if plays(progress) {
+            Button("Continue", systemImage: "play.fill") { actions.playFolder(folder) }
+            Button("Play from Start", systemImage: "backward.end") { actions.playFolderFromStart(folder) }
         }
         if folder.kind != .favorites {
             Button("Move to…", systemImage: "folder") { actions.move([.folder(folder)]) }

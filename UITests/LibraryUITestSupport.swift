@@ -37,6 +37,24 @@ extension XCTestCase {
         NSPredicate(format: "label == %@ AND value LIKE '?*'", title)
     }
 
+    /// Long-presses the row titled `title` until it lifts, drags it slowly to `target`, holds
+    /// there, and lets go. It moves as soon as the row lifts, before its menu is fully out: a
+    /// finger that waits for the menu and then moves through it picks a menu item instead (iOS's
+    /// own menu). The press lands left of the row's ▶.
+    func dragRow(_ app: XCUIApplication, _ title: String, to target: XCUICoordinate) {
+        let row = libraryCell(app, title)
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "row \(title)")
+        row.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5))
+            .press(forDuration: 0.6, thenDragTo: target, withVelocity: .slow, thenHoldForDuration: 1.0)
+        idle(1)
+    }
+
+    /// A point on the row titled `title`: `dy` 0.5 is its middle (a folder there takes a drop),
+    /// smaller is nearer its top (a drop there goes before it).
+    func rowPoint(_ app: XCUIApplication, _ title: String, dy: CGFloat = 0.5) -> XCUICoordinate {
+        libraryCell(app, title).coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: dy))
+    }
+
     /// Opens the folder row `title` and waits for its screen.
     func openFolder(_ app: XCUIApplication, _ title: String) {
         let row = libraryRow(app, title)

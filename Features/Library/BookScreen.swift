@@ -75,10 +75,10 @@ struct BookScreen: View {
                 let play = continueTitle
                 PlayStateButton(state: actions.playState(of: folder),
                                 look: .pill(title: play.title, detail: play.detail)) {
-                    actions.playBook(folder)
+                    actions.playFolder(folder)
                 }
                 .accessibilityIdentifier("bookContinue")
-                PillButton(String(localized: "Play from Start"), style: .neutral) { actions.playBookFromStart(folder) }
+                PillButton(String(localized: "Play from Start"), style: .neutral) { actions.playFolderFromStart(folder) }
                     .accessibilityIdentifier("bookPlayFromStart")
             }
         }
@@ -100,18 +100,13 @@ struct BookScreen: View {
     }
 
     /// The place, how far through and what's left, from the chapters that play.
-    private var bookProgress: BookProgress {
+    private var bookProgress: FolderProgress {
         let playing = actions.playState(of: folder).isCurrent ? speech.activeSessionID : nil
-        return BookProgress(folder: folder, chapters: chapters, playingKey: playing, library: library)
+        return FolderProgress(folder: folder, pages: chapters, playingKey: playing, library: library)
     }
 
     /// The header's bar and ["38%", "6 h 10 min left"], once a chapter is finished or part-way.
-    private var progress: (fraction: Double?, label: [String]) {
-        let book = bookProgress
-        guard let fraction = book.fraction else { return (nil, []) }
-        return (fraction, ["\(Int((fraction * 100).rounded()))%",
-                           "\(ListeningTime.label(minutes: book.minutesLeft)) left"])
-    }
+    private var progress: (fraction: Double?, label: [String]) { bookProgress.header }
 
     // MARK: - Continue
 
@@ -121,7 +116,7 @@ struct BookScreen: View {
     /// The round button's title and the lighter chapter after it: "Continue" "Ch 24", "Playing"
     /// "Ch 24"; "Play from Chapter 1" before anything has played.
     private var continueTitle: (title: String, detail: String?) {
-        let number = bookProgress.chapterNumber
+        let number = bookProgress.number
         let chapter = number.map { "Ch \($0)" }
         if actions.playState(of: folder).isCurrent { return (String(localized: "Playing"), chapter) }
         if folder.currentPageKey == nil {

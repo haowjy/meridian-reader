@@ -17,6 +17,10 @@ struct LaunchOptions: Equatable {
         /// `-seedPlayedPages N`: also N pages played without saving, part-way ("Played Page 1"
         /// played most recently): the "Not saved" rows at the top of the Library's *Pages*.
         var playedPages = 0
+        /// `-seedLoosePages N`: also N saved pages in no folder ("Loose Page 1"…), added after the
+        /// demo article in that order, but numbered in reverse for *Manual* (so a drag that keeps
+        /// the order shown is told apart from one that falls back to the stored order).
+        var loosePages = 0
     }
 
     enum BookmarkSetup: Equatable {
@@ -94,7 +98,8 @@ struct LaunchOptions: Equatable {
                 paragraphs: max(3, value(after: "-seedDemoParagraphs").flatMap(Int.init) ?? 3),
                 progress: value(after: "-seedDemoProgress").flatMap(Int.init) ?? 0,
                 plainTextOnly: flags.contains("-seedDemoPlainText"),
-                playedPages: value(after: "-seedPlayedPages").flatMap(Int.init) ?? 0
+                playedPages: value(after: "-seedPlayedPages").flatMap(Int.init) ?? 0,
+                loosePages: value(after: "-seedLoosePages").flatMap(Int.init) ?? 0
             )
         }
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")
