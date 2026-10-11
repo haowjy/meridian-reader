@@ -14,8 +14,9 @@ import SwiftUI
 /// ‹ Library                Finance                    Edit
 /// Finance
 /// 2 folders   7 pages
-/// ━━━━━━━━━━░░░░░░░░  38%   52 min left
-///  ( ▶ Continue  3 of 7 )        Play from Start
+/// ━━━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░░░░
+/// 38%   52 min left
+/// ( ▶ Continue  3 of 7             ) ( Play from Start )
 ///  📁 Bonds                             4  ›
 ///  [i] Coupon Basics                        ▶
 ///      investing.example.com   ✓ Finished
@@ -113,7 +114,6 @@ private struct FolderContentsList: View {
             } header: {
                 header
                     .libraryHeader()
-                    .padding(.horizontal, -Spacing.pageMargin)
             }
             if !subfolders.isEmpty {
                 Section {
@@ -166,14 +166,18 @@ private struct FolderContentsList: View {
         if let folder, let progress, progress.hasPagesToPlay {
             let bar = progress.header
             FolderHeader(title: title, detail: counts, progress: bar.fraction, progressLabel: bar.label) {
-                HStack(spacing: Spacing.s) {
+                FolderHeaderButtons { expands in
                     let play = continueTitle(folder, progress)
-                    PlayStateButton(state: actions.playState(of: folder), look: .pill(title: play.title, detail: play.detail)) {
+                    PlayStateButton(state: actions.playState(of: folder),
+                                    look: .pill(title: play.title, detail: play.detail, expands: expands)) {
                         actions.playFolder(folder)
                     }
                     .accessibilityIdentifier("folderContinue")
-                    PillButton(String(localized: "Play from Start"), style: .neutral) { actions.playFolderFromStart(folder) }
-                        .accessibilityIdentifier("folderPlayFromStart")
+                } secondary: { expands in
+                    PillButton(String(localized: "Play from Start"), style: .neutral, expands: expands) {
+                        actions.playFolderFromStart(folder)
+                    }
+                    .accessibilityIdentifier("folderPlayFromStart")
                 }
             }
         } else {

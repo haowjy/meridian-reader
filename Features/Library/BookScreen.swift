@@ -10,8 +10,9 @@ import SwiftUI
 /// ╭──────╮  Pride and Prejudice
 /// │cover │  Jane Austen   Book   61 chapters
 /// ╰──────╯  Added 2 Oct
-/// ━━━━━━━━━━░░░░░░░░  38%   6 h 10 min left
-///  ( ▶ Continue  Ch 24 )         Play from Start
+/// ━━━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░░░░
+/// 38%   6 h 10 min left
+/// ( ▶ Continue  Ch 24              ) ( Play from Start )
 /// Chapters                                   Jump to current
 ///    Title page                      skipped
 ///  ✓ Chapter 1                         Finished
@@ -40,7 +41,6 @@ struct BookScreen: View {
                 } header: {
                     header
                         .libraryHeader()
-                        .padding(.horizontal, -Spacing.pageMargin)
                 }
                 Section {
                     ForEach(chapters, id: \.listenKey) { chapter in
@@ -71,15 +71,18 @@ struct BookScreen: View {
     private var header: some View {
         FolderHeader(style: .book(cover: folder.coverImage), title: folder.displayName, detail: detail,
                      source: source, progress: progress.fraction, progressLabel: progress.label) {
-            HStack(spacing: Spacing.s) {
+            FolderHeaderButtons { expands in
                 let play = continueTitle
                 PlayStateButton(state: actions.playState(of: folder),
-                                look: .pill(title: play.title, detail: play.detail)) {
+                                look: .pill(title: play.title, detail: play.detail, expands: expands)) {
                     actions.playFolder(folder)
                 }
                 .accessibilityIdentifier("bookContinue")
-                PillButton(String(localized: "Play from Start"), style: .neutral) { actions.playFolderFromStart(folder) }
-                    .accessibilityIdentifier("bookPlayFromStart")
+            } secondary: { expands in
+                PillButton(String(localized: "Play from Start"), style: .neutral, expands: expands) {
+                    actions.playFolderFromStart(folder)
+                }
+                .accessibilityIdentifier("bookPlayFromStart")
             }
         }
     }

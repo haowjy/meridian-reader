@@ -37,7 +37,6 @@ struct BookImportSheet: View {
                 } header: {
                     header
                         .libraryHeader()
-                        .padding(.horizontal, -Spacing.pageMargin)
                 }
                 Section {
                     destinationRow

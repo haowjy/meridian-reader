@@ -2,18 +2,22 @@ import SwiftUI
 
 /// The top of a folder screen. A plain folder: its title and counts. A book or series: the
 /// cover, title, details, how far through, and its play buttons (`actions`: Continue and Play
-/// from Start).
+/// from Start, in a `FolderHeaderButtons` row).
 ///
 /// ```
 /// Finance                        ╭──────╮  Pride and Prejudice
 /// 2 folders   7 pages            │cover │  Jane Austen   Book   61 chapters
 ///                                ╰──────╯  Added 2 Oct
-///                                ━━━━━━━━░░░░░░░  38%   6 h 10 min left
-///                                ( ▶ Continue  Ch 24 )   Play from Start
+///                                ━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░░░
+///                                38%   6 h 10 min left
+///                                ( ▶ Continue  Ch 24          ) ( Play from Start )
 /// ```
 ///
-/// Each line is separate parts set apart by space (`DetailLine`): the first in secondary ink,
-/// the rest in tertiary.
+/// Every block spans the content width and nothing pads it: in a Library list the section
+/// header already sits on the page margin, so the bar, the buttons and the cards below share
+/// both edges. Each line is separate parts set apart by space (`DetailLine`): the first in
+/// secondary ink, the rest in tertiary. At accessibility text sizes the cover sits above the
+/// title rather than beside it, so the title keeps the line.
 struct FolderHeader<Actions: View>: View {
     enum Style {
         case folder
@@ -28,11 +32,16 @@ struct FolderHeader<Actions: View>: View {
     var source: [String] = []
     /// 0…1 through a book or series; nil: no progress line.
     var progress: Double?
-    /// Beside the progress line (["38%", "6 h 10 min left"]).
+    /// Under the progress line, on one line (["38%", "6 h 10 min left"]).
     var progressLabel: [String] = []
     @ViewBuilder var actions: Actions
 
-    @ScaledMetric(relativeTo: .title3) private var coverWidth: CGFloat = 96
+    @ScaledMetric(relativeTo: .title3) private var scaledCoverWidth: CGFloat = 96
+    @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var partSpacing = Spacing.s
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// The cover grows with the text, up to `BottomChrome.maxTextGrowth`.
+    private var coverWidth: CGFloat { BottomChrome.grown(scaledCoverWidth, from: 96) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
@@ -46,7 +55,10 @@ struct FolderHeader<Actions: View>: View {
                     lines
                 }
             case .book(let cover):
-                HStack(alignment: .bottom, spacing: Spacing.m) {
+                let stack = typeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: Spacing.m))
+                    : AnyLayout(HStackLayout(alignment: .bottom, spacing: Spacing.m))
+                stack {
                     ArtworkTile(image: cover, letter: title, size: coverWidth, isCover: true)
                         .floatingShadow(opacity: 0.15)
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -59,19 +71,16 @@ struct FolderHeader<Actions: View>: View {
                 }
             }
             if let progress {
-                HStack(spacing: Spacing.xs) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
                     ThinProgressBar(value: progress)
-                    if !progressLabel.isEmpty {
-                        DetailLine(progressLabel)
-                            .typeStyle(.caption)
-                            .monospacedDigit()
-                            .fixedSize()
-                    }
+                    if !progressLabel.isEmpty { progressLine }
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(DetailLine.accessibilityLabel(progressLabel))
+                .accessibilityIdentifier("folderHeaderProgress")
             }
             actions
         }
-        .padding(.horizontal, Spacing.pageMargin)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -81,6 +90,47 @@ struct FolderHeader<Actions: View>: View {
             if !source.isEmpty { DetailLine(source) }
         }
         .typeStyle(.caption)
+    }
+
+    /// "38%   6 h 10 min left": one line, never wrapped (it shrinks a little at the largest
+    /// sizes instead), the percent in secondary ink and the time in tertiary.
+    private var progressLine: some View {
+        HStack(alignment: .firstTextBaseline, spacing: partSpacing) {
+            ForEach(Array(progressLabel.enumerated()), id: \.offset) { index, part in
+                Text(part)
+                    .foregroundStyle(index == 0 ? DetailLine.leadInk(false) : DetailLine.restInk(false))
+            }
+        }
+        .typeStyle(.caption)
+        .monospacedDigit()
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+    }
+}
+
+/// A folder header's play buttons: the main one (Continue, Playing) stretches so the row spans
+/// the content width, the second (Play from Start) keeps its size. When both don't fit side by
+/// side (large text) they stack, each the full width.
+///
+/// ```
+/// ( ▶ Continue  Ch 24                ) ( Play from Start )
+/// ```
+struct FolderHeaderButtons<Primary: View, Secondary: View>: View {
+    /// Given whether it should stretch to the width it is offered.
+    @ViewBuilder var primary: (_ expands: Bool) -> Primary
+    @ViewBuilder var secondary: (_ expands: Bool) -> Secondary
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Spacing.s) {
+                primary(true)
+                secondary(false)
+            }
+            VStack(spacing: Spacing.xs) {
+                primary(true)
+                secondary(true)
+            }
+        }
     }
 }
 
@@ -100,10 +150,11 @@ struct FolderHeaderGallery: View {
             PreviewState("book, not playing") {
                 FolderHeader(style: .book(cover: nil), title: "Pride and Prejudice",
                              detail: ["Jane Austen", "Book", "61 chapters"], source: ["Added 2 Oct"],
-                             progress: 0.38, progressLabel: ["38%", "6 h 10 min left"]) {
-                    HStack(spacing: Spacing.s) {
-                        PlayStateButton(state: .idle, look: .pill(title: "Continue", detail: "Ch 24")) {}
-                        PillButton("Play from Start", style: .neutral) {}
+                             progress: 0.02, progressLabel: ["2%", "8 h 48 min left"]) {
+                    FolderHeaderButtons { expands in
+                        PlayStateButton(state: .idle, look: .pill(title: "Continue", detail: "Ch 24", expands: expands)) {}
+                    } secondary: { expands in
+                        PillButton("Play from Start", style: .neutral, expands: expands) {}
                     }
                 }
             }
@@ -111,7 +162,7 @@ struct FolderHeaderGallery: View {
                 FolderHeader(style: .book(cover: nil), title: "The Lantern Road",
                              detail: ["serials.example.com", "Series", "108 chapters", "13 saved"],
                              progress: 0.2, progressLabel: ["20%"]) {
-                    PlayStateButton(state: .playing, look: .pill(title: "Playing", detail: "Ch 24")) {}
+                    PlayStateButton(state: .playing, look: .pill(title: "Playing", detail: "Ch 24", expands: true)) {}
                 }
             }
         }
