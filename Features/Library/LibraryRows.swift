@@ -121,10 +121,17 @@ struct LibraryFolderRow: View {
     /// Its pages in play order, from the relationship (sorted here as `playOrder` sorts, so a home
     /// with a long series doesn't fetch on every redraw), and where it is in them.
     private var folderProgress: FolderProgress {
-        let pages = (folder.pages ?? []).sorted(using: LibraryQueries.sortDescriptors(folder.pageSort))
+        let pages = livePages.sorted(using: LibraryQueries.sortDescriptors(folder.pageSort))
         let state = actions.playState(of: folder)
         return FolderProgress(folder: folder, pages: pages, playingKey: state.isCurrent ? speech.activeSessionID : nil,
                               library: library)
+    }
+
+    /// Its pages still in the store: a delete being saved (a book with its chapters) redraws the
+    /// row once more while the relationship still holds pages whose data is gone, and reading
+    /// one then traps.
+    private var livePages: [Page] {
+        (folder.pages ?? []).filter { !$0.isDeleted && $0.modelContext != nil }
     }
 
     private func plays(_ progress: FolderProgress) -> Bool {
@@ -156,7 +163,7 @@ struct LibraryFolderRow: View {
             return folder.byline
         }
         guard started, !progress.isFinished, let key = progress.currentKey else { return nil }
-        return folder.pages?.first { $0.listenKey == key }?.title
+        return livePages.first { $0.listenKey == key }?.title
     }
 
     /// A book is finished when its last chapter is; any other folder when every page that plays
