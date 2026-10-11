@@ -125,6 +125,24 @@ final class DownloadCenter {
         record(for: target)?.hasQueuedPages == true
     }
 
+    /// The page's audio is downloaded in the current voice (its rows' mark).
+    func isDownloaded(_ page: Page) -> Bool {
+        isDownloaded([page.listenKey])
+    }
+
+    /// Every page a download of `folder` covers is downloaded in the current voice; `pages`:
+    /// its pages in play order (a row passes what it already holds, so this fetches nothing).
+    func isDownloaded(_ folder: Folder, pages: [Page]) -> Bool {
+        isDownloaded(pages.filter { Self.covers($0, in: folder) }.map(\.listenKey))
+    }
+
+    private func isDownloaded(_ keys: [UUID]) -> Bool {
+        let cache = tts.audioCache
+        return DownloadOverview.isDownloaded(keys, records: records, currentVoice: tts.downloadVoice) {
+            cache.renderedVoice(articleID: $0)
+        }
+    }
+
     // MARK: - Asking for downloads
 
     func download(_ page: Page) -> Request {
@@ -162,11 +180,14 @@ final class DownloadCenter {
             return (page.title, [page.listenKey])
         case .folder(let id):
             guard let folder = library.folder(id: id) else { return nil }
-            let pages = library.playOrder(of: folder).filter { page in
-                !page.skipsInPlayback && !(folder.kind.isFixed && page.finishedAt != nil)
-            }
+            let pages = library.playOrder(of: folder).filter { Self.covers($0, in: folder) }
             return (folder.displayName, pages.map(\.listenKey))
         }
+    }
+
+    /// A folder's download covers its pages that play; a book's or series' only while unfinished.
+    static func covers(_ page: Page, in folder: Folder) -> Bool {
+        !page.skipsInPlayback && !(folder.kind.isFixed && page.finishedAt != nil)
     }
 
     private func targetExists(_ target: DownloadRecord.Target) -> Bool {

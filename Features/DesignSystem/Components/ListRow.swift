@@ -15,6 +15,8 @@ import SwiftUI
 ///  ◐  Chapter 24                                 ▶   chapter, part-way
 ///     6 min left
 /// 🔗  serials.example.com                            link: lighter
+/// [i] Index Funds                                ▶   downloaded: a quiet mark ends the line
+///     investing.example.com   12 min   ⊕
 /// ```
 ///
 /// The row draws; tapping it is the caller's (a `NavigationLink`, a button). The status sits
@@ -64,6 +66,9 @@ struct ListRow: View {
     var isDropTarget = false
     /// A dragged row would be placed beside this one, on this side: a line marks the place.
     var insertionEdge: VerticalEdge?
+    /// Its audio is downloaded (a folder's: every page its download covers): a small mark ends
+    /// the second line.
+    var isDownloaded = false
 
     /// 56 pt at the default text size; larger text grows the row through its content, and the
     /// minimum only up to `BottomChrome.maxTextGrowth`.
@@ -195,7 +200,7 @@ struct ListRow: View {
     private var secondLine: some View {
         let status = statusText
         let leads = [subtitle, note].compactMap { $0 }
-        if !leads.isEmpty || status != nil {
+        if !leads.isEmpty || status != nil || isDownloaded {
             DetailLineLayout(spacing: partSpacing) {
                 ForEach(Array(leads.enumerated()), id: \.offset) { index, text in
                     Text(text)
@@ -203,9 +208,18 @@ struct ListRow: View {
                         .lineLimit(index == 0 ? 1 : nil)
                 }
                 if let status { statusView(status, isLead: leads.isEmpty) }
+                if isDownloaded { downloadedMark }
             }
             .typeStyle(.caption)
         }
+    }
+
+    /// Downloaded: a small filled arrow in secondary ink, the caption's size. VoiceOver reads
+    /// "Downloaded" in the row's value.
+    private var downloadedMark: some View {
+        Image(systemName: "arrow.down.circle.fill")
+            .foregroundStyle(Palette.secondaryInk)
+            .accessibilityLabel(String(localized: "Downloaded"))
     }
 
     private func statusView(_ status: String, isLead: Bool) -> some View {
@@ -272,6 +286,7 @@ struct ListRow: View {
             case .skipped: parts.append("Skipped in playback")
             }
         }
+        if isDownloaded { parts.append(String(localized: "Downloaded")) }
         return parts.joined(separator: ", ")
     }
 
@@ -394,6 +409,15 @@ struct ListRowGallery: View {
                 ListRow(kind: .page(letter: "S"), title: "Seven-Day Yield: Definition, Calculation, and Example",
                         subtitle: "investing.example.com", progress: .partWay(fraction: 0.58, minutesLeft: 9),
                         playState: .playing, onPlay: {})
+            }
+            PreviewState("downloaded: a page, a book, a chapter") {
+                ListRow(kind: .page(letter: "I"), title: "Index Funds", subtitle: "investing.example.com",
+                        progress: .unplayed(minutes: 12), onPlay: {}, isDownloaded: true)
+                ListRow(kind: .folder(symbol: "book.closed", count: 61), title: "Pride and Prejudice",
+                        subtitle: "Ch 24", progress: .partWay(fraction: 0.38, minutesLeft: 370), opensScreen: true,
+                        onPlay: {}, isDownloaded: true)
+                ListRow(kind: .chapter, title: "Chapter 25", progress: .unplayed(minutes: 11), onPlay: {},
+                        isDownloaded: true)
             }
             PreviewState("page, finished") {
                 ListRow(kind: .page(letter: "C"), title: "Coupon Basics", subtitle: "investing.example.com",

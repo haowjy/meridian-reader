@@ -100,6 +100,17 @@ struct DownloadOverview: Equatable {
         progress = runningTotal > 0 ? runningDone / Double(runningTotal) : nil
     }
 
+    /// Whether every one of `keys` is downloaded: a download's turn on it ended with its whole
+    /// audio rendered (`.done`), and that audio is in `currentVoice`, the voice downloads render
+    /// in now (a page the Downloads list shows under *Done*, not *Different voice*). Audio
+    /// deleted since has no voice, so it isn't. Empty `keys`, or no on-device voice: false.
+    static func isDownloaded(_ keys: [UUID], records: [DownloadRecord], currentVoice: String?,
+                             voiceOf: (UUID) -> String?) -> Bool {
+        guard !keys.isEmpty, let currentVoice else { return false }
+        let done = Set(records.flatMap { $0.entries.filter { $0.state == .done }.map(\.key) })
+        return keys.allSatisfy { done.contains($0) && voiceOf($0) == currentVoice }
+    }
+
     /// The progress line's value alone (`progress`), without reading any page's voice: cheap
     /// enough for every frame of the bottom chrome.
     static func progress(records: [DownloadRecord], active: Active?, rendersDownloads: Bool) -> Double? {

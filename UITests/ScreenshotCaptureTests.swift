@@ -296,9 +296,38 @@ final class ScreenshotCaptureTests: XCTestCase {
         try shot("11-favorites-sheet-menu")
     }
 
+    /// A book part-way (its bar, the percent and time left under it, Continue and Play from Start,
+    /// the Chapters card) and a folder part-way, light and at the largest accessibility text size:
+    /// every block on the page margin.
+    func testBookAndFolderHeaders() throws {
+        for (suffix, size) in [("", nil), ("-ax5", "UICTContentSizeCategoryAccessibilityXXXL")] as [(String, String?)] {
+            var arguments = ["-seedDemoBook", "-seedDemoBookPlace", "2", "-seedDemoFolders", "-resetBookmarks",
+                             "-openLibrary", "-reader.developerOptions", "NO"]
+            if let size { arguments += ["-UIPreferredContentSizeCategoryName", size] }
+            let app = launch(arguments)
+            XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10))
+            row(app, "The Demo Book").tap()
+            XCTAssertTrue(el(app, "bookScreen").waitForExistence(timeout: 5))
+            wait(1.2)
+            try shot("1-book-part-way\(suffix)")
+            if size != nil {
+                app.swipeUp()
+                wait(1)
+                try shot("1b-book-buttons\(suffix)")
+            }
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+            wait(1)
+            row(app, "Demo Finance").tap()
+            XCTAssertTrue(el(app, "folderScreen").waitForExistence(timeout: 5))
+            wait(1.2)
+            try shot("2-folder-part-way\(suffix)")
+            app.terminate()
+        }
+    }
+
     /// Downloads (decision D16) with the offline test voice: the book's ⋯ with *Download Book*,
     /// the progress line on the bottom chrome (with its toast, then alone), the Downloads list
-    /// while it renders and once done, after a voice change (Different Voice), and the Reader's ⋯
+    /// while it renders and once done, the Downloaded marks on the chapters and the book's row, after a voice change (Different Voice), and the Reader's ⋯
     /// with *Download*.
     func testDownloads() throws {
         let app = XCUIApplication()
@@ -328,9 +357,11 @@ final class ScreenshotCaptureTests: XCTestCase {
         try shot("5-downloads-done")
         el(app, "downloadsDone").tap()
         wait(1)
+        try shot("5b-book-downloaded")
 
         app.navigationBars.buttons.element(boundBy: 0).tap()
         wait(1)
+        try shot("5c-home-downloaded")
         app.buttons["libraryMore"].tap()
         wait(1.2)
         try shot("6-home-menu")

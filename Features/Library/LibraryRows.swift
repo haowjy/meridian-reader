@@ -35,7 +35,8 @@ struct LibraryPageRow: View {
                 progress: page.isLink ? .unplayed(minutes: nil) : PageProgress.of(page),
                 playState: page.isLink ? .idle : actions.playState(of: page),
                 onPlay: page.isLink || isEditing ? nil : { actions.play(page) },
-                insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil)
+                insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil,
+                isDownloaded: page.isInLibrary && downloads.isDownloaded(page))
             .opensOnTap(isEditing ? nil : { actions.open(page) })
             .libraryDropRow(.page(page.listenKey), in: screen)
             .libraryDrag(dragID, in: screen)
@@ -104,8 +105,9 @@ struct LibraryFolderRow: View {
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
 
     var body: some View {
-        let progress = folderProgress
-        row(progress)
+        let pages = playOrder
+        let progress = folderProgress(pages)
+        row(progress, isDownloaded: downloads.isDownloaded(folder, pages: pages))
             // The link sits behind the row, so the List draws no disclosure of its own: the
             // row's › shares the ▶ column. Selecting the cell (a tap) follows it; in Edit the
             // List's selection takes the tap instead.
@@ -125,13 +127,17 @@ struct LibraryFolderRow: View {
             }
     }
 
-    /// Its pages in play order, from the relationship (sorted here as `playOrder` sorts, so a home
-    /// with a long series doesn't fetch on every redraw), and where it is in them.
-    private var folderProgress: FolderProgress {
-        let pages = livePages.sorted(using: LibraryQueries.sortDescriptors(folder.pageSort))
+    /// Where it is in `pages`, its pages in play order.
+    private func folderProgress(_ pages: [Page]) -> FolderProgress {
         let state = actions.playState(of: folder)
         return FolderProgress(folder: folder, pages: pages, playingKey: state.isCurrent ? speech.activeSessionID : nil,
                               library: library)
+    }
+
+    /// Its pages in play order, from the relationship (sorted here as `LibraryStore.playOrder`
+    /// sorts, so a home with a long series doesn't fetch on every redraw).
+    private var playOrder: [Page] {
+        livePages.sorted(using: LibraryQueries.sortDescriptors(folder.pageSort))
     }
 
     /// Its pages still in the store: a delete being saved (a book with its chapters) redraws the
@@ -146,7 +152,7 @@ struct LibraryFolderRow: View {
     }
 
     @ViewBuilder
-    private func row(_ progress: FolderProgress) -> some View {
+    private func row(_ progress: FolderProgress, isDownloaded: Bool) -> some View {
         let kind = ListRow.Kind.folder(symbol: folder.rowSymbol, count: folder.itemCount, cover: folder.coverImage)
         let isDropTarget = screen.dropTarget == folder.id
         let edge = screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil
@@ -154,7 +160,7 @@ struct LibraryFolderRow: View {
             ListRow(kind: kind, title: folder.displayName, subtitle: place(progress), progress: rowProgress(progress),
                     playState: actions.playState(of: folder), opensScreen: true,
                     onPlay: isEditing ? nil : { actions.playFolder(folder) }, isDropTarget: isDropTarget,
-                    insertionEdge: edge)
+                    insertionEdge: edge, isDownloaded: isDownloaded)
         } else {
             ListRow(kind: kind, title: folder.displayName, opensScreen: true, isDropTarget: isDropTarget,
                     insertionEdge: edge)
@@ -221,7 +227,8 @@ struct LibraryChapterRow: View {
                 subtitle: page.isLink ? String(localized: "not fetched yet") : nil,
                 progress: page.isLink ? .unplayed(minutes: nil) : PageProgress.of(page),
                 playState: actions.playState(of: page),
-                onPlay: page.isLink || page.skipsInPlayback ? nil : { actions.play(page) })
+                onPlay: page.isLink || page.skipsInPlayback ? nil : { actions.play(page) },
+                isDownloaded: downloads.isDownloaded(page))
             .opensOnTap { actions.open(page) }
             .accessibilityIdentifier("chapterRow")
             .contextMenu { menu }

@@ -51,6 +51,27 @@ final class DownloadOverviewTests: XCTestCase {
         XCTAssertTrue(kept.differentVoice.isEmpty)
     }
 
+    /// A row's Downloaded mark: done, and in the voice downloads render in now.
+    func testDownloadedMeansDoneInTheCurrentVoice() {
+        let book = record([.done, .done, .queued, .speaksLive, .failed])
+        let keys = book.entries.map(\.key)
+        var voices = [keys[0]: heart, keys[1]: bella, keys[2]: heart, keys[3]: heart, keys[4]: heart]
+        func downloaded(_ k: [UUID], current: String? = "kokoro.af_heart") -> Bool {
+            DownloadOverview.isDownloaded(k, records: [book], currentVoice: current) { voices[$0] }
+        }
+        XCTAssertTrue(downloaded([keys[0]]))
+        XCTAssertFalse(downloaded([keys[1]]), "done, but in another voice")
+        XCTAssertFalse(downloaded([keys[2]]), "still queued")
+        XCTAssertFalse(downloaded([keys[3]]), "spoken live: no audio downloaded")
+        XCTAssertFalse(downloaded([keys[4]]), "failed")
+        XCTAssertFalse(downloaded([UUID()]), "never downloaded")
+        XCTAssertFalse(downloaded([keys[0], keys[1]]), "a folder: every page it covers")
+        XCTAssertFalse(downloaded([]), "nothing covered")
+        XCTAssertFalse(downloaded([keys[0]], current: nil), "no on-device voice")
+        voices[keys[0]] = nil
+        XCTAssertFalse(downloaded([keys[0]]), "its audio deleted since")
+    }
+
     func testAudioInAnotherVoiceIsADifferentVoice() {
         let mixed = record([.done, .done, .speaksLive, .failed])
         let o = overview([mixed], voices: [mixed.entries[0].key: heart, mixed.entries[1].key: bella])

@@ -69,5 +69,11 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   *Delete Downloads* also drops the page's or book's download, or the list would render it again.
   Rows offer *Download* only when that page or folder isn't downloading already
   (`DownloadCenter.isQueued`).
+- **Headers sit on the page margin with the cards** (`FolderHeader`, `FolderHeaderButtons`): the
+  section header is already at the margin in a Library list, so the header adds no padding of its
+  own; the bar and the button row span the width, so all four edges line up
+  (`BookFolderUITests.testHeaderBlocksShareTheCardsEdges` checks them).
+- **Rows ask `DownloadCenter.isDownloaded`** for their Downloaded mark (a page, or a folder with
+  the pages its row already sorted); `ListRow` only draws `isDownloaded`.
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way
   (`PageProgress.of`); counts come from relationships, not fetches.

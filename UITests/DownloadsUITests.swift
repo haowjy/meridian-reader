@@ -4,7 +4,8 @@ import XCTest
 /// and Two) standing in for Kokoro: the demo book downloaded from its screen's ⋯ shows the
 /// progress line while it renders and lands in Downloads under Done, named by its voice, with
 /// the storage it uses; a voice change moves it to Different Voice, where Keep and Re-download
-/// settle it; a queued download pauses and is removed.
+/// settle it; a queued download pauses and is removed. Rows show "Downloaded" while their audio
+/// is in the selected voice.
 final class DownloadsUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
@@ -59,10 +60,15 @@ final class DownloadsUITests: XCTestCase {
         XCTAssertFalse(value(row).contains("·"), "parts set apart by space, not a dot")
         closeDownloads(app)
         XCTAssertTrue(eventually(5) { !find(app, "downloadProgress").exists }, "no line once nothing is queued")
+        let chapter = libraryRow(app, "Chapter 1: The Harbor")
+        XCTAssertTrue(eventually(5) { self.value(chapter).hasSuffix("Downloaded") }, "the chapter's mark, got \(value(chapter))")
+        XCTAssertFalse(value(libraryRow(app, "Title Page")).contains("Downloaded"), "front matter isn't downloaded")
 
         // Another voice (Voice Settings from the home's ⋯): the download is marked as a different voice.
         app.navigationBars["The Demo Book"].buttons.firstMatch.tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
+        let book = libraryRow(app, "The Demo Book")
+        XCTAssertTrue(eventually(5) { self.value(book).hasSuffix("Downloaded") }, "the book's mark, got \(value(book))")
         app.buttons["libraryMore"].tap()
         tapMenuRow(app, "moreVoice")
         XCTAssertTrue(app.navigationBars["Listen"].waitForExistence(timeout: 5), "Voice settings")
@@ -78,6 +84,9 @@ final class DownloadsUITests: XCTestCase {
         XCTAssertTrue(find(app, "downloadsDifferentVoiceHeader").waitForExistence(timeout: 5), "Different Voice")
         XCTAssertTrue(value(downloadRow(app, "The Demo Book")).hasPrefix("Test Voice One"))
         XCTAssertFalse(find(app, "downloadsDoneHeader").exists)
+        closeDownloads(app)
+        XCTAssertFalse(value(libraryRow(app, "The Demo Book")).contains("Downloaded"), "not in the voice selected now")
+        openDownloads(app)
 
         // Keep: done, still in its own voice.
         find(app, "downloadKeep").tap()

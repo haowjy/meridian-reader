@@ -270,11 +270,12 @@ commas.
   (`FolderDeletePrompt`). Pages and their audio go together: the audio is deleted once the delete
   is saved, and a delete that can't be saved leaves both (and says so, below).
 - **A book or series** (`BookScreen`): the cover, title, author, chapter count and where it came
-  from; how far through ("38%", then "6 h 10 min left"); the round play button (*▶ Play from
-  Chapter 1* before anything has played, *▶ **Continue** Ch 24*, or jade bars *Playing Ch 24*
-  while one
-  of its chapters plays: tap pauses) and *Play from Start*; then the chapters in their source
-  order. No Edit, and no dragging: its chapters keep the source's order, don't leave it, and
+  from; how far through (a bar across the content width, with "38%" and "6 h 10 min left" on one
+  line under it); the round play button (*▶ Play from Chapter 1* before anything has played,
+  *▶ **Continue** Ch 24*, or jade bars *Playing Ch 24* while one of its chapters plays: tap
+  pauses), stretched so it and *Play from Start* span the width (stacked at large text sizes);
+  then the chapters in their source order. Every block sits on the page margin, so the bar, the
+  buttons and the Chapters card share both edges; a folder whose pages play has the same header. No Edit, and no dragging: its chapters keep the source's order, don't leave it, and
   nothing is dropped into it. Front matter shows dimmed with "skipped" (it still opens for
   reading); *Jump to current* scrolls to the chapter Continue resumes. Playing any chapter carries
   on through the book, then stops. ⋯: *Rename, Move…, Download Book, Delete Downloads, Delete Book…*. A series is the same
@@ -285,7 +286,9 @@ long press that moves lifts the row into a drag (below); swipe left removes. Row
 plays) or pauses / resumes it when it is what you hear, and never navigates. The playing row is
 tinted, with still or moving bars. Under the title, after the site, rows show a length ("18
 min"), "6 min left" with a small ring part-way, or "✓ Finished", so the title keeps the row's
-width. ▶ / ⏸ and a folder's › share one trailing column, centred on the ⋯ slot as the bar's ⏸
+width. A page or chapter whose audio is downloaded in the voice selected now ends that line with
+a small grey ⬇︎ mark (VoiceOver: "Downloaded"); a folder, book or series row shows it when every
+page its download covers is (decision D16). ▶ / ⏸ and a folder's › share one trailing column, centred on the ⋯ slot as the bar's ⏸
 is; a folder's count sits just before its ›. On a folder screen every row's menu starts with
 *Select*.
 
