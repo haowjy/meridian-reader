@@ -47,6 +47,8 @@ final class LocalListenEngine: ListenEngine {
             self.paragraph = idx
             self.reportPosition(force: true)
             self.onEvent?(.becameAudible)
+            // In the background the render queue idles between bursts; playing on may wake it.
+            self.coordinator.synthQueue.playbackAdvanced()
         }
         player.onFinished = { [weak self] in
             self?.stopClock()
@@ -119,6 +121,7 @@ final class LocalListenEngine: ListenEngine {
         player.resume()
         startClock()
         if player.isAudible { onEvent?(.becameAudible) }
+        coordinator.synthQueue.playbackAdvanced()
     }
 
     func stop() {
@@ -175,7 +178,7 @@ final class LocalListenEngine: ListenEngine {
             case .active, .inactive:
                 return "\(phase.rawValue) · \(name) ONNX CPU (\(synth.hostRoutingLabel ?? "cpu"))\(pace)"
             case .background:
-                return "background · \(name) ONNX CPU keeps rendering (playing article)\(pace)"
+                return "background · \(name) ONNX CPU (\(synth.hostRoutingLabel ?? "cpu")), playing article in bursts\(pace)"
             }
         }
         switch phase {

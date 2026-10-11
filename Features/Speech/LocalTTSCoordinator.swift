@@ -234,6 +234,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     var playingCacheKey: UUID? { listenPlayer?.playingArticleID }
 
+    func readyAheadSeconds(upTo limit: TimeInterval) -> TimeInterval {
+        listenPlayer?.readyAheadSeconds(upTo: limit) ?? 0
+    }
+
     /// Local engine whose cache / chunk sizing applies right now (loaded or loading).
     var activeLocalEngineID: SpeechEngineID? { synth.state.activeEngineID }
 

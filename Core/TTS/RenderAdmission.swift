@@ -6,7 +6,7 @@ import Foundation
 /// |---|---|---|
 /// | active | render | render |
 /// | inactive | render | listener's chunks only; bake-ahead parks |
-/// | background | listener's chunks + bake-ahead of the playing article; other articles park | no model call: a listener's chunk goes to Apple, bake-ahead parks |
+/// | background | listener's chunks; bake-ahead of the playing article during a burst (`BackgroundRenderWatermarks`); other articles park | no model call: a listener's chunk goes to Apple, bake-ahead parks |
 ///
 /// Thermal / Low Power Mode holds on bake-ahead are separate (`BakeConditions`).
 enum RenderAdmission: Equatable {
@@ -21,8 +21,10 @@ enum RenderAdmission: Equatable {
     ///   - rendersInBackground: the active host keeps rendering while backgrounded (no Core ML).
     ///   - isLiveRequest: a listener is waiting for audio.
     ///   - isPlayingArticle: the audio belongs to the article that is playing.
+    ///   - inBackgroundBurst: a background burst is running (less than the low-water mark of
+    ///     listening was ready ahead when it started, and it hasn't reached the high-water mark).
     static func decide(phase: AppRunState.Phase, rendersInBackground: Bool,
-                       isLiveRequest: Bool, isPlayingArticle: Bool) -> RenderAdmission {
+                       isLiveRequest: Bool, isPlayingArticle: Bool, inBackgroundBurst: Bool) -> RenderAdmission {
         guard modelCallsAllowed(phase: phase, rendersInBackground: rendersInBackground) else {
             return isLiveRequest ? .deferToApple : .park
         }
@@ -32,7 +34,7 @@ enum RenderAdmission: Equatable {
         case .inactive:
             return rendersInBackground || isLiveRequest ? .render : .park
         case .background:
-            return isLiveRequest || isPlayingArticle ? .render : .park
+            return isLiveRequest || (isPlayingArticle && inBackgroundBurst) ? .render : .park
         }
     }
 
