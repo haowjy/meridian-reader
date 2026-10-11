@@ -18,6 +18,8 @@ struct ShellSheetView: View {
             MoveTreeSheet(request: request)
         case .importBook(let flow):
             BookImportSheet(flow: flow)
+        case .downloads:
+            DownloadsSheet()
         case .history:
             BrowseHistoryView(visits: Array(recentVisits.prefix(RecentVisit.maxEntries))) { visit in
                 open(visit.url)

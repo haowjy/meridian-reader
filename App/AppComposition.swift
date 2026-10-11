@@ -54,6 +54,21 @@ enum AppComposition {
         progressRecorder = ListeningProgressRecorder(speech: speechController, library: library)
     }
 
+    /// Downloads (decision D16) over the app's library: a link page's text is fetched out of
+    /// sight (`URLPageFetcher`) and saved through the one save path, which also queues its bake.
+    /// It starts once the launch's library maintenance is done (`AppLaunch`).
+    static func makeDownloads(library: LibraryStore) -> DownloadCenter {
+        let speech = speechController
+        let fetcher = URLPageFetcher()
+        #if DEBUG
+        if LaunchOptions.current.resetsDownloads { DownloadListStore().save([]) }
+        #endif
+        return DownloadCenter(library: library, tts: speech.localTTS,
+                              fetch: { try await fetcher.content(of: $0) },
+                              save: { try ArticleSaveCoordinator(library: library, speech: speech).save($0) },
+                              isListening: { speech.activeSessionID == $0 })
+    }
+
     /// The audio cache at launch, in order. First the render queue is held: it adopts no saved
     /// bake job and renders nothing until `AppLaunch.maintainLibrary` has also run the library's
     /// layout pass, dedupe and prune (`LocalTTSCoordinator.holdRenderingForLaunch`); the engine
@@ -84,6 +99,14 @@ enum AppComposition {
         ]
         #if canImport(Qwen3TTSCoreML)
         providers.append(SpeechSwiftProvider()) // speech-swift (Qwen3-TTS)
+        #endif
+        #if DEBUG
+        let options = LaunchOptions.current
+        if options.usesTestVoice {
+            // Every test-voice launch starts on voice One, whatever an earlier run picked.
+            UserDefaults.standard.removeObject(forKey: "reader.tts.voice.\(TestVoiceProvider.id.rawValue)")
+            providers.append(TestVoiceProvider(delay: options.testVoiceDelay ?? 0.15))
+        }
         #endif
         return providers
     }

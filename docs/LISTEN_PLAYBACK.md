@@ -290,6 +290,23 @@ calls never run at once (`SynthRenderGate.shared`). Actions reorder the queue (`
 Saving an article that is #1 keeps its plan; only the job's ephemeral flag flips
 (`GlobalSynthQueue.setEphemeral`).
 
+**Downloads** (decision D16, `DownloadCenter`) add no render path of their own. The download list
+(`Downloads.json`, `DownloadListStore`) is worked through one page at a time: a link page's text is
+fetched (`URLPageFetcher`) and saved through `ArticleSaveCoordinator`, then the page's paragraphs go
+to the queue as an ordinary bake job (`LocalTTSCoordinator.queueDownload` → `startBakeIfNeeded`, a
+`topDown` plan, demoted behind #1 when something else is #1, kept in the pending jobs while the
+engine loads). When the job leaves the queue (`bakeCompleted`, through
+`LocalTTSCoordinator.renderObserver`) the page is done if every paragraph with words has audio in
+the download voice (`missingDownloadParagraphs`); a job that left unfinished goes back once, then
+the page is marked failed. So the article playing and the staged chapter always go first, the
+thermal / Low Power hold applies, and in the background a download's job parks like any other
+article that isn't playing (admission, below). No page is handed to the queue while the app is in
+the background (a fetch needs a window), and nothing renders for downloads while Apple's voice is
+selected (`rendersDownloads`). Pause and *Remove* take the page's job out of the queue
+(`cancelDownload`), except the page playing or staged. The voice a download is shown in is read
+from its audio (`ArticleAudioCache.renderedVoice`: the voice most of its paragraphs are in), so a
+voice change shows at once; finished downloads aren't re-rendered by it (*Re-download* does that).
+
 **Priority and admission.** Chunks of an article someone is listening to (a producer waits on
 one, or its audio is playing) render at `RenderPriority.listener` (`.userInitiated`); bake-ahead
 runs at `.utility`. Bake-ahead is held while the thermal state is `.serious` or worse or Low Power

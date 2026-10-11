@@ -12,7 +12,8 @@
   `KokoroONNXSessionTests` (sample count, RMS).
 - Background baking: the app registers no `BGProcessingTask`, so saved articles bake only while
   the app is open. Rebuild it around the library's queue (`PendingBakeJobStore` →
-  `GlobalSynthQueue`): render saved articles overnight while the phone charges.
+  `GlobalSynthQueue`): render saved articles overnight while the phone charges. Downloads (D16) want
+  the same window (`../../Downloads/.context/FUTURE.md`).
 - A session older than its page plays on unrecorded. Progress is written only on a page holding
   the text playing (`LibraryStore.holds`), so a session whose page has other text by then plays
   its own text to the end and records nothing: a paused session resumed after the page was

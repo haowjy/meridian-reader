@@ -9,6 +9,7 @@ struct ReaderApp: App {
     @State private var speechController = AppComposition.speechController
     @State private var shell = AppComposition.shell
     @State private var library: LibraryStore
+    @State private var downloads: DownloadCenter
 
     init() {
         do {
@@ -18,6 +19,7 @@ struct ReaderApp: App {
         }
         let library = AppComposition.makeLibrary(context: container.mainContext)
         _library = State(initialValue: library)
+        _downloads = State(initialValue: AppComposition.makeDownloads(library: library))
         // Foreground/background gate for Core ML synthesis (no model calls in the background).
         AppRunState.shared.observeApplication()
         AppComposition.runLaunchMaintenance(library: library)
@@ -31,8 +33,9 @@ struct ReaderApp: App {
                 .environment(\.speechController, speechController)
                 .environment(shell)
                 .environment(library)
+                .environment(downloads)
                 .task {
-                    await AppLaunch.run(library: library, speech: speechController, shell: shell)
+                    await AppLaunch.run(library: library, speech: speechController, shell: shell, downloads: downloads)
                 }
         }
         .modelContainer(container)

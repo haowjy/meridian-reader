@@ -9,6 +9,9 @@ enum Glyph {
     static let indicator: CGFloat = 16
     /// A chapter row's leading status mark; the playing bars inside a play button.
     static let mark: CGFloat = 20
+    /// A round control drawn in a row's trailing column: a download's progress ring with its
+    /// pause / resume glyph.
+    static let control: CGFloat = 28
 }
 
 extension View {

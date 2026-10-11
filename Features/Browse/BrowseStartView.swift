@@ -168,6 +168,7 @@ struct BrowseStartView: View {
             onOpenLibrary: shell.openLibrary,
             menu: { .browse(browseMenu, perform: perform) }
         )
+        .overlay(alignment: .top) { DownloadProgressEdge() }
         .overlay(alignment: .top) { ShellToastLayer() }
     }
 
@@ -252,6 +253,7 @@ struct BrowseStartView: View {
         case .reload: webStore.refresh()
         case .share: if let shareURL { shell.present(.share(shareURL)) }
         case .voiceSettings: shell.present(.voiceSettings)
+        case .downloads: shell.present(.downloads)
         case .history: shell.present(.history)
         }
     }

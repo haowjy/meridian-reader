@@ -27,6 +27,8 @@ final class DesignSystemGalleryTests: XCTestCase {
         ("Toast", AnyView(ToastGallery())),
         ("BottomToolbar", AnyView(BottomToolbarGallery())),
         ("MorphMenu", AnyView(MorphMenuGallery())),
+        ("DownloadRow", AnyView(DownloadRowGallery())),
+        ("DownloadProgressLine", AnyView(DownloadProgressLineGallery())),
     ]
 
     func testEveryGalleryRendersInEveryVariant() throws {

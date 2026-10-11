@@ -309,6 +309,7 @@ Elsewhere:
 | Crash-resume point (key, paragraph, text fingerprint, time) | `Application Support/ListenTiming/listen_resume.json` (`ListenResumePointStore`) |
 | Rendered audio | `Application Support/TTSCache/<article key>/` (`ArticleAudioCache`) |
 | Pending render jobs | `Application Support/PendingBakeJobs.json` |
+| Downloads (decision D16: what was asked for, each page's state, a kept voice) | `Application Support/Downloads.json` (`DownloadListStore`) |
 | Timing log | `Application Support/ListenTiming/` |
 
 ## Offline

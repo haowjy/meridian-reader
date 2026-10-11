@@ -56,7 +56,12 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
   bursts the worker is idle until playback wakes it (`GlobalSynthQueue.playbackAdvanced`, called
   by `LocalListenEngine` on each unit start and resume). Back-to-back background rendering got the
   app killed by iOS. Anything new that renders in the background goes through the queue's
-  admission, and nothing holds a background task per chunk.
+  admission, and nothing holds a background task per chunk. Downloads (`../../Downloads/`) are
+  ordinary bake jobs (`LocalTTSCoordinator+Downloads`): they park in the background and never
+  count as playing.
+- **`renderObserver` is told inside the queue's work** (`noteBakeMarksChanged` runs mid drain,
+  `bakeCompleted` from the worker): an observer acts later, never re-entering the queue in the
+  call.
 - **Chunk plans are data.** Live playback and bake-ahead share one deterministic plan per text;
   stitched paragraphs store `chunkDurations` by it. Changing `TextChunker` limits or rules changes
   plans: stitched audio stays playable, but mid-paragraph seek offsets into old audio drift until

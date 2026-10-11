@@ -38,6 +38,7 @@ struct FavoritesSheet: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
     @Environment(\.speechController) private var speech
+    @Environment(DownloadCenter.self) private var downloads
     @State private var path: [LibraryRoute]
     @State private var screen = LibraryScreenState()
     @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
@@ -107,7 +108,7 @@ struct FavoritesSheet: View {
     }
 
     private var screenMenu: LibraryScreenMenu {
-        LibraryScreenMenu(library: library, speech: speech, shell: shell, screen: screen, root: .favorites,
+        LibraryScreenMenu(library: library, speech: speech, shell: shell, downloads: downloads, screen: screen, root: .favorites,
                           top: path.last, topLevelSort: $topLevelSort,
                           showMoved: { _ in path = [] }) { tile in
             switch tile {

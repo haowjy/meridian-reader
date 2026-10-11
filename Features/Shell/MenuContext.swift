@@ -19,7 +19,7 @@ enum MenuContext {
 /// The web page / start page menu.
 struct BrowseMenu {
     enum Action {
-        case newSearch, saveToLibrary, removeFromLibrary, toggleFavorite, share, reload, voiceSettings
+        case newSearch, saveToLibrary, removeFromLibrary, toggleFavorite, share, reload, voiceSettings, downloads
         case favorites, history, openReader
     }
 
@@ -38,7 +38,7 @@ struct BrowseMenu {
 /// The Reader sheet's menu (over the browser or the library).
 struct ReaderMenu {
     enum Action {
-        case voiceSettings, toggleSave, moveTo, toggleFavorite, share, listenDebug
+        case voiceSettings, toggleSave, moveTo, toggleFavorite, share, download, downloads, listenDebug
         case favorites, history, openWebsite
     }
 
@@ -51,12 +51,14 @@ struct ReaderMenu {
     var canOpenWebsite: Bool
     /// Developer options: the Debug row (listen debug panel).
     var showsDebug: Bool
+    /// *Download*: a saved page not downloading already.
+    var canDownload = false
 }
 
 /// Now Playing's menu: what you hear, not the surface under it.
 struct NowPlayingMenu {
     enum Action {
-        case voiceSettings, share, listenDebug
+        case voiceSettings, share, downloads, listenDebug
         case favorites, history, openWebsite
     }
 
@@ -80,7 +82,8 @@ struct LibraryMenu {
     }
 
     enum Action {
-        case voiceSettings, newFolder, importBook, sort(PageSort), rename, move, deleteFolder, deleteDownloads, listenDebug
+        case voiceSettings, newFolder, importBook, sort(PageSort), rename, move, deleteFolder, deleteDownloads
+        case download, downloads, listenDebug
         case favorites, history, browser
     }
 
@@ -90,6 +93,9 @@ struct LibraryMenu {
     var canImportBook = false
     /// The screen's page sort (folders and the top level's pages).
     var sort: PageSort = .manual
+    /// *Download Folder* / *Download Book* / *Download Series* for the folder on screen; nil when
+    /// it is downloading already, or isn't a folder.
+    var downloadTitle: String?
     /// Developer options: the Debug row (listen debug panel), last on every screen.
     var showsDebug = false
 }

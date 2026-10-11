@@ -21,6 +21,7 @@ struct LibrarySurface: View {
     @Environment(ShellState.self) private var shell
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
+    @Environment(DownloadCenter.self) private var downloads
     @State private var search = SearchSession()
     @State private var screen = LibraryScreenState()
     @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
@@ -58,6 +59,7 @@ struct LibrarySurface: View {
                     toolbar
                 }
             }
+            .overlay(alignment: .top) { DownloadProgressEdge() }
             .overlay(alignment: .top) { ShellToastLayer() }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("libraryChrome")
@@ -127,7 +129,7 @@ struct LibrarySurface: View {
     // MARK: - The screen on top
 
     private var screenMenu: LibraryScreenMenu {
-        LibraryScreenMenu(library: library, speech: speech, shell: shell, screen: screen, root: .home,
+        LibraryScreenMenu(library: library, speech: speech, shell: shell, downloads: downloads, screen: screen, root: .home,
                           top: shell.libraryPath.last, topLevelSort: $topLevelSort,
                           showMoved: { shell.libraryPath = library.path(to: $0) }) { tile in
             switch tile {

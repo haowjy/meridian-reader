@@ -14,6 +14,7 @@ struct LibraryScreenMenu {
     let library: LibraryStore
     let speech: SpeechController
     let shell: ShellState
+    let downloads: DownloadCenter
     let screen: LibraryScreenState
     let root: Root
     /// The pushed screen on top (nil: the root).
@@ -47,6 +48,13 @@ struct LibraryScreenMenu {
         var menu = screenMenu
         menu.showsDebug = speech.developerOptionsEnabled
         menu.canImportBook = root == .home && topFolder?.kind != .favorites
+        if let folder = topFolder, !downloads.isQueued(.folder(folder.id)) {
+            menu.downloadTitle = switch folder.kind {
+            case .book: String(localized: "Download Book")
+            case .series: String(localized: "Download Series")
+            default: String(localized: "Download Folder")
+            }
+        }
         return menu
     }
 
@@ -75,7 +83,9 @@ struct LibraryScreenMenu {
             guard let folder else { return }
             LibraryActions(library: library, speech: speech, shell: shell).move([.folder(folder)]) { showMoved(folder) }
         case .deleteFolder: if let folder { screen.confirmDelete([folder]) }
-        case .deleteDownloads: if let folder { library.deleteDownloads(of: folder) }
+        case .deleteDownloads: if let folder { downloads.deleteDownloads(of: folder) }
+        case .download: if let folder { DownloadActions(downloads: downloads, shell: shell).download(folder) }
+        case .downloads: shell.present(.downloads)
         case .listenDebug: speech.showListenDebug = true
         case .favorites, .history, .browser: tile(action)
         }

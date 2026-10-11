@@ -296,6 +296,69 @@ final class ScreenshotCaptureTests: XCTestCase {
         try shot("11-favorites-sheet-menu")
     }
 
+    /// Downloads (decision D16) with the offline test voice: the book's ⋯ with *Download Book*,
+    /// the progress line on the bottom chrome (with its toast, then alone), the Downloads list
+    /// while it renders and once done, after a voice change (Different Voice), and the Reader's ⋯
+    /// with *Download*.
+    func testDownloads() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting", "-seedDemoBook", "-seedDemoFolders", "-resetBookmarks", "-resetDownloads",
+                               "-testVoice", "-testVoiceDelay", "0.5", "-selectEngine", "test.voice", "-openLibrary",
+                               "-reader.developerOptions", "NO"]
+        app.launch()
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10))
+        row(app, "The Demo Book").tap()
+        XCTAssertTrue(el(app, "bookScreen").waitForExistence(timeout: 5))
+        app.buttons["libraryMore"].tap()
+        wait(1.2)
+        try shot("1-book-menu")
+        el(app, "moreDownload").tap()
+        wait(1.5)
+        try shot("2-progress-line-and-toast")
+        wait(4)
+        try shot("3-progress-line")
+        app.buttons["libraryMore"].tap()
+        wait(1.2)
+        el(app, "moreDownloads").tap()
+        XCTAssertTrue(el(app, "downloadsSheet").waitForExistence(timeout: 5))
+        wait(1.2)
+        try shot("4-downloads-queued")
+        XCTAssertTrue(el(app, "downloadsDoneHeader").waitForExistence(timeout: 90))
+        wait(1.5)
+        try shot("5-downloads-done")
+        el(app, "downloadsDone").tap()
+        wait(1)
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        wait(1)
+        app.buttons["libraryMore"].tap()
+        wait(1.2)
+        try shot("6-home-menu")
+        el(app, "moreVoice").tap()
+        XCTAssertTrue(app.navigationBars["Listen"].waitForExistence(timeout: 5))
+        let two = el(app, "voiceRow-two")
+        for _ in 0..<6 where !(two.exists && two.isHittable) { app.swipeUp() }
+        two.tap()
+        wait(1)
+        app.navigationBars["Listen"].buttons["Done"].tap()
+        wait(1)
+        app.buttons["libraryMore"].tap()
+        wait(1.2)
+        el(app, "moreDownloads").tap()
+        XCTAssertTrue(el(app, "downloadsDifferentVoiceHeader").waitForExistence(timeout: 5))
+        wait(1.2)
+        try shot("7-downloads-different-voice")
+        el(app, "downloadsDone").tap()
+        wait(1)
+
+        row(app, "Demo Loose Page").tap()
+        XCTAssertTrue(app.buttons["readerMore"].waitForExistence(timeout: 10))
+        wait(1)
+        app.buttons["readerMore"].tap()
+        wait(1.2)
+        try shot("8-reader-menu")
+    }
+
     /// Importing a book (`-importTestEPUB`): the Library's ⋯ and ＋ with *Import Book…*, the import
     /// sheet for a book downloaded from page one's link (medium and large), its *Add to* tree,
     /// the book it lands on, and D13's question when it's imported again.

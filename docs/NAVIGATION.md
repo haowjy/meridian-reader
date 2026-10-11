@@ -120,7 +120,7 @@ the ⋯ slot too.
   navigates.
 - **⋯** opens a Safari-style menu panel that grows out of the button (covers the ⋯, no arrow):
   rows *New Search, Save to Library… / Remove from Library (🔖), Add to Favorites / Remove from
-  Favorites (☆), Share, Reload, Voice Settings, Debug ›* (Debug only with developer options on —
+  Favorites (☆), Share, Reload, Voice Settings, Downloads, Debug ›* (Debug only with developer options on —
   see "Developer options" below), then a row of big buttons **Favorites**, **History**, and
   **Reader** (rightmost, nearest the thumb, like Safari's All Tabs). *Save to Library…* opens the
   Move tree and saves the page into the folder picked. The Reader toggle is disabled on the start
@@ -224,7 +224,7 @@ commas.
   newest first; Show All pushes them all (the not-saved ones on top), sorted by the top level's
   sort (*Manual / Newest / Title*, ⋯ → Sort; kept on the device, `library.topLevel.sort`). A row
   added while you watch (a save, a first play) animates in. ⋯: *Voice Settings, Import Book…, New
-  Folder*. An empty Library shows Favorites, then one card, *Find something to listen to*: "Tap
+  Folder, Downloads*. An empty Library shows Favorites, then one card, *Find something to listen to*: "Tap
   🌐 to find a page, or ＋ to import a book", with *Browse the web* and *Import a book*.
 - **A folder** (`FolderScreen`, Favorites included): its title and counts, subfolders first (by
   their order), then pages by the folder's sort. A folder with pages that play has a book's
@@ -277,7 +277,7 @@ commas.
   order. No Edit, and no dragging: its chapters keep the source's order, don't leave it, and
   nothing is dropped into it. Front matter shows dimmed with "skipped" (it still opens for
   reading); *Jump to current* scrolls to the chapter Continue resumes. Playing any chapter carries
-  on through the book, then stops. ⋯: *Rename, Move…, Delete Downloads, Delete Book…*. A series is the same
+  on through the book, then stops. ⋯: *Rename, Move…, Download Book, Delete Downloads, Delete Book…*. A series is the same
   screen; its chapters not fetched yet are lighter link rows ("not fetched yet").
 
 **Rows** are `ListRow`s. A tap opens the row; its menu is a long-press (decision D11), and a
@@ -311,12 +311,59 @@ lift. The list doesn't scroll by itself while a row is dragged.
 
 | Row | Tap | Trailing | Menu (long-press) | Swipe left |
 |---|---|---|---|---|
-| Folder, Favorites | opens it (push) | count, ›; ▶ when its pages play (resumes at its place; the place under the title) | *Continue, Play from Start* (when its pages play)*, Move to…, Rename, Delete…* (Favorites: only the first two) | Delete… |
-| Book or series | opens it (push) | ▶ (resumes at its place; the place under the title) | *Continue, Play from Start, Move to…, Rename, Delete Book…* | Delete… |
-| Saved page | the Reader (Now Playing if it's what you hear) | ▶ | *Move to…, Mark as Finished / Unfinished, Share, Delete Downloads* (when it has audio)*, Remove from Library* | Remove |
+| Folder, Favorites | opens it (push) | count, ›; ▶ when its pages play (resumes at its place; the place under the title) | *Continue, Play from Start* (when its pages play)*, Download* (when it has pages)*, Move to…, Rename, Delete…* (Favorites: no *Move to…, Rename, Delete…*) | Delete… |
+| Book or series | opens it (push) | ▶ (resumes at its place; the place under the title) | *Continue, Play from Start, Download, Move to…, Rename, Delete Book…* | Delete… |
+| Saved page | the Reader (Now Playing if it's what you hear) | ▶ | *Move to…, Mark as Finished / Unfinished, Share, Download, Delete Downloads* (when it has audio)*, Remove from Library* | Remove |
 | Page played without saving ("Not saved", top of *Pages*) | the Reader (Now Playing if it's what you hear) | ▶ | *Save, Share* | — |
-| Link page | the page, in the browser | — | *Move to…, Share, Remove from Library* | Remove |
-| Chapter | the Reader (Now Playing if it's what you hear) | ▶ (not on skipped ones) | *Play from Here, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback, Delete Downloads* | — |
+| Link page | the page, in the browser | — | *Move to…, Share, Download, Remove from Library* | Remove |
+| Chapter | the Reader (Now Playing if it's what you hear) | ▶ (not on skipped ones) | *Play from Here, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback, Download, Delete Downloads* | — |
+
+*Download* isn't offered while that page or folder is downloading already (decision D16, below).
+
+**Downloads** (decision D16): *Download* on a page, a folder, a book or a series (its row's
+long-press, a folder's or book's ⋯ as *Download Folder / Book / Series*, the Reader's ⋯) makes it
+ready to play offline: a link page's text is fetched out of sight and the page saved where it is,
+then its whole audio is rendered ahead in the on-device voice selected (Kokoro). A folder covers
+its own pages in its order (not its subfolders'), a book or series its chapters that play and
+aren't finished, one page at a time. A toast says *Downloading “…”* with *Show*. Nothing is modal:
+while downloads run, a 2 pt jade line along the top edge of the bottom chrome (the browser's, the
+Library's, the Reader's) fills as they get on, and fades when nothing is queued, everything queued
+is paused, or no on-device voice is selected (VoiceOver reads it as *Downloads, N percent*, a
+button that opens the list). Rendering happens while the app is in front: the page playing and the
+chapter after it always go first, a hot phone or Low Power Mode holds it, and in the background
+downloads wait (only what plays renders there, in bursts; LISTEN_PLAYBACK.md).
+
+```
+Downloads                                         Done
+Queued  2                                  Pause All
+▣  Pride and Prejudice                       (◔⏸)   the ring: how far; ⏸ pauses, ↓ resumes
+   Kokoro Heart   4 of 12 chapters   38%
+Done  1
+[i] Coupon Basics
+   Kokoro Heart   12 MB
+12 MB on this iPhone
+Different Voice  1
+[i] Seven-Day Yield
+   Kokoro Bella   9 MB
+   ( Re-download )  ( Keep )
+```
+
+**⋯ › Downloads** (`DownloadsSheet`, every ⋯ panel: the browser's, the Library's on every screen,
+the Reader's, Now Playing's; medium, grows to large) lists, in sections shown only when they have
+rows: **Queued** (the download rendering now and those waiting, *Pause All / Resume All*, each
+row's ring pausing or resuming it), **Done** (each with the room it takes, the total under the
+section), and **Different Voice** (done, but rendered in another voice than the one selected
+now). Every row names its voice ("Kokoro Heart"); its parts are set apart by space, never a dot.
+After a voice change a finished download moves to *Different Voice*, with **Re-download** (renders
+it again in the voice selected; the old voice keeps playing until each paragraph is replaced) and
+**Keep** (stays as it is, counted as done, still named by its own voice). A row opens what was
+downloaded (the Reader, or the Library at the folder); swipe left *Remove* takes the download off
+the list and its audio off the phone (not the audio of what you hear); its long-press menu has
+*Pause / Resume*, *Re-download*, *Keep* and *Remove* as they apply. While Apple's voice is
+selected nothing renders: queued downloads say *Waiting for an on-device voice*, with *Voice
+Settings*. *Delete Downloads* on a page or a book deletes its audio and its download. A page
+that couldn't be fetched or rendered is counted ("2 couldn’t download"), and *Re-download* tries
+again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch.
 
 **The Move tree** (`MoveTreeSheet`): one sheet for *Move to…*, *Save to Library…*, 🔖's *Save to
 Folder…* and *Change Folder*; the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋
@@ -422,7 +469,8 @@ row) opens Now Playing instead.
   the Move tree: saved there, or moved there when already saved); it keeps the screen and
   playback as they are.
 - **⋯** (slot 5, the browser's ⋯ spot): rows *Save / Remove from Library, Move to…* (a saved
-  page)*, Add to Favorites, Share, Voice Settings, Debug* (developer options only); big buttons
+  page)*, Add to Favorites, Share, Download* (a saved page not downloading already)*, Voice Settings,
+  Downloads, Debug* (developer options only); big buttons
   **Favorites / History / Website** — *Website* (the Reader off) shows the page in the browser,
   wherever the Reader was opened from; from the library, the library closes first. Playback
   never stops.
@@ -485,8 +533,8 @@ row) opens Now Playing instead.
   headphone / lock-screen skips are paragraph skips (D4). A sideways swipe on the row skips too.
 - **Status notes** ("Preparing next…", Apple-fallback / language notes, "✓ Finished", the
   developer-only Debug chip) sit **above** the scrubber so appearing text never pushes it.
-- **⋯**: rows *Voice Settings, Share, Debug* (developer options only); big buttons **Favorites /
-  History / Website**.
+- **⋯**: rows *Voice Settings, Share, Downloads, Debug* (developer options only); big buttons
+  **Favorites / History / Website**.
 - **Scrubber** (sentence-precise): fill = progress (weighted by text length; with a local
   voice the thumb moves smoothly inside a paragraph, estimated from the player's time); the
   lighter fill ahead of it is audio already rendered (local voices; Apple speaks live so there is

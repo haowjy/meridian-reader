@@ -117,6 +117,19 @@ final class EngineRegistry {
         }
     }
 
+    /// A cache voice key as people read it: "kokoro.af_heart" → "Kokoro Heart" (the engine's short
+    /// name, then the voice's), a single-voice engine's by its short name; any other key is an
+    /// Apple voice ("Apple").
+    func voiceLabel(forCacheVoice voiceID: String) -> String {
+        for d in descriptors {
+            guard case .prefixed(let p) = d.cacheVoiceKey, voiceID.hasPrefix(p + ".") else { continue }
+            let voice = String(voiceID.dropFirst(p.count + 1))
+            guard let label = d.voices.first(where: { $0.id == voice })?.label else { return d.shortName }
+            return "\(d.shortName) \(label)"
+        }
+        return descriptor(.apple)?.shortName ?? "Apple"
+    }
+
     /// The crashed engine's provider decides how to recover (nil: the default rule).
     func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery? {
         guard let id = crash.engine, supports(id) else { return nil }

@@ -65,5 +65,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **The home never changes size with playback** (decision D14): no section depends on what is
   playing or part-way. Pages played without saving (`LibraryQueries.playedNotSaved`) join
   *Pages* on their first play, which is the one insert playback causes, animated.
+- **Download and Delete Downloads go through `DownloadCenter`** (`DownloadActions` for the toast):
+  *Delete Downloads* also drops the page's or book's download, or the list would render it again.
+  Rows offer *Download* only when that page or folder isn't downloading already
+  (`DownloadCenter.isQueued`).
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way
   (`PageProgress.of`); counts come from relationships, not fetches.

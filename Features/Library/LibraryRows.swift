@@ -16,6 +16,7 @@ struct LibraryPageRow: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
+    @Environment(DownloadCenter.self) private var downloads
     @Environment(LibraryScreenState.self) private var screen
     @Environment(\.editMode) private var editMode
 
@@ -68,8 +69,13 @@ struct LibraryPageRow: View {
             if page.url?.isWeb == true {
                 Button("Share", systemImage: "square.and.arrow.up") { actions.share(page) }
             }
+            if !downloads.isQueued(.page(page.listenKey)) {
+                Button("Download", systemImage: "arrow.down.circle") {
+                    DownloadActions(downloads: downloads, shell: shell).download(page)
+                }
+            }
             if page.isSaved, library.hasDownloads(page) {
-                Button("Delete Downloads", systemImage: "arrow.down.circle") { library.deleteDownloads(page) }
+                Button("Delete Downloads", systemImage: "trash.circle") { downloads.deleteDownloads(of: page) }
             }
             Button("Remove from Library", systemImage: "trash", role: .destructive) { actions.remove([page]) }
         }
@@ -90,6 +96,7 @@ struct LibraryFolderRow: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
+    @Environment(DownloadCenter.self) private var downloads
     @Environment(LibraryScreenState.self) private var screen
     @Environment(\.editMode) private var editMode
 
@@ -183,6 +190,11 @@ struct LibraryFolderRow: View {
             Button("Continue", systemImage: "play.fill") { actions.playFolder(folder) }
             Button("Play from Start", systemImage: "backward.end") { actions.playFolderFromStart(folder) }
         }
+        if !livePages.isEmpty, !downloads.isQueued(.folder(folder.id)) {
+            Button("Download", systemImage: "arrow.down.circle") {
+                DownloadActions(downloads: downloads, shell: shell).download(folder)
+            }
+        }
         if folder.kind != .favorites {
             Button("Move to…", systemImage: "folder") { actions.move([.folder(folder)]) }
             Button("Rename", systemImage: "pencil") { screen.rename(folder) }
@@ -200,6 +212,7 @@ struct LibraryChapterRow: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
+    @Environment(DownloadCenter.self) private var downloads
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
 
@@ -231,8 +244,13 @@ struct LibraryChapterRow: View {
                systemImage: page.skipsInPlayback ? "play.circle" : "forward.end") {
             actions.toggleSkipsInPlayback(page)
         }
+        if !downloads.isQueued(.page(page.listenKey)) {
+            Button("Download", systemImage: "arrow.down.circle") {
+                DownloadActions(downloads: downloads, shell: shell).download(page)
+            }
+        }
         if library.hasDownloads(page) {
-            Button("Delete Downloads", systemImage: "arrow.down.circle") { library.deleteDownloads(page) }
+            Button("Delete Downloads", systemImage: "trash.circle") { downloads.deleteDownloads(of: page) }
         }
     }
 }

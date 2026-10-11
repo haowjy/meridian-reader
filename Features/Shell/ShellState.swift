@@ -37,6 +37,8 @@ enum ShellSheet: Identifiable, Equatable {
     case moveTo(MoveRequest)
     /// A book being imported: its progress, *Add to*, and D13's question.
     case importBook(BookImportFlow)
+    /// ⋯ › Downloads: what is downloading and downloaded (decision D16).
+    case downloads
 
     var id: String {
         switch self {
@@ -46,6 +48,7 @@ enum ShellSheet: Identifiable, Equatable {
         case .share(let url): "share-\(url.absoluteString)"
         case .moveTo(let request): "moveTo-\(request.id)"
         case .importBook(let flow): "importBook-\(flow.id)"
+        case .downloads: "downloads"
         }
     }
 
@@ -54,7 +57,7 @@ enum ShellSheet: Identifiable, Equatable {
     var belongsToBrowser: Bool {
         switch self {
         case .history: true
-        case .favorites, .voiceSettings, .share, .moveTo, .importBook: false
+        case .favorites, .voiceSettings, .share, .moveTo, .importBook, .downloads: false
         }
     }
 }

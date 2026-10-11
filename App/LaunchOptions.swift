@@ -82,6 +82,13 @@ struct LaunchOptions: Equatable {
     /// `-probeLockedFetch`: once launched, the locked-phone device check of a hidden fetch and a
     /// silent wait between chapters (`LockedFetchProbe`). It runs only in the probe's own install.
     var probesLockedFetch = false
+    /// `-testVoice`: register an offline on-device test voice (`TestVoiceProvider`, "Test Voice"
+    /// with voices One and Two); `-selectEngine test.voice` picks it. Downloads render with it.
+    var usesTestVoice = false
+    /// `-testVoiceDelay <seconds>`: how long each test-voice render takes (0.15 s if not given).
+    var testVoiceDelay: TimeInterval?
+    /// `-resetDownloads`: start with an empty download list.
+    var resetsDownloads = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -124,6 +131,9 @@ struct LaunchOptions: Equatable {
         playsTestEPUB = flags.contains("-playTestEPUB")
         failsLibrarySaves = flags.contains("-failLibrarySaves")
         probesLockedFetch = flags.contains("-probeLockedFetch")
+        usesTestVoice = flags.contains("-testVoice")
+        testVoiceDelay = value(after: "-testVoiceDelay").flatMap(TimeInterval.init)
+        resetsDownloads = flags.contains("-resetDownloads")
     }
 
     /// Whether the app reopens on the surface it was left on.

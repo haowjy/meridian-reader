@@ -23,6 +23,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// The listen player (set by `LocalListenEngine`): the render queue asks it which article is
     /// playing (listener priority, background bake scope).
     @ObservationIgnored weak var listenPlayer: LocalListenPlayer?
+    /// Told when a bake job finishes and when the render queue's state may have moved (audio
+    /// rendered, the engine or voice changed): the Downloads list (`DownloadCenter`).
+    @ObservationIgnored weak var renderObserver: RenderQueueObserver?
     /// Selected voice per multi-voice engine (e.g. Kokoro `af_heart`). Part of the cache voice key.
     private(set) var engineVoices: [SpeechEngineID: String] = [:]
     /// Set when the last process died inside a crash-guarded engine (`CrashRecovery`; Kokoro:
@@ -274,6 +277,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     func bakeCompleted(cacheKey: UUID) {
         PendingBakeJobStore.shared.removePending(articleID: cacheKey)
+        renderObserver?.bakeCompleted(cacheKey: cacheKey)
     }
 
     /// True when a local model for `id` has been initialized (or its files are on disk).
@@ -318,7 +322,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return true
     }
 
-    private func localLanguageAllows(_ paragraphs: [String]) -> Bool {
+    func localLanguageAllows(_ paragraphs: [String]) -> Bool {
         localLanguageGate?(paragraphs) ?? true
     }
 
@@ -371,6 +375,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
             noteBakeMarksChanged()
             drainPendingIntoQueue()
         }
+        renderObserver?.renderStateChanged()
     }
 
     /// Delete one local engine's downloaded models (default: the active local engine).
@@ -399,6 +404,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     func noteBakeMarksChanged() {
         bakeMarksRevision &+= 1
+        renderObserver?.renderStateChanged()
     }
 
     func bakeTasksCount(for articleID: UUID) -> Int {
@@ -630,7 +636,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     }
 
     /// Bake only for engines that declare `supportsBakeCache` (Apple: no).
-    private var wantsLocalBake: Bool {
+    var wantsLocalBake: Bool {
         guard let id = activeLocalEngineID else { return false }
         return engines.descriptor(id)?.supportsBakeCache == true
     }

@@ -24,6 +24,7 @@ struct ReaderSheetScreen: View {
 
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
+    @Environment(DownloadCenter.self) private var downloads
     /// The article's library page, if it has one (saved, played, or a favorite).
     @Query private var pages: [Page]
     @State private var jumpMode = false
@@ -81,7 +82,11 @@ struct ReaderSheetScreen: View {
             MoreMenuButton(id: "readerMore") { .reader(readerMenu, perform: perform) }
                 .foregroundStyle(Palette.ink)
         } floating: {
-            ShellToastLayer()
+            // The line at the band's top edge; the toast floats above it.
+            ZStack(alignment: .top) {
+                DownloadProgressEdge()
+                ShellToastLayer()
+            }
         }
         .task(id: WarmKey(id: article.id, count: article.document.count)) {
             prepareListen()
@@ -146,7 +151,8 @@ struct ReaderSheetScreen: View {
             canFavorite: articleURL.map(LibraryStore.canFavorite) ?? false,
             canShare: shareURL != nil,
             canOpenWebsite: websiteURL != nil,
-            showsDebug: speech.developerOptionsEnabled
+            showsDebug: speech.developerOptionsEnabled,
+            canDownload: isSaved && page.map { !downloads.isQueued(.page($0.listenKey)) } == true
         )
     }
 
@@ -170,6 +176,8 @@ struct ReaderSheetScreen: View {
         case .moveTo: saveToFolder()
         case .toggleFavorite: toggleFavorite()
         case .share: if let shareURL { shell.present(.share(shareURL)) }
+        case .download: if let page { DownloadActions(downloads: downloads, shell: shell).download(page) }
+        case .downloads: shell.present(.downloads)
         case .listenDebug: speech.showListenDebug = true
         case .favorites: shell.present(.favorites())
         case .history: shell.present(.history)
