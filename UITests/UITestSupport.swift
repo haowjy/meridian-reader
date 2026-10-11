@@ -8,6 +8,12 @@ extension XCTestCase {
 
     func idle(_ s: TimeInterval) { RunLoop.current.run(until: Date().addingTimeInterval(s)) }
 
+    /// Taps the dimmed area around an open ⋯ panel near the top of the screen: its middle can be
+    /// under a tall panel, where the tap would land on a row.
+    func tapMenuDim(_ dismiss: XCUIElement) {
+        dismiss.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
+    }
+
     func eventually(_ timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {

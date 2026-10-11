@@ -57,7 +57,7 @@ final class ScreenshotCaptureTests: XCTestCase {
     private func dismissMenu(_ app: XCUIApplication, settle: TimeInterval = 0.8) {
         let dismiss = el(app, "moreMenuDismiss")
         if dismiss.waitForExistence(timeout: 2) {
-            dismiss.tap()
+            tapMenuDim(dismiss)
         } else {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
         }

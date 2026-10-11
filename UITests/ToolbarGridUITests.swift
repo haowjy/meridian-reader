@@ -108,7 +108,7 @@ final class ToolbarGridUITests: XCTestCase {
         XCTAssertLessThan(focus.frame.midX, more.midX - 4, "deliberately left of ⋯")
         XCTAssertLessThan(focus.frame.midY, more.midY - 4, "deliberately above ⋯")
         XCTAssertLessThanOrEqual(el(app, "moreMenuPanel").frame.maxX, window.maxX, "panel stays on screen")
-        el(app, "moreMenuDismiss").tap()
+        tapMenuDim(el(app, "moreMenuDismiss"))
         XCTAssertTrue(waitFor { !self.el(app, "moreMenuPanel").exists })
     }
 }

@@ -129,7 +129,7 @@ final class ReaderChromeUITests: XCTestCase {
         // ⋯ menu open / closed keeps the Reader.
         touch(more)
         XCTAssertTrue(el(app, "moreMenuPanel").waitForExistence(timeout: 3))
-        el(app, "moreMenuDismiss").tap()
+        tapMenuDim(el(app, "moreMenuDismiss"))
         XCTAssertTrue(waitFor(3) { !el(app, "moreMenuPanel").exists })
         XCTAssertTrue(shown(app, close))
 

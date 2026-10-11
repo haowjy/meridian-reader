@@ -46,7 +46,7 @@ final class BrowseToolbarUITests: XCTestCase {
     private func dismissMenu(_ app: XCUIApplication) {
         let dismiss = element(app, "moreMenuDismiss")
         if dismiss.waitForExistence(timeout: 2) {
-            dismiss.tap()
+            tapMenuDim(dismiss)
         } else {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
         }
@@ -274,7 +274,7 @@ final class BrowseToolbarUITests: XCTestCase {
         assertMenuAligned(app, more: moreFrame, button: "moreWebsite")
 
         // ⋯ → History from the library reader: the library closes, History opens.
-        element(app, "moreMenuDismiss").tap()
+        tapMenuDim(element(app, "moreMenuDismiss"))
         XCTAssertTrue(waitFor("exists == false", element(app, "moreMenuPanel")))
         readerMore.tap()
         element(app, "moreHistory").tap()
