@@ -38,8 +38,9 @@ struct PlayStateButton: View {
         case glyph
         /// `idleSymbol` shows while it isn't what you hear (`headphones` in the address field).
         case badge(idleSymbol: String)
-        /// A labelled pill; the title says what it plays ("Listen · 9 min", "Playing · Ch 24").
-        case pill(title: String, expands: Bool = false)
+        /// A labelled pill; the title says what it plays ("Listen", "Playing"), the lighter
+        /// detail after it how long or where ("9 min", "Ch 24").
+        case pill(title: String, detail: String? = nil, expands: Bool = false)
         /// A round accent disc, `BottomChrome.transportDiscSize` wide, with a dark glyph on the
         /// player: Now Playing's centre slot.
         case disc
@@ -53,7 +54,7 @@ struct PlayStateButton: View {
         switch look {
         case .glyph: glyph
         case .badge(let symbol): badge(symbol)
-        case .pill(let title, let expands): pill(title, expands: expands)
+        case .pill(let title, let detail, let expands): pill(title, detail: detail, expands: expands)
         case .disc: PlayStateDisc(state: state, action: action)
         }
     }
@@ -100,8 +101,9 @@ struct PlayStateButton: View {
         .accessibilityLabel(state == .idle ? "Listen" : state.accessibilityLabel)
     }
 
-    private func pill(_ title: String, expands: Bool) -> some View {
-        PillButton(title: title, style: state.isCurrent ? .tinted : .filled, expands: expands, action: action) {
+    private func pill(_ title: String, detail: String?, expands: Bool) -> some View {
+        PillButton(title: title, detail: detail, style: state.isCurrent ? .tinted : .filled, expands: expands,
+                   action: action) {
             switch state {
             case .idle:
                 PillSymbol(name: "play.fill")
@@ -112,7 +114,7 @@ struct PlayStateButton: View {
                     .frame(width: Glyph.mark, height: Glyph.mark)
             }
         }
-        .accessibilityLabel(title)
+        .accessibilityLabel(PillButton<EmptyView>.accessibilityLabel(title: title, detail: detail))
         .accessibilityValue(state == .idle ? "" : state.accessibilityLabel)
     }
 }
@@ -203,7 +205,7 @@ struct PlayStateButtonGallery: View {
                     HStack(spacing: Spacing.m) {
                         PlayStateButton(state: state) {}
                         PlayStateButton(state: state, look: .badge(idleSymbol: "headphones")) {}
-                        PlayStateButton(state: state, look: .pill(title: Self.title(state))) {}
+                        PlayStateButton(state: state, look: .pill(title: Self.title(state), detail: "Ch 24")) {}
                     }
                     PlayStateButton(state: state, look: .disc) {}
                         .onPlayerPreview()
@@ -213,7 +215,7 @@ struct PlayStateButtonGallery: View {
     }
 
     private static func title(_ state: PlayState) -> String {
-        state.isCurrent ? "Playing · Ch 24" : "Continue · Ch 24"
+        state.isCurrent ? "Playing" : "Continue"
     }
 }
 

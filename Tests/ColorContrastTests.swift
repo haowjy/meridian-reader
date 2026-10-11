@@ -11,7 +11,8 @@ final class ColorContrastTests: XCTestCase {
             ("paper", Palette.paper), ("chrome", Palette.chrome), ("playingTint", Palette.playingTint),
         ]
         let texts: [(String, Color)] = [
-            ("ink", Palette.ink), ("secondaryInk", Palette.secondaryInk), ("accent", Palette.accent),
+            ("ink", Palette.ink), ("secondaryInk", Palette.secondaryInk), ("tertiaryInk", Palette.tertiaryInk),
+            ("accent", Palette.accent),
         ]
         for style in [UIUserInterfaceStyle.light, .dark] {
             let traits = UITraitCollection(userInterfaceStyle: style)
@@ -35,6 +36,7 @@ final class ColorContrastTests: XCTestCase {
         ]
         let texts: [(String, Color)] = [
             ("playerInk", Palette.playerInk), ("playerSecondaryInk", Palette.playerSecondaryInk),
+            ("playerTertiaryInk", Palette.playerTertiaryInk),
             ("playerAccent", Palette.playerAccent),
         ]
         for style in [UIUserInterfaceStyle.light, .dark] {

@@ -7,7 +7,8 @@ import SwiftData
 ///
 /// - The Reader never shows what you hear (the shell opens Now Playing for that page), so the
 ///   Now Playing bar above its toolbar is always another page.
-/// - Listen reads "▶ Listen · 9 min", "▶ Resume · 6 min left" or "▶ Listen Again", starts at
+/// - Listen reads "▶ Listen  9 min", "▶ Resume  6 min left" (the time lighter, after the title)
+///   or "▶ Listen Again", starts at
 ///   the page's saved spot, and turns the Reader into Now Playing where it was (decision D2).
 ///   ☝︎ in the header, then a tap on a paragraph, listens from that paragraph.
 /// - The text never scrolls by itself.
@@ -58,7 +59,8 @@ struct ReaderSheetScreen: View {
     var body: some View {
         ReaderSheet(
             backTitle: state.origin.backTitle,
-            listenTitle: listenTitle,
+            listenTitle: listen.title,
+            listenDetail: listen.detail,
             listenState: speech.playState(of: .page(article.id)),
             isSaved: isSaved,
             onClose: { [shell, presentation = state.presentation] in shell.readerDidClose(presentation) },
@@ -103,20 +105,22 @@ struct ReaderSheetScreen: View {
         sessionReady ? article.document.utf16Length : article.plainText.utf16.count
     }
 
-    private var detail: String {
+    /// The source and the length, as separate parts: ["example.org", "9 min"].
+    private var detail: [String] {
         let minutes = ListeningTime.minutes(utf16Length: totalLength)
         return [article.sourceLabel, minutes > 0 ? "\(minutes) min" : ""].filter { !$0.isEmpty }
-            .joined(separator: " · ")
     }
 
-    private var listenTitle: String {
-        if isFinished { return "Listen Again" }
+    /// Listen's title and the lighter time after it: "Listen" "9 min", "Resume" "6 min left",
+    /// "Listen Again".
+    private var listen: (title: String, detail: String?) {
+        if isFinished { return (String(localized: "Listen Again"), nil) }
         let doc = article.document
         if resumeParagraph > 0, doc.paragraphs.indices.contains(resumeParagraph) {
             let at = doc.startUTF16Offset(forParagraph: resumeParagraph)
-            return "Resume · \(ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at)) min left"
+            return (String(localized: "Resume"), "\(ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at)) min left")
         }
-        return "Listen · \(ListeningTime.minutes(utf16Length: totalLength)) min"
+        return (String(localized: "Listen"), "\(ListeningTime.minutes(utf16Length: totalLength)) min")
     }
 
     private var jumpButton: some View {

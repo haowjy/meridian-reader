@@ -43,8 +43,11 @@ struct ScrubTrack: View {
 /// Now Playing's scrubber in a field capsule, with the time played and left after it:
 ///
 /// ```
-/// ( ━━━━━●━━░░───────  6:10 · 9 min left )
+/// ( ━━━━━●━━░░───────  6:10   9 min left )
 /// ```
+///
+/// The time played and the time left are separate parts (`DetailLine`): the time played in
+/// secondary ink, the time left after it in tertiary.
 ///
 /// Dragging reports the fraction under the finger (`onScrub`) and, on release, the fraction to
 /// play from (`onCommit`). VoiceOver adjusts it in `accessibilityStep`s.
@@ -61,7 +64,6 @@ struct ScrubBar: View {
     var accessibilityStep = 0.05
 
     @State private var dragValue: Double?
-    @Environment(\.onPlayerPalette) private var onPlayer
 
     var body: some View {
         HStack(spacing: Spacing.s) {
@@ -96,11 +98,9 @@ struct ScrubBar: View {
                 }
             }
 
-            Text("\(elapsed) · \(remaining)")
+            DetailLine([elapsed, remaining])
                 .typeStyle(.caption)
                 .monospacedDigit()
-                .foregroundStyle(onPlayer ? Palette.playerSecondaryInk : Palette.secondaryInk)
-                .lineLimit(1)
                 .fixedSize()
                 .accessibilityHidden(true)
         }

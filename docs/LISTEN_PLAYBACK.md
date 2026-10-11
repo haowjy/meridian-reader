@@ -465,7 +465,7 @@ Logs `coreml_cache_prune`.
   `reader.languageAutomatic`) or a manual language. If the selected engine doesn't speak it
   (`EngineDescriptor.supportedLanguages`; Kokoro is English only), that article speaks with the
   best Apple voice for the language, without changing settings, and the listen bar and the
-  Language footer say so ("Apple · French (Kokoro is English-only)").
+  Language footer say so ("Apple voice for French (Kokoro is English-only)").
 
 ## Settings → Listen
 
@@ -474,10 +474,10 @@ accessory and check slots, min height 48), so state changes never move rows
 (`ListenSettingsLayoutUITests`).
 
 1. **Engine**: Apple and the registry's on-device engines. State lives in the subtitle
-   ("Downloading… 42%", "Preparing voice…", "Ready · recommended") and the accessory (a progress
+   ("Downloading… 42%", "Preparing voice…", "Ready (recommended)") and the accessory (a progress
    ring with a stop square cancels). Swipe to delete a downloaded engine; crash and failure
    notices in the footer.
-2. **Voice · <engine>**: the selected engine's voices (Kokoro: curated rows with preview; Apple:
+2. **Voice (<engine>)**: the selected engine's voices (Kokoro: curated rows with preview; Apple:
    "System default" and good-quality system voices for the language).
 3. **Language**, 4. **Speed**.
 5. The version row (a 2 s long-press toggles developer options, `NAVIGATION.md`), then **Listen
@@ -496,9 +496,10 @@ with `.notifyOthersOnDeactivation` on stop or finish.
 
 **Lock screen / Control Center** (`NowPlayingController`):
 
-- `MPNowPlayingInfoCenter`: title = article, artist = "site · Paragraph N of M", album = site,
+- `MPNowPlayingInfoCenter`: title = article, artist = "site – Paragraph N of M" (plain text, so an
+  en dash joins the parts), album = site,
   chapter number and count (paragraphs), progress N/M, favicon artwork, rate 0 while paused. For
-  a chapter of a book or series: title = the chapter, artist = "<the book's byline> · Paragraph N
+  a chapter of a book or series: title = the chapter, artist = "<the book's byline> – Paragraph N
   of M", album = the book or series, artwork = the chapter's, else the book's cover. Shown while
   playing or paused, and kept across a chapter boundary; cleared on stop or at the end.
 - `MPRemoteCommandCenter` (decision D4: headphone and lock-screen skips are paragraph skips, like

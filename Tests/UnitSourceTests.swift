@@ -38,10 +38,10 @@ final class UnitSourceTests: XCTestCase {
 
     func testFallbackNotes() {
         XCTAssertEqual(FallbackReason.background.localizedNote(engine: "Kokoro"),
-                       "Apple voice · Kokoro can't render in the background")
+                       "Apple voice – Kokoro can't render in the background")
         XCTAssertEqual(FallbackReason.behind.localizedNote(engine: "Kokoro"),
-                       "Apple voice for this paragraph · Kokoro fell behind")
+                       "Apple voice for this paragraph – Kokoro fell behind")
         XCTAssertEqual(FallbackReason.engineError.localizedNote(engine: "Kokoro"),
-                       "Apple voice · Kokoro couldn't render this paragraph")
+                       "Apple voice – Kokoro couldn't render this paragraph")
     }
 }

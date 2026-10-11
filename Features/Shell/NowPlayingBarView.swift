@@ -45,8 +45,7 @@ private struct BarProgress: View {
         let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: offset, rate: speech.rateMultiplier)
         NowPlayingBar(
             title: now.title,
-            detail: now.isFinished ? "✓ Finished" : [now.source, "\(left) min left"].filter { !$0.isEmpty }
-                .joined(separator: " · "),
+            detail: now.isFinished ? ["✓ Finished"] : [now.source, "\(left) min left"],
             artwork: artwork,
             artworkLetter: now.source.isEmpty ? now.title : now.source,
             progress: doc.progress(atUTF16Offset: offset),

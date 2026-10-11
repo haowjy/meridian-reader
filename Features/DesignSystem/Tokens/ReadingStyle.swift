@@ -57,7 +57,8 @@ enum ReadingStyle {
         func vars(_ t: UITraitCollection) -> String {
             """
             --paper: \(hex(Palette.paper, t)); --ink: \(hex(Palette.ink, t));
-            --secondary: \(hex(Palette.secondaryInk, t)); --accent: \(hex(Palette.accent, t));
+            --secondary: \(hex(Palette.secondaryInk, t)); --tertiary: \(hex(Palette.tertiaryInk, t));
+            --accent: \(hex(Palette.accent, t));
             --tint: \(hex(Palette.playingTint, t)); --underline: var(--accent);
             """
         }
@@ -75,7 +76,8 @@ enum ReadingStyle {
             scheme = """
             :root { color-scheme: dark; --paper: \(hex(Palette.playerBackground, light));
                     --ink: \(hex(Palette.playerInk, light)); --dim: \(hex(Palette.playerDimInk, light));
-                    --secondary: \(hex(Palette.playerSecondaryInk, light)); --accent: \(hex(Palette.playerAccent, light));
+                    --secondary: \(hex(Palette.playerSecondaryInk, light));
+                    --tertiary: \(hex(Palette.playerTertiaryInk, light)); --accent: \(hex(Palette.playerAccent, light));
                     --tint: \(hex(Palette.playerTrack, light)); --underline: var(--ink); \(sizes.cssVariables) }
             body.reader-has-active { color: var(--dim); }
             body.reader-has-active .reader-active { color: var(--ink); }
@@ -105,7 +107,10 @@ enum ReadingStyle {
         .reader-heading { margin: 0 0 \(Int(Spacing.xl))px; }
         .reader-title { font-size: var(--title); font-weight: 700; line-height: 1.15; margin: 0 0 \(Int(Spacing.xs))px; }
         .reader-detail { font-family: -apple-system, system-ui, sans-serif; font-size: var(--caption);
-                         color: var(--secondary); }
+                         color: var(--tertiary); display: flex; flex-wrap: wrap;
+                         column-gap: calc(var(--caption) * \(Int(Spacing.s)) / \(Int(TypeStyle.caption.size))); }
+        .reader-detail span { min-width: 0; overflow-wrap: anywhere; }
+        .reader-detail span:first-child { color: var(--secondary); }
         [data-reader-index] { border-radius: \(Int(Spacing.xs))px; }
         ::highlight(reader-sentence) { text-decoration: underline 2px var(--underline); text-underline-offset: 4px; }
         body.reader-jump [data-reader-index] {

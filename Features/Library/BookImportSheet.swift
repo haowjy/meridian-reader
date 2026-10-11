@@ -7,7 +7,7 @@ import SwiftUI
 /// Cancel             Import Book             Import   ← Import: a downloaded book, before it starts
 /// ╭──────╮  Pride and Prejudice
 /// │cover │  Jane Austen
-/// ╰──────╯  pride-and-prejudice.epub · 61 chapters
+/// ╰──────╯  pride-and-prejudice.epub   61 chapters
 /// ━━━━━━━━━━━━░░░░░░░  Reading chapters… 4 / 9
 /// Add to
 ///  📁 Fiction                              Change    ← pushes the Move tree; works while it runs
@@ -93,7 +93,7 @@ struct BookImportSheet: View {
 
     private var header: some View {
         FolderHeader(style: .book(cover: cover), title: flow.title, detail: detail, source: source,
-                     progress: progress?.fraction, progressLabel: progress?.label) {
+                     progress: progress?.fraction, progressLabel: progress.map { [$0.label] } ?? []) {
             EmptyView()
         }
         .accessibilityElement(children: .combine)
@@ -105,15 +105,15 @@ struct BookImportSheet: View {
     }
 
     /// The author once read, else the file.
-    private var detail: String {
-        flow.preview?.byline ?? flow.fileName
+    private var detail: [String] {
+        [flow.preview?.byline ?? flow.fileName]
     }
 
     /// The file and its chapters, once read.
-    private var source: String? {
-        guard let preview = flow.preview else { return nil }
+    private var source: [String] {
+        guard let preview = flow.preview else { return [] }
         let chapters = String(localized: "\(preview.chapterCount) chapters")
-        return preview.byline == nil ? chapters : "\(flow.fileName) · \(chapters)"
+        return preview.byline == nil ? [chapters] : [flow.fileName, chapters]
     }
 
     private var progress: (fraction: Double, label: String)? {

@@ -8,7 +8,7 @@ import SwiftUI
 /// ┌──────────────────────────────────────┐
 /// │  ⌄          PLAYING FROM          ⊕  │ ← ⌄ or a pull down shrinks it; ⊕ saves (✓ saved)
 /// │          Pride and Prejudice         │ ← tap: go there
-/// │ `text`: [▣ title, site · N min left] │ ← the title card scrolls with the text
+/// │ `text`: [▣ title, site  N min left]  │ ← the title card scrolls with the text
 /// │  dimmed, SPOKEN in full ink, dimmed  │ ← follows the audio
 /// │            ( Back to audio )         │ ← after you scroll away, floating over the text
 /// │ `controls`: status notes, the        │
@@ -177,7 +177,7 @@ struct NowPlayingSheetGallery: View {
     private func frame(_ state: PlayState, note: String?, back: Bool, saved: Bool = false) -> some View {
         NowPlayingSheet(playingFrom: "Pride and Prejudice", isSaved: saved, showsBackToAudio: back,
                         onCollapse: {}) {
-            SampleReading(title: "Chapter 12", detail: "Pride and Prejudice · 9 min left", spoken: true,
+            SampleReading(title: "Chapter 12", detail: ["Pride and Prejudice", "9 min left"], spoken: true,
                           look: .player)
         } controls: {
             if let note {

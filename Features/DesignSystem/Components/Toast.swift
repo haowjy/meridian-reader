@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A short message that floats over the bottom chrome and goes away by itself: "Nothing to
-/// listen to on this page", "Added to Favorites · Change Folder". Present it by inserting it; the
+/// listen to on this page", "Added to Favorites" with *Change Folder*. Present it by inserting it; the
 /// owner removes it after a few seconds (`Toast.duration`, longer with an action). Without an
 /// action it takes no taps, so it never blocks what is under it.
 struct Toast: View {

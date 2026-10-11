@@ -10,12 +10,12 @@ import SwiftUI
 /// ```
 /// ‹ Library                Finance                    Edit
 /// Finance
-/// 2 folders · 7 pages
+/// 2 folders   7 pages
 ///  📁 Bonds                             4  ›
 ///  [i] Coupon Basics                        ▶
-///      investing.example.com · ✓ Finished
+///      investing.example.com   ✓ Finished
 ///  [i] Seven-Day Yield                      ⏸   ← playing: tinted, with bars
-///      investing.example.com · ▂▅▇ 9 min left
+///      investing.example.com   ▂▅▇ 9 min left
 ///  🔗  investing.example.com                     (link: lighter, no ▶)
 /// ```
 struct FolderScreen: View {
@@ -144,12 +144,12 @@ private struct FolderContentsList: View {
         .accessibilityIdentifier("folderScreen")
     }
 
-    /// "2 folders · 7 pages".
-    private var counts: String {
+    /// ["2 folders", "7 pages"].
+    private var counts: [String] {
         var parts: [String] = []
         if !subfolders.isEmpty { parts.append("\(subfolders.count) folder\(subfolders.count == 1 ? "" : "s")") }
         parts.append("\(pages.count) page\(pages.count == 1 ? "" : "s")")
-        return parts.joined(separator: " · ")
+        return parts
     }
 
     private func movePages(from source: IndexSet, to destination: Int) {

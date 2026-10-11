@@ -116,7 +116,7 @@ final class PlayerReadingPageTests: XCTestCase {
                 reader.coordinator.sizes = textSizes
                 reader.coordinator.setTextInsets(ReaderTextInsets(top: 0, bottom: 140))
                 try await reader.load(html, blocks: 40,
-                                      heading: ReaderHeading(title: "Notes on the Lighthouse", detail: "example.com · 9 min"))
+                                      heading: ReaderHeading(title: "Notes on the Lighthouse", detail: ["example.com", "9 min"]))
                 try await reader.waitUntil("Reader laid out", timeout: 3) { reader.maxOffset > 1500 }
                 let lineInReader = try await reader.windowY(ofParagraph: 12)
                 reader.scrollView.contentOffset.y += lineInReader - 300
@@ -129,7 +129,7 @@ final class PlayerReadingPageTests: XCTestCase {
                 player.coordinator.sizes = textSizes
                 player.coordinator.setTextInsets(ReaderTextInsets(top: 0, bottom: 260))
                 player.coordinator.setTopView(ReadingTopView(id: 1, view: AnyView(
-                    TitleCard(title: "Notes on the Lighthouse", detail: "example.com · 9 min left", artworkLetter: "e")
+                    TitleCard(title: "Notes on the Lighthouse", detail: ["example.com", "9 min left"], artworkLetter: "e")
                         .environment(\.dynamicTypeSize, dynamicType))))
                 try await player.load(html, blocks: 40, opensAt: handOver)
                 try await player.waitUntil("restored", timeout: 3) { !player.coordinator.isRestoringScroll }

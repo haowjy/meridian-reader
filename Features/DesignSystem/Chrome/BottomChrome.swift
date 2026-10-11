@@ -190,7 +190,7 @@ struct BottomToolbarLayout: Layout {
 /// be taller (a 48 pt pill).
 ///
 /// ```
-/// Reader   [🔖]  [ ▶  Listen · 9 min  ]  [⋯]
+/// Reader   [🔖]  [ ▶  Listen  9 min  ]  [⋯]
 /// ```
 struct BottomToolbarSpanLayout: Layout {
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
@@ -240,7 +240,7 @@ struct BottomToolbarGallery: View {
                 band {
                     BottomToolbarSpanLayout {
                         icon("bookmark")
-                        PlayStateButton(state: .idle, look: .pill(title: "Listen · 9 min", expands: true)) {}
+                        PlayStateButton(state: .idle, look: .pill(title: "Listen", detail: "9 min", expands: true)) {}
                         icon("ellipsis")
                     }
                 }

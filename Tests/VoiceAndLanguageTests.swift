@@ -13,7 +13,7 @@ final class VoiceAndLanguageTests: XCTestCase {
     func testKokoroCuratedVoicesAndDefault() {
         XCTAssertEqual(kokoro.voices.map(\.id), ["af_heart", "af_bella", "bf_emma", "am_puck", "bm_fable"])
         XCTAssertEqual(kokoro.voices.map(\.detail),
-                       ["Warm · American", "Bright · American", "British", "American male", "British male"])
+                       ["Warm, American", "Bright, American", "British", "American male", "British male"])
         XCTAssertEqual(kokoro.defaultVoiceID, "af_heart")
         XCTAssertEqual(kokoro.voices, KokoroVoiceCatalog.curated, "one source of truth")
         // Stored voice kept if still curated; dropped voices / nothing stored → default.
@@ -150,7 +150,7 @@ final class VoiceAndLanguageTests: XCTestCase {
         XCTAssertEqual(auto.engineID, .apple)
         XCTAssertEqual(auto.unsupportedEngineID, .kokoro)
         let note = try? XCTUnwrap(auto.note)
-        XCTAssertEqual(note?.hasPrefix("Apple · "), true)
+        XCTAssertEqual(note?.hasPrefix("Apple voice for "), true)
         XCTAssertEqual(note?.contains("Kokoro is "), true)
 
         let manual = ListenLanguageResolution.resolve(automatic: false, manualCode: "de-DE", detectedCode: "en",

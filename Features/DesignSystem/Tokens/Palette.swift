@@ -10,6 +10,7 @@ import UIKit
 /// | chrome | #F3F2EE | #1F1F23 |
 /// | ink | #141416 | #F2F1EC |
 /// | secondaryInk | #55555E | #A1A1AA |
+/// | tertiaryInk | #6B6B74 | #92929B |
 /// | accent | #287060 | #5FB8A0 |
 /// | onAccent | #FFFFFF | #141416 |
 /// | playingTint | #E6F1ED | #163029 |
@@ -31,6 +32,9 @@ enum Palette {
     static let ink = Color(light: 0x141416, dark: 0xF2F1EC)
     /// Secondary text: sources, times, counts, captions.
     static let secondaryInk = Color(light: 0x55555E, dark: 0xA1A1AA)
+    /// The quieter parts of a secondary line, after its lead: the time left after the site, the
+    /// count after a section’s title (`DetailLine`).
+    static let tertiaryInk = Color(light: 0x6B6B74, dark: 0x92929B)
     /// Links, controls, progress, the playing state. The asset catalog's AccentColor carries the
     /// same values, so system controls and `Color.accentColor` match.
     static let accent = Color(light: 0x287060, dark: 0x5FB8A0)
@@ -55,8 +59,11 @@ enum Palette {
     /// The paragraphs not being spoken (lyrics style): about 55% of `playerInk` on
     /// `playerBackground`, the faintest that still reads at 4.5:1.
     static let playerDimInk = Color(light: 0x8E9A94, dark: 0x8E9A94)
-    /// Secondary text on the player: "PLAYING FROM", the site and time left, status notes.
+    /// Secondary text on the player: "PLAYING FROM", the site, status notes.
     static let playerSecondaryInk = Color(light: 0xA9C6BC, dark: 0xA9C6BC)
+    /// `tertiaryInk` on the player: the time left after the site on the title card and the
+    /// scrubber. 4.5:1 on `playerCard`.
+    static let playerTertiaryInk = Color(light: 0x91A89F, dark: 0x91A89F)
     /// The accent on the player (`accent`'s dark value): the big ⏸ / ▶, links, Jump.
     static let playerAccent = Color(light: 0x5FB8A0, dark: 0x5FB8A0)
     /// Glyphs on a `playerAccent` fill.

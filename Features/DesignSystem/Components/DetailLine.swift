@@ -1,0 +1,160 @@
+import SwiftUI
+
+/// A secondary line made of separate parts: a row's site and time left, a book's author, kind and
+/// chapter count, the scrubber's time played and left. The parts are set apart by space and ink,
+/// never joined with a separator character:
+///
+/// ```
+/// investing.example.com   9 min left        lead in secondary ink, the rest in tertiary
+/// Jane Austen   Book   61 chapters
+/// ```
+///
+/// The first part (the lead) is what gives way: it truncates when the rest need the room. The
+/// other parts never truncate; when they would leave the lead less than a third of the line
+/// (large text), the parts wrap onto further lines instead (`DetailLineLayout`). The caller sets
+/// the font (`typeStyle`). VoiceOver reads the parts as one label, joined with commas.
+struct DetailLine: View {
+    let parts: [String]
+
+    @Environment(\.onPlayerPalette) private var onPlayer
+    /// `Spacing.s` at the default text size, growing with the caption it separates.
+    @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var spacing = Spacing.s
+
+    /// Empty and nil parts are left out.
+    init(_ parts: [String?]) {
+        self.parts = parts.compactMap { $0 }.filter { !$0.isEmpty }
+    }
+
+    var body: some View {
+        DetailLineLayout(spacing: spacing) {
+            ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
+                Text(part)
+                    .foregroundStyle(index == 0 ? DetailLine.leadInk(onPlayer) : DetailLine.restInk(onPlayer))
+                    .lineLimit(index == 0 ? 1 : nil)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(DetailLine.accessibilityLabel(parts))
+    }
+
+    /// The lead part's ink.
+    static func leadInk(_ onPlayer: Bool) -> Color { onPlayer ? Palette.playerSecondaryInk : Palette.secondaryInk }
+    /// The ink of the parts after the lead.
+    static func restInk(_ onPlayer: Bool) -> Color { onPlayer ? Palette.playerTertiaryInk : Palette.tertiaryInk }
+
+    /// The parts as VoiceOver reads them: "investing.example.com, 9 min left".
+    static func accessibilityLabel(_ parts: [String?]) -> String {
+        parts.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
+    }
+}
+
+/// The parts of a `DetailLine` (or a row's second line), side by side `spacing` apart on their
+/// first text baseline. One line when they fit; one line with the first part truncated while it
+/// keeps at least a third of the width; otherwise each part flows onto the next line when it
+/// doesn't fit beside the one before (a part wider than the line gets the line's width).
+struct DetailLineLayout: Layout {
+    var spacing: CGFloat = Spacing.s
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        arrange(width: proposal.width, subviews: subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for item in arrange(width: bounds.width, subviews: subviews).items {
+            subviews[item.index].place(at: CGPoint(x: bounds.minX + item.origin.x, y: bounds.minY + item.origin.y),
+                                       anchor: .topLeading,
+                                       proposal: ProposedViewSize(width: item.width, height: nil))
+        }
+    }
+
+    private struct Item {
+        let index: Int
+        var origin: CGPoint
+        let width: CGFloat
+    }
+
+    private struct Arrangement {
+        var items: [Item] = []
+        var size: CGSize = .zero
+    }
+
+    private func arrange(width: CGFloat?, subviews: Subviews) -> Arrangement {
+        guard !subviews.isEmpty else { return Arrangement() }
+        let ideal = subviews.map { $0.sizeThatFits(.unspecified).width }
+        let total = ideal.reduce(0, +) + spacing * CGFloat(subviews.count - 1)
+
+        // Rows of (index, width): one row when everything fits or the lead can give way enough.
+        var rows: [[(index: Int, width: CGFloat)]]
+        if let width, total > width {
+            let rest = total - ideal[0]
+            let leadRoom = width - rest
+            if subviews.count > 1, leadRoom >= min(ideal[0], width / 3) {
+                rows = [[(0, leadRoom)] + (1..<subviews.count).map { ($0, ideal[$0]) }]
+            } else {
+                rows = [[]]
+                var x: CGFloat = 0
+                for index in subviews.indices {
+                    let w = min(ideal[index], max(0, width))
+                    if !rows[rows.count - 1].isEmpty, x + spacing + w > width {
+                        rows.append([])
+                        x = 0
+                    }
+                    if !rows[rows.count - 1].isEmpty { x += spacing }
+                    rows[rows.count - 1].append((index, w))
+                    x += w
+                }
+            }
+        } else {
+            rows = [subviews.indices.map { ($0, ideal[$0]) }]
+        }
+
+        // Each row on its first text baseline.
+        var result = Arrangement()
+        var y: CGFloat = 0
+        for row in rows {
+            let measured = row.map { entry -> (index: Int, width: CGFloat, height: CGFloat, baseline: CGFloat) in
+                let d = subviews[entry.index].dimensions(in: ProposedViewSize(width: entry.width, height: nil))
+                return (entry.index, entry.width, d.height, d[VerticalAlignment.firstTextBaseline])
+            }
+            let ascent = measured.map(\.baseline).max() ?? 0
+            let descent = measured.map { $0.height - $0.baseline }.max() ?? 0
+            var x: CGFloat = 0
+            for m in measured {
+                result.items.append(Item(index: m.index, origin: CGPoint(x: x, y: y + ascent - m.baseline), width: m.width))
+                x += m.width + spacing
+            }
+            result.size.width = max(result.size.width, x - spacing)
+            y += ascent + descent
+        }
+        result.size.height = y
+        return result
+    }
+}
+
+#if DEBUG
+struct DetailLineGallery: View {
+    var body: some View {
+        PreviewGallery {
+            PreviewState("site and time left") {
+                DetailLine(["investing.example.com", "9 min left"]).typeStyle(.caption)
+            }
+            PreviewState("three parts") {
+                DetailLine(["Jane Austen", "Book", "61 chapters"]).typeStyle(.caption)
+            }
+            PreviewState("a long lead gives way") {
+                DetailLine(["a-very-long-subdomain.investing.example.com", "6 h 10 min left"])
+                    .typeStyle(.caption)
+                    .frame(width: 240, alignment: .leading)
+            }
+            PreviewState("on the player") {
+                DetailLine(["example.com", "12 min left"]).typeStyle(.caption)
+                    .onPlayerPreview(Palette.playerCard)
+            }
+        }
+    }
+}
+
+#Preview("DetailLine · light", traits: .sizeThatFitsLayout) { DetailLineGallery().previewVariant(.light) }
+#Preview("DetailLine · dark", traits: .sizeThatFitsLayout) { DetailLineGallery().previewVariant(.dark) }
+#Preview("DetailLine · AX5", traits: .sizeThatFitsLayout) { DetailLineGallery().previewVariant(.largestText) }
+#endif

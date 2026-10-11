@@ -1,19 +1,20 @@
 import SwiftUI
 
 /// What is playing, at the top of Now Playing's text (it scrolls with the text): the artwork, the
-/// title, and "site · N min left". Drawn on the player palette.
+/// title, and the site and time left as separate parts (`DetailLine`). Drawn on the player
+/// palette.
 ///
 /// ```
 /// ┌──────────────────────────────────────────┐
 /// │ ┌──┐  Seven-Day Yield: Definition         │
-/// │ │I │  example.com · 12 min left           │
+/// │ │I │  example.com   12 min left           │
 /// │ └──┘                                      │
 /// └──────────────────────────────────────────┘
 /// ```
 struct TitleCard: View {
     let title: String
-    /// "example.com · 12 min left", or "✓ Finished".
-    let detail: String
+    /// ["example.com", "12 min left"], or ["✓ Finished"].
+    let detail: [String]
     var artwork: Image?
     /// On the tile when there is no artwork.
     let artworkLetter: String
@@ -35,9 +36,8 @@ struct TitleCard: View {
                     .typeStyle(.row, weight: .bold)
                     .foregroundStyle(Palette.playerInk)
                     .lineLimit(large ? nil : 3)
-                Text(detail)
+                DetailLine(detail)
                     .typeStyle(.caption)
-                    .foregroundStyle(Palette.playerSecondaryInk)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -54,18 +54,18 @@ struct TitleCardGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("a page, letter tile") {
-                TitleCard(title: "Seven-Day Yield: Definition, Calculation", detail: "example.com · 12 min left",
+                TitleCard(title: "Seven-Day Yield: Definition, Calculation", detail: ["example.com", "12 min left"],
                           artworkLetter: "example.com")
                     .onPlayerPreview(Palette.playerBackground)
             }
             PreviewState("a chapter, artwork") {
-                TitleCard(title: "Chapter 12", detail: "Pride and Prejudice · 15 min left",
+                TitleCard(title: "Chapter 12", detail: ["Pride and Prejudice", "15 min left"],
                           artwork: Image(systemName: "book.closed.fill"), artworkLetter: "P")
                     .onPlayerPreview(Palette.playerBackground)
             }
             PreviewState("finished, long title") {
                 TitleCard(title: "Notes on the Tides of the Northern Coast, and the Tables Fishermen Keep",
-                          detail: "✓ Finished", artworkLetter: "N")
+                          detail: ["✓ Finished"], artworkLetter: "N")
                     .onPlayerPreview(Palette.playerBackground)
             }
         }

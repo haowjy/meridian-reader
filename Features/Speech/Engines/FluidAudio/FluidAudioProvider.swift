@@ -38,7 +38,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
         kind: .onDevice,
         displayName: "Kokoro (on-device)",
         shortName: "Kokoro",
-        subtitle: "Recommended · ~175 MB download",
+        subtitle: "Recommended, ~175 MB download",
         isRecommended: true,
         sortOrder: 10,
         voices: kokoroVoices,

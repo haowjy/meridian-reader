@@ -87,7 +87,7 @@ struct ListenLanguageResolution: Equatable, Sendable {
     let engineID: SpeechEngineID
     /// The selected engine when it was bypassed for this language.
     let unsupportedEngineID: SpeechEngineID?
-    /// Subtle UI note for the fallback, e.g. "Apple · French (Kokoro is English-only)".
+    /// Subtle UI note for the fallback, e.g. "Apple voice for French (Kokoro is English-only)".
     let note: String?
 
     var languageName: String { ListenLanguage.displayName(for: languageCode) }
@@ -115,6 +115,6 @@ struct ListenLanguageResolution: Equatable, Sendable {
         let limit = engine.languageLimitNote ?? "\(engine.shortName) can't speak it"
         return ListenLanguageResolution(
             languageCode: code, source: source, engineID: .apple, unsupportedEngineID: engine.id,
-            note: "Apple · \(ListenLanguage.displayName(for: code)) (\(limit))")
+            note: "Apple voice for \(ListenLanguage.displayName(for: code)) (\(limit))")
     }
 }

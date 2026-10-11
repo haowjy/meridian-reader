@@ -23,7 +23,7 @@ final class SpeechSwiftProvider: SpeechEngineProvider {
         kind: .onDevice,
         displayName: "Qwen3-TTS (on-device)",
         shortName: "Qwen3",
-        subtitle: "Experimental · large download",
+        subtitle: "Experimental, large download",
         isRecommended: false,
         sortOrder: 30,
         voices: [],
@@ -34,7 +34,7 @@ final class SpeechSwiftProvider: SpeechEngineProvider {
         // device. Model: hf:aufklarer/Qwen3-TTS-CoreML (0.6B), bundle-default compute units.
         limits: .tenSecondCall,
         hardware: HardwareRequirement(minimumOSMajor: 18, minimumChip: .a17OrNewer, allowsSimulator: false,
-                                      summary: "iPhone 15 Pro or newer · iOS 18+"),
+                                      summary: "iPhone 15 Pro or newer, iOS 18+"),
         supportsBakeCache: true,
         crashGuarded: true,
         crashNoticeDetail: "Core ML crash"

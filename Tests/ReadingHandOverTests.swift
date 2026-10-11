@@ -85,7 +85,7 @@ final class ReadingHandOverTests: XCTestCase {
         XCTAssertTrue(player.coordinator.isRestoringScroll, "still opening")
         let cardBefore = player.coordinator.textTop
 
-        player.coordinator.setTopView(card(Self.longTitle, detail: "example.com · 9 min left · read twice before",
+        player.coordinator.setTopView(card(Self.longTitle, detail: ["example.com", "9 min left", "read twice before"],
                                            dynamicType: .large, id: 2))
         player.moveViewport(top: 160)
         try await finishOpening(player)
@@ -162,7 +162,7 @@ final class ReadingHandOverTests: XCTestCase {
         page.coordinator.sizes = ReadingStyle.Sizes(traits: UITraitCollection(preferredContentSizeCategory: category))
         page.coordinator.setTextInsets(ReaderTextInsets(top: 0, bottom: bottomInset))
         try await page.load(ReadingPageHarness.paragraphs(40), blocks: 40,
-                            heading: ReaderHeading(title: title, detail: "example.com · 9 min"))
+                            heading: ReaderHeading(title: title, detail: ["example.com", "9 min"]))
         try await page.waitUntilLaidOut()
         try await page.waitUntil("Reader laid out", timeout: 3) { page.maxOffset > 1500 && page.coordinator.textTop > 0 }
         return page
@@ -190,7 +190,7 @@ final class ReadingHandOverTests: XCTestCase {
         return page
     }
 
-    private func card(_ title: String, detail: String = "example.com · 9 min left", dynamicType: DynamicTypeSize,
+    private func card(_ title: String, detail: [String] = ["example.com", "9 min left"], dynamicType: DynamicTypeSize,
                       id: Int = 1) -> ReadingTopView {
         ReadingTopView(id: [AnyHashable(id), AnyHashable(dynamicType)], view: AnyView(
             TitleCard(title: title, detail: detail, artworkLetter: "e").environment(\.dynamicTypeSize, dynamicType)))

@@ -11,10 +11,10 @@ import SwiftUI
 /// Library                                   title, scrolls away
 /// ★  Favorites                        2  ›  folders first, no header
 /// ▣  Pride and Prejudice                 ▶  a book: its place and its own ▶
-///    Ch 24 · ◐ 6 h 10 min left
-/// Pages · 3                      Show All ›
+///    Ch 24   ◐ 6 h 10 min left
+/// Pages  3                       Show All ›  the count: a lighter label after the title
 /// [i] Notes on Tides                     ▶  played, not saved (D5)
-///     example.org · Not saved · 4 min left
+///     example.org   Not saved   ◐ 4 min left
 /// [i] Seven-Day Yield                    ▶
 /// ```
 struct LibraryHomeView: View {
@@ -74,7 +74,7 @@ struct LibraryHomeView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Palette.chrome)
                 } header: {
-                    SectionHeader(title: "Pages · \(pages.count)",
+                    SectionHeader(title: String(localized: "Pages"), count: pages.count,
                                   actionTitle: pages.count > Self.pagesShown ? String(localized: "Show All") : nil,
                                   actionNavigates: true, actionIdentifier: "libraryPagesShowAll") {
                         shell.libraryPath.append(.pages)

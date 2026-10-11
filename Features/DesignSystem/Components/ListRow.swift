@@ -5,19 +5,24 @@ import SwiftUI
 /// ```
 /// 📁 Bonds                                    4  ›   folder: count, then ›
 /// ▣  Pride and Prejudice                         ▶   book: its place and its own ▶
-///    Ch 24 · ◐ 6 h 10 min left
+///    Ch 24   ◐ 6 h 10 min left
 /// [i] Coupon Basics                              ▶   page: status under the title
-///     investing.example.com · ✓ Finished
+///     investing.example.com   ✓ Finished
 /// [i] Seven-Day Yield                            ⏸   page, playing: tinted, bars
-///     investing.example.com · ▂▅▇ 9 min left
+///     investing.example.com   ▂▅▇ 9 min left
+/// [i] Notes on Tides                             ▶   played, not saved: the note
+///     example.org   Not saved   ◐ 4 min left
 ///  ◐  Chapter 24                                 ▶   chapter, part-way
 ///     6 min left
 /// 🔗  serials.example.com                            link: lighter
 /// ```
 ///
 /// The row draws; tapping it is the caller's (a `NavigationLink`, a button). The status sits
-/// under the title so the title keeps the row's width. ▶ / ⏸ (`onPlay`) and › (`opensScreen`)
-/// share one trailing column, centred on the toolbar's ⋯ slot like the Now Playing bar's ⏸.
+/// under the title so the title keeps the row's width. The second line's parts are spaced apart
+/// (`DetailLineLayout`), not joined by a separator: the first in secondary ink, the rest in
+/// tertiary, the status in the accent while it is what you hear. ▶ / ⏸ (`onPlay`) and ›
+/// (`opensScreen`) share one trailing column, centred on the toolbar's ⋯ slot like the Now
+/// Playing bar's ⏸.
 struct ListRow: View {
     enum Kind {
         /// A folder (or Favorites, a book, a series): its symbol, or a book's cover when it has
@@ -45,6 +50,8 @@ struct ListRow: View {
     let title: String
     /// Under the title, before the status: the site, "Ch 24", "not fetched yet".
     var subtitle: String?
+    /// A short note between the subtitle and the status ("Not saved").
+    var note: String?
     var progress: Progress = .unplayed(minutes: nil)
     var playState: PlayState = .idle
     /// Tapping the row opens a screen: › in the trailing column (unless the row has ▶).
@@ -54,6 +61,8 @@ struct ListRow: View {
     /// 56 pt at the default text size; larger text grows the row through its content, and the
     /// minimum only up to `BottomChrome.maxTextGrowth`.
     @ScaledMetric(relativeTo: .callout) private var scaledMinHeight: CGFloat = 56
+    /// Space between the second line's parts: `Spacing.s`, growing with the caption.
+    @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var partSpacing = Spacing.s
     /// The row's width, for the trailing column's place (`trailingColumnPadding`).
     @State private var width: CGFloat = 0
 
@@ -129,37 +138,27 @@ struct ListRow: View {
 
     // MARK: - Second line
 
-    /// The subtitle, then the status: "investing.example.com · ◐ 6 min left". The subtitle
-    /// truncates, the status doesn't; when both can't share a line (large text), the status goes
-    /// under the subtitle.
+    /// The subtitle, the note, then the status, spaced apart: "investing.example.com   ◐ 6 min
+    /// left". The subtitle truncates, the status doesn't; when they can't share a line (large
+    /// text), the status wraps under the subtitle.
     @ViewBuilder
     private var secondLine: some View {
         let status = statusText
-        if subtitle != nil || status != nil {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: Spacing.xxs) {
-                    if let subtitle {
-                        subtitleText(subtitle)
-                        if status != nil { Text("·").foregroundStyle(Palette.secondaryInk) }
-                    }
-                    if let status { statusView(status) }
+        let leads = [subtitle, note].compactMap { $0 }
+        if !leads.isEmpty || status != nil {
+            DetailLineLayout(spacing: partSpacing) {
+                ForEach(Array(leads.enumerated()), id: \.offset) { index, text in
+                    Text(text)
+                        .foregroundStyle(index == 0 ? Palette.secondaryInk : Palette.tertiaryInk)
+                        .lineLimit(index == 0 ? 1 : nil)
                 }
-                VStack(alignment: .leading, spacing: 0) {
-                    if let subtitle { subtitleText(subtitle) }
-                    if let status { statusView(status) }
-                }
+                if let status { statusView(status, isLead: leads.isEmpty) }
             }
             .typeStyle(.caption)
         }
     }
 
-    private func subtitleText(_ subtitle: String) -> some View {
-        Text(subtitle)
-            .foregroundStyle(Palette.secondaryInk)
-            .lineLimit(1)
-    }
-
-    private func statusView(_ status: String) -> some View {
+    private func statusView(_ status: String, isLead: Bool) -> some View {
         HStack(spacing: Spacing.xxs) {
             switch statusMark {
             case .bars:
@@ -172,10 +171,9 @@ struct ListRow: View {
             }
             Text(status)
         }
-        .foregroundStyle(playState.isCurrent ? Palette.accent : Palette.secondaryInk)
+        .foregroundStyle(playState.isCurrent ? Palette.accent
+                         : isLead ? Palette.secondaryInk : Palette.tertiaryInk)
         .monospacedDigit()
-        .lineLimit(1)
-        .fixedSize()
     }
 
     private enum StatusMark {
@@ -209,6 +207,7 @@ struct ListRow: View {
     private var accessibilityStatus: String {
         var parts: [String] = []
         if let subtitle { parts.append(subtitle) }
+        if let note { parts.append(note) }
         if playState.isCurrent { parts.append(playState == .playing ? "Playing" : "Paused") }
         if let count = folderCount {
             parts.append("\(count) items")
@@ -325,7 +324,7 @@ struct ListRowGallery: View {
             PreviewState("page, part-way; played, not saved") {
                 ListRow(kind: .page(letter: "B"), title: "Bond Ladders", subtitle: "investing.example.com",
                         progress: .partWay(fraction: 0.4, minutesLeft: 6), onPlay: {})
-                ListRow(kind: .page(letter: "N"), title: "Notes on Tides", subtitle: "example.org · Not saved",
+                ListRow(kind: .page(letter: "N"), title: "Notes on Tides", subtitle: "example.org", note: "Not saved",
                         progress: .partWay(fraction: 0.6, minutesLeft: 4), onPlay: {})
             }
             PreviewState("page, playing") {

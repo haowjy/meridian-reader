@@ -318,8 +318,9 @@ extension View {
     }
 }
 
-/// Speed chip, then paragraph · sentence over the sentence's first words, on a player card. The
-/// text wraps rather than truncating at large text sizes.
+/// Speed chip, then the paragraph and the sentence (spaced apart, the sentence in secondary ink)
+/// over the sentence's first words, on a player card. The text wraps rather than truncating at
+/// large text sizes.
 private struct ReaderScrubBubbleView: View {
     let bubble: ReaderScrubBubble
 
@@ -360,10 +361,13 @@ private struct ReaderScrubBubbleView: View {
         .accessibilityIdentifier("readerScrubBubble")
     }
 
-    private func header(_ t: ReaderScrubMap.Target, map: ReaderScrubMap) -> Text {
-        let paragraph = Text("¶ \(t.paragraph + 1) of \(map.paragraphCount)")
+    private func header(_ t: ReaderScrubMap.Target, map: ReaderScrubMap) -> some View {
         let sentences = map.sentenceCount(paragraph: t.paragraph)
-        guard sentences > 1 else { return paragraph }
-        return paragraph + Text(" · sentence \(t.sentence + 1) of \(sentences)").foregroundStyle(Palette.playerSecondaryInk)
+        return DetailLineLayout {
+            Text("¶ \(t.paragraph + 1) of \(map.paragraphCount)")
+            if sentences > 1 {
+                Text("sentence \(t.sentence + 1) of \(sentences)").foregroundStyle(Palette.playerSecondaryInk)
+            }
+        }
     }
 }

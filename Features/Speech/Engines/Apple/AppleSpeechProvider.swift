@@ -11,7 +11,7 @@ final class AppleSpeechProvider: SpeechEngineProvider {
         kind: .system,
         displayName: "Apple",
         shortName: "Apple",
-        subtitle: "System voices · always available",
+        subtitle: "System voices, always available",
         isRecommended: false,
         sortOrder: 0,
         voices: [], // Apple voices are picked in the separate "Apple voice" section

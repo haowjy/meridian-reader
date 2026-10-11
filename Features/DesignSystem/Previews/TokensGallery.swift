@@ -5,11 +5,13 @@ import SwiftUI
 struct TokensGallery: View {
     private let colours: [(String, Color)] = [
         ("paper", Palette.paper), ("chrome", Palette.chrome), ("ink", Palette.ink),
-        ("secondaryInk", Palette.secondaryInk), ("accent", Palette.accent), ("onAccent", Palette.onAccent),
+        ("secondaryInk", Palette.secondaryInk), ("tertiaryInk", Palette.tertiaryInk),
+        ("accent", Palette.accent), ("onAccent", Palette.onAccent),
         ("playingTint", Palette.playingTint),
         ("playerBackground", Palette.playerBackground), ("playerChrome", Palette.playerChrome),
         ("playerCard", Palette.playerCard), ("playerTrack", Palette.playerTrack), ("playerInk", Palette.playerInk),
         ("playerDimInk", Palette.playerDimInk), ("playerSecondaryInk", Palette.playerSecondaryInk),
+        ("playerTertiaryInk", Palette.playerTertiaryInk),
         ("playerAccent", Palette.playerAccent), ("onPlayerAccent", Palette.onPlayerAccent),
     ]
     private let spacing: [(String, CGFloat)] = [

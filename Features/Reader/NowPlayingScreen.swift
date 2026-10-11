@@ -5,7 +5,7 @@ import SwiftUI
 /// over everything by the shell; it holds no article of its own: it shows `speech.nowPlaying` and
 /// the content its resolver finds.
 ///
-/// - The title card (artwork, title, "site · N min left") scrolls with the text.
+/// - The title card (artwork, title, the site and time left) scrolls with the text.
 /// - The text follows the audio: each new paragraph scrolls near the middle, the spoken
 ///   paragraph is in full ink and the others dimmed, its sentence underlined. A drag stops
 ///   following; Back to audio resumes it. Scrubbing scrolls to the paragraph under the thumb.
@@ -241,17 +241,17 @@ private struct SpokenText: View {
         )
     }
 
-    /// The title card, "site · N min left" (or "✓ Finished"). Replaced in the page only when its
+    /// The title card: the site and time left (or "✓ Finished"). Replaced in the page only when its
     /// text changes, so once a minute at most while playing.
     private var titleCard: ReadingTopView {
         let doc = speech.document
         let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: speech.spokenUTF16Offset,
                                              rate: speech.rateMultiplier)
-        let detail = finished ? "✓ Finished"
-            : [card.source, doc.isEmpty ? "" : "\(left) min left"].filter { !$0.isEmpty }.joined(separator: " · ")
+        let detail = finished ? ["✓ Finished"]
+            : [card.source, doc.isEmpty ? "" : "\(left) min left"].filter { !$0.isEmpty }
         let letter = card.source.isEmpty ? card.title : card.source
         return ReadingTopView(
-            id: [card.title, detail, letter, card.artwork == nil ? "" : "artwork"],
+            id: [card.title, detail.joined(separator: "\n"), letter, card.artwork == nil ? "" : "artwork"],
             view: AnyView(TitleCard(title: card.title, detail: detail, artwork: card.artwork, artworkLetter: letter))
         )
     }

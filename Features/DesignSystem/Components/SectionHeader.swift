@@ -4,8 +4,11 @@ import SwiftUI
 /// home and the start page.
 ///
 /// ```
-/// Pages · 48                             Show All ›
+/// Pages  48                              Show All ›
 /// ```
+///
+/// A count sits after the title in the title's size, regular weight and tertiary ink, so it
+/// reads as a quieter label of its own rather than part of the title.
 struct SectionHeader: View {
     enum Size {
         /// Under a screen title (the Library's lists): `row` semibold in secondary ink, so the
@@ -16,6 +19,8 @@ struct SectionHeader: View {
     }
 
     let title: String
+    /// How many things the section holds, after the title; nil: none.
+    var count: Int?
     var size: Size = .list
     /// The trailing action's title; nil: no action.
     var actionTitle: String?
@@ -30,10 +35,21 @@ struct SectionHeader: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title)
-                .typeStyle(size == .list ? .row : .heading, weight: size == .list ? .semibold : nil)
-                .foregroundStyle(size == .list ? Palette.secondaryInk : Palette.ink)
-                .accessibilityAddTraits(.isHeader)
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+                Text(title)
+                    .typeStyle(size == .list ? .row : .heading, weight: size == .list ? .semibold : nil)
+                    .foregroundStyle(size == .list ? Palette.secondaryInk : Palette.ink)
+                if let count {
+                    Text("\(count)")
+                        .typeStyle(size == .list ? .row : .heading, weight: .regular)
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.tertiaryInk)
+                        .fixedSize()
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(count.map { "\(title), \($0)" } ?? title)
+            .accessibilityAddTraits(.isHeader)
             Spacer(minLength: Spacing.xs)
             if let actionTitle {
                 Button(action: action) {
@@ -63,7 +79,7 @@ struct SectionHeaderGallery: View {
                 SectionHeader(title: "Favorites", size: .page, actionTitle: "Show All", actionNavigates: true)
             }
             PreviewState("with Show All") {
-                SectionHeader(title: "Pages · 48", actionTitle: "Show All", actionNavigates: true)
+                SectionHeader(title: "Pages", count: 48, actionTitle: "Show All", actionNavigates: true)
             }
             PreviewState("with an action") { SectionHeader(title: "Recent Searches", actionTitle: "Clear") }
         }

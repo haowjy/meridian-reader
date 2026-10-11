@@ -8,10 +8,10 @@ import SwiftUI
 /// ```
 /// ‹ Fiction
 /// ╭──────╮  Pride and Prejudice
-/// │cover │  Jane Austen · Book · 61 chapters
-/// ╰──────╯  imported 2 Oct
-/// ━━━━━━━━━━░░░░░░░░  38% · 6 h 10 min left
-///  ( ▶ Continue · Ch 24 )        Play from Start
+/// │cover │  Jane Austen   Book   61 chapters
+/// ╰──────╯  Added 2 Oct
+/// ━━━━━━━━━━░░░░░░░░  38%   6 h 10 min left
+///  ( ▶ Continue  Ch 24 )         Play from Start
 /// Chapters                                   Jump to current
 ///    Title page                      skipped
 ///  ✓ Chapter 1                         Finished
@@ -72,7 +72,9 @@ struct BookScreen: View {
         FolderHeader(style: .book(cover: folder.coverImage), title: folder.displayName, detail: detail,
                      source: source, progress: progress.fraction, progressLabel: progress.label) {
             HStack(spacing: Spacing.s) {
-                PlayStateButton(state: actions.playState(of: folder), look: .pill(title: continueTitle)) {
+                let play = continueTitle
+                PlayStateButton(state: actions.playState(of: folder),
+                                look: .pill(title: play.title, detail: play.detail)) {
                     actions.playBook(folder)
                 }
                 .accessibilityIdentifier("bookContinue")
@@ -82,19 +84,19 @@ struct BookScreen: View {
         }
     }
 
-    /// "Jane Austen · Book · 61 chapters", "serials.example.com · Series · 108 chapters · 13 saved".
-    private var detail: String {
+    /// ["Jane Austen", "Book", "61 chapters"], ["serials.example.com", "Series", "108 chapters", "13 saved"].
+    private var detail: [String] {
         let count = chapters.count
         var parts = [folder.byline ?? "", folder.kind == .series ? String(localized: "Series") : String(localized: "Book"),
                      "\(count) chapter\(count == 1 ? "" : "s")"]
         if folder.kind == .series { parts.append("\(chapters.filter(\.isSaved).count) saved") }
-        return parts.filter { !$0.isEmpty }.joined(separator: " · ")
+        return parts.filter { !$0.isEmpty }
     }
 
     /// Where it came from: the series' contents page, or when the book was added.
-    private var source: String? {
-        if folder.kind == .series { return folder.sourceURLString.flatMap(URL.init(string:))?.host }
-        return "Added \(folder.createdAt.formatted(.dateTime.day().month(.abbreviated)))"
+    private var source: [String] {
+        if folder.kind == .series { return [folder.sourceURLString.flatMap(URL.init(string:))?.host].compactMap { $0 } }
+        return ["Added \(folder.createdAt.formatted(.dateTime.day().month(.abbreviated)))"]
     }
 
     /// The place, how far through and what's left, from the chapters that play.
@@ -103,11 +105,12 @@ struct BookScreen: View {
         return BookProgress(folder: folder, chapters: chapters, playingKey: playing, library: library)
     }
 
-    /// The header's bar and "38% · 6 h 10 min left", once a chapter is finished or part-way.
-    private var progress: (fraction: Double?, label: String?) {
+    /// The header's bar and ["38%", "6 h 10 min left"], once a chapter is finished or part-way.
+    private var progress: (fraction: Double?, label: [String]) {
         let book = bookProgress
-        guard let fraction = book.fraction else { return (nil, nil) }
-        return (fraction, "\(Int((fraction * 100).rounded()))% · \(ListeningTime.label(minutes: book.minutesLeft)) left")
+        guard let fraction = book.fraction else { return (nil, []) }
+        return (fraction, ["\(Int((fraction * 100).rounded()))%",
+                           "\(ListeningTime.label(minutes: book.minutesLeft)) left"])
     }
 
     // MARK: - Continue
@@ -115,15 +118,15 @@ struct BookScreen: View {
     /// The chapter Continue resumes (or the one playing).
     private var currentKey: UUID? { bookProgress.currentKey }
 
-    /// "Continue · Ch 24", "Play from Chapter 1" before anything has played, "Playing · Ch 24".
-    private var continueTitle: String {
+    /// The round button's title and the lighter chapter after it: "Continue" "Ch 24", "Playing"
+    /// "Ch 24"; "Play from Chapter 1" before anything has played.
+    private var continueTitle: (title: String, detail: String?) {
         let number = bookProgress.chapterNumber
-        if actions.playState(of: folder).isCurrent {
-            return number.map { "Playing · Ch \($0)" } ?? String(localized: "Playing")
-        }
+        let chapter = number.map { "Ch \($0)" }
+        if actions.playState(of: folder).isCurrent { return (String(localized: "Playing"), chapter) }
         if folder.currentPageKey == nil {
-            return number.map { "Play from Chapter \($0)" } ?? String(localized: "Play")
+            return (number.map { "Play from Chapter \($0)" } ?? String(localized: "Play"), nil)
         }
-        return number.map { "Continue · Ch \($0)" } ?? String(localized: "Continue")
+        return (String(localized: "Continue"), chapter)
     }
 }

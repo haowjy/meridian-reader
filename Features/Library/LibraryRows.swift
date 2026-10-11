@@ -19,7 +19,8 @@ struct LibraryPageRow: View {
 
     var body: some View {
         ListRow(kind: page.isLink ? .link : .page(artwork: page.artworkImage, letter: page.byline.siteLetter),
-                title: page.title, subtitle: page.isLink ? page.byline : subtitle,
+                title: page.title, subtitle: page.byline.isEmpty ? nil : page.byline,
+                note: page.isLink || page.isInLibrary ? nil : String(localized: "Not saved"),
                 progress: page.isLink ? .unplayed(minutes: nil) : PageProgress.of(page),
                 playState: page.isLink ? .idle : actions.playState(of: page),
                 onPlay: page.isLink || isEditing ? nil : { actions.play(page) })
@@ -30,12 +31,6 @@ struct LibraryPageRow: View {
                     Button("Remove", role: .destructive) { actions.remove([page]) }
                 }
             }
-    }
-
-    /// The site, and "Not saved" for a page played without saving.
-    private var subtitle: String? {
-        let parts = [page.byline, page.isInLibrary ? "" : String(localized: "Not saved")].filter { !$0.isEmpty }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     @ViewBuilder
@@ -69,7 +64,7 @@ struct LibraryPageRow: View {
 }
 
 /// A folder row (a plain folder, Favorites, a book or series): pushes its screen. A book or
-/// series also shows its place ("Ch 24 · 6 h 10 min left") and its own ▶, which resumes it
+/// series also shows its place ("Ch 24", then "6 h 10 min left") and its own ▶, which resumes it
 /// there; other folders show their count and ›. Long-press is its menu; swipe left asks to delete
 /// it (not Favorites).
 struct LibraryFolderRow: View {

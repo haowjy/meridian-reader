@@ -77,7 +77,7 @@ start on the browser unless `-restoreSurface`.
 
 ```
 ╭ [art] Now playing title              ⏸ ╮   ← the Now Playing bar (once something has played)
-╰ site · N min left ━━━━━━━━──────────────╯
+╰ site   N min left ━━━━━━━━──────────────╯
 ( 📄 address …                        🎧 )   ← 📄 / 🎧 on readable pages; 🎤 only while searching
 [ ‹ ]   [ › ]   [ 🔍 ]   [ 📚 ]   [ ⋯ ]    ← 5 equal slots (slot 4 = Library↔Browser)
 ```
@@ -93,7 +93,7 @@ Every control takes taps in at least 44 × 44 pt (`tapTarget`), whatever its dra
 address-field 📄 and 🎧, the ✕ beside a search field, the Now Playing bar's play/pause, the
 capsule's 36 pt controls. **Five equal slots, evenly spaced, one grid for every row:** Browse is
 `[‹][›][Search][Library][⋯]`, the Library surface `[＋][★][Search][Browser][⋯]`, the Reader
-`[🔖][ ▶ Listen · 9 min ][⋯]` (the pill spans slots 2–4) and Now Playing `[1×][⏮][▶︎][⏭][⋯]`. Slot 4 is the Library↔Browser swap (📚 on Browse, 🌐 on Library — same
+`[🔖][ ▶ Listen  9 min ][⋯]` (the pill spans slots 2–4) and Now Playing `[1×][⏮][▶︎][⏭][⋯]`. Slot 4 is the Library↔Browser swap (📚 on Browse, 🌐 on Library — same
 muscle memory as the morph-menu Reader↔Website near ⋯). Leading items fill slots 1, 2, 3…; the
 last item (⋯) always sits in slot 5, so every icon in slot N is at the same x and the ⋯ menu
 grows from the same spot. ⋯ is never replaced. The Now Playing bar's play/pause is centered over
@@ -158,7 +158,8 @@ the ⋯ slot too.
   link. 🔖 = saved, ☆ = favorite.
 - **The Now Playing bar** (`NowPlayingBarView` → `NowPlayingBar`) is the one thing that shows what
   you hear: a floating card 8 pt above the field capsule with the page's artwork (favicon or a
-  letter tile), its title, "<site> · N min left", a thin progress line along its bottom edge, and
+  letter tile), its title, the site and the time left (two parts set apart by space, the time in lighter
+  ink), a thin progress line along its bottom edge, and
   play/pause centered over the ⋯ slot. It looks the same on the browser, the start page, the
   Library and the Reader sheet. It shows from the first play; it hides on Now Playing, while you
   type in a field, under other sheets, and after *Stop Listening*. At the end of a page it stays,
@@ -198,16 +199,24 @@ swap as 🌐.
 Library                                   title in the list, scrolls away (no navigation bar)
 ★  Favorites                       12  ›  Favorites first, then your folders by their order
 ▣  Pride and Prejudice                 ▶  a book or series: its place and its own ▶
-   Ch 24 · ◐ 6 h 10 min left
-Pages · 48                     Show All › not saved first, then pages in no folder; the first 5
+   Ch 24   ◐ 6 h 10 min left
+Pages  48                      Show All › not saved first, then pages in no folder; the first 5
 [i] Notes on Tides                     ▶
-    example.org · Not saved · 4 min left
+    example.org   Not saved   ◐ 4 min left
 ```
+
+Secondary lines (a row's second line, the bar's, a header's details) never join their parts with
+a separator character: the parts sit apart by space (`DetailLine`, `Spacing.s`, growing with the
+text), the first in secondary ink and the rest in the lighter tertiary ink; a playing row's status
+is in the accent. The first part (the site) truncates when the line is short of room; the status
+never does, and at large text sizes the parts wrap onto further lines. A section's count is its
+own lighter label after the title (*Pages* then *48*). VoiceOver reads the parts joined with
+commas.
 
 - **The home** (`LibraryHomeView`): nothing on it appears or goes away because playback starts
   or ends. The bar's ▶ resumes what you last heard, and rows carry their own place and ▶
   (decision D14). First the top-level folders, with no header; a book or series
-  row shows its place and time left ("Ch 24 · 6 h 10 min left", a ring) and its ▶ resumes it
+  row shows its place and time left ("Ch 24", then a ring and "6 h 10 min left") and its ▶ resumes it
   there without opening it. Then **Pages**: the pages played without saving, newest played first,
   marked "Not saved" (long-press → *Save* puts one in the Library), then the pages in no folder,
   newest first; Show All pushes them all (the not-saved ones on top), sorted by the top level's
@@ -255,8 +264,9 @@ Pages · 48                     Show All › not saved first, then pages in no f
   (`FolderDeletePrompt`). Pages and their audio go together: the audio is deleted once the delete
   is saved, and a delete that can't be saved leaves both (and says so, below).
 - **A book or series** (`BookScreen`): the cover, title, author, chapter count and where it came
-  from; how far through ("38% · 6 h 10 min left"); the round play button (*▶ Play from Chapter
-  1* before anything has played, *▶ Continue · Ch 24*, or jade bars *Playing · Ch 24* while one
+  from; how far through ("38%", then "6 h 10 min left"); the round play button (*▶ Play from
+  Chapter 1* before anything has played, *▶ **Continue** Ch 24*, or jade bars *Playing Ch 24*
+  while one
   of its chapters plays: tap pauses) and *Play from Start*; then the chapters in their source
   order. No Edit. Front matter shows dimmed with "skipped" (it still opens for reading); *Jump
   to current* scrolls to the chapter Continue resumes. Playing any chapter carries on through the
@@ -347,18 +357,19 @@ row) opens Now Playing instead.
 ┌──────────────────────────────────────┐
 │                 ───                  │ ← grabber
 │ ( ‹ Browser )                    ☝︎  │ ← back pill names what is underneath
-│ Notes on Tides                       │ ← title, then "site · 9 min"
+│ Notes on Tides                       │ ← title, then "site   9 min"
 │ … serif text on paper …              │
 │ ╭ Now Playing bar ──────────────╮    │ ← what you hear (always another page)
-│ [🔖]  [ ▶  Listen · 9 min ]  [ ⋯ ]   │ ← this page's own ▶, a pill over slots 2–4
+│ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]    │ ← this page's own ▶, a pill over slots 2–4
 └──────────────────────────────────────┘
 ```
 
 - **A sheet over the surface that opened it** (`ReaderSheetScreen`, `ShellState.reader`). From
   the browser (📄, ⋯ → Reader, a Favorites tile) the pill reads *‹ Browser*; from the Library
   *‹ Library*. The pill, the grabber and a pull down all close it to exactly where you were.
-- **Listen** reads *▶ Listen · 9 min*, *▶ Resume · 6 min left* for a page part-way through, or
-  *▶ Listen Again* for a finished one. It starts at the page's saved spot, makes the page what you
+- **Listen** reads *▶ **Listen** 9 min*, *▶ **Resume** 6 min left* for a page part-way through
+  (the time in regular weight after the semibold title, left out when the pill is short of room
+  at large text sizes), or *▶ Listen Again* for a finished one. It starts at the page's saved spot, makes the page what you
   hear (replacing what plays) and turns the Reader into Now Playing in place, where the Reader was
   (decision D2):
   - **At the Reader's top** (its first line of text not yet scrolled above the top of the reading
@@ -397,7 +408,7 @@ row) opens Now Playing instead.
 │  ⌄          PLAYING FROM          ⊕  │ ← ⌄ or a pull down: shrink into the bar; ⊕ Save (✓ saved)
 │              example.com             │ ← tap: the page in the browser
 │ ╭ [art] Title                      ╮ │ ← the title card, scrolls with the text
-│ ╰       example.com · 9 min left   ╯ │
+│ ╰       example.com   9 min left   ╯ │
 │ … serif text, dimmed; the spoken     │
 │   paragraph in full ink, the         │
 │   sentence underlined …              │
@@ -417,7 +428,7 @@ row) opens Now Playing instead.
   `Palette.player…` tokens), with light status bar content and a heavier dim on the strip above
   it. While a finger pulls it down the dim lifts, but the strip under the status bar stays as dark
   as at rest until the sheet has gone, so the clock stays readable. A **title card** at the top of the text (it scrolls with the text) shows the artwork, the
-  title and *site · N min left* (*✓ Finished* at the end). The text keeps the Reader's serif and
+  title, and the site and time left as two parts (*✓ Finished* at the end). The text keeps the Reader's serif and
   margins in **lyrics style**: the spoken paragraph in full ink, the others dimmed, no tint box
   (a paragraph pressed while ☝︎ is on is in full ink too).
   The *Back to audio* pill is light with dark text; the scrub capsule, the bubble and the jump
@@ -462,7 +473,7 @@ row) opens Now Playing instead.
     sentence; either end of the track gives a firmer tick.
   - **The bubble** (a card as wide as the band) shows the speed as a chip (½×, ¼×, Fine; dark
     text on the accent),
-    "¶ N of M · sentence k of n" and the sentence's first words. It sits just above the capsule
+    "¶ N of M", then "sentence k of n" in lighter ink, and the sentence's first words. It sits just above the capsule
     and, once the finger slides up, rides 44 pt above the finger so the thumb never covers it; at
     large text sizes it wraps rather than truncating.
   - **Release** seeks to the start of the sentence under the thumb: playing keeps playing from

@@ -305,7 +305,7 @@ final class NowPlayingUITests: XCTestCase {
         XCTAssertGreaterThan(held, 0, "no screenshot showed the held scrub mid-article")
     }
 
-    /// The paragraph a scrub bubble names ("¶ 21 of 40 · sentence 1 of 2" → 21), from its text.
+    /// The paragraph a scrub bubble names ("¶ 21 of 40", "sentence 1 of 2" → 21), from its text.
     private static func bubbleParagraph(_ text: String) -> Int? {
         guard let match = text.firstMatch(of: #/(\d+)\s*of\s*40\b/#) else { return nil }
         return Int(match.1)

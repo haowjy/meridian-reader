@@ -71,9 +71,9 @@ enum FallbackReason: Equatable {
     /// Listen-bar note while this unit plays. `engine` is the local engine's short name.
     func localizedNote(engine: String) -> String {
         switch self {
-        case .background: return "Apple voice · \(engine) can't render in the background"
-        case .behind: return "Apple voice for this paragraph · \(engine) fell behind"
-        case .engineError: return "Apple voice · \(engine) couldn't render this paragraph"
+        case .background: return "Apple voice – \(engine) can't render in the background"
+        case .behind: return "Apple voice for this paragraph – \(engine) fell behind"
+        case .engineError: return "Apple voice – \(engine) couldn't render this paragraph"
         }
     }
 }

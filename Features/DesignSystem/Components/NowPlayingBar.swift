@@ -6,7 +6,7 @@ import SwiftUI
 /// ```
 /// ╭──────────────────────────────────────────╮
 /// │ [art]  Chapter 12: Hunsford            ⏸ │   ⏸ / ▶ centred over the ⋯ slot
-/// │        Pride and Prejudice · Ch 12 · 9m  │
+/// │        Pride and Prejudice   9 min left  │
 /// ╰━━━━━━━━━━━━━━━━━━━━━━━━──────────────────╯   progress along the bottom edge
 /// ```
 ///
@@ -14,8 +14,9 @@ import SwiftUI
 /// While the next chapter loads the state is `.preparing` and `detail` says so.
 struct NowPlayingBar: View {
     let title: String
-    /// Second line: "<source> · N min left", "Getting next chapter…", "✓ Finished".
-    let detail: String
+    /// Second line, as separate parts (`DetailLine`): the source, then the time left
+    /// (["investopedia.com", "12 min left"]); or one part, "Getting next chapter…", "✓ Finished".
+    let detail: [String]
     var artwork: Image?
     /// Letter for the artwork tile when there is no image.
     var artworkLetter: String = ""
@@ -54,7 +55,7 @@ struct NowPlayingBar: View {
                             Image(systemName: "moon.fill")
                                 .accessibilityLabel("Sleep timer set")
                         }
-                        Text(detail).lineLimit(1)
+                        DetailLine(detail)
                     }
                     .typeStyle(.caption)
                     .foregroundStyle(Palette.secondaryInk)
@@ -105,22 +106,22 @@ struct NowPlayingBarGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("playing") {
-                bar("Seven-Day Yield: Definition, Calculation", "investopedia.com · 12 min left", 0.58, .playing)
+                bar("Seven-Day Yield: Definition, Calculation", ["investopedia.com", "12 min left"], 0.58, .playing)
             }
             PreviewState("paused, sleep timer") {
-                bar("Chapter 12: Hunsford", "Pride and Prejudice · Ch 12 · 9 min left", 0.2, .paused,
+                bar("Chapter 12: Hunsford", ["Pride and Prejudice", "9 min left"], 0.2, .paused,
                     sleep: true)
             }
             PreviewState("getting next chapter") {
-                bar("Chapter 13", "Getting next chapter…", 0, .preparing)
+                bar("Chapter 13", ["Getting next chapter…"], 0, .preparing)
             }
             PreviewState("finished") {
-                bar("Notes on Tides", "✓ Finished", 1, .idle)
+                bar("Notes on Tides", ["✓ Finished"], 1, .idle)
             }
         }
     }
 
-    private func bar(_ title: String, _ detail: String, _ progress: Double, _ state: PlayState,
+    private func bar(_ title: String, _ detail: [String], _ progress: Double, _ state: PlayState,
                      sleep: Bool = false) -> some View {
         NowPlayingBar(title: title, detail: detail, progress: progress, state: state, sleepTimerSet: sleep,
                       onOpen: {}, onPlayPause: {}, onStop: {})

@@ -23,13 +23,13 @@ final class NowPlayingMetadataTests: XCTestCase {
         speech.start(session, fromParagraph: 1)
         let info = try XCTUnwrap(speech.lockScreen.lastInfo)
         XCTAssertEqual(info.title, "Chapter 12: Hunsford")
-        XCTAssertEqual(info.subtitle, "Jane Austen · Paragraph 2 of 3")
+        XCTAssertEqual(info.subtitle, "Jane Austen – Paragraph 2 of 3")
         XCTAssertEqual(info.albumTitle, "Pride and Prejudice")
         XCTAssertEqual(info.artwork, Self.cover)
 
         let fields = info.dictionary
         XCTAssertEqual(fields[MPMediaItemPropertyTitle] as? String, "Chapter 12: Hunsford")
-        XCTAssertEqual(fields[MPMediaItemPropertyArtist] as? String, "Jane Austen · Paragraph 2 of 3")
+        XCTAssertEqual(fields[MPMediaItemPropertyArtist] as? String, "Jane Austen – Paragraph 2 of 3")
         XCTAssertEqual(fields[MPMediaItemPropertyAlbumTitle] as? String, "Pride and Prejudice")
         XCTAssertNotNil(fields[MPMediaItemPropertyArtwork])
     }
@@ -38,7 +38,7 @@ final class NowPlayingMetadataTests: XCTestCase {
         speech.listen(to: TestSpeech.article("https://example.com/a", title: "An Article"))
         let info = try XCTUnwrap(speech.lockScreen.lastInfo)
         XCTAssertEqual(info.title, "An Article")
-        XCTAssertEqual(info.subtitle, "example.com · Paragraph 1 of 3")
+        XCTAssertEqual(info.subtitle, "example.com – Paragraph 1 of 3")
         XCTAssertEqual(info.albumTitle, "example.com")
         XCTAssertEqual(info.dictionary[MPMediaItemPropertyAlbumTitle] as? String, "example.com")
     }
@@ -56,7 +56,7 @@ final class NowPlayingMetadataTests: XCTestCase {
         speech.start(.page(pages[1]), fromParagraph: 0)
         let info = try XCTUnwrap(speech.lockScreen.lastInfo)
         XCTAssertEqual(info.title, "Chapter 2")
-        XCTAssertEqual(info.subtitle, "Book Author · Paragraph 1 of 3")
+        XCTAssertEqual(info.subtitle, "Book Author – Paragraph 1 of 3")
         XCTAssertEqual(info.albumTitle, "The Book")
         XCTAssertEqual(info.artwork, Self.cover, "the book's cover")
         XCTAssertEqual(speech.nowPlaying?.source, "The Book")

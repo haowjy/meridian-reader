@@ -79,7 +79,7 @@ struct PreviewState<Content: View>: View {
 ///   dimmed).
 struct SampleReading: View {
     let title: String
-    let detail: String
+    let detail: [String]
     var spoken = false
     var look: ReadingStyle.Look = .paper
 

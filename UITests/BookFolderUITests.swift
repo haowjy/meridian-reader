@@ -38,7 +38,7 @@ final class BookFolderUITests: XCTestCase {
         let bar = app.buttons["nowPlayingBarPlayPause"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
         XCTAssertTrue(eventually(10) { bar.label == "Pause" }, "playing")
-        XCTAssertTrue(eventually(5) { play.label == "Playing · Ch 1" }, "got \(play.label)")
+        XCTAssertTrue(eventually(5) { play.label == "Playing, Ch 1" }, "got \(play.label)")
         XCTAssertEqual(play.value as? String, "Pause", "the book's button is the playing state")
         play.tap()
         XCTAssertTrue(eventually(5) { bar.label == "Resume" || bar.label == "Play" }, "paused from the book")

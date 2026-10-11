@@ -9,7 +9,7 @@ import SwiftUI
 /// │ … `text`: ReadingHeading, then serif │
 /// │   text on paper …                    │
 /// │ ╭ `bar` (the Now Playing bar) ─────╮ │ ← what you hear (always another page)
-/// │ [🔖]  [ ▶  Listen · 9 min ]  [ ⋯ ]   │ ← this page's own play button over slots 2–4
+/// │ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]    │ ← this page's own play button over slots 2–4
 /// └──────────────────────────────────────┘
 /// ```
 ///
@@ -20,6 +20,8 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View, Floati
     /// What is underneath: "Browser", "Library".
     let backTitle: String
     let listenTitle: String
+    /// After Listen's title, lighter: "9 min", "6 min left".
+    var listenDetail: String?
     let listenState: PlayState
     let isSaved: Bool
     let onClose: () -> Void
@@ -50,7 +52,8 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View, Floati
                         bar
                         BottomToolbarSpanLayout {
                             saveButton
-                            PlayStateButton(state: listenState, look: .pill(title: listenTitle, expands: true),
+                            PlayStateButton(state: listenState,
+                                            look: .pill(title: listenTitle, detail: listenDetail, expands: true),
                                             action: onListen)
                                 .accessibilityIdentifier("listenPlayPause")
                             more
@@ -86,11 +89,12 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View, Floati
 }
 
 extension ReaderSheet where Accessory == EmptyView, Floating == EmptyView {
-    init(backTitle: String, listenTitle: String, listenState: PlayState, isSaved: Bool,
+    init(backTitle: String, listenTitle: String, listenDetail: String? = nil, listenState: PlayState, isSaved: Bool,
          onClose: @escaping () -> Void, onListen: @escaping () -> Void, onToggleSave: @escaping () -> Void,
          onSaveToFolder: (() -> Void)? = nil, @ViewBuilder text: () -> Reading, @ViewBuilder bar: () -> Bar,
          @ViewBuilder more: () -> More) {
-        self.init(backTitle: backTitle, listenTitle: listenTitle, listenState: listenState, isSaved: isSaved,
+        self.init(backTitle: backTitle, listenTitle: listenTitle, listenDetail: listenDetail, listenState: listenState,
+                  isSaved: isSaved,
                   onClose: onClose, onListen: onListen, onToggleSave: onToggleSave, onSaveToFolder: onSaveToFolder,
                   accessory: { EmptyView() }, text: text, bar: bar, more: more, floating: { EmptyView() })
     }
@@ -111,8 +115,8 @@ struct SheetBackPill: View {
 /// The top of a page in the Reader and Now Playing: its title over its source and length.
 struct ReadingHeading: View {
     let title: String
-    /// "example.org · 9 min".
-    let detail: String
+    /// ["example.org", "9 min"], spaced apart (`DetailLine`).
+    let detail: [String]
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -120,9 +124,8 @@ struct ReadingHeading: View {
                 .typeStyle(.title)
                 .foregroundStyle(Palette.ink)
                 .accessibilityAddTraits(.isHeader)
-            Text(detail)
+            DetailLine(detail)
                 .typeStyle(.caption)
-                .foregroundStyle(Palette.secondaryInk)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -132,20 +135,21 @@ struct ReadingHeading: View {
 struct ReaderSheetGallery: View {
     var body: some View {
         PreviewGallery {
-            PreviewState("another page playing") { frame(.idle, "Listen · 9 min", bar: true) }
+            PreviewState("another page playing") { frame(.idle, "Listen", "9 min", bar: true) }
             PreviewState("nothing playing, part-way, saved") {
-                frame(.idle, "Resume · 6 min left", bar: false, saved: true)
+                frame(.idle, "Resume", "6 min left", bar: false, saved: true)
             }
         }
     }
 
-    private func frame(_ state: PlayState, _ title: String, bar: Bool, saved: Bool = false) -> some View {
-        ReaderSheet(backTitle: "Browser", listenTitle: title, listenState: state, isSaved: saved,
+    private func frame(_ state: PlayState, _ title: String, _ detail: String, bar: Bool, saved: Bool = false)
+        -> some View {
+        ReaderSheet(backTitle: "Browser", listenTitle: title, listenDetail: detail, listenState: state, isSaved: saved,
                     onClose: {}, onListen: {}, onToggleSave: {}) {
-            SampleReading(title: "Notes on Tides", detail: "example.org · 9 min")
+            SampleReading(title: "Notes on Tides", detail: ["example.org", "9 min"])
         } bar: {
             if bar {
-                NowPlayingBar(title: "Chapter 12: Hunsford", detail: "Pride and Prejudice · 9 min left",
+                NowPlayingBar(title: "Chapter 12: Hunsford", detail: ["Pride and Prejudice", "9 min left"],
                               progress: 0.3, state: .playing, onOpen: {}, onPlayPause: {}, onStop: {})
             }
         } more: {

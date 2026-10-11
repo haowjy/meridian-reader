@@ -14,8 +14,9 @@ struct ReaderSentence: Equatable {
 /// scrolls with it; not a listen block, so it never shifts paragraph indices).
 struct ReaderHeading: Equatable {
     var title: String
-    /// "example.org · 9 min".
-    var detail: String
+    /// The source and the length, as separate parts (["example.org", "9 min"]): spans set apart
+    /// by space, the first in secondary ink, the rest in tertiary (like `DetailLine`).
+    var detail: [String]
 }
 
 /// A native view at the top of the text that scrolls with it, in place of the HTML title and
@@ -616,7 +617,9 @@ struct HTMLReadingWebView: UIViewRepresentable {
             } else {
                 header = heading.map {
                     "<header class=\"reader-heading\"><div class=\"reader-title\">\(escape($0.title))</div>"
-                        + "<div class=\"reader-detail\">\(escape($0.detail))</div></header>"
+                        + "<div class=\"reader-detail\">"
+                        + $0.detail.filter { !$0.isEmpty }.map { "<span>\(escape($0))</span>" }.joined()
+                        + "</div></header>"
                 } ?? ""
             }
             return """

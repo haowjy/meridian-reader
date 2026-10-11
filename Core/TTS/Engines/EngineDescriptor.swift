@@ -24,7 +24,7 @@ struct EngineVoice: Hashable, Sendable, Identifiable {
     let id: String
     /// Row title ("Heart").
     let label: String
-    /// Row subtitle ("Warm · American").
+    /// Row subtitle ("Warm, American").
     var detail: String = ""
     /// Bundled preview clip (m4a resource name, no extension, in `VoicePreviews/`), if any.
     var previewResource: String? = nil
@@ -68,7 +68,7 @@ struct EngineDescriptor: Sendable, Identifiable {
     let shortName: String
     /// Settings subtitle before the model is downloaded.
     let subtitle: String
-    /// Shows "Ready · recommended" and wins `EngineRegistry.defaultLocalEngineID`.
+    /// Shows "Ready (recommended)" and wins `EngineRegistry.defaultLocalEngineID`.
     let isRecommended: Bool
     /// Settings order among engines (ascending).
     let sortOrder: Int

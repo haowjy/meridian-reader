@@ -81,8 +81,8 @@ struct MoveRequest: Identifiable, Equatable {
     static func == (a: MoveRequest, b: MoveRequest) -> Bool { a.id == b.id }
 }
 
-/// A short message over the bottom chrome, with an optional action ("Added to Favorites ·
-/// Change Folder").
+/// A short message over the bottom chrome, with an optional action ("Added to Favorites",
+/// *Change Folder*).
 struct ShellToast: Identifiable, Equatable {
     let id = UUID()
     var message: String

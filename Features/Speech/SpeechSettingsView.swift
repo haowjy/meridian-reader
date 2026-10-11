@@ -133,13 +133,13 @@ struct SpeechSettingsView: View {
             return "Preparing…"
         }
         if localTTS.engineCrashNotice != nil, localTTS.selectedEngineID != id {
-            return "Crashed last session · tap to try again"
+            return "Crashed last session – tap to try again"
         }
         if localTTS.synth.state.readyEngineID == id {
-            return descriptor.isRecommended ? "Ready · recommended" : "Ready"
+            return descriptor.isRecommended ? "Ready (recommended)" : "Ready"
         }
         if localTTS.isModelInstalled(id) {
-            return "Downloaded · tap to use"
+            return "Downloaded – tap to use"
         }
         return descriptor.subtitle
     }
@@ -164,7 +164,7 @@ struct SpeechSettingsView: View {
                 let downloading = localTTS.voiceDownloadID == voice.id
                 SettingsRow(
                     title: voice.label,
-                    subtitle: voice.id == descriptor.defaultVoiceID ? "\(voice.detail) · default" : voice.detail,
+                    subtitle: voice.id == descriptor.defaultVoiceID ? "\(voice.detail) (default)" : voice.detail,
                     selected: current == voice.id && localTTS.voiceDownloadID == nil,
                     busy: downloading,
                     accessibilityID: "voiceRow-\(voice.id)"
@@ -187,7 +187,7 @@ struct SpeechSettingsView: View {
                 }
             }
         } header: {
-            Text("Voice · \(descriptor.shortName)")
+            Text("Voice (\(descriptor.shortName))")
         } footer: {
             if let error = localTTS.voiceDownloadError {
                 Text(error).foregroundStyle(.red)
@@ -226,7 +226,7 @@ struct SpeechSettingsView: View {
             ForEach(appleVoices) { entry in
                 SettingsRow(
                     title: entry.voice.name,
-                    subtitle: "\(entry.qualityLabel) · \(entry.languageDisplayName)",
+                    subtitle: "\(entry.qualityLabel), \(entry.languageDisplayName)",
                     selected: appleSelectedID == entry.id,
                     accessibilityID: "voiceRow-\(entry.id)"
                 ) {
@@ -236,7 +236,7 @@ struct SpeechSettingsView: View {
                 }
             }
         } header: {
-            Text("Voice · Apple")
+            Text("Voice (Apple)")
         } footer: {
             Text("Enhanced and Premium voices can be added in iOS Settings → Accessibility → Spoken Content → Voices.")
         }

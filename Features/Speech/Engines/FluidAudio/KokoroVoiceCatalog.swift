@@ -9,8 +9,8 @@ enum KokoroVoiceCatalog {
     static let defaultVoice = "af_heart"
 
     static let curated: [EngineVoice] = [
-        voice("af_heart", "Heart", "Warm · American"),
-        voice("af_bella", "Bella", "Bright · American"),
+        voice("af_heart", "Heart", "Warm, American"),
+        voice("af_bella", "Bella", "Bright, American"),
         voice("bf_emma", "Emma", "British"),
         voice("am_puck", "Puck", "American male"),
         voice("bm_fable", "Fable", "British male"),
