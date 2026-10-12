@@ -18,11 +18,19 @@ struct LibraryRouteView: View {
             if let folder = library.folder(id: id) {
                 FolderScreen(folder: folder)
             } else {
-                ContentUnavailableView("This folder is gone", systemImage: "folder")
+                FolderGoneView()
             }
         case .pages:
             FolderScreen(folder: nil)
         }
+    }
+}
+
+/// A folder's screen once the folder is gone (deleted, or a remembered path to one that isn't
+/// there any more).
+struct FolderGoneView: View {
+    var body: some View {
+        ContentUnavailableView("This folder is gone", systemImage: "folder")
     }
 }
 

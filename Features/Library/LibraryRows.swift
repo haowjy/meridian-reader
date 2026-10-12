@@ -34,6 +34,10 @@ struct LibraryPageRow: View {
     }
 
     var body: some View {
+        if page.isLive { liveBody } else { DeletedRow() }
+    }
+
+    private var liveBody: some View {
         ListRow(kind: kind, title: page.title, subtitle: subtitle,
                 note: page.isLink || page.isInLibrary ? nil : String(localized: "Not saved"),
                 progress: page.isLink ? .unplayed(minutes: nil) : PageProgress.of(page),
@@ -134,6 +138,10 @@ struct LibraryFolderRow: View {
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
 
     var body: some View {
+        if folder.isLive { liveBody } else { DeletedRow() }
+    }
+
+    @ViewBuilder private var liveBody: some View {
         let pages = playOrder
         let progress = folderProgress(pages)
         row(progress, isDownloaded: downloads.isDownloaded(folder, pages: pages))
@@ -151,7 +159,8 @@ struct LibraryFolderRow: View {
             .contextMenu { menu(progress) }
             .swipeActions(edge: .trailing) {
                 if folder.kind != .favorites {
-                    Button("Delete", role: .destructive) { screen.confirmDelete([folder]) }
+                    Button("Delete") { screen.confirmDelete([folder]) }
+                        .tint(Palette.destructive)
                 }
             }
     }
@@ -171,9 +180,9 @@ struct LibraryFolderRow: View {
 
     /// Its pages still in the store: a delete being saved (a book with its chapters) redraws the
     /// row once more while the relationship still holds pages whose data is gone, and reading
-    /// one then traps.
+    /// one then traps (`isLive`).
     private var livePages: [Page] {
-        (folder.pages ?? []).filter { !$0.isDeleted && $0.modelContext != nil }
+        (folder.pages ?? []).filter(\.isLive)
     }
 
     private func plays(_ progress: FolderProgress) -> Bool {
@@ -231,6 +240,14 @@ struct LibraryFolderRow: View {
             Button("Edit Details", systemImage: "square.and.pencil") { shell.present(.folderDetails(folder.id)) }
             Button("Delete…", systemImage: "trash", role: .destructive) { screen.confirmDelete([folder]) }
         }
+    }
+}
+
+/// A row whose page or folder a saved delete just took, for the one redraw before its list drops
+/// it: drawn from nothing, since reading the model then traps (`isLive`).
+private struct DeletedRow: View {
+    var body: some View {
+        Color.clear.accessibilityHidden(true)
     }
 }
 

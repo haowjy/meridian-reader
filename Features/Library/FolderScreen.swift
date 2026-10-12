@@ -40,6 +40,15 @@ struct FolderScreen: View {
     }
 
     var body: some View {
+        if let folder, !folder.isLive {
+            // Deleted: its screen draws once more as the surface leaves it (`isLive`).
+            FolderGoneView()
+        } else {
+            contents
+        }
+    }
+
+    private var contents: some View {
         FolderContentsList(folder: folder, sort: sort)
             .navigationTitle(folder?.displayName ?? String(localized: "Pages"))
             .navigationBarTitleDisplayMode(.inline)
@@ -80,7 +89,7 @@ private struct FolderContentsList: View {
     @Environment(ShellState.self) private var shell
     @Environment(\.speechController) private var speech
     @Environment(LibraryScreenState.self) private var screen
-    @Query private var pages: [Page]
+    @Query private var queriedPages: [Page]
     /// The top level's pages only: pages played without saving, shown above the rest and out of
     /// Edit (they aren't in the Library to move, mark or remove).
     @Query(LibraryQueries.playedNotSaved) private var playedNotSaved: [Page]
@@ -89,16 +98,19 @@ private struct FolderContentsList: View {
         self.folder = folder
         self.sort = sort
         if let folder {
-            _pages = Query(LibraryQueries.pages(inFolder: folder.id, sort: sort))
+            _queriedPages = Query(LibraryQueries.pages(inFolder: folder.id, sort: sort))
         } else {
-            _pages = Query(LibraryQueries.loosePages(sort: sort))
+            _queriedPages = Query(LibraryQueries.loosePages(sort: sort))
         }
     }
 
-    private var subfolders: [Folder] { folder.map { LibraryStore.ordered($0.children ?? []) } ?? [] }
+    // Only models still in the store: a saved delete can reach this list before its query or
+    // relationship drops them, and the header reads every page (`isLive`).
+    private var pages: [Page] { queriedPages.filter(\.isLive) }
+    private var subfolders: [Folder] { folder.map { LibraryStore.ordered(($0.children ?? []).filter(\.isLive)) } ?? [] }
     private var isEditing: Bool { screen.isEditing(folderID: folder?.id) }
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
-    private var notSaved: [Page] { folder == nil && !isEditing ? playedNotSaved : [] }
+    private var notSaved: [Page] { folder == nil && !isEditing ? playedNotSaved.filter(\.isLive) : [] }
 
     /// *Select* on a row: Edit, with that row selected.
     private func select(_ item: LibraryItemID) -> () -> Void {

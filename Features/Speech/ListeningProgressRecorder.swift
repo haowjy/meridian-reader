@@ -57,7 +57,7 @@ final class ListeningProgressRecorder {
     /// when a rollback dropped the one held (a page its first play made, which the library makes
     /// again).
     private func page(_ key: UUID) -> Page? {
-        if let current, current.listenKey == key, !current.isDeleted, current.modelContext != nil { return current }
+        if let current, current.isLive, current.listenKey == key { return current }
         current = library.page(key: key)
         return current
     }

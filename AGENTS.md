@@ -82,6 +82,10 @@ xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -confi
   pieces (`PlayStateButton`, `PillButton`, `ListRow`, `NowPlayingBar`, `Sheet`, …) take plain values
   and closures, never `SpeechController`, SwiftData or `ShellState`, and carry previews in light,
   dark and the largest text size. A value the scale lacks is a token change, made there.
+- **Swipe actions**: one whose row stays in the list (it asks first, or deletes what the row
+  only shows) takes `.tint(Palette.destructive)`, never `role: .destructive`. The role has the
+  List remove the row at once; the List and its data then disagree, and UIKit aborts on the next
+  change ("attempt to delete item … before the update").
 - **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `settle`, `dismiss`) and its
   Reduce Motion transitions, not ad-hoc springs.
 - **Bottom chrome**: build controls from `BottomChrome` helpers (`bottomChromeField`,

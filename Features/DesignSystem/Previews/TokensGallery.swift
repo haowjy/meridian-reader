@@ -7,7 +7,7 @@ struct TokensGallery: View {
         ("paper", Palette.paper), ("chrome", Palette.chrome), ("ink", Palette.ink),
         ("secondaryInk", Palette.secondaryInk), ("tertiaryInk", Palette.tertiaryInk),
         ("accent", Palette.accent), ("onAccent", Palette.onAccent),
-        ("playingTint", Palette.playingTint),
+        ("playingTint", Palette.playingTint), ("destructive", Palette.destructive),
         ("playerBackground", Palette.playerBackground), ("playerChrome", Palette.playerChrome),
         ("playerCard", Palette.playerCard), ("playerTrack", Palette.playerTrack), ("playerInk", Palette.playerInk),
         ("playerDimInk", Palette.playerDimInk), ("playerSecondaryInk", Palette.playerSecondaryInk),

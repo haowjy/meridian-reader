@@ -23,6 +23,15 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   together; `.draggable` does the same): every UI action while the menu is up waits ~60 s. Tests
   that open a draggable row's menu take ~2 min each; run FolderUITests in two halves.
   Every surface (the Library, the Favorites sheet) needs its own zone and screen key.
+- **Swipe actions follow AGENTS.md's rule.** A folder's *Delete* only asks, so it takes
+  `Palette.destructive`: with the role, *Cancel* would leave the row missing and the delete abort
+  in UIKit. A page's *Remove* keeps the role: its action changes the row's data before it returns
+  (saved, or rolled back), and the List follows. `FolderDeleteUITests` checks both.
+- **A saved delete reaches views one redraw early.** Rows, a folder's screen and a relationship's
+  stale members still hold the deleted model for a redraw, and reading an attribute it hadn't
+  loaded traps in SwiftData. Check `isLive` (`isDeleted` reads false again once the delete is
+  saved): rows draw `DeletedRow`, a folder's screen `FolderGoneView`, and the home, folder
+  screens and search keep only live models.
 - **Edit and the dialogs live in `LibraryScreenState`**, one per surface (the Library, the
   Favorites sheet), shared through the environment: the bottom bar acts on the selection, and
   `libraryDialogs` shows delete / rename / new folder once. The delete question is

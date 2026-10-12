@@ -114,9 +114,11 @@ struct SpeechSettingsView: View {
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if gateOK, localTTS.isModelInstalled(id), !pending {
-                Button("Delete", role: .destructive) {
+                // The row stays (to download again), so not `.destructive` (`Palette.destructive`).
+                Button("Delete") {
                     try? localTTS.deleteModel(id)
                 }
+                .tint(Palette.destructive)
             }
         }
     }

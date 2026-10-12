@@ -14,6 +14,7 @@ import UIKit
 /// | accent | #287060 | #5FB8A0 |
 /// | onAccent | #FFFFFF | #141416 |
 /// | playingTint | #E6F1ED | #163029 |
+/// | destructive | system red | system red |
 ///
 /// Now Playing is a player: deep jade in both appearances, so its tokens have one value
 /// (`player…`, below). Text on it keeps 4.5:1 as well.
@@ -43,6 +44,11 @@ enum Palette {
     static let onAccent = Color(light: 0xFFFFFF, dark: 0x141416)
     /// Background of what is playing: the spoken paragraph, the playing row, a playing pill.
     static let playingTint = Color(light: 0xE6F1ED, dark: 0x163029)
+    /// A swipe action that leaves its row in the list (it asks first, as a folder row's *Delete*,
+    /// or deletes what the row only shows, as an engine's download): the system's red, as a
+    /// `.destructive` role draws it. Such an action takes this tint, not the role, which has the
+    /// list take the row out at once (`LibraryFolderRow`, `SpeechSettingsView`).
+    static let destructive = Color(uiColor: .systemRed)
 
     // MARK: The player (Now Playing), the same in light and dark
 

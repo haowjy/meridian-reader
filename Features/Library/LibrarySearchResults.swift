@@ -23,7 +23,7 @@ struct LibrarySearchResults: View {
 
     private var matchedFolders: [Folder] {
         folders.filter {
-            $0.displayName.localizedStandardContains(text) || ($0.byline?.localizedStandardContains(text) ?? false)
+            $0.isLive && ($0.displayName.localizedStandardContains(text) || ($0.byline?.localizedStandardContains(text) ?? false))
         }
         .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
     }
@@ -47,9 +47,10 @@ struct LibrarySearchResults: View {
                     SectionHeader(title: String(localized: "Folders")).libraryHeader()
                 }
             }
-            if !pages.isEmpty {
+            let livePages = pages.filter(\.isLive)
+            if !livePages.isEmpty {
                 Section {
-                    ForEach(pages, id: \.listenKey) { page in
+                    ForEach(livePages, id: \.listenKey) { page in
                         LibraryPageRow(page: page, drags: false)
                     }
                     .listRowInsets(EdgeInsets())

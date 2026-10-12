@@ -277,7 +277,10 @@ commas.
   pages") and "Stops what's playing." when the playing page (or one a
   waiting merge would move it onto, `LibraryStore.keysWaitingToMerge`) is inside
   (`FolderDeletePrompt`). Pages and their audio go together: the audio is deleted once the delete
-  is saved, and a delete that can't be saved leaves both (and says so, below).
+  is saved, and a delete that can't be saved leaves both (and says so, below). The folder's row
+  stays until the delete is saved, whichever way it was asked (the row's swipe or menu, ⋯ *Delete
+  Folder…*, Edit's *Remove*); *Cancel* leaves everything as it was. Deleting the folder whose
+  screen is open goes back to the screen above it.
 - **A book or series is a folder** (decision D19): the same screen, rows and rules as any
   folder. Importing makes it with one page per chapter, first in the book's order (its sort is
   *Manual*); after that the order is yours: Edit, drags and *Sort* change it, chapters move out,

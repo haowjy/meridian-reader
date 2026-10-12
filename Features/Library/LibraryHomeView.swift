@@ -34,12 +34,14 @@ struct LibraryHomeView: View {
         _loosePages = Query(LibraryQueries.loosePages(sort: pageSort))
     }
 
+    /// Only folders and pages still in the store: a saved delete can reach the home before its
+    /// queries drop them (`isLive`).
     private var topLevelFolders: [Folder] {
-        LibraryStore.ordered(folders.filter { $0.parent == nil })
+        LibraryStore.ordered(folders.filter { $0.isLive && $0.parent == nil })
     }
 
     /// *Pages*: played without saving first, then the pages in no folder.
-    private var pages: [Page] { notSaved + loosePages }
+    private var pages: [Page] { (notSaved + loosePages).filter(\.isLive) }
 
     /// Nothing to show but an empty Favorites.
     private var isEmpty: Bool {
