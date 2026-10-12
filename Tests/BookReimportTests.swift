@@ -214,7 +214,7 @@ final class BookReimportTests: XCTestCase {
         XCTAssertTrue(audioWork().isEmpty, "the work is done and retired")
     }
 
-    /// The book screen holds the folder and the progress recorder holds a chapter's page: after a
+    /// The folder screen holds the book and the progress recorder holds a chapter's page: after a
     /// failed Replace they read what the store holds, without a fetch or a relaunch, and a later
     /// save writes none of the replacement.
     func testAFailedReplaceLeavesTheBookAndChaptersTheAppHoldsAsTheyWere() throws {

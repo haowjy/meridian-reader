@@ -52,8 +52,6 @@ enum BookImportError: Error, Equatable, LocalizedError {
     case tooLarge
     /// Not an EPUB, damaged, or no text. The detail is for the log.
     case unreadable(String)
-    /// Books and series hold only their own chapters.
-    case notADestination
     /// The folder the book was going into was deleted while it was read.
     case destinationGone
     /// The hidden web view couldn't prepare a chapter's text, or the chapters it made don't meet
@@ -77,7 +75,6 @@ enum BookImportError: Error, Equatable, LocalizedError {
         case .fixedLayout: String(localized: "This is a fixed-layout book; its text can't be read in order.")
         case .tooLarge: String(localized: "This book is too large to import.")
         case .unreadable: String(localized: "This file isn't a readable EPUB.")
-        case .notADestination: String(localized: "Books and series can't hold other pages.")
         case .destinationGone: String(localized: "The folder chosen for this book no longer exists.")
         case .couldNotPrepare: String(localized: "Meridian couldn't prepare this book's text.")
         case .couldNotSave: String(localized: "Meridian couldn't save the book. Try again.")
@@ -104,8 +101,8 @@ struct BookImporter {
     var bar = BookChapterFinalizer.Bar.standard
     var maxCuts = 3
 
-    /// `destinationID`: the folder the book goes in (nil = the top level). It is evaluated when
-    /// the import starts (a book or series is refused before any work) and again in the save, so
+    /// `destinationID`: the folder the book goes in (nil = the top level; any folder, a book or
+    /// series too). It is evaluated when the import starts and again in the save, so
     /// the book is stored, in that one save, wherever it names then: the import sheet's *Add to*
     /// can change while the book is read. A folder deleted meanwhile fails the import
     /// (`destinationGone`). A book already in the Library stays where it is: `choice` says whether
@@ -115,7 +112,7 @@ struct BookImporter {
                     ifAlreadyInLibrary choice: ReimportChoice,
                     progress: (BookImportProgress) -> Void = { _ in },
                     read onRead: (BookImportPreview) -> Void = { _ in }) async throws -> BookImportOutcome {
-        if let folder = try folder(destinationID()), folder.kind.isFixed { throw BookImportError.notADestination }
+        _ = try folder(destinationID())
         progress(.reading)
         var rules = rules
         var book = try await read(fileURL, rules: rules)
@@ -151,8 +148,6 @@ struct BookImporter {
             return .added(try library.addBook(details, chapters: chapters, in: try folder(destinationID())))
         } catch let error as BookImportError {
             throw error
-        } catch LibraryTreeError.fixedDestination {
-            throw BookImportError.notADestination
         } catch {
             throw BookImportError.couldNotSave
         }

@@ -6,8 +6,8 @@ import SwiftUI
 /// one indented list, like Safari's bookmark-folder picker; one tap files, ✓ marks the current
 /// place. *New Folder* makes one at the top level; a folder's
 /// long-press, *New Folder Inside*, makes one in it; either way what is being filed goes into the
-/// new folder. Books and series aren't destinations (they take pages only from their source); a
-/// folder being moved, and everything inside it, can't be picked. The tree closes once what was
+/// new folder. Every folder is a destination, books and series too (decision D19); a folder being
+/// moved, and everything inside it, can't be picked. The tree closes once what was
 /// picked is saved; a pick or a new folder that can't be saved leaves it up, with the toast over
 /// it.
 ///
@@ -18,8 +18,7 @@ import SwiftUI
 ///  ★ Favorites
 ///      📁 Serial sites
 ///  📁 Fiction                                 ✓   ← long-press: New Folder Inside
-///      📁 Short stories
-/// Books and series can't hold other pages.
+///      📕 Pride and Prejudice
 /// ```
 struct MoveTreeSheet: View {
     let request: MoveRequest
@@ -69,10 +68,10 @@ struct MoveTreeList: View {
     /// Where the folder being named goes (nil: the top level).
     @State private var newParent: Folder?
 
-    /// Each folder that can hold others, depth first, with its depth (0 at the top level).
+    /// Every folder, depth first, with its depth (0 at the top level).
     private var tree: [(folder: Folder, depth: Int)] {
         func walk(_ level: [Folder], depth: Int) -> [(Folder, Int)] {
-            LibraryStore.ordered(level).filter { !$0.kind.isFixed }.flatMap { folder in
+            LibraryStore.ordered(level).flatMap { folder in
                 [(folder, depth)] + walk(folder.children ?? [], depth: depth + 1)
             }
         }
@@ -105,10 +104,6 @@ struct MoveTreeList: View {
                             }
                         }
                 }
-            } footer: {
-                Text("Books and series can't hold other pages.")
-                    .typeStyle(.caption)
-                    .foregroundStyle(Palette.secondaryInk)
             }
             .listRowBackground(Palette.chrome)
         }

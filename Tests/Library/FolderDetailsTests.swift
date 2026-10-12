@@ -74,7 +74,7 @@ final class FolderDetailsTests: XCTestCase {
         try library.move([.page(loose)], to: folder)
         XCTAssertIdentical(loose.folder, folder)
         try library.setSort(.title, for: folder)
-        XCTAssertEqual(folder.pageSort, .title, "its sort is its own, not a book's fixed order")
+        XCTAssertEqual(folder.pageSort, .title, "its sort is its own")
         let inside = try library.makeFolder(name: "Inside", in: folder)
         XCTAssertIdentical(inside.parent, folder)
         try library.move([.page(loose)], to: nil)

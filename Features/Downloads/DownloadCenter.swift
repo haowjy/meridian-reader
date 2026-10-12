@@ -185,9 +185,10 @@ final class DownloadCenter {
         }
     }
 
-    /// A folder's download covers its pages that play; a book's or series' only while unfinished.
+    /// A folder's download covers its pages that play; a book's or series' only while unfinished
+    /// (D7 trims finished chapters' audio).
     static func covers(_ page: Page, in folder: Folder) -> Bool {
-        !page.skipsInPlayback && !(folder.kind.isFixed && page.finishedAt != nil)
+        !page.skipsInPlayback && !(folder.kind.isBookOrSeries && page.finishedAt != nil)
     }
 
     private func targetExists(_ target: DownloadRecord.Target) -> Bool {

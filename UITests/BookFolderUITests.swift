@@ -1,16 +1,17 @@
 import XCTest
 
-/// The demo book's screen: front matter dimmed and skipped, a chapter tap opens its Reader,
-/// Continue plays the current chapter (chapter 1 for a fresh book; the place, at its paragraph,
-/// for a book part-way) and turns into the playing state, and no Edit. Offline, Apple voice.
+/// The demo book's screen, a folder screen like any other (decision D19): front matter dimmed and
+/// skipped, a chapter tap opens its Reader, Continue plays the current chapter (chapter 1 for a
+/// fresh book; the place, at its paragraph, for a book part-way) and turns into the playing
+/// state; Edit moves chapters out. Offline, Apple voice.
 final class BookFolderUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
     func testBookScreen() throws {
         let app = launchLibrary()
         openFolder(app, "The Demo Book")
-        XCTAssertTrue(find(app, "bookScreen").exists)
-        XCTAssertFalse(app.buttons["folderEdit"].exists, "no Edit: the order is the book's")
+        XCTAssertTrue(find(app, "folderScreen").exists, "a folder's screen")
+        XCTAssertTrue(app.buttons["folderEdit"].exists, "with Edit")
 
         let titlePage = libraryRow(app, "Title Page")
         XCTAssertTrue(titlePage.waitForExistence(timeout: 5))
@@ -31,14 +32,15 @@ final class BookFolderUITests: XCTestCase {
         close.tap()
         XCTAssertTrue(eventually(5) { !close.exists })
 
-        let play = app.buttons["bookContinue"]
+        let play = app.buttons["folderContinue"]
         XCTAssertTrue(play.waitForExistence(timeout: 5))
-        XCTAssertEqual(play.label, "Play from Chapter 1")
+        XCTAssertEqual(play.label, "Play")
         play.tap()
         let bar = app.buttons["nowPlayingBarPlayPause"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
         XCTAssertTrue(eventually(10) { bar.label == "Pause" }, "playing")
-        XCTAssertTrue(eventually(5) { play.label == "Playing, Ch 1" }, "got \(play.label)")
+        XCTAssertTrue(find(app, "nowPlayingBarOpen").label.contains("Chapter 1: The Harbor"), "chapter 1, not the title page")
+        XCTAssertTrue(eventually(5) { play.label == "Playing, 1 of 3" }, "got \(play.label)")
         XCTAssertEqual(play.value as? String, "Pause", "the book's button is the playing state")
         play.tap()
         XCTAssertTrue(eventually(5) { bar.label == "Resume" || bar.label == "Play" }, "paused from the book")
@@ -49,16 +51,16 @@ final class BookFolderUITests: XCTestCase {
     func testContinueResumesTheBookAtItsPlace() throws {
         let app = launchLibrary(["-seedDemoBookPlace", "2"])
         openFolder(app, "The Demo Book")
-        let play = app.buttons["bookContinue"]
+        let play = app.buttons["folderContinue"]
         XCTAssertTrue(play.waitForExistence(timeout: 5))
-        XCTAssertTrue(play.label.hasPrefix("Continue") && play.label.contains("Ch 2"), "got \(play.label)")
+        XCTAssertTrue(play.label.hasPrefix("Continue") && play.label.contains("2 of 3"), "got \(play.label)")
         play.tap()
         let bar = app.buttons["nowPlayingBarPlayPause"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
         XCTAssertTrue(eventually(10) { bar.label == "Pause" }, "playing")
         bar.tap()
         XCTAssertTrue(eventually(5) { bar.label == "Resume" || bar.label == "Play" }, "paused")
-        XCTAssertTrue(eventually(5) { play.label.contains("Ch 2") }, "the book's button: \(play.label)")
+        XCTAssertTrue(eventually(5) { play.label.contains("2 of 3") }, "the book's button: \(play.label)")
 
         find(app, "nowPlayingBarOpen").tap()
         XCTAssertTrue(app.staticTexts["Chapter 2: The Lighthouse"].waitForExistence(timeout: 5), "Now Playing: chapter 2")
@@ -74,11 +76,29 @@ final class BookFolderUITests: XCTestCase {
     func testHeaderBlocksShareTheCardsEdges() throws {
         let app = launchLibrary(["-seedDemoBookPlace", "2"])
         openFolder(app, "The Demo Book")
-        assertHeaderEdges(app, play: "bookContinue", fromStart: "bookPlayFromStart", row: "Chapter 1: The Harbor")
+        assertHeaderEdges(app, play: "folderContinue", fromStart: "folderPlayFromStart", row: "Chapter 1: The Harbor")
         app.navigationBars["The Demo Book"].buttons.firstMatch.tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         openFolder(app, "Demo Finance")
         assertHeaderEdges(app, play: "folderContinue", fromStart: "folderPlayFromStart", row: "Index Funds")
+    }
+
+    /// Edit on a book moves a chapter out, as on any folder; the book plays on without it.
+    func testEditMovesAChapterOutOfTheBook() throws {
+        let app = launchLibrary()
+        openFolder(app, "The Demo Book")
+        app.buttons["folderEdit"].tap()
+        libraryRow(app, "Chapter 3: The Tide").tap()
+        app.buttons["editMove"].tap()
+        pickInMoveTree(app, "Demo Finance")
+        app.buttons["folderEdit"].tap()
+        XCTAssertTrue(eventually(5) { !self.libraryRow(app, "Chapter 3: The Tide").exists }, "moved out of the book")
+        XCTAssertTrue(libraryRow(app, "Chapter 2: The Lighthouse").exists, "the rest stay")
+        XCTAssertTrue(eventually(5) { app.buttons["folderContinue"].label == "Play" })
+        app.navigationBars["The Demo Book"].buttons.firstMatch.tap()
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
+        openFolder(app, "Demo Finance")
+        XCTAssertTrue(libraryRow(app, "Chapter 3: The Tide").waitForExistence(timeout: 5), "in Demo Finance")
     }
 
     private func assertHeaderEdges(_ app: XCUIApplication, play: String, fromStart: String, row: String,

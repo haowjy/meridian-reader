@@ -2,7 +2,8 @@ import XCTest
 @testable import MeridianReader
 
 /// The question deleting folders asks: one destructive choice that deletes everything selected
-/// with its contents (no keep-contents choice), plus Cancel.
+/// with its contents (no keep-contents choice), plus Cancel; books and series asked about as any
+/// folder.
 @MainActor
 final class FolderDeletePromptTests: XCTestCase {
     private var env: LibraryTestEnvironment!
@@ -11,7 +12,7 @@ final class FolderDeletePromptTests: XCTestCase {
     override func setUp() async throws { env = try LibraryTestEnvironment() }
     override func tearDown() async throws { env.cleanUp() }
 
-    private func fixed(_ name: String, _ kind: FolderKind) throws -> Folder {
+    private func book(_ name: String, _ kind: FolderKind = .book) throws -> Folder {
         let folder = Folder(name: name, kind: kind)
         env.context.insert(folder)
         try library.addLink(url: URL(string: "https://example.com/\(name.lowercased())/ch1")!, title: "Ch 1", artwork: nil, in: folder)
@@ -35,39 +36,29 @@ final class FolderDeletePromptTests: XCTestCase {
         XCTAssertEqual(one.title, "Delete the folder “Shelf”?")
         XCTAssertEqual(one.message, "It holds 1 page. They're deleted too.")
         XCTAssertEqual(one.choices.map(\.id), ["deleteFolderAndContents"])
-        XCTAssertEqual(one.choices.map(\.keepsContents), [false])
         XCTAssertTrue(one.choices[0].isDestructive)
 
         let other = try library.makeFolder(name: "Other", in: nil)
         XCTAssertEqual(prompt([shelf, other]).choices.map(\.title), ["Delete Folders and Contents"])
     }
 
-    /// A folder and a book: one destructive choice, deleting everything.
-    func testAFolderAndABookOfferOnlyDeletingEverything() throws {
+    /// A book or series is asked about as any folder (decision D19): its chapters count as pages,
+    /// and it counts as a folder inside another.
+    func testABookIsAskedAboutAsAFolder() throws {
+        let novel = try book("Novel")
+        let one = prompt([novel])
+        XCTAssertEqual(one.title, "Delete the folder “Novel”?")
+        XCTAssertEqual(one.message, "It holds 1 page. They're deleted too.")
+        XCTAssertEqual(one.choices.map(\.title), ["Delete Folder and Contents"])
+
         let shelf = try library.makeFolder(name: "Shelf", in: nil)
         try library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: shelf)
-        let book = try fixed("Novel", .book)
-        let mixed = prompt([shelf, book], playing: true)
-        XCTAssertEqual(mixed.title, "Delete 1 folder and the book?")
+        try library.move([.folder(book("Serial", .series))], to: shelf)
+        let mixed = prompt([shelf, novel])
+        XCTAssertEqual(mixed.title, "Delete 2 folders?")
+        XCTAssertEqual(mixed.message, "They hold 1 folder, 3 pages. They're deleted too.")
         XCTAssertEqual(mixed.choices.map(\.id), ["deleteFolderAndContents"])
-        XCTAssertEqual(mixed.choices.map(\.title), ["Delete Folder and Contents"])
-        XCTAssertTrue(mixed.choices.allSatisfy(\.isDestructive))
-        XCTAssertEqual(mixed.message, "“Novel” is deleted with its chapters and downloads. The folder holds 1 page. Stops what's playing.")
-    }
-
-    /// Several books (or a book and a series): one choice, deleting them whole.
-    func testSeveralBooksOfferOnlyDeletingThemWhole() throws {
-        let books = try prompt([fixed("One", .book), fixed("Two", .book)])
-        XCTAssertEqual(books.title, "Delete 2 books?")
-        XCTAssertEqual(books.choices.map(\.title), ["Delete 2 Books"])
-        XCTAssertEqual(books.choices.map(\.keepsContents), [false])
-        XCTAssertEqual(books.message, "Their chapters and downloads are deleted.")
-
-        let mixedKinds = try prompt([fixed("Three", .book), fixed("Serial", .series), library.makeFolder(name: "Shelf", in: nil)])
-        XCTAssertEqual(mixedKinds.title, "Delete 1 folder and 1 book and 1 series?")
-        XCTAssertEqual(mixedKinds.choices.map(\.title), ["Delete Folder and Contents"])
-
-        XCTAssertEqual(try prompt([fixed("Single", .series)]).choices.map(\.title), ["Delete Series"])
+        XCTAssertEqual(mixed.choices.map(\.title), ["Delete Folders and Contents"])
     }
 
     /// "Stops what's playing." when the page playing is anywhere in what's deleted.
@@ -76,12 +67,10 @@ final class FolderDeletePromptTests: XCTestCase {
         let page = try library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: shelf)
         XCTAssertEqual(prompt([shelf], playing: page.listenKey).message, "It holds 1 page. They're deleted too. Stops what's playing.")
 
-        let book = try fixed("Novel", .book)
-        let chapter = try XCTUnwrap(library.pages(in: book).first)
-        XCTAssertEqual(prompt([shelf, book], playing: chapter.listenKey).message,
-                       "“Novel” is deleted with its chapters and downloads. The folder holds 1 page. Stops what's playing.")
-        XCTAssertEqual(prompt([book], playing: chapter.listenKey).message, "Its chapters and their downloads are deleted. Stops what's playing.")
-        XCTAssertEqual(prompt([shelf, book], playing: UUID()).message,
-                       "“Novel” is deleted with its chapters and downloads. The folder holds 1 page.")
+        let novel = try book("Novel")
+        let chapter = try XCTUnwrap(library.pages(in: novel).first)
+        XCTAssertEqual(prompt([shelf, novel], playing: chapter.listenKey).message,
+                       "They hold 2 pages. They're deleted too. Stops what's playing.")
+        XCTAssertEqual(prompt([shelf, novel], playing: UUID()).message, "They hold 2 pages. They're deleted too.")
     }
 }

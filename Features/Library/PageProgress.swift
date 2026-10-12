@@ -31,13 +31,13 @@ enum PageProgress {
     }
 }
 
-/// A folder as its row and its screen show it (a book, a series, or any folder whose pages play):
+/// A folder as its row and its screen show it (any folder whose pages play, a book or series too):
 /// the page Continue resumes (or the one playing), its number among the pages that play, how far
 /// through they are, and what's left.
 struct FolderProgress {
     /// The page Continue resumes, or the one playing.
     let currentKey: UUID?
-    /// `currentKey`'s number among the pages that play ("Ch 24", "3 of 7").
+    /// `currentKey`'s number among the pages that play ("3 of 7").
     let number: Int?
     /// How many pages play (link pages and skipped chapters don't; a series' link chapters do).
     let playingCount: Int
@@ -45,8 +45,7 @@ struct FolderProgress {
     let fraction: Double?
     /// The playable pages' length left (all of it before anything has played).
     let minutesLeft: Int
-    /// A page with text plays: a plain folder or Favorites gets its ▶ (a book or series always
-    /// has one).
+    /// A page with text plays: the folder's row gets its ▶ and its header its play buttons.
     let hasPagesToPlay: Bool
     /// Every page with text that plays is finished.
     let isFinished: Bool

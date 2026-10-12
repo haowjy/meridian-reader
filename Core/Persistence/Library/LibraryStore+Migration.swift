@@ -72,16 +72,14 @@ extension LibraryStore {
         for bookmark in bookmarks {
             let canonical = ArticleIdentity.canonicalURLString(from: bookmark.urlString)
             if let existing = copiedByURL[canonical] ?? page(canonicalURL: canonical) {
-                if !existing.isInFixedFolder {
-                    if existing.addedAt == nil {
-                        existing.contentState = .link
-                        existing.addedAt = bookmark.createdAt
-                    }
-                    existing.setFolder(favorites)
-                    existing.sortKey = favoriteKey
-                    if existing.artworkData == nil { existing.artworkData = bookmark.faviconData }
-                    if existing.isSaved { report.savedIntoFavorites += 1 }
+                if existing.addedAt == nil {
+                    existing.contentState = .link
+                    existing.addedAt = bookmark.createdAt
                 }
+                existing.setFolder(favorites)
+                existing.sortKey = favoriteKey
+                if existing.artworkData == nil { existing.artworkData = bookmark.faviconData }
+                if existing.isSaved { report.savedIntoFavorites += 1 }
             } else {
                 let page = Page(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: bookmark.title,
                                 byline: bookmark.host, urlString: bookmark.urlString, contentState: .link,

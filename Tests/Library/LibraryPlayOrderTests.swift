@@ -2,8 +2,8 @@ import SwiftData
 import XCTest
 @testable import MeridianReader
 
-/// A book's or series' chapters in play order: by `sortKey`, skipped ones kept and flagged, link
-/// chapters included.
+/// A book's or series' chapters in play order: by `sortKey` while *Manual*, skipped ones kept and
+/// flagged, link chapters included.
 @MainActor
 final class LibraryPlayOrderTests: XCTestCase {
     private var env: LibraryTestEnvironment!
@@ -47,9 +47,9 @@ final class LibraryPlayOrderTests: XCTestCase {
         let order = library.playOrder(of: series)
         XCTAssertEqual(order.map(\.title), ["Chapter 1", "Chapter 2", "Chapter 3"])
         XCTAssertEqual(order.map(\.contentState), [.saved, .link, .link])
-        XCTAssertEqual(series.pageSort, .manual, "books and series keep source order")
+        XCTAssertEqual(series.pageSort, .manual, "the source's order first")
         try library.setSort(.title, for: series)
-        XCTAssertEqual(series.pageSort, .manual)
+        XCTAssertEqual(series.pageSort, .title, "then yours (decision D19)")
     }
     /// Pages tied on every sort field (same sort key, same or no add date, same title) come back
     /// in key order, in every sort, from a fresh container on the store, so a folder's order

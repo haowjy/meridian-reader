@@ -1,11 +1,14 @@
 import SwiftUI
 
 /// A page row: a saved page (its ▶), a link (lighter, 🔗, no ▶), or a page played without saving
-/// ("Not saved", *Save* in its menu; decision D5). Tap opens it (the Reader, Now Playing when it is
-/// what you hear, the browser for a link); long-press is its menu (decision D11); swipe left
-/// removes it from the Library. A page in the Library lifts into a drag from the long press, to
-/// be filed in a folder or placed between rows (`LibraryDrag`). While its screen is in Edit the
-/// List's selection takes the tap.
+/// ("Not saved", *Save* in its menu; decision D5). A page in a book or series draws as a chapter:
+/// its place in the leading column, no site; front matter dimmed and "skipped" (any page skipped
+/// in playback is), with no ▶; a link chapter (a series chapter not fetched yet) lighter. Tap
+/// opens it (the Reader, Now Playing when it is what you hear, the browser for a link);
+/// long-press is its menu (decision D11); swipe left removes it from the Library. A page in the
+/// Library lifts into a drag from the long press, to be filed in a folder or placed between rows
+/// (`LibraryDrag`), a chapter as any page (decision D19). While its screen is in Edit the List's
+/// selection takes the tap.
 struct LibraryPageRow: View {
     let page: Page
     /// *Select* in the menu: enters Edit with this row selected (folder screens only).
@@ -22,19 +25,20 @@ struct LibraryPageRow: View {
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
+    /// In a book or series (`FolderKind.isBookOrSeries`): drawn as a chapter.
+    private var isChapter: Bool { page.folder?.kind.isBookOrSeries == true }
 
     private var dragID: LibraryItemID? {
-        guard drags, !isEditing, page.isInLibrary, !page.isInFixedFolder else { return nil }
+        guard drags, !isEditing, page.isInLibrary else { return nil }
         return .page(page.listenKey)
     }
 
     var body: some View {
-        ListRow(kind: page.isLink ? .link : .page(artwork: page.artworkImage, letter: page.byline.siteLetter),
-                title: page.title, subtitle: page.byline.isEmpty ? nil : page.byline,
+        ListRow(kind: kind, title: page.title, subtitle: subtitle,
                 note: page.isLink || page.isInLibrary ? nil : String(localized: "Not saved"),
                 progress: page.isLink ? .unplayed(minutes: nil) : PageProgress.of(page),
-                playState: page.isLink ? .idle : actions.playState(of: page),
-                onPlay: page.isLink || isEditing ? nil : { actions.play(page) },
+                playState: page.isLink && !isChapter ? .idle : actions.playState(of: page),
+                onPlay: page.isLink || page.skipsInPlayback || isEditing ? nil : { actions.play(page) },
                 insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil,
                 isDownloaded: page.isInLibrary && downloads.isDownloaded(page))
             .opensOnTap(isEditing ? nil : { actions.open(page) })
@@ -48,6 +52,18 @@ struct LibraryPageRow: View {
             }
     }
 
+    private var kind: ListRow.Kind {
+        if page.isLink { return .link }
+        if isChapter { return .chapter }
+        return .page(artwork: page.artworkImage, letter: page.byline.siteLetter)
+    }
+
+    /// The site; none for a chapter, whose book is on screen ("not fetched yet" for a link one).
+    private var subtitle: String? {
+        if isChapter { return page.isLink ? String(localized: "not fetched yet") : nil }
+        return page.byline.isEmpty ? nil : page.byline
+    }
+
     @ViewBuilder
     private var menu: some View {
         if let onSelect {
@@ -59,12 +75,25 @@ struct LibraryPageRow: View {
                 Button("Share", systemImage: "square.and.arrow.up") { actions.share(page) }
             }
         } else {
+            let inFolder = page.folder != nil
+            if inFolder, page.isSaved {
+                Button("Play from Here", systemImage: "play.fill") { actions.playFromStart(page) }
+            }
             Button("Move to…", systemImage: "folder") { actions.move([.page(page)]) }
             if page.isSaved {
                 if page.finishedAt == nil {
                     Button("Mark as Finished", systemImage: "checkmark.circle") { actions.setFinished([page], true) }
                 } else {
                     Button("Mark as Unfinished", systemImage: "circle") { actions.setFinished([page], false) }
+                }
+                if inFolder {
+                    Button("Mark All Above as Finished", systemImage: "checkmark.circle.badge.questionmark") {
+                        actions.markAllAbove(page)
+                    }
+                    Button(page.skipsInPlayback ? "Play in Playback" : "Skip in Playback",
+                           systemImage: page.skipsInPlayback ? "play.circle" : "forward.end") {
+                        actions.toggleSkipsInPlayback(page)
+                    }
                 }
             }
             if page.url?.isWeb == true {
@@ -83,13 +112,12 @@ struct LibraryPageRow: View {
     }
 }
 
-/// A folder row (a plain folder, Favorites, a book or series): pushes its screen. Its cover, when
-/// it has one (a book's, or one given in *Edit Details*), stands in for the symbol. A folder whose
-/// pages play (a book or series always) shows its place ("Ch 24", or the page it is at), the time
-/// left and its own ▶, which resumes it there and carries on page to page; any other folder shows
-/// its count and ›. Long-press is its menu, and lifts it into a drag (not Favorites); a dragged
-/// row let go on it is filed in it, unless it is a book or series. Swipe left asks to delete it
-/// (not Favorites).
+/// A folder row (a folder you made, Favorites, a book or series, all alike: decision D19): pushes
+/// its screen. Its cover, when it has one (a book's, or one given in *Edit Details*), stands in
+/// for the symbol. A folder whose pages play shows its place (the page it is at), the time left
+/// and its own ▶, which resumes it there and carries on page to page; any other folder shows its
+/// count and ›. Long-press is its menu, and lifts it into a drag (not Favorites); a dragged row
+/// let go on it is filed in it. Swipe left asks to delete it (not Favorites).
 struct LibraryFolderRow: View {
     let folder: Folder
     /// *Select* in the menu: enters Edit with this row selected (folder screens only).
@@ -149,7 +177,7 @@ struct LibraryFolderRow: View {
     }
 
     private func plays(_ progress: FolderProgress) -> Bool {
-        folder.kind.isFixed || progress.hasPagesToPlay
+        progress.hasPagesToPlay
     }
 
     @ViewBuilder
@@ -168,23 +196,17 @@ struct LibraryFolderRow: View {
         }
     }
 
-    /// Once it has a place: "Ch 24" in a book or series, the page's title in any other folder.
-    /// Before that (and once finished), its byline: a book's author, a series' site, the author
-    /// given in a folder's details.
+    /// Once it has a place: the title of the page it is at. Before that (and once finished), its
+    /// byline: a book's author, a series' site, the author given in its details.
     private func place(_ progress: FolderProgress) -> String? {
         let started = folder.currentPageKey != nil || progress.fraction != nil
-        if folder.kind.isFixed {
-            if started, folder.finishedAt == nil, let number = progress.number { return "Ch \(number)" }
-            return folder.byline
-        }
         guard started, !progress.isFinished, let key = progress.currentKey else { return folder.byline }
         return livePages.first { $0.listenKey == key }?.title ?? folder.byline
     }
 
-    /// A book is finished when its last chapter is; any other folder when every page that plays
-    /// is (pages added later play on from it).
+    /// Finished when every page that plays is (pages added later play on from it).
     private func rowProgress(_ progress: FolderProgress) -> ListRow.Progress {
-        if folder.kind.isFixed ? folder.finishedAt != nil : progress.isFinished { return .finished }
+        if progress.isFinished { return .finished }
         if let fraction = progress.fraction { return .partWay(fraction: fraction, minutesLeft: progress.minutesLeft) }
         return .unplayed(minutes: progress.minutesLeft > 0 ? progress.minutesLeft : nil)
     }
@@ -207,60 +229,7 @@ struct LibraryFolderRow: View {
             Button("Move to…", systemImage: "folder") { actions.move([.folder(folder)]) }
             Button("Rename", systemImage: "pencil") { screen.rename(folder) }
             Button("Edit Details", systemImage: "square.and.pencil") { shell.present(.folderDetails(folder.id)) }
-            Button(folder.kind.isFixed ? (folder.kind == .series ? "Delete Series…" : "Delete Book…") : "Delete…",
-                   systemImage: "trash", role: .destructive) { screen.confirmDelete([folder]) }
-        }
-    }
-}
-
-/// A chapter row in a book or series: ▶ plays from it (and on through the book); front matter
-/// shows dimmed and "skipped". A link chapter (a series chapter not fetched yet) is lighter.
-struct LibraryChapterRow: View {
-    let page: Page
-
-    @Environment(LibraryStore.self) private var library
-    @Environment(\.speechController) private var speech
-    @Environment(ShellState.self) private var shell
-    @Environment(DownloadCenter.self) private var downloads
-
-    private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
-
-    var body: some View {
-        ListRow(kind: page.isLink ? .link : .chapter, title: page.title,
-                subtitle: page.isLink ? String(localized: "not fetched yet") : nil,
-                progress: page.isLink ? .unplayed(minutes: nil) : PageProgress.of(page),
-                playState: actions.playState(of: page),
-                onPlay: page.isLink || page.skipsInPlayback ? nil : { actions.play(page) },
-                isDownloaded: downloads.isDownloaded(page))
-            .opensOnTap { actions.open(page) }
-            .accessibilityIdentifier("chapterRow")
-            .contextMenu { menu }
-    }
-
-    @ViewBuilder
-    private var menu: some View {
-        if !page.isLink {
-            Button("Play from Here", systemImage: "play.fill") { actions.playFromStart(page) }
-            if page.finishedAt == nil {
-                Button("Mark as Finished", systemImage: "checkmark.circle") { actions.setFinished([page], true) }
-            } else {
-                Button("Mark as Unfinished", systemImage: "circle") { actions.setFinished([page], false) }
-            }
-            Button("Mark All Above as Finished", systemImage: "checkmark.circle.badge.questionmark") {
-                actions.markAllAbove(page)
-            }
-        }
-        Button(page.skipsInPlayback ? "Play in Playback" : "Skip in Playback",
-               systemImage: page.skipsInPlayback ? "play.circle" : "forward.end") {
-            actions.toggleSkipsInPlayback(page)
-        }
-        if !downloads.isQueued(.page(page.listenKey)) {
-            Button("Download", systemImage: "arrow.down.circle") {
-                DownloadActions(downloads: downloads, shell: shell).download(page)
-            }
-        }
-        if library.hasDownloads(page) {
-            Button("Delete Downloads", systemImage: "trash.circle") { downloads.deleteDownloads(of: page) }
+            Button("Delete…", systemImage: "trash", role: .destructive) { screen.confirmDelete([folder]) }
         }
     }
 }

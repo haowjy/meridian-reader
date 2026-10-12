@@ -44,27 +44,23 @@ final class LibraryDragTests: XCTestCase {
         XCTAssertNil(library.moveRefusal(.folder(book), to: outer), "a book itself can be filed")
         XCTAssertNil(library.moveRefusal(.page(page), to: library.favorites()), "a page onto Favorites")
 
-        XCTAssertEqual(library.moveRefusal(.page(page), to: book), .fixedDestination, "a book takes no drops")
-        XCTAssertEqual(library.moveRefusal(.folder(inner), to: book), .fixedDestination)
+        XCTAssertNil(library.moveRefusal(.page(page), to: book), "a book takes drops (decision D19)")
+        XCTAssertNil(library.moveRefusal(.folder(inner), to: book))
+        XCTAssertNil(library.moveRefusal(.page(chapter), to: nil), "a chapter leaves its book")
         XCTAssertEqual(library.moveRefusal(.folder(outer), to: outer), .cycle, "a folder onto itself")
         XCTAssertEqual(library.moveRefusal(.folder(outer), to: inner), .cycle, "a folder into its own subfolder")
-        XCTAssertEqual(library.moveRefusal(.page(chapter), to: nil), .leavesFixedFolder, "a chapter never leaves its book")
         XCTAssertEqual(library.moveRefusal(.folder(library.favorites()), to: outer), .favoritesIsPinned)
     }
 
-    func testPlacingIsRefusedInABookAndOutOfIt() throws {
+    /// Pages are placed among a book's chapters, and chapters out of it, as in any folder; only a
+    /// folder placed inside itself is refused.
+    func testPlacingInAndOutOfABookAndRefusingACycle() throws {
         let (book, chapter) = try book()
         let page = try savedPage("p", in: nil)
-        XCTAssertThrowsError(try library.arrange([page], in: book, before: chapter, shownIn: .manual)) {
-            XCTAssertEqual($0 as? LibraryTreeError, .fixedDestination)
-        }
-        XCTAssertThrowsError(try library.arrange([chapter], in: book, before: nil, shownIn: .manual),
-                             "a book's order is its source's")
-        XCTAssertThrowsError(try library.arrange([chapter], in: nil, before: page, shownIn: .newest)) {
-            XCTAssertEqual($0 as? LibraryTreeError, .leavesFixedFolder)
-        }
-        XCTAssertNil(page.folder, "nothing changed")
-        XCTAssertIdentical(chapter.folder, book)
+        try library.arrange([page], in: book, before: chapter, shownIn: .manual)
+        XCTAssertEqual(library.pages(in: book).map(\.listenKey), [page.listenKey, chapter.listenKey], "placed before the chapter")
+        try library.arrange([chapter], in: nil, before: page, shownIn: .newest)
+        XCTAssertNil(chapter.folder, "placed out of its book")
 
         let outer = try library.makeFolder(name: "Outer", in: nil)
         let inner = try library.makeFolder(name: "Inner", in: outer)
@@ -163,7 +159,7 @@ final class LibraryDragTests: XCTestCase {
             LibraryDropAim.aim(dragging: dragging, over: row, fraction: fraction, takesInto: takes, besideAllowed: beside)
         }
         XCTAssertEqual(aim(.page(page), .folder(folder), 0.1), .into(folder), "a page goes into a folder, anywhere on it")
-        XCTAssertEqual(aim(.page(page), .folder(folder), 0.5, takes: false), .refusedInto(folder), "a book refuses it")
+        XCTAssertEqual(aim(.page(page), .folder(folder), 0.5, takes: false), .refusedInto(folder), "a folder that doesn't take it refuses it")
         XCTAssertEqual(aim(.folder(other), .folder(folder), 0.1), .beside(.folder(folder), .top))
         XCTAssertEqual(aim(.folder(other), .folder(folder), 0.9), .beside(.folder(folder), .bottom))
         XCTAssertEqual(aim(.folder(other), .folder(folder), 0.5), .into(folder), "a folder's middle files it inside")

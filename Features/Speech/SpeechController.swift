@@ -258,7 +258,7 @@ final class SpeechController {
         let folder = meta?.folder
         let playingFrom: PlayingFrom = folder.map { .folder(id: $0.id, name: $0.name) } ?? .site(host: host)
         return NowPlaying(pageKey: id, canonicalURL: meta?.canonicalURL, title: meta?.title ?? "Untitled",
-                          source: folder?.isFixed == true ? folder?.name ?? host : host, artwork: meta?.artwork,
+                          source: folder?.isBookOrSeries == true ? folder?.name ?? host : host, artwork: meta?.artwork,
                           playingFrom: playingFrom, phase: playbackPhase)
     }
 
@@ -934,7 +934,7 @@ final class SpeechController {
         let articleID = playback.articleID
         let paragraphs = playback.document.paragraphs
         let voiceID = cacheVoiceID
-        let isChapter = sessionMeta?.id == articleID && sessionMeta?.folder?.isFixed == true
+        let isChapter = sessionMeta?.id == articleID && sessionMeta?.folder?.isBookOrSeries == true
         stopEngines()
         // Let other apps' audio resume (Stop Listening / the end of an article or a book).
         audioSession.deactivate()

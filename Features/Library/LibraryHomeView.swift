@@ -13,7 +13,7 @@ import SwiftUI
 /// Library                                   title, scrolls away
 /// ★  Favorites                        2  ›  folders first, no header
 /// ▣  Pride and Prejudice                 ▶  a book: its place and its own ▶
-///    Ch 24   ◐ 6 h 10 min left
+///    Chapter 24   ◐ 6 h 10 min left
 /// Pages  3                       Show All ›  the count: a lighter label after the title
 /// [i] Notes on Tides                     ▶  played, not saved (D5)
 ///     example.org   Not saved   ◐ 4 min left

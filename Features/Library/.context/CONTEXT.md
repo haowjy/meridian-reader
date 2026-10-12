@@ -73,11 +73,18 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   section header is already at the margin in a Library list, so the header adds no padding of its
   own; the bar and the button row span the width, so all four edges line up
   (`BookFolderUITests.testHeaderBlocksShareTheCardsEdges` checks them).
+- **Books and series are folders** (decision D19): one screen (`FolderScreen`), one page row
+  (`LibraryPageRow`, which draws a page in a book or series as a chapter), one ⋯
+  (`LibraryMenu.Screen.folder`), one delete question. Nothing refuses a move, a drop, a sort or a
+  subfolder because of `kind`: only cycles and Favorites (`LibraryTreeError`). `kind` is a hint
+  of where a folder came from (`FolderKind.isBookOrSeries`): the chapter look and the row's
+  symbol, *Replace*'s lookup, a series' fetchable links, D7's trim, the bar's source. *Replace*
+  finds a book's chapters through its record (`BookSourceState.chapterKeys`), written at import
+  and *Replace*, and recorded once at launch for books stored before (`recordBookChapters`).
 - **Details are not a kind** (decision D17): *Edit Details* (`FolderDetailsSheet`, a shell sheet)
   writes a folder's name, byline and cover in one `LibraryStore.setDetails`. `Folder.hasDetails`
-  picks the header's look (`FolderHeaderStyle.detailed`) on a plain folder; everything else
-  about it (sort, Edit, drops, `isFixed`) still reads `kind`. `FolderPlayButtons` is the header
-  button row both screens use. UI tests read the look from `folderHeaderLook` (the cover tile is
+  picks the header's look (`FolderHeaderStyle.detailed`), a book's too. `FolderPlayButtons` is
+  the header's button row. UI tests read the look from `folderHeaderLook` (the cover tile is
   hidden from accessibility); `-pickTestCover` stands in for the Files picker.
 - **Rows ask `DownloadCenter.isDownloaded`** for their Downloaded mark (a page, or a folder with
   the pages its row already sorted); `ListRow` only draws `isDownloaded`.

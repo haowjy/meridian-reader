@@ -18,7 +18,7 @@ final class DownloadsUITests: XCTestCase {
         return app
     }
 
-    /// The book's ⋯ › *Download Book*.
+    /// The book's ⋯ › *Download Folder*.
     private func downloadTheBook(_ app: XCUIApplication) {
         openFolder(app, "The Demo Book")
         app.buttons["libraryMore"].tap()

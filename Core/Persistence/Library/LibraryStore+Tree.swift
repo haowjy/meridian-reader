@@ -7,14 +7,11 @@ enum LibraryItem {
     case page(Page)
 }
 
-/// Why the tree refused a change.
+/// Why the tree refused a change. Every folder takes pages and subfolders, books and series too
+/// (decision D19); only these are refused.
 enum LibraryTreeError: Error, Equatable {
     /// A folder into itself or one of its own subfolders.
     case cycle
-    /// Books and series take pages only from their source, and no subfolders.
-    case fixedDestination
-    /// A book's or series' pages never leave it.
-    case leavesFixedFolder
     /// Favorites stays at the top level, keeps its name and can't be deleted.
     case favoritesIsPinned
 }
@@ -23,12 +20,11 @@ enum LibraryTreeError: Error, Equatable {
 struct FolderContents: Equatable {
     var folders = 0
     var pages = 0
-    var books = 0
     var pageKeys: Set<UUID> = []
 
-    /// "2 folders, 27 pages, 1 book"; nil when empty.
+    /// "2 folders, 27 pages"; nil when empty.
     var summary: String? {
-        let parts = [(folders, "folder"), (pages, "page"), (books, "book")]
+        let parts = [(folders, "folder"), (pages, "page")]
             .filter { $0.0 > 0 }
             .map { count, noun in "\(count) \(noun)\(count == 1 ? "" : "s")" }
         return parts.isEmpty ? nil : parts.joined(separator: ", ")
@@ -63,14 +59,14 @@ enum FractionalOrder {
 }
 
 /// The folder tree: making, renaming, moving, sorting and deleting folders. Folders nest to any
-/// depth; books, series and Favorites have the rules in `LibraryTreeError`. Each change saves at
-/// once; a save that fails is rolled back and throws `LibraryStoreError.saveFailed`.
+/// depth, books and series as any other (decision D19); Favorites and cycles have the rules in
+/// `LibraryTreeError`. Each change saves at once; a save that fails is rolled back and throws
+/// `LibraryStoreError.saveFailed`.
 extension LibraryStore {
     /// A new plain folder at the end of `parent` (the top level if nil).
     @discardableResult
     func makeFolder(name: String, in parent: Folder?) throws -> Folder {
-        if let parent, parent.kind.isFixed { throw LibraryTreeError.fixedDestination }
-        return try edit("make folder") {
+        try edit("make folder") {
             let folder = Folder(name: name.trimmingCharacters(in: .whitespacesAndNewlines), kind: .plain,
                                 sortKey: nextFolderSortKey(in: parent), createdAt: now())
             context.insert(folder)
@@ -88,7 +84,7 @@ extension LibraryStore {
 
     /// *Edit Details*: the name, byline and cover in one edit. A blank name keeps the name; a blank
     /// byline clears it; a nil cover removes it. The kind never changes, so a plain folder given
-    /// details keeps its order and still takes drops. Favorites has no details.
+    /// details keeps its order and still takes drops (decision D17). Favorites has no details.
     func setDetails(of folder: Folder, name: String, byline: String?, cover: Data?) throws {
         guard folder.kind != .favorites else { throw LibraryTreeError.favoritesIsPinned }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -100,9 +96,9 @@ extension LibraryStore {
         }
     }
 
-    /// The folder's page order. Books and series stay in source order.
+    /// The folder's page order: *Manual* (a book's or series' starts as the source's), *Newest* or
+    /// *Title*.
     func setSort(_ sort: PageSort, for folder: Folder) throws {
-        guard !folder.kind.isFixed else { return }
         try edit("sort") { folder.pageSort = sort }
     }
 
@@ -136,15 +132,10 @@ extension LibraryStore {
     /// rules every move, Move tree pick and drop follows (`LibraryTreeError`). Asked while a row is
     /// dragged over a folder, so the folder shows whether it takes the drop.
     func moveRefusal(_ item: LibraryItem, to destination: Folder?) -> LibraryTreeError? {
-        if let destination, destination.kind.isFixed { return .fixedDestination }
-        switch item {
-        case .folder(let folder):
-            if folder.kind == .favorites, destination != nil { return .favoritesIsPinned }
-            if let destination, destination === folder || destination.ancestors.contains(where: { $0 === folder }) {
-                return .cycle
-            }
-        case .page(let page):
-            if page.isInFixedFolder, page.folder !== destination { return .leavesFixedFolder }
+        guard case .folder(let folder) = item else { return nil }
+        if folder.kind == .favorites, destination != nil { return .favoritesIsPinned }
+        if let destination, destination === folder || destination.ancestors.contains(where: { $0 === folder }) {
+            return .cycle
         }
         return nil
     }
@@ -153,24 +144,23 @@ extension LibraryStore {
         if let refusal = moveRefusal(item, to: destination) { throw refusal }
     }
 
-    /// Deletes a folder. `keepContents` (*Delete Folder Only*): its subfolders and pages move up
-    /// to its parent (the top level if none), after the parent's own contents, in their order.
-    /// Otherwise (*Delete Folder and Contents*, *Delete Book*) everything inside goes, books
-    /// included; playback of any of it stops first, and the audio goes once the delete is saved.
-    /// A book or series is always deleted with its chapters: they never leave it.
+    /// Deletes a folder, a book or series as any other. `keepContents`: its subfolders and pages
+    /// move up to its parent (the top level if none), after the parent's own contents, in their
+    /// order (no screen offers it, decision D18). Otherwise (*Delete Folder and Contents*)
+    /// everything inside goes; playback of any of it stops first, and the audio goes once the
+    /// delete is saved.
     func deleteFolder(_ folder: Folder, keepContents: Bool) throws {
         try deleteFolders([folder], keepContents: keepContents)
     }
 
-    /// Deletes `folders` in one save, each as `deleteFolder` does: plain folders keep or lose
-    /// their contents by `keepContents`, books and series go with their chapters either way.
-    /// Refuses Favorites, changing nothing. A save that fails is rolled back and throws: every
+    /// Deletes `folders` in one save, each as `deleteFolder` does, keeping or losing their contents
+    /// by `keepContents`. Refuses Favorites, changing nothing. A save that fails is rolled back and throws: every
     /// folder, page and its audio stay.
     func deleteFolders(_ folders: [Folder], keepContents: Bool) throws {
         if folders.contains(where: { $0.kind == .favorites }) { throw LibraryTreeError.favoritesIsPinned }
         try edit("delete folder") {
             for folder in folders where !folder.isDeleted {
-                if keepContents && !folder.kind.isFixed {
+                if keepContents {
                     moveContentsUp(folder)
                 } else {
                     deleteRecursively(folder)
@@ -197,14 +187,6 @@ extension LibraryStore {
         context.delete(folder)
     }
 
-    /// What *Delete Folder and Contents* would delete, for its confirmation.
-    func contentsCount(of folder: Folder) -> (folders: Int, pages: Int) {
-        subfolders(of: folder).reduce((folders: 0, pages: pages(in: folder).count)) { total, child in
-            let inner = contentsCount(of: child)
-            return (total.folders + 1 + inner.folders, total.pages + inner.pages)
-        }
-    }
-
     private func deleteRecursively(_ folder: Folder) {
         for child in subfolders(of: folder) { deleteRecursively(child) }
         for page in pages(in: folder) { deleteWithoutSaving(page) }
@@ -222,9 +204,7 @@ extension LibraryStore {
     /// that order, so the page lands between the rows it was dropped between. (The top level's
     /// sort is kept on the device, `LibraryTopLevel`; its caller switches it.)
     ///
-    /// Refuses, changing nothing, what `move` refuses: a book's or series' order is its source's,
-    /// so nothing is placed in one and its chapters don't leave it. One save; a save that fails
-    /// leaves every page where it was, in its order.
+    /// One save; a save that fails leaves every page where it was, in its order.
     func arrange(_ pages: [Page], in folder: Folder?, before: Page?, shownIn sort: PageSort) throws {
         for page in pages { try checkMove(.page(page), to: folder) }
         try edit("arrange") {
@@ -245,8 +225,7 @@ extension LibraryStore {
     /// Places `folders` just before `before` (the end if nil) among the subfolders of `parent`
     /// (the top level if nil), coming from wherever they are, the same way. Favorites stays first
     /// among the top-level folders whatever its key. Refuses, changing nothing, what `move`
-    /// refuses: a folder into itself or below itself, into a book or series, Favorites below the
-    /// top level.
+    /// refuses: a folder into itself or below itself, Favorites below the top level.
     func arrange(_ folders: [Folder], in parent: Folder?, before: Folder?) throws {
         for folder in folders { try checkMove(.folder(folder), to: parent) }
         try edit("arrange folders") {
@@ -256,20 +235,16 @@ extension LibraryStore {
         }
     }
 
-    /// What deleting `folder` and its contents takes with it, for the confirmation: subfolders,
-    /// pages, and books and series (whose chapters aren't counted as pages), and every page key
-    /// (to say "Stops what's playing").
+    /// What deleting `folder` and its contents takes with it, for the confirmation: subfolders
+    /// (books and series among them) and pages, all the way down, and every page key (to say
+    /// "Stops what's playing").
     func contents(of folder: Folder) -> FolderContents {
-        var total = FolderContents()
-        total.pageKeys.formUnion(pages(in: folder).map(\.listenKey))
-        if folder.kind.isFixed { return total }
-        total.pages += pages(in: folder).count
+        let pages = pages(in: folder)
+        var total = FolderContents(pages: pages.count, pageKeys: Set(pages.map(\.listenKey)))
         for child in subfolders(of: folder) {
-            if child.kind.isFixed { total.books += 1 } else { total.folders += 1 }
             let inner = contents(of: child)
-            total.folders += inner.folders
+            total.folders += 1 + inner.folders
             total.pages += inner.pages
-            total.books += inner.books
             total.pageKeys.formUnion(inner.pageKeys)
         }
         return total

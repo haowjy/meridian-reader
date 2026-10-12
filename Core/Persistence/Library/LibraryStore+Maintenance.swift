@@ -102,13 +102,13 @@ extension LibraryStore {
 
     // MARK: - Finished chapters' audio (D7)
 
-    /// Deletes the audio of finished chapters more than 2 behind the book's or series' place;
-    /// the text stays. A direct delete, not ephemeral marking, so the unsaved-audio size cap is
+    /// Deletes the audio of finished pages more than 2 behind a book's or series' place (D7; a
+    /// folder you made keeps its audio); the text stays. A direct delete, not ephemeral marking, so the unsaved-audio size cap is
     /// unaffected. Audio held for unfinished library work (`ArticleAudioCache.held`) stays: that
     /// work still needs it. Returns how many chapters lost their audio.
     @discardableResult
     func trimFinishedAudio(folder: Folder) -> Int {
-        guard folder.kind.isFixed, let place = folder.currentPageKey else { return 0 }
+        guard folder.kind.isBookOrSeries, let place = folder.currentPageKey else { return 0 }
         let order = playOrder(of: folder)
         guard let current = order.firstIndex(where: { $0.key == place }), current > 2 else { return 0 }
         var trimmed = 0

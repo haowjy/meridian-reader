@@ -2,9 +2,8 @@ import Foundation
 
 /// ☆ (*Add to Favorites* in the browser's and the Reader's ⋯) and filing pages into folders from
 /// there. One tap adds a page at the end of Favorites, and a toast offers *Change Folder* (the
-/// Move tree). One page per address: a page filed in another folder asks before it moves, and a
-/// chapter of a book or series offers to move the book instead (into Favorites, or out of it
-/// when the book is there). ☆ on a favorite removes it. A change that can't be saved changes
+/// Move tree). One page per address: a page filed in another folder (a series' chapter too) asks
+/// before it moves. ☆ on a favorite removes it. A change that can't be saved changes
 /// nothing, and its toast says so instead.
 @MainActor
 struct FavoriteFlow {
@@ -29,27 +28,6 @@ struct FavoriteFlow {
                 confirmTitle: String(localized: "Move to Favorites")) {
                     add(url: url, title: title, artwork: artwork, betterIcon: betterIcon)
                 }
-        case .moveBook(let book):
-            let isSeries = book.kind == .series
-            shell.prompt = ShellPrompt(
-                title: isSeries ? String(localized: "Move Series to Favorites?") : String(localized: "Move Book to Favorites?"),
-                message: "This page is a chapter of “\(book.displayName)”, and chapters stay in their \(isSeries ? "series" : "book").",
-                confirmTitle: isSeries ? String(localized: "Move Series") : String(localized: "Move Book")) {
-                    guard shell.attempt(String(localized: "Couldn’t move"), {
-                        try library.move([.folder(book)], to: library.favorites())
-                    }) != nil else { return }
-                    shell.showToast(ShellToast(message: "“\(book.displayName)” is in Favorites", systemImage: "star.fill"))
-                }
-        case .moveBookOut(let book):
-            let isSeries = book.kind == .series
-            shell.prompt = ShellPrompt(
-                title: isSeries ? String(localized: "Take Series out of Favorites?") : String(localized: "Take Book out of Favorites?"),
-                message: "This page is a chapter of “\(book.displayName)”, which is in Favorites. Chapters stay in their \(isSeries ? "series" : "book"), so the whole \(isSeries ? "series" : "book") moves to the Library’s top level.",
-                confirmTitle: isSeries ? String(localized: "Move Series Out") : String(localized: "Move Book Out")) {
-                    guard shell.attempt(String(localized: "Couldn’t move"), { try library.move([.folder(book)], to: nil) }) != nil
-                    else { return }
-                    shell.showToast(ShellToast(message: "“\(book.displayName)” is out of Favorites", systemImage: "star.slash"))
-                }
         }
     }
 
@@ -65,9 +43,9 @@ struct FavoriteFlow {
     private func add(url: URL, title: String?, artwork: Data?, betterIcon: @escaping () async -> Data?) {
         let library = library
         let shell = shell
-        guard let added = shell.attempt(String(localized: "Couldn’t add to Favorites"), {
+        guard let page = shell.attempt(String(localized: "Couldn’t add to Favorites"), {
             try library.addFavorite(url: url, title: title, artwork: artwork)
-        }), let page = added else { return }
+        }) else { return }
         shell.showToast(ShellToast(message: String(localized: "Added to Favorites"), systemImage: "star.fill",
                                    actionTitle: String(localized: "Change Folder")) {
             shell.present(.moveTo(MoveRequest(title: String(localized: "Change Folder"),

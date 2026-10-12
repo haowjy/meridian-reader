@@ -74,28 +74,41 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertTrue(link.isSaved, "unchanged")
     }
 
-    func testAPageNeverLeavesABookOrSeries() throws {
+    /// A chapter is a page like any other (decision D19): it moves out of its book, is saved into
+    /// another folder, filed in Favorites and removed from the Library; other pages move in. Its
+    /// book's place moves off it as it leaves.
+    func testAChapterLeavesItsBookAsAnyPageAndPagesMoveIn() throws {
         let book = Folder(name: "Book", kind: .book)
         env.context.insert(book)
-        let chapter = try library.addLink(url: URL(string: "https://example.com/ch1")!, title: "Ch 1", artwork: nil, in: book)
-        let other = try library.makeFolder(name: "Elsewhere", in: nil)
-
-        XCTAssertThrowsError(try library.move([.page(chapter)], to: other)) {
-            XCTAssertEqual($0 as? LibraryTreeError, .leavesFixedFolder)
+        let chapters = try (1...4).map {
+            try library.save(env.article("https://example.com/ch\($0)", title: "Ch \($0)"), placement: .folder(book))
         }
-        try library.save(env.article("https://example.com/ch1"), placement: .folder(other))
-        XCTAssertIdentical(chapter.folder, book, "save into another folder keeps it in the book")
-        XCTAssertNil(try library.addFavorite(url: URL(string: "https://example.com/ch1")!, title: nil, artwork: nil))
-        XCTAssertIdentical(chapter.folder, book)
-        try library.remove([chapter])
-        XCTAssertIdentical(chapter.folder, book, "remove isn't for chapters")
-        XCTAssertNotNil(chapter.addedAt)
+        let other = try library.makeFolder(name: "Elsewhere", in: nil)
+        book.currentPageKey = chapters[1].key
+
+        try library.move([.page(chapters[1])], to: other)
+        XCTAssertIdentical(chapters[1].folder, other, "moved out")
+        XCTAssertEqual(book.currentPageKey, chapters[0].key, "the book's place moves to the page before")
+        try library.save(env.article("https://example.com/ch3"), placement: .folder(other))
+        XCTAssertIdentical(chapters[2].folder, other, "saved into another folder")
+        try library.addFavorite(url: URL(string: "https://example.com/ch4")!, title: nil, artwork: nil)
+        XCTAssertTrue(LibraryStore.isFavorite(chapters[3]), "filed in Favorites")
+        try library.remove([chapters[0]])
+        XCTAssertNil(chapters[0].folder)
+        XCTAssertNil(chapters[0].addedAt, "out of the Library")
+        XCTAssertNil(book.currentPageKey, "none left before it")
+
+        let article = try library.save(env.article("https://example.com/article"))
+        try library.move([.page(article)], to: book)
+        XCTAssertEqual(library.pages(in: book).map(\.title), [article.title], "a book takes other pages")
+        let inner = try library.makeFolder(name: "Notes", in: book)
+        XCTAssertIdentical(inner.parent, book, "and subfolders")
     }
 
-    /// A series in Favorites makes its chapters favorites, but ☆ on one never takes it out of
-    /// the series (it offers to move the series out instead), whether it is saved or a link, and
-    /// the series' place stays on it.
-    func testRemovingAFavoriteChapterNeverDetachesItFromItsSeries() async throws {
+    /// A series in Favorites makes its chapters favorites, and ☆ on one takes it out of
+    /// Favorites as it takes any page (out of the series too: a page is in one folder); out of
+    /// Favorites, ☆ on a chapter asks to move it there, as for a page in any folder.
+    func testAFavoriteSeriesChapterIsAFavoriteLikeAnyPage() async throws {
         let series = Folder(name: "Serial", kind: .series)
         env.context.insert(series)
         series.parent = library.favorites()
@@ -104,28 +117,23 @@ final class LibraryStoreTests: XCTestCase {
         let saved = try library.save(env.article(savedURL.absoluteString, title: "Ch 1"))
         saved.setFolder(series)
         let link = try library.addLink(url: linkURL, title: "Ch 2", artwork: nil, in: series)
-        series.currentPageKey = saved.key
         XCTAssertTrue(LibraryStore.isFavorite(saved), "in Favorites through its series")
+        guard case .remove(let page) = library.favoriteRequest(for: savedURL) else { return XCTFail("☆ removes it") }
+        XCTAssertIdentical(page, saved)
 
-        for (url, chapter) in [(savedURL, saved), (linkURL, link)] {
-            guard case .moveBookOut(let source) = library.favoriteRequest(for: url) else {
-                return XCTFail("☆ on \(chapter.title) offers to move the series out")
-            }
-            XCTAssertIdentical(source, series)
-            try library.removeFavorite(chapter)
-            try await library.toggleFavorite(url: url, title: nil, artwork: nil) { nil }
-            XCTAssertIdentical(chapter.folder, series, "\(chapter.title) stays in the series")
-            XCTAssertFalse(chapter.isDeleted)
-        }
-        XCTAssertTrue(saved.isSaved)
-        XCTAssertEqual(series.currentPageKey, saved.key, "the series' place is still its chapter")
-
+        try await library.toggleFavorite(url: savedURL, title: nil, artwork: nil) { nil }
+        XCTAssertNil(saved.folder, "a saved chapter goes to the pages in no folder")
+        XCTAssertTrue(saved.isSavedToLibrary)
         try library.move([.folder(series)], to: nil)
-        guard case .moveBook = library.favoriteRequest(for: savedURL) else { return XCTFail("out of Favorites: move it in") }
+        guard case .moveFromFolder(let chapter, let folder) = library.favoriteRequest(for: linkURL) else {
+            return XCTFail("out of Favorites: ask to move it in")
+        }
+        XCTAssertIdentical(chapter, link)
+        XCTAssertIdentical(folder, series)
     }
 
-    /// *Library (no folder)* in the Move tree files the page in no folder, out of Favorites;
-    /// an ordinary save keeps it where it is; a chapter stays in its book either way.
+    /// *Library (no folder)* in the Move tree files the page in no folder, out of Favorites or a
+    /// book; an ordinary save keeps it where it is.
     func testPickingNoFolderTakesALinkOutOfFavoritesAndAnOrdinarySaveKeepsIt() throws {
         let favorites = library.favorites()
         try library.addLink(url: URL(string: "https://example.com/kept")!, title: "Kept", artwork: nil, in: favorites)
@@ -141,8 +149,10 @@ final class LibraryStoreTests: XCTestCase {
         let book = Folder(name: "Book", kind: .book)
         env.context.insert(book)
         let chapter = try library.addLink(url: URL(string: "https://example.com/ch")!, title: "Ch", artwork: nil, in: book)
+        try library.save(env.article("https://example.com/ch"))
+        XCTAssertIdentical(chapter.folder, book, "an ordinary save keeps a chapter in its book")
         try library.save(env.article("https://example.com/ch"), placement: .folder(nil))
-        XCTAssertIdentical(chapter.folder, book)
+        XCTAssertNil(chapter.folder, "picked: out of the book (decision D19)")
     }
 
     func testDeletingABooksPlaceRepointsItToTheChapterBefore() throws {
@@ -238,7 +248,7 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertNil(library.page(url: url))
     }
 
-    func testUnsaveKeepsAFavoriteAsALinkAndRemovesALoosePage() throws {
+    func testUnsaveKeepsAFavoriteAsALinkAndRemovesALoosePageOrAChapter() throws {
         let favorite = try library.save(env.article("https://example.com/fav"), placement: .folder(library.favorites()))
         try library.unsave(favorite)
         XCTAssertTrue(favorite.isLink)
@@ -249,6 +259,15 @@ final class LibraryStoreTests: XCTestCase {
         try library.unsave(loose)
         XCTAssertNil(loose.addedAt)
         XCTAssertFalse(loose.isSavedToLibrary)
+
+        let book = Folder(name: "Book", kind: .book)
+        env.context.insert(book)
+        let chapter = Page(key: UUID(), title: "Ch 1", byline: "", urlString: nil, contentState: .saved, addedAt: env.now)
+        env.context.insert(chapter)
+        chapter.setFolder(book)
+        try library.unsave(chapter)
+        XCTAssertNil(chapter.folder, "no address to keep as a link: it leaves the Library")
+        XCTAssertNil(chapter.addedAt)
     }
 
     func testDeleteRemovesAudio() throws {

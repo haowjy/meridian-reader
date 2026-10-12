@@ -64,8 +64,7 @@ final class FolderUITests: XCTestCase {
         app.buttons["editRemove"].tap()
         let all = app.buttons["deleteFolderAndContents"].firstMatch
         XCTAssertTrue(all.waitForExistence(timeout: 3), "the delete question")
-        XCTAssertFalse(app.buttons["deleteBooksKeepFolderContents"].exists, "no keep-contents choice")
-        XCTAssertEqual(all.label, "Delete Folder and Contents")
+        XCTAssertEqual(all.label, "Delete Folders and Contents", "a book counts as a folder (decision D19)")
         all.tap()
         XCTAssertTrue(eventually(5) { !self.libraryRow(app, "Bonds").exists }, "Bonds is gone")
         XCTAssertFalse(libraryRow(app, "The Demo Book").exists, "so is the book")

@@ -1,21 +1,25 @@
 import Foundation
 import SwiftData
 
-/// What a folder is. Stored as `Folder.kindRaw`; the raw values are persisted and never change.
+/// Where a folder came from. Stored as `Folder.kindRaw`; the raw values are persisted and never
+/// change. Every folder follows the same rules (decision D19): it takes drops and subfolders, its
+/// pages move in and out, and its order is yours. A book or series differs only in where it came
+/// from: *Replace* finds a book by its key (`LibraryStore.book(key:)`), a series' link pages are
+/// fetched when playback reaches them, its pages show as chapters, and its finished chapters lose
+/// their audio (D7). Only Favorites has rules of its own.
 enum FolderKind: String, Codable, CaseIterable {
-    /// A folder the user made. Nests to any depth.
+    /// A folder the user made.
     case plain
-    /// An imported book: chapters in source order, fixed.
+    /// Made by importing an EPUB: one page per chapter, first in the book's order.
     case book
-    /// A web serial: chapters in source order, fixed.
+    /// A web serial: one page per chapter, first in the order they were found.
     case series
-    /// The one top-level Favorites folder (today's bookmarks). Can't be deleted, renamed or
-    /// moved below the top level.
+    /// The one top-level Favorites folder (today's bookmarks). Can't be deleted, renamed, given
+    /// details or moved below the top level.
     case favorites
 
-    /// Books and series keep their pages in source order: no hand reordering, no pages moved in
-    /// or out, no subfolders.
-    var isFixed: Bool { self == .book || self == .series }
+    /// Made from a book or a web serial: its pages are chapters.
+    var isBookOrSeries: Bool { self == .book || self == .series }
 }
 
 /// How a folder (or the top level) orders its pages. Raw values are persisted.
@@ -37,11 +41,11 @@ final class Folder {
     /// Order among its siblings. Fractional, so a move is one write.
     var sortKey: Double = 0
     var createdAt: Date = Date.now
-    /// Books and series: manual only.
+    /// A book's or series' is *Manual* until changed: its pages start in the source's order.
     var pageSortRaw: String = PageSort.manual.rawValue
 
-    // Details. Books and series get theirs from the source; a plain folder from *Edit Details*
-    // (`LibraryStore.setDetails`). Favorites has none.
+    // Details. A book or series starts with its source's; any folder's are edited in *Edit
+    // Details* (`LibraryStore.setDetails`). Favorites has none.
     var byline: String?
     /// A thumbnail (`CoverThumbnail`), never the full-size image.
     @Attribute(.externalStorage) var coverData: Data?
@@ -49,15 +53,16 @@ final class Folder {
     var sourceURLString: String?
     /// Book: the book key. Series: the canonical contents URL. Dedupe merges folders sharing it.
     var sourceIdentifier: String?
-    /// Codable per kind: series finder state, book file fingerprint.
+    /// Codable per kind: series finder state; a book's file fingerprint and chapter keys
+    /// (`BookSourceState`).
     var sourceStateData: Data?
     var languageCode: String?
 
-    // Listening (books and series).
-    /// The chapter that last played: where Continue resumes.
+    // Listening.
+    /// The page that last played: where Continue resumes.
     var currentPageKey: UUID?
     var lastPlayedAt: Date?
-    /// Set when the last playable chapter finishes; cleared when chapters are added.
+    /// Set when the last playable page finishes; cleared when one in it plays again.
     var finishedAt: Date?
 
     var parent: Folder?
@@ -80,7 +85,7 @@ final class Folder {
     }
 
     var pageSort: PageSort {
-        get { kind.isFixed ? .manual : (PageSort(rawValue: pageSortRaw) ?? .manual) }
+        get { PageSort(rawValue: pageSortRaw) ?? .manual }
         set { pageSortRaw = newValue.rawValue }
     }
 
@@ -89,8 +94,8 @@ final class Folder {
         kind == .favorites ? String(localized: "Favorites") : name
     }
 
-    /// It has a cover or a byline. A plain folder with details shows a book's header and its cover
-    /// on its row, and stays a plain folder (its order, drops and moves are a folder's).
+    /// It has a cover or a byline: its screen has the header with the cover and the author, and its
+    /// row the cover (decision D17). Details change only the look.
     var hasDetails: Bool { coverData != nil || !(byline ?? "").isEmpty }
 
     /// This folder and every folder above it, nearest first.

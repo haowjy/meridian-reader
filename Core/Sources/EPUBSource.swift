@@ -68,7 +68,12 @@ final class EPUBSource: PageSource {
 /// What a book folder keeps about its file (`Folder.sourceStateData`).
 struct BookSourceState: Codable, Equatable {
     /// SHA-256 of the EPUB, hex.
-    var fileFingerprint: String
+    var fileFingerprint: String?
+    /// The keys of the chapters the file gave when it was last imported, in its order; the
+    /// library writes them (`LibraryStore.addBook`, `replaceBook`). They are the pages *Replace*
+    /// rebuilds, wherever they have been moved since (decision D19). A book stored without them
+    /// gets them at launch from the pages in it (`LibraryStore.recordBookChapters`).
+    var chapterKeys: [UUID]?
 }
 
 extension EPUBLocator {

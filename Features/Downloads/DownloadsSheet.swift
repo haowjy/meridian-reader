@@ -297,7 +297,7 @@ private struct DownloadShown {
             let folder = library.folder(id: id)
             title = folder?.displayName ?? record.title
             leading = .folder(symbol: folder?.rowSymbol ?? "folder", cover: folder?.coverImage)
-            unit = folder?.kind.isFixed == true ? String(localized: "chapters") : String(localized: "pages")
+            unit = folder?.kind.isBookOrSeries == true ? String(localized: "chapters") : String(localized: "pages")
         }
     }
 }

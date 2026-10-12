@@ -7,13 +7,8 @@ enum FavoriteRequest {
     case add
     /// Already a favorite: ☆ takes it out.
     case remove(Page)
-    /// Filed in another folder: ask *Move it to Favorites?*
+    /// Filed in another folder (a series' chapter too): ask *Move it to Favorites?*
     case moveFromFolder(Page, Folder)
-    /// A chapter of a book or series: offer to move the book or series instead.
-    case moveBook(Folder)
-    /// A chapter of a book or series that is in Favorites: the chapter can't leave it, so offer
-    /// to take the whole book or series out of Favorites.
-    case moveBookOut(Folder)
 }
 
 /// Favorites: the top-level folder that holds what used to be site bookmarks. A favorite is a
@@ -40,14 +35,9 @@ extension LibraryStore {
     }
 
     /// What ☆ on the page at `url` leads to. One page per address: a page filed in another folder
-    /// moves to Favorites only once you agree, and a chapter never leaves its book (the book
-    /// can go in or out of Favorites instead). The book comes first: a chapter of a book in
-    /// Favorites counts as a favorite, but taking it out would detach it.
+    /// moves to Favorites only once you agree.
     func favoriteRequest(for url: URL) -> FavoriteRequest {
         guard let existing = page(url: url) else { return .add }
-        if let source = existing.folder, source.kind.isFixed {
-            return Self.isFavorite(existing) ? .moveBookOut(source) : .moveBook(source)
-        }
         if Self.isFavorite(existing) { return .remove(existing) }
         if let folder = existing.folder { return .moveFromFolder(existing, folder) }
         return .add
@@ -65,21 +55,20 @@ extension LibraryStore {
             try removeFavorite(existing)
             return
         }
-        guard let added = try addFavorite(url: url, title: title, artwork: artwork),
-              !FaviconFetcher.isTileSized(added.artworkData), let icon = await betterIcon() else { return }
+        let added = try addFavorite(url: url, title: title, artwork: artwork)
+        guard !FaviconFetcher.isTileSized(added.artworkData), let icon = await betterIcon() else { return }
         offerArtwork(icon, for: added)
     }
 
     /// Makes the page for `url` a favorite, at the end of Favorites: a new link page, or the
     /// existing page filed there. A page played but not saved becomes a link (Favorites doesn't
-    /// save). A chapter of a book or series stays where it is (nil).
+    /// save).
     @discardableResult
-    func addFavorite(url: URL, title: String?, artwork: Data?) throws -> Page? {
+    func addFavorite(url: URL, title: String?, artwork: Data?) throws -> Page {
         let folder = favorites()
         guard let existing = page(url: url) else {
             return try addLink(url: url, title: title, artwork: artwork, in: folder)
         }
-        guard !existing.isInFixedFolder else { return nil }
         try edit("favorite") {
             if existing.folder !== folder {
                 if existing.addedAt == nil {
@@ -87,6 +76,7 @@ extension LibraryStore {
                     existing.addedAt = now()
                 }
                 existing.sortKey = nextSortKey(in: folder)
+                movePlaceOff(existing)
                 existing.setFolder(folder)
             }
             if existing.artworkData == nil { existing.artworkData = artwork }
@@ -95,13 +85,13 @@ extension LibraryStore {
     }
 
     /// No longer a favorite: a saved page goes back to the pages in no folder, still saved; a
-    /// link page is removed. Not for a chapter of a book or series in Favorites (it never leaves
-    /// its source; `favoriteRequest` offers to move the source out).
+    /// link page is removed.
     func removeFavorite(_ page: Page) throws {
-        guard Self.isFavorite(page), !page.isInFixedFolder else { return }
+        guard Self.isFavorite(page) else { return }
         if page.isSaved {
             try edit("unfavorite saved page") {
                 page.sortKey = nextSortKey(in: nil)
+                movePlaceOff(page)
                 page.setFolder(nil)
             }
         } else {

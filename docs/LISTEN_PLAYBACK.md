@@ -199,8 +199,9 @@ own spot the same way. The position is then the recorder's to store, from the se
 ### Books, series and folders
 
 A page in a folder carries on through it, page to page, then stops; a page in no folder plays to
-its end and stops. A book or series plays in its source order; any other folder (Favorites, a
-folder you made) in its sort, which is the order its screen shows (decision D15).
+its end and stops. Every folder (a book, a series, Favorites, a folder you made) plays in its
+sort, which is the order its screen shows (decisions D15, D19); a book's starts as the book's
+order.
 `SpeechSession.folder` (`PlaybackFolder`: id, name, whether it is a book or series) says which
 folder a page is in: a library page's session fills it (`SpeechSession.page`), and `listen(to:)`
 asks the library for a page started from an article (the Reader's Listen, 🎧). A book's name is

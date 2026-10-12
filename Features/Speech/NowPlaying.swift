@@ -86,9 +86,9 @@ protocol NextChapterProviding: AnyObject {
 struct PlaybackFolder: Equatable, Sendable {
     var id: UUID
     var name: String
-    /// A book or series: its pages are chapters, and the bar's source names it. Any other
-    /// folder's pages show their site there.
-    var isFixed: Bool
+    /// A book or series (`FolderKind.isBookOrSeries`): its pages are chapters, and the bar's
+    /// source names it. Any other folder's pages show their site there.
+    var isBookOrSeries: Bool
 }
 
 /// A position the playback session reached that is worth keeping: a new paragraph, a phase

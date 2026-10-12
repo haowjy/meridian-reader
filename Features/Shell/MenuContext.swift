@@ -69,8 +69,8 @@ struct NowPlayingMenu {
     var showsDebug: Bool
 }
 
-/// The Library's menu, for the screen on top: the home, a folder, the top level's pages, a book
-/// or series. Nothing in it acts on the browser's page.
+/// The Library's menu, for the screen on top: the home, a folder (a book or series as any other),
+/// the top level's pages. Nothing in it acts on the browser's page.
 struct LibraryMenu {
     enum Screen: Equatable {
         case home
@@ -78,7 +78,6 @@ struct LibraryMenu {
         case folder(isFavorites: Bool)
         /// The pages in no folder (*Pages · Show All*).
         case pages
-        case book(isSeries: Bool)
     }
 
     enum Action {
@@ -88,13 +87,13 @@ struct LibraryMenu {
     }
 
     var screen: Screen
-    /// *Import Book…* on the home and plain folders (the Library surface; the Favorites sheet
-    /// has none, since the Files picker can't open over a sheet).
+    /// *Import Book…* on the home and folders (the Library surface; the Favorites sheet has none,
+    /// since the Files picker can't open over a sheet).
     var canImportBook = false
     /// The screen's page sort (folders and the top level's pages).
     var sort: PageSort = .manual
-    /// *Download Folder* / *Download Book* / *Download Series* for the folder on screen; nil when
-    /// it is downloading already, or isn't a folder.
+    /// *Download Folder* for the folder on screen; nil when it is downloading already, or isn't a
+    /// folder.
     var downloadTitle: String?
     /// Developer options: the Debug row (listen debug panel), last on every screen.
     var showsDebug = false

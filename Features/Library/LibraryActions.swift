@@ -13,7 +13,7 @@ struct LibraryActions {
 
     // MARK: - Pages
 
-    /// A saved page or chapter in the Reader sheet (Now Playing if it is what you hear); a link in
+    /// A saved page in the Reader sheet (Now Playing if it is what you hear); a link in
     /// the browser. From the Favorites sheet the sheet goes first.
     func open(_ page: Page) {
         if case .favorites = shell.sheet { shell.sheet = nil }
@@ -29,7 +29,8 @@ struct LibraryActions {
     }
 
     /// The row's ▶: pause or resume it when it is what you hear; otherwise play it from its spot
-    /// (a finished page from the top), replacing what plays. A chapter carries on through its book.
+    /// (a finished page from the top), replacing what plays. A page in a folder carries on through
+    /// it.
     func play(_ page: Page) {
         speech.press(.page(page.listenKey)) {
             let fromTop = page.finishedAt != nil
@@ -38,7 +39,7 @@ struct LibraryActions {
         }
     }
 
-    /// *Play from Here* on a chapter: from its start.
+    /// *Play from Here* on a page in a folder: from its start, carrying on through the folder.
     func playFromStart(_ page: Page) {
         speech.playPage(page.listenKey)
     }
@@ -93,12 +94,12 @@ struct LibraryActions {
         } != nil
     }
 
-    /// *Mark All Above as Finished* on a chapter.
+    /// *Mark All Above as Finished* on a page in a folder.
     func markAllAbove(_ page: Page) {
         shell.attempt(String(localized: "Couldn’t mark as finished")) { try library.markAllAbove(page) }
     }
 
-    /// *Skip in Playback* / *Play in Playback* on a chapter.
+    /// *Skip in Playback* / *Play in Playback* on a page in a folder.
     func toggleSkipsInPlayback(_ page: Page) {
         shell.attempt(String(localized: "Couldn’t change Skip in Playback")) {
             try library.setSkipsInPlayback(page, !page.skipsInPlayback)
@@ -142,9 +143,9 @@ struct LibraryActions {
     /// selection with it. A delete that can't be saved changes nothing: a toast says so, and Edit
     /// keeps its selection. False then.
     @discardableResult
-    func deleteFolders(_ folders: [Folder], keepContents: Bool, in screen: LibraryScreenState) -> Bool {
+    func deleteFolders(_ folders: [Folder], in screen: LibraryScreenState) -> Bool {
         guard shell.attempt(String(localized: "Couldn’t delete"), {
-            try library.deleteFolders(folders, keepContents: keepContents)
+            try library.deleteFolders(folders, keepContents: false)
         }) != nil else { return false }
         screen.endEditing()
         return true
@@ -191,8 +192,8 @@ extension LibraryActions {
     }
 
     /// Whether the row `id` may be dropped into the folder row `row`: what the Move tree allows
-    /// (`LibraryStore.moveRefusal`), so never into a book or series, nor a folder into itself or
-    /// below itself. False when `row` isn't a folder.
+    /// (`LibraryStore.moveRefusal`), so never a folder into itself or below itself, nor Favorites
+    /// below the top level. False when `row` isn't a folder.
     func canFile(_ id: LibraryItemID, into row: LibraryItemID) -> Bool {
         guard case .folder(let folderID) = row, let folder = library.folder(id: folderID), let item = item(id) else { return false }
         return library.moveRefusal(item, to: folder) == nil
@@ -206,7 +207,7 @@ extension LibraryActions {
     }
 
     /// Whether the row `id` may be placed beside the row `row`: a page beside a page in the
-    /// Library, a folder beside a folder, in a container that takes it (not a book's order).
+    /// Library, a folder beside a folder, in a container that takes it.
     func canPlace(_ id: LibraryItemID, beside row: LibraryItemID) -> Bool {
         guard let item = item(id), let neighbour = self.item(row) else { return false }
         switch (item, neighbour) {

@@ -52,8 +52,8 @@ extension LibraryStore {
 
     // MARK: - Playing
 
-    /// The page started playing: it is dated (`lastPlayedAt`) and unfinished, and a chapter
-    /// becomes its book's place. The first play of a page the library doesn't have keeps it as a
+    /// The page started playing: it is dated (`lastPlayedAt`) and unfinished, and a page in a
+    /// folder becomes its folder's place. The first play of a page the library doesn't have keeps it as a
     /// page not in the Library (`addedAt == nil`), so it survives a relaunch for 7 days; a link
     /// page keeps the text as a cache. This and the writes below are kept until a save stores
     /// them (`PendingListening`): a rollback doesn't lose them.
@@ -101,7 +101,8 @@ extension LibraryStore {
     }
 
     /// A page the library has started playing again (a row's ▶, a book's Continue, a resume, a
-    /// replay, the next chapter): dated and unfinished, and a chapter becomes its book's place.
+    /// replay, the next chapter): dated and unfinished, and a page in a folder becomes its
+    /// folder's place.
     /// It plays the text the page holds now. When the page holds changes not stored yet (a
     /// refresh on open whose save failed, say), the store may not hold that text: it is kept
     /// with the progress (`ReaderArticle(page:)`), as `recordPlayback` keeps its article, so a
@@ -127,7 +128,7 @@ extension LibraryStore {
         commit("position")
     }
 
-    /// Played to the end. The last playable chapter of a book or series finishes the book.
+    /// Played to the end. The last playable page of a folder finishes the folder.
     func recordFinished(_ page: Page) {
         let at = now()
         noteListening(page) { $0.finishedAt = at }
@@ -135,10 +136,10 @@ extension LibraryStore {
         commit("finished")
     }
 
-    /// A chapter became its book's place: finished chapters more than 2 behind it lose their
-    /// audio (D7).
+    /// A page became the place of its book or series: finished pages more than 2 behind it lose
+    /// their audio (D7).
     private func trimChapterAudio(behind page: Page) {
-        guard let folder = page.folder, folder.kind.isFixed else { return }
+        guard let folder = page.folder, folder.kind.isBookOrSeries else { return }
         trimFinishedAudio(folder: folder)
     }
 
@@ -146,8 +147,7 @@ extension LibraryStore {
 
     /// Idempotent: the page for this address (or key) becomes saved in place, filed by
     /// `placement` (an ordinary save keeps its folder); otherwise a new saved page whose key is
-    /// the reader key. A chapter stays in its book or series whatever the placement. Once that is
-    /// stored, its audio is marked saved (`planSaved`: a launch that dies right after the save
+    /// the reader key. Once that is stored, its audio is marked saved (`planSaved`: a launch that dies right after the save
     /// has it done by the next one). Never touches playback. A save that fails is rolled
     /// back and throws `LibraryStoreError.saveFailed`: no page is made, an existing one keeps its
     /// state and folder, and its audio is left alone.
@@ -181,9 +181,9 @@ extension LibraryStore {
         }
         page.contentState = .saved
         if page.addedAt == nil { page.addedAt = now() }
-        if case .folder(let folder) = placement, !page.isInFixedFolder, page.folder !== folder,
-           folder?.kind.isFixed != true {
+        if case .folder(let folder) = placement, page.folder !== folder {
             page.sortKey = nextSortKey(in: folder)
+            movePlaceOff(page)
             page.setFolder(folder)
         }
         if let playhead { page.positionParagraph = playhead }
@@ -191,14 +191,14 @@ extension LibraryStore {
         return page
     }
 
-    /// Unsave (🔖, ⋯ → Remove from Saved): a page in a folder stays there as a link (a favorite
-    /// stays a favorite); a page in no folder is removed from the Library. Pages in books and
-    /// series aren't unsaved. The audio stays, back on the ephemeral TTL once that is saved
-    /// (`planEphemeral`), so playback goes on. A save that fails is rolled back and throws
-    /// `LibraryStoreError.saveFailed`: still saved.
+    /// Unsave (🔖, ⋯ → Remove from Library): a page in a folder stays there as a link (a favorite
+    /// stays a favorite); a page in no folder, or one with no address to keep as a link (a book's
+    /// chapter), is removed from the Library. The audio stays, back on the ephemeral TTL once
+    /// that is saved (`planEphemeral`), so playback goes on. A save that fails is rolled back and
+    /// throws `LibraryStoreError.saveFailed`: still saved.
     func unsave(_ page: Page) throws {
-        guard page.isSaved, !page.isInFixedFolder else { return }
-        if page.folder != nil {
+        guard page.isSaved else { return }
+        if page.folder != nil, page.url != nil {
             try edit("unsave to link") {
                 page.contentState = .link
                 // A link's text is a cache of its last play; one never played has nothing to keep.
@@ -237,15 +237,14 @@ extension LibraryStore {
     /// save: a saved page leaves the Library (`addedAt = nil`, no folder) and is pruned 7 days
     /// after it was last played; once that is saved its audio turns ephemeral (`planEphemeral`).
     /// A link page is deleted, unless it holds the text of a play, when it is kept like any
-    /// played page. Pages in books and series are left alone. Never touches playback. A save
-    /// that fails is rolled back and throws `LibraryStoreError.saveFailed`: every page stays
-    /// where it was, none removed.
+    /// played page. A chapter leaves its book as any page leaves its folder. Never touches
+    /// playback. A save that fails is rolled back and throws `LibraryStoreError.saveFailed`:
+    /// every page stays where it was, none removed.
     func remove(_ pages: [Page]) throws {
-        let removing = pages.filter { !$0.isInFixedFolder }
-        guard !removing.isEmpty else { return }
+        guard !pages.isEmpty else { return }
         var notes: [String] = []
         try edit("remove") {
-            for page in removing {
+            for page in pages {
                 if page.isLink && !page.hasText {
                     notes.append("link \(Self.short(page.key)) deleted")
                     context.delete(page)
@@ -253,6 +252,7 @@ extension LibraryStore {
                 }
                 page.contentState = .saved
                 page.addedAt = nil
+                movePlaceOff(page)
                 page.setFolder(nil)
                 if let key = page.key { planEphemeral(key: key) }
                 notes.append("\(Self.short(page.key)) → not in Library")
@@ -263,7 +263,7 @@ extension LibraryStore {
 
     /// Deletes the page, then its audio once that is saved. Playback of it stops first (its audio
     /// is being read), and so does a session a waiting merge would move onto it
-    /// (`keysWaitingToMerge`); a book's place on it moves to the chapter before. A save that
+    /// (`keysWaitingToMerge`); a folder's place on it moves to the page before. A save that
     /// fails is rolled back: the page and its audio stay.
     func delete(_ page: Page) {
         _ = try? edit("delete page") { deleteWithoutSaving(page) }

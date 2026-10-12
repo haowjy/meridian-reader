@@ -22,9 +22,9 @@ final class FakeChapterLibrary: NextChapterProviding {
     var fetchResult = true
     var fetchDelay: TimeInterval = 0
 
-    /// `isFixed`: a book or series; false for a folder you made.
-    init(name: String = "The Book", isFixed: Bool = true, _ specs: [Spec]) {
-        let folder = PlaybackFolder(id: UUID(), name: name, isFixed: isFixed)
+    /// `isBookOrSeries`: a book or series; false for a folder you made.
+    init(name: String = "The Book", isBookOrSeries: Bool = true, _ specs: [Spec]) {
+        let folder = PlaybackFolder(id: UUID(), name: name, isBookOrSeries: isBookOrSeries)
         self.folder = folder
         sessions = specs.map { spec in
             SpeechSession(id: UUID(), document: ParagraphDocument(parts: spec.paragraphs.map { "\(spec.title): \($0)" }),

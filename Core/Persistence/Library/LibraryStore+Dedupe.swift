@@ -9,7 +9,7 @@ extension LibraryStore {
         var mergedFolders = 0
         var mergedPages = 0
         var brokenCycles = 0
-        var movedOutOfFixed = 0
+        var movedFavoritesToTop = 0
         var repairedFolderIDs = 0
     }
 
@@ -21,7 +21,7 @@ extension LibraryStore {
         var report = DedupeReport()
         dedupeSourceFolders(&report)
         dedupeFavorites(&report)
-        moveSubfoldersOutOfFixed(&report)
+        moveFavoritesToTop(&report)
         breakCycles(&report)
         repairFolderIDs(&report)
         dedupePages(&report)
@@ -38,23 +38,34 @@ extension LibraryStore {
 
     // MARK: - Folders
 
-    /// Two books or series with one `sourceIdentifier` merge into the older one, by page key.
+    /// Two books or series with one `sourceIdentifier` merge into the older one: the other's pages
+    /// and subfolders move in after its own, and pages sharing a key merge in the page pass below.
     private func dedupeSourceFolders(_ report: inout DedupeReport) {
-        let folders = ((try? context.fetch(FetchDescriptor<Folder>())) ?? []).filter { $0.kind.isFixed && $0.sourceIdentifier != nil }
+        let folders = ((try? context.fetch(FetchDescriptor<Folder>())) ?? []).filter { $0.kind.isBookOrSeries && $0.sourceIdentifier != nil }
         let groups = Dictionary(grouping: folders) { "\($0.kindRaw)|\($0.sourceIdentifier ?? "")" }.values.filter { $0.count > 1 }
         for group in groups {
             let ordered = group.sorted(by: Self.olderFirst)
             let keeper = ordered[0]
             for extra in ordered.dropFirst() {
-                // Pages whose key the keeper already has are merged by the page pass below.
-                for page in playOrder(of: extra) { page.setFolder(keeper) }
+                var pageKey = nextSortKey(in: keeper)
+                for page in pages(in: extra) {
+                    page.setFolder(keeper)
+                    page.sortKey = pageKey
+                    pageKey += 1
+                }
+                var folderKey = nextFolderSortKey(in: keeper)
+                for child in subfolders(of: extra) {
+                    child.parent = keeper
+                    child.sortKey = folderKey
+                    folderKey += 1
+                }
                 if (extra.lastPlayedAt ?? .distantPast) > (keeper.lastPlayedAt ?? .distantPast) {
                     keeper.currentPageKey = extra.currentPageKey
                     keeper.lastPlayedAt = extra.lastPlayedAt
                     keeper.finishedAt = extra.finishedAt
                 }
                 if keeper.coverData == nil { keeper.coverData = extra.coverData }
-                for child in extra.children ?? [] { child.parent = keeper.parent }
+                mergeChapterRecord(of: extra, into: keeper)
                 log("dedupe folder \(extra.name) → \(keeper.name)")
                 context.delete(extra)
                 report.mergedFolders += 1
@@ -87,16 +98,23 @@ extension LibraryStore {
         keeper.parent = nil
     }
 
-    /// Books and series have no subfolders: one found inside moves to the book's parent.
-    private func moveSubfoldersOutOfFixed(_ report: inout DedupeReport) {
-        let folders = (try? context.fetch(FetchDescriptor<Folder>())) ?? []
-        for folder in folders where folder.parent?.kind.isFixed == true {
-            folder.parent = folder.parent?.parent
-            report.movedOutOfFixed += 1
-        }
-        for favorites in folders where favorites.kind == .favorites && favorites.parent != nil {
+    /// A book's record of its chapters takes the other copy's chapters it lacks, so *Replace*
+    /// finds them too.
+    private func mergeChapterRecord(of extra: Folder, into keeper: Folder) {
+        guard let extraKeys = extra.bookState?.chapterKeys, var state = keeper.bookState,
+              let keeperKeys = state.chapterKeys else { return }
+        let missing = extraKeys.filter { !keeperKeys.contains($0) }
+        guard !missing.isEmpty else { return }
+        state.chapterKeys = keeperKeys + missing
+        keeper.sourceStateData = try? JSONEncoder().encode(state)
+    }
+
+    /// Favorites stays at the top level: one found inside another folder moves back up.
+    private func moveFavoritesToTop(_ report: inout DedupeReport) {
+        let all = (try? context.fetch(LibraryQueries.favorites)) ?? []
+        for favorites in all where favorites.parent != nil {
             favorites.parent = nil
-            report.movedOutOfFixed += 1
+            report.movedFavoritesToTop += 1
         }
     }
 
@@ -167,11 +185,8 @@ extension LibraryStore {
     }
 
     private func merge(_ extra: Page, into keeper: Page) {
-        // Folder: a book or series keeps its page; otherwise the keeper's, else the other's.
-        if extra.isInFixedFolder && !keeper.isInFixedFolder {
-            keeper.sortKey = extra.sortKey
-            keeper.setFolder(extra.folder)
-        } else if keeper.folder == nil, let folder = extra.folder {
+        // Folder: the keeper's, else the other's.
+        if keeper.folder == nil, let folder = extra.folder {
             keeper.sortKey = extra.sortKey
             keeper.setFolder(folder)
         }

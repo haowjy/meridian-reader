@@ -125,18 +125,23 @@ enum LaunchHooks {
     /// folder, replacing the ones an earlier launch seeded, with their audio. Fresh keys each
     /// launch, so no audio rendered before carries over. It runs on a phone with real data (the
     /// chapter-boundary device check), so it removes only rows it marked itself: the book by its
-    /// `sourceIdentifier`, with its chapters (no page can be moved into a book), and the page in
-    /// no folder by `DemoBook.loosePageMarker`. An address another page already has isn't given
+    /// `sourceIdentifier` and its chapters by the book's record (`BookSourceState.chapterKeys`),
+    /// wherever they were moved (anything moved into the book moves up out of it), and the page
+    /// in no folder by `DemoBook.loosePageMarker`. An address another page already has isn't given
     /// to a seeded page, since the launch's dedupe would merge the two: that chapter goes without
     /// it, and the page in no folder isn't added.
     /// `place`: the book is part-way, at that chapter's third paragraph (`-seedDemoBookPlace`).
     static func seedDemoBook(in library: LibraryStore, place: Int? = nil) {
-        for folder in demoBooks(in: library) { try? library.deleteFolder(folder, keepContents: false) }
+        for folder in demoBooks(in: library) {
+            for page in (folder.bookState?.chapterKeys ?? []).compactMap(library.page(key:)) { library.delete(page) }
+            try? library.deleteFolder(folder, keepContents: true)
+        }
         for page in seededLoosePages(in: library) { library.delete(page) }
         let book = Folder(name: DemoBook.title, kind: .book, sortKey: library.nextFolderSortKey(in: nil))
         book.byline = DemoBook.author
         book.sourceIdentifier = DemoBook.sourceIdentifier
         library.context.insert(book)
+        var chapterKeys: [UUID] = []
         for (index, chapter) in DemoBook.chapters.enumerated() {
             let url = DemoBook.url(ofChapter: index)
             let page = demoPage(chapter, url: library.page(url: url) == nil ? url : nil, sortKey: Double(index))
@@ -144,6 +149,7 @@ enum LaunchHooks {
             page.skipsInPlayback = chapter.skipsInPlayback
             library.context.insert(page)
             page.setFolder(book)
+            chapterKeys.append(page.listenKey)
             if let place, DemoBook.chapters.indices.contains(place) {
                 if index > 0 && index < place { page.finishedAt = .now.addingTimeInterval(-3600) }
                 if index == place {
@@ -154,6 +160,7 @@ enum LaunchHooks {
                 }
             }
         }
+        book.sourceStateData = try? JSONEncoder().encode(BookSourceState(chapterKeys: chapterKeys))
         if library.page(url: DemoBook.loosePageURL) == nil {
             let loose = demoPage(DemoBook.loosePage, url: DemoBook.loosePageURL, sortKey: library.nextSortKey(in: nil))
             loose.locator = DemoBook.loosePageMarker
@@ -305,7 +312,7 @@ enum LaunchHooks {
         try? library.setSort(.manual, for: library.favorites())
         // A subfolder's own subfolders move up into Favorites as it goes; they go next.
         while let folder = library.subfolders(of: library.favorites()).first {
-            do { try library.deleteFolder(folder, keepContents: !folder.kind.isFixed) } catch { break }
+            do { try library.deleteFolder(folder, keepContents: true) } catch { break }
         }
         for page in library.favoritePages() { try? library.removeFavorite(page) }
         guard setup == .seed else { return }

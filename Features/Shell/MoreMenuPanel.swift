@@ -125,6 +125,7 @@ struct MoreMenuPanel: View {
             row("New Folder Inside", "folder.badge.plus", id: "moreNewFolder") { run(.newFolder) }
             if menu.canImportBook { importBookRow { run(.importBook) } }
             if let title = menu.downloadTitle { downloadRow(title) { run(.download) } }
+            row("Delete Downloads", "trash.circle", id: "moreDeleteDownloads") { run(.deleteDownloads) }
             if !isFavorites {
                 row("Rename", "pencil", id: "moreRename") { run(.rename) }
                 editDetailsRow { run(.editDetails) }
@@ -134,13 +135,6 @@ struct MoreMenuPanel: View {
         case .pages:
             sortMenu(menu.sort, run: run)
             voiceRow { run(.voiceSettings) }
-        case .book(let isSeries):
-            row("Rename", "pencil", id: "moreRename") { run(.rename) }
-            editDetailsRow { run(.editDetails) }
-            row("Move…", "folder", id: "moreMove") { run(.move) }
-            if let title = menu.downloadTitle { downloadRow(title) { run(.download) } }
-            row("Delete Downloads", "trash.circle", id: "moreDeleteDownloads") { run(.deleteDownloads) }
-            row(isSeries ? "Delete Series…" : "Delete Book…", "trash", id: "moreDeleteFolder") { run(.deleteFolder) }
         }
         downloadsRow { run(.downloads) }
         if menu.showsDebug {
@@ -201,7 +195,7 @@ struct MoreMenuPanel: View {
         row("Downloads", "tray.and.arrow.down", id: "moreDownloads", action: action)
     }
 
-    /// *Download* (a page), *Download Folder*, *Download Book*, *Download Series*.
+    /// *Download* (a page), *Download Folder*.
     private func downloadRow(_ title: String, action: @escaping () -> Void) -> some View {
         row(title, "arrow.down.circle", id: "moreDownload", action: action)
     }

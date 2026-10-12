@@ -3,7 +3,7 @@ import XCTest
 @testable import MeridianReader
 
 /// The folder tree: nesting, moves and their refusals, both kinds of folder delete, Favorites'
-/// rules, and the fractional order.
+/// rules, and the fractional order. Books and series follow every folder rule (decision D19).
 @MainActor
 final class LibraryTreeTests: XCTestCase {
     private var env: LibraryTestEnvironment!
@@ -33,35 +33,49 @@ final class LibraryTreeTests: XCTestCase {
         XCTAssertEqual(library.subfolders(of: chain[2]).map(\.name), ["Level 4"])
     }
 
-    func testMoveRefusesACycleABookDestinationAndAPageLeavingABook() throws {
+    /// Moves refuse only a cycle (and Favorites below the top level): a book or series takes
+    /// pages and subfolders, and its chapters move out (decision D19). A refused move changes
+    /// nothing.
+    func testMoveRefusesACycleAndABookTakesAnyMove() throws {
         let outer = try library.makeFolder(name: "Outer", in: nil)
         let inner = try library.makeFolder(name: "Inner", in: outer)
         XCTAssertThrowsError(try library.move([.folder(outer)], to: inner)) { XCTAssertEqual($0 as? LibraryTreeError, .cycle) }
         XCTAssertThrowsError(try library.move([.folder(outer)], to: outer)) { XCTAssertEqual($0 as? LibraryTreeError, .cycle) }
+        let loose = try savedPage("loose", in: nil)
+        XCTAssertThrowsError(try library.move([.page(loose), .folder(outer)], to: inner)) {
+            XCTAssertEqual($0 as? LibraryTreeError, .cycle)
+        }
+        XCTAssertNil(loose.folder, "a refused move changes nothing")
+        XCTAssertIdentical(outer.parent, nil)
 
         let book = Folder(name: "Book", kind: .book)
         env.context.insert(book)
-        let loose = try savedPage("loose", in: nil)
-        XCTAssertThrowsError(try library.move([.page(loose)], to: book)) {
-            XCTAssertEqual($0 as? LibraryTreeError, .fixedDestination)
-        }
-        XCTAssertThrowsError(try library.move([.folder(inner)], to: book)) {
-            XCTAssertEqual($0 as? LibraryTreeError, .fixedDestination)
-        }
-        XCTAssertThrowsError(try library.makeFolder(name: "Inside a book", in: book))
-
         let chapter = try library.addLink(url: URL(string: "https://example.com/ch")!, title: "Ch", artwork: nil, in: book)
-        XCTAssertThrowsError(try library.move([.page(loose), .page(chapter)], to: outer)) {
-            XCTAssertEqual($0 as? LibraryTreeError, .leavesFixedFolder)
-        }
-        XCTAssertNil(loose.folder, "a refused move changes nothing")
-        XCTAssertIdentical(inner.parent, outer)
-
-        try library.move([.folder(inner), .page(loose)], to: nil)
-        XCTAssertNil(inner.parent)
-        XCTAssertNil(loose.folderID)
+        try library.move([.page(loose), .folder(inner)], to: book)
+        XCTAssertIdentical(loose.folder, book, "a page into a book")
+        XCTAssertIdentical(inner.parent, book, "a folder into a book")
+        let made = try library.makeFolder(name: "Inside a book", in: book)
+        XCTAssertIdentical(made.parent, book)
+        try library.move([.page(chapter)], to: outer)
+        XCTAssertIdentical(chapter.folder, outer, "a chapter out of its book")
         try library.move([.folder(book)], to: outer)
         XCTAssertIdentical(book.parent, outer, "a book itself can be moved")
+        XCTAssertThrowsError(try library.move([.folder(outer)], to: book)) { XCTAssertEqual($0 as? LibraryTreeError, .cycle) }
+    }
+
+    /// A book's order is yours: its sort changes, and pages are placed among its chapters.
+    func testABooksOrderIsYours() throws {
+        let book = Folder(name: "Book", kind: .book)
+        env.context.insert(book)
+        let chapters = try (1...3).map {
+            try library.addLink(url: URL(string: "https://example.com/ch\($0)")!, title: "Ch \($0)", artwork: nil, in: book)
+        }
+        let article = try savedPage("Article", in: nil)
+        try library.arrange([chapters[2], article], in: book, before: chapters[0], shownIn: .manual)
+        XCTAssertEqual(library.playOrder(of: book).map(\.title), ["Ch 3", "Article", "Ch 1", "Ch 2"])
+        try library.setSort(.title, for: book)
+        XCTAssertEqual(book.pageSort, .title)
+        XCTAssertEqual(library.playOrder(of: book).map(\.title), ["Article", "Ch 1", "Ch 2", "Ch 3"], "it plays in its sort")
     }
 
     func testDeleteFolderOnlyMovesItsContentsUpOneLevelInOrder() throws {
@@ -99,8 +113,8 @@ final class LibraryTreeTests: XCTestCase {
         let page = try savedPage("on-shelf", in: shelf)
         let keys = [chapter.key!, page.key!]
         for (key, p) in zip(keys, [chapter, page]) { try env.storeAudio(key, paragraphs: p.cachedListenParagraphs ?? []) }
-        XCTAssertEqual(library.contentsCount(of: shelf).folders, 2)
-        XCTAssertEqual(library.contentsCount(of: shelf).pages, 2)
+        XCTAssertEqual(library.contents(of: shelf).folders, 2)
+        XCTAssertEqual(library.contents(of: shelf).pages, 2)
         env.playingKey = chapter.key
 
         try library.deleteFolder(shelf, keepContents: false)
@@ -110,32 +124,22 @@ final class LibraryTreeTests: XCTestCase {
         XCTAssertEqual(env.stoppedKeys, [keys[0]], "the playing chapter stopped first")
     }
 
-    /// A plain folder and a book deleted together, keeping contents: the folder's page moves up,
-    /// the book goes with its chapter and the chapter's audio (a chapter never outlives its
-    /// book). Two books deleted together, keeping contents, go whole too.
-    func testDeletingFoldersKeepingContentsStillDeletesBooksWhole() throws {
+    /// A book deleted keeping its contents is a folder deleted keeping its contents: its chapters
+    /// move up, with their audio (decision D19).
+    func testDeletingABookKeepingContentsMovesItsChaptersUp() throws {
         let shelf = try library.makeFolder(name: "Shelf", in: nil)
-        let inner = try savedPage("inner", in: shelf)
-        let books = try (1...3).map { n -> (Folder, Page) in
-            let book = Folder(name: "Book \(n)", kind: n == 3 ? .series : .book)
-            env.context.insert(book)
-            let chapter = try library.save(env.article("https://example.com/book\(n)/ch1", title: "Ch 1"))
-            chapter.setFolder(book)
-            return (book, chapter)
-        }
-        for (_, chapter) in books { try env.storeAudio(chapter.key!, paragraphs: chapter.cachedListenParagraphs ?? []) }
-        let keys = books.map { $0.1.key! }
+        let book = Folder(name: "Book", kind: .book)
+        env.context.insert(book)
+        book.parent = shelf
+        let chapter = try library.save(env.article("https://example.com/book/ch1", title: "Ch 1"))
+        chapter.setFolder(book)
+        let key = try XCTUnwrap(chapter.key)
+        try env.storeAudio(key, paragraphs: chapter.cachedListenParagraphs ?? [])
 
-        try library.deleteFolders([shelf, books[0].0], keepContents: true)
-        XCTAssertNil(inner.folder, "the folder's page moved up")
-        XCTAssertNotNil(library.page(key: inner.key!))
-        XCTAssertNil(library.page(key: keys[0]), "the book's chapter went with it")
-        XCTAssertFalse(env.cache.hasCache(for: keys[0]), "and its audio")
-
-        try library.deleteFolders([books[1].0, books[2].0], keepContents: true)
-        XCTAssertTrue(env.folders().filter { $0.kind != .favorites }.isEmpty)
-        XCTAssertEqual(env.pages().map(\.key), [inner.key])
-        for key in keys { XCTAssertFalse(env.cache.hasCache(for: key)) }
+        try library.deleteFolders([book], keepContents: true)
+        XCTAssertIdentical(chapter.folder, shelf, "the chapter moved up")
+        XCTAssertTrue(env.cache.hasCache(for: key), "with its audio")
+        XCTAssertFalse(env.folders().contains { $0.kind == .book })
     }
 
     func testFavoritesCantBeDeletedRenamedOrMovedDown() throws {

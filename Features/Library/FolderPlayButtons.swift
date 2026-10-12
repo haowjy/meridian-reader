@@ -1,18 +1,16 @@
 import SwiftUI
 
-/// A folder header's play buttons, for a book, a series or any folder whose pages play: the round
-/// *Continue* / *Playing* button (`title`) and *Play from Start*, both through `LibraryActions`.
-/// The book screen and the folder screen share it, so the two headers play the same way.
+/// A folder header's play buttons, for any folder whose pages play (a book or series too): the
+/// round *Continue* / *Playing* button (`title`) and *Play from Start*, both through
+/// `LibraryActions`.
 ///
 /// ```
-/// ( ▶ Continue  Ch 24                ) ( Play from Start )
+/// ( ▶ Continue  24 of 61             ) ( Play from Start )
 /// ```
 struct FolderPlayButtons: View {
     let folder: Folder
-    /// The round button's title and the lighter place after it ("Continue" "Ch 24").
+    /// The round button's title and the lighter place after it ("Continue" "24 of 61").
     let title: (title: String, detail: String?)
-    /// Accessibility identifiers: "<prefix>Continue", "<prefix>PlayFromStart".
-    let identifierPrefix: String
     let actions: LibraryActions
 
     var body: some View {
@@ -21,12 +19,12 @@ struct FolderPlayButtons: View {
                             look: .pill(title: title.title, detail: title.detail, expands: expands)) {
                 actions.playFolder(folder)
             }
-            .accessibilityIdentifier("\(identifierPrefix)Continue")
+            .accessibilityIdentifier("folderContinue")
         } secondary: { expands in
             PillButton(String(localized: "Play from Start"), style: .neutral, expands: expands) {
                 actions.playFolderFromStart(folder)
             }
-            .accessibilityIdentifier("\(identifierPrefix)PlayFromStart")
+            .accessibilityIdentifier("folderPlayFromStart")
         }
     }
 }

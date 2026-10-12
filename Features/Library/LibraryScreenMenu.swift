@@ -35,12 +35,8 @@ struct LibraryScreenMenu {
         }
     }
 
-    /// New Folder and an imported book go in the folder on screen; on a book's screen, beside the
-    /// book.
-    var newFolderParent: Folder? {
-        guard let folder = topFolder else { return nil }
-        return folder.kind.isFixed ? folder.parent : folder
-    }
+    /// New Folder and an imported book go in the folder on screen (a book or series too).
+    var newFolderParent: Folder? { topFolder }
 
     private var pagesSort: PageSort { PageSort(rawValue: topLevelSort.wrappedValue) ?? LibraryTopLevel.defaultSort }
 
@@ -49,11 +45,7 @@ struct LibraryScreenMenu {
         menu.showsDebug = speech.developerOptionsEnabled
         menu.canImportBook = root == .home && topFolder?.kind != .favorites
         if let folder = topFolder, !downloads.isQueued(.folder(folder.id)) {
-            menu.downloadTitle = switch folder.kind {
-            case .book: String(localized: "Download Book")
-            case .series: String(localized: "Download Series")
-            default: String(localized: "Download Folder")
-            }
+            menu.downloadTitle = String(localized: "Download Folder")
         }
         return menu
     }
@@ -61,7 +53,6 @@ struct LibraryScreenMenu {
     private var screenMenu: LibraryMenu {
         if top == .pages { return LibraryMenu(screen: .pages, sort: pagesSort) }
         guard let folder = topFolder else { return LibraryMenu(screen: .home) }
-        if folder.kind.isFixed { return LibraryMenu(screen: .book(isSeries: folder.kind == .series)) }
         return LibraryMenu(screen: .folder(isFavorites: folder.kind == .favorites), sort: folder.pageSort)
     }
 

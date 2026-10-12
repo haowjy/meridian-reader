@@ -29,7 +29,7 @@ final class LibraryFolderPlaybackTests: XCTestCase {
         let b = try savedPage("b", in: folder)
         let c = try savedPage("c", in: folder)
 
-        XCTAssertEqual(library.folder(containing: a.listenKey), PlaybackFolder(id: folder.id, name: "Finance", isFixed: false))
+        XCTAssertEqual(library.folder(containing: a.listenKey), PlaybackFolder(id: folder.id, name: "Finance", isBookOrSeries: false))
         let chapters = library.chapters(of: folder.id)
         XCTAssertEqual(chapters.map(\.key), keys([a, link, b, c]), "Manual: the order it was filed in")
         XCTAssertEqual(chapters.map(\.skipsInPlayback), [false, true, false, false], "a link has nothing to play")
@@ -92,7 +92,7 @@ final class LibraryFolderPlaybackTests: XCTestCase {
         let folder = try library.makeFolder(name: "Finance", in: nil)
         let page = try savedPage("a", in: folder)
         let session = SpeechSession.page(page)
-        XCTAssertEqual(session.folder, PlaybackFolder(id: folder.id, name: "Finance", isFixed: false))
+        XCTAssertEqual(session.folder, PlaybackFolder(id: folder.id, name: "Finance", isBookOrSeries: false))
         XCTAssertEqual(session.site, page.byline, "a folder you made doesn't stand in for the page's site")
 
         let loose = try savedPage("loose", in: nil)

@@ -68,7 +68,7 @@ final class PlaybackAdvanceTests: XCTestCase {
     /// A folder you made carries on the same way; it is what the pages play from, and the bar
     /// keeps each page's own site.
     func testAFolderOfPagesCarriesOnPageToPage() {
-        let folder = FakeChapterLibrary(name: "Finance", isFixed: false, [.init(title: "Page 1"), .init(title: "Page 2")])
+        let folder = FakeChapterLibrary(name: "Finance", isBookOrSeries: false, [.init(title: "Page 1"), .init(title: "Page 2")])
         play(folder, chapter: 0)
         apple.emit(.becameAudible)
         XCTAssertEqual(speech.nowPlaying?.playingFrom, .folder(id: folder.folder.id, name: "Finance"))

@@ -265,10 +265,10 @@ final class ScreenshotCaptureTests: XCTestCase {
         wait(1)
 
         row(app, "The Demo Book").tap()
-        XCTAssertTrue(el(app, "bookScreen").waitForExistence(timeout: 5))
+        XCTAssertTrue(el(app, "folderScreen").waitForExistence(timeout: 5))
         wait(1.2)
         try shot("6-book")
-        el(app, "bookContinue").tap()
+        el(app, "folderContinue").tap()
         XCTAssertTrue(el(app, "nowPlayingBar").waitForExistence(timeout: 10))
         wait(1.5)
         try shot("7-book-playing")
@@ -307,7 +307,7 @@ final class ScreenshotCaptureTests: XCTestCase {
             let app = launch(arguments)
             XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10))
             row(app, "The Demo Book").tap()
-            XCTAssertTrue(el(app, "bookScreen").waitForExistence(timeout: 5))
+            XCTAssertTrue(el(app, "folderScreen").waitForExistence(timeout: 5))
             wait(1.2)
             try shot("1-book-part-way\(suffix)")
             if size != nil {
@@ -325,7 +325,7 @@ final class ScreenshotCaptureTests: XCTestCase {
         }
     }
 
-    /// Downloads (decision D16) with the offline test voice: the book's ⋯ with *Download Book*,
+    /// Downloads (decision D16) with the offline test voice: the book's ⋯ with *Download Folder*,
     /// the progress line on the bottom chrome (with its toast, then alone), the Downloads list
     /// while it renders and once done, the Downloaded marks on the chapters and the book's row, after a voice change (Different Voice), and the Reader's ⋯
     /// with *Download*.
@@ -337,7 +337,7 @@ final class ScreenshotCaptureTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10))
         row(app, "The Demo Book").tap()
-        XCTAssertTrue(el(app, "bookScreen").waitForExistence(timeout: 5))
+        XCTAssertTrue(el(app, "folderScreen").waitForExistence(timeout: 5))
         app.buttons["libraryMore"].tap()
         wait(1.2)
         try shot("1-book-menu")
@@ -428,7 +428,7 @@ final class ScreenshotCaptureTests: XCTestCase {
         wait(1)
         try shot("6-import-sheet-changed")
         el(app, "importStart").tap()
-        XCTAssertTrue(el(app, "bookScreen").waitForExistence(timeout: 30))
+        XCTAssertTrue(el(app, "folderScreen").waitForExistence(timeout: 30))
         wait(1.2)
         try shot("7-landed-book")
 

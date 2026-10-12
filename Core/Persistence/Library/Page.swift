@@ -99,9 +99,6 @@ final class Page {
     var isInLibrary: Bool { addedAt != nil }
     var url: URL? { urlString.flatMap(URL.init(string:)) }
 
-    /// In a book or series, which it never leaves.
-    var isInFixedFolder: Bool { folder?.kind.isFixed == true }
-
     var cleanedHTML: String {
         get { bodyHTML.flatMap { String(data: $0, encoding: .utf8) } ?? "" }
         set { bodyHTML = newValue.isEmpty ? nil : Data(newValue.utf8) }

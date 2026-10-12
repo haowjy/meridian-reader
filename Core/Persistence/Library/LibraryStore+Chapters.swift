@@ -1,8 +1,9 @@
 import Foundation
 
 /// Folders as playback goes through them: the pages `ChapterAdvance` works on, the folder's place
-/// (`Folder.currentPageKey`, the page that last played) and when it is finished. A book or series
-/// plays in source order; any other folder (Favorites included) in its sort, which is yours.
+/// (`Folder.currentPageKey`, the page that last played) and when it is finished. Every folder
+/// (a book, a series, Favorites) plays in its sort, which is yours; a book's or series' starts as
+/// the source's order.
 extension LibraryStore {
     /// The folder's pages in play order, skipped ones included. A link page plays (after its
     /// fetch) only in a series; elsewhere it is skipped (a favorite is an address, with nothing
@@ -34,8 +35,8 @@ extension LibraryStore {
     /// Where Continue on a folder starts (`ChapterAdvance.start`): its place at the saved
     /// spot while unfinished, else the next chapter from its start. With no place yet (nothing in
     /// it played since it was made), the first page at its own saved spot, so a page heard part
-    /// way on its own resumes. A finished book starts again at its first chapter and is no longer
-    /// finished. nil when that chapter isn't saved yet.
+    /// way on its own resumes. A finished folder starts again at its first page and is no longer
+    /// finished. nil when that page isn't saved yet.
     func continueStart(of folder: Folder) -> (page: Page, paragraph: Int, utf16Offset: Int)? {
         let next = ChapterAdvance.start(chapterSnapshot(of: folder), place: folder.currentPageKey)
         guard case .ready(let key) = next, let page = page(key: key) else { return nil }

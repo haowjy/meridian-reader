@@ -139,11 +139,13 @@ final class BookImportTests: XCTestCase {
                        + [.storing(title: title)])
     }
 
-    func testABookOrSeriesIsNoDestination() async throws {
+    /// A book is a folder like any other (decision D19): another book can be imported into it.
+    func testABookIsADestinationLikeAnyFolder() async throws {
         let first = try added(try await importBook(Self.sampleBook()))
         var other = Self.sampleBook()
         other.identifier = "urn:uuid:0f0e0d0c-2222-4333-8444-955566667777"
-        await assertImportError(.notADestination) { _ = try await self.importBook(other, into: first) }
+        let second = try added(try await importBook(other, into: first))
+        XCTAssertIdentical(second.parent, first)
     }
 
     // MARK: - Refusals

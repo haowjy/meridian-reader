@@ -178,9 +178,7 @@ private struct LibraryDialogs: ViewModifier {
     @ViewBuilder
     private var deleteButtons: some View {
         ForEach(prompt.choices, id: \.id) { choice in
-            Button(choice.title, role: choice.isDestructive ? .destructive : nil) {
-                delete(keepContents: choice.keepsContents)
-            }
+            Button(choice.title, role: choice.isDestructive ? .destructive : nil) { delete() }
             .accessibilityIdentifier(choice.id)
         }
         Button("Cancel", role: .cancel) { state.cancelDelete() }
@@ -188,11 +186,11 @@ private struct LibraryDialogs: ViewModifier {
 
     /// Once the delete is saved, Edit ends and the surface leaves screens of folders that are gone.
     /// A delete that can't be saved changes nothing (Edit keeps its selection), and a toast says so.
-    private func delete(keepContents: Bool) {
+    private func delete() {
         let folders = state.pendingDelete
         state.pendingDelete = []
         guard LibraryActions(library: library, speech: speech, shell: shell)
-            .deleteFolders(folders, keepContents: keepContents, in: state) else { return }
+            .deleteFolders(folders, in: state) else { return }
         onDeleted()
     }
 }

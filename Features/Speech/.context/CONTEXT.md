@@ -18,9 +18,9 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
   a replaced page's last spot (the `.stop` before the next `bind`). `listen(to:)` hands its article
   to `onListen` before it binds, so the recorder can keep a page the library doesn't have on its
   first start.
-- **Books, series and folders.** Any page in a folder carries on through it (a plain folder in
-  its sort, D15); `PlaybackFolder.isFixed` is the one thing that tells a book apart (the bar's
-  source, no catch-up bake). The controller decides at a page's `finished` before the session sees it
+- **Books, series and folders.** Any page in a folder carries on through it, in the folder's
+  sort (D15; books and series too, D19); `PlaybackFolder.isBookOrSeries` is the one thing that
+  tells a book or series apart (the bar's source, no catch-up bake). The controller decides at a page's `finished` before the session sees it
   (`SpeechController+Advance`): the next chapter is bound with `advance`, in place. Nothing
   between chapters may deactivate the audio session, clear the session or clear the lock screen
   (`finishSession` is the end only); locked listening depends on it, and the

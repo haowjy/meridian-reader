@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The screen for a pushed `LibraryRoute`: a book or series, any other folder, or the pages in
-/// no folder.
+/// The screen for a pushed `LibraryRoute`: a folder (a book or series as any other, decision D19),
+/// or the pages in no folder.
 struct LibraryRouteView: View {
     let route: LibraryRoute
 
@@ -16,11 +16,7 @@ struct LibraryRouteView: View {
         switch route {
         case .folder(let id):
             if let folder = library.folder(id: id) {
-                if folder.kind.isFixed {
-                    BookScreen(folder: folder)
-                } else {
-                    FolderScreen(folder: folder)
-                }
+                FolderScreen(folder: folder)
             } else {
                 ContentUnavailableView("This folder is gone", systemImage: "folder")
             }

@@ -56,7 +56,7 @@ final class LibraryHomeUITests: XCTestCase {
         let app = launchLibrary(["-seedDemoBookPlace", "2"])
         let book = libraryRow(app, "The Demo Book")
         XCTAssertTrue(book.waitForExistence(timeout: 5))
-        XCTAssertTrue((book.value as? String)?.hasPrefix("Ch 2, ") == true, "its place, got \(book.value ?? "nil")")
+        XCTAssertTrue((book.value as? String)?.hasPrefix("Chapter 2: The Lighthouse, ") == true, "its place, got \(book.value ?? "nil")")
         XCTAssertTrue((book.value as? String)?.hasSuffix(" left") == true, "and what's left, got \(book.value ?? "nil")")
 
         let cell = libraryCell(app, "The Demo Book")
@@ -72,13 +72,13 @@ final class LibraryHomeUITests: XCTestCase {
         XCTAssertTrue(find(app, "nowPlayingBarOpen").label.contains("Chapter 2"), "from its place: \(find(app, "nowPlayingBarOpen").label)")
         XCTAssertTrue(eventually(5) { (book.value as? String)?.contains("Playing") == true },
                       "the row says so, got \(book.value ?? "nil")")
-        XCTAssertFalse(find(app, "bookScreen").exists, "playing never navigates")
+        XCTAssertFalse(find(app, "folderScreen").exists, "playing never navigates")
         XCTAssertEqual(find(app, "libraryPagesHeader").frame, header, "the home stays put")
         XCTAssertEqual(bar.frame.midX, cell.buttons["Pause"].frame.midX, accuracy: 1, "the bar's ⏸ and the row's share a column")
         bar.tap()
 
         book.tap()
-        XCTAssertTrue(find(app, "bookScreen").waitForExistence(timeout: 5), "a tap on the row opens the book")
+        XCTAssertTrue(find(app, "folderScreen").waitForExistence(timeout: 5), "a tap on the row opens the book")
     }
 
     /// A page played without saving shows at the top of Pages, "Not saved", with *Save* in its
@@ -181,16 +181,16 @@ final class LibraryHomeUITests: XCTestCase {
         XCTAssertEqual(order(app, titles), wanted, "and it stays: the sort is Manual")
     }
 
-    /// A book takes no drops: the page stays in *Pages* and the book's chapters are unchanged.
-    func testDroppingAPageOnABookIsRefused() throws {
+    /// A book takes drops as any folder (decision D19): the page leaves *Pages* and goes at the
+    /// end of the book.
+    func testDroppingAPageOnABookFilesIt() throws {
         let app = launchLibrary()
         XCTAssertTrue(libraryRow(app, "The Demo Book").waitForExistence(timeout: 5))
         dragRow(app, "Demo Listen Article", to: rowPoint(app, "The Demo Book"))
-        idle(1)
-        XCTAssertTrue(libraryRow(app, "Demo Listen Article").exists, "still in Pages")
+        XCTAssertTrue(eventually(5) { !self.libraryRow(app, "Demo Listen Article").exists }, "out of Pages")
         libraryRow(app, "The Demo Book").tap()
-        XCTAssertTrue(find(app, "bookScreen").waitForExistence(timeout: 5))
-        XCTAssertFalse(libraryRow(app, "Demo Listen Article").exists, "not in the book")
+        XCTAssertTrue(find(app, "folderScreen").waitForExistence(timeout: 5))
+        XCTAssertTrue(libraryRow(app, "Demo Listen Article").waitForExistence(timeout: 5), "in the book")
     }
 
     /// `titles` in the order their rows sit on screen.

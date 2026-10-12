@@ -42,7 +42,7 @@ Features/
   Shell/    ShellState, bottom chrome, ⋯ morph menu, search session, motion tokens
   Browse/   start page, browser chrome, page actions (PageArticleService), dictation
   Reader/   the Reader sheet, Now Playing (text that follows the audio, scrub row, controls)
-  Library/  the Library surface and screens (home, folder, book), rows, the Move tree, Favorites' sheet and ☆, the import sheet
+  Library/  the Library surface and screens (home, folder), rows, the Move tree, Favorites' sheet and ☆, the import sheet
   Saved/    save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
 Tests/      unit tests (MeridianReaderTests), Tests/Fakes
@@ -165,18 +165,25 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `lastPlayedAt`, `finishedAt` | the "Not saved" pages' order and prune, and a row's "✓ Finished" |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
-| `skipsInPlayback`, `fetchStateRaw` | Book chapters and series: what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
+| `skipsInPlayback`, `fetchStateRaw` | Pages in folders (book front matter, *Skip in Playback*) and series links: what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
 | `locator` | Book chapters: where the chapter starts in the book, `href#fragment` |
 
 **`Folder`** (library): `name`, `kindRaw` (`plain`, `book`, `series`, `favorites`), `sortKey`,
-`parent` / `children` (any depth), `pages`, `pageSortRaw`, for books and series their details
-(`byline`, `coverData`, `sourceIdentifier`, `sourceStateData`, `languageCode`; *Edit Details*
-changes `name`, `byline` and `coverData` of any folder but Favorites through
-`LibraryStore.setDetails`, never the kind: a plain folder with a byline or cover, `hasDetails`,
-shows a book's header and stays plain), and for every
-folder its place (`currentPageKey`, `lastPlayedAt`, `finishedAt`, written as its pages play:
-every folder plays page to page, a book in source order, any other folder in its sort). One
-Favorites folder holds the bookmarks; it can't be deleted, renamed or moved below the top level.
+`parent` / `children` (any depth), `pages`, `pageSortRaw`, its details (`byline`, `coverData`,
+`languageCode`: a book's from its file; *Edit Details* changes `name`, `byline` and `coverData`
+of any folder but Favorites through `LibraryStore.setDetails`; a folder with a byline or cover,
+`hasDetails`, shows the detailed header), for books and series their source
+(`sourceIdentifier`, `sourceURLString`, `sourceStateData`: a book's `BookSourceState`, its file's
+SHA-256 and the keys of the chapters its file gave, in order), and for every folder its place
+(`currentPageKey`, `lastPlayedAt`, `finishedAt`, written as its pages play: every folder plays
+page to page in its sort). **Every folder follows the same rules (decision D19)**: books and
+series take pages and subfolders, their chapters move out and reorder, their sort is the user's
+(*Manual*, in the source's order, until changed). `kind` says only where a folder came from:
+*Replace* finds a book by its key (`book(key:)`), a series' link pages are fetched when playback
+reaches them, a book's or series' pages show as chapters and name it as their source in the Now
+Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their audio (D7), and
+launch dedupe merges two copies of one source. One Favorites folder holds the bookmarks; it can't
+be deleted, renamed, given details or moved below the top level.
 
 **Book import** (`BookImporter`, run for the import sheet by `BookImportFlow`):
 0. The file is the import's own copy in `Application Support/Imports/<uuid>/<name>.epub`
@@ -203,14 +210,21 @@ Favorites folder holds the bookmarks; it can't be deleted, renamed or moved belo
    neighbours are full, or it has none (a book under 100 words, a short section between skipped
    matter). Skipped chapters may be any length.
 5. `LibraryStore.addBook` stores one `Folder(kind: .book)` (title, authors, a 600 px cover
-   thumbnail, language, the book key as `sourceIdentifier`, the file's SHA-256 in
-   `sourceStateData`) at the destination, looked up again then (a destination deleted while the
-   book was read fails the import), with one saved page per chapter in order (key
-   `BookIdentity.chapterKey`, front matter `skipsInPlayback`), all in one save: a failed save
-   keeps nothing.
+   thumbnail, language, the book key as `sourceIdentifier`, the file's SHA-256 and the chapter
+   keys in order in `sourceStateData`) at the destination (any folder, a book too), looked up
+   again then (a destination deleted while the book was read fails the import), with one saved
+   page per chapter in order (key `BookIdentity.chapterKey`, front matter `skipsInPlayback`), all
+   in one save: a failed save keeps nothing. A chapter key the library already has (a chapter
+   moved out of a deleted copy of the book) is brought up to date where it is, not made twice.
 6. A book already in the Library (same book key) is left alone, or, with *Replace* (D13),
    rebuilt in the same folder by `LibraryStore.replaceBook` (`ARTICLE_IDENTITY.md`), in one
-   save; a dropped chapter's audio goes only once that save succeeds.
+   save; a dropped chapter's audio goes only once that save succeeds. The book's chapters are
+   the pages its record names, wherever they have been moved (D19); pages moved into the book
+   are never touched; the folder's order is kept, a new chapter going in just after the chapter
+   before it in the file (else just before the next one in the book, else at the end).
+7. At launch, before anything else can move pages, a book stored before books kept that record
+   gets one from the pages in it, in their order (`LibraryStore.recordBookChapters`); its
+   chapters, order, details and listening are untouched. No SwiftData field changed for D19.
 
 Refusals and failures are `BookImportError`s whose messages the sheet shows as they are (DRM,
 fixed layout, over `EPUBLimits`' caps, unreadable). Once the file is read, the importer hands the
@@ -243,7 +257,7 @@ couldn't save). Debug: `-rerunLibraryMigration` empties the library and its rece
 again.
 
 **Audio work waits for the save.** Deleting pages (a row's *Delete*, *Delete Folder and
-Contents*, *Delete Book*: the page's audio directory, pending render and queued renders go,
+Contents*: the page's audio directory, pending render and queued renders go,
 unless a page with its key exists again by then), pages leaving the Library (*Remove from
 Library*, unsave: the audio is kept, back on the ephemeral TTL), Save (the audio marked saved and
 its queued render non-ephemeral), the layout pass (audio aligned to the new

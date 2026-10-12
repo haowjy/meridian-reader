@@ -490,7 +490,7 @@ final class LibrarySaveFailureTests: XCTestCase {
     private func answerDelete(_ screen: LibraryScreenState, _ actions: LibraryActions) -> Bool {
         let folders = screen.pendingDelete
         screen.pendingDelete = []
-        return actions.deleteFolders(folders, keepContents: true, in: screen)
+        return actions.deleteFolders(folders, in: screen)
     }
 
     /// Edit → a page and a folder → Remove: the page goes and leaves the selection; the folder
@@ -548,8 +548,9 @@ final class LibrarySaveFailureTests: XCTestCase {
         XCTAssertTrue(screen.isEditing)
     }
 
-    /// ☆'s moves (*Move Book to Favorites*, *Change Folder*) and ☆ itself: a failed save shows
-    /// "Couldn’t …" in place of the success toast, and nothing moved.
+    /// ☆'s moves (*Move to Favorites* for a page in a folder, a book's chapter too; *Change
+    /// Folder*) and ☆ itself: a failed save shows "Couldn’t …" in place of the success toast, and
+    /// nothing moved.
     func testFavoritesSayAFailedSaveInsteadOfSuccess() throws {
         let s = try shelves()
         let shell = ShellState()
@@ -557,14 +558,15 @@ final class LibrarySaveFailureTests: XCTestCase {
         let book = Folder(name: "Novel", kind: .book)
         env.context.insert(book)
         let chapterURL = URL(string: "https://example.com/novel/1")!
-        try library.addLink(url: chapterURL, title: "Ch 1", artwork: nil, in: book)
+        let chapter = try library.addLink(url: chapterURL, title: "Ch 1", artwork: nil, in: book)
 
         flow.toggle(url: chapterURL, title: nil, artwork: nil) { nil }
-        let moveBook = try XCTUnwrap(shell.prompt, "☆ on a chapter offers to move the book")
+        let moveIt = try XCTUnwrap(shell.prompt, "☆ on a chapter asks to move it, as for any page in a folder")
+        XCTAssertEqual(moveIt.title, "Move it to Favorites?")
         failSaves()
-        moveBook.confirm()
-        XCTAssertEqual(shell.toast?.message, "Couldn’t move")
-        XCTAssertNil(book.parent, "the book stays at the top level")
+        moveIt.confirm()
+        XCTAssertEqual(shell.toast?.message, "Couldn’t add to Favorites")
+        XCTAssertIdentical(chapter.folder, book, "the chapter stays in its book")
 
         let newURL = URL(string: "https://example.com/new")!
         flow.toggle(url: newURL, title: "New", artwork: nil) { nil }

@@ -207,7 +207,7 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertIdentical(sub.parent, older)
     }
 
-    func testCyclesFolderIDsAndSubfoldersInBooksAreRepaired() throws {
+    func testCyclesFolderIDsAndAFavoritesBelowTheTopAreRepaired() throws {
         let x = Folder(name: "X", createdAt: env.now)
         let y = Folder(name: "Y", createdAt: env.now + 1)
         env.context.insert(x)
@@ -216,10 +216,11 @@ final class LibraryDedupeTests: XCTestCase {
         y.parent = x
         let book = Folder(name: "Book", kind: .book)
         let shelf = Folder(name: "Shelf")
-        let stray = Folder(name: "Stray")
-        for f in [book, shelf, stray] { env.context.insert(f) }
+        let inside = Folder(name: "Inside")
+        for f in [book, shelf, inside] { env.context.insert(f) }
         book.parent = shelf
-        stray.parent = book
+        inside.parent = book
+        library.favorites().parent = shelf
         let p = page("https://example.com/p", in: shelf)
         p.folderID = UUID() // disagrees with the relationship
         try env.context.save()
@@ -228,7 +229,9 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertEqual(report.brokenCycles, 1)
         XCTAssertNil(y.parent, "the newest folder in the cycle moves to the top level")
         XCTAssertIdentical(x.parent, y)
-        XCTAssertIdentical(stray.parent, shelf, "out of the book, to the book's parent")
+        XCTAssertIdentical(inside.parent, book, "a folder inside a book stays (decision D19)")
+        XCTAssertNil(library.favorites().parent, "Favorites back at the top level")
+        XCTAssertEqual(report.movedFavoritesToTop, 1)
         XCTAssertEqual(p.folderID, shelf.id, "the relationship wins")
         XCTAssertEqual(library.dedupe(), LibraryStore.DedupeReport(), "idempotent")
     }

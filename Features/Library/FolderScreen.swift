@@ -1,12 +1,14 @@
 import SwiftData
 import SwiftUI
 
-/// One screen for every folder at every depth, Favorites included, and for the top level's pages
-/// (*Pages · Show All*, `folder == nil`, with pages played without saving on top): the header,
-/// subfolders first (by their order), then pages by the folder's sort. A folder whose pages play
-/// has a book's header buttons: *Continue* (it plays page to page in this order) and *Play from
-/// Start*. A folder given details (*Edit Details*: a cover or an author) has a book's header top
-/// too: the cover beside the title, the author before the counts. *Edit*, or *Select* in a row's
+/// One screen for every folder at every depth, Favorites, books and series included (decision
+/// D19), and for the top level's pages (*Pages · Show All*, `folder == nil`, with pages played
+/// without saving on top): the header, subfolders first (by their order), then pages by the
+/// folder's sort (a book's chapters draw as chapters, `LibraryPageRow`). A folder whose pages play
+/// has the header buttons: *Continue* (it plays page to page in this order) and *Play from Start*.
+/// A folder with details (a book's from its file, or any folder's from *Edit Details*: a cover or
+/// an author) has the detailed header top: the cover beside the title, the author before the
+/// counts. *Edit*, or *Select* in a row's
 /// long-press menu, puts check circles on the rows (and drag handles when the sort is *Manual*);
 /// the surface's bottom bar then acts on the selection. Out of
 /// Edit, a long press lifts a row to drop on a folder or between rows (`LibraryDrag`); placing a
@@ -172,8 +174,7 @@ private struct FolderContentsList: View {
             if let folder, case let playback = progress(of: folder), playback.hasPagesToPlay {
                 let bar = playback.header
                 FolderHeader(style: style, title: title, detail: detail, progress: bar.fraction, progressLabel: bar.label) {
-                    FolderPlayButtons(folder: folder, title: continueTitle(folder, playback), identifierPrefix: "folder",
-                                      actions: actions)
+                    FolderPlayButtons(folder: folder, title: continueTitle(folder, playback), actions: actions)
                 }
             } else {
                 FolderHeader(style: style, title: title, detail: detail) { EmptyView() }

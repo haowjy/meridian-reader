@@ -19,7 +19,7 @@ final class NowPlayingMetadataTests: XCTestCase {
     func testAChapterShowsItsTitleTheBooksBylineAndTheBook() throws {
         let session = SpeechSession(id: UUID(), document: ParagraphDocument(parts: ["One.", "Two.", "Three."]),
                                     detectedLanguage: "en", title: "Chapter 12: Hunsford", site: "Jane Austen",
-                                    artwork: Self.cover, folder: PlaybackFolder(id: UUID(), name: "Pride and Prejudice", isFixed: true))
+                                    artwork: Self.cover, folder: PlaybackFolder(id: UUID(), name: "Pride and Prejudice", isBookOrSeries: true))
         speech.start(session, fromParagraph: 1)
         let info = try XCTUnwrap(speech.lockScreen.lastInfo)
         XCTAssertEqual(info.title, "Chapter 12: Hunsford")

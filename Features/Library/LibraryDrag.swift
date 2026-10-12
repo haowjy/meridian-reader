@@ -7,16 +7,16 @@ import UniformTypeIdentifiers
 ///
 /// - **Onto a folder row**: filed at the end of that folder, as *Move to…* does, with the same
 ///   refusals (`LibraryStore.moveRefusal`). A folder that takes the row is highlighted
-///   (`ListRow.isDropTarget`); a book or series, or a folder dragged over itself, shows the drag
-///   as refused.
+///   (`ListRow.isDropTarget`), a book or series as any other (decision D19); a folder dragged
+///   over itself or a folder inside it shows the drag as refused.
 /// - **Between rows**: a page among pages, a folder among folders, in the container the row is in
 ///   (a folder dragged over another folder row's top or bottom quarter goes beside it; over its
 ///   middle, into it). An accent line marks the place (`ListRow.insertionEdge`). Placing a page
 ///   makes its folder's sort *Manual*, numbered first as the screen showed it, so it lands where
 ///   it was let go (`LibraryStore.arrange`).
-/// - What doesn't drag: a book's or series' chapters (their order is the source's), Favorites
-///   (always first), a page played without saving (not in the Library), any row in Edit (which
-///   has its own drag handles).
+/// - What doesn't drag: Favorites (always first), a page played without saving (not in the
+///   Library), any row in Edit (which has its own drag handles). A book's or series' chapters
+///   drag as any page.
 ///
 /// SwiftUI's List takes no drops of its own here (neither on its rows nor between them), so the
 /// surface lays one drop zone over itself while a Library row is dragged (`libraryDropZone`).
@@ -142,7 +142,7 @@ private struct LibraryDropRowFrame: ViewModifier {
 enum LibraryDropAim: Equatable {
     /// File it in this folder.
     case into(UUID)
-    /// This folder doesn't take it (a book or series, the folder itself).
+    /// This folder doesn't take it (the folder itself, or one inside it).
     case refusedInto(UUID)
     /// Place it beside this row.
     case beside(LibraryItemID, VerticalEdge)
