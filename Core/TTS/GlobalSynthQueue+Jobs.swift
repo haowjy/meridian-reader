@@ -1,7 +1,8 @@
 import Foundation
 
 /// The values `GlobalSynthQueue` works with: its jobs, the persisted work it adopts
-/// (`adoptPending` folds it in), what a producer gets back for a chunk, and the staged chapter.
+/// (`adoptPending` folds it in), what a producer gets back for a chunk, the staged chapter, and
+/// the keys chunk plans and waiters are filed under.
 extension GlobalSynthQueue {
     struct ArticleJob: Equatable {
         var cacheKey: UUID
@@ -29,6 +30,31 @@ extension GlobalSynthQueue {
             self.demoteOrder = demoteOrder
             self.isEphemeral = isEphemeral
         }
+
+        /// Of `work` (missing paragraphs in plan order), those that may render now: below `cap`
+        /// (a staged chapter's opening), and with `aheadOnly` only from the plan's start (the
+        /// playhead) on.
+        func renderable(_ work: [Int], cap: Int?, aheadOnly: Bool) -> [Int] {
+            work.filter { $0 < (cap ?? .max) && !(aheadOnly && $0 < plan.priorityStart) }
+        }
+    }
+
+    /// A chunk plan's cache key: plans are per engine and text.
+    struct ChunkPlanKey: Hashable {
+        var engine: String
+        var text: String
+    }
+
+    struct ParagraphKey: Hashable {
+        var cacheKey: UUID
+        var index: Int
+    }
+
+    /// A chunk a listener waits for.
+    struct ChunkKey: Hashable {
+        var cacheKey: UUID
+        var index: Int
+        var chunk: Int
     }
 
     /// Pending bake job (persisted by `PendingBakeJobStore`).

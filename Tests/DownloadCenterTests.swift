@@ -142,6 +142,35 @@ final class DownloadCenterTests: XCTestCase {
         try await env.waitUntil { self.center.overview.done.count == 1 }
     }
 
+    /// A download queued before listening starts, then a chapter played from its middle with the
+    /// next chapter staged: the playhead to the chapter's end, the next chapter's opening, the
+    /// paragraphs above the playhead, and only then the download.
+    func testTheCurrentChapterAndWhatComesNextRenderBeforeADownloadQueuedFirst() async throws {
+        let voice = try XCTUnwrap(tts.downloadVoice)
+        func text(_ tag: String, _ count: Int) -> [String] { (0..<count).map { "\(tag) \($0) ends." } }
+        let queue = tts.synthQueue
+        queue.isHeldForLaunch = true // the queue's shape first, then let it run
+        let page = try env.savedPage("https://example.com/first-in-line", paragraphs: text("Download", 3))
+        XCTAssertEqual(center.download(page), .added)
+        try await env.waitUntil { queue.hasJob(cacheKey: page.listenKey) }
+        XCTAssertEqual(queue.primaryCacheKey, page.listenKey, "nothing else was queued")
+
+        let chapter = UUID(), next = UUID()
+        env.clearCalls()
+        tts.prioritizeListen(cacheKey: chapter, playhead: 2, paragraphs: text("Chapter", 4), voiceID: voice)
+        XCTAssertTrue(tts.stageNextChapter(cacheKey: next, after: chapter, paragraphs: text("Next", 5), voiceID: voice))
+        queue.isHeldForLaunch = false
+        try await env.waitUntil { self.center.overview.done.count == 1 }
+
+        XCTAssertEqual(env.renderedTexts(), [
+            "Chapter 2 ends.", "Chapter 3 ends.",
+            "Next 0 ends.", "Next 1 ends.", "Next 2 ends.",
+            "Chapter 0 ends.", "Chapter 1 ends.",
+            "Download 0 ends.", "Download 1 ends.", "Download 2 ends.",
+        ])
+        queue.remove(cacheKey: next)
+    }
+
     // MARK: - Pause, remove
 
     func testPausingTakesTheJobOutAndResumingFinishes() async throws {

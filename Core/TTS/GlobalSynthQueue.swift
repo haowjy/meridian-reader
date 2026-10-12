@@ -11,7 +11,8 @@ import Foundation
 /// 4. One worker drains #1’s next missing unit, then continues.
 /// 5. `stageNext` — the next chapter of the book or series playing sits right behind the playing
 ///    chapter's job (at the front once that job is done) and renders its first paragraphs before
-///    any other work (`playingCacheKeys` admits it in the background like the playing article).
+///    any other work, the playing chapter's paragraphs above its playhead included
+///    (`playingCacheKeys` admits it in the background like the playing article).
 ///
 /// Work granularity is a **synth chunk** (`TextChunker`, sized by the engine's limits), not a whole
 /// paragraph: the worker re-evaluates priority after every chunk (so a playhead request waits
@@ -60,22 +61,6 @@ final class GlobalSynthQueue {
     /// bad unit cannot spin forever. A live request for the unit clears its mark (fresh try).
     private var failedUnits: Set<String> = []
     private var chunkPlanCache: [ChunkPlanKey: [String]] = [:]
-
-    private struct ChunkPlanKey: Hashable {
-        var engine: String
-        var text: String
-    }
-
-    private struct ParagraphKey: Hashable {
-        var cacheKey: UUID
-        var index: Int
-    }
-
-    private struct ChunkKey: Hashable {
-        var cacheKey: UUID
-        var index: Int
-        var chunk: Int
-    }
 
     /// Foreground / background gate for Core ML (injectable for tests).
     var runState: AppRunState = .shared {
@@ -886,10 +871,12 @@ final class GlobalSynthQueue {
 
     /// Next missing unit: from the front job's plan; a front job with nothing left is done and
     /// leaves. A staged chapter at its cap steps aside for the job behind it; one whose playing
-    /// chapter's job left first is moved to the front (`placeStaged`). In the background on a
-    /// route that renders there, a job steps aside the same way once only the paragraphs above
-    /// its playhead are left (the plan's fill from the top): listening doesn't need them, and a
-    /// burst rendering them would never reach the high-water mark. They render in front.
+    /// chapter's job left first is moved to the front (`placeStaged`). The playing chapter's
+    /// paragraphs above its playhead (the plan's fill from the top) come after the staged
+    /// chapter's opening: listening reaches the next chapter before it comes back to them. In the
+    /// background on a route that renders there, a job steps aside once only those are left:
+    /// listening doesn't need them, and a burst rendering them would never reach the high-water
+    /// mark. They render in front.
     private func nextWorkUnit() -> (ArticleJob, Int)? {
         guard let coordinator else { return nil }
         placeStaged()
@@ -902,16 +889,15 @@ final class GlobalSynthQueue {
                 continue
             }
             let missing = missingParagraphs(of: job, coordinator)
-            let ordered = job.plan.orderedWork(missing: missing).filter { idx in
-                guard job.paragraphHashes.indices.contains(idx) else { return false }
-                return !failedUnits.contains(failedID(job.cacheKey, idx, job.paragraphHashes[idx]))
-            }
+            let work = remainingWork(of: job, missing: missing)
             let cap = staged?.cacheKey == key ? staged?.cap : nil
-            let ahead = ordered.filter { idx in
-                idx < (cap ?? .max) && !(aheadOnly && idx < job.plan.priorityStart)
+            if let index = job.renderable(work, cap: cap, aheadOnly: aheadOnly).first {
+                if index < job.plan.priorityStart, staged?.behind == key, let opening = stagedOpening(coordinator) {
+                    return opening
+                }
+                return (job, index)
             }
-            if let index = ahead.first { return (job, index) }
-            if !ordered.isEmpty {
+            if !work.isEmpty {
                 position += 1
                 continue
             }
@@ -923,6 +909,21 @@ final class GlobalSynthQueue {
             print("[SynthQueue] complete key=\(job.cacheKey.uuidString.prefix(8))")
         }
         return nil
+    }
+
+    /// `job`'s missing paragraphs in its plan's order, without those that failed.
+    private func remainingWork(of job: ArticleJob, missing: [Int]) -> [Int] {
+        job.plan.orderedWork(missing: missing).filter { idx in
+            guard job.paragraphHashes.indices.contains(idx) else { return false }
+            return !failedUnits.contains(failedID(job.cacheKey, idx, job.paragraphHashes[idx]))
+        }
+    }
+
+    /// The staged chapter's next paragraph under its cap (nil: its opening is rendered).
+    private func stagedOpening(_ coordinator: SynthQueueContext) -> (ArticleJob, Int)? {
+        guard let staged, let job = jobs[staged.cacheKey] else { return nil }
+        let work = remainingWork(of: job, missing: missingParagraphs(of: job, coordinator))
+        return job.renderable(work, cap: staged.cap, aheadOnly: false).first.map { (job, $0) }
     }
 
     private func compactCompleted() {

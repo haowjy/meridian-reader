@@ -117,6 +117,27 @@ final class GlobalSynthQueueStagingTests: XCTestCase {
         XCTAssertFalse(ctx.renders.contains { $0.key == opened }, "the other page waits for the foreground")
     }
 
+    /// In front, listening from mid-chapter: the chapter renders from its playhead to its end, then
+    /// the next chapter's opening, then the paragraphs above the playhead (listening reaches the
+    /// next chapter before it comes back to them), and only then a demoted job.
+    func testInFrontTheStagedOpeningComesBeforeTheParagraphsAboveThePlayhead() async throws {
+        let (queue, ctx, _) = makeQueue()
+        let playing = UUID(), saved = UUID(), next = UUID()
+        ctx.playingCacheKey = playing
+        queue.isHeldForLaunch = true // only the queue's shape until released
+        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 5), voiceID: "v", resumeParagraph: 3,
+                          isEphemeral: false)
+        queue.enqueueDemoted(cacheKey: saved, paragraphs: paragraphs("Saved", 2), voiceID: "v", isEphemeral: false)
+        stage(queue, next, after: playing, paragraphs("Next", 4), cap: 2)
+        queue.isHeldForLaunch = false
+        try await waitIdle(queue)
+
+        let order = ctx.renders.map { r in
+            "\(r.key == playing ? "A" : r.key == next ? "N" : r.key == saved ? "S" : "?")\(r.p)"
+        }
+        XCTAssertEqual(order, ["A3", "A4", "N0", "N1", "A0", "A1", "A2", "S0", "S1"])
+    }
+
     func testTheStagedJobNeverRendersAtListenerPriority() async throws {
         let (queue, ctx, _) = makeQueue()
         let playing = UUID(), next = UUID()

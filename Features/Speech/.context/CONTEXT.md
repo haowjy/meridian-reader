@@ -27,8 +27,10 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
   `chapter_boundary` timing line checks it on a device. The library is reached only through
   `NextChapterProviding`. A staged next chapter must never render at listener priority, and sits
   right behind the playing chapter's job (at the front once that is done), never behind a job that
-  parks in the background (`GlobalSynthQueueStagingTests`). While the next chapter is fetched, no
-  progress is reported for the page still bound: it has ended, and a resume there isn't a replay.
+  parks in the background, and its opening goes before the playing chapter's paragraphs above
+  the playhead (`GlobalSynthQueueStagingTests`); downloads come after all of it
+  (`DownloadCenterTests`). While the next chapter is fetched, no progress is reported for the
+  page still bound: it has ended, and a resume there isn't a replay.
 - **Listening progress outlives rollbacks through the store only.** The recorder writes through
   `LibraryStore`'s `recordPlayback` / `recordPlaybackStarted` / `recordPosition` /
   `recordFinished`, which keep what isn't stored (`PendingListening`) and write it again after a
