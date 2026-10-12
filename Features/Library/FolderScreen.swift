@@ -5,8 +5,10 @@ import SwiftUI
 /// (*Pages · Show All*, `folder == nil`, with pages played without saving on top): the header,
 /// subfolders first (by their order), then pages by the folder's sort. A folder whose pages play
 /// has a book's header buttons: *Continue* (it plays page to page in this order) and *Play from
-/// Start*. *Edit*, or *Select* in a row's long-press menu, puts check circles on the rows (and drag
-/// handles when the sort is *Manual*); the surface's bottom bar then acts on the selection. Out of
+/// Start*. A folder given details (*Edit Details*: a cover or an author) has a book's header top
+/// too: the cover beside the title, the author before the counts. *Edit*, or *Select* in a row's
+/// long-press menu, puts check circles on the rows (and drag handles when the sort is *Manual*);
+/// the surface's bottom bar then acts on the selection. Out of
 /// Edit, a long press lifts a row to drop on a folder or between rows (`LibraryDrag`); placing a
 /// page between pages makes the sort *Manual*.
 ///
@@ -159,31 +161,49 @@ private struct FolderContentsList: View {
 
     // MARK: - Header
 
+    /// A folder with details (a cover or an author) has a book's header: the cover beside the
+    /// title, the author before the counts. Without them, the title and counts.
     @ViewBuilder
     private var header: some View {
         let title = folder?.displayName ?? String(localized: "Pages")
-        let progress = folder.map(progress(of:))
-        if let folder, let progress, progress.hasPagesToPlay {
-            let bar = progress.header
-            FolderHeader(title: title, detail: counts, progress: bar.fraction, progressLabel: bar.label) {
-                FolderHeaderButtons { expands in
-                    let play = continueTitle(folder, progress)
-                    PlayStateButton(state: actions.playState(of: folder),
-                                    look: .pill(title: play.title, detail: play.detail, expands: expands)) {
-                        actions.playFolder(folder)
-                    }
-                    .accessibilityIdentifier("folderContinue")
-                } secondary: { expands in
-                    PillButton(String(localized: "Play from Start"), style: .neutral, expands: expands) {
-                        actions.playFolderFromStart(folder)
-                    }
-                    .accessibilityIdentifier("folderPlayFromStart")
+        let style: FolderHeaderStyle = folder?.hasDetails == true ? .detailed(cover: folder?.coverImage) : .folder
+        let detail = [folder?.byline].compactMap { $0 } + counts
+        Group {
+            if let folder, case let playback = progress(of: folder), playback.hasPagesToPlay {
+                let bar = playback.header
+                FolderHeader(style: style, title: title, detail: detail, progress: bar.fraction, progressLabel: bar.label) {
+                    FolderPlayButtons(folder: folder, title: continueTitle(folder, playback), identifierPrefix: "folder",
+                                      actions: actions)
                 }
+            } else {
+                FolderHeader(style: style, title: title, detail: detail) { EmptyView() }
             }
-        } else {
-            FolderHeader(title: title, detail: counts)
+        }
+        .overlay { headerLookMarker(style) }
+    }
+
+    #if DEBUG
+    /// UI tests: which header shows ("detailed", "detailed with cover", "plain"); the cover tile
+    /// itself is hidden from accessibility.
+    @ViewBuilder
+    private func headerLookMarker(_ style: FolderHeaderStyle) -> some View {
+        if LaunchOptions.current.uiTesting {
+            let look = switch style {
+            case .folder: "plain"
+            case .detailed(let cover): cover == nil ? "detailed" : "detailed with cover"
+            }
+            Color.clear
+                .frame(width: 2, height: 2)
+                .allowsHitTesting(false)
+                .accessibilityElement()
+                .accessibilityLabel("Header look")
+                .accessibilityValue(look)
+                .accessibilityIdentifier("folderHeaderLook")
         }
     }
+    #else
+    private func headerLookMarker(_ style: FolderHeaderStyle) -> some View { EmptyView() }
+    #endif
 
     /// Where the folder is in its pages (the ones on screen, in this order).
     private func progress(of folder: Folder) -> FolderProgress {

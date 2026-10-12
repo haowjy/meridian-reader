@@ -83,7 +83,8 @@ struct LibraryPageRow: View {
     }
 }
 
-/// A folder row (a plain folder, Favorites, a book or series): pushes its screen. A folder whose
+/// A folder row (a plain folder, Favorites, a book or series): pushes its screen. Its cover, when
+/// it has one (a book's, or one given in *Edit Details*), stands in for the symbol. A folder whose
 /// pages play (a book or series always) shows its place ("Ch 24", or the page it is at), the time
 /// left and its own ▶, which resumes it there and carries on page to page; any other folder shows
 /// its count and ›. Long-press is its menu, and lifts it into a drag (not Favorites); a dragged
@@ -162,21 +163,22 @@ struct LibraryFolderRow: View {
                     onPlay: isEditing ? nil : { actions.playFolder(folder) }, isDropTarget: isDropTarget,
                     insertionEdge: edge, isDownloaded: isDownloaded)
         } else {
-            ListRow(kind: kind, title: folder.displayName, opensScreen: true, isDropTarget: isDropTarget,
-                    insertionEdge: edge)
+            ListRow(kind: kind, title: folder.displayName, subtitle: folder.byline, opensScreen: true,
+                    isDropTarget: isDropTarget, insertionEdge: edge)
         }
     }
 
     /// Once it has a place: "Ch 24" in a book or series, the page's title in any other folder.
-    /// Before that, a book's author or a series' site.
+    /// Before that (and once finished), its byline: a book's author, a series' site, the author
+    /// given in a folder's details.
     private func place(_ progress: FolderProgress) -> String? {
         let started = folder.currentPageKey != nil || progress.fraction != nil
         if folder.kind.isFixed {
             if started, folder.finishedAt == nil, let number = progress.number { return "Ch \(number)" }
             return folder.byline
         }
-        guard started, !progress.isFinished, let key = progress.currentKey else { return nil }
-        return livePages.first { $0.listenKey == key }?.title
+        guard started, !progress.isFinished, let key = progress.currentKey else { return folder.byline }
+        return livePages.first { $0.listenKey == key }?.title ?? folder.byline
     }
 
     /// A book is finished when its last chapter is; any other folder when every page that plays
@@ -204,6 +206,7 @@ struct LibraryFolderRow: View {
         if folder.kind != .favorites {
             Button("Move to…", systemImage: "folder") { actions.move([.folder(folder)]) }
             Button("Rename", systemImage: "pencil") { screen.rename(folder) }
+            Button("Edit Details", systemImage: "square.and.pencil") { shell.present(.folderDetails(folder.id)) }
             Button(folder.kind.isFixed ? (folder.kind == .series ? "Delete Series…" : "Delete Book…") : "Delete…",
                    systemImage: "trash", role: .destructive) { screen.confirmDelete([folder]) }
         }

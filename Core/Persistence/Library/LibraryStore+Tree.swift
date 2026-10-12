@@ -86,6 +86,20 @@ extension LibraryStore {
         try edit("rename folder") { folder.name = trimmed }
     }
 
+    /// *Edit Details*: the name, byline and cover in one edit. A blank name keeps the name; a blank
+    /// byline clears it; a nil cover removes it. The kind never changes, so a plain folder given
+    /// details keeps its order and still takes drops. Favorites has no details.
+    func setDetails(of folder: Folder, name: String, byline: String?, cover: Data?) throws {
+        guard folder.kind != .favorites else { throw LibraryTreeError.favoritesIsPinned }
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let byline = byline?.trimmingCharacters(in: .whitespacesAndNewlines)
+        try edit("folder details") {
+            if !name.isEmpty { folder.name = name }
+            folder.byline = byline?.isEmpty == false ? byline : nil
+            if folder.coverData != cover { folder.coverData = cover }
+        }
+    }
+
     /// The folder's page order. Books and series stay in source order.
     func setSort(_ sort: PageSort, for folder: Folder) throws {
         guard !folder.kind.isFixed else { return }

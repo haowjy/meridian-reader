@@ -1,0 +1,221 @@
+import PhotosUI
+import SwiftUI
+import UniformTypeIdentifiers
+
+/// *Edit Details* (`ShellSheet.folderDetails`): a folder's, book's or series' name, author and
+/// cover, from the folder's ⋯ or its row's long-press menu. *Cancel* leaves it as it was; *Save*
+/// writes all three in one edit (`LibraryStore.setDetails`) and closes. A picked picture is made
+/// small first (`CoverThumbnail`, as a book's cover is on import). A plain folder given a cover or
+/// an author shows a book's header and its cover on its row, and stays a plain folder.
+///
+/// ```
+/// Cancel            Edit Details              Save
+///                    ╭──────╮
+///                    │cover │
+///                    ╰──────╯
+/// Name
+///  Tide Tables
+/// Author
+///  A. Writer
+/// Cover
+///  🖼  Choose from Photos
+///  📁  Choose from Files
+///  🗑  Remove Cover                      (with a cover)
+/// ```
+struct FolderDetailsSheet: View {
+    let folderID: UUID
+
+    @Environment(LibraryStore.self) private var library
+    @Environment(ShellState.self) private var shell
+    @State private var name = ""
+    @State private var byline = ""
+    @State private var cover: Data?
+    @State private var isLoaded = false
+    @State private var photo: PhotosPickerItem?
+    @State private var isPickingPhoto = false
+    @State private var isPickingFile = false
+    /// A picked picture being read and made small: Save waits for it.
+    @State private var isPreparingCover = false
+
+    @ScaledMetric(relativeTo: .title3) private var scaledCoverWidth: CGFloat = 96
+    private var coverWidth: CGFloat { BottomChrome.grown(scaledCoverWidth, from: 96) }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    EmptyView()
+                } header: {
+                    coverPreview
+                        .libraryHeader()
+                }
+                field(String(localized: "Name"), text: $name, prompt: String(localized: "Name"), id: "detailsName")
+                field(String(localized: "Author"), text: $byline, prompt: String(localized: "None"), id: "detailsAuthor")
+                Section {
+                    choice(String(localized: "Choose from Photos"), "photo.on.rectangle", id: "detailsCoverPhotos") {
+                        isPickingPhoto = true
+                    }
+                    choice(String(localized: "Choose from Files"), "folder", id: "detailsCoverFiles") { pickFile() }
+                    if cover != nil {
+                        choice(String(localized: "Remove Cover"), "trash", id: "detailsRemoveCover") {
+                            withAnimation(Motion.snappy) { cover = nil }
+                        }
+                    }
+                } header: {
+                    SectionHeader(title: String(localized: "Cover"))
+                        .libraryHeader()
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Palette.chrome)
+            }
+            .libraryListStyle()
+            .navigationTitle(String(localized: "Edit Details"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { shell.sheet = nil }
+                        .accessibilityIdentifier("detailsCancel")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save() }
+                        .fontWeight(.semibold)
+                        .disabled(isPreparingCover)
+                        .accessibilityIdentifier("detailsSave")
+                }
+            }
+        }
+        .sheetToastLayer()
+        .photosPicker(isPresented: $isPickingPhoto, selection: $photo, matching: .images)
+        .onChange(of: photo) { _, item in
+            guard let item else { return }
+            photo = nil
+            useCover { try await item.loadTransferable(type: Data.self) }
+        }
+        .fileImporter(isPresented: $isPickingFile, allowedContentTypes: [.image]) { result in
+            guard case .success(let url) = result else { return }
+            useCover { try Self.read(url) }
+        }
+        .onAppear(perform: load)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("folderDetailsSheet")
+    }
+
+    // MARK: - Pieces
+
+    /// The cover as it will show, or the letter tile a folder without one shows.
+    private var coverPreview: some View {
+        ArtworkTile(image: cover.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)), letter: name,
+                    size: coverWidth, isCover: true)
+            .floatingShadow(opacity: 0.15)
+            .overlay {
+                if isPreparingCover { ProgressView() }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Spacing.xs)
+            .accessibilityElement()
+            .accessibilityLabel(cover == nil ? "No cover" : "Cover")
+            .accessibilityIdentifier("detailsCover")
+    }
+
+    private func field(_ title: String, text: Binding<String>, prompt: String, id: String) -> some View {
+        Section {
+            TextField(prompt, text: text)
+                .typeStyle(.row)
+                .foregroundStyle(Palette.ink)
+                .textInputAutocapitalization(.words)
+                .submitLabel(.done)
+                .padding(.horizontal, Spacing.m)
+                .frame(minHeight: BottomChrome.minTapTarget)
+                .accessibilityLabel(title)
+                .accessibilityIdentifier(id)
+        } header: {
+            SectionHeader(title: title)
+                .libraryHeader()
+        }
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Palette.chrome)
+    }
+
+    private func choice(_ title: String, _ symbol: String, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: Spacing.s) {
+                Image(systemName: symbol)
+                    .foregroundStyle(Palette.accent)
+                    .frame(width: ListRow.leadingWidth)
+                Text(title)
+                    .typeStyle(.row)
+                    .foregroundStyle(Palette.ink)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Spacing.m)
+            .frame(minHeight: BottomChrome.minTapTarget)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isPreparingCover)
+        .accessibilityIdentifier(id)
+    }
+
+    // MARK: - Doing
+
+    private func load() {
+        guard !isLoaded else { return }
+        isLoaded = true
+        guard let folder = library.folder(id: folderID) else {
+            shell.sheet = nil
+            return
+        }
+        name = folder.name
+        byline = folder.byline ?? ""
+        cover = folder.coverData
+    }
+
+    /// *Choose from Files*: the Files picker. With `-pickTestCover` (Debug) a synthetic picture
+    /// stands in for it, since a UI test can't drive the picker.
+    private func pickFile() {
+        #if DEBUG
+        if LaunchOptions.current.picksTestCover {
+            useCover { TestCover.png }
+            return
+        }
+        #endif
+        isPickingFile = true
+    }
+
+    /// Reads the picked picture and makes it a cover thumbnail, off the main thread. One that
+    /// can't be read changes nothing, and a toast says so.
+    private func useCover(_ read: @escaping @Sendable () async throws -> Data?) {
+        isPreparingCover = true
+        Task {
+            let thumbnail = await Task.detached(priority: .userInitiated) {
+                (try? await read()).flatMap { CoverThumbnail.make(from: $0) }
+            }.value
+            isPreparingCover = false
+            if let thumbnail {
+                withAnimation(Motion.snappy) { cover = thumbnail }
+            } else {
+                shell.showToast(ShellToast(message: String(localized: "Couldn’t use that picture"),
+                                           systemImage: "exclamationmark.triangle"))
+            }
+        }
+    }
+
+    /// A file from the Files picker, read under its security-scoped access.
+    private static func read(_ url: URL) throws -> Data {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        return try Data(contentsOf: url)
+    }
+
+    /// Saves the three together; the sheet stays up, under its toast, when the save fails.
+    private func save() {
+        guard let folder = library.folder(id: folderID) else {
+            shell.sheet = nil
+            return
+        }
+        guard shell.attempt(String(localized: "Couldn’t save the details"), {
+            try library.setDetails(of: folder, name: name, byline: byline, cover: cover)
+        }) != nil else { return }
+        shell.sheet = nil
+    }
+}

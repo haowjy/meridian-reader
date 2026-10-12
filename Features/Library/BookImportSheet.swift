@@ -91,7 +91,7 @@ struct BookImportSheet: View {
     // MARK: - Header
 
     private var header: some View {
-        FolderHeader(style: .book(cover: cover), title: flow.title, detail: detail, source: source,
+        FolderHeader(style: .detailed(cover: cover), title: flow.title, detail: detail, source: source,
                      progress: progress?.fraction, progressLabel: progress.map { [$0.label] } ?? []) {
             EmptyView()
         }

@@ -39,6 +39,8 @@ enum ShellSheet: Identifiable, Equatable {
     case importBook(BookImportFlow)
     /// ⋯ › Downloads: what is downloading and downloaded (decision D16).
     case downloads
+    /// *Edit Details* for a folder, book or series: its name, author and cover.
+    case folderDetails(UUID)
 
     var id: String {
         switch self {
@@ -49,6 +51,7 @@ enum ShellSheet: Identifiable, Equatable {
         case .moveTo(let request): "moveTo-\(request.id)"
         case .importBook(let flow): "importBook-\(flow.id)"
         case .downloads: "downloads"
+        case .folderDetails(let id): "folderDetails-\(id.uuidString)"
         }
     }
 
@@ -57,7 +60,7 @@ enum ShellSheet: Identifiable, Equatable {
     var belongsToBrowser: Bool {
         switch self {
         case .history: true
-        case .favorites, .voiceSettings, .share, .moveTo, .importBook, .downloads: false
+        case .favorites, .voiceSettings, .share, .moveTo, .importBook, .downloads, .folderDetails: false
         }
     }
 }

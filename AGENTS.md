@@ -30,7 +30,8 @@ xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -confi
 - UI tests drive the app with launch arguments (`App/LaunchOptions.swift`, Debug builds only):
   `-uiTesting` (test markers on, Google suggestions off), `-seedDemoArticle`, `-seedDemoBook`
   (a demo book; `-chainDemoChapters` plays it), `-importTestEPUB` (*Import Book…* takes a
-  synthetic EPUB instead of the Files picker; `-playTestEPUB` imports it at launch and plays it), `-browseTestPages` (offline `reader-test://` pages),
+  synthetic EPUB instead of the Files picker; `-playTestEPUB` imports it at launch and plays it), `-pickTestCover` (*Edit Details*' *Choose from
+  Files* takes a synthetic picture), `-browseTestPages` (offline `reader-test://` pages),
   `-selectEngine apple`, `-testVoice` (an offline on-device test voice for downloads; `-selectEngine
   test.voice`), `-resetDownloads`. Keep UI tests offline; use the test pages, not live sites.
 - `ScreenshotCaptureTests` is skipped unless `TEST_RUNNER_READER_SCREENSHOTS_DIR=<dir>` is set in

@@ -127,6 +127,7 @@ struct MoreMenuPanel: View {
             if let title = menu.downloadTitle { downloadRow(title) { run(.download) } }
             if !isFavorites {
                 row("Rename", "pencil", id: "moreRename") { run(.rename) }
+                editDetailsRow { run(.editDetails) }
                 row("Move…", "folder", id: "moreMove") { run(.move) }
                 row("Delete Folder…", "trash", id: "moreDeleteFolder") { run(.deleteFolder) }
             }
@@ -135,6 +136,7 @@ struct MoreMenuPanel: View {
             voiceRow { run(.voiceSettings) }
         case .book(let isSeries):
             row("Rename", "pencil", id: "moreRename") { run(.rename) }
+            editDetailsRow { run(.editDetails) }
             row("Move…", "folder", id: "moreMove") { run(.move) }
             if let title = menu.downloadTitle { downloadRow(title) { run(.download) } }
             row("Delete Downloads", "trash.circle", id: "moreDeleteDownloads") { run(.deleteDownloads) }
@@ -167,6 +169,10 @@ struct MoreMenuPanel: View {
             rowLabel("Sort", "arrow.up.arrow.down", trailing: "chevron.right")
         }
         .accessibilityIdentifier("moreSort")
+    }
+
+    private func editDetailsRow(action: @escaping () -> Void) -> some View {
+        row("Edit Details", "square.and.pencil", id: "moreEditDetails", action: action)
     }
 
     private func favoriteRow(isFavorite: Bool, action: @escaping () -> Void) -> some View {

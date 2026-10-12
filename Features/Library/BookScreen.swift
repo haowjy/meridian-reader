@@ -69,21 +69,9 @@ struct BookScreen: View {
     // MARK: - Header
 
     private var header: some View {
-        FolderHeader(style: .book(cover: folder.coverImage), title: folder.displayName, detail: detail,
+        FolderHeader(style: .detailed(cover: folder.coverImage), title: folder.displayName, detail: detail,
                      source: source, progress: progress.fraction, progressLabel: progress.label) {
-            FolderHeaderButtons { expands in
-                let play = continueTitle
-                PlayStateButton(state: actions.playState(of: folder),
-                                look: .pill(title: play.title, detail: play.detail, expands: expands)) {
-                    actions.playFolder(folder)
-                }
-                .accessibilityIdentifier("bookContinue")
-            } secondary: { expands in
-                PillButton(String(localized: "Play from Start"), style: .neutral, expands: expands) {
-                    actions.playFolderFromStart(folder)
-                }
-                .accessibilityIdentifier("bookPlayFromStart")
-            }
+            FolderPlayButtons(folder: folder, title: continueTitle, identifierPrefix: "book", actions: actions)
         }
     }
 

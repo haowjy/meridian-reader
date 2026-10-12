@@ -73,6 +73,9 @@ struct LaunchOptions: Equatable {
     /// opening the Files picker, which a UI test can't drive. At launch an earlier import of it is
     /// deleted, with its audio, so it imports fresh.
     var importsTestEPUB = false
+    /// `-pickTestCover`: *Edit Details*' *Choose from Files…* takes a synthetic picture
+    /// (`TestCover`) instead of opening the Files picker, which a UI test can't drive.
+    var picksTestCover = false
     /// `-playTestEPUB`: at launch, import the synthetic EPUB into the Library's top level (no
     /// sheet), then play it from its place, as a book's Play does.
     var playsTestEPUB = false
@@ -129,6 +132,7 @@ struct LaunchOptions: Equatable {
         resetsSurface = flags.contains("-resetSurface")
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")
+        picksTestCover = flags.contains("-pickTestCover")
         failsLibrarySaves = flags.contains("-failLibrarySaves")
         probesLockedFetch = flags.contains("-probeLockedFetch")
         usesTestVoice = flags.contains("-testVoice")

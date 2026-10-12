@@ -73,6 +73,12 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   section header is already at the margin in a Library list, so the header adds no padding of its
   own; the bar and the button row span the width, so all four edges line up
   (`BookFolderUITests.testHeaderBlocksShareTheCardsEdges` checks them).
+- **Details are not a kind** (decision D17): *Edit Details* (`FolderDetailsSheet`, a shell sheet)
+  writes a folder's name, byline and cover in one `LibraryStore.setDetails`. `Folder.hasDetails`
+  picks the header's look (`FolderHeaderStyle.detailed`) on a plain folder; everything else
+  about it (sort, Edit, drops, `isFixed`) still reads `kind`. `FolderPlayButtons` is the header
+  button row both screens use. UI tests read the look from `folderHeaderLook` (the cover tile is
+  hidden from accessibility); `-pickTestCover` stands in for the Files picker.
 - **Rows ask `DownloadCenter.isDownloaded`** for their Downloaded mark (a page, or a folder with
   the pages its row already sorted); `ListRow` only draws `isDownloaded`.
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way

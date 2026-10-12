@@ -178,7 +178,7 @@ the ⋯ slot too.
 subfolders; its links open in the browser and its saved pages in the Reader, closing the sheet
 first. Done, grabber, medium/large. Its bottom row is `[＋][ ][ ][ ][⋯]` on every screen of the
 sheet: ＋ is *New Folder* in the folder on screen, and ⋯ is the Library's ⋯ for that folder
-(*Sort ›, New Folder Inside*, and for a subfolder *Rename, Move…, Delete Folder…*; *Debug* with
+(*Sort ›, New Folder Inside*, and for a subfolder *Rename, Edit Details, Move…, Delete Folder…*; *Debug* with
 developer options on, its panel over the sheet), shown in the sheet; its big buttons are
 **Favorites** (back to the sheet's top), **History**, **Browser** (closes the sheet).
 
@@ -237,8 +237,18 @@ commas.
   Mark Finished, Remove* for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
   their delete is saved (*Cancel* keeps them selected). ⋯: *Sort ›, New Folder Inside, Import
-  Book…, Rename, Move…, Delete Folder…* (Favorites: *Sort* and *New Folder Inside* only; it can't
-  be renamed, moved down or deleted).
+  Book…, Rename, Edit Details, Move…, Delete Folder…* (Favorites: *Sort* and *New Folder Inside*
+  only; it can't be renamed, given details, moved down or deleted).
+- **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
+  opens a sheet (`FolderDetailsSheet`): the cover (a letter tile without one), **Name**,
+  **Author**, and *Choose from Photos*, *Choose from Files* (images) and *Remove Cover*.
+  *Cancel* changes nothing; *Save* stores all three at once. A picked picture is kept as a
+  600 px JPEG thumbnail, as a book's cover is. A plain folder with a cover or an author shows a
+  book's header: the cover beside the title, the author before the counts ("A. Writer   2
+  folders   3 pages"), then the same bar, one-line progress and buttons, on the same edges. Its
+  row shows the cover in place of the folder symbol, and the author under the title until a page
+  in it has played. It stays a plain folder: its sort, Edit, drags and drops are unchanged.
+  Clearing the author and removing the cover brings back the plain header.
 - **Importing a book** (*Import Book…*: ＋, the home's and a folder's ⋯, the empty Library's
   card) opens the Files picker for EPUBs. The picked file is copied into the app and the import
   sheet (`BookImportSheet`, medium, grows to large) comes up at once: the cover, title, author,
@@ -278,7 +288,7 @@ commas.
   buttons and the Chapters card share both edges; a folder whose pages play has the same header. No Edit, and no dragging: its chapters keep the source's order, don't leave it, and
   nothing is dropped into it. Front matter shows dimmed with "skipped" (it still opens for
   reading); *Jump to current* scrolls to the chapter Continue resumes. Playing any chapter carries
-  on through the book, then stops. ⋯: *Rename, Move…, Download Book, Delete Downloads, Delete Book…*. A series is the same
+  on through the book, then stops. ⋯: *Rename, Edit Details, Move…, Download Book, Delete Downloads, Delete Book…*. A series is the same
   screen; its chapters not fetched yet are lighter link rows ("not fetched yet").
 
 **Rows** are `ListRow`s. A tap opens the row; its menu is a long-press (decision D11), and a
@@ -314,8 +324,8 @@ lift. The list doesn't scroll by itself while a row is dragged.
 
 | Row | Tap | Trailing | Menu (long-press) | Swipe left |
 |---|---|---|---|---|
-| Folder, Favorites | opens it (push) | count, ›; ▶ when its pages play (resumes at its place; the place under the title) | *Continue, Play from Start* (when its pages play)*, Download* (when it has pages)*, Move to…, Rename, Delete…* (Favorites: no *Move to…, Rename, Delete…*) | Delete… |
-| Book or series | opens it (push) | ▶ (resumes at its place; the place under the title) | *Continue, Play from Start, Download, Move to…, Rename, Delete Book…* | Delete… |
+| Folder, Favorites | opens it (push) | count, ›; ▶ when its pages play (resumes at its place; the place under the title) | *Continue, Play from Start* (when its pages play)*, Download* (when it has pages)*, Move to…, Rename, Edit Details, Delete…* (Favorites: no *Move to…, Rename, Edit Details, Delete…*) | Delete… |
+| Book or series | opens it (push) | ▶ (resumes at its place; the place under the title) | *Continue, Play from Start, Download, Move to…, Rename, Edit Details, Delete Book…* | Delete… |
 | Saved page | the Reader (Now Playing if it's what you hear) | ▶ | *Move to…, Mark as Finished / Unfinished, Share, Download, Delete Downloads* (when it has audio)*, Remove from Library* | Remove |
 | Page played without saving ("Not saved", top of *Pages*) | the Reader (Now Playing if it's what you hear) | ▶ | *Save, Share* | — |
 | Link page | the page, in the browser | — | *Move to…, Share, Download, Remove from Library* | Remove |
@@ -381,7 +391,7 @@ the toast, to pick again or ✕ (in the import sheet, a *New Folder* that can't 
 tree up the same way). The browser's *Save to Library…* closes it on the pick, since the
 page is extracted first (⋯ spins).
 
-**A change that can't be saved** (a move, *New Folder*, *Rename*, *Sort*, a drop on a folder or
+**A change that can't be saved** (a move, *New Folder*, *Rename*, *Edit Details*, *Sort*, a drop on a folder or
 between rows, a
 mark, *Remove*, a delete, ☆ or a favorite tile's *Rename* / *Remove*, saving or unsaving with 🔖,
 ⊕, *Save to Folder…* or ⋯ → *Save to Library…* / *Remove from Library*) isn't stored: the
@@ -610,6 +620,7 @@ Debug builds (`App/LaunchOptions.swift`).
 | Move, Save to Library…, Save to Folder…, Change Folder (`MoveTreeSheet`) | ✕ (grabber) | `.sheet`, medium/large |
 | Import Book… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
 | Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |
+| Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
 | Reader sheet (`ReaderSheetScreen`): 📄, ⋯ → Reader, a Favorites tile, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface; pull the header down |
 | Now Playing (`NowPlayingScreen`): the bar, the Reader of the playing page, Listen, crash resume | ⌄, top left | `Sheet` over everything; pull the header down |
 | Listen debug panel | Done | `.sheet` |

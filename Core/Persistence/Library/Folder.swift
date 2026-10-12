@@ -40,8 +40,10 @@ final class Folder {
     /// Books and series: manual only.
     var pageSortRaw: String = PageSort.manual.rawValue
 
-    // Details: books and series (nil on plain folders and Favorites).
+    // Details. Books and series get theirs from the source; a plain folder from *Edit Details*
+    // (`LibraryStore.setDetails`). Favorites has none.
     var byline: String?
+    /// A thumbnail (`CoverThumbnail`), never the full-size image.
     @Attribute(.externalStorage) var coverData: Data?
     /// Series: the contents page, or the first chapter.
     var sourceURLString: String?
@@ -86,6 +88,10 @@ final class Folder {
     var displayName: String {
         kind == .favorites ? String(localized: "Favorites") : name
     }
+
+    /// It has a cover or a byline. A plain folder with details shows a book's header and its cover
+    /// on its row, and stays a plain folder (its order, drops and moves are a folder's).
+    var hasDetails: Bool { coverData != nil || !(byline ?? "").isEmpty }
 
     /// This folder and every folder above it, nearest first.
     var ancestors: [Folder] {

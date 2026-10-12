@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// The top of a folder screen. A plain folder: its title and counts. A book or series: the
-/// cover, title, details, how far through, and its play buttons (`actions`: Continue and Play
-/// from Start, in a `FolderHeaderButtons` row).
+/// The top of a folder screen. A plain folder: its title and counts. A book, a series, or a
+/// folder given details (`detailed`): the cover, title, details, how far through, and its play
+/// buttons (`actions`: Continue and Play from Start, in a `FolderHeaderButtons` row). A plain
+/// folder whose pages play has the progress and buttons too, under its title.
 ///
 /// ```
 /// Finance                        ╭──────╮  Pride and Prejudice
@@ -19,12 +20,7 @@ import SwiftUI
 /// secondary ink, the rest in tertiary. At accessibility text sizes the cover sits above the
 /// title rather than beside it, so the title keeps the line.
 struct FolderHeader<Actions: View>: View {
-    enum Style {
-        case folder
-        case book(cover: Image?)
-    }
-
-    var style: Style = .folder
+    var style: FolderHeaderStyle = .folder
     let title: String
     /// Counts (["2 folders", "7 pages"]) or the book's line (["Jane Austen", "Book", "61 chapters"]).
     let detail: [String]
@@ -54,7 +50,7 @@ struct FolderHeader<Actions: View>: View {
                         .accessibilityAddTraits(.isHeader)
                     lines
                 }
-            case .book(let cover):
+            case .detailed(let cover):
                 let stack = typeSize.isAccessibilitySize
                     ? AnyLayout(VStackLayout(alignment: .leading, spacing: Spacing.m))
                     : AnyLayout(HStackLayout(alignment: .bottom, spacing: Spacing.m))
@@ -108,6 +104,14 @@ struct FolderHeader<Actions: View>: View {
     }
 }
 
+/// How a `FolderHeader` lays out its top.
+enum FolderHeaderStyle {
+    /// Title and counts.
+    case folder
+    /// The cover (a letter tile without one) beside the title and details.
+    case detailed(cover: Image?)
+}
+
 /// A folder header's play buttons: the main one (Continue, Playing) stretches so the row spans
 /// the content width, the second (Play from Start) keeps its size. When both don't fit side by
 /// side (large text) they stack, each the full width.
@@ -148,7 +152,7 @@ struct FolderHeaderGallery: View {
                 FolderHeader(title: "Finance", detail: ["2 folders", "7 pages"])
             }
             PreviewState("book, not playing") {
-                FolderHeader(style: .book(cover: nil), title: "Pride and Prejudice",
+                FolderHeader(style: .detailed(cover: nil), title: "Pride and Prejudice",
                              detail: ["Jane Austen", "Book", "61 chapters"], source: ["Added 2 Oct"],
                              progress: 0.02, progressLabel: ["2%", "8 h 48 min left"]) {
                     FolderHeaderButtons { expands in
@@ -158,8 +162,19 @@ struct FolderHeaderGallery: View {
                     }
                 }
             }
+            PreviewState("folder with details") {
+                FolderHeader(style: .detailed(cover: nil), title: "Tide Tables",
+                             detail: ["A. Writer", "1 folder", "4 pages"],
+                             progress: 0.5, progressLabel: ["50%", "22 min left"]) {
+                    FolderHeaderButtons { expands in
+                        PlayStateButton(state: .idle, look: .pill(title: "Continue", detail: "3 of 4", expands: expands)) {}
+                    } secondary: { expands in
+                        PillButton("Play from Start", style: .neutral, expands: expands) {}
+                    }
+                }
+            }
             PreviewState("series, a chapter playing") {
-                FolderHeader(style: .book(cover: nil), title: "The Lantern Road",
+                FolderHeader(style: .detailed(cover: nil), title: "The Lantern Road",
                              detail: ["serials.example.com", "Series", "108 chapters", "13 saved"],
                              progress: 0.2, progressLabel: ["20%"]) {
                     PlayStateButton(state: .playing, look: .pill(title: "Playing", detail: "Ch 24", expands: true)) {}

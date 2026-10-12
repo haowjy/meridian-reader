@@ -79,6 +79,7 @@ struct LibraryScreenMenu {
                 topLevelSort.wrappedValue = sort.rawValue
             }
         case .rename: if let folder { screen.rename(folder) }
+        case .editDetails: if let folder { shell.present(.folderDetails(folder.id)) }
         case .move:
             guard let folder else { return }
             LibraryActions(library: library, speech: speech, shell: shell).move([.folder(folder)]) { showMoved(folder) }

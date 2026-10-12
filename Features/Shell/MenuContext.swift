@@ -82,7 +82,7 @@ struct LibraryMenu {
     }
 
     enum Action {
-        case voiceSettings, newFolder, importBook, sort(PageSort), rename, move, deleteFolder, deleteDownloads
+        case voiceSettings, newFolder, importBook, sort(PageSort), rename, editDetails, move, deleteFolder, deleteDownloads
         case download, downloads, listenDebug
         case favorites, history, browser
     }
