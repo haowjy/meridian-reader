@@ -66,11 +66,11 @@ final class NowPlayingUITests: XCTestCase {
         find(app, "nowPlayingBarPlayPause").tap()
     }
 
-    func testScrollingAwayOffersBackToAudio() throws {
+    func testScrollingAwayOffersJumpToAudio() throws {
         let app = launchLongDemo()
         openNowPlayingFromTheLibrary(app)
         XCTAssertEqual(find(app, "nowPlayingFrom").label, "Playing from Library", "a saved page plays from the Library")
-        assertBackToAudioReturnsToTheSpokenParagraph(app)
+        assertJumpToAudioReturnsToTheSpokenSentence(app)
 
         find(app, "nowPlayingFrom").tap()
         XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingFrom").exists }, "Now Playing closes")
@@ -78,12 +78,64 @@ final class NowPlayingUITests: XCTestCase {
     }
 
     /// A plain-text article (no reading HTML) reads on the same page: it follows the audio, offers
-    /// Back to audio, and Back to audio brings the spoken paragraph back.
+    /// Jump to Audio, and Jump to Audio brings the spoken sentence back.
     func testPlainTextArticleReadsTheSameWay() throws {
         let app = launchLongDemo(["-seedDemoPlainText"])
         openNowPlayingFromTheLibrary(app)
         XCTAssertTrue(paragraph(app, 0).waitForExistence(timeout: 5), "the paragraphs on the reading page")
-        assertBackToAudioReturnsToTheSpokenParagraph(app)
+        assertJumpToAudioReturnsToTheSpokenSentence(app)
+    }
+
+    /// Now Playing opened on what is playing opens at the spoken sentence, already in the middle,
+    /// without Jump to Audio: here reopened from the bar, paused on paragraph 7.
+    func testNowPlayingOpensAtTheSpokenSentence() throws {
+        let app = launchLongDemo()
+        openNowPlayingFromTheLibrary(app)
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
+        for _ in 0..<6 { app.buttons["Next paragraph"].tap() }
+        play.tap()
+        XCTAssertTrue(eventually(5) { play.label == "Play" }, "paused")
+        XCTAssertTrue(eventually(3) { (self.find(app, "readerScrubOffset").value as? String)?.hasPrefix("p=6 ") == true },
+                      "paused on paragraph 7")
+        app.buttons["readerClose"].tap() // ⌄
+        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingFrom").exists }, "back in the bar")
+
+        find(app, "nowPlayingBarOpen").tap()
+        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Now Playing")
+        let spoken = paragraph(app, 6)
+        XCTAssertTrue(eventually(5) { self.holdsTheMiddle(app, spoken) },
+                      "paragraph 7's sentence in the middle: \(spoken.frame), middle \(nowPlayingMiddle(app))")
+        XCTAssertFalse(find(app, "nowPlayingJumpToAudio").exists, "following, so no Jump to Audio")
+    }
+
+    /// The Reader of a page part-way through opens at its saved spot: the sentence there in the
+    /// middle of the text (underlined; the page underlines what it is given, see
+    /// `SpokenSentenceScrollTests`), and Listen turns it into Now Playing right there (D2).
+    func testTheReaderOpensAtTheSavedSpot() throws {
+        let app = launchLongDemo(["-seedDemoProgress", "20"])
+        let row = app.cells.staticTexts["Demo Listen Article"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        let listen = app.buttons["listenPlayPause"]
+        XCTAssertTrue(listen.waitForExistence(timeout: 10))
+        XCTAssertTrue(listen.label.hasPrefix("Resume"), listen.label)
+        let saved = paragraph(app, 20)
+        let middle = { (app.buttons["readerClose"].frame.maxY + listen.frame.minY) / 2 }
+        XCTAssertTrue(eventually(5) { saved.exists && self.holds(middle(), saved) },
+                      "paragraph 21's sentence in the middle: \(saved.frame), middle \(middle())")
+        let before = settledTop(of: saved)
+
+        listen.tap()
+        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Now Playing")
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
+        play.tap()
+        XCTAssertTrue(eventually(5) { play.label == "Play" })
+        // D2: the same line at the same place on screen.
+        XCTAssertTrue(saved.waitForExistence(timeout: 5))
+        XCTAssertEqual(settledTop(of: saved), before, accuracy: 1, "Now Playing opens where the Reader was")
+        XCTAssertFalse(find(app, "nowPlayingJumpToAudio").exists, "following, so no Jump to Audio")
     }
 
     /// The title card says what is playing (title, site or Library, time left) and scrolls with
@@ -472,10 +524,12 @@ final class NowPlayingUITests: XCTestCase {
         XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Listen turns the Reader into Now Playing")
     }
 
-    /// Skips to paragraph 7 and pauses there, scrolls it away, then Back to audio: paragraph 7 is
-    /// back in the middle of the text.
-    private func assertBackToAudioReturnsToTheSpokenParagraph(_ app: XCUIApplication) {
-        let back = find(app, "nowPlayingBackToAudio")
+    /// Skips to paragraph 7 and pauses there (on its first sentence), scrolls it away, then Jump to
+    /// Audio: the sentence is back in the middle of the text. The accessibility tree has no
+    /// sentence frames: the paragraph holding the middle of the visible text stands for it here,
+    /// and `SpokenSentenceScrollTests` measures the sentence itself.
+    private func assertJumpToAudioReturnsToTheSpokenSentence(_ app: XCUIApplication) {
+        let back = find(app, "nowPlayingJumpToAudio")
         XCTAssertFalse(back.exists, "following the audio")
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
@@ -488,12 +542,13 @@ final class NowPlayingUITests: XCTestCase {
         XCTAssertTrue(eventually(5) { spoken.exists && self.isInMiddle(app, spoken) }, "following: paragraph 7 in view")
 
         for _ in 0..<3 { dragText(app, by: -260) }
-        XCTAssertTrue(back.waitForExistence(timeout: 3), "scrolling away offers Back to audio")
+        XCTAssertTrue(back.waitForExistence(timeout: 3), "scrolling away offers Jump to Audio")
         XCTAssertFalse(isOnScreen(app, spoken), "paragraph 7 scrolled out of view")
 
         back.tap()
         XCTAssertTrue(eventually(3) { !back.exists }, "following again")
-        XCTAssertTrue(eventually(3) { self.isInMiddle(app, spoken) }, "Back to audio brings paragraph 7 into view")
+        XCTAssertTrue(eventually(3) { self.holdsTheMiddle(app, spoken) },
+                      "Jump to Audio brings paragraph 7's sentence to the middle: \(spoken.frame), middle \(nowPlayingMiddle(app))")
     }
 
     /// Paragraph `index` of the demo article on the reading page.
@@ -505,6 +560,21 @@ final class NowPlayingUITests: XCTestCase {
 
     private func isOnScreen(_ app: XCUIApplication, _ element: XCUIElement) -> Bool {
         element.exists && app.windows.firstMatch.frame.intersects(element.frame)
+    }
+
+    /// The middle of Now Playing's visible text: between the header and the scrubber.
+    private func nowPlayingMiddle(_ app: XCUIApplication) -> CGFloat {
+        (find(app, "nowPlayingFrom").frame.maxY + find(app, "readerScrubber").frame.minY) / 2
+    }
+
+    private func holdsTheMiddle(_ app: XCUIApplication, _ element: XCUIElement) -> Bool {
+        holds(nowPlayingMiddle(app), element)
+    }
+
+    /// `element` reaches across `y`, give or take the header's padding (the frames name the
+    /// controls, not the edges of the text).
+    private func holds(_ y: CGFloat, _ element: XCUIElement) -> Bool {
+        element.exists && element.frame.minY - 24 < y && element.frame.maxY + 24 > y
     }
 
     /// In the reading area: below the header, above the controls.

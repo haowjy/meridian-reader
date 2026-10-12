@@ -15,7 +15,7 @@ enum Glyph {
 }
 
 extension View {
-    /// The shadow under things that float over the page: the Now Playing bar, Back to audio,
+    /// The shadow under things that float over the page: the Now Playing bar, Jump to Audio,
     /// a book cover.
     func floatingShadow(opacity: Double = 0.14) -> some View {
         shadow(color: .black.opacity(opacity), radius: 12, y: 4)

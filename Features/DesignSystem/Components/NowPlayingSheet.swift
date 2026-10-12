@@ -10,7 +10,7 @@ import SwiftUI
 /// │          Pride and Prejudice         │ ← tap: go there
 /// │ `text`: [▣ title, site  N min left]  │ ← the title card scrolls with the text
 /// │  dimmed, SPOKEN in full ink, dimmed  │ ← follows the audio
-/// │            ( Back to audio )         │ ← after you scroll away, floating over the text
+/// │            ( Jump to Audio )         │ ← after you scroll away, floating over the text
 /// │ `controls`: status notes, the        │
 /// │ scrubber, [1×] [⏮] (⏸) [⏭] [⋯]       │ ← in the bottom band, the big round ⏸ in the middle
 /// └──────────────────────────────────────┘
@@ -19,12 +19,12 @@ struct NowPlayingSheet<Reading: View, Controls: View>: View {
     /// The book, series or folder the page lives in, else its site.
     let playingFrom: String
     let isSaved: Bool
-    /// The text scrolled away from the spoken paragraph: offer to go back.
-    var showsBackToAudio = false
+    /// The text scrolled away from the audio: offer to jump back to the spoken sentence.
+    var showsJumpToAudio = false
     let onCollapse: () -> Void
     var onPlayingFrom: () -> Void = {}
     var onToggleSave: () -> Void = {}
-    var onBackToAudio: () -> Void = {}
+    var onJumpToAudio: () -> Void = {}
     @ViewBuilder var text: Reading
     /// Status notes, the scrubber and the transport row, stacked in the bottom band.
     @ViewBuilder var controls: Controls
@@ -36,7 +36,7 @@ struct NowPlayingSheet<Reading: View, Controls: View>: View {
         } content: {
             text
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .overlay(alignment: .bottom) { backToAudio }
+                .overlay(alignment: .bottom) { jumpToAudio }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     VStack(spacing: BottomChrome.rowSpacing) { controls }
                         .bottomChromeBand()
@@ -44,19 +44,19 @@ struct NowPlayingSheet<Reading: View, Controls: View>: View {
         }
     }
 
-    /// Floats over the text, so the text keeps running under it. No arrow: the spoken paragraph
+    /// Floats over the text, so the text keeps running under it. No arrow: the spoken sentence
     /// may be above or below. Inverted on the player's dark scheme: a light pill, dark text.
-    private var backToAudio: some View {
+    private var jumpToAudio: some View {
         ZStack {
-            if showsBackToAudio {
-                PillButton("Back to audio", style: .inverted, size: .compact, action: onBackToAudio)
+            if showsJumpToAudio {
+                PillButton("Jump to Audio", style: .inverted, size: .compact, action: onJumpToAudio)
                     .floatingShadow(opacity: 0.2)
-                    .accessibilityIdentifier("nowPlayingBackToAudio")
+                    .accessibilityIdentifier("nowPlayingJumpToAudio")
                     .transition(.opacity)
             }
         }
         .padding(.bottom, Spacing.s)
-        .animation(Motion.snappy, value: showsBackToAudio)
+        .animation(Motion.snappy, value: showsJumpToAudio)
     }
 }
 
@@ -175,7 +175,7 @@ struct NowPlayingSheetGallery: View {
     }
 
     private func frame(_ state: PlayState, note: String?, back: Bool, saved: Bool = false) -> some View {
-        NowPlayingSheet(playingFrom: "Pride and Prejudice", isSaved: saved, showsBackToAudio: back,
+        NowPlayingSheet(playingFrom: "Pride and Prejudice", isSaved: saved, showsJumpToAudio: back,
                         onCollapse: {}) {
             SampleReading(title: "Chapter 12", detail: ["Pride and Prejudice", "9 min left"], spoken: true,
                           look: .player)

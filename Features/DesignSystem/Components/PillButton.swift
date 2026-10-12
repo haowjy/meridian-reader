@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A labelled capsule button: the Reader's back pill ("‹ Browser") and Listen, a book's Continue,
-/// Now Playing's "Back to audio". 48 pt tall (36 compact) at the default text size, growing with
+/// Now Playing's "Jump to Audio". 48 pt tall (36 compact) at the default text size, growing with
 /// Dynamic Type up to `BottomChrome.maxTextGrowth` like the rest of the band; radius `Radius.pill`.
 ///
 /// A `detail` follows the title in regular weight, set apart by space rather than a separator:
@@ -15,7 +15,7 @@ struct PillButton<Leading: View>: View {
         case neutral
         /// Playing tint, accent text: the playing state of a filled pill.
         case tinted
-        /// Ink fill, paper text: a floating pill over reading text (Back to audio).
+        /// Ink fill, paper text: a floating pill over reading text (Jump to Audio).
         case inverted
     }
 
@@ -148,8 +148,8 @@ struct PillButtonGallery: View {
             PreviewState("tinted · playing") {
                 PillButton("Playing", detail: "Ch 24", systemImage: "waveform", style: .tinted) {}
             }
-            PreviewState("inverted compact · Back to audio") {
-                PillButton("Back to audio", style: .inverted, size: .compact) {}
+            PreviewState("inverted compact · Jump to Audio") {
+                PillButton("Jump to Audio", style: .inverted, size: .compact) {}
             }
             PreviewState("disabled") {
                 PillButton("Listen", systemImage: "play.fill") {}.disabled(true)

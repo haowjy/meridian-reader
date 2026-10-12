@@ -6,9 +6,11 @@ import SwiftUI
 /// the content its resolver finds.
 ///
 /// - The title card (artwork, title, the site and time left) scrolls with the text.
-/// - The text follows the audio: each new paragraph scrolls near the middle, the spoken
+/// - The text follows the audio: it opens with the spoken sentence near the middle and keeps it
+///   there (each new paragraph, a long paragraph's sentence leaving the screen); the spoken
 ///   paragraph is in full ink and the others dimmed, its sentence underlined. A drag stops
-///   following; Back to audio resumes it. Scrubbing scrolls to the paragraph under the thumb.
+///   following; Jump to Audio resumes it, back to the sentence. Scrubbing scrolls to the
+///   paragraph under the thumb.
 /// - "Playing from": a page in a folder plays from that folder (a book, a series, Favorites, a
 ///   folder you made; tap: the Library at it); a saved page in no folder from the Library (tap:
 ///   the Library); a page you haven't saved from its site (tap: the page in the browser).
@@ -38,13 +40,13 @@ struct NowPlayingScreen: View {
             NowPlayingSheet(
                 playingFrom: playingFromName(now),
                 isSaved: savedKey != nil,
-                showsBackToAudio: !following && !now.isFinished,
+                showsJumpToAudio: !following && !now.isFinished,
                 onCollapse: { [shell, presentation = shell.nowPlayingPresentation] in
                     if let presentation { shell.nowPlayingDidClose(presentation) }
                 },
                 onPlayingFrom: { showPlayingFrom(now) },
                 onToggleSave: toggleSaved,
-                onBackToAudio: { following = true }
+                onJumpToAudio: { following = true }
             ) {
                 text(now)
                     .overlay(alignment: .top) {

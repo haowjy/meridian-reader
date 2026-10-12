@@ -36,11 +36,11 @@ its last page (reloaded). A fresh install opens the Library.
 | ID | Requirement |
 |----|-------------|
 | R1 | Reader mode is manual: the address field's reader icon or ⋯ → Reader, only on pages that look readable, or a Favorites tile or a Library row. It never turns on by itself. Opening the Reader of the page you hear opens Now Playing instead. |
-| R2 | The Reader shows the cleaned article on paper in the serif reading style, under its title and source. It never scrolls by itself. |
+| R2 | The Reader shows the cleaned article on paper in the serif reading style, under its title and source. A page part-way through opens with the sentence at its saved listening spot in the middle, underlined; after that the text never scrolls by itself. |
 | R3 | Its Listen ("Listen" with "9 min", "Resume" with "6 min left", "Listen Again") starts the page at its saved spot and turns the Reader into Now Playing; ☝︎ then a tap on a paragraph listens from there. The Reader has no speed or skip buttons. |
 | R4 | Save / unsave from the Reader or Now Playing keeps the screen and playback as they are. 🔖's long-press saves the page into a folder picked in the Move tree. |
 | R5 | The Reader's back pill ("‹ Browser", "‹ Library"), its grabber and a pull down (on the header, or on the text from its top) close it to exactly where you were. Closing never stops audio. |
-| R6 | Now Playing follows the audio: the spoken paragraph is in full ink (the others dimmed) and near the middle, its sentence underlined; scrolling stops following and offers *Back to audio*. Controls: play / pause, previous / next paragraph, speed (0.75×–2×), a sentence-precise scrubber with fine scrubbing, ☝︎. Its header says where it plays from; ⊕ saves. At the end it stays, with "✓ Finished" and ▶. ⌄ or a pull down (on the header, or on the text from its top) shrinks it into the bar. |
+| R6 | Now Playing follows the audio: it opens with the spoken sentence near the middle and keeps it there, the spoken paragraph in full ink (the others dimmed), the sentence underlined; scrolling stops following and offers *Jump to Audio*, which brings the spoken sentence back to the middle. Controls: play / pause, previous / next paragraph, speed (0.75×–2×), a sentence-precise scrubber with fine scrubbing, ☝︎. Its header says where it plays from; ⊕ saves. At the end it stays, with "✓ Finished" and ▶. ⌄ or a pull down (on the header, or on the text from its top) shrinks it into the bar. |
 
 ## Save and the Library
 

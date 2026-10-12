@@ -465,13 +465,17 @@ row) opens Now Playing instead.
 
   Now Playing sets that position once its page is laid out and holds it while the layout
   settles (the title card measured, the header, a text size change: each keeps the same line).
-  It drops it if you drag, scrub, Back to audio, the audio moves on or the page reloads first. ☝︎ in the header, then a tap on a paragraph, listens from that
+  It drops it if you drag, scrub, Jump to Audio, the audio moves on or the page reloads first. ☝︎ in the header, then a tap on a paragraph, listens from that
   paragraph (a hint banner with Cancel floats over the text meanwhile). While ☝︎ is on, each
   paragraph is a button to VoiceOver, *Paragraph N*, hint *Plays from this paragraph*.
-- **The Reader never scrolls by itself** and has no speed or skip buttons; reading text never
-  moves under you. A text size change (Dynamic Type) keeps the line at the top of the reading
+- **A page part-way through opens at its saved spot**: the sentence where listening stopped
+  (where *Resume* starts) is in the middle of the text and underlined, without a scroll of your
+  own, and stays there while the layout settles (the header, a text size change) until you drag.
+  A page not yet started, or finished, opens at its top.
+- **After that the Reader never scrolls by itself** and has no speed or skip buttons; reading
+  text never moves under you. A text size change (Dynamic Type) keeps the line at the top of the reading
   area where it is, to the character; a page at its top stays at its top. Now Playing does the
-  same, or, while it follows the audio, centres the spoken paragraph again.
+  same, or, while it follows the audio, centres the spoken sentence again.
 - 🔖 saves / unsaves (tap; filled = saved), or files the page (long-press → *Save to Folder…*,
   the Move tree: saved there, or moved there when already saved); it keeps the screen and
   playback as they are.
@@ -495,7 +499,7 @@ row) opens Now Playing instead.
 │ … serif text, dimmed; the spoken     │
 │   paragraph in full ink, the         │
 │   sentence underlined …              │
-│            ( Back to audio )         │ ← after you scroll away
+│            ( Jump to Audio )         │ ← after you scroll away
 │ Preparing next… / ✓ Finished         │ ← status notes, above the scrubber
 │ ( ━━━━━●━━━━░░░░──  ☝︎ )             │
 │ [1×]  [⏮]  (⏸)  [⏭]  [ ⋯ ]          │ ← the big round ⏸ / ▶ in the middle
@@ -514,7 +518,7 @@ row) opens Now Playing instead.
   title, and the site and time left as two parts (*✓ Finished* at the end). The text keeps the Reader's serif and
   margins in **lyrics style**: the spoken paragraph in full ink, the others dimmed, no tint box
   (a paragraph pressed while ☝︎ is on is in full ink too).
-  The *Back to audio* pill is light with dark text; the scrub capsule, the bubble and the jump
+  The *Jump to Audio* pill is light with dark text; the scrub capsule, the bubble and the jump
   hint sit on the player's card colour. The Reader stays on paper. A plain-text article (no
   reading HTML) shows its paragraphs on the same reading page, in both, so everything below
   applies to it too.
@@ -522,13 +526,18 @@ row) opens Now Playing instead.
   (tap: Now Playing closes onto the Library at that folder); says *Library* for a saved page in
   no folder (tap: the Library); and names the site for a page you haven't saved (tap: the page
   in the browser).
-- **The text follows the audio.** On each new paragraph it scrolls the spoken one near the middle
-  (the `Motion.standard` spring; a jump under Reduce Motion). The spoken paragraph lights up to
-  full ink while the one before dims (a short fade; none under Reduce Motion), and the current
-  sentence is underlined in ink (per chunk on engines that report only chunk starts; no underline
-  before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
-  doesn't move the text, so following goes on); a *Back to audio* pill floats over the text just
-  above the controls (no arrow: the spoken paragraph may be above or below).
+- **The text follows the audio.** It opens with the spoken sentence near the middle (the
+  paragraph, until the sentence is worked out a moment later), from the bar, from opening the
+  page that is playing and from crash resume; Listen in the Reader opens where the Reader was
+  instead (D2). On each new paragraph it scrolls its spoken sentence near the middle; in a
+  paragraph too long to stay on screen, it does so again whenever the spoken sentence leaves the
+  visible text (the `Motion.standard` spring; a jump under Reduce Motion). The sentence, not the
+  paragraph, goes to the middle: a long paragraph's middle can be a screen away from what is
+  being read. The spoken paragraph lights up to full ink while the one before dims (a short
+  fade; none under Reduce Motion), and the current sentence is underlined in ink (per chunk on
+  engines that report only chunk starts; no underline before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
+  doesn't move the text, so following goes on); a *Jump to Audio* pill floats over the text just
+  above the controls (no arrow: the spoken sentence may be above or below).
   Tap it (or start another page) and following resumes. Scrubbing scrolls to the paragraph under
   the thumb.
 - **At the end** it stays on the page: the text stays, all of it in full ink, a note says

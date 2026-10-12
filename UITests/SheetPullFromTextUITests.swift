@@ -76,7 +76,7 @@ final class SheetPullFromTextUITests: XCTestCase {
         // A short pull from the top springs back and leaves it following the audio.
         dragText(app, by: 50)
         XCTAssertTrue(from.exists, "a short pull springs back")
-        XCTAssertFalse(find(app, "nowPlayingBackToAudio").exists, "a pull alone doesn't stop following")
+        XCTAssertFalse(find(app, "nowPlayingJumpToAudio").exists, "a pull alone doesn't stop following")
 
         dragText(app, by: 300)
         XCTAssertTrue(eventually(5) { !from.exists }, "the pull from the text shrank Now Playing")

@@ -11,7 +11,8 @@ import SwiftData
 ///   or "▶ Listen Again", starts at
 ///   the page's saved spot, and turns the Reader into Now Playing where it was (decision D2).
 ///   ☝︎ in the header, then a tap on a paragraph, listens from that paragraph.
-/// - The text never scrolls by itself.
+/// - A page part-way through opens with its saved spot's sentence in the middle, underlined;
+///   after that the text never scrolls by itself.
 /// - 🔖 saves / unsaves (tap) or files the page (long-press, *Save to Folder…*: the Move tree);
 ///   ⋯ is the reader menu (Save / Remove from Library, Move to…, Add to Favorites, Share, Voice
 ///   Settings, Debug; Favorites / History / Website).
@@ -101,9 +102,18 @@ struct ReaderSheetScreen: View {
         let html = article.displayHTML.contains(where: { !$0.isWhitespace })
             ? article.displayHTML : article.document.paragraphsHTML
         HTMLReadingView(html: html, heading: ReaderHeading(title: article.title, detail: detail),
-                        activeParagraphIndex: nil, jumpMode: jumpMode, scrollHandle: scroll) { index in
+                        activeParagraphIndex: nil, sentence: savedSentence, jumpMode: jumpMode,
+                        opensAtSentence: true, scrollHandle: scroll) { index in
             if jumpMode { listen(from: index) }
         }
+    }
+
+    /// The sentence at the page's saved listening spot, while it is part-way through: the text
+    /// opens with it in the middle, underlined, where Resume starts.
+    private var savedSentence: ReaderSentence? {
+        let offset = page?.positionUTF16 ?? 0
+        guard !isFinished, resumeParagraph > 0 || offset > 0 else { return nil }
+        return ReaderSentence(in: article.document, paragraph: resumeParagraph, utf16Offset: offset)
     }
 
     private var totalLength: Int {

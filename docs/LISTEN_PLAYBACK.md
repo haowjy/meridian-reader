@@ -140,7 +140,8 @@ adapter keeps, bound or not. Adapters report facts; they own no bake policy and 
 Views bind to `phase` and the position (and the paragraph highlight derived from them), never a
 second "is playing" flag. The live offset is read only in small leaf views (`PlayheadReader`, the
 Now Playing bar's progress, Now Playing's sentence underline), so a tick redraws only those. The
-Reader never scrolls by itself; Now Playing follows the audio until you scroll (`NAVIGATION.md`).
+Reader never scrolls by itself once open (it opens at a saved spot's sentence); Now Playing
+follows the spoken sentence until you scroll (`NAVIGATION.md`).
 
 While the phase is playing but nothing is audible and more units remain (`isBufferingNext`), the
 listen bar shows a spinner and "Preparing next…". That is not paused.
