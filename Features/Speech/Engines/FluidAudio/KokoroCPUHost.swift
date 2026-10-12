@@ -262,6 +262,13 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
 
     // MARK: - Files
 
+    /// Download what the route needs for `voice` without loading it (the Core ML route's fallback).
+    static func ensureFiles(voice: String) async throws {
+        try await KokoroAneCPUFrontend.ensureAssets()
+        try await KokoroAssets.ensureVoicePack(voice)
+        try await KokoroONNXModelStore.shared.ensureInstalled()
+    }
+
     /// Everything the CPU route needs is on disk (cheap checks, no hashing).
     static var filesLookInstalled: Bool {
         KokoroONNXModelStore.fileLooksInstalled && KokoroAneCPUFrontend.assetsPresent()

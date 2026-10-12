@@ -16,7 +16,8 @@ extension SpeechEngineID {
 ///
 /// Kokoro has two routes behind the one engine (`KokoroRouteSettings.route`):
 /// - ONNX CPU (`KokoroCPUHost`, default): ONNX Runtime + FluidAudio's frontend without Core ML.
-/// - Core ML GPU (`KokoroHost`, debug toggle "Kokoro fast GPU route (may crash on iOS 26.4+)").
+/// - Core ML (`KokoroSplitHost`, debug toggle "Kokoro fast GPU route (may crash on iOS 26.4+)"):
+///   Core ML in front, ONNX CPU from the first background call on.
 @MainActor
 final class FluidAudioProvider: SpeechEngineProvider {
     let name = "FluidAudio"
@@ -82,7 +83,10 @@ final class FluidAudioProvider: SpeechEngineProvider {
         let voice = voice ?? KokoroHost.defaultVoice
         switch routeSettings.route {
         case .onnxCPU: return KokoroCPUHost(voice: voice, threads: routeSettings.cpuThreads, crashCount: routeSettings)
-        case .coreMLGPU: return KokoroHost(voice: voice)
+        case .coreMLGPU:
+            return KokoroSplitHost(
+                coreML: KokoroHost(voice: voice),
+                onnx: KokoroCPUHost(voice: voice, threads: routeSettings.cpuThreads, crashCount: routeSettings))
         }
     }
 
@@ -102,7 +106,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
         guard id == .kokoro else { return false }
         switch routeSettings.route {
         case .onnxCPU: return KokoroCPUHost.filesLookInstalled
-        case .coreMLGPU: return KokoroAssets.coreMLStagesLookInstalled
+        case .coreMLGPU: return KokoroAssets.coreMLStagesLookInstalled && KokoroCPUHost.filesLookInstalled
         }
     }
 

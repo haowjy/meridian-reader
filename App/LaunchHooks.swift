@@ -6,9 +6,11 @@ import SwiftData
 /// normal launch runs none of this.
 @MainActor
 enum LaunchHooks {
-    /// Before the library's launch maintenance: the engine probe, and `-rerunLibraryMigration`.
+    /// Before the library's launch maintenance: the engine probe, the Kokoro stress run, and
+    /// `-rerunLibraryMigration`.
     static func runBeforeMigrations(_ options: LaunchOptions, library: LibraryStore, tts: LocalTTSCoordinator) {
         EngineLatencyProbe.runIfRequested(coordinator: tts)
+        KokoroStressRun.runIfRequested(coordinator: tts)
         if options.rerunsLibraryMigration { library.resetForMigrationRerun() }
     }
 

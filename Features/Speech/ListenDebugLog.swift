@@ -62,7 +62,7 @@ struct ListenDebugSnapshot: Equatable {
     var lastBakeEvent: String
     /// e.g. "fr (auto) → Apple · Kokoro is English-only" / "en (auto) → local.kokoro".
     var language: String = ""
-    /// "foreground · Kokoro Core ML (gpuAneVocoder)" / "background · no Core ML — baked audio + Apple fallback" / "Apple TTS …".
+    /// "foreground · Kokoro Core ML (aneTailGpu)" / "background · no Core ML — baked audio + Apple fallback" / "Apple TTS …".
     var renderMode: String = ""
     /// Paragraphs after the playhead already rendered (how far ahead the queue is).
     var readyAhead: Int = 0

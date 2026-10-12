@@ -7,20 +7,18 @@ import Foundation
 ///   (`KokoroCPUHost`). No Core ML / Espresso / BNNS anywhere in the call, so it neither hits the
 ///   iOS 26.4+ libBNNS SIGSEGV nor is it forbidden in the background (CPU work is allowed while
 ///   audio plays).
-/// - `coreMLGPU` (debug opt-in): FluidAudio's 7-stage Core ML chain (`KokoroHost`,
-///   gpuAneVocoder on iOS 26.4+). ~4× faster but crashes in libBNNS on device and can't
-///   run in the background (no GPU there).
+/// - `coreMLGPU` (debug opt-in, `KokoroSplitHost`): in front, FluidAudio's 7-stage Core ML chain
+///   (`KokoroHost`, `aneTailGpu`: RNN stages on the ANE, noise and the iSTFT tail on the GPU);
+///   from the first call in the background to the end of the process, the ONNX CPU route. Faster
+///   in front, but Core ML can crash in libBNNS on iOS 26.4+ (uncatchable).
 enum KokoroRoute: String, Sendable, Equatable {
     case onnxCPU = "onnx"
     case coreMLGPU = "coreml"
 
-    /// Can this route start a model call while the app is in the background?
-    var rendersInBackground: Bool { self == .onnxCPU }
-
     var label: String {
         switch self {
         case .onnxCPU: return "ONNX CPU"
-        case .coreMLGPU: return "Core ML GPU"
+        case .coreMLGPU: return "Core ML (ANE + GPU)"
         }
     }
 }
@@ -90,8 +88,8 @@ struct KokoroRouteSettings {
 /// Auto-recover after a crash inside a Kokoro call — a pure state machine (unit-tested) plus
 /// `recover`, the policy `FluidAudioProvider` answers the coordinator's crash hook with.
 ///
-/// - Core ML route crash (or a pre-route marker from an older build) → stay on Kokoro, turn the
-///   fast GPU route off, resume the article on the ONNX route.
+/// - Any Kokoro crash turns the Core ML route off: it resumes on the ONNX route.
+/// - Core ML crash (or a pre-route marker from an older build) → stay on Kokoro/ONNX, resume.
 /// - ONNX route crash #1 → stay on Kokoro/ONNX, resume.
 /// - ONNX route crash #2 (without a healthy stretch in between) → Apple, with a clear notice.
 /// A healthy stretch (`healthyRendersToReset` ONNX calls in one session) or picking Kokoro again
@@ -102,7 +100,7 @@ enum KokoroCrashRecovery {
 
     enum Outcome: Equatable {
         /// Keep Kokoro selected on the ONNX route and resume where the crash happened.
-        case resumeOnONNX(disableFastRoute: Bool)
+        case resumeOnONNX
         /// The ONNX route crashed `onnxCrashLimit` times: switch to Apple.
         case fallBackToApple
     }
@@ -114,14 +112,14 @@ enum KokoroCrashRecovery {
     static func onCrash(route crashedRoute: KokoroRoute?, onnxCrashCount: inout Int) -> Outcome {
         switch crashedRoute ?? .coreMLGPU {
         case .coreMLGPU:
-            return .resumeOnONNX(disableFastRoute: true)
+            return .resumeOnONNX
         case .onnxCPU:
             onnxCrashCount += 1
             if onnxCrashCount >= onnxCrashLimit {
                 onnxCrashCount = 0 // a manual retry starts a fresh count
                 return .fallBackToApple
             }
-            return .resumeOnONNX(disableFastRoute: false)
+            return .resumeOnONNX
         }
     }
 
@@ -140,10 +138,10 @@ enum KokoroCrashRecovery {
         var onnxCount = settings.onnxCrashCount
         let outcome = onCrash(route: crash.route.flatMap(KokoroRoute.init(rawValue:)), onnxCrashCount: &onnxCount)
         settings.onnxCrashCount = onnxCount
+        settings.fastGPURouteEnabled = false
         let recovery: CrashRecovery
         switch outcome {
-        case .resumeOnONNX(let disableFastRoute):
-            if disableFastRoute { settings.fastGPURouteEnabled = false }
+        case .resumeOnONNX:
             recovery = .stay(notice: resumedNotice, resume: ListenResumeTarget.forCrash(
                 article: crash.articleKey, paragraph: crash.paragraph, crashAt: crash.at, playing: playing))
         case .fallBackToApple:

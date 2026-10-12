@@ -33,8 +33,6 @@ final class KokoroRouteTests: XCTestCase {
         let s = KokoroRouteSettings(defaults: d)
         XCTAssertEqual(s.route, .onnxCPU)
         XCTAssertEqual(s.cpuThreads, KokoroRouteSettings.defaultThreads)
-        XCTAssertTrue(KokoroRoute.onnxCPU.rendersInBackground)
-        XCTAssertFalse(KokoroRoute.coreMLGPU.rendersInBackground)
         let t = s
         t.fastGPURouteEnabled = true
         XCTAssertEqual(KokoroRouteSettings(defaults: d).route, .coreMLGPU)
@@ -54,21 +52,34 @@ final class KokoroRouteTests: XCTestCase {
         let s = KokoroRouteSettings(defaults: d)
         s.fastGPURouteEnabled = true
         let gpu = provider.makeHost(for: .kokoro, voice: nil)
-        XCTAssertTrue(gpu is KokoroHost)
+        XCTAssertTrue(gpu is KokoroSplitHost)
         XCTAssertEqual(gpu?.routeTag, "coreml")
-        XCTAssertEqual(gpu?.rendersInBackground, false)
+        XCTAssertEqual(gpu?.routingLabel, "aneTailGpu")
+        XCTAssertEqual(gpu?.rendersInBackground, true, "ONNX takes over in the background")
         XCTAssertEqual(provider.descriptors.first?.limits, TextChunker.Limits.kokoroCPU)
+    }
+
+    func testCoreMLRouteNamesONNXForACallInTheBackground() {
+        let runState = AppRunState(phase: .active)
+        let host = KokoroSplitHost(coreML: KokoroHost(), onnx: KokoroCPUHost(), runState: runState)
+        XCTAssertEqual(host.routeTag, "coreml")
+        XCTAssertEqual(host.routingLabel, "aneTailGpu")
+        runState.set(.inactive)
+        XCTAssertEqual(host.routeTag, "coreml", "Control Center or a banner keeps Core ML")
+        runState.set(.background)
+        XCTAssertEqual(host.routeTag, "onnx", "the crash guard names the route that runs")
+        XCTAssertFalse(host.isPrepared)
     }
 
     // MARK: Auto-recover state machine
 
     func testCrashRecoveryStateMachine() {
         var n = 0
-        XCTAssertEqual(KokoroCrashRecovery.onCrash(route: .coreMLGPU, onnxCrashCount: &n), .resumeOnONNX(disableFastRoute: true))
+        XCTAssertEqual(KokoroCrashRecovery.onCrash(route: .coreMLGPU, onnxCrashCount: &n), .resumeOnONNX)
         XCTAssertEqual(n, 0)
-        XCTAssertEqual(KokoroCrashRecovery.onCrash(route: nil, onnxCrashCount: &n), .resumeOnONNX(disableFastRoute: true),
+        XCTAssertEqual(KokoroCrashRecovery.onCrash(route: nil, onnxCrashCount: &n), .resumeOnONNX,
                        "legacy markers were Core ML")
-        XCTAssertEqual(KokoroCrashRecovery.onCrash(route: .onnxCPU, onnxCrashCount: &n), .resumeOnONNX(disableFastRoute: false))
+        XCTAssertEqual(KokoroCrashRecovery.onCrash(route: .onnxCPU, onnxCrashCount: &n), .resumeOnONNX)
         XCTAssertEqual(n, 1)
         XCTAssertEqual(KokoroCrashRecovery.onCrash(route: .onnxCPU, onnxCrashCount: &n), .fallBackToApple)
         XCTAssertEqual(n, 0, "manual retry starts fresh")
@@ -157,11 +168,13 @@ final class KokoroRouteTests: XCTestCase {
         XCTAssertEqual(r?.paragraph, 14)
         XCTAssertTrue(r?.matches(article) ?? false)
 
-        // First ONNX crash → still Kokoro.
+        // First ONNX crash → still Kokoro. A crash on the Core ML route's ONNX half turns the route off too.
+        s.fastGPURouteEnabled = true
         EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, context: "x/p2", route: "onnx")
         let c2 = makeCoordinator(defaults: d, guardDir: guardDir)
         XCTAssertEqual(c2.selectedEngineID, .kokoro)
         XCTAssertEqual(KokoroRouteSettings(defaults: d).onnxCrashCount, 1)
+        XCTAssertFalse(KokoroRouteSettings(defaults: d).fastGPURouteEnabled)
 
         // Second ONNX crash → Apple, with the explicit notice.
         EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, context: "x/p3", route: "onnx")

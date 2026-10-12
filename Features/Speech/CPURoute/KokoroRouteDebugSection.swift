@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Listen debug panel: Kokoro route knobs. The ONNX CPU route is the default; the Core ML route is
-/// an opt-in that crashed in libBNNS on iOS 26.4+ and never renders in the background.
+/// an opt-in that can crash in libBNNS on iOS 26.4+ and hands over to ONNX once the app is in the
+/// background.
 struct KokoroRouteDebugSection: View {
     @Bindable var speech: SpeechController
     @State private var fastGPU = KokoroRouteSettings().fastGPURouteEnabled
@@ -24,7 +25,7 @@ struct KokoroRouteDebugSection: View {
                 .accessibilityIdentifier("kokoroFastGPURouteToggle")
             Stepper("ONNX threads: \(threads)\(threads == KokoroRouteSettings.defaultThreads ? " (default)" : "")",
                     value: $threads, in: KokoroRouteSettings.threadRange)
-                .disabled(busy || fastGPU)
+                .disabled(busy)
                 .onChange(of: threads) { _, n in
                     busy = true
                     Task {
@@ -39,7 +40,7 @@ struct KokoroRouteDebugSection: View {
             Text("Kokoro route")
         } footer: {
             Text("Default: ONNX Runtime on the CPU (no Core ML, keeps rendering in the background). "
-                 + "The fast GPU route uses Core ML in the foreground only; in the background it falls back to Apple for unrendered paragraphs.")
+                 + "The fast GPU route uses Core ML in the foreground only; from the first render in the background until the app quits it uses ONNX. Any Kokoro crash turns it off.")
         }
     }
 

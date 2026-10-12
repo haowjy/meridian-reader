@@ -51,7 +51,8 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
   (`PlayheadReader`, the Now Playing bar's progress, Now Playing's sentence underline); reading it
   in a screen's body redraws the screen on every tick.
 - **Model calls.** One at a time (`SynthRenderGate`), never a Core ML call in the background
-  (`RenderAdmission`). Every extra Kokoro call is exposure to an uncatchable crash on iOS 26.4+, so
+  (`RenderAdmission`; the Core ML route's `KokoroSplitHost` switches itself to ONNX there for the
+  rest of the process). Every extra Kokoro call is exposure to an uncatchable crash on iOS 26.4+, so
   don't add re-renders: `BrowseSaveWhilePlayingTests` pins the call count.
 - **Thread counts are per phase.** In front the ONNX session runs every core but one (3 to 6,
   `KokoroRouteSettings.defaultThreads`), in the background one; the first call after a phase

@@ -197,7 +197,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return pendingResume
     }
 
-    // MARK: - Kokoro route (ONNX CPU default; Core ML GPU debug opt-in)
+    // MARK: - Kokoro route (ONNX CPU default; Core ML in front as a debug opt-in)
 
     var kokoroRouteSettings: KokoroRouteSettings { KokoroRouteSettings(defaults: defaults) }
 

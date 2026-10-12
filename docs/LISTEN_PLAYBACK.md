@@ -239,10 +239,11 @@ Headphone and lock-screen skips stay paragraph skips (D4).
 **Rendering across the boundary.** Once the chapter's rendering has reached two paragraphs before
 its end, the next chapter is staged in the render queue (`GlobalSynthQueue.stageNext`, "Render
 queue"), so its opening is on disk when it starts; not when its audio is held for unfinished
-library work (`ArticleAudioCache.held`), which a render would overwrite. In the background on a route that can't render
-there (Core ML), no model call starts, so a chapter not rendered in full plays in Apple's voice
-until the app is in front again, when the on-device engine takes over at the next paragraph (D9).
-The ONNX route renders in the background and keeps its voice; there the next chapter's opening
+library work (`ArticleAudioCache.held`), which a render would overwrite. On a host that can't render in
+the background, no model call starts there, so a chapter not rendered in full plays in Apple's
+voice until the app is in front again, when the on-device engine takes over at the next paragraph
+(D9). Kokoro renders in the background on either route (the Core ML route hands over to ONNX) and
+keeps its voice; there the next chapter's opening
 renders in a background burst, once less than 4 min of the chapter playing is ready ahead
 ("Rendering in the background"). The catch-up bake at the end of a
 page runs only for pages outside books and series, and finished chapters more than 2 behind the
@@ -318,15 +319,17 @@ Mode is on (`BakeConditions`) and resumes on the change notification. Before eve
 `ensureChunk`, on every app-phase change and when a render fails, one pure rule decides
 (`RenderAdmission.decide`, `RenderAdmissionTests`):
 
-| App phase | ONNX CPU route (renders in background) | Core ML route |
+| App phase | Kokoro, either route (renders in background) | A host that can't render in the background |
 |---|---|---|
 | active | render | render |
 | inactive | render | listener's chunks only; bake-ahead parks |
 | background | listener's chunks; bake-ahead of the playing article and the staged next chapter during a burst (below); other articles park | no model call: a listener's chunk plays with Apple, bake-ahead parks |
 
 The renderer checks it again right before each model call (`LocalChunkRenderer`,
-`RenderAdmission.modelCallsAllowed`): no Core ML call ever starts in the background (no GPU
-there, and the CPU fallback is the libBNNS crash path).
+`RenderAdmission.modelCallsAllowed`). No Core ML call ever starts in the background (no GPU
+there, and the CPU fallback is the libBNNS crash path): Kokoro's Core ML route
+(`KokoroSplitHost`) renders on ONNX from its first background load or call until the process
+ends.
 
 **Producer.** The player keeps a short buffer of rendered units and stops producing when it is
 full. Chunk 0 plays as soon as it is rendered; the producer doesn't wait for the paragraph. Seek /
@@ -554,7 +557,7 @@ and resume goes through session intents):
 | Media services reset | Reconfigure the category and pause |
 
 **Rendering in the background.** `AppRunState` mirrors `UIApplication` (active / inactive /
-background), thread-safe; admission follows the table in "Render queue". On the Core ML route a
+background), thread-safe; admission follows the table in "Render queue". On a host that can't render in the background a
 paragraph that isn't rendered yet plays with Apple (`AVSpeechSynthesizer.write` into a temp CAF,
 played in order, not cached) until the app is back in the foreground; a chunk that failed because
 of backgrounding is never replaced with Apple audio in the cache.
@@ -658,6 +661,17 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   whether chapter 2 became audible, and app, lock and audio state on each line), and the unified
   log, category `LockedFetchProbe`.
 - `-selectEngine local.kokoro|apple`, `-kokoroUnits <label>` (Core ML route routing).
+- `-KokoroStress coreml|onnx` (`KokoroStressRun`): with the app in front, renders a fixed corpus
+  of 320 Kokoro calls (paragraphs of 1 to 10 sentences from the demo book, cut by the ONNX
+  chunker) through one route: `KokoroHost` alone or `KokoroCPUHost` at the front thread count.
+  The app's Kokoro host is unloaded and the queue paused. `Documents/KokoroStress/<route>.jsonl`
+  gets a synced `begin` line before each call and an `end` line after it (wall ms, audio s, RTF,
+  ms per audio second, stage or ONNX ms, memory, thermal). Launched again with the same argument
+  after a crash, it counts the crash at the call that began (with the Core ML breadcrumb's stage)
+  and carries on from the next call, stopping at 5 crashes; at the end
+  `Documents/KokoroStress/<route>-summary.json`. `-KokoroStressCalls N`, `-KokoroStressFresh`.
+  Pull with `xcrun devicectl device copy from --device <id> --domain-type appDataContainer
+  --domain-identifier com.jimmyyao.Reader --source Documents/KokoroStress --destination <dir>`.
 - **CPU route benchmark** (panel → "CPU route benchmark"): `KokoroONNXSession` at 1–6 threads and
   QoS variants on a fixed 501-phoneme passage and its first three sentences (load ms, cold / warm
   times, × real time, CPU-s per audio-s, thermal, memory), plus a lock-screen soak that renders
@@ -665,6 +679,8 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   `ListenTiming/cpubench.jsonl` and a sample WAV.
 
 Measure on a device with a **Release** build: FluidAudio in Debug is ~3× slower per decode step.
+To use these tools in an optimized build, build Release with `READER_EXTRA_CONDITIONS=DEBUG`
+(`project.yml`: it adds `DEBUG` to the app target only; the packages stay Release).
 
 ## Verify
 

@@ -57,7 +57,23 @@ on either stays valid on the other (`KokoroRoute`, `KokoroRouteSettings`).
 | Route | Host | Notes |
 |---|---|---|
 | **ONNX CPU** (default) | `KokoroCPUHost` | ONNX Runtime on the CPU execution provider, onnx-community `model_fp16.onnx` (≈163 MB, downloaded into `Application Support/CPURoute/kokoro-82m-v1.0-onnx/`, SHA-256 checked, excluded from backup), every core but one in front (3 to 6: 5 on an iPhone 17 Pro, so the work an efficiency core holds is a smaller piece; `reader.tts.kokoro.cpuThreads` overrides it in the debug panel) and 1 in the background (the session is rebuilt at the first call after a phase change, `KokoroONNXSessionSlot`). Frontend `KokoroAneCPUFrontend` (vendored FluidAudio patch: Misaki lexicon + a pure-Swift BART G2P that reads the Core ML G2P weights as data), so no Core ML runs on this route. Renders in the background, in bursts that start below 4 min of listening ready ahead and stop at 8 min (LISTEN_PLAYBACK.md → "Rendering in the background"). |
-| Core ML GPU (debug) | `KokoroHost` | FluidAudio's 7-stage Core ML chain, `gpuAneVocoder` routing on iOS 26.4+ (all stages GPU, vocoder ANE; `-kokoroUnits <label>` overrides it in Debug builds). About 4× faster, but Core ML's CPU path (E5RT → libBNNS) crashes on iOS 26.4+ (FluidAudio #844/#817) and the GPU is off-limits in the background. Listen debug panel → "Kokoro fast GPU route". Unused Core ML stages are deleted at launch while it is off. |
+| Core ML (debug) | `KokoroSplitHost` | In front, FluidAudio's 7-stage Core ML chain (`KokoroHost`) with `aneTailGpu` routing (FluidAudio #667: albert, post-albert, alignment, prosody and vocoder on `.cpuAndNeuralEngine`; noise and the iSTFT tail on `.cpuAndGPU`, so the tail never runs on the CPU's BNNS; `-kokoroUnits <label>` overrides it in Debug builds). From the first load or call made in the background until the process ends it renders on the ONNX route (`KokoroCPUHost`), after releasing the Core ML models; `prepare()` puts the ONNX files on disk so that never downloads in the background. Core ML's E5RT → libBNNS path can still crash on iOS 26.4+ (FluidAudio #844/#817); any Kokoro crash turns this route off. Listen debug panel → "Kokoro fast GPU route". Unused Core ML stages are deleted at launch while it is off. |
+
+Measured with `-KokoroStress` (320 fixed calls, app in front, iPhone 17 Pro, iOS 26.6.2, Release
+build with the Debug hooks, 2026-10-11):
+
+| Route | Calls | Crashes | ms per audio second (× real time) | First audio, models compiled |
+|---|---|---|---|---|
+| ONNX CPU, 5 threads | 320 / 320 | 0 | 300, p90 325 (3.3×) | 1.25 s (load 0.8 s + call 0.47 s) |
+| Core ML, `aneTailGpu` | 20, stopped at 5 crashes | 5 | 62 (16×) | 1.1–1.4 s |
+| Core ML, `gpuAneVocoder` | 20, stopped at 5 crashes | 5 | 95 (10.5×) | 1.8–2.0 s |
+
+Every Core ML crash is the same: `SIGSEGV` in `libBNNS` (`BNNSGraphContextExecute_v2`, from
+`E5RT::Ops::BnnsCpuInferenceOperation` on `com.apple.e5rt.concurrentExecutionQueue`) during the
+`tail` stage, though that stage is placed on `.cpuAndGPU`: E5RT still runs part of it on the
+CPU. Calls 1, 2 and 19 crashed on both routings, two of them as a fresh process's first call, so
+some inputs crash it whatever came before. The ONNX run's footprint grew from about 480 MB to
+1.9 GB over the 320 calls.
 
 Only the ONNX route needs the model patch: the fp16 model can output an all-NaN chunk (an exact
 fp16 0/0 inside the generator's `atan2`, exported as `Atan(Div(imag, real))`).
@@ -94,7 +110,8 @@ marker (`ListenTiming/engine_inflight.json`) around every call of an engine whos
 decides (`SpeechEngineProvider.recover(from:playing:)`; engines without a hook switch to Apple).
 Kokoro answers with `KokoroCrashRecovery`:
 
-- a Core ML route crash → the ONNX route, and the article reopens at that paragraph;
+- any crash turns the Core ML route off (the setting, so it stays off until turned on again);
+- a Core ML crash → the ONNX route, and the article reopens at that paragraph;
 - an ONNX crash → ONNX again and the same resume; a second ONNX crash without 40 healthy calls in
   between → Apple, with a notice in Settings ("Tap Kokoro to try again");
 - resume auto-plays when the crash was under 20 minutes ago and something was playing

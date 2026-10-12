@@ -131,6 +131,9 @@ enum AppComposition {
         // Kokoro runs on the ONNX CPU route: drop the unused Core ML stages (≈82 MB) unless the
         // debug fast GPU route is on. Vocab, voice packs, G2P and lexicon stay.
         DispatchQueue.global(qos: .utility).async {
+            #if DEBUG
+            if KokoroStressRun.usesCoreML { return } // it loads the stages itself
+            #endif
             let freed = FluidAudioProvider.cleanUpUnusedCoreMLStages()
             guard freed > 0 else { return }
             ListenTimingLog.log("kokoro_coreml_cleanup", ["bytes": freed])

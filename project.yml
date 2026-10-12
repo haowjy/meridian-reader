@@ -68,6 +68,11 @@ targets:
       # not the packages' resource bundles. A normal build leaves them as they are here.
       BUNDLE_ID_SUFFIX: ""
       APP_DISPLAY_NAME: Meridian Reader
+      # Extra Swift conditions for this target only. A device measurement build sets
+      # `READER_EXTRA_CONDITIONS=DEBUG` on a Release build: optimized, with the Debug-only launch
+      # hooks (`-KokoroStress`, `-engineProbe`) compiled in, and the packages left as Release.
+      READER_EXTRA_CONDITIONS: ""
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) $(READER_EXTRA_CONDITIONS)
       PRODUCT_BUNDLE_IDENTIFIER: com.jimmyyao.Reader$(BUNDLE_ID_SUFFIX)
       DEVELOPMENT_TEAM: JMYU8K3WZN
       CODE_SIGN_STYLE: Automatic

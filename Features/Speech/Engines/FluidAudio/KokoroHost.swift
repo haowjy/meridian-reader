@@ -1,10 +1,10 @@
 import FluidAudio
 import Foundation
 
-/// Kokoro 82M via FluidAudio `KokoroAneManager` (vendored v0.16.1, `TTS/KokoroAne`) — the
-/// **Core ML route**. Only used when the debug toggle "Kokoro fast GPU route
-/// (may crash on iOS 26.4+)" is on; the default is `KokoroCPUHost` (ONNX CPU). Never renders in
-/// the background (`rendersInBackground` = false).
+/// Kokoro 82M via FluidAudio `KokoroAneManager` (vendored v0.16.1, `TTS/KokoroAne`): the Core ML
+/// half of the **Core ML route** (`KokoroSplitHost`, which hands background calls to ONNX). Only
+/// used when the debug toggle "Kokoro fast GPU route (may crash on iOS 26.4+)" is on; the default
+/// is `KokoroCPUHost` (ONNX CPU).
 /// Thin host: download + load, one `synthesizeDetailed` call, map overflow errors.
 /// Chunking / re-split / gate / crash guard / CAF live in `LocalChunkRenderer`.
 ///
@@ -26,21 +26,16 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
 
     static let defaultVoice = KokoroAneConstants.defaultVoice // "af_heart"
 
-    /// Compute routing. On iOS 26.4–26.x all stages run on `.cpuAndGPU` except the vocoder on
-    /// `.cpuAndNeuralEngine` ("gpuAneVocoder"): FluidAudio's default ANE routing crashed in libBNNS
-    /// on an iPhone 17 Pro / iOS 26.6.2; gpuAneVocoder ran ~180 calls crash-free at ~18×.
-    /// Debug knob: `-kokoroUnits default|cpuAndGpu|cpuOnly|allAne|aneTailCpu|gpuAneVocoder|aneFrontGpuBack`.
+    /// Compute routing: `aneTailGpu` (FluidAudio #667) on every OS: the RNN stages on
+    /// `.cpuAndNeuralEngine`, noise and the iSTFT tail on `.cpuAndGPU`, so the tail never runs on
+    /// the CPU (BNNS). Pinned rather than FluidAudio's `.default`, which moves noise and tail to
+    /// `.cpuOnly` on OS 27.
+    /// Debug knob: `-kokoroUnits default|cpuAndGpu|cpuOnly|allAne|aneTailGpu|aneTailCpu|gpuAneVocoder|aneFrontGpuBack`.
     let unitsLabel: String
     var routingLabel: String? { unitsLabel }
     var routeTag: String? { KokoroRoute.coreMLGPU.rawValue }
 
-    static var defaultUnitsLabel: String {
-        let v = ProcessInfo.processInfo.operatingSystemVersion
-        #if os(iOS)
-        if v.majorVersion == 26, v.minorVersion >= 4 { return "gpuAneVocoder" }
-        #endif
-        return "default"
-    }
+    static let defaultUnitsLabel = "aneTailGpu"
 
     static var launchArgUnits: String? {
         #if DEBUG
@@ -61,6 +56,7 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
         case "cpuAndGpu": units = .cpuAndGpu
         case "cpuOnly": units = .cpuOnly
         case "allAne": units = .allAne
+        case "aneTailGpu": units = .aneTailGpu
         case "aneTailCpu": units = .aneTailCpu
         case "gpuAneVocoder":
             units = KokoroAneComputeUnits(
@@ -84,7 +80,7 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
         lock.withLock { self.voice = voice }
     }
 
-    private var currentVoice: String {
+    var currentVoice: String {
         lock.withLock { voice }
     }
 
