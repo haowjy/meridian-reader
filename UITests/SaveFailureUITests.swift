@@ -90,7 +90,7 @@ final class SaveFailureUITests: XCTestCase {
         XCTAssertTrue(eventually(3) { remove.isEnabled }, "Bonds selected")
 
         remove.tap()
-        let folderOnly = app.buttons["deleteFolderOnly"].firstMatch
+        let folderOnly = app.buttons["deleteFolderAndContents"].firstMatch
         XCTAssertTrue(folderOnly.waitForExistence(timeout: 3), "the delete question")
         let cancel = app.buttons["Cancel"].firstMatch
         if cancel.exists && cancel.isHittable {

@@ -26,7 +26,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **Edit and the dialogs live in `LibraryScreenState`**, one per surface (the Library, the
   Favorites sheet), shared through the environment: the bottom bar acts on the selection, and
   `libraryDialogs` shows delete / rename / new folder once. The delete question is
-  `FolderDeletePrompt` (unit-tested): never *Folder Only* when a book or series is selected.
+  `FolderDeletePrompt` (unit-tested): one destructive choice, deleting with contents (no keep-contents choice, D18).
 - **One ⋯ for both surfaces.** `LibraryScreenMenu` decides the rows and actions for the screen on
   top; `LibrarySurface` and `FavoritesSheet` each supply their root and big-button actions. A
   system sheet hosts its own morph panel (`moreMenuHost`), since the shell's sits under sheets.

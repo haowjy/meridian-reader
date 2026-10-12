@@ -1,17 +1,15 @@
 import Foundation
 
 /// What deleting folders asks (`libraryDialogs`): its title, the line saying what goes, and the
-/// choices. Plain folders offer *Delete Folder Only* (their contents move up one level) or
-/// *Delete Folder and Contents*. A book or series is always deleted with its chapters
-/// (`LibraryStore.deleteFolders`), so a selection holding one never offers *Folder Only*: its
-/// choices name the books, and the message says they go either way.
+/// one choice. Deleting a folder always deletes what it holds: *Delete Folder and Contents* (or
+/// *Delete Book* for books and series), plus Cancel. There is no keep-contents choice.
 struct FolderDeletePrompt: Equatable {
     struct Choice: Equatable {
         var title: String
         /// Plain folders' contents move up (books and series go whatever this says).
         var keepsContents: Bool
         var id: String
-        /// Deletes pages: everything but *Delete Folder Only*.
+        /// Every choice deletes pages.
         var isDestructive = true
     }
 
@@ -55,11 +53,9 @@ struct FolderDeletePrompt: Equatable {
             let one = plain.count == 1
             title = one ? "Delete the folder “\(plain[0].displayName)”?" : "Delete \(plain.count) folders?"
             if let summary = inside.summary {
-                lines.append("\(one ? "It holds" : "They hold") \(summary). Delete \(one ? "Folder" : "Folders") Only moves them up one level.")
+                lines.append("\(one ? "It holds" : "They hold") \(summary). They're deleted too.")
             }
             choices = [
-                Choice(title: one ? "Delete Folder Only" : "Delete Folders Only", keepsContents: true, id: "deleteFolderOnly",
-                       isDestructive: false),
                 Choice(title: one ? "Delete Folder and Contents" : "Delete Folders and Contents", keepsContents: false,
                        id: "deleteFolderAndContents"),
             ]
@@ -68,14 +64,12 @@ struct FolderDeletePrompt: Equatable {
             let folderNoun = one ? "1 folder" : "\(plain.count) folders"
             title = "Delete \(folderNoun) and \(books.lower)?"
             let named = fixed.count == 1 ? "“\(fixed[0].displayName)” is" : "The \(books.lower) are"
-            lines.append("\(named) deleted with \(fixed.count == 1 ? "its" : "their") chapters and downloads either way.")
+            lines.append("\(named) deleted with \(fixed.count == 1 ? "its" : "their") chapters and downloads.")
             if let summary = inside.summary {
                 lines.append("\(one ? "The folder holds" : "The folders hold") \(summary).")
             }
             choices = [
-                Choice(title: "Delete \(books.title), Keep Folder Contents", keepsContents: true,
-                       id: "deleteBooksKeepFolderContents"),
-                Choice(title: "Delete Everything", keepsContents: false, id: "deleteFolderAndContents"),
+                Choice(title: one ? "Delete Folder and Contents" : "Delete Folders and Contents", keepsContents: false, id: "deleteFolderAndContents"),
             ]
         }
         // A choice keeping contents deletes only the books and series (`LibraryStore.deleteFolders`).

@@ -1,8 +1,7 @@
 import XCTest
 
 /// Folders at any depth: a folder made inside a folder, a page filed there from the Reader's 🔖 in
-/// two taps (long-press, a folder), Delete Folder Only moving the contents up (and never offered
-/// with a book), the Move tree's New Folder Inside, Edit moving several pages at once, and
+/// two taps (long-press, a folder), deleting a folder with its contents (the only choice), the Move tree's New Folder Inside, Edit moving several pages at once, and
 /// long-press → *Select* entering Edit with that row selected.
 /// Offline: the demo folders and the test pages.
 final class FolderUITests: XCTestCase {
@@ -32,26 +31,24 @@ final class FolderUITests: XCTestCase {
         XCTAssertTrue(libraryRow(app, "Second page").waitForExistence(timeout: 5), "filed in Notes")
     }
 
-    func testDeleteFolderOnlyMovesItsContentsUp() throws {
+    /// Deleting a folder offers only *Delete Folder and Contents* (and Cancel); its pages go too.
+    func testDeletingAFolderDeletesItsContents() throws {
         let app = launchLibrary()
         openFolder(app, "Demo Finance")
-        XCTAssertFalse(libraryRow(app, "Coupon Basics").exists, "inside Bonds for now")
         libraryRow(app, "Bonds").press(forDuration: 1.0)
         let delete = app.buttons["Delete…"]
         XCTAssertTrue(delete.waitForExistence(timeout: 3), "the row's menu")
         delete.tap()
-        let folderOnly = app.buttons["deleteFolderOnly"].firstMatch
-        XCTAssertTrue(folderOnly.waitForExistence(timeout: 3), "Delete Folder Only / and Contents")
-        XCTAssertTrue(app.buttons["deleteFolderAndContents"].firstMatch.exists)
-        folderOnly.tap()
+        let all = app.buttons["deleteFolderAndContents"].firstMatch
+        XCTAssertTrue(all.waitForExistence(timeout: 3), "Delete Folder and Contents")
+        XCTAssertFalse(app.buttons["deleteFolderOnly"].exists, "no Delete Folder Only")
+        all.tap()
         XCTAssertTrue(eventually(5) { !self.libraryRow(app, "Bonds").exists }, "Bonds is gone")
-        XCTAssertTrue(libraryRow(app, "Coupon Basics").waitForExistence(timeout: 5), "its page moved up")
+        XCTAssertFalse(libraryRow(app, "Coupon Basics").exists, "its page went with it")
     }
 
-    /// Edit → a plain folder and a book → Remove: no *Delete Folder Only* (the book can't keep
-    /// its chapters without it); the choices name the book. Keeping folder contents moves the
-    /// folder's page up and deletes the book.
-    func testRemovingAFolderAndABookTogetherNeverOffersFolderOnly() throws {
+    /// Edit → a plain folder and a book → Remove: one choice, deleting both with their contents.
+    func testRemovingAFolderAndABookTogetherDeletesEverything() throws {
         let app = launchLibrary()
         openFolder(app, "The Demo Book")
         app.buttons["libraryMore"].tap()
@@ -65,17 +62,14 @@ final class FolderUITests: XCTestCase {
         libraryRow(app, "Bonds").tap()
         libraryRow(app, "The Demo Book").tap()
         app.buttons["editRemove"].tap()
-        let keep = app.buttons["deleteBooksKeepFolderContents"].firstMatch
-        XCTAssertTrue(keep.waitForExistence(timeout: 3), "the delete question")
-        XCTAssertFalse(app.buttons["deleteFolderOnly"].exists, "no Delete Folder Only")
-        XCTAssertEqual(keep.label, "Delete Book, Keep Folder Contents")
-        XCTAssertEqual(app.buttons["deleteFolderAndContents"].firstMatch.label, "Delete Everything")
-        XCTAssertTrue(app.staticTexts["“The Demo Book” is deleted with its chapters and downloads either way. The folder holds 1 page."]
-            .exists, "says the book goes either way")
-        keep.tap()
+        let all = app.buttons["deleteFolderAndContents"].firstMatch
+        XCTAssertTrue(all.waitForExistence(timeout: 3), "the delete question")
+        XCTAssertFalse(app.buttons["deleteBooksKeepFolderContents"].exists, "no keep-contents choice")
+        XCTAssertEqual(all.label, "Delete Folder and Contents")
+        all.tap()
         XCTAssertTrue(eventually(5) { !self.libraryRow(app, "Bonds").exists }, "Bonds is gone")
         XCTAssertFalse(libraryRow(app, "The Demo Book").exists, "so is the book")
-        XCTAssertTrue(libraryRow(app, "Coupon Basics").waitForExistence(timeout: 5), "Bonds' page moved up")
+        XCTAssertFalse(libraryRow(app, "Coupon Basics").exists, "and Bonds' page")
     }
 
     /// In the Move tree, a folder's long-press → *New Folder Inside* makes the folder in it, and
