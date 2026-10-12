@@ -30,10 +30,20 @@ struct KokoroRouteSettings {
     static let fastGPURouteKey = "reader.tts.kokoro.fastGPURoute"
     static let cpuThreadsKey = "reader.tts.kokoro.cpuThreads"
     static let onnxCrashCountKey = "reader.tts.kokoro.onnxCrashCount"
-    /// Default ONNX intra-op threads. 3 of the A19 Pro's 2P+4E cores: leaves a core for the UI and
-    /// audio; ORT with 3 threads ran ≈4–5× real time on the M3 Mac. Debug-overridable.
-    static let defaultThreads = 3
+    /// ONNX intra-op threads in front by default: every core but one (the UI, audio and the render
+    /// queue's own work keep that one), at least 3, at most 6. 5 on an iPhone 17 Pro (2
+    /// performance + 4 efficiency cores). ORT splits a matrix multiply into one piece per thread,
+    /// so the piece on an efficiency core finishes last and the rest wait for it: at 3 threads the
+    /// phone rendered ≈2.6× real time, below a Mac's 3 performance cores (≈3.5×) though its
+    /// performance cores are faster. More, smaller pieces shorten that wait. Debug-overridable
+    /// (`cpuThreads`); the CPU route benchmark measures 2–6.
+    static var defaultThreads: Int { foregroundThreads(cores: ProcessInfo.processInfo.activeProcessorCount) }
+    static let minimumForegroundThreads = 3
     static let threadRange = 1...6
+
+    static func foregroundThreads(cores: Int) -> Int {
+        min(max(cores - 1, minimumForegroundThreads), threadRange.upperBound)
+    }
     /// ONNX intra-op threads while the app is in the background, whatever `cpuThreads` says: iOS
     /// kills a backgrounded app that keeps several cores busy (it died about a minute after the
     /// phone locked, rendering at 3 threads).

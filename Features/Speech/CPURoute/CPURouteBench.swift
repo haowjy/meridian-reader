@@ -14,9 +14,9 @@ import UIKit
 /// - Frontend: FluidAudio's phonemizer without Core ML (`KokoroAneCPUFrontend` via
 ///   `KokoroCPUHost`) + `vocab.json` + `af_heart` pack (style row `pack[len-1]`). Phonemes are
 ///   cached; the soak never phonemizes.
-/// - Benchmark: threads 1/2/3/4 @ `.userInitiated`, 3 @ `.utility`, and 3 @ `.userInitiated`
-///   with ORT spinning off. Bake queue paused and `SynthRenderGate` held → never overlaps a
-///   Kokoro Core ML call.
+/// - Benchmark: threads 1–6 @ `.userInitiated` with ORT spinning off (as the app runs them),
+///   5 @ `.utility`, and 5 with spinning on. Bake queue paused and `SynthRenderGate` held →
+///   never overlaps a Kokoro Core ML call.
 /// - Soak: 3 threads @ `.userInitiated`, renders the 501/190-token inputs in a loop for N min
 ///   while Listen playback or a silent audio loop keeps the app alive in the background.
 /// - Results: on screen + `Application Support/ListenTiming/cpubench.jsonl`; sample WAV
@@ -35,16 +35,20 @@ final class CPURouteBench {
         }
     }
 
+    /// The app's sessions (spinning off): the background's 1 thread, 2–6 in front (the default is
+    /// `KokoroRouteSettings.defaultThreads`), bake-ahead's `.utility` caller, and spinning on.
     static let configs: [Config] = [
-        Config(threads: 1, qos: .userInitiated, spinning: true),
-        Config(threads: 2, qos: .userInitiated, spinning: true),
-        Config(threads: 3, qos: .userInitiated, spinning: true),
-        Config(threads: 4, qos: .userInitiated, spinning: true),
-        Config(threads: 3, qos: .utility, spinning: true),
+        Config(threads: 1, qos: .userInitiated, spinning: false),
+        Config(threads: 2, qos: .userInitiated, spinning: false),
         Config(threads: 3, qos: .userInitiated, spinning: false),
+        Config(threads: 4, qos: .userInitiated, spinning: false),
+        Config(threads: 5, qos: .userInitiated, spinning: false),
+        Config(threads: 6, qos: .userInitiated, spinning: false),
+        Config(threads: 5, qos: .utility, spinning: false),
+        Config(threads: 5, qos: .userInitiated, spinning: true),
     ]
     /// The config whose 501-token render is saved as the A/B sample.
-    static let sampleConfigIndex = 2
+    static let sampleConfigIndex = 4
 
     struct Row: Identifiable, Equatable {
         let id = UUID()

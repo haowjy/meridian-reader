@@ -564,7 +564,8 @@ there got the app killed by iOS about a minute after the phone locked (3 threads
 So in the background:
 
 - **One thread.** Kokoro's ONNX session runs 1 intra-op thread in the background and the
-  configured count (3) in front. ONNX Runtime fixes the count when a session is built, so the
+  configured count in front (every core but one, 3 to 6: 5 on an iPhone 17 Pro;
+  `KokoroRouteSettings.defaultThreads`). ONNX Runtime fixes the count when a session is built, so the
   first call after a phase change rebuilds the session, between chunks (`KokoroONNXSessionSlot`,
   `kokoro_cpu_threads_switch`); the old session is released first.
 - **Bursts between watermarks** (`BackgroundRenderWatermarks`, `BackgroundRenderBursts`). The
@@ -657,7 +658,7 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   whether chapter 2 became audible, and app, lock and audio state on each line), and the unified
   log, category `LockedFetchProbe`.
 - `-selectEngine local.kokoro|apple`, `-kokoroUnits <label>` (Core ML route routing).
-- **CPU route benchmark** (panel → "CPU route benchmark"): `KokoroONNXSession` at 1–4 threads and
+- **CPU route benchmark** (panel → "CPU route benchmark"): `KokoroONNXSession` at 1–6 threads and
   QoS variants on a fixed 501-phoneme passage and its first three sentences (load ms, cold / warm
   times, × real time, CPU-s per audio-s, thermal, memory), plus a lock-screen soak that renders
   continuously for N minutes. Pauses the queue and holds the render gate. Output

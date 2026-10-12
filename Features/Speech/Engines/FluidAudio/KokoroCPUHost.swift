@@ -14,7 +14,8 @@ import Foundation
 ///   so cached audio keeps its "kokoro.<voice>" key and all curated voices work.
 /// - Style vector = voice-pack row `len(phonemes) − 1` (FluidAudio / kokoro-onnx rule); output ×0.69
 ///   to match the Core ML route's loudness (ONNX measured ≈3 dB louder).
-/// - Threads: `KokoroRouteSettings.cpuThreads` (default 3) while the app is in front, one in the
+/// - Threads: `KokoroRouteSettings.cpuThreads` (default: every core but one, 5 on an iPhone 17
+///   Pro) while the app is in front, one in the
 ///   background (`KokoroRouteSettings.onnxThreads`). ORT fixes the count when a session is
 ///   created, so the first call after a phase change rebuilds the session at the other count
 ///   (`KokoroONNXSessionSlot`, ≈0.5 s on device; logged `kokoro_cpu_threads_switch`). Sessions are

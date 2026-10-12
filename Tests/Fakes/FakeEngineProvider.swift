@@ -15,6 +15,9 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
         var secondsPerChar = 0.05
         /// Behave like Kokoro's ONNX CPU route (may render while backgrounded).
         var rendersInBackground = false
+        /// Calls (1-based, every call counted) that throw `engineUnavailable` and leave the host
+        /// unprepared, as Kokoro's ONNX host does when rebuilding its session for a phase fails.
+        var failingCalls: Set<Int> = []
     }
 
     struct FakeError: LocalizedError { var errorDescription: String? { "fake engine failure" } }
@@ -27,6 +30,7 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
     private let config: Config
     private let lock = NSLock()
     private var prepared = false
+    private var _prepares = 0
     private var _calls: [(text: String, ok: Bool)] = []
 
     init(engineID: SpeechEngineID, config: Config) {
@@ -36,14 +40,23 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
 
     var calls: [(text: String, ok: Bool)] { lock.withLock { _calls } }
     var isPrepared: Bool { lock.withLock { prepared } }
+    /// Loads, the first included.
+    var prepares: Int { lock.withLock { _prepares } }
 
     func prepare() async throws {
         onProgress?(1)
-        lock.withLock { prepared = true }
+        lock.withLock { prepared = true; _prepares += 1 }
     }
 
     func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM {
         if config.latency > 0 { try await Task.sleep(nanoseconds: UInt64(config.latency * 1e9)) }
+        let unloads: Bool = lock.withLock {
+            guard config.failingCalls.contains(_calls.count + 1) else { return false }
+            _calls.append((text, false))
+            prepared = false
+            return true
+        }
+        if unloads { throw LocalSynthError.engineUnavailable("fake session rebuild failed") }
         if config.failAlways {
             lock.withLock { _calls.append((text, false)) }
             throw FakeError()

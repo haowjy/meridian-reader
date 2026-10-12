@@ -120,6 +120,24 @@ final class SynthPipelineTests: XCTestCase {
         XCTAssertEqual(ctx.completed, [key])
     }
 
+    /// A call that fails and unloads the engine (Kokoro's ONNX session rebuilt for a phase change,
+    /// and the rebuild failed): that chunk renders with Apple, the next one loads the engine again
+    /// and renders with it. Nothing silent, nothing skipped.
+    func testAFailedCallThatUnloadsTheEngineFallsBackForThatChunkOnly() async throws {
+        let provider = FakeEngineProvider(config: .init(failingCalls: [2]))
+        let (queue, ctx) = makeQueue(provider)
+        let key = UUID()
+        let paragraphs = ["One is short.", "Two is short.", "Three is short."]
+        queue.openArticle(cacheKey: key, paragraphs: paragraphs, voiceID: "v", isEphemeral: false)
+        try await waitIdle(queue)
+        XCTAssertEqual(ctx.host.calls.map(\.ok), [true, false, true])
+        XCTAssertEqual(ctx.fallbackTexts, ["Two is short."], "only the failed chunk")
+        XCTAssertEqual(ctx.host.prepares, 2, "loaded again for the next chunk")
+        for i in paragraphs.indices {
+            XCTAssertNotNil(ctx.audioCache.audioURL(articleID: key, paragraphIndex: i, engineID: ctx.cacheEngineID, voiceID: "v"))
+        }
+    }
+
     func testOverflowThatCannotResplitFallsBackToApple() async throws {
         let provider = FakeEngineProvider(config: .init(maxCharsPerCall: 3))
         let (queue, ctx) = makeQueue(provider)

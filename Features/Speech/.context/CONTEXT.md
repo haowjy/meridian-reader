@@ -53,6 +53,11 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
 - **Model calls.** One at a time (`SynthRenderGate`), never a Core ML call in the background
   (`RenderAdmission`). Every extra Kokoro call is exposure to an uncatchable crash on iOS 26.4+, so
   don't add re-renders: `BrowseSaveWhilePlayingTests` pins the call count.
+- **Thread counts are per phase.** In front the ONNX session runs every core but one (3 to 6,
+  `KokoroRouteSettings.defaultThreads`), in the background one; the first call after a phase
+  change rebuilds the session (`KokoroONNXSessionSlot`). Pick the front count from the CPU route
+  benchmark on a device, not from the Mac (`KokoroONNXThreadSweepTests` is only a proxy: a Mac
+  has more performance cores than an iPhone's two).
 - **Background rendering is budgeted.** On the ONNX route the background gets one thread and
   bake-ahead runs only in bursts between the watermarks (`BackgroundRenderWatermarks`); between
   bursts the worker is idle until playback wakes it (`GlobalSynthQueue.playbackAdvanced`, called
