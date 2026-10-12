@@ -44,7 +44,7 @@ struct LibraryPageRow: View {
                 playState: page.isLink && !isChapter ? .idle : actions.playState(of: page),
                 onPlay: page.isLink || page.skipsInPlayback || isEditing ? nil : { actions.play(page) },
                 insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil,
-                isDownloaded: page.isInLibrary && downloads.isDownloaded(page))
+                isDownloaded: page.isInLibrary && downloads.isDownloaded(page), isFavorite: page.isFavorite)
             .opensOnTap(isEditing ? nil : { actions.open(page) })
             .libraryDropRow(.page(page.listenKey), in: screen)
             .libraryDrag(dragID, in: screen)
@@ -112,6 +112,15 @@ struct LibraryPageRow: View {
                 Button("Delete Downloads", systemImage: "trash.circle") { downloads.deleteDownloads(of: page) }
             }
             Button("Remove from Library", systemImage: "trash", role: .destructive) { actions.remove([page]) }
+        }
+        if let url = page.url, LibraryStore.canFavorite(url) {
+            Button(page.isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                   systemImage: page.isFavorite ? "star.slash" : "star") {
+                shell.attempt(page.isFavorite ? "Couldn’t remove favorite" : "Couldn’t add favorite") {
+                    if page.isFavorite { try library.removeFavorite(page) }
+                    else { _ = try library.addFavorite(url: url, title: page.title, artwork: page.artworkData) }
+                }
+            }
         }
     }
 }
@@ -198,10 +207,10 @@ struct LibraryFolderRow: View {
             ListRow(kind: kind, title: folder.displayName, subtitle: place(progress), progress: rowProgress(progress),
                     playState: actions.playState(of: folder), opensScreen: true,
                     onPlay: isEditing ? nil : { actions.playFolder(folder) }, isDropTarget: isDropTarget,
-                    insertionEdge: edge, isDownloaded: isDownloaded)
+                    insertionEdge: edge, isDownloaded: isDownloaded, isFavorite: folder.isFavorite)
         } else {
             ListRow(kind: kind, title: folder.displayName, subtitle: folder.byline, opensScreen: true,
-                    isDropTarget: isDropTarget, insertionEdge: edge)
+                    isDropTarget: isDropTarget, insertionEdge: edge, isFavorite: folder.isFavorite)
         }
     }
 
@@ -232,6 +241,12 @@ struct LibraryFolderRow: View {
         if !livePages.isEmpty, !downloads.isQueued(.folder(folder.id)) {
             Button("Download", systemImage: "arrow.down.circle") {
                 DownloadActions(downloads: downloads, shell: shell).download(folder)
+            }
+        }
+        Button(folder.isFavorite ? "Remove from Favorites" : "Add to Favorites",
+               systemImage: folder.isFavorite ? "star.slash" : "star") {
+            shell.attempt(folder.isFavorite ? "Couldn’t remove favorite" : "Couldn’t add favorite") {
+                try library.toggleFavorite(folder)
             }
         }
         if folder.kind != .favorites {

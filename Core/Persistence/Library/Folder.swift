@@ -43,6 +43,8 @@ final class Folder {
     var createdAt: Date = Date.now
     /// A book's or series' is *Manual* until changed: its pages start in the source's order.
     var pageSortRaw: String = PageSort.manual.rawValue
+    /// An item can be favorited without changing where it lives in the tree.
+    var isFavorite: Bool = false
 
     // Details. A book or series starts with its source's; any folder's are edited in *Edit
     // Details* (`LibraryStore.setDetails`). Favorites has none.
@@ -89,10 +91,7 @@ final class Folder {
         set { pageSortRaw = newValue.rawValue }
     }
 
-    /// The name shown: Favorites is named from its kind.
-    var displayName: String {
-        kind == .favorites ? String(localized: "Favorites") : name
-    }
+    var displayName: String { name }
 
     /// It has a cover or a byline: its screen has the header with the cover and the author, and its
     /// row the cover (decision D17). Details change only the look.

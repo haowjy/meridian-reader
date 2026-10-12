@@ -69,6 +69,7 @@ struct ListRow: View {
     /// Its audio is downloaded (a folder's: every page its download covers): a small mark ends
     /// the second line.
     var isDownloaded = false
+    var isFavorite = false
 
     /// 56 pt at the default text size; larger text grows the row through its content, and the
     /// minimum only up to `BottomChrome.maxTextGrowth`.
@@ -86,11 +87,19 @@ struct ListRow: View {
                 leading
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(title)
-                        .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
-                        .foregroundStyle(titleColor)
-                        .lineLimit(2)
-                        .accessibilityValue(accessibilityStatus)
+                    HStack(spacing: Spacing.xs) {
+                        Text(title)
+                            .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
+                            .foregroundStyle(titleColor)
+                            .lineLimit(2)
+                            .accessibilityValue(accessibilityStatus)
+                        if isFavorite {
+                            Image(systemName: "star.fill")
+                                .font(.caption)
+                                .foregroundStyle(Palette.accent)
+                                .accessibilityHidden(true)
+                        }
+                    }
                     secondLine
                         .accessibilityHidden(true)
                 }
