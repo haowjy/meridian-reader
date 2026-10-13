@@ -33,20 +33,21 @@ final class ReopenSurfaceUITests: XCTestCase {
         XCTAssertTrue(again.navigationBars["Demo Finance"].waitForExistence(timeout: 5), "under Demo Finance")
     }
 
-    /// Browse a page, open a folder in the Library, leave: relaunched on the Library, 🌐 shows
-    /// the page you were on.
+    /// Browse a page, leave on the Library's Favorites tab: relaunched there, 🌐 shows the page
+    /// you were on.
     func testLeftInTheLibraryTheGlobeReopensTheBrowsersPage() throws {
         let app = launchTestPages()
         openTestPage(app, "Next page")
         app.buttons["browseLibrary"].tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
-        openFolder(app, "Favorites")
+        app.buttons["Favorites"].tap()
         app.terminate()
 
         let again = XCUIApplication()
         again.launchArguments = ["-uiTesting", "-browseTestPages", "-selectEngine", "apple", "-restoreSurface"]
         again.launch()
-        XCTAssertTrue(again.navigationBars["Favorites"].waitForExistence(timeout: 10), "the Library at Favorites")
+        XCTAssertTrue(again.libraryHome.waitForExistence(timeout: 10), "the Library at Favorites")
+        XCTAssertTrue(again.buttons["Favorites"].isSelected)
         again.buttons["libraryBrowser"].tap()
         XCTAssertTrue(again.staticTexts["Second page"].waitForExistence(timeout: 10), "🌐: the page you left")
         XCTAssertEqual(again.textFields["addressField"].value as? String, "pages/two")

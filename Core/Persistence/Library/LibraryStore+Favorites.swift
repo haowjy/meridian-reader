@@ -3,12 +3,10 @@ import SwiftData
 
 /// What ☆ on a page leads to (`LibraryStore.favoriteRequest`).
 enum FavoriteRequest {
-    /// Not a favorite yet: one tap adds it at the end of Favorites.
+    /// Not a favorite yet: one tap sets its independent flag.
     case add
-    /// Already a favorite: ☆ takes it out.
+    /// Already a favorite: ☆ clears its independent flag.
     case remove(Page)
-    /// Filed in another folder (a series' chapter too): ask *Move it to Favorites?*
-    case moveFromFolder(Page, Folder)
 }
 
 /// Favorites are flags on pages and folders, independent of their location. Adding, removing and
@@ -31,8 +29,7 @@ extension LibraryStore {
         return page.isFavorite
     }
 
-    /// What ☆ on the page at `url` leads to. One page per address: a page filed in another folder
-    /// moves to Favorites only once you agree.
+    /// What ☆ on the page at `url` leads to. Its tree location never changes.
     func favoriteRequest(for url: URL) -> FavoriteRequest {
         guard let existing = page(url: url) else { return .add }
         if Self.isFavorite(existing) { return .remove(existing) }
@@ -85,20 +82,22 @@ extension LibraryStore {
     /// Converts the old pinned Favorites folder once. Children keep their structure; direct
     /// pages become loose at the root. The folder is deleted only in the same saved edit.
     func migrateFavoritesFolder() {
-        guard let legacy = (try? context.fetch(LibraryQueries.favorites).first) else { return }
+        let legacyFolders = (try? context.fetch(LibraryQueries.favorites)) ?? []
+        guard !legacyFolders.isEmpty else { return }
         do {
             try edit("migrate favorites folder") {
-                legacy.isFavorite = false
-                for page in legacy.pages ?? [] {
-                    page.isFavorite = true
-                    page.sortKey = nextSortKey(in: nil)
-                    page.setFolder(nil)
+                for legacy in legacyFolders {
+                    for page in legacy.pages ?? [] {
+                        page.isFavorite = true
+                        page.sortKey = nextSortKey(in: nil)
+                        page.setFolder(nil)
+                    }
+                    for folder in legacy.children ?? [] {
+                        folder.parent = nil
+                        markFavorite(folder)
+                    }
+                    context.delete(legacy)
                 }
-                for folder in legacy.children ?? [] {
-                    folder.parent = nil
-                    markFavorite(folder)
-                }
-                context.delete(legacy)
             }
         } catch {
             log("favorites migration failed; original folder remains: \(error)")

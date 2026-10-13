@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Developer overlay for local-engine listen gaps / bake queue.
-/// Open: the ⋯ Debug row (Reader, Now Playing, Library, Favorites sheet), Settings → Listen →
+/// Open: the ⋯ Debug row (Reader, Now Playing, Library), Settings → Listen →
 /// Open full panel, the bake overlay, or long-press play/pause. Each sets
 /// `speech.showListenDebug`; `listenDebugSheet` presents it.
 struct ListenDebugPanel: View {
@@ -215,7 +215,7 @@ extension View {
     /// Presents the listen debug panel while `speech.showListenDebug` is on. One host per layer that
     /// can present: the shell's root (`hosts` only while no shell sheet is up, since a presenting
     /// view can't show a second sheet) and each shell sheet with a Debug entry (Voice settings, the
-    /// Favorites sheet).
+    /// Library surface).
     func listenDebugSheet(_ speech: SpeechController, hosts: Bool = true) -> some View {
         sheet(isPresented: Binding(get: { hosts && speech.showListenDebug },
                                    set: { speech.showListenDebug = $0 })) {

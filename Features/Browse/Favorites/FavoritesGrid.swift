@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The Favorites folder on the start page, as Safari shows its Favorites: a grid of its pages
-/// (icon tile and title), then its subfolders as folder tiles. Long-press a page tile to rename
-/// it or take it out of Favorites.
+/// The start page's starred pages and folders, as Safari shows its Favorites: a grid of pages
+/// (icon tile and title), then folders as folder tiles. Long-press a page tile to rename it or
+/// take it out of Favorites.
 struct FavoritesGrid: View {
     let pages: [Page]
     let folders: [Folder]

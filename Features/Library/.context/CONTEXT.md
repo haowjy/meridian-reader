@@ -22,7 +22,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **A draggable row's open menu never lets XCUITest go idle** (the platform's lift and menu
   together; `.draggable` does the same): every UI action while the menu is up waits ~60 s. Tests
   that open a draggable row's menu take ~2 min each; run FolderUITests in two halves.
-  Every surface (the Library, the Favorites sheet) needs its own zone and screen key.
+  The Library surface owns the zone and screen key.
 - **Swipe actions follow AGENTS.md's rule.** A folder's *Delete* only asks, so it takes
   `Palette.destructive`: with the role, *Cancel* would leave the row missing and the delete abort
   in UIKit. A page's *Remove* keeps the role: its action changes the row's data before it returns
@@ -32,13 +32,12 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   loaded traps in SwiftData. Check `isLive` (`isDeleted` reads false again once the delete is
   saved): rows draw `DeletedRow`, a folder's screen `FolderGoneView`, and the home, folder
   screens and search keep only live models.
-- **Edit and the dialogs live in `LibraryScreenState`**, one per surface (the Library, the
-  Favorites sheet), shared through the environment: the bottom bar acts on the selection, and
+- **Edit and the dialogs live in `LibraryScreenState`**, on the Library surface, shared through
+  the environment: the bottom bar acts on the selection, and
   `libraryDialogs` shows delete / rename / new folder once. The delete question is
   `FolderDeletePrompt` (unit-tested): one destructive choice, deleting with contents (no keep-contents choice, D18).
-- **One ⋯ for both surfaces.** `LibraryScreenMenu` decides the rows and actions for the screen on
-  top; `LibrarySurface` and `FavoritesSheet` each supply their root and big-button actions. A
-  system sheet hosts its own morph panel (`moreMenuHost`), since the shell's sits under sheets.
+- **One ⋯ for the Library surface.** `LibraryScreenMenu` decides the rows and actions for the
+  screen on top; the surface supplies its root and big-button actions.
 - **Deletes, removes and Save go through `LibraryStore`'s audio journal** (`planDelete`,
   `planEphemeral`, `planSaved`): the audio changes only after the save, and a failed save is
   rolled back. Work that waited acts on the page as it is when it runs. Save also moves audio
@@ -83,10 +82,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   own; the bar and the button row span the width, so all four edges line up
   (`BookFolderUITests.testHeaderBlocksShareTheCardsEdges` checks them).
 - **Books and series are folders** (decision D19): one screen (`FolderScreen`), one page row
-  (`LibraryPageRow`, which draws a page in a book or series as a chapter), one ⋯
-  (`LibraryMenu.Screen.folder`), one delete question. Nothing refuses a move, a drop, a sort or a
-  subfolder because of `kind`: only cycles and Favorites (`LibraryTreeError`). `kind` is a hint
-  of where a folder came from (`FolderKind.isBookOrSeries`): the chapter look and the row's
+  (`LibraryPageRow`), one ⋯ (`LibraryMenu.Screen.folder`), one delete question. Nothing refuses
+  a move, a drop, a sort or a subfolder because of `kind`: only cycles (`LibraryTreeError`).
+  `kind` is a hint of where a folder came from
+  (`FolderKind.isBookOrSeries`): the row appearance comes from details; kind still supplies
   symbol, *Replace*'s lookup, a series' fetchable links, D7's trim, the bar's source. *Replace*
   finds a book's chapters through its record (`BookSourceState.chapterKeys`), written at import
   and *Replace*, and recorded once at launch for books stored before (`recordBookChapters`).
@@ -99,3 +98,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   the pages its row already sorted); `ListRow` only draws `isDownloaded`.
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way
   (`PageProgress.of`); counts come from relationships, not fetches.
+- **D20 home:** `LibraryHomeView` renders the Everything/Favorites filter and in-list search over
+  one folder/page collection. Star flags never change location; rows outside their parent context
+  show a path. Rows use large artwork and separate Download / Play controls. A folder header has
+  Continue, From Start and Download. Imported pages are standard page rows; folder sort remains
+  the source chapter order until the user changes it. The old Favorites folder is converted by
+  `LibraryStore.migrateFavoritesFolder` before the first screen.

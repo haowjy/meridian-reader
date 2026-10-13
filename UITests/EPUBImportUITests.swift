@@ -24,10 +24,11 @@ final class EPUBImportUITests: XCTestCase {
         let book = app.navigationBars[title]
         XCTAssertTrue(book.waitForExistence(timeout: 30), "lands on the new book")
         XCTAssertTrue(find(app, "folderScreen").exists, "the book's screen")
-        XCTAssertFalse(find(app, "importSheet").exists, "the sheet has gone")
+        XCTAssertTrue(eventually(5) { !self.find(app, "importSheet").exists }, "the sheet has gone")
         XCTAssertTrue(book.buttons["Demo Finance"].exists, "inside Demo Finance (its back button)")
         XCTAssertTrue(libraryRow(app, "Title Page").exists, "the title page is a chapter")
-        XCTAssertEqual(libraryRow(app, "Title Page").value as? String, "Skipped in playback")
+        XCTAssertTrue((libraryRow(app, "Title Page").value as? String)?.contains("Skipped in playback") == true,
+                      "the unified page row keeps its source detail and skipped state")
 
         let play = app.buttons["folderContinue"]
         XCTAssertEqual(play.label, "Play")

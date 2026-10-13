@@ -9,12 +9,12 @@ changing the shell code.
   the prompt. Add a screen by adding a case here, not a presentation flag in a view. The surface
   and path are written to `SurfaceMemory` on every change and restored at launch (D10); a UI-test
   launch doesn't restore unless `-restoreSurface`, so tests start on the browser whatever the
-  last one left. One sheet at a time: the Move tree from inside the Favorites sheet replaces it. It never stores what
+  last one left. One sheet at a time. It never stores what
   you hear: `isHearing` (injected) asks the playback session, so `openReader` of the playing page
   opens Now Playing.
 - **Layers** (`BrowseStartView.layers`): surface → Reader sheet → Now Playing → ⋯ menu → system
   sheets → the shell's prompt. The toast (`ShellToastLayer`) floats over whichever bottom chrome
-  is up (the browser's, the Library's, the Favorites sheet's, the Reader's `floating` slot, Now
+  is up (the browser's, the Library's, the Reader's `floating` slot, Now
   Playing's controls; the Move tree and the import sheet have no chrome, so it floats a toolbar
   row above the sheet's bottom, `sheetToastLayer()`: what shows of a medium-detent sheet ends
   above its content's bottom, which clips a toast anchored there). Each layer showing the toast times it out (`ShellState.expireToast`); a layer

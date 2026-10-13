@@ -23,10 +23,10 @@ its last page (reloaded). A fresh install opens the Library.
 |----|-------------|
 | B1 | The address field takes a URL (loaded in the in-app web view) or search text (a Google search). |
 | B2 | Pages open only by user action; links navigate normally. ‹ / › are web history. |
-| B3 | The start page shows the Favorites folder (its pages as an icon grid, then its subfolders as folder tiles) and Recent Searches. |
+| B3 | The start page shows starred pages and folders as a Favorites icon grid, along with Recent Searches; Show All opens the Library's Favorites tab. |
 | B4 | While typing: local matches (history, saved articles) first, then live Google suggestions (unofficial endpoint, debounced). If Google fails, only local matches show, with no error. |
 | B5 | History keeps the last 30 visited pages (title, host, favicon), deduped by canonical URL. Clearing history never deletes saved articles. |
-| B6 | ☆ *Add to Favorites* keeps the page as a link (URL, title, favicon) at the end of Favorites, without saving it, and offers *Change Folder*. One page per address: a page filed in another folder moves to Favorites only once you agree; a chapter of a book or series offers its book instead; unsaving a favorite keeps it as a link. |
+| B6 | ☆ *Add to Favorites* sets an independent star flag without moving the page. A new favorite may be a link (URL, title, favicon) without being saved; a page already in the Library stays in its folder. One page per address; a chapter can be starred like any other page. |
 | B7 | Dictation fills the address field while searching, on-device where the language allows; nothing is submitted automatically, and listening pauses while the mic is open. |
 | B8 | Loading pages needs the network. |
 | B9 | A readable page shows 🎧 at the end of the address field: grey when it isn't what you hear (tap: listen now, replacing what plays once this page is extracted; "Nothing to listen to on this page" when it has too little text), accent with bars when it is (tap: pause / resume). |

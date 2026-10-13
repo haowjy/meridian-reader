@@ -13,18 +13,30 @@ struct FolderPlayButtons: View {
     let title: (title: String, detail: String?)
     let actions: LibraryActions
 
+    @Environment(DownloadCenter.self) private var downloads
+    @Environment(ShellState.self) private var shell
+
     var body: some View {
-        FolderHeaderButtons { expands in
-            PlayStateButton(state: actions.playState(of: folder),
-                            look: .pill(title: title.title, detail: title.detail, expands: expands)) {
-                actions.playFolder(folder)
+        VStack(spacing: Spacing.xs) {
+            FolderHeaderButtons { expands in
+                PlayStateButton(state: actions.playState(of: folder),
+                                look: .pill(title: title.title, detail: title.detail, expands: expands)) {
+                    actions.playFolder(folder)
+                }
+                .accessibilityIdentifier("folderContinue")
+            } secondary: { expands in
+                PillButton(String(localized: "From Start"), style: .neutral, expands: expands) {
+                    actions.playFolderFromStart(folder)
+                }
+                .accessibilityIdentifier("folderPlayFromStart")
             }
-            .accessibilityIdentifier("folderContinue")
-        } secondary: { expands in
-            PillButton(String(localized: "Play from Start"), style: .neutral, expands: expands) {
-                actions.playFolderFromStart(folder)
+            if !(folder.pages ?? []).isEmpty {
+                PillButton(String(localized: "Download"), style: .neutral) {
+                    DownloadActions(downloads: downloads, shell: shell).download(folder)
+                }
+                .disabled(downloads.isQueued(.folder(folder.id)) || downloads.isDownloaded(folder, pages: folder.pages ?? []))
+                .accessibilityIdentifier("folderDownload")
             }
-            .accessibilityIdentifier("folderPlayFromStart")
         }
     }
 }

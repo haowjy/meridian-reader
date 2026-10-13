@@ -38,9 +38,6 @@ enum AppComposition {
             if speech.activeSessionID == key { speech.stop() }
         }
         library.keyMerged = { from, to, text in speech.rekeyActiveSession(from: from, to: to, text: text) }
-        // Before the first frame: the start page's grid queries Favorites by its id.
-        library.favorites()
-        library.commit("favorites")
         return library
     }
 

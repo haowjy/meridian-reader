@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// A page row: a saved page (its ▶), a link (lighter, 🔗, no ▶), or a page played without saving
-/// ("Not saved", *Save* in its menu; decision D5). A page in a book or series draws as a chapter:
-/// its place in the leading column, no site; front matter dimmed and "skipped" (any page skipped
-/// in playback is), with no ▶; a link chapter (a series chapter not fetched yet) lighter. Tap
+/// ("Not saved", *Save* in its menu; decision D5). Every page uses this same row, including
+/// imported chapters. Front matter is dimmed and "skipped" (any page skipped in playback is),
+/// with no ▶. Tap
 /// opens it (the Reader, Now Playing when it is what you hear, the browser for a link);
 /// long-press is its menu (decision D11); swipe left removes it from the Library. A page in the
 /// Library lifts into a drag from the long press, to be filed in a folder or placed between rows
@@ -11,6 +11,7 @@ import SwiftUI
 /// selection takes the tap.
 struct LibraryPageRow: View {
     let page: Page
+    var subtitleOverride: String?
     /// *Select* in the menu: enters Edit with this row selected (folder screens only).
     var onSelect: (() -> Void)?
     /// Lifts into a drag (not in search results, which have nowhere to drop it).
@@ -25,9 +26,6 @@ struct LibraryPageRow: View {
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
-    /// In a book or series (`FolderKind.isBookOrSeries`): drawn as a chapter.
-    private var isChapter: Bool { page.folder?.kind.isBookOrSeries == true }
-
     private var dragID: LibraryItemID? {
         guard drags, !isEditing, page.isInLibrary else { return nil }
         return .page(page.listenKey)
@@ -41,10 +39,15 @@ struct LibraryPageRow: View {
         ListRow(kind: kind, title: page.title, subtitle: subtitle,
                 note: page.isLink || page.isInLibrary ? nil : String(localized: "Not saved"),
                 progress: page.isLink ? .unplayed(minutes: nil) : PageProgress.of(page),
-                playState: page.isLink && !isChapter ? .idle : actions.playState(of: page),
+                playState: page.isLink ? .idle : actions.playState(of: page),
                 onPlay: page.isLink || page.skipsInPlayback || isEditing ? nil : { actions.play(page) },
                 insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil,
-                isDownloaded: page.isInLibrary && downloads.isDownloaded(page), isFavorite: page.isFavorite)
+                isDownloaded: page.isInLibrary && downloads.isDownloaded(page), isFavorite: page.isFavorite,
+                largeArtwork: true,
+                onDownload: page.isInLibrary ? {
+                    DownloadActions(downloads: downloads, shell: shell).download(page)
+                } : nil,
+                isDownloadQueued: downloads.isQueued(.page(page.listenKey)))
             .opensOnTap(isEditing ? nil : { actions.open(page) })
             .libraryDropRow(.page(page.listenKey), in: screen)
             .libraryDrag(dragID, in: screen)
@@ -58,13 +61,12 @@ struct LibraryPageRow: View {
 
     private var kind: ListRow.Kind {
         if page.isLink { return .link }
-        if isChapter { return .chapter }
         return .page(artwork: page.artworkImage, letter: page.byline.siteLetter)
     }
 
     /// The site; none for a chapter, whose book is on screen ("not fetched yet" for a link one).
     private var subtitle: String? {
-        if isChapter { return page.isLink ? String(localized: "not fetched yet") : nil }
+        if let subtitleOverride { return subtitleOverride }
         return page.byline.isEmpty ? nil : page.byline
     }
 
@@ -125,7 +127,7 @@ struct LibraryPageRow: View {
     }
 }
 
-/// A folder row (a folder you made, Favorites, a book or series, all alike: decision D19): pushes
+/// A folder row (a folder you made, a book or series, all alike: decision D19): pushes
 /// its screen. Its cover, when it has one (a book's, or one given in *Edit Details*), stands in
 /// for the symbol. A folder whose pages play shows its place (the page it is at), the time left
 /// and its own ▶, which resumes it there and carries on page to page; any other folder shows its
@@ -133,6 +135,7 @@ struct LibraryPageRow: View {
 /// let go on it is filed in it. Swipe left asks to delete it (not Favorites).
 struct LibraryFolderRow: View {
     let folder: Folder
+    var subtitleOverride: String?
     /// *Select* in the menu: enters Edit with this row selected (folder screens only).
     var onSelect: (() -> Void)?
 
@@ -164,13 +167,11 @@ struct LibraryFolderRow: View {
             }
             .accessibilityIdentifier("folderRow")
             .libraryDropRow(.folder(folder.id), in: screen)
-            .libraryDrag(folder.kind == .favorites || isEditing ? nil : .folder(folder.id), in: screen)
+            .libraryDrag(isEditing ? nil : .folder(folder.id), in: screen)
             .contextMenu { menu(progress) }
             .swipeActions(edge: .trailing) {
-                if folder.kind != .favorites {
-                    Button("Delete") { screen.confirmDelete([folder]) }
-                        .tint(Palette.destructive)
-                }
+                Button("Delete") { screen.confirmDelete([folder]) }
+                    .tint(Palette.destructive)
             }
     }
 
@@ -200,17 +201,25 @@ struct LibraryFolderRow: View {
 
     @ViewBuilder
     private func row(_ progress: FolderProgress, isDownloaded: Bool) -> some View {
-        let kind = ListRow.Kind.folder(symbol: folder.rowSymbol, count: folder.itemCount, cover: folder.coverImage)
+        let kind = ListRow.Kind.folder(symbol: folder.hasDetails ? "book.closed" : "folder", count: folder.itemCount,
+                                       cover: folder.hasDetails ? folder.coverImage : nil)
         let isDropTarget = screen.dropTarget == folder.id
         let edge = screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil
         if plays(progress) {
-            ListRow(kind: kind, title: folder.displayName, subtitle: place(progress), progress: rowProgress(progress),
+            ListRow(kind: kind, title: folder.displayName, subtitle: subtitleOverride ?? place(progress), progress: rowProgress(progress),
                     playState: actions.playState(of: folder), opensScreen: true,
                     onPlay: isEditing ? nil : { actions.playFolder(folder) }, isDropTarget: isDropTarget,
-                    insertionEdge: edge, isDownloaded: isDownloaded, isFavorite: folder.isFavorite)
+                    insertionEdge: edge, isDownloaded: isDownloaded, isFavorite: folder.isFavorite,
+                    largeArtwork: true,
+                    folderHasDetails: folder.hasDetails,
+                    onDownload: !livePages.isEmpty ? {
+                        DownloadActions(downloads: downloads, shell: shell).download(folder)
+                    } : nil,
+                    isDownloadQueued: downloads.isQueued(.folder(folder.id)))
         } else {
-            ListRow(kind: kind, title: folder.displayName, subtitle: folder.byline, opensScreen: true,
-                    isDropTarget: isDropTarget, insertionEdge: edge, isFavorite: folder.isFavorite)
+            ListRow(kind: kind, title: folder.displayName, subtitle: subtitleOverride ?? folder.byline, opensScreen: true,
+                    isDropTarget: isDropTarget, insertionEdge: edge, isFavorite: folder.isFavorite,
+                    largeArtwork: true, folderHasDetails: folder.hasDetails)
         }
     }
 
@@ -249,12 +258,10 @@ struct LibraryFolderRow: View {
                 try library.toggleFavorite(folder)
             }
         }
-        if folder.kind != .favorites {
-            Button("Move to…", systemImage: "folder") { actions.move([.folder(folder)]) }
-            Button("Rename", systemImage: "pencil") { screen.rename(folder) }
-            Button("Edit Details", systemImage: "square.and.pencil") { shell.present(.folderDetails(folder.id)) }
-            Button("Delete…", systemImage: "trash", role: .destructive) { screen.confirmDelete([folder]) }
-        }
+        Button("Move to…", systemImage: "folder") { actions.move([.folder(folder)]) }
+        Button("Rename", systemImage: "pencil") { screen.rename(folder) }
+        Button("Edit Details", systemImage: "square.and.pencil") { shell.present(.folderDetails(folder.id)) }
+        Button("Delete…", systemImage: "trash", role: .destructive) { screen.confirmDelete([folder]) }
     }
 }
 

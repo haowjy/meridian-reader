@@ -36,16 +36,23 @@ final class LibraryStoreTests: XCTestCase {
         let child = try library.makeFolder(name: "Serials", in: legacy)
         let nestedPage = try library.addLink(url: URL(string: "https://example.com/serial")!, title: "Serial",
                                              artwork: nil, in: child)
+        let duplicateLegacy = Folder(name: "", kind: .favorites)
+        library.context.insert(duplicateLegacy)
+        let duplicatePage = try library.addLink(url: URL(string: "https://example.com/second-link")!, title: "Second link",
+                                                artwork: nil, in: duplicateLegacy)
 
         library.migrateFavoritesFolder()
 
         XCTAssertNil(library.folder(id: legacy.id), "the special folder was removed")
+        XCTAssertNil(library.folder(id: duplicateLegacy.id), "all legacy copies are removed")
         XCTAssertTrue(page.isFavorite)
         XCTAssertNil(page.folder, "direct pages move to the root")
         XCTAssertTrue(child.isFavorite)
         XCTAssertNil(child.parent, "existing subfolders remain available at root")
         XCTAssertTrue(nestedPage.isFavorite)
         XCTAssertIdentical(nestedPage.folder, child, "nested structure remains intact")
+        XCTAssertTrue(duplicatePage.isFavorite)
+        XCTAssertNil(duplicatePage.folder)
     }
 
     func testOnePagePerCanonicalURLWhateverItsState() throws {
@@ -280,10 +287,13 @@ final class LibraryStoreTests: XCTestCase {
     }
 
     func testUnsaveKeepsAFavoriteAsALinkAndRemovesALoosePageOrAChapter() throws {
-        let favorite = try library.save(env.article("https://example.com/fav"), placement: .folder(library.favorites()))
+        let url = URL(string: "https://example.com/fav")!
+        let favorite = try library.save(env.article(url.absoluteString))
+        try library.addFavorite(url: url, title: favorite.title, artwork: nil)
         try library.unsave(favorite)
         XCTAssertTrue(favorite.isLink)
-        XCTAssertEqual(favorite.folder?.kind, .favorites, "still a favorite")
+        XCTAssertNil(favorite.folder, "its location does not change")
+        XCTAssertTrue(favorite.isFavorite, "unsaving preserves the independent favorite flag")
         XCTAssertFalse(favorite.hasText, "never played: no cache to keep")
 
         let loose = try library.save(env.article("https://example.com/loose"))

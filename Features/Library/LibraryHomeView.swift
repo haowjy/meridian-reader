@@ -1,24 +1,10 @@
 import SwiftData
 import SwiftUI
 
-/// The top of the tree: the title (in the list, so it scrolls away; no navigation bar), the
-/// top-level folders (Favorites first), then *Pages*: pages played without saving, marked "Not
-/// saved", then the pages in no folder (first five in all, newest first; *Show All* pushes the
-/// rest). Nothing here appears or goes away because playback starts or ends: rows carry their own
-/// place and ▶, and the Now Playing bar resumes the last thing you heard. A long press lifts a row
-/// to drop on a folder or between rows (`LibraryDrag`); placing a page between pages makes the
-/// top level's sort *Manual*.
-///
-/// ```
-/// Library                                   title, scrolls away
-/// ★  Favorites                        2  ›  folders first, no header
-/// ▣  Pride and Prejudice                 ▶  a book: its place and its own ▶
-///    Chapter 24   ◐ 6 h 10 min left
-/// Pages  3                       Show All ›  the count: a lighter label after the title
-/// [i] Notes on Tides                     ▶  played, not saved (D5)
-///     example.org   Not saved   ◐ 4 min left
-/// [i] Seven-Day Yield                    ▶
-/// ```
+/// The Library home: an in-list search and Everything/Favorites filter above one mixed list of
+/// folders and pages. Search applies to the selected tab across the tree; a result outside its
+/// usual place shows its path. A favorite keeps its location. Items carry their playback and
+/// download state, and folder rows open their normal folder screen.
 struct LibraryHomeView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
@@ -26,37 +12,44 @@ struct LibraryHomeView: View {
     @Query(LibraryQueries.playedNotSaved) private var notSaved: [Page]
     @Query private var folders: [Folder]
     @Query private var loosePages: [Page]
+    @Query(LibraryQueries.inLibrary) private var allPages: [Page]
+    @Query(LibraryQueries.favoritePages) private var favoritePages: [Page]
+    @Binding var favoritesOnly: Bool
+    @Binding var searchText: String
 
-    /// How many pages the home shows before *Show All*.
-    static let pagesShown = 5
-
-    init(pageSort: PageSort) {
+    init(pageSort: PageSort, favoritesOnly: Binding<Bool>, searchText: Binding<String>) {
+        _favoritesOnly = favoritesOnly
+        _searchText = searchText
         _loosePages = Query(LibraryQueries.loosePages(sort: pageSort))
     }
 
     /// Only folders and pages still in the store: a saved delete can reach the home before its
     /// queries drop them (`isLive`).
     private var topLevelFolders: [Folder] {
-        LibraryStore.ordered(folders.filter { $0.isLive && $0.parent == nil })
+        LibraryStore.ordered(folders.filter {
+            $0.isLive && (favoritesOnly ? $0.isFavorite : $0.parent == nil || !searchText.isEmpty)
+                && (searchText.isEmpty || $0.displayName.localizedStandardContains(searchText)
+                    || ($0.byline?.localizedStandardContains(searchText) ?? false))
+        })
     }
 
     /// *Pages*: played without saving first, then the pages in no folder.
-    private var pages: [Page] { (notSaved + loosePages).filter(\.isLive) }
+    private var pages: [Page] {
+        let values = favoritesOnly ? favoritePages : searchText.isEmpty ? notSaved + loosePages : notSaved + allPages
+        return values.filter { $0.isLive && (searchText.isEmpty || $0.title.localizedStandardContains(searchText)
+            || $0.byline.localizedStandardContains(searchText) || $0.excerpt.localizedStandardContains(searchText)) }
+    }
 
     /// Nothing to show but an empty Favorites.
     private var isEmpty: Bool {
-        pages.isEmpty && topLevelFolders.allSatisfy { $0.kind == .favorites && $0.itemCount == 0 }
+        pages.isEmpty && topLevelFolders.isEmpty
     }
 
     var body: some View {
         let pages = pages
         List {
             Section {
-                ForEach(topLevelFolders, id: \.id) { folder in
-                    LibraryFolderRow(folder: folder)
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Palette.chrome)
+                EmptyView()
             } header: {
                 Text("Library")
                     .typeStyle(.title, design: .default)
@@ -65,27 +58,35 @@ struct LibraryHomeView: View {
                     .accessibilityIdentifier("libraryTitle")
                     .libraryHeader()
             }
-            if isEmpty {
-                Section { emptyCard }
+            Section {
+                SearchField(text: $searchText, prompt: String(localized: "Search Library"), fieldIdentifier: "librarySearchField")
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
-            }
-            if !pages.isEmpty {
-                Section {
-                    ForEach(pages.prefix(Self.pagesShown), id: \.listenKey) { page in
-                        LibraryPageRow(page: page)
-                    }
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Palette.chrome)
-                } header: {
-                    SectionHeader(title: String(localized: "Pages"), count: pages.count,
-                                  actionTitle: pages.count > Self.pagesShown ? String(localized: "Show All") : nil,
-                                  actionNavigates: true, actionIdentifier: "libraryPagesShowAll") {
-                        shell.libraryPath.append(.pages)
-                    }
-                    .libraryHeader()
-                    .accessibilityIdentifier("libraryPagesHeader")
+                Picker("Library view", selection: $favoritesOnly) {
+                    Text("Everything").tag(false)
+                    Text("Favorites").tag(true)
                 }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("libraryTabs")
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+            Section {
+                ForEach(topLevelFolders, id: \.id) { folder in
+                    LibraryFolderRow(folder: folder, subtitleOverride: (favoritesOnly || !searchText.isEmpty) ? location(of: folder.parent) : nil)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Palette.chrome)
+                ForEach(pages, id: \.listenKey) { page in
+                    LibraryPageRow(page: page, subtitleOverride: (favoritesOnly || !searchText.isEmpty) ? location(of: page.folder) : nil)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Palette.chrome)
+            }
+            if isEmpty {
+                Section { emptyState }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
             }
         }
         .libraryListStyle()
@@ -93,6 +94,25 @@ struct LibraryHomeView: View {
         .navigationTitle("Library")
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityIdentifier("libraryHome")
+    }
+
+    private func location(of folder: Folder?) -> String? {
+        guard let folder else { return String(localized: "Library") }
+        return (folder.ancestors.reversed() + [folder]).map(\.displayName).joined(separator: " › ")
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if !searchText.isEmpty {
+            ContentUnavailableView.search(text: searchText)
+                .listRowBackground(Color.clear)
+        } else if favoritesOnly {
+            ContentUnavailableView("No Favorites Yet", systemImage: "star",
+                                  description: Text("Star a folder or page to find it here."))
+                .listRowBackground(Color.clear)
+        } else {
+            emptyCard
+        }
     }
 
     // MARK: - Empty

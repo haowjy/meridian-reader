@@ -376,15 +376,14 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(tile.waitForExistence(timeout: 5), "Favorites grid on the start page")
         XCTAssertEqual(tile.label, "First page")
 
-        // The Favorites sheet from the grid's Show All.
+        // Show All opens the Library's Favorites tab.
         element(app, "startFavoritesShowAll").tap()
-        XCTAssertTrue(app.navigationBars["Favorites"].waitForExistence(timeout: 5))
-        let bar = app.navigationBars["Favorites"]
-        bar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
-        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Favorites"]))
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Favorites"].isSelected)
+        app.buttons["libraryBrowser"].tap()
+        XCTAssertTrue(find(app, "browseStartPage").waitForExistence(timeout: 5))
 
-        // Long-press → Remove from Favorites.
+        // Long-press → Remove from Favorites on the start page.
         tile.press(forDuration: 1.0)
         let delete = app.buttons["Remove from Favorites"]
         XCTAssertTrue(delete.waitForExistence(timeout: 3))

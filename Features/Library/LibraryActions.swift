@@ -14,9 +14,8 @@ struct LibraryActions {
     // MARK: - Pages
 
     /// A saved page in the Reader sheet (Now Playing if it is what you hear); a link in
-    /// the browser. From the Favorites sheet the sheet goes first.
+    /// the browser.
     func open(_ page: Page) {
-        if case .favorites = shell.sheet { shell.sheet = nil }
         if page.isLink {
             if let url = page.url { shell.navigate(to: url) }
             return
@@ -255,12 +254,7 @@ extension LibraryActions {
 extension Folder {
     /// The symbol a folder row shows when it has no cover.
     var rowSymbol: String {
-        switch kind {
-        case .favorites: "star.fill"
-        case .book: "book.closed"
-        case .series: "books.vertical"
-        case .plain: "folder"
-        }
+        hasDetails ? "book.closed" : "folder"
     }
 
     /// Subfolders and pages directly inside.

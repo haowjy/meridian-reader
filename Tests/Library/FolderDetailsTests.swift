@@ -95,13 +95,12 @@ final class FolderDetailsTests: XCTestCase {
         XCTAssertEqual(book.sourceIdentifier, "book-key", "what dedupe and Replace find it by stays")
     }
 
-    func testFavoritesHasNoDetails() throws {
+    func testLegacyFavoritesContainerCanHaveOrdinaryFolderDetails() throws {
         let favorites = library.favorites()
-        XCTAssertThrowsError(try library.setDetails(of: favorites, name: "Mine", byline: "A. Writer", cover: cover)) {
-            XCTAssertEqual($0 as? LibraryTreeError, .favoritesIsPinned)
-        }
-        XCTAssertNil(favorites.byline)
-        XCTAssertNil(favorites.coverData)
+        try library.setDetails(of: favorites, name: "Mine", byline: "A. Writer", cover: cover)
+        XCTAssertEqual(favorites.name, "Mine")
+        XCTAssertEqual(favorites.byline, "A. Writer")
+        XCTAssertEqual(favorites.coverData, cover)
     }
 
     func testAFailedSaveLeavesTheDetailsAsTheyWere() throws {

@@ -3,10 +3,8 @@ import SwiftData
 
 /// Where a folder came from. Stored as `Folder.kindRaw`; the raw values are persisted and never
 /// change. Every folder follows the same rules (decision D19): it takes drops and subfolders, its
-/// pages move in and out, and its order is yours. A book or series differs only in where it came
-/// from: *Replace* finds a book by its key (`LibraryStore.book(key:)`), a series' link pages are
-/// fetched when playback reaches them, its pages show as chapters, and its finished chapters lose
-/// their audio (D7). Only Favorites has rules of its own.
+/// pages move in and out, and its order is yours. Book and series origin remain metadata for
+/// Replace, playback, dedupe and audio trimming; display appearance comes from folder details.
 enum FolderKind: String, Codable, CaseIterable {
     /// A folder the user made.
     case plain
@@ -14,8 +12,7 @@ enum FolderKind: String, Codable, CaseIterable {
     case book
     /// A web serial: one page per chapter, first in the order they were found.
     case series
-    /// The one top-level Favorites folder (today's bookmarks). Can't be deleted, renamed, given
-    /// details or moved below the top level.
+    /// Legacy Favorites folder, migrated to independent star flags at launch.
     case favorites
 
     /// Made from a book or a web serial: its pages are chapters.

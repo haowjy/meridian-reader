@@ -200,12 +200,9 @@ final class ScreenshotCaptureTests: XCTestCase {
         wait(1.2)
         try shot("menu")
         el(app, "moreFavorites").tap()
-        XCTAssertTrue(app.navigationBars["Favorites"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         wait(1)
         try shot("favorites")
-        app.navigationBars["Favorites"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
-        wait(1)
 
         app.buttons["browseLibrary"].tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
@@ -288,12 +285,12 @@ final class ScreenshotCaptureTests: XCTestCase {
         XCTAssertTrue(favorites.waitForExistence(timeout: 3))
         wait(0.6)
         favorites.tap()
-        XCTAssertTrue(el(app, "favoritesMore").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         wait(1.2)
-        try shot("10-favorites-sheet")
-        app.buttons["favoritesMore"].tap()
+        try shot("10-favorites-tab")
+        app.buttons["libraryMore"].tap()
         wait(1.2)
-        try shot("11-favorites-sheet-menu")
+        try shot("11-favorites-tab-menu")
     }
 
     /// A book part-way (its bar, the percent and time left under it, Continue and Play from Start,

@@ -1,9 +1,8 @@
 import Foundation
 
-/// ☆ (*Add to Favorites* in the browser's and the Reader's ⋯) and filing pages into folders from
-/// there. One tap adds a page at the end of Favorites, and a toast offers *Change Folder* (the
-/// Move tree). One page per address: a page filed in another folder (a series' chapter too) asks
-/// before it moves. ☆ on a favorite removes it. A change that can't be saved changes
+/// ☆ (*Add to Favorites* in the browser's and the Reader's ⋯) sets an independent favorite flag.
+/// It never changes the page's location. One page per address: ☆ on a favorite clears the flag.
+/// A change that can't be saved changes
 /// nothing, and its toast says so instead.
 @MainActor
 struct FavoriteFlow {
@@ -21,13 +20,6 @@ struct FavoriteFlow {
             guard shell.attempt(String(localized: "Couldn’t remove from Favorites"), { try library.removeFavorite(page) }) != nil
             else { return }
             shell.showToast(ShellToast(message: String(localized: "Removed from Favorites"), systemImage: "star.slash"))
-        case .moveFromFolder(let page, let folder):
-            shell.prompt = ShellPrompt(
-                title: String(localized: "Move it to Favorites?"),
-                message: "“\(page.title)” is in “\(folder.displayName)”. A page is kept in one folder.",
-                confirmTitle: String(localized: "Move to Favorites")) {
-                    add(url: url, title: title, artwork: artwork, betterIcon: betterIcon)
-                }
         }
     }
 
@@ -46,13 +38,7 @@ struct FavoriteFlow {
         guard let page = shell.attempt(String(localized: "Couldn’t add to Favorites"), {
             try library.addFavorite(url: url, title: title, artwork: artwork)
         }) else { return }
-        shell.showToast(ShellToast(message: String(localized: "Added to Favorites"), systemImage: "star.fill",
-                                   actionTitle: String(localized: "Change Folder")) {
-            shell.present(.moveTo(MoveRequest(title: String(localized: "Change Folder"),
-                                              current: page.folder.map { .folder($0.id) }) { destination in
-                shell.attempt(String(localized: "Couldn’t move")) { try library.move([.page(page)], to: destination) } != nil
-            }))
-        })
+        shell.showToast(ShellToast(message: String(localized: "Added to Favorites"), systemImage: "star.fill"))
         guard !FaviconFetcher.isTileSized(page.artworkData) else { return }
         Task {
             if let icon = await betterIcon() { library.offerArtwork(icon, for: page) }

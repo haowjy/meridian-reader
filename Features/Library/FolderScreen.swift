@@ -2,10 +2,10 @@ import SwiftData
 import SwiftUI
 
 /// One screen for every folder at every depth, Favorites, books and series included (decision
-/// D19), and for the top level's pages (*Pages · Show All*, `folder == nil`, with pages played
+/// D19), and for the top level's pages route (`folder == nil`, with pages played
 /// without saving on top): the header, subfolders first (by their order), then pages by the
-/// folder's sort (a book's chapters draw as chapters, `LibraryPageRow`). A folder whose pages play
-/// has the header buttons: *Continue* (it plays page to page in this order) and *Play from Start*.
+/// folder's sort (`LibraryPageRow` everywhere, including imported chapters). A folder whose pages play
+/// has header actions: *Continue*, *From Start* and *Download*.
 /// A folder with details (a book's from its file, or any folder's from *Edit Details*: a cover or
 /// an author) has the detailed header top: the cover beside the title, the author before the
 /// counts. *Edit*, or *Select* in a row's
@@ -159,9 +159,7 @@ private struct FolderContentsList: View {
                 }
             }
             if subfolders.isEmpty && pages.isEmpty && notSaved.isEmpty {
-                Text(folder?.kind == .favorites
-                     ? "Add pages with ☆ in the browser or the Reader."
-                     : "Move pages here, or save them here from the Reader’s 🔖.")
+                Text("Move pages here, or save them here from the Reader’s 🔖.")
                     .typeStyle(.row)
                     .foregroundStyle(Palette.secondaryInk)
                     .listRowBackground(Color.clear)
