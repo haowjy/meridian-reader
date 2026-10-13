@@ -189,7 +189,9 @@ struct ReaderSheetScreen: View {
         case .download: if let page { DownloadActions(downloads: downloads, shell: shell).download(page) }
         case .downloads: shell.present(.downloads)
         case .listenDebug: speech.showListenDebug = true
-        case .favorites: shell.present(.favorites())
+        case .favorites:
+            UserDefaults.standard.set(true, forKey: "library.favoritesTab")
+            shell.showLibrary(at: [])
         case .history: shell.present(.history)
         // Reader off = the article's own web page in the browser, wherever the Reader was opened
         // from. Playback keeps going.

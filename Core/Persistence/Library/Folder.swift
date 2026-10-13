@@ -3,10 +3,8 @@ import SwiftData
 
 /// Where a folder came from. Stored as `Folder.kindRaw`; the raw values are persisted and never
 /// change. Every folder follows the same rules (decision D19): it takes drops and subfolders, its
-/// pages move in and out, and its order is yours. A book or series differs only in where it came
-/// from: *Replace* finds a book by its key (`LibraryStore.book(key:)`), a series' link pages are
-/// fetched when playback reaches them, its pages show as chapters, and its finished chapters lose
-/// their audio (D7). Only Favorites has rules of its own.
+/// pages move in and out, and its order is yours. Book and series origin remain metadata for
+/// Replace, playback, dedupe and audio trimming; display appearance comes from folder details.
 enum FolderKind: String, Codable, CaseIterable {
     /// A folder the user made.
     case plain
@@ -14,8 +12,7 @@ enum FolderKind: String, Codable, CaseIterable {
     case book
     /// A web serial: one page per chapter, first in the order they were found.
     case series
-    /// The one top-level Favorites folder (today's bookmarks). Can't be deleted, renamed, given
-    /// details or moved below the top level.
+    /// Legacy Favorites folder, migrated to independent star flags at launch.
     case favorites
 
     /// Made from a book or a web serial: its pages are chapters.
@@ -43,6 +40,8 @@ final class Folder {
     var createdAt: Date = Date.now
     /// A book's or series' is *Manual* until changed: its pages start in the source's order.
     var pageSortRaw: String = PageSort.manual.rawValue
+    /// An item can be favorited without changing where it lives in the tree.
+    var isFavorite: Bool = false
 
     // Details. A book or series starts with its source's; any folder's are edited in *Edit
     // Details* (`LibraryStore.setDetails`). Favorites has none.
@@ -89,10 +88,7 @@ final class Folder {
         set { pageSortRaw = newValue.rawValue }
     }
 
-    /// The name shown: Favorites is named from its kind.
-    var displayName: String {
-        kind == .favorites ? String(localized: "Favorites") : name
-    }
+    var displayName: String { name }
 
     /// It has a cover or a byline: its screen has the header with the cover and the author, and its
     /// row the cover (decision D17). Details change only the look.

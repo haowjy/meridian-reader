@@ -182,8 +182,9 @@ series take pages and subfolders, their chapters move out and reorder, their sor
 *Replace* finds a book by its key (`book(key:)`), a series' link pages are fetched when playback
 reaches them, a book's or series' pages show as chapters and name it as their source in the Now
 Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their audio (D7), and
-launch dedupe merges two copies of one source. One Favorites folder holds the bookmarks; it can't
-be deleted, renamed, given details or moved below the top level.
+  launch dedupe merges two copies of one source. Favorites are independent flags on pages and
+  folders. The legacy Favorites folder is migrated on launch: its pages and nested folders are
+  starred, direct pages return to the root, and the container is removed.
 
 **Book import** (`BookImporter`, run for the import sheet by `BookImportFlow`):
 0. The file is the import's own copy in `Application Support/Imports/<uuid>/<name>.epub`

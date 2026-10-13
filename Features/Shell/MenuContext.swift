@@ -87,8 +87,7 @@ struct LibraryMenu {
     }
 
     var screen: Screen
-    /// *Import Book…* on the home and folders (the Library surface; the Favorites sheet has none,
-    /// since the Files picker can't open over a sheet).
+    /// *Import Book…* on the home and folders.
     var canImportBook = false
     /// The screen's page sort (folders and the top level's pages).
     var sort: PageSort = .manual

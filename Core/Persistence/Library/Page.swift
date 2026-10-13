@@ -42,6 +42,8 @@ final class Page {
     /// nil = not in the Library: played without saving. Shows at the top of *Pages*, "Not saved", and in the bar;
     /// pruned 7 days after it was last played.
     var addedAt: Date?
+    /// Favorite is an independent flag; it does not imply a special location in the tree.
+    var isFavorite: Bool = false
     /// Order inside its folder, or among pages with no folder.
     var sortKey: Double = 0
     /// `folder?.id`, kept by `LibraryStore`, so predicates never go through the optional

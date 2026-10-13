@@ -1,22 +1,14 @@
 import SwiftUI
 
 /// The ⋯ and ＋ (*New Folder*, *Import Book…*) for the Library screen on top, shared by the Library surface and the
-/// Favorites sheet: which rows the panel shows (`LibraryMenu`) and what each does there. The host
-/// says which screen is on top and what the panel's big buttons do.
+/// The Library screen on top: which rows the panel shows (`LibraryMenu`) and what each does there.
 @MainActor
 struct LibraryScreenMenu {
-    /// The screen under every push: the Library home, or Favorites (the sheet).
-    enum Root {
-        case home
-        case favorites
-    }
-
     let library: LibraryStore
     let speech: SpeechController
     let shell: ShellState
     let downloads: DownloadCenter
     let screen: LibraryScreenState
-    let root: Root
     /// The pushed screen on top (nil: the root).
     let top: LibraryRoute?
     /// The top level's page sort (`LibraryTopLevel.sortKey`).
@@ -31,7 +23,7 @@ struct LibraryScreenMenu {
         switch top {
         case .folder(let id): library.folder(id: id)
         case .pages: nil
-        case nil: root == .favorites ? library.favorites() : nil
+        case nil: nil
         }
     }
 
@@ -43,7 +35,7 @@ struct LibraryScreenMenu {
     var menu: LibraryMenu {
         var menu = screenMenu
         menu.showsDebug = speech.developerOptionsEnabled
-        menu.canImportBook = root == .home && topFolder?.kind != .favorites
+        menu.canImportBook = true
         if let folder = topFolder, !downloads.isQueued(.folder(folder.id)) {
             menu.downloadTitle = String(localized: "Download Folder")
         }
@@ -53,7 +45,7 @@ struct LibraryScreenMenu {
     private var screenMenu: LibraryMenu {
         if top == .pages { return LibraryMenu(screen: .pages, sort: pagesSort) }
         guard let folder = topFolder else { return LibraryMenu(screen: .home) }
-        return LibraryMenu(screen: .folder(isFavorites: folder.kind == .favorites), sort: folder.pageSort)
+        return LibraryMenu(screen: .folder(isFavorites: false), sort: folder.pageSort)
     }
 
     /// Nothing here touches the browser's page.

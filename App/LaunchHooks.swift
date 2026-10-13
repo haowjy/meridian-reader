@@ -229,8 +229,9 @@ enum LaunchHooks {
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in library: LibraryStore) {
         let context = library.context
         UserDefaults.standard.removeObject(forKey: LibraryTopLevel.sortKey)
+        UserDefaults.standard.set(false, forKey: "library.favoritesTab")
         // Every folder but Favorites goes too, so the Library home starts the same each time.
-        for folder in library.topLevelFolders() where folder.kind != .favorites {
+        for folder in library.topLevelFolders() {
             try? library.deleteFolder(folder, keepContents: false)
         }
         for page in (try? context.fetch(FetchDescriptor<Page>())) ?? [] where !page.isLink {
@@ -305,16 +306,14 @@ enum LaunchHooks {
         speech.localTTS.startBakeIfNeeded(articleID: page.listenKey, paragraphs: paragraphs, voiceID: speech.cacheVoiceID)
     }
 
-    /// `-resetBookmarks` / `-seedBookmarks`: Favorites emptied (its subfolders go, their pages
-    /// moving up first; saved pages go back to the pages in no folder) and back on its default
-    /// sort, then optionally seeded.
+    /// `-resetBookmarks` / `-seedBookmarks`: clears favorite flags, then optionally seeds links.
     static func setUpBookmarks(_ setup: LaunchOptions.BookmarkSetup, in library: LibraryStore) {
-        try? library.setSort(.manual, for: library.favorites())
-        // A subfolder's own subfolders move up into Favorites as it goes; they go next.
-        while let folder = library.subfolders(of: library.favorites()).first {
-            do { try library.deleteFolder(folder, keepContents: true) } catch { break }
-        }
+        // A prior debug launch can leave legacy containers in the test store. Migrate them before
+        // resetting flags so test setup obeys the same tree behavior as the product.
+        library.migrateFavoritesFolder()
         for page in library.favoritePages() { try? library.removeFavorite(page) }
+        let folders = (try? library.context.fetch(FetchDescriptor<Folder>())) ?? []
+        for folder in folders where folder.isFavorite { try? library.toggleFavorite(folder) }
         guard setup == .seed else { return }
         let seeds = [
             ("https://www.gutenberg.org/", "Project Gutenberg"),

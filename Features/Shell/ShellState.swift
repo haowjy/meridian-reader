@@ -4,7 +4,7 @@ import SwiftUI
 enum ReaderOrigin: Equatable {
     /// Over the browser: 📄, ⋯ → Reader, a start-page row.
     case browser
-    /// Over the Library: a page row, the Favorites sheet opened there.
+    /// Over the Library: a page row.
     case library
 
     /// The back pill's title.
@@ -27,9 +27,6 @@ struct ReaderSheetState: Equatable {
 
 /// The shell's sheets. One at a time, shown by the shell's single `.sheet(item:)`.
 enum ShellSheet: Identifiable, Equatable {
-    /// The Favorites folder screen (pushed into `folder`, one of its subfolders, when given): its
-    /// links open in the browser, its saved pages in the Reader.
-    case favorites(folder: UUID? = nil)
     case history
     case voiceSettings
     case share(URL)
@@ -44,7 +41,6 @@ enum ShellSheet: Identifiable, Equatable {
 
     var id: String {
         switch self {
-        case .favorites(let folder): "favorites-\(folder?.uuidString ?? "")"
         case .history: "history"
         case .voiceSettings: "voiceSettings"
         case .share(let url): "share-\(url.absoluteString)"
@@ -60,7 +56,7 @@ enum ShellSheet: Identifiable, Equatable {
     var belongsToBrowser: Bool {
         switch self {
         case .history: true
-        case .favorites, .voiceSettings, .share, .moveTo, .importBook, .downloads, .folderDetails: false
+        case .voiceSettings, .share, .moveTo, .importBook, .downloads, .folderDetails: false
         }
     }
 }

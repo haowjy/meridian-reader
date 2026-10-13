@@ -198,7 +198,7 @@ extension LibraryStore {
     /// throws `LibraryStoreError.saveFailed`: still saved.
     func unsave(_ page: Page) throws {
         guard page.isSaved else { return }
-        if page.folder != nil, page.url != nil {
+        if (page.folder != nil || page.isFavorite), page.url != nil {
             try edit("unsave to link") {
                 page.contentState = .link
                 // A link's text is a cache of its last play; one never played has nothing to keep.

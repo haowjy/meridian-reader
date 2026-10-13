@@ -12,8 +12,6 @@ enum LibraryItem {
 enum LibraryTreeError: Error, Equatable {
     /// A folder into itself or one of its own subfolders.
     case cycle
-    /// Favorites stays at the top level, keeps its name and can't be deleted.
-    case favoritesIsPinned
 }
 
 /// What a folder holds, all the way down (`LibraryStore.contents(of:)`).
@@ -59,8 +57,8 @@ enum FractionalOrder {
 }
 
 /// The folder tree: making, renaming, moving, sorting and deleting folders. Folders nest to any
-/// depth, books and series as any other (decision D19); Favorites and cycles have the rules in
-/// `LibraryTreeError`. Each change saves at once; a save that fails is rolled back and throws
+/// depth, books and series as any other (decision D19); only cycles are refused. Each change
+/// saves at once; a save that fails is rolled back and throws
 /// `LibraryStoreError.saveFailed`.
 extension LibraryStore {
     /// A new plain folder at the end of `parent` (the top level if nil).
@@ -76,7 +74,6 @@ extension LibraryStore {
     }
 
     func rename(_ folder: Folder, to name: String) throws {
-        guard folder.kind != .favorites else { throw LibraryTreeError.favoritesIsPinned }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         try edit("rename folder") { folder.name = trimmed }
@@ -86,7 +83,6 @@ extension LibraryStore {
     /// byline clears it; a nil cover removes it. The kind never changes, so a plain folder given
     /// details keeps its order and still takes drops (decision D17). Favorites has no details.
     func setDetails(of folder: Folder, name: String, byline: String?, cover: Data?) throws {
-        guard folder.kind != .favorites else { throw LibraryTreeError.favoritesIsPinned }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let byline = byline?.trimmingCharacters(in: .whitespacesAndNewlines)
         try edit("folder details") {
@@ -133,7 +129,6 @@ extension LibraryStore {
     /// dragged over a folder, so the folder shows whether it takes the drop.
     func moveRefusal(_ item: LibraryItem, to destination: Folder?) -> LibraryTreeError? {
         guard case .folder(let folder) = item else { return nil }
-        if folder.kind == .favorites, destination != nil { return .favoritesIsPinned }
         if let destination, destination === folder || destination.ancestors.contains(where: { $0 === folder }) {
             return .cycle
         }
@@ -157,7 +152,6 @@ extension LibraryStore {
     /// by `keepContents`. Refuses Favorites, changing nothing. A save that fails is rolled back and throws: every
     /// folder, page and its audio stay.
     func deleteFolders(_ folders: [Folder], keepContents: Bool) throws {
-        if folders.contains(where: { $0.kind == .favorites }) { throw LibraryTreeError.favoritesIsPinned }
         try edit("delete folder") {
             for folder in folders where !folder.isDeleted {
                 if keepContents {

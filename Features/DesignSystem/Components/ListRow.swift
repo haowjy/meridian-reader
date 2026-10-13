@@ -69,6 +69,12 @@ struct ListRow: View {
     /// Its audio is downloaded (a folder's: every page its download covers): a small mark ends
     /// the second line.
     var isDownloaded = false
+    var isFavorite = false
+    /// The Library's book-like treatment (large cover and explicit download/play controls).
+    var largeArtwork = false
+    var folderHasDetails = false
+    var onDownload: (() -> Void)?
+    var isDownloadQueued = false
 
     /// 56 pt at the default text size; larger text grows the row through its content, and the
     /// minimum only up to `BottomChrome.maxTextGrowth`.
@@ -86,11 +92,19 @@ struct ListRow: View {
                 leading
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(title)
-                        .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
-                        .foregroundStyle(titleColor)
-                        .lineLimit(2)
-                        .accessibilityValue(accessibilityStatus)
+                    HStack(spacing: Spacing.xs) {
+                        Text(title)
+                            .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
+                            .foregroundStyle(titleColor)
+                            .lineLimit(2)
+                            .accessibilityValue(accessibilityStatus)
+                        if isFavorite {
+                            Image(systemName: "star.fill")
+                                .font(.caption)
+                                .foregroundStyle(Palette.accent)
+                                .accessibilityHidden(true)
+                        }
+                    }
                     secondLine
                         .accessibilityHidden(true)
                 }
@@ -104,12 +118,31 @@ struct ListRow: View {
                         .accessibilityHidden(true)
                 }
             }
-            trailingColumn
+            if largeArtwork, let onDownload {
+                VStack(spacing: Spacing.xs) {
+                    Button(action: onDownload) {
+                        Group {
+                            if isDownloadQueued { ProgressRing(fraction: 0.35) }
+                            else if isDownloaded { Image(systemName: "checkmark.circle") }
+                            else { Image(systemName: "arrow.down.circle") }
+                        }
+                        .font(.title2)
+                        .foregroundStyle(Palette.accent)
+                        .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isDownloadQueued || isDownloaded)
+                    .accessibilityLabel(isDownloadQueued ? "Downloading" : isDownloaded ? "Downloaded" : "Download")
+                    .accessibilityIdentifier("libraryRowDownload")
+                    if let onPlay { PlayStateButton(state: playState, action: onPlay) }
+                    else if opensScreen { trailingColumn }
+                }
+            } else { trailingColumn }
         }
         .padding(.leading, Spacing.m)
         .padding(.trailing, hasTrailingColumn ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
         .padding(.vertical, Spacing.xs)
-        .frame(minHeight: BottomChrome.grown(scaledMinHeight, from: 56))
+        .frame(minHeight: BottomChrome.grown(largeArtwork ? 96 : scaledMinHeight, from: 56))
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
         .overlay { dropHighlight }
         .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) { insertionLine }
@@ -306,15 +339,21 @@ struct ListRow: View {
     private var leading: some View {
         switch kind {
         case .folder(_, _, let cover?):
-            ArtworkTile(image: cover, letter: title, size: ListRow.coverWidth, isCover: true, fill: Palette.paper)
-                .frame(width: ListRow.leadingWidth)
+            ArtworkTile(image: cover, letter: title, size: largeArtwork ? 56 : ListRow.coverWidth,
+                        isCover: true, fill: Palette.paper)
+                .frame(width: largeArtwork ? 56 : ListRow.leadingWidth)
         case .folder(let symbol, _, nil):
-            Image(systemName: symbol)
-                .font(.title3)
-                .foregroundStyle(Palette.accent)
-                .frame(width: ListRow.leadingWidth)
+            if largeArtwork, folderHasDetails {
+                ArtworkTile(image: nil, letter: title, size: 56, isCover: true, fill: Palette.chrome)
+                    .frame(width: 56)
+            } else {
+                Image(systemName: symbol).font(.title3).foregroundStyle(Palette.accent)
+                    .frame(width: largeArtwork ? 56 : ListRow.leadingWidth,
+                           height: largeArtwork ? 81 : nil)
+            }
         case .page(let artwork, let letter):
-            ArtworkTile(image: artwork, letter: letter, size: ListRow.leadingWidth, fill: Palette.paper)
+            ArtworkTile(image: artwork, letter: letter, size: largeArtwork ? 56 : ListRow.leadingWidth,
+                        isCover: largeArtwork, fill: Palette.paper)
         case .chapter:
             Group {
                 if playState.isCurrent {
@@ -336,7 +375,7 @@ struct ListRow: View {
         case .link:
             Image(systemName: "link")
                 .foregroundStyle(Palette.secondaryInk)
-                .frame(width: ListRow.leadingWidth)
+                .frame(width: largeArtwork ? 56 : ListRow.leadingWidth)
         }
     }
 

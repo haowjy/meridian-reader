@@ -44,13 +44,12 @@ final class LibrarySortKeyTests: XCTestCase {
         XCTAssertTrue(renumbered, "the siblings were renumbered once the gap got tiny")
     }
 
-    func testSubfoldersReorderAndFavoritesStaysFirst() throws {
-        library.favorites()
+    func testSubfoldersReorderWithoutAPinnedFavoritesFolder() throws {
         let a = try library.makeFolder(name: "A", in: nil)
         let b = try library.makeFolder(name: "B", in: nil)
         let c = try library.makeFolder(name: "C", in: nil)
         try library.arrange([c], in: nil, before: a)
-        XCTAssertEqual(library.topLevelFolders().map(\.displayName), ["Favorites", "C", "A", "B"])
+        XCTAssertEqual(library.topLevelFolders().map(\.displayName), ["C", "A", "B"])
         let shelf = try library.makeFolder(name: "Shelf", in: a)
         let other = try library.makeFolder(name: "Other", in: a)
         try library.arrange([other], in: a, before: shelf)
@@ -59,8 +58,8 @@ final class LibrarySortKeyTests: XCTestCase {
             try library.arrange([b], in: nil, before: c)
             try library.arrange([c], in: nil, before: b)
         }
-        let keys = library.topLevelFolders().filter { $0.kind != .favorites }.map(\.sortKey)
+        let keys = library.topLevelFolders().map(\.sortKey)
         XCTAssertEqual(Set(keys).count, keys.count, "many moves never collide")
-        XCTAssertEqual(library.topLevelFolders().first?.kind, .favorites)
+        XCTAssertEqual(library.topLevelFolders().map(\.displayName), ["C", "B", "A"])
     }
 }

@@ -249,7 +249,9 @@ struct BrowseStartView: View {
         case .saveToLibrary: saveToLibrary()
         case .removeFromLibrary: removeFromLibrary()
         case .toggleFavorite: page.toggleFavorite()
-        case .favorites: shell.present(.favorites())
+        case .favorites:
+            UserDefaults.standard.set(true, forKey: "library.favoritesTab")
+            shell.showLibrary(at: [])
         case .reload: webStore.refresh()
         case .share: if let shareURL { shell.present(.share(shareURL)) }
         case .voiceSettings: shell.present(.voiceSettings)
@@ -263,14 +265,17 @@ struct BrowseStartView: View {
     // MARK: - Start page
 
     private var startPage: some View {
-        FavoritesQuery(folder: library.favorites()) { favorites, folders in
+        FavoritesQuery { favorites, folders in
             BrowseStartPage(
                 favorites: favorites,
                 favoriteFolders: folders,
                 recentSearches: recentSearches,
                 onOpenFavorite: { LibraryActions(library: library, speech: speech, shell: shell).open($0) },
-                onOpenFavoriteFolder: { shell.present(.favorites(folder: $0.id)) },
-                onShowFavorites: { shell.present(.favorites()) },
+                onOpenFavoriteFolder: { shell.showLibrary(at: library.path(to: $0)) },
+                onShowFavorites: {
+                    UserDefaults.standard.set(true, forKey: "library.favoritesTab")
+                    shell.showLibrary(at: [])
+                },
                 onRemoveFavorite: { page in
                     shell.attempt(String(localized: "Couldn’t remove from Favorites")) { try library.removeFavorite(page) }
                 },

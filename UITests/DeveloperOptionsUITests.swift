@@ -2,7 +2,7 @@ import XCTest
 
 /// Developer options off (the Release default): no Debug rows or pill anywhere; a long-press on
 /// the version row in Voice settings turns them on and off. On: the ⋯ Debug rows open the listen
-/// debug panel, over the Library, the Favorites sheet and the Reader.
+/// debug panel, over the Library and the Reader.
 final class DeveloperOptionsUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
@@ -71,9 +71,7 @@ final class DeveloperOptionsUITests: XCTestCase {
         XCTAssertFalse(el(app, "moreDebug").exists, "no Debug row in the browser ⋯")
     }
 
-    /// Developer options on: the Library's ⋯ and the Favorites sheet's ⋯ have *Debug*, which opens
-    /// the listen debug panel over them; *Done* leaves the sheet where it was. The Reader's row
-    /// opens it too.
+    /// Developer options on: the Library's ⋯ has *Debug*, and the Reader's row opens it too.
     func testLibraryDebugRowOpensTheListenDebugPanel() throws {
         let app = launchLibrary(["-reader.developerOptions", "YES"])
         let panel = app.navigationBars["Listen debug"]
@@ -85,19 +83,8 @@ final class DeveloperOptionsUITests: XCTestCase {
         XCTAssertTrue(eventually(5) { !panel.exists }, "Done closes it")
         XCTAssertTrue(app.libraryHome.exists, "back on the Library")
 
-        app.buttons["libraryMore"].tap()
-        tapMenuRow(app, "moreFavorites")
-        XCTAssertTrue(app.navigationBars["Favorites"].waitForExistence(timeout: 5), "the Favorites sheet")
-        app.buttons["favoritesMore"].tap()
-        tapMenuRow(app, "moreDebug")
-        XCTAssertTrue(panel.waitForExistence(timeout: 5), "the panel over the Favorites sheet")
-        panel.buttons["Done"].tap()
-        XCTAssertTrue(eventually(5) { !panel.exists }, "Done closes it")
-        XCTAssertTrue(app.navigationBars["Favorites"].exists, "the Favorites sheet stays")
-        find(app, "favoritesDone").tap()
-        XCTAssertTrue(eventually(5) { !app.navigationBars["Favorites"].exists })
-
         let row = libraryRow(app, "Demo Listen Article")
+        find(app, "libraryHome").swipeUp()
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
         XCTAssertTrue(app.buttons["readerMore"].waitForExistence(timeout: 5), "the Reader")
@@ -142,17 +129,12 @@ final class DeveloperOptionsUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Listen"].exists, "Voice settings stays")
     }
 
-    /// Developer options off: no Debug row in the Library's ⋯ or the Favorites sheet's.
+    /// Developer options off: no Debug row in the Library's ⋯.
     func testDeveloperOptionsOffHidesLibraryDebugRow() throws {
         let app = launchLibrary(["-reader.developerOptions", "NO"])
         app.buttons["libraryMore"].tap()
         XCTAssertTrue(find(app, "moreVoice").waitForExistence(timeout: 3))
         XCTAssertFalse(find(app, "moreDebug").exists, "no Debug row in the Library ⋯")
 
-        tapMenuRow(app, "moreFavorites")
-        XCTAssertTrue(app.navigationBars["Favorites"].waitForExistence(timeout: 5), "the Favorites sheet")
-        app.buttons["favoritesMore"].tap()
-        XCTAssertTrue(find(app, "moreSort").waitForExistence(timeout: 3))
-        XCTAssertFalse(find(app, "moreDebug").exists, "no Debug row in the Favorites sheet's ⋯")
     }
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The browser's start page (no page loaded), Safari-style: the Favorites folder (a grid of its
-/// pages, then its subfolders as folder tiles; Show All opens the Favorites sheet), then Recent
+/// The browser's start page (no page loaded), Safari-style: starred pages and folders (Show All
+/// opens the Library's Favorites tab), then Recent
 /// Searches.
 struct BrowseStartPage: View {
     let favorites: [Page]

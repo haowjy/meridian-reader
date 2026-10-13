@@ -6,7 +6,7 @@ enum LibraryItemID: Hashable {
     case page(UUID)
 }
 
-/// What the Library's screens share with their surface (the Library, or the Favorites sheet):
+/// What the Library's screens share with their surface:
 /// Edit's selection, which the bottom bar acts on, and the dialogs a row or a menu asks for
 /// (delete, rename, new folder), shown once by `libraryDialogs`.
 @MainActor
@@ -92,7 +92,7 @@ final class LibraryScreenState {
     }
 
     func confirmDelete(_ folders: [Folder]) {
-        pendingDelete = folders.filter { $0.kind != .favorites }
+        pendingDelete = folders
     }
 
     /// The delete question was cancelled: nothing is deleted, and Edit keeps its selection.

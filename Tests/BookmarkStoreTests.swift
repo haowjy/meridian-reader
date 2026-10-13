@@ -2,8 +2,8 @@ import XCTest
 import UIKit
 @testable import MeridianReader
 
-/// Bookmarks are Favorites' pages (`LibraryStore+Favorites`): toggled from ⋯, deduped by
-/// canonical URL, renamed, reordered, removed, with a tile-sized icon when one can be found.
+/// Favorites are independent page flags (`LibraryStore+Favorites`): toggled from ⋯, deduped by
+/// canonical URL, renamed, removed, with a tile-sized icon when one can be found.
 @MainActor
 final class BookmarkStoreTests: XCTestCase {
     private var env: LibraryTestEnvironment!
@@ -51,33 +51,31 @@ final class BookmarkStoreTests: XCTestCase {
         XCTAssertEqual(relaunched.favoritePages().map(\.title), ["Story"], "kept in the library store")
     }
 
-    func testTitleFallsBackToHostAndRenameMoveRemove() throws {
+    func testTitleFallsBackToHostAndRenameRemoveWithoutMovingPages() throws {
         let a = try XCTUnwrap(library.addFavorite(url: URL(string: "https://a.example/")!, title: nil, artwork: nil))
         let b = try XCTUnwrap(library.addFavorite(url: URL(string: "https://b.example/")!, title: "B", artwork: nil))
         let c = try XCTUnwrap(library.addFavorite(url: URL(string: "https://c.example/")!, title: "C", artwork: nil))
         XCTAssertEqual(a.title, "a.example")
         try library.renameFavorite(a, to: "  Alpha ")
         try library.renameFavorite(b, to: "   ") // ignored
-        XCTAssertEqual(library.favoritePages().map(\.title), ["Alpha", "B", "C"])
-        try library.arrange([c], in: library.favorites(), before: a, shownIn: .manual)
-        XCTAssertEqual(library.favoritePages().map(\.title), ["C", "Alpha", "B"])
-        try library.arrange([c], in: library.favorites(), before: nil, shownIn: .manual)
-        XCTAssertEqual(library.favoritePages().map(\.title), ["Alpha", "B", "C"])
+        XCTAssertEqual(Set(library.favoritePages().map(\.title)), ["Alpha", "B", "C"])
+        XCTAssertNil(a.folder)
+        XCTAssertNil(b.folder)
+        XCTAssertNil(c.folder)
         try library.removeFavorite(b)
-        XCTAssertEqual(library.favoritePages().map(\.title), ["Alpha", "C"])
+        XCTAssertEqual(Set(library.favoritePages().map(\.title)), ["Alpha", "C"])
         XCTAssertNil(library.favorite(for: URL(string: "http://localhost/")), "non-matching")
         XCTAssertNil(library.favorite(for: URL(string: "about:blank")))
     }
 
-    /// One page per address: bookmarking a saved page files it in Favorites; removing the
-    /// bookmark puts it back with the pages in no folder, still saved.
-    func testBookmarkingASavedPageFilesItInFavorites() throws {
+    /// One page per address: favoriting a saved page leaves it in its current location.
+    func testFavoritingASavedPageDoesNotMoveIt() throws {
         let saved = try library.save(env.article("https://example.com/saved"))
         let favorite = try library.addFavorite(url: URL(string: "https://example.com/saved")!, title: "Other title", artwork: nil)
         XCTAssertIdentical(favorite, saved)
-        XCTAssertEqual(saved.folder?.kind, .favorites)
+        XCTAssertTrue(saved.isFavorite)
         XCTAssertTrue(saved.isSavedToLibrary)
-        XCTAssertTrue(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).isEmpty, "not in the Saved list")
+        XCTAssertTrue(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).contains { $0.key == saved.key })
 
         try library.removeFavorite(saved)
         XCTAssertNil(saved.folder)
@@ -85,12 +83,13 @@ final class BookmarkStoreTests: XCTestCase {
         XCTAssertEqual(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).map(\.title), [saved.title])
     }
 
-    func testBookmarkingAPagePlayedButNotSavedMakesItALink() throws {
+    func testFavoritingAPagePlayedButNotSavedKeepsItUnsaved() throws {
         let played = library.recordPlayback(env.article("https://example.com/played"))
         XCTAssertNil(played.addedAt)
         try library.addFavorite(url: URL(string: "https://example.com/played")!, title: nil, artwork: nil)
-        XCTAssertTrue(played.isLink, "Favorites doesn't save")
-        XCTAssertNotNil(played.addedAt)
-        XCTAssertEqual(played.folder?.kind, .favorites)
+        XCTAssertTrue(played.isSaved, "favoriting does not replace its played text")
+        XCTAssertNil(played.addedAt)
+        XCTAssertTrue(played.isFavorite)
+        XCTAssertNil(played.folder)
     }
 }

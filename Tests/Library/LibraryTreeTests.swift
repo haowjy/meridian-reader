@@ -142,16 +142,13 @@ final class LibraryTreeTests: XCTestCase {
         XCTAssertFalse(env.folders().contains { $0.kind == .book })
     }
 
-    func testFavoritesCantBeDeletedRenamedOrMovedDown() throws {
+    func testLegacyFavoritesFolderHasOrdinaryFolderRules() throws {
         let favorites = library.favorites()
         let other = try library.makeFolder(name: "Other", in: nil)
-        XCTAssertThrowsError(try library.deleteFolder(favorites, keepContents: true))
-        XCTAssertThrowsError(try library.deleteFolder(favorites, keepContents: false))
-        XCTAssertThrowsError(try library.rename(favorites, to: "Mine"))
-        XCTAssertThrowsError(try library.move([.folder(favorites)], to: other))
-        XCTAssertIdentical(library.favorites(), favorites, "still the one Favorites")
-        XCTAssertEqual(library.topLevelFolders().first?.kind, .favorites, "pinned first")
-        XCTAssertEqual(favorites.displayName, "Favorites")
+        try library.rename(favorites, to: "Mine")
+        try library.move([.folder(favorites)], to: other)
+        XCTAssertEqual(favorites.displayName, "Mine")
+        XCTAssertIdentical(favorites.parent, other)
     }
 
     func testReorderWritesFractionalKeysAndRenumbersWhenTheGapIsTiny() throws {

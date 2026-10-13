@@ -9,4 +9,3 @@
   fetch-then-play) comes with step 6's page fetcher, as does *Find Newer Chapters*.
 - *Save Page* on a link row isn't offered (open the link and use 🔖 / ⋯); it needs a fetch that
   doesn't use the visible browser (step 6).
-- The Move tree from inside the Favorites sheet replaces the sheet (one shell sheet at a time).

@@ -289,9 +289,9 @@ extension PageSort {
     }
 }
 
-/// The ⋯ toolbar button (browser, library, reader listen bar, the Favorites sheet): opens
-/// `menu()` in the morph panel, grown from this button's frame: the shell's, or the sheet's it
-/// sits in (`moreMenuHost`). Its glyph fades while a menu is open, so the button reads as turning
+/// The ⋯ toolbar button (browser, library, reader listen bar): opens
+/// `menu()` in the shell's morph panel, grown from this button's frame. Its glyph fades while a
+/// menu is open, so the button reads as turning
 /// into the panel.
 struct MoreMenuButton: View {
     let id: String
@@ -300,18 +300,13 @@ struct MoreMenuButton: View {
     let menu: () -> MenuContext
 
     @Environment(ShellState.self) private var shell
-    @Environment(SheetMoreMenu.self) private var sheetMenu: SheetMoreMenu?
     @State private var frame: CGRect = .zero
 
-    private var isOpen: Bool { sheetMenu.map { $0.menu != nil } ?? (shell.menu != nil) }
+    private var isOpen: Bool { shell.menu != nil }
 
     var body: some View {
         Button {
-            if let sheetMenu {
-                sheetMenu.open(menu(), from: frame)
-            } else {
-                shell.openMenu(menu(), from: frame)
-            }
+            shell.openMenu(menu(), from: frame)
         } label: {
             Group {
                 if isBusy {
@@ -326,40 +321,5 @@ struct MoreMenuButton: View {
         .accessibilityIdentifier(id)
         .morphMenuButtonHidden(isOpen)
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }
-    }
-}
-
-/// The ⋯ panel of a system sheet (the Favorites sheet): the shell's one morph overlay sits under
-/// sheets, so a sheet with a ⋯ hosts its own (`moreMenuHost`), and its ⋯ buttons open there.
-@MainActor
-@Observable
-final class SheetMoreMenu {
-    var menu: MenuContext?
-    private(set) var anchor: CGRect = .zero
-
-    func open(_ context: MenuContext, from anchor: CGRect) {
-        self.anchor = anchor
-        menu = context
-    }
-}
-
-extension View {
-    /// Hosts the ⋯ panel for the `MoreMenuButton`s inside this view (a sheet's content), over it.
-    func moreMenuHost() -> some View {
-        modifier(SheetMoreMenuHost())
-    }
-}
-
-private struct SheetMoreMenuHost: ViewModifier {
-    @State private var host = SheetMoreMenu()
-
-    func body(content: Content) -> some View {
-        content
-            .environment(host)
-            .overlay {
-                MorphMenuOverlay(item: Binding(get: { host.menu }, set: { host.menu = $0 }), anchor: host.anchor) { context, close in
-                    MoreMenuPanel(context: context, close: close)
-                }
-            }
     }
 }

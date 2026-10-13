@@ -82,7 +82,8 @@ final class LibraryStore {
         try? context.fetch(LibraryQueries.folder(id: id)).first
     }
 
-    /// The Favorites folder, made on first use. There is exactly one: dedupe merges extras.
+    /// Legacy Favorites folder adapter for old imports and migrations. Normal app views use
+    /// independent favorite flags; launch converts this folder and removes it.
     @discardableResult
     func favorites() -> Folder {
         if let existing = try? context.fetch(LibraryQueries.favorites).first { return existing }
@@ -120,7 +121,6 @@ final class LibraryStore {
 
     static func ordered(_ folders: [Folder]) -> [Folder] {
         folders.sorted { a, b in
-            if (a.kind == .favorites) != (b.kind == .favorites) { return a.kind == .favorites }
             if a.sortKey != b.sortKey { return a.sortKey < b.sortKey }
             return a.id.uuidString < b.id.uuidString
         }

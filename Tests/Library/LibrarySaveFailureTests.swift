@@ -24,7 +24,7 @@ final class LibrarySaveFailureTests: XCTestCase {
 
     // MARK: Fixtures
 
-    /// Fiction (Short stories; a, b, c), Essays (x), Archive, a page in no folder, and Favorites.
+    /// Fiction (Short stories; a, b, c), Essays (x), Archive, and a page in no folder.
     private struct Shelves {
         let fiction, shortStories, essays, archive: Folder
         let a, b, c, x, loose: Page
@@ -35,7 +35,6 @@ final class LibrarySaveFailureTests: XCTestCase {
         let shortStories = try library.makeFolder(name: "Short stories", in: fiction)
         let essays = try library.makeFolder(name: "Essays", in: nil)
         let archive = try library.makeFolder(name: "Archive", in: nil)
-        library.favorites()
         func saved(_ path: String, in folder: Folder?) throws -> Page {
             try library.save(env.article("https://example.com/\(path)", title: path), placement: .folder(folder))
         }
@@ -548,9 +547,8 @@ final class LibrarySaveFailureTests: XCTestCase {
         XCTAssertTrue(screen.isEditing)
     }
 
-    /// ☆'s moves (*Move to Favorites* for a page in a folder, a book's chapter too; *Change
-    /// Folder*) and ☆ itself: a failed save shows "Couldn’t …" in place of the success toast, and
-    /// nothing moved.
+    /// ☆ sets only the favorite flag, including on a book chapter: a failed save shows "Couldn’t
+    /// …" in place of the success toast, and neither the flag nor the row's location changes.
     func testFavoritesSayAFailedSaveInsteadOfSuccess() throws {
         let s = try shelves()
         let shell = ShellState()
@@ -560,13 +558,11 @@ final class LibrarySaveFailureTests: XCTestCase {
         let chapterURL = URL(string: "https://example.com/novel/1")!
         let chapter = try library.addLink(url: chapterURL, title: "Ch 1", artwork: nil, in: book)
 
-        flow.toggle(url: chapterURL, title: nil, artwork: nil) { nil }
-        let moveIt = try XCTUnwrap(shell.prompt, "☆ on a chapter asks to move it, as for any page in a folder")
-        XCTAssertEqual(moveIt.title, "Move it to Favorites?")
         failSaves()
-        moveIt.confirm()
+        flow.toggle(url: chapterURL, title: nil, artwork: nil) { nil }
         XCTAssertEqual(shell.toast?.message, "Couldn’t add to Favorites")
         XCTAssertIdentical(chapter.folder, book, "the chapter stays in its book")
+        XCTAssertFalse(chapter.isFavorite)
 
         let newURL = URL(string: "https://example.com/new")!
         flow.toggle(url: newURL, title: "New", artwork: nil) { nil }
@@ -577,13 +573,14 @@ final class LibrarySaveFailureTests: XCTestCase {
         flow.toggle(url: newURL, title: "New", artwork: nil) { nil }
         XCTAssertEqual(shell.toast?.message, "Added to Favorites")
         let added = try XCTUnwrap(library.page(url: newURL))
-        try XCTUnwrap(shell.toast?.action, "the toast offers Change Folder")()
+        XCTAssertNil(shell.toast?.action, "moving is a separate Save to Folder action")
+        actions(shell).move([.page(added)])
         let changeFolder = try moveRequest(shell)
         failSaves()
         changeFolder.pick(s.essays, shell: shell)
         XCTAssertEqual(shell.toast?.message, "Couldn’t move")
         XCTAssertEqual(shell.sheet, .moveTo(changeFolder), "the tree stays up")
-        XCTAssertIdentical(added.folder, library.favorites(), "still in Favorites")
+        XCTAssertNil(added.folder, "Move to Folder remains an explicit, separate action")
 
         flow.toggle(url: newURL, title: nil, artwork: nil) { nil }
         XCTAssertEqual(shell.toast?.message, "Couldn’t remove from Favorites")

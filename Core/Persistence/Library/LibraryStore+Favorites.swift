@@ -3,23 +3,19 @@ import SwiftData
 
 /// What ☆ on a page leads to (`LibraryStore.favoriteRequest`).
 enum FavoriteRequest {
-    /// Not a favorite yet: one tap adds it at the end of Favorites.
+    /// Not a favorite yet: one tap sets its independent flag.
     case add
-    /// Already a favorite: ☆ takes it out.
+    /// Already a favorite: ☆ clears its independent flag.
     case remove(Page)
-    /// Filed in another folder (a series' chapter too): ask *Move it to Favorites?*
-    case moveFromFolder(Page, Folder)
 }
 
-/// Favorites: the top-level folder that holds what used to be site bookmarks. A favorite is a
-/// page in it: a link, or a saved page (one page per address, so bookmarking a saved page files
-/// it there). The start page shows its pages as the icon grid. Adding, removing and renaming a
-/// favorite save at once; a save that fails is rolled back and throws
+/// Favorites are flags on pages and folders, independent of their location. Adding, removing and
+/// renaming a favorite save at once; a save that fails is rolled back and throws
 /// `LibraryStoreError.saveFailed`.
 extension LibraryStore {
-    /// Favorites' pages in their order.
+    /// Favorite pages anywhere in the tree.
     func favoritePages() -> [Page] {
-        pages(in: favorites())
+        ((try? context.fetch(FetchDescriptor<Page>())) ?? []).filter(\.isFavorite)
     }
 
     /// The page for `url` when it is a favorite: in Favorites or one of its subfolders.
@@ -30,16 +26,13 @@ extension LibraryStore {
 
     /// In Favorites or one of its subfolders.
     static func isFavorite(_ page: Page) -> Bool {
-        guard let folder = page.folder else { return false }
-        return folder.kind == .favorites || folder.ancestors.contains { $0.kind == .favorites }
+        return page.isFavorite
     }
 
-    /// What ☆ on the page at `url` leads to. One page per address: a page filed in another folder
-    /// moves to Favorites only once you agree.
+    /// What ☆ on the page at `url` leads to. Its tree location never changes.
     func favoriteRequest(for url: URL) -> FavoriteRequest {
         guard let existing = page(url: url) else { return .add }
         if Self.isFavorite(existing) { return .remove(existing) }
-        if let folder = existing.folder { return .moveFromFolder(existing, folder) }
         return .add
     }
 
@@ -47,7 +40,7 @@ extension LibraryStore {
         url.isWebOrTestPage
     }
 
-    /// ⋯ → Bookmark / Remove Bookmark. A new favorite without a tile-sized icon then asks
+    /// ⋯ → Add / Remove from Favorites. A new favorite without a tile-sized icon then asks
     /// `betterIcon` for one.
     func toggleFavorite(url: URL, title: String?, artwork: Data?, betterIcon: () async -> Data?) async throws {
         guard Self.canFavorite(url) else { return }
@@ -60,43 +53,61 @@ extension LibraryStore {
         offerArtwork(icon, for: added)
     }
 
-    /// Makes the page for `url` a favorite, at the end of Favorites: a new link page, or the
-    /// existing page filed there. A page played but not saved becomes a link (Favorites doesn't
-    /// save).
+    /// Makes the page for `url` a favorite without moving it: a new link page is loose, or the
+    /// existing page retains its location.
     @discardableResult
     func addFavorite(url: URL, title: String?, artwork: Data?) throws -> Page {
-        let folder = favorites()
         guard let existing = page(url: url) else {
-            return try addLink(url: url, title: title, artwork: artwork, in: folder)
+            let added = try addLink(url: url, title: title, artwork: artwork, in: nil)
+            try edit("favorite page") { added.isFavorite = true }
+            return added
         }
         try edit("favorite") {
-            if existing.folder !== folder {
-                if existing.addedAt == nil {
-                    existing.contentState = .link
-                    existing.addedAt = now()
-                }
-                existing.sortKey = nextSortKey(in: folder)
-                movePlaceOff(existing)
-                existing.setFolder(folder)
-            }
+            existing.isFavorite = true
             if existing.artworkData == nil { existing.artworkData = artwork }
         }
         return existing
     }
 
-    /// No longer a favorite: a saved page goes back to the pages in no folder, still saved; a
-    /// link page is removed.
+    /// Removes only the favorite flag; location and content stay intact.
     func removeFavorite(_ page: Page) throws {
         guard Self.isFavorite(page) else { return }
-        if page.isSaved {
-            try edit("unfavorite saved page") {
-                page.sortKey = nextSortKey(in: nil)
-                movePlaceOff(page)
-                page.setFolder(nil)
+        try edit("unfavorite page") { page.isFavorite = false }
+    }
+
+    func toggleFavorite(_ folder: Folder) throws {
+        try edit("toggle favorite folder") { folder.isFavorite.toggle() }
+    }
+
+    /// Converts the old pinned Favorites folder once. Children keep their structure; direct
+    /// pages become loose at the root. The folder is deleted only in the same saved edit.
+    func migrateFavoritesFolder() {
+        let legacyFolders = (try? context.fetch(LibraryQueries.favorites)) ?? []
+        guard !legacyFolders.isEmpty else { return }
+        do {
+            try edit("migrate favorites folder") {
+                for legacy in legacyFolders {
+                    for page in legacy.pages ?? [] {
+                        page.isFavorite = true
+                        page.sortKey = nextSortKey(in: nil)
+                        page.setFolder(nil)
+                    }
+                    for folder in legacy.children ?? [] {
+                        folder.parent = nil
+                        markFavorite(folder)
+                    }
+                    context.delete(legacy)
+                }
             }
-        } else {
-            try remove([page])
+        } catch {
+            log("favorites migration failed; original folder remains: \(error)")
         }
+    }
+
+    private func markFavorite(_ folder: Folder) {
+        folder.isFavorite = true
+        for page in folder.pages ?? [] { page.isFavorite = true }
+        for child in folder.children ?? [] { markFavorite(child) }
     }
 
     func renameFavorite(_ page: Page, to title: String) throws {

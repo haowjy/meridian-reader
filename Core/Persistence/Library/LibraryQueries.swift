@@ -13,6 +13,11 @@ enum LibraryQueries {
         FetchDescriptor(predicate: #Predicate<Page> { $0.addedAt != nil })
     }
 
+    static var favoritePages: FetchDescriptor<Page> {
+        FetchDescriptor(predicate: #Predicate<Page> { $0.addedAt != nil && $0.isFavorite },
+                        sortBy: [SortDescriptor(\.title)])
+    }
+
     /// Every saved page in the Library, newest first (address suggestions).
     static var savedInLibrary: FetchDescriptor<Page> {
         let saved = PageContentState.saved.rawValue
@@ -88,7 +93,7 @@ enum LibraryQueries {
     }
 
     static var favorites: FetchDescriptor<Folder> {
-        let favorites = FolderKind.favorites.rawValue
+        let favorites = "favorites"
         return FetchDescriptor(predicate: #Predicate<Folder> { $0.kindRaw == favorites },
                                sortBy: [SortDescriptor(\Folder.createdAt)])
     }

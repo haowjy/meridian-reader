@@ -49,7 +49,7 @@ final class LibraryDragTests: XCTestCase {
         XCTAssertNil(library.moveRefusal(.page(chapter), to: nil), "a chapter leaves its book")
         XCTAssertEqual(library.moveRefusal(.folder(outer), to: outer), .cycle, "a folder onto itself")
         XCTAssertEqual(library.moveRefusal(.folder(outer), to: inner), .cycle, "a folder into its own subfolder")
-        XCTAssertEqual(library.moveRefusal(.folder(library.favorites()), to: outer), .favoritesIsPinned)
+        XCTAssertNil(library.moveRefusal(.folder(library.favorites()), to: outer), "legacy Favorites containers follow folder rules")
     }
 
     /// Pages are placed among a book's chapters, and chapters out of it, as in any folder; only a
@@ -113,14 +113,13 @@ final class LibraryDragTests: XCTestCase {
     }
 
     func testPlacingAFolderBesideAnother() throws {
-        _ = library.favorites()
         let a = try library.makeFolder(name: "A", in: nil)
         let b = try library.makeFolder(name: "B", in: nil)
         let c = try library.makeFolder(name: "C", in: a)
         try library.arrange([c], in: nil, before: a)
         XCTAssertNil(c.parent, "out of A, to the top level")
-        XCTAssertEqual(library.topLevelFolders().map(\.displayName), ["Favorites", "C", "A", "B"],
-                       "Favorites stays first")
+        XCTAssertEqual(library.topLevelFolders().map(\.displayName), ["C", "A", "B"],
+                       "a folder drops into the requested sibling position")
     }
 
     // MARK: - Where a drop lands

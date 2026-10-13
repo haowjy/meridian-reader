@@ -37,7 +37,7 @@ their text when it is at its top, which does exactly what that button does.
 ## ✕ = modal + swipe-down
 
 - `.sheet`: swipe-down is built in (show the grabber), from the header or from a scrolling body at
-  its top: the Favorites sheet, the Move tree, the import sheet (except while it works), History,
+  its top: the Move tree, the import sheet (except while it works), History,
   Voice Settings. A Done/Cancel/✕ button is optional.
 - The Reader and Now Playing are the design system's `Sheet` (in place, not a `.sheet` or
   `fullScreenCover`): pulling the header (grabber, back pill or ⌄ row) down calls the same close
@@ -165,44 +165,36 @@ the ⋯ slot too.
   *Stop Listening* (unloads the page; the bar goes).
 
 **Start page** (no page loaded), Safari-style:
-1. **Favorites**: the Favorites folder as Safari shows it, a grid of its pages (favicon, or a
+1. **Favorites**: starred pages and folders (favicon, or a
    coloured letter tile when there is no usable favicon, with the title below), then its
-   subfolders as folder tiles; 4 per row, up to 8. Show All → the Favorites sheet. A page tile
-   opens the page (a link in the browser, a saved page in the Reader); a folder tile opens the
-   Favorites sheet at that folder; long-press a page tile → Rename… / Remove from Favorites.
+   folders as folder tiles; 4 per row, up to 8. Show All → the Library's Favorites tab. A page tile
+   opens the page (a link in the browser, a saved page in the Reader); a folder tile opens it in
+   the Library. Long-press a page tile → Rename… / Remove from Favorites.
 2. **Recent Searches** (local, newest first, Clear).
-
-**Favorites sheet** (`FavoritesSheet`): the Favorites folder screen, with its own pushes into
-subfolders; its links open in the browser and its saved pages in the Reader, closing the sheet
-first. Done, grabber, medium/large. Its bottom row is `[＋][ ][ ][ ][⋯]` on every screen of the
-sheet: ＋ is *New Folder* in the folder on screen, and ⋯ is the Library's ⋯ for that folder
-(*Sort ›, New Folder Inside*, and for a subfolder *Rename, Edit Details, Move…, Delete Folder…*; *Debug* with
-developer options on, its panel over the sheet), shown in the sheet; its big buttons are
-**Favorites** (back to the sheet's top), **History**, **Browser** (closes the sheet).
 
 ## The Library
 
 The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
-back up. It uses the **same bottom chrome** as the browser: the Now Playing bar, the search field
-capsule and `[＋][★][🔍][🌐][⋯]`. ＋ is *Import Book…* and *New Folder*, both made in the folder
-on screen (a book's too). ★ pushes Favorites over the screen you're on (‹
-comes back). 🌐 shows the browser as it was; 📚 there comes back to the same folder. The
+back up. The home has an in-list search field and **Everything / Favorites** tabs. Each tab filters
+the same mixed list: folders and pages share a single list, with no section headings. Favorites
+are independent stars; rows found outside their current location show their folder path and open
+in that location. The bottom chrome keeps the Now Playing bar and `[＋][🌐][⋯]`. ＋ is *Import
+Book…* and *New Folder*, both made in the folder on screen (a book's too). 🌐 shows the browser as
+it was; 📚 there comes back to the same folder. The
 ⋯ panel follows the screen on top (below), always with big buttons **Favorites**, **History**,
 **Browser**, and with developer options on a last row *Debug* (the listen debug panel); nothing
 in it acts on the page under the Library. History closes the Library first; Browser is the same
 swap as 🌐.
 
 ```
-Library                                   title in the list, scrolls away (no navigation bar)
-★  Favorites                       12  ›  Favorites first, then your folders by their order
-▣  Pride and Prejudice                 ▶  a book or series: its place and its own ▶
-   Chapter 24   ◐ 6 h 10 min left
-📁 Finance                             ▶  a folder whose pages play: the same, its page as the place
-   Seven-Day Yield   ◐ 52 min left
-Pages  48                      Show All › not saved first, then pages in no folder; the first 5
-[i] Notes on Tides                     ▶
-    example.org   Not saved   ◐ 4 min left
+Library
+Search Library
+Everything  Favorites
+▣ Pride and Prejudice          ↓  ▶  large cover, download state and play action
+▣ Tide Tables                  ↓  ▶
+▣ Finance ★                    ↓  ▶  location-independent favorite
+[i] Seven-Day Yield ★          ↓  ▶
 ```
 
 Secondary lines (a row's second line, the bar's, a header's details) never join their parts with
@@ -213,24 +205,22 @@ never does, and at large text sizes the parts wrap onto further lines. A section
 own lighter label after the title (*Pages* then *48*). VoiceOver reads the parts joined with
 commas.
 
-- **The home** (`LibraryHomeView`): nothing on it appears or goes away because playback starts
-  or ends. The bar's ▶ resumes what you last heard, and rows carry their own place and ▶
-  (decision D14). First the top-level folders, with no header; a folder whose pages play, a
-  book or series among them, shows its place and time left (the title of the page it is at, then
-  a ring and "6 h 10 min left") and its ▶ resumes it there without opening it (decision D15). Then **Pages**: the pages played without saving, newest played first,
-  marked "Not saved" (long-press → *Save* puts one in the Library), then the pages in no folder,
-  newest first; Show All pushes them all (the not-saved ones on top), sorted by the top level's
-  sort (*Manual / Newest / Title*, ⋯ → Sort; kept on the device, `library.topLevel.sort`). A row
-  added while you watch (a save, a first play) animates in. ⋯: *Voice Settings, Import Book…, New
-  Folder, Downloads*. An empty Library shows Favorites, then one card, *Find something to listen to*: "Tap
-  🌐 to find a page, or ＋ to import a book", with *Browse the web* and *Import a book*.
+- **The home** (`LibraryHomeView`): Everything shows top-level folders and pages in no folder;
+  played-but-unsaved pages remain visible as *Not saved*. Favorites shows all starred folders
+  and pages wherever they live. Search filters folders and pages across the tree in either tab;
+  a result keeps its location and shows the path. The old Favorites folder is migrated into star
+  flags; direct pages become loose and nested folders stay nested. Rows use large book-like art,
+  a Download state and Play. The bar's ▶ resumes what you last heard, and a folder row's ▶
+  resumes its own pages without opening it (D14). A first-run empty Library shows *Find something
+  to listen to*, with *Browse the web* and *Import a book*.
 - **A folder** (`FolderScreen`, Favorites, books and series included): its title and counts,
   subfolders first (by their order), then pages by the folder's sort. A folder with pages that
   play has the play header (decision D15): how far through (a bar across the content width, with
   "38%" and "6 h 10 min left" on one line under it), the round play button (*▶ Play* before
   anything in it has played, *▶ **Continue** 3 of 7*, or jade bars *Playing 3 of 7*: tap pauses),
-  stretched so it and *Play from Start* span the width (stacked at large text sizes); it plays
-  its own pages (not its subfolders') in the order shown, page to page, link pages skipped.
+  stretched so it and *From Start* span the width (stacked at large text sizes), followed by
+  *Download*; it plays its own pages (not its subfolders') in the order shown, page to page, link
+  pages skipped.
   Every block sits on the page margin, so the bar, the buttons and the cards share both edges.
   **Edit** (top right), or *Select* in a row's
   long-press menu (Edit with that row selected), puts check circles on the rows, and drag handles
@@ -238,9 +228,8 @@ commas.
   Mark Finished, Remove* for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
   their delete is saved (*Cancel* keeps them selected). ⋯: *Sort ›, New Folder Inside, Import
-  Book…, Download Folder, Delete Downloads, Rename, Edit Details, Move…, Delete Folder…*
-  (Favorites: no *Rename, Edit Details, Move…* or *Delete Folder…*; it can't be renamed, given
-  details, moved down or deleted).
+  Book…, Download Folder, Delete Downloads, Rename, Edit Details, Move…, Delete Folder…*.
+  A favorite is still an ordinary page or folder and keeps the same actions and location.
 - **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
   opens a sheet (`FolderDetailsSheet`): the cover (a letter tile without one), **Name**,
   **Author**, and *Choose from Photos*, *Choose from Files* (images) and *Remove Cover*.
@@ -285,14 +274,15 @@ commas.
   folder. Importing makes it with one page per chapter, first in the book's order (its sort is
   *Manual*); after that the order is yours: Edit, drags and *Sort* change it, chapters move out,
   and pages and subfolders move in. Its cover and author are folder details (the detailed
-  header). Its chapters show as chapters (their place in the leading column, no site); front
-  matter shows dimmed with "skipped" and no ▶ (it still opens for reading). A series' chapters
-  not fetched yet are lighter link rows ("not fetched yet"). What sets it apart is only where it
+  header). Its chapters use the ordinary page row, as pages inside any folder; front matter still
+  shows dimmed with "skipped" and no ▶ (it still opens for reading). A series' unfetched pages
+  use the same link row as elsewhere. What sets it apart is only where it
   came from: *Replace* finds it by its file (above), a series' link chapters are fetched when
   playback reaches them, the Now Playing bar names it as the source of its chapters, and its
   finished chapters lose their audio (D7).
 
-**Rows** are `ListRow`s. A tap opens the row; its menu is a long-press (decision D11), and a
+**Rows** are `ListRow`s. In the Library, rows use large artwork and a separate Download state
+control and Play action; other lists can use the compact variant. A tap opens the row; its menu is a long-press (decision D11), and a
 long press that moves lifts the row into a drag (below); swipe left removes. Rows that can play keep their ▶ (`PlayStateButton`): it plays the row (replacing what
 plays) or pauses / resumes it when it is what you hear, and never navigates. The playing row is
 tinted, with still or moving bars. Under the title, after the site, rows show a length ("18
@@ -325,9 +315,9 @@ played without saving and rows in Edit don't lift. The list doesn't scroll by it
 
 | Row | Tap | Trailing | Menu (long-press) | Swipe left |
 |---|---|---|---|---|
-| Folder, Favorites, book or series | opens it (push) | count, ›; ▶ when its pages play (resumes at its place; the place under the title) | *Continue, Play from Start* (when its pages play)*, Download* (when it has pages)*, Move to…, Rename, Edit Details, Delete…* (Favorites: no *Move to…, Rename, Edit Details, Delete…*) | Delete… |
-| Saved page (a chapter too) | the Reader (Now Playing if it's what you hear) | ▶ (not on pages skipped in playback) | *Play from Here* (in a folder)*, Move to…, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback* (in a folder)*, Share, Download, Delete Downloads* (when it has audio)*, Remove from Library* | Remove |
-| Page played without saving ("Not saved", top of *Pages*) | the Reader (Now Playing if it's what you hear) | ▶ | *Save, Share* | — |
+| Folder, book or series | opens it (push) | Download state; ▶ when its pages play, otherwise › | *Continue, Play from Start* (when its pages play)*, Download* (when it has pages)*, Move to…, Rename, Edit Details, Delete… | Delete… |
+| Saved page (including a chapter) | the Reader (Now Playing if it's what you hear) | Download state; ▶ (not on pages skipped in playback) | *Play from Here* (in a folder)*, Move to…, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback* (in a folder)*, Share, Download, Delete Downloads* (when it has audio)*, Remove from Library* | Remove |
+| Page played without saving ("Not saved") | the Reader (Now Playing if it's what you hear) | ▶ | *Save, Share* | — |
 | Link page | the page, in the browser | — | *Move to…, Share, Download, Remove from Library* | Remove |
 
 *Download* isn't offered while that page or folder is downloading already (decision D16, below).
@@ -400,8 +390,8 @@ a success would have shown. *Remove* of several pages is one change: all go, or 
 screen doesn't follow a move that didn't happen, the Move tree stays up, ☆ shows no "Added to
 Favorites", and 🔖 / ⊕ keep what they showed. In Edit, the selection stays when its change can't
 be saved; Edit's *Remove* is two changes, the pages first and then, after the question, the
-folders, so a folder delete that can't be saved leaves the folders selected but doesn't bring back
-pages already removed. The toast shows over the Favorites sheet, the Move tree, the import sheet
+  folders, so a folder delete that can't be saved leaves the folders selected but doesn't bring back
+  pages already removed. The toast shows over the Move tree, the import sheet
 and Now Playing too. Listening goes on being kept meanwhile: where you are in a page, when you last played it and
 whether you finished it are stored once saving works again, even across failed changes.
 
@@ -597,13 +587,13 @@ row) opens Now Playing instead.
 ## Developer options
 
 Debug tools are hidden in normal use: the ⋯ Debug rows (Browse "Debug ›" with Fake extraction
-failure; Reader, Now Playing, Library and Favorites sheet "Debug" → Listen debug panel), Voice
+failure; Reader, Now Playing and Library "Debug" → Listen debug panel), Voice
 settings → Listen debug (and Open full panel), the listen bar's Debug pill / bake overlay, and
 long-press ▶︎ → Listen debug panel. The entry points that open the full panel set
 `speech.showListenDebug` (Browse's Debug › only fakes an extraction failure; the Debug pill
 toggles the bake overlay); the shell's root
-presents the panel (`listenDebugSheet`) while no shell sheet is up, and Voice settings and the
-Favorites sheet present it over themselves. They show only with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
+presents the panel (`listenDebugSheet`) while no shell sheet is up, and Voice settings present it
+over themselves. They show only with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
 default in Release builds, on by default in Debug builds. To toggle in any build, long-press the
 **version row** at the bottom of Voice settings for 2 s (haptic + "Developer options on/off"
 confirmation). A Release build clears a stored "on" once, so a Debug pill left from an older build
@@ -623,7 +613,6 @@ Debug builds (`App/LaunchOptions.swift`).
 | ⋯ → Voice settings (`SpeechSettingsView`) | Done | `.sheet` |
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | — (grabber) | `.sheet`, medium/large |
-| ⋯ → Favorites / start page Show All / a folder tile (`FavoritesSheet`) | Done (grabber) | `.sheet`, medium/large; folders push inside it |
 | Toolbar 📚 / Library (`LibrarySurface`): the home | 🌐 Browser slot | in-place surface (shared bottom chrome); leave restores browse |
 | Library → a folder (a book or series too), Pages · Show All (`FolderScreen`) | ‹ system | push (`navigationDestination`) |
 | Move, Save to Library…, Save to Folder…, Change Folder (`MoveTreeSheet`) | ✕ (grabber) | `.sheet`, medium/large |

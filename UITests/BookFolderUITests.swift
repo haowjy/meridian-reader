@@ -80,7 +80,7 @@ final class BookFolderUITests: XCTestCase {
         app.navigationBars["The Demo Book"].buttons.firstMatch.tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         openFolder(app, "Demo Finance")
-        assertHeaderEdges(app, play: "folderContinue", fromStart: "folderPlayFromStart", row: "Index Funds")
+        assertHeaderEdges(app, play: "folderContinue", fromStart: "folderPlayFromStart", row: "Seven-Day Yield")
     }
 
     /// Edit on a book moves a chapter out, as on any folder; the book plays on without it.
@@ -98,6 +98,11 @@ final class BookFolderUITests: XCTestCase {
         app.navigationBars["The Demo Book"].buttons.firstMatch.tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         openFolder(app, "Demo Finance")
+        let folderScreen = find(app, "folderScreen")
+        for _ in 0..<3 where !libraryRow(app, "Chapter 3: The Tide").exists {
+            folderScreen.swipeUp()
+            idle(0.4)
+        }
         XCTAssertTrue(libraryRow(app, "Chapter 3: The Tide").waitForExistence(timeout: 5), "in Demo Finance")
     }
 

@@ -14,6 +14,47 @@ final class LibraryStoreTests: XCTestCase {
 
     private let day: TimeInterval = 24 * 3600
 
+    func testFavoritesAreIndependentFlagsAndDoNotMovePagesOrFolders() throws {
+        let folder = try library.makeFolder(name: "Finance", in: nil)
+        let page = try library.save(env.article("https://example.com/rates"), placement: .folder(folder))
+
+        _ = try library.addFavorite(url: page.url!, title: page.title, artwork: nil)
+        try library.toggleFavorite(folder)
+
+        XCTAssertTrue(page.isFavorite)
+        XCTAssertTrue(folder.isFavorite)
+        XCTAssertIdentical(page.folder, folder, "favoriting does not move the page")
+        try library.removeFavorite(page)
+        XCTAssertFalse(page.isFavorite)
+        XCTAssertIdentical(page.folder, folder, "unfavoriting does not move the page")
+    }
+
+    func testLegacyFavoritesMigrationKeepsItemsAndRemovesPinnedFolder() throws {
+        let legacy = library.favorites()
+        let page = try library.addLink(url: URL(string: "https://example.com/saved-link")!, title: "Saved link",
+                                       artwork: nil, in: legacy)
+        let child = try library.makeFolder(name: "Serials", in: legacy)
+        let nestedPage = try library.addLink(url: URL(string: "https://example.com/serial")!, title: "Serial",
+                                             artwork: nil, in: child)
+        let duplicateLegacy = Folder(name: "", kind: .favorites)
+        library.context.insert(duplicateLegacy)
+        let duplicatePage = try library.addLink(url: URL(string: "https://example.com/second-link")!, title: "Second link",
+                                                artwork: nil, in: duplicateLegacy)
+
+        library.migrateFavoritesFolder()
+
+        XCTAssertNil(library.folder(id: legacy.id), "the special folder was removed")
+        XCTAssertNil(library.folder(id: duplicateLegacy.id), "all legacy copies are removed")
+        XCTAssertTrue(page.isFavorite)
+        XCTAssertNil(page.folder, "direct pages move to the root")
+        XCTAssertTrue(child.isFavorite)
+        XCTAssertNil(child.parent, "existing subfolders remain available at root")
+        XCTAssertTrue(nestedPage.isFavorite)
+        XCTAssertIdentical(nestedPage.folder, child, "nested structure remains intact")
+        XCTAssertTrue(duplicatePage.isFavorite)
+        XCTAssertNil(duplicatePage.folder)
+    }
+
     func testOnePagePerCanonicalURLWhateverItsState() throws {
         let url = URL(string: "https://example.com/story")!
         try library.addLink(url: url, title: "Story", artwork: nil, in: library.favorites())
@@ -74,9 +115,9 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertTrue(link.isSaved, "unchanged")
     }
 
-    /// A chapter is a page like any other (decision D19): it moves out of its book, is saved into
-    /// another folder, filed in Favorites and removed from the Library; other pages move in. Its
-    /// book's place moves off it as it leaves.
+    /// A chapter is a page like any other: it moves out of its book, is saved into another
+    /// folder, starred in place, and removed from the Library; other pages move in. Its book's
+    /// place moves off it as it leaves.
     func testAChapterLeavesItsBookAsAnyPageAndPagesMoveIn() throws {
         let book = Folder(name: "Book", kind: .book)
         env.context.insert(book)
@@ -92,7 +133,7 @@ final class LibraryStoreTests: XCTestCase {
         try library.save(env.article("https://example.com/ch3"), placement: .folder(other))
         XCTAssertIdentical(chapters[2].folder, other, "saved into another folder")
         try library.addFavorite(url: URL(string: "https://example.com/ch4")!, title: nil, artwork: nil)
-        XCTAssertTrue(LibraryStore.isFavorite(chapters[3]), "filed in Favorites")
+        XCTAssertTrue(LibraryStore.isFavorite(chapters[3]), "starred without changing location")
         try library.remove([chapters[0]])
         XCTAssertNil(chapters[0].folder)
         XCTAssertNil(chapters[0].addedAt, "out of the Library")
@@ -100,36 +141,33 @@ final class LibraryStoreTests: XCTestCase {
 
         let article = try library.save(env.article("https://example.com/article"))
         try library.move([.page(article)], to: book)
-        XCTAssertEqual(library.pages(in: book).map(\.title), [article.title], "a book takes other pages")
+        XCTAssertEqual(Set(library.pages(in: book).map(\.title)), Set([chapters[3].title, article.title]), "a book is an ordinary folder")
         let inner = try library.makeFolder(name: "Notes", in: book)
         XCTAssertIdentical(inner.parent, book, "and subfolders")
     }
 
-    /// A series in Favorites makes its chapters favorites, and ☆ on one takes it out of
-    /// Favorites as it takes any page (out of the series too: a page is in one folder); out of
-    /// Favorites, ☆ on a chapter asks to move it there, as for a page in any folder.
-    func testAFavoriteSeriesChapterIsAFavoriteLikeAnyPage() async throws {
+    /// Favorites are independent of folder location, including for a series chapter.
+    func testFavoriteSeriesChapterKeepsItsLocation() async throws {
         let series = Folder(name: "Serial", kind: .series)
         env.context.insert(series)
-        series.parent = library.favorites()
         let savedURL = URL(string: "https://example.com/serial/1")!
         let linkURL = URL(string: "https://example.com/serial/2")!
         let saved = try library.save(env.article(savedURL.absoluteString, title: "Ch 1"))
         saved.setFolder(series)
         let link = try library.addLink(url: linkURL, title: "Ch 2", artwork: nil, in: series)
-        XCTAssertTrue(LibraryStore.isFavorite(saved), "in Favorites through its series")
+        XCTAssertFalse(LibraryStore.isFavorite(saved), "location alone does not favorite a page")
+        try library.addFavorite(url: savedURL, title: nil, artwork: nil)
+        XCTAssertTrue(LibraryStore.isFavorite(saved))
         guard case .remove(let page) = library.favoriteRequest(for: savedURL) else { return XCTFail("☆ removes it") }
         XCTAssertIdentical(page, saved)
 
         try await library.toggleFavorite(url: savedURL, title: nil, artwork: nil) { nil }
-        XCTAssertNil(saved.folder, "a saved chapter goes to the pages in no folder")
+        XCTAssertIdentical(saved.folder, series, "removing a favorite does not move the page")
         XCTAssertTrue(saved.isSavedToLibrary)
-        try library.move([.folder(series)], to: nil)
-        guard case .moveFromFolder(let chapter, let folder) = library.favoriteRequest(for: linkURL) else {
-            return XCTFail("out of Favorites: ask to move it in")
-        }
-        XCTAssertIdentical(chapter, link)
-        XCTAssertIdentical(folder, series)
+        guard case .add = library.favoriteRequest(for: linkURL) else { return XCTFail("unstarred link can be starred in place") }
+        try library.addFavorite(url: linkURL, title: nil, artwork: nil)
+        XCTAssertTrue(link.isFavorite)
+        XCTAssertIdentical(link.folder, series)
     }
 
     /// *Library (no folder)* in the Move tree files the page in no folder, out of Favorites or a
@@ -249,10 +287,13 @@ final class LibraryStoreTests: XCTestCase {
     }
 
     func testUnsaveKeepsAFavoriteAsALinkAndRemovesALoosePageOrAChapter() throws {
-        let favorite = try library.save(env.article("https://example.com/fav"), placement: .folder(library.favorites()))
+        let url = URL(string: "https://example.com/fav")!
+        let favorite = try library.save(env.article(url.absoluteString))
+        try library.addFavorite(url: url, title: favorite.title, artwork: nil)
         try library.unsave(favorite)
         XCTAssertTrue(favorite.isLink)
-        XCTAssertEqual(favorite.folder?.kind, .favorites, "still a favorite")
+        XCTAssertNil(favorite.folder, "its location does not change")
+        XCTAssertTrue(favorite.isFavorite, "unsaving preserves the independent favorite flag")
         XCTAssertFalse(favorite.hasText, "never played: no cache to keep")
 
         let loose = try library.save(env.article("https://example.com/loose"))
