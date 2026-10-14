@@ -71,8 +71,8 @@ final class BookFolderUITests: XCTestCase {
     }
 
     /// A book's and a folder's header blocks share the cards' edges: the bar spans the content
-    /// width, its percent and time left sit on one line under it, and the play buttons' row runs
-    /// edge to edge.
+    /// width, its percent and time left sit on one line under it, and the action row (Continue,
+    /// From Start, Download) runs edge to edge on one line.
     func testHeaderBlocksShareTheCardsEdges() throws {
         let app = launchLibrary(["-seedDemoBookPlace", "2"])
         openFolder(app, "The Demo Book")
@@ -114,14 +114,16 @@ final class BookFolderUITests: XCTestCase {
         let card = libraryCell(app, row)
         XCTAssertTrue(card.waitForExistence(timeout: 5), file: file, line: line)
         let bar = progress.frame, continueButton = app.buttons[play].frame, startButton = app.buttons[fromStart].frame
+        let download = app.buttons["folderDownload"].frame
         let cardFrame = card.frame
         for (name, edge) in [("bar", bar.minX), ("Continue", continueButton.minX)] {
             XCTAssertEqual(edge, cardFrame.minX, accuracy: 1, "\(name) leading edge on the card's", file: file, line: line)
         }
-        for (name, edge) in [("bar", bar.maxX), ("Play from Start", startButton.maxX)] {
+        for (name, edge) in [("bar", bar.maxX), ("Download", download.maxX)] {
             XCTAssertEqual(edge, cardFrame.maxX, accuracy: 1, "\(name) trailing edge on the card's", file: file, line: line)
         }
         XCTAssertEqual(continueButton.midY, startButton.midY, accuracy: 1, "the buttons share a row", file: file, line: line)
+        XCTAssertEqual(continueButton.midY, download.midY, accuracy: 1, "Download on the same row", file: file, line: line)
         // The bar (3 pt), a gap and one caption line; two lines would be over 40 pt.
         XCTAssertLessThan(bar.height, 36, "percent and time left on one line, got \(bar.height) pt", file: file, line: line)
     }

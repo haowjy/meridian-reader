@@ -86,6 +86,9 @@ xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -confi
   only shows) takes `.tint(Palette.destructive)`, never `role: .destructive`. The role has the
   List remove the row at once; the List and its data then disagree, and UIKit aborts on the next
   change ("attempt to delete item … before the update").
+- **Button rows never wrap** (decision D21): two or more buttons side by side go in an
+  `ActionButtonRow`, which falls back from full labels to short titles, then no details, then
+  symbols alone. Give every button in one a symbol.
 - **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `settle`, `dismiss`) and its
   Reduce Motion transitions, not ad-hoc springs.
 - **Bottom chrome**: build controls from `BottomChrome` helpers (`bottomChromeField`,

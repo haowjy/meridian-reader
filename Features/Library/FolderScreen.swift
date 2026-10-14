@@ -20,12 +20,12 @@ import SwiftUI
 /// 2 folders   7 pages
 /// ━━━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░░░░
 /// 38%   52 min left
-/// ( ▶ Continue  3 of 7             ) ( Play from Start )
+/// ( ▶ Continue  3 of 7       ) ( ⏮ Start ) (⬇)   one line, always (`ActionButtonRow`)
 ///  📁 Bonds                             4  ›
-///  [i] Coupon Basics                        ▶
-///      investing.example.com   ✓ Finished
-///  [i] Seven-Day Yield                      ⏸   ← playing: tinted, with bars
-///      investing.example.com   ▂▅▇ 9 min left
+///  ▣ Coupon Basics                      ✓   ▶
+///  ▣ ✓ Finished
+///  ▣ Seven-Day Yield                    ⬇   ⏸   ← playing: tinted, with bars
+///  ▣ ▂▅▇ Playing
 ///  🔗  investing.example.com                     (link: lighter, no ▶)
 /// ```
 struct FolderScreen: View {

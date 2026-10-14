@@ -229,10 +229,10 @@ struct DownloadsSheet: View {
     private func choices(_ item: DownloadOverview.Item) -> [DownloadRow.Choice] {
         guard case .differentVoice(let voice) = item.status else { return [] }
         return [
-            .init(title: String(localized: "Re-download"), isPrimary: true, identifier: "downloadRedownload") {
+            .init(title: String(localized: "Re-download"), systemImage: "arrow.clockwise", isPrimary: true, identifier: "downloadRedownload") {
                 downloads.redownload(item.id)
             },
-            .init(title: String(localized: "Keep"), identifier: "downloadKeep") { downloads.keep(item.id, voice: voice) },
+            .init(title: String(localized: "Keep"), systemImage: "checkmark", identifier: "downloadKeep") { downloads.keep(item.id, voice: voice) },
         ]
     }
 

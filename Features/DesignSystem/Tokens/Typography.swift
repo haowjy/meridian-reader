@@ -33,6 +33,12 @@ enum TypeStyle: CaseIterable {
         }
     }
 
+    /// One line's height at the default text size (scale it with `relativeTo`, as
+    /// `@ScaledMetric` does): what a row's thumbnail matches to two lines of text.
+    var lineHeight: CGFloat {
+        UIFont.systemFont(ofSize: size).lineHeight
+    }
+
     var relativeTo: Font.TextStyle {
         switch self {
         case .title: .title

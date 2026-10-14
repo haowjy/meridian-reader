@@ -2,8 +2,9 @@ import SwiftUI
 
 /// The top of a folder screen. A plain folder: its title and counts. A book, a series, or a
 /// folder given details (`detailed`): the cover, title, details, how far through, and its play
-/// buttons (`actions`: Continue and Play from Start, in a `FolderHeaderButtons` row). A plain
-/// folder whose pages play has the progress and buttons too, under its title.
+/// buttons (`actions`: Continue, From Start and Download, in an `ActionButtonRow`, so one line
+/// at every width and text size). A plain folder whose pages play has the progress and buttons
+/// too, under its title.
 ///
 /// ```
 /// Finance                        ╭──────╮  Pride and Prejudice
@@ -11,7 +12,7 @@ import SwiftUI
 ///                                ╰──────╯  Added 2 Oct
 ///                                ━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░░░
 ///                                38%   6 h 10 min left
-///                                ( ▶ Continue  Ch 24          ) ( Play from Start )
+///                                ( ▶ Continue  Ch 24   ) ( ⏮ From Start ) (⬇)
 /// ```
 ///
 /// Every block spans the content width and nothing pads it: in a Library list the section
@@ -112,32 +113,6 @@ enum FolderHeaderStyle {
     case detailed(cover: Image?)
 }
 
-/// A folder header's play buttons: the main one (Continue, Playing) stretches so the row spans
-/// the content width, the second (Play from Start) keeps its size. When both don't fit side by
-/// side (large text) they stack, each the full width.
-///
-/// ```
-/// ( ▶ Continue  Ch 24                ) ( Play from Start )
-/// ```
-struct FolderHeaderButtons<Primary: View, Secondary: View>: View {
-    /// Given whether it should stretch to the width it is offered.
-    @ViewBuilder var primary: (_ expands: Bool) -> Primary
-    @ViewBuilder var secondary: (_ expands: Bool) -> Secondary
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: Spacing.s) {
-                primary(true)
-                secondary(false)
-            }
-            VStack(spacing: Spacing.xs) {
-                primary(true)
-                secondary(true)
-            }
-        }
-    }
-}
-
 extension FolderHeader where Actions == EmptyView {
     init(title: String, detail: [String]) {
         self.init(title: title, detail: detail) { EmptyView() }
@@ -155,31 +130,39 @@ struct FolderHeaderGallery: View {
                 FolderHeader(style: .detailed(cover: nil), title: "Pride and Prejudice",
                              detail: ["Jane Austen", "Book", "61 chapters"], source: ["Added 2 Oct"],
                              progress: 0.02, progressLabel: ["2%", "8 h 48 min left"]) {
-                    FolderHeaderButtons { expands in
-                        PlayStateButton(state: .idle, look: .pill(title: "Continue", detail: "Ch 24", expands: expands)) {}
-                    } secondary: { expands in
-                        PillButton("Play from Start", style: .neutral, expands: expands) {}
-                    }
+                    PreviewActions(title: "Continue", detail: "Ch 24")
                 }
             }
             PreviewState("folder with details") {
                 FolderHeader(style: .detailed(cover: nil), title: "Tide Tables",
                              detail: ["A. Writer", "1 folder", "4 pages"],
                              progress: 0.5, progressLabel: ["50%", "22 min left"]) {
-                    FolderHeaderButtons { expands in
-                        PlayStateButton(state: .idle, look: .pill(title: "Continue", detail: "3 of 4", expands: expands)) {}
-                    } secondary: { expands in
-                        PillButton("Play from Start", style: .neutral, expands: expands) {}
-                    }
+                    PreviewActions(title: "Continue", detail: "3 of 4")
                 }
             }
             PreviewState("series, a chapter playing") {
                 FolderHeader(style: .detailed(cover: nil), title: "The Lantern Road",
                              detail: ["serials.example.com", "Series", "108 chapters", "13 saved"],
                              progress: 0.2, progressLabel: ["20%"]) {
-                    PlayStateButton(state: .playing, look: .pill(title: "Playing", detail: "Ch 24", expands: true)) {}
+                    PreviewActions(title: "Playing", detail: "Ch 24", state: .playing, download: .downloading(fraction: 0.3))
                 }
             }
+        }
+    }
+}
+
+/// The header's action row as `FolderPlayButtons` draws it.
+private struct PreviewActions: View {
+    let title: String
+    let detail: String
+    var state: PlayState = .idle
+    var download: DownloadState = .available
+
+    var body: some View {
+        ActionButtonRow { fit in
+            PlayStateButton(state: state, look: .pill(title: title, detail: detail, expands: true, fit: fit)) {}
+            PillButton("From Start", shortTitle: "Start", systemImage: "backward.end.fill", style: .neutral, fit: fit) {}
+            DownloadStateButton(state: download, look: .round) {}
         }
     }
 }

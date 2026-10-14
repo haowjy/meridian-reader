@@ -68,9 +68,9 @@ struct DownloadOverview: Equatable {
         var runningTotal = 0
         for record in records {
             if record.hasQueuedPages {
-                let activeFraction = active?.recordID == record.id ? min(max(active?.fraction ?? 0, 0), 1) : 0
+                let activeFraction = Self.activeFraction(of: record, active: active)
                 let total = max(record.entries.count, 1)
-                let fraction = (Double(record.finishedCount) + activeFraction) / Double(total)
+                let fraction = Self.fraction(of: record, active: active)
                 let status: Status
                 if record.isPaused {
                     status = .paused(fraction: fraction)
@@ -98,6 +98,15 @@ struct DownloadOverview: Equatable {
             done.append(Item(record: record, status: .done, voice: named))
         }
         progress = runningTotal > 0 ? runningDone / Double(runningTotal) : nil
+    }
+
+    /// How much of `record` is ready, 0…1: its finished pages and how far the one rendering is.
+    static func fraction(of record: DownloadRecord, active: Active?) -> Double {
+        (Double(record.finishedCount) + activeFraction(of: record, active: active)) / Double(max(record.entries.count, 1))
+    }
+
+    private static func activeFraction(of record: DownloadRecord, active: Active?) -> Double {
+        active?.recordID == record.id ? min(max(active?.fraction ?? 0, 0), 1) : 0
     }
 
     /// Whether every one of `keys` is downloaded: a download's turn on it ended with its whole

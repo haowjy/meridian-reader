@@ -39,8 +39,9 @@ struct PlayStateButton: View {
         /// `idleSymbol` shows while it isn't what you hear (`headphones` in the address field).
         case badge(idleSymbol: String)
         /// A labelled pill; the title says what it plays ("Listen", "Playing"), the lighter
-        /// detail after it how long or where ("9 min", "Ch 24").
-        case pill(title: String, detail: String? = nil, expands: Bool = false)
+        /// detail after it how long or where ("9 min", "Ch 24"). `fit`: how much of that shows in an
+        /// `ActionButtonRow` (`.icon`: the ▶, spinner or bars alone).
+        case pill(title: String, detail: String? = nil, expands: Bool = false, fit: ActionLabelFit = .full)
         /// A round accent disc, `BottomChrome.transportDiscSize` wide, with a dark glyph on the
         /// player: Now Playing's centre slot.
         case disc
@@ -50,11 +51,17 @@ struct PlayStateButton: View {
     var look: Look = .glyph
     let action: () -> Void
 
+    /// The `glyph` look's symbol: `.title3`'s size, growing with the text only up to
+    /// `BottomChrome.maxTextGrowth` so it stays inside its 44 pt column.
+    @ScaledMetric(relativeTo: .title3) private var scaledGlyph: CGFloat = PlayStateButton.glyphSize
+
+    static let glyphSize: CGFloat = 20
+
     var body: some View {
         switch look {
         case .glyph: glyph
         case .badge(let symbol): badge(symbol)
-        case .pill(let title, let detail, let expands): pill(title, detail: detail, expands: expands)
+        case .pill(let title, let detail, let expands, let fit): pill(title, detail: detail, expands: expands, fit: fit)
         case .disc: PlayStateDisc(state: state, action: action)
         }
     }
@@ -66,7 +73,7 @@ struct PlayStateButton: View {
                     ProgressView()
                 } else {
                     Image(systemName: state == .playing ? "pause.fill" : "play.fill")
-                        .font(.title3)
+                        .font(.system(size: BottomChrome.grown(scaledGlyph, from: Self.glyphSize)))
                         .foregroundStyle(state.isCurrent ? Palette.accent : Palette.ink)
                         .contentTransition(.symbolEffect(.replace))
                 }
@@ -101,9 +108,9 @@ struct PlayStateButton: View {
         .accessibilityLabel(state == .idle ? "Listen" : state.accessibilityLabel)
     }
 
-    private func pill(_ title: String, detail: String?, expands: Bool) -> some View {
+    private func pill(_ title: String, detail: String?, expands: Bool, fit: ActionLabelFit) -> some View {
         PillButton(title: title, detail: detail, style: state.isCurrent ? .tinted : .filled, expands: expands,
-                   action: action) {
+                   fit: fit, action: action) {
             switch state {
             case .idle:
                 PillSymbol(name: "play.fill")
