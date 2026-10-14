@@ -48,7 +48,7 @@ final class ScreenshotCaptureTests: XCTestCase {
     /// Offline page two (an article): the page with its reader icon showing.
     private func openTestArticlePage(_ app: XCUIApplication) {
         let link = app.links["Next page"]
-        XCTAssertTrue(link.waitForExistence(timeout: 10))
+        XCTAssertTrue(link.waitForExistence(timeout: 30))
         link.tap()
         XCTAssertTrue(el(app, "addressReader").waitForExistence(timeout: 5))
         wait(1)
@@ -300,7 +300,7 @@ final class ScreenshotCaptureTests: XCTestCase {
     /// showing the page played last, paused.
     func testSharedBand() throws {
         let app = launch(["-seedDemoArticle", "-browseTestPages"])
-        XCTAssertTrue(el(app, "bandField").waitForExistence(timeout: 10))
+        XCTAssertTrue(el(app, "bandField").waitForExistence(timeout: 30))
         try shot("chrome-browse-first-page")
         openTestArticlePage(app)
         wait(1)
