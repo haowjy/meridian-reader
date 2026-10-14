@@ -125,6 +125,15 @@ final class DownloadCenter {
         record(for: target)?.hasQueuedPages == true
     }
 
+    /// What a Download button for `target` shows: ready to ask, how far while queued, or
+    /// downloaded (`isDownloaded`, which the caller has from `isDownloaded(_:)`).
+    func state(of target: DownloadRecord.Target, isDownloaded: Bool) -> DownloadState {
+        if let record = record(for: target), record.hasQueuedPages {
+            return .downloading(fraction: DownloadOverview.fraction(of: record, active: activeProgress))
+        }
+        return isDownloaded ? .downloaded : .available
+    }
+
     /// The page's audio is downloaded in the current voice (its rows' mark).
     func isDownloaded(_ page: Page) -> Bool {
         isDownloaded([page.listenKey])

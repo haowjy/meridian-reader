@@ -6,7 +6,8 @@ import SwiftUI
 ///
 /// A `detail` follows the title in regular weight, set apart by space rather than a separator:
 /// *▶ **Listen**  9 min*, *▶ **Continue**  Ch 24*. When the pill is short of room (large text)
-/// the detail is left out; VoiceOver still reads it.
+/// the detail is left out; VoiceOver still reads it. In an `ActionButtonRow` it draws for the
+/// row's `fit`: the short title alone, or (`.icon`) its leading symbol alone on a round button.
 struct PillButton<Leading: View>: View {
     enum Style {
         /// Accent fill: the main action on a screen (Listen, Continue).
@@ -38,6 +39,10 @@ struct PillButton<Leading: View>: View {
     var size: Size = .regular
     /// Stretches to the width it is offered (Listen between 🔖 and ⋯).
     var expands = false
+    /// The title when the row is short of room ("Start" for "From Start"); nil: the title.
+    var shortTitle: String?
+    /// How much of the label shows (`ActionButtonRow`).
+    var fit: ActionLabelFit = .full
     let action: () -> Void
     @ViewBuilder var leading: Leading
 
@@ -45,38 +50,55 @@ struct PillButton<Leading: View>: View {
     @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
+        let height = BottomChrome.grown(size.height * scale, from: size.height)
         Button(action: action) {
             HStack(spacing: Spacing.xs) {
                 leading
-                // Without room for both (large text), the title alone.
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
-                        titleText
-                        if let detail {
-                            Text(detail)
-                                .typeStyle(.row)
-                                .monospacedDigit()
-                        }
-                    }
-                    titleText
-                }
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(PillButton.accessibilityLabel(title: title, detail: detail))
+                label
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(PillButton.accessibilityLabel(title: title, detail: detail))
             }
             .foregroundStyle(foreground)
-            .padding(.horizontal, Spacing.m)
-            .frame(maxWidth: expands ? .infinity : nil, minHeight: BottomChrome.grown(size.height * scale, from: size.height))
+            .padding(.horizontal, fit == .icon ? 0 : Spacing.m)
+            // Icon only: a circle the pill's height, or a capsule when it stretches.
+            .frame(minWidth: fit == .icon ? height : nil, maxWidth: expands ? .infinity : nil, minHeight: height)
             .background(background, in: RoundedRectangle(cornerRadius: Radius.pill, style: .continuous))
             .opacity(isEnabled ? 1 : 0.4)
             .tapTarget(size.height)
         }
         .buttonStyle(PillPressStyle())
+        .accessibilityLabel(PillButton.accessibilityLabel(title: title, detail: detail))
+        .accessibilityShowsLargeContentViewer { Text(title) }
     }
 
-    private var titleText: some View {
-        Text(title).typeStyle(.row, weight: .semibold)
+    @ViewBuilder
+    private var label: some View {
+        switch fit {
+        case .full, .short:
+            let shown = fit == .full ? title : shortTitle ?? title
+            // Without room for both (large text), the title alone.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+                    titleText(shown)
+                    if let detail {
+                        Text(detail)
+                            .typeStyle(.row)
+                            .monospacedDigit()
+                    }
+                }
+                titleText(shown)
+            }
+        case .titleOnly:
+            titleText(shortTitle ?? title)
+        case .icon:
+            EmptyView()
+        }
+    }
+
+    private func titleText(_ text: String) -> some View {
+        Text(text).typeStyle(.row, weight: .semibold)
     }
 
     /// The title and detail as VoiceOver reads them: "Listen, 9 min".
@@ -105,9 +127,11 @@ struct PillButton<Leading: View>: View {
 
 extension PillButton where Leading == PillSymbol {
     /// A pill with an SF Symbol before its title (nil: the title alone).
-    init(_ title: String, detail: String? = nil, systemImage: String? = nil, style: Style = .filled,
-         size: Size = .regular, expands: Bool = false, action: @escaping () -> Void) {
-        self.init(title: title, detail: detail, style: style, size: size, expands: expands, action: action) {
+    init(_ title: String, detail: String? = nil, shortTitle: String? = nil, systemImage: String? = nil,
+         style: Style = .filled, size: Size = .regular, expands: Bool = false, fit: ActionLabelFit = .full,
+         action: @escaping () -> Void) {
+        self.init(title: title, detail: detail, style: style, size: size, expands: expands, shortTitle: shortTitle,
+                  fit: fit, action: action) {
             PillSymbol(name: systemImage)
         }
     }

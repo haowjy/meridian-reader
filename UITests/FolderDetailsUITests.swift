@@ -106,19 +106,21 @@ final class FolderDetailsUITests: XCTestCase {
         if !text.isEmpty { field.typeText(text) }
     }
 
-    /// The detailed header keeps 46ce36b's edges: the bar and the button row span the cards'
-    /// width, and the percent and time left sit on one line.
+    /// The detailed header keeps the cards' edges: the bar and the button row (Continue to
+    /// Download, one line) span the cards' width, and the percent and time left sit on one line.
     private func assertHeaderOnTheCardsEdges(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         let progress = find(app, "folderHeaderProgress")
         XCTAssertTrue(progress.waitForExistence(timeout: 5), "the progress block", file: file, line: line)
         let card = libraryCell(app, "Index Funds")
         XCTAssertTrue(card.waitForExistence(timeout: 5), file: file, line: line)
         let bar = progress.frame, play = app.buttons["folderContinue"].frame
-        let fromStart = app.buttons["folderPlayFromStart"].frame
+        let fromStart = app.buttons["folderPlayFromStart"].frame, download = app.buttons["folderDownload"].frame
         XCTAssertEqual(bar.minX, card.frame.minX, accuracy: 1, "bar leading edge", file: file, line: line)
         XCTAssertEqual(bar.maxX, card.frame.maxX, accuracy: 1, "bar trailing edge", file: file, line: line)
         XCTAssertEqual(play.minX, card.frame.minX, accuracy: 1, "Continue leading edge", file: file, line: line)
-        XCTAssertEqual(fromStart.maxX, card.frame.maxX, accuracy: 1, "Play from Start trailing edge", file: file, line: line)
+        XCTAssertEqual(download.maxX, card.frame.maxX, accuracy: 1, "Download trailing edge", file: file, line: line)
+        XCTAssertEqual(fromStart.midY, play.midY, accuracy: 1, "one row", file: file, line: line)
+        XCTAssertEqual(download.midY, play.midY, accuracy: 1, "one row", file: file, line: line)
         XCTAssertLessThan(bar.height, 36, "percent and time left on one line", file: file, line: line)
         XCTAssertFalse(progress.label.contains("·"), "no dot: \(progress.label)", file: file, line: line)
     }

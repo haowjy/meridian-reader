@@ -77,7 +77,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   *Delete Downloads* also drops the page's or book's download, or the list would render it again.
   Rows offer *Download* only when that page or folder isn't downloading already
   (`DownloadCenter.isQueued`).
-- **Headers sit on the page margin with the cards** (`FolderHeader`, `FolderHeaderButtons`): the
+- **Headers sit on the page margin with the cards** (`FolderHeader`, `FolderPlayButtons`): the
   section header is already at the margin in a Library list, so the header adds no padding of its
   own; the bar and the button row span the width, so all four edges line up
   (`BookFolderUITests.testHeaderBlocksShareTheCardsEdges` checks them).
@@ -94,13 +94,18 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   picks the header's look (`FolderHeaderStyle.detailed`), a book's too. `FolderPlayButtons` is
   the header's button row. UI tests read the look from `folderHeaderLook` (the cover tile is
   hidden from accessibility); `-pickTestCover` stands in for the Files picker.
-- **Rows ask `DownloadCenter.isDownloaded`** for their Downloaded mark (a page, or a folder with
-  the pages its row already sorted); `ListRow` only draws `isDownloaded`.
+- **Rows ask `DownloadCenter.isDownloaded`** (a page, or a folder with the pages its row already
+  sorted) and `state(of:isDownloaded:)` for their Download control; `ListRow` only draws the
+  `ListRow.Download` it is given.
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way
   (`PageProgress.of`); counts come from relationships, not fetches.
 - **D20 home:** `LibraryHomeView` renders the Everything/Favorites filter and in-list search over
   one folder/page collection. Star flags never change location; rows outside their parent context
-  show a path. Rows use large artwork and separate Download / Play controls. A folder header has
-  Continue, From Start and Download. Imported pages are standard page rows; folder sort remains
+  show a path. Folder rows use large artwork; rows have Download and Play side by side. A folder
+  header has Continue, From Start and Download.
+- **D21: action rows never wrap; page rows are two lines.** A row of buttons is an
+  `ActionButtonRow` (full labels → short titles → no details → symbols), never an HStack or a
+  stack that can wrap; give every button a symbol. A page row is its title on one line and one
+  status line; in a folder (`page.folder != nil`) it leaves out the byline the header shows. Imported pages are standard page rows; folder sort remains
   the source chapter order until the user changes it. The old Favorites folder is converted by
   `LibraryStore.migrateFavoritesFolder` before the first screen.

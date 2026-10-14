@@ -13,6 +13,8 @@ final class DesignSystemGalleryTests: XCTestCase {
         ("Tokens", AnyView(TokensGallery())),
         ("PlayStateButton", AnyView(PlayStateButtonGallery())),
         ("PillButton", AnyView(PillButtonGallery())),
+        ("ActionButtonRow", AnyView(ActionButtonRowGallery())),
+        ("DownloadStateButton", AnyView(DownloadStateButtonGallery())),
         ("AddressField", AnyView(AddressFieldGallery())),
         ("SearchField", AnyView(SearchFieldGallery())),
         ("SectionHeader", AnyView(SectionHeaderGallery())),

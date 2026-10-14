@@ -200,8 +200,9 @@ Everything  Favorites
 Secondary lines (a row's second line, the bar's, a header's details) never join their parts with
 a separator character: the parts sit apart by space (`DetailLine`, `Spacing.s`, growing with the
 text), the first in secondary ink and the rest in the lighter tertiary ink; a playing row's status
-is in the accent. The first part (the site) truncates when the line is short of room; the status
-never does, and at large text sizes the parts wrap onto further lines. A section's count is its
+is in the accent. A row's second line is always one line: the first part (the site) truncates
+when it is short of room, and at accessibility text sizes the row shows its status alone there
+(VoiceOver still reads every part). A section's count is its
 own lighter label after the title (*Pages* then *48*). VoiceOver reads the parts joined with
 commas.
 
@@ -210,17 +211,19 @@ commas.
   and pages wherever they live. Search filters folders and pages across the tree in either tab;
   a result keeps its location and shows the path. The old Favorites folder is migrated into star
   flags; direct pages become loose and nested folders stay nested. Rows use large book-like art,
-  a Download state and Play. The bar's ▶ resumes what you last heard, and a folder row's ▶
+  a Download state and Play (pages: the two-line row below). The bar's ▶ resumes what you last heard, and a folder row's ▶
   resumes its own pages without opening it (D14). A first-run empty Library shows *Find something
-  to listen to*, with *Browse the web* and *Import a book*.
+  to listen to*, with *Browse the web* and *Import a book* on one action row.
 - **A folder** (`FolderScreen`, Favorites, books and series included): its title and counts,
   subfolders first (by their order), then pages by the folder's sort. A folder with pages that
   play has the play header (decision D15): how far through (a bar across the content width, with
   "38%" and "6 h 10 min left" on one line under it), the round play button (*▶ Play* before
   anything in it has played, *▶ **Continue** 3 of 7*, or jade bars *Playing 3 of 7*: tap pauses),
-  stretched so it and *From Start* span the width (stacked at large text sizes), followed by
-  *Download*; it plays its own pages (not its subfolders') in the order shown, page to page, link
-  pages skipped.
+  stretched so it, *⏮ From Start* and a round icon-only Download (⬇, a ring while it downloads,
+  ✓ once downloaded) span the width on one row. The row never wraps (decision D21): short of
+  room it shortens *From Start* to *Start*, then drops the place ("3 of 7"), then shows the
+  symbols alone (VoiceOver and the large content viewer keep the names). It plays its own pages
+  (not its subfolders') in the order shown, page to page, link pages skipped.
   Every block sits on the page margin, so the bar, the buttons and the cards share both edges.
   **Edit** (top right), or *Select* in a row's
   long-press menu (Edit with that row selected), puts check circles on the rows, and drag handles
@@ -281,16 +284,22 @@ commas.
   playback reaches them, the Now Playing bar names it as the source of its chapters, and its
   finished chapters lose their audio (D7).
 
-**Rows** are `ListRow`s. In the Library, rows use large artwork and a separate Download state
-control and Play action; other lists can use the compact variant. A tap opens the row; its menu is a long-press (decision D11), and a
+**Rows** are `ListRow`s. In the Library, folder rows use large artwork; every row that can be
+downloaded has a Download control (⬇, a ring filling while it downloads, ✓ once downloaded) and
+▶ side by side at its trailing edge, centred on the row's height. A page row (a chapter too) is
+exactly two lines (decision D21): its title on one line, truncated, then one short line of what
+it is and where it stands ("5 min", "6 min left", "✓ Finished", "skipped", "Playing"), with a
+small thumbnail as tall as the two lines. In a folder that line is the status alone (the header
+already names the author or site); on the home and in search the site or path comes first. A
+tap opens the row; its menu is a long-press (decision D11), and a
 long press that moves lifts the row into a drag (below); swipe left removes. Rows that can play keep their ▶ (`PlayStateButton`): it plays the row (replacing what
 plays) or pauses / resumes it when it is what you hear, and never navigates. The playing row is
-tinted, with still or moving bars. Under the title, after the site, rows show a length ("18
-min"), "6 min left" with a small ring part-way, or "✓ Finished", so the title keeps the row's
-width. A page or chapter whose audio is downloaded in the voice selected now ends that line with
-a small grey ⬇︎ mark (VoiceOver: "Downloaded"); a folder, book or series row shows it when every
-page its download covers is (decision D16). ▶ / ⏸ and a folder's › share one trailing column, centred on the ⋯ slot as the bar's ⏸
-is; a folder's count sits just before its ›. On a folder screen every row's menu starts with
+tinted, with still or moving bars and "Playing" (or "Paused") in the accent. A page or chapter
+whose audio is downloaded in the voice selected now shows ✓ in its Download control (VoiceOver:
+"Downloaded"); a folder, book or series row does when every page its download covers is
+(decision D16). ▶ / ⏸ and a folder's › share one trailing column, centred on the ⋯ slot as the
+bar's ⏸ is (a skipped page keeps the column empty, so Download lines up); a folder's count sits
+just before its ›. On a folder screen every row's menu starts with
 *Select*.
 
 **Folders play like books** (decision D15). Playing a page that is in a folder (its row's ▶, the
@@ -347,7 +356,7 @@ Done  1
 Different Voice  1
 [i] Seven-Day Yield
    Kokoro Bella   9 MB
-   ( Re-download )  ( Keep )
+   ( ↻ Re-download )  ( ✓ Keep )
 ```
 
 **⋯ › Downloads** (`DownloadsSheet`, every ⋯ panel: the browser's, the Library's on every screen,
@@ -358,7 +367,7 @@ section), and **Different Voice** (done, but rendered in another voice than the 
 now). Every row names its voice ("Kokoro Heart"); its parts are set apart by space, never a dot.
 After a voice change a finished download moves to *Different Voice*, with **Re-download** (renders
 it again in the voice selected; the old voice keeps playing until each paragraph is replaced) and
-**Keep** (stays as it is, counted as done, still named by its own voice). A row opens what was
+**Keep** (stays as it is, counted as done, still named by its own voice), on one action row (symbols alone when short of room, D21). A row opens what was
 downloaded (the Reader, or the Library at the folder); swipe left *Remove* takes the download off
 the list and its audio off the phone (not the audio of what you hear); its long-press menu has
 *Pause / Resume*, *Re-download*, *Keep* and *Remove* as they apply. While Apple's voice is

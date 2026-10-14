@@ -2,8 +2,10 @@ import SwiftUI
 
 /// A page row: a saved page (its ▶), a link (lighter, 🔗, no ▶), or a page played without saving
 /// ("Not saved", *Save* in its menu; decision D5). Every page uses this same row, including
-/// imported chapters. Front matter is dimmed and "skipped" (any page skipped in playback is),
-/// with no ▶. Tap
+/// imported chapters: two lines, the title and then its status (decision D21). In a folder the
+/// second line is the status alone ("5 min", "skipped", "Playing"): the folder's header already
+/// names the author or site, so rows don't repeat it. Front matter is dimmed and "skipped" (any
+/// page skipped in playback is), with no ▶. Saved pages have Download beside ▶. Tap
 /// opens it (the Reader, Now Playing when it is what you hear, the browser for a link);
 /// long-press is its menu (decision D11); swipe left removes it from the Library. A page in the
 /// Library lifts into a drag from the long press, to be filed in a folder or placed between rows
@@ -42,12 +44,7 @@ struct LibraryPageRow: View {
                 playState: page.isLink ? .idle : actions.playState(of: page),
                 onPlay: page.isLink || page.skipsInPlayback || isEditing ? nil : { actions.play(page) },
                 insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil,
-                isDownloaded: page.isInLibrary && downloads.isDownloaded(page), isFavorite: page.isFavorite,
-                largeArtwork: true,
-                onDownload: page.isInLibrary ? {
-                    DownloadActions(downloads: downloads, shell: shell).download(page)
-                } : nil,
-                isDownloadQueued: downloads.isQueued(.page(page.listenKey)))
+                download: download, isFavorite: page.isFavorite)
             .opensOnTap(isEditing ? nil : { actions.open(page) })
             .libraryDropRow(.page(page.listenKey), in: screen)
             .libraryDrag(dragID, in: screen)
@@ -64,10 +61,20 @@ struct LibraryPageRow: View {
         return .page(artwork: page.artworkImage, letter: page.byline.siteLetter)
     }
 
-    /// The site; none for a chapter, whose book is on screen ("not fetched yet" for a link one).
+    /// Where it is (`subtitleOverride`: a path in Favorites or search), else its site; none in a
+    /// folder, whose header names it.
     private var subtitle: String? {
         if let subtitleOverride { return subtitleOverride }
-        return page.byline.isEmpty ? nil : page.byline
+        return page.folder != nil || page.byline.isEmpty ? nil : page.byline
+    }
+
+    /// A saved page's Download, beside its ▶ (none out of the Library, or in Edit).
+    private var download: ListRow.Download? {
+        guard page.isInLibrary, !isEditing else { return nil }
+        let target = DownloadRecord.Target.page(page.listenKey)
+        return ListRow.Download(state: downloads.state(of: target, isDownloaded: downloads.isDownloaded(page))) {
+            DownloadActions(downloads: downloads, shell: shell).download(page)
+        }
     }
 
     @ViewBuilder
@@ -209,17 +216,20 @@ struct LibraryFolderRow: View {
             ListRow(kind: kind, title: folder.displayName, subtitle: subtitleOverride ?? place(progress), progress: rowProgress(progress),
                     playState: actions.playState(of: folder), opensScreen: true,
                     onPlay: isEditing ? nil : { actions.playFolder(folder) }, isDropTarget: isDropTarget,
-                    insertionEdge: edge, isDownloaded: isDownloaded, isFavorite: folder.isFavorite,
-                    largeArtwork: true,
-                    folderHasDetails: folder.hasDetails,
-                    onDownload: !livePages.isEmpty ? {
-                        DownloadActions(downloads: downloads, shell: shell).download(folder)
-                    } : nil,
-                    isDownloadQueued: downloads.isQueued(.folder(folder.id)))
+                    insertionEdge: edge, download: download(isDownloaded: isDownloaded), isFavorite: folder.isFavorite,
+                    largeArtwork: true, folderHasDetails: folder.hasDetails)
         } else {
             ListRow(kind: kind, title: folder.displayName, subtitle: subtitleOverride ?? folder.byline, opensScreen: true,
                     isDropTarget: isDropTarget, insertionEdge: edge, isFavorite: folder.isFavorite,
                     largeArtwork: true, folderHasDetails: folder.hasDetails)
+        }
+    }
+
+    /// Its Download, beside its ▶ (none in Edit).
+    private func download(isDownloaded: Bool) -> ListRow.Download? {
+        guard !isEditing, !livePages.isEmpty else { return nil }
+        return ListRow.Download(state: downloads.state(of: .folder(folder.id), isDownloaded: isDownloaded)) {
+            DownloadActions(downloads: downloads, shell: shell).download(folder)
         }
     }
 

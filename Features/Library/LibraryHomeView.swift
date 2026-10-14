@@ -126,10 +126,12 @@ struct LibraryHomeView: View {
             Text("Tap 🌐 to find a page, or ＋ to import a book. Pages you save or listen to, books you import and folders you make show up here.")
                 .typeStyle(.row)
                 .foregroundStyle(Palette.secondaryInk)
-            HStack(spacing: Spacing.s) {
-                PillButton("Browse the web", style: .filled) { shell.leaveLibrary() }
+            ActionButtonRow { fit in
+                PillButton(String(localized: "Browse the web"), shortTitle: String(localized: "Browse"),
+                           systemImage: "globe", style: .filled, fit: fit) { shell.leaveLibrary() }
                     .accessibilityIdentifier("libraryEmptyBrowse")
-                PillButton("Import a book", style: .neutral) {
+                PillButton(String(localized: "Import a book"), shortTitle: String(localized: "Import"),
+                           systemImage: "book", style: .neutral, fit: fit) {
                     BookImportActions(library: library, shell: shell).pickBook(into: nil)
                 }
                 .accessibilityIdentifier("libraryEmptyImport")

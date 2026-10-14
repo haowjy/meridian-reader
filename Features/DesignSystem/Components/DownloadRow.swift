@@ -13,7 +13,7 @@ import SwiftUI
 ///    Kokoro Heart   12 MB
 /// [i] Seven-Day Yield                             another voice: its two choices under it
 ///    Kokoro Bella   9 MB
-///    ( Re-download )  ( Keep )
+///    ( ↻ Re-download )  ( ✓ Keep )   one line: symbols alone when short of room
 /// ```
 ///
 /// Tapping the row is the caller's (it opens what was downloaded). The title is the row's
@@ -37,6 +37,8 @@ struct DownloadRow: View {
     /// A choice under the detail line (*Re-download*, *Keep*).
     struct Choice: Identifiable {
         var title: String
+        /// Its symbol: before the title, and alone when the row is short of room.
+        var systemImage: String
         /// The filled pill; the others are neutral.
         var isPrimary = false
         var identifier: String
@@ -74,9 +76,10 @@ struct DownloadRow: View {
                         }
                     }
                     if !choices.isEmpty {
-                        HStack(spacing: Spacing.xs) {
+                        ActionButtonRow(spacing: Spacing.xs) { fit in
                             ForEach(choices) { choice in
-                                PillButton(choice.title, style: choice.isPrimary ? .filled : .neutral, size: .compact,
+                                PillButton(choice.title, systemImage: choice.systemImage,
+                                           style: choice.isPrimary ? .filled : .neutral, size: .compact, fit: fit,
                                            action: choice.perform)
                                     .accessibilityIdentifier(choice.identifier)
                             }
@@ -172,8 +175,8 @@ struct DownloadRowGallery: View {
                 DownloadRow(leading: .page(artwork: nil, letter: "S"),
                             title: "Seven-Day Yield: Definition, Calculation, and Example",
                             detail: ["Kokoro Bella", "9 MB"],
-                            choices: [.init(title: "Re-download", isPrimary: true, identifier: "redownload") {},
-                                      .init(title: "Keep", identifier: "keep") {}])
+                            choices: [.init(title: "Re-download", systemImage: "arrow.clockwise", isPrimary: true, identifier: "redownload") {},
+                                      .init(title: "Keep", systemImage: "checkmark", identifier: "keep") {}])
                     .background(Palette.chrome)
             }
         }

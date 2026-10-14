@@ -23,8 +23,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
 - **Folder downloads list their pages when asked**: a book's or series' chapters that play and
   aren't finished (D7 trims finished ones' audio anyway), any other folder's own pages. Pages added
   later need *Re-download*.
-- **A row's Downloaded mark is the Done section's rule, per page** (`DownloadCenter.isDownloaded`,
-  `DownloadOverview.isDownloaded`): an entry `.done` and its audio in the download voice now. A
+- **A row's Downloaded ✓ is the Done section's rule, per page** (`DownloadCenter.isDownloaded`,
+  `DownloadOverview.isDownloaded`): an entry `.done` and its audio in the download voice now.
+  While queued, a Download control's ring shows `DownloadOverview.fraction(of:active:)`, the
+  list's own figure (`DownloadCenter.state(of:isDownloaded:)`). A
   folder row passes the pages it already holds (`covers`, the same filter a folder download
   uses), so it fetches nothing; the cache's indexes are in memory.
 - **`DownloadOverview` is pure** (sections, statuses, the progress line); `DownloadOverviewTests`
