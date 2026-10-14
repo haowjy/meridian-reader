@@ -67,7 +67,7 @@ struct ListRow: View {
     /// Its Download button: where its download stands and what a tap does (nil: none).
     var download: Download?
     var isFavorite = false
-    /// A folder row's book-like treatment: a large cover (or a letter tile with details).
+    /// Kept for callers; every row is now the same compact size (D23).
     var largeArtwork = false
     var folderHasDetails = false
 
@@ -101,7 +101,7 @@ struct ListRow: View {
                         Text(title)
                             .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
                             .foregroundStyle(titleColor)
-                            .lineLimit(isFolder ? 2 : 1)
+                            .lineLimit(1)
                             .accessibilityValue(accessibilityStatus)
                         if isFavorite {
                             Image(systemName: "star.fill")
@@ -137,7 +137,7 @@ struct ListRow: View {
         .padding(.leading, Spacing.m)
         .padding(.trailing, hasTrailingColumn || download != nil ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
         .padding(.vertical, Spacing.xs)
-        .frame(minHeight: BottomChrome.grown(isFolder && largeArtwork ? 96 : scaledMinHeight, from: 56))
+        .frame(minHeight: BottomChrome.grown(scaledMinHeight, from: 56))
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
         .overlay { dropHighlight }
         .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) { insertionLine }
@@ -339,18 +339,20 @@ struct ListRow: View {
     @ViewBuilder
     private var leading: some View {
         switch kind {
+        // Every row is the same compact row: folders, books and pages all lead with the page
+        // thumbnail's column (as tall as the two lines), a cover inside it at its 1 : 1.45.
         case .folder(_, _, let cover?):
-            ArtworkTile(image: cover, letter: title, size: largeArtwork ? 56 : ListRow.coverWidth,
+            ArtworkTile(image: cover, letter: title, size: thumbnailSide / 1.45,
                         isCover: true, fill: Palette.paper)
-                .frame(width: largeArtwork ? 56 : ListRow.leadingWidth)
+                .frame(width: thumbnailSide, height: thumbnailSide)
         case .folder(let symbol, _, nil):
-            if largeArtwork, folderHasDetails {
-                ArtworkTile(image: nil, letter: title, size: 56, isCover: true, fill: Palette.chrome)
-                    .frame(width: 56)
+            if folderHasDetails {
+                ArtworkTile(image: nil, letter: title, size: thumbnailSide / 1.45,
+                            isCover: true, fill: Palette.chrome)
+                    .frame(width: thumbnailSide, height: thumbnailSide)
             } else {
                 Image(systemName: symbol).font(.title3).foregroundStyle(Palette.accent)
-                    .frame(width: largeArtwork ? 56 : ListRow.leadingWidth,
-                           height: largeArtwork ? 81 : nil)
+                    .frame(width: thumbnailSide, height: thumbnailSide)
             }
         case .page(let artwork, let letter):
             ArtworkTile(image: artwork, letter: letter, size: thumbnailSide, fill: Palette.paper)

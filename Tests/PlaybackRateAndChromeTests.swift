@@ -115,7 +115,7 @@ final class PlaybackRateAndChromeTests: XCTestCase {
         // Reader), and across slots 2–5 beside the band's swap.
         let pad = NowPlayingBar.trailingPadding(barWidth: width, spansSlots: 5)
         XCTAssertEqual(width - pad - BottomChrome.minTapTarget / 2, centers[4], accuracy: 1e-9)
-        let bandPad = NowPlayingBar.trailingPadding(barWidth: slot * 4, spansSlots: 4)
-        XCTAssertEqual(width - bandPad - BottomChrome.minTapTarget / 2, centers[4], accuracy: 1e-9)
+        // The band's bar is full width too (D23): Now Playing alone in row 1.
+        XCTAssertEqual(BottomBandTopRow.barSlots, 5)
     }
 }

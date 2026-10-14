@@ -100,6 +100,16 @@ private struct ResumeBar: View {
     let actions: LibraryActions
 
     var body: some View {
+        // A delete being saved can redraw this once more after the page's data is gone; reading
+        // it then traps (`isLive`), so the placeholder stands in.
+        if page.isLive {
+            bar
+        } else {
+            NowPlayingBar.placeholder(spansSlots: BottomBandTopRow.barSlots)
+        }
+    }
+
+    @ViewBuilder private var bar: some View {
         let progress = PageProgress.of(page)
         NowPlayingBar(
             title: page.title,

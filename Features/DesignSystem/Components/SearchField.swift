@@ -21,7 +21,7 @@ struct SearchField: View {
             Image(systemName: "magnifyingglass")
                 .font(.caption)
                 .foregroundStyle(Palette.secondaryInk)
-                .frame(width: 16)
+                .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
                 .accessibilityHidden(true)
 
             textField

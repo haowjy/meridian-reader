@@ -33,6 +33,17 @@ final class ActionRowLayoutUITests: XCTestCase {
         assertTwoLineRows(app, maxRowHeight: nil)
     }
 
+    /// D23: one compact row everywhere. On the Library home a book (cover and details) and a page
+    /// are the same height, two lines tall.
+    func testBookAndPageRowsShareOneCompactHeight() throws {
+        let app = launchLibrary()
+        let book = libraryCell(app, "The Demo Book"), page = libraryCell(app, "Demo Listen Article")
+        XCTAssertTrue(book.waitForExistence(timeout: 5), "book row")
+        XCTAssertTrue(page.waitForExistence(timeout: 5), "page row")
+        XCTAssertEqual(book.frame.height, page.frame.height, accuracy: 1, "book and page rows the same height")
+        XCTAssertLessThan(book.frame.height, 72, "compact, got \(book.frame.height) pt")
+    }
+
     /// ▶ on a row plays that page and turns to ⏸ there; the row's second line says so.
     func testARowsPlayTurnsToPause() throws {
         let app = launchLibrary()
@@ -77,7 +88,12 @@ final class ActionRowLayoutUITests: XCTestCase {
     private func assertTwoLineRows(_ app: XCUIApplication, maxRowHeight: CGFloat?,
                                    file: StaticString = #filePath, line: UInt = #line) {
         let short = libraryRow(app, "Title Page")
-        XCTAssertTrue(short.waitForExistence(timeout: 5), file: file, line: line)
+        // At the largest text the header fills the screen: scroll the first rows into view.
+        for _ in 0..<4 where !short.waitForExistence(timeout: 2) || !short.isHittable {
+            find(app, "folderScreen").swipeUp()
+            idle(0.4)
+        }
+        XCTAssertTrue(short.waitForExistence(timeout: 5), "Title Page row", file: file, line: line)
         let oneLine = short.frame.height
         for title in ["Chapter 1: The Harbor", "Chapter 2: The Lighthouse", "Chapter 3: The Tide"] {
             let row = libraryRow(app, title), cell = libraryCell(app, title)

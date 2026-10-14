@@ -131,7 +131,8 @@ private struct FolderContentsList: View {
                 header
                     .libraryHeader()
             }
-            if !subfolders.isEmpty {
+            // One mixed list of compact rows (D23): subfolders, then pages, in one card.
+            if !subfolders.isEmpty || !pages.isEmpty || !notSaved.isEmpty {
                 Section {
                     ForEach(subfolders, id: \.id) { child in
                         LibraryFolderRow(folder: child, onSelect: select(.folder(child.id)))
@@ -140,10 +141,6 @@ private struct FolderContentsList: View {
                     .onMove(perform: isEditing ? moveFolders : nil)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Palette.chrome)
-                }
-            }
-            if !pages.isEmpty || !notSaved.isEmpty {
-                Section {
                     ForEach(notSaved, id: \.listenKey) { page in
                         LibraryPageRow(page: page)
                     }

@@ -113,10 +113,16 @@ final class ToolbarGridUITests: XCTestCase {
                       slots: Self.browseSlots.map { el(app, $0).frame })
         XCTAssertGreaterThanOrEqual(browse.swap.width, 44, "swap tap target")
         XCTAssertGreaterThanOrEqual(browse.swap.height, 44, "swap tap target")
-        XCTAssertLessThan(browse.swap.maxX, browse.bar.minX + 1, "swap, then the bar")
         XCTAssertLessThan(browse.bar.maxY, browse.field.minY, "bar over the field")
         XCTAssertLessThan(browse.field.maxY, browse.slots[0].minY + 1, "field over the toolbar")
-        XCTAssertEqual(browse.swap.midX, browse.slots[0].midX, accuracy: 1, "swap over ‹")
+        // D23: Now Playing alone across row 1; the swap leads row 2, then the field.
+        XCTAssertEqual(browse.swap.minX, browse.bar.minX, accuracy: 1, "swap at the band's leading edge")
+        XCTAssertEqual(browse.swap.midY, browse.field.midY, accuracy: 1, "swap on the field's row")
+        XCTAssertLessThan(browse.swap.width, 48, "swap is just its tap target")
+        XCTAssertLessThanOrEqual(browse.swap.maxX, browse.field.minX + 1, "swap, then the field")
+        XCTAssertLessThan(browse.field.minX - browse.swap.maxX, 6, "smallest gap before the field")
+        XCTAssertEqual(browse.bar.maxX, browse.field.maxX, accuracy: 1, "bar and field share the trailing edge")
+        XCTAssertEqual(browse.bar.minX, browse.slots[0].minX, accuracy: 1, "bar spans the whole toolbar width")
 
         app.buttons["browseLibrary"].tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))

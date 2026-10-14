@@ -12,6 +12,9 @@ enum Glyph {
     /// A round control drawn in a row's trailing column: a download's progress ring with its
     /// pause / resume glyph.
     static let control: CGFloat = 28
+    /// The leading slot of every band field (Library search and the browser's address): 🔍, or
+    /// on a loaded page its 📄 / spinner, always this square so the text starts at one place.
+    static let fieldLeading: CGFloat = 30
 }
 
 extension View {

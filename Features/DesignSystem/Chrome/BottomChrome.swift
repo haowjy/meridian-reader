@@ -203,7 +203,7 @@ extension View {
 }
 
 /// The band's first row: the surface swap (🌐 / 📚) centred in toolbar slot 1, over ‹, and the
-/// Now Playing bar across slots 2–5, its ▶︎ / ⏸ over ⋯ (`NowPlayingBar(spansSlots: 4)`). The row
+/// (unused by the band since D23: Now Playing is alone in row 1) Now Playing bar, its ▶︎ / ⏸ over ⋯ (`NowPlayingBar(spansSlots: 4)`). The row
 /// is as tall as the bar; the swap keeps a full slot × `rowHeight` tap area, centred on it.
 ///
 /// ```
@@ -212,7 +212,7 @@ extension View {
 /// ```
 struct BottomBandTopRow: Layout {
     /// The slots the bar spans.
-    static let barSlots = BottomToolbarLayout.slotCount - 1
+    static let barSlots = BottomToolbarLayout.slotCount
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let width = proposal.width ?? 320

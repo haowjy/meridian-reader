@@ -12,7 +12,7 @@ import SwiftUI
 /// `accessory` sits at the trailing end while editing, in 🎧's place (🎤).
 struct AddressField<Field: View, Accessory: View>: View {
     enum ReaderButton {
-        /// Nothing to read (start page, an unreadable page): an empty slot.
+        /// Nothing to read (start page, an unreadable page): 🔍, as in the Library's field.
         case hidden
         /// Editing the address: a magnifying glass.
         case searching
@@ -31,7 +31,7 @@ struct AddressField<Field: View, Accessory: View>: View {
     @ViewBuilder var accessory: Accessory
 
     /// The 📄 glyph's frame.
-    private static var readerSize: CGFloat { 30 }
+    private static var readerSize: CGFloat { Glyph.fieldLeading }
 
     var body: some View {
         HStack(spacing: Spacing.xs) {
@@ -54,15 +54,13 @@ struct AddressField<Field: View, Accessory: View>: View {
     @ViewBuilder
     private var leading: some View {
         switch reader {
-        case .hidden:
-            Color.clear
-                .frame(width: Glyph.indicator, height: Glyph.indicator)
-                .accessibilityHidden(true)
-        case .searching:
+        // 🔍 when there is nothing to read or while editing: the same slot, glyph and frame as
+        // the Library's `SearchField`, so both fields line up.
+        case .hidden, .searching:
             Image(systemName: "magnifyingglass")
                 .font(.caption)
                 .foregroundStyle(Palette.secondaryInk)
-                .frame(width: Glyph.indicator)
+                .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
                 .accessibilityHidden(true)
         case .extracting:
             ProgressView()

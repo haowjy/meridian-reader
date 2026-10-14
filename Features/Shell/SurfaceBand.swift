@@ -5,8 +5,8 @@ import SwiftUI
 /// changes only what the controls say.
 ///
 /// ```
-/// [🌐/📚] ╭ Now Playing bar, or the last played, or "Nothing playing" ╮   ← always there
-/// ( address field / Search Library                                    )
+/// ╭ Now Playing bar, or the last played, or "Nothing playing"          ╮   ← always there
+/// [🌐/📚] ( 🔍 address field / Search Library                          )
 /// [‹]  [›]  [＋/🔖]  [🕘]  [⋯]                                            ← same role per slot
 /// ```
 ///
@@ -37,21 +37,25 @@ struct SurfaceBand<Field: View, Toolbar: View>: View {
 
     var body: some View {
         SearchSessionChrome(session: session, cancelID: cancelID, onCancel: onCancel, beginText: beginText) {
-            BottomBandTopRow {
-                // The toolbar's own button (same 19 pt icon, frame and chrome as ‹ › below), centred
-                // over slot 1 and vertically in the row. Light weight: 🌐 and 📚 are line-dense
-                // glyphs that read heavier than ‹ › 🕘 at the regular weight.
-                BandToolbarButton(systemImage: swap.systemImage, label: swap.label,
-                                  identifier: swap.identifier, weight: .light, action: swap.action)
-                    .accessibilityHint(swap.hint)
-                BandNowPlayingBar(speech: speech, isCovered: isBarCovered)
-            }
-            .tint(Palette.ink)
-            .padding(.bottom, Spacing.xxs)
+            // Row 1: Now Playing alone, full width (D23).
+            BandNowPlayingBar(speech: speech, isCovered: isBarCovered)
+                .tint(Palette.ink)
+                .padding(.bottom, Spacing.xxs)
         } field: { focus in
-            field(focus)
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("bandField")
+            // Row 2: the swap (the toolbar's own button, 44 pt, tight to the leading edge), then
+            // the field filling the rest. While searching the swap steps aside with the toolbar.
+            HStack(spacing: Spacing.xxs) {
+                if !session.isActive {
+                    BandToolbarButton(systemImage: swap.systemImage, label: swap.label,
+                                      identifier: swap.identifier, weight: .light, action: swap.action)
+                        .accessibilityHint(swap.hint)
+                        .frame(width: BottomChrome.rowHeight, height: BottomChrome.rowHeight)
+                        .tint(Palette.ink)
+                }
+                field(focus)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("bandField")
+            }
         } toolbar: {
             toolbar()
                 // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI
