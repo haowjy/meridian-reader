@@ -38,12 +38,12 @@ struct SurfaceBand<Field: View, Toolbar: View>: View {
     var body: some View {
         SearchSessionChrome(session: session, cancelID: cancelID, onCancel: onCancel, beginText: beginText) {
             BottomBandTopRow {
-                Button(action: swap.action) {
-                    Image(systemName: swap.systemImage).toolbarIconFrame()
-                }
-                .accessibilityLabel(swap.label)
-                .accessibilityHint(swap.hint)
-                .accessibilityIdentifier(swap.identifier)
+                // The toolbar's own button (same 19 pt icon, frame and chrome as ‹ › below), centred
+                // over slot 1 and vertically in the row. Light weight: 🌐 and 📚 are line-dense
+                // glyphs that read heavier than ‹ › 🕘 at the regular weight.
+                BandToolbarButton(systemImage: swap.systemImage, label: swap.label,
+                                  identifier: swap.identifier, weight: .light, action: swap.action)
+                    .accessibilityHint(swap.hint)
                 BandNowPlayingBar(speech: speech, isCovered: isBarCovered)
             }
             .tint(Palette.ink)
@@ -66,11 +66,13 @@ struct BandToolbarButton: View {
     let systemImage: String
     let label: String
     let identifier: String
+    /// Optical weight for line-dense glyphs (the swap); the toolbar slots keep the default.
+    var weight: Font.Weight = .regular
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: systemImage).toolbarIconFrame()
+            Image(systemName: systemImage).toolbarIconFrame().fontWeight(weight)
         }
         .accessibilityLabel(label)
         .accessibilityIdentifier(identifier)
