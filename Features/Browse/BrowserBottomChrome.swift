@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// The browser's bottom chrome (`SearchSessionChrome` + the shared `BottomChrome` look):
+/// The browser's bottom chrome: the band it shares with the Library (`SurfaceBand`):
 ///
 /// ```
-/// ╭ Now Playing bar ───────────────────────╮   ← what you hear (once something has played)
-/// ( 📄 address …                        🎧 )   ← 📄 / 🎧 on readable pages; 🎤 while searching
-/// [ ‹ ]   [ › ]   [ 🔍 ]   [ 📚 ]   [ ⋯ ]    ← five slots; steps aside while searching
+/// [📚] ╭ Now Playing bar ──────────────────────╮   ← 📚 the Library; the bar always there
+/// ( 📄 address …                          🎧 )   ← 📄 / 🎧 on readable pages; 🎤 while searching
+/// [ ‹ ]   [ › ]   [ 🔖 ]   [ 🕘 ]   [ ⋯ ]      ← five slots; step aside while searching
 /// ```
 ///
 /// A thin load-progress line sits on its top edge. It is its own view so `estimatedProgress`
@@ -14,12 +14,17 @@ struct BrowserBottomChrome: View {
     @Bindable var speech: SpeechController
     /// Address-bar dictation (nil until the mic is first used).
     let dictation: AddressDictation?
+    /// The page is saved in the Library (🔖 filled).
+    let isSaved: Bool
     var onOpenReader: () -> Void
     /// 🎧: listen to the page now, or pause / resume it when it is what you hear.
     var onListen: () -> Void
     var onSubmit: () -> Void
     var onMic: () -> Void
-    var onOpenLibrary: () -> Void
+    /// 🔖: save the page to the Library, or remove it.
+    var onToggleSave: () -> Void
+    /// 🔖 held: *Save to Folder…*.
+    var onSaveToFolder: () -> Void
     let menu: () -> MenuContext
 
     @Environment(ShellState.self) private var shell
@@ -29,16 +34,17 @@ struct BrowserBottomChrome: View {
     private var isDictating: Bool { dictation?.isActive == true }
 
     var body: some View {
-        SearchSessionChrome(
+        SurfaceBand(
+            swap: .init(systemImage: "books.vertical", label: String(localized: "Library"),
+                        hint: String(localized: "Show the Library"), identifier: "browseLibrary",
+                        action: shell.openLibrary),
             session: search,
             cancelID: "addressCancel",
             onCancel: shell.endAddressSearch,
             // Like Safari: the session starts with the page's full address, selected.
-            beginText: { web.currentURL?.absoluteString ?? "" }
-        ) {
-            NowPlayingBarView(speech: speech, isCovered: shell.reader != nil || shell.isInLibrary)
-                .padding(.bottom, Spacing.xxs)
-        } field: { focus in
+            beginText: { web.currentURL?.absoluteString ?? "" },
+            isBarCovered: shell.reader != nil
+        ) { focus in
             addressField(focus)
         } toolbar: {
             toolbar
@@ -84,33 +90,28 @@ struct BrowserBottomChrome: View {
 
     // MARK: - Toolbar
 
-    /// `[‹][›][Search][Library][⋯]` in the shared five-slot grid. Reader is the icon in the address
-    /// field and the ⋯ panel's focus button; Bookmarks / Saved / History live in the ⋯ panel and
-    /// on the start page. Slot 4 is the Library↔Browser swap (the library shows 🌐 there).
+    /// `[‹][›][🔖][🕘][⋯]`, slot for slot the Library's `[‹][›][＋][🕘][⋯]`. Reader is the icon in
+    /// the address field and the ⋯ panel's focus button; a new search is a tap on the field.
     private var toolbar: some View {
         BottomToolbarLayout {
-            button("chevron.backward", label: "Back", id: "browseBack", action: web.goBack)
+            BandToolbarButton(systemImage: "chevron.backward", label: String(localized: "Back"),
+                              identifier: "browseBack", action: web.goBack)
                 .disabled(!web.canGoBack)
-            button("chevron.forward", label: "Forward", id: "browseForward", action: web.goForward)
+                .toolbarSlot(0)
+            BandToolbarButton(systemImage: "chevron.forward", label: String(localized: "Forward"),
+                              identifier: "browseForward", action: web.goForward)
                 .disabled(!web.canGoForward)
-            // One tap to a new search: the field, focused and empty (Recent Searches); ✕ restores
-            // the page's address.
-            button("magnifyingglass", label: "Search", id: "browseSearch") { search.begin() }
-            button("books.vertical", label: "Library", id: "browseLibrary", action: onOpenLibrary)
-            MoreMenuButton(id: "browseMore", isBusy: shell.busy == .save, menu: menu)
+                .toolbarSlot(1)
+            SaveToggleButton(isSaved: isSaved, isBusy: shell.busy == .save, identifier: "browseSave",
+                             onToggle: onToggleSave, onSaveToFolder: onSaveToFolder)
+                .disabled(!web.hasPage || shell.busy != nil)
+                .toolbarSlot(2)
+            BandToolbarButton(systemImage: "clock", label: String(localized: "History"),
+                              identifier: "browseHistory") { shell.present(.history) }
+                .toolbarSlot(3)
+            MoreMenuButton(id: "browseMore", menu: menu)
+                .toolbarSlot(BottomToolbarLayout.moreSlot)
         }
-        // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI gives
-        // disabled buttons, so ‹ / › with no history would look tappable.
-        .tint(Palette.ink)
-    }
-
-    private func button(_ systemImage: String, label: String, id: String,
-                        action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage).toolbarIconFrame()
-        }
-        .accessibilityLabel(label)
-        .accessibilityIdentifier(id)
     }
 }
 

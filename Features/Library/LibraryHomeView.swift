@@ -1,8 +1,8 @@
 import SwiftData
 import SwiftUI
 
-/// The Library home: an in-list search and Everything/Favorites filter above one mixed list of
-/// folders and pages. Search applies to the selected tab across the tree; a result outside its
+/// The Library home: the Everything/Favorites filter above one mixed list of folders and pages.
+/// The band's search (`ShellState.librarySearch`) applies to the selected tab across the tree; a result outside its
 /// usual place shows its path. A favorite keeps its location. Items carry their playback and
 /// download state, and folder rows open their normal folder screen.
 struct LibraryHomeView: View {
@@ -15,11 +15,12 @@ struct LibraryHomeView: View {
     @Query(LibraryQueries.inLibrary) private var allPages: [Page]
     @Query(LibraryQueries.favoritePages) private var favoritePages: [Page]
     @Binding var favoritesOnly: Bool
-    @Binding var searchText: String
+    /// The band's search text ("" when not searching).
+    let searchText: String
 
-    init(pageSort: PageSort, favoritesOnly: Binding<Bool>, searchText: Binding<String>) {
+    init(pageSort: PageSort, favoritesOnly: Binding<Bool>, searchText: String) {
         _favoritesOnly = favoritesOnly
-        _searchText = searchText
+        self.searchText = searchText
         _loosePages = Query(LibraryQueries.loosePages(sort: pageSort))
     }
 
@@ -59,9 +60,6 @@ struct LibraryHomeView: View {
                     .libraryHeader()
             }
             Section {
-                SearchField(text: $searchText, prompt: String(localized: "Search Library"), fieldIdentifier: "librarySearchField")
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
                 Picker("Library view", selection: $favoritesOnly) {
                     Text("Everything").tag(false)
                     Text("Favorites").tag(true)

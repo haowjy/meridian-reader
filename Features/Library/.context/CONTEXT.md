@@ -99,8 +99,8 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   `ListRow.Download` it is given.
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way
   (`PageProgress.of`); counts come from relationships, not fetches.
-- **D20 home:** `LibraryHomeView` renders the Everything/Favorites filter and in-list search over
-  one folder/page collection. Star flags never change location; rows outside their parent context
+- **D20 home:** `LibraryHomeView` renders the Everything/Favorites filter over
+  one folder/page collection, filtered by the band's search (`ShellState.librarySearch`, D22). Star flags never change location; rows outside their parent context
   show a path. Folder rows use large artwork; rows have Download and Play side by side. A folder
   header has Continue, From Start and Download.
 - **D21: action rows never wrap; page rows are two lines.** A row of buttons is an

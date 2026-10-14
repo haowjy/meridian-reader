@@ -13,7 +13,7 @@ struct BrowseStartView: View {
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Every saved page, for address suggestions.
+    /// Every saved page, for address suggestions and 🔖.
     @Query(LibraryQueries.savedInLibrary) private var allSaved: [Page]
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
 
@@ -40,6 +40,14 @@ struct BrowseStartView: View {
         guard let url = webStore.currentURL, url.isWeb, let page = library.page(url: url),
               page.isSavedToLibrary else { return nil }
         return page
+    }
+
+    /// The current page is saved in the Library (🔖 filled). From the saved-pages query, so 🔖
+    /// follows a save or a remove at once.
+    private var isCurrentPageSaved: Bool {
+        guard let url = webStore.currentURL, url.isWeb else { return false }
+        let canonical = ArticleIdentity.canonicalURLString(from: url)
+        return allSaved.contains { $0.canonicalURL == canonical }
     }
 
     private var hasPage: Bool { webStore.hasPage }
@@ -161,11 +169,13 @@ struct BrowseStartView: View {
         BrowserBottomChrome(
             speech: speech,
             dictation: dictation,
+            isSaved: isCurrentPageSaved,
             onOpenReader: { run { try await $0.openInReader() } },
             onListen: listen,
             onSubmit: { submit(search.text) },
             onMic: toggleDictation,
-            onOpenLibrary: shell.openLibrary,
+            onToggleSave: toggleSaved,
+            onSaveToFolder: saveToLibrary,
             menu: { .browse(browseMenu, perform: perform) }
         )
         .overlay(alignment: .top) { DownloadProgressEdge() }
@@ -353,13 +363,23 @@ struct BrowseStartView: View {
         }
     }
 
-    /// ⋯ → Save to Library…: the Move tree, then the page is saved into the folder picked. The
-    /// tree closes on the pick, as the page is extracted first; ⋯ spins, and a save that can't
-    /// be stored says so in a toast over the browser.
+    /// ⋯ → Save to Library… and 🔖 held: the Move tree, then the page is saved into the folder
+    /// picked. The tree closes on the pick, as the page is extracted first; 🔖 spins, and a save
+    /// that can't be stored says so in a toast over the browser.
     private func saveToLibrary() {
         FavoriteFlow(library: library, shell: shell).saveToFolder(title: String(localized: "Save to…"), current: nil) { folder in
             run { try await $0.save(in: folder) }
             return true
+        }
+    }
+
+    /// 🔖: the page into the Library's top level (extracted first; 🔖 spins), or out of it when it
+    /// is saved. Held, it is ⋯ → Save to Library… (`saveToLibrary`).
+    private func toggleSaved() {
+        if currentSavedPage != nil {
+            removeFromLibrary()
+        } else {
+            run { try await $0.save(in: nil) }
         }
     }
 

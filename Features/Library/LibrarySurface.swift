@@ -2,51 +2,60 @@ import SwiftData
 import SwiftUI
 
 /// The Library surface: the folder tree as a stack of screens (the home, then folder → folder …,
-/// `ShellState.libraryPath`), over the same bottom chrome as the browser.
+/// `ShellState.libraryPath`), over the band it shares with the browser (`SurfaceBand`, D22).
 ///
 /// ```
 /// ┌ bar ────────────────────────────────────┐
-/// │ ╭ Now Playing bar ────────────────────╮ │  ← what you hear (once something has played)
-/// │ ( 🔍 Search Library                  ) │  ← inline, filters the selected tab
-/// │  [＋]         [🌐]  [⋯]               │  ← ＋ Import Book…, New Folder
-///                                                  🌐 the browser; ⋯ for the screen
-/// └──────────────────────────── home indicator ┘
+/// │ [🌐] ╭ Now Playing bar ──────────────╮ │  ← 🌐 the browser; the bar always there
+/// │ ( 🔍 Search Library                  ) │  ← filters the home's selected tab
+/// │  [‹]  [›]  [＋]  [🕘]  [⋯]             │  ← ‹ up a level; › dimmed; ＋ Import Book…,
+/// └──────────────────────────── home indicator ┘   New Folder; 🕘 History; ⋯ for the screen
 /// ```
 ///
-/// The search filters the home list in place. While a folder is in Edit, the toolbar is *Move…*, *Mark
-/// Finished*, *Remove*. Pages open in the Reader sheet over the Library; 🌐 shows the browser as
-/// it was, and the Library keeps its place.
+/// The search filters the home list in place; starting one on a folder screen goes back to the
+/// home. While a folder is in Edit, the toolbar is *Move…*, *Mark Finished*, *Remove*. Pages
+/// open in the Reader sheet over the Library; 🌐 shows the browser as it was, and the Library
+/// keeps its place.
 struct LibrarySurface: View {
     @Environment(ShellState.self) private var shell
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
     @Environment(DownloadCenter.self) private var downloads
-    @State private var searchText = ""
     @AppStorage("library.favoritesTab") private var favoritesOnly = false
     @State private var screen = LibraryScreenState()
     @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
+
+    private var search: SearchSession { shell.librarySearch }
 
     var body: some View {
         @Bindable var shell = shell
         VStack(spacing: 0) {
             NavigationStack(path: $shell.libraryPath) {
                 LibraryHomeView(pageSort: PageSort(rawValue: topLevelSort) ?? LibraryTopLevel.defaultSort,
-                                favoritesOnly: $favoritesOnly, searchText: $searchText)
+                                favoritesOnly: $favoritesOnly, searchText: search.isActive ? search.text : "")
                     .navigationDestination(for: LibraryRoute.self) { LibraryRouteView(route: $0) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scrollDismissesKeyboard(.interactively)
 
-            VStack(spacing: BottomChrome.rowSpacing) {
-                NowPlayingBarView(speech: speech, isCovered: shell.reader != nil)
-                    .padding(.bottom, Spacing.xxs)
+            SurfaceBand(
+                swap: .init(systemImage: "globe", label: String(localized: "Browser"),
+                            hint: String(localized: "Return to the browser"), identifier: "libraryBrowser",
+                            action: shell.leaveLibrary),
+                session: search,
+                cancelID: "librarySearchCancel",
+                onCancel: shell.endLibrarySearch,
+                isBarCovered: shell.reader != nil
+            ) { focus in
+                SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: String(localized: "Search Library"), focus: focus,
+                            fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard)
+            } toolbar: {
                 if screen.isEditing {
                     LibraryEditBar()
                 } else {
                     toolbar
                 }
             }
-            .bottomChromeBand()
             .overlay(alignment: .top) { DownloadProgressEdge() }
             .overlay(alignment: .top) { ShellToastLayer() }
             .accessibilityElement(children: .contain)
@@ -59,12 +68,25 @@ struct LibrarySurface: View {
         .libraryDialogs(screen) {
             shell.pruneLibraryPath { library.folder(id: $0) != nil }
         }
+        .onChange(of: search.isActive) { _, active in
+            if active { shell.librarySearchBegan() }
+        }
     }
 
     // MARK: - Toolbar
 
+    /// `[‹][›][＋][🕘][⋯]`, slot for slot the browser's `[‹][›][🔖][🕘][⋯]`: the Library has no
+    /// forward, so › stays dimmed in its place.
     private var toolbar: some View {
         BottomToolbarLayout {
+            BandToolbarButton(systemImage: "chevron.backward", label: String(localized: "Back"),
+                              identifier: "libraryBack", action: shell.libraryBack)
+                .disabled(shell.libraryPath.isEmpty)
+                .toolbarSlot(0)
+            BandToolbarButton(systemImage: "chevron.forward", label: String(localized: "Forward"),
+                              identifier: "libraryForward") {}
+                .disabled(true)
+                .toolbarSlot(1)
             Menu {
                 Button("Import Book…", systemImage: "book.closed") {
                     BookImportActions(library: library, shell: shell).pickBook(into: screenMenu.newFolderParent)
@@ -77,21 +99,16 @@ struct LibrarySurface: View {
             }
             .accessibilityLabel("Add")
             .accessibilityIdentifier("libraryAdd")
-
-            Button(action: shell.leaveLibrary) {
-                Image(systemName: "globe").toolbarIconFrame()
-            }
-            .accessibilityLabel("Browser")
-            .accessibilityIdentifier("libraryBrowser")
-            .accessibilityHint("Return to the browser")
-
+            .toolbarSlot(2)
+            BandToolbarButton(systemImage: "clock", label: String(localized: "History"),
+                              identifier: "libraryHistory") { shell.present(.history) }
+                .toolbarSlot(3)
             MoreMenuButton(id: "libraryMore") {
                 let screenMenu = screenMenu
                 return .library(screenMenu.menu, perform: screenMenu.perform)
             }
+            .toolbarSlot(BottomToolbarLayout.moreSlot)
         }
-        // Same as the browser toolbar: tint keeps disabled buttons dimmed.
-        .tint(Palette.ink)
     }
 
     // MARK: - The screen on top

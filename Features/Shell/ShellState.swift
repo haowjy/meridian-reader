@@ -166,6 +166,8 @@ final class ShellState {
     let web = WebViewStore()
     /// The browser's address field. Idle, its text is the page's address.
     let addressSearch = SearchSession()
+    /// The Library's search field, in the band (decision D22): its text filters the Library home.
+    let librarySearch = SearchSession()
     /// Whether a target is what you hear (the playback session answers).
     private let isHearing: (ListenTarget) -> Bool
 
@@ -336,6 +338,7 @@ final class ShellState {
     /// Reader opened from the library goes with it.
     func leaveLibrary() {
         guard isInLibrary else { return }
+        librarySearch.end(showing: "")
         if reader?.origin == .library { reader = nil }
         surface = .browse
         // Reopened on the Library: the browser's last page loads the first time you go there.
@@ -380,6 +383,21 @@ final class ShellState {
     }
 
     // MARK: - Address field
+
+    /// The Library's ✕: ends its search and clears the filter.
+    func endLibrarySearch() {
+        librarySearch.end(showing: "")
+    }
+
+    /// The Library's search began: it filters the home, so a folder screen gives way to it.
+    func librarySearchBegan() {
+        if !libraryPath.isEmpty { libraryPath = [] }
+    }
+
+    /// The Library's ‹: up one level (nothing at the home).
+    func libraryBack() {
+        if !libraryPath.isEmpty { libraryPath.removeLast() }
+    }
 
     /// ✕, or leaving the browser: ends the search and puts the page's address back.
     func endAddressSearch() {

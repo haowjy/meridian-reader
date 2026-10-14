@@ -295,8 +295,6 @@ extension PageSort {
 /// into the panel.
 struct MoreMenuButton: View {
     let id: String
-    /// Shows a spinner instead of the glyph (⋯ → Save extracting).
-    var isBusy = false
     let menu: () -> MenuContext
 
     @Environment(ShellState.self) private var shell
@@ -308,14 +306,8 @@ struct MoreMenuButton: View {
         Button {
             shell.openMenu(menu(), from: frame)
         } label: {
-            Group {
-                if isBusy {
-                    ProgressView()
-                } else {
-                    Image(systemName: "ellipsis")
-                }
-            }
-            .toolbarIconFrame()
+            Image(systemName: "ellipsis")
+                .toolbarIconFrame()
         }
         .accessibilityLabel("More")
         .accessibilityIdentifier(id)

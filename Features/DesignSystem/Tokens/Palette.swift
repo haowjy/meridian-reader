@@ -83,6 +83,12 @@ enum Palette {
     static let washOpacity = 0.15
     /// `playerAccent` as a wash on the player.
     static let playerAccentWash = playerAccent.opacity(washOpacity)
+
+    /// A control drawn in its own colour that has nothing to do: as faint as the system dims a
+    /// disabled toolbar button (‹ / › with no history), so a dimmed 🔖 or ▶ matches them.
+    static let disabledOpacity = 0.3
+    /// A glyph button under the finger.
+    static let pressedOpacity = 0.5
 }
 
 extension EnvironmentValues {

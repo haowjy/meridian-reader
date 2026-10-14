@@ -296,6 +296,21 @@ final class ScreenshotCaptureTests: XCTestCase {
     /// A book part-way (its bar, the percent and time left under it, Continue and Play from Start,
     /// the Chapters card) and a folder part-way, light and at the largest accessibility text size:
     /// every block on the page margin.
+    /// The band the browser and the Library share (D22): the same frame on both, with the bar
+    /// showing the page played last, paused.
+    func testSharedBand() throws {
+        let app = launch(["-seedDemoArticle", "-browseTestPages"])
+        XCTAssertTrue(el(app, "bandField").waitForExistence(timeout: 10))
+        try shot("chrome-browse-first-page")
+        openTestArticlePage(app)
+        wait(1)
+        try shot("chrome-browse")
+        app.buttons["browseLibrary"].tap()
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
+        wait(1.5)
+        try shot("chrome-library")
+    }
+
     func testBookAndFolderHeaders() throws {
         for (suffix, size) in [("", nil), ("-ax5", "UICTContentSizeCategoryAccessibilityXXXL")] as [(String, String?)] {
             var arguments = ["-seedDemoBook", "-seedDemoBookPlace", "2", "-seedDemoFolders", "-resetBookmarks",

@@ -105,11 +105,17 @@ final class PlaybackRateAndChromeTests: XCTestCase {
         XCTAssertEqual(slot, width / 5, accuracy: 1e-9)
         let centers = (0..<5).map { BottomToolbarLayout.slotCenterX($0, rowWidth: width) }
         for i in 1..<5 { XCTAssertEqual(centers[i] - centers[i - 1], slot, accuracy: 1e-9, "evenly spaced") }
-        // Browse [‹][›][Search][ ][⋯]: 4 views → slots 0, 1, 2, 4. Reader: 5 views → 0…4.
-        XCTAssertEqual((0..<4).map { BottomToolbarLayout.slot(forSubview: $0, count: 4) }, [0, 1, 2, 4])
-        XCTAssertEqual((0..<5).map { BottomToolbarLayout.slot(forSubview: $0, count: 5) }, [0, 1, 2, 3, 4])
-        // The Now Playing bar's play/pause centered on slot 5 (the ⋯ column).
-        let pad = NowPlayingBar.trailingPadding(rowWidth: width)
+        // An item sits in the slot it names, whatever its position: Library [‹][ ][＋][ ][⋯]
+        // keeps ⋯ in slot 5 and ＋ in slot 3; unnamed items take their position (the transport).
+        XCTAssertEqual(BottomToolbarLayout.slot(named: 4, forSubview: 2), 4)
+        XCTAssertEqual(BottomToolbarLayout.slot(named: 2, forSubview: 1), 2)
+        XCTAssertEqual((0..<5).map { BottomToolbarLayout.slot(named: nil, forSubview: $0) }, [0, 1, 2, 3, 4])
+        XCTAssertEqual(BottomToolbarLayout.slot(named: 9, forSubview: 0), 4, "within the row")
+        // The Now Playing bar's play/pause centered on slot 5 (the ⋯ column): full width (the
+        // Reader), and across slots 2–5 beside the band's swap.
+        let pad = NowPlayingBar.trailingPadding(barWidth: width, spansSlots: 5)
         XCTAssertEqual(width - pad - BottomChrome.minTapTarget / 2, centers[4], accuracy: 1e-9)
+        let bandPad = NowPlayingBar.trailingPadding(barWidth: slot * 4, spansSlots: 4)
+        XCTAssertEqual(width - bandPad - BottomChrome.minTapTarget / 2, centers[4], accuracy: 1e-9)
     }
 }

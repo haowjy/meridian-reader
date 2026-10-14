@@ -90,19 +90,24 @@ struct NowPlayingTransport<More: View>: View {
             Button(action: onRate) { Text(rateLabel).toolbarTextFrame() }
                 .accessibilityLabel("Speed \(rateLabel)")
                 .accessibilityIdentifier("listenSpeed")
+                .toolbarSlot(0)
             Button(action: onSkipBack) { Image(systemName: "backward.end.fill").toolbarIconFrame() }
                 .disabled(!canSkipBack)
                 .accessibilityLabel("Previous paragraph")
+                .toolbarSlot(1)
             PlayStateButton(state: state, look: .disc, action: onPlayPause)
                 .accessibilityLabel(state == .playing ? "Pause" : "Play")
                 .accessibilityIdentifier("listenPlayPause")
                 .simultaneousGesture(LongPressGesture(minimumDuration: 0.6).onEnded { _ in onPlayLongPress?() },
                                      including: onPlayLongPress == nil ? .subviews : .all)
                 .frame(height: BottomChrome.rowHeight)
+                .toolbarSlot(2)
             Button(action: onSkipForward) { Image(systemName: "forward.end.fill").toolbarIconFrame() }
                 .disabled(!canSkipForward)
                 .accessibilityLabel("Next paragraph")
+                .toolbarSlot(3)
             more
+                .toolbarSlot(BottomToolbarLayout.moreSlot)
         }
         .padding(.top, Self.discOverhang)
         .padding(.bottom, max(0, Self.discOverhang - bottomInset))

@@ -47,6 +47,17 @@ enum LibraryQueries {
         }, sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse), SortDescriptor(\Page.key)])
     }
 
+    /// The pages played most recently, newest first, in the Library or not: the band's Now Playing
+    /// bar offers the first one still there to resume once nothing is bound. A few, so a page
+    /// deleted before its query updates leaves another.
+    static var lastPlayed: FetchDescriptor<Page> {
+        let past = Date.distantPast
+        var descriptor = FetchDescriptor(predicate: #Predicate<Page> { ($0.lastPlayedAt ?? past) > past },
+                                         sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse)])
+        descriptor.fetchLimit = 3
+        return descriptor
+    }
+
     /// Titles, bylines and excerpts across the tree, in the Library only.
     static func search(_ text: String) -> FetchDescriptor<Page> {
         FetchDescriptor(predicate: #Predicate<Page> {

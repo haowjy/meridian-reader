@@ -63,10 +63,11 @@ their text when it is at its top, which does exactly what that button does.
 
 ## Two surfaces: the Library and the browser (no tab bar)
 
-There is no tab bar. The app has two surfaces, swapped by slot 4 (📚 on the browser, 🌐 on the
-Library): the **Library**, the folder tree, and the **browser**, a web page or the start page.
-`BrowseStartView` hosts both (`ShellState.surface`); all chrome is one bottom bar, and each
-surface uses everything between the status bar and it (safe area respected).
+There is no tab bar. The app has two surfaces, swapped by the icon left of the Now Playing bar
+(📚 on the browser, 🌐 on the Library): the **Library**, the folder tree, and the **browser**, a
+web page or the start page. `BrowseStartView` hosts both (`ShellState.surface`); all chrome is
+one bottom band, the same on both (decision D22), and each surface uses everything between the
+status bar and it (safe area respected).
 
 **The app reopens on the surface you left** (decision D10): the Library at the folder you were in
 (`ShellState.libraryPath`, folders that no longer exist dropped), or the browser on its last page,
@@ -76,11 +77,27 @@ first time you go there (🌐), and stays remembered until then, across relaunch
 start on the browser unless `-restoreSurface`.
 
 ```
-╭ [art] Now playing title              ⏸ ╮   ← the Now Playing bar (once something has played)
-╰ site   N min left ━━━━━━━━──────────────╯
+[📚] ╭ [art] Now playing title         ⏸ ╮   ← swap over slot 1; the Now Playing bar over 2–5,
+     ╰ site   N min left ━━━━━━──────────╯     always there
 ( 📄 address …                        🎧 )   ← 📄 / 🎧 on readable pages; 🎤 only while searching
-[ ‹ ]   [ › ]   [ 🔍 ]   [ 📚 ]   [ ⋯ ]    ← 5 equal slots (slot 4 = Library↔Browser)
+[ ‹ ]   [ › ]   [ 🔖 ]   [ 🕘 ]   [ ⋯ ]    ← 5 equal slots, the Library's roles slot for slot
 ```
+
+**The band is the same on the browser and the Library** (`SurfaceBand`, decision D22): the same
+three rows at the same height, every control at the same frame, so swapping surfaces changes
+what the controls say and nothing else. Row 1 is the swap (📚 / 🌐, a full slot wide, centred
+over ‹) and the Now Playing bar across slots 2–5. Row 2 is the field: the address field on the
+browser, *Search Library* on the Library. Row 3 is the toolbar, each slot one role on both:
+
+| Slot | Browser | Library |
+|---|---|---|
+| 1 | ‹ web back | ‹ up a level (dimmed at the home) |
+| 2 | › web forward | › (always dimmed: the Library has no forward) |
+| 3 | 🔖 save the page / remove it (held: *Save to Folder…*) | ＋ *Import Book…*, *New Folder* |
+| 4 | 🕘 History | 🕘 History |
+| 5 | ⋯ | ⋯ |
+
+A slot with nothing to do is dimmed in place, never removed, so nothing shifts.
 
 **One bottom-chrome design**, shared by the browser, the Library, the Reader and Now Playing so
 the bottom of the screen barely changes between them (`Features/DesignSystem/Chrome/BottomChrome.swift`): the band
@@ -92,16 +109,19 @@ clipping; toolbar glyphs keep their size and show in the large content viewer on
 Every control takes taps in at least 44 × 44 pt (`tapTarget`), whatever its drawn size: the
 address-field 📄 and 🎧, the ✕ beside a search field, the Now Playing bar's play/pause, the
 capsule's 36 pt controls. **Five equal slots, evenly spaced, one grid for every row:** Browse is
-`[‹][›][Search][Library][⋯]`, the Library surface `[＋][★][Search][Browser][⋯]`, the Reader
-`[🔖][ ▶ Listen  9 min ][⋯]` (the pill spans slots 2–4) and Now Playing `[1×][⏮][▶︎][⏭][⋯]`. Slot 4 is the Library↔Browser swap (📚 on Browse, 🌐 on Library — same
-muscle memory as the morph-menu Reader↔Website near ⋯). Leading items fill slots 1, 2, 3…; the
-last item (⋯) always sits in slot 5, so every icon in slot N is at the same x and the ⋯ menu
-grows from the same spot. ⋯ is never replaced. The Now Playing bar's play/pause is centered over
-the ⋯ slot too.
+`[‹][›][🔖][🕘][⋯]`, the Library surface `[‹][›][＋][🕘][⋯]`, the Reader
+`[🔖][ ▶ Listen  9 min ][⋯]` (the pill spans slots 2–4) and Now Playing `[1×][⏮][▶︎][⏭][⋯]`.
+Each item names its slot (`.toolbarSlot(_:)`); a slot nothing names stays empty, so items never
+slide along, every icon in slot N is at the same x and the ⋯ menu grows from the same spot. ⋯ is
+never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot too.
 
-- **Search** (🔍, middle): focuses the address field, empty, for a new search (Recent Searches
-  show full-bleed, Safari-style); ✕ cancels and restores the page's address. Swipe down lowers
-  the keyboard but stays in search mode (typed text and ✕ kept). The page stays loaded underneath.
+- **A new search** is a tap on the address field: it selects the page's address, so typing
+  replaces it (Recent Searches show full-bleed, Safari-style); ✕ cancels and restores the page's
+  address. Swipe down lowers the keyboard but stays in search mode (typed text and ✕ kept). The
+  page stays loaded underneath. ⋯ → *New Search* opens the start page with an empty field.
+- **🔖** (slot 3) is the Reader's 🔖 for the page on screen: tap saves it to the Library's top level
+  (extracted first; 🔖 spins), or removes it when it is saved (filled, jade); held, it opens the
+  Move tree (*Save to Folder…*). Dimmed on the start page. **🕘** (slot 4) opens History.
 - ‹ / › are web history (disabled when WebKit can't go back / forward; KVO on the web view, so
   same-document history counts too). The web view's own edge swipes still work.
 - No Reader button in the toolbar. The **reader icon** (📄, like Safari's page-format icon) sits
@@ -154,15 +174,20 @@ the ⋯ slot too.
   the bar). There is one page per
   address: saving a favorite saves it in place; unsaving a page in a folder leaves it there as a
   link. 🔖 = saved, ☆ = favorite.
-- **The Now Playing bar** (`NowPlayingBarView` → `NowPlayingBar`) is the one thing that shows what
-  you hear: a floating card 8 pt above the field capsule with the page's artwork (favicon or a
-  letter tile), its title, the site and the time left (two parts set apart by space, the time in lighter
-  ink), a thin progress line along its bottom edge, and
+- **The Now Playing bar** (`BandNowPlayingBar` / `NowPlayingBarView` → `NowPlayingBar`) is the
+  one thing that shows what you hear: a floating card 8 pt above the field capsule with the page's
+  artwork (favicon or a letter tile), its title, the site and the time left (two parts set apart
+  by space, the time in lighter ink), a thin progress line along its bottom edge, and
   play/pause centered over the ⋯ slot. It looks the same on the browser, the start page, the
-  Library and the Reader sheet. It shows from the first play; it hides on Now Playing, while you
-  type in a field, under other sheets, and after *Stop Listening*. At the end of a page it stays,
-  reading "✓ Finished", and ▶ plays the page again. Tap or swipe up → Now Playing; long-press →
-  *Stop Listening* (unloads the page; the bar goes).
+  Library and the Reader sheet. At the end of a page it stays, reading "✓ Finished", and ▶ plays
+  the page again. Tap or swipe up → Now Playing; long-press → *Stop Listening* (unloads the page).
+  **In the band it is always there, at one height:** with nothing loaded (before the first play
+  of a launch, after *Stop Listening*) it shows the page played last, paused (▶ resumes it from
+  its place, a tap opens it), and before anything has ever played a greyed *Nothing playing*
+  card. On Now Playing, under the Reader sheet (which shows its own bar) and under other sheets
+  the band keeps the bar's space empty; while you type in a field the row steps aside with the
+  toolbar. The Reader's bar shows only what you hear, and hides on Now Playing, under other
+  sheets and after *Stop Listening*.
 
 **Start page** (no page loaded), Safari-style:
 1. **Favorites**: starred pages and folders (favicon, or a
@@ -176,10 +201,12 @@ the ⋯ slot too.
 
 The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
-back up. The home has an in-list search field and **Everything / Favorites** tabs. Each tab filters
+back up, as does the band's ‹ (dimmed at the home). The home has **Everything / Favorites** tabs
+at the top; *Search Library* is the band's field. Each tab filters
 the same mixed list: folders and pages share a single list, with no section headings. Favorites
 are independent stars; rows found outside their current location show their folder path and open
-in that location. The bottom chrome keeps the Now Playing bar and `[＋][🌐][⋯]`. ＋ is *Import
+in that location. The band is the browser's (above): 🌐 beside the Now Playing bar, the search
+field, `[‹][›][＋][🕘][⋯]`. ＋ is *Import
 Book…* and *New Folder*, both made in the folder on screen (a book's too). 🌐 shows the browser as
 it was; 📚 there comes back to the same folder. The
 ⋯ panel follows the screen on top (below), always with big buttons **Favorites**, **History**,
@@ -189,7 +216,6 @@ swap as 🌐.
 
 ```
 Library
-Search Library
 Everything  Favorites
 ▣ Pride and Prejudice          ↓  ▶  large cover, download state and play action
 ▣ Tide Tables                  ↓  ▶
@@ -404,12 +430,13 @@ be saved; Edit's *Remove* is two changes, the pages first and then, after the qu
 and Now Playing too. Listening goes on being kept meanwhile: where you are in a page, when you last played it and
 whether you finished it are stored once saving works again, even across failed changes.
 
-**Library search** is the same session as the browser's (`SearchSession` +
-`SearchSessionChrome`): focusing the field (or toolbar Search) hides the toolbar so the field sits
-above the keyboard with a round ✕; swipe-down / scroll lowers the keyboard but **stays in search
-mode**; ✕ exits. While there is text, the results cover the Library's screens: folders (by name,
-or a book's author) and pages (titles, sites, excerpts) across the whole tree, then *Search the
-web for "…"*, which opens the browser.
+**Library search** is the band's field, the same session as the browser's (`SearchSession` +
+`SearchSessionChrome`, `ShellState.librarySearch`): focusing it hides the band's first row and
+toolbar so the field sits above the keyboard with a round ✕ (on a folder screen it goes back to
+the home first, the list it filters); swipe-down / scroll lowers the keyboard but **stays in search
+mode**; ✕ exits and clears the filter. While there is text, the home's list holds the folders
+(by name, or a book's author) and pages (titles, sites, excerpts) that match, across the whole
+tree in the selected tab, each with its location.
 
 **Editing the address** (a ✕ state, so it closes like one):
 - The toolbar steps aside and the field sits right above the keyboard, with a round ✕ to its right.
@@ -548,7 +575,7 @@ row) opens Now Playing instead.
 - **At the end** it stays on the page: the text stays, all of it in full ink, a note says
   "✓ Finished", and ▶ plays the page again.
 - **Controls** (today's listen rows): the scrub row and `[1×][⏮][▶︎][⏭][⋯]` in the browser's
-  five-slot grid (1× under ‹, ⏮ under ›, ▶︎ under Search, ⏭ under Library, ⋯ under ⋯). ▶︎ / ⏸ is a
+  five-slot grid (1× under ‹, ⏮ under ›, ▶︎ under 🔖, ⏭ under 🕘, ⋯ under ⋯). ▶︎ / ⏸ is a
   64 pt round button (accent fill, dark glyph; fixed size, like the toolbar glyphs). The row stays
   44 pt, so every slot sits where it does on the other surfaces; the disc overhangs it. ⏮ ⏭ and
   headphone / lock-screen skips are paragraph skips (D4). A sideways swipe on the row skips too.
@@ -617,12 +644,11 @@ Debug builds (`App/LaunchOptions.swift`).
 | Browser (start page / web page) | — | root |
 | Browser → editing the address | ✕ round, right of the field | in place; tap outside or drag down |
 | Browser ⋯ / Reader ⋯ / Now Playing ⋯ / Library ⋯ | — | morph panel over the button (same design; rows per surface) |
-| Browser toolbar Search | ✕ round, right of the field | in place (editing the address, empty) |
 | ⋯ → Website (Reader, Now Playing) | — | closes the sheet (and leaves the library) and shows / loads the page in the browser; audio continues |
 | ⋯ → Voice settings (`SpeechSettingsView`) | Done | `.sheet` |
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | — (grabber) | `.sheet`, medium/large |
-| Toolbar 📚 / Library (`LibrarySurface`): the home | 🌐 Browser slot | in-place surface (shared bottom chrome); leave restores browse |
+| Band 📚 / Library (`LibrarySurface`): the home | 🌐 beside the Now Playing bar | in-place surface (shared bottom chrome); leave restores browse |
 | Library → a folder (a book or series too), Pages · Show All (`FolderScreen`) | ‹ system | push (`navigationDestination`) |
 | Move, Save to Library…, Save to Folder…, Change Folder (`MoveTreeSheet`) | ✕ (grabber) | `.sheet`, medium/large |
 | Import Book… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
