@@ -66,25 +66,8 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View, Floati
     }
 
     private var saveButton: some View {
-        Button(action: onToggleSave) {
-            Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                .foregroundStyle(isSaved ? Palette.accent : Palette.ink)
-                .toolbarIconFrame()
-        }
-        .buttonStyle(.plain)
-        // Long-press picks a folder; a tap released early still saves.
-        .highPriorityGesture(
-            LongPressGesture().onEnded { _ in onSaveToFolder?() },
-            including: onSaveToFolder == nil ? .subviews : .all
-        )
-        .accessibilityLabel(isSaved ? "Remove from Library" : "Save")
-        .accessibilityValue(isSaved ? "Saved" : "Not saved")
-        .accessibilityIdentifier("readerBookmark")
-        .accessibilityActions {
-            if let onSaveToFolder {
-                Button("Save to Folder…", action: onSaveToFolder)
-            }
-        }
+        SaveToggleButton(isSaved: isSaved, identifier: "readerBookmark", onToggle: onToggleSave,
+                         onSaveToFolder: onSaveToFolder)
     }
 }
 

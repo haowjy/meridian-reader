@@ -1,7 +1,7 @@
 import XCTest
 
-/// Browser bottom bar: no tab bar, toolbar `[‹][›][Search][Library][⋯]` (⋯ = the morph menu panel
-/// with Favorites / History), the address-field reader icon (readable pages only), Favorites,
+/// Browser bottom bar: no tab bar, 📚 beside the Now Playing bar, toolbar `[‹][›][🔖][🕘][⋯]` (⋯ =
+/// the morph menu panel with Favorites / History), the address-field reader icon (readable pages only), Favorites,
 /// and edit mode that cancels via ✕ or a pull-down (restoring the page address).
 final class BrowseToolbarUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
@@ -62,7 +62,8 @@ final class BrowseToolbarUITests: XCTestCase {
         }
         XCTAssertFalse(element(app, "browseSaved").exists, "Saved lives in ⋯ (Safari-style)")
         XCTAssertFalse(element(app, "browseReader").exists, "Reader is the address-field icon / ⋯ toggle")
-        XCTAssertTrue(element(app, "browseLibrary").exists, "Library↔Browser slot beside ⋯")
+        XCTAssertTrue(element(app, "browseLibrary").exists, "Library↔Browser swap beside the Now Playing bar")
+        XCTAssertFalse(element(app, "browseSearch").exists, "a new search is a tap on the field")
         XCTAssertFalse(element(app, "addressMic").exists, "mic only while searching, not idle")
         XCTAssertFalse(app.tabBars.firstMatch.isHittable, "no tab bar on Browse")
 
@@ -87,17 +88,18 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(waitFor("isEnabled == true", back))
         XCTAssertTrue(waitFor("isEnabled == false", forward))
 
-        // Five-slot grid: Search in the middle slot (3 of 5), ⋯ in slot 5.
-        let search = app.buttons["browseSearch"]
-        XCTAssertTrue(search.exists)
+        // Five-slot grid: 🔖 in the middle slot (3 of 5), 🕘 in slot 4, ⋯ in slot 5.
+        let save = app.buttons["browseSave"]
+        XCTAssertTrue(save.exists)
+        XCTAssertTrue(save.isEnabled, "a page to save")
         let row = app.windows.firstMatch.frame
-        XCTAssertEqual(search.frame.midX, row.midX, accuracy: 1, "Search centered")
-        XCTAssertLessThan(forward.frame.midX, search.frame.minX, "‹ › left of Search")
-        XCTAssertGreaterThan(app.buttons["browseMore"].frame.minX, search.frame.maxX - 1, "⋯ right of Search")
-        search.tap()
+        XCTAssertEqual(save.frame.midX, row.midX, accuracy: 1, "🔖 centered")
+        XCTAssertLessThan(forward.frame.midX, save.frame.minX, "‹ › left of 🔖")
+        XCTAssertLessThan(save.frame.maxX - 1, app.buttons["browseHistory"].frame.minX, "🕘 right of 🔖")
+        XCTAssertGreaterThan(app.buttons["browseMore"].frame.minX, app.buttons["browseHistory"].frame.maxX - 1, "⋯ last")
         let field = app.textFields["addressField"]
-        XCTAssertTrue(waitFor("hasKeyboardFocus == true", field), "Search focuses the field")
-        XCTAssertTrue(waitFor("value == 'Search or enter address' OR value == ''", field), "empty, for a new search")
+        field.tap()
+        XCTAssertTrue(waitFor("hasKeyboardFocus == true", field), "tapping the field searches")
         XCTAssertTrue(element(app, "addressMic").waitForExistence(timeout: 2), "mic while searching")
         XCTAssertTrue(element(app, "addressCancel").exists)
         element(app, "addressCancel").tap()
@@ -112,7 +114,7 @@ final class BrowseToolbarUITests: XCTestCase {
                    "moreVoice", "moreDebug", "moreFavorites", "moreHistory", "moreReaderToggle"] {
             XCTAssertTrue(element(app, id).waitForExistence(timeout: 3), "⋯ has \(id)")
         }
-        XCTAssertFalse(element(app, "moreLibrary").exists, "the Library is slot 4, not a big button")
+        XCTAssertFalse(element(app, "moreLibrary").exists, "the Library is the band's swap, not a big button")
         XCTAssertFalse(element(app, "moreReader").exists, "the Open in Reader row is gone (bottom-right toggle)")
         XCTAssertTrue(element(app, "moreMenuPanel").exists, "Safari-style panel (no popover arrow)")
         element(app, "moreReload").tap()
@@ -126,9 +128,8 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(waitFor("exists == false", app.libraryHome), "back on the browser")
         XCTAssertTrue(back.isEnabled, "page state kept")
 
-        // History → the visited pages; tapping one opens it.
-        app.buttons["browseMore"].tap()
-        element(app, "moreHistory").tap()
+        // 🕘 → the visited pages; tapping one opens it.
+        app.buttons["browseHistory"].tap()
         XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 5), "history sheet")
         let secondVisit = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Second page'")).firstMatch
         if secondVisit.waitForExistence(timeout: 3) {
