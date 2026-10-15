@@ -4,7 +4,8 @@ import XCTest
 /// Kokoro's ONNX route uses the configured thread count while the app is in front (by default
 /// every core but one, 3 to 6) and one thread in the background. ORT fixes the count when a
 /// session is built, so the call after a phase change rebuilds the session
-/// (`KokoroONNXSessionSlot`), releasing the old one first.
+/// (`KokoroONNXSessionSlot`), releasing the old one first. A memory warning lets go of the
+/// session; the next call builds it again.
 final class KokoroBackgroundThreadsTests: XCTestCase {
     func testOneThreadInTheBackgroundTheConfiguredCountInFront() {
         XCTAssertEqual(KokoroRouteSettings.onnxThreads(configured: 3, phase: .active), 3)
@@ -153,5 +154,46 @@ final class KokoroBackgroundThreadsTests: XCTestCase {
 
         XCTAssertEqual(builds.list.map(\.threads), [5, 1, 5, 1])
         XCTAssertEqual(builds.list.map(\.aliveBefore), [0, 0, 0, 0], "the old session is released before a new one is built")
+    }
+
+    /// A memory warning (`release`) lets go of the session but keeps the slot loaded: the next
+    /// call builds it again at the phase's count, with nothing else alive. Only a count change
+    /// reports `rebuiltFrom`; a drop after a release unloads.
+    func testAReleasedSessionIsBuiltAgainAtTheNextCall() async throws {
+        let builds = Builds()
+        let slot = KokoroONNXSessionSlot<FakeSession> { threads in
+            builds.add(threads)
+            return FakeSession(threads: threads)
+        }
+        XCTAssertFalse(slot.release(), "nothing loaded: nothing to let go")
+        try await slot.load(threads: 3)
+        _ = try await slot.session(threads: 3)
+
+        XCTAssertTrue(slot.release())
+        XCTAssertNil(slot.threads, "the session is gone")
+        XCTAssertEqual(FakeSession.lock.withLock { FakeSession.alive }, 0, "its memory with it")
+        XCTAssertFalse(slot.release(), "already let go")
+        // Each call as the host makes it: no reference kept past the call.
+        func call(_ threads: Int) async throws -> (Int, Int?) {
+            let picked = try await slot.session(threads: threads)
+            return (picked.session.threads, picked.rebuiltFrom)
+        }
+        let (again, againFrom) = try await call(3)
+        XCTAssertEqual(again, 3)
+        XCTAssertNil(againFrom, "same count: not a thread switch")
+
+        XCTAssertTrue(slot.release())
+        let (locked, lockedFrom) = try await call(1) // the phone was locked meanwhile
+        XCTAssertEqual(locked, 1)
+        XCTAssertEqual(lockedFrom, 3)
+        XCTAssertEqual(builds.list.map(\.threads), [3, 3, 1])
+        XCTAssertEqual(builds.list.map(\.aliveBefore), [0, 0, 0], "never two sessions")
+
+        XCTAssertTrue(slot.release())
+        slot.drop()
+        do {
+            _ = try await slot.session(threads: 1)
+            XCTFail("dropped: not loaded")
+        } catch LocalSynthError.engineUnavailable {}
     }
 }
