@@ -345,12 +345,18 @@ ahead of the playhead (counted as a starve event).
 
 **Head-start rule** (`HeadStart`, `RenderPace`): before rendering a chunk for a listener, the
 engine projects whether rendering at the measured speed would starve playback by more than 2 s;
-if so that paragraph plays with Apple ("Kokoro fell behind", `render_behind`). Only listener
-calls feed `RenderPace`.
+if so that paragraph plays with Apple ("Kokoro fell behind", `render_behind`), and the render
+queue moves on to the next paragraph at once (`ListenUnitSource.focus`) instead of finishing the
+one Apple speaks and falling behind again there; the skipped paragraph is rendered later, from
+the top. A chunk the engine fails on does the same. Only listener calls feed `RenderPace`.
 
 **Never silent, never skipped.** A chunk the engine can't render is rendered with Apple
 (ahead), or the rest of the paragraph is spoken with Apple (live). Only if Apple also fails is
 the paragraph skipped, logged as `SKIP pN` in the debug overlay and `skip` in the timing log.
+A live Apple unit is a one-off file in `tmp/ReaderTTSLive`, never cached: it is deleted once the
+unit leaves the player (`ChunkPlaybackQueue.onItemDone`: played out, dropped when the engine
+takes over again in front, stopped), or at once when it isn't queued, and the first player of a
+launch empties the folder of an earlier process's files.
 Failed units go into `failedUnits`, so the worker never loops on them; a live request retries
 once. An overflowing call (`inputTooLong`) is re-split down to 24 units.
 

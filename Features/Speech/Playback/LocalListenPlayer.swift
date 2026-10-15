@@ -63,12 +63,22 @@ final class LocalListenPlayer {
     /// Article whose audio is playing right now (nil when paused / stopped).
     var playingArticleID: UUID? { (isSpeaking && !isPaused) ? source?.articleID : nil }
 
+    /// Where Apple fallback units are written (`tmp/ReaderTTSLive`), never cached: each file is
+    /// deleted once its unit leaves the player (played out, dropped, stopped), or at once when it
+    /// isn't queued. The first player of a process empties the folder of what an earlier process
+    /// left (iOS empties `tmp` only when storage runs low, and never while the app runs).
+    private static let fallbackDirectory: URL = {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("ReaderTTSLive", isDirectory: true)
+        try? fm.removeItem(at: dir)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
     /// `player` is injectable so tests can end units without waiting for real audio.
     init(player injected: ChunkPlaybackQueue? = nil) {
         self.player = injected ?? ChunkPlaybackQueue(maxBuffered: 8)
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ReaderTTSLive", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        self.tempDir = dir
+        self.tempDir = Self.fallbackDirectory
 
         player.onUnitStarted = { [weak self] item in
             guard let self else { return }
@@ -89,6 +99,9 @@ final class LocalListenPlayer {
         }
         player.onError = { error in
             print("[LocalPlay] unit error (fail-forward): \(error.localizedDescription)")
+        }
+        player.onItemDone = { item in
+            if case .appleFallback = item.source { Self.deleteFallbackFile(item.fileURL) }
         }
         player.onFinished = { [weak self] in
             // The only place the article ends (see `ChunkPlaybackQueue.endOfInput`); once per play.
@@ -470,25 +483,39 @@ final class LocalListenPlayer {
         case .engineError:
             ListenDebugLog.shared.append("p\(index) c\(fromChunk) \(engine) failed → Apple TTS (\(error.localizedDescription))")
         }
+        if reason != .background, index + 1 < source.paragraphs.count {
+            // Apple speaks this paragraph: the worker moves on to the next one now, instead of
+            // finishing this one (which no longer plays) and falling behind again there. This one
+            // is rendered later, from the top.
+            source.focus(paragraph: index + 1)
+        }
         let url = tempDir.appendingPathComponent("apple-\(e)-\(index)-\(fromChunk).caf")
         let t0 = ListenTimingLog.now()
         do {
             try await source.renderApple(remainder, to: url)
-            guard e == epoch else { return }
+            guard e == epoch else {
+                Self.deleteFallbackFile(url)
+                return
+            }
             ListenTimingLog.log("fallback_apple", ["p": index, "c": fromChunk, "live": true,
                                                    "chars": remainder.count, "ms": ListenTimingLog.ms(since: t0),
                                                    "engine": engine, "local_err": error.localizedDescription])
-            if ArticleAudioCache.hasAudio(at: url) {
-                player.enqueue(.init(paragraphIndex: index, fileURL: url,
-                                     source: .appleFallback(fromChunk: fromChunk, reason: reason)))
-            }
+            let queued = ArticleAudioCache.hasAudio(at: url)
+                && player.enqueue(.init(paragraphIndex: index, fileURL: url,
+                                        source: .appleFallback(fromChunk: fromChunk, reason: reason)))
+            if !queued { Self.deleteFallbackFile(url) }
         } catch {
+            Self.deleteFallbackFile(url)
             ListenDebugLog.shared.append("SKIP p\(index): \(engine) and Apple TTS both failed (\(error.localizedDescription))")
             ListenTimingLog.log("skip", ["p": index, "err": error.localizedDescription])
         }
         guard e == epoch else { return }
         nextProduceIndex = index + 1
         nextProduceChunk = 0
+    }
+
+    private static func deleteFallbackFile(_ url: URL) {
+        try? FileManager.default.removeItem(at: url)
     }
 
     private func noteUnitKind(_ item: ChunkPlaybackQueue.Item) {
