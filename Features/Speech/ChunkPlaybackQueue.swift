@@ -306,9 +306,10 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         let finished = current
         current = nil
         player = nil
-        if let finished { onItemDone?(finished) }
         onUnitEnded?()
         playNext()
+        // After the next unit started: nothing between two units but the handoff.
+        if let finished { onItemDone?(finished) }
     }
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {

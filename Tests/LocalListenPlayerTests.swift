@@ -157,13 +157,14 @@ final class LocalListenPlayerTests: XCTestCase {
         try endCurrentUnit(queue, file: first)
         await settle { queue.currentParagraphIndex == 1 }
         XCTAssertFalse(FileManager.default.fileExists(atPath: first.path), "played out: deleted")
-        // This play's files: apple-<epoch>-<paragraph>-<chunk>.caf.
+        // This play's files: apple-<epoch>-<paragraph>-<chunk>-<render>.caf.
         let prefix = first.lastPathComponent.components(separatedBy: "-").prefix(2).joined(separator: "-") + "-"
         let folder = first.deletingLastPathComponent()
-        func files() throws -> Set<String> {
-            Set(try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasPrefix(prefix) })
+        func files() throws -> [String] {
+            try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasPrefix(prefix) }
+                .map { $0.components(separatedBy: "-").prefix(4).joined(separator: "-") }.sorted()
         }
-        XCTAssertEqual(try files(), [prefix + "1-0.caf", prefix + "2-0.caf"], "paragraph 2 playing, paragraph 3 queued")
+        XCTAssertEqual(try files(), [prefix + "1-0", prefix + "2-0"], "paragraph 2 playing, paragraph 3 queued")
 
         player.stop()
         XCTAssertEqual(try files(), [], "stopped: nothing left in tmp")

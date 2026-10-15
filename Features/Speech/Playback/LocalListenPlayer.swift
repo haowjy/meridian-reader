@@ -27,6 +27,9 @@ final class LocalListenPlayer {
     private var userWantsAudible = false
     /// Generation for starved-watchdog tasks; bumped whenever we leave play/resume paths.
     private var starveWatchGeneration = 0
+    /// Apple fallback renders so far: each gets its own file, so deleting one never touches
+    /// another unit's audio.
+    private var fallbackRenders = 0
 
     private(set) var isSpeaking = false
     private(set) var isPaused = false
@@ -489,7 +492,8 @@ final class LocalListenPlayer {
             // is rendered later, from the top.
             source.focus(paragraph: index + 1)
         }
-        let url = tempDir.appendingPathComponent("apple-\(e)-\(index)-\(fromChunk).caf")
+        fallbackRenders += 1
+        let url = tempDir.appendingPathComponent("apple-\(e)-\(index)-\(fromChunk)-\(fallbackRenders).caf")
         let t0 = ListenTimingLog.now()
         do {
             try await source.renderApple(remainder, to: url)
