@@ -13,9 +13,10 @@ enum FavoriteRequest {
 /// renaming a favorite save at once; a save that fails is rolled back and throws
 /// `LibraryStoreError.saveFailed`.
 extension LibraryStore {
-    /// Favorite pages anywhere in the tree.
+    /// Favorite pages anywhere in the tree. A predicate fetch: only they are read, not every
+    /// page's text.
     func favoritePages() -> [Page] {
-        ((try? context.fetch(FetchDescriptor<Page>())) ?? []).filter(\.isFavorite)
+        (try? context.fetch(FetchDescriptor(predicate: #Predicate<Page> { $0.isFavorite }))) ?? []
     }
 
     /// The page for `url` when it is a favorite: in Favorites or one of its subfolders.

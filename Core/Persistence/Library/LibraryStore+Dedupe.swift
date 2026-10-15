@@ -23,8 +23,10 @@ extension LibraryStore {
         dedupeFavorites(&report)
         moveFavoritesToTop(&report)
         breakCycles(&report)
-        repairFolderIDs(&report)
-        dedupePages(&report)
+        // One read of every page for both page passes (each page's text comes with it).
+        let pages = (try? context.fetch(FetchDescriptor<Page>())) ?? []
+        repairFolderIDs(pages, &report)
+        dedupePages(pages, &report)
         if report != DedupeReport() {
             if saving, !commit("dedupe") {
                 rollBack()
@@ -140,8 +142,7 @@ extension LibraryStore {
     }
 
     /// `Page.folderID` disagreeing with `Page.folder`: the relationship wins.
-    private func repairFolderIDs(_ report: inout DedupeReport) {
-        let pages = (try? context.fetch(FetchDescriptor<Page>())) ?? []
+    private func repairFolderIDs(_ pages: [Page], _ report: inout DedupeReport) {
         for page in pages where page.folderID != page.folder?.id {
             page.folderID = page.folder?.id
             report.repairedFolderIDs += 1
@@ -154,8 +155,7 @@ extension LibraryStore {
     /// the furthest position; the latest play; the older. The keeper takes content it lacks, the
     /// other's audio, the earliest `addedAt` (a save is never lost) and the latest play; any
     /// place or crash-resume point on the other's key follows it.
-    private func dedupePages(_ report: inout DedupeReport) {
-        let pages = (try? context.fetch(FetchDescriptor<Page>())) ?? []
+    private func dedupePages(_ pages: [Page], _ report: inout DedupeReport) {
         // Union by key and by canonical URL.
         var parent = Array(pages.indices)
         func root(_ i: Int) -> Int {

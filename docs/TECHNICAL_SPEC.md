@@ -248,6 +248,8 @@ same paragraphs. The pages and a receipt for every item copied are saved togethe
 leaves neither, so the next launch copies again, and a page deleted after the copy never comes
 back. Receipts that can't be read stop the copy. A bookmarks file that doesn't decode is logged
 and left as it is: nothing is copied or recorded from it, so it is copied if it becomes readable.
+A launch with nothing to copy (every launch after the first) changes nothing and saves nothing:
+the legacy Favorites folder the bookmarks pass through is made only when there are bookmarks.
 Nothing legacy is written again: the rows, the
 bookmarks file and the listen history stay as they were, so the previous build still works after
 a rollback, and pages keep their rows' audio keys. Then the paragraph layout pass, the dedupe pass
