@@ -43,6 +43,11 @@ enum Palette {
     /// enough to read on dark paper, so it turns dark there.
     static let onAccent = Color(light: 0xFFFFFF, dark: 0x141416)
     /// Background of what is playing: the spoken paragraph, the playing row, a playing pill.
+    /// A letter tile with no image (a page, folder or book without a cover): tinted so it reads
+    /// as artwork on chrome and paper alike; its letter is `placeholderInk`.
+    static let placeholderTile = Color(light: 0xD5E6DF, dark: 0x2A4A42)
+    /// The letter on `placeholderTile` (≥ 4.5 : 1 on it in both modes).
+    static let placeholderInk = Color(light: 0x1F5A4D, dark: 0xD5EDE5)
     static let playingTint = Color(light: 0xE6F1ED, dark: 0x163029)
     /// A swipe action that leaves its row in the list (it asks first, as a folder row's *Delete*,
     /// or deletes what the row only shows, as an engine's download): the system's red, as a

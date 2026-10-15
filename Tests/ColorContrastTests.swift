@@ -89,7 +89,8 @@ final class ColorContrastTests: XCTestCase {
             // The title card's artwork letter, on its tile.
             Case(name: "artwork letter, player", fore: Palette.playerSecondaryInk, fill: Palette.playerTrack,
                  under: Palette.playerCard),
-            Case(name: "artwork letter", fore: Palette.secondaryInk, fill: Palette.chrome, under: Palette.paper),
+            Case(name: "artwork letter", fore: Palette.placeholderInk, fill: Palette.placeholderTile, under: Palette.paper),
+            Case(name: "artwork letter on a row", fore: Palette.placeholderInk, fill: Palette.placeholderTile, under: Palette.chrome),
             // The status bar strip above the player: light status bar content on the dim behind
             // the sheet, over the lightest surface there can be (a white web page).
             Case(name: "status bar over the player's dim", fore: .white,

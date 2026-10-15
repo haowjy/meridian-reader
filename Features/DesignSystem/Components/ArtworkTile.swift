@@ -10,8 +10,8 @@ struct ArtworkTile: View {
     var size: CGFloat = 36
     /// A book cover's proportions (taller than wide) instead of a square.
     var isCover = false
-    /// The tile behind a letter: `chrome` on paper; things drawn on chrome (rows, cards) pass
-    /// `paper`, so the tile still shows.
+    /// The tile behind an image (a transparent favicon). With no image the letter sits on
+    /// `placeholderTile` instead, which reads on chrome and paper alike.
     var fill = Palette.chrome
 
     @Environment(\.onPlayerPalette) private var onPlayer
@@ -19,7 +19,7 @@ struct ArtworkTile: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: size * (isCover ? 0.06 : 0.22), style: .continuous)
         ZStack {
-            shape.fill(onPlayer ? Palette.playerTrack : fill)
+            shape.fill(onPlayer ? Palette.playerTrack : image == nil ? Palette.placeholderTile : fill)
             if let image {
                 image
                     .resizable()
@@ -27,7 +27,7 @@ struct ArtworkTile: View {
             } else {
                 Text(letter.prefix(1).uppercased())
                     .font(.system(size: size * 0.45, weight: .semibold))
-                    .foregroundStyle(onPlayer ? Palette.playerSecondaryInk : Palette.secondaryInk)
+                    .foregroundStyle(onPlayer ? Palette.playerSecondaryInk : Palette.placeholderInk)
             }
         }
         .frame(width: size, height: isCover ? size * 1.45 : size)
