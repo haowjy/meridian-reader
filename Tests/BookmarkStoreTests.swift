@@ -83,13 +83,58 @@ final class BookmarkStoreTests: XCTestCase {
         XCTAssertEqual(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).map(\.title), [saved.title])
     }
 
-    func testFavoritingAPagePlayedButNotSavedKeepsItUnsaved() throws {
-        let played = library.recordPlayback(env.article("https://example.com/played"))
+    /// ☆ on a page played without saving puts it in the Library with its played text: it is in
+    /// the Favorites tab (☆ shows filled), and the 7-day prune of unsaved pages keeps it.
+    /// Unstarring it later leaves it in the Library.
+    func testFavoritingAPagePlayedButNotSavedPutsItInTheLibraryAndFavorites() throws {
+        let url = URL(string: "https://example.com/played")!
+        let played = library.recordPlayback(env.article(url.absoluteString))
+        let other = library.recordPlayback(env.article("https://example.com/other"))
         XCTAssertNil(played.addedAt)
-        try library.addFavorite(url: URL(string: "https://example.com/played")!, title: nil, artwork: nil)
+        try library.addFavorite(url: url, title: nil, artwork: nil)
         XCTAssertTrue(played.isSaved, "favoriting does not replace its played text")
-        XCTAssertNil(played.addedAt)
-        XCTAssertTrue(played.isFavorite)
-        XCTAssertNil(played.folder)
+        XCTAssertNotNil(played.addedAt, "in the Library")
+        XCTAssertNil(played.folder, "where it was: loose")
+        XCTAssertIdentical(library.favorite(for: url), played, "☆ filled")
+        XCTAssertEqual(try env.context.fetch(LibraryQueries.favoritePages).map(\.key), [played.key], "the Favorites tab")
+        XCTAssertEqual(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).map(\.key), [played.key])
+        XCTAssertFalse(try env.context.fetch(LibraryQueries.playedNotSaved).contains { $0 === played }, "no longer Not saved")
+
+        env.now += 30 * 24 * 3600
+        _ = library.recordPlayback(env.article("https://example.com/later")) // the last played is always kept
+        library.pruneUnsaved()
+        XCTAssertNotNil(library.page(url: url), "a favorite is never pruned")
+        XCTAssertNil(library.page(url: URL(string: "https://example.com/other")!), "an unsaved page is")
+        _ = other
+
+        try library.removeFavorite(played)
+        XCTAssertNil(library.favorite(for: url))
+        XCTAssertTrue(played.isInLibrary, "unstarring keeps it")
+    }
+
+    /// ☆ on a page that is nowhere yet makes a link in the Library; unstarring keeps the link.
+    func testUnstarringALinkStarCreatedKeepsIt() throws {
+        let url = URL(string: "https://example.com/new")!
+        let link = try library.addFavorite(url: url, title: "New", artwork: nil)
+        XCTAssertTrue(link.isLink)
+        XCTAssertTrue(link.isInLibrary)
+        try library.removeFavorite(link)
+        XCTAssertFalse(link.isFavorite)
+        XCTAssertIdentical(library.page(url: url), link, "still there")
+        XCTAssertTrue(link.isInLibrary)
+    }
+
+    /// Remove from Library takes a favorite out of Favorites too: no star is left on a page the
+    /// Favorites tab can't show.
+    func testRemovingAFavoriteFromTheLibraryClearsItsStar() throws {
+        let url = URL(string: "https://example.com/saved")!
+        let saved = try library.save(env.article(url.absoluteString))
+        try library.addFavorite(url: url, title: nil, artwork: nil)
+        XCTAssertNotNil(library.favorite(for: url))
+        try library.remove([saved])
+        XCTAssertFalse(saved.isInLibrary)
+        XCTAssertFalse(saved.isFavorite)
+        XCTAssertNil(library.favorite(for: url))
+        XCTAssertTrue(library.favoritePages().isEmpty)
     }
 }

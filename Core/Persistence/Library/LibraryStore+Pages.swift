@@ -234,8 +234,9 @@ extension LibraryStore {
     // MARK: - Removing and deleting
 
     /// *Remove from Library* (a row's menu and swipe, Edit's *Remove*), all of `pages` in one
-    /// save: a saved page leaves the Library (`addedAt = nil`, no folder) and is pruned 7 days
-    /// after it was last played; once that is saved its audio turns ephemeral (`planEphemeral`).
+    /// save: a saved page leaves the Library (`addedAt = nil`, no folder, no longer a favorite)
+    /// and is pruned 7 days after it was last played; once that is saved its audio turns
+    /// ephemeral (`planEphemeral`).
     /// A link page is deleted, unless it holds the text of a play, when it is kept like any
     /// played page. A chapter leaves its book as any page leaves its folder. Never touches
     /// playback. A save that fails is rolled back and throws `LibraryStoreError.saveFailed`:
@@ -252,6 +253,7 @@ extension LibraryStore {
                 }
                 page.contentState = .saved
                 page.addedAt = nil
+                page.isFavorite = false
                 movePlaceOff(page)
                 page.setFolder(nil)
                 if let key = page.key { planEphemeral(key: key) }

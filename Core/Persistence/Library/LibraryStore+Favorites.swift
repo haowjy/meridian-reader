@@ -9,25 +9,26 @@ enum FavoriteRequest {
     case remove(Page)
 }
 
-/// Favorites are flags on pages and folders, independent of their location. Adding, removing and
+/// Favorites are flags on pages and folders, independent of their location. A favorite page is
+/// in the Library (`isFavorite(_:)`, `LibraryQueries.favoritePages`): starring a page that isn't
+/// puts it there, and removing one from the Library clears its flag. Adding, removing and
 /// renaming a favorite save at once; a save that fails is rolled back and throws
 /// `LibraryStoreError.saveFailed`.
 extension LibraryStore {
-    /// Favorite pages anywhere in the tree. A predicate fetch: only they are read, not every
-    /// page's text.
+    /// Favorite pages anywhere in the tree (a predicate fetch: only they are read).
     func favoritePages() -> [Page] {
-        (try? context.fetch(FetchDescriptor(predicate: #Predicate<Page> { $0.isFavorite }))) ?? []
+        (try? context.fetch(LibraryQueries.favoritePages)) ?? []
     }
 
-    /// The page for `url` when it is a favorite: in Favorites or one of its subfolders.
+    /// The page for `url` when it is a favorite.
     func favorite(for url: URL?) -> Page? {
         guard let url, Self.canFavorite(url), let page = page(url: url), Self.isFavorite(page) else { return nil }
         return page
     }
 
-    /// In Favorites or one of its subfolders.
+    /// Starred and in the Library: what the Favorites tab lists and ☆ shows filled.
     static func isFavorite(_ page: Page) -> Bool {
-        return page.isFavorite
+        page.isFavorite && page.isInLibrary
     }
 
     /// What ☆ on the page at `url` leads to. Its tree location never changes.
@@ -55,7 +56,10 @@ extension LibraryStore {
     }
 
     /// Makes the page for `url` a favorite without moving it: a new link page is loose, or the
-    /// existing page retains its location.
+    /// existing page retains its location. A page that isn't in the Library (played without
+    /// saving) joins it where it is, at the end, with its played text: the Favorites tab lists
+    /// it and the 7-day prune of unsaved pages leaves it alone. Its audio is marked saved once
+    /// that is stored, as a Save does.
     @discardableResult
     func addFavorite(url: URL, title: String?, artwork: Data?) throws -> Page {
         guard let existing = page(url: url) else {
@@ -66,13 +70,19 @@ extension LibraryStore {
         try edit("favorite") {
             existing.isFavorite = true
             if existing.artworkData == nil { existing.artworkData = artwork }
+            if existing.addedAt == nil {
+                existing.sortKey = nextSortKey(in: existing.folder)
+                existing.addedAt = now()
+                if existing.isSaved, let key = existing.key { planSaved(key: key) }
+            }
         }
         return existing
     }
 
-    /// Removes only the favorite flag; location and content stay intact.
+    /// Removes only the favorite flag; location and content stay intact (a link ☆ made stays in
+    /// the Library).
     func removeFavorite(_ page: Page) throws {
-        guard Self.isFavorite(page) else { return }
+        guard page.isFavorite else { return }
         try edit("unfavorite page") { page.isFavorite = false }
     }
 

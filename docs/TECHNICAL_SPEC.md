@@ -183,7 +183,9 @@ series take pages and subfolders, their chapters move out and reorder, their sor
 reaches them, a book's or series' pages show as chapters and name it as their source in the Now
 Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their audio (D7), and
   launch dedupe merges two copies of one source. Favorites are independent flags on pages and
-  folders. The legacy Favorites folder is migrated on launch: its pages and nested folders are
+  folders; a favorite page is one in the Library (`LibraryStore.isFavorite`,
+  `LibraryQueries.favoritePages`): starring a page that isn't sets its `addedAt`, and *Remove
+  from Library* clears its flag. The legacy Favorites folder is migrated on launch: its pages and nested folders are
   starred, direct pages return to the root, and the container is removed.
 
 **Book import** (`BookImporter`, run for the import sheet by `BookImportFlow`):

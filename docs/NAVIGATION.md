@@ -164,11 +164,12 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   so a horizontal drag leaves the panel in place and a drag that drifts sideways doesn't make it
   jump. The sheets' pull-down follows the same rules. Light glass on iOS 26 (thick material
   before). Debug › is a native `Menu`.
-- **☆ Add to Favorites**: one tap adds the page as a link at the end of Favorites, and a toast
-  offers *Change Folder* (the Move tree). A page filed in another folder (a series' chapter too)
-  asks *Move it to Favorites?* first (one page per address). A page in Favorites or one of its
-  subfolders (a book or series in Favorites included) is a favorite: ☆ then reads *Remove from
-  Favorites*, which takes it out as it takes any page.
+- **☆ Add to Favorites**: one tap stars the page where it is (a flag, D20; it never moves). A
+  page that is nowhere yet becomes a link in no folder; a page played without saving joins the
+  Library where it is, with its played text, so it shows in Favorites and the 7-day prune of
+  unsaved pages leaves it. A starred page in the Library is a favorite: ☆ then reads *Remove
+  from Favorites*, which clears the star and leaves the page where it is (a link ☆ made stays).
+  *Remove from Library* clears the star too.
 - **One library**: everything is a page in a folder (or in none). A page is a *link* (an address
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
   without saving (kept 7 days, shown at the top of the Library's *Pages* as "Not saved", and in
