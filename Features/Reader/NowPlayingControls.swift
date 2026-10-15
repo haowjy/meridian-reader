@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Now Playing's bottom band (on the player palette), top to bottom: the status notes (buffering, the Apple-fallback and
 /// language notes, "✓ Finished", the developer Debug chip), the scrub row (sentence-precise
-/// scrubber and ☝︎ Jump) and the transport row. Notes sit above the scrubber so appearing text
+/// scrubber, the speed at its end) and the transport row (🔖 and ⋯ in the Reader's slots). Notes sit above the scrubber so appearing text
 /// never pushes it when you skip.
 ///
 /// Only the leaves that need the live offset read it (`PlayheadReader`), so playback ticks don't
@@ -11,7 +11,9 @@ struct NowPlayingControls: View {
     @Bindable var speech: SpeechController
     let scrubMap: ReaderScrubMap?
     let detectedLanguage: String?
-    @Binding var jumpMode: Bool
+    /// 🔖, transport slot 1.
+    let save: AnyView
+    /// ⋯, transport slot 5.
     let more: AnyView
     /// Paragraph under the scrub thumb while dragging (nil when the drag ends).
     let onScrubPreview: (Int?) -> Void
@@ -28,7 +30,7 @@ struct NowPlayingControls: View {
             // The drag bubble spans the band's width.
             scrubRow
                 .readerScrubBubble()
-            ListenControllerView(trailing: more, speech: speech)
+            ListenControllerView(leading: save, trailing: more, speech: speech)
                 #if DEBUG
                 .overlay(alignment: .topLeading) { positionMarker }
                 #endif
@@ -45,18 +47,20 @@ struct NowPlayingControls: View {
                     map: scrubMap,
                     position: Self.scrubFraction(scrubMap, document: doc, spot: spot),
                     buffered: buffered,
-                    jumpMode: jumpMode,
-                    jumpEnabled: !doc.isEmpty,
-                    onToggleJump: { jumpMode.toggle() },
                     onScrubPreview: onScrubPreview,
                     onScrubCommit: seek(to:)
-                )
+                ) {
+                    SpeedButton(speech: speech)
+                }
             }
         } else {
-            // Holds the capsule's place until the scrub map is built, so nothing shifts.
-            Color.clear
-                .frame(maxWidth: .infinity)
-                .bottomChromeField()
+            // Holds the capsule's place (and the speed) until the scrub map is built, so nothing
+            // shifts.
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                SpeedButton(speech: speech)
+            }
+            .bottomChromeField()
         }
     }
 

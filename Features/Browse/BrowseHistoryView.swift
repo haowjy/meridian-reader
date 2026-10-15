@@ -9,7 +9,7 @@ struct BrowseHistoryView: View {
         NavigationStack {
             Group {
                 if visits.isEmpty {
-                    ContentUnavailableView("No history yet", systemImage: "clock",
+                    ContentUnavailableView("No history yet", systemImage: Icons.history,
                                            description: Text("Pages you open show up here."))
                 } else {
                     List(visits, id: \.id) { visit in

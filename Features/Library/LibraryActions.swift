@@ -254,7 +254,7 @@ extension LibraryActions {
 extension Folder {
     /// The symbol a folder row shows when it has no cover.
     var rowSymbol: String {
-        hasDetails ? "book.closed" : "folder"
+        hasDetails ? Icons.book : Icons.folder
     }
 
     /// Subfolders and pages directly inside.

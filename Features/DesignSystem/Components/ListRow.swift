@@ -30,7 +30,7 @@ struct ListRow: View {
     enum Kind {
         /// A folder (or Favorites, a book, a series): its symbol, or a book's cover when it has
         /// one, and how many things are in it (shown before › on a row without ▶).
-        case folder(symbol: String = "folder", count: Int, cover: Image? = nil)
+        case folder(symbol: String = Icons.folder, count: Int, cover: Image? = nil)
         /// A saved page: its site icon (or a letter tile).
         case page(artwork: Image? = nil, letter: String)
         /// A chapter of a book or series.
@@ -104,7 +104,7 @@ struct ListRow: View {
                             .lineLimit(1)
                             .accessibilityValue(accessibilityStatus)
                         if isFavorite {
-                            Image(systemName: "star.fill")
+                            Image(systemName: Icons.favorited)
                                 .font(.caption)
                                 .foregroundStyle(Palette.accent)
                                 .accessibilityHidden(true)
@@ -210,7 +210,7 @@ struct ListRow: View {
         if let onPlay {
             PlayStateButton(state: playState, action: onPlay)
         } else if opensScreen {
-            Image(systemName: "chevron.right")
+            Image(systemName: Icons.disclosure)
                 .typeStyle(.caption, weight: .semibold)
                 .foregroundStyle(Palette.secondaryInk)
                 .frame(width: BottomChrome.minTapTarget)
@@ -365,7 +365,7 @@ struct ListRow: View {
                 } else {
                     switch progress {
                     case .finished:
-                        Image(systemName: "checkmark").foregroundStyle(Palette.secondaryInk)
+                        Image(systemName: Icons.checkmark).foregroundStyle(Palette.secondaryInk)
                     case .partWay(let fraction, _):
                         ProgressRing(fraction: fraction)
                     case .unplayed, .skipped:
@@ -375,7 +375,7 @@ struct ListRow: View {
             }
             .frame(width: Glyph.mark, height: Glyph.mark)
         case .link:
-            Image(systemName: "link")
+            Image(systemName: Icons.link)
                 .foregroundStyle(Palette.secondaryInk)
                 .frame(width: thumbnailSide)
         }
@@ -419,8 +419,8 @@ struct ListRowGallery: View {
         PreviewGallery {
             PreviewState("folder") {
                 ListRow(kind: .folder(count: 4), title: "Bonds", opensScreen: true)
-                ListRow(kind: .folder(symbol: "star.fill", count: 12), title: "Favorites", opensScreen: true)
-                ListRow(kind: .folder(count: 3, cover: Image(systemName: "photo")), title: "A book with a cover",
+                ListRow(kind: .folder(symbol: Icons.favorited, count: 12), title: "Favorites", opensScreen: true)
+                ListRow(kind: .folder(count: 3, cover: Image(systemName: Icons.photo)), title: "A book with a cover",
                         opensScreen: true)
             }
             PreviewState("folder, a dragged row over it") {
@@ -435,12 +435,12 @@ struct ListRowGallery: View {
                         progress: .partWay(fraction: 0.3, minutesLeft: 52), opensScreen: true, onPlay: {})
             }
             PreviewState("book: unplayed, part-way, playing") {
-                ListRow(kind: .folder(symbol: "book.closed", count: 61), title: "Pride and Prejudice",
+                ListRow(kind: .folder(symbol: Icons.book, count: 61), title: "Pride and Prejudice",
                         subtitle: "Jane Austen", progress: .unplayed(minutes: 645), opensScreen: true, onPlay: {})
-                ListRow(kind: .folder(symbol: "book.closed", count: 61), title: "Pride and Prejudice",
+                ListRow(kind: .folder(symbol: Icons.book, count: 61), title: "Pride and Prejudice",
                         subtitle: "Ch 24", progress: .partWay(fraction: 0.38, minutesLeft: 370), opensScreen: true,
                         onPlay: {})
-                ListRow(kind: .folder(symbol: "books.vertical", count: 108), title: "The Lighthouse Keeper",
+                ListRow(kind: .folder(symbol: Icons.library, count: 108), title: "The Lighthouse Keeper",
                         subtitle: "Ch 14", progress: .partWay(fraction: 0.12, minutesLeft: 1210), playState: .playing,
                         opensScreen: true, onPlay: {})
             }
@@ -467,7 +467,7 @@ struct ListRowGallery: View {
                         download: .init(state: .downloading(fraction: 0.4)) {})
                 ListRow(kind: .page(letter: "T"), title: "Title Page", progress: .skipped,
                         download: .init(state: .downloaded) {})
-                ListRow(kind: .folder(symbol: "book.closed", count: 61), title: "Pride and Prejudice",
+                ListRow(kind: .folder(symbol: Icons.book, count: 61), title: "Pride and Prejudice",
                         subtitle: "Ch 24", progress: .partWay(fraction: 0.38, minutesLeft: 370), opensScreen: true,
                         onPlay: {}, download: .init(state: .downloaded) {}, largeArtwork: true, folderHasDetails: true)
             }

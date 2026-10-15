@@ -72,7 +72,7 @@ struct PlayStateButton: View {
                 if state == .preparing {
                     ProgressView()
                 } else {
-                    Image(systemName: state == .playing ? "pause.fill" : "play.fill")
+                    Image(systemName: state == .playing ? Icons.pause : Icons.play)
                         .font(.system(size: BottomChrome.grown(scaledGlyph, from: Self.glyphSize)))
                         .foregroundStyle(state.isCurrent ? Palette.accent : Palette.ink)
                         .contentTransition(.symbolEffect(.replace))
@@ -113,7 +113,7 @@ struct PlayStateButton: View {
                    fit: fit, action: action) {
             switch state {
             case .idle:
-                PillSymbol(name: "play.fill")
+                PillSymbol(name: Icons.play)
             case .preparing:
                 ProgressView().controlSize(.small).tint(Palette.onAccent)
             case .playing, .paused:
@@ -143,7 +143,7 @@ private struct PlayStateDisc: View {
                 if state == .preparing {
                     ProgressView().tint(glyph)
                 } else {
-                    Image(systemName: state == .playing ? "pause.fill" : "play.fill")
+                    Image(systemName: state == .playing ? Icons.pause : Icons.play)
                         .font(.system(size: BottomChrome.transportDiscGlyph))
                         .foregroundStyle(glyph)
                         .contentTransition(.symbolEffect(.replace))
@@ -155,7 +155,7 @@ private struct PlayStateDisc: View {
         .buttonStyle(PillPressStyle())
         .accessibilityLabel(state.accessibilityLabel)
         .accessibilityShowsLargeContentViewer {
-            Image(systemName: state == .playing ? "pause.fill" : "play.fill")
+            Image(systemName: state == .playing ? Icons.pause : Icons.play)
             Text(state.accessibilityLabel)
         }
     }
@@ -211,7 +211,7 @@ struct PlayStateButtonGallery: View {
                 PreviewState("\(state)") {
                     HStack(spacing: Spacing.m) {
                         PlayStateButton(state: state) {}
-                        PlayStateButton(state: state, look: .badge(idleSymbol: "headphones")) {}
+                        PlayStateButton(state: state, look: .badge(idleSymbol: Icons.listen)) {}
                         PlayStateButton(state: state, look: .pill(title: Self.title(state), detail: "Ch 24")) {}
                     }
                     PlayStateButton(state: state, look: .disc) {}

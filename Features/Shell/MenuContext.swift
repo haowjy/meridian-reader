@@ -6,13 +6,11 @@ import SwiftUI
 ///
 /// Bottom row of big buttons, rightmost (nearest the thumb, the panel's focus point) last:
 /// - browse:  `[Favorites][History][Reader]`
-/// - reader:  `[Favorites][History][Website]`
-/// - Now Playing: `[Favorites][History][Website]`
+/// - reader (the Reader and Now Playing):  `[Favorites][History][Website]`
 /// - library: `[Favorites][History][Browser]`
 enum MenuContext {
     case browse(BrowseMenu, perform: (BrowseMenu.Action) -> Void)
     case reader(ReaderMenu, perform: (ReaderMenu.Action) -> Void)
-    case nowPlaying(NowPlayingMenu, perform: (NowPlayingMenu.Action) -> Void)
     case library(LibraryMenu, perform: (LibraryMenu.Action) -> Void)
 }
 
@@ -35,12 +33,24 @@ struct BrowseMenu {
     var fakeExtractionFailure: Binding<Bool>?
 }
 
-/// The Reader sheet's menu (over the browser or the library).
+/// The page's menu, the same in the Reader sheet and Now Playing (decision D24): what it holds
+/// is about the page, whichever sheet shows it. Now Playing adds *Go to* its folder or the
+/// Library at the top.
 struct ReaderMenu {
     enum Action {
-        case voiceSettings, toggleSave, moveTo, toggleFavorite, share, download, downloads, listenDebug
+        case goTo, voiceSettings, toggleSave, moveTo, toggleFavorite, share, download, downloads, listenDebug
         case favorites, history, openWebsite
     }
+
+    /// Where Now Playing's page plays from, for *Go to <name>*: a folder or the Library.
+    struct Place {
+        let name: String
+        let symbol: String
+    }
+
+    /// Now Playing: *Go to* the folder or the Library it plays from. nil (the Reader, or a page
+    /// that plays from its site, which Website opens): no row.
+    var goTo: Place?
 
     var isSaved: Bool
     var canSave: Bool
@@ -53,20 +63,6 @@ struct ReaderMenu {
     var showsDebug: Bool
     /// *Download*: a saved page not downloading already.
     var canDownload = false
-}
-
-/// Now Playing's menu: what you hear, not the surface under it.
-struct NowPlayingMenu {
-    enum Action {
-        case voiceSettings, share, downloads, listenDebug
-        case favorites, history, openWebsite
-    }
-
-    var canShare: Bool
-    /// The playing page has a web page to go to.
-    var canOpenWebsite: Bool
-    /// Developer options: the Debug row (listen debug panel).
-    var showsDebug: Bool
 }
 
 /// The Library's menu, for the screen on top: the home, a folder (a book or series as any other),

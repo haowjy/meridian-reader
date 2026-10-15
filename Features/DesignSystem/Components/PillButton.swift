@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A labelled capsule button: the Reader's back pill ("‹ Browser") and Listen, a book's Continue,
+/// A labelled capsule button: a sheet's close pill ("‹ Browser", "⌄ Library") and Listen, a book's Continue,
 /// Now Playing's "Jump to Audio". 48 pt tall (36 compact) at the default text size, growing with
 /// Dynamic Type up to `BottomChrome.maxTextGrowth` like the rest of the band; radius `Radius.pill`.
 ///
@@ -12,7 +12,8 @@ struct PillButton<Leading: View>: View {
     enum Style {
         /// Accent fill: the main action on a screen (Listen, Continue).
         case filled
-        /// Chrome fill, ink text: navigation (the back pill), secondary actions.
+        /// Chrome fill, ink text: navigation (a sheet's close pill), secondary actions. On the
+        /// player: its card fill and ink.
         case neutral
         /// Playing tint, accent text: the playing state of a filled pill.
         case tinted
@@ -48,6 +49,7 @@ struct PillButton<Leading: View>: View {
 
     @ScaledMetric(relativeTo: .callout) private var scale: CGFloat = 1
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.onPlayerPalette) private var onPlayer
 
     var body: some View {
         let height = BottomChrome.grown(size.height * scale, from: size.height)
@@ -109,7 +111,7 @@ struct PillButton<Leading: View>: View {
     private var foreground: Color {
         switch style {
         case .filled: Palette.onAccent
-        case .neutral: Palette.ink
+        case .neutral: onPlayer ? Palette.playerInk : Palette.ink
         case .tinted: Palette.accent
         case .inverted: Palette.paper
         }
@@ -118,7 +120,7 @@ struct PillButton<Leading: View>: View {
     private var background: Color {
         switch style {
         case .filled: Palette.accent
-        case .neutral: Palette.chrome
+        case .neutral: BottomChrome.fieldFill(onPlayer: onPlayer)
         case .tinted: Palette.playingTint
         case .inverted: Palette.ink
         }
@@ -164,19 +166,23 @@ struct PillButtonGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("filled · Listen") {
-                PillButton("Listen", detail: "9 min", systemImage: "play.fill", expands: true) {}
+                PillButton("Listen", detail: "9 min", systemImage: Icons.play, expands: true) {}
             }
             PreviewState("neutral · back pill") {
-                PillButton("Browser", systemImage: "chevron.backward", style: .neutral) {}
+                PillButton("Browser", systemImage: Icons.back, style: .neutral) {}
+            }
+            PreviewState("neutral on the player · close pill") {
+                PillButton("Library", systemImage: Icons.collapse, style: .neutral, size: .compact) {}
+                    .onPlayerPreview(Palette.playerBackground)
             }
             PreviewState("tinted · playing") {
-                PillButton("Playing", detail: "Ch 24", systemImage: "waveform", style: .tinted) {}
+                PillButton("Playing", detail: "Ch 24", systemImage: Icons.playing, style: .tinted) {}
             }
             PreviewState("inverted compact · Jump to Audio") {
                 PillButton("Jump to Audio", style: .inverted, size: .compact) {}
             }
             PreviewState("disabled") {
-                PillButton("Listen", systemImage: "play.fill") {}.disabled(true)
+                PillButton("Listen", systemImage: Icons.play) {}.disabled(true)
             }
         }
     }

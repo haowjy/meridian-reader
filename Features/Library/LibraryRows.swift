@@ -80,51 +80,51 @@ struct LibraryPageRow: View {
     @ViewBuilder
     private var menu: some View {
         if let onSelect {
-            Button("Select", systemImage: "checkmark.circle", action: onSelect)
+            Button("Select", systemImage: Icons.select, action: onSelect)
         }
         if !page.isInLibrary {
-            Button("Save", systemImage: "plus.circle") { actions.save(page) }
+            Button("Save", systemImage: Icons.save) { actions.save(page) }
             if page.url?.isWeb == true {
-                Button("Share", systemImage: "square.and.arrow.up") { actions.share(page) }
+                Button("Share", systemImage: Icons.share) { actions.share(page) }
             }
         } else {
             let inFolder = page.folder != nil
             if inFolder, page.isSaved {
-                Button("Play from Here", systemImage: "play.fill") { actions.playFromStart(page) }
+                Button("Play from Here", systemImage: Icons.play) { actions.playFromStart(page) }
             }
-            Button("Move to…", systemImage: "folder") { actions.move([.page(page)]) }
+            Button("Move to…", systemImage: Icons.move) { actions.move([.page(page)]) }
             if page.isSaved {
                 if page.finishedAt == nil {
-                    Button("Mark as Finished", systemImage: "checkmark.circle") { actions.setFinished([page], true) }
+                    Button("Mark as Finished", systemImage: Icons.markFinished) { actions.setFinished([page], true) }
                 } else {
-                    Button("Mark as Unfinished", systemImage: "circle") { actions.setFinished([page], false) }
+                    Button("Mark as Unfinished", systemImage: Icons.markUnfinished) { actions.setFinished([page], false) }
                 }
                 if inFolder {
-                    Button("Mark All Above as Finished", systemImage: "checkmark.circle.badge.questionmark") {
+                    Button("Mark All Above as Finished", systemImage: Icons.markAllAboveFinished) {
                         actions.markAllAbove(page)
                     }
                     Button(page.skipsInPlayback ? "Play in Playback" : "Skip in Playback",
-                           systemImage: page.skipsInPlayback ? "play.circle" : "forward.end") {
+                           systemImage: page.skipsInPlayback ? Icons.includeInPlayback : Icons.skipInPlayback) {
                         actions.toggleSkipsInPlayback(page)
                     }
                 }
             }
             if page.url?.isWeb == true {
-                Button("Share", systemImage: "square.and.arrow.up") { actions.share(page) }
+                Button("Share", systemImage: Icons.share) { actions.share(page) }
             }
             if !downloads.isQueued(.page(page.listenKey)) {
-                Button("Download", systemImage: "arrow.down.circle") {
+                Button("Download", systemImage: Icons.download) {
                     DownloadActions(downloads: downloads, shell: shell).download(page)
                 }
             }
             if page.isSaved, library.hasDownloads(page) {
-                Button("Delete Downloads", systemImage: "trash.circle") { downloads.deleteDownloads(of: page) }
+                Button("Delete Downloads", systemImage: Icons.deleteDownloads) { downloads.deleteDownloads(of: page) }
             }
-            Button("Remove from Library", systemImage: "trash", role: .destructive) { actions.remove([page]) }
+            Button("Remove from Library", systemImage: Icons.unsave, role: .destructive) { actions.remove([page]) }
         }
         if let url = page.url, LibraryStore.canFavorite(url) {
             Button(page.isFavorite ? "Remove from Favorites" : "Add to Favorites",
-                   systemImage: page.isFavorite ? "star.slash" : "star") {
+                   systemImage: page.isFavorite ? Icons.unfavorite : Icons.favorite) {
                 shell.attempt(page.isFavorite ? "Couldn’t remove favorite" : "Couldn’t add favorite") {
                     if page.isFavorite { try library.removeFavorite(page) }
                     else { _ = try library.addFavorite(url: url, title: page.title, artwork: page.artworkData) }
@@ -208,7 +208,7 @@ struct LibraryFolderRow: View {
 
     @ViewBuilder
     private func row(_ progress: FolderProgress, isDownloaded: Bool) -> some View {
-        let kind = ListRow.Kind.folder(symbol: folder.hasDetails ? "book.closed" : "folder", count: folder.itemCount,
+        let kind = ListRow.Kind.folder(symbol: folder.rowSymbol, count: folder.itemCount,
                                        cover: folder.hasDetails ? folder.coverImage : nil)
         let isDropTarget = screen.dropTarget == folder.id
         let edge = screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil
@@ -251,27 +251,27 @@ struct LibraryFolderRow: View {
     @ViewBuilder
     private func menu(_ progress: FolderProgress) -> some View {
         if let onSelect {
-            Button("Select", systemImage: "checkmark.circle", action: onSelect)
+            Button("Select", systemImage: Icons.select, action: onSelect)
         }
         if plays(progress) {
-            Button("Continue", systemImage: "play.fill") { actions.playFolder(folder) }
-            Button("Play from Start", systemImage: "backward.end") { actions.playFolderFromStart(folder) }
+            Button("Continue", systemImage: Icons.play) { actions.playFolder(folder) }
+            Button("Play from Start", systemImage: Icons.previous) { actions.playFolderFromStart(folder) }
         }
         if !livePages.isEmpty, !downloads.isQueued(.folder(folder.id)) {
-            Button("Download", systemImage: "arrow.down.circle") {
+            Button("Download", systemImage: Icons.download) {
                 DownloadActions(downloads: downloads, shell: shell).download(folder)
             }
         }
         Button(folder.isFavorite ? "Remove from Favorites" : "Add to Favorites",
-               systemImage: folder.isFavorite ? "star.slash" : "star") {
+               systemImage: folder.isFavorite ? Icons.unfavorite : Icons.favorite) {
             shell.attempt(folder.isFavorite ? "Couldn’t remove favorite" : "Couldn’t add favorite") {
                 try library.toggleFavorite(folder)
             }
         }
-        Button("Move to…", systemImage: "folder") { actions.move([.folder(folder)]) }
-        Button("Rename", systemImage: "pencil") { screen.rename(folder) }
-        Button("Edit Details", systemImage: "square.and.pencil") { shell.present(.folderDetails(folder.id)) }
-        Button("Delete…", systemImage: "trash", role: .destructive) { screen.confirmDelete([folder]) }
+        Button("Move to…", systemImage: Icons.move) { actions.move([.folder(folder)]) }
+        Button("Rename", systemImage: Icons.rename) { screen.rename(folder) }
+        Button("Edit Details", systemImage: Icons.editDetails) { shell.present(.folderDetails(folder.id)) }
+        Button("Delete…", systemImage: Icons.delete, role: .destructive) { screen.confirmDelete([folder]) }
     }
 }
 

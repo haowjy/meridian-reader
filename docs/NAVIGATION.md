@@ -3,8 +3,9 @@
 **If a screen shows ‹, you can swipe back from the left edge. If it shows ✕ (or is a sheet with a
 grabber), you can pull it down.** Either gesture must do exactly what tapping the button does.
 
-The two reading sheets have no ✕: the Reader closes with its labelled back pill ("‹ Browser",
-"‹ Library"), Now Playing with ⌄. Both carry a grabber and pull down from their header, or from
+The two reading sheets have no ✕: each closes with the labelled pill at the top left of its top
+bar, the Reader's "‹ Browser" / "‹ Library", Now Playing's "⌄ Library" (named for where it plays
+from). Both carry a grabber and pull down from their header, or from
 their text when it is at its top, which does exactly what that button does.
 
 | Button | Presentation | Gesture | Provided by |
@@ -40,7 +41,7 @@ their text when it is at its top, which does exactly what that button does.
   its top: the Move tree, the import sheet (except while it works), History,
   Voice Settings. A Done/Cancel/✕ button is optional.
 - The Reader and Now Playing are the design system's `Sheet` (in place, not a `.sheet` or
-  `fullScreenCover`): pulling the header (grabber, back pill or ⌄ row) down calls the same close
+  `fullScreenCover`): pulling the header (grabber or the top bar with its close pill) down calls the same close
   action as its button. Closing never stops audio: the Now Playing bar shows what is playing. The
   header and the bottom row never hide, so the header is always there to pull.
 - **The text pulls the sheet too, from its top**, so a sheet closes one-handed from the lower half
@@ -110,7 +111,7 @@ Every control takes taps in at least 44 × 44 pt (`tapTarget`), whatever its dra
 address-field 📄 and 🎧, the ✕ beside a search field, the Now Playing bar's play/pause, the
 capsule's 36 pt controls. **Five equal slots, evenly spaced, one grid for every row:** Browse is
 `[‹][›][🔖][🕘][⋯]`, the Library surface `[‹][›][＋][🕘][⋯]`, the Reader
-`[🔖][ ▶ Listen  9 min ][⋯]` (the pill spans slots 2–4) and Now Playing `[1×][⏮][▶︎][⏭][⋯]`.
+`[🔖][ ▶ Listen  9 min ][⋯]` (the pill spans slots 2–4) and Now Playing `[🔖][⏮][▶︎][⏭][⋯]`.
 Each item names its slot (`.toolbarSlot(_:)`); a slot nothing names stays empty, so items never
 slide along, every icon in slot N is at the same x and the ⋯ menu grows from the same spot. ⋯ is
 never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot too.
@@ -418,12 +419,12 @@ page is extracted first (⋯ spins).
 
 **A change that can't be saved** (a move, *New Folder*, *Rename*, *Edit Details*, *Sort*, a drop on a folder or
 between rows, a
-mark, *Remove*, a delete, ☆ or a favorite tile's *Rename* / *Remove*, saving or unsaving with 🔖,
-⊕, *Save to Folder…* or ⋯ → *Save to Library…* / *Remove from Library*) isn't stored: the
+mark, *Remove*, a delete, ☆ or a favorite tile's *Rename* / *Remove*, saving or unsaving with 🔖
+(the browser's, the Reader's or Now Playing's), *Save to Folder…* or ⋯ → *Save to Library…* / *Remove from Library*) isn't stored: the
 library reads as it did before it, and a toast says so ("Couldn’t move", "Couldn’t save") where
 a success would have shown. *Remove* of several pages is one change: all go, or none. A folder's
 screen doesn't follow a move that didn't happen, the Move tree stays up, ☆ shows no "Added to
-Favorites", and 🔖 / ⊕ keep what they showed. In Edit, the selection stays when its change can't
+Favorites", and 🔖 keeps what it showed. In Edit, the selection stays when its change can't
 be saved; Edit's *Remove* is two changes, the pages first and then, after the question, the
   folders, so a folder delete that can't be saved leaves the folders selected but doesn't bring back
   pages already removed. The toast shows over the Move tree, the import sheet
@@ -465,12 +466,22 @@ Now Playing. Navigating never changes what you hear, and a play button never nav
 never shows the page you hear: opening the Reader of that page (📄, a Favorites tile, a Library
 row) opens Now Playing instead.
 
+**The two sheets share their chrome** (decision D24), so Listen turns the Reader into Now Playing
+with nothing moving but what has to: the same top bar (`SheetTopBar`: the close pill at the top
+left, ☝︎ at the top right, at the page margin), 🔖 in slot 1 and ⋯ in slot 5 of the bottom row,
+and the same ⋯ menu (Now Playing adds *Go to*). UI tests check the frames match. They differ
+where the job does: Now Playing is on the player's palette (it is what you hear, over
+everything), its middle slots are the transport (⏮, the round ⏸ / ▶, ⏭) where the Reader has
+Listen, it has the scrub capsule with the speed and the status notes, and its text follows the
+audio under a title card (the Reader's sits under a heading and never moves by itself); the
+Reader shows the Now Playing bar of another page above its row.
+
 ### The Reader sheet
 
 ```
 ┌──────────────────────────────────────┐
 │                 ───                  │ ← grabber
-│ ( ‹ Browser )                    ☝︎  │ ← back pill names what is underneath
+│ ( ‹ Browser )                  (☝︎)  │ ← the pill names what is underneath
 │ Notes on Tides                       │ ← title, then "site   9 min"
 │ … serif text on paper …              │
 │ ╭ Now Playing bar ──────────────╮    │ ← what you hear (always another page)
@@ -489,15 +500,14 @@ row) opens Now Playing instead.
   - **At the Reader's top** (its first line of text not yet scrolled above the top of the reading
     area, so the title may be part way up), Now Playing opens at its top, the title card in full.
   - **Scrolled into the text**, the same line stays at the same place on screen, though Now
-    Playing's title card is not the Reader's heading and its header is taller (more so at large
-    text sizes); the card is then partly or wholly above the reading area.
+    Playing's title card is not the Reader's heading; the card is then partly or wholly above the reading area.
   - **When that place can't be reached** (past either end of Now Playing's page), the page goes
     as far as it can that way, so the line stays in view as near its place as possible. Keeping
     the line in view wins over showing the card in full.
 
   Now Playing sets that position once its page is laid out and holds it while the layout
   settles (the title card measured, the header, a text size change: each keeps the same line).
-  It drops it if you drag, scrub, Jump to Audio, the audio moves on or the page reloads first. ☝︎ in the header, then a tap on a paragraph, listens from that
+  It drops it if you drag, scrub, Jump to Audio, the audio moves on or the page reloads first. ☝︎ in the top bar, then a tap on a paragraph, listens from that
   paragraph (a hint banner with Cancel floats over the text meanwhile). While ☝︎ is on, each
   paragraph is a button to VoiceOver, *Paragraph N*, hint *Plays from this paragraph*.
 - **A page part-way through opens at its saved spot**: the sentence where listening stopped
@@ -511,21 +521,22 @@ row) opens Now Playing instead.
 - 🔖 saves / unsaves (tap; filled = saved), or files the page (long-press → *Save to Folder…*,
   the Move tree: saved there, or moved there when already saved); it keeps the screen and
   playback as they are.
-- **⋯** (slot 5, the browser's ⋯ spot): rows *Save / Remove from Library, Move to…* (a saved
+- **⋯** (slot 5, the browser's ⋯ spot; Now Playing's is the same): rows *Save / Remove from Library, Move to…* (a saved
   page)*, Add to Favorites, Share, Download* (a saved page not downloading already)*, Voice Settings,
   Downloads, Debug* (developer options only); big buttons
   **Favorites / History / Website** — *Website* (the Reader off) shows the page in the browser,
   wherever the Reader was opened from; from the library, the library closes first. Playback
   never stops.
-- The text sits between the header and the bottom row, so its first line starts below the back
+- The text sits between the header and the bottom row, so its first line starts below the close
   pill and its last line scrolls clear of the bottom row (UI tests check both).
 
 ### Now Playing
 
 ```
 ┌──────────────────────────────────────┐
-│  ⌄          PLAYING FROM          ⊕  │ ← ⌄ or a pull down: shrink into the bar; ⊕ Save (✓ saved)
-│              example.com             │ ← tap: the page in the browser
+│                 ───                  │ ← grabber
+│ ( ⌄ example.com )              (☝︎)  │ ← the Reader's top bar; the pill names where it
+│                                      │   plays from
 │ ╭ [art] Title                      ╮ │ ← the title card, scrolls with the text
 │ ╰       example.com   9 min left   ╯ │
 │ … serif text, dimmed; the spoken     │
@@ -533,15 +544,16 @@ row) opens Now Playing instead.
 │   sentence underlined …              │
 │            ( Jump to Audio )         │ ← after you scroll away
 │ Preparing next… / ✓ Finished         │ ← status notes, above the scrubber
-│ ( ━━━━━●━━━━░░░░──  ☝︎ )             │
-│ [1×]  [⏮]  (⏸)  [⏭]  [ ⋯ ]          │ ← the big round ⏸ / ▶ in the middle
+│ ( ━━━━━●━━━━░░░░──           1× )    │ ← the scrub capsule, the speed at its end
+│ [🔖]  [⏮]  (⏸)  [⏭]  [ ⋯ ]          │ ← 🔖 and ⋯ as in the Reader; the round ⏸ / ▶
 └──────────────────────────────────────┘
 ```
 
 - **Opens from** the bar (tap, swipe up), from opening the Reader of the page that is playing,
   from Listen in the Reader (in place, D2) and from crash resume. It presents over everything
   (`ShellState.isNowPlayingPresented`) and holds no article of its own: it shows what you hear.
-  **⌄ or a pull down (on the header, or on the text at its top) shrinks it into the bar**, back on
+  **The close pill or a pull down (on the header, or on the text at its top) shrinks it into the
+  bar**, back on
   what was underneath (the browser, the Library, or a Reader of another page), untouched.
 - **It looks like a player, not the Reader**: deep jade in light and dark mode alike (the
   `Palette.player…` tokens), with light status bar content and a heavier dim on the strip above
@@ -554,10 +566,15 @@ row) opens Now Playing instead.
   hint sit on the player's card colour. The Reader stays on paper. A plain-text article (no
   reading HTML) shows its paragraphs on the same reading page, in both, so everything below
   applies to it too.
-- **"Playing from"** names the folder the page is in, a book, a series, Favorites or one you made
-  (tap: Now Playing closes onto the Library at that folder); says *Library* for a saved page in
-  no folder (tap: the Library); and names the site for a page you haven't saved (tap: the page
-  in the browser).
+- **The close pill names where it plays from** (*⌄ Pride and Prejudice*; VoiceOver: *Close Now
+  Playing*, *Playing from …*): the folder the page is in, a book, a series, Favorites or one you
+  made; *Library* for a saved page in no folder; the site for a page you haven't saved. Tapping
+  it only closes. **⋯ → *Go to <name>*** (the first row) closes Now Playing onto the Library at
+  that folder, or the Library; for a page that plays from its site, ⋯ → *Website* opens it in
+  the browser.
+- **☝︎** (top right, as in the Reader), then a tap on a paragraph, plays from that paragraph.
+- **🔖** (slot 1, as in the Reader) saves / unsaves (tap) or files the page (long-press →
+  *Save to Folder…*, the Move tree); saving never touches playback.
 - **The text follows the audio.** It opens with the spoken sentence near the middle (the
   paragraph, until the sentence is worked out a moment later), from the bar, from opening the
   page that is playing and from crash resume; Listen in the Reader opens where the Reader was
@@ -574,15 +591,19 @@ row) opens Now Playing instead.
   the thumb.
 - **At the end** it stays on the page: the text stays, all of it in full ink, a note says
   "✓ Finished", and ▶ plays the page again.
-- **Controls** (today's listen rows): the scrub row and `[1×][⏮][▶︎][⏭][⋯]` in the browser's
-  five-slot grid (1× under ‹, ⏮ under ›, ▶︎ under 🔖, ⏭ under 🕘, ⋯ under ⋯). ▶︎ / ⏸ is a
+- **Controls** (today's listen rows): the scrub capsule (the speed at its trailing end) and
+  `[🔖][⏮][▶︎][⏭][⋯]` in the browser's five-slot grid (🔖 under ‹, ⏮ under ›, ▶︎ under 🔖, ⏭
+  under 🕘, ⋯ under ⋯). ▶︎ / ⏸ is a
   64 pt round button (accent fill, dark glyph; fixed size, like the toolbar glyphs). The row stays
   44 pt, so every slot sits where it does on the other surfaces; the disc overhangs it. ⏮ ⏭ and
   headphone / lock-screen skips are paragraph skips (D4). A sideways swipe on the row skips too.
 - **Status notes** ("Preparing next…", Apple-fallback / language notes, "✓ Finished", the
   developer-only Debug chip) sit **above** the scrubber so appearing text never pushes it.
-- **⋯**: rows *Voice Settings, Share, Downloads, Debug* (developer options only); big buttons
-  **Favorites / History / Website**.
+- **⋯**: the Reader's menu for the page you hear, after *Go to <name>* (when it plays from a
+  folder or the Library): *Save / Remove from Library, Move to…, Add to Favorites, Share,
+  Download, Voice Settings, Downloads, Debug*; big buttons **Favorites / History / Website**.
+- A **download progress line** runs along the top edge of the bottom band while downloads run,
+  as on the other surfaces, in the player's accent.
 - **Scrubber** (sentence-precise): fill = progress (weighted by text length; with a local
   voice the thumb moves smoothly inside a paragraph, estimated from the player's time); the
   lighter fill ahead of it is audio already rendered (local voices; Apple speaks live so there is
@@ -610,7 +631,7 @@ row) opens Now Playing instead.
     chunk durations), with a 0.25 s lead-in so the first word isn't clipped. Not rendered yet: the
     render queue does that chunk first (then the rest of the paragraph). Apple voice: speaks from
     the sentence's first character.
-- **Speed** (1×): applied in place — the current sentence keeps going at the new speed.
+- **Speed** (*1×*, at the end of the scrub capsule; a tap opens the list): applied in place — the current sentence keeps going at the new speed.
   Local voices: a pitch-preserving time-stretch on the player (`AVAudioPlayer.enableRate` /
   `rate`; all audio, including Apple-fallback units, is rendered at 1×), so nothing is re-queued,
   re-rendered or restarted. The Apple voice (AVSpeechSynthesizer can't change a running
@@ -655,7 +676,7 @@ Debug builds (`App/LaunchOptions.swift`).
 | Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
 | Reader sheet (`ReaderSheetScreen`): 📄, ⋯ → Reader, a Favorites tile, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface; pull the header down |
-| Now Playing (`NowPlayingScreen`): the bar, the Reader of the playing page, Listen, crash resume | ⌄, top left | `Sheet` over everything; pull the header down |
+| Now Playing (`NowPlayingScreen`): the bar, the Reader of the playing page, Listen, crash resume | *⌄ <playing from>* pill, top left | `Sheet` over everything; pull the header down |
 | Listen debug panel | Done | `.sheet` |
 | Speed picker | — | popover |
 

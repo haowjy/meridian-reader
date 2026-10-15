@@ -60,7 +60,7 @@ struct TitleCardGallery: View {
             }
             PreviewState("a chapter, artwork") {
                 TitleCard(title: "Chapter 12", detail: ["Pride and Prejudice", "15 min left"],
-                          artwork: Image(systemName: "book.closed.fill"), artworkLetter: "P")
+                          artwork: Image(systemName: Icons.book), artworkLetter: "P")
                     .onPlayerPreview(Palette.playerBackground)
             }
             PreviewState("finished, long title") {

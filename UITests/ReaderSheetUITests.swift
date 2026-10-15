@@ -30,16 +30,16 @@ final class ReaderSheetUITests: XCTestCase {
 
         // Listen: this page is what you hear, and the Reader is now Now Playing.
         listen.tap()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Now Playing")
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5), "Now Playing")
         XCTAssertTrue(eventually(8) { app.buttons["listenPlayPause"].label == "Pause" }, "playing")
         XCTAssertFalse(find(app, "nowPlayingBar").exists)
 
         // 📄 on the playing page opens Now Playing, not a Reader.
         app.buttons["readerClose"].tap()
-        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingFrom").exists })
+        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingHeader").exists })
         XCTAssertTrue(find(app, "nowPlayingBarOpen").label.contains("Second page"))
         find(app, "addressReader").tap()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 10), "the playing page opens as Now Playing")
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 10), "the playing page opens as Now Playing")
         XCTAssertFalse(app.buttons["Back to Browser"].exists, "no Reader of the playing page")
         app.buttons["listenPlayPause"].tap()
     }
@@ -75,7 +75,7 @@ final class ReaderSheetUITests: XCTestCase {
         XCTAssertTrue(eventually(3) { app.buttons["listenJump"].label == "Cancel listen from a paragraph" }, "☝︎ on")
         XCTAssertTrue(jump.waitForExistence(timeout: 3))
         jump.tap()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "listening turns it into Now Playing")
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5), "listening turns it into Now Playing")
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
         play.tap()

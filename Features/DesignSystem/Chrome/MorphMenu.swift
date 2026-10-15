@@ -394,8 +394,8 @@ struct MorphMenuGallery: View {
 private struct MorphMenuSamplePanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ForEach([("Voice Settings", "person.wave.2"), ("Share", "square.and.arrow.up"),
-                     ("Reload", "arrow.clockwise")], id: \.0) { title, icon in
+            ForEach([("Voice Settings", Icons.voice), ("Share", Icons.share),
+                     ("Reload", Icons.reload)], id: \.0) { title, icon in
                 Label(title, systemImage: icon)
                     .typeStyle(.row)
                     .foregroundStyle(Palette.ink)
@@ -404,7 +404,7 @@ private struct MorphMenuSamplePanel: View {
             }
             Divider().padding(.horizontal, Spacing.m)
             HStack {
-                ForEach([("Favorites", "star"), ("History", "clock"), ("Reader", "doc.plaintext")], id: \.0) { t, i in
+                ForEach([("Favorites", Icons.favorite), ("History", Icons.history), ("Reader", Icons.reader)], id: \.0) { t, i in
                     VStack(spacing: Spacing.xs) {
                         Image(systemName: i).font(.title3)
                         Text(t).typeStyle(.caption)

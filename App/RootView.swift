@@ -35,7 +35,7 @@ struct EngineNoticeBanner: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
+            Image(systemName: Icons.warning)
                 .foregroundStyle(.orange)
             Text(text)
                 .font(.footnote)
@@ -43,7 +43,7 @@ struct EngineNoticeBanner: View {
                 .minimumScaleFactor(0.75)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button(action: onDismiss) {
-                Image(systemName: "xmark")
+                Image(systemName: Icons.close)
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(6)

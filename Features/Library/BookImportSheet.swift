@@ -137,7 +137,7 @@ struct BookImportSheet: View {
     private var destinationRow: some View {
         Button { flow.isChoosingDestination = true } label: {
             HStack(spacing: Spacing.s) {
-                Image(systemName: flow.destinationID == nil ? "books.vertical" : "folder")
+                Image(systemName: flow.destinationID == nil ? Icons.library : Icons.folder)
                     .foregroundStyle(Palette.accent)
                     .frame(width: ListRow.leadingWidth)
                     .accessibilityHidden(true)

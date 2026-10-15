@@ -226,7 +226,7 @@ struct BrowseStartView: View {
                 if case .nothingToListenTo = await page.listenNow() {
                     withAnimation(Motion.snappy) {
                         shell.showToast(ShellToast(message: String(localized: "Nothing to listen to on this page"),
-                                                   systemImage: "headphones"))
+                                                   systemImage: Icons.listen))
                     }
                 }
             }
@@ -347,12 +347,12 @@ struct BrowseStartView: View {
     private func bookDownloaded(_ event: WebViewStore.BookDownload) {
         switch event {
         case .started(let name):
-            shell.showToast(ShellToast(message: String(localized: "Downloading “\(name)”…"), systemImage: "arrow.down.circle"))
+            shell.showToast(ShellToast(message: String(localized: "Downloading “\(name)”…"), systemImage: Icons.download))
         case .finished(let file):
             BookImportActions(library: library, shell: shell).importDownloaded(file)
         case .failed(let name):
             shell.showToast(ShellToast(message: String(localized: "Couldn't download “\(name)”"),
-                                       systemImage: "exclamationmark.triangle"))
+                                       systemImage: Icons.warning))
         }
     }
 

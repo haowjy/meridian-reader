@@ -104,7 +104,7 @@ final class DeveloperOptionsUITests: XCTestCase {
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(play.waitForExistence(timeout: 10))
         play.tap()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Now Playing")
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5), "Now Playing")
 
         app.buttons["readerMore"].tap()
         tapMenuRow(app, "moreDebug")

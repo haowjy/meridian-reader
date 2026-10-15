@@ -68,7 +68,7 @@ final class SheetPullFromTextUITests: XCTestCase {
         XCTAssertTrue(listen.waitForExistence(timeout: 10))
         XCTAssertTrue(eventually(10) { listen.isEnabled }, "listen document ready")
         listen.tap()
-        let from = find(app, "nowPlayingFrom")
+        let from = find(app, "nowPlayingHeader")
         XCTAssertTrue(from.waitForExistence(timeout: 5), "Listen turns the Reader into Now Playing")
         XCTAssertTrue(eventually(8) { listen.label == "Pause" }, "playing")
         waitForArticleText(app)

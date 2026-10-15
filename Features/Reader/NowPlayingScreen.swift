@@ -11,23 +11,27 @@ import SwiftUI
 ///   paragraph is in full ink and the others dimmed, its sentence underlined. A drag stops
 ///   following; Jump to Audio resumes it, back to the sentence. Scrubbing scrolls to the
 ///   paragraph under the thumb.
-/// - "Playing from": a page in a folder plays from that folder (a book, a series, Favorites, a
-///   folder you made; tap: the Library at it); a saved page in no folder from the Library (tap:
-///   the Library); a page you haven't saved from its site (tap: the page in the browser).
-/// - ⊕ saves the page (✓ when saved; tap again to remove it).
+/// - The close pill names where the page plays from: a page in a folder plays from that folder (a
+///   book, a series, Favorites, a folder you made), a saved page in no folder from the Library,
+///   a page you haven't saved from its site. ⋯ → *Go to <name>* opens the Library at the folder
+///   or the Library; for a site, ⋯ → Website opens the page in the browser.
+/// - The top bar, 🔖 and ⋯ are the Reader's (decision D24): ☝︎ then a tap on a paragraph plays
+///   from there; 🔖 saves / unsaves (tap) or files the page (long-press, *Save to Folder…*); ⋯ is
+///   the Reader's menu.
 /// - At the end it stays: the text stays, all in full ink, "✓ Finished", ▶ plays it again.
-/// - ⌄ or a pull down shrinks it back into the bar.
+/// - The pill or a pull down shrinks it back into the bar.
 struct NowPlayingScreen: View {
     @Bindable var speech: SpeechController
 
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
+    @Environment(DownloadCenter.self) private var downloads
 
     /// The reading content of the playing page, resolved by key.
     @State private var article: ReaderArticle?
     /// The page whose content has been looked up (found or not).
     @State private var loadedKey: UUID?
-    /// The page's key when it is saved in the Library (⊕ shows ✓).
+    /// The page's key when it is saved in the Library (🔖 filled).
     @State private var savedKey: UUID?
     @State private var following = true
     @State private var jumpMode = false
@@ -39,15 +43,15 @@ struct NowPlayingScreen: View {
         if let now = speech.nowPlaying {
             NowPlayingSheet(
                 playingFrom: playingFromName(now),
-                isSaved: savedKey != nil,
                 showsJumpToAudio: !following && !now.isFinished,
                 onCollapse: { [shell, presentation = shell.nowPlayingPresentation] in
                     if let presentation { shell.nowPlayingDidClose(presentation) }
                 },
-                onPlayingFrom: { showPlayingFrom(now) },
-                onToggleSave: toggleSaved,
                 onJumpToAudio: { following = true }
             ) {
+                JumpModeButton(isOn: jumpMode) { jumpMode.toggle() }
+                    .disabled(speech.document.isEmpty)
+            } text: {
                 text(now)
                     .overlay(alignment: .top) {
                         if jumpMode { JumpHint { jumpMode = false } }
@@ -56,15 +60,22 @@ struct NowPlayingScreen: View {
             } controls: {
                 NowPlayingControls(
                     speech: speech, scrubMap: scrubMap, detectedLanguage: speech.sessionDetectedLanguage,
-                    jumpMode: $jumpMode,
-                    more: AnyView(MoreMenuButton(id: "readerMore") { .nowPlaying(menu, perform: perform) }
+                    save: AnyView(SaveToggleButton(isSaved: savedKey != nil, identifier: "readerBookmark",
+                                                   onToggle: toggleSaved, onSaveToFolder: saveToFolder)
+                        .disabled(article == nil)),
+                    more: AnyView(MoreMenuButton(id: "readerMore") { .reader(menu(now), perform: { perform($0, now) }) }
                         .foregroundStyle(Palette.playerInk)),
                     onScrubPreview: { p in
                         scrubPreview = p
                         if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
                     }
                 )
-                .overlay(alignment: .top) { ShellToastLayer() }
+            } floating: {
+                // The line at the band's top edge, as in the Reader; the toast floats above it.
+                ZStack(alignment: .top) {
+                    DownloadProgressEdge()
+                    ShellToastLayer()
+                }
             }
             .environment(\.sheetRisesOnAppear, shell.nowPlayingOpensAt == nil)
             .task(id: now.pageKey) { await load(now.pageKey) }
@@ -102,32 +113,56 @@ struct NowPlayingScreen: View {
 
     // MARK: - ⋯
 
-    private var menu: NowPlayingMenu {
-        NowPlayingMenu(canShare: shareURL != nil, canOpenWebsite: websiteURL != nil,
-                       showsDebug: speech.developerOptionsEnabled)
+    /// The Reader's menu for the page you hear, with *Go to* where it plays from.
+    private func menu(_ now: NowPlaying) -> ReaderMenu {
+        let page = savedPage
+        return ReaderMenu(
+            goTo: goToPlace(now),
+            isSaved: savedKey != nil,
+            canSave: article != nil,
+            isFavorite: articleURL.flatMap { library.favorite(for: $0) } != nil,
+            canFavorite: articleURL.map(LibraryStore.canFavorite) ?? false,
+            canShare: shareURL != nil,
+            canOpenWebsite: websiteURL != nil,
+            showsDebug: speech.developerOptionsEnabled,
+            canDownload: page.map { !downloads.isQueued(.page($0.listenKey)) } == true
+        )
     }
 
+    private var articleURL: URL? { article?.origin.url }
+
     private var websiteURL: URL? {
-        guard let url = article?.origin.url, url.scheme != nil, url.host?.isEmpty == false else { return nil }
+        guard let url = articleURL, url.scheme != nil, url.host?.isEmpty == false else { return nil }
         return url
     }
 
     private var shareURL: URL? {
-        guard let url = article?.origin.url, url.isWeb else { return nil }
+        guard let url = articleURL, url.isWeb else { return nil }
         return url
     }
 
-    private func perform(_ action: NowPlayingMenu.Action) {
+    /// The playing page's saved Library page, if it is saved.
+    private var savedPage: Page? {
+        guard let savedKey, let page = library.page(key: savedKey), page.isSavedToLibrary else { return nil }
+        return page
+    }
+
+    private func perform(_ action: ReaderMenu.Action, _ now: NowPlaying) {
         switch action {
+        case .goTo: goTo(now)
         case .voiceSettings: shell.present(.voiceSettings)
+        case .toggleSave: toggleSaved()
+        case .moveTo: saveToFolder()
+        case .toggleFavorite: toggleFavorite()
         case .share: if let shareURL { shell.present(.share(shareURL)) }
+        case .download: if let savedPage { DownloadActions(downloads: downloads, shell: shell).download(savedPage) }
         case .downloads: shell.present(.downloads)
         case .listenDebug: speech.showListenDebug = true
         case .favorites:
             UserDefaults.standard.set(true, forKey: "library.favoritesTab")
             shell.showLibrary(at: [])
         case .history: shell.present(.history)
-        case .openWebsite: goToPlayingFrom()
+        case .openWebsite: openWebsite()
         }
     }
 
@@ -138,20 +173,24 @@ struct NowPlayingScreen: View {
         return savedKey != nil ? String(localized: "Library") : now.playingFrom.name
     }
 
-    /// "Playing from": the Library at the folder, the Library, or the page in the browser.
-    /// Playback keeps going.
-    private func showPlayingFrom(_ now: NowPlaying) {
+    /// ⋯ → *Go to*: the folder the page plays from, or the Library for a saved page in none; nil
+    /// for a page that plays from its site (⋯ → Website opens it).
+    private func goToPlace(_ now: NowPlaying) -> ReaderMenu.Place? {
+        if case .folder = now.playingFrom { return ReaderMenu.Place(name: now.playingFrom.name, symbol: Icons.folder) }
+        return savedKey != nil ? ReaderMenu.Place(name: String(localized: "Library"), symbol: Icons.library) : nil
+    }
+
+    /// ⋯ → *Go to*: the Library at the folder, or the Library. Playback keeps going.
+    private func goTo(_ now: NowPlaying) {
         if case .folder(let id, _) = now.playingFrom, let folder = library.folder(id: id) {
             shell.showLibrary(at: library.path(to: folder))
-        } else if savedKey != nil {
-            shell.openLibrary()
         } else {
-            goToPlayingFrom()
+            shell.openLibrary()
         }
     }
 
-    /// "Playing from" a site (and ⋯ → Website): the page in the browser. Playback keeps going.
-    private func goToPlayingFrom() {
+    /// ⋯ → Website: the page in the browser. Playback keeps going.
+    private func openWebsite() {
         guard let websiteURL else { return shell.hideNowPlaying() }
         shell.openWebsite(websiteURL)
     }
@@ -159,7 +198,7 @@ struct NowPlayingScreen: View {
     private func load(_ key: UUID) async {
         following = true
         jumpMode = false
-        // ⊕ is right from the first frame; the address match below covers older saves.
+        // 🔖 is right from the first frame; the address match below covers older saves.
         savedKey = savedPageKey(library.page(key: key))
         let loaded = await speech.nowPlayingContent()
         guard speech.activeSessionID == key else { return }
@@ -175,8 +214,8 @@ struct NowPlayingScreen: View {
         return page.listenKey
     }
 
-    /// ⊕: saving never touches playback. A save or unsave that can't be stored leaves ⊕ as it
-    /// was, and a toast says so.
+    /// 🔖 / ⋯ → Save: saving never touches playback. A save or unsave that can't be stored
+    /// leaves 🔖 as it was, and a toast says so.
     private func toggleSaved() {
         guard let article else { return }
         let saver = ArticleSaveCoordinator(library: library, speech: speech)
@@ -187,6 +226,34 @@ struct NowPlayingScreen: View {
             self.savedKey = nil
         } else if let key = shell.attempt(String(localized: "Couldn’t save"), { try saver.save(article) }) {
             savedKey = key
+        }
+    }
+
+    /// 🔖's long-press (*Save to Folder…*) and ⋯ → Move to…: the Move tree, as in the Reader; the
+    /// page is saved into the folder picked (a saved page moves there). A save or move that can't
+    /// be stored keeps the tree up, with a toast saying so.
+    private func saveToFolder() {
+        guard let article else { return }
+        let current: MoveRequest.Place? = savedPage.map { page in page.folder.map { .folder($0.id) } ?? .topLevel }
+        FavoriteFlow(library: library, shell: shell).saveToFolder(
+            title: current != nil ? String(localized: "Move to…") : String(localized: "Save to…"), current: current
+        ) { [library, speech, shell, article] folder in
+            if let saved = library.page(key: article.id, canonicalURL: article.origin.canonicalURL), saved.isSavedToLibrary {
+                return shell.attempt(String(localized: "Couldn’t move")) { try library.move([.page(saved)], to: folder) } != nil
+            }
+            guard let key = shell.attempt(String(localized: "Couldn’t save"), {
+                try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
+            }) else { return false }
+            savedKey = key
+            return true
+        }
+    }
+
+    /// ☆: the page in or out of Favorites (`FavoriteFlow`).
+    private func toggleFavorite() {
+        guard let article, let url = articleURL, LibraryStore.canFavorite(url) else { return }
+        FavoriteFlow(library: library, shell: shell).toggle(url: url, title: article.title, artwork: article.artwork) {
+            await FaviconFetcher.best(for: url, webView: nil)
         }
     }
 
@@ -298,7 +365,7 @@ struct JumpHint: View {
 
     var body: some View {
         HStack(spacing: Spacing.xs) {
-            Image(systemName: "hand.tap.fill")
+            Image(systemName: Icons.jumpOn)
             Text("Tap a paragraph to play from there")
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)

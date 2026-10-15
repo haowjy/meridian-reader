@@ -18,7 +18,7 @@ struct SearchField: View {
     var body: some View {
         let clearable = !text.isEmpty
         HStack(spacing: Spacing.xs) {
-            Image(systemName: "magnifyingglass")
+            Image(systemName: Icons.search)
                 .font(.caption)
                 .foregroundStyle(Palette.secondaryInk)
                 .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
@@ -37,7 +37,7 @@ struct SearchField: View {
                 Button {
                     text = ""
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
+                    Image(systemName: Icons.clearText)
                         .foregroundStyle(Palette.secondaryInk)
                         .fieldControlFrame()
                 }

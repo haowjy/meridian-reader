@@ -76,9 +76,12 @@ final class ColorContrastTests: XCTestCase {
             // The scrub bubble's speed chip (½× / ¼× / Fine), on the bubble: the colours it draws.
             Case(name: "speed chip", fore: ReaderScrubBubble.chipText, fill: ReaderScrubBubble.chipFill,
                  under: ReaderScrubBubble.card),
-            // ☝︎ while on, on the scrub row's field capsule.
-            Case(name: "Jump on", fore: ReaderScrubRow.jumpOnGlyph, fill: ReaderScrubRow.jumpOnWash,
-                 under: BottomChrome.fieldFill(onPlayer: true), minimum: 3),
+            // ☝︎ while on, in Now Playing's top bar: its wash over the player's background.
+            Case(name: "Jump on", fore: JumpModeButton.playerOnGlyph, fill: JumpModeButton.playerOnWash,
+                 under: Palette.playerBackground, minimum: 3),
+            // ☝︎ at rest on the player: ink on the card fill.
+            Case(name: "Jump off, player", fore: Palette.playerInk, fill: BottomChrome.fieldFill(onPlayer: true),
+                 under: Palette.playerBackground, minimum: 3),
             // The debug chip, on the player's text.
             Case(name: "debug chip on", fore: NowPlayingControls.debugChipText, fill: NowPlayingControls.debugChipOnFill,
                  under: Palette.playerBackground),

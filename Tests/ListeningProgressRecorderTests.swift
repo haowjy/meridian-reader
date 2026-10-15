@@ -156,7 +156,7 @@ final class ListeningProgressRecorderTests: XCTestCase {
     // MARK: Saves that fail
 
     /// Saves fail from the first play of a page the library doesn't have: the page that play made
-    /// isn't stored, and a failed ⊕ on it and a failed edit roll it back. The library makes it
+    /// isn't stored, and a failed 🔖 on it and a failed edit roll it back. The library makes it
     /// again with its progress and the date it started, the recorder writes on to it, and once
     /// saves work the next save stores it all: after a relaunch it is there, at its spot, not in
     /// the Library (the failed Save stays undone), and the failed edit stays undone too.
@@ -168,7 +168,7 @@ final class ListeningProgressRecorderTests: XCTestCase {
         fixture.apple.emit(.position(paragraph: 1, utf16: p1))
 
         env.now = started.addingTimeInterval(60)
-        XCTAssertThrowsError(try library.save(b), "⊕ can't be stored")
+        XCTAssertThrowsError(try library.save(b), "🔖 can't be stored")
         XCTAssertThrowsError(try library.makeFolder(name: "Later", in: nil))
         let page = try XCTUnwrap(library.page(key: b.id), "made again after the rollbacks")
         XCTAssertFalse(page.isInLibrary, "the failed Save stays undone")

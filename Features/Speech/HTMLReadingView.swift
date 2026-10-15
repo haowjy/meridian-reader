@@ -289,9 +289,8 @@ struct HTMLReadingWebView: UIViewRepresentable {
         /// (the text's first line not yet scrolled above the top of the reading area) it is
         /// `.top`. Scrolled into the text, it is how far the top of the article text sits above
         /// the top of the window: that counts what is above the text on the page (the title, or
-        /// the title card) and where the web view sits on screen (the Reader's and Now Playing's
-        /// headers differ in height, more so at large text sizes), so the page that opens at it
-        /// shows the same line at the same place on screen. Nil while the web view is off screen.
+        /// the title card, which differ in height) and where the web view sits on screen, so the
+        /// page that opens at it shows the same line at the same place on screen. Nil while the web view is off screen.
         var handOver: ReadingHandOver? {
             guard let webView, webView.window != nil else { return nil }
             let sv = webView.scrollView

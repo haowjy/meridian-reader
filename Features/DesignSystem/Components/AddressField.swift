@@ -41,7 +41,7 @@ struct AddressField<Field: View, Accessory: View>: View {
                 .foregroundStyle(Palette.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if let listen {
-                PlayStateButton(state: listen, look: .badge(idleSymbol: "headphones"), action: onListen)
+                PlayStateButton(state: listen, look: .badge(idleSymbol: Icons.listen), action: onListen)
                     .accessibilityIdentifier("addressListen")
                     .transition(.opacity)
             }
@@ -57,7 +57,7 @@ struct AddressField<Field: View, Accessory: View>: View {
         // 🔍 when there is nothing to read or while editing: the same slot, glyph and frame as
         // the Library's `SearchField`, so both fields line up.
         case .hidden, .searching:
-            Image(systemName: "magnifyingglass")
+            Image(systemName: Icons.search)
                 .font(.caption)
                 .foregroundStyle(Palette.secondaryInk)
                 .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
@@ -68,7 +68,7 @@ struct AddressField<Field: View, Accessory: View>: View {
                 .frame(width: Self.readerSize, height: Self.readerSize)
         case .available:
             Button(action: onOpenReader) {
-                Image(systemName: "doc.plaintext")
+                Image(systemName: Icons.reader)
                     .font(.body)
                     .foregroundStyle(Palette.accent)
                     .frame(width: Self.readerSize, height: Self.readerSize)
@@ -121,7 +121,7 @@ struct AddressFieldGallery: View {
                 AddressField(reader: .searching) {
                     TextField("Search or enter address", text: $text)
                 } accessory: {
-                    Image(systemName: "mic").foregroundStyle(Palette.secondaryInk).fieldControlFrame()
+                    Image(systemName: Icons.dictate).foregroundStyle(Palette.secondaryInk).fieldControlFrame()
                 }
             }
         }

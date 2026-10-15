@@ -178,7 +178,7 @@ struct SpeechSettingsView: View {
                             if speech.isPlaying { speech.pause() }
                             preview.toggle(voice)
                         } label: {
-                            Image(systemName: preview.playingID == voice.id ? "stop.circle.fill" : "play.circle")
+                            Image(systemName: preview.playingID == voice.id ? Icons.previewStop : Icons.previewPlay)
                                 .font(.title3)
                                 .foregroundStyle(.tint)
                         }
@@ -311,7 +311,7 @@ struct SpeechSettingsView: View {
                             .foregroundStyle(.primary)
                         Spacer()
                         if abs(speech.rateMultiplier - option) < 0.01 {
-                            Image(systemName: "checkmark").foregroundStyle(.tint)
+                            Image(systemName: Icons.checkmark).foregroundStyle(.tint)
                         }
                     }
                 }
@@ -362,7 +362,7 @@ struct SpeechSettingsView: View {
     private var debugSection: some View {
         Section {
             Toggle(isOn: $speech.listenDebugEnabled) {
-                Label("Listen debug", systemImage: "waveform.badge.magnifyingglass")
+                Label("Listen debug", systemImage: Icons.debug)
             }
             .accessibilityIdentifier("listenDebugEnabledToggle")
             if speech.listenDebugEnabled {
@@ -444,7 +444,7 @@ private struct SettingsRow<Accessory: View>: View {
                 if busy {
                     ProgressView().controlSize(.small)
                 } else if selected {
-                    Image(systemName: "checkmark")
+                    Image(systemName: Icons.checkmark)
                         .foregroundStyle(.tint)
                         .fontWeight(.semibold)
                 }

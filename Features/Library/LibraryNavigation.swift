@@ -30,7 +30,7 @@ struct LibraryRouteView: View {
 /// there any more).
 struct FolderGoneView: View {
     var body: some View {
-        ContentUnavailableView("This folder is gone", systemImage: "folder")
+        ContentUnavailableView("This folder is gone", systemImage: Icons.folder)
     }
 }
 

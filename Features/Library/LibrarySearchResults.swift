@@ -61,7 +61,7 @@ struct LibrarySearchResults: View {
             }
             Section {
                 Button(action: searchTheWeb) {
-                    Label("Search the web for “\(text)”", systemImage: "globe")
+                    Label("Search the web for “\(text)”", systemImage: Icons.browser)
                         .typeStyle(.row)
                         .foregroundStyle(Palette.accent)
                         .frame(maxWidth: .infinity, minHeight: BottomChrome.minTapTarget, alignment: .leading)

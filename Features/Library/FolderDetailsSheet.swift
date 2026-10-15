@@ -52,12 +52,12 @@ struct FolderDetailsSheet: View {
                 field(String(localized: "Name"), text: $name, prompt: String(localized: "Name"), id: "detailsName")
                 field(String(localized: "Author"), text: $byline, prompt: String(localized: "None"), id: "detailsAuthor")
                 Section {
-                    choice(String(localized: "Choose from Photos"), "photo.on.rectangle", id: "detailsCoverPhotos") {
+                    choice(String(localized: "Choose from Photos"), Icons.photos, id: "detailsCoverPhotos") {
                         isPickingPhoto = true
                     }
-                    choice(String(localized: "Choose from Files"), "folder", id: "detailsCoverFiles") { pickFile() }
+                    choice(String(localized: "Choose from Files"), Icons.folder, id: "detailsCoverFiles") { pickFile() }
                     if cover != nil {
-                        choice(String(localized: "Remove Cover"), "trash", id: "detailsRemoveCover") {
+                        choice(String(localized: "Remove Cover"), Icons.delete, id: "detailsRemoveCover") {
                             withAnimation(Motion.snappy) { cover = nil }
                         }
                     }
@@ -195,7 +195,7 @@ struct FolderDetailsSheet: View {
                 withAnimation(Motion.snappy) { cover = thumbnail }
             } else {
                 shell.showToast(ShellToast(message: String(localized: "Couldn’t use that picture"),
-                                           systemImage: "exclamationmark.triangle"))
+                                           systemImage: Icons.warning))
             }
         }
     }

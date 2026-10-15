@@ -70,7 +70,7 @@ enum Palette {
     /// The paragraphs not being spoken (lyrics style): about 55% of `playerInk` on
     /// `playerBackground`, the faintest that still reads at 4.5:1.
     static let playerDimInk = Color(light: 0x8E9A94, dark: 0x8E9A94)
-    /// Secondary text on the player: "PLAYING FROM", the site, status notes.
+    /// Secondary text on the player: the site, status notes.
     static let playerSecondaryInk = Color(light: 0xA9C6BC, dark: 0xA9C6BC)
     /// `tertiaryInk` on the player: the time left after the site on the title card and the
     /// scrubber. 4.5:1 on `playerCard`.

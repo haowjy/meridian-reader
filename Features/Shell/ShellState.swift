@@ -463,7 +463,7 @@ final class ShellState {
         do {
             return try change()
         } catch {
-            showToast(ShellToast(message: failure, systemImage: "exclamationmark.triangle"))
+            showToast(ShellToast(message: failure, systemImage: Icons.warning))
             return nil
         }
     }

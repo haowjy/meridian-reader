@@ -36,7 +36,7 @@ final class SaveFailureUITests: XCTestCase {
     }
 
     /// Every way to save a page: the browser's ⋯ → Save to Library…, the Reader's 🔖 and *Save
-    /// to Folder…*, Now Playing's ⊕. Each says "Couldn’t save", and the page stays unsaved.
+    /// to Folder…*, Now Playing's 🔖. Each says "Couldn’t save", and the page stays unsaved.
     func testASaveThatCantBeStoredSaysSoAndThePageStaysUnsaved() throws {
         let app = launchTestPages(["-seedDemoArticle", "-failLibrarySaves"])
         openTestPage(app, "Next page")
@@ -69,12 +69,13 @@ final class SaveFailureUITests: XCTestCase {
         expectNoToast(app)
 
         app.buttons["listenPlayPause"].tap()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 10), "Now Playing")
-        let plus = app.buttons["readerBookmark"]
-        XCTAssertEqual(plus.value as? String, "Not saved")
-        plus.tap()
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 10), "Now Playing")
+        let playing = app.buttons["readerBookmark"]
+        XCTAssertTrue(eventually(5) { playing.isEnabled }, "🔖 once the page's content is found")
+        XCTAssertEqual(playing.value as? String, "Not saved")
+        playing.tap()
         expectToast(app, "Couldn’t save")
-        XCTAssertEqual(plus.value as? String, "Not saved", "⊕ stays ⊕")
+        XCTAssertEqual(playing.value as? String, "Not saved", "🔖 doesn't fill")
         find(app, "listenPlayPause").tap()
     }
 

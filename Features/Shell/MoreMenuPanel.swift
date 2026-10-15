@@ -12,7 +12,6 @@ struct MoreMenuPanel: View {
             switch context {
             case .browse(let menu, let perform): browse(menu) { action in close { perform(action) } }
             case .reader(let menu, let perform): reader(menu) { action in close { perform(action) } }
-            case .nowPlaying(let menu, let perform): nowPlaying(menu) { action in close { perform(action) } }
             case .library(let menu, let perform): library(menu) { action in close { perform(action) } }
             }
         }
@@ -24,19 +23,19 @@ struct MoreMenuPanel: View {
 
     @ViewBuilder
     private func browse(_ menu: BrowseMenu, run: @escaping (BrowseMenu.Action) -> Void) -> some View {
-        row("New Search", "magnifyingglass", id: "moreNewSearch") { run(.newSearch) }
+        row("New Search", Icons.search, id: "moreNewSearch") { run(.newSearch) }
         if menu.isSaved {
-            row("Remove from Library", "bookmark.slash", id: "moreSave") { run(.removeFromLibrary) }
+            row("Remove from Library", Icons.unsave, id: "moreSave") { run(.removeFromLibrary) }
                 .disabled(!menu.canSave)
         } else {
-            row("Save to Library…", "bookmark", id: "moreSave") { run(.saveToLibrary) }
+            row("Save to Library…", Icons.save, id: "moreSave") { run(.saveToLibrary) }
                 .disabled(!menu.canSave)
         }
         favoriteRow(isFavorite: menu.isFavorite) { run(.toggleFavorite) }
             .disabled(!menu.canFavorite)
         shareRow { run(.share) }
             .disabled(!menu.canShare)
-        row("Reload", "arrow.clockwise", id: "moreReload") { run(.reload) }
+        row("Reload", Icons.reload, id: "moreReload") { run(.reload) }
             .disabled(!menu.hasPage)
         voiceRow { run(.voiceSettings) }
         downloadsRow { run(.downloads) }
@@ -44,15 +43,15 @@ struct MoreMenuPanel: View {
             Menu {
                 Toggle("Fake extraction failure", isOn: fakeFailure)
             } label: {
-                rowLabel("Debug", "ladybug", trailing: "chevron.right")
+                rowLabel("Debug", Icons.debug, trailing: Icons.disclosure)
             }
             .accessibilityIdentifier("moreDebug")
         }
         divider
         tiles {
             favoritesTile { run(.favorites) }
-            tile("History", "clock", id: "moreHistory") { run(.history) }
-            tile("Reader", "doc.plaintext", id: "moreReaderToggle", focus: true) { run(.openReader) }
+            tile("History", Icons.history, id: "moreHistory") { run(.history) }
+            tile("Reader", Icons.reader, id: "moreReaderToggle", focus: true) { run(.openReader) }
                 .disabled(!menu.canOpenReader)
                 .accessibilityLabel("Reader")
                 .accessibilityHint("Open in Reader")
@@ -61,11 +60,14 @@ struct MoreMenuPanel: View {
 
     @ViewBuilder
     private func reader(_ menu: ReaderMenu, run: @escaping (ReaderMenu.Action) -> Void) -> some View {
-        row(menu.isSaved ? "Remove from Library" : "Save to Library", menu.isSaved ? "bookmark.slash" : "bookmark",
+        if let place = menu.goTo {
+            row(String(localized: "Go to \(place.name)"), place.symbol, id: "moreGoTo") { run(.goTo) }
+        }
+        row(menu.isSaved ? "Remove from Library" : "Save to Library", menu.isSaved ? Icons.unsave : Icons.save,
             id: "moreSave") { run(.toggleSave) }
             .disabled(!menu.canSave)
         if menu.isSaved {
-            row("Move to…", "folder", id: "moreMove") { run(.moveTo) }
+            row("Move to…", Icons.move, id: "moreMove") { run(.moveTo) }
         }
         favoriteRow(isFavorite: menu.isFavorite) { run(.toggleFavorite) }
             .disabled(!menu.canFavorite)
@@ -77,39 +79,18 @@ struct MoreMenuPanel: View {
         voiceRow { run(.voiceSettings) }
         downloadsRow { run(.downloads) }
         if menu.showsDebug {
-            row("Debug", "ladybug", id: "moreDebug") { run(.listenDebug) }
+            row("Debug", Icons.debug, id: "moreDebug") { run(.listenDebug) }
         }
         divider
         tiles {
             favoritesTile { run(.favorites) }
-            tile("History", "clock", id: "moreHistory") { run(.history) }
-            // Reader off = the article's own web page, wherever the reader was opened from.
+            tile("History", Icons.history, id: "moreHistory") { run(.history) }
+            // The page's own web page in the browser, wherever the sheet was opened from.
             // Playback keeps going.
-            tile("Website", "globe", id: "moreWebsite", focus: true) { run(.openWebsite) }
+            tile("Website", Icons.browser, id: "moreWebsite", focus: true) { run(.openWebsite) }
                 .disabled(!menu.canOpenWebsite)
                 .accessibilityLabel("View Website")
-                .accessibilityHint("Opens the article's web page")
-        }
-    }
-
-    @ViewBuilder
-    private func nowPlaying(_ menu: NowPlayingMenu, run: @escaping (NowPlayingMenu.Action) -> Void) -> some View {
-        voiceRow { run(.voiceSettings) }
-        shareRow { run(.share) }
-            .disabled(!menu.canShare)
-        downloadsRow { run(.downloads) }
-        if menu.showsDebug {
-            row("Debug", "ladybug", id: "moreDebug") { run(.listenDebug) }
-        }
-        divider
-        tiles {
-            favoritesTile { run(.favorites) }
-            tile("History", "clock", id: "moreHistory") { run(.history) }
-            // The playing page in the browser; playback keeps going.
-            tile("Website", "globe", id: "moreWebsite", focus: true) { run(.openWebsite) }
-                .disabled(!menu.canOpenWebsite)
-                .accessibilityLabel("View Website")
-                .accessibilityHint("Opens the playing page in the browser")
+                .accessibilityHint("Opens the page in the browser")
         }
     }
 
@@ -119,18 +100,18 @@ struct MoreMenuPanel: View {
         case .home:
             voiceRow { run(.voiceSettings) }
             if menu.canImportBook { importBookRow { run(.importBook) } }
-            row("New Folder", "folder.badge.plus", id: "moreNewFolder") { run(.newFolder) }
+            row("New Folder", Icons.newFolder, id: "moreNewFolder") { run(.newFolder) }
         case .folder(let isFavorites):
             sortMenu(menu.sort, run: run)
-            row("New Folder Inside", "folder.badge.plus", id: "moreNewFolder") { run(.newFolder) }
+            row("New Folder Inside", Icons.newFolder, id: "moreNewFolder") { run(.newFolder) }
             if menu.canImportBook { importBookRow { run(.importBook) } }
             if let title = menu.downloadTitle { downloadRow(title) { run(.download) } }
-            row("Delete Downloads", "trash.circle", id: "moreDeleteDownloads") { run(.deleteDownloads) }
+            row("Delete Downloads", Icons.deleteDownloads, id: "moreDeleteDownloads") { run(.deleteDownloads) }
             if !isFavorites {
-                row("Rename", "pencil", id: "moreRename") { run(.rename) }
+                row("Rename", Icons.rename, id: "moreRename") { run(.rename) }
                 editDetailsRow { run(.editDetails) }
-                row("Move…", "folder", id: "moreMove") { run(.move) }
-                row("Delete Folder…", "trash", id: "moreDeleteFolder") { run(.deleteFolder) }
+                row("Move…", Icons.move, id: "moreMove") { run(.move) }
+                row("Delete Folder…", Icons.delete, id: "moreDeleteFolder") { run(.deleteFolder) }
             }
         case .pages:
             sortMenu(menu.sort, run: run)
@@ -138,13 +119,13 @@ struct MoreMenuPanel: View {
         }
         downloadsRow { run(.downloads) }
         if menu.showsDebug {
-            row("Debug", "ladybug", id: "moreDebug") { run(.listenDebug) }
+            row("Debug", Icons.debug, id: "moreDebug") { run(.listenDebug) }
         }
         divider
         tiles {
             favoritesTile { run(.favorites) }
-            tile("History", "clock", id: "moreHistory") { run(.history) }
-            tile("Browser", "globe", id: "moreBrowser", focus: true) { run(.browser) }
+            tile("History", Icons.history, id: "moreHistory") { run(.history) }
+            tile("Browser", Icons.browser, id: "moreBrowser", focus: true) { run(.browser) }
                 .accessibilityLabel("Browser")
                 .accessibilityHint("Return to the browser")
         }
@@ -156,48 +137,48 @@ struct MoreMenuPanel: View {
         Menu {
             ForEach(PageSort.allCases, id: \.self) { sort in
                 Button { run(.sort(sort)) } label: {
-                    if sort == current { Label(sort.title, systemImage: "checkmark") } else { Text(sort.title) }
+                    if sort == current { Label(sort.title, systemImage: Icons.checkmark) } else { Text(sort.title) }
                 }
             }
         } label: {
-            rowLabel("Sort", "arrow.up.arrow.down", trailing: "chevron.right")
+            rowLabel("Sort", Icons.sort, trailing: Icons.disclosure)
         }
         .accessibilityIdentifier("moreSort")
     }
 
     private func editDetailsRow(action: @escaping () -> Void) -> some View {
-        row("Edit Details", "square.and.pencil", id: "moreEditDetails", action: action)
+        row("Edit Details", Icons.editDetails, id: "moreEditDetails", action: action)
     }
 
     private func favoriteRow(isFavorite: Bool, action: @escaping () -> Void) -> some View {
-        row(isFavorite ? "Remove from Favorites" : "Add to Favorites", isFavorite ? "star.slash" : "star",
+        row(isFavorite ? "Remove from Favorites" : "Add to Favorites", isFavorite ? Icons.unfavorite : Icons.favorite,
             id: "moreFavorite", action: action)
     }
 
     private func favoritesTile(action: @escaping () -> Void) -> some View {
-        tile("Favorites", "star", id: "moreFavorites", action: action)
+        tile("Favorites", Icons.favorite, id: "moreFavorites", action: action)
     }
 
     private func shareRow(action: @escaping () -> Void) -> some View {
-        row("Share", "square.and.arrow.up", id: "moreShare", action: action)
+        row("Share", Icons.share, id: "moreShare", action: action)
     }
 
     private func importBookRow(action: @escaping () -> Void) -> some View {
-        row("Import Book…", "book.closed", id: "moreImportBook", action: action)
+        row("Import Book…", Icons.book, id: "moreImportBook", action: action)
     }
 
     private func voiceRow(action: @escaping () -> Void) -> some View {
-        row("Voice Settings", "person.wave.2", id: "moreVoice", action: action)
+        row("Voice Settings", Icons.voice, id: "moreVoice", action: action)
     }
 
     /// ⋯ › Downloads: the list of what is downloading and downloaded.
     private func downloadsRow(action: @escaping () -> Void) -> some View {
-        row("Downloads", "tray.and.arrow.down", id: "moreDownloads", action: action)
+        row("Downloads", Icons.downloads, id: "moreDownloads", action: action)
     }
 
     /// *Download* (a page), *Download Folder*.
     private func downloadRow(_ title: String, action: @escaping () -> Void) -> some View {
-        row(title, "arrow.down.circle", id: "moreDownload", action: action)
+        row(title, Icons.download, id: "moreDownload", action: action)
     }
 
     private var divider: some View {
@@ -306,7 +287,7 @@ struct MoreMenuButton: View {
         Button {
             shell.openMenu(menu(), from: frame)
         } label: {
-            Image(systemName: "ellipsis")
+            Image(systemName: Icons.more)
                 .toolbarIconFrame()
         }
         .accessibilityLabel("More")

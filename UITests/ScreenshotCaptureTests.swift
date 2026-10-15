@@ -138,6 +138,48 @@ final class ScreenshotCaptureTests: XCTestCase {
         try sequence(button: "readerMore", prefix: "reader")
     }
 
+    /// The Reader sheet and Now Playing side by side (D24: one top bar, 🔖 and ⋯ in the same
+    /// slots): the Reader, its ☝︎ on, then Listen: Now Playing paused, its ☝︎ on, the speed list and
+    /// the ⋯ menu.
+    func testReaderAndNowPlayingSheets() throws {
+        let app = launch(["-seedDemoArticle", "-seedDemoParagraphs", "12", "-openLibrary", "-resetBookmarks",
+                          "-reader.rateMultiplier", "1"])
+        let row = app.cells.staticTexts["Demo Listen Article"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(play.waitForExistence(timeout: 10))
+        wait(1.5)
+        try shot("1-reader")
+        app.buttons["listenJump"].tap()
+        wait(1)
+        try shot("2-reader-jump-on")
+        app.buttons["listenJump"].tap()
+        wait(0.6)
+
+        play.tap() // Listen: the Reader turns into Now Playing
+        XCTAssertTrue(el(app, "nowPlayingHeader").waitForExistence(timeout: 5))
+        XCTAssertTrue(eventually(8) { play.label == "Pause" })
+        play.tap()
+        XCTAssertTrue(eventually(5) { play.label == "Play" })
+        wait(1.5)
+        try shot("3-now-playing")
+        app.buttons["listenJump"].tap()
+        wait(1)
+        try shot("4-now-playing-jump-on")
+        app.buttons["listenJump"].tap()
+        wait(0.6)
+        app.buttons["listenSpeed"].tap()
+        wait(1.2)
+        try shot("5-now-playing-speed")
+        el(app, "listenSpeedOption-1×").tap()
+        wait(0.8)
+        app.buttons["readerMore"].tap()
+        wait(1.5)
+        try shot("6-now-playing-menu")
+        dismissMenu(app)
+    }
+
     /// The scrub bubble frozen mid fine-scrub (`-scrubBubbleDemo`), on Now Playing (paused).
     func testScrubBubble() throws {
         let app = launch(["-seedDemoArticle", "-seedDemoParagraphs", "12", "-openLibrary", "-resetBookmarks",
@@ -175,7 +217,7 @@ final class ScreenshotCaptureTests: XCTestCase {
         wait(1.5)
         try shot("3-reader-b-while-a-plays")
         el(app, "nowPlayingBarOpen").tap()
-        XCTAssertTrue(el(app, "nowPlayingFrom").waitForExistence(timeout: 5))
+        XCTAssertTrue(el(app, "nowPlayingHeader").waitForExistence(timeout: 5))
         wait(2)
         try shot("4-now-playing-a")
         let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
@@ -204,7 +246,7 @@ final class ScreenshotCaptureTests: XCTestCase {
         wait(1)
         try shot("favorites")
 
-        app.buttons["browseLibrary"].tap()
+        app.buttons["Everything"].tap() // Favorites is the Library's filter; back to all of it
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         wait(1.2)
         try shot("library")
@@ -215,7 +257,7 @@ final class ScreenshotCaptureTests: XCTestCase {
 
         let play = app.buttons["listenPlayPause"]
         play.tap() // Listen: Now Playing
-        XCTAssertTrue(el(app, "nowPlayingFrom").waitForExistence(timeout: 5))
+        XCTAssertTrue(el(app, "nowPlayingHeader").waitForExistence(timeout: 5))
         wait(2.5)
         try shot("now-playing")
         app.buttons["readerClose"].tap() // ⌄

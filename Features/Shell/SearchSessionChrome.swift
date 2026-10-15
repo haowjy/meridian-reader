@@ -31,12 +31,9 @@ struct SearchSessionChrome<Accessory: View, Field: View, Toolbar: View>: View {
                 // ✕ stays while searching, even after a swipe-down lowered the keyboard.
                 if session.isActive {
                     Button(action: onCancel) {
-                        Image(systemName: "xmark")
-                            .font(.body.weight(.semibold))
+                        Image(systemName: Icons.close)
                             .foregroundStyle(Palette.ink)
-                            .frame(width: 40, height: 40)
-                            .background(Palette.chrome, in: Circle())
-                            .tapTarget(40)
+                            .roundFieldControl(fill: Palette.chrome)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Cancel")
