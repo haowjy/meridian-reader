@@ -76,9 +76,11 @@ enum AppComposition {
     /// (`ArticleAudioCache.held`), for a later launch. Then the
     /// one-time launch migrations (which can purge an engine's audio and orphan files, held audio
     /// excepted), the chunk scratch (nothing plays at launch) and the prune of unsaved audio
-    /// (7 days, 500 MB; held audio excepted).
+    /// (7 days, 500 MB; held audio excepted). First of all the cache is kept out of backups: it
+    /// is audio the app can render again (`BackupExclusion`).
     static func prepareAudioCache(library: LibraryStore, migrations: [LaunchMigration]) {
         let tts = library.tts
+        tts.audioCache.excludeFromBackup()
         tts.holdRenderingForLaunch()
         library.finishAudioWork()
         for migration in migrations { migration.runIfNeeded(tts) }
@@ -114,12 +116,16 @@ enum AppComposition {
     }
 
     /// Launch housekeeping, in `ReaderApp.init`, before the first frame and before anything
-    /// renders or plays: the audio cache's launch steps (`prepareAudioCache`), the background-GPU
-    /// probe, and pruning Core ML's compiled-model cache of bundles from previous installs (once
-    /// per install, background).
+    /// renders or plays: the audio cache's launch steps (`prepareAudioCache`), the engines'
+    /// downloads and the timing log kept out of backups, the background-GPU probe, and pruning
+    /// Core ML's compiled-model cache of bundles from previous installs (once per install,
+    /// background).
     static func runLaunchMaintenance(library: LibraryStore) {
         let tts = library.tts
         prepareAudioCache(library: library, migrations: launchMigrations(for: engineRegistry))
+        for directory in engineRegistry.regenerableDirectories + [ListenTimingLog.directory] {
+            BackupExclusion.exclude(directory)
+        }
         ListenTimingLog.log("app_launch", ["engine": tts.selectedEngineID.rawValue, "build": LocalTTSCoordinator.buildConfiguration])
         #if DEBUG
         // Debug probe: can this device get GPU time in background continued-processing tasks?

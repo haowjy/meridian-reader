@@ -422,6 +422,11 @@ highlight and the paragraph picker stay fine-grained.
 
 `ArticleAudioCache`, `Application Support/TTSCache/<article key>/`:
 
+- **Not backed up.** The launch flags `TTSCache` to stay out of iCloud and computer backups
+  (`BackupExclusion`, before anything renders; the flag on the folder covers every article in
+  it, the ones already there included): the app can render the audio again, and a downloaded
+  10-hour book is about 1.7 GB. The engines' downloads (`fluidaudio/`, `CPURoute/`) and
+  `ListenTiming/` are flagged the same way.
 - `index.json` + `p-NNNN.caf` per rendered paragraph, written incrementally so a partial render
   plays. Each entry stores the paragraph's `textHash` and, for stitched paragraphs,
   `chunkDurations` (mid-paragraph seek and resume). The index is read once per article and kept in

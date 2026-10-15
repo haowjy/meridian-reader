@@ -23,6 +23,9 @@ protocol SpeechEngineProvider: AnyObject {
     func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery?
     /// The user picked `id` again after a crash moved them off it (a fresh try).
     func crashRetried(_ id: SpeechEngineID)
+    /// Where this provider keeps files it downloads or can make again (models, voices): kept out
+    /// of backups at launch (`BackupExclusion`).
+    var regenerableDirectories: [URL] { get }
 }
 
 extension SpeechEngineProvider {
@@ -30,6 +33,7 @@ extension SpeechEngineProvider {
     func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws {}
     func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery? { nil }
     func crashRetried(_ id: SpeechEngineID) {}
+    var regenerableDirectories: [URL] { [] }
 }
 
 /// Composition-root registry of every engine. Built once at launch (`AppComposition`) and
@@ -65,6 +69,7 @@ final class EngineRegistry {
     var systemDescriptor: EngineDescriptor? { descriptors.first { $0.kind == .system } }
     var localDescriptors: [EngineDescriptor] { descriptors.filter { $0.kind == .onDevice } }
     var retiredEngines: [RetiredEngine] { providers.flatMap(\.retiredEngines) }
+    var regenerableDirectories: [URL] { providers.flatMap(\.regenerableDirectories) }
 
     /// Engine that sizes chunks / keys the cache when no local engine is active yet:
     /// the recommended on-device engine (Kokoro today), else the first one.

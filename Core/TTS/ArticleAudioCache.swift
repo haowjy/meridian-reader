@@ -107,6 +107,13 @@ final class ArticleAudioCache {
         return base.appendingPathComponent("TTSCache", isDirectory: true)
     }
 
+    /// Keeps the cache out of backups (audio the app can render again); at launch, before
+    /// anything renders, so every article directory is created inside a flagged root.
+    @discardableResult
+    func excludeFromBackup() -> Bool {
+        BackupExclusion.exclude(root, fileManager: fileManager)
+    }
+
     func directory(for articleID: UUID) -> URL {
         root.appendingPathComponent(articleID.uuidString, isDirectory: true)
     }

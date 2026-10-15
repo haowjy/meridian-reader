@@ -4,10 +4,15 @@ import Foundation
 /// Kokoro's files in FluidAudio's English repo directory, shared by both routes: vocab, voice
 /// packs, G2P + lexicon, and the Core ML stages (used only by the Core ML route).
 enum KokoroAssets {
+    /// `Application Support/fluidaudio`: FluidAudio's download cache, every model under it.
+    static var fluidAudioDirectory: URL? {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("fluidaudio", isDirectory: true)
+    }
+
     /// `Application Support/fluidaudio/Models/kokoro-82m-coreml/ANE` (FluidAudio's English repo dir).
     static var repoDirectory: URL? {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("fluidaudio/Models/kokoro-82m-coreml/ANE", isDirectory: true)
+        fluidAudioDirectory?.appendingPathComponent("Models/kokoro-82m-coreml/ANE", isDirectory: true)
     }
 
     static var repoDirectoryExists: Bool {
