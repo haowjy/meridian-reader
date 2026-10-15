@@ -59,7 +59,9 @@ final class LibraryHomeUITests: XCTestCase {
         let play = cell.buttons["Play"]
         XCTAssertTrue(play.exists, "a book row has its own ▶")
         XCTAssertTrue(cell.buttons["Download"].exists, "the cover row exposes its download state")
-        XCTAssertEqual(play.frame.midX, cell.buttons["Download"].frame.midX, accuracy: 1, "download and play share a control column")
+        let download = cell.buttons["Download"].frame
+        XCTAssertEqual(play.frame.midY, download.midY, accuracy: 1, "download and play share the row (D23)")
+        XCTAssertLessThanOrEqual(download.maxX, play.frame.minX + 1, "download before play")
         let header = find(app, "libraryTitle").frame
         play.tap()
         let bar = app.buttons["nowPlayingBarPlayPause"]
