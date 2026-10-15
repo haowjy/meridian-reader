@@ -105,11 +105,14 @@ adapter keeps, bound or not. Adapters report facts; they own no bake policy and 
   on with no re-queue. The end of the article is decided only by the player
   (`ChunkPlaybackQueue`): the producer calls `endOfInput()` once it has enqueued every paragraph,
   and the player finishes when its queue drains. Position inside a paragraph is player time, which
-  has no callbacks, so while audio is wanted the engine samples it 5×/s: in the foreground it
-  reports `position` once the spot moved a few characters (`ListenPositionMapper`: chunk
-  boundaries plus time into the chunk, never before the offset the play started at) and
-  `statusChanged` when the listen-bar status changed; in the background it only holds
-  `ReaderListenGap` while waiting for audio. Speed is a pitch-preserving time-stretch on the
+  has no callbacks, so while audio is wanted and the app is in front (active or inactive) the
+  engine samples it 5×/s: it reports `position` once the spot moved a few characters
+  (`ListenPositionMapper`: chunk boundaries plus time into the chunk, never before the offset the
+  play started at) and `statusChanged` when the listen-bar status changed. In the background (the
+  phone locked) the clock stops, so a locked listen doesn't wake the app 5×/s: a unit starting
+  still reports its paragraph, and the player running dry (or a play or resume waiting for audio)
+  holds `ReaderListenGap` until a unit starts, it pauses or stops. Back in front the clock starts
+  again and catches up. Speed is a pitch-preserving time-stretch on the
   player (`AVAudioPlayer.enableRate` / `rate`; everything is rendered at 1×). If the host fails
   to load it calls `LocalSynthService.noteSpeakFailed`, and engine binding re-speaks the spot with
   Apple.
@@ -342,12 +345,18 @@ ahead of the playhead (counted as a starve event).
 
 **Head-start rule** (`HeadStart`, `RenderPace`): before rendering a chunk for a listener, the
 engine projects whether rendering at the measured speed would starve playback by more than 2 s;
-if so that paragraph plays with Apple ("Kokoro fell behind", `render_behind`). Only listener
-calls feed `RenderPace`.
+if so that paragraph plays with Apple ("Kokoro fell behind", `render_behind`), and the render
+queue moves on to the next paragraph at once (`ListenUnitSource.focus`) instead of finishing the
+one Apple speaks and falling behind again there; the skipped paragraph is rendered later, from
+the top. A chunk the engine fails on does the same. Only listener calls feed `RenderPace`.
 
 **Never silent, never skipped.** A chunk the engine can't render is rendered with Apple
 (ahead), or the rest of the paragraph is spoken with Apple (live). Only if Apple also fails is
 the paragraph skipped, logged as `SKIP pN` in the debug overlay and `skip` in the timing log.
+A live Apple unit is a one-off file in `tmp/ReaderTTSLive`, never cached: it is deleted once the
+unit leaves the player (`ChunkPlaybackQueue.onItemDone`: played out, dropped when the engine
+takes over again in front, stopped), or at once when it isn't queued, and the first player of a
+launch empties the folder of an earlier process's files.
 Failed units go into `failedUnits`, so the worker never loops on them; a live request retries
 once. An overflowing call (`inputTooLong`) is re-split down to 24 units.
 
@@ -422,6 +431,11 @@ highlight and the paragraph picker stay fine-grained.
 
 `ArticleAudioCache`, `Application Support/TTSCache/<article key>/`:
 
+- **Not backed up.** The launch flags `TTSCache` to stay out of iCloud and computer backups
+  (`BackupExclusion`, before anything renders; the flag on the folder covers every article in
+  it, the ones already there included): the app can render the audio again, and a downloaded
+  10-hour book is about 1.7 GB. The engines' downloads (`fluidaudio/`, `CPURoute/`) and
+  `ListenTiming/` are flagged the same way.
 - `index.json` + `p-NNNN.caf` per rendered paragraph, written incrementally so a partial render
   plays. Each entry stores the paragraph's `textHash` and, for stitched paragraphs,
   `chunkDurations` (mid-paragraph seek and resume). The index is read once per article and kept in

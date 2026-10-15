@@ -94,6 +94,24 @@ final class LibraryMigrationTests: XCTestCase {
         XCTAssertTrue(library.topLevelFolders().isEmpty, "the temporary legacy Favorites container is removed")
     }
 
+    /// Every launch after the copy has nothing to copy: no legacy Favorites folder is made (and
+    /// then removed), and nothing is saved (a save makes every list on screen fetch again).
+    func testALaunchWithNothingToCopyMakesNoFolderAndNoSave() throws {
+        env.legacyRow("https://example.com/1", savedAt: date(0))
+        try env.writeBookmarks([SiteBookmark(urlString: "https://example.com/fav", title: "Fav", host: "example.com")])
+        migrateLaunch()
+
+        let relaunched = env.makeLibrary()
+        var saves = 0
+        relaunched.saveContext = { saves += 1; try $0.save() }
+        let report = migrateLaunch(relaunched)
+        XCTAssertEqual(report, LibraryStore.MigrationReport())
+        XCTAssertEqual(saves, 0, "no save")
+        XCTAssertTrue(env.folders().isEmpty, "no legacy Favorites folder")
+        XCTAssertFalse(env.context.hasChanges)
+        XCTAssertEqual(relaunched.favoritePages().map(\.title), ["Fav"])
+    }
+
     func testRunningTwiceCopiesNothingMoreAndADeletedPageStaysDeleted() throws {
         env.legacyRow("https://example.com/1", savedAt: date(0))
         env.legacyRow("https://example.com/2", savedAt: date(1))

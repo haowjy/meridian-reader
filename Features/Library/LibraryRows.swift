@@ -44,14 +44,17 @@ struct LibraryPageRow: View {
                 playState: page.isLink ? .idle : actions.playState(of: page),
                 onPlay: page.isLink || page.skipsInPlayback || isEditing ? nil : { actions.play(page) },
                 insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil,
-                download: download, isFavorite: page.isFavorite)
+                download: download, isFavorite: LibraryStore.isFavorite(page))
             .opensOnTap(isEditing ? nil : { actions.open(page) })
             .libraryDropRow(.page(page.listenKey), in: screen)
             .libraryDrag(dragID, in: screen)
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
                 if page.isInLibrary {
-                    Button("Remove", role: .destructive) { actions.remove([page]) }
+                    // The row can stay: a played page comes back in the same list as "Not saved",
+                    // and a save that fails keeps it. So not `.destructive` (`Palette.destructive`).
+                    Button("Remove") { actions.remove([page]) }
+                        .tint(Palette.destructive)
                 }
             }
     }

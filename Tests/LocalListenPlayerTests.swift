@@ -126,6 +126,50 @@ final class LocalListenPlayerTests: XCTestCase {
         XCTAssertEqual(player.currentAppleFallbackReason, .engineError)
     }
 
+    /// Apple speaks a paragraph the engine can't render: the render queue moves on to the next
+    /// paragraph at once (the one Apple speaks no longer needs the engine). Not after the last.
+    func testAFallbackMovesTheRenderQueueToTheNextParagraph() async throws {
+        let queue = ChunkPlaybackQueue(maxBuffered: 8)
+        let player = makePlayer(queue)
+        defer { player.stop() }
+        let source = FakeUnitSource(paragraphs: ["One.", "Two."], rendered: nil)
+
+        try await player.play(source, from: 0, chunk: 0, fractionInChunk: 0)
+        await settle { source.appleRenders.count == 2 && !player.isProducing }
+        XCTAssertEqual(source.appleRenders, ["One.", "Two."])
+        XCTAssertEqual(source.focused, [1], "after paragraph 1's fallback, render from paragraph 2")
+    }
+
+    /// Apple fallback audio is a one-off file in tmp: it goes once its unit has played, and a
+    /// stop takes the ones still queued or playing.
+    func testFallbackFilesAreDeletedOnceTheirUnitsLeaveThePlayer() async throws {
+        let queue = ChunkPlaybackQueue(maxBuffered: 8)
+        let player = makePlayer(queue)
+        defer { player.stop() }
+        let source = FakeUnitSource(paragraphs: ["One.", "Two.", "Three."], rendered: nil)
+
+        try await player.play(source, from: 0, chunk: 0, fractionInChunk: 0)
+        await settle { source.appleRenders.count == 3 && !player.isProducing }
+        let first = try XCTUnwrap(queue.currentPosition?.item.fileURL)
+        XCTAssertTrue(first.path.contains("ReaderTTSLive"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: first.path), "playing")
+
+        try endCurrentUnit(queue, file: first)
+        await settle { queue.currentParagraphIndex == 1 }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: first.path), "played out: deleted")
+        // This play's files: apple-<epoch>-<paragraph>-<chunk>-<render>.caf.
+        let prefix = first.lastPathComponent.components(separatedBy: "-").prefix(2).joined(separator: "-") + "-"
+        let folder = first.deletingLastPathComponent()
+        func files() throws -> [String] {
+            try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasPrefix(prefix) }
+                .map { $0.components(separatedBy: "-").prefix(4).joined(separator: "-") }.sorted()
+        }
+        XCTAssertEqual(try files(), [prefix + "1-0", prefix + "2-0"], "paragraph 2 playing, paragraph 3 queued")
+
+        player.stop()
+        XCTAssertEqual(try files(), [], "stopped: nothing left in tmp")
+    }
+
     func testSecondPlayDuringTheModelLoadPlaysTheSecondRequest() async throws {
         let gate = TestGate()
         let queue = ChunkPlaybackQueue(maxBuffered: 8)

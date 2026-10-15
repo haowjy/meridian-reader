@@ -99,6 +99,31 @@ final class FolderDeleteUITests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground, "the app is still up")
     }
 
+    /// Swipe → *Remove* on a page that has been played: it leaves the Library and its row comes
+    /// back in the same list as "Not saved" (played without saving). The swipe doesn't take the
+    /// row out ahead of the data, so the List and the library agree and the app stays up.
+    func testSwipeRemovingAPlayedPageKeepsItsRowAsNotSaved() throws {
+        let app = launchLibrary()
+        let cell = libraryCell(app, "Demo Listen Article")
+        XCTAssertTrue(cell.waitForExistence(timeout: 5), "Pages: the demo article")
+        cell.buttons["Play"].tap()
+        let bar = app.buttons["nowPlayingBarPlayPause"]
+        XCTAssertTrue(bar.waitForExistence(timeout: 10), "the bar shows what you hear")
+        XCTAssertTrue(eventually(10) { bar.label == "Pause" }, "playing")
+
+        cell.swipeLeft()
+        let remove = app.buttons["Remove"].firstMatch
+        XCTAssertTrue(remove.waitForExistence(timeout: 3), "the page row's swipe action")
+        remove.tap()
+        let row = libraryRow(app, "Demo Listen Article")
+        XCTAssertTrue(eventually(5) { (row.value as? String)?.contains("Not saved") == true },
+                      "back in the list as Not saved, got \(row.value ?? "nil")")
+        idle(1)
+        XCTAssertEqual(app.state, .runningForeground, "the app is still up")
+        XCTAssertTrue(libraryRow(app, "Demo Finance").exists, "the rest of the list is there")
+        XCTAssertEqual(bar.label, "Pause", "Remove never touches playback")
+    }
+
     // MARK: - Steps
 
     /// Moves the demo book into Demo Finance (beside its pages and its subfolders Bonds and

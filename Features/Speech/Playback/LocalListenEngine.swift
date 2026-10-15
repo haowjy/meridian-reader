@@ -2,8 +2,11 @@ import Foundation
 
 /// Listen through the on-device engine: a `LocalListenPlayer` fed, per play, by a
 /// `QueueUnitSource` over the coordinator's render queue and audio cache. Player time has no
-/// callbacks, so while audio is wanted the engine samples it 5×/s (`clock`) and reports the spot
-/// being spoken and listen-bar status changes itself.
+/// callbacks, so while audio is wanted and the app is on screen the engine samples it 5×/s
+/// (`clock`) and reports the spot being spoken and listen-bar status changes itself. In the
+/// background (the phone locked) nothing is on screen and the clock stops; the player's own
+/// events (a unit starting, the player running dry) report the paragraph and hold the app alive
+/// while it waits for audio.
 @MainActor
 final class LocalListenEngine: ListenEngine {
     var onEvent: ((PlaybackEngineEvent) -> Void)?
@@ -23,8 +26,11 @@ final class LocalListenEngine: ListenEngine {
     private var playGeneration = 0
     /// A paused play, or Pause while the model loads: hold the audio once the play starts.
     private var holdsAtStart = false
+    /// Playing or about to (not paused, not stopped): the clock runs while the app is in front.
+    private var audioWanted = false
     private var clock: Task<Void, Never>?
     private var lastStatus: Status?
+    private var runStateObserver: NSObjectProtocol?
     #if canImport(UIKit)
     /// Keeps the app alive while the player waits for audio in the background (e.g. an Apple
     /// fallback paragraph rendering): with nothing audible iOS may suspend the app.
@@ -47,14 +53,30 @@ final class LocalListenEngine: ListenEngine {
             self.paragraph = idx
             self.reportPosition(force: true)
             self.onEvent?(.becameAudible)
+            self.updateGapGrace()
             // In the background the render queue idles between bursts; playing on may wake it.
             self.coordinator.synthQueue.playbackAdvanced()
         }
+        player.onStarved = { [weak self] in self?.updateGapGrace() }
         player.onFinished = { [weak self] in
             self?.stopClock()
             self?.onEvent?(.finished)
         }
+        runStateObserver = NotificationCenter.default.addObserver(
+            forName: AppRunState.didChange, object: nil, queue: .main
+        ) { [weak self] note in
+            MainActor.assumeIsolated {
+                guard let self, note.object as AnyObject? === self.runState else { return }
+                self.appPhaseChanged()
+            }
+        }
     }
+
+    deinit {
+        if let runStateObserver { NotificationCenter.default.removeObserver(runStateObserver) }
+    }
+
+    private var runState: AppRunState { coordinator.synthQueue.runState }
 
     var name: String { coordinator.synth.engineShortName }
 
@@ -202,40 +224,63 @@ final class LocalListenEngine: ListenEngine {
 
     // MARK: - Clock
 
-    /// While audio is wanted: sample player time 5×/s. Foreground: report the spot being spoken
-    /// and listen-bar status changes. Background: nothing on screen needs either; only hold the
-    /// app alive while the player waits for audio. Back in the foreground the next tick catches up.
+    /// The clock samples player time 5×/s while audio is wanted and the app is in front (active
+    /// or inactive: the screen shows it): it reports the spot being spoken and listen-bar status
+    /// changes. In the background nothing on screen needs either, so it doesn't run (polling
+    /// there would wake a locked phone 5×/s, ~18,000 times an hour of listening); the player's
+    /// events keep the paragraph and the gap grace current. Back in front it restarts and its
+    /// first tick catches up.
+    var isClockRunning: Bool { clock != nil }
+
     private func startClock() {
-        clock?.cancel()
+        audioWanted = true
+        updateClock()
+        updateGapGrace()
+    }
+
+    private func stopClock() {
+        audioWanted = false
+        updateClock()
+        updateGapGrace()
+    }
+
+    private func appPhaseChanged() {
+        updateClock()
+        updateGapGrace()
+    }
+
+    private func updateClock() {
+        guard audioWanted, runState.phase != .background else {
+            clock?.cancel()
+            clock = nil
+            return
+        }
+        guard clock == nil else { return }
         clock = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
                 self.tick()
-                try? await Task.sleep(nanoseconds: 200_000_000)
+                try? await Task.sleep(for: .milliseconds(200), tolerance: .milliseconds(50))
             }
         }
     }
 
-    private func stopClock() {
-        clock?.cancel()
-        clock = nil
-        #if canImport(UIKit)
-        gapGrace.end()
-        #endif
-    }
-
     private func tick() {
-        let background = coordinator.synthQueue.runState.phase == .background
-        #if canImport(UIKit)
-        if background, isWaitingForAudio { gapGrace.begin() } else { gapGrace.end() }
-        #endif
-        guard !background else { return }
         reportPosition(force: false)
         let status = Status(waiting: isWaitingForAudio, note: sourceNote, snapshot: snapshot)
         if status != lastStatus {
             lastStatus = status
             onEvent?(.statusChanged)
         }
+    }
+
+    /// In the background, keep the app alive while the player waits for audio (with nothing
+    /// audible iOS may suspend it). Asked on the events that change it: a play or resume, a unit
+    /// starting, the player running dry, pause, stop, the end, and a phase change.
+    private func updateGapGrace() {
+        #if canImport(UIKit)
+        if audioWanted, runState.phase == .background, isWaitingForAudio { gapGrace.begin() } else { gapGrace.end() }
+        #endif
     }
 
     /// Report the spot the player is at: always when `force` (a unit started), else once it

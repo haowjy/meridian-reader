@@ -49,11 +49,8 @@ extension LibraryStore {
             log("migration: bookmarks.json unreadable, left as it is, nothing copied from it: \(error)")
             ListenTimingLog.log("library_migration", ["error": "bookmarks unreadable: \(error)"])
         }
-        let favorites = favorites()
-        guard !rows.isEmpty || !bookmarks.isEmpty else {
-            commit("ensure favorites")
-            return report
-        }
+        // Nothing to copy (every launch after the first): no folder, no save.
+        guard !rows.isEmpty || !bookmarks.isEmpty else { return report }
 
         // Saved articles → saved pages in no folder, in the order they were saved.
         let history = ListenHistory(defaults: legacy.defaults)
@@ -66,8 +63,10 @@ extension LibraryStore {
             report.copiedArticles += 1
         }
 
-        // Bookmarks → link pages in Favorites, in file order. A bookmark for a page that exists
-        // (saved) files that page in Favorites at the bookmark's place (D6).
+        // Bookmarks → link pages in the legacy Favorites folder, made only for them, in file
+        // order; `migrateFavoritesFolder` then stars them and removes the folder. A bookmark for
+        // a page that exists (saved) files that page there at the bookmark's place (D6).
+        let favorites = bookmarks.isEmpty ? nil : favorites()
         var favoriteKey = nextSortKey(in: favorites)
         for bookmark in bookmarks {
             let canonical = ArticleIdentity.canonicalURLString(from: bookmark.urlString)

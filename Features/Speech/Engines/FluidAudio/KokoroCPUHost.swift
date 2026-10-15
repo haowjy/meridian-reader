@@ -1,5 +1,8 @@
 import FluidAudio
 import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// Kokoro 82M on the **ONNX CPU route**, Kokoro's default route.
 ///
@@ -23,6 +26,9 @@ import Foundation
 ///   run is called from a queue of the call's `RenderPriority`: `.utility` for bake-ahead lowers
 ///   only the calling thread's share (ORT has no per-run thread QoS or count). One call at a time
 ///   (render gate).
+/// - Memory: each run shrinks ORT's arena when it ends (`KokoroONNXSession`). A memory warning
+///   lets go of the session (≈160 MB of weights plus the arena); the next call builds it again
+///   (≈0.5 s), at the phase's thread count. Logged `kokoro_cpu_session_released`.
 final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID = .kokoro
     var onProgress: (@Sendable (Double) -> Void)?
@@ -49,6 +55,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     /// Where the ONNX crash count lives: a healthy stretch resets it (nil: the CPU bench's frontend-only host).
     private let crashCount: KokoroRouteSettings?
     private var healthyCalls = 0
+    private var memoryWarning: NSObjectProtocol?
 
     var routingLabel: String? { "onnxCPU·t\(lock.withLock { sessions }?.threads ?? threads)" }
     var rendersInBackground: Bool { true }
@@ -60,6 +67,21 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
         self.threads = threads
         self.crashCount = crashCount
         self.runState = runState
+        #if canImport(UIKit)
+        memoryWarning = NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: nil
+        ) { [weak self] _ in self?.releaseSession(reason: "memory_warning") }
+        #endif
+    }
+
+    deinit {
+        if let memoryWarning { NotificationCenter.default.removeObserver(memoryWarning) }
+    }
+
+    /// Give the ONNX session's memory back and stay prepared: the next call builds it again.
+    func releaseSession(reason: String) {
+        guard let sessions = lock.withLock({ self.sessions }), sessions.release() else { return }
+        ListenTimingLog.log("kokoro_cpu_session_released", ["reason": reason, "mem_mb": Self.footprintMB()])
     }
 
     /// Threads for a call now.
@@ -211,8 +233,14 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     private func sessionForPhase(_ sessions: KokoroONNXSessionSlot<KokoroONNXSession>) async throws -> KokoroONNXSession {
         let wanted = phaseThreads
         let t0 = ListenTimingLog.now()
+        let wasReleased = sessions.threads == nil
         do {
             let (session, rebuiltFrom) = try await sessions.session(threads: wanted)
+            if wasReleased {
+                ListenTimingLog.log("kokoro_cpu_session_rebuilt", [
+                    "threads": wanted, "ms": ListenTimingLog.ms(since: t0), "mem_mb": Self.footprintMB(),
+                ])
+            }
             if let rebuiltFrom {
                 // The head-start rule's pace was measured at the other thread count.
                 RenderPace.shared.reset()

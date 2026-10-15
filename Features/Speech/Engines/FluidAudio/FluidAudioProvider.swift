@@ -75,6 +75,12 @@ final class FluidAudioProvider: SpeechEngineProvider {
         )]
     }
 
+    /// FluidAudio's model cache (vocab, voice packs, G2P and lexicon; the Core ML stages on the
+    /// debug route) and the ONNX model's folder: all downloaded again when missing.
+    var regenerableDirectories: [URL] {
+        [KokoroAssets.fluidAudioDirectory, KokoroONNXModelStore.directory.deletingLastPathComponent()].compactMap { $0 }
+    }
+
     /// One-time launch steps for Kokoro, run by `AppComposition.prepareAudioCache`.
     static var launchMigrations: [LaunchMigration] { [KokoroAudioCachePurge(), KokoroONNXMainMigration()] }
 

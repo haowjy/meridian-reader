@@ -53,6 +53,9 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
     var onError: ((Error) -> Void)?
     /// Fired when a Ready unit finishes (successfully or not) so the producer can refill.
     var onUnitEnded: (() -> Void)?
+    /// An item left the player for good: played out, failed to open, dropped or cleared. The
+    /// player no longer reads its file (whoever wrote a one-off file may delete it).
+    var onItemDone: ((Item) -> Void)?
 
     // MARK: - Gap / debug telemetry (Listen debug panel)
 
@@ -99,10 +102,12 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         return Date().timeIntervalSince(lastEnqueueAt)
     }
 
-    func enqueue(_ item: Item) {
+    /// Queue `item`. False when it overlaps a unit already in the player: it is not taken.
+    @discardableResult
+    func enqueue(_ item: Item) -> Bool {
         // Never play the same paragraph/chunk twice in one stretch (producer races / re-kicks).
-        if let current, current.overlaps(item) { return }
-        if queue.contains(where: { $0.overlaps(item) }) { return }
+        if let current, current.overlaps(item) { return false }
+        if queue.contains(where: { $0.overlaps(item) }) { return false }
         queue.append(item)
         lastEnqueueAt = Date()
         ListenDebugLog.shared.append(
@@ -113,6 +118,7 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         } else {
             primeUpcomingIfNeeded()
         }
+        return true
     }
 
     /// Indices already Ready in the player (current + buffered).
@@ -165,8 +171,10 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
     func dropQueued(fromFirstWhere predicate: (Item) -> Bool) -> Item? {
         guard let i = queue.firstIndex(where: predicate) else { return nil }
         let first = queue[i]
+        let dropped = queue[i...]
         queue.removeSubrange(i...)
         if i == 0 { discardPrime() } // the primed player was built for queue.first
+        dropped.forEach { onItemDone?($0) }
         return first
     }
 
@@ -175,11 +183,13 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         awaitingMore = false
         player?.stop()
         player = nil
+        let done = (current.map { [$0] } ?? []) + queue
         current = nil
         discardPrime()
         queue.removeAll()
         unitEndedAt = nil
         durationCache.removeAll()
+        done.forEach { onItemDone?($0) }
     }
 
     private func discardPrime() {
@@ -249,6 +259,7 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
                 onError?(error)
                 current = nil
                 player = nil
+                onItemDone?(item)
                 onUnitEnded?()
                 playNext()
                 return
@@ -264,6 +275,7 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
             ))
             current = nil
             player = nil
+            onItemDone?(item)
             onUnitEnded?()
             playNext()
             return
@@ -291,10 +303,13 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
     /// Finish path — prefer sync MainActor handoff so we do not yield a runloop tick of silence.
     private func handleUnitFinished() {
         unitEndedAt = Date()
+        let finished = current
         current = nil
         player = nil
         onUnitEnded?()
         playNext()
+        // After the next unit started: nothing between two units but the handoff.
+        if let finished { onItemDone?(finished) }
     }
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
