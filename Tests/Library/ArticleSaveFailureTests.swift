@@ -2,7 +2,7 @@ import SwiftData
 import XCTest
 @testable import MeridianReader
 
-/// Save (🔖, ⊕, ⋯ → Save to Library…, *Save to Folder…*) whose save fails: it throws
+/// Save (🔖, ⋯ → Save to Library…, *Save to Folder…*) whose save fails: it throws
 /// `LibraryStoreError.saveFailed`, nothing is saved (in memory, after a later unrelated save, or
 /// after a relaunch), nothing waits in the context, and the audio is left as it was: not marked
 /// saved, not moved under another key.

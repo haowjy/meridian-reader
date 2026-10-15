@@ -5,17 +5,19 @@ import SwiftUI
 /// ```
 /// ┌──────────────────────────────────────┐
 /// │                 ───                  │ ← grabber
-/// │ ( ‹ Browser )                    ☝︎  │ ← back pill names what is underneath; `accessory`
-/// │ … `text`: ReadingHeading, then serif │
+/// │ ( ‹ Browser )                  (☝︎)  │ ← `SheetTopBar`: the close pill names what is
+/// │ … `text`: ReadingHeading, then serif │   underneath; `accessory` (☝︎)
 /// │   text on paper …                    │
 /// │ ╭ `bar` (the Now Playing bar) ─────╮ │ ← what you hear (always another page)
 /// │ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]    │ ← this page's own play button over slots 2–4
 /// └──────────────────────────────────────┘
 /// ```
 ///
-/// The back pill, the grabber and a pull down all close it (`onClose`, after it has gone).
-/// 🔖 saves (tap) or files (long-press, `onSaveToFolder`). `more` is the ⋯ button. `floating`
-/// floats just above the bottom band (a toast).
+/// Now Playing (`NowPlayingSheet`) has the same top bar and the same 🔖 and ⋯ slots, so the
+/// controls stay put as Listen turns one into the other. The close pill, the grabber and a pull
+/// down all close it (`onClose`, after it has gone). 🔖 saves (tap) or files (long-press,
+/// `onSaveToFolder`). `more` is the ⋯ button. `floating` floats just above the bottom band (a
+/// toast).
 struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View, Floating: View>: View {
     /// What is underneath: "Browser", "Library".
     let backTitle: String
@@ -28,7 +30,7 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View, Floati
     let onListen: () -> Void
     let onToggleSave: () -> Void
     var onSaveToFolder: (() -> Void)?
-    /// A control at the trailing end of the header row (☝︎ listen from a paragraph).
+    /// The control at the trailing end of the top bar (☝︎, `JumpModeButton`).
     @ViewBuilder var accessory: Accessory
     @ViewBuilder var text: Reading
     @ViewBuilder var bar: Bar
@@ -37,13 +39,7 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View, Floati
 
     var body: some View {
         Sheet(onDismiss: onClose) {
-            HStack {
-                SheetBackPill(title: backTitle)
-                Spacer(minLength: 0)
-                accessory
-            }
-            .padding(.horizontal, Spacing.pageMargin)
-            .padding(.bottom, Spacing.xs)
+            SheetTopBar { SheetClosePill(kind: .back(backTitle)) } trailing: { accessory }
         } content: {
             text
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -80,18 +76,6 @@ extension ReaderSheet where Accessory == EmptyView, Floating == EmptyView {
                   isSaved: isSaved,
                   onClose: onClose, onListen: onListen, onToggleSave: onToggleSave, onSaveToFolder: onSaveToFolder,
                   accessory: { EmptyView() }, text: text, bar: bar, more: more, floating: { EmptyView() })
-    }
-}
-
-/// "‹ Browser": closes the sheet it sits in.
-struct SheetBackPill: View {
-    let title: String
-    @Environment(\.dismissSheet) private var dismissSheet
-
-    var body: some View {
-        PillButton(title, systemImage: "chevron.backward", style: .neutral, size: .compact) { dismissSheet() }
-            .accessibilityLabel("Back to \(title)")
-            .accessibilityIdentifier("readerClose")
     }
 }
 
@@ -136,7 +120,7 @@ struct ReaderSheetGallery: View {
                               progress: 0.3, state: .playing, onOpen: {}, onPlayPause: {}, onStop: {})
             }
         } more: {
-            Image(systemName: "ellipsis").toolbarIconFrame()
+            Image(systemName: Icons.more).toolbarIconFrame()
         }
         .frame(height: 640)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card))

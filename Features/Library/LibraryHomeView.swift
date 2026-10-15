@@ -105,7 +105,7 @@ struct LibraryHomeView: View {
             ContentUnavailableView.search(text: searchText)
                 .listRowBackground(Color.clear)
         } else if favoritesOnly {
-            ContentUnavailableView("No Favorites Yet", systemImage: "star",
+            ContentUnavailableView("No Favorites Yet", systemImage: Icons.favorite,
                                   description: Text("Star a folder or page to find it here."))
                 .listRowBackground(Color.clear)
         } else {
@@ -126,10 +126,10 @@ struct LibraryHomeView: View {
                 .foregroundStyle(Palette.secondaryInk)
             ActionButtonRow { fit in
                 PillButton(String(localized: "Browse the web"), shortTitle: String(localized: "Browse"),
-                           systemImage: "globe", style: .filled, fit: fit) { shell.leaveLibrary() }
+                           systemImage: Icons.browser, style: .filled, fit: fit) { shell.leaveLibrary() }
                     .accessibilityIdentifier("libraryEmptyBrowse")
                 PillButton(String(localized: "Import a book"), shortTitle: String(localized: "Import"),
-                           systemImage: "book", style: .neutral, fit: fit) {
+                           systemImage: Icons.book, style: .neutral, fit: fit) {
                     BookImportActions(library: library, shell: shell).pickBook(into: nil)
                 }
                 .accessibilityIdentifier("libraryEmptyImport")

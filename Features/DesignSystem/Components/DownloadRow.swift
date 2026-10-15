@@ -132,7 +132,7 @@ private struct TransferControl: View {
                     .stroke(Palette.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .animation(Motion.standard, value: transfer.fraction)
-                Image(systemName: transfer.isPaused ? "arrow.down" : "pause.fill")
+                Image(systemName: transfer.isPaused ? Icons.downloadInRing : Icons.pause)
                     .font(.system(size: Glyph.control * 0.4, weight: .bold))
                     .foregroundStyle(Palette.accent)
                     .contentTransition(.symbolEffect(.replace))
@@ -153,7 +153,7 @@ struct DownloadRowGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("downloading a book") {
-                DownloadRow(leading: .folder(symbol: "book.closed", cover: nil), title: "Pride and Prejudice",
+                DownloadRow(leading: .folder(symbol: Icons.book, cover: nil), title: "Pride and Prejudice",
                             detail: ["Kokoro Heart", "4 of 12 chapters", "38%"],
                             transfer: .init(fraction: 0.38, isPaused: false) {})
                     .background(Palette.chrome)
@@ -175,8 +175,8 @@ struct DownloadRowGallery: View {
                 DownloadRow(leading: .page(artwork: nil, letter: "S"),
                             title: "Seven-Day Yield: Definition, Calculation, and Example",
                             detail: ["Kokoro Bella", "9 MB"],
-                            choices: [.init(title: "Re-download", systemImage: "arrow.clockwise", isPrimary: true, identifier: "redownload") {},
-                                      .init(title: "Keep", systemImage: "checkmark", identifier: "keep") {}])
+                            choices: [.init(title: "Re-download", systemImage: Icons.redownload, isPrimary: true, identifier: "redownload") {},
+                                      .init(title: "Keep", systemImage: Icons.checkmark, identifier: "keep") {}])
                     .background(Palette.chrome)
             }
         }

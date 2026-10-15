@@ -161,7 +161,7 @@ private struct PreviewActions: View {
     var body: some View {
         ActionButtonRow { fit in
             PlayStateButton(state: state, look: .pill(title: title, detail: detail, expands: true, fit: fit)) {}
-            PillButton("From Start", shortTitle: "Start", systemImage: "backward.end.fill", style: .neutral, fit: fit) {}
+            PillButton("From Start", shortTitle: "Start", systemImage: Icons.previous, style: .neutral, fit: fit) {}
             DownloadStateButton(state: download, look: .round) {}
         }
     }

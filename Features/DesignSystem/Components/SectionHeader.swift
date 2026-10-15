@@ -56,7 +56,7 @@ struct SectionHeader: View {
                     HStack(spacing: Spacing.xxs) {
                         Text(actionTitle)
                         if actionNavigates {
-                            Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                            Image(systemName: Icons.disclosure).font(.caption.weight(.semibold))
                         }
                     }
                     .typeStyle(.row)

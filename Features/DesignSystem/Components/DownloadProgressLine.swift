@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// How far the running downloads have got (decision D16): a 2 pt line along the top edge of the
-/// bottom chrome, the accent filling a faint accent track from the leading edge. Out of the way:
+/// bottom chrome, the accent (the player's on Now Playing) filling a faint accent track from the
+/// leading edge. Out of the way:
 /// it takes no touches and moves nothing around it; it fades in while downloads run and out when
 /// they end (the caller's transition).
 struct DownloadProgressLine: View {
@@ -10,12 +11,15 @@ struct DownloadProgressLine: View {
 
     static let height: CGFloat = 2
 
+    @Environment(\.onPlayerPalette) private var onPlayer
+
     var body: some View {
+        let accent = onPlayer ? Palette.playerAccent : Palette.accent
         GeometryReader { g in
             ZStack(alignment: .leading) {
-                Rectangle().fill(Palette.accent.opacity(Palette.washOpacity))
+                Rectangle().fill(accent.opacity(Palette.washOpacity))
                 Rectangle()
-                    .fill(Palette.accent)
+                    .fill(accent)
                     .frame(width: g.size.width * min(max(fraction, 0), 1))
             }
         }

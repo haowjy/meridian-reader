@@ -38,7 +38,7 @@ struct MoveTreeSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button { shell.sheet = nil } label: { Image(systemName: "xmark") }
+                    Button { shell.sheet = nil } label: { Image(systemName: Icons.close) }
                         .accessibilityLabel("Cancel")
                         .accessibilityIdentifier("moveCancel")
                 }
@@ -82,7 +82,7 @@ struct MoveTreeList: View {
         List {
             Section {
                 Button { name(in: nil) } label: {
-                    Label("New Folder", systemImage: "folder.badge.plus")
+                    Label("New Folder", systemImage: Icons.newFolder)
                         .typeStyle(.row)
                         .foregroundStyle(Palette.accent)
                         .frame(maxWidth: .infinity, minHeight: BottomChrome.minTapTarget, alignment: .leading)
@@ -90,7 +90,7 @@ struct MoveTreeList: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("moveNewFolder")
-                place(String(localized: "Library (no folder)"), symbol: "books.vertical", depth: 0,
+                place(String(localized: "Library (no folder)"), symbol: Icons.library, depth: 0,
                       isCurrent: current == .topLevel, isEnabled: true, id: "moveTopLevel") { pick(nil) }
                 ForEach(tree, id: \.folder.id) { entry in
                     let folder = entry.folder
@@ -99,7 +99,7 @@ struct MoveTreeList: View {
                           isEnabled: !isMoving(folder), id: "moveFolder") { pick(folder) }
                         .contextMenu {
                             if !isMoving(folder) {
-                                Button("New Folder Inside", systemImage: "folder.badge.plus") { name(in: folder) }
+                                Button("New Folder Inside", systemImage: Icons.newFolder) { name(in: folder) }
                                     .accessibilityIdentifier("moveNewFolderInside")
                             }
                         }
@@ -133,7 +133,7 @@ struct MoveTreeList: View {
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 if isCurrent {
-                    Image(systemName: "checkmark")
+                    Image(systemName: Icons.checkmark)
                         .foregroundStyle(Palette.accent)
                         .accessibilityHidden(true)
                 }

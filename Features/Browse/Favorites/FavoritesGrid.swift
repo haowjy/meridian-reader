@@ -29,11 +29,11 @@ struct FavoritesGrid: View {
                 .accessibilityLabel(page.title)
                 .accessibilityIdentifier("favoriteTile")
                 .contextMenu {
-                    Button("Rename…", systemImage: "pencil") {
+                    Button("Rename…", systemImage: Icons.rename) {
                         renameText = page.title
                         renaming = page
                     }
-                    Button("Remove from Favorites", systemImage: "star.slash", role: .destructive) { onRemove(page) }
+                    Button("Remove from Favorites", systemImage: Icons.unfavorite, role: .destructive) { onRemove(page) }
                 }
             }
             ForEach(folders, id: \.id) { folder in

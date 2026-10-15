@@ -75,7 +75,8 @@ enum ScrubTick: Equatable {
     }
 }
 
-/// Now Playing's row above the listen controls: [scrubber][select paragraph] (thumb reach). The scrubber fills with progress and shows rendered audio as a lighter "buffered" fill
+/// Now Playing's row above the listen controls: [scrubber][trailing] in one field capsule, the
+/// trailing control the speed (`SpeedButton`). The scrubber fills with progress and shows rendered audio as a lighter "buffered" fill
 /// ahead of it. Dragging:
 /// - grabbing the thumb moves it relative to the finger (no jump); touching elsewhere jumps there;
 /// - sliding the finger up away from the track scrubs slower (½, ¼, fine) for small precise moves;
@@ -87,19 +88,18 @@ enum ScrubTick: Equatable {
 ///   first words. The band around the row draws it across its full width
 ///   (`readerScrubBubble()`), so it never truncates and the thumb never covers it.
 /// The touch area covers the whole capsule height and its rounded leading end.
-struct ReaderScrubRow: View {
+struct ReaderScrubRow<Trailing: View>: View {
     let map: ReaderScrubMap
     /// 0…1 current position.
     let position: Double
     /// Rendered-audio stretches (0…1), drawn lighter than the progress fill.
     var buffered: [ClosedRange<Double>] = []
-    let jumpMode: Bool
-    let jumpEnabled: Bool
-    var onToggleJump: () -> Void
     /// Paragraph under the thumb while dragging (nil when the drag ends).
     var onScrubPreview: (Int?) -> Void
     /// Release: the sentence to play from.
     var onScrubCommit: (ReaderScrubMap.Target) -> Void
+    /// At the capsule's trailing end, like the mic in the browser's address field.
+    @ViewBuilder var trailing: Trailing
 
     @State private var dragFraction: Double?
     @State private var anchor: (fraction: Double, x: CGFloat) = (0, 0)
@@ -115,34 +115,21 @@ struct ReaderScrubRow: View {
     @State private var endHaptics = UIImpactFeedbackGenerator(style: .rigid)
 
     /// Grab radius around the thumb (points): a touch this close drags the thumb, no jump.
-    static let grabRadius: CGFloat = 26
+    static var grabRadius: CGFloat { 26 }
     /// Room before the track inside the capsule (its rounded end); the drag area reaches into it.
     /// Fixed geometry, not spacing: tap-to-seek positions depend on where the track starts.
-    private static let fieldLeading: CGFloat = 14
+    private static var fieldLeading: CGFloat { 14 }
     /// How far the drag area reaches above and below the track: the capsule's padding plus 2 pt.
-    private static let dragOvershoot = BottomChrome.fieldVerticalPadding + 2
-    private static let space = "readerScrubTrack"
-    /// ☝︎ while on: its glyph on a wash, on the field capsule (`ColorContrastTests` checks these).
-    static let jumpOnGlyph = Palette.playerAccent
-    static let jumpOnWash = Palette.playerAccentWash
+    private static var dragOvershoot: CGFloat { BottomChrome.fieldVerticalPadding + 2 }
+    private static var space: String { "readerScrubTrack" }
 
     var body: some View {
         // Styled exactly like the browser's address field: the same field capsule
-        // (`bottomChromeField`), with Jump sized and coloured like its mic button.
+        // (`bottomChromeField`), its trailing control in a field control's frame like the mic.
         HStack(spacing: Spacing.xxs) {
             scrubber
                 .padding(.trailing, Spacing.xxs)
-
-            Button(action: onToggleJump) {
-                Image(systemName: jumpMode ? "hand.tap.fill" : "hand.tap")
-                    .foregroundStyle(jumpMode ? Self.jumpOnGlyph : Palette.playerSecondaryInk)
-                    .fieldControlFrame()
-                    .background(Circle().fill(jumpMode ? Self.jumpOnWash : Color.clear))
-            }
-            .buttonStyle(.plain)
-            .disabled(!jumpEnabled)
-            .accessibilityIdentifier("listenJump")
-            .accessibilityLabel(jumpMode ? "Cancel jump to paragraph" : "Jump to a paragraph")
+            trailing
         }
         .bottomChromeField(leading: Self.fieldLeading, trailing: Spacing.xxs)
         #if DEBUG

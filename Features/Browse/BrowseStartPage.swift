@@ -78,7 +78,7 @@ struct BrowseStartPage: View {
                 ForEach(recentSearches, id: \.self) { term in
                     Button { onSearch(term) } label: {
                         HStack(spacing: Spacing.s) {
-                            Image(systemName: "clock.arrow.circlepath")
+                            Image(systemName: Icons.history)
                                 .foregroundStyle(Palette.secondaryInk)
                                 .frame(width: Self.searchIconWidth)
                             Text(term)

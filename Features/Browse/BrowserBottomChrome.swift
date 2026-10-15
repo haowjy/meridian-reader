@@ -35,7 +35,7 @@ struct BrowserBottomChrome: View {
 
     var body: some View {
         SurfaceBand(
-            swap: .init(systemImage: "books.vertical", label: String(localized: "Library"),
+            swap: .init(systemImage: Icons.library, label: String(localized: "Library"),
                         hint: String(localized: "Show the Library"), identifier: "browseLibrary",
                         action: shell.openLibrary),
             session: search,
@@ -94,11 +94,11 @@ struct BrowserBottomChrome: View {
     /// the address field and the ⋯ panel's focus button; a new search is a tap on the field.
     private var toolbar: some View {
         BottomToolbarLayout {
-            BandToolbarButton(systemImage: "chevron.backward", label: String(localized: "Back"),
+            BandToolbarButton(systemImage: Icons.back, label: String(localized: "Back"),
                               identifier: "browseBack", action: web.goBack)
                 .disabled(!web.canGoBack)
                 .toolbarSlot(0)
-            BandToolbarButton(systemImage: "chevron.forward", label: String(localized: "Forward"),
+            BandToolbarButton(systemImage: Icons.forward, label: String(localized: "Forward"),
                               identifier: "browseForward", action: web.goForward)
                 .disabled(!web.canGoForward)
                 .toolbarSlot(1)
@@ -106,7 +106,7 @@ struct BrowserBottomChrome: View {
                              onToggle: onToggleSave, onSaveToFolder: onSaveToFolder)
                 .disabled(!web.hasPage || shell.busy != nil)
                 .toolbarSlot(2)
-            BandToolbarButton(systemImage: "clock", label: String(localized: "History"),
+            BandToolbarButton(systemImage: Icons.history, label: String(localized: "History"),
                               identifier: "browseHistory") { shell.present(.history) }
                 .toolbarSlot(3)
             MoreMenuButton(id: "browseMore", menu: menu)
@@ -144,7 +144,7 @@ private struct MicBox: View {
     var body: some View {
         if shown {
             Button(action: action) {
-                Image(systemName: isDictating ? "waveform" : "mic")
+                Image(systemName: isDictating ? Icons.dictating : Icons.dictate)
                     .foregroundStyle(isDictating ? Palette.accent : Palette.secondaryInk)
                     .symbolEffect(.variableColor.iterative, isActive: isListening)
                     .fieldControlFrame()

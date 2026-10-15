@@ -71,9 +71,9 @@ struct DownloadsSheet: View {
                 row(item)
                     .contextMenu {
                         if item.record.isPaused {
-                            Button("Resume", systemImage: "arrow.down.circle") { downloads.setPaused(item.id, false) }
+                            Button("Resume", systemImage: Icons.download) { downloads.setPaused(item.id, false) }
                         } else {
-                            Button("Pause", systemImage: "pause.circle") { downloads.setPaused(item.id, true) }
+                            Button("Pause", systemImage: Icons.pause) { downloads.setPaused(item.id, true) }
                         }
                         removeButton(item)
                     }
@@ -100,7 +100,7 @@ struct DownloadsSheet: View {
             ForEach(items) { item in
                 row(item)
                     .contextMenu {
-                        Button("Re-download", systemImage: "arrow.clockwise") { downloads.redownload(item.id) }
+                        Button("Re-download", systemImage: Icons.redownload) { downloads.redownload(item.id) }
                         removeButton(item)
                     }
             }
@@ -124,9 +124,9 @@ struct DownloadsSheet: View {
             ForEach(items) { item in
                 row(item)
                     .contextMenu {
-                        Button("Re-download", systemImage: "arrow.clockwise") { downloads.redownload(item.id) }
+                        Button("Re-download", systemImage: Icons.redownload) { downloads.redownload(item.id) }
                         if let voice = item.voice {
-                            Button("Keep", systemImage: "checkmark.circle") { downloads.keep(item.id, voice: voice) }
+                            Button("Keep", systemImage: Icons.keep) { downloads.keep(item.id, voice: voice) }
                         }
                         removeButton(item)
                     }
@@ -145,7 +145,7 @@ struct DownloadsSheet: View {
     }
 
     private func removeButton(_ item: DownloadOverview.Item) -> some View {
-        Button("Remove", systemImage: "trash", role: .destructive) { downloads.remove(item.id) }
+        Button("Remove", systemImage: Icons.delete, role: .destructive) { downloads.remove(item.id) }
     }
 
     private var waitingNote: some View {
@@ -229,10 +229,10 @@ struct DownloadsSheet: View {
     private func choices(_ item: DownloadOverview.Item) -> [DownloadRow.Choice] {
         guard case .differentVoice(let voice) = item.status else { return [] }
         return [
-            .init(title: String(localized: "Re-download"), systemImage: "arrow.clockwise", isPrimary: true, identifier: "downloadRedownload") {
+            .init(title: String(localized: "Re-download"), systemImage: Icons.redownload, isPrimary: true, identifier: "downloadRedownload") {
                 downloads.redownload(item.id)
             },
-            .init(title: String(localized: "Keep"), systemImage: "checkmark", identifier: "downloadKeep") { downloads.keep(item.id, voice: voice) },
+            .init(title: String(localized: "Keep"), systemImage: Icons.keep, identifier: "downloadKeep") { downloads.keep(item.id, voice: voice) },
         ]
     }
 
@@ -296,7 +296,7 @@ private struct DownloadShown {
         case .folder(let id):
             let folder = library.folder(id: id)
             title = folder?.displayName ?? record.title
-            leading = .folder(symbol: folder?.rowSymbol ?? "folder", cover: folder?.coverImage)
+            leading = .folder(symbol: folder?.rowSymbol ?? Icons.folder, cover: folder?.coverImage)
             unit = folder?.kind.isBookOrSeries == true ? String(localized: "chapters") : String(localized: "pages")
         }
     }

@@ -2,20 +2,21 @@ import SwiftUI
 import SwiftData
 
 /// The Reader sheet (`ReaderSheet`): one page for reading, over the surface that opened it, with
-/// its own Listen. The back pill names what is underneath ("‹ Browser", "‹ Library"); it, the
-/// grabber and a pull down close it to exactly where you were. Playback never stops for it.
+/// its own Listen. The close pill names what is underneath ("‹ Browser", "‹ Library"); it, the
+/// grabber and a pull down close it to exactly where you were. Its top bar, 🔖 and ⋯ are Now
+/// Playing's too (decision D24), so Listen turns one into the other with nothing moving. Playback never stops for it.
 ///
 /// - The Reader never shows what you hear (the shell opens Now Playing for that page), so the
 ///   Now Playing bar above its toolbar is always another page.
 /// - Listen reads "▶ Listen  9 min", "▶ Resume  6 min left" (the time lighter, after the title)
 ///   or "▶ Listen Again", starts at
 ///   the page's saved spot, and turns the Reader into Now Playing where it was (decision D2).
-///   ☝︎ in the header, then a tap on a paragraph, listens from that paragraph.
+///   ☝︎ in the top bar, then a tap on a paragraph, listens from that paragraph.
 /// - A page part-way through opens with its saved spot's sentence in the middle, underlined;
 ///   after that the text never scrolls by itself.
 /// - 🔖 saves / unsaves (tap) or files the page (long-press, *Save to Folder…*: the Move tree);
-///   ⋯ is the reader menu (Save / Remove from Library, Move to…, Add to Favorites, Share, Voice
-///   Settings, Debug; Favorites / History / Website).
+///   ⋯ is the page's menu (Save / Remove from Library, Move to…, Add to Favorites, Share,
+///   Download, Voice Settings, Downloads, Debug; Favorites / History / Website).
 ///
 /// Save / Unsave only flips 🔖: the article key is already the saved id (identity v2), so the
 /// view and any playing audio are untouched.
@@ -70,7 +71,8 @@ struct ReaderSheetScreen: View {
             onToggleSave: toggleSaved,
             onSaveToFolder: saveToFolder
         ) {
-            jumpButton
+            JumpModeButton(isOn: jumpMode) { jumpMode.toggle() }
+                .disabled(!sessionReady)
         } text: {
             text
                 .overlay(alignment: .top) {
@@ -138,19 +140,6 @@ struct ReaderSheetScreen: View {
         return (String(localized: "Listen"), "\(ListeningTime.minutes(utf16Length: totalLength)) min")
     }
 
-    private var jumpButton: some View {
-        Button { jumpMode.toggle() } label: {
-            Image(systemName: jumpMode ? "hand.tap.fill" : "hand.tap")
-                .foregroundStyle(jumpMode ? Palette.accent : Palette.ink)
-                .fieldControlFrame()
-                .background(Circle().fill(jumpMode ? Palette.playingTint : Palette.chrome))
-        }
-        .buttonStyle(.plain)
-        .disabled(!sessionReady)
-        .accessibilityIdentifier("listenJump")
-        .accessibilityLabel(jumpMode ? "Cancel listen from a paragraph" : "Listen from a paragraph")
-    }
-
     // MARK: - ⋯ menu
 
     private var readerMenu: ReaderMenu {
@@ -181,6 +170,7 @@ struct ReaderSheetScreen: View {
 
     private func perform(_ action: ReaderMenu.Action) {
         switch action {
+        case .goTo: break // Now Playing only
         case .voiceSettings: shell.present(.voiceSettings)
         case .toggleSave: toggleSaved()
         case .moveTo: saveToFolder()

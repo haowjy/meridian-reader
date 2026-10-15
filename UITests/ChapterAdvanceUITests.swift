@@ -76,7 +76,7 @@ final class ChapterAdvanceUITests: XCTestCase {
         bar.tap()
         let card = find(app, "nowPlayingTitleCard")
         XCTAssertTrue(card.waitForExistence(timeout: 5), "Now Playing")
-        XCTAssertEqual(find(app, "nowPlayingFrom").label, "Playing from Demo Finance")
+        XCTAssertEqual(playingFrom(app), "Playing from Demo Finance")
         // Its last paragraph, then let it end.
         for _ in 0..<5 { app.buttons["Next paragraph"].tap() }
         XCTAssertTrue(eventually(40) { card.label.contains("Money Market Funds") }, "page 2: \(card.label)")

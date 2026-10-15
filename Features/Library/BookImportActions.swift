@@ -34,7 +34,7 @@ struct BookImportActions {
         } catch {
             library.log("import: couldn't copy \(url.lastPathComponent): \(error)")
             shell.showToast(ShellToast(message: String(localized: "Couldn't open this file"),
-                                       systemImage: "exclamationmark.triangle"))
+                                       systemImage: Icons.warning))
         }
     }
 
@@ -48,7 +48,7 @@ struct BookImportActions {
             files.discard(file)
             library.log("import: \(file.lastPathComponent) arrived while another import was open; not imported")
             shell.showToast(ShellToast(message: String(localized: "Another import is open; “\(file.lastPathComponent)” wasn't imported"),
-                                       systemImage: "exclamationmark.triangle"))
+                                       systemImage: Icons.warning))
             return
         }
         let shell = shell

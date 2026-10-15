@@ -1,15 +1,15 @@
 import SwiftUI
 
-/// Now Playing's transport row: speed · prev · play · next · [trailing], in the five-slot grid
-/// (`NowPlayingTransport`). It always acts on the session, which is what Now Playing shows.
-/// `trailing` is Now Playing's ⋯ (bottom-right, the same spot as the browser's ⋯). A sideways
-/// swipe on the row skips a paragraph; with developer options on, a long-press on play / pause
-/// opens Listen debug.
+/// Now Playing's transport row: [leading] [⏮] (⏸) [⏭] [trailing], in the five-slot
+/// grid (`NowPlayingTransport`). It always acts on the session, which is what Now Playing shows.
+/// `leading` is Now Playing's 🔖 and `trailing` its ⋯, in the Reader's slots. A sideways swipe on
+/// the row skips a paragraph; with developer options on, a long-press on play / pause opens
+/// Listen debug.
 struct ListenControllerView: View {
+    var leading: AnyView? = nil
     var trailing: AnyView? = nil
 
     @Bindable var speech: SpeechController
-    @State private var showSpeedPopover = false
 
     private var state: PlayState {
         speech.activeSessionID.map { speech.playState(of: .page($0)) } ?? .idle
@@ -18,10 +18,8 @@ struct ListenControllerView: View {
     var body: some View {
         NowPlayingTransport(
             state: state,
-            rateLabel: speech.rateDisplayLabel,
             canSkipBack: speech.canSkipToPreviousParagraph,
             canSkipForward: speech.canSkipToNextParagraph,
-            onRate: { showSpeedPopover = true },
             onSkipBack: speech.skipToPreviousParagraph,
             onSkipForward: speech.skipToNextParagraph,
             onPlayPause: {
@@ -30,23 +28,22 @@ struct ListenControllerView: View {
             },
             onPlayLongPress: speech.developerOptionsEnabled ? { speech.showListenDebug = true } : nil
         ) {
-            if let trailing {
-                trailing
-            } else {
-                Color.clear.frame(height: BottomChrome.rowHeight)
-            }
-        }
-        // The popover points at the speed label in slot 1.
-        .popover(isPresented: $showSpeedPopover, attachmentAnchor: .point(UnitPoint(x: 0.1, y: 0)),
-                 arrowEdge: .bottom) {
-            SpeedPickerPopover(speech: speech) {
-                showSpeedPopover = false
-            }
-            .presentationCompactAdaptation(.popover)
+            slot(leading)
+        } more: {
+            slot(trailing)
         }
         .simultaneousGesture(paragraphSwipe)
         .onChange(of: speech.listenDebugEnabled) { _, enabled in
             if !enabled { speech.showBakeDebugOverlay = false }
+        }
+    }
+
+    @ViewBuilder
+    private func slot(_ view: AnyView?) -> some View {
+        if let view {
+            view
+        } else {
+            Color.clear.frame(height: BottomChrome.rowHeight)
         }
     }
 
@@ -65,6 +62,28 @@ struct ListenControllerView: View {
                     if speech.canSkipToNextParagraph { speech.skipToNextParagraph() }
                 }
             }
+    }
+}
+
+/// The playback speed ("1×", "1.25×") at the trailing end of Now Playing's scrub capsule; a tap
+/// opens the speed list, pointing at it.
+struct SpeedButton: View {
+    @Bindable var speech: SpeechController
+    @State private var showsPicker = false
+
+    var body: some View {
+        Button { showsPicker = true } label: {
+            Text(speech.rateDisplayLabel)
+                .foregroundStyle(Palette.playerInk)
+                .fieldTextFrame()
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Speed \(speech.rateDisplayLabel)")
+        .accessibilityIdentifier("listenSpeed")
+        .popover(isPresented: $showsPicker, arrowEdge: .bottom) {
+            SpeedPickerPopover(speech: speech) { showsPicker = false }
+                .presentationCompactAdaptation(.popover)
+        }
     }
 }
 
@@ -91,7 +110,7 @@ private struct SpeedPickerPopover: View {
                                 .foregroundStyle(Palette.ink)
                             Spacer()
                             if abs(speech.rateMultiplier - rate) < 0.01 {
-                                Image(systemName: "checkmark")
+                                Image(systemName: Icons.checkmark)
                                     .foregroundStyle(Palette.accent)
                             }
                         }

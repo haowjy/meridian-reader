@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// 🔖 in a toolbar slot: the Reader's slot 1 and the browser's slot 3. Tap saves to the Library
+/// 🔖 in a toolbar slot: slot 1 of the Reader and Now Playing, slot 3 of the browser. On the
+/// player it takes the player's ink and accent. Tap saves to the Library
 /// (or removes what is saved); long-press picks a folder (*Save to Folder…*), and a tap released
 /// early still saves. A spinner stands in while the save is under way.
 ///
@@ -16,6 +17,7 @@ struct SaveToggleButton: View {
     var onSaveToFolder: (() -> Void)?
 
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.onPlayerPalette) private var onPlayer
 
     var body: some View {
         Button(action: onToggle) {
@@ -23,11 +25,11 @@ struct SaveToggleButton: View {
                 if isBusy {
                     ProgressView()
                 } else if isSaved {
-                    Image(systemName: "bookmark.fill")
-                        .foregroundStyle(Palette.accent)
+                    Image(systemName: Icons.saved)
+                        .foregroundStyle(onPlayer ? Palette.playerAccent : Palette.accent)
                 } else {
-                    Image(systemName: "bookmark")
-                        .foregroundStyle(Palette.ink)
+                    Image(systemName: Icons.save)
+                        .foregroundStyle(onPlayer ? Palette.playerInk : Palette.ink)
                 }
             }
             // Disabled (no page), it dims like ‹ and ›; the spinner shows in full.
@@ -67,6 +69,8 @@ struct SaveToggleButtonGallery: View {
             PreviewState("saved") { button(saved: true) }
             PreviewState("saving") { button(saved: false, busy: true) }
             PreviewState("disabled") { button(saved: false).disabled(true) }
+            PreviewState("on the player, not saved") { button(saved: false).onPlayerPreview() }
+            PreviewState("on the player, saved") { button(saved: true).onPlayerPreview() }
         }
     }
 

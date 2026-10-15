@@ -78,7 +78,8 @@ xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -confi
   `bookmarks.json` are frozen (the migration copied them; nothing writes them).
 - **Screens are built from `Features/DesignSystem/`**: no ad-hoc padding, colour, radius or font
   size in feature code. Spacing and margins come from `Spacing`, corners from `Radius`, text from
-  `typeStyle(_:)` (`TypeStyle`, Dynamic Type scaled), colour from `Palette` (light and dark). Shared
+  `typeStyle(_:)` (`TypeStyle`, Dynamic Type scaled), colour from `Palette` (light and dark), SF
+  Symbols from `Icons` (one per concept). Shared
   pieces (`PlayStateButton`, `PillButton`, `ListRow`, `NowPlayingBar`, `Sheet`, …) take plain values
   and closures, never `SpeechController`, SwiftData or `ShellState`, and carry previews in light,
   dark and the largest text size. A value the scale lacks is a token change, made there.

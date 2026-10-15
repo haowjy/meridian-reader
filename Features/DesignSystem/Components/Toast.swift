@@ -54,10 +54,10 @@ struct ToastGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("message") {
-                Toast(message: "Nothing to listen to on this page", systemImage: "headphones")
+                Toast(message: "Nothing to listen to on this page", systemImage: Icons.listen)
             }
             PreviewState("with an action") {
-                Toast(message: "Added to Favorites", systemImage: "star.fill", actionTitle: "Change Folder")
+                Toast(message: "Added to Favorites", systemImage: Icons.favorited, actionTitle: "Change Folder")
             }
         }
     }

@@ -19,7 +19,7 @@ struct FavoriteFlow {
         case .remove(let page):
             guard shell.attempt(String(localized: "Couldn’t remove from Favorites"), { try library.removeFavorite(page) }) != nil
             else { return }
-            shell.showToast(ShellToast(message: String(localized: "Removed from Favorites"), systemImage: "star.slash"))
+            shell.showToast(ShellToast(message: String(localized: "Removed from Favorites"), systemImage: Icons.unfavorite))
         }
     }
 
@@ -38,7 +38,7 @@ struct FavoriteFlow {
         guard let page = shell.attempt(String(localized: "Couldn’t add to Favorites"), {
             try library.addFavorite(url: url, title: title, artwork: artwork)
         }) else { return }
-        shell.showToast(ShellToast(message: String(localized: "Added to Favorites"), systemImage: "star.fill"))
+        shell.showToast(ShellToast(message: String(localized: "Added to Favorites"), systemImage: Icons.favorited))
         guard !FaviconFetcher.isTileSized(page.artworkData) else { return }
         Task {
             if let icon = await betterIcon() { library.offerArtwork(icon, for: page) }

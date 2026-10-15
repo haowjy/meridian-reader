@@ -154,7 +154,7 @@ struct BakeDebugOverlay: View {
                 Button {
                     speech.showBakeDebugOverlay = false
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
+                    Image(systemName: Icons.close)
                         .font(.body)
                         .foregroundStyle(.secondary)
                 }

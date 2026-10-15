@@ -25,7 +25,7 @@ struct FolderPlayButtons: View {
             }
             .accessibilityIdentifier("folderContinue")
             PillButton(String(localized: "From Start"), shortTitle: String(localized: "Start"),
-                       systemImage: "backward.end.fill", style: .neutral, fit: fit) {
+                       systemImage: Icons.previous, style: .neutral, fit: fit) {
                 actions.playFolderFromStart(folder)
             }
             .accessibilityLabel(String(localized: "Play from Start"))

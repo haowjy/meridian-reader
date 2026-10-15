@@ -61,7 +61,7 @@ final class SwipeBackUITests: XCTestCase {
         XCTAssertTrue(close.waitForExistence(timeout: 5))
         XCTAssertEqual(close.label, "Back to Library", "the Reader's back pill says where it goes")
         startPlayback(app) // Listen: the Reader turns into Now Playing
-        let from = app.descendants(matching: .any)["nowPlayingFrom"]
+        let from = app.descendants(matching: .any)["nowPlayingHeader"]
         XCTAssertTrue(from.waitForExistence(timeout: 5))
 
         pullDown(from)
@@ -103,7 +103,7 @@ final class SwipeBackUITests: XCTestCase {
         scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
             .press(forDuration: 0.05, thenDragTo: scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)))
         wait(0.8)
-        XCTAssertTrue(app.descendants(matching: .any)["nowPlayingFrom"].exists, "still on Now Playing")
+        XCTAssertTrue(app.descendants(matching: .any)["nowPlayingHeader"].exists, "still on Now Playing")
         XCTAssertFalse(row.isHittable, "the list didn't come back")
         XCTAssertNotEqual(scrubber.value as? String, before, "the drag scrubbed")
     }
@@ -153,7 +153,7 @@ final class SwipeBackUITests: XCTestCase {
 
         // Tap → Now Playing, no bar while it's on screen; ⌄ shrinks it back.
         app.descendants(matching: .any)["nowPlayingBarOpen"].tap()
-        let from = app.descendants(matching: .any)["nowPlayingFrom"]
+        let from = app.descendants(matching: .any)["nowPlayingHeader"]
         XCTAssertTrue(from.waitForExistence(timeout: 5))
         XCTAssertFalse(barPlay.exists, "no bar on Now Playing")
         app.buttons["readerClose"].tap()

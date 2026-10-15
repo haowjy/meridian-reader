@@ -30,10 +30,10 @@ enum BottomChrome {
     static func fieldFill(onPlayer: Bool) -> Color { onPlayer ? Palette.playerCard : Palette.chrome }
     /// Toolbar glyph size.
     static let iconSize: CGFloat = 19
-    /// Text standing in for a glyph in a toolbar slot (the speed label). Like the glyphs it keeps
-    /// its size at large text sizes, so the five slots never crowd.
+    /// Text standing in for a glyph in a toolbar slot (Edit's Move…) or a field control (the
+    /// speed). Like the glyphs it keeps its size at large text sizes, so the slots never crowd.
     static let toolbarTextSize: CGFloat = 17
-    /// Small controls inside the field capsule (mic, Jump, bookmark).
+    /// Small controls inside the field capsule (mic, the speed) and in a sheet's top bar (☝︎).
     static let fieldControlSize: CGFloat = 36
     /// The smallest tap area of a control (`tapTarget`), whatever it looks like.
     static let minTapTarget: CGFloat = 44
@@ -82,7 +82,7 @@ extension View {
             .accessibilityShowsLargeContentViewer()
     }
 
-    /// Toolbar text (the speed label): its cell of the toolbar row, 44 pt tall, full-cell tap
+    /// Toolbar text (Edit's Move…, Remove): its cell of the toolbar row, 44 pt tall, full-cell tap
     /// target, at the fixed `toolbarTextSize` with even-width digits.
     func toolbarTextFrame() -> some View {
         self.font(.system(size: BottomChrome.toolbarTextSize, weight: .medium).monospacedDigit())
@@ -94,6 +94,19 @@ extension View {
     /// glyph, growing with Dynamic Type like the capsule; taps land anywhere in 44 pt.
     func fieldControlFrame() -> some View {
         modifier(FieldControlFrame())
+    }
+
+    /// A field control on a round fill of its own, standing apart from a field: ☝︎ in a sheet's
+    /// top bar, ✕ beside the search field.
+    func roundFieldControl(fill: Color) -> some View {
+        fieldControlFrame().background(Circle().fill(fill))
+    }
+
+    /// Text standing in for a field control (the speed in Now Playing's scrub capsule): as tall
+    /// as one and at least as wide, wider for a longer label ("1.75×"), at the toolbar text's
+    /// fixed size with even-width digits.
+    func fieldTextFrame() -> some View {
+        modifier(FieldTextFrame())
     }
 
     /// Grows the tap area of a control drawn `size` points wide to `BottomChrome.minTapTarget`
@@ -145,13 +158,29 @@ private struct FieldControlFrame: ViewModifier {
     }
 }
 
+private struct FieldTextFrame: ViewModifier {
+    @ScaledMetric(relativeTo: .body) private var size = BottomChrome.fieldControlSize
+
+    func body(content: Content) -> some View {
+        let side = BottomChrome.grown(size, from: BottomChrome.fieldControlSize)
+        content
+            .font(.system(size: BottomChrome.toolbarTextSize, weight: .medium).monospacedDigit())
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, Spacing.xxs)
+            .frame(minWidth: side, minHeight: side, maxHeight: side)
+            .contentShape(Rectangle())
+            .tapTarget(side)
+    }
+}
+
 /// Toolbar row layout: five equal slots, evenly spaced, one grid for every bottom toolbar,
 /// so each icon sits at the same x on every screen:
 ///
 /// ```
 /// Browse   [‹]  [›]  [🔖]  [🕘]  [⋯]
 /// Library  [‹]  [›]  [＋]  [🕘]  [⋯]
-/// Reader   [1×] [⏮]  [▶︎]   [⏭]  [⋯]
+/// Now Playing [🔖] [⏮] (⏸) [⏭] [⋯]
 /// ```
 ///
 /// Each item sits in the slot it names with `.toolbarSlot(_:)`; an item without one sits at its
@@ -270,44 +299,44 @@ struct BottomToolbarGallery: View {
         PreviewGallery {
             PreviewState("browser") {
                 band {
-                    topRow("books.vertical", bar: playing)
+                    topRow(Icons.library, bar: playing)
                     AddressField(reader: .available, listen: .idle) { Text("news.example.org") }
                     BottomToolbarLayout {
-                        icon("chevron.backward").toolbarSlot(0)
-                        icon("chevron.forward").disabled(true).toolbarSlot(1)
+                        icon(Icons.back).toolbarSlot(0)
+                        icon(Icons.forward).disabled(true).toolbarSlot(1)
                         SaveToggleButton(isSaved: false, identifier: "preview", onToggle: {}).toolbarSlot(2)
-                        icon("clock").toolbarSlot(3)
-                        icon("ellipsis").toolbarSlot(BottomToolbarLayout.moreSlot)
+                        icon(Icons.history).toolbarSlot(3)
+                        icon(Icons.more).toolbarSlot(BottomToolbarLayout.moreSlot)
                     }
                 }
             }
             PreviewState("library, nothing played") {
                 band {
-                    topRow("globe", bar: NowPlayingBar.placeholder(spansSlots: BottomBandTopRow.barSlots))
+                    topRow(Icons.browser, bar: NowPlayingBar.placeholder(spansSlots: BottomBandTopRow.barSlots))
                     SearchField(text: .constant(""))
                     BottomToolbarLayout {
-                        icon("chevron.backward").disabled(true).toolbarSlot(0)
-                        icon("chevron.forward").disabled(true).toolbarSlot(1)
-                        icon("plus").toolbarSlot(2)
-                        icon("clock").toolbarSlot(3)
-                        icon("ellipsis").toolbarSlot(BottomToolbarLayout.moreSlot)
+                        icon(Icons.back).disabled(true).toolbarSlot(0)
+                        icon(Icons.forward).disabled(true).toolbarSlot(1)
+                        icon(Icons.add).toolbarSlot(2)
+                        icon(Icons.history).toolbarSlot(3)
+                        icon(Icons.more).toolbarSlot(BottomToolbarLayout.moreSlot)
                     }
                 }
             }
             PreviewState("reader") {
                 band {
                     BottomToolbarSpanLayout {
-                        icon("bookmark")
+                        icon(Icons.save)
                         PlayStateButton(state: .idle, look: .pill(title: "Listen", detail: "9 min", expands: true)) {}
-                        icon("ellipsis")
+                        icon(Icons.more)
                     }
                 }
             }
             PreviewState("named slots, gaps kept") {
                 band {
                     BottomToolbarLayout {
-                        icon("chevron.backward").disabled(true).toolbarSlot(0)
-                        icon("ellipsis").toolbarSlot(BottomToolbarLayout.moreSlot)
+                        icon(Icons.back).disabled(true).toolbarSlot(0)
+                        icon(Icons.more).toolbarSlot(BottomToolbarLayout.moreSlot)
                     }
                 }
             }

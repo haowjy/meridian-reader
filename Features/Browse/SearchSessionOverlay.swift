@@ -95,7 +95,7 @@ struct SearchSessionOverlay: View {
                 Divider().padding(.leading, SuggestionRow<EmptyView>.textInset)
                 SuggestionRow(title: term, subtitle: nil, openLabel: term, onOpen: { onSubmit(term) },
                               onFill: { session.fill(term) }) {
-                    Image(systemName: "magnifyingglass")
+                    Image(systemName: Icons.search)
                         .foregroundStyle(Palette.secondaryInk)
                         .frame(width: SuggestionRow<EmptyView>.leadingWidth)
                 }
@@ -113,7 +113,7 @@ struct SearchSessionOverlay: View {
                         FaviconImage(data: row.faviconData, host: row.host,
                                      size: SuggestionRow<EmptyView>.leadingWidth)
                     case .google:
-                        Image(systemName: "magnifyingglass")
+                        Image(systemName: Icons.search)
                             .font(.body)
                             .foregroundStyle(Palette.secondaryInk)
                             .frame(width: SuggestionRow<EmptyView>.leadingWidth,
@@ -153,7 +153,7 @@ private struct SuggestionRow<Leading: View>: View {
             }
 
             Button(action: onFill) {
-                Image(systemName: "arrow.up.backward")
+                Image(systemName: Icons.fillField)
                     .font(.body.weight(.medium))
                     .foregroundStyle(Palette.secondaryInk)
                     .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)

@@ -57,7 +57,7 @@ struct ActionButtonRowGallery: View {
                     ActionButtonRow { fit in
                         PlayStateButton(state: .idle, look: .pill(title: "Continue", detail: "4 of 18", expands: true,
                                                                    fit: fit)) {}
-                        PillButton("From Start", shortTitle: "Start", systemImage: "backward.end.fill", style: .neutral,
+                        PillButton("From Start", shortTitle: "Start", systemImage: Icons.previous, style: .neutral,
                                    fit: fit) {}
                         DownloadStateButton(state: .available, look: .round) {}
                     }
@@ -66,9 +66,9 @@ struct ActionButtonRowGallery: View {
             }
             PreviewState("compact choices") {
                 ActionButtonRow(spacing: Spacing.xs) { fit in
-                    PillButton("Re-download", shortTitle: "Redo", systemImage: "arrow.clockwise", size: .compact,
+                    PillButton("Re-download", shortTitle: "Redo", systemImage: Icons.redownload, size: .compact,
                                fit: fit) {}
-                    PillButton("Keep", systemImage: "checkmark", style: .neutral, size: .compact, fit: fit) {}
+                    PillButton("Keep", systemImage: Icons.keep, style: .neutral, size: .compact, fit: fit) {}
                 }
             }
         }

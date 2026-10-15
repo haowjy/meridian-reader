@@ -12,12 +12,12 @@ final class NowPlayingUITests: XCTestCase {
         listenHere(app)
 
         find(app, "nowPlayingBarOpen").tap()
-        let from = find(app, "nowPlayingFrom")
+        let from = find(app, "nowPlayingHeader")
         XCTAssertTrue(from.waitForExistence(timeout: 5), "Now Playing")
-        XCTAssertEqual(from.label, "Playing from pages", "the header names the site")
+        XCTAssertEqual(playingFrom(app), "Playing from pages", "the close pill names the site")
         XCTAssertFalse(find(app, "nowPlayingBar").exists, "no bar on Now Playing")
 
-        pullDown(app, from: "nowPlayingFrom")
+        pullDown(app, from: "nowPlayingHeader")
         XCTAssertTrue(eventually(5) { !from.exists }, "the pull down shrinks it")
         XCTAssertTrue(find(app, "nowPlayingBar").waitForExistence(timeout: 5), "back into the bar")
         XCTAssertTrue(app.textFields["addressField"].exists, "on the browser, as it was")
@@ -43,10 +43,10 @@ final class NowPlayingUITests: XCTestCase {
         XCTAssertTrue(back.waitForExistence(timeout: 10))
         XCTAssertEqual(back.label, "Back to Browser")
         find(app, "nowPlayingBarOpen").tap()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5))
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5))
         // The Reader stays under Now Playing (and in the UI-test tree), so ⌄ by its label.
         app.buttons["Close Now Playing"].tap()
-        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingFrom").exists })
+        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingHeader").exists })
         XCTAssertEqual(app.buttons["readerClose"].label, "Back to Browser", "the Reader is still there")
         app.buttons["readerClose"].tap()
         XCTAssertTrue(eventually(5) { !app.buttons["readerClose"].exists })
@@ -58,9 +58,9 @@ final class NowPlayingUITests: XCTestCase {
         let bar = find(app, "nowPlayingBarOpen")
         XCTAssertTrue(bar.waitForExistence(timeout: 5), "the bar shows on the Library")
         bar.tap()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5))
-        pullDown(app, from: "nowPlayingFrom")
-        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingFrom").exists })
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5))
+        pullDown(app, from: "nowPlayingHeader")
+        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingHeader").exists })
         XCTAssertTrue(app.libraryHome.exists, "back on the Library")
         XCTAssertTrue(app.cells.staticTexts["Demo Listen Article"].exists, "its list as it was")
         find(app, "nowPlayingBarPlayPause").tap()
@@ -69,11 +69,17 @@ final class NowPlayingUITests: XCTestCase {
     func testScrollingAwayOffersJumpToAudio() throws {
         let app = launchLongDemo()
         openNowPlayingFromTheLibrary(app)
-        XCTAssertEqual(find(app, "nowPlayingFrom").label, "Playing from Library", "a saved page plays from the Library")
+        XCTAssertEqual(playingFrom(app), "Playing from Library", "a saved page plays from the Library")
         assertJumpToAudioReturnsToTheSpokenSentence(app)
 
-        find(app, "nowPlayingFrom").tap()
-        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingFrom").exists }, "Now Playing closes")
+        // ⋯ → Go to Library (D24: the pill only closes).
+        find(app, "readerMore").tap()
+        let goTo = find(app, "moreGoTo")
+        XCTAssertTrue(goTo.waitForExistence(timeout: 3), "⋯ → Go to")
+        XCTAssertEqual(goTo.label, "Go to Library")
+        idle(0.6)
+        goTo.tap()
+        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingHeader").exists }, "Now Playing closes")
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5), "on the Library")
     }
 
@@ -99,10 +105,10 @@ final class NowPlayingUITests: XCTestCase {
         XCTAssertTrue(eventually(3) { (self.find(app, "readerScrubOffset").value as? String)?.hasPrefix("p=6 ") == true },
                       "paused on paragraph 7")
         app.buttons["readerClose"].tap() // ⌄
-        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingFrom").exists }, "back in the bar")
+        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingHeader").exists }, "back in the bar")
 
         find(app, "nowPlayingBarOpen").tap()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Now Playing")
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5), "Now Playing")
         let spoken = paragraph(app, 6)
         XCTAssertTrue(eventually(5) { self.holdsTheMiddle(app, spoken) },
                       "paragraph 7's sentence in the middle: \(spoken.frame), middle \(nowPlayingMiddle(app))")
@@ -127,7 +133,7 @@ final class NowPlayingUITests: XCTestCase {
         let before = settledTop(of: saved)
 
         listen.tap()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Now Playing")
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5), "Now Playing")
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
         play.tap()
@@ -136,6 +142,55 @@ final class NowPlayingUITests: XCTestCase {
         XCTAssertTrue(saved.waitForExistence(timeout: 5))
         XCTAssertEqual(settledTop(of: saved), before, accuracy: 1, "Now Playing opens where the Reader was")
         XCTAssertFalse(find(app, "nowPlayingJumpToAudio").exists, "following, so no Jump to Audio")
+    }
+
+    /// D24: the Reader and Now Playing share their chrome. Listen turns one into the other with
+    /// 🔖, ⋯, ☝︎ and the close pill where they were (the pill's width follows its title), and in
+    /// Now Playing 🔖 still files the page (its long-press opens the Move tree) and the speed sits
+    /// at the end of the scrub capsule.
+    func testTheReaderAndNowPlayingShareTheirChrome() throws {
+        let app = launchLongDemo()
+        let row = app.cells.staticTexts["Demo Listen Article"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        let listen = app.buttons["listenPlayPause"]
+        XCTAssertTrue(listen.waitForExistence(timeout: 10))
+        idle(1.5)
+        let ids = ["readerBookmark", "readerMore", "listenJump", "readerClose"]
+        let reader = Dictionary(uniqueKeysWithValues: ids.map { ($0, app.buttons[$0].frame) })
+        XCTAssertEqual(app.buttons["readerClose"].label, "Back to Library")
+
+        listen.tap()
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5), "Now Playing")
+        idle(1.5)
+        let player = Dictionary(uniqueKeysWithValues: ids.map { ($0, app.buttons[$0].frame) })
+        XCTAssertEqual(app.buttons["readerClose"].label, "Close Now Playing")
+        for id in ["readerBookmark", "readerMore", "listenJump"] {
+            let (r, p) = (reader[id]!, player[id]!)
+            XCTAssertFalse(r.isEmpty, id)
+            XCTAssertEqual(p.minX, r.minX, accuracy: 0.5, "\(id) x: Reader \(r), Now Playing \(p)")
+            XCTAssertEqual(p.minY, r.minY, accuracy: 0.5, "\(id) y: Reader \(r), Now Playing \(p)")
+            XCTAssertEqual(p.width, r.width, accuracy: 0.5, "\(id) width: Reader \(r), Now Playing \(p)")
+            XCTAssertEqual(p.height, r.height, accuracy: 0.5, "\(id) height: Reader \(r), Now Playing \(p)")
+        }
+        let (r, p) = (reader["readerClose"]!, player["readerClose"]!)
+        XCTAssertEqual(p.minX, r.minX, accuracy: 0.5, "the close pill's leading edge: \(r), \(p)")
+        XCTAssertEqual(p.minY, r.minY, accuracy: 0.5, "the close pill's top: \(r), \(p)")
+        XCTAssertEqual(p.height, r.height, accuracy: 0.5, "the close pill's height: \(r), \(p)")
+
+        // The speed, in the scrub capsule's trailing end.
+        let speed = app.buttons["listenSpeed"]
+        let scrubber = find(app, "readerScrubber")
+        XCTAssertTrue(speed.exists && scrubber.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(speed.frame.minX, scrubber.frame.maxX, "the speed after the scrubber")
+        XCTAssertEqual(speed.frame.midY, scrubber.frame.midY, accuracy: 1, "on the scrub row")
+
+        // 🔖's long-press: Save to Folder…, the Move tree, as in the Reader.
+        app.buttons["readerBookmark"].press(forDuration: 1.0)
+        XCTAssertTrue(find(app, "moveTree").waitForExistence(timeout: 5), "🔖's long-press opens the Move tree")
+        app.buttons["moveCancel"].tap()
+        XCTAssertTrue(eventually(5) { !self.find(app, "moveTree").exists })
+        app.buttons["listenPlayPause"].tap()
     }
 
     /// The title card says what is playing (title, site or Library, time left) and scrolls with
@@ -159,14 +214,13 @@ final class NowPlayingUITests: XCTestCase {
     }
 
     /// Listen in the Reader (D2): Now Playing opens with the text exactly where the Reader had it,
-    /// though Now Playing's header is taller than the Reader's and the title card replaces the
-    /// title. Within 1 pt: the two pages lay out the same text at the same width, the offset is
+    /// though the title card replaces the title. Within 1 pt: the two pages lay out the same text at the same width, the offset is
     /// set exactly, and what's left is rounding of the frames the accessibility tree reports.
     func testListenKeepsTheReadersScrollPosition() throws {
         assertListenKeepsTheLine(launchLongDemo())
     }
 
-    /// The same at the largest text size, where the two headers differ the most.
+    /// The same at the largest text size, where the title and the title card differ the most.
     func testListenKeepsTheReadersScrollPositionAtTheLargestTextSize() throws {
         // A paragraph is over 1,000 pt tall there: the second one is far enough down.
         assertListenKeepsTheLine(launchLongDemo(Self.largestText), paragraph: 1)
@@ -189,7 +243,7 @@ final class NowPlayingUITests: XCTestCase {
             XCTAssertTrue(listen.waitForExistence(timeout: 10))
             idle(1)
             listen.tap()
-            let header = find(app, "nowPlayingFrom")
+            let header = find(app, "nowPlayingHeader")
             XCTAssertTrue(header.waitForExistence(timeout: 5))
             let card = find(app, "nowPlayingTitleCard")
             XCTAssertTrue(card.waitForExistence(timeout: 5), "the title card")
@@ -260,11 +314,11 @@ final class NowPlayingUITests: XCTestCase {
         XCUIDevice.shared.press(.home)
         idle(2)
         app.activate()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 10))
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 10))
         assertStatusBar(.light, "after coming back")
 
         // Held a third of the way down, two seconds into the hold.
-        let header = find(app, "nowPlayingFrom").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let header = find(app, "nowPlayingHeader").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .withOffset(CGVector(dx: 120, dy: 0))
         let held = try XCTUnwrap(screenshot(after: 2) {
             header.press(forDuration: 0.1, thenDragTo: header.withOffset(CGVector(dx: 0, dy: 300)),
@@ -281,8 +335,8 @@ final class NowPlayingUITests: XCTestCase {
 
         print("Status bar held part way down: \(pulled)")
         idle(1.5) // released: it settles back up or carries on down
-        if find(app, "nowPlayingFrom").exists { app.buttons["Close Now Playing"].tap() }
-        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingFrom").exists })
+        if find(app, "nowPlayingHeader").exists { app.buttons["Close Now Playing"].tap() }
+        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingHeader").exists })
         assertStatusBar(.dark, "on paper again")
     }
 
@@ -306,7 +360,7 @@ final class NowPlayingUITests: XCTestCase {
 
         let card = find(app, "nowPlayingTitleCard")
         let window = app.windows.firstMatch.frame
-        let top = find(app, "nowPlayingFrom").frame.maxY + 8
+        let top = find(app, "nowPlayingHeader").frame.maxY + 8
         let area = CGRect(x: 0, y: top, width: window.width, height: window.height * 0.6 - top)
         XCTAssertTrue(area.contains(card.frame), "the title card at the top of the reading area")
         let rest = textLevels(XCUIScreen.main.screenshot(), in: area)
@@ -380,13 +434,13 @@ final class NowPlayingUITests: XCTestCase {
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(play.waitForExistence(timeout: 10))
         play.tap()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5))
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5))
         // The last paragraph, then let it finish.
         app.buttons["Next paragraph"].tap()
         app.buttons["Next paragraph"].tap()
         let finished = find(app, "nowPlayingFinished")
         XCTAssertTrue(finished.waitForExistence(timeout: 45), "✓ Finished")
-        XCTAssertTrue(find(app, "nowPlayingFrom").exists, "Now Playing stays on the page")
+        XCTAssertTrue(find(app, "nowPlayingHeader").exists, "Now Playing stays on the page")
         XCTAssertEqual(play.label, "Play", "with ▶")
 
         app.buttons["readerClose"].tap()
@@ -422,7 +476,7 @@ final class NowPlayingUITests: XCTestCase {
         let before = settledTop(of: target)
 
         listen.tap() // plays paragraph 1; the text stays where it is
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Now Playing", file: file, line: line)
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5), "Now Playing", file: file, line: line)
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(eventually(8) { play.label == "Pause" }, file: file, line: line)
         play.tap() // paused on paragraph 1, so following has nothing new to move to
@@ -521,7 +575,7 @@ final class NowPlayingUITests: XCTestCase {
         let listen = app.buttons["listenPlayPause"]
         XCTAssertTrue(listen.waitForExistence(timeout: 10))
         listen.tap()
-        XCTAssertTrue(find(app, "nowPlayingFrom").waitForExistence(timeout: 5), "Listen turns the Reader into Now Playing")
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5), "Listen turns the Reader into Now Playing")
     }
 
     /// Skips to paragraph 7 and pauses there (on its first sentence), scrolls it away, then Jump to
@@ -564,7 +618,7 @@ final class NowPlayingUITests: XCTestCase {
 
     /// The middle of Now Playing's visible text: between the header and the scrubber.
     private func nowPlayingMiddle(_ app: XCUIApplication) -> CGFloat {
-        (find(app, "nowPlayingFrom").frame.maxY + find(app, "readerScrubber").frame.minY) / 2
+        (find(app, "nowPlayingHeader").frame.maxY + find(app, "readerScrubber").frame.minY) / 2
     }
 
     private func holdsTheMiddle(_ app: XCUIApplication, _ element: XCUIElement) -> Bool {

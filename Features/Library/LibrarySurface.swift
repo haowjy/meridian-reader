@@ -39,7 +39,7 @@ struct LibrarySurface: View {
             .scrollDismissesKeyboard(.interactively)
 
             SurfaceBand(
-                swap: .init(systemImage: "globe", label: String(localized: "Browser"),
+                swap: .init(systemImage: Icons.browser, label: String(localized: "Browser"),
                             hint: String(localized: "Return to the browser"), identifier: "libraryBrowser",
                             action: shell.leaveLibrary),
                 session: search,
@@ -79,28 +79,28 @@ struct LibrarySurface: View {
     /// forward, so › stays dimmed in its place.
     private var toolbar: some View {
         BottomToolbarLayout {
-            BandToolbarButton(systemImage: "chevron.backward", label: String(localized: "Back"),
+            BandToolbarButton(systemImage: Icons.back, label: String(localized: "Back"),
                               identifier: "libraryBack", action: shell.libraryBack)
                 .disabled(shell.libraryPath.isEmpty)
                 .toolbarSlot(0)
-            BandToolbarButton(systemImage: "chevron.forward", label: String(localized: "Forward"),
+            BandToolbarButton(systemImage: Icons.forward, label: String(localized: "Forward"),
                               identifier: "libraryForward") {}
                 .disabled(true)
                 .toolbarSlot(1)
             Menu {
-                Button("Import Book…", systemImage: "book.closed") {
+                Button("Import Book…", systemImage: Icons.book) {
                     BookImportActions(library: library, shell: shell).pickBook(into: screenMenu.newFolderParent)
                 }
                 .accessibilityIdentifier("libraryImportBook")
-                Button("New Folder", systemImage: "folder.badge.plus") { screen.makeFolder(in: screenMenu.newFolderParent) }
+                Button("New Folder", systemImage: Icons.newFolder) { screen.makeFolder(in: screenMenu.newFolderParent) }
                     .accessibilityIdentifier("libraryNewFolder")
             } label: {
-                Image(systemName: "plus").toolbarIconFrame()
+                Image(systemName: Icons.add).toolbarIconFrame()
             }
             .accessibilityLabel("Add")
             .accessibilityIdentifier("libraryAdd")
             .toolbarSlot(2)
-            BandToolbarButton(systemImage: "clock", label: String(localized: "History"),
+            BandToolbarButton(systemImage: Icons.history, label: String(localized: "History"),
                               identifier: "libraryHistory") { shell.present(.history) }
                 .toolbarSlot(3)
             MoreMenuButton(id: "libraryMore") {

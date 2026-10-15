@@ -55,7 +55,7 @@ struct DownloadStateButton: View {
         .accessibilityLabel(state.accessibilityLabel)
         .accessibilityValue(accessibilityValue)
         .accessibilityShowsLargeContentViewer {
-            Image(systemName: symbol ?? "arrow.down.circle")
+            Image(systemName: symbol ?? Icons.download)
             Text(state.accessibilityLabel)
         }
     }
@@ -76,7 +76,7 @@ struct DownloadStateButton: View {
         case .downloading(let fraction):
             ProgressRing(fraction: fraction, size: Glyph.mark)
         case .available, .downloaded:
-            let image = Image(systemName: symbol ?? "arrow.down")
+            let image = Image(systemName: symbol ?? Icons.downloadInRing)
             Group {
                 switch look {
                 // A row's glyph matches its ▶ (`PlayStateButton`'s glyph).
@@ -92,9 +92,9 @@ struct DownloadStateButton: View {
 
     private var symbol: String? {
         switch state {
-        case .available: look == .glyph ? "arrow.down.circle" : "arrow.down"
+        case .available: look == .glyph ? Icons.download : Icons.downloadInRing
         case .downloading: nil
-        case .downloaded: look == .glyph ? "checkmark.circle" : "checkmark"
+        case .downloaded: look == .glyph ? Icons.downloaded : Icons.downloadedInRing
         }
     }
 

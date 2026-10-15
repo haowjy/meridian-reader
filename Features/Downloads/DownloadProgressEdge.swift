@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The progress line on a surface's bottom chrome (the browser's, the Library's, the Reader's):
+/// The progress line on a surface's bottom chrome (the browser's, the Library's, the Reader's,
+/// Now Playing's):
 /// shown while downloads run, gone when nothing is queued, everything queued is paused, or no
 /// on-device voice renders downloads (decision D16). Laid over the top edge of the band
 /// (`.overlay(alignment: .top)`); it always takes the band's width and the line's height, so a
@@ -50,10 +51,10 @@ struct DownloadActions {
         case .added, .resumed: message = String(localized: "Downloading “\(title)”")
         case .alreadyQueued: message = String(localized: "“\(title)” is already downloading")
         case .nothingToDownload:
-            shell.showToast(ShellToast(message: String(localized: "Nothing to download"), systemImage: "arrow.down.circle"))
+            shell.showToast(ShellToast(message: String(localized: "Nothing to download"), systemImage: Icons.download))
             return
         }
-        shell.showToast(ShellToast(message: message, systemImage: "arrow.down.circle", actionTitle: String(localized: "Show")) {
+        shell.showToast(ShellToast(message: message, systemImage: Icons.download, actionTitle: String(localized: "Show")) {
             [shell] in shell.present(.downloads)
         })
     }

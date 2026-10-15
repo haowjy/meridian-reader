@@ -22,7 +22,7 @@ final class ToolbarGridUITests: XCTestCase {
     }
 
     /// Browse `[‹][›][🔖][🕘][⋯]`, the Library `[‹][›][＋][🕘][⋯]`, the Reader `[🔖][ Listen ][⋯]` and
-    /// Now Playing `[1×][⏮][▶︎][⏭][⋯]`: 5 equal, evenly spaced slots; slot N at the same x on every
+    /// Now Playing `[🔖][⏮][▶︎][⏭][⋯]`: 5 equal, evenly spaced slots; slot N at the same x on every
     /// screen, ⋯ in slot 5 at the same spot; the bar's play button over ⋯.
     func testFiveSlotGridSharedByBrowseReaderAndNowPlaying() throws {
         let app = XCUIApplication()
@@ -69,10 +69,10 @@ final class ToolbarGridUITests: XCTestCase {
 
         // Now Playing: the five-slot transport.
         app.buttons["listenPlayPause"].tap()
-        XCTAssertTrue(el(app, "nowPlayingFrom").waitForExistence(timeout: 5))
+        XCTAssertTrue(el(app, "nowPlayingHeader").waitForExistence(timeout: 5))
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(waitFor(8) { play.label == "Pause" }, "playing")
-        let transport = [app.buttons["listenSpeed"], app.buttons["Previous paragraph"], play,
+        let transport = [app.buttons["readerBookmark"], app.buttons["Previous paragraph"], play,
                          app.buttons["Next paragraph"], app.buttons["readerMore"]].map(\.frame)
         for (i, frame) in transport.enumerated() {
             XCTAssertEqual(frame.midX, expected[i], accuracy: 1, "Now Playing slot \(i + 1)")

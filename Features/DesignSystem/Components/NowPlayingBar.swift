@@ -97,7 +97,7 @@ struct NowPlayingBar: View {
                         .lineLimit(1)
                     HStack(spacing: Spacing.xxs) {
                         if sleepTimerSet {
-                            Image(systemName: "moon.fill")
+                            Image(systemName: Icons.sleepTimer)
                                 .accessibilityLabel("Sleep timer set")
                         }
                         DetailLine(detail)
@@ -145,7 +145,7 @@ struct NowPlayingBar: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
         .contextMenu {
             if let onStop {
-                Button("Stop Listening", systemImage: "stop.fill", action: onStop)
+                Button("Stop Listening", systemImage: Icons.stop, action: onStop)
             }
         }
         .accessibilityElement(children: .contain)
@@ -161,7 +161,7 @@ struct NowPlayingBar: View {
         if isPlaceholder {
             ArtworkTile(letter: " ", size: Self.artworkSize)
                 .overlay {
-                    Image(systemName: "waveform")
+                    Image(systemName: Icons.playing)
                         .font(.caption)
                         .foregroundStyle(Palette.tertiaryInk)
                         .accessibilityHidden(true)

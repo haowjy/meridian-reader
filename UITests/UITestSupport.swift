@@ -54,6 +54,12 @@ extension XCTestCase {
         XCTAssertTrue(eventually(10) { listen.label == "Pause" }, "🎧 playing, got \(listen.label)")
     }
 
+    /// What Now Playing's close pill says it plays from ("Playing from Library"), read from the
+    /// pill in its top bar (a Reader under it has a `readerClose` of its own).
+    func playingFrom(_ app: XCUIApplication) -> String? {
+        find(app, "nowPlayingHeader").buttons["readerClose"].value as? String
+    }
+
     /// Pulls a sheet down by its header (the element `id` sits in it).
     func pullDown(_ app: XCUIApplication, from id: String) {
         let start = find(app, id).coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))

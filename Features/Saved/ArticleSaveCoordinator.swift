@@ -4,7 +4,7 @@ import Foundation
 /// through `LibraryStore` (one page per canonical URL); the audio cache follows once the library
 /// change is stored: saved audio is kept and baked ahead, unsaved audio goes back to the
 /// ephemeral TTL, deleted audio is removed. Used by the browser's ⋯ → Save to Library…, the
-/// Reader's 🔖, ⋯ → Save and *Save to Folder…*, and Now Playing's ⊕.
+/// Reader's and Now Playing's 🔖, ⋯ → Save and *Save to Folder…*.
 @MainActor
 struct ArticleSaveCoordinator {
     let library: LibraryStore
