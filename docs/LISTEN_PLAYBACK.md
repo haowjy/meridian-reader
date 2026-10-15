@@ -105,11 +105,14 @@ adapter keeps, bound or not. Adapters report facts; they own no bake policy and 
   on with no re-queue. The end of the article is decided only by the player
   (`ChunkPlaybackQueue`): the producer calls `endOfInput()` once it has enqueued every paragraph,
   and the player finishes when its queue drains. Position inside a paragraph is player time, which
-  has no callbacks, so while audio is wanted the engine samples it 5×/s: in the foreground it
-  reports `position` once the spot moved a few characters (`ListenPositionMapper`: chunk
-  boundaries plus time into the chunk, never before the offset the play started at) and
-  `statusChanged` when the listen-bar status changed; in the background it only holds
-  `ReaderListenGap` while waiting for audio. Speed is a pitch-preserving time-stretch on the
+  has no callbacks, so while audio is wanted and the app is in front (active or inactive) the
+  engine samples it 5×/s: it reports `position` once the spot moved a few characters
+  (`ListenPositionMapper`: chunk boundaries plus time into the chunk, never before the offset the
+  play started at) and `statusChanged` when the listen-bar status changed. In the background (the
+  phone locked) the clock stops, so a locked listen doesn't wake the app 5×/s: a unit starting
+  still reports its paragraph, and the player running dry (or a play or resume waiting for audio)
+  holds `ReaderListenGap` until a unit starts, it pauses or stops. Back in front the clock starts
+  again and catches up. Speed is a pitch-preserving time-stretch on the
   player (`AVAudioPlayer.enableRate` / `rate`; everything is rendered at 1×). If the host fails
   to load it calls `LocalSynthService.noteSpeakFailed`, and engine binding re-speaks the spot with
   Apple.

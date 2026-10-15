@@ -46,6 +46,8 @@ final class LocalListenPlayer {
     var onUnitStarted: ((Int) -> Void)?
     /// The article played out (all units played, nothing more to produce). Once per play.
     var onFinished: (() -> Void)?
+    /// The player ran dry with more to come: it waits for the next unit.
+    var onStarved: (() -> Void)?
     /// Sub-paragraph start: how far into the first unit of this play/seek to begin, as a
     /// fraction of its synth chunk. Consumed by the first enqueue of the start paragraph.
     private var pendingStartFraction: Double = 0
@@ -267,6 +269,7 @@ final class LocalListenPlayer {
         if starvedAt == nil, userWantsAudible { starvedAt = ListenTimingLog.now() }
         ensureProducerRunning()
         armStarveWatchdog()
+        onStarved?()
     }
 
     /// Recover only genuinely stuck states. While the worker is actively rendering the unit the
