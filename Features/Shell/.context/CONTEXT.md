@@ -43,9 +43,9 @@ changing the shell code.
 - **The app's colour is global**: `Palette.accent` and its kin read `AppAppearance.shared`, so a
   view drawing them redraws when Settings › Appearance changes the colour (Observation tracks the
   read). Don't cache a `Palette` accent token in a `static let`.
-  `NowPlayingUITests.testTheStatusBarFollowsTheSurfaceOnTop` measures the clock's contrast
-  (`UITests/StatusBarContrast.swift`, ≥ 4.5:1) in screenshots, including after leaving the app
-  and coming back, and while a finger holds the sheet part way down.
+  The status bar clock keeps ≥ 4.5:1 contrast on the surface on top: probe it in screenshots,
+  including after leaving the app and coming back, and while a finger holds the sheet part way
+  down.
 - **Shared look lives in `../DesignSystem/`**: tokens, `Motion`, `BottomChrome`, the morph
   overlay (`MorphMenu.swift`) and the components. This folder keeps what knows about the app:
   `ShellState`, the ⋯ panel's rows (`MoreMenuPanel`), the Now Playing bar on a surface
@@ -57,12 +57,12 @@ changing the shell code.
 - **The browser and the Library draw one band** (`SurfaceBand`, D22, rows as D23):
   `BandNowPlayingBar` alone, then the swap and the field, then a `BottomToolbarLayout` whose
   items name their slots (`.toolbarSlot`), one role per slot on both surfaces. Change a row in `SurfaceBand`, not in one surface, or the two drift;
-  `ToolbarGridUITests.testBandIsPixelStableAcrossLibraryAndBrowse` compares their frames. The
+  probe both surfaces' frames in screenshots. The
   band's bar never goes away (it keeps its space hidden when covered), so its height never
   changes; the Reader's `NowPlayingBarView` still hides.
-- **Geometry is tested.** UI tests check toolbar slot positions and the focus offset within 1 pt;
-  `UITests/MorphMenuUITestOffset.swift` must match `MorphMenu.focusOffsetFromAnchor`. The
-  `moreMenuFocus` marker exists only in Debug builds with `-uiTesting`.
+- **Geometry holds within 1 pt**: toolbar slot positions, and the ⋯ focus offset
+  (`MorphMenu.focusOffsetFromAnchor`). The `moreMenuFocus` marker, Debug builds with
+  `-uiTesting` only, shows where the focus ends up.
 - **Sizing.** Field capsules use a fixed height (an unbounded `Capsule` turns into a circle) that
   grows with Dynamic Type up to `BottomChrome.maxTextGrowth` (1.5×); every control gets a 44 pt
   tap area through `tapTarget`.

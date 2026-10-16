@@ -421,9 +421,6 @@ struct HTMLReadingWebView: UIViewRepresentable {
         /// How long the target and layout must stay still before the restore finishes (and an offset
         /// the page can't reach is clamped), and the longest a restore lasts at all, in seconds.
         var restoreTiming = (quiet: 0.3, limit: 2.0)
-        /// A handed-over offset (or the spoken sentence's) is still waiting: for the page to load,
-        /// or for its layout.
-        var isRestoringScroll: Bool { restore != nil || opensAt != nil }
 
         /// Opens the text at `target` once the page's layout can hold it, and keeps it there while
         /// the layout settles: the title card measured, the header growing, what is above the text
@@ -474,8 +471,6 @@ struct HTMLReadingWebView: UIViewRepresentable {
 
         private var reflowing = false
         private var queuedReflow: [String] = []
-        /// A reflow is in flight or queued.
-        var isReflowing: Bool { reflowing || !queuedReflow.isEmpty }
 
         /// Runs `change` (a style change that reflows the page) keeping the line being read where
         /// it is on screen: the reading anchor, the paragraph and the UTF-16 offset of the first

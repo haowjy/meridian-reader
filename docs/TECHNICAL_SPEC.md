@@ -2,7 +2,7 @@
 
 How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screens and gestures:
 `NAVIGATION.md`; listening: `LISTEN_PLAYBACK.md`, `TTS_ENGINES.md`; article keys:
-`ARTICLE_IDENTITY.md`. Build and test commands: `AGENTS.md` at the repo root.
+`ARTICLE_IDENTITY.md`. Build commands and how changes are verified: `AGENTS.md` at the repo root.
 
 ## Constraints
 
@@ -45,8 +45,8 @@ Features/
   Library/  the Library surface and screens (home, folder), rows, the Move tree, Favorites' sheet and ☆, the import sheet
   Saved/    save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
-Tests/      unit tests (MeridianReaderTests), Tests/Fakes
-UITests/    UI tests (MeridianReaderUITests)
+Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a library over its own files
+UITests/    three end-to-end flows (MeridianReaderUITests)
 ```
 
 ## Architecture
@@ -60,7 +60,7 @@ UITests/    UI tests (MeridianReaderUITests)
   (`maintainLibrary`, which then lets the render queue adopt and render), with the Debug launch
   hooks before and after it, then crash resume. Views only render. A Debug build hosting the unit
   tests builds none of it (`AppMain`): tests build their own stacks over their own files
-  (`TestSpeech`, `LibraryTestEnvironment`).
+  (`LibraryTestEnvironment`).
 - **Navigation.** `ShellState` owns what you see: the surface (browser or library), the Reader
   sheet and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
   It asks the playback session what you hear (`isHearing`) and stores nothing about it. Browse and the library share
@@ -74,12 +74,12 @@ UITests/    UI tests (MeridianReaderUITests)
   `SynthQueueContext`), and the design system names nothing outside itself and Core. Core never
   imports a voice library (FluidAudio and ONNX Runtime live in `Features/Speech/Engines/`).
   Features never name a concrete extractor. The Debug test fixtures (the demo book, the
-  synthetic EPUB and cover, the offline test pages' `TestPageSchemeHandler`) live in
+  synthetic EPUB, the offline test pages' `TestPageSchemeHandler`) live in
   `App/Fixtures/`; App hands Core and the design system what a launch asks for: the test pages'
   handler to the browser's web view (`webViewSchemeHandlers`) and to `URLPageFetcher`, the ⋯
   panel's test marker and slowed morph (`morphMenuMarksFocus`, `morphMenuAnimation`). Some
-  feature screens still read `LaunchOptions` for their Debug hooks (the test EPUB and cover
-  pickers, the scrub-bubble screenshot, Google suggestions off under `-uiTesting`).
+  feature screens still read `LaunchOptions` for their Debug hooks (the test EPUB picker,
+  the scrub-bubble screenshot, Google suggestions off under `-uiTesting`).
 
 ## Extraction
 
@@ -103,7 +103,7 @@ UITests/    UI tests (MeridianReaderUITests)
 (the page lays out at the browser's width, in a view WebKit counts as on screen), with the
 browser's cookies (the default website data store) and page scripts off. It
 loads the page, takes the same snapshot and extracts it through `SingleWebPageSource`, so a page
-reads the same as from the browser (`URLPageFetcherTests`). Loading, the snapshot and extraction
+reads the same as from the browser. Loading, the snapshot and extraction
 each give up after a time limit, since WebKit's processes can be suspended in the background.
 
 Snapshot plus off-screen, rather than injecting into the visible page: the user's page is never
@@ -383,5 +383,5 @@ drops `<script>` elements but keeps inline handlers (`onerror`, `onclick`) and `
 links, so the reader's web view runs with the article's JavaScript off
 (`allowsContentJavaScript = false`). Only the app's own code runs there: the bootstrap user
 script and the listeners it installs (tap-to-seek through the `readerBridge` message handler),
-and `evaluateJavaScript` calls for highlight and scroll (`PageScriptIsolationTests`). The visible
+and `evaluateJavaScript` calls for highlight and scroll. The visible
 browser keeps JavaScript on; sites need it.

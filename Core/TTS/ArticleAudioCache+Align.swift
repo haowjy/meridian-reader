@@ -12,11 +12,6 @@ import Foundation
 /// slices. Only these changes write `m-` and `s-` files, so any of them no index lists is a
 /// leftover of an interrupted change and is deleted.
 extension ArticleAudioCache {
-    /// A step of a copy-on-write change, as `faultHook` sees it.
-    enum ChangeStep: Equatable {
-        case wroteFile, savingIndex, savedIndex, removedFile, movedDirectory
-    }
-
     struct ReconcileResult: Equatable {
         /// Units still on a paragraph with their text.
         var kept = 0
@@ -49,12 +44,6 @@ extension ArticleAudioCache {
         var origin: Origin
     }
 
-    func step(_ step: ChangeStep) throws {
-        #if DEBUG
-        try faultHook?(step)
-        #endif
-    }
-
     /// Stamp entries written before v2 (no `textHash`) with the text they were rendered from.
     /// Only call with paragraphs known to match the cache (e.g. the saved copy's stored blocks,
     /// or content whose legacy v1 key equalled this cache dir).
@@ -69,7 +58,6 @@ extension ArticleAudioCache {
         }
         guard changed else { return }
         try publishIndex(index, for: articleID)
-        try step(.savedIndex)
     }
 
     /// Aligns the article's audio with `paragraphs`, its current listen blocks: a unit on a
@@ -104,7 +92,6 @@ extension ArticleAudioCache {
         if let source, hasDirectory(for: source) {
             if merged != nil { markSaved(cacheKey: articleID) }
             try deleteAudio(for: source)
-            try step(.removedFile)
         }
         try removeUnlisted(articleID: articleID, previous: own)
         return result
@@ -190,7 +177,6 @@ extension ArticleAudioCache {
             if unit.origin == .adopted || entry.index != paragraph {
                 let name = String(format: "m-%04d-", paragraph) + UUID().uuidString.prefix(8) + ".caf"
                 try fileManager.copyItem(at: unit.url, to: dir.appendingPathComponent(name))
-                try step(.wroteFile)
                 entry.file = name
             }
             entry.index = paragraph
@@ -199,11 +185,9 @@ extension ArticleAudioCache {
             entry.voiceID = same ? nil : unit.voiceID
             entries.append(entry)
         }
-        try step(.savingIndex)
         try publishIndex(IndexFile(engineID: engineID, voiceID: voiceID, createdAt: Date(), paragraphs: entries),
                          for: articleID)
         bumpContentRevision()
-        try step(.savedIndex)
     }
 
     /// Once the index is saved: CAFs the previous index listed that it doesn't, and `m-` / `s-`
@@ -218,7 +202,6 @@ extension ArticleAudioCache {
         let doomed = Set((previous?.paragraphs ?? []).map(\.file)).union(leftovers).subtracting(listed)
         for name in doomed.sorted() where fileManager.fileExists(atPath: dir.appendingPathComponent(name).path) {
             try fileManager.removeItem(at: dir.appendingPathComponent(name))
-            try step(.removedFile)
         }
     }
 }

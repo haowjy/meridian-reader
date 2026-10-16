@@ -233,8 +233,6 @@ final class LocalListenEngine: ListenEngine {
     /// there would wake a locked phone 5×/s, ~18,000 times an hour of listening); the player's
     /// events keep the paragraph and the gap grace current. Back in front it restarts and its
     /// first tick catches up.
-    var isClockRunning: Bool { clock != nil }
-
     private func startClock() {
         audioWanted = true
         updateClock()

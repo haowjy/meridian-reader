@@ -313,8 +313,7 @@ readiness check, chunk file and publish reads the target at that step. While no 
 target and nothing renders: the worker parks before its next chunk (the call in flight finishes
 and files nothing), a listener's chunk plays with Apple, and the queue never loads a model itself.
 Once an engine is ready the coordinator restarts it (`GlobalSynthQueue.renderTargetChanged`) and
-the queued jobs, downloads and saves included, render in that engine's voice
-(`RenderTargetTests`).
+the queued jobs, downloads and saves included, render in that engine's voice.
 
 1. Open an article → it becomes #1; render from the resume point to the end, then fill gaps
    above it.
@@ -374,7 +373,7 @@ one, or its audio is playing) render at `RenderPriority.listener` (`.userInitiat
 runs at `.utility`. Bake-ahead is held while the thermal state is `.serious` or worse or Low Power
 Mode is on (`BakeConditions`) and resumes on the change notification. Before every chunk, in
 `ensureChunk`, on every app-phase change and when a render fails, one pure rule decides
-(`RenderAdmission.decide`, `RenderAdmissionTests`):
+(`RenderAdmission.decide`):
 
 | App phase | Kokoro, either route (renders in background) | A host that can't render in the background |
 |---|---|---|
@@ -507,8 +506,7 @@ highlight and the paragraph picker stay fine-grained.
   `p-NNNN.caf` stays the render queue's name for paragraph NNNN), the index is saved in one
   atomic write, and only then is what it no longer lists deleted, with any `m-` / `s-` file an
   interrupted change left. An app that dies at any step leaves an index whose every CAF exists
-  (a cold load drops nothing), and running the change again finishes it
-  (`ArticleAudioCacheCrashTests` stops each change at every step). A key with no directory takes
+  (a cold load drops nothing), and running the change again finishes it. A key with no directory takes
   another's whole, in one rename.
 - Chunk scratch: `chunks/p-NNNN-<texthash>-<voice>/c-KK.caf`, filed by cache voice: a call in
   flight when the voice changes writes into its own voice's folder, never where the new voice
@@ -523,12 +521,12 @@ highlight and the paragraph picker stay fine-grained.
   article's audio with new paragraphs (opening it, Save) gives its job those paragraphs too,
   keeping the job's place and plan, so a job never renders old text onto them. Publishing renames
   it over `p-NNNN.caf` (a CAF that may be playing is never written into) and records it in the
-  same main-actor step, so no alignment runs between the file and its entry
-  (`RenderPublicationTests`). Replays use the stitched file. Scratch is disposable at launch;
+  same main-actor step, so no alignment runs between the file and its entry.
+  Replays use the stitched file. Scratch is disposable at launch;
   while an article has a queue job, scratch whose text hash still matches its paragraphs (in any
   voice) is kept
   (`removeChunkScratch(for:keepingCurrent:)`), because every extra Kokoro call is exposure to the
-  libBNNS crash (`BrowseSaveWhilePlayingTests` pins the call count).
+  libBNNS crash.
 - **Keys** (`ARTICLE_IDENTITY.md`): one per canonical URL, saved or not. Leaving an unsaved
   reader keeps its audio; ephemeral caches are pruned after 7 days or past 500 MB, except audio
   held for unfinished library work (`TECHNICAL_SPEC.md`, Audio work waits for the save). Save
@@ -550,8 +548,7 @@ highlight and the paragraph picker stay fine-grained.
   stay, stamped stale. Ready / missing counts look only at the target voice, so the queue
   re-renders the article, while playback uses the stale CAF until each paragraph is replaced
   (`playableAudioURL`). When nothing is missing in the new voice (the rule above),
-  `finalizeVoiceSwitch` deletes the leftovers. Queued jobs carry no voice, so after a switch they render in the new one
-  (`VoiceSwitchTests`).
+  `finalizeVoiceSwitch` deletes the leftovers. Queued jobs carry no voice, so after a switch they render in the new one.
 - **Language gate.** An article in a language the engine doesn't speak plays with Apple and is
   kept out of the on-device queue (`LocalTTSCoordinator.localLanguageGate`).
 
@@ -563,8 +560,8 @@ once the engine is ready. At launch the queue is held from the first audio-cache
 maintenance has finished (`AppLaunch.maintainLibrary`: left audio work, layout pass, dedupe,
 prune): it adopts no pending job and renders nothing, though the engine loads meanwhile
 (`LocalTTSCoordinator.holdRenderingForLaunch`). So nothing renders on paragraphs that maintenance
-rebuilds or merges, and the jobs it remaps are adopted as it leaves them
-(`LaunchAudioRecoveryTests`). Nothing bakes while the app is suspended: the app registers no
+rebuilds or merges, and the jobs it remaps are adopted as it leaves them.
+Nothing bakes while the app is suspended: the app registers no
 background task, and full-article rendering in the background is not promised.
 
 **Core ML compile cache.** Core ML adds compiled bundles under
@@ -592,7 +589,7 @@ Logs `coreml_cache_prune`.
 `ListeningSettingsSection` in Settings (⋯ → *Settings*, `NAVIGATION.md` → "Settings"), on the
 Library's list style: chrome cards on paper, `SectionHeader`s, notes in secondary ink. Every
 choice row is one `SettingsChoiceRow` (title, optional one-line subtitle, fixed accessory and
-check slots, min height 48), so state changes never move rows (`ListenSettingsLayoutUITests`).
+check slots, min height 48), so state changes never move rows.
 
 1. **Engines**: Apple and the registry's on-device engines. State lives in the subtitle
    ("Downloading… 42%", "Preparing voice…", "Ready (recommended)") and the accessory (a progress
@@ -638,7 +635,7 @@ wasn't holding is released, so other apps' audio can resume.
   `userPerform` → `PlaybackSessionState.handle`, the same path as the on-screen buttons. Now Playing is
   re-derived from `playback` on every change; identical updates are skipped.
 
-**Interruptions and route changes** (`ListenInterruptionPolicy`, pure and unit-tested; every pause
+**Interruptions and route changes** (`ListenInterruptionPolicy`, a pure rule; every pause
 and resume goes through session intents):
 
 | Event | Action |
@@ -739,7 +736,7 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   `chapter_boundary`. Together, the locked-screen chapter-boundary check.
 - `-importTestEPUB`: *Import Book…* takes a synthetic EPUB built in code (`TestEPUB`: a title
   page, then the demo book's three chapters, the first with a line loose in a `<div>` and a
-  footnote) instead of opening the Files picker, which a UI test can't drive; the import sheet
+  footnote) instead of opening the Files picker, which a probe or UI test can't drive; the import sheet
   and import are the real ones. `-playTestEPUB`: at launch, import it into the Library's top
   level (no sheet; an earlier import of it is deleted first, with its audio), then play it from
   where Continue would (chapter 1, not the title page). The offline test pages' page one links to
@@ -795,10 +792,7 @@ To use these tools in an optimized build, build Release with `READER_EXTRA_CONDI
   route (`bg_render_burst_*` lines; the app survives a locked listen), nothing
   renders with Core ML.
 
-Unit tests by area: `PlaybackSeekTests`, `PlaybackObservationTests`, `ListenPositionTests`,
-`EngineBindingTests`, `AppleListenEngineTests`, `LocalListenPlayerTests`, `SynthPipelineTests`,
-`RenderAdmissionTests`, `TextChunkerTests`, `HierarchicalChunkerTests`, `FirstChunkBoundaryTests`,
-`ChunkEdgeTrimTests`, `ParagraphSplitTests`, `ParagraphLayoutMigrationTests`, `VoiceSwitchTests`,
-`BackgroundListeningTests`, `BrowseSaveWhilePlayingTests`; books and series: `ChapterAdvanceTests`,
-`PlaybackAdvanceTests`, `GlobalSynthQueueStagingTests`, `NowPlayingMetadataTests`; background
-rendering: `BackgroundRenderBurstTests`, `KokoroBackgroundThreadsTests`.
+Playback is verified by probing the running app (the launch arguments above, the debug log,
+`ListenTiming`) and on the phone for timing and background behavior. Unit tests pin only the
+chunking and long-paragraph split invariants (`TextChunkerTests`, `ParagraphSplitTests`) and the
+engine crash guard's marker (`EngineCrashGuardTests`).

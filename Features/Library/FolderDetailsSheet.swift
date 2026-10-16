@@ -165,15 +165,8 @@ struct FolderDetailsSheet: View {
         cover = folder.coverData
     }
 
-    /// *Choose from Files*: the Files picker. With `-pickTestCover` (Debug) a synthetic picture
-    /// stands in for it, since a UI test can't drive the picker.
+    /// *Choose from Files*: the Files picker.
     private func pickFile() {
-        #if DEBUG
-        if LaunchOptions.current.picksTestCover {
-            useCover { TestCover.png }
-            return
-        }
-        #endif
         isPickingFile = true
     }
 

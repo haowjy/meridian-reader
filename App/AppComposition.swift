@@ -110,7 +110,7 @@ enum AppComposition {
             AppleSpeechProvider(),
             FluidAudioProvider(coreMLUnits: options.kokoroUnits),
         ]
-        if options.usesTestVoice { providers.append(TestVoiceProvider(delay: options.testVoiceDelay ?? 0.15)) }
+        if options.usesTestVoice { providers.append(TestVoiceProvider()) }
         return providers
         #else
         return [AppleSpeechProvider(), FluidAudioProvider()]

@@ -30,8 +30,7 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
   `NextChapterProviding`. A staged next chapter must never render at listener priority, and sits
   right behind the playing chapter's job (at the front once that is done), never behind a job that
   parks in the background, and its opening goes before the playing chapter's paragraphs above
-  the playhead (`GlobalSynthQueueStagingTests`); downloads come after all of it
-  (`DownloadCenterTests`). While the next chapter is fetched, no progress is reported for the
+  the playhead; downloads come after all of it. While the next chapter is fetched, no progress is reported for the
   page still bound: it has ended, and a resume there isn't a replay.
 - **Listening progress outlives rollbacks through the store only.** The recorder writes through
   `LibraryStore`'s `recordPlayback` / `recordPlaybackStarted` / `recordPosition` /
@@ -59,17 +58,17 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
   point carries a voice. Code that renders, checks readiness or files audio reads the target;
   code that changes the engine's state or voice tells the queue (`renderTargetChanged`, from
   `engineStateChanged` and `setVoice`). With no target the queue parks: nothing may build a host
-  for it, a model loads only when it is selected (`RenderTargetTests`).
+  for it, a model loads only when it is selected.
 - **What still needs audio** is decided only by `ArticleAudioCache.missingParagraphs` (a
   paragraph with chunks and no CAF in the voice; a bare "—" is never missing). Anything new that
   asks "is this rendered / done" calls it rather than counting `readyIndices` against the
   paragraph count.
 - **Model calls.** One host's models resident at a time: `LocalSynthService` lets a host go
-  (`LocalChunkRenderer.unload`) before it loads the next, and an unloaded host is never used again
-  (`LocalSynthServiceTests`). One call at a time (`SynthRenderGate`), never a Core ML call in the background
+  (`LocalChunkRenderer.unload`) before it loads the next, and an unloaded host is never used again.
+  One call at a time (`SynthRenderGate`), never a Core ML call in the background
   (`RenderAdmission`; the Core ML route's `KokoroSplitHost` switches itself to ONNX there for the
   rest of the process). Every extra Kokoro call is exposure to an uncatchable crash on iOS 26.4+, so
-  don't add re-renders: `BrowseSaveWhilePlayingTests` pins the call count.
+  don't add re-renders: probe a change that could add calls by counting them in the timing log.
 - **Only a death inside the engine is a crash.** The in-flight marker exists only during a
   guarded call; termination clears it, and launch drops a marker the process outlived or a
   background memory kill (`EngineCrashGuard.MarkerVerdict`). Anything that adds a long wait inside
@@ -78,8 +77,8 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
 - **Thread counts are per phase.** In front the ONNX session runs every core but one (3 to 6,
   `KokoroRouteSettings.defaultThreads`), in the background one; the first call after a phase
   change rebuilds the session (`KokoroONNXSessionSlot`). Pick the front count from the CPU route
-  benchmark on a device, not from the Mac (`KokoroONNXThreadSweepTests` is only a proxy: a Mac
-  has more performance cores than an iPhone's two).
+  benchmark on a device, not from the Mac (a Mac has more performance cores than an iPhone's
+  two).
 - **Background rendering is budgeted.** On the ONNX route the background gets one thread and
   bake-ahead runs only in bursts between the watermarks (`BackgroundRenderWatermarks`); between
   bursts the worker is idle until playback wakes it (`GlobalSynthQueue.playbackAdvanced`, called
@@ -101,15 +100,12 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
   like `LibraryStore.migrateParagraphLayout` does.
 - **Engine changes go through `EngineHandover`.** Views call `selectEngine` / `chooseVoice` /
   `deleteModel`; they never restart playback.
-- **Persisted ids and keys** are pinned by `EngineRegistryTests.testPersistedIDsAndCacheKeysUnchanged`.
+- **Persisted ids and keys** never change (AGENTS.md); review any diff that touches one.
 
-## Testing here
+## Verifying here
 
-- Fakes: `Tests/Fakes/FakeEngineProvider.swift` (an engine with configurable latency, caps and
-  failures), `FakeListenEngine`, `FakeUnitSource`, `ArticleAudioCache+Fixtures.swift`.
-- `TestSpeech` builds the coordinator and controller over a test's own files (audio cache, crash
-  guard, bake jobs, resume file) and defaults suite; `LibraryTestEnvironment` builds a library
-  over one. Nothing else in Tests constructs either, so no test reads the app's files.
+- Playback is verified by probing the running app (AGENTS.md → "Build and verify"). The unit
+  tests here are `TextChunkerTests`, `ParagraphSplitTests` and `EngineCrashGuardTests`.
 - Behavior that only shows on a device (the libBNNS crash, real render speed, background
   limits) is measured with a Release build and the timing log; see LISTEN_PLAYBACK.md →
   "Diagnostics".

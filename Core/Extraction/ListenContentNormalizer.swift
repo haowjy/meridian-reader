@@ -7,8 +7,7 @@ import WebKit
 /// web view (`OffscreenWebView`).
 ///
 /// - **Web pages** run it after Readability, in the web view Readability read the page in: the
-///   document the two shared when they ran as one script, so the output is unchanged
-///   (`ListenContentGoldenTests`).
+///   document the two shared when they ran as one script, so the output is unchanged.
 /// - **Book chapters** run it without Readability, one at a time in one reused web view holding a
 ///   blank standards-mode page, after pictures, embedded media, footnote asides, note references
 ///   and back-links are taken out and links unwrapped (`ReaderBookChapter.js`). A book's endnotes

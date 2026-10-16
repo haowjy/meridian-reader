@@ -45,10 +45,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   folder row passes the pages it already holds (`covers`, the same filter a folder download
   uses), so it fetches nothing; the cache's indexes are in memory.
 - **`DownloadOverview` is pure** (sections, statuses, the progress line, a link page's fetch as
-  `.fetching`); `DownloadOverviewTests` pins its rules, and the sheet reads only it. The bottom
+  `.fetching`); `DownloadOverviewTests` pins the accept rule, and the sheet reads only it. The bottom
   chrome reads only `DownloadCenter.progress`, which reads no voices.
 - **The list changes through `updateRecords` / `withRecord`**: a copy, assigned once, so each
   change writes `Downloads.json` once (pausing everything too).
-- **UI tests** use the Debug test voice (`-testVoice`, `-selectEngine test.voice`,
-  `-testVoiceDelay`): the Simulator has no Kokoro model. Every UI-test launch's `-resetLibrary`
-  empties the download list and puts the voice back on One.
+- **Probes on the Simulator** use the Debug test voice (`-testVoice`, `-selectEngine test.voice`):
+  the Simulator has no Kokoro model. `-resetLibrary` empties the download list and puts the voice
+  back on One.

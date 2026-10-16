@@ -230,7 +230,7 @@ enum LaunchHooks {
     }
 
     /// `-seedDemoArticle`: one deterministic article in no folder (and, with `-seedPlayedPages N`,
-    /// N pages played without saving; with `-seedLoosePages N`, N more saved pages in no folder).
+    /// N pages played without saving).
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in library: LibraryStore) {
         let context = library.context
         let plain = """
@@ -245,18 +245,11 @@ enum LaunchHooks {
         <p>Second paragraph so next and previous skip have somewhere to go. Extra sentences keep the synthesizer busy while the probe checks speed and paragraph controls.</p>
         <p>Third paragraph finishes the demo article used by Simulator UI tests. One more cushion of text so stop can be exercised while playback is still active.</p>
         """
-        let extras = (3..<demo.paragraphs).map { i in
-            "Extra paragraph \(i + 1) keeps the demo going while the app is in the background. "
-                + "It talks about harbor \(i + 1), where boats come and go, and the weather changes every hour."
-        }
-        let plainAll = ([plain] + extras).joined(separator: "\n\n")
-        let htmlAll = ([html] + extras.map { "<p>\($0)</p>" }).joined(separator: "\n")
         // A fresh key each launch, so no audio rendered by an earlier test carries over.
-        let page = Page(key: UUID(), title: demo.title ?? "Demo Listen Article", byline: "example.com",
+        let page = Page(key: UUID(), title: "Demo Listen Article", byline: "example.com",
                         urlString: "https://example.com/demo", contentState: .saved, addedAt: .now,
                         sortKey: library.nextSortKey(in: nil))
-        seedText(page, html: demo.plainTextOnly ? "" : htmlAll, plain: plainAll)
-        page.positionParagraph = demo.progress
+        seedText(page, html: demo.plainTextOnly ? "" : html, plain: plain)
         context.insert(page)
         for i in 0..<demo.playedPages {
             let text = ["Played page \(i + 1), first paragraph.", "Played page \(i + 1), second paragraph."]
@@ -265,15 +258,6 @@ enum LaunchHooks {
             seedText(played, html: text.map { "<p>\($0)</p>" }.joined(), plain: text.joined(separator: "\n\n"))
             played.lastPlayedAt = Date.now.addingTimeInterval(-60 * Double(i + 1))
             context.insert(played)
-        }
-        for i in 0..<demo.loosePages {
-            let text = ["Loose page \(i + 1), first paragraph.", "Loose page \(i + 1), second paragraph."]
-            let loose = Page(key: UUID(), title: "Loose Page \(i + 1)", byline: "example.com",
-                             urlString: "https://example.com/loose-\(i + 1)", contentState: .saved,
-                             addedAt: page.addedAt?.addingTimeInterval(-60 * Double(i + 1)),
-                             sortKey: page.sortKey - Double(demo.loosePages - i))
-            seedText(loose, html: text.map { "<p>\($0)</p>" }.joined(), plain: text.joined(separator: "\n\n"))
-            context.insert(loose)
         }
         library.commit("demo seed")
     }

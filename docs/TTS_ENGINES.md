@@ -184,18 +184,14 @@ probe. Library code lives only under `Features/Speech/Engines/<Library>/`, inclu
 policy and its launch steps.
 
 Persisted values never change: engine ids (`apple`, `local.kokoro`), cache voice keys
-(`kokoro.<voice>`), `reader.tts.engineID`, `reader.tts.kokoroVoice`
-(`EngineRegistryTests.testPersistedIDsAndCacheKeysUnchanged`).
+(`kokoro.<voice>`), `reader.tts.engineID`, `reader.tts.kokoroVoice`.
 
 **Retired engines.** A provider lists engines it no longer ships in `retiredEngines` (id, display
 name, done flag, replacement, file deleter). A stored selection of one maps to the replacement when
 that is installed, else Apple, and the `RetiredEngineCleanup` launch migration deletes its cached
 audio and model files once (again on a later launch if audio was held for unfinished library
 work). FluidAudio lists one: Chatterbox Nano (`local.chatterbox-nano`), the
-engine that also owns index files written without an engine id. `EngineRetirementTests` covers it.
-
-Test seam: `Tests/Fakes/FakeEngineProvider.swift` (tone/silence PCM, latency, per-call cap →
-`inputTooLong`, hard failure) and `FakeQueueContext` (temp-dir cache).
+engine that also owns index files written without an engine id.
 
 ### Adding an engine
 
@@ -215,7 +211,7 @@ Test seam: `Tests/Fakes/FakeEngineProvider.swift` (tone/silence PCM, latency, pe
 4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,
    `deleteModels`; override `recover(from:playing:)` if a crash needs more than "switch away".
 5. **Register.** One line in `AppComposition.makeProviders()`.
-6. **Verify.** An `EngineRegistryTests`-style test for ids and keys; a Release device run of
+6. **Verify.** A Release device run of
    `-engineProbe -probeOnly <ShortName>` (init, first audio, wall vs audio); then pick it in Settings.
 
 The Settings row, download / progress / delete UI, cache, bake-ahead, Apple fallback and probe

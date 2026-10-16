@@ -9,12 +9,6 @@ import Foundation
 final class TestVoiceProvider: SpeechEngineProvider {
     static let id = SpeechEngineID("test.voice")
     let name = "TestVoice"
-    /// Seconds each render takes: slow enough that a download's progress shows.
-    let delay: TimeInterval
-
-    init(delay: TimeInterval = 0.15) {
-        self.delay = delay
-    }
 
     static let descriptor = EngineDescriptor(
         id: id,
@@ -28,7 +22,7 @@ final class TestVoiceProvider: SpeechEngineProvider {
     var descriptors: [EngineDescriptor] { [Self.descriptor] }
 
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {
-        id == Self.id ? TestVoiceHost(engineID: id, delay: delay) : nil
+        id == Self.id ? TestVoiceHost(engineID: id) : nil
     }
 
     func isInstalled(_ id: SpeechEngineID) -> Bool { true }
@@ -37,15 +31,15 @@ final class TestVoiceProvider: SpeechEngineProvider {
 
 private final class TestVoiceHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID
-    let delay: TimeInterval
+    /// Seconds each render takes: slow enough that a download's progress shows.
+    private let delay: TimeInterval = 0.15
     var routingLabel: String? { "test" }
     var onProgress: (@Sendable (Double) -> Void)?
     private let lock = NSLock()
     private var prepared = false
 
-    init(engineID: SpeechEngineID, delay: TimeInterval) {
+    init(engineID: SpeechEngineID) {
         self.engineID = engineID
-        self.delay = delay
     }
 
     var isPrepared: Bool { lock.withLock { prepared } }

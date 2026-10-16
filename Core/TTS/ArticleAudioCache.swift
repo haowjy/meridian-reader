@@ -87,12 +87,6 @@ final class ArticleAudioCache {
             }
         }
     }
-    #if DEBUG
-    /// Tests: sees each step of a copy-on-write change (`ChangeStep`); throwing stops the change
-    /// right there, as if the app died.
-    @ObservationIgnored var faultHook: ((ChangeStep) throws -> Void)?
-    #endif
-
     init(fileManager: FileManager = .default, root: URL) {
         self.fileManager = fileManager
         self.root = root
@@ -472,7 +466,6 @@ extension ArticleAudioCache {
             kinds[newKey] = nil
             dropIndex(for: newKey)
             bumpContentRevision()
-            try step(.movedDirectory)
             markSaved(cacheKey: newKey)
             return
         }
@@ -490,7 +483,6 @@ extension ArticleAudioCache {
         try removeUnlisted(articleID: newKey, previous: own)
         markSaved(cacheKey: newKey)
         try deleteAudio(for: oldKey)
-        try step(.removedFile)
     }
 
     /// Prune ephemeral caches older than `maxAge` or when total ephemeral size exceeds `maxBytes`.

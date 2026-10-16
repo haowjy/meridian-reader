@@ -1,7 +1,7 @@
 # Vendored FluidAudio (v0.16.1, b811a615)
 
 Copied from https://github.com/FluidInference/FluidAudio (Apache-2.0) so Reader can patch it.
-Tests/Documentation removed; test targets dropped from Package*.swift.
+Tests/Documentation and upstream's `.github/` (its CI workflows) removed; test targets dropped from Package*.swift.
 
 ## Local patches
 - `Sources/FluidAudio/TTS/Chatterbox/Nano/ChatterboxNanoModels.swift`: each model loads with

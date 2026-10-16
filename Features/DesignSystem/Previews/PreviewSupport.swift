@@ -2,8 +2,8 @@
 import SwiftUI
 
 /// The variants every component's previews are shown in: light, dark and the largest
-/// Dynamic Type size. Environment values (not `preferredColorScheme`) so the same galleries also
-/// render through `ImageRenderer` in `DesignSystemGalleryTests`.
+/// Dynamic Type size. Environment values (not `preferredColorScheme`), so a gallery also renders
+/// through `ImageRenderer` (a probe's snapshot of every variant).
 enum PreviewVariant: String, CaseIterable {
     case light
     case dark

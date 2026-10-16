@@ -153,12 +153,12 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   toolbar ⋯, the Reader's ⋯ and Now Playing's ⋯; its rows come from the surface that opened it,
   `MenuContext`) is not a popover: it is placed so the bottom-right button's icon (Reader,
   or Website in the Reader and Now Playing — marked with `morphMenuFocus`) sits slightly up and to
-  the left of the ⋯ glyph (Safari's feel: **12 pt left, 10 pt up**), not dead-on on top of it (UI
-  tests check the offset within 1 pt on Browse, the Reader and Now Playing). Like every menu in
-  the app (the long-press ones too), it keeps its shape (decision DR-09): a row that applies to
-  what the menu is for but can't run now shows dimmed, and only a row that can never apply to that
-  kind of item is left out (`MenuAvailability`). A toggle is one row showing the face for the
-  item's state (*Save* / *Remove from Library*, *Mark as Finished* / *Unfinished*). It covers
+  the left of the ⋯ glyph (Safari's feel: **12 pt left, 10 pt up**), not dead-on on top of it.
+  Like every menu in the app (the long-press ones too), it keeps its shape (decision DR-09): a row
+  that applies to what the menu is for but can't run now shows dimmed, and only a row that can
+  never apply to that kind of item is left out (`MenuAvailability`). A toggle is one row showing
+  the face for the item's state (*Save* / *Remove from Library*, *Mark as Finished* /
+  *Unfinished*). It covers
   the button and the toolbar around it, so the bottom row lands under the thumb, and grows out of
   that point (the glass grows from the button's circle to the panel's frame and corners, never
   stretched; the rows fade / un-blur in) while the ⋯ glyph
@@ -520,7 +520,7 @@ row) opens Now Playing instead.
 with nothing moving but what has to: the same top bar (`SheetTopBar`: the close pill at the top
 left, **Aa** then ☝︎ at the top right, at the page margin), 🔖 in slot 1 and ⋯ in slot 5 of the
 bottom row, the same ⋯ menu (Now Playing adds *Go to*), and the same colours and type (the
-reading theme, below). UI tests check the frames match. They differ where the job does: its
+reading theme, below). They differ where the job does: its
 middle slots are the transport (⏮, the round ⏸ / ▶, ⏭) where the Reader has
 Listen, it has the scrub capsule with the speed and the status notes, and its text follows the
 audio under a title card (the Reader's sits under a heading and never moves by itself); the
@@ -585,7 +585,7 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   wherever the Reader was opened from; from the library, the library closes first. Playback
   never stops.
 - The text sits between the header and the bottom row, so its first line starts below the close
-  pill and its last line scrolls clear of the bottom row (UI tests check both).
+  pill and its last line scrolls clear of the bottom row.
 
 ### Now Playing
 
@@ -756,7 +756,7 @@ They show only with **developer options** on (`DeveloperOptions`, UserDefaults `
 default in Release builds, on by default in Debug builds. To toggle in any build, long-press the
 **version row** at the bottom of Settings for 2 s (haptic + "Developer options on/off"
 confirmation). A Release build clears a stored "on" once, so a Debug pill left from an older build
-can't stick; long-press the version row to turn it back on. UI tests force it with
+can't stick; long-press the version row to turn it back on. A launch forces it with
 `-reader.developerOptions NO|YES`. Launch-argument hooks and test-only markers compile only in
 Debug builds (`App/LaunchOptions.swift`).
 

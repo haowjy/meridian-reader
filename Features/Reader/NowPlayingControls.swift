@@ -33,9 +33,6 @@ struct NowPlayingControls: View {
             scrubRow
                 .readerScrubBubble()
             ListenControllerView(leading: save, trailing: more, speech: speech)
-                #if DEBUG
-                .overlay(alignment: .topLeading) { positionMarker }
-                #endif
         }
     }
 
@@ -128,31 +125,6 @@ struct NowPlayingControls: View {
             .padding(.horizontal, Spacing.xs)
             .accessibilityIdentifier(id)
     }
-
-    #if DEBUG
-    /// UI tests: the exact spot playing / Play starts from ("p=<paragraph> o=<offset in it>").
-    @ViewBuilder
-    private var positionMarker: some View {
-        if LaunchOptions.current.uiTesting {
-            let doc = speech.document
-            PlayheadReader(speech: speech) { spot in
-                Color.clear
-                    .frame(width: 2, height: 2)
-                    .allowsHitTesting(false)
-                    .accessibilityElement()
-                    .accessibilityLabel("Scrub position")
-                    .accessibilityValue(Self.positionMarker(document: doc, spot: spot))
-                    .accessibilityIdentifier("readerScrubOffset")
-            }
-        }
-    }
-
-    private static func positionMarker(document doc: ParagraphDocument, spot: PlayheadSpot) -> String {
-        guard !doc.isEmpty else { return "p=0 o=0" }
-        let start = doc.startUTF16Offset(forParagraph: spot.paragraph)
-        return "p=\(spot.paragraph) o=\(max(0, spot.utf16Offset - start))"
-    }
-    #endif
 
     /// Scrubber fraction of `spot`. `ReaderScrubMap` keeps a spot inside its paragraph (< 1 of
     /// it), so the end of a paragraph never reads as the start of the next one.
