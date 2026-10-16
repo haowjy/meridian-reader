@@ -502,7 +502,6 @@ final class SpeechController {
     var canSkipToPreviousParagraph: Bool { isPrepared && currentParagraphIndex > 0 }
     var canSkipToNextParagraph: Bool { isPrepared && currentParagraphIndex + 1 < document.count }
 
-
     // MARK: - Session API (intents)
 
     /// Binds `session` paused at `spot`. A session already bound to it stays as it is.

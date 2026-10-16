@@ -9,10 +9,9 @@ enum PlaybackPhase: Equatable, Sendable {
     case finished
 }
 
-/// What the UI / controller wants.
-/// On a finished page, `resume`, `toggle` and `play(from:)` the playhead play it again from its
-/// top, whatever spot the voice finished at: the on-screen ▶, headphones, the lock screen and
-/// CarPlay all do the same.
+/// What the UI / controller wants. On a finished page, `resume`, `toggle` and `play(from:)` at
+/// the playhead play it again from its top, whatever spot the voice finished at: the on-screen ▶,
+/// headphones, the lock screen and CarPlay all do the same.
 enum PlaybackIntent: Equatable {
     case play(from: Int)
     case pause
@@ -217,8 +216,8 @@ struct PlaybackSessionState: Equatable {
 
         case .toggle:
             if phase == .finished { return replay() }
-            // The engine first: a stale paused can't block Pause while audible, nor a stale
-            // playing Play when nothing is held.
+            // The engine first: audible is playing whatever the phase says, and a phase left
+            // playing or paused with nothing held is prepared again.
             reconcile(with: engine)
             if engine.isAudible || phase == .playing {
                 return pause(engine: engine)
