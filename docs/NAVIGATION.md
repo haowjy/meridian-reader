@@ -10,19 +10,14 @@ their text when it is at its top, which does exactly what that button does.
 
 | Button | Presentation | Gesture | Provided by |
 |--------|--------------|---------|-------------|
-| ‹ | real push in a `NavigationStack` (`NavigationLink` / `navigationDestination`) | left-edge swipe-back | UIKit with the system back button; `.edgeSwipeBack()` (`App/SwipeBackSupport.swift`) with a custom one |
+| ‹ | real push in a `NavigationStack` (`NavigationLink` / `navigationDestination`) | left-edge swipe-back | UIKit, with the system back button |
 | ✕ | modal: `.sheet`, or the design system's `Sheet` (the Reader, Now Playing) | swipe down | `.sheet` does it natively; `Sheet` implements it (see below) |
 
 ## ‹ = push + swipe-back
 
 - Never show a ‹ screen with `.sheet` / `.fullScreenCover`; push it.
-- A custom back control is fine: hide only the system back button
-  (`.navigationBarBackButtonHidden(true)`), put your row in the bar
-  (`ToolbarItem(placement: .principal)`), and add `.edgeSwipeBack()` to the screen. UIKit disables
-  swipe-back once the back button is hidden; `.edgeSwipeBack()` re-enables it for that screen only:
-  the edge gesture begins only at stack depth > 1 and not mid-transition, and scroll views yield
-  to it only at the very left edge. iOS 26's full-width content swipe is off on that screen, so
-  sideways drags (the reader's scrubber, text selection) never pop it.
+- Keep the system back button: every pushed screen does. UIKit turns swipe-back off on a screen
+  that hides it (`.navigationBarBackButtonHidden(true)`).
 - **Don't hide the whole navigation bar on a pushed screen** (`.toolbar(.hidden, for: .navigationBar)`)
   when the screen below shows one. The bar is shared by the stack, so mid-swipe the parent's bar
   (large title, search field, toolbar buttons) pops in full-width on top of the page you're leaving.
@@ -30,10 +25,10 @@ their text when it is at its top, which does exactly what that button does.
   stack's root, has no bar: its title is the first thing in its list. The screens pushed over it
   keep theirs.)
 - Don't build swipe-back by hand. Push with `NavigationStack`; with the system back button it just
-  works, with a custom one add `.edgeSwipeBack()`.
-- A custom back control should just `dismiss()`; put "leaving" side effects in `onDisappear` so
-  the swipe and the tap stay identical. No screen saves the listening position: the playback
-  session does, through `ListeningProgressRecorder` (`LISTEN_PLAYBACK.md`).
+  works.
+- Put "leaving" side effects in `onDisappear`, so the swipe and the tap stay identical. No screen
+  saves the listening position: the playback session does, through `ListeningProgressRecorder`
+  (`LISTEN_PLAYBACK.md`).
 
 ## ✕ = modal + swipe-down
 
