@@ -159,7 +159,7 @@ final class ListenPositionTests: XCTestCase {
         speech.start(s, at: ListenSpot(paragraph: 1, utf16Offset: target))
         XCTAssertEqual(speech.diagnostics.snapshot().engine, "Fake")
 
-        await waitUntil({ speech.localEngine.player.isSpeaking && speech.localEngine.player.isAudible },
+        await waitUntil({ speech.localEngine.player.state == .playing && speech.localEngine.player.isAudible },
                         "the first unit plays")
         XCTAssertEqual(speech.currentParagraphIndex, 1)
         XCTAssertGreaterThanOrEqual(speech.spokenUTF16Offset, target, "never before where the play began")

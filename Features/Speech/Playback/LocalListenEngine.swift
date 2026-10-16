@@ -138,7 +138,7 @@ final class LocalListenEngine: ListenEngine {
 
     func resume() {
         holdsAtStart = false
-        guard player.isPaused else { return }
+        guard player.state == .paused else { return }
         player.resume()
         startClock()
         if player.isAudible { onEvent?(.becameAudible) }
@@ -160,11 +160,11 @@ final class LocalListenEngine: ListenEngine {
     func rekey(to id: UUID) { source?.rekey(to: id) }
 
     var snapshot: PlaybackEngineSnapshot {
-        PlaybackEngineSnapshot(isAudible: player.isAudible || player.isSpeaking, isPaused: player.isPaused)
+        PlaybackEngineSnapshot(isAudible: player.isAudible || player.state == .playing, isPaused: player.state == .paused)
     }
 
     var isWaitingForAudio: Bool {
-        guard !player.isPaused, !player.isAudible else { return false }
+        guard player.state != .paused, !player.isAudible else { return false }
         let count = document.count
         let hasMoreUnits = paragraph + 1 < count || player.nextParagraphToProduce < count || player.awaitingMore
         guard hasMoreUnits else { return false }
@@ -184,7 +184,7 @@ final class LocalListenEngine: ListenEngine {
 
     var debug: ListenEngineDebug {
         ListenEngineDebug(
-            isSpeaking: player.isSpeaking, isPaused: player.isPaused,
+            isSpeaking: player.state == .playing, isPaused: player.state == .paused,
             bufferedCount: player.bufferedUnitCount, awaitingMore: player.awaitingMore,
             producerActive: player.isProducing, epoch: player.debugEpoch,
             currentCAF: player.debugCurrentCAF, secondsSinceEnqueue: player.debugSecondsSinceEnqueue,

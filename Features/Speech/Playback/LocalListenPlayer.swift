@@ -23,16 +23,16 @@ final class LocalListenPlayer {
     private var speakRequestedAt: CFAbsoluteTime?
     private var starvedAt: CFAbsoluteTime?
     private var producerTask: Task<Void, Never>?
-    /// User wants audio moving (false while paused). Independent of produce epoch.
-    private var userWantsAudible = false
     /// Generation for starved-watchdog tasks; bumped whenever we leave play/resume paths.
     private var starveWatchGeneration = 0
     /// Apple fallback renders so far: each gets its own file, so deleting one never touches
     /// another unit's audio.
     private var fallbackRenders = 0
 
-    private(set) var isSpeaking = false
-    private(set) var isPaused = false
+    /// What the listener wants of the player, independent of the produce epoch: audio moving
+    /// (`playing`: sounding, or waiting for its next unit), held (`paused`), or nothing.
+    enum State { case stopped, playing, paused }
+    private(set) var state = State.stopped
 
     /// Units played while the app was backgrounded, by source (listen debug panel).
     struct BackgroundPlayStats: Equatable {
@@ -64,7 +64,7 @@ final class LocalListenPlayer {
     }
 
     /// Article whose audio is playing right now (nil when paused / stopped).
-    var playingArticleID: UUID? { (isSpeaking && !isPaused) ? source?.articleID : nil }
+    var playingArticleID: UUID? { state == .playing ? source?.articleID : nil }
 
     /// Where Apple fallback units are written (`tmp/ReaderTTSLive`), never cached: each file is
     /// deleted once its unit leaves the player (played out, dropped, stopped), or at once when it
@@ -87,8 +87,7 @@ final class LocalListenPlayer {
             guard let self else { return }
             self.noteUnitStartedForTiming(item)
             self.noteUnitKind(item)
-            self.isSpeaking = true
-            self.isPaused = false
+            self.state = .playing
             self.onUnitStarted?(item.paragraphIndex)
             // Start / keep producing the next units as soon as one begins playing.
             self.ensureProducerRunning()
@@ -108,10 +107,8 @@ final class LocalListenPlayer {
         }
         player.onFinished = { [weak self] in
             // The only place the article ends (see `ChunkPlaybackQueue.endOfInput`); once per play.
-            guard let self, self.userWantsAudible || self.isSpeaking else { return }
-            self.isSpeaking = false
-            self.isPaused = false
-            self.userWantsAudible = false
+            guard let self, self.state == .playing else { return }
+            self.state = .stopped
             self.onFinished?()
         }
     }
@@ -174,9 +171,7 @@ final class LocalListenPlayer {
         let paragraphs = source.paragraphs
         let start = max(0, min(index, max(paragraphs.count - 1, 0)))
         nextProduceIndex = start
-        userWantsAudible = true
-        isPaused = false
-        isSpeaking = true
+        state = .playing
         nextProduceChunk = max(0, chunk)
         pendingStartFraction = min(0.99, max(0, fractionInChunk))
         epoch += 1
@@ -191,17 +186,13 @@ final class LocalListenPlayer {
     func pause() {
         starvedAt = nil
         speakRequestedAt = nil
-        userWantsAudible = false
-        isPaused = true
-        isSpeaking = false
+        state = .paused
         player.pause()
         // Producer may finish the in-flight unit and enqueue; player stays soft-paused.
     }
 
     func resume() {
-        userWantsAudible = true
-        isPaused = false
-        isSpeaking = true
+        state = .playing
         player.resume()
         // Same epoch — do not cancel in-flight produce or skip units.
         player.awaitingMore = nextProduceIndex < paragraphs.count
@@ -216,9 +207,7 @@ final class LocalListenPlayer {
         producerTask?.cancel()
         producerTask = nil
         player.clear()
-        userWantsAudible = false
-        isSpeaking = false
-        isPaused = false
+        state = .stopped
         nextProduceIndex = 0
         nextProduceChunk = 0
         pendingStartFraction = 0
@@ -282,7 +271,7 @@ final class LocalListenPlayer {
     /// producer task cannot leave the session awaitingMore forever.
     private func handleStarved() {
         ListenDebugLog.shared.append("starved nextProduce=\(nextProduceIndex) c\(nextProduceChunk) buf=\(player.bufferedCount) epoch=\(epoch)")
-        if starvedAt == nil, userWantsAudible { starvedAt = ListenTimingLog.now() }
+        if starvedAt == nil, state == .playing { starvedAt = ListenTimingLog.now() }
         ensureProducerRunning()
         armStarveWatchdog()
         onStarved?()
@@ -299,7 +288,7 @@ final class LocalListenPlayer {
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             guard let self else { return }
             guard self.starveWatchGeneration == watch, self.epoch == e else { return }
-            guard self.userWantsAudible || self.isSpeaking || self.isPaused else { return }
+            guard self.state != .stopped else { return }
             guard let source = self.source, self.nextProduceIndex < source.paragraphs.count else {
                 self.player.endOfInput()
                 return

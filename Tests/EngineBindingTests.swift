@@ -123,13 +123,13 @@ final class EngineBindingTests: XCTestCase {
         let s = session()
         speech.start(s)
         XCTAssertEqual(engineName(speech), "Fake")
-        await waitUntil({ speech.localEngine.player.isSpeaking }, "the local engine started")
+        await waitUntil({ speech.localEngine.player.state == .playing }, "the local engine started")
 
         await coordinator.selectEngine(.apple)
 
         XCTAssertEqual(engineName(speech), "Apple")
         XCTAssertEqual(apple.plays.count, 1, "re-spoken with Apple at the playhead")
-        XCTAssertFalse(speech.localEngine.player.isSpeaking, "the local player does not keep going unowned")
+        XCTAssertNotEqual(speech.localEngine.player.state, .playing, "the local player does not keep going unowned")
         XCTAssertEqual(speech.playback.phase, .playing)
     }
 
@@ -137,7 +137,7 @@ final class EngineBindingTests: XCTestCase {
         let (speech, coordinator, _) = makeSpeech()
         await coordinator.selectEngine(FakeEngineProvider.fakeID)
         speech.start(session())
-        await waitUntil({ speech.localEngine.player.isSpeaking }, "the local engine started")
+        await waitUntil({ speech.localEngine.player.state == .playing }, "the local engine started")
         let before = speech.localEngine.player.debugEpoch
 
         coordinator.setVoice("v2", for: FakeEngineProvider.fakeID)

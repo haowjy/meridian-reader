@@ -86,7 +86,7 @@ final class LocalListenPlayerTests: XCTestCase {
         try endCurrentUnit(queue, file: baked)
         await settle()
         XCTAssertEqual(finished, 1)
-        XCTAssertFalse(player.isSpeaking)
+        XCTAssertNotEqual(player.state, .playing)
     }
 
     /// The listening time ready ahead (what background rendering starts and stops on): the units in
@@ -210,7 +210,7 @@ final class LocalListenPlayerTests: XCTestCase {
         _ = try? await play.value
         await settle()
         XCTAssertEqual(queue.bufferedCount, 0, "stopped before the load finished: nothing plays")
-        XCTAssertFalse(player.isSpeaking)
+        XCTAssertNotEqual(player.state, .playing)
         XCTAssertFalse(player.isProducing)
     }
 
