@@ -25,6 +25,8 @@ final class DownloadOverviewTests: XCTestCase {
         XCTAssertEqual(o.queued.first?.status, .downloading(fraction: 1.5 / 4))
         XCTAssertEqual(o.queued.first?.voice, heart, "named by the voice it renders in")
         XCTAssertEqual(try XCTUnwrap(o.progress), 1.5 / 4, accuracy: 1e-9)
+        let fetching = overview([book], active: .init(recordID: book.id, key: book.entries[1].key, fraction: 0, isFetching: true))
+        XCTAssertEqual(fetching.queued.first?.status, .fetching(fraction: 1.0 / 4), "a link page's text is being fetched")
     }
 
     func testTheLineCoversOnlyRunningDownloads() throws {

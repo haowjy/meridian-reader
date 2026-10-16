@@ -22,11 +22,6 @@ extension LocalTTSCoordinator {
         (wantsLocalBake ? activeLocalEngineID : engines.defaultLocalEngineID).flatMap(cacheVoice(of:))
     }
 
-    /// "Kokoro Heart" for a cache voice key.
-    func voiceLabel(forCacheVoice voiceID: String) -> String {
-        engines.voiceLabel(forCacheVoice: voiceID)
-    }
-
     enum DownloadQueueing: Equatable {
         /// Its bake job is queued (or waits for the engine to load); `bakeCompleted` follows.
         case rendering

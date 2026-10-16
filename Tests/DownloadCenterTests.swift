@@ -37,7 +37,7 @@ final class DownloadCenterTests: XCTestCase {
         XCTAssertTrue(env.isReady(page))
         let item = try XCTUnwrap(center.overview.done.first)
         XCTAssertEqual(item.voice, "fake.alpha")
-        XCTAssertEqual(tts.voiceLabel(forCacheVoice: "fake.alpha"), "Fake Alpha")
+        XCTAssertEqual(tts.engines.voiceLabel(forCacheVoice: "fake.alpha"), "Fake Alpha")
         XCTAssertNil(center.overview.progress, "the line goes once nothing is queued")
         XCTAssertEqual(center.download(page), .added, "asked again: queued afresh")
     }

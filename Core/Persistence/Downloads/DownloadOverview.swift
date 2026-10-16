@@ -14,8 +14,10 @@ import Foundation
 /// A row's Downloaded mark follows the same rule, per page (`isDownloaded`).
 struct DownloadOverview: Equatable {
     enum Status: Equatable {
-        /// One of its pages is being fetched or rendered now.
+        /// One of its pages is being rendered now.
         case downloading(fraction: Double)
+        /// One of its pages, a link, is having its text fetched now.
+        case fetching(fraction: Double)
         /// Waiting its turn.
         case queued(fraction: Double)
         case paused(fraction: Double)
@@ -27,7 +29,7 @@ struct DownloadOverview: Equatable {
 
         var fraction: Double? {
             switch self {
-            case .downloading(let f), .queued(let f), .paused(let f), .waitingForVoice(let f): f
+            case .downloading(let f), .fetching(let f), .queued(let f), .paused(let f), .waitingForVoice(let f): f
             case .done, .differentVoice: nil
             }
         }
@@ -49,6 +51,8 @@ struct DownloadOverview: Equatable {
         var recordID: UUID
         var key: UUID
         var fraction: Double
+        /// Its text is being fetched (a link page), before anything renders.
+        var isFetching = false
     }
 
     var queued: [Item] = []
@@ -78,8 +82,8 @@ struct DownloadOverview: Equatable {
                     status = .paused(fraction: fraction)
                 } else if !rendersDownloads {
                     status = .waitingForVoice(fraction: fraction)
-                } else if active?.recordID == record.id {
-                    status = .downloading(fraction: fraction)
+                } else if let active, active.recordID == record.id {
+                    status = active.isFetching ? .fetching(fraction: fraction) : .downloading(fraction: fraction)
                 } else {
                     status = .queued(fraction: fraction)
                 }
