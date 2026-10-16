@@ -215,6 +215,6 @@ struct LegacyLibrarySources {
     var defaults: UserDefaults
 
     static var standard: LegacyLibrarySources {
-        LegacyLibrarySources(bookmarksURL: LegacyBookmarks.defaultFileURL, defaults: .standard)
+        LegacyLibrarySources(bookmarksURL: AppDirectories.legacyBookmarks, defaults: .standard)
     }
 }

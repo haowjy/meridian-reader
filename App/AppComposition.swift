@@ -136,7 +136,7 @@ enum AppComposition {
     static func runLaunchMaintenance(library: LibraryStore) {
         let tts = speechController.localTTS
         prepareAudioCache(library: library, tts: tts, migrations: launchMigrations(for: engineRegistry))
-        for directory in engineRegistry.regenerableDirectories + [ListenTimingLog.directory] {
+        for directory in engineRegistry.regenerableDirectories + [AppDirectories.listenTiming] {
             BackupExclusion.exclude(directory)
         }
         ListenTimingLog.log("app_launch", ["engine": tts.selectedEngineID.rawValue, "build": LocalTTSCoordinator.buildConfiguration])

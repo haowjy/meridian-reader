@@ -72,7 +72,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     ) {
         self.engines = engines
         self.defaults = defaults
-        self.audioCache = audioCache ?? ArticleAudioCache()
+        self.audioCache = audioCache ?? ArticleAudioCache(root: AppDirectories.audioCache)
         self.crashGuard = crashGuard
         self.synth = LocalSynthService(engines: engines)
         self.chunkPlans = ChunkPlans { engines.descriptor(SpeechEngineID(rawValue: $0))?.onDevice?.limits }

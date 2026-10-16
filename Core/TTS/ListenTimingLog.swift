@@ -22,13 +22,7 @@ enum ListenTimingLog {
     private static let queue = DispatchQueue(label: "reader.listen-timing", qos: .utility)
     private static let maxBytes: UInt64 = 2 * 1024 * 1024
 
-    static var directory: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("ListenTiming", isDirectory: true)
-    }
-
-    static var fileURL: URL { directory.appendingPathComponent("timing.jsonl") }
+    static var fileURL: URL { AppDirectories.listenTiming.appendingPathComponent("timing.jsonl") }
 
     /// Monotonic-ish wall clock in seconds for durations.
     static func now() -> CFAbsoluteTime { CFAbsoluteTimeGetCurrent() }
@@ -61,10 +55,10 @@ enum ListenTimingLog {
     private static func write(_ line: Data) {
         let fm = FileManager.default
         let url = fileURL
-        try? fm.createDirectory(at: directory, withIntermediateDirectories: true)
+        try? fm.createDirectory(at: AppDirectories.listenTiming, withIntermediateDirectories: true)
         if let size = (try? fm.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.uint64Value,
            size > maxBytes {
-            let rotated = directory.appendingPathComponent("timing.1.jsonl")
+            let rotated = AppDirectories.listenTiming.appendingPathComponent("timing.1.jsonl")
             try? fm.removeItem(at: rotated)
             try? fm.moveItem(at: url, to: rotated)
         }

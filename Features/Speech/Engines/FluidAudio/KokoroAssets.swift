@@ -6,8 +6,7 @@ import Foundation
 enum KokoroAssets {
     /// `Application Support/fluidaudio`: FluidAudio's download cache, every model under it.
     static var fluidAudioDirectory: URL? {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("fluidaudio", isDirectory: true)
+        AppDirectories.applicationSupport.appendingPathComponent("fluidaudio", isDirectory: true)
     }
 
     /// `Application Support/fluidaudio/Models/kokoro-82m-coreml/ANE` (FluidAudio's English repo dir).
@@ -63,8 +62,7 @@ enum KokoroAssets {
     /// Remove Kokoro's models and the shared English G2P / lexicon from FluidAudio's cache.
     static func clearCachedModels() {
         let fm = FileManager.default
-        guard let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
-        let models = base.appendingPathComponent("fluidaudio/Models", isDirectory: true)
+        let models = AppDirectories.applicationSupport.appendingPathComponent("fluidaudio/Models", isDirectory: true)
         try? fm.removeItem(at: models.appendingPathComponent("kokoro-82m-coreml", isDirectory: true))
         try? fm.removeItem(at: models.appendingPathComponent("kokoro", isDirectory: true))
     }

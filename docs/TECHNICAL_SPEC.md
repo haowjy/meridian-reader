@@ -337,7 +337,7 @@ text's positions on another.
 **`RecentVisit`** (SwiftData): browser history, the last 30 top-level http(s) pages (canonical
 URL, title, host, visit time, favicon), deduped by URL, recorded when a load finishes.
 
-Elsewhere:
+Elsewhere (`AppDirectories` names every file under Application Support):
 
 | What | Where |
 |------|-------|

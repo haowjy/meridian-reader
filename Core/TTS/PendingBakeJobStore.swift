@@ -15,14 +15,8 @@ final class PendingBakeJobStore {
     private let storeURL: URL
     private let defaults: UserDefaults
 
-    nonisolated static var defaultStoreURL: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("PendingBakeJobs.json")
-    }
-
     /// `storeURL` / `defaults` are injectable for tests.
-    init(storeURL: URL = PendingBakeJobStore.defaultStoreURL, defaults: UserDefaults = .standard) {
+    init(storeURL: URL = AppDirectories.pendingBakeJobs, defaults: UserDefaults = .standard) {
         self.storeURL = storeURL
         self.defaults = defaults
     }

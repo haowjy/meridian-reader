@@ -21,11 +21,7 @@ final class EngineCrashGuard: @unchecked Sendable {
     private var terminating = false
     private var terminateObserver: NSObjectProtocol?
 
-    static let shared = EngineCrashGuard(directory: {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("ListenTiming", isDirectory: true)
-    }())
+    static let shared = EngineCrashGuard(directory: AppDirectories.listenTiming)
 
     /// A death this long after the marker was written, while the process was still active,
     /// didn't come from that call: no call takes a minute.

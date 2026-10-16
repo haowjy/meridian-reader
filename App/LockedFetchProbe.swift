@@ -493,9 +493,7 @@ private final class ProbeSeries: NextChapterProviding {
 /// unified log.
 private struct ProbeLog {
     static let directory: URL = {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("LockedFetchProbe", isDirectory: true)
+        AppDirectories.applicationSupport.appendingPathComponent("LockedFetchProbe", isDirectory: true)
     }()
     private static let console = Logger(subsystem: "com.jimmyyao.Reader", category: "LockedFetchProbe")
 

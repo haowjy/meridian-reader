@@ -88,12 +88,12 @@ final class LibraryStoreConfigurationTests: XCTestCase {
     /// RecentVisit.self)` used, and the app (this test's host) opened it there.
     func testLocalConfigurationIsTodaysDefaultStore() {
         let todays = ModelConfiguration(for: SavedArticle.self, RecentVisit.self)
-        XCTAssertEqual(todays.url.standardizedFileURL.path, LibraryStoreConfiguration.localURL.standardizedFileURL.path)
+        XCTAssertEqual(todays.url.standardizedFileURL.path, AppDirectories.localStore.standardizedFileURL.path)
         let unnamed = ModelConfiguration(schema: Schema([SavedArticle.self, RecentVisit.self]))
-        XCTAssertEqual(unnamed.url.standardizedFileURL.path, LibraryStoreConfiguration.localURL.standardizedFileURL.path)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: LibraryStoreConfiguration.localURL.path),
+        XCTAssertEqual(unnamed.url.standardizedFileURL.path, AppDirectories.localStore.standardizedFileURL.path)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: AppDirectories.localStore.path),
                       "the host app opened the local store at today's URL")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: LibraryStoreConfiguration.libraryURL.path),
+        XCTAssertTrue(FileManager.default.fileExists(atPath: AppDirectories.libraryStore.path),
                       "and the library beside it")
     }
 

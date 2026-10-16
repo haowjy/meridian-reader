@@ -94,7 +94,7 @@ final class CPURouteBench {
     private let playerDelegate = PlayerDelegate()
 
     static var sampleURL: URL {
-        ListenTimingLog.directory.appendingPathComponent("cpubench-sample-501tok-onnx-gain0.69.wav")
+        AppDirectories.listenTiming.appendingPathComponent("cpubench-sample-501tok-onnx-gain0.69.wav")
     }
 
     private static var phonemeCacheURL: URL {
@@ -289,7 +289,7 @@ final class CPURouteBench {
         guard !samples.isEmpty else { return }
         let data = KokoroCPUAudio.wavData(samples, gain: KokoroCPUAudio.coreMLMatchGain)
         do {
-            try FileManager.default.createDirectory(at: ListenTimingLog.directory, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: AppDirectories.listenTiming, withIntermediateDirectories: true)
             try data.write(to: Self.sampleURL, options: .atomic)
             sampleExists = true
             CPUBenchLog.append("cpubench_sample", [
