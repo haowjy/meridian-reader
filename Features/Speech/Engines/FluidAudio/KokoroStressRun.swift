@@ -82,7 +82,7 @@ enum KokoroStressRun {
             let host: LocalSynthHost
             switch request.route {
             case .coreml:
-                host = KokoroHost(voice: voice, units: coordinator.engines.provider(FluidAudioProvider.self)?.coreMLUnits)
+                host = KokoroHost(voice: voice, unitsLabel: coordinator.engines.provider(FluidAudioProvider.self)?.coreMLUnits)
             case .onnx: host = KokoroCPUHost(voice: voice, threads: KokoroRouteSettings().cpuThreads)
             }
             let start = history.nextIndex

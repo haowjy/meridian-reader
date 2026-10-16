@@ -115,7 +115,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
         case .onnxCPU: return KokoroCPUHost(voice: voice, threads: routeSettings.cpuThreads, crashCount: routeSettings)
         case .coreMLGPU:
             return KokoroSplitHost(
-                coreML: KokoroHost(voice: voice, units: coreMLUnits),
+                coreML: KokoroHost(voice: voice, unitsLabel: coreMLUnits),
                 onnx: KokoroCPUHost(voice: voice, threads: routeSettings.cpuThreads, crashCount: routeSettings))
         }
     }

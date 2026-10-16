@@ -13,7 +13,8 @@ enum DeviceChipGeneration: Int, Comparable, Sendable {
 }
 
 /// No public API names the chip, so the floor comes from the `uname` machine id
-/// (`iPhone14,2`, …). The app is iPhone-only: any other id is below the floor.
+/// (`iPhone14,2`, …). Only iPhone ids are read (the app is made for iPhone): any other id, an
+/// iPad's included, is below the floor.
 enum DeviceChipGate {
     static var isSimulator: Bool {
         #if targetEnvironment(simulator)

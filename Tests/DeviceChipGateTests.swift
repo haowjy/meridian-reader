@@ -10,7 +10,7 @@ final class DeviceChipGateTests: XCTestCase {
             ("iPhone15,2", .a15),       // iPhone 14 Pro (A16)
             ("iPhone18,1", .a15),       // a later iPhone
             ("iPhone9,1", .belowA15),   // a single-digit major
-            ("iPad14,1", .belowA15),    // the app is iPhone-only
+            ("iPad14,1", .belowA15),    // only iPhone ids are read
             ("Simulator", .belowA15),
             ("iPhone", .belowA15),      // no product number
         ]

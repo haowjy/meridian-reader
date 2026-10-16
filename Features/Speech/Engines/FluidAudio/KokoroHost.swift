@@ -37,9 +37,9 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
 
     static let defaultUnitsLabel = "aneTailGpu"
 
-    init(voice: String = KokoroHost.defaultVoice, units: String? = nil) {
+    init(voice: String = KokoroHost.defaultVoice, unitsLabel: String? = nil) {
         self.voice = voice
-        let label = units ?? Self.defaultUnitsLabel
+        let label = unitsLabel ?? Self.defaultUnitsLabel
         self.unitsLabel = label
         let units: KokoroAneComputeUnits
         switch label {
