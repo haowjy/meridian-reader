@@ -216,7 +216,10 @@ other text on the page starts it over. A session moves to another key only onto 
 its text: a merge whose kept page holds other text when it runs, or a Save landing on an older
 page while the session plays older text, stops it instead (`rekeyActiveSession`).
 
-Crash resume follows the text too. The resume file keeps the playing paragraph with the
+Crash resume runs only after a death the engine caused (`TTS_ENGINES.md` → "Crashes"): a
+terminated process clears its in-flight marker, and a marker the process outlived, or one left by
+a memory kill in the background, is logged and ignored, so nothing reopens or plays. Crash resume
+follows the text too. The resume file keeps the playing paragraph with the
 session's text fingerprint, and the layout pass and merges that move it map the paragraph into
 the text they move it to and give it that text's fingerprint (a point in other text than the page
 they move keeps its paragraph and text). At launch (`AppLaunch.resumeAfterCrash`) the paragraph is

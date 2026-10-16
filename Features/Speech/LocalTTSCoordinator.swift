@@ -30,12 +30,12 @@ final class LocalTTSCoordinator: SynthQueueContext {
     @ObservationIgnored weak var renderObserver: RenderQueueObserver?
     /// Selected voice per multi-voice engine (e.g. Kokoro `af_heart`). Part of the cache voice key.
     private(set) var engineVoices: [SpeechEngineID: String] = [:]
-    /// Set when the last process died inside a crash-guarded engine (`CrashRecovery`; Kokoro:
+    /// Set when the engine killed the last process inside a call (`CrashRecovery`; Kokoro:
     /// resumed on the ONNX route, or switched to Apple after repeated ONNX crashes). Shown as a
     /// dismissible one-line banner and in Settings.
     private(set) var engineCrashNotice: String?
     private var crashedEngineID: SpeechEngineID?
-    /// The crash marker this launch found (the previous process died inside an engine call).
+    /// The crash this launch found (the engine killed the previous process inside a call).
     private(set) var launchCrash: EngineCrashGuard.CrashInfo?
     /// Article + paragraph to resume after a crash, handed to the UI once (`takePendingResume`).
     /// Settable in-module for tests.
@@ -81,8 +81,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
         synthQueue.attach(coordinator: self)
         synth.onStateChange = { [weak self] in self?.engineStateChanged() }
         var initial = storedSelection()
-        launchCrash = crashGuard.consumeCrashInfo()
-        if let launchCrash { initial = recover(from: launchCrash, selection: initial) }
+        // What was playing, and when it was last recorded: a marker much older than that is
+        // from a call the process outlived.
+        let playing = ListenResumePointStore.shared.load()
+        launchCrash = crashGuard.consumeCrashInfo(lastActivity: playing?.at)
+        if let launchCrash { initial = recover(from: launchCrash, selection: initial, playing: playing) }
         #if DEBUG
         // Dev/test hook: `-selectEngine <engine id>` (persisted), e.g. local.kokoro.
         let args = ProcessInfo.processInfo.arguments
@@ -110,9 +113,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// The previous process died inside `crash.engine`. Its provider decides (Kokoro: resume on the
     /// stable route); by default a crashed selection moves to the crash fallback.
-    private func recover(from crash: EngineCrashGuard.CrashInfo, selection: SpeechEngineID) -> SpeechEngineID {
+    private func recover(from crash: EngineCrashGuard.CrashInfo, selection: SpeechEngineID,
+                         playing: ListenResumeTarget?) -> SpeechEngineID {
         guard let engine = crash.engine else { return selection }
-        if let recovery = engines.recover(from: crash, playing: ListenResumePointStore.shared.load()) {
+        if let recovery = engines.recover(from: crash, playing: playing) {
             return apply(recovery, crashed: engine)
         }
         guard engine == selection else { return selection }

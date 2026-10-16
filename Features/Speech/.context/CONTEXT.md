@@ -70,6 +70,11 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
   (`RenderAdmission`; the Core ML route's `KokoroSplitHost` switches itself to ONNX there for the
   rest of the process). Every extra Kokoro call is exposure to an uncatchable crash on iOS 26.4+, so
   don't add re-renders: `BrowseSaveWhilePlayingTests` pins the call count.
+- **Only a death inside the engine is a crash.** The in-flight marker exists only during a
+  guarded call; termination clears it, and launch drops a marker the process outlived or a
+  background memory kill (`EngineCrashGuard.MarkerVerdict`). Anything that adds a long wait inside
+  a guarded call, or changes what the resume point records, moves those verdicts: keep calls far
+  under `EngineCrashGuard.callBound`.
 - **Thread counts are per phase.** In front the ONNX session runs every core but one (3 to 6,
   `KokoroRouteSettings.defaultThreads`), in the background one; the first call after a phase
   change rebuilds the session (`KokoroONNXSessionSlot`). Pick the front count from the CPU route

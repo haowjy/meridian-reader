@@ -111,21 +111,37 @@ chunk with Apple, and `LocalPCMWriter` writes non-finite samples as 0.
 
 The libBNNS crash kills the process; nothing catches it. `EngineCrashGuard` writes an in-flight
 marker (`ListenTiming/engine_inflight.json`) around every call of an engine whose descriptor sets
-a crash notice (`OnDeviceTraits.crashNotice`), with the route, article, paragraph and phase. On the next launch the provider
-decides (`SpeechEngineProvider.recover(from:playing:)`; engines without a hook switch to Apple).
-Kokoro answers with `KokoroCrashRecovery`:
+a crash notice (`OnDeviceTraits.crashNotice`), with the route, article, paragraph, app phase and
+memory footprint (`phys_footprint`), and removes it when the call returns, so it exists only
+while a call is in flight. Termination (`willTerminateNotification`, e.g. a swipe-kill while the
+app runs, playing or rendering) removes it and lets no call write another.
+
+A marker found at launch counts as a crash only when the engine killed the process
+(`MarkerVerdict`); otherwise it is logged (`engine_marker_dismissed`) and the launch is a normal
+one: no notice, no crash count, no voice switch, nothing reopened:
+
+- **stale:** the resume point (written per paragraph while listening) is more than 60 s newer
+  than the marker: the process played on long past the call's start, so the call didn't end it;
+- **memory kill:** the call started in the background with a footprint of 1,000 MB or more: iOS
+  reclaiming memory (jetsam), not the engine;
+- **engine crash:** anything else, including every Core ML call (they run only in front).
+
+For a crash the provider decides (`SpeechEngineProvider.recover(from:playing:)`; engines without
+a hook switch to Apple). Kokoro answers with `KokoroCrashRecovery`:
 
 - any crash turns the Core ML route off (the setting, so it stays off until turned on again);
 - a Core ML crash → the ONNX route, and the article reopens at that paragraph;
 - an ONNX crash → ONNX again and the same resume; a second ONNX crash without 40 healthy calls in
   between → Apple, with a notice in Settings ("Tap Kokoro to try again");
 - resume auto-plays when the crash was under 20 minutes ago and something was playing
-  (`ListenResumePoint`);
+  (`ListenResumeTarget.forCrash`);
 - the paragraph is applied only on a page that still holds the text it was played in; otherwise
   the page opens paused at its own spot (`AppLaunch.resumeAfterCrash`, `LISTEN_PLAYBACK.md`).
 
 On the Core ML route `coreml_breadcrumb.json` names the model and stage that was about to run;
-it is logged as `coreml_stage` in `engine_crash_detected`.
+it is logged as `coreml_stage` in `engine_crash_detected`. A process that dies while suspended
+mid-call (no notice, no time to clear) can't be told from a crash, but the render queue holds a
+background task while a call is in flight as the app leaves the front, so the call ends first.
 
 ### One-time launch steps
 

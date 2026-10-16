@@ -80,7 +80,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     /// Give the ONNX session's memory back and stay prepared: the next call builds it again.
     func releaseSession(reason: String) {
         guard let sessions = lock.withLock({ self.sessions }), sessions.release() else { return }
-        ListenTimingLog.log("kokoro_cpu_session_released", ["reason": reason, "mem_mb": Self.footprintMB()])
+        ListenTimingLog.log("kokoro_cpu_session_released", ["reason": reason, "mem_mb": ProcessMemory.footprintMB])
     }
 
     /// Threads for a call now.
@@ -195,7 +195,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
             metrics: [
                 "phonemes": phonemes.count, "tokens": ids.count, "style_row": inputs.styleRow,
                 "g2p_ms": g2pMs, "onnx_ms": onnxMs, "threads": session.threads, "nan_retry": nanRetry,
-                "mem_mb": Self.footprintMB(),
+                "mem_mb": ProcessMemory.footprintMB,
             ]
         )
     }
@@ -210,7 +210,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
             let (session, rebuiltFrom) = try await sessions.session(threads: wanted)
             if wasReleased {
                 ListenTimingLog.log("kokoro_cpu_session_rebuilt", [
-                    "threads": wanted, "ms": ListenTimingLog.ms(since: t0), "mem_mb": Self.footprintMB(),
+                    "threads": wanted, "ms": ListenTimingLog.ms(since: t0), "mem_mb": ProcessMemory.footprintMB,
                 ])
             }
             if let rebuiltFrom {
@@ -218,7 +218,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
                 RenderPace.shared.reset()
                 ListenTimingLog.log("kokoro_cpu_threads_switch", [
                     "from": rebuiltFrom, "to": wanted, "phase": runState.phase.rawValue,
-                    "ms": ListenTimingLog.ms(since: t0), "mem_mb": Self.footprintMB(),
+                    "ms": ListenTimingLog.ms(since: t0), "mem_mb": ProcessMemory.footprintMB,
                 ])
             }
             return session
@@ -227,18 +227,6 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
             load.reset()
             throw error
         }
-    }
-
-    /// App memory footprint (what jetsam counts), MB; logged per call to watch chunk-size memory.
-    static func footprintMB() -> Int {
-        var info = task_vm_info_data_t()
-        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
-        let kr = withUnsafeMutablePointer(to: &info) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
-            }
-        }
-        return kr == KERN_SUCCESS ? Int(info.phys_footprint / 1_048_576) : -1
     }
 
     private func voicePack(_ voice: String) throws -> [Float] {

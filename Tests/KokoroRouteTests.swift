@@ -182,6 +182,64 @@ final class KokoroRouteTests: XCTestCase {
         XCTAssertEqual(c3.engineCrashNotice, KokoroCrashRecovery.appleNotice)
     }
 
+    /// The libBNNS containment: a death inside the call while listening reopens the page and
+    /// plays on.
+    func testAFreshMarkerStillResumesAndAutoPlays() {
+        let d = suiteDefaults()
+        let guardDir = tempDir()
+        d.set(SpeechEngineID.kokoro.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
+        let article = UUID()
+        ListenResumePointStore.shared.save(article: article, paragraph: 4, at: Date().addingTimeInterval(-5))
+        defer { ListenResumePointStore.shared.clear() }
+        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, route: "onnx",
+                                                       article: article, paragraph: 6)
+        let c = makeCoordinator(defaults: d, guardDir: guardDir)
+        XCTAssertEqual(c.engineCrashNotice, KokoroCrashRecovery.resumedNotice)
+        XCTAssertEqual(KokoroRouteSettings(defaults: d).onnxCrashCount, 1)
+        let resume = c.takePendingResume()
+        XCTAssertEqual(resume?.paragraph, 4, "the paragraph that was playing")
+        XCTAssertEqual(resume?.autoPlay, true)
+    }
+
+    /// The process played on two minutes after the call began: it outlived that call, so the
+    /// marker is no crash (no notice, no count, no resume).
+    func testAStaleMarkerNeitherResumesNorCounts() {
+        let d = suiteDefaults()
+        let guardDir = tempDir()
+        d.set(SpeechEngineID.kokoro.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
+        let article = UUID()
+        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, route: "onnx",
+                                                       article: article, paragraph: 6)
+        ListenResumePointStore.shared.save(article: article, paragraph: 9, at: Date().addingTimeInterval(120))
+        defer { ListenResumePointStore.shared.clear() }
+        let c = makeCoordinator(defaults: d, guardDir: guardDir)
+        XCTAssertEqual(c.selectedEngineID, .kokoro)
+        XCTAssertNil(c.engineCrashNotice)
+        XCTAssertNil(c.takePendingResume(), "nothing plays at launch")
+        XCTAssertEqual(KokoroRouteSettings(defaults: d).onnxCrashCount, 0)
+        XCTAssertNil(c.launchCrash)
+    }
+
+    /// iOS reclaimed a backgrounded app mid-call with a large footprint: that isn't the engine,
+    /// so a second one doesn't switch the voice to Apple.
+    func testABackgroundMemoryKillKeepsTheVoice() throws {
+        ListenResumePointStore.shared.clear()
+        let d = suiteDefaults()
+        let guardDir = tempDir()
+        d.set(SpeechEngineID.kokoro.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
+        KokoroRouteSettings(defaults: d).onnxCrashCount = 1
+        try FileManager.default.createDirectory(at: guardDir, withIntermediateDirectories: true)
+        try JSONSerialization.data(withJSONObject: [
+            "t": Date().timeIntervalSince1970, "engine": "local.kokoro", "chars": 120, "route": "onnx",
+            "article": UUID().uuidString, "p": 3, "phase": "background",
+            "mem_mb": EngineCrashGuard.memoryKillFootprintMB + 200,
+        ]).write(to: guardDir.appendingPathComponent("engine_inflight.json"))
+        let c = makeCoordinator(defaults: d, guardDir: guardDir)
+        XCTAssertEqual(c.selectedEngineID, .kokoro)
+        XCTAssertNil(c.engineCrashNotice)
+        XCTAssertEqual(KokoroRouteSettings(defaults: d).onnxCrashCount, 1)
+    }
+
     func testAnEngineWithoutARecoveryHookSwitchesAwayOnlyWhenItWasSelected() async {
         let d = suiteDefaults()
         let guardDir = tempDir()

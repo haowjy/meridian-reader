@@ -204,7 +204,7 @@ final class CPURouteBench {
             let warm501 = try await timed(session, inputs.long, qos: config.qos)
             let mem = sampler.stop()
             await SynthRenderGate.shared.release()
-            let fp = CPURouteMetrics.footprint()
+            let fp = ProcessMemory.footprint()
             func r2(_ v: Double) -> Double { (v * 100).rounded() / 100 }
             func r3(_ v: Double) -> Double { (v * 1000).rounded() / 1000 }
             let fields: [String: Any] = [
@@ -422,7 +422,7 @@ final class CPURouteBench {
                 window.append((r.audio, r.wall))
                 if window.count > 5 { window.removeFirst() }
                 let rolling = window.reduce(0) { $0 + $1.audio } / max(window.reduce(0) { $0 + $1.wall }, 0.001)
-                let fp = CPURouteMetrics.footprint()
+                let fp = ProcessMemory.footprint()
                 var battery: Any = NSNull()
                 #if canImport(UIKit)
                 if UIDevice.current.batteryLevel >= 0 { battery = Double(UIDevice.current.batteryLevel) }
@@ -438,7 +438,7 @@ final class CPURouteBench {
                     "cpu_s_per_audio_s": ((r.cpu / max(r.audio, 0.001)) * 1000).rounded() / 1000,
                     "app_state": phase, "app_state_at_start": phaseBefore,
                     "thermal": CPURouteMetrics.thermal, "phys_footprint_mb": CPURouteMetrics.mb(fp.current),
-                    "available_mb": CPURouteMetrics.mb(CPURouteMetrics.availableMemory()),
+                    "available_mb": CPURouteMetrics.mb(ProcessMemory.availableMemory()),
                     "elapsed_s": Int(ListenTimingLog.now() - start), "gate_wait_ms": gateMs, "gap_ms": gapMs,
                     "keepalive": keepNow, "battery": battery,
                     "low_power": ProcessInfo.processInfo.isLowPowerModeEnabled,

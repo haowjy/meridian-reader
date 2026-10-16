@@ -148,7 +148,7 @@ enum KokoroStressRun {
             }
             await SynthRenderGate.shared.release()
             fields["thermal"] = ProcessInfo.processInfo.thermalState.rawValue
-            fields["mem_mb"] = KokoroCPUHost.footprintMB()
+            fields["mem_mb"] = ProcessMemory.footprintMB
             if index == start { fields["first_audio_ms"] = ListenTimingLog.ms(since: t0) }
             log.append(fields)
             if index % 20 == 19 || index == start { say("\(request.route.rawValue) \(index + 1)/\(corpus.count)") }
