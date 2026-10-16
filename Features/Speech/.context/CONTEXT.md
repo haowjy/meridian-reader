@@ -96,7 +96,7 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
   stitched paragraphs store `chunkDurations` by it. Changing `TextChunker` limits or rules changes
   plans: stitched audio stays playable, but mid-paragraph seek offsets into old audio drift until
   it re-renders. Decide whether that needs a cache purge (`KokoroAudioCachePurge` bumps a version).
-- **Listen blocks are versioned.** Changing `ListenHTMLBlocks` rules means bumping
+- **Listen blocks are versioned.** Changing `ListenHTMLBlocks` (Core/Domain) rules means bumping
   `ListenHTMLBlocks.version`; library pages rebuild once and positions / audio must be remapped
   like `LibraryStore.migrateParagraphLayout` does.
 - **Engine changes go through `EngineHandover`.** Views call `selectEngine` / `chooseVoice` /
