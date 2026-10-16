@@ -15,20 +15,23 @@ xcodegen generate
 xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -configuration Release \
   -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath <dd>
 xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
-  -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath <dd>
+  -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath <dd> \
+  -collect-test-diagnostics never
 ```
 
 - **A change is verified by probing the real app and an AI review.** Run it on the Simulator or
   the phone, drive the flows the change touches, look at the result (screenshots, the unified log,
   `ListenTiming`), then have the diff reviewed. Tests passing is not the evidence.
 - **All automated tests together run in under 60 seconds** of sequential time on the Simulator
-  (unit and UI, `test-without-building` wall clock). Unit tests cover only the riskiest pure
-  logic: time left (`ListeningTimeTests`), list membership and the removed state
-  (`PlayedNotSavedTests`), the download accept rule (`DownloadOverviewTests`), the engine crash
-  guard (`EngineCrashGuardTests`), text splitting and chunking (`TextChunkerTests`,
-  `ParagraphSplitTests`). `CoreFlowsUITests` holds the three end-to-end flows: save and play a
-  browsed page, swipe-Remove takes a played page out of every list, open a folder and play it. A
-  new test must fit the budget: replace one rather than add one.
+  (unit and UI, `test-without-building` wall clock: about 5 s and 35 s; without
+  `-collect-test-diagnostics never`, xcodebuild can sit minutes in `simctl diagnose` after the
+  UI tests). Unit tests cover only the riskiest pure logic: time left (`ListeningTimeTests`),
+  list membership and the removed state (`PlayedNotSavedTests`), the download accept rule
+  (`DownloadOverviewTests`), the engine crash guard (`EngineCrashGuardTests`), text splitting and
+  chunking (`TextChunkerTests`, `ParagraphSplitTests`). `CoreFlowsUITests` holds the three
+  end-to-end flows: save and play a browsed page, swipe-Remove takes a played page out of every
+  list, open a folder and play it. A new test must fit the budget: replace one rather than add
+  one.
 - **Nothing gates on tests**: no git hooks, CI or merge scripts run them.
 - One scheme, `MeridianReader`, with two test targets: `MeridianReaderTests` (unit, `Tests/`) and
   `MeridianReaderUITests` (`UITests/`). Use a separate `-derivedDataPath` per worktree.
