@@ -65,7 +65,7 @@ final class LibraryTestEnvironment {
 
     /// A second store over the same container (a relaunch, as far as the library is concerned).
     func makeLibrary() -> LibraryStore {
-        let store = LibraryStore(context: container.mainContext, tts: tts, legacy: legacy, now: { [unowned self] in now })
+        let store = LibraryStore(context: container.mainContext, audio: tts, legacy: legacy, now: { [unowned self] in now })
         store.stopPlaybackIfPlaying = { [unowned self] key in
             guard key == playingKey else { return }
             stoppedKeys.append(key)

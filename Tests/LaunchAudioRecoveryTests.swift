@@ -91,7 +91,7 @@ final class LaunchAudioRecoveryTests: XCTestCase {
         let probe = Probe { tts in
             seen = (self.work(), tts.audioCache.index(for: saved)?.paragraphs.count == text.count)
         }
-        AppComposition.prepareAudioCache(library: env.library, migrations: [probe])
+        AppComposition.prepareAudioCache(library: env.library, tts: env.tts, migrations: [probe])
 
         XCTAssertEqual(seen?.work, 0, "the launch migrations run after the left work is done")
         XCTAssertEqual(seen?.merged, true, "and find the merged audio under the saved page")
@@ -105,7 +105,7 @@ final class LaunchAudioRecoveryTests: XCTestCase {
 
         for _ in 0..<200 where !tts.usesLocalEngine { try await Task.sleep(for: .milliseconds(20)) }
         XCTAssertTrue(tts.usesLocalEngine, "the engine finished loading after the launch step")
-        AppLaunch.maintainLibrary(env.library)
+        AppLaunch.maintainLibrary(env.library, tts: env.tts)
         let plan = try XCTUnwrap(tts.synthQueue.planDescription(for: chapter), "the chapter's pending render was adopted")
         XCTAssertTrue(plan.contains("paragraphCount: \(new.count)"), "on the new paragraphs: \(plan)")
         XCTAssertFalse(tts.synthQueue.hasJob(cacheKey: played))
@@ -141,7 +141,7 @@ final class LaunchAudioRecoveryTests: XCTestCase {
         let tts = env.tts
         tts.synthQueue.bakeConditions = { BakeConditions(thermalState: .serious, isLowPowerModeEnabled: false) }
         tts.audioCache.faultHook = { if $0 == .wroteFile { throw Died() } }
-        AppComposition.prepareAudioCache(library: env.library, migrations: [KokoroAudioCachePurge()])
+        AppComposition.prepareAudioCache(library: env.library, tts: env.tts, migrations: [KokoroAudioCachePurge()])
 
         XCTAssertEqual(work(), 1, "the merge still waits")
         XCTAssertEqual(tts.audioCache.held, .pages([saved, played]))
@@ -151,13 +151,13 @@ final class LaunchAudioRecoveryTests: XCTestCase {
                        "the purge runs again once nothing is held")
         for _ in 0..<200 where !tts.usesLocalEngine { try await Task.sleep(for: .milliseconds(20)) }
         XCTAssertTrue(tts.usesLocalEngine)
-        AppLaunch.maintainLibrary(env.library)
+        AppLaunch.maintainLibrary(env.library, tts: env.tts)
         XCTAssertFalse(tts.synthQueue.hasJob(cacheKey: saved), "the kept page's pending render waits")
         XCTAssertTrue(PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == saved }, "on disk")
 
         // A later launch can copy.
         try env.relaunch()
-        AppComposition.prepareAudioCache(library: env.library, migrations: [])
+        AppComposition.prepareAudioCache(library: env.library, tts: env.tts, migrations: [])
         XCTAssertEqual(work(), 0)
         XCTAssertEqual(env.tts.audioCache.held, .nothing)
         XCTAssertFalse(env.cache.hasDirectory(for: played))
@@ -197,7 +197,7 @@ final class LaunchAudioRecoveryTests: XCTestCase {
         let tts = env.tts
         tts.synthQueue.bakeConditions = { BakeConditions(thermalState: .serious, isLowPowerModeEnabled: false) }
         env.library.fetchAudioWork = { _ in throw Died() }
-        AppComposition.prepareAudioCache(library: env.library, migrations: [KokoroAudioCachePurge()])
+        AppComposition.prepareAudioCache(library: env.library, tts: env.tts, migrations: [KokoroAudioCachePurge()])
 
         XCTAssertEqual(work(), 1, "the merge still waits")
         XCTAssertEqual(tts.audioCache.held, .all)
@@ -207,7 +207,7 @@ final class LaunchAudioRecoveryTests: XCTestCase {
                        "the purge runs again once the work can be read")
         for _ in 0..<200 where !tts.usesLocalEngine { try await Task.sleep(for: .milliseconds(20)) }
         XCTAssertTrue(tts.usesLocalEngine)
-        AppLaunch.maintainLibrary(env.library)
+        AppLaunch.maintainLibrary(env.library, tts: env.tts)
         for key in [saved, played] {
             XCTAssertFalse(tts.synthQueue.hasJob(cacheKey: key), "a pending render waits while the work can't be read")
             XCTAssertTrue(PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == key }, "on disk")
@@ -215,7 +215,7 @@ final class LaunchAudioRecoveryTests: XCTestCase {
 
         // A later launch can read it.
         try env.relaunch()
-        AppComposition.prepareAudioCache(library: env.library, migrations: [])
+        AppComposition.prepareAudioCache(library: env.library, tts: env.tts, migrations: [])
         XCTAssertEqual(work(), 0)
         XCTAssertEqual(env.tts.audioCache.held, .nothing)
         XCTAssertFalse(env.cache.hasDirectory(for: played))
@@ -248,12 +248,12 @@ final class LaunchAudioRecoveryTests: XCTestCase {
         try env.relaunch()
         let tts = env.tts
         tts.synthQueue.bakeConditions = { BakeConditions(thermalState: .serious, isLowPowerModeEnabled: false) }
-        AppComposition.prepareAudioCache(library: env.library, migrations: [])
+        AppComposition.prepareAudioCache(library: env.library, tts: env.tts, migrations: [])
         for _ in 0..<200 where !tts.usesLocalEngine { try await Task.sleep(for: .milliseconds(20)) }
         XCTAssertTrue(tts.usesLocalEngine, "the engine loaded before the launch's maintenance ran")
         XCTAssertFalse(tts.synthQueue.hasJob(cacheKey: chapter), "nothing adopted while the launch holds the queue")
 
-        AppLaunch.maintainLibrary(env.library)
+        AppLaunch.maintainLibrary(env.library, tts: env.tts)
         XCTAssertEqual(env.library.page(key: chapter)?.cachedListenParagraphs, new, "the layout pass rebuilt the chapter")
         let plan = try XCTUnwrap(tts.synthQueue.planDescription(for: chapter), "adopted once the maintenance finished")
         XCTAssertTrue(plan.contains("paragraphCount: \(new.count)"), "on the new paragraphs: \(plan)")
@@ -285,11 +285,11 @@ final class LaunchAudioRecoveryTests: XCTestCase {
         try env.relaunch()
         let tts = env.tts
         tts.synthQueue.bakeConditions = { BakeConditions(thermalState: .serious, isLowPowerModeEnabled: false) }
-        AppComposition.prepareAudioCache(library: env.library, migrations: [])
+        AppComposition.prepareAudioCache(library: env.library, tts: env.tts, migrations: [])
         for _ in 0..<200 where !tts.usesLocalEngine { try await Task.sleep(for: .milliseconds(20)) }
         XCTAssertTrue(tts.usesLocalEngine, "the engine loaded before the launch's maintenance ran")
         env.library.saveContext = { _ in throw Died() }
-        AppLaunch.maintainLibrary(env.library)
+        AppLaunch.maintainLibrary(env.library, tts: env.tts)
 
         XCTAssertEqual(env.library.page(key: chapter)?.listenBlocksVersion, 2, "the layout pass was rolled back")
         XCTAssertNotNil(env.library.page(key: stale), "and so was the prune")

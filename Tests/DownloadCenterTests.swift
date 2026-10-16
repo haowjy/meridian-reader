@@ -201,8 +201,8 @@ final class DownloadCenterTests: XCTestCase {
 
         center.remove(try XCTUnwrap(center.record(for: .folder(folder.id))?.id))
         XCTAssertTrue(center.overview.isEmpty)
-        XCTAssertTrue(tts.hasListenAudio(for: heard.listenKey), "what you hear keeps its audio")
-        XCTAssertFalse(tts.hasListenAudio(for: other.listenKey))
+        XCTAssertTrue(tts.audioCache.hasCache(for: heard.listenKey), "what you hear keeps its audio")
+        XCTAssertFalse(tts.audioCache.hasCache(for: other.listenKey))
         XCTAssertTrue(other.isSaved, "the page stays in the Library")
     }
 
@@ -216,15 +216,15 @@ final class DownloadCenterTests: XCTestCase {
         let heard = try env.savedPage("https://example.com/heard-page", paragraphs: env.paragraphs(12))
         _ = center.download(heard)
         env.listening = heard.listenKey
-        try await env.waitUntil { self.tts.hasListenAudio(for: heard.listenKey) }
+        try await env.waitUntil { self.tts.audioCache.hasCache(for: heard.listenKey) }
 
         center.deleteDownloads(of: heard)
         XCTAssertNil(center.record(for: .page(heard.listenKey)), "its download goes")
-        XCTAssertTrue(tts.hasListenAudio(for: heard.listenKey), "its audio stays")
+        XCTAssertTrue(tts.audioCache.hasCache(for: heard.listenKey), "its audio stays")
         XCTAssertTrue(tts.synthQueue.hasJob(cacheKey: heard.listenKey), "and its render job")
 
         center.deleteDownloads(of: other)
-        XCTAssertFalse(tts.hasListenAudio(for: other.listenKey), "another page's audio goes")
+        XCTAssertFalse(tts.audioCache.hasCache(for: other.listenKey), "another page's audio goes")
     }
 
     /// *Delete Downloads* on the chapter staged to play next leaves its audio and its render job.
@@ -234,10 +234,10 @@ final class DownloadCenterTests: XCTestCase {
         let chapter = UUID()
         tts.openArticle(cacheKey: chapter, paragraphs: env.paragraphs(4, tag: "Chapter"), from: 0, isEphemeral: false)
         XCTAssertTrue(tts.stageNextChapter(cacheKey: next.listenKey, after: chapter, paragraphs: next.listenDocument().paragraphs))
-        try await env.waitUntil { self.tts.hasListenAudio(for: next.listenKey) }
+        try await env.waitUntil { self.tts.audioCache.hasCache(for: next.listenKey) }
 
         center.deleteDownloads(of: next)
-        XCTAssertTrue(tts.hasListenAudio(for: next.listenKey), "its audio stays")
+        XCTAssertTrue(tts.audioCache.hasCache(for: next.listenKey), "its audio stays")
         XCTAssertEqual(tts.synthQueue.stagedCacheKey, next.listenKey, "still staged")
         XCTAssertTrue(tts.synthQueue.hasJob(cacheKey: next.listenKey), "with its render job")
         tts.synthQueue.remove(cacheKey: chapter)
@@ -283,7 +283,7 @@ final class DownloadCenterTests: XCTestCase {
         try library.remove([page])
         XCTAssertTrue(center.overview.isEmpty, "off the list")
         XCTAssertNil(center.record(for: .page(page.listenKey)))
-        XCTAssertTrue(tts.hasListenAudio(for: page.listenKey), "its audio is kept, ephemeral")
+        XCTAssertTrue(tts.audioCache.hasCache(for: page.listenKey), "its audio is kept, ephemeral")
     }
 
     /// A deleted folder's download leaves the list once the delete is stored.
@@ -470,7 +470,7 @@ final class DownloadTestEnvironment {
                                   audioCache: ArticleAudioCache(root: dir.appending(path: "TTSCache")),
                                   crashGuard: EngineCrashGuard(directory: dir.appending(path: "guard")))
         tts.synthQueue.runState = runState
-        library = LibraryStore(context: container.mainContext, tts: tts, now: { Date(timeIntervalSince1970: 1_800_000_000) })
+        library = LibraryStore(context: container.mainContext, audio: tts, now: { Date(timeIntervalSince1970: 1_800_000_000) })
         await tts.selectEngine(FakeEngineProvider.fakeID)
         center = makeCenter()
         center.start()

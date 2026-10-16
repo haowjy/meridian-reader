@@ -125,7 +125,7 @@ final class RenderPublicationTests: XCTestCase {
         let tts = speech.localTTS
         XCTAssertTrue(tts.usesLocalEngine)
         let container = try LibraryStoreConfiguration.makeInMemoryContainer()
-        let library = LibraryStore(context: container.mainContext, tts: tts)
+        let library = LibraryStore(context: container.mainContext, audio: tts)
         let a = "Alpha is the paragraph the page opened with.", b = "Bravo comes after it.", c = "Charlie is new at the top."
         let opened = article("https://example.com/refreshed", [a, b])
         let refreshed = article("https://example.com/refreshed", [c, a, b])

@@ -171,14 +171,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         engineCrashNotice = nil
     }
 
-    /// The library moved the page the crash-resume target names, which was read at init, before
-    /// the launch maintenance: its paragraphs were rebuilt, or a merge moved it into another
-    /// page. The target follows, as `move` places it.
-    func remapPendingResume(article: UUID, _ move: (ListenResumeTarget) -> ListenResumeTarget) {
-        guard let target = pendingResume, target.matches(article) else { return }
-        pendingResume = move(target)
-    }
-
     /// Launch: until `endLaunchHold`, the render queue adopts no saved bake job and renders
     /// nothing, so nothing renders on paragraphs the launch's maintenance (left audio work, the
     /// layout pass, dedupe, the prune) is about to rebuild, merge or delete, and the jobs it
@@ -404,17 +396,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         noteBakeMarksChanged()
     }
 
-    func hasListenAudio(for articleID: UUID) -> Bool {
-        audioCache.hasCache(for: articleID)
-    }
-
-    func clearListenAudio(for articleID: UUID) throws {
-        synthQueue.remove(cacheKey: articleID)
-        try audioCache.deleteAudio(for: articleID)
-        noteBakeMarksChanged()
-        PendingBakeJobStore.shared.removePending(articleID: articleID)
-    }
-
     func noteBakeMarksChanged() {
         bakeMarksRevision &+= 1
         renderObserver?.renderStateChanged()
@@ -478,8 +459,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         guard ephemeralKey != savedKey else {
             // Identity v2: saved id == reader key, so Save is just a kind flip (no dir move,
             // no queue rekey, no playback teardown).
-            audioCache.markSaved(cacheKey: savedKey)
-            synthQueue.setEphemeral(cacheKey: savedKey, false)
+            markListenCacheSaved(savedKey)
             return
         }
         do {
@@ -491,12 +471,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         } catch {
             print("[TTSCache] migrate failed: \(error.localizedDescription)")
         }
-    }
-
-    /// Unsave from the reader: keep the audio (and playhead) but let the ephemeral TTL own it again.
-    func markListenCacheEphemeral(_ key: UUID, canonicalURL: String? = nil) {
-        audioCache.markEphemeral(cacheKey: key, canonicalURL: canonicalURL, lastAccess: Date())
-        synthQueue.setEphemeral(cacheKey: key, true)
     }
 
     /// Identity v2 open-time alignment of the TTS cache with the current listen blocks.

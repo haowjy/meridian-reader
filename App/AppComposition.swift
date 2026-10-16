@@ -42,7 +42,7 @@ enum AppComposition {
     /// the text it plays (otherwise the session stops).
     static func makeLibrary(context: ModelContext) -> LibraryStore {
         let speech = speechController
-        let library = LibraryStore(context: context, tts: speech.localTTS)
+        let library = LibraryStore(context: context, audio: speech.localTTS)
         library.stopPlaybackIfPlaying = { key in
             if speech.activeSessionID == key { speech.stop() }
         }
@@ -87,8 +87,7 @@ enum AppComposition {
     /// excepted), the chunk scratch (nothing plays at launch) and the prune of unsaved audio
     /// (7 days, 500 MB; held audio excepted). First of all the cache is kept out of backups: it
     /// is audio the app can render again (`BackupExclusion`).
-    static func prepareAudioCache(library: LibraryStore, migrations: [LaunchMigration]) {
-        let tts = library.tts
+    static func prepareAudioCache(library: LibraryStore, tts: LocalTTSCoordinator, migrations: [LaunchMigration]) {
         tts.audioCache.excludeFromBackup()
         tts.holdRenderingForLaunch()
         library.finishAudioWork()
@@ -135,8 +134,8 @@ enum AppComposition {
     /// background-GPU probe, and pruning Core ML's compiled-model cache of bundles from previous
     /// installs (once per install, background).
     static func runLaunchMaintenance(library: LibraryStore) {
-        let tts = library.tts
-        prepareAudioCache(library: library, migrations: launchMigrations(for: engineRegistry))
+        let tts = speechController.localTTS
+        prepareAudioCache(library: library, tts: tts, migrations: launchMigrations(for: engineRegistry))
         for directory in engineRegistry.regenerableDirectories + [ListenTimingLog.directory] {
             BackupExclusion.exclude(directory)
         }

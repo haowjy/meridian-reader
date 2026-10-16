@@ -274,7 +274,7 @@ extension LibraryStore {
     /// *Delete Downloads*: the page's audio only; the page stays saved.
     func deleteDownloads(_ page: Page) {
         guard let key = page.key else { return }
-        try? tts.clearListenAudio(for: key)
+        try? audio.clearListenAudio(for: key)
     }
 
     // MARK: - Pieces

@@ -347,7 +347,7 @@ final class BookReimportTests: XCTestCase {
         XCTAssertEqual(audioWork().map(\.kind), [.delete], "with its audio work")
         XCTAssertEqual(audioWork().first?.key, three)
 
-        AppComposition.prepareAudioCache(library: library, migrations: [])
+        AppComposition.prepareAudioCache(library: library, tts: env.tts, migrations: [])
         let cold = ArticleAudioCache(root: env.cache.root)
         XCTAssertFalse(cold.hasDirectory(for: three), "the dropped chapter's audio is gone")
         XCTAssertFalse(pendingRender(three), "and its pending render")

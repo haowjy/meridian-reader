@@ -41,7 +41,7 @@ final class PlayStateTests: XCTestCase {
         // (no article at hand), its web page still matches it by canonical URL.
         let container = try LibraryStoreConfiguration.makeInMemoryContainer()
         self.container = container
-        let library = LibraryStore(context: container.mainContext, tts: speech.localTTS)
+        let library = LibraryStore(context: container.mainContext, audio: speech.localTTS)
         let legacy = try library.save(TestSpeech.article(pageA, id: UUID()))
         XCTAssertNotEqual(legacy.listenKey, ArticleIdentity.articleKey(canonicalURL: canonical(pageA)))
         speech.press(.page(legacy.listenKey)) {

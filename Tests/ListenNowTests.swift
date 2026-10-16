@@ -19,7 +19,7 @@ final class ListenNowTests: XCTestCase {
     override func setUp() async throws {
         fixture = TestSpeech()
         container = try LibraryStoreConfiguration.makeInMemoryContainer()
-        library = LibraryStore(context: container.mainContext, tts: fixture.speech.localTTS)
+        library = LibraryStore(context: container.mainContext, audio: fixture.speech.localTTS)
     }
 
     override func tearDown() async throws { fixture.tearDown() }

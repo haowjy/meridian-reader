@@ -55,7 +55,7 @@ final class LibrarySizeTests: XCTestCase {
                                       audioCache: ArticleAudioCache(root: dir.appending(path: "TTSCache")),
                                       crashGuard: EngineCrashGuard(directory: dir.appending(path: "guard")))
         // A fresh context, as at launch: nothing cached in memory.
-        let store = LibraryStore(context: ModelContext(container), tts: tts)
+        let store = LibraryStore(context: ModelContext(container), audio: tts)
         let folder = try XCTUnwrap(store.folder(id: series.id))
 
         var order: [Page] = []

@@ -18,7 +18,7 @@ final class ArticleSaveFailureTests: XCTestCase {
     override func setUp() async throws {
         env = try LibraryTestEnvironment(fileBacked: true)
         test = TestSpeech()
-        library = LibraryStore(context: env.context, tts: test.speech.localTTS, legacy: env.legacy)
+        library = LibraryStore(context: env.context, audio: test.speech.localTTS, legacy: env.legacy)
     }
 
     override func tearDown() async throws {

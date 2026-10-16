@@ -16,7 +16,7 @@ final class LibraryStore {
     static let unsavedKeepInterval: TimeInterval = 7 * 24 * 60 * 60
 
     @ObservationIgnored let context: ModelContext
-    @ObservationIgnored let tts: LocalTTSCoordinator
+    @ObservationIgnored let audio: LibraryAudioEffects
     /// Stops playback when the session is playing this key: a page about to be deleted or
     /// revised (before its audio is deleted or aligned), or a key a waiting merge would move onto
     /// such a page (`keysWaitingToMerge`).
@@ -49,15 +49,13 @@ final class LibraryStore {
     @ObservationIgnored let legacy: LegacyLibrarySources
     @ObservationIgnored let now: () -> Date
 
-    init(context: ModelContext, tts: LocalTTSCoordinator, legacy: LegacyLibrarySources = .standard,
+    init(context: ModelContext, audio: LibraryAudioEffects, legacy: LegacyLibrarySources = .standard,
          now: @escaping () -> Date = Date.init) {
         self.context = context
-        self.tts = tts
+        self.audio = audio
         self.legacy = legacy
         self.now = now
     }
-
-    var audioCache: ArticleAudioCache { tts.audioCache }
 
     // MARK: - Lookups
 

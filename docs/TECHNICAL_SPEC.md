@@ -67,8 +67,10 @@ UITests/    UI tests (MeridianReaderUITests)
   shows of what you hear (`nowPlaying`, `playState(of:)`); `PlaybackSessionState` owns what you
   hear and its position; `LocalTTSCoordinator` owns the on-device engine, render queue and audio cache.
   Details in `LISTEN_PLAYBACK.md`.
-- **Dependency direction.** Features → Core. Core never imports a voice library (FluidAudio and
-  ONNX Runtime live in `Features/Speech/Engines/`). Features never name a concrete extractor.
+- **Dependency direction.** Features → Core: Core names no Features type (the library reaches
+  the speech stack through `LibraryAudioEffects`, the render queue through `SynthQueueContext`).
+  Core never imports a voice library (FluidAudio and ONNX Runtime live in
+  `Features/Speech/Engines/`). Features never name a concrete extractor.
 
 ## Extraction
 
