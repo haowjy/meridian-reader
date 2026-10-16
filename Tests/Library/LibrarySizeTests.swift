@@ -43,8 +43,7 @@ final class LibrarySizeTests: XCTestCase {
         }
         try seed.save()
 
-        // A relaunch: a fresh container on the files, nothing cached in memory.
-        try env.relaunch()
+        // The library's own context has fetched nothing yet: nothing cached in memory.
         let store: LibraryStore = env.library
         let folder = try XCTUnwrap(store.folder(id: series.id))
 
