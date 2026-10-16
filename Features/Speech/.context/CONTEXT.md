@@ -56,6 +56,10 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
   code that changes the engine's state or voice tells the queue (`renderTargetChanged`, from
   `engineStateChanged` and `setVoice`). With no target the queue parks: nothing may build a host
   for it, a model loads only when it is selected (`RenderTargetTests`).
+- **What still needs audio** is decided only by `ArticleAudioCache.missingParagraphs` (a
+  paragraph with chunks and no CAF in the voice; a bare "—" is never missing). Anything new that
+  asks "is this rendered / done" calls it rather than counting `readyIndices` against the
+  paragraph count.
 - **Model calls.** One at a time (`SynthRenderGate`), never a Core ML call in the background
   (`RenderAdmission`; the Core ML route's `KokoroSplitHost` switches itself to ONNX there for the
   rest of the process). Every extra Kokoro call is exposure to an uncatchable crash on iOS 26.4+, so

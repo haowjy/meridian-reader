@@ -247,7 +247,8 @@ Headphone and lock-screen skips stay paragraph skips (D4).
 its end, the next chapter is staged in the render queue (`GlobalSynthQueue.stageNext`, "Render
 queue"), so its opening is on disk when it starts; not when its audio is held for unfinished
 library work (`ArticleAudioCache.held`), which a render would overwrite. On a host that can't render in
-the background, no model call starts there, so a chapter not rendered in full plays in Apple's
+the background, no model call starts there, so a chapter not rendered in full (a paragraph with
+words still needs audio, "Audio cache") plays in Apple's
 voice until the app is in front again, when the on-device engine takes over at the next paragraph
 (D9). Kokoro renders in the background on either route (the Core ML route hands over to ONNX) and
 keeps its voice; there the next chapter's opening
@@ -322,8 +323,8 @@ fetched (`URLPageFetcher`) and saved through `ArticleSaveCoordinator`, then the 
 to the queue as an ordinary bake job (`LocalTTSCoordinator.queueDownload` → `startBakeIfNeeded`, a
 plan from paragraph 0, queued at the back (#1 when nothing else is), kept in the pending jobs while the
 engine loads). When the job leaves the queue (`bakeCompleted`, through
-`LocalTTSCoordinator.renderObserver`) the page is done if every paragraph with words has audio in
-the download voice (`missingDownloadParagraphs`); a job that left unfinished goes back once, then
+`LocalTTSCoordinator.renderObserver`) the page is done once no paragraph needs audio in the
+download voice (the one rule, `ArticleAudioCache.missingParagraphs`); a job that left unfinished goes back once, then
 the page is marked failed. So the article playing and the staged chapter always go first, the
 thermal / Low Power hold applies, and in the background a download's job parks like any other
 article that isn't playing (admission, below). No page is handed to the queue while the app is in
@@ -504,12 +505,18 @@ highlight and the paragraph picker stay fine-grained.
   is rekeyed, without a restart, while it plays the saved text (otherwise it stops); saving a
   page that isn't playing aligns its audio with the saved text and can adopt a legacy v1 cache
   (`prepareListenIdentity`, as on open).
+- **What still needs audio** has one rule, `ArticleAudioCache.missingParagraphs`: a paragraph
+  with something to speak (its chunk plan, `ChunkPlans`, has chunks) and no CAF in exactly this
+  engine and voice. A paragraph with nothing to speak (a bare "—") never gets audio and is never
+  missing. The render queue's work and job completion, the voice-switch cleanup, Downloads,
+  staging the next chapter and Apple standing in (D9) all ask it; the bake marks show
+  `readyIndices`.
 - **One voice per article.** The index's top-level `engineID` / `voiceID` is the target voice.
   After a voice or engine switch, the first new-voice write retargets the index; older entries
   stay, stamped stale. Ready / missing counts look only at the target voice, so the queue
   re-renders the article, while playback uses the stale CAF until each paragraph is replaced
-  (`playableAudioURL`). When the article is complete in the new voice, `finalizeVoiceSwitch`
-  deletes the leftovers. Queued jobs carry no voice, so after a switch they render in the new one
+  (`playableAudioURL`). When nothing is missing in the new voice (the rule above),
+  `finalizeVoiceSwitch` deletes the leftovers. Queued jobs carry no voice, so after a switch they render in the new one
   (`VoiceSwitchTests`).
 - **Language gate.** An article in a language the engine doesn't speak plays with Apple and is
   kept out of the on-device queue (`LocalTTSCoordinator.localLanguageGate`).

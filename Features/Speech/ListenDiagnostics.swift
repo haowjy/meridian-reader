@@ -60,29 +60,15 @@ final class ListenDiagnostics {
             pending = 0
         }
         let identityKey = articleID ?? queue.primaryCacheKey
-        let ready: Int
-        let totalForCache: Int
-        if let identityKey {
-            let count = (articleID != nil) ? paragraphs.count : (
-                // Fall back to cache status expected paragraphs when viewing queue #1 with no session.
-                paragraphs.count > 0 ? paragraphs.count : pending + 0
-            )
-            let expected = max(count, paragraphs.count)
-            switch localTTS.bakeStatus(for: identityKey, paragraphCount: max(expected, 1)) {
-            case .ready(paragraphCount: let n):
-                ready = n
-                totalForCache = n
-            case .partial(ready: let r, total: let t):
-                ready = r
-                totalForCache = t
-            case .missing:
-                ready = 0
-                totalForCache = max(paragraphs.count, 0)
+        // The session's paragraphs; with no session, queue #1's paragraphs still to render.
+        let total = paragraphs.isEmpty ? pending : paragraphs.count
+        // Rendered in the active engine's voice (the bake marks' count).
+        let ready = identityKey.flatMap { key in
+            localTTS.activeCacheVoice.map {
+                localTTS.audioCache.readyIndices(articleID: key, paragraphCount: total, engineID: localTTS.cacheEngineID,
+                                                 voiceID: $0).count
             }
-        } else {
-            ready = 0
-            totalForCache = paragraphs.count
-        }
+        } ?? 0
 
         let isEph: Bool = {
             guard let key = identityKey else { return false }
@@ -141,7 +127,7 @@ final class ListenDiagnostics {
             bakePlan: bakePlan,
             bakePendingJobs: pending,
             bakeReadyCount: ready,
-            bakeParagraphCount: totalForCache > 0 ? totalForCache : paragraphs.count,
+            bakeParagraphCount: total,
             articleIdentity: articleIdentity,
             queuePrimary: queuePrimary,
             demotedCount: queue.demotedCount,

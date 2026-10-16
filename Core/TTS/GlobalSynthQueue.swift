@@ -510,10 +510,13 @@ final class GlobalSynthQueue {
 
     // MARK: - Private
 
-    /// Paragraphs of `job` without audio in the target's voice yet.
+    /// Paragraphs of `job` that still need audio in the target's voice
+    /// (`ArticleAudioCache.missingParagraphs`).
     private func missingParagraphs(of job: ArticleJob, in target: RenderTarget) -> [Int] {
-        coordinator?.audioCache.missingIndices(articleID: job.cacheKey, paragraphCount: job.paragraphs.count,
-                                               engineID: target.engineID, voiceID: target.cacheVoice) ?? []
+        guard let coordinator else { return [] }
+        return coordinator.audioCache.missingParagraphs(articleID: job.cacheKey, paragraphs: job.paragraphs,
+                                                        engineID: target.engineID, voiceID: target.cacheVoice,
+                                                        plans: coordinator.chunkPlans)
     }
 
     /// Debug engine probe: hold the worker between chunks so probe timings aren't interleaved.
@@ -596,14 +599,8 @@ final class GlobalSynthQueue {
             guard job.paragraphs.indices.contains(index) else { continue }
             let text = job.paragraphs[index]
             let hash = job.paragraphHashes[index]
+            // Never empty: a paragraph with nothing to speak is never missing.
             let chunks = coordinator.chunkPlans.chunks(for: text, engineID: target.engineID) ?? []
-            guard !chunks.isEmpty else {
-                // Nothing speakable (punctuation only). Mark failed so we don't spin; producer
-                // treats an empty chunk plan as nothing to play.
-                failedUnits.insert(failedID(job.cacheKey, index, hash))
-                failWaiters(cacheKey: job.cacheKey, index: index, error: NothingSpeakable())
-                continue
-            }
             activeBakeCacheKey = job.cacheKey
             activeBakeIndex = index
             let chunkURLs = chunks.indices.map {
@@ -764,10 +761,6 @@ final class GlobalSynthQueue {
         }
     }
 
-    private struct NothingSpeakable: LocalizedError {
-        var errorDescription: String? { "Nothing speakable in paragraph" }
-    }
-
     /// Engine first (recursive re-split inside the renderer); Apple TTS for this chunk if the engine
     /// still fails, in the voice the listen player falls back to for this article. Throws only
     /// when both fail. Writes nothing when the engine fails because `target` went away or changed
@@ -851,7 +844,7 @@ final class GlobalSynthQueue {
                 continue
             }
             // Fully baked: off the queue, and try the next.
-            finishJob(job, missing: missing, in: target)
+            finishJob(job, in: target)
             jobs[key] = nil
             stack.remove(at: position)
             if staged?.cacheKey == key { staged = nil }
@@ -879,10 +872,9 @@ final class GlobalSynthQueue {
         guard let target = coordinator?.renderTarget else { return }
         stack.removeAll { key in
             guard let job = jobs[key] else { return true }
-            let missing = missingParagraphs(of: job, in: target)
-            if missing.isEmpty {
+            if missingParagraphs(of: job, in: target).isEmpty {
                 jobs[key] = nil
-                finishJob(job, missing: missing, in: target)
+                finishJob(job, in: target)
                 return true
             }
             return false
@@ -890,19 +882,17 @@ final class GlobalSynthQueue {
         if let staged, jobs[staged.cacheKey] == nil { self.staged = nil }
     }
 
-    /// Article done: drop its persisted pending job; if every paragraph is in the target's voice,
-    /// delete any leftover units of an older voice/engine (one voice per article).
-    private func finishJob(_ job: ArticleJob, missing: [Int], in target: RenderTarget) {
+    /// Article done: drop its persisted pending job; if no paragraph needs audio in the target's
+    /// voice any more, delete any leftover units of an older voice/engine (one voice per article).
+    private func finishJob(_ job: ArticleJob, in target: RenderTarget) {
         guard let coordinator else { return }
-        if missing.isEmpty {
-            let freed = coordinator.audioCache.finalizeVoiceSwitch(
-                articleID: job.cacheKey, paragraphCount: job.paragraphs.count,
-                engineID: target.engineID, voiceID: target.cacheVoice)
-            if freed > 0 {
-                ListenDebugLog.shared.append(
-                    "voice switch done \(job.cacheKey.uuidString.prefix(8)): old-voice audio removed (\(FileSizes.label(freed)))")
-                coordinator.noteBakeMarksChanged()
-            }
+        let freed = coordinator.audioCache.finalizeVoiceSwitch(
+            articleID: job.cacheKey, paragraphs: job.paragraphs,
+            engineID: target.engineID, voiceID: target.cacheVoice, plans: coordinator.chunkPlans)
+        if freed > 0 {
+            ListenDebugLog.shared.append(
+                "voice switch done \(job.cacheKey.uuidString.prefix(8)): old-voice audio removed (\(FileSizes.label(freed)))")
+            coordinator.noteBakeMarksChanged()
         }
         coordinator.bakeCompleted(cacheKey: job.cacheKey)
     }

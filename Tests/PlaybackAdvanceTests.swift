@@ -437,6 +437,33 @@ final class PlaybackAdvanceTests: XCTestCase {
         XCTAssertEqual(speech.activeSessionID, book.key(1))
     }
 
+    /// A chapter whose paragraphs with words are all rendered counts as rendered, though one
+    /// paragraph is a bare "—" that never gets audio: in the background on Core ML it keeps the
+    /// on-device voice (Apple doesn't stand in), and while one plays the next is staged.
+    func testAParagraphWithNothingToSpeakDoesntMakeAChapterUnrendered() async throws {
+        let state = AppRunState(phase: .active)
+        let provider = FakeEngineProvider()
+        let (speech, apple) = makeSpeech(runState: state, provider: provider)
+        let words = ["It begins here, with a few words.", "—", "It goes on for a while.", "Then it ends.",
+                     "And one more after that."]
+        let book = FakeChapterLibrary([.init(title: "One"), .init(title: "Two", paragraphs: words, verbatim: true),
+                                       .init(title: "Three")])
+        bakeKeys += book.sessions.map(\.id)
+        play(book, chapter: 0, on: speech)
+        await speech.localTTS.selectEngine(FakeEngineProvider.fakeID)
+        let target = try XCTUnwrap(speech.localTTS.renderTarget)
+        for i in words.indices where i != 1 { try storeAudio(speech.localTTS.audioCache, book.key(1), i, in: target) }
+        state.set(.background)
+        try? await Task.sleep(nanoseconds: 100_000_000)
+
+        apple.emit(.finished)
+        XCTAssertEqual(speech.activeSessionID, book.key(1))
+        XCTAssertEqual(speech.diagnostics.snapshot().engine, "Fake", "chapter 2 is rendered: no Apple stand-in")
+
+        speech.chapterBecameAudible()
+        XCTAssertEqual(speech.localTTS.synthQueue.stagedCacheKey, book.key(2), "chapter 2 is rendered: chapter 3 is staged")
+    }
+
     /// The ONNX route renders in the background: the next chapter keeps the on-device voice.
     func testInTheBackgroundOnTheONNXRouteTheNextChapterKeepsItsVoice() async {
         let state = AppRunState(phase: .active)
@@ -456,6 +483,15 @@ final class PlaybackAdvanceTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// Paragraph `index` of `key` rendered in `target`, as a finished bake leaves it.
+    private func storeAudio(_ cache: ArticleAudioCache, _ key: UUID, _ index: Int, in target: RenderTarget) throws {
+        let tone = FileManager.default.temporaryDirectory.appendingPathComponent("tone-\(UUID().uuidString).caf")
+        defer { try? FileManager.default.removeItem(at: tone) }
+        try LocalPCMWriter.write(FakeSynthHost.tone(seconds: 0.2, sampleRate: 24_000), sampleRate: 24_000, to: tone)
+        try cache.storeParagraph(articleID: key, paragraphIndex: index, sourceURL: tone, duration: 0.2,
+                                 engineID: target.engineID, voiceID: target.cacheVoice)
+    }
 
     /// The real library, with a fetch that gives a link chapter `text` after `delay`: no page
     /// fetcher is connected to it yet.

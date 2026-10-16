@@ -136,9 +136,10 @@ extension SpeechController {
     /// in front again. The ONNX route renders in the background and keeps its voice.
     private func appleStandsIn(for session: SpeechSession) -> Bool {
         guard case .local = wantedRoute, localTTS.synthQueue.runState.phase == .background,
-              !localTTS.activeRouteRendersInBackground, let target = localTTS.renderTarget else { return false }
-        return !localTTS.audioCache.isAudioReady(articleID: session.id, paragraphCount: session.document.count,
-                                                 engineID: target.engineID, voiceID: target.cacheVoice)
+              !localTTS.activeRouteRendersInBackground,
+              let missing = localTTS.missingParagraphs(of: session.id, paragraphs: session.document.paragraphs)
+        else { return false }
+        return !missing.isEmpty
     }
 
     private func isRendered(_ key: UUID, paragraph: Int, of count: Int) -> Bool {
@@ -215,10 +216,8 @@ extension SpeechController {
     func stageNextChapterIfDue() {
         guard let key = playback.articleID, let folderID = playback.folderID, let library = nextChapters,
               chapterFlow.stagedAfter != key, case .local = wantedRoute,
-              let target = localTTS.renderTarget else { return }
+              let missing = localTTS.missingParagraphs(of: key, paragraphs: playback.document.paragraphs) else { return }
         let count = playback.paragraphCount
-        let missing = localTTS.audioCache.missingIndices(articleID: key, paragraphCount: count,
-                                                         engineID: target.engineID, voiceID: target.cacheVoice)
         guard !missing.contains(where: { $0 >= playback.playhead && $0 < count - 2 }) else { return }
         chapterFlow.stagedAfter = key
         guard case .ready(let next) = ChapterAdvance.after(key, in: library.chapters(of: folderID)),

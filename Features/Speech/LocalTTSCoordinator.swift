@@ -278,6 +278,14 @@ final class LocalTTSCoordinator: SynthQueueContext {
         appleVoiceForArticle?(paragraphs)
     }
 
+    /// Paragraphs of `cacheKey` that still need audio in what renders now
+    /// (`ArticleAudioCache.missingParagraphs`); nil while no engine is loaded.
+    func missingParagraphs(of cacheKey: UUID, paragraphs: [String]) -> [Int]? {
+        guard let target = renderTarget else { return nil }
+        return audioCache.missingParagraphs(articleID: cacheKey, paragraphs: paragraphs, engineID: target.engineID,
+                                            voiceID: target.cacheVoice, plans: chunkPlans)
+    }
+
     func bakeCompleted(cacheKey: UUID) {
         PendingBakeJobStore.shared.removePending(articleID: cacheKey)
         renderObserver?.bakeCompleted(cacheKey: cacheKey)
@@ -411,10 +419,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     func bakeTasksCount(for articleID: UUID) -> Int {
         synthQueue.pendingUnitCount(for: articleID)
-    }
-
-    func bakeStatus(for articleID: UUID, paragraphCount: Int) -> ArticleAudioCache.Status {
-        audioCache.status(for: articleID, expectedParagraphs: paragraphCount)
     }
 
     // MARK: - Queue reshuffle (Reader, listening, Save)

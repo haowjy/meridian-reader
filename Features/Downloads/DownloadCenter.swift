@@ -112,7 +112,7 @@ final class DownloadCenter {
         active.map { active in
             var fraction = 0.0
             if case .rendering(let paragraphs) = active.phase {
-                fraction = tts.downloadFraction(cacheKey: active.key, paragraphCount: paragraphs.count)
+                fraction = tts.downloadFraction(cacheKey: active.key, paragraphs: paragraphs)
             }
             return DownloadOverview.Active(recordID: active.recordID, key: active.key, fraction: fraction)
         }

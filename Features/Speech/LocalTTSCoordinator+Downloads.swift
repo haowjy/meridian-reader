@@ -53,21 +53,20 @@ extension LocalTTSCoordinator {
         return .rendering
     }
 
-    /// Paragraphs with words in them (a chunk plan) that have no audio in the download voice.
+    /// Paragraphs that still need audio in the download voice (`ArticleAudioCache.missingParagraphs`).
     func missingDownloadParagraphs(cacheKey: UUID, paragraphs: [String]) -> Int {
         guard let voice = downloadVoice else { return paragraphs.count }
-        let ready = audioCache.readyIndices(articleID: cacheKey, paragraphCount: paragraphs.count,
-                                            engineID: cacheEngineID, voiceID: voice)
-        return paragraphs.indices.filter { !ready.contains($0) && !synthQueue.chunkTexts(for: paragraphs[$0]).isEmpty }.count
+        return audioCache.missingParagraphs(articleID: cacheKey, paragraphs: paragraphs, engineID: cacheEngineID,
+                                            voiceID: voice, plans: chunkPlans).count
     }
 
-    /// How much of `cacheKey`'s audio is rendered in the download voice (0…1).
-    func downloadFraction(cacheKey: UUID, paragraphCount: Int) -> Double {
-        guard paragraphCount > 0, let voice = downloadVoice else { return 0 }
+    /// How much of `cacheKey`'s audio is rendered in the download voice (0…1): 1 once no
+    /// paragraph needs audio.
+    func downloadFraction(cacheKey: UUID, paragraphs: [String]) -> Double {
+        guard !paragraphs.isEmpty, downloadVoice != nil else { return 0 }
         _ = bakeMarksRevision
-        let ready = audioCache.readyIndices(articleID: cacheKey, paragraphCount: paragraphCount,
-                                            engineID: cacheEngineID, voiceID: voice)
-        return Double(ready.count) / Double(paragraphCount)
+        let missing = missingDownloadParagraphs(cacheKey: cacheKey, paragraphs: paragraphs)
+        return Double(paragraphs.count - missing) / Double(paragraphs.count)
     }
 
     /// The bake job of `cacheKey` is still queued, or waits on disk for the engine to load.

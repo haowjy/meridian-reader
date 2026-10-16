@@ -4,12 +4,6 @@ import Observation
 @MainActor
 @Observable
 final class ArticleAudioCache {
-    enum Status: Equatable {
-        case missing
-        case partial(ready: Int, total: Int)
-        case ready(paragraphCount: Int)
-    }
-
     struct IndexFile: Codable, Equatable {
         var engineID: String
         var voiceID: String
@@ -177,17 +171,6 @@ final class ArticleAudioCache {
 
     // MARK: Reads
 
-    func status(for articleID: UUID, expectedParagraphs: Int? = nil) -> Status {
-        guard let index = index(for: articleID) else { return .missing }
-        let total = expectedParagraphs ?? index.paragraphs.count
-        if total == 0 { return .missing }
-        // Units in the index's (latest) engine/voice only; stale units of a previous voice don't count.
-        let ready = index.paragraphs.filter { $0.engineID == nil && $0.voiceID == nil }.count
-        if ready >= total { return .ready(paragraphCount: ready) }
-        if ready == 0 { return .missing }
-        return .partial(ready: ready, total: total)
-    }
-
     /// CAF for this paragraph rendered with exactly this engine/voice (bake state, queue).
     func audioURL(articleID: UUID, paragraphIndex: Int, engineID: String, voiceID: String) -> URL? {
         guard let index = index(for: articleID),
@@ -223,28 +206,18 @@ final class ArticleAudioCache {
             .map(\.index))
     }
 
-    /// Paragraph indices still missing a usable CAF for this engine/voice.
-    func missingIndices(
-        articleID: UUID,
-        paragraphCount: Int,
-        engineID: String,
-        voiceID: String
-    ) -> [Int] {
-        let ready = readyIndices(
-            articleID: articleID,
-            paragraphCount: paragraphCount,
-            engineID: engineID,
-            voiceID: voiceID
-        )
-        return (0..<paragraphCount).filter { !ready.contains($0) }
-    }
-
-    /// "Audio ready": every paragraph `0..<paragraphCount` has a CAF rendered with exactly this
-    /// engine and voice (stale units of another voice don't count).
-    func isAudioReady(articleID: UUID, paragraphCount: Int, engineID: String, voiceID: String) -> Bool {
-        paragraphCount > 0
-            && readyIndices(articleID: articleID, paragraphCount: paragraphCount, engineID: engineID,
-                            voiceID: voiceID).count == paragraphCount
+    /// The one rule for "this paragraph still needs audio": of `paragraphs`, those with something
+    /// to speak (a chunk plan with chunks, from `plans`) and no CAF in exactly this engine and
+    /// voice (stale units of another voice don't count). A paragraph with nothing to speak (a bare
+    /// "—") never gets audio, so it is never missing: an article is rendered once the rest is.
+    /// The render queue, Downloads, staging the next chapter, Apple standing in for a chapter and
+    /// the voice-switch cleanup all ask this.
+    func missingParagraphs(articleID: UUID, paragraphs: [String], engineID: String, voiceID: String,
+                           plans: ChunkPlans) -> [Int] {
+        let ready = readyIndices(articleID: articleID, paragraphCount: paragraphs.count, engineID: engineID, voiceID: voiceID)
+        return paragraphs.indices.filter {
+            !ready.contains($0) && plans.chunks(for: paragraphs[$0], engineID: engineID)?.isEmpty != true
+        }
     }
 
     /// Index entry for a ready paragraph (for chunk-boundary offsets).
@@ -588,15 +561,17 @@ extension ArticleAudioCache {
     /// engine, see `RetiredEngineCleanup`) wrote those.
     nonisolated static let legacyEngineID = "local.chatterbox-nano"
 
-    /// Once every paragraph `0..<paragraphCount` has a CAF in `engineID`/`voiceID`, delete any
-    /// remaining units of other voices/engines (e.g. indices past the end). Returns bytes freed.
+    /// Once no paragraph of `paragraphs` needs audio in `engineID`/`voiceID` any more
+    /// (`missingParagraphs`), delete any remaining units of other voices/engines (e.g. indices
+    /// past the end, or a paragraph that has nothing to speak now). Returns bytes freed.
     @discardableResult
-    func finalizeVoiceSwitch(articleID: UUID, paragraphCount: Int, engineID: String, voiceID: String) -> Int64 {
-        guard paragraphCount > 0, var index = index(for: articleID) else { return 0 }
+    func finalizeVoiceSwitch(articleID: UUID, paragraphs: [String], engineID: String, voiceID: String,
+                             plans: ChunkPlans) -> Int64 {
+        guard !paragraphs.isEmpty, var index = index(for: articleID) else { return 0 }
         let stale = index.paragraphs.filter { !index.matches($0, engineID: engineID, voiceID: voiceID) }
         guard !stale.isEmpty,
-              readyIndices(articleID: articleID, paragraphCount: paragraphCount,
-                           engineID: engineID, voiceID: voiceID).count == paragraphCount
+              missingParagraphs(articleID: articleID, paragraphs: paragraphs, engineID: engineID, voiceID: voiceID,
+                                plans: plans).isEmpty
         else { return 0 }
         let dir = directory(for: articleID)
         let keptFiles = Set(index.paragraphs.filter { index.matches($0, engineID: engineID, voiceID: voiceID) }.map(\.file))
