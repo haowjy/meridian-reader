@@ -446,8 +446,8 @@ be saved; Edit's *Remove* is two changes, the pages first and then, after the qu
 and Now Playing too. Listening goes on being kept meanwhile: where you are in a page, when you last played it and
 whether you finished it are stored once saving works again, even across failed changes.
 
-**Library search** is the band's field, the same session as the browser's (`SearchSession` +
-`SearchSessionChrome`, `ShellState.librarySearch`): focusing it hides the band's first row and
+**Library search** is the band's field, the same session as the browser's (`SearchSession` in
+`SurfaceBand`, `ShellState.librarySearch`): focusing it hides the band's first row and
 toolbar so the field sits above the keyboard with a round ✕ (on a folder screen it goes back to
 the home first, the list it filters); swipe-down / scroll lowers the keyboard but **stays in search
 mode**; ✕ exits and clears the filter. While there is text, the home's list holds the folders

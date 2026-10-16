@@ -416,7 +416,6 @@
 		E898B48A47DE1784694470CF /* ReaderSaveFromPageUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDAFF02A1242F84FEF7E640B /* ReaderSaveFromPageUITests.swift */; };
 		E971AE4690EA5867EF2F5C88 /* MorphMenuGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5826DFB3AB23108E69AE534 /* MorphMenuGeometryTests.swift */; };
 		EA0108916F5216CBA83F5F66 /* LibraryStore+PendingListening.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E723212FD42648AE9D0D867 /* LibraryStore+PendingListening.swift */; };
-		EA17ADEADFC7E2DD7ED5C9D7 /* SearchSessionChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B2E38DA3239122057E7E2C /* SearchSessionChrome.swift */; };
 		EA26C2204ACF9E8E9913016F /* ListenLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD5DACC74CD6E8F418B1F4A2 /* ListenLanguage.swift */; };
 		EA4388FD55D70574A94AF304 /* SyntheticEPUB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40B37E114668DD45A65F1F56 /* SyntheticEPUB.swift */; };
 		EB286F39E1617D839C5B7F69 /* LibraryTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8C006190BE56BD07BE4D6DB /* LibraryTestSupport.swift */; };
@@ -505,7 +504,6 @@
 		1395D83C43EA14AF8611A13B /* BrowseSaveWhilePlayingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseSaveWhilePlayingTests.swift; sourceTree = "<group>"; };
 		13AF1FFF8E765D220A3B92C5 /* AudioReadinessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioReadinessTests.swift; sourceTree = "<group>"; };
 		13C569C67B9A84615D623816 /* GlobalSynthQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalSynthQueue.swift; sourceTree = "<group>"; };
-		14B2E38DA3239122057E7E2C /* SearchSessionChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSessionChrome.swift; sourceTree = "<group>"; };
 		15637C75C57C2F662317697F /* LibraryStoreConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStoreConfigurationTests.swift; sourceTree = "<group>"; };
 		15877DF075039554E8A8B5E2 /* LibraryDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryDrag.swift; sourceTree = "<group>"; };
 		162528BA71A327798C08FDFB /* ArticleAudioCache+Split.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ArticleAudioCache+Split.swift"; sourceTree = "<group>"; };
@@ -1706,7 +1704,6 @@
 				FB2D1ECC1F9AF15CAC13AA6B /* MoreMenuPanel.swift */,
 				5F30F44AE90070FA7751D970 /* NowPlayingBarView.swift */,
 				BBEB8EDAFD92CBD73D0AEE15 /* SearchSession.swift */,
-				14B2E38DA3239122057E7E2C /* SearchSessionChrome.swift */,
 				F5DCE6CBAAFA608CF8B51FBF /* ShellSheetView.swift */,
 				CB15C83A0A34AFE877F14680 /* ShellState.swift */,
 				27E4B75EEF75D37CA6E2894A /* ShellToastLayer.swift */,
@@ -2123,7 +2120,6 @@
 				63731DB95F61DBD1EA6120E3 /* ScrubBar.swift in Sources */,
 				789099ED514D8DDBBEE429FF /* SearchField.swift in Sources */,
 				B041436A068CF9A300345467 /* SearchSession.swift in Sources */,
-				EA17ADEADFC7E2DD7ED5C9D7 /* SearchSessionChrome.swift in Sources */,
 				A020FF0BDE5F04A08F5FF9E2 /* SearchSessionOverlay.swift in Sources */,
 				CC71C39BB7BE8C4522880628 /* SectionHeader.swift in Sources */,
 				0727841C55A970070F764F49 /* Sheet.swift in Sources */,

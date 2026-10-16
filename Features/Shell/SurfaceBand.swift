@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The bottom band the browser and the Library share (decision D22): built here once, so it sits
 /// at the same height with every control at the same place on both, and swapping surfaces
@@ -10,8 +11,10 @@ import SwiftUI
 /// [‹]  [›]  [＋/🔖]  [🕘]  [⋯]                                            ← same role per slot
 /// ```
 ///
-/// Searching (`SearchSessionChrome`), the first row and the toolbar step aside so the field sits
-/// on the keyboard, with ✕ beside it.
+/// Searching (Safari-style), the first row and the toolbar step aside so the field sits on the
+/// keyboard, with a round ✕ beside it that ends the session. Lowering the keyboard keeps the
+/// session (`lowersKeyboardOnPullDown`). The band owns the field's focus and keeps it in sync with
+/// `session.isFocused`.
 struct SurfaceBand<Field: View, Toolbar: View>: View {
     /// The swap to the other surface, in slot 1 of the first row.
     struct Swap {
@@ -34,33 +37,70 @@ struct SurfaceBand<Field: View, Toolbar: View>: View {
     @ViewBuilder var toolbar: () -> Toolbar
 
     @Environment(\.speechController) private var speech
+    /// The field's focus, kept in sync with `session.isFocused`; `field` attaches it to its
+    /// `TextField`.
+    @FocusState private var focused: Bool
 
     var body: some View {
-        SearchSessionChrome(session: session, cancelID: cancelID, onCancel: onCancel, beginText: beginText) {
-            // Row 1: Now Playing alone, full width (D23).
-            BandNowPlayingBar(speech: speech, isCovered: isBarCovered)
-                .tint(Palette.ink)
-                .padding(.bottom, Spacing.xxs)
-        } field: { focus in
-            // Row 2: the swap (the toolbar's own button, 44 pt, tight to the leading edge), then
-            // the field filling the rest. While searching the swap steps aside with the toolbar.
-            HStack(spacing: Spacing.xxs) {
-                if !session.isActive {
-                    BandToolbarButton(systemImage: swap.systemImage, label: swap.label,
-                                      identifier: swap.identifier, weight: .light, action: swap.action)
-                        .accessibilityHint(swap.hint)
-                        .frame(width: BottomChrome.rowHeight, height: BottomChrome.rowHeight)
-                        .tint(Palette.ink)
-                }
-                field(focus)
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("bandField")
+        VStack(spacing: BottomChrome.rowSpacing) {
+            if !session.isActive {
+                // Row 1: Now Playing alone, full width (D23).
+                BandNowPlayingBar(speech: speech, isCovered: isBarCovered)
+                    .tint(Palette.ink)
+                    .padding(.bottom, Spacing.xxs)
             }
-        } toolbar: {
-            toolbar()
-                // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI
-                // gives disabled buttons, so a slot with nothing to do would look tappable.
-                .tint(Palette.ink)
+            // Row 2: the swap (the toolbar's own button, 44 pt, tight to the leading edge), then
+            // the field filling the rest. While searching the swap steps aside with the toolbar,
+            // and ✕ ends the search (it stays after a swipe-down lowered the keyboard).
+            HStack(spacing: Spacing.xs) {
+                HStack(spacing: Spacing.xxs) {
+                    if !session.isActive {
+                        BandToolbarButton(systemImage: swap.systemImage, label: swap.label,
+                                          identifier: swap.identifier, weight: .light, action: swap.action)
+                            .accessibilityHint(swap.hint)
+                            .frame(width: BottomChrome.rowHeight, height: BottomChrome.rowHeight)
+                            .tint(Palette.ink)
+                    }
+                    field($focused)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("bandField")
+                }
+                if session.isActive {
+                    Button(action: onCancel) {
+                        Image(systemName: Icons.close)
+                            .foregroundStyle(Palette.ink)
+                            .roundFieldControl(fill: Palette.chrome)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Cancel")
+                    .accessibilityIdentifier(cancelID)
+                }
+            }
+            if !session.isActive {
+                toolbar()
+                    // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI
+                    // gives disabled buttons, so a slot with nothing to do would look tappable.
+                    .tint(Palette.ink)
+            }
+        }
+        .bottomChromeBand(bottomPadding: session.isActive ? Spacing.xs : 0)
+        .onChange(of: focused) { _, isFocused in
+            let wasIdle = !session.isActive
+            session.focusChanged(isFocused, beginText: beginText)
+            // Like Safari: a session started by tapping the field selects its text.
+            if isFocused, wasIdle, !session.text.isEmpty { Self.selectAllInFocusedField() }
+        }
+        .onChange(of: session.isFocused) { _, wanted in
+            if focused != wanted { focused = wanted }
+        }
+        .onAppear { focused = session.isFocused }
+        // The field leaving the screen takes the keyboard with it; the session stays.
+        .onDisappear { session.lowerKeyboard() }
+    }
+
+    private static func selectAllInFocusedField() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            UIApplication.shared.sendAction(#selector(UIResponder.selectAll(_:)), to: nil, from: nil, for: nil)
         }
     }
 }
@@ -80,5 +120,39 @@ struct BandToolbarButton: View {
         }
         .accessibilityLabel(label)
         .accessibilityIdentifier(identifier)
+    }
+}
+
+extension View {
+    /// Swipe down lowers the keyboard but keeps the search session (text and ✕ stay). For
+    /// surfaces that don't scroll; a scrolling list uses `.scrollDismissesKeyboard(.interactively)`.
+    func lowersKeyboardOnPullDown(_ session: SearchSession) -> some View {
+        modifier(PullDownToLowerKeyboard(session: session))
+    }
+}
+
+private struct PullDownToLowerKeyboard: ViewModifier {
+    let session: SearchSession
+    /// Axis of the drag in progress, fixed at its first movement (nil between drags).
+    @State private var dragAxis: Axis?
+
+    func body(content: Content) -> some View {
+        content.simultaneousGesture(
+            DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance)
+                .onChanged { value in
+                    if dragAxis == nil { dragAxis = SwipeGesturePolicy.axis(ofFirstMovement: value.translation) }
+                }
+                .onEnded { value in
+                    let vertical = dragAxis == .vertical
+                    dragAxis = nil
+                    guard vertical, session.isActive, session.isFocused else { return }
+                    if SwipeGesturePolicy.shouldCommitDownwardDismiss(
+                        translation: value.translation.height,
+                        predicted: value.predictedEndTranslation.height
+                    ) {
+                        session.lowerKeyboard()
+                    }
+                }
+        )
     }
 }
