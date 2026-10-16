@@ -104,7 +104,9 @@ Rules:
 `play(ListenPlayRequest)`, `pause`, `resume`, `stop` and `setRate`, reports `PlaybackEngineEvent`s
 through `onEvent`, and answers `snapshot` (audible / paused). The controller drops events from an
 engine that isn't bound (a cancelled utterance, a cleared player). Speed is a setting every
-adapter keeps, bound or not. Adapters report facts; they own no bake policy and no UI phase.
+adapter keeps, bound or not, and always one of `ListenRate.options` (0.75× to 2×): the setter, the
+lock screen's speed command and a stored value from an older build all snap to the nearest one,
+so the players, the Apple voice and the lock screen agree. Adapters report facts; they own no bake policy and no UI phase.
 
 - **`AppleListenEngine`**: one `AVSpeechUtterance` holding the rest of the article from the
   start offset; `pauseSpeaking(at: .word)` / `continueSpeaking`. The delegate reports

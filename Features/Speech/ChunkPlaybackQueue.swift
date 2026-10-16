@@ -119,11 +119,11 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         return ids
     }
 
-    /// Change speed in place: the playing unit continues mid-sentence at `rate`; the primed and
-    /// later units start at it. Survives `clear()` (speed is a setting, not queue state).
+    /// Change speed in place (a `ListenRate` option): the playing unit continues mid-sentence at
+    /// `rate`; the primed and later units start at it. Survives `clear()` (speed is a setting, not
+    /// queue state).
     func setRate(_ rate: Float) {
-        let clamped = min(2, max(0.5, rate))
-        playbackRate = clamped
+        playbackRate = rate
         if let player { applyRate(player) }
         if let primedPlayer { applyRate(primedPlayer) }
     }

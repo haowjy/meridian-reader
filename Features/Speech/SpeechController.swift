@@ -423,19 +423,13 @@ final class SpeechController {
         }
     }
 
-    static let rateOptions: [Double] = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
-
     var selectedLanguageCode: String {
         didSet { UserDefaults.standard.set(selectedLanguageCode, forKey: languageDefaultsKey) }
     }
 
-    var rateMultiplier: Double {
+    /// The listen speed, always one of `ListenRate.options` (`setRateMultiplier`).
+    private(set) var rateMultiplier: Double {
         didSet {
-            let clamped = min(2.0, max(0.75, rateMultiplier))
-            if clamped != rateMultiplier {
-                rateMultiplier = clamped
-                return
-            }
             UserDefaults.standard.set(rateMultiplier, forKey: rateDefaultsKey)
             // Every engine keeps the speed; the bound one applies it to what is playing.
             for engine in listenEngines { engine.setRate(rateMultiplier) }
@@ -478,7 +472,7 @@ final class SpeechController {
         #endif
         let storedRate = !ignoreStoredRate && UserDefaults.standard.object(forKey: rateDefaultsKey) != nil
             ? UserDefaults.standard.double(forKey: rateDefaultsKey) : 1.0
-        self.rateMultiplier = (0.25...4).contains(storedRate) ? storedRate : 1.0
+        self.rateMultiplier = storedRate > 0 ? ListenRate.nearest(to: storedRate) : 1.0
         self.selectedVoiceIdentifier = UserDefaults.standard.string(forKey: voiceDefaultsKey)
         self.listenDebugEnabled = UserDefaults.standard.bool(forKey: Self.listenDebugEnabledKey)
         self.developerOptionsEnabled = DeveloperOptions.load()
@@ -509,7 +503,7 @@ final class SpeechController {
         self.audioSession.configure()
         self.audioSession.onEvent = { [weak self] event in self?.handleAudioSessionEvent(event) }
         self.audioSession.startObserving()
-        self.lockScreen.attach(rateOptions: Self.rateOptions) { [weak self] command in
+        self.lockScreen.attach { [weak self] command in
             self?.handleRemoteCommand(command) ?? .noActionableNowPlayingItem
         }
         runStateObserver = NotificationCenter.default.addObserver(
@@ -524,12 +518,6 @@ final class SpeechController {
     var selectedVoice: AVSpeechSynthesisVoice? {
         guard let id = selectedVoiceIdentifier else { return nil }
         return AVSpeechSynthesisVoice(identifier: id)
-    }
-
-    var rateDisplayLabel: String {
-        let rounded = (rateMultiplier * 100).rounded() / 100
-        if abs(rounded - 1.0) < 0.01 { return "1×" }
-        return String(format: "%g×", rounded)
     }
 
     var isPrepared: Bool { activeSessionID != nil && !document.isEmpty }
@@ -673,7 +661,9 @@ final class SpeechController {
         restartUtteranceIfNeeded()
     }
 
-    func setRateMultiplier(_ value: Double) { rateMultiplier = value }
+    /// The speed nearest `value` among `ListenRate.options` (the pickers pass one; the lock screen
+    /// any rate).
+    func setRateMultiplier(_ value: Double) { rateMultiplier = ListenRate.nearest(to: value) }
 
     // MARK: - Remote commands (lock screen / Control Center / headphones)
 
@@ -686,8 +676,7 @@ final class SpeechController {
         ])
         if case .changePlaybackRate(let rate) = command {
             noteUserIntent()
-            let nearest = Self.rateOptions.min { abs($0 - rate) < abs($1 - rate) } ?? 1.0
-            setRateMultiplier(nearest)
+            setRateMultiplier(rate)
             return .success
         }
         if command == .nextTrack, !canSkipToNextParagraph { return .commandFailed }

@@ -95,7 +95,7 @@ final class NowPlayingController {
     }
 
     /// Register handlers once. Every command is routed to `handler` (→ Session intents).
-    func attach(rateOptions: [Double], handler: @escaping @MainActor (RemoteCommand) -> RemoteCommandOutcome) {
+    func attach(handler: @escaping @MainActor (RemoteCommand) -> RemoteCommandOutcome) {
         guard let c = commandCenter, !registered else { return }
         registered = true
         func add(_ command: MPRemoteCommand, _ make: @escaping (MPRemoteCommandEvent) -> RemoteCommand?) {
@@ -115,7 +115,7 @@ final class NowPlayingController {
         add(c.togglePlayPauseCommand) { _ in .togglePlayPause }
         add(c.nextTrackCommand) { _ in .nextTrack }
         add(c.previousTrackCommand) { _ in .previousTrack }
-        c.changePlaybackRateCommand.supportedPlaybackRates = rateOptions.map { NSNumber(value: $0) }
+        c.changePlaybackRateCommand.supportedPlaybackRates = ListenRate.options.map { NSNumber(value: $0) }
         add(c.changePlaybackRateCommand) { event in
             (event as? MPChangePlaybackRateCommandEvent).map { .changePlaybackRate(Double($0.playbackRate)) }
         }

@@ -73,12 +73,12 @@ struct SpeedButton: View {
 
     var body: some View {
         Button { showsPicker = true } label: {
-            Text(speech.rateDisplayLabel)
+            Text(ListenRate.label(speech.rateMultiplier))
                 .foregroundStyle(Palette.playerInk)
                 .fieldTextFrame()
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Speed \(speech.rateDisplayLabel)")
+        .accessibilityLabel("Speed \(ListenRate.label(speech.rateMultiplier))")
         .accessibilityIdentifier("listenSpeed")
         .popover(isPresented: $showsPicker, arrowEdge: .bottom) {
             SpeedPickerPopover(speech: speech) { showsPicker = false }
@@ -98,18 +98,18 @@ private struct SpeedPickerPopover: View {
                 .padding(.horizontal, Spacing.xxs)
 
             VStack(spacing: 0) {
-                ForEach(SpeechController.rateOptions, id: \.self) { rate in
+                ForEach(ListenRate.options, id: \.self) { rate in
                     Button {
                         speech.setRateMultiplier(rate)
                         onDone()
                     } label: {
                         HStack {
-                            Text(label(for: rate))
+                            Text(ListenRate.label(rate))
                                 .typeStyle(.row)
                                 .monospacedDigit()
                                 .foregroundStyle(Palette.ink)
                             Spacer()
-                            if abs(speech.rateMultiplier - rate) < 0.01 {
+                            if speech.rateMultiplier == rate {
                                 Image(systemName: Icons.checkmark)
                                     .foregroundStyle(Palette.accent)
                             }
@@ -119,8 +119,8 @@ private struct SpeedPickerPopover: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("listenSpeedOption-\(label(for: rate))")
-                    if rate != SpeechController.rateOptions.last {
+                    .accessibilityIdentifier("listenSpeedOption-\(ListenRate.label(rate))")
+                    if rate != ListenRate.options.last {
                         Divider()
                     }
                 }
@@ -129,9 +129,5 @@ private struct SpeedPickerPopover: View {
         }
         .padding(Spacing.m)
         .frame(minWidth: 220)
-    }
-
-    private func label(for rate: Double) -> String {
-        abs(rate - 1.0) < 0.01 ? "1×" : String(format: "%g×", rate)
     }
 }
