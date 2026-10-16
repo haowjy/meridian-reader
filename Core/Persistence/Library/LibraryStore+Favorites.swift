@@ -67,7 +67,7 @@ extension LibraryStore {
             if page.addedAt == nil {
                 page.sortKey = nextSortKey(in: page.folder)
                 page.addedAt = now()
-                if page.isSaved, let key = page.key { planSaved(key: key) }
+                if page.isSaved, let key = page.key { plan(.saved, key: key) }
             }
         }
     }

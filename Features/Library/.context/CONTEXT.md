@@ -52,8 +52,8 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   `FolderDeletePrompt` (unit-tested): one destructive choice, deleting with contents (no keep-contents choice, D18).
 - **One ⋯ for the Library surface.** `LibraryScreenMenu` decides the rows and actions for the
   screen on top; the surface supplies its root and big-button actions.
-- **Deletes, removes and Save go through `LibraryStore`'s audio journal** (`planDelete`,
-  `planEphemeral`, `planSaved`): the audio changes only after the save, and a failed save is
+- **Deletes, removes and Save go through `LibraryStore`'s audio journal** (`plan(.delete`,
+  `.ephemeral` or `.saved, key:)`): the audio changes only after the save, and a failed save is
   rolled back. Work that waited acts on the page as it is when it runs. Save also moves audio
   when an older page holds the address under another key (`ArticleSaveCoordinator` then rekeys
   the live session too, without a restart), or, for a page not playing, through

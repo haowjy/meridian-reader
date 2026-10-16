@@ -54,7 +54,7 @@ extension LibraryStore {
     ///
     /// The book's chapters no chapter comes from are deleted if they are still in the book, after
     /// playback of them stops (and of a session a waiting merge would move onto them); their
-    /// audio goes once the save succeeds (audio work, `planDelete`), so a save that fails leaves
+    /// audio goes once the save succeeds (audio work, `plan(.delete, key:)`), so a save that fails leaves
     /// every page and its audio as they were. One moved out of the book stays where it was put.
     /// Pages moved into the book from elsewhere are never touched.
     /// It is one edit (`edit`): a save that fails is rolled back and throws
@@ -289,9 +289,9 @@ extension LibraryStore {
     }
 
     /// A chapter of the book no chapter comes from: the page goes in this save; its audio once the save
-    /// succeeds (`planDelete`). Playback of it was stopped before.
+    /// succeeds (`plan(.delete, key:)`). Playback of it was stopped before.
     private func dropChapter(_ page: Page) {
-        if let key = page.key { planDelete(key: key) }
+        if let key = page.key { plan(.delete, key: key) }
         log("delete \(Self.short(page.key))")
         context.delete(page)
     }

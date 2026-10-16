@@ -151,7 +151,7 @@ extension LibraryStore {
 
     /// Idempotent: the page for this address (or key) becomes saved in place, filed by
     /// `placement` (an ordinary save keeps its folder); otherwise a new saved page whose key is
-    /// the reader key. Once that is stored, its audio is marked saved (`planSaved`: a launch that dies right after the save
+    /// the reader key. Once that is stored, its audio is marked saved (`plan(.saved, key:)`: a launch that dies right after the save
     /// has it done by the next one). Never touches playback. A save that fails is rolled
     /// back and throws `LibraryStoreError.saveFailed`: no page is made, an existing one keeps its
     /// state and folder, and its audio is left alone.
@@ -191,14 +191,14 @@ extension LibraryStore {
             page.setFolder(folder)
         }
         if let playhead { page.positionParagraph = playhead }
-        if let key = page.key { planSaved(key: key) }
+        if let key = page.key { plan(.saved, key: key) }
         return page
     }
 
     /// Unsave (🔖, ⋯ → Remove from Library) a page saved in the Library: a page in a folder stays
     /// there as a link (a favorite stays a favorite); a page in no folder, or one with no address
     /// to keep as a link (a book's chapter), is removed from the Library (`remove`: in no list
-    /// after). The audio stays, back on the ephemeral TTL once that is saved (`planEphemeral`), so
+    /// after). The audio stays, back on the ephemeral TTL once that is saved (`plan(.ephemeral, key:)`), so
     /// playback goes on. Any other page has nothing to unsave. A save that fails is rolled back
     /// and throws `LibraryStoreError.saveFailed`: still saved.
     func unsave(_ page: Page) throws {
@@ -208,7 +208,7 @@ extension LibraryStore {
                 page.contentState = .link
                 // A link's text is a cache of its last play; one never played has nothing to keep.
                 if page.lastPlayedAt == nil { clearText(page) }
-                if let key = page.key { planEphemeral(key: key) }
+                if let key = page.key { plan(.ephemeral, key: key) }
             }
             log("unsave \(Self.short(page.key)) → link in \(page.folder?.name ?? "-")")
         } else {
@@ -222,7 +222,7 @@ extension LibraryStore {
     /// folder), all of `pages` in one save: a saved page leaves the Library and every list it was
     /// in (`addedAt = nil`, `removedAt` now, no folder, no longer a favorite), *Not saved*
     /// included (`LibraryQueries`), and is pruned 7 days after it was last played; once that is
-    /// saved its audio turns ephemeral (`planEphemeral`).
+    /// saved its audio turns ephemeral (`plan(.ephemeral, key:)`).
     /// A link page is deleted, unless it holds the text of a play, when it is kept as any removed
     /// page. A chapter leaves its book as any page leaves its folder. Never touches playback. A
     /// save that fails is rolled back and throws `LibraryStoreError.saveFailed`: every page stays
@@ -243,7 +243,7 @@ extension LibraryStore {
                 page.isFavorite = false
                 movePlaceOff(page)
                 page.setFolder(nil)
-                if let key = page.key { planEphemeral(key: key) }
+                if let key = page.key { plan(.ephemeral, key: key) }
                 notes.append("\(Self.short(page.key)) → not in Library")
             }
         }
@@ -259,12 +259,12 @@ extension LibraryStore {
     }
 
     /// `delete` without the save, for deletes batched into one edit's save. The audio goes
-    /// through the audio journal (`planDelete`), after that save. Stopping the page's playback
+    /// through the audio journal (`plan(.delete, key:)`), after that save. Stopping the page's playback
     /// records its position, which waits for that save too (`edit`).
     func deleteWithoutSaving(_ page: Page) {
         if let key = page.key {
             for playing in [key] + keysWaitingToMerge(into: [key]) { stopPlaybackIfPlaying(playing) }
-            planDelete(key: key)
+            plan(.delete, key: key)
         }
         movePlaceOff(page)
         log("delete \(Self.short(page.key))")
