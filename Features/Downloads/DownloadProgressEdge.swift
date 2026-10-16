@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The progress line on a surface's bottom chrome (the browser's, the Library's, the Reader's,
-/// Now Playing's):
+/// Now Playing's), a `ProgressLine` on the edge track:
 /// shown while downloads run, gone when nothing is queued, everything queued is paused, or no
 /// on-device voice renders downloads (decision D16). Laid over the top edge of the band
 /// (`.overlay(alignment: .top)`); it always takes the band's width and the line's height, so a
@@ -14,7 +14,8 @@ struct DownloadProgressEdge: View {
         let progress = downloads.progress
         ZStack {
             if let progress {
-                DownloadProgressLine(fraction: progress)
+                ProgressLine(fraction: progress, height: ProgressLine.edgeHeight, track: .edge)
+                    .animation(Motion.standard, value: progress)
                     .transition(.opacity)
                     .accessibilityElement()
                     .accessibilityLabel("Downloads")
@@ -25,7 +26,7 @@ struct DownloadProgressEdge: View {
                     .accessibilityIdentifier("downloadProgress")
             }
         }
-        .frame(maxWidth: .infinity, minHeight: DownloadProgressLine.height, maxHeight: DownloadProgressLine.height)
+        .frame(maxWidth: .infinity, minHeight: ProgressLine.edgeHeight, maxHeight: ProgressLine.edgeHeight)
         .animation(Motion.snappy, value: progress == nil)
     }
 }

@@ -126,11 +126,7 @@ private struct TransferControl: View {
     var body: some View {
         Button(action: transfer.toggle) {
             ZStack {
-                Circle().stroke(Palette.secondaryInk.opacity(0.25), lineWidth: 2)
-                Circle()
-                    .trim(from: 0, to: min(max(transfer.fraction, 0), 1))
-                    .stroke(Palette.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
+                ProgressRing(fraction: transfer.fraction, size: Glyph.control)
                     .animation(Motion.standard, value: transfer.fraction)
                 Image(systemName: transfer.isPaused ? Icons.downloadInRing : Icons.pause)
                     .font(.system(size: Glyph.control * 0.4, weight: .bold))
