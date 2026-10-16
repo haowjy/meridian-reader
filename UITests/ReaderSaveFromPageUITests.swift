@@ -19,7 +19,7 @@ final class ReaderSaveFromPageUITests: XCTestCase {
     private func openReader(_ app: XCUIApplication, close: String = "readerClose") {
         let icon = app.descendants(matching: .any).matching(identifier: "addressReader").firstMatch
         XCTAssertTrue(icon.waitForExistence(timeout: 10), "reader icon on the article page")
-        icon.tap()
+        tapWhenHittable(icon)
         XCTAssertTrue(app.buttons[close].waitForExistence(timeout: 10))
     }
 
@@ -63,10 +63,8 @@ final class ReaderSaveFromPageUITests: XCTestCase {
         app.buttons["nowPlayingClose"].tap()
         XCTAssertTrue(eventually { !app.buttons["nowPlayingClose"].exists })
 
-        // Library: exactly one row for the page, and it opens the same screen. The close pill
-        // leaves the tree before the sheet has gone; 📚 takes taps once it has.
-        XCTAssertTrue(eventually(5) { app.buttons["browseLibrary"].isHittable }, "Now Playing has gone")
-        app.buttons["browseLibrary"].tap()
+        // Library: exactly one row for the page, and it opens the same screen.
+        tapWhenHittable(app.buttons["browseLibrary"])
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         let rows = app.cells.staticTexts.matching(NSPredicate(format: "label == %@", "Second page"))
         XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5))

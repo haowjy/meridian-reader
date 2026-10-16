@@ -77,6 +77,13 @@ extension XCTestCase {
         dismiss.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
     }
 
+    /// Taps `element` once it takes taps. After a sheet or the ⋯ panel goes, what was under it is
+    /// in the tree at once but takes no taps until the exit animation ends.
+    func tapWhenHittable(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(eventually(5) { element.exists && element.isHittable }, "\(element) takes taps", file: file, line: line)
+        element.tap()
+    }
+
     /// Closes the open ⋯ panel by its dimmed area and waits until it has gone.
     func closeMenu(_ app: XCUIApplication) {
         let dim = find(app, "moreMenuDismiss")

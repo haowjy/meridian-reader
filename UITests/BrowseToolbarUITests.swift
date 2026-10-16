@@ -99,7 +99,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(eventually { !find(app, "moreReload").exists }, "panel closes")
 
         // 📚 → the library surface (shared chrome); Browser slot returns to the page.
-        app.buttons["browseLibrary"].tap()
+        tapWhenHittable(app.buttons["browseLibrary"])
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5), "library surface")
         XCTAssertTrue(find(app, "libraryBrowser").waitForExistence(timeout: 3), "Browser swap slot")
         find(app, "libraryBrowser").tap()
@@ -149,7 +149,7 @@ final class BrowseToolbarUITests: XCTestCase {
 
         panel.swipeDown()
         XCTAssertTrue(eventually { !panel.exists }, "swipe down collapses the menu")
-        more.tap()
+        tapWhenHittable(more)
         XCTAssertTrue(panel.waitForExistence(timeout: 3), "⋯ is back and opens the menu again")
     }
 
@@ -165,7 +165,7 @@ final class BrowseToolbarUITests: XCTestCase {
         closeMenu(app)
         XCTAssertTrue(eventually { !toggle.exists })
 
-        link.tap()
+        tapWhenHittable(link)
         let icon = find(app, "addressReader")
         XCTAssertTrue(icon.waitForExistence(timeout: 5))
         icon.tap()
@@ -176,8 +176,8 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(eventually { !close.exists })
 
         // ⋯ → Reader (bottom-right) switches into reader mode…
+        tapWhenHittable(app.buttons["browseMore"])
         let browseMoreFrame = app.buttons["browseMore"].frame
-        app.buttons["browseMore"].tap()
         XCTAssertTrue(eventually { toggle.exists && toggle.isEnabled }, "readable → enabled")
         XCTAssertFalse(toggle.isSelected)
         toggle.tap()
@@ -215,11 +215,11 @@ final class BrowseToolbarUITests: XCTestCase {
 
         // Add the page to Favorites from the reader (wait for the morph to finish growing before tapping
         // a row: mid-animation the rows are still scaled toward the ⋯ button).
-        readerMore.tap()
+        tapWhenHittable(readerMore)
         XCTAssertTrue(website.waitForExistence(timeout: 3))
         tapMenuRow(app, "moreFavorite")
         XCTAssertTrue(eventually { !website.exists }, "panel closes")
-        readerMore.tap()
+        tapWhenHittable(readerMore)
         XCTAssertTrue(eventually { find(app, "moreFavorite").exists && find(app, "moreFavorite").label == "Remove from Favorites" }, "a favorite from the reader")
 
         // Website → back to the web page (already loaded: revealed, not reloaded).
@@ -282,7 +282,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(app.links["Next page"].exists, "same page")
 
         // Browser (big button) returns to the page as it was.
-        app.buttons["browseLibrary"].tap()
+        tapWhenHittable(app.buttons["browseLibrary"])
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         libraryMore.tap()
         tapMenuRow(app, "moreBrowser")
@@ -333,7 +333,7 @@ final class BrowseToolbarUITests: XCTestCase {
         favorite.tap()
         XCTAssertTrue(eventually { !favorite.exists }, "panel closes")
 
-        app.buttons["browseMore"].tap()
+        tapWhenHittable(app.buttons["browseMore"])
         XCTAssertTrue(eventually { find(app, "moreFavorite").exists && find(app, "moreFavorite").label == "Remove from Favorites" }, "now a favorite")
         find(app, "moreNewSearch").tap() // → start page
 

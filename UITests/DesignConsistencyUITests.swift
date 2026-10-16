@@ -90,7 +90,7 @@ final class DesignConsistencyUITests: XCTestCase {
         var heights: [String: CGFloat] = [:]
         for (row, done) in [("moreHistory", "historyDone"), ("moreDownloads", "downloadsDone"),
                             ("moreSettings", "settingsDone")] {
-            app.buttons["libraryMore"].tap()
+            tapWhenHittable(app.buttons["libraryMore"])
             tapMenuRow(app, row)
             let button = app.buttons[done]
             XCTAssertTrue(button.waitForExistence(timeout: 5), done)
@@ -98,7 +98,7 @@ final class DesignConsistencyUITests: XCTestCase {
             heights[done] = button.frame.height
             button.tap()
             XCTAssertTrue(eventually(5) { !button.exists }, "\(done) closes its sheet")
-            if !eventually(1, { app.libraryHome.exists }) { app.buttons["browseLibrary"].tap() }
+            if !eventually(1, { app.libraryHome.exists }) { tapWhenHittable(app.buttons["browseLibrary"]) }
             XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         }
         let values = Array(heights.values)
