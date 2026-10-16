@@ -71,3 +71,10 @@ struct LibraryEditBar: View {
         .tint(Palette.ink)
     }
 }
+
+extension LibraryStore {
+    /// The Library's path to `folder`: the folders above it, then it.
+    func path(to folder: Folder) -> [LibraryRoute] {
+        (folder.ancestors.reversed() + [folder]).map { .folder($0.id) }
+    }
+}

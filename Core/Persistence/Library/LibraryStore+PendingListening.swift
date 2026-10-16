@@ -32,6 +32,9 @@ struct PendingListening {
     var article: ReaderArticle?
     /// The latest start: the page dated and unfinished, a chapter its book's place.
     var startedAt: Date?
+    /// A listen to an article started (`recordPlayback`): a page removed from the Library is
+    /// played without saving again (`Page.removedAt` cleared).
+    var listened = false
     var position: Position?
     /// Played to the end after `startedAt`.
     var finishedAt: Date?
@@ -94,6 +97,7 @@ extension LibraryStore {
                 continue
             }
             if let at = pending.startedAt { applyStart(page, at: at) }
+            if pending.listened { page.removedAt = nil }
             if let position = pending.position {
                 applyPosition(page, paragraph: position.paragraph, utf16Offset: position.utf16Offset)
             }

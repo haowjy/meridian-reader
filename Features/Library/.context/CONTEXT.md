@@ -25,10 +25,14 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   The Library surface owns the zone and screen key.
 - **Swipe actions follow AGENTS.md's rule.** A folder's *Delete* only asks, so it takes
   `Palette.destructive`: with the role, *Cancel* would leave the row missing and the delete abort
-  in UIKit. A page's *Remove* takes the tint too: a played page leaves the Library but comes back
-  in the same list as "Not saved" (`playedNotSaved`), and a save that fails keeps the row; with
-  the role, the List would have taken the row out first and aborted on the update.
-  `FolderDeleteUITests` checks both.
+  in UIKit. A page's *Remove* takes the tint too: its row goes once the remove is stored, and a
+  save that fails keeps it (a toast says so); with the role, the List would have taken the row
+  out first and aborted on the update. `FolderDeleteUITests` checks both.
+- **Which lists a page is in is `LibraryQueries`' alone** (in the Library, played without saving,
+  or removed: in none). *Remove* stamps `removedAt`, so a played page doesn't come back as "Not
+  saved" as it plays on (a listen from its article clears it, `recordPlayback`); a view never re-derives a list from `addedAt` or `lastPlayedAt` itself. The Downloads
+  list follows the same line (`DownloadCenter` drops what left the Library after each stored
+  edit, `LibraryStore.editStored`).
 - **A saved delete reaches views one redraw early.** Rows, a folder's screen and a relationship's
   stale members still hold the deleted model for a redraw, and reading an attribute it hadn't
   loaded traps in SwiftData. Check `isLive` (`isDeleted` reads false again once the delete is

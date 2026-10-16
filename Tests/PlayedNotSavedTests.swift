@@ -4,15 +4,29 @@ import XCTest
 
 /// Pages played without saving (decision D5): the top of the Library's *Pages*, marked "Not
 /// saved", most recently played first (`LibraryQueries.playedNotSaved`), and *Save* puts one in
-/// the Library.
+/// the Library. A page removed from the Library is in no list, not even this one, as it plays on,
+/// until it is saved or listened to again (`Page.removedAt`).
 @MainActor
 final class PlayedNotSavedTests: XCTestCase {
     private var env: LibraryTestEnvironment!
+    private var library: LibraryStore { env.library }
 
     override func setUp() async throws { env = try LibraryTestEnvironment() }
     override func tearDown() async throws { env.cleanUp() }
 
+    private struct SaveFailed: Error {}
+
     private func notSaved() throws -> [Page] { try env.context.fetch(LibraryQueries.playedNotSaved) }
+
+    /// Every list a page can be in (`LibraryQueries`), by the lists' own fetches.
+    private func lists(holding page: Page) throws -> [String] {
+        let lists: [(String, FetchDescriptor<Page>)] = [
+            ("Pages", LibraryQueries.loosePages(sort: .newest)), ("Library", LibraryQueries.inLibrary),
+            ("Favorites", LibraryQueries.favoritePages), ("Not saved", LibraryQueries.playedNotSaved),
+            ("Suggestions", LibraryQueries.savedInLibrary),
+        ]
+        return try lists.filter { try env.context.fetch($0.1).contains { $0 === page } }.map(\.0)
+    }
 
     func testEveryPlayedPageShowsMostRecentFirstAndStaysOutOfTheLibrary() throws {
         var played: [UUID] = []
@@ -58,5 +72,121 @@ final class PlayedNotSavedTests: XCTestCase {
         XCTAssertTrue(try notSaved().isEmpty, "no longer Not saved")
         XCTAssertEqual(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).map(\.listenKey), [page.listenKey],
                        "in Pages, the same page")
+    }
+
+    // MARK: - Removed
+
+    /// *Remove from Library* on a page that was played (a saved page, starred, part-way): out of
+    /// every list it was in, and not back as "Not saved". It is still there for what plays: the
+    /// bar resumes it, Now Playing has its text, and its audio is ephemeral.
+    func testRemovingAPlayedPageTakesItOutOfEveryList() throws {
+        let url = URL(string: "https://example.com/heard")!
+        let page = try library.save(env.article(url.absoluteString))
+        try library.addFavorite(url: url, title: nil, artwork: nil)
+        env.now += 60
+        library.recordPlaybackStarted(page)
+        library.recordPosition(page, paragraph: 1, utf16Offset: 3)
+        XCTAssertEqual(try lists(holding: page), ["Pages", "Library", "Favorites", "Suggestions"])
+
+        env.now += 60
+        try library.remove([page])
+        XCTAssertEqual(try lists(holding: page), [], "in no list, Not saved included")
+        XCTAssertEqual(page.removedAt, env.now)
+        XCTAssertIdentical(library.page(url: url), page, "kept for what plays")
+        XCTAssertTrue(page.hasText)
+        XCTAssertEqual(page.positionParagraph, 1)
+        XCTAssertIdentical(try env.context.fetch(LibraryQueries.lastPlayed).first, page, "the bar still resumes it")
+    }
+
+    /// The page you hear, removed (🔖 in Now Playing unsaves a page in no folder): it plays on, is
+    /// paused and resumed, and played to the end, and stays out of every list throughout.
+    func testARemovedPageStaysOutOfEveryListAsItPlaysOn() throws {
+        let article = env.article("https://example.com/playing")
+        let page = try library.save(article)
+        library.recordPlayback(article)
+        try library.unsave(page)
+        XCTAssertEqual(try lists(holding: page), [])
+
+        env.now += 60
+        library.recordPosition(page, paragraph: 1, utf16Offset: 0)
+        library.recordPlaybackStarted(page)
+        library.recordFinished(page)
+        XCTAssertEqual(try lists(holding: page), [], "playing on never lists it again")
+        XCTAssertNotNil(page.lastPlayedAt)
+    }
+
+    /// Listened to again from its article (🎧, the Reader's Listen), a removed page is played
+    /// without saving again, like any page you listen to: "Not saved" lists it.
+    func testListeningToARemovedPageAgainListsItAsNotSaved() throws {
+        let article = env.article("https://example.com/heard-again")
+        let page = try library.save(article)
+        library.recordPlayback(article)
+        try library.remove([page])
+
+        env.now += 60
+        XCTAssertIdentical(library.recordPlayback(article), page, "the same page")
+        XCTAssertEqual(try lists(holding: page), ["Not saved"])
+        XCTAssertNil(page.removedAt)
+    }
+
+    /// That listen, while saves fail, outlasts a failed edit's rollback: once a save works, the
+    /// page is "Not saved", not removed (`PendingListening`).
+    func testListeningToARemovedPageWhileSavesFailListsItThroughARollback() throws {
+        let article = env.article("https://example.com/heard-while-failing")
+        let page = try library.save(article)
+        let other = try library.save(env.article("https://example.com/other"))
+        library.recordPlayback(article)
+        try library.remove([page])
+
+        env.now += 60
+        library.saveContext = { _ in throw SaveFailed() }
+        library.recordPlayback(article)
+        XCTAssertThrowsError(try library.remove([other]), "a failed edit rolls back")
+        XCTAssertEqual(try lists(holding: page), ["Not saved"], "the listen is written again")
+
+        library.saveContext = { try $0.save() }
+        XCTAssertTrue(library.commit("test"))
+        XCTAssertEqual(try lists(holding: page), ["Not saved"])
+        XCTAssertNil(page.removedAt)
+    }
+
+    /// Saved again, a removed page is back in the Library (*Pages*); removed again, it is out.
+    func testSavingARemovedPageBringsItBackAndRemovingItAgainTakesItOut() throws {
+        let article = env.article("https://example.com/again")
+        let page = try library.save(article)
+        library.recordPlayback(article)
+        try library.remove([page])
+
+        env.now += 60
+        try library.save(ReaderArticle(page: page))
+        XCTAssertEqual(try lists(holding: page), ["Pages", "Library", "Suggestions"])
+
+        env.now += 60
+        try library.remove([page])
+        XCTAssertEqual(try lists(holding: page), [])
+        XCTAssertEqual(page.removedAt, env.now)
+    }
+
+    /// A remove that can't be saved changes nothing: it throws, the page is in the lists it was
+    /// in, and isn't marked removed.
+    func testARemoveThatCantBeSavedLeavesThePageInItsLists() throws {
+        let article = env.article("https://example.com/kept")
+        let page = try library.save(article)
+        library.recordPlayback(article)
+        library.saveContext = { _ in throw SaveFailed() }
+
+        XCTAssertThrowsError(try library.remove([page])) { XCTAssertEqual($0 as? LibraryStoreError, .saveFailed) }
+        XCTAssertEqual(try lists(holding: page), ["Pages", "Library", "Suggestions"], "where it was")
+        XCTAssertNil(page.removedAt)
+        XCTAssertNotNil(page.addedAt)
+    }
+
+    /// 🔖 can't unsave a page that isn't saved in the Library: one played without saving stays
+    /// "Not saved".
+    func testUnsavingAPagePlayedWithoutSavingLeavesIt() throws {
+        let page = library.recordPlayback(env.article("https://example.com/unsaved"))
+        try library.unsave(page)
+        XCTAssertEqual(try lists(holding: page), ["Not saved"])
+        XCTAssertNil(page.removedAt)
     }
 }

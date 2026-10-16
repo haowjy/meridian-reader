@@ -173,7 +173,9 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
 - **One library**: everything is a page in a folder (or in none). A page is a *link* (an address
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
   without saving (kept 7 days, shown at the top of the Library's *Pages* as "Not saved", and in
-  the bar). There is one page per
+  the bar). *Remove from Library* takes a page out of every list it was in, "Not saved" too,
+  even while it plays; it is kept 7 days for what plays and the bar, and comes back only when
+  you save it or listen to it again (🎧, the Reader's Listen). There is one page per
   address: saving a favorite saves it in place; unsaving a page in a folder leaves it there as a
   link. 🔖 = saved, ☆ = favorite.
 - **The Now Playing bar** (`BandNowPlayingBar` / `NowPlayingBarView` → `NowPlayingBar`) is the
@@ -320,7 +322,8 @@ it is and where it stands ("5 min", "6 min left", "✓ Finished", "skipped", "Pl
 small thumbnail as tall as the two lines. In a folder that line is the status alone (the header
 already names the author or site); on the home and in search the site or path comes first. A
 tap opens the row; its menu is a long-press (decision D11), and a
-long press that moves lifts the row into a drag (below); swipe left removes. Rows that can play keep their ▶ (`PlayStateButton`): it plays the row (replacing what
+long press that moves lifts the row into a drag (below); swipe left removes (a page's *Remove*
+takes its row out of every list once it is saved, and leaves it, with a toast, when it can't be). Rows that can play keep their ▶ (`PlayStateButton`): it plays the row (replacing what
 plays) or pauses / resumes it when it is what you hear, and never navigates. The playing row is
 tinted, with still or moving bars and "Playing" (or "Paused") in the accent. A page or chapter
 whose audio is downloaded in the voice selected now shows ✓ in its Download control (VoiceOver:
@@ -397,7 +400,9 @@ After a voice change a finished download moves to *Different Voice*, with **Re-d
 it again in the voice selected; the old voice keeps playing until each paragraph is replaced) and
 **Keep** (stays as it is, counted as done, still named by its own voice), on one action row (symbols alone when short of room, D21). A row opens what was
 downloaded (the Reader, or the Library at the folder); swipe left *Remove* takes the download off
-the list and its audio off the phone (not the audio of what you hear); its long-press menu has
+the list and its audio off the phone (not the audio of what you hear). The list holds downloads
+of what is in the Library: removing a page from the Library, or deleting a page or folder, takes
+its download off the list too (a removed page's audio stays, ephemeral); its long-press menu has
 *Pause / Resume*, *Re-download*, *Keep* and *Remove* as they apply. While Apple's voice is
 selected nothing renders: queued downloads say *Waiting for an on-device voice*, with *Voice
 Settings*. *Delete Downloads* on a page or a folder deletes its audio and its download. A page

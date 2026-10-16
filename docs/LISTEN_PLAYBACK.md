@@ -81,7 +81,8 @@ Rules:
   else runs `start`, which replaces what is playing. Pressing never navigates.
 - **`nowPlayingContent()`**: Now Playing's reading content, asked of the injected
   `NowPlayingContentResolving`: the library, which has every page that has played (a page played
-  without saving is kept 7 days after its last play), so it is there after a relaunch too.
+  without saving, or removed from the Library, is kept 7 days after its last play), so it is
+  there after a relaunch too.
 
 ### Engine adapters (`ListenEngine`)
 

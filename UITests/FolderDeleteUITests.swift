@@ -4,7 +4,9 @@ import XCTest
 /// the page that is playing all go at once, from the folder's row on the screen above it and from
 /// the folder's own screen; the app stays up and the Library shows what is left. A swipe that
 /// asks first leaves its row in the list until the delete is saved: *Cancel*, or a delete that
-/// can't be saved, keeps it. Offline: the demo folders, the demo book, the Apple voice.
+/// can't be saved, keeps it. A page's swiped *Remove* takes its row out of every list once it is
+/// saved, and keeps it when it can't be. Offline: the demo folders, the demo book, the Apple
+/// voice.
 final class FolderDeleteUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
@@ -99,32 +101,75 @@ final class FolderDeleteUITests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground, "the app is still up")
     }
 
-    /// Swipe → *Remove* on a page that has been played: it leaves the Library and its row comes
-    /// back in the same list as "Not saved" (played without saving). The swipe doesn't take the
-    /// row out ahead of the data, so the List and the library agree and the app stays up.
-    func testSwipeRemovingAPlayedPageKeepsItsRowAsNotSaved() throws {
+    /// Swipe → *Remove* on the page you hear: its row leaves the list, and every list: it doesn't
+    /// come back as "Not saved", not after a pause and a resume either, and search doesn't find
+    /// it. It plays on. The swipe doesn't take the row out ahead of the data, so the List and the
+    /// library agree and the app stays up.
+    func testSwipeRemovingAPlayedPageTakesItsRowOutOfEveryList() throws {
         let app = launchLibrary()
+        let bar = playDemoArticle(app)
+
+        swipeRemove(app, "Demo Listen Article")
+        let row = libraryRow(app, "Demo Listen Article")
+        XCTAssertTrue(eventually(5) { !row.exists }, "its row leaves the list")
+        idle(2)
+        XCTAssertFalse(row.exists, "and doesn't come back as Not saved")
+        XCTAssertEqual(app.state, .runningForeground, "the app is still up")
+        XCTAssertTrue(libraryRow(app, "Demo Finance").exists, "the rest of the list is there")
+        XCTAssertEqual(bar.label, "Pause", "Remove never touches playback")
+
+        bar.tap()
+        XCTAssertTrue(eventually(5) { bar.label == "Resume" }, "paused")
+        bar.tap()
+        XCTAssertTrue(eventually(10) { bar.label == "Pause" }, "playing again")
+        idle(1)
+        XCTAssertFalse(row.exists, "resuming doesn't list it again")
+
+        let search = app.textFields["librarySearchField"]
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        search.tap()
+        search.typeText("Demo Listen")
+        idle(1)
+        XCTAssertFalse(libraryRow(app, "Demo Listen Article").exists, "search doesn't find it")
+    }
+
+    /// Swipe → *Remove* on the page you hear while nothing can be saved: a toast says so, and its
+    /// row stays where it was, still saved (not "Not saved"), still playing.
+    func testSwipeRemovingAPlayedPageThatCantBeSavedKeepsItsRowAndSaysSo() throws {
+        let app = launchLibrary(["-failLibrarySaves"])
+        let bar = playDemoArticle(app)
+
+        swipeRemove(app, "Demo Listen Article")
+        let toast = find(app, "toast")
+        XCTAssertTrue(eventually(5) { toast.exists && toast.label == "Couldn’t remove" }, "the toast says so")
+        XCTAssertTrue(eventually(10) { !toast.exists }, "the toast went")
+        let row = libraryRow(app, "Demo Listen Article")
+        XCTAssertTrue(row.exists, "the page's row stays")
+        XCTAssertFalse((row.value as? String)?.contains("Not saved") == true, "still saved, got \(row.value ?? "nil")")
+        XCTAssertEqual(app.state, .runningForeground, "the app is still up")
+        XCTAssertEqual(bar.label, "Pause", "still playing")
+    }
+
+    // MARK: - Steps
+
+    /// Plays the demo article from its row's ▶ and waits for the bar to show it playing.
+    private func playDemoArticle(_ app: XCUIApplication) -> XCUIElement {
         let cell = libraryCell(app, "Demo Listen Article")
         XCTAssertTrue(cell.waitForExistence(timeout: 5), "Pages: the demo article")
         cell.buttons["Play"].tap()
         let bar = app.buttons["nowPlayingBarPlayPause"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10), "the bar shows what you hear")
         XCTAssertTrue(eventually(10) { bar.label == "Pause" }, "playing")
+        return bar
+    }
 
-        cell.swipeLeft()
+    /// Swipe left on the row titled `title`, then its *Remove*.
+    private func swipeRemove(_ app: XCUIApplication, _ title: String) {
+        libraryCell(app, title).swipeLeft()
         let remove = app.buttons["Remove"].firstMatch
         XCTAssertTrue(remove.waitForExistence(timeout: 3), "the page row's swipe action")
         remove.tap()
-        let row = libraryRow(app, "Demo Listen Article")
-        XCTAssertTrue(eventually(5) { (row.value as? String)?.contains("Not saved") == true },
-                      "back in the list as Not saved, got \(row.value ?? "nil")")
-        idle(1)
-        XCTAssertEqual(app.state, .runningForeground, "the app is still up")
-        XCTAssertTrue(libraryRow(app, "Demo Finance").exists, "the rest of the list is there")
-        XCTAssertEqual(bar.label, "Pause", "Remove never touches playback")
     }
-
-    // MARK: - Steps
 
     /// Moves the demo book into Demo Finance (beside its pages and its subfolders Bonds and
     /// Taxes), then plays Demo Finance from its first page, and stays on Demo Finance's screen.
