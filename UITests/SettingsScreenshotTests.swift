@@ -30,17 +30,10 @@ final class SettingsScreenshotTests: XCTestCase {
         try screenshot.pngRepresentation.write(to: dir.appendingPathComponent(name + ".png"))
     }
 
-    private func launch(_ arguments: [String]) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-selectEngine", "apple", "-reader.rateMultiplier", "1"] + arguments
-        app.launch()
-        return app
-    }
-
     // MARK: - Settings
 
     func testSettingsSections() throws {
-        let app = launch(["-browseTestPages", "-resetBookmarks", "-reader.developerOptions", "YES"])
+        let app = launch(["-browseTestPages", "-reader.developerOptions", "YES"])
         XCTAssertTrue(app.links["Next page"].waitForExistence(timeout: 30))
         app.buttons["browseMore"].tap()
         idle(1.2)
@@ -94,7 +87,7 @@ final class SettingsScreenshotTests: XCTestCase {
     func testReadingThemesOnReaderAndNowPlaying() throws {
         for theme in ["matchApp", "light", "sepia", "dark", "black"] {
             for mode in theme == "matchApp" ? ["light", "dark"] : ["light"] {
-                let app = launch(["-browseTestPages", "-resetBookmarks", "-reading.theme", theme,
+                let app = launch(["-browseTestPages", "-reading.theme", theme,
                                   "-appearance.mode", mode])
                 let suffix = theme == "matchApp" ? "\(theme)-\(mode)" : theme
                 openReader(app)
@@ -111,7 +104,7 @@ final class SettingsScreenshotTests: XCTestCase {
     }
 
     func testAaPanelOnReaderAndNowPlaying() throws {
-        let app = launch(["-browseTestPages", "-resetBookmarks", "-reading.theme", "sepia"])
+        let app = launch(["-browseTestPages", "-reading.theme", "sepia"])
         openReader(app)
         find(app, "textAppearanceButton").tap()
         idle(1.2)

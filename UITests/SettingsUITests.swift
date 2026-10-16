@@ -23,7 +23,7 @@ final class SettingsUITests: XCTestCase {
     private func assertSettingsIsLast(_ app: XCUIApplication, _ place: String, tile: String) {
         let settings = find(app, "moreSettings")
         XCTAssertTrue(settings.waitForExistence(timeout: 3), "\(place): Settings row")
-        idle(0.6)
+        XCTAssertNotNil(settledFrames([settings]), "\(place): the ⋯ panel finished growing")
         let rows = menuRows(app)
         XCTAssertEqual(rows.last?.identifier, "moreSettings", "\(place): last row, got \(rows.map(\.identifier))")
         XCTAssertLessThan(settings.frame.maxY, find(app, tile).frame.minY, "\(place): above the big buttons")
@@ -61,8 +61,7 @@ final class SettingsUITests: XCTestCase {
         app.buttons["listenPlayPause"].tap()
         app.buttons["nowPlayingClose"].tap()
         XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingHeader").exists })
-        idle(1) // the Library takes taps once the sheet has gone
-
+        XCTAssertTrue(eventually(5) { app.buttons["libraryMore"].isHittable }, "the Library takes taps once the sheet has gone")
         app.buttons["libraryMore"].tap()
         tapMenuRow(app, "moreBrowser")
         XCTAssertTrue(app.buttons["browseMore"].waitForExistence(timeout: 5))
