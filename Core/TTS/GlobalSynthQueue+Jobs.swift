@@ -15,16 +15,13 @@ extension GlobalSynthQueue {
         /// hashed when the text is set, not again for every chunk the worker picks.
         private(set) var paragraphHashes: [String]
         var plan: BakePriorityPlan
-        /// FIFO demotion order among non-#1 articles (lower = older / demoted earlier).
-        var demoteOrder: Int
         var isEphemeral: Bool
 
-        init(cacheKey: UUID, paragraphs: [String], plan: BakePriorityPlan, demoteOrder: Int, isEphemeral: Bool) {
+        init(cacheKey: UUID, paragraphs: [String], plan: BakePriorityPlan, isEphemeral: Bool) {
             self.cacheKey = cacheKey
             self.paragraphs = paragraphs
             self.paragraphHashes = paragraphs.map(ArticleIdentity.paragraphHash)
             self.plan = plan
-            self.demoteOrder = demoteOrder
             self.isEphemeral = isEphemeral
         }
 
@@ -77,15 +74,9 @@ extension GlobalSynthQueue {
         }
         for job in ordered {
             let primary = primaryCacheKey
-            if primary == job.cacheKey {
-                continue // already #1 with a live plan; don't reset its playhead cursor
-            } else if primary == nil || job.cacheKey == focusKey {
-                openArticle(cacheKey: job.cacheKey, paragraphs: job.paragraphs,
-                            resumeParagraph: job.priorityStart, isEphemeral: job.isEphemeral)
-            } else {
-                enqueueDemoted(cacheKey: job.cacheKey, paragraphs: job.paragraphs,
-                               resumeParagraph: job.priorityStart, isEphemeral: job.isEphemeral)
-            }
+            guard primary != job.cacheKey else { continue } // #1 with a live plan: keep its playhead cursor
+            enqueue(cacheKey: job.cacheKey, paragraphs: job.paragraphs, from: job.priorityStart,
+                    isEphemeral: job.isEphemeral, at: primary == nil || job.cacheKey == focusKey ? .front : .back)
         }
     }
 
@@ -107,5 +98,26 @@ extension GlobalSynthQueue {
         /// The job was in the queue before it was staged (a book's demoted bake): unstaging
         /// leaves it there.
         var wasQueued: Bool
+    }
+}
+
+/// Render order for one article: the priority stretch from `priorityStart` (the resume point, a
+/// jump, 0 for a save) to the end, then the missing paragraphs above it, so the whole article
+/// lands on disk.
+struct BakePriorityPlan: Equatable, Sendable {
+    /// First paragraph of the priority stretch.
+    let priorityStart: Int
+    let paragraphCount: Int
+
+    init(resume: Int, count: Int) {
+        priorityStart = max(0, min(resume, max(count - 1, 0)))
+        paragraphCount = count
+    }
+
+    /// `missing` (ascending) in render order.
+    func orderedWork(missing: [Int]) -> [Int] {
+        let start = min(priorityStart, paragraphCount)
+        let missingSet = Set(missing)
+        return (start..<paragraphCount).filter(missingSet.contains) + (0..<start).filter(missingSet.contains)
     }
 }

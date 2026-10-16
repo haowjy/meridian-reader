@@ -413,50 +413,6 @@ final class ArticleAudioCache {
     }
 }
 
-/// Explicit bake order for one article. Single Core ML worker walks this plan.
-/// Policy: priority stretch first (from `priorityStart` → end), then optionally return to top
-/// for any missing units below the jump/playhead so the full article lands on disk.
-struct BakePriorityPlan: Equatable, Sendable {
-    /// First index of the priority stretch (save → 0; listen/jump → selected paragraph).
-    var priorityStart: Int
-    /// After priority stretch finishes, bake missing indices in `0..<priorityStart`.
-    var fillGapsFromTopAfterPriority: Bool
-    var paragraphCount: Int
-
-    static func topDown(paragraphCount: Int) -> BakePriorityPlan {
-        BakePriorityPlan(
-            priorityStart: 0,
-            fillGapsFromTopAfterPriority: false,
-            paragraphCount: paragraphCount
-        )
-    }
-
-    static func fromPlayhead(_ start: Int, paragraphCount: Int) -> BakePriorityPlan {
-        let clamped = max(0, min(start, max(paragraphCount - 1, 0)))
-        return BakePriorityPlan(
-            priorityStart: clamped,
-            fillGapsFromTopAfterPriority: true,
-            paragraphCount: paragraphCount
-        )
-    }
-
-    /// Ordered indices still needing work. `missing` should be ascending.
-    func orderedWork(missing: [Int]) -> [Int] {
-        let start = max(0, min(priorityStart, paragraphCount))
-        var order: [Int] = []
-        let missingSet = Set(missing)
-        for i in start..<paragraphCount where missingSet.contains(i) {
-            order.append(i)
-        }
-        if fillGapsFromTopAfterPriority {
-            for i in 0..<start where missingSet.contains(i) {
-                order.append(i)
-            }
-        }
-        return order
-    }
-}
-
 // MARK: - Ephemeral meta, rekey, prune
 
 extension ArticleAudioCache {

@@ -268,8 +268,10 @@ happen; "Diagnostics").
 
 One **`GlobalSynthQueue`** owns all on-device synthesis, live and ahead. A single worker renders
 one **chunk** per iteration, so the playhead can preempt bake-ahead between chunks; two model
-calls never run at once (`SynthRenderGate.shared`). Actions reorder the queue (`openArticle`,
-`focusPlayhead`, demote on switch); nothing builds its own render loop.
+calls never run at once (`SynthRenderGate.shared`). Actions reorder the queue through one
+upsert, `enqueue(at:)` with a placement (`.front`, `.back`, `.behind` the playing chapter), and
+`focusPlayhead`; nothing builds its own render loop. The coordinator's one entry for the Reader
+opening a page and for listening starting or jumping is `LocalTTSCoordinator.openArticle`.
 
 **What it renders for.** The coordinator owns one render target
 (`LocalTTSCoordinator.renderTarget`, `RenderTarget`): the loaded on-device engine in its selected
@@ -302,22 +304,23 @@ the queued jobs, downloads and saves included, render in that engine's voice
    (`adoptPending`; Audio cache, Pending jobs): the article being listened to stays #1; any
    other job is #1 only if the queue is empty; the rest keep their plans, demoted.
 
-`BakePriorityPlan` is the explicit cursor:
+`BakePriorityPlan(resume:count:)` is the explicit cursor: from its start to the end, then the
+missing paragraphs above it:
 
 | Event | Plan |
 |-------|------|
-| Article save | `topDown`: `0…end` |
-| Listen start / jump | `fromPlayhead(p)`: `p…end`, then missing `0..<p` |
-| Playback finished / stopped (outside books and series) | `startBakeIfNeeded` (`topDown`): fill leftover gaps |
+| Article save | from 0: `0…end`, queued at the back |
+| Reader open, listen start / jump | from `p`: `p…end`, then missing `0..<p`, at the front |
+| Playback finished / stopped (outside books and series) | `startBakeIfNeeded` (from 0, at the back): fill leftover gaps |
 
-Saving an article that is #1 keeps its plan; only the job's ephemeral flag flips
-(`GlobalSynthQueue.setEphemeral`).
+Saving an article that is already queued, #1 included, keeps its place and plan; the job turns
+saved (`.back` keeps a queued job where it is).
 
 **Downloads** (decision D16, `DownloadCenter`) add no render path of their own. The download list
 (`Downloads.json`, `DownloadListStore`) is worked through one page at a time: a link page's text is
 fetched (`URLPageFetcher`) and saved through `ArticleSaveCoordinator`, then the page's paragraphs go
 to the queue as an ordinary bake job (`LocalTTSCoordinator.queueDownload` → `startBakeIfNeeded`, a
-`topDown` plan, demoted behind #1 when something else is #1, kept in the pending jobs while the
+plan from paragraph 0, queued at the back (#1 when nothing else is), kept in the pending jobs while the
 engine loads). When the job leaves the queue (`bakeCompleted`, through
 `LocalTTSCoordinator.renderObserver`) the page is done if every paragraph with words has audio in
 the download voice (`missingDownloadParagraphs`); a job that left unfinished goes back once, then

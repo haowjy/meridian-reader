@@ -269,12 +269,8 @@ struct ReaderSheetScreen: View {
             legacyKeys: article.legacyCacheKeys,
             isLivePlayback: false
         )
-        speech.localTTS.warmListenAudio(
-            cacheKey: article.id,
-            paragraphs: paragraphs,
-            resumeParagraph: resumeParagraph,
-            isEphemeral: !isSaved
-        )
+        speech.localTTS.openArticle(cacheKey: article.id, paragraphs: paragraphs, from: resumeParagraph,
+                                    isEphemeral: !isSaved)
     }
 
     private struct WarmKey: Hashable {

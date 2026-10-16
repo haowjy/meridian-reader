@@ -417,69 +417,23 @@ final class LocalTTSCoordinator: SynthQueueContext {
         audioCache.status(for: articleID, expectedParagraphs: paragraphCount)
     }
 
-    // MARK: - Shared warm / queue reshuffle (Browse + Saved)
+    // MARK: - Queue reshuffle (Reader, listening, Save)
 
-    /// Open/focus an article as queue #1 and bake from resume downward.
-    /// Shared by Browse Reader and Offline — not separate bake stacks.
-    func warmListenAudio(
-        cacheKey: UUID,
-        paragraphs: [String],
-        resumeParagraph: Int = 0,
-        isEphemeral: Bool
-    ) {
+    /// The Reader opened `cacheKey`, or listening starts or jumps there: its job becomes #1 and
+    /// renders from paragraph `start` to the end, then the paragraphs above. While the engine
+    /// loads, the job waits on disk and joins the queue when the load finishes. An ephemeral
+    /// page's audio starts its TTL again; Save is what marks audio saved.
+    func openArticle(cacheKey: UUID, paragraphs: [String], from start: Int, isEphemeral: Bool) {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
         focusCacheKey = cacheKey
         guard usesLocalEngine else {
-            // Still loading: the job waits on disk and joins the queue when the load finishes.
-            PendingBakeJobStore.shared.enqueuePending(
-                articleID: cacheKey,
-                paragraphs: paragraphs,
-                priorityStart: max(0, resumeParagraph)
-            )
-            print("[SynthQueue] queued pending key=\(cacheKey.uuidString.prefix(8)) (local engine warming)")
+            PendingBakeJobStore.shared.enqueuePending(articleID: cacheKey, paragraphs: paragraphs,
+                                                      priorityStart: max(0, start))
             return
         }
-        if isEphemeral {
-            audioCache.markEphemeral(cacheKey: cacheKey, lastAccess: Date())
-        } else {
-            audioCache.markSaved(cacheKey: cacheKey)
-        }
-        synthQueue.openArticle(
-            cacheKey: cacheKey,
-            paragraphs: paragraphs,
-            resumeParagraph: resumeParagraph,
-            isEphemeral: isEphemeral
-        )
-    }
-
-    /// Listen start / jump: article stays #1; cursor → paragraph…end then gap-fill.
-    func prioritizeListen(
-        cacheKey: UUID,
-        playhead: Int,
-        paragraphs: [String],
-        isEphemeral: Bool = false
-    ) {
-        guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
-        focusCacheKey = cacheKey
-        if isEphemeral {
-            audioCache.markEphemeral(cacheKey: cacheKey, lastAccess: Date())
-        }
-        if usesLocalEngine {
-            synthQueue.openArticle(
-                cacheKey: cacheKey,
-                paragraphs: paragraphs,
-                resumeParagraph: playhead,
-                isEphemeral: isEphemeral
-            )
-            synthQueue.focusPlayhead(cacheKey: cacheKey, paragraph: playhead)
-        } else {
-            warmListenAudio(
-                cacheKey: cacheKey,
-                paragraphs: paragraphs,
-                resumeParagraph: playhead,
-                isEphemeral: isEphemeral
-            )
-        }
+        if isEphemeral { audioCache.markEphemeral(cacheKey: cacheKey, lastAccess: Date()) }
+        synthQueue.enqueue(cacheKey: cacheKey, paragraphs: paragraphs, from: start, isEphemeral: isEphemeral,
+                           at: .front)
     }
 
     /// Paragraphs of the next chapter rendered before it plays (`stageNextChapter`).
@@ -500,37 +454,16 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return true
     }
 
-    /// On article save: enqueue (demoted if something else is #1) top → down.
+    /// On article save (or a download, a finished listen's gap fill): render it in full, top
+    /// down, behind what is queued (#1 when nothing is). A job already queued, the one playing
+    /// included, keeps its place and plan and just turns saved.
     func startBakeIfNeeded(articleID: UUID, paragraphs: [String]) {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
         audioCache.markSaved(cacheKey: articleID)
-        PendingBakeJobStore.shared.enqueuePending(
-            articleID: articleID,
-            paragraphs: paragraphs,
-            priorityStart: 0
-        )
+        PendingBakeJobStore.shared.enqueuePending(articleID: articleID, paragraphs: paragraphs, priorityStart: 0)
         // Still loading: the job joins the queue when the load finishes.
         guard usesLocalEngine else { return }
-        // Already #1 (e.g. Save mid-listen): keep its playhead plan; just flip to saved.
-        if synthQueue.primaryCacheKey == articleID, synthQueue.hasJob(cacheKey: articleID) {
-            synthQueue.setEphemeral(cacheKey: articleID, false)
-            return
-        }
-        // If nothing is playing, open as #1; else demote behind current listen.
-        if synthQueue.primaryCacheKey == nil || synthQueue.primaryCacheKey == articleID {
-            synthQueue.openArticle(
-                cacheKey: articleID,
-                paragraphs: paragraphs,
-                resumeParagraph: 0,
-                isEphemeral: false
-            )
-        } else {
-            synthQueue.enqueueDemoted(
-                cacheKey: articleID,
-                paragraphs: paragraphs,
-                isEphemeral: false
-            )
-        }
+        synthQueue.enqueue(cacheKey: articleID, paragraphs: paragraphs, isEphemeral: false, at: .back)
     }
 
     /// After Save: move ephemeral CAFs onto the saved page's key and reshuffle the queue key.

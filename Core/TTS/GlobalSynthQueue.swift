@@ -5,7 +5,8 @@ import Foundation
 /// Actions **reorganize** this queue — they do not spawn separate bake systems.
 ///
 /// Priority rules:
-/// 1. `openArticle` — that article becomes #1; synthesize from start (or resume) downward.
+/// 1. `enqueue(at: .front)` — that article becomes #1; synthesize from its start (or resume)
+///    downward, then the paragraphs above. `.back` queues it behind what is there.
 /// 2. `focusPlayhead` — same article stays #1; cursor moves to paragraph→end, then gap-fill top.
 /// 3. Opening a different article demotes the previous #1 (cache kept); worker switches to new #1.
 /// 4. One worker drains #1’s next missing unit, then continues.
@@ -58,7 +59,6 @@ final class GlobalSynthQueue {
     private var stack: [UUID] = []
     /// The next chapter of the book or series playing, rendering its opening ahead (`stageNext`).
     private var staged: StagedJob?
-    private var demoteCounter = 0
     private var worker: Task<Void, Never>?
     private var chunkWaiters: [ChunkKey: [CheckedContinuation<ChunkResolution, Error>]] = [:]
     /// Paragraphs whose chunk files a live player may reference — keep their scratch after
@@ -200,80 +200,45 @@ final class GlobalSynthQueue {
 
     // MARK: - Reshuffle APIs
 
-    /// Article becomes #1. Synthesize from `resumeParagraph` (default 0) → end, then gap-fill.
-    func openArticle(
-        cacheKey: UUID,
-        paragraphs: [String],
-        resumeParagraph: Int = 0,
-        isEphemeral: Bool
-    ) {
+    /// Where `enqueue` puts a job.
+    enum Placement: Equatable {
+        /// #1: it renders next (an article opened, played, a jump). A staged chapter put here is
+        /// playing: its cap lifts.
+        case front
+        /// Last, or where it already is (a save, a download, work adopted from disk).
+        case back
+        /// Right behind this job, or at the front when it isn't queued (the staged next chapter).
+        case behind(UUID?)
+    }
+
+    /// Queue `cacheKey` to render `paragraphs`, or refresh its queued job, and place it. A job
+    /// put at the front renders from paragraph `start` to the end, then the paragraphs above it; a
+    /// queued job placed anywhere else keeps its start, and a new one starts at `start`. A queued
+    /// job keeps its paragraph hashes when the text is unchanged (every play and seek opens the
+    /// article again).
+    func enqueue(cacheKey: UUID, paragraphs: [String], from start: Int = 0, isEphemeral: Bool, at placement: Placement) {
         guard !paragraphs.isEmpty else { return }
-        let plan: BakePriorityPlan = resumeParagraph <= 0
-            ? .topDown(paragraphCount: paragraphs.count)
-            : .fromPlayhead(resumeParagraph, paragraphCount: paragraphs.count)
-        upsert(
-            cacheKey: cacheKey,
-            paragraphs: paragraphs,
-            plan: plan,
-            isEphemeral: isEphemeral,
-            makePrimary: true
-        )
+        if var job = jobs[cacheKey] {
+            let resume = placement == .front ? start : job.plan.priorityStart
+            job.paragraphs = paragraphs
+            job.plan = BakePriorityPlan(resume: resume, count: paragraphs.count)
+            job.isEphemeral = isEphemeral
+            jobs[cacheKey] = job
+        } else {
+            jobs[cacheKey] = ArticleJob(cacheKey: cacheKey, paragraphs: paragraphs,
+                                        plan: BakePriorityPlan(resume: start, count: paragraphs.count),
+                                        isEphemeral: isEphemeral)
+        }
+        place(cacheKey, placement)
         kickWorker()
     }
 
     /// Same article stays #1; move priority cursor to `paragraph` → end, then gap-fill top.
-    func focusPlayhead(
-        cacheKey: UUID,
-        paragraph: Int,
-        paragraphs: [String]? = nil
-    ) {
-        guard var job = jobs[cacheKey] else {
-            if let paragraphs {
-                openArticle(
-                    cacheKey: cacheKey,
-                    paragraphs: paragraphs,
-                    resumeParagraph: paragraph,
-                    isEphemeral: false
-                )
-            }
-            return
-        }
-        if let paragraphs { job.paragraphs = paragraphs }
-        job.plan = .fromPlayhead(paragraph, paragraphCount: job.paragraphs.count)
+    func focusPlayhead(cacheKey: UUID, paragraph: Int) {
+        guard var job = jobs[cacheKey] else { return }
+        job.plan = BakePriorityPlan(resume: paragraph, count: job.paragraphs.count)
         jobs[cacheKey] = job
-        promoteToPrimary(cacheKey)
-        kickWorker()
-    }
-
-    /// Ensure article is in the queue without stealing #1 (e.g. background save FIFO).
-    /// `resumeParagraph` > 0 keeps a mid-article plan (from there → end, then gap-fill) for when
-    /// this job's turn comes; it never changes the stack position.
-    func enqueueDemoted(
-        cacheKey: UUID,
-        paragraphs: [String],
-        resumeParagraph: Int = 0,
-        isEphemeral: Bool
-    ) {
-        guard !paragraphs.isEmpty else { return }
-        if jobs[cacheKey] != nil {
-            // Refresh payload but keep stack position.
-            var job = jobs[cacheKey]!
-            job.paragraphs = paragraphs
-            job.isEphemeral = isEphemeral
-            jobs[cacheKey] = job
-        } else {
-            demoteCounter += 1
-            jobs[cacheKey] = ArticleJob(
-                cacheKey: cacheKey,
-                paragraphs: paragraphs,
-                plan: resumeParagraph <= 0
-                    ? .topDown(paragraphCount: paragraphs.count)
-                    : .fromPlayhead(resumeParagraph, paragraphCount: paragraphs.count),
-                demoteOrder: demoteCounter,
-                isEphemeral: isEphemeral
-            )
-            stack.append(cacheKey)
-        }
+        place(cacheKey, .front)
         kickWorker()
     }
 
@@ -289,22 +254,11 @@ final class GlobalSynthQueue {
         guard !paragraphs.isEmpty, stack.first != cacheKey else { return }
         if let staged, staged.cacheKey != cacheKey { unstage() }
         let wasQueued = staged?.wasQueued ?? (jobs[cacheKey] != nil)
-        if var job = jobs[cacheKey] {
-            job.paragraphs = paragraphs
-            job.isEphemeral = isEphemeral
-            jobs[cacheKey] = job
-        } else {
-            demoteCounter += 1
-            jobs[cacheKey] = ArticleJob(cacheKey: cacheKey, paragraphs: paragraphs,
-                                        plan: .topDown(paragraphCount: paragraphs.count), demoteOrder: demoteCounter,
-                                        isEphemeral: isEphemeral)
-        }
+        enqueue(cacheKey: cacheKey, paragraphs: paragraphs, isEphemeral: isEphemeral, at: .behind(playing))
         staged = StagedJob(cacheKey: cacheKey, behind: playing, cap: cap, wasQueued: wasQueued)
-        placeStaged()
         let position = stack.firstIndex(of: cacheKey) ?? 0
         ListenTimingLog.log("chapter_staged", ["key": ListenTimingLog.shortKey(cacheKey), "cap": cap,
                                                "behind": ListenTimingLog.shortKey(position > 0 ? stack[position - 1] : nil)])
-        kickWorker()
     }
 
     /// The staged job's place: right behind the playing chapter's job while that is queued, else
@@ -314,9 +268,22 @@ final class GlobalSynthQueue {
     /// render in the background.
     private func placeStaged() {
         guard let staged, jobs[staged.cacheKey] != nil else { return }
-        stack.removeAll { $0 == staged.cacheKey }
-        let position = staged.behind.flatMap { stack.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
-        stack.insert(staged.cacheKey, at: position)
+        place(staged.cacheKey, .behind(staged.behind))
+    }
+
+    private func place(_ cacheKey: UUID, _ placement: Placement) {
+        switch placement {
+        case .front:
+            stack.removeAll { $0 == cacheKey }
+            stack.insert(cacheKey, at: 0)
+            if staged?.cacheKey == cacheKey { staged = nil }
+        case .back:
+            if !stack.contains(cacheKey) { stack.append(cacheKey) }
+        case .behind(let job):
+            stack.removeAll { $0 == cacheKey }
+            let position = job.flatMap { stack.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
+            stack.insert(cacheKey, at: position)
+        }
     }
 
     /// The staged chapter won't play next (another page plays, the book ended): a job staging
@@ -357,8 +324,7 @@ final class GlobalSynthQueue {
         guard !paragraphs.isEmpty, var job = jobs[cacheKey], job.paragraphs != paragraphs else { return }
         let start = ParagraphPositionMap.mapParagraphStart(job.plan.priorityStart, from: ParagraphDocument(parts: job.paragraphs),
                                                            to: ParagraphDocument(parts: paragraphs))
-        job.plan = BakePriorityPlan(priorityStart: start, fillGapsFromTopAfterPriority: job.plan.fillGapsFromTopAfterPriority,
-                                    paragraphCount: paragraphs.count)
+        job.plan = BakePriorityPlan(resume: start, count: paragraphs.count)
         job.paragraphs = paragraphs
         jobs[cacheKey] = job
         kickWorker()
@@ -445,10 +411,10 @@ final class GlobalSynthQueue {
         }
         // Make this article #1 with the cursor on this paragraph.
         if jobs[cacheKey] == nil || jobs[cacheKey]?.paragraphs.count != paragraphs.count {
-            openArticle(cacheKey: cacheKey, paragraphs: paragraphs,
-                        resumeParagraph: paragraphIndex, isEphemeral: isEphemeral)
+            enqueue(cacheKey: cacheKey, paragraphs: paragraphs, from: paragraphIndex, isEphemeral: isEphemeral, at: .front)
+        } else {
+            focusPlayhead(cacheKey: cacheKey, paragraph: paragraphIndex)
         }
-        focusPlayhead(cacheKey: cacheKey, paragraph: paragraphIndex)
         if var job = jobs[cacheKey], job.paragraphs.indices.contains(paragraphIndex),
            job.paragraphs[paragraphIndex] != text {
             job.paragraphs[paragraphIndex] = text
@@ -551,38 +517,6 @@ final class GlobalSynthQueue {
     private func missingParagraphs(of job: ArticleJob, in target: RenderTarget) -> [Int] {
         coordinator?.audioCache.missingIndices(articleID: job.cacheKey, paragraphCount: job.paragraphs.count,
                                                engineID: target.engineID, voiceID: target.cacheVoice) ?? []
-    }
-
-    private func upsert(
-        cacheKey: UUID,
-        paragraphs: [String],
-        plan: BakePriorityPlan,
-        isEphemeral: Bool,
-        makePrimary: Bool
-    ) {
-        demoteCounter += 1
-        let existing = jobs[cacheKey]
-        // Reusing the job keeps its paragraph hashes when the text is unchanged (every play / seek
-        // re-opens the article).
-        var job = existing ?? ArticleJob(cacheKey: cacheKey, paragraphs: paragraphs,
-                                         plan: plan, demoteOrder: demoteCounter, isEphemeral: isEphemeral)
-        job.paragraphs = paragraphs
-        job.plan = plan
-        job.demoteOrder = makePrimary ? (existing?.demoteOrder ?? demoteCounter) : demoteCounter
-        job.isEphemeral = isEphemeral
-        jobs[cacheKey] = job
-        if makePrimary {
-            promoteToPrimary(cacheKey)
-        } else if !stack.contains(cacheKey) {
-            stack.append(cacheKey)
-        }
-    }
-
-    /// `cacheKey` becomes #1. A staged chapter that becomes #1 is playing: its cap lifts.
-    private func promoteToPrimary(_ cacheKey: UUID) {
-        stack.removeAll { $0 == cacheKey }
-        stack.insert(cacheKey, at: 0)
-        if staged?.cacheKey == cacheKey { staged = nil }
     }
 
     /// Debug engine probe: hold the worker between chunks so probe timings aren't interleaved.

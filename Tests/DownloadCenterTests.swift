@@ -129,7 +129,7 @@ final class DownloadCenterTests: XCTestCase {
     func testADownloadWaitsBehindTheArticleThatPlays() async throws {
         env.provider.config.latency = 0.02
         let playing = UUID()
-        tts.synthQueue.openArticle(cacheKey: playing, paragraphs: env.paragraphs(30, tag: "Playing"), isEphemeral: false)
+        tts.synthQueue.enqueue(cacheKey: playing, paragraphs: env.paragraphs(30, tag: "Playing"), isEphemeral: false, at: .front)
         let page = try env.savedPage("https://example.com/later")
 
         _ = center.download(page)
@@ -154,7 +154,7 @@ final class DownloadCenterTests: XCTestCase {
 
         let chapter = UUID(), next = UUID()
         env.clearCalls()
-        tts.prioritizeListen(cacheKey: chapter, playhead: 2, paragraphs: text("Chapter", 4))
+        tts.openArticle(cacheKey: chapter, paragraphs: text("Chapter", 4), from: 2, isEphemeral: false)
         XCTAssertTrue(tts.stageNextChapter(cacheKey: next, after: chapter, paragraphs: text("Next", 5)))
         queue.isHeldForLaunch = false
         try await env.waitUntil { self.center.overview.done.count == 1 }

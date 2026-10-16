@@ -237,7 +237,7 @@ final class BackgroundListeningTests: XCTestCase {
         let (queue, ctx) = makeQueue(FakeEngineProvider(), runState: state)
         let key = UUID()
         let paras = [sentence(1), (2...4).map(sentence).joined(separator: " ")]
-        queue.openArticle(cacheKey: key, paragraphs: paras, isEphemeral: false)
+        queue.enqueue(cacheKey: key, paragraphs: paras, isEphemeral: false, at: .front)
         try await waitIdle(queue)
         XCTAssertTrue(ctx.host.calls.isEmpty, "bake-ahead waits in the background")
 
@@ -267,7 +267,7 @@ final class BackgroundListeningTests: XCTestCase {
         let paras = [(1...4).map(sentence).joined(separator: " "), (5...7).map(sentence).joined(separator: " ")]
         let chunks0 = queue.chunkTexts(for: paras[0])
         XCTAssertGreaterThanOrEqual(chunks0.count, 4)
-        queue.openArticle(cacheKey: key, paragraphs: paras, isEphemeral: false)
+        queue.enqueue(cacheKey: key, paragraphs: paras, isEphemeral: false, at: .front)
 
         let hash = ArticleIdentity.paragraphHash(paras[0])
         let c0 = ctx.audioCache.chunkURL(articleID: key, paragraphIndex: 0, textHash: hash, voice: "fake.default", chunk: 0)
@@ -307,7 +307,7 @@ final class BackgroundListeningTests: XCTestCase {
         let (queue, ctx) = makeQueue(FakeEngineProvider(), runState: state)
         let key = UUID()
         let paras = [sentence(1), sentence(2), sentence(3)]
-        queue.openArticle(cacheKey: key, paragraphs: paras, isEphemeral: false)
+        queue.enqueue(cacheKey: key, paragraphs: paras, isEphemeral: false, at: .front)
         try await waitIdle(queue)
         XCTAssertTrue(ctx.renders.isEmpty, "no bake-ahead while inactive")
 
@@ -329,8 +329,8 @@ final class BackgroundListeningTests: XCTestCase {
         ctx.playingCacheKey = playing
         let paras = [sentence(1), sentence(2), sentence(3)]
         let otherParas = [sentence(7), sentence(8)]
-        queue.openArticle(cacheKey: other, paragraphs: otherParas, isEphemeral: false)
-        queue.openArticle(cacheKey: playing, paragraphs: paras, isEphemeral: false)
+        queue.enqueue(cacheKey: other, paragraphs: otherParas, isEphemeral: false, at: .front)
+        queue.enqueue(cacheKey: playing, paragraphs: paras, isEphemeral: false, at: .front)
 
         // Live chunk renders on the model (no Apple fallback, no deferral).
         if case .chunk = try await ensure(queue, playing, paras, p: 0, c: 0) {} else { XCTFail("expected a rendered chunk") }

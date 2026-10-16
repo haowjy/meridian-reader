@@ -104,10 +104,10 @@ final class LocalListenEngine: ListenEngine {
             "worker_p": queue.activeBakeIndex ?? -1,
         ])
         // Reshuffle the global queue: this article #1, cursor at the playhead.
-        coordinator.prioritizeListen(
+        coordinator.openArticle(
             cacheKey: request.articleID,
-            playhead: start.paragraph,
             paragraphs: document.paragraphs,
+            from: start.paragraph,
             isEphemeral: coordinator.audioCache.loadMeta(for: request.articleID)?.kind == .ephemeral
         )
         if !request.startPaused { startClock() }

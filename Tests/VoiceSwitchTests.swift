@@ -130,13 +130,13 @@ final class VoiceSwitchTests: XCTestCase {
         let key = UUID()
         let paras = ["First paragraph here.", "Second paragraph, a bit longer than the first.", "Third."]
         ctx.renderTarget?.cacheVoice = "fake.a"
-        queue.openArticle(cacheKey: key, paragraphs: paras, isEphemeral: false)
+        queue.enqueue(cacheKey: key, paragraphs: paras, isEphemeral: false, at: .front)
         try await waitIdle(queue)
         XCTAssertEqual(ready(ctx.audioCache, key, 3, engine: ctx.cacheEngineID, voice: "fake.a"), [0, 1, 2])
 
         // The article is queued again when the user switches.
         queue.isPausedForProbe = true
-        queue.openArticle(cacheKey: key, paragraphs: paras, isEphemeral: false)
+        queue.enqueue(cacheKey: key, paragraphs: paras, isEphemeral: false, at: .front)
         ctx.renderTarget?.cacheVoice = "fake.b"
         queue.renderTargetChanged()
         queue.isPausedForProbe = false

@@ -57,8 +57,8 @@ final class GlobalSynthQueueStagingTests: XCTestCase {
         let (queue, ctx, _) = makeQueue(FakeEngineProvider(config: .init(rendersInBackground: true)), phase: .background)
         let playing = UUID(), saved = UUID(), next = UUID()
         ctx.playingCacheKey = playing
-        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 2), isEphemeral: false)
-        queue.enqueueDemoted(cacheKey: saved, paragraphs: paragraphs("Saved", 2), isEphemeral: false)
+        queue.enqueue(cacheKey: playing, paragraphs: paragraphs("Playing", 2), isEphemeral: false, at: .front)
+        queue.enqueue(cacheKey: saved, paragraphs: paragraphs("Saved", 2), isEphemeral: false, at: .back)
         stage(queue, next, after: playing, paragraphs("Next", 2))
         XCTAssertEqual(queue.playingCacheKeys, [playing, next])
         try await waitIdle(queue)
@@ -69,9 +69,9 @@ final class GlobalSynthQueueStagingTests: XCTestCase {
         // Without staging: the same chapter behind the demoted job parks with it.
         let (plain, plainCtx, _) = makeQueue(FakeEngineProvider(config: .init(rendersInBackground: true)), phase: .background)
         plainCtx.playingCacheKey = playing
-        plain.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 2), isEphemeral: false)
-        plain.enqueueDemoted(cacheKey: saved, paragraphs: paragraphs("Saved", 2), isEphemeral: false)
-        plain.enqueueDemoted(cacheKey: next, paragraphs: paragraphs("Next", 2), isEphemeral: false)
+        plain.enqueue(cacheKey: playing, paragraphs: paragraphs("Playing", 2), isEphemeral: false, at: .front)
+        plain.enqueue(cacheKey: saved, paragraphs: paragraphs("Saved", 2), isEphemeral: false, at: .back)
+        plain.enqueue(cacheKey: next, paragraphs: paragraphs("Next", 2), isEphemeral: false, at: .back)
         try await waitIdle(plain)
         XCTAssertTrue(rendered(plainCtx, next, 2).isEmpty, "queued behind a parked job, it never renders")
     }
@@ -84,8 +84,8 @@ final class GlobalSynthQueueStagingTests: XCTestCase {
         let (queue, ctx, _) = makeQueue(FakeEngineProvider(config: .init(rendersInBackground: true)), phase: .background)
         let playing = UUID(), saved = UUID(), next = UUID()
         ctx.playingCacheKey = playing
-        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 2), isEphemeral: false)
-        queue.enqueueDemoted(cacheKey: saved, paragraphs: paragraphs("Saved", 2), isEphemeral: false)
+        queue.enqueue(cacheKey: playing, paragraphs: paragraphs("Playing", 2), isEphemeral: false, at: .front)
+        queue.enqueue(cacheKey: saved, paragraphs: paragraphs("Saved", 2), isEphemeral: false, at: .back)
         try await waitIdle(queue)
         XCTAssertEqual(rendered(ctx, playing, 2), [0, 1])
         XCTAssertFalse(queue.hasJob(cacheKey: playing), "the playing chapter's job is done")
@@ -105,9 +105,9 @@ final class GlobalSynthQueueStagingTests: XCTestCase {
         let playing = UUID(), opened = UUID(), next = UUID()
         ctx.playingCacheKey = playing
         queue.isHeldForLaunch = true // only the queue's shape until released
-        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 2), isEphemeral: false)
+        queue.enqueue(cacheKey: playing, paragraphs: paragraphs("Playing", 2), isEphemeral: false, at: .front)
         stage(queue, next, after: playing, paragraphs("Next", 2))
-        queue.openArticle(cacheKey: opened, paragraphs: paragraphs("Opened", 2), isEphemeral: false)
+        queue.enqueue(cacheKey: opened, paragraphs: paragraphs("Opened", 2), isEphemeral: false, at: .front)
         queue.focusPlayhead(cacheKey: playing, paragraph: 1)
         XCTAssertEqual(queue.primaryCacheKey, playing)
 
@@ -125,9 +125,8 @@ final class GlobalSynthQueueStagingTests: XCTestCase {
         let playing = UUID(), saved = UUID(), next = UUID()
         ctx.playingCacheKey = playing
         queue.isHeldForLaunch = true // only the queue's shape until released
-        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 5), resumeParagraph: 3,
-                          isEphemeral: false)
-        queue.enqueueDemoted(cacheKey: saved, paragraphs: paragraphs("Saved", 2), isEphemeral: false)
+        queue.enqueue(cacheKey: playing, paragraphs: paragraphs("Playing", 5), from: 3, isEphemeral: false, at: .front)
+        queue.enqueue(cacheKey: saved, paragraphs: paragraphs("Saved", 2), isEphemeral: false, at: .back)
         stage(queue, next, after: playing, paragraphs("Next", 4), cap: 2)
         queue.isHeldForLaunch = false
         try await waitIdle(queue)
@@ -142,7 +141,7 @@ final class GlobalSynthQueueStagingTests: XCTestCase {
         let (queue, ctx, _) = makeQueue()
         let playing = UUID(), next = UUID()
         ctx.playingCacheKey = playing
-        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 1), isEphemeral: false)
+        queue.enqueue(cacheKey: playing, paragraphs: paragraphs("Playing", 1), isEphemeral: false, at: .front)
         stage(queue, next, after: playing, paragraphs("Next", 2))
         try await waitIdle(queue)
         let staged = ctx.renders.filter { $0.key == next }
@@ -161,7 +160,7 @@ final class GlobalSynthQueueStagingTests: XCTestCase {
         XCTAssertTrue(queue.hasJob(cacheKey: next), "still queued")
 
         // It plays: it becomes #1 and the cap lifts.
-        queue.openArticle(cacheKey: next, paragraphs: text, isEphemeral: false)
+        queue.enqueue(cacheKey: next, paragraphs: text, isEphemeral: false, at: .front)
         try await waitIdle(queue)
         XCTAssertEqual(rendered(ctx, next, 5), [0, 1, 2, 3, 4])
         XCTAssertNil(queue.stagedCacheKey)
@@ -172,8 +171,8 @@ final class GlobalSynthQueueStagingTests: XCTestCase {
     func testACappedStagedJobAtTheFrontLetsTheJobBehindItRun() async throws {
         let (queue, ctx, _) = makeQueue()
         let playing = UUID(), saved = UUID(), next = UUID()
-        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 1), isEphemeral: false)
-        queue.enqueueDemoted(cacheKey: saved, paragraphs: paragraphs("Saved", 2), isEphemeral: false)
+        queue.enqueue(cacheKey: playing, paragraphs: paragraphs("Playing", 1), isEphemeral: false, at: .front)
+        queue.enqueue(cacheKey: saved, paragraphs: paragraphs("Saved", 2), isEphemeral: false, at: .back)
         stage(queue, next, after: playing, paragraphs("Next", 4), cap: 1)
         try await waitIdle(queue)
         XCTAssertEqual(rendered(ctx, next, 4), [0], "the staged chapter's opening")
@@ -199,7 +198,7 @@ final class GlobalSynthQueueStagingTests: XCTestCase {
     func testALaterStageReplacesItAndUnstagingRemovesOnlyWhatStagingAdded() {
         let (queue, _, _) = makeQueue(phase: .background) // nothing renders: only the queue's shape
         let playing = UUID(), first = UUID(), second = UUID(), queued = UUID()
-        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 1), isEphemeral: false)
+        queue.enqueue(cacheKey: playing, paragraphs: paragraphs("Playing", 1), isEphemeral: false, at: .front)
         stage(queue, first, after: playing, paragraphs("First", 1))
         stage(queue, second, after: playing, paragraphs("Second", 1))
         XCTAssertFalse(queue.hasJob(cacheKey: first), "replaced")
@@ -208,7 +207,7 @@ final class GlobalSynthQueueStagingTests: XCTestCase {
         XCTAssertFalse(queue.hasJob(cacheKey: second), "unstaged")
         XCTAssertNil(queue.stagedCacheKey)
 
-        queue.enqueueDemoted(cacheKey: queued, paragraphs: paragraphs("Queued", 1), isEphemeral: false)
+        queue.enqueue(cacheKey: queued, paragraphs: paragraphs("Queued", 1), isEphemeral: false, at: .back)
         stage(queue, queued, after: playing, paragraphs("Queued", 1))
         queue.unstage()
         XCTAssertTrue(queue.hasJob(cacheKey: queued), "a job queued before staging stays")

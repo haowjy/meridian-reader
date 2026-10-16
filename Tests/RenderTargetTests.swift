@@ -68,7 +68,7 @@ final class RenderTargetTests: XCTestCase {
             XCTAssertNotNil(c.renderTarget)
             let key = UUID()
             let text = paragraphs(20)
-            c.synthQueue.openArticle(cacheKey: key, paragraphs: text, isEphemeral: false)
+            c.synthQueue.enqueue(cacheKey: key, paragraphs: text, isEphemeral: false, at: .front)
             let host = try XCTUnwrap(provider.lastHost)
             try await waitUntil { host.calls.count >= 3 }
 
@@ -111,7 +111,7 @@ final class RenderTargetTests: XCTestCase {
         let text = (1...4).map { "Sentence \($0) is here and it runs on for a while longer." }.joined(separator: " ")
         let chunks = queue.chunkTexts(for: text)
         XCTAssertGreaterThanOrEqual(chunks.count, 2)
-        queue.openArticle(cacheKey: key, paragraphs: [text], isEphemeral: false)
+        queue.enqueue(cacheKey: key, paragraphs: [text], isEphemeral: false, at: .front)
         try await waitUntil { ctx.host.startedCalls == 1 } // chunk 0 is rendering in voice A
 
         ctx.host.setVoice("b")
@@ -147,7 +147,7 @@ final class RenderTargetTests: XCTestCase {
         let (queue, ctx) = makeQueue(FakeEngineProvider(config: .init(failAlways: true)))
         ctx.appleVoice = "com.example.voice.premium.en-US.Zoe"
         let key = UUID()
-        queue.openArticle(cacheKey: key, paragraphs: paragraphs(2), isEphemeral: false)
+        queue.enqueue(cacheKey: key, paragraphs: paragraphs(2), isEphemeral: false, at: .front)
         try await waitIdle(queue)
         XCTAssertEqual(ctx.fallbackVoices.count, 2)
         XCTAssertEqual(Set(ctx.fallbackVoices), ["com.example.voice.premium.en-US.Zoe"])

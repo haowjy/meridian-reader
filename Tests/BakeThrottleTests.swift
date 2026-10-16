@@ -56,7 +56,7 @@ final class BakeThrottleTests: XCTestCase {
         queue.bakeConditions = { conditions }
         let key = UUID()
 
-        queue.openArticle(cacheKey: key, paragraphs: paras, isEphemeral: false)
+        queue.enqueue(cacheKey: key, paragraphs: paras, isEphemeral: false, at: .front)
         try await waitIdle(queue)
         XCTAssertTrue(ctx.renders.isEmpty, "saved-article bake waits while the device is hot")
 
@@ -78,7 +78,7 @@ final class BakeThrottleTests: XCTestCase {
         let (queue, ctx) = makeQueue()
         let playing = UUID()
         ctx.playingCacheKey = playing
-        queue.openArticle(cacheKey: playing, paragraphs: paras, isEphemeral: false)
+        queue.enqueue(cacheKey: playing, paragraphs: paras, isEphemeral: false, at: .front)
         try await waitIdle(queue)
         XCTAssertFalse(ctx.renders.isEmpty)
         XCTAssertTrue(ctx.renders.allSatisfy { $0.priority == .listener })

@@ -83,7 +83,7 @@ final class RenderPublicationTests: XCTestCase {
         let key = UUID()
         let old = ["First paragraph here.", "Second paragraph here.", "Third paragraph here."]
         ctx.renderTarget?.cacheVoice = "fake.a"
-        queue.openArticle(cacheKey: key, paragraphs: old, isEphemeral: false)
+        queue.enqueue(cacheKey: key, paragraphs: old, isEphemeral: false, at: .front)
         try await waitIdle(queue)
         XCTAssertEqual(ctx.audioCache.readyIndices(articleID: key, paragraphCount: 3, engineID: ctx.cacheEngineID,
                                                    voiceID: "fake.a"), [0, 1, 2])
@@ -96,11 +96,11 @@ final class RenderPublicationTests: XCTestCase {
             do { try ctx.audioCache.reconcile(articleID: key, paragraphs: new) } catch { XCTFail("align: \(error)") }
             XCTAssertFalse(FileManager.default.fileExists(atPath: ctx.audioCache.paragraphFileURL(articleID: key, paragraphIndex: 0).path),
                            "the alignment deleted the old first paragraph's file")
-            queue.openArticle(cacheKey: key, paragraphs: new, isEphemeral: false)
+            queue.enqueue(cacheKey: key, paragraphs: new, isEphemeral: false, at: .front)
         }
         ctx.renderTarget?.cacheVoice = "fake.b"
         queue.renderTargetChanged()
-        queue.openArticle(cacheKey: key, paragraphs: old, isEphemeral: false)
+        queue.enqueue(cacheKey: key, paragraphs: old, isEphemeral: false, at: .front)
         try await waitIdle(queue)
         XCTAssertTrue(aligned, "the alignment landed while paragraph 0 was stitched")
 
@@ -138,7 +138,7 @@ final class RenderPublicationTests: XCTestCase {
         // Opened in the Reader (as `ReaderSheetScreen.prepareListen` does), then closed.
         tts.synthQueue.bakeConditions = { BakeConditions(thermalState: .serious, isLowPowerModeEnabled: false) }
         tts.prepareListenIdentity(key: key, paragraphs: opened.document.paragraphs, isLivePlayback: false)
-        tts.warmListenAudio(cacheKey: key, paragraphs: opened.document.paragraphs, isEphemeral: true)
+        tts.openArticle(cacheKey: key, paragraphs: opened.document.paragraphs, from: 0, isEphemeral: true)
         XCTAssertEqual(tts.synthQueue.primaryCacheKey, key)
 
         // The browser refreshed the page: ⋯ → Save (as `PageArticleService.save` does).
