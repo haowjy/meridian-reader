@@ -161,7 +161,7 @@ final class LibraryMigrationTests: XCTestCase {
                        "an unsaved page stays out of the Library")
         XCTAssertFalse(try XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)).isFavorite,
                        "a removed favorite stays unstarred")
-        XCTAssertEqual(Set(try env.context.fetch(LibraryQueries.inLibrary).map(\.title)), ["Kept", "Fav"])
+        XCTAssertEqual(Set(env.pages().filter(\.isInLibrary).map(\.title)), ["Kept", "Fav"])
     }
 
     /// An empty bookmarks file (no bytes, or an empty list) copies no favorites, isn't an error,

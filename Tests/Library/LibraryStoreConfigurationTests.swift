@@ -182,7 +182,12 @@ final class LibraryStoreConfigurationTests: XCTestCase {
 
         func titles(_ d: FetchDescriptor<Page>) throws -> Set<String> { Set(try context.fetch(d).map(\.title)) }
         let cutoff = now.addingTimeInterval(-7 * 24 * 3600)
-        XCTAssertEqual(try titles(LibraryQueries.inLibrary), ["loose", "undated", "link", "chapter"])
+        XCTAssertEqual(try titles(LibraryQueries.searchPages("EXAMPLE.com", favoritesOnly: false)),
+                       ["loose", "undated", "link", "chapter", "unsaved-old", "unsaved-new"],
+                       "the home's search: in the Library or played without saving, not the removed page")
+        XCTAssertEqual(try titles(LibraryQueries.searchPages("loose", favoritesOnly: true)), [], "none starred")
+        XCTAssertEqual(try context.fetch(LibraryQueries.searchFolders("book", favoritesOnly: false)).map(\.name), ["A Book"])
+        XCTAssertEqual(try context.fetch(LibraryQueries.favoriteFolders).count, 0)
         XCTAssertEqual(try titles(LibraryQueries.savedInLibrary), ["loose", "undated", "chapter"],
                        "saved and in the Library: not the link, not the pages played without saving")
         for sort in PageSort.allCases {

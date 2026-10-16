@@ -28,6 +28,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   in UIKit. A page's *Remove* takes the tint too: its row goes once the remove is stored, and a
   save that fails keeps it (a toast says so); with the role, the List would have taken the row
   out first and aborted on the update. `FolderDeleteUITests` checks both.
+- **The home's lists are `LibraryQueries`' too**: the starred folders (`favoriteFolders`), the
+  top level's folders (`topLevel`, a filter after the fetch: no predicate on `parent`), and the
+  search (`searchPages`, `searchFolders`). The home picks the descriptors in its `init` from the
+  tab and the search text; it filters nothing itself but `isLive`.
 - **Which lists a page is in is `LibraryQueries`' alone** (in the Library, played without saving,
   or removed: in none). *Remove* stamps `removedAt`, so a played page doesn't come back as "Not
   saved" as it plays on (a listen from its article clears it, `recordPlayback`); a view never re-derives a list from `addedAt` or `lastPlayedAt` itself. The Downloads

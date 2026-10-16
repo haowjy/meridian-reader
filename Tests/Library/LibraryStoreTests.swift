@@ -223,7 +223,7 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertTrue(page.isSaved && page.hasText, "with its text, so it survives a relaunch")
         XCTAssertFalse(page.isSavedToLibrary)
         XCTAssertEqual(page.lastPlayedAt, env.now)
-        XCTAssertTrue(try env.context.fetch(LibraryQueries.inLibrary).isEmpty)
+        XCTAssertTrue(env.pages().filter(\.isInLibrary).isEmpty)
         XCTAssertTrue(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).isEmpty, "not in the Saved list")
 
         env.now += 60

@@ -243,8 +243,8 @@ commas.
 
 - **The home** (`LibraryHomeView`): Everything shows top-level folders and pages in no folder;
   played-but-unsaved pages remain visible as *Not saved*. Favorites shows all starred folders
-  and pages wherever they live. Search filters folders and pages across the tree in either tab;
-  a result keeps its location and shows the path (one at the top level keeps its own second
+  and pages wherever they live. Search filters folders and pages across the tree in either tab,
+  folders by name, then pages by title (the newest first among equal titles); a result keeps its location and shows the path (one at the top level keeps its own second
   line). The old Favorites folder is migrated into star
   flags; direct pages become loose and nested folders stay nested. Rows use large book-like art,
   a Download state and Play (pages: the two-line row below). The bar's ▶ resumes what you last heard, and a folder row's ▶
