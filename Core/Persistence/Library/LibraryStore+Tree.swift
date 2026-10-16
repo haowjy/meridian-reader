@@ -12,6 +12,9 @@ enum LibraryItem {
 enum LibraryTreeError: Error, Equatable {
     /// A folder into itself or one of its own subfolders.
     case cycle
+    /// A page out of the Library (played without saving, or removed): it is in no folder until
+    /// it is saved.
+    case notInLibrary
 }
 
 /// What a folder holds, all the way down (`LibraryStore.contents(of:)`).
@@ -57,9 +60,9 @@ enum FractionalOrder {
 }
 
 /// The folder tree: making, renaming, moving, sorting and deleting folders. Folders nest to any
-/// depth, books and series as any other (decision D19); only cycles are refused. Each change
-/// saves at once; a save that fails is rolled back and throws
-/// `LibraryStoreError.saveFailed`.
+/// depth, books and series as any other (decision D19); only cycles, and filing a page that isn't
+/// in the Library, are refused (`LibraryTreeError`). Each change saves at once; a save that fails
+/// is rolled back and throws `LibraryStoreError.saveFailed`.
 extension LibraryStore {
     /// A new plain folder named `name` ("New Folder" when it is nil or blank) at the end of
     /// `parent` (the top level if nil).
@@ -105,82 +108,65 @@ extension LibraryStore {
     /// fails leaves every item where it was, in its order.
     func move(_ items: [LibraryItem], to destination: Folder?) throws {
         for item in items { try checkMove(item, to: destination) }
-        try edit("move") {
-            var folderKey = nextFolderSortKey(in: destination)
-            var pageKey = nextSortKey(in: destination)
-            for item in items {
-                switch item {
-                case .folder(let folder):
-                    guard folder.parent !== destination else { continue }
-                    folder.parent = destination
-                    folder.sortKey = folderKey
-                    folderKey += 1
-                case .page(let page):
-                    guard page.folder !== destination else { continue }
-                    movePlaceOff(page)
-                    page.setFolder(destination)
-                    page.sortKey = pageKey
-                    pageKey += 1
-                }
+        try edit("move") { append(items, to: destination) }
+    }
+
+    /// Files `items` at the end of `destination` (the top level if nil), in their order, after
+    /// what is there: a folder after its subfolders, a page after its pages. An item already there
+    /// stays where it is; a page leaving a folder takes the folder's place off it (`movePlaceOff`).
+    /// Saved by the caller: a move, or dedupe merging two copies of a folder.
+    func append(_ items: [LibraryItem], to destination: Folder?) {
+        var folderKey = nextFolderSortKey(in: destination)
+        var pageKey = nextSortKey(in: destination)
+        for item in items {
+            switch item {
+            case .folder(let folder):
+                guard folder.parent !== destination else { continue }
+                folder.parent = destination
+                folder.sortKey = folderKey
+                folderKey += 1
+            case .page(let page):
+                guard page.folder !== destination else { continue }
+                movePlaceOff(page)
+                page.setFolder(destination)
+                page.sortKey = pageKey
+                pageKey += 1
             }
         }
     }
 
     /// Why `item` can't go into `destination` (the top level if nil), or nil when it can: the
     /// rules every move, Move tree pick and drop follows (`LibraryTreeError`). Asked while a row is
-    /// dragged over a folder, so the folder shows whether it takes the drop.
+    /// dragged over a folder, so the folder shows whether it takes the drop. A page in a folder is
+    /// in the Library: only a page in the Library has a place in the tree to move to.
     func moveRefusal(_ item: LibraryItem, to destination: Folder?) -> LibraryTreeError? {
-        guard case .folder(let folder) = item else { return nil }
-        if let destination, destination === folder || destination.ancestors.contains(where: { $0 === folder }) {
-            return .cycle
+        switch item {
+        case .page(let page):
+            return page.isInLibrary ? nil : .notInLibrary
+        case .folder(let folder):
+            if let destination, destination === folder || destination.ancestors.contains(where: { $0 === folder }) {
+                return .cycle
+            }
+            return nil
         }
-        return nil
     }
 
     private func checkMove(_ item: LibraryItem, to destination: Folder?) throws {
         if let refusal = moveRefusal(item, to: destination) { throw refusal }
     }
 
-    /// Deletes a folder, a book or series as any other. `keepContents`: its subfolders and pages
-    /// move up to its parent (the top level if none), after the parent's own contents, in their
-    /// order (no screen offers it, decision D18). Otherwise (*Delete Folder and Contents*)
-    /// everything inside goes; playback of any of it stops first, and the audio goes once the
-    /// delete is saved.
-    func deleteFolder(_ folder: Folder, keepContents: Bool) throws {
-        try deleteFolders([folder], keepContents: keepContents)
+    /// *Delete Folder and Contents*: a folder, a book or series as any other, with everything
+    /// inside it. Playback of any of it stops first, and the audio goes once the delete is saved.
+    func deleteFolder(_ folder: Folder) throws {
+        try deleteFolders([folder])
     }
 
-    /// Deletes `folders` in one save, each as `deleteFolder` does, keeping or losing their contents
-    /// by `keepContents`. A save that fails is rolled back and throws: every folder, page and its
-    /// audio stay.
-    func deleteFolders(_ folders: [Folder], keepContents: Bool) throws {
+    /// Deletes `folders` and their contents in one save, each as `deleteFolder` does. A save that
+    /// fails is rolled back and throws: every folder, page and its audio stay.
+    func deleteFolders(_ folders: [Folder]) throws {
         try edit("delete folder") {
-            for folder in folders where !folder.isDeleted {
-                if keepContents {
-                    moveContentsUp(folder)
-                } else {
-                    deleteRecursively(folder)
-                }
-            }
+            for folder in folders where !folder.isDeleted { deleteRecursively(folder) }
         }
-    }
-
-    private func moveContentsUp(_ folder: Folder) {
-        let parent = folder.parent
-        var folderKey = nextFolderSortKey(in: parent)
-        for child in subfolders(of: folder) {
-            child.parent = parent
-            child.sortKey = folderKey
-            folderKey += 1
-        }
-        var pageKey = nextSortKey(in: parent)
-        for page in pages(in: folder) {
-            page.setFolder(parent)
-            page.sortKey = pageKey
-            pageKey += 1
-        }
-        log("delete folder \(folder.name), contents moved up")
-        context.delete(folder)
     }
 
     private func deleteRecursively(_ folder: Folder) {

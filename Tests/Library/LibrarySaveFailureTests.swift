@@ -196,8 +196,7 @@ final class LibrarySaveFailureTests: XCTestCase {
             ("☆ a saved page", { _ = try self.library.addFavorite(url: try XCTUnwrap(s.loose.url), title: nil, artwork: nil) }),
             ("Remove from Favorites", { try self.library.removeFavorite(favorite) }),
             ("Rename a favorite", { try self.library.renameFavorite(favorite, to: "Renamed") }),
-            ("Delete Folder Only", { try self.library.deleteFolders([s.fiction], keepContents: true) }),
-            ("Delete Folder and Contents", { try self.library.deleteFolders([s.essays], keepContents: false) }),
+            ("Delete Folder and Contents", { try self.library.deleteFolders([s.essays]) }),
         ]
         for (name, edit) in edits {
             XCTAssertThrowsError(try edit(), name) { XCTAssertEqual($0 as? LibraryStoreError, .saveFailed, name) }

@@ -30,7 +30,7 @@ enum LaunchHooks {
     /// `example.com` addresses; an earlier seed's folder and its pages go first.
     static func seedDemoFolders(in library: LibraryStore) {
         for folder in library.topLevelFolders() where folder.kind == .plain && folder.name == demoFoldersName {
-            try? library.deleteFolder(folder, keepContents: false)
+            try? library.deleteFolder(folder)
         }
         guard let finance = try? library.makeFolder(name: demoFoldersName, in: nil),
               let bonds = try? library.makeFolder(name: "Bonds", in: finance),
@@ -89,7 +89,7 @@ enum LaunchHooks {
     /// `-importTestEPUB`: an earlier launch's import of the synthetic EPUB goes, with its audio,
     /// so *Import Book…* imports it fresh.
     static func removeTestEPUB(in library: LibraryStore) {
-        if let earlier = library.book(key: TestEPUB.bookKey) { try? library.deleteFolder(earlier, keepContents: false) }
+        if let earlier = library.book(key: TestEPUB.bookKey) { try? library.deleteFolder(earlier) }
     }
 
     /// `-playTestEPUB`: the synthetic EPUB, written to a temporary file and imported into the top
@@ -134,7 +134,9 @@ enum LaunchHooks {
     static func seedDemoBook(in library: LibraryStore, place: Int? = nil) {
         for folder in demoBooks(in: library) {
             for page in (folder.bookState?.chapterKeys ?? []).compactMap(library.page(key:)) { library.delete(page) }
-            try? library.deleteFolder(folder, keepContents: true)
+            let strays = library.subfolders(of: folder).map(LibraryItem.folder) + library.pages(in: folder).map(LibraryItem.page)
+            try? library.move(strays, to: folder.parent)
+            try? library.deleteFolder(folder)
         }
         for page in seededLoosePages(in: library) { library.delete(page) }
         let book = Folder(name: DemoBook.title, kind: .book, sortKey: library.nextFolderSortKey(in: nil))
@@ -226,7 +228,7 @@ enum LaunchHooks {
         UserDefaults.standard.removeObject(forKey: LibraryTopLevel.sortKey)
         // Every folder but Favorites goes too, so the Library home starts the same each time.
         for folder in library.topLevelFolders() {
-            try? library.deleteFolder(folder, keepContents: false)
+            try? library.deleteFolder(folder)
         }
         for page in (try? context.fetch(FetchDescriptor<Page>())) ?? [] where !page.isLink {
             context.delete(page)

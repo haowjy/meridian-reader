@@ -149,7 +149,7 @@ struct LibraryActions {
     @discardableResult
     func deleteFolders(_ folders: [Folder], in screen: LibraryScreenState) -> Bool {
         guard shell.attempt(String(localized: "Couldn’t delete"), {
-            try library.deleteFolders(folders, keepContents: false)
+            try library.deleteFolders(folders)
         }) != nil else { return false }
         screen.endEditing()
         return true

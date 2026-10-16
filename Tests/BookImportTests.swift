@@ -391,7 +391,7 @@ final class BookImportTests: XCTestCase {
         let shelf = try library.makeFolder(name: "Fiction", in: nil)
         do {
             _ = try await importBook(Self.sampleBook(), into: shelf) { step in
-                if case .preparing(_, 1, _) = step { try? self.library.deleteFolder(shelf, keepContents: false) }
+                if case .preparing(_, 1, _) = step { try? self.library.deleteFolder(shelf) }
             }
             XCTFail("expected a refusal")
         } catch let error as BookImportError {

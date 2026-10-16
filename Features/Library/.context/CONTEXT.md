@@ -97,7 +97,8 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   (`BookFolderUITests.testHeaderBlocksShareTheCardsEdges` checks them).
 - **Books and series are folders** (decision D19): one screen (`FolderScreen`), one page row
   (`LibraryPageRow`), one ⋯ (`LibraryMenu.Screen.folder`), one delete question. Nothing refuses
-  a move, a drop, a sort or a subfolder because of `kind`: only cycles (`LibraryTreeError`).
+  a move, a drop, a sort or a subfolder because of `kind`: only cycles, and a page out of the
+  Library, which has no place in the tree (`LibraryTreeError`).
   `kind` is a hint of where a folder came from
   (`FolderKind.isBookOrSeries`): the row appearance comes from details; kind still supplies
   symbol, *Replace*'s lookup, a series' fetchable links, D7's trim, the bar's source. *Replace*

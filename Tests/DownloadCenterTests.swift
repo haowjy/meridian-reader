@@ -232,7 +232,7 @@ final class DownloadCenterTests: XCTestCase {
         _ = center.download(folder)
         try await env.waitUntil { self.center.overview.done.count == 1 }
 
-        try library.deleteFolders([folder], keepContents: false)
+        try library.deleteFolders([folder])
         XCTAssertTrue(center.overview.isEmpty)
     }
 

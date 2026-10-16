@@ -47,20 +47,8 @@ extension LibraryStore {
             let ordered = group.sorted(by: Self.olderFirst)
             let keeper = ordered[0]
             for extra in ordered.dropFirst() {
-                let extraPlayedLater = lastPlayed(extra) > lastPlayed(keeper)
-                var pageKey = nextSortKey(in: keeper)
-                for page in pages(in: extra) {
-                    page.setFolder(keeper)
-                    page.sortKey = pageKey
-                    pageKey += 1
-                }
-                var folderKey = nextFolderSortKey(in: keeper)
-                for child in subfolders(of: extra) {
-                    child.parent = keeper
-                    child.sortKey = folderKey
-                    folderKey += 1
-                }
-                if extraPlayedLater { keeper.currentPageKey = extra.currentPageKey }
+                if lastPlayed(extra) > lastPlayed(keeper) { keeper.currentPageKey = extra.currentPageKey }
+                append(pages(in: extra).map(LibraryItem.page) + subfolders(of: extra).map(LibraryItem.folder), to: keeper)
                 if keeper.coverData == nil { keeper.coverData = extra.coverData }
                 mergeChapterRecord(of: extra, into: keeper)
                 log("dedupe folder \(extra.name) → \(keeper.name)")

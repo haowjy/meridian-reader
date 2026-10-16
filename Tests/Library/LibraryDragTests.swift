@@ -48,6 +48,10 @@ final class LibraryDragTests: XCTestCase {
         XCTAssertNil(library.moveRefusal(.page(chapter), to: nil), "a chapter leaves its book")
         XCTAssertEqual(library.moveRefusal(.folder(outer), to: outer), .cycle, "a folder onto itself")
         XCTAssertEqual(library.moveRefusal(.folder(outer), to: inner), .cycle, "a folder into its own subfolder")
+        let played = library.recordPlayback(env.article("https://example.com/played"))
+        XCTAssertEqual(library.moveRefusal(.page(played), to: outer), .notInLibrary, "a page out of the Library")
+        XCTAssertThrowsError(try library.move([.page(played)], to: outer)) { XCTAssertEqual($0 as? LibraryTreeError, .notInLibrary) }
+        XCTAssertNil(played.folder, "a page in a folder is in the Library")
     }
 
     /// Pages are placed among a book's chapters, and chapters out of it, as in any folder; only a

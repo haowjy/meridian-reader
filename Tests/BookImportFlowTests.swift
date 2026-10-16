@@ -138,7 +138,7 @@ final class BookImportFlowTests: XCTestCase {
         try await until("the change, then the delete") {
             whilePreparing(flow) {
                 flow.choose(essays)
-                try? library.deleteFolder(essays, keepContents: false)
+                try? library.deleteFolder(essays)
                 XCTAssertTrue(flow.isDestinationGone, "the sheet's Add to says the folder is gone")
             }
         }
@@ -160,7 +160,7 @@ final class BookImportFlowTests: XCTestCase {
         try await until("the change, then the delete") {
             whilePreparing(flow) {
                 flow.choose(essays)
-                try? library.deleteFolder(fiction, keepContents: false)
+                try? library.deleteFolder(fiction)
             }
         }
         try await until("the landing") { !landed.isEmpty }

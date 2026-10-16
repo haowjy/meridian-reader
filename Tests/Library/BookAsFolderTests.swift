@@ -131,7 +131,7 @@ final class BookAsFolderTests: XCTestCase {
         let book = try library.addBook(details, chapters: edition([0, 1, 2]), in: nil)
         let elsewhere = try library.makeFolder(name: "Elsewhere", in: nil)
         try library.move([.page(page(1))], to: elsewhere)
-        try library.deleteFolder(book, keepContents: false)
+        try library.deleteFolder(book)
         XCTAssertNil(library.book(key: bookKey))
 
         let again = try library.addBook(details, chapters: edition([0, 1, 2]), in: nil)
