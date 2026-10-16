@@ -393,6 +393,7 @@
 		DEBDDAFA0A4BABE647BB99BC /* SynthRenderGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6A414F24CB0DFCEF2AD94F3 /* SynthRenderGate.swift */; };
 		DEF1B7ACE2E894C337EBDC21 /* BrowseStartPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D34BCA10E720A744ECD793A8 /* BrowseStartPage.swift */; };
 		DF4C84B23ED54FCA6C372C70 /* LibraryDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15877DF075039554E8A8B5E2 /* LibraryDrag.swift */; };
+		E04F00D1A518CF6A96E84535 /* LibraryTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB725E0391FF6F3EEE648A87 /* LibraryTabTests.swift */; };
 		E11F2C9093BA36D88D85B9A2 /* ListenNowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 129F569B2C9341CEA981B103 /* ListenNowTests.swift */; };
 		E14BC5B87B05438FA5715334 /* EPUBPackage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90CBB7EDFFBE4A0EC134A5EA /* EPUBPackage.swift */; };
 		E14D40492B6B4C40884F4F4A /* FavoritesQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 402B6CE0E4BF0D827EB8CA05 /* FavoritesQuery.swift */; };
@@ -823,6 +824,7 @@
 		CA91FB0A534BE39757ACA318 /* ChunkPlaybackQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChunkPlaybackQueue.swift; sourceTree = "<group>"; };
 		CAE5444A22F751EAD1DC3625 /* LibraryStore+Maintenance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryStore+Maintenance.swift"; sourceTree = "<group>"; };
 		CB15C83A0A34AFE877F14680 /* ShellState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellState.swift; sourceTree = "<group>"; };
+		CB725E0391FF6F3EEE648A87 /* LibraryTabTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryTabTests.swift; sourceTree = "<group>"; };
 		CBFD3354CC38D882B6A037E1 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		CC2F51A00E5A24A35496BCE8 /* KokoroCPUHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroCPUHost.swift; sourceTree = "<group>"; };
 		CD4BBC45633BF1DE4189369E /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
@@ -1011,6 +1013,7 @@
 				FFA09A9C03BDD171E80155C9 /* KokoroStressRunTests.swift */,
 				6DD87F456D7640E6ABBE3798 /* KokoroSwiftG2PTests.swift */,
 				6B2D1B9DD6EB73B121122E51 /* LaunchAudioRecoveryTests.swift */,
+				CB725E0391FF6F3EEE648A87 /* LibraryTabTests.swift */,
 				FFFA03070C526AD2963EF374 /* ListenContentGoldenTests.swift */,
 				36502979012DD42A61314F6B /* ListenContentNormalizerTests.swift */,
 				D09C7F54B3EB7489A4C1E43B /* ListeningProgressRecorderTests.swift */,
@@ -2243,6 +2246,7 @@
 				7698DA4CA1DDD013F17351CD /* LibrarySortKeyTests.swift in Sources */,
 				296F060635E4599258FA6C64 /* LibraryStoreConfigurationTests.swift in Sources */,
 				6F40D33CA66F62242EEACC87 /* LibraryStoreTests.swift in Sources */,
+				E04F00D1A518CF6A96E84535 /* LibraryTabTests.swift in Sources */,
 				EB286F39E1617D839C5B7F69 /* LibraryTestSupport.swift in Sources */,
 				0DB0F82295A158559B6256DE /* LibraryTreeTests.swift in Sources */,
 				BE6C9405AE3AE66BA712EE55 /* ListenContentGoldenTests.swift in Sources */,

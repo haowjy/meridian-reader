@@ -45,9 +45,11 @@ struct SurfaceMemory: Codable, Equatable {
     }
 }
 
-/// Where `SurfaceMemory` is kept. The key is persisted and never changes.
+/// Where `SurfaceMemory` is kept, with the Library home's tab beside it. The keys are persisted
+/// and never change.
 struct SurfaceMemoryStore {
     static let key = "shell.lastSurface"
+    static let favoritesTabKey = "library.favoritesTab"
 
     var defaults: UserDefaults
 
@@ -62,7 +64,17 @@ struct SurfaceMemoryStore {
         defaults.set(data, forKey: Self.key)
     }
 
+    /// The Library home showed Favorites (false: Everything).
+    func loadFavoritesTab() -> Bool {
+        defaults.bool(forKey: Self.favoritesTabKey)
+    }
+
+    func saveFavoritesTab(_ favoritesOnly: Bool) {
+        defaults.set(favoritesOnly, forKey: Self.favoritesTabKey)
+    }
+
     func clear() {
         defaults.removeObject(forKey: Self.key)
+        defaults.removeObject(forKey: Self.favoritesTabKey)
     }
 }

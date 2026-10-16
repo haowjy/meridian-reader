@@ -21,7 +21,6 @@ struct LibrarySurface: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
     @Environment(DownloadCenter.self) private var downloads
-    @AppStorage("library.favoritesTab") private var favoritesOnly = false
     @State private var screen = LibraryScreenState()
     @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
 
@@ -32,7 +31,7 @@ struct LibrarySurface: View {
         VStack(spacing: 0) {
             NavigationStack(path: $shell.libraryPath) {
                 LibraryHomeView(pageSort: PageSort(rawValue: topLevelSort) ?? LibraryTopLevel.defaultSort,
-                                favoritesOnly: $favoritesOnly, searchText: search.isActive ? search.text : "")
+                                favoritesOnly: $shell.favoritesOnly, searchText: search.isActive ? search.text : "")
                     .navigationDestination(for: LibraryRoute.self) { LibraryRouteView(route: $0) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -118,9 +117,7 @@ struct LibrarySurface: View {
                           top: shell.libraryPath.last, topLevelSort: $topLevelSort,
                           showMoved: { shell.libraryPath = library.path(to: $0) }) { tile in
             switch tile {
-            case .favorites:
-                favoritesOnly = true
-                shell.showLibrary(at: [])
+            case .favorites: shell.showFavorites()
             case .history: shell.present(.history)
             default: shell.leaveLibrary()
             }

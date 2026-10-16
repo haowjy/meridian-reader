@@ -4,10 +4,12 @@ What the user sees is in `../../../docs/NAVIGATION.md`. This file holds what to 
 changing the shell code.
 
 - **`ShellState` is the navigation model** (what you see). Surface (browser or library) and the
-  Library's path (`libraryPath`, bound to the Library's `NavigationStack`), the Reader sheet and
+  Library's path (`libraryPath`, bound to the Library's `NavigationStack`), the home's tab
+  (`favoritesOnly`: `showFavorites` selects Favorites, `showLibrary(at:)` Everything, `openLibrary`
+  keeps it), the Reader sheet and
   its `ReaderOrigin` (derived from the surface), Now Playing, the one other sheet and the toast.
-  Add a screen by adding a case here, not a presentation flag in a view. The surface
-  and path are written to `SurfaceMemory` on every change and restored at launch (D10); a UI-test
+  Add a screen by adding a case here, not a presentation flag in a view. The surface,
+  path and tab are written to `SurfaceMemoryStore` on every change and restored at launch (D10); a UI-test
   launch doesn't restore unless `-restoreSurface`, so tests start on the browser whatever the
   last one left. One sheet at a time. It never stores what
   you hear: `isHearing` (injected) asks the playback session, so `openReader` of the playing page

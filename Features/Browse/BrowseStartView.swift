@@ -246,9 +246,7 @@ struct BrowseStartView: View {
         case .saveToLibrary: saveToLibrary()
         case .removeFromLibrary: removeFromLibrary()
         case .toggleFavorite: page.toggleFavorite()
-        case .favorites:
-            UserDefaults.standard.set(true, forKey: "library.favoritesTab")
-            shell.showLibrary(at: [])
+        case .favorites: shell.showFavorites()
         case .reload: webStore.refresh()
         case .share: if let shareURL { shell.present(.share(shareURL)) }
         case .voiceSettings: shell.present(.voiceSettings)
@@ -269,10 +267,7 @@ struct BrowseStartView: View {
                 recentSearches: recentSearches,
                 onOpenFavorite: { LibraryActions(library: library, speech: speech, shell: shell).open($0) },
                 onOpenFavoriteFolder: { shell.showLibrary(at: library.path(to: $0)) },
-                onShowFavorites: {
-                    UserDefaults.standard.set(true, forKey: "library.favoritesTab")
-                    shell.showLibrary(at: [])
-                },
+                onShowFavorites: shell.showFavorites,
                 onRemoveFavorite: { page in
                     shell.attempt(String(localized: "Couldn’t remove from Favorites")) { try library.removeFavorite(page) }
                 },

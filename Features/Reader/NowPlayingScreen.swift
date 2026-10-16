@@ -158,9 +158,7 @@ struct NowPlayingScreen: View {
         case .download: if let savedPage { DownloadActions(downloads: downloads, shell: shell).download(savedPage) }
         case .downloads: shell.present(.downloads)
         case .listenDebug: speech.showListenDebug = true
-        case .favorites:
-            UserDefaults.standard.set(true, forKey: "library.favoritesTab")
-            shell.showLibrary(at: [])
+        case .favorites: shell.showFavorites()
         case .history: shell.present(.history)
         case .openWebsite: openWebsite()
         }
@@ -180,12 +178,12 @@ struct NowPlayingScreen: View {
         return savedKey != nil ? ReaderMenu.Place(name: String(localized: "Library"), symbol: Icons.library) : nil
     }
 
-    /// ⋯ → *Go to*: the Library at the folder, or the Library. Playback keeps going.
+    /// ⋯ → *Go to*: the Library at the folder, or the Library's home. Playback keeps going.
     private func goTo(_ now: NowPlaying) {
         if case .folder(let id, _) = now.playingFrom, let folder = library.folder(id: id) {
             shell.showLibrary(at: library.path(to: folder))
         } else {
-            shell.openLibrary()
+            shell.showLibrary(at: [])
         }
     }
 

@@ -209,7 +209,10 @@ back up, as does the band's ‹ (dimmed at the home). The home has **Everything 
 at the top; *Search Library* is the band's field. Each tab filters
 the same mixed list: folders and pages share a single list, with no section headings. Favorites
 are independent stars; rows found outside their current location show their folder path and open
-in that location. The band is the browser's (above): 🌐 beside the Now Playing bar, the search
+in that location. ⋯ → **Favorites** (and the start page's Show All) opens the home on Favorites;
+going to a place in the Library (Now Playing's ⋯ → *Go to …*, a favorite folder's tile, an
+imported book) opens it on Everything, where every place shows; 📚 comes back to the tab you
+left. The tab is remembered with the surface. The band is the browser's (above): 🌐 beside the Now Playing bar, the search
 field, `[‹][›][＋][🕘][⋯]`. ＋ is *Import
 Book…* and *New Folder*, both made in the folder on screen (a book's too). 🌐 shows the browser as
 it was; 📚 there comes back to the same folder. The
@@ -575,10 +578,10 @@ Reader shows the Now Playing bar of another page above its row.
   reading HTML) shows its paragraphs on the same reading page, in both, so everything below
   applies to it too.
 - **The close pill names where it plays from** (*⌄ Pride and Prejudice*; VoiceOver: *Close Now
-  Playing*, *Playing from …*): the folder the page is in, a book, a series, Favorites or one you
+  Playing*, *Playing from …*): the folder the page is in, a book, a series or one you
   made; *Library* for a saved page in no folder; the site for a page you haven't saved. Tapping
   it only closes. **⋯ → *Go to <name>*** (the first row) closes Now Playing onto the Library at
-  that folder, or the Library; for a page that plays from its site, ⋯ → *Website* opens it in
+  that folder, or the Library's home, on Everything; for a page that plays from its site, ⋯ → *Website* opens it in
   the browser.
 - **☝︎** (top right, as in the Reader), then a tap on a paragraph, plays from that paragraph.
 - **🔖** (slot 1, as in the Reader) saves / unsaves (tap) or files the page (long-press →
