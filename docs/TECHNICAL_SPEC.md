@@ -337,7 +337,8 @@ text's positions on another.
 `listenBlocksData`, `listenBlocksVersion`, `detectedLanguageCode`). Only the migration reads it.
 
 **`RecentVisit`** (SwiftData): browser history, the last 30 top-level http(s) pages (canonical
-URL, title, host, visit time, favicon), deduped by URL, recorded when a load finishes.
+URL, title, host, visit time, favicon), one per canonical URL (`ArticleIdentity`), recorded when a
+load finishes (`LibraryStore.recordVisit`, stored through `commit`).
 
 Elsewhere (`AppDirectories` names every file under Application Support):
 

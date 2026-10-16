@@ -7,7 +7,7 @@ final class RecentVisit {
     static let maxEntries = 30
 
     @Attribute(.unique) var id: UUID
-    /// Canonical URL used for dedupe (no fragment).
+    /// The page's canonical URL (`ArticleIdentity`): one visit per page.
     var urlString: String
     var title: String
     var host: String
@@ -34,66 +34,34 @@ final class RecentVisit {
     var url: URL? { URL(string: urlString) }
 }
 
-enum RecentVisitRecorder {
-    /// Normalize for dedupe: drop fragment, trim trailing slash on path-only "/".
-    static func canonicalURLString(from url: URL) -> String? {
-        guard url.isWeb, var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return nil
-        }
-        comps.fragment = nil
-        // Drop default ports
-        if comps.port == 80 || comps.port == 443 { comps.port = nil }
-        guard let result = comps.url?.absoluteString else { return nil }
-        if result.hasSuffix("/"), comps.path == "/" || comps.path.isEmpty {
-            return String(result.dropLast())
-        }
-        return result
-    }
-
-    @MainActor
-    static func record(
-        url: URL,
-        title: String?,
-        faviconData: Data?,
-        in context: ModelContext
-    ) {
-        guard let key = canonicalURLString(from: url) else { return }
+extension LibraryStore {
+    /// A web page finished loading: History lists it first, once per page (its canonical URL,
+    /// `ArticleIdentity`), with its title and icon; the oldest visits past `maxEntries` go. Stored
+    /// with `commit`, as every other library change, so the audio work and listening progress
+    /// waiting in the context are stored with it, and a failed save is logged.
+    func recordVisit(url: URL, title: String?, faviconData: Data?) {
+        guard url.isWeb else { return }
+        let key = ArticleIdentity.canonicalURLString(from: url)
         let host = url.host ?? key
-        let displayTitle: String = {
-            let trimmed = (title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? host : trimmed
-        }()
+        let trimmed = (title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayTitle = trimmed.isEmpty ? host : trimmed
 
-        let existing = try? context.fetch(
-            FetchDescriptor<RecentVisit>(predicate: #Predicate { $0.urlString == key })
-        )
-        if let hit = existing?.first {
+        var same = FetchDescriptor<RecentVisit>(predicate: #Predicate { $0.urlString == key })
+        same.fetchLimit = 1
+        if let hit = try? context.fetch(same).first {
             hit.title = displayTitle
             hit.host = host
-            hit.visitedAt = .now
-            if let faviconData, !faviconData.isEmpty {
-                hit.faviconData = faviconData
-            }
+            hit.visitedAt = now()
+            if let faviconData, !faviconData.isEmpty { hit.faviconData = faviconData }
         } else {
-            context.insert(
-                RecentVisit(
-                    urlString: key,
-                    title: displayTitle,
-                    host: host,
-                    faviconData: faviconData
-                )
-            )
+            // Room for it: the visits from the list's last place on go. Only those are read, before
+            // the insert, so the new visit isn't among them.
+            var stale = FetchDescriptor<RecentVisit>(sortBy: [SortDescriptor(\.visitedAt, order: .reverse)])
+            stale.fetchOffset = RecentVisit.maxEntries - 1
+            for visit in (try? context.fetch(stale)) ?? [] { context.delete(visit) }
+            context.insert(RecentVisit(urlString: key, title: displayTitle, host: host, visitedAt: now(),
+                                       faviconData: faviconData))
         }
-
-        // Cap list to last N by visitedAt.
-        let all = (try? context.fetch(
-            FetchDescriptor<RecentVisit>(sortBy: [SortDescriptor(\.visitedAt, order: .reverse)])
-        )) ?? []
-        if all.count > RecentVisit.maxEntries {
-            for stale in all[RecentVisit.maxEntries...] {
-                context.delete(stale)
-            }
-        }
-        try? context.save()
+        commit("visit")
     }
 }

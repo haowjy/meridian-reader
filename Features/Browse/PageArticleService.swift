@@ -93,7 +93,7 @@ struct PageArticleService {
     func recordVisit() async {
         guard let url = web.currentURL, url.isWeb else { return }
         let icon = await favicon(for: url)
-        RecentVisitRecorder.record(url: url, title: web.pageTitle, faviconData: icon, in: library.context)
+        library.recordVisit(url: url, title: web.pageTitle, faviconData: icon)
     }
 
     // MARK: - Pieces
@@ -120,7 +120,7 @@ struct PageArticleService {
     /// An icon already on hand for this page or its site (History).
     private func recentFavicon(for url: URL) -> Data? {
         guard let host = url.host else { return nil }
-        let urlString = url.absoluteString
+        let urlString = ArticleIdentity.canonicalURLString(from: url)
         return recentVisits.first {
             $0.urlString == urlString || $0.host.caseInsensitiveCompare(host) == .orderedSame
         }?.faviconData

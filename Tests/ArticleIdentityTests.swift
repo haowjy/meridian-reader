@@ -26,4 +26,13 @@ final class ArticleIdentityTests: XCTestCase {
         XCTAssertNotEqual(ArticleIdentity.articleKey(url: URL(string: "https://example.com/a?page=2")!), plain,
                           "content-bearing query parameters stay part of the identity")
     }
+
+    /// ⋯ → Website and History judge "the same page" by the canonical URL: a tracking variant is
+    /// the page already shown; a path that differs only in case is another page.
+    func testSamePageIsTheSameCanonicalURL() {
+        let page = URL(string: "https://example.com/Wiki/Foo")!
+        XCTAssertTrue(page.isSamePage(as: URL(string: "https://Example.com/Wiki/Foo/?utm_source=x#top")!))
+        XCTAssertFalse(page.isSamePage(as: URL(string: "https://example.com/wiki/foo")!))
+        XCTAssertFalse(page.isSamePage(as: URL(string: "https://example.com/Wiki/Foo?id=2")!))
+    }
 }
