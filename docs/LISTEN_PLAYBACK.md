@@ -121,7 +121,9 @@ so the players, the Apple voice and the lock screen agree. Adapters report facts
   without starting. Pause keeps `AVAudioPlayer.currentTime` and is confirmed at once; resume plays
   on with no re-queue. The end of the article is decided only by the player
   (`ChunkPlaybackQueue`): the producer calls `endOfInput()` once it has enqueued every paragraph,
-  and the player finishes when its queue drains. Position inside a paragraph is player time, which
+  and the player finishes when its queue drains. A unit that can't sound (its file won't open or
+  is empty, `play()` refuses, a decode error) leaves the player as done and the next one plays;
+  only a unit that sounds is reported as started. Position inside a paragraph is player time, which
   has no callbacks, so while audio is wanted and the app is in front (active or inactive) the
   engine samples it 5×/s: it reports `position` once the spot moved a few characters
   (`ListenPositionMapper`: chunk boundaries plus time into the chunk, never before the offset the
