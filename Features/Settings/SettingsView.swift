@@ -1,0 +1,226 @@
+import SwiftUI
+
+/// ⋯ › Settings (the last row of every ⋯ panel): every setting in the app, on the Library's list
+/// style (cards on paper, `SectionHeader`s), top to bottom:
+///
+/// ```
+/// Settings                                              Done
+/// Appearance   [ System | Light | Dark ]  Color (●)(●)(●)(●)(●)
+/// Reading      themes (◐)(Aa)(Aa)(Aa)(Aa), font, size [A] 100% [A], spacing, a sample
+/// Listening    engines (download, ✓), Voice ›, Language ›, Speed [0.75× … 2×]
+/// Downloads    Downloads ›, the audio kept on this iPhone
+/// Developer    (developer options only) listen debug, fake extraction failure, the panel
+/// Version 1.0 (1)                        (2 s long-press: developer options on / off)
+/// ```
+///
+/// Reading edits the same store as the Aa panel on the Reader and Now Playing
+/// (`ReadingAppearance`), so the two never disagree.
+struct SettingsView: View {
+    @Bindable var speech: SpeechController
+    let onDone: () -> Void
+
+    @Environment(\.readingAppearance) private var reading
+    /// Confirmation after the version row's long-press toggles developer options.
+    @State private var developerToggleNotice: String?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                AppearanceSettingsSection(appearance: AppAppearance.shared)
+                ReadingSettingsSection(appearance: reading)
+                ListeningSettingsSection(speech: speech)
+                StorageSettingsSection(speech: speech)
+                if speech.developerOptionsEnabled {
+                    DeveloperSettingsSection(speech: speech)
+                }
+                versionSection
+            }
+            .libraryListStyle()
+            .navigationTitle(Verbs.settings)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                SheetBarButton(Verbs.done, placement: .confirmationAction, identifier: "settingsDone", action: onDone)
+            }
+            .accessibilityIdentifier("settingsList")
+        }
+        .alert(developerToggleNotice ?? "", isPresented: Binding(
+            get: { developerToggleNotice != nil },
+            set: { if !$0 { developerToggleNotice = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(speech.developerOptionsEnabled
+                 ? "Debug tools are shown in Settings › Developer. Long-press the version again to hide them."
+                 : "Debug tools are hidden.")
+        }
+    }
+
+    // MARK: - Version / developer options
+
+    private var versionSection: some View {
+        Section {
+            HStack {
+                Text(DeveloperOptions.versionLabel)
+                    .typeStyle(.row)
+                Spacer()
+                if speech.developerOptionsEnabled {
+                    Text("Developer options")
+                        .typeStyle(.caption)
+                }
+            }
+            .foregroundStyle(Palette.secondaryInk)
+            .frame(minHeight: SettingsMetrics.rowHeight)
+            .contentShape(Rectangle())
+            .onLongPressGesture(minimumDuration: DeveloperOptions.unlockPressSeconds) {
+                toggleDeveloperOptions()
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("settingsVersionRow")
+            .accessibilityAction(named: speech.developerOptionsEnabled
+                                 ? "Turn off developer options" : "Turn on developer options") {
+                toggleDeveloperOptions()
+            }
+        }
+        .settingsCard()
+    }
+
+    private func toggleDeveloperOptions() {
+        speech.developerOptionsEnabled.toggle()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        developerToggleNotice = speech.developerOptionsEnabled ? "Developer options on" : "Developer options off"
+    }
+}
+
+/// Settings › Appearance: the app's appearance and its colour (`AppAppearance`).
+private struct AppearanceSettingsSection: View {
+    @Bindable var appearance: AppAppearance
+
+    var body: some View {
+        Section {
+            SettingsControlRow(title: String(localized: "Theme")) {
+                ChoicePicker(options: AppearanceMode.allCases, selection: $appearance.mode,
+                             identifier: "appearanceMode") { mode in
+                    Text(mode.title).typeStyle(.row)
+                }
+            }
+            SettingsControlRow(title: String(localized: "Color")) {
+                AccentThemePicker(selection: $appearance.accent)
+            }
+        } header: {
+            SettingsSectionHeader(title: String(localized: "Appearance"))
+        }
+        .settingsCard()
+    }
+}
+
+/// Settings › Reading: the reading theme, typeface, text size and line spacing, the same store and
+/// controls as the Aa panel, with a sample in what is chosen.
+private struct ReadingSettingsSection: View {
+    @Bindable var appearance: ReadingAppearance
+
+    var body: some View {
+        let accent = AppAppearance.shared.accent
+        Section {
+            SettingsControlRow(title: String(localized: "Theme")) {
+                ReadingThemePicker(selection: $appearance.theme, accent: accent)
+            }
+            SettingsControlRow(title: String(localized: "Font")) {
+                ChoicePicker(options: ReadingFont.allCases, selection: $appearance.font, identifier: "readingFont") { font in
+                    Text(font.title).font(.system(size: TypeStyle.row.size, weight: .medium, design: font.design))
+                }
+            }
+            SettingsControlRow(title: String(localized: "Text Size")) {
+                TextSizeStepper(model: appearance.textSizeModel)
+            }
+            SettingsControlRow(title: String(localized: "Line Spacing")) {
+                ChoicePicker(options: ReadingLineSpacing.allCases, selection: $appearance.lineSpacing,
+                             identifier: "readingLineSpacing") { spacing in
+                    Text(spacing.title).typeStyle(.row)
+                }
+            }
+            ReadingSample(palette: appearance.palette(accent: accent), font: appearance.font,
+                          textScale: appearance.textScale, lineSpacing: appearance.lineSpacing)
+                .padding(.vertical, Spacing.xs)
+        } header: {
+            SettingsSectionHeader(title: String(localized: "Reading"))
+        } footer: {
+            Text("How the Reader and Now Playing show pages. Aa at the top of either changes the same settings.")
+                .settingsFooter()
+        }
+        .settingsCard()
+    }
+}
+
+/// Settings › Downloads & Storage: the Downloads list, and how much listening audio is kept.
+private struct StorageSettingsSection: View {
+    let speech: SpeechController
+
+    @Environment(DownloadCenter.self) private var downloads
+    @State private var audioBytes: Int64?
+
+    var body: some View {
+        let overview = downloads.overview
+        Section {
+            SettingsLinkRow(title: Verbs.downloads, symbol: Icons.downloads,
+                            value: overview.isEmpty ? String(localized: "None") : "\(overview.done.count + overview.queued.count + overview.differentVoice.count)",
+                            accessibilityID: "settingsDownloads") {
+                DownloadsList()
+            }
+            SettingsLabel(title: String(localized: "Listening Audio"), symbol: Icons.storage) {
+                Text(audioBytes.map(FileSizes.label) ?? "…")
+                    .typeStyle(.row)
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.secondaryInk)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("settingsAudioSize")
+        } header: {
+            SettingsSectionHeader(title: String(localized: "Downloads & Storage"))
+        } footer: {
+            Text("Listening audio is kept on this iPhone for pages you saved or downloaded; audio for pages you only opened is cleared after a while.")
+                .settingsFooter()
+        }
+        .settingsCard()
+        .task {
+            let root = speech.localTTS.audioCache.root
+            audioBytes = await Task.detached(priority: .utility) { FileSizes.allocatedBytes(at: root) }.value
+        }
+    }
+}
+
+/// Settings › Developer (developer options only, at the bottom): the listen debug chip on Now
+/// Playing, a fake extraction failure for the browser's Reader, and the listen debug panel.
+private struct DeveloperSettingsSection: View {
+    @Bindable var speech: SpeechController
+
+    @Environment(\.developerSettings) private var developer
+    @Environment(ShellState.self) private var shell
+
+    var body: some View {
+        @Bindable var developer = developer
+        Section {
+            SettingsToggleRow(title: String(localized: "Listen Debug"), symbol: Icons.debug,
+                              isOn: $speech.listenDebugEnabled, accessibilityID: "listenDebugEnabledToggle")
+            SettingsToggleRow(title: String(localized: "Fake Extraction Failure"), symbol: Icons.warning,
+                              isOn: $developer.fakeExtractionFailure, accessibilityID: "fakeExtractionFailureToggle")
+            Button {
+                // Over Settings, which stay when it closes (`ShellState.overSheet`).
+                shell.present(.listenDebug)
+            } label: {
+                SettingsLabel(title: String(localized: "Listen Debug Panel"), symbol: Icons.developer) {
+                    Image(systemName: Icons.disclosure)
+                        .typeStyle(.caption, weight: .semibold)
+                        .foregroundStyle(Palette.secondaryInk)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("listenDebugSettings")
+        } header: {
+            SettingsSectionHeader(title: String(localized: "Developer"))
+        } footer: {
+            Text("Listen Debug shows a Debug chip on Now Playing for a live render queue overlay; a long-press on ▶ there opens the panel. Fake Extraction Failure makes the browser's Reader fail until the app quits.")
+                .settingsFooter()
+        }
+        .settingsCard()
+    }
+}

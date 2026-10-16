@@ -68,11 +68,14 @@ struct ListenControllerView: View {
 struct SpeedButton: View {
     @Bindable var speech: SpeechController
     @State private var showsPicker = false
+    @Environment(\.readingPalette) private var reading
+
+    private var palette: ReadingPalette { reading ?? .app }
 
     var body: some View {
         Button { showsPicker = true } label: {
             Text(ListenRate.label(speech.rateMultiplier))
-                .foregroundStyle(Palette.playerInk)
+                .foregroundStyle(palette.ink)
                 .fieldTextFrame()
         }
         .buttonStyle(.plain)
@@ -81,23 +84,27 @@ struct SpeedButton: View {
         .popover(isPresented: $showsPicker, arrowEdge: .bottom) {
             SpeedPickerPopover(speech: speech) { showsPicker = false }
                 .presentationCompactAdaptation(.popover)
-                // Drawn on the player, as the sheet it points from.
-                .presentationBackground(Palette.playerBackground)
-                .environment(\.colorScheme, .dark)
+                // In the reading theme, as the sheet it points from.
+                .presentationBackground(palette.background)
+                .readingSurface(palette)
         }
     }
 }
 
-/// The speed list, on the player's palette: its rows on a `playerCard` card.
+/// The speed list, in the reading theme: its rows on a card.
 private struct SpeedPickerPopover: View {
     @Bindable var speech: SpeechController
     var onDone: () -> Void
+
+    @Environment(\.readingPalette) private var reading
+
+    private var palette: ReadingPalette { reading ?? .app }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text("Speed")
                 .typeStyle(.row, weight: .semibold)
-                .foregroundStyle(Palette.playerInk)
+                .foregroundStyle(palette.ink)
                 .padding(.horizontal, Spacing.xxs)
 
             VStack(spacing: 0) {
@@ -110,11 +117,11 @@ private struct SpeedPickerPopover: View {
                             Text(ListenRate.label(rate))
                                 .typeStyle(.row)
                                 .monospacedDigit()
-                                .foregroundStyle(Palette.playerInk)
+                                .foregroundStyle(palette.ink)
                             Spacer()
                             if speech.rateMultiplier == rate {
                                 Image(systemName: Icons.checkmark)
-                                    .foregroundStyle(Palette.playerAccent)
+                                    .foregroundStyle(palette.accent)
                             }
                         }
                         .padding(.horizontal, Spacing.s)
@@ -128,7 +135,7 @@ private struct SpeedPickerPopover: View {
                     }
                 }
             }
-            .background(Palette.playerCard, in: RoundedRectangle(cornerRadius: Radius.card))
+            .background(palette.card, in: RoundedRectangle(cornerRadius: Radius.card))
         }
         .padding(Spacing.m)
         .frame(minWidth: 220)

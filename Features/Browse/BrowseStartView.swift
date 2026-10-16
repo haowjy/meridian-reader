@@ -22,7 +22,8 @@ struct BrowseStartView: View {
     @State private var dictation: AddressDictation?
     @AppStorage(RecentSearches.storageKey) private var recentSearchesRaw = ""
     @State private var alertMessage: String?
-    @State private var useFakeFailure = false
+    @Environment(\.developerSettings) private var developer
+    @Environment(\.readingAppearance) private var readingAppearance
 
     private var webStore: WebViewStore { shell.web }
     private var search: SearchSession { shell.addressSearch }
@@ -159,7 +160,10 @@ struct BrowseStartView: View {
 
     private var menuOverlay: some View {
         MorphMenuOverlay(item: Binding(get: { shell.menu }, set: { shell.menu = $0 }),
-                         anchor: shell.menuAnchor, isOnPlayer: \.isOnPlayer) { context, close in
+                         anchor: shell.menuAnchor,
+                         readingPalette: { [readingAppearance] context in
+                             context.isOnReadingPage ? readingAppearance.palette(accent: AppAppearance.shared.accent) : nil
+                         }) { context, close in
             MoreMenuPanel(context: context, close: close)
         }
     }
@@ -218,8 +222,7 @@ struct BrowseStartView: View {
             canSave: hasPage && shell.busy == nil,
             isFavorite: actions.isFavorite,
             canFavorite: actions.canFavorite,
-            canShare: actions.shareURL != nil,
-            fakeExtractionFailure: speech.developerOptionsEnabled ? $useFakeFailure : nil
+            canShare: actions.shareURL != nil
         )
     }
 
@@ -233,7 +236,7 @@ struct BrowseStartView: View {
         case .favorites: shell.showFavorites()
         case .reload: webStore.refresh()
         case .share: actions.share()
-        case .voiceSettings: shell.present(.voiceSettings)
+        case .settings: shell.present(.settings)
         case .downloads: shell.present(.downloads)
         case .history: shell.present(.history)
         }
@@ -300,11 +303,13 @@ struct BrowseStartView: View {
 
     // MARK: - Page actions
 
-    /// The loaded page as an article. Developer options can force extraction to fail.
+    /// The loaded page as an article. Developer options can force extraction to fail
+    /// (Settings › Developer).
     private var page: PageArticleService {
-        PageArticleService(shell: shell,
-                           extractor: useFakeFailure ? FakeArticleExtractor(mode: .failure) : extractor,
-                           library: library, speech: speech, recentVisits: recentVisits)
+        let fails = speech.developerOptionsEnabled && developer.fakeExtractionFailure
+        return PageArticleService(shell: shell,
+                                  extractor: fails ? FakeArticleExtractor(mode: .failure) : extractor,
+                                  library: library, speech: speech, recentVisits: recentVisits)
     }
 
     /// Runs a page action; a failed extraction shows the alert.

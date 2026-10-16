@@ -4,17 +4,18 @@ import SwiftUI
 /// of big buttons whose rightmost one is the panel's focus point (`morphMenuFocus`). Every row
 /// closes the panel and runs its action once the panel has started collapsing.
 ///
-/// Every context lists its own actions first, then the same tail in the same order: Download,
-/// Voice Settings, Downloads, Debug. Labels come from `Verbs`. On the player (Now Playing) the
-/// panel takes the player's palette (`onPlayerPalette`).
+/// Every context lists its own actions first, then the same tail in the same order: Download
+/// (where there is something to download), Downloads, Settings. Settings is always the last row,
+/// just above the divider, whichever surface opened the panel. Labels come from `Verbs`. On the
+/// Reader and Now Playing the panel takes the reading page's colours (`readingPalette`).
 struct MoreMenuPanel: View {
     let context: MenuContext
     let close: MorphMenuClose
 
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
 
-    private var ink: Color { onPlayer ? Palette.playerInk : Palette.ink }
-    private var secondaryInk: Color { onPlayer ? Palette.playerSecondaryInk : Palette.secondaryInk }
+    private var ink: Color { reading?.ink ?? Palette.ink }
+    private var secondaryInk: Color { reading?.secondaryInk ?? Palette.secondaryInk }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,16 +47,8 @@ struct MoreMenuPanel: View {
             .disabled(!menu.canShare)
         row("Reload", Icons.reload, id: "moreReload") { run(.reload) }
             .disabled(!menu.hasPage)
-        voiceRow { run(.voiceSettings) }
         downloadsRow { run(.downloads) }
-        if let fakeFailure = menu.fakeExtractionFailure {
-            Menu {
-                Toggle("Fake extraction failure", isOn: fakeFailure)
-            } label: {
-                rowLabel("Debug", Icons.debug, trailing: Icons.disclosure)
-            }
-            .accessibilityIdentifier("moreDebug")
-        }
+        settingsRow { run(.settings) }
         divider
         tiles {
             favoritesTile { run(.favorites) }
@@ -85,11 +78,8 @@ struct MoreMenuPanel: View {
         if menu.canDownload {
             downloadRow(Verbs.download) { run(.download) }
         }
-        voiceRow { run(.voiceSettings) }
         downloadsRow { run(.downloads) }
-        if menu.showsDebug {
-            row("Debug", Icons.debug, id: "moreDebug") { run(.listenDebug) }
-        }
+        settingsRow { run(.settings) }
         divider
         tiles {
             favoritesTile { run(.favorites) }
@@ -121,11 +111,8 @@ struct MoreMenuPanel: View {
             if let title = menu.downloadTitle { downloadRow(title) { run(.download) } }
             row(Verbs.deleteDownloads, Icons.deleteDownloads, id: "moreDeleteDownloads") { run(.deleteDownloads) }
         }
-        voiceRow { run(.voiceSettings) }
         downloadsRow { run(.downloads) }
-        if menu.showsDebug {
-            row("Debug", Icons.debug, id: "moreDebug") { run(.listenDebug) }
-        }
+        settingsRow { run(.settings) }
         divider
         tiles {
             favoritesTile { run(.favorites) }
@@ -172,8 +159,9 @@ struct MoreMenuPanel: View {
         row("Import Book…", Icons.book, id: "moreImportBook", action: action)
     }
 
-    private func voiceRow(action: @escaping () -> Void) -> some View {
-        row(Verbs.voiceSettings, Icons.voice, id: "moreVoice", action: action)
+    /// ⋯ › Settings: every setting in one place. Always the last row.
+    private func settingsRow(action: @escaping () -> Void) -> some View {
+        row(Verbs.settings, Icons.settings, id: "moreSettings", action: action)
     }
 
     /// ⋯ › Downloads: the list of what is downloading and downloaded.
@@ -253,14 +241,14 @@ struct MoreMenuPanel: View {
 private struct MenuRowStyle: ButtonStyle {
     var cornerRadius: CGFloat = 0
     @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .opacity(isEnabled ? 1 : 0.35)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill((onPlayer ? Palette.playerInk : Palette.ink).opacity(configuration.isPressed ? 0.08 : 0))
+                    .fill((reading?.ink ?? Palette.ink).opacity(configuration.isPressed ? 0.08 : 0))
             )
     }
 }

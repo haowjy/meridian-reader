@@ -65,18 +65,16 @@ struct PageActions {
 
     // MARK: - The Reader's and Now Playing's ⋯
 
-    /// The page's ⋯ (decision D24); Now Playing's (`isOnPlayer`) with its *Go to* (`goTo`).
-    func readerMenu(goTo: ReaderMenu.Place? = nil, isOnPlayer: Bool = false) -> ReaderMenu {
+    /// The page's ⋯ (decision D24); Now Playing's with its *Go to* (`goTo`).
+    func readerMenu(goTo: ReaderMenu.Place? = nil) -> ReaderMenu {
         ReaderMenu(
             goTo: goTo,
-            isOnPlayer: isOnPlayer,
             isSaved: isSaved,
             canSave: canSave,
             isFavorite: isFavorite,
             canFavorite: canFavorite,
             canShare: shareURL != nil,
             canOpenWebsite: websiteURL != nil,
-            showsDebug: speech.developerOptionsEnabled,
             canDownload: savedPage.map { !downloads.isQueued(.page($0.listenKey)) } == true
         )
     }
@@ -85,14 +83,13 @@ struct PageActions {
     func perform(_ action: ReaderMenu.Action, goTo: () -> Void = {}) {
         switch action {
         case .goTo: goTo()
-        case .voiceSettings: shell.present(.voiceSettings)
+        case .settings: shell.present(.settings)
         case .toggleSave: toggleSaved()
         case .moveTo: saveToFolder()
         case .toggleFavorite: toggleFavorite()
         case .share: share()
         case .download: if let savedPage { DownloadActions(downloads: downloads, shell: shell).download(savedPage) }
         case .downloads: shell.present(.downloads)
-        case .listenDebug: shell.present(.listenDebug)
         case .favorites: shell.showFavorites()
         case .history: shell.present(.history)
         // The article's own web page in the browser, wherever the sheet was opened from.

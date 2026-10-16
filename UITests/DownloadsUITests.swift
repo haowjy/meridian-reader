@@ -66,20 +66,22 @@ final class DownloadsUITests: XCTestCase {
         XCTAssertTrue(eventually(5) { self.value(chapter).hasSuffix("Downloaded") }, "the chapter's mark, got \(value(chapter))")
         XCTAssertFalse(value(libraryRow(app, "Title Page")).contains("Downloaded"), "front matter isn't downloaded")
 
-        // Another voice (Voice Settings from the home's ⋯): the download is marked as a different voice.
+        // Another voice (Settings › Voice from the home's ⋯): the download is marked as a different voice.
         app.navigationBars["The Demo Book"].buttons.firstMatch.tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         let book = libraryRow(app, "The Demo Book")
         XCTAssertTrue(eventually(5) { self.value(book).hasSuffix("Downloaded") }, "the book's mark, got \(value(book))")
         app.buttons["libraryMore"].tap()
-        tapMenuRow(app, "moreVoice")
-        XCTAssertTrue(app.navigationBars["Voice Settings"].waitForExistence(timeout: 5), "Voice settings")
+        tapMenuRow(app, "moreSettings")
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5), "Settings")
+        openSettingsRow(app, "settingsVoice")
         let two = find(app, "voiceRow-two")
         for _ in 0..<6 where !(two.exists && two.isHittable) { app.swipeUp() }
         two.tap()
         idle(1)
-        app.navigationBars["Voice Settings"].buttons["Done"].tap()
-        XCTAssertTrue(eventually(5) { !app.navigationBars["Voice Settings"].exists })
+        app.navigationBars["Voice"].buttons.firstMatch.tap()
+        app.buttons["settingsDone"].tap()
+        XCTAssertTrue(eventually(5) { !app.navigationBars["Settings"].exists })
         idle(0.5)
 
         openDownloads(app)

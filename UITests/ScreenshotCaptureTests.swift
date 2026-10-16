@@ -67,7 +67,7 @@ final class ScreenshotCaptureTests: XCTestCase {
     // MARK: - Offline
 
     /// Toolbars and ⋯ menus on a page and in its Reader (developer options off), the Reader
-    /// scrolled mid-article, Voice settings down to the version row, and the Now Playing bar.
+    /// scrolled mid-article, Settings down to the version row, and the Now Playing bar.
     func testMenusOnPageAndInReader() throws {
         let app = launch(["-resetBookmarks", "-browseTestPages", "-reader.developerOptions", "NO"])
         openTestArticlePage(app)
@@ -90,14 +90,14 @@ final class ScreenshotCaptureTests: XCTestCase {
         wait(1.5)
         try shot("5-reader-menu")
 
-        el(app, "moreVoice").tap()
-        XCTAssertTrue(app.navigationBars["Voice Settings"].waitForExistence(timeout: 5))
+        el(app, "moreSettings").tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         wait(1)
-        try shot("6-voice-settings")
-        for _ in 0..<6 where !el(app, "settingsVersionRow").isHittable { app.swipeUp() }
+        try shot("6-settings")
+        for _ in 0..<10 where !el(app, "settingsVersionRow").isHittable { app.swipeUp() }
         wait(0.8)
-        try shot("7-voice-settings-version")
-        app.navigationBars["Voice Settings"].buttons["Done"].tap()
+        try shot("7-settings-version")
+        app.buttons["settingsDone"].tap()
         wait(1)
 
         app.buttons["listenPlayPause"].tap() // Listen: the Reader turns into Now Playing
@@ -419,13 +419,15 @@ final class ScreenshotCaptureTests: XCTestCase {
         app.buttons["libraryMore"].tap()
         wait(1.2)
         try shot("6-home-menu")
-        el(app, "moreVoice").tap()
-        XCTAssertTrue(app.navigationBars["Voice Settings"].waitForExistence(timeout: 5))
+        el(app, "moreSettings").tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        openSettingsRow(app, "settingsVoice")
         let two = el(app, "voiceRow-two")
         for _ in 0..<6 where !(two.exists && two.isHittable) { app.swipeUp() }
         two.tap()
         wait(1)
-        app.navigationBars["Voice Settings"].buttons["Done"].tap()
+        app.navigationBars["Voice"].buttons.firstMatch.tap()
+        app.buttons["settingsDone"].tap()
         wait(1)
         app.buttons["libraryMore"].tap()
         wait(1.2)

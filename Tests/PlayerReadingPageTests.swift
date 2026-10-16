@@ -2,9 +2,10 @@ import SwiftUI
 import XCTest
 @testable import MeridianReader
 
-/// Now Playing's reading page: lyrics style (the spoken paragraph in full ink, the rest dimmed,
-/// everything in full ink when nothing is spoken) and the title card's slot, which the Reader's
-/// handed-over offset steps over so the same line stays in the same place.
+/// The reading page (the Reader and Now Playing alike): the spoken paragraph on the highlight in
+/// full ink and the rest dimmed (everything in full ink when nothing is spoken), the reading
+/// theme, typeface, size and spacing changed live, and Now Playing's title card slot, which the
+/// Reader's handed-over offset steps over so the same line stays in the same place.
 @MainActor
 final class PlayerReadingPageTests: XCTestCase {
     private var page: ReadingPageHarness!
@@ -19,26 +20,68 @@ final class PlayerReadingPageTests: XCTestCase {
     }
 
     func testOnlyTheSpokenParagraphIsInFullInk() async throws {
-        page.coordinator.look = .player
+        page.coordinator.look = Self.dark
         try await page.load(ReadingPageHarness.paragraphs(3), blocks: 3)
         let ink = try await colour(of: 0)
-        XCTAssertEqual(ink, Self.css(Palette.playerInk), "nothing spoken: full ink")
+        XCTAssertEqual(ink, Self.css(Self.dark.colors.ink), "nothing spoken: full ink")
 
         page.coordinator.setActiveParagraph(1)
         try await page.waitUntil("dimmed", timeout: 3) {
-            try await self.colour(of: 0) == Self.css(Palette.playerDimInk)
+            try await self.colour(of: 0) == Self.css(Self.dark.colors.dim)
         }
         let spoken = try await colour(of: 1)
         let after = try await colour(of: 2)
-        XCTAssertEqual(spoken, Self.css(Palette.playerInk), "the spoken paragraph")
-        XCTAssertEqual(after, Self.css(Palette.playerDimInk), "the one after it")
-        let tint = try await page.js("getComputedStyle(document.querySelector('[data-reader-index=\"1\"]')).backgroundColor") as? String
-        XCTAssertEqual(tint, "rgba(0, 0, 0, 0)", "no tint box on the player")
+        XCTAssertEqual(spoken, Self.css(Self.dark.colors.ink), "the spoken paragraph")
+        XCTAssertEqual(after, Self.css(Self.dark.colors.dim), "the one after it")
+        let tint = try await background(of: 1)
+        XCTAssertEqual(tint, Self.css(Self.dark.colors.highlight), "the spoken paragraph's highlight")
 
         page.coordinator.setActiveParagraph(nil)
         try await page.waitUntil("full ink again", timeout: 3) {
-            try await self.colour(of: 0) == Self.css(Palette.playerInk)
+            try await self.colour(of: 0) == Self.css(Self.dark.colors.ink)
         }
+    }
+
+    /// A theme chosen while the page is up repaints it in place: no reload, the spoken
+    /// paragraph keeps its highlight in the new colours, and the underline takes the new accent.
+    func testANewThemeRepaintsThePageInPlace() async throws {
+        page.coordinator.look = Self.dark
+        try await page.load(ReadingPageHarness.paragraphs(3), blocks: 3)
+        page.coordinator.setActiveParagraph(1)
+        try await page.waitUntil("dimmed", timeout: 3) { try await self.colour(of: 0) == Self.css(Self.dark.colors.dim) }
+        _ = try await page.js("window.__marker = 7")
+
+        page.coordinator.setLook(Self.sepia)
+        try await page.waitUntil("sepia", timeout: 3) {
+            try await self.colour(of: 0) == Self.css(Self.sepia.colors.dim)
+        }
+        let spokenBackground = try await background(of: 1)
+        XCTAssertEqual(spokenBackground, Self.css(Self.sepia.colors.highlight))
+        let page = try await self.page.js("getComputedStyle(document.body).backgroundColor") as? String
+        XCTAssertEqual(page, Self.css(Self.sepia.colors.paper))
+        let underline = try await self.page.js("getComputedStyle(document.documentElement).getPropertyValue('--underline').trim()") as? String
+        XCTAssertEqual(underline, Self.sepia.colors.accent, "one underline colour: the theme's accent")
+        let marker = try await self.page.js("window.__marker") as? Int
+        XCTAssertEqual(marker, 7, "the same page, not a reload")
+    }
+
+    /// The typeface, the text size step and the line spacing apply live too.
+    func testTypefaceSizeAndSpacingApplyLive() async throws {
+        page.coordinator.sizes = ReadingStyle.Sizes(body: 20, title: 28, caption: 13)
+        try await page.load(ReadingPageHarness.paragraphs(3), blocks: 3)
+        let before = try await style(of: 0, "fontSize")
+        XCTAssertEqual(before, "20px")
+
+        var look = ReadingStyle.Look.standard
+        look.font = .rounded
+        look.textScale = ReadingTextSize.scale(step: ReadingTextSize.defaultStep + 2)
+        look.lineSpacing = .relaxed
+        page.coordinator.setLook(look)
+        try await page.waitUntil("bigger", timeout: 3) { try await self.style(of: 0, "fontSize") == "24px" }
+        let family = try await style(of: 0, "fontFamily")
+        XCTAssertTrue(family?.contains("ui-rounded") == true, family ?? "")
+        let leading = try await style(of: 0, "lineHeight")
+        XCTAssertEqual(leading, "42px", "1.75 × 24 px")
     }
 
     /// Through the playback session, as Now Playing passes it on: the paragraph in full ink
@@ -50,13 +93,15 @@ final class PlayerReadingPageTests: XCTestCase {
         defer { test.tearDown() }
         let speech = test.speech
         let article = TestSpeech.article("https://example.com/dimming")
-        page.coordinator.look = .player
+        page.coordinator.look = Self.dark
         try await page.load(article.displayHTML, blocks: 3)
 
         func shows(_ spoken: Int?, scrubPreview: Int? = nil, _ what: String) async throws {
             XCTAssertEqual(speech.spokenParagraph(scrubPreview: scrubPreview), spoken, what)
             page.coordinator.setActiveParagraph(speech.spokenParagraph(scrubPreview: scrubPreview))
-            let expected = (0..<3).map { spoken == nil || $0 == spoken ? Self.css(Palette.playerInk) : Self.css(Palette.playerDimInk) }
+            let expected = (0..<3).map {
+                spoken == nil || $0 == spoken ? Self.css(Self.dark.colors.ink) : Self.css(Self.dark.colors.dim)
+            }
             var colours: [String?] = []
             try await page.waitUntil(what, timeout: 3) {
                 colours = []
@@ -85,7 +130,7 @@ final class PlayerReadingPageTests: XCTestCase {
     }
 
     func testTheHandedOverOffsetStepsOverTheTitleCard() async throws {
-        page.coordinator.look = .player
+        page.coordinator.look = Self.dark
         page.coordinator.setTopView(ReadingTopView(id: 1, view: AnyView(Color.clear.frame(height: 120))))
         try await page.load(ReadingPageHarness.paragraphs(40), blocks: 40, opensAt: .text(offset: 1200))
         try await page.waitUntil("restored", timeout: 3) { !self.page.coordinator.isRestoringScroll }
@@ -125,11 +170,12 @@ final class PlayerReadingPageTests: XCTestCase {
                 let handOver = try XCTUnwrap(reader.coordinator.handOver, what)
 
                 let player = ReadingPageHarness(size: size, viewportTop: dynamicType.isAccessibilitySize ? 190 : 120)
-                player.coordinator.look = .player
+                player.coordinator.look = Self.dark
                 player.coordinator.sizes = textSizes
                 player.coordinator.setTextInsets(ReaderTextInsets(top: 0, bottom: 260))
                 player.coordinator.setTopView(ReadingTopView(id: 1, view: AnyView(
-                    TitleCard(title: "Notes on the Lighthouse", detail: ["example.com", "9 min left"], artworkLetter: "e")
+                    TitleCard(title: "Notes on the Lighthouse", detail: ["example.com", "9 min left"], artworkLetter: "e",
+                              palette: ReadingTheme.dark.palette(accent: .jade))
                         .environment(\.dynamicTypeSize, dynamicType))))
                 try await player.load(html, blocks: 40, opensAt: handOver)
                 try await player.waitUntil("restored", timeout: 3) { !player.coordinator.isRestoringScroll }
@@ -143,13 +189,24 @@ final class PlayerReadingPageTests: XCTestCase {
         }
     }
 
+    private static let dark = ReadingStyle.Look(colors: .init(ReadingTheme.dark.palette(accent: .jade), scheme: .light))
+    private static let sepia = ReadingStyle.Look(colors: .init(ReadingTheme.sepia.palette(accent: .jade), scheme: .light))
+
     private func colour(of index: Int) async throws -> String? {
-        try await page.js("getComputedStyle(document.querySelector('[data-reader-index=\"\(index)\"]')).color") as? String
+        try await style(of: index, "color")
     }
 
-    private static func css(_ color: Color) -> String {
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
-        return "rgb(\(Int((r * 255).rounded())), \(Int((g * 255).rounded())), \(Int((b * 255).rounded())))"
+    private func background(of index: Int) async throws -> String? {
+        try await style(of: index, "backgroundColor")
+    }
+
+    private func style(of index: Int, _ property: String) async throws -> String? {
+        try await page.js("getComputedStyle(document.querySelector('[data-reader-index=\"\(index)\"]')).\(property)") as? String
+    }
+
+    /// "#1C1C1E" as the page reports it: "rgb(28, 28, 30)".
+    private static func css(_ hex: String) -> String {
+        let value = UInt32(hex.dropFirst(), radix: 16) ?? 0
+        return "rgb(\((value >> 16) & 0xFF), \((value >> 8) & 0xFF), \(value & 0xFF))"
     }
 }

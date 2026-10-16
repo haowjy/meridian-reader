@@ -39,7 +39,7 @@ their text when it is at its top, which does exactly what that button does.
 
 - `.sheet`: swipe-down is built in (show the grabber), from the header or from a scrolling body at
   its top: the Move tree, the import sheet (except while it works), History,
-  Voice Settings, Downloads, Edit Details. Their *Done*, *Cancel*, *Save* and *Import* are one
+  Settings, Downloads, Edit Details. Their *Done*, *Cancel*, *Save* and *Import* are one
   pill, the neutral one the Reader's close pill is (`SheetBarButton`).
 - The Reader and Now Playing are the design system's `Sheet` (in place, not a `.sheet` or
   `fullScreenCover`): pulling the header (grabber or the top bar with its close pill) down calls the same close
@@ -145,12 +145,11 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   navigates.
 - **⋯** opens a Safari-style menu panel that grows out of the button (covers the ⋯, no arrow):
   rows *New Search, Save to Folder… / Remove from Library (🔖), Add to Favorites / Remove from
-  Favorites (☆), Share, Reload, Voice Settings, Downloads, Debug ›* (Debug only with developer options on —
-  see "Developer options" below), then a row of big buttons **Favorites**, **History**, and
+  Favorites (☆), Share, Reload, Downloads, Settings*, then a row of big buttons **Favorites**, **History**, and
   **Reader** (rightmost, nearest the thumb, like Safari's All Tabs). *Save to Folder…* opens the
   Move tree and saves the page into the folder picked. The Reader toggle is disabled on the start
   page and on pages that aren't readable; on a readable page tapping it switches into reader
-  mode. Actions that present something (Share, Voice Settings, Favorites, History, the Move tree)
+  mode. Actions that present something (Share, Settings, Favorites, History, the Move tree)
   run after the panel has closed.
 - **The ⋯ panel** (`MorphMenuOverlay`: one overlay for the browser toolbar ⋯, the library
   toolbar ⋯, the Reader's ⋯ and Now Playing's ⋯; its rows come from the surface that opened it,
@@ -230,8 +229,7 @@ field, `[‹][›][＋][🕘][⋯]`. ＋ is *Import
 Book…* and *New Folder*, both made in the folder on screen (a book's too). 🌐 shows the browser as
 it was; 📚 there comes back to the same folder. The
 ⋯ panel follows the screen on top (below), always with big buttons **Favorites**, **History**,
-**Browser**, and with developer options on a last row *Debug* (the listen debug panel); nothing
-in it acts on the page under the Library. History closes the Library first; Browser is the same
+**Browser**, and *Settings* as its last row; nothing in it acts on the page under the Library. History closes the Library first; Browser is the same
 swap as 🌐.
 
 ```
@@ -264,7 +262,7 @@ commas.
   book* on one action row. The home has no navigation bar; rows scrolled up pass under a paper
   band behind the status bar, not under the clock. The home is the
   top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
-  default, or *Title*), *Import Book…, New Folder, Voice Settings, Downloads*.
+  default, or *Title*), *Import Book…, New Folder, Downloads, Settings*.
 - **A folder** (`FolderScreen`, books and series included): its title and counts,
   subfolders first (by their order), then pages by the folder's sort. A folder with pages that
   play has the play header (decision D15): how far through (a bar across the content width, with
@@ -285,8 +283,9 @@ commas.
   Library at once, then asks before deleting the selected folders, which stay selected until
   their delete is saved (*Cancel* keeps them selected). ⋯: *Sort ›, New Folder Inside, Import
   Book…, Rename, Edit Details, Move to…, Delete Folder…, Download Folder, Delete Downloads,
-  Voice Settings, Downloads* (a book's say *Delete Book…* and *Download Book*). Every ⋯ ends
-  with the same rows in the same order: *Download, Voice Settings, Downloads, Debug*.
+  Downloads, Settings* (a book's say *Delete Book…* and *Download Book*). Every ⋯ ends
+  with the same rows in the same order: *Download, Downloads, Settings*; *Settings* is always the
+  last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
   has scrolled under the bar. An empty folder's header has no counts; the list says
   *Move pages here, or save them here from the Reader's 🔖* (the toolbar's symbol).
@@ -423,7 +422,8 @@ Different Voice  1
 ```
 
 **⋯ › Downloads** (`DownloadsSheet`, every ⋯ panel: the browser's, the Library's on every screen,
-the Reader's, Now Playing's; medium, grows to large) lists, in sections shown only when they have
+the Reader's, Now Playing's; medium, grows to large; also Settings › Downloads & Storage ›
+Downloads, pushed) lists, in sections shown only when they have
 rows: **Queued** (the download rendering now and those waiting, *Pause All / Resume All*, each
 row's ring pausing or resuming it), **Downloaded** (each with the room it takes, the total under the
 section, on the cards' edge), and **Different Voice** (done, but rendered in another voice than the one selected
@@ -437,8 +437,8 @@ the list and its audio off the phone (not the audio of what you hear). The list 
 of what is in the Library: removing a page from the Library, or deleting a page or folder, takes
 its download off the list too (a removed page's audio stays, ephemeral); its long-press menu has
 *Pause / Resume*, *Re-download*, *Keep* and *Remove* as they apply. While Apple's voice is
-selected nothing renders: queued downloads say *Waiting for an on-device voice*, with *Voice
-Settings*. *Delete Downloads* on a page or a folder deletes its audio and its download; the audio
+selected nothing renders: queued downloads say *Waiting for an on-device voice*, with
+*Settings*. *Delete Downloads* on a page or a folder deletes its audio and its download; the audio
 of the page you hear and of the chapter staged after it stays for listening. A folder's download
 that covered the page no longer counts it as done: it renders the page again while the folder
 still covers it (the folder is back under *Queued*), else drops it. A page
@@ -511,10 +511,10 @@ row) opens Now Playing instead.
 
 **The two sheets share their chrome** (decision D24), so Listen turns the Reader into Now Playing
 with nothing moving but what has to: the same top bar (`SheetTopBar`: the close pill at the top
-left, ☝︎ at the top right, at the page margin), 🔖 in slot 1 and ⋯ in slot 5 of the bottom row,
-and the same ⋯ menu (Now Playing adds *Go to*). UI tests check the frames match. They differ
-where the job does: Now Playing is on the player's palette (it is what you hear, over
-everything), its middle slots are the transport (⏮, the round ⏸ / ▶, ⏭) where the Reader has
+left, **Aa** then ☝︎ at the top right, at the page margin), 🔖 in slot 1 and ⋯ in slot 5 of the
+bottom row, the same ⋯ menu (Now Playing adds *Go to*), and the same colours and type (the
+reading theme, below). UI tests check the frames match. They differ where the job does: its
+middle slots are the transport (⏮, the round ⏸ / ▶, ⏭) where the Reader has
 Listen, it has the scrub capsule with the speed and the status notes, and its text follows the
 audio under a title card (the Reader's sits under a heading and never moves by itself); the
 Reader shows the Now Playing bar of another page above its row.
@@ -524,9 +524,9 @@ Reader shows the Now Playing bar of another page above its row.
 ```
 ┌──────────────────────────────────────┐
 │                 ───                  │ ← grabber
-│ ( ‹ Browser )                  (☝︎)  │ ← the pill names what is underneath
+│ ( ‹ Browser )             (Aa) (☝︎)  │ ← the pill names what is underneath
 │ Notes on Tides                       │ ← title, then "site   9 min"
-│ … serif text on paper …              │
+│ … text in the reading theme …        │
 │ ╭ Now Playing bar ──────────────╮    │ ← what you hear (always another page)
 │ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]    │ ← this page's own ▶, a pill over slots 2–4
 └──────────────────────────────────────┘
@@ -572,8 +572,8 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   the Move tree: saved there, or moved there when already saved); it keeps the screen and
   playback as they are.
 - **⋯** (slot 5, the browser's ⋯ spot; Now Playing's is the same): rows *Save / Remove from Library, Move to…* (a saved
-  page)*, Add to Favorites, Share, Download* (a saved page not downloading already)*, Voice Settings,
-  Downloads, Debug* (developer options only); big buttons
+  page)*, Add to Favorites, Share, Download* (a saved page not downloading already)*, Downloads,
+  Settings*; big buttons
   **Favorites / History / Website** — *Website* (the Reader off) shows the page in the browser,
   wherever the Reader was opened from; from the library, the library closes first. Playback
   never stops.
@@ -585,12 +585,12 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
 ```
 ┌──────────────────────────────────────┐
 │                 ───                  │ ← grabber
-│ ( ⌄ example.com )              (☝︎)  │ ← the Reader's top bar; the pill names where it
+│ ( ⌄ example.com )         (Aa) (☝︎)  │ ← the Reader's top bar; the pill names where it
 │                                      │   plays from
 │ ╭ [art] Title                      ╮ │ ← the title card, scrolls with the text
 │ ╰       example.com   9 min left   ╯ │
-│ … serif text, dimmed; the spoken     │
-│   paragraph in full ink, the         │
+│ … text dimmed; the spoken paragraph  │
+│   highlighted in full ink, the       │
 │   sentence underlined …              │
 │            ( Jump to Audio )         │ ← after you scroll away
 │ Preparing next…                      │ ← status notes, above the scrubber
@@ -605,24 +605,25 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   **The close pill or a pull down (on the header, or on the text at its top) shrinks it into the
   bar**, back on
   what was underneath (the browser, the Library, or a Reader of another page), untouched.
-- **It looks like a player, not the Reader**: deep jade in light and dark mode alike (the
-  `Palette.player…` tokens), with light status bar content and a heavier dim on the strip above
-  it. While a finger pulls it down the dim lifts, but the strip under the status bar stays as dark
-  as at rest until the sheet has gone, so the clock stays readable. A **title card** at the top of the text (it scrolls with the text) shows the artwork, the
-  title, and the site and time left as two parts (*✓ Finished* at the end). The text keeps the Reader's serif and
-  margins in **lyrics style**: the spoken paragraph in full ink, the others dimmed, no tint box
-  (a paragraph pressed while ☝︎ is on is in full ink too).
-  The *Jump to Audio* pill is light with dark text; the scrub capsule, the bubble, the jump
-  hint, the ⋯ panel and the speed popover sit on the player's colours. The Reader stays on paper. A plain-text article (no
-  reading HTML) shows its paragraphs on the same reading page, in both, so everything below
-  applies to it too.
+- **It reads like the Reader**: the same reading theme, typeface, size and spacing (see "Reading
+  appearance" below). Over a light app, a dark theme (Dark, Black) gives it light status bar
+  content and a heavier dim on the strip above it; while a finger pulls it down the dim lifts, but
+  the strip under the status bar stays as dark as at rest until the sheet has gone, so the clock
+  stays readable. A **title card** at the top of the text (it scrolls with the text) shows the
+  artwork, the title, and the site and time left as two parts (*✓ Finished* at the end). The
+  spoken paragraph is in full ink on the theme's highlight, the others dimmed (a paragraph
+  pressed while ☝︎ is on is in full ink too). The *Jump to Audio* pill is ink with the page's
+  colour for its text; the scrub capsule, the bubble, the jump hint, the ⋯ panel and the speed
+  popover take the theme's colours. A plain-text article (no reading HTML) shows its paragraphs on
+  the same reading page, in both, so everything below applies to it too.
 - **The close pill names where it plays from** (*⌄ Pride and Prejudice*; VoiceOver: *Close Now
   Playing*, *Playing from …*): the folder the page is in, a book, a series or one you
   made; *Library* for a saved page in no folder; the site for a page you haven't saved. Tapping
   it only closes. **⋯ → *Go to <name>*** (the first row) closes Now Playing onto the Library at
   that folder, or the Library's home, on Everything; for a page that plays from its site, ⋯ → *Website* opens it in
   the browser.
-- **☝︎** (top right, as in the Reader), then a tap on a paragraph, plays from that paragraph.
+- **Aa** and **☝︎** (top right, as in the Reader): Aa changes how the page reads; ☝︎, then a
+  tap on a paragraph, plays from that paragraph.
 - **🔖** (slot 1, as in the Reader) saves / unsaves (tap) or files the page (long-press →
   *Save to Folder…*, the Move tree); saving never touches playback.
 - **The text follows the audio.** It opens with the spoken sentence near the middle (the
@@ -633,7 +634,7 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   visible text (the `Motion.standard` spring; a jump under Reduce Motion). The sentence, not the
   paragraph, goes to the middle: a long paragraph's middle can be a screen away from what is
   being read. The spoken paragraph lights up to full ink while the one before dims (a short
-  fade; none under Reduce Motion), and the current sentence is underlined in the accent, as in the Reader (per chunk on
+  fade; none under Reduce Motion), and the current sentence is underlined in the theme's accent, as in the Reader (per chunk on
   engines that report only chunk starts; no underline before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
   doesn't move the text, so following goes on); a *Jump to Audio* pill floats over the text just
   above the controls (no arrow: the spoken sentence may be above or below).
@@ -652,9 +653,9 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   developer-only Debug chip) sit **above** the scrubber so appearing text never pushes it.
 - **⋯**: the Reader's menu for the page you hear, after *Go to <name>* (when it plays from a
   folder or the Library): *Save / Remove from Library, Move to…, Add to Favorites, Share,
-  Download, Voice Settings, Downloads, Debug*; big buttons **Favorites / History / Website**.
+  Download, Downloads, Settings*; big buttons **Favorites / History / Website**.
 - A **download progress line** runs along the top edge of the bottom band while downloads run,
-  as on the other surfaces, in the player's accent.
+  as on the other surfaces, in the theme's accent.
 - **Scrubber** (sentence-precise): fill = progress (weighted by text length; with a local
   voice the thumb moves smoothly inside a paragraph, estimated from the player's time); the
   lighter fill ahead of it is audio already rendered (local voices; Apple speaks live so there is
@@ -682,7 +683,8 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
     chunk durations), with a 0.25 s lead-in so the first word isn't clipped. Not rendered yet: the
     render queue does that chunk first (then the rest of the paragraph). Apple voice: speaks from
     the sentence's first character.
-- **Speed** (*1×*, at the end of the scrub capsule; a tap opens the list): applied in place — the current sentence keeps going at the new speed.
+- **Speed** (*1×*, at the end of the scrub capsule; a tap opens the list; also Settings ›
+  Listening › Speed): applied in place — the current sentence keeps going at the new speed.
   Local voices: a pitch-preserving time-stretch on the player (`AVAudioPlayer.enableRate` /
   `rate`; all audio, including Apple-fallback units, is rendered at 1×), so nothing is re-queued,
   re-rendered or restarted. The Apple voice (AVSpeechSynthesizer can't change a running
@@ -692,17 +694,59 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   spot: after a relaunch it is at the top of the Library's *Pages*, opens in the Reader where it was, and
   Now Playing shows its text.
 
+### Reading appearance (Aa, Settings › Reading)
+
+One reading appearance for both sheets (`ReadingAppearance`, stored in UserDefaults
+`reading.theme`, `reading.font`, `reading.textSize`, `reading.lineSpacing`), separate from the
+app's theme. **Aa**, in both sheets' top bars just left of ☝︎, opens a compact panel pointing at
+it; Settings › Reading has the same controls. Both edit the one store, so they never disagree,
+and the page under the panel changes as you choose (colours repaint in place; a typeface, size or
+spacing change reflows the text and keeps the line on screen where it was).
+
+- **Theme**: *Match App* (the app's paper and ink in its appearance and colour; the default),
+  *Light*, *Sepia*, *Dark*, *Black*. One token set each (`ReadingPalette`: background, card,
+  ink, secondary and tertiary ink, dimmed ink, highlight, accent) for the Reader and Now Playing
+  alike. The spoken paragraph sits on the highlight in full ink, the others dimmed; the spoken
+  sentence is underlined in the theme's accent (one underline colour per theme). Light, Dark and
+  Black take the app's colour as their accent; Sepia has its own.
+- **Font**: *Serif* (New York; the default), *Sans Serif*, *Rounded*.
+- **Text size**: smaller / larger in steps from 85% to 165% of the Dynamic Type size (100%
+  default), so the system's text size still applies under it.
+- **Line spacing**: *Compact*, *Normal* (the default), *Relaxed*.
+
+Aa sits in the top bar, not the bottom row: Now Playing's five slots are full (🔖, ⏮, ⏸, ⏭, ⋯)
+and the bottom chrome never moves, and the top bar is the one row the two sheets already share
+control for control.
+
+## Settings
+
+**⋯ › Settings** (`SettingsView`; the last row of every ⋯ panel, titled *Settings* like the row,
+*Done* closes it) holds every setting, on the Library's list style (cards on paper), top to
+bottom:
+
+- **Appearance**: *Theme* System / Light / Dark (the app's windows follow it) and *Color*:
+  Jade (the default), Harbor, Plum, Ember, Graphite: the accent and what is drawn from it (the
+  playing tint, letter tiles) on every screen (`AppAppearance`, UserDefaults `appearance.mode`,
+  `appearance.accent`).
+- **Reading**: the reading appearance above, with a sample of what is chosen.
+- **Listening**: the engines (Apple and the on-device ones: download, cancel, ✓, swipe to delete
+  a download), *Voice ›* and *Language ›* (pages of their own), and *Speed* in one line.
+- **Downloads & Storage**: *Downloads ›* (the Downloads list) and the listening audio kept on
+  the iPhone.
+- **Developer** (developer options only): *Listen Debug*, *Fake Extraction Failure* (the
+  browser's Reader fails until the app quits) and *Listen Debug Panel ›*.
+- The **version row** last.
+
 ## Developer options
 
-Debug tools are hidden in normal use: the ⋯ Debug rows (Browse "Debug ›" with Fake extraction
-failure; Reader, Now Playing and Library "Debug" → Listen debug panel), Voice
-settings → Listen debug (and Open full panel), the listen bar's Debug pill / bake overlay, and
-long-press ▶︎ → Listen debug panel. The entry points that open the full panel present the
-shell's `ShellSheet.listenDebug` (Browse's Debug › only fakes an extraction failure; the Debug pill
-toggles the bake overlay): the one sheet, or over Voice settings when they are up
-(`ShellState.overSheet`), which stay when it closes. They show only with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
+Debug tools are hidden in normal use: Settings › Developer (Listen debug, Fake extraction
+failure, Listen Debug Panel), the listen bar's Debug pill / bake overlay, and long-press ▶︎ →
+Listen debug panel. No ⋯ panel has a Debug row. The entry points that open the full panel
+present the shell's `ShellSheet.listenDebug` (the Debug pill toggles the bake overlay): the one
+sheet, or over Settings when it is up (`ShellState.overSheet`), which stays when it closes.
+They show only with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
 default in Release builds, on by default in Debug builds. To toggle in any build, long-press the
-**version row** at the bottom of Voice settings for 2 s (haptic + "Developer options on/off"
+**version row** at the bottom of Settings for 2 s (haptic + "Developer options on/off"
 confirmation). A Release build clears a stored "on" once, so a Debug pill left from an older build
 can't stick; long-press the version row to turn it back on. UI tests force it with
 `-reader.developerOptions NO|YES`. Launch-argument hooks and test-only markers compile only in
@@ -716,7 +760,8 @@ Debug builds (`App/LaunchOptions.swift`).
 | Browser → editing the address | ✕ round, right of the field | in place; tap outside or drag down |
 | Browser ⋯ / Reader ⋯ / Now Playing ⋯ / Library ⋯ | — | morph panel over the button (same design; rows per surface) |
 | ⋯ → Website (Reader, Now Playing) | — | closes the sheet (and leaves the library) and shows / loads the page in the browser; audio continues |
-| ⋯ → Voice Settings (`SpeechSettingsView`) | Done | `.sheet` |
+| ⋯ → Settings (`SettingsView`) | Done | `.sheet`; Voice, Language, Downloads push inside it |
+| Reader / Now Playing → Aa (`TextAppearanceControl`) | tap outside | popover from Aa |
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | Done (grabber) | `.sheet`, medium/large |
 | Band 📚 / Library (`LibrarySurface`): the home | 🌐 beside the Now Playing bar | in-place surface (shared bottom chrome); leave restores browse |
@@ -727,7 +772,7 @@ Debug builds (`App/LaunchOptions.swift`).
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
 | Reader sheet (`ReaderSheetScreen`): 📄, ⋯ → Reader, a Favorites tile, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface; pull the header down |
 | Now Playing (`NowPlayingScreen`): the bar, the Reader of the playing page, Listen, crash resume | *⌄ <playing from>* pill, top left | `Sheet` over everything; pull the header down |
-| Listen debug panel | Done | `.sheet` (over Voice settings when opened from them) |
+| Listen debug panel | Done | `.sheet` (over Settings when opened from it) |
 | Speed picker | — | popover |
 
 The browser's own ‹ / › are web-history buttons (the web view also has its edge swipes), not screens.

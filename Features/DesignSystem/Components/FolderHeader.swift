@@ -95,7 +95,7 @@ struct FolderHeader<Actions: View>: View {
         HStack(alignment: .firstTextBaseline, spacing: partSpacing) {
             ForEach(Array(progressLabel.enumerated()), id: \.offset) { index, part in
                 Text(part)
-                    .foregroundStyle(index == 0 ? DetailLine.leadInk(false) : DetailLine.restInk(false))
+                    .foregroundStyle(index == 0 ? DetailLine.leadInk(nil) : DetailLine.restInk(nil))
             }
         }
         .typeStyle(.caption)

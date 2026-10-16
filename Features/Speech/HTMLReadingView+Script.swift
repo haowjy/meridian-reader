@@ -101,7 +101,7 @@ extension HTMLReadingWebView {
             });
             // Highlight only: scrolling is Swift's (following, scrub).
             if (el) el.classList.add('reader-active');
-            // The player's lyrics style dims the rest only while a paragraph is spoken.
+            // The rest dims only while a paragraph is spoken.
             document.body.classList.toggle('reader-has-active', !!el);
           };
           // Document y: what the scroll view calls content y.

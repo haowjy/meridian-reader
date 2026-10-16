@@ -328,26 +328,26 @@ final class NowPlayingUITests: XCTestCase {
     }
 
     /// The status bar is readable (the clock at 4.5:1 or better against the strip under it) over
-    /// whatever is on top: dark on paper, light over Now Playing, over a sheet that comes over it
-    /// and goes, after leaving the app and coming back, and while a finger holds Now Playing part
-    /// way down (the dim lifts, a scrim under the status bar keeps the strip dark); dark again on
-    /// paper once it closes.
+    /// whatever is on top: dark on paper, light over Now Playing in a dark reading theme, over a
+    /// sheet that comes over it and goes, after leaving the app and coming back, and while a
+    /// finger holds Now Playing part way down (the dim lifts, a scrim under the status bar keeps
+    /// the strip dark); dark again on paper once it closes.
     func testTheStatusBarFollowsTheSurfaceOnTop() throws {
-        let app = launchLongDemo()
+        let app = launchLongDemo(["-reading.theme", "dark"])
         assertStatusBar(.dark, "on the Library's paper")
         openNowPlayingFromTheLibrary(app)
         assertStatusBar(.light, "over Now Playing")
 
         find(app, "nowPlayingMore").tap()
-        let voice = find(app, "moreVoice")
-        XCTAssertTrue(voice.waitForExistence(timeout: 3))
+        let settings = find(app, "moreSettings")
+        XCTAssertTrue(settings.waitForExistence(timeout: 3))
         idle(0.6)
-        voice.tap()
-        XCTAssertTrue(app.navigationBars["Voice Settings"].waitForExistence(timeout: 5), "Voice settings over Now Playing")
+        settings.tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5), "Settings over Now Playing")
         idle(1)
-        assertStatusBar(nil, "over Voice settings")
-        app.buttons["Done"].tap()
-        XCTAssertTrue(eventually(5) { !app.navigationBars["Voice Settings"].exists })
+        assertStatusBar(nil, "over Settings")
+        app.buttons["settingsDone"].tap()
+        XCTAssertTrue(eventually(5) { !app.navigationBars["Settings"].exists })
         assertStatusBar(.light, "on Now Playing again")
 
         XCUIDevice.shared.press(.home)
@@ -356,9 +356,10 @@ final class NowPlayingUITests: XCTestCase {
         XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 10))
         assertStatusBar(.light, "after coming back")
 
-        // Held a third of the way down, two seconds into the hold.
+        // Held a third of the way down, two seconds into the hold, by the header between the close
+        // pill and Aa.
         let header = find(app, "nowPlayingHeader").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .withOffset(CGVector(dx: 120, dy: 0))
+            .withOffset(CGVector(dx: 60, dy: 0))
         let held = try XCTUnwrap(screenshot(after: 2) {
             header.press(forDuration: 0.1, thenDragTo: header.withOffset(CGVector(dx: 0, dy: 300)),
                          withVelocity: .slow, thenHoldForDuration: 3.5)
@@ -385,9 +386,10 @@ final class NowPlayingUITests: XCTestCase {
     /// counts only if it shows the scrub bubble ("¶ n of 40") with n mid-article, and then the
     /// reading area must show no title card, paragraph n's lines in full ink (the title card's ink
     /// before the scrub) and the other paragraphs dimmed. Shots without the bubble were taken
-    /// before the finger came down or after it lifted, and are rejected, never passed.
+    /// before the finger came down or after it lifted, and are rejected, never passed. On the Dark
+    /// reading theme: the levels read light text on a dark page.
     func testTheParagraphUnderTheScrubThumbIsInFullInk() throws {
-        let app = launchLongDemo()
+        let app = launchLongDemo(["-reading.theme", "dark"])
         openNowPlayingFromTheLibrary(app)
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")

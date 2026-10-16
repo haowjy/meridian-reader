@@ -1,7 +1,8 @@
 import SwiftUI
 import UIKit
 
-/// Site icon on a rounded tile, or a colored letter tile when there's no (usable) icon.
+/// Site icon on a rounded tile, or a letter tile in the app's colour (`placeholderTile`, as every
+/// artwork without an image) when there's no (usable) icon.
 struct FavoriteIcon: View {
     let page: Page
     var size: CGFloat = 60
@@ -19,10 +20,10 @@ struct FavoriteIcon: View {
                     .clipShape(RoundedRectangle(cornerRadius: size * 0.1, style: .continuous))
             } else {
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .fill(tint.gradient)
+                    .fill(Palette.placeholderTile)
                 Text(letter)
                     .font(.system(size: size * 0.44, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Palette.placeholderInk)
             }
         }
         .frame(width: size, height: size)
@@ -40,11 +41,5 @@ struct FavoriteIcon: View {
         let source = page.title.first(where: { $0.isLetter || $0.isNumber })
             ?? page.byline.replacingOccurrences(of: "www.", with: "").first
         return source.map { String($0).uppercased() } ?? "?"
-    }
-
-    private var tint: Color {
-        let palette: [Color] = [.blue, .indigo, .purple, .pink, .orange, .teal, .green, .brown]
-        let hash = page.byline.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xFFFF }
-        return palette[hash % palette.count]
     }
 }

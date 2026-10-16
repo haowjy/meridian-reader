@@ -42,18 +42,18 @@ final class DesignConsistencyUITests: XCTestCase {
         XCTAssertTrue(find(app, "folderScreen").staticTexts["Demo Finance"].exists, "the header's title")
     }
 
-    /// Every ⋯ ends the same way, in the same order: Download, Voice Settings, Downloads. A book
-    /// names its own rows.
+    /// Every ⋯ ends the same way, in the same order: Download, Downloads, Settings. A book names
+    /// its own rows.
     func testMenusShareTheirTailAndNames() throws {
         let app = launchLibrary()
         app.buttons["libraryMore"].tap()
-        assertOrder(app, ["moreNewFolder", "moreVoice", "moreDownloads"], "the home's ⋯")
+        assertOrder(app, ["moreNewFolder", "moreDownloads", "moreSettings"], "the home's ⋯")
         dismissMenu(app)
 
         openFolder(app, "Demo Finance")
         app.buttons["libraryMore"].tap()
-        assertOrder(app, ["moreMove", "moreDeleteFolder", "moreDownload", "moreDeleteDownloads", "moreVoice",
-                          "moreDownloads"], "a folder's ⋯")
+        assertOrder(app, ["moreMove", "moreDeleteFolder", "moreDownload", "moreDeleteDownloads", "moreDownloads",
+                          "moreSettings"], "a folder's ⋯")
         XCTAssertEqual(find(app, "moreMove").label, "Move to…")
         XCTAssertEqual(find(app, "moreDownload").label, "Download Folder")
         dismissMenu(app)
@@ -86,12 +86,12 @@ final class DesignConsistencyUITests: XCTestCase {
         XCTAssertLessThanOrEqual(toast.frame.maxY, bar.frame.minY + 1, "toast \(toast.frame) above the bar \(bar.frame)")
     }
 
-    /// History, Downloads and Voice Settings close with the same Done pill.
+    /// History, Downloads and Settings close with the same Done pill.
     func testSheetsShareOneDoneButton() throws {
         let app = launchLibrary()
         var heights: [String: CGFloat] = [:]
         for (row, done) in [("moreHistory", "historyDone"), ("moreDownloads", "downloadsDone"),
-                            ("moreVoice", "voiceSettingsDone")] {
+                            ("moreSettings", "settingsDone")] {
             app.buttons["libraryMore"].tap()
             tapMenuRow(app, row)
             let button = app.buttons[done]

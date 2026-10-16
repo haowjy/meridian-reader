@@ -18,6 +18,10 @@ struct RootView: View {
             }
             .animation(Motion.snappy, value: speech.localTTS.engineCrashNotice)
             .environment(\.playingBarsMove, Self.playingBarsMove)
+            // The app's colour for system controls (`Palette.accent` reads the theme, so this
+            // follows a change in Settings), and its appearance on every window.
+            .tint(Palette.accent)
+            .onAppear { AppAppearance.shared.applyToWindows() }
     }
 
     #if DEBUG
@@ -37,7 +41,7 @@ struct EngineNoticeBanner: View {
     var body: some View {
         HStack(spacing: Spacing.xs) {
             Image(systemName: Icons.warning)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Palette.caution)
             Text(text)
                 .typeStyle(.caption)
                 .lineLimit(text.count <= 64 ? 1 : 3)

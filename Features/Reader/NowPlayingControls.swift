@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Now Playing's bottom band (on the player palette), top to bottom: the status notes (buffering, the Apple-fallback and
+/// Now Playing's bottom band (in the reading theme's colours), top to bottom: the status notes (buffering, the Apple-fallback and
 /// language notes, the developer Debug chip; "✓ Finished" is the title card's), the scrub row (sentence-precise
 /// scrubber, the speed at its end) and the transport row (🔖 and ⋯ in the Reader's slots). Notes sit above the scrubber so appearing text
 /// never pushes it when you skip.
@@ -19,9 +19,9 @@ struct NowPlayingControls: View {
     /// Paragraph under the scrub thumb while dragging (nil when the drag ends).
     let onScrubPreview: (Int?) -> Void
 
-    /// The debug chip's text, and its fill while on (`ColorContrastTests` checks these).
-    static let debugChipText = Palette.playerInk
-    static let debugChipOnFill = Palette.playerAccentWash
+    @Environment(\.readingPalette) private var reading
+
+    private var palette: ReadingPalette { reading ?? .app }
 
     /// The same fact the title card reads for its "✓ Finished".
     private var isFinished: Bool { speech.nowPlaying?.isFinished == true }
@@ -83,11 +83,11 @@ struct NowPlayingControls: View {
                 } label: {
                     Text(speech.showBakeDebugOverlay ? "Debug ▾" : "Debug")
                         .typeStyle(.caption, weight: .semibold)
-                        .foregroundStyle(Self.debugChipText)
+                        .foregroundStyle(palette.ink)
                         .padding(.horizontal, Spacing.xs)
                         .padding(.vertical, Spacing.xxs)
                         .background(
-                            Capsule().fill(speech.showBakeDebugOverlay ? Self.debugChipOnFill : Palette.playerCard)
+                            Capsule().fill(speech.showBakeDebugOverlay ? palette.highlight : palette.card)
                         )
                 }
                 .buttonStyle(.plain)
@@ -108,7 +108,7 @@ struct NowPlayingControls: View {
                 Spacer(minLength: 0)
             }
             .typeStyle(.caption)
-            .foregroundStyle(Palette.playerSecondaryInk)
+            .foregroundStyle(palette.secondaryInk)
             .padding(.horizontal, Spacing.xs)
             .accessibilityIdentifier("listenBuffering")
         } else if let renderNote = speech.renderNote {
@@ -121,7 +121,7 @@ struct NowPlayingControls: View {
     private func note(_ text: String, id: String) -> some View {
         Text(text)
             .typeStyle(.caption)
-            .foregroundStyle(Palette.playerSecondaryInk)
+            .foregroundStyle(palette.secondaryInk)
             .lineLimit(1)
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)

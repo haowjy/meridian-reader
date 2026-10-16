@@ -28,13 +28,13 @@ extension View {
 }
 
 extension View {
-    /// A component as it sits on the player (Now Playing): on `background` (the band's
-    /// `playerChrome` unless said), with the player's environment.
-    func onPlayerPreview(_ background: Color = Palette.playerChrome) -> some View {
-        padding(Spacing.s)
-            .background(background, in: RoundedRectangle(cornerRadius: Radius.card))
-            .environment(\.colorScheme, .dark)
-            .environment(\.onPlayerPalette, true)
+    /// A component as it sits on the reading page (the Reader, Now Playing) in `theme`: on its
+    /// background, with its environment.
+    func onReadingPreview(_ theme: ReadingTheme = .dark) -> some View {
+        let palette = theme.palette(accent: AppAppearance.shared.accent)
+        return padding(Spacing.s)
+            .background(palette.background, in: RoundedRectangle(cornerRadius: Radius.card))
+            .readingSurface(palette)
     }
 }
 
@@ -72,41 +72,41 @@ struct PreviewState<Content: View>: View {
         }
     }
 }
-/// Stand-in reading text for the sheets' previews: serif paragraphs, the second spoken (its
-/// sentence underlined) when `spoken` is on, in the page's `look`:
-/// - paper: under a heading, the spoken paragraph tinted;
-/// - player: under the title card, lyrics style (the spoken paragraph in full ink, the others
-///   dimmed).
+/// Stand-in reading text for the sheets' previews: paragraphs in the reading page's colours
+/// (`readingPalette`, the app's when unset), under a heading or, with `card`, Now Playing's title
+/// card. With `spoken` the second paragraph is spoken: on the highlight in full ink, its sentence
+/// underlined, the others dimmed.
 struct SampleReading: View {
     let title: String
     let detail: [String]
     var spoken = false
-    var look: ReadingStyle.Look = .paper
+    var card = false
+
+    @Environment(\.readingPalette) private var reading
 
     var body: some View {
-        let player = look == .player
-        let dimmed = player && spoken ? Palette.playerDimInk : (player ? Palette.playerInk : Palette.ink)
-        let ink = player ? Palette.playerInk : Palette.ink
+        let palette = reading ?? .app
+        let other = spoken ? palette.dimInk : palette.ink
         VStack(alignment: .leading, spacing: Spacing.m) {
-            if player {
-                TitleCard(title: title, detail: detail, artworkLetter: title)
+            if card {
+                TitleCard(title: title, detail: detail, artworkLetter: title, palette: palette)
                     .padding(.horizontal, Spacing.m - Spacing.pageMargin)
                     .padding(.bottom, Spacing.l - Spacing.m)
             } else {
                 ReadingHeading(title: title, detail: detail)
             }
             Text("Tides rise and fall twice a day along most coasts, pulled by the moon and, more weakly, the sun.")
-                .foregroundStyle(dimmed)
-            (Text("Where a bay narrows, the water piles up.").underline(spoken, color: player ? ink : Palette.accent)
+                .foregroundStyle(other)
+            (Text("Where a bay narrows, the water piles up.").underline(spoken, color: palette.underline)
                 + Text(" The difference between high and low water can reach several metres."))
-                .foregroundStyle(ink)
-                .padding(.vertical, spoken && !player ? Spacing.xs : 0)
-                .padding(.horizontal, spoken && !player ? Spacing.s : 0)
-                .background(spoken && !player ? Palette.playingTint : Color.clear,
-                            in: RoundedRectangle(cornerRadius: Radius.card))
-                .padding(.horizontal, spoken && !player ? -Spacing.s : 0)
+                .foregroundStyle(palette.ink)
+                .padding(.vertical, spoken ? Spacing.xs : 0)
+                .padding(.horizontal, spoken ? Spacing.xs : 0)
+                .background(spoken ? palette.highlight : Color.clear,
+                            in: RoundedRectangle(cornerRadius: Spacing.xs))
+                .padding(.horizontal, spoken ? -Spacing.xs : 0)
             Text("Fishermen read the tables the way farmers read the weather.")
-                .foregroundStyle(dimmed)
+                .foregroundStyle(other)
         }
         .typeStyle(.body)
         .padding(.horizontal, Spacing.pageMargin)

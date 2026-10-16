@@ -5,20 +5,21 @@ import SwiftUI
 /// ```
 /// ┌──────────────────────────────────────┐
 /// │                 ───                  │ ← grabber
-/// │ ( ‹ Browser )                  (☝︎)  │ ← `SheetTopBar`: the close pill names what is
-/// │ … `text`: ReadingHeading, then serif │   underneath; `accessory` (☝︎)
-/// │   text on paper …                    │
+/// │ ( ‹ Browser )             (Aa) (☝︎)  │ ← `SheetTopBar`: the close pill names what is
+/// │ … `text`: ReadingHeading, then the   │   underneath; `textAppearance` (Aa), `accessory` (☝︎)
+/// │   text in the reading theme …        │
 /// │ ╭ `bar` (the Now Playing bar) ─────╮ │ ← what you hear (always another page)
 /// │ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]    │ ← this page's own play button over slots 2–4
 /// └──────────────────────────────────────┘
 /// ```
 ///
-/// Now Playing (`NowPlayingSheet`) has the same top bar and the same 🔖 and ⋯ slots, so the
-/// controls stay put as Listen turns one into the other. The close pill, the grabber and a pull
+/// Now Playing (`NowPlayingSheet`) has the same top bar, the same 🔖 and ⋯ slots and the same
+/// colours (`palette`, the reading theme), so the controls stay put as Listen turns one into the
+/// other. The close pill, the grabber and a pull
 /// down all close it (`onClose`, after it has gone). 🔖 saves (tap) or files (long-press,
 /// `onSaveToFolder`). `more` is the ⋯ button. `floating` floats just above the bottom band (a
 /// toast).
-struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View, Floating: View>: View {
+struct ReaderSheet<Reading: View, Bar: View, More: View, TextAppearance: View, Accessory: View, Floating: View>: View {
     /// What is underneath: "Browser", "Library".
     let backTitle: String
     let listenTitle: String
@@ -30,6 +31,10 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View, Floati
     let onListen: () -> Void
     let onToggleSave: () -> Void
     var onSaveToFolder: (() -> Void)?
+    /// The reading theme's colours.
+    var palette: ReadingPalette = .app
+    /// Aa (`TextAppearanceButton` and its panel), just before `accessory`.
+    @ViewBuilder var textAppearance: TextAppearance
     /// The control at the trailing end of the top bar (☝︎, `JumpModeButton`).
     @ViewBuilder var accessory: Accessory
     @ViewBuilder var text: Reading
@@ -38,8 +43,11 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View, Floati
     @ViewBuilder var floating: Floating
 
     var body: some View {
-        Sheet(onDismiss: onClose) {
-            SheetTopBar { SheetClosePill(kind: .back(backTitle)) } trailing: { accessory }
+        Sheet(onDismiss: onClose, palette: palette) {
+            SheetTopBar { SheetClosePill(kind: .back(backTitle)) } trailing: {
+                textAppearance
+                accessory
+            }
         } content: {
             text
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -53,6 +61,7 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View, Floati
                                             action: onListen)
                                 .accessibilityIdentifier("listenPlayPause")
                             more
+                                .foregroundStyle(palette.ink)
                         }
                     }
                     .bottomChromeBand()
@@ -67,7 +76,7 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, Accessory: View, Floati
     }
 }
 
-extension ReaderSheet where Accessory == EmptyView, Floating == EmptyView {
+extension ReaderSheet where TextAppearance == EmptyView, Accessory == EmptyView, Floating == EmptyView {
     init(backTitle: String, listenTitle: String, listenDetail: String? = nil, listenState: PlayState, isSaved: Bool,
          onClose: @escaping () -> Void, onListen: @escaping () -> Void, onToggleSave: @escaping () -> Void,
          onSaveToFolder: (() -> Void)? = nil, @ViewBuilder text: () -> Reading, @ViewBuilder bar: () -> Bar,
@@ -75,7 +84,7 @@ extension ReaderSheet where Accessory == EmptyView, Floating == EmptyView {
         self.init(backTitle: backTitle, listenTitle: listenTitle, listenDetail: listenDetail, listenState: listenState,
                   isSaved: isSaved,
                   onClose: onClose, onListen: onListen, onToggleSave: onToggleSave, onSaveToFolder: onSaveToFolder,
-                  accessory: { EmptyView() }, text: text, bar: bar, more: more, floating: { EmptyView() })
+                  textAppearance: { EmptyView() }, accessory: { EmptyView() }, text: text, bar: bar, more: more, floating: { EmptyView() })
     }
 }
 
@@ -85,11 +94,13 @@ struct ReadingHeading: View {
     /// ["example.org", "9 min"], spaced apart (`DetailLine`).
     let detail: [String]
 
+    @Environment(\.readingPalette) private var reading
+
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(title)
                 .typeStyle(.title)
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(reading?.ink ?? Palette.ink)
                 .accessibilityAddTraits(.isHeader)
             DetailLine(detail)
                 .typeStyle(.caption)

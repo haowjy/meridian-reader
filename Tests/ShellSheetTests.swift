@@ -11,21 +11,21 @@ final class ShellSheetTests: XCTestCase {
         XCTAssertNil(shell.overSheet)
     }
 
-    /// Voice settings' *Open full panel*: the panel over Voice settings, which stay when it closes.
+    /// Settings › Developer › Listen Debug Panel: the panel over Settings, which stay when it closes.
     func testTheDebugPanelShowsOverASheetAndClosesBackToIt() {
         let shell = ShellState()
-        shell.present(.voiceSettings)
+        shell.present(.settings)
         shell.present(.listenDebug)
-        XCTAssertEqual(shell.sheet, .voiceSettings)
+        XCTAssertEqual(shell.sheet, .settings)
         XCTAssertEqual(shell.overSheet, .listenDebug)
 
         shell.overSheet = nil
-        XCTAssertEqual(shell.sheet, .voiceSettings, "Voice settings stay")
+        XCTAssertEqual(shell.sheet, .settings, "Settings stay")
     }
 
     func testTheSheetUnderneathTakesTheOneOverItAlong() {
         let shell = ShellState()
-        shell.present(.voiceSettings)
+        shell.present(.settings)
         shell.present(.listenDebug)
         shell.sheet = nil
         XCTAssertNil(shell.overSheet)
@@ -33,7 +33,7 @@ final class ShellSheetTests: XCTestCase {
 
     func testOtherSheetsReplaceTheOneUp() {
         let shell = ShellState()
-        shell.present(.voiceSettings)
+        shell.present(.settings)
         shell.present(.downloads)
         XCTAssertEqual(shell.sheet, .downloads)
         XCTAssertNil(shell.overSheet)

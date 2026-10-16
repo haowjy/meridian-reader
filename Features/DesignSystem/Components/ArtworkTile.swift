@@ -14,12 +14,13 @@ struct ArtworkTile: View {
     /// `placeholderTile` instead, which reads on chrome and paper alike.
     var fill = Palette.chrome
 
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: size * (isCover ? 0.06 : 0.22), style: .continuous)
         ZStack {
-            shape.fill(onPlayer ? Palette.playerTrack : image == nil ? Palette.placeholderTile : fill)
+            // On the reading page the tile takes its track, so it sits quietly in any reading theme.
+            shape.fill(reading.map { $0.track } ?? (image == nil ? Palette.placeholderTile : fill))
             if let image {
                 image
                     .resizable()
@@ -27,7 +28,7 @@ struct ArtworkTile: View {
             } else {
                 Text(letter.prefix(1).uppercased())
                     .font(.system(size: size * 0.45, weight: .semibold))
-                    .foregroundStyle(onPlayer ? Palette.playerSecondaryInk : Palette.placeholderInk)
+                    .foregroundStyle(reading?.secondaryInk ?? Palette.placeholderInk)
             }
         }
         .frame(width: size, height: isCover ? size * 1.45 : size)

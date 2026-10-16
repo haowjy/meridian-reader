@@ -253,11 +253,6 @@ struct ReaderScrubRow<Trailing: View>: View {
 
 /// The scrub bubble while dragging, handed up from `ReaderScrubRow` to the band that draws it.
 struct ReaderScrubBubble {
-    /// The bubble's card, and the speed chip's text on its solid fill (`ColorContrastTests`
-    /// checks these).
-    static let card = Palette.playerCard
-    static let chipText = Palette.onPlayerAccent
-    static let chipFill = Palette.playerAccent
 
     let map: ReaderScrubMap
     let target: ReaderScrubMap.Target
@@ -306,10 +301,14 @@ extension View {
 }
 
 /// Speed chip, then the paragraph and the sentence (spaced apart, the sentence in secondary ink)
-/// over the sentence's first words, on a player card. The text wraps rather than truncating at
-/// large text sizes.
+/// over the sentence's first words, on the reading page's card. The text wraps rather than
+/// truncating at large text sizes.
 private struct ReaderScrubBubbleView: View {
     let bubble: ReaderScrubBubble
+
+    @Environment(\.readingPalette) private var reading
+
+    private var palette: ReadingPalette { reading ?? .app }
 
     var body: some View {
         let map = bubble.map
@@ -318,23 +317,23 @@ private struct ReaderScrubBubbleView: View {
             if let chip = bubble.speed.chip {
                 Text(chip)
                     .typeStyle(.caption, weight: .bold)
-                    .foregroundStyle(ReaderScrubBubble.chipText)
+                    .foregroundStyle(palette.onAccent)
                     .padding(.horizontal, Spacing.xs)
                     .padding(.vertical, Spacing.xxs)
-                    .background(ReaderScrubBubble.chipFill, in: Capsule())
+                    .background(palette.accent, in: Capsule())
                     .accessibilityLabel(bubble.speed.label ?? chip)
                     .accessibilityIdentifier("readerScrubSpeed")
             }
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 header(t, map: map)
                     .typeStyle(.caption, weight: .semibold)
-                    .foregroundStyle(Palette.playerInk)
+                    .foregroundStyle(palette.ink)
                     .monospacedDigit()
                     .fixedSize(horizontal: false, vertical: true)
                 Text(map.snippet(for: t))
                     .typeStyle(.caption)
                     .lineLimit(2)
-                    .foregroundStyle(Palette.playerInk)
+                    .foregroundStyle(palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("readerScrubSnippet")
             }
@@ -342,8 +341,9 @@ private struct ReaderScrubBubbleView: View {
         }
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.xs)
-        .background(ReaderScrubBubble.card, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
+        .background(palette.card, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(palette.hairline, lineWidth: 1))
+        .shadow(color: Palette.scrim.opacity(0.12), radius: 8, y: 2)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("readerScrubBubble")
     }
@@ -353,7 +353,7 @@ private struct ReaderScrubBubbleView: View {
         return DetailLineLayout {
             Text("¶ \(t.paragraph + 1) of \(map.paragraphCount)")
             if sentences > 1 {
-                Text("sentence \(t.sentence + 1) of \(sentences)").foregroundStyle(Palette.playerSecondaryInk)
+                Text("sentence \(t.sentence + 1) of \(sentences)").foregroundStyle(palette.secondaryInk)
             }
         }
     }

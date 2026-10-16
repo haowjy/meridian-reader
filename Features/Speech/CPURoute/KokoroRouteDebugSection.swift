@@ -56,7 +56,7 @@ struct KokoroRouteDebugSection: View {
         guard tts.activeLocalEngineID == .kokoro, let r = tts.synth.hostRouteTag.flatMap(KokoroRoute.init(rawValue:)) else {
             return "not loaded (\(kokoro?.routeSettings.route.label ?? "—") next)"
         }
-        return "\(r.label) · \(tts.synth.hostRoutingLabel ?? "")"
+        return "\(r.label), \(tts.synth.hostRoutingLabel ?? "")"
     }
 
     private var paceLabel: String {
