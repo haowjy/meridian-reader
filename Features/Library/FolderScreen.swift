@@ -145,10 +145,10 @@ private struct FolderContentsList: View {
         let style: FolderHeaderStyle = folder.hasDetails ? .detailed(cover: folder.coverImage) : .folder
         let detail = [folder.byline].compactMap { $0 } + counts
         Group {
-            if case let playback = progress(of: folder), playback.hasPagesToPlay {
+            if case let playback = actions.progress(of: folder, pages: pages), playback.hasPagesToPlay {
                 let bar = playback.header
                 FolderHeader(style: style, title: title, detail: detail, progress: bar.fraction, progressLabel: bar.label) {
-                    FolderPlayButtons(folder: folder, title: continueTitle(folder, playback), actions: actions)
+                    FolderPlayButtons(folder: folder, title: playback.buttonTitle, actions: actions)
                 }
             } else {
                 FolderHeader(style: style, title: title, detail: detail) { EmptyView() }
@@ -179,21 +179,6 @@ private struct FolderContentsList: View {
     #else
     private func headerLookMarker(_ style: FolderHeaderStyle) -> some View { EmptyView() }
     #endif
-
-    /// Where the folder is in its pages (the ones on screen, in this order).
-    private func progress(of folder: Folder) -> FolderProgress {
-        let playing = actions.playState(of: folder).isCurrent ? speech.activeSessionID : nil
-        return FolderProgress(folder: folder, pages: pages, playingKey: playing, library: library)
-    }
-
-    /// The round button's title and the lighter place after it: "Continue" "3 of 7", "Playing"
-    /// "3 of 7"; "Play" before anything in it has played.
-    private func continueTitle(_ folder: Folder, _ progress: FolderProgress) -> (title: String, detail: String?) {
-        let place = progress.number.map { "\($0) of \(progress.playingCount)" }
-        if actions.playState(of: folder).isCurrent { return (String(localized: "Playing"), place) }
-        if folder.currentPageKey == nil { return (String(localized: "Play"), nil) }
-        return (String(localized: "Continue"), place)
-    }
 
     /// ["2 folders", "7 pages"].
     private var counts: [String] {

@@ -164,6 +164,7 @@
 		64001F180E03972BB38B7DC8 /* LibraryAudioWork.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B114B6E15DB4EDC14820DA9 /* LibraryAudioWork.swift */; };
 		6420EE59F9DCFC4850D3E2EB /* SubParagraphSeekTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B5485A6E490094ABC90494C /* SubParagraphSeekTests.swift */; };
 		6463BC23BBC8C09505912165 /* LaunchHooks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66E2C1F8CB7C2F6D4A8A8F5F /* LaunchHooks.swift */; };
+		646FFE46263C99AC4A6B513A /* FolderProgressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0361163A3E81395E4DC506 /* FolderProgressTests.swift */; };
 		66546EA17DBBBC3720D00BFC /* FirstChunkBoundaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC37C69DFA5F0EBC54440BE1 /* FirstChunkBoundaryTests.swift */; };
 		665E4E0228D53D8C33B080F7 /* LibrarySaveFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D50629D84929DCF837404EB /* LibrarySaveFailureTests.swift */; };
 		66C52251A276E277D1E579A5 /* ReaderVisibleSnapshot.js in Resources */ = {isa = PBXBuildFile; fileRef = 6E3534969B150DEFBAF525EA /* ReaderVisibleSnapshot.js */; };
@@ -687,6 +688,7 @@
 		7C985432D57E798FF10FC0A0 /* LibraryStore+Tree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryStore+Tree.swift"; sourceTree = "<group>"; };
 		7D39B2D10756EB4118477C76 /* BookFolderUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookFolderUITests.swift; sourceTree = "<group>"; };
 		7D89382699C18C70046328D8 /* SynthQueueContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynthQueueContext.swift; sourceTree = "<group>"; };
+		7F0361163A3E81395E4DC506 /* FolderProgressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderProgressTests.swift; sourceTree = "<group>"; };
 		7F2EBDAEA5A6CBE28EB592CD /* LaunchMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchMigration.swift; sourceTree = "<group>"; };
 		7F631C657AFED2226EF80F5D /* LibraryHomeQueriesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryHomeQueriesTests.swift; sourceTree = "<group>"; };
 		7FA90CAA557380DFD7094335 /* FolderDetailsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderDetailsSheet.swift; sourceTree = "<group>"; };
@@ -1267,6 +1269,7 @@
 				677FD20C04B422A798710C72 /* FolderDeletePromptTests.swift */,
 				5E94EC4DA78A42643D6B6345 /* FolderDeleteTests.swift */,
 				1FCB8C07B9103BC06876BDC4 /* FolderDetailsTests.swift */,
+				7F0361163A3E81395E4DC506 /* FolderProgressTests.swift */,
 				9482543C04F68CAE8131606C /* LibraryAudioWorkTests.swift */,
 				9E7C76CFAD6758EF7F0F6CE7 /* LibraryDedupeTests.swift */,
 				97EA1781509E12996FBE67D0 /* LibraryDragTests.swift */,
@@ -2225,6 +2228,7 @@
 				F5CF021D7C13EDE665F86885 /* FolderDeletePromptTests.swift in Sources */,
 				C9ED9A89FCEB05FCE60FB913 /* FolderDeleteTests.swift in Sources */,
 				9C046F79A6E6AA49C149E546 /* FolderDetailsTests.swift in Sources */,
+				646FFE46263C99AC4A6B513A /* FolderProgressTests.swift in Sources */,
 				D423DDF56A49DB4181DD5E08 /* GlobalSynthQueueStagingTests.swift in Sources */,
 				59422CC13D0A8C9FD2CE38D2 /* HierarchicalChunkerTests.swift in Sources */,
 				573BFC327CBE17CC4C7FC95B /* JumpModeSemanticsTests.swift in Sources */,

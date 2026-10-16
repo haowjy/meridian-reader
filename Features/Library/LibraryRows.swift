@@ -169,7 +169,7 @@ struct LibraryFolderRow: View {
 
     @ViewBuilder private var liveBody: some View {
         let pages = playOrder
-        let progress = folderProgress(pages)
+        let progress = actions.progress(of: folder, pages: pages)
         opening(row(progress, isDownloaded: downloads.isDownloaded(folder, pages: pages)))
             .accessibilityIdentifier("folderRow")
             .libraryDropRow(.folder(folder.id), in: screen)
@@ -198,13 +198,6 @@ struct LibraryFolderRow: View {
         }
     }
 
-    /// Where it is in `pages`, its pages in play order.
-    private func folderProgress(_ pages: [Page]) -> FolderProgress {
-        let state = actions.playState(of: folder)
-        return FolderProgress(folder: folder, pages: pages, playingKey: state.isCurrent ? speech.activeSessionID : nil,
-                              library: library)
-    }
-
     /// Its pages in play order, from the relationship (sorted here as `LibraryStore.playOrder`
     /// sorts, so a home with a long series doesn't fetch on every redraw).
     private var playOrder: [Page] {
@@ -218,17 +211,13 @@ struct LibraryFolderRow: View {
         (folder.pages ?? []).filter(\.isLive)
     }
 
-    private func plays(_ progress: FolderProgress) -> Bool {
-        progress.hasPagesToPlay
-    }
-
     @ViewBuilder
     private func row(_ progress: FolderProgress, isDownloaded: Bool) -> some View {
         let kind = ListRow.Kind.folder(symbol: folder.rowSymbol, count: folder.itemCount,
                                        cover: folder.hasDetails ? folder.coverImage : nil)
         let isDropTarget = screen.dropTarget == folder.id
         let edge = screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil
-        if plays(progress) {
+        if progress.hasPagesToPlay {
             ListRow(kind: kind, title: folder.displayName, subtitle: location ?? place(progress), progress: rowProgress(progress),
                     playState: actions.playState(of: folder), opensScreen: true,
                     onPlay: isEditing ? nil : { actions.playFolder(folder) }, isDropTarget: isDropTarget,
@@ -252,8 +241,7 @@ struct LibraryFolderRow: View {
     /// Once it has a place: the title of the page it is at. Before that (and once finished), its
     /// byline: a book's author, a series' site, the author given in its details.
     private func place(_ progress: FolderProgress) -> String? {
-        let started = folder.currentPageKey != nil || progress.fraction != nil
-        guard started, !progress.isFinished, let key = progress.currentKey else { return folder.byline }
+        guard progress.hasStarted, !progress.isFinished, let key = progress.currentKey else { return folder.byline }
         return livePages.first { $0.listenKey == key }?.title ?? folder.byline
     }
 
@@ -269,7 +257,7 @@ struct LibraryFolderRow: View {
         if let onSelect {
             Button("Select", systemImage: Icons.select, action: onSelect)
         }
-        if plays(progress) {
+        if progress.hasPagesToPlay {
             Button("Continue", systemImage: Icons.play) { actions.playFolder(folder) }
             Button("Play from Start", systemImage: Icons.previous) { actions.playFolderFromStart(folder) }
         }

@@ -64,6 +64,13 @@ struct LibraryActions {
         speech.playState(of: .folder(folder.id))
     }
 
+    /// What `folder`'s row and its header show, `pages` being its pages in play order: with the
+    /// page playing when one of them is what you hear.
+    func progress(of folder: Folder, pages: [Page]) -> FolderProgress {
+        FolderProgress(folder: folder, pages: pages,
+                       playingKey: playState(of: folder).isCurrent ? speech.activeSessionID : nil, library: library)
+    }
+
     /// A folder's ▶ and its screen's round button (a book, a series, Favorites, a folder you
     /// made): pause or resume while one of its pages is what you hear; otherwise Continue from
     /// its place (`LibraryStore.continueStart`), carrying on page to page in its order.

@@ -33,7 +33,8 @@ enum PageProgress {
 
 /// A folder as its row and its screen show it (any folder whose pages play, a book or series too):
 /// the page Continue resumes (or the one playing), its number among the pages that play, how far
-/// through they are, and what's left.
+/// through they are, and what's left. Built once by `LibraryActions.progress(of:pages:)`, so the
+/// row and the header agree.
 struct FolderProgress {
     /// The page Continue resumes, or the one playing.
     let currentKey: UUID?
@@ -49,12 +50,18 @@ struct FolderProgress {
     let hasPagesToPlay: Bool
     /// Every page with text that plays is finished.
     let isFinished: Bool
+    /// Something in it has played, or is finished or part-way: the row names its place and the
+    /// header's button says *Continue*; before that, its byline and *Play*.
+    let hasStarted: Bool
+    /// One of its pages is what you hear.
+    let isPlaying: Bool
 
     /// `pages` in play order (`LibraryStore.playOrder`); `playingKey`: the page playing, when one
     /// of this folder's is what you hear.
     @MainActor
     init(folder: Folder, pages: [Page], playingKey: UUID?, library: LibraryStore) {
         let snapshot = library.chapterSnapshot(of: folder, pages: pages)
+        isPlaying = playingKey != nil
         if let playingKey {
             currentKey = playingKey
         } else {
@@ -81,6 +88,16 @@ struct FolderProgress {
         minutesLeft = left
         let started = timed.contains { $0.finishedAt != nil || PageProgress.isPartWay($0) }
         fraction = total > 0 && started ? 1 - Double(left) / Double(total) : nil
+        hasStarted = folder.currentPageKey != nil || fraction != nil
+    }
+
+    /// The header's round button and the lighter place after it: "Continue" "3 of 7", "Playing"
+    /// "3 of 7"; "Play" before anything in it has started.
+    var buttonTitle: (title: String, detail: String?) {
+        let place = number.map { "\($0) of \(playingCount)" }
+        if isPlaying { return (String(localized: "Playing"), place) }
+        if !hasStarted { return (String(localized: "Play"), nil) }
+        return (String(localized: "Continue"), place)
     }
 
     /// The header's bar and ["38%", "6 h 10 min left"], once a page is finished or part-way.
