@@ -17,20 +17,31 @@ struct RootView: View {
                 }
             }
             .animation(Motion.snappy, value: speech.localTTS.engineCrashNotice)
-            .environment(\.playingBarsMove, Self.playingBarsMove)
             // The app's colour for system controls (`Palette.accent` reads the theme, so this
             // follows a change in Settings), and its appearance on every window.
             .tint(Palette.accent)
             .onAppear { AppAppearance.shared.applyToWindows() }
+            #if DEBUG
+            .modifier(LaunchTestHooks(options: .current))
+            #endif
     }
-
-    #if DEBUG
-    /// UI tests (`-uiTesting`): still playing bars, so the app can go idle between test steps.
-    private static let playingBarsMove = !LaunchOptions.current.uiTesting
-    #else
-    private static let playingBarsMove = true
-    #endif
 }
+
+#if DEBUG
+/// What the launch arguments ask of the views for UI tests and screenshot runs: still playing
+/// bars (`-uiTesting`, so the app can go idle between test steps) and the ⋯ panel's focus marker,
+/// and the ⋯ morph slowed (`-slowMenuAnimation`).
+private struct LaunchTestHooks: ViewModifier {
+    let options: LaunchOptions
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.playingBarsMove, !options.uiTesting)
+            .environment(\.morphMenuMarksFocus, options.uiTesting)
+            .environment(\.morphMenuAnimation, options.slowMenuAnimation ? .easeInOut(duration: 3) : Motion.standard)
+    }
+}
+#endif
 
 /// One-line, dismissible notice (e.g. "Kokoro stopped unexpectedly; resumed on the stable route.").
 /// The ✕ fills a 44 pt square at the trailing end, so the banner is at least that tall.
