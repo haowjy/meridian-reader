@@ -41,7 +41,8 @@ struct LaunchOptions: Equatable {
     var opensLibrary = false
     /// `-browseTestPages`: serve and open the offline `reader-test://` pages.
     var servesTestPages = false
-    /// `-seedBookmarks`: a few starred links.
+    /// `-seedBookmarks`: a few starred `example.com` links whose icons stay letter tiles (no
+    /// fetch).
     var seedsBookmarks = false
     /// `-bakeArticle <id prefix>`: render that saved article's audio top-down without playing.
     var bakeArticlePrefix: String?

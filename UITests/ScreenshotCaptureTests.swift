@@ -208,7 +208,7 @@ final class ScreenshotCaptureTests: XCTestCase {
 
     /// The start page, the ⋯ menu, Favorites, the Library and its Reader, the Now Playing bar on
     /// the Library and on the start page, and Now Playing. Offline: the demo article and the seeded
-    /// favorites (their icons are letter tiles without the network).
+    /// favorites (`example.com` links whose icons stay letter tiles: nothing is fetched).
     func testBrowserSurfaces() throws {
         let app = launch(["-seedBookmarks", "-seedDemoArticle", "-seedDemoParagraphs", "12"])
         idle(2)

@@ -298,17 +298,21 @@ enum LaunchHooks {
         speech.localTTS.startBakeIfNeeded(articleID: page.listenKey, paragraphs: paragraphs)
     }
 
-    /// `-seedBookmarks`: a few starred links.
+    /// `-seedBookmarks`: five starred links on `example.com` hosts. They count as this launch's
+    /// icon fetch already tried (`LibraryStore.iconTried`), so their icons stay letter tiles and
+    /// nothing goes to the network for them.
     static func seedBookmarks(in library: LibraryStore) {
         let seeds = [
-            ("https://www.gutenberg.org/", "Project Gutenberg"),
-            ("https://en.wikipedia.org/wiki/Speech_synthesis", "Speech synthesis"),
-            ("https://news.ycombinator.com/", "Hacker News"),
-            ("https://www.theverge.com/", "The Verge"),
+            ("https://books.example.com/", "Public Domain Books"),
+            ("https://wiki.example.com/Speech_synthesis", "Speech synthesis"),
+            ("https://news.example.com/", "News Front Page"),
+            ("https://tech.example.com/", "Tech Review"),
             ("https://example.com/", "Example"),
         ]
-        for (url, title) in seeds {
-            if let url = URL(string: url) { _ = try? library.addFavorite(url: url, title: title, artwork: nil) }
+        for (address, title) in seeds {
+            guard let url = URL(string: address), let page = try? library.addFavorite(url: url, title: title, artwork: nil),
+                  let key = page.key else { continue }
+            library.iconTried.insert(key)
         }
     }
 
