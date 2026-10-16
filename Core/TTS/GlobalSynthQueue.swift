@@ -887,15 +887,17 @@ final class GlobalSynthQueue {
         for cont in conts { cont.resume(returning: .chunk(url)) }
     }
 
-    /// Paragraph finished: any chunk waiter of it gets a chunk file if kept, else the stitched
-    /// paragraph at that chunk's offset.
+    /// Paragraph finished: any chunk waiter of it gets the stitched paragraph at that chunk's
+    /// offset. One whose paragraph can't be found in what renders now is failed (the producer
+    /// asks again), never dropped: a dropped continuation would hang its producer for good.
     private func resumeChunkWaitersWithParagraph(cacheKey: UUID, index: Int) {
         let keys = chunkWaiters.keys.filter { $0.cacheKey == cacheKey && $0.index == index }
         for key in keys {
             let conts = chunkWaiters.removeValue(forKey: key) ?? []
-            guard let resolution = paragraphResolution(cacheKey: cacheKey, index: index, chunk: key.chunk)
-            else { continue }
-            for cont in conts { cont.resume(returning: resolution) }
+            let resolution = paragraphResolution(cacheKey: cacheKey, index: index, chunk: key.chunk)
+            for cont in conts {
+                if let resolution { cont.resume(returning: resolution) } else { cont.resume(throwing: CancellationError()) }
+            }
         }
     }
 

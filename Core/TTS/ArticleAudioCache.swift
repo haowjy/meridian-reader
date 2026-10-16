@@ -63,6 +63,9 @@ final class ArticleAudioCache {
     /// checked when the index is loaded and when a unit is stored — so reads never touch the
     /// disk; they run on every scrubber redraw and per synth chunk. `.some(nil)`: no index.
     @ObservationIgnored private var indexes: [UUID: IndexFile?] = [:]
+    /// Each article's `meta.json` kind, read once and kept current by every meta write (all of
+    /// them go through this class): asked per chunk request. `.some(nil)`: no meta.
+    @ObservationIgnored private var kinds: [UUID: CacheMeta.Kind?] = [:]
     /// Audio that waits for library work a launch couldn't finish (`LibraryStore.finishAudioWork`).
     /// Until a run of that work replaces it, the engine purges and the prune leave it alone, and
     /// its saved bake jobs aren't adopted: the work still needs what is there.
@@ -237,6 +240,7 @@ final class ArticleAudioCache {
             try fileManager.removeItem(at: dir)
         }
         indexes[articleID] = .some(nil)
+        kinds[articleID] = .some(nil)
         bumpContentRevision()
     }
 
@@ -406,6 +410,24 @@ extension ArticleAudioCache {
         return try? JSONDecoder().decode(CacheMeta.self, from: data)
     }
 
+    /// The article's audio is on the ephemeral TTL (an unsaved page's). From memory after the
+    /// first read of `meta.json`.
+    func isEphemeral(_ articleID: UUID) -> Bool {
+        if let kind = kinds[articleID] { return kind == .ephemeral }
+        let kind = loadMeta(for: articleID)?.kind
+        kinds[articleID] = .some(kind)
+        return kind == .ephemeral
+    }
+
+    private func writeMeta(_ meta: CacheMeta, for articleID: UUID) {
+        do {
+            try JSONEncoder().encode(meta).write(to: metaURL(for: articleID), options: .atomic)
+            kinds[articleID] = .some(meta.kind)
+        } catch {
+            kinds[articleID] = nil // read from disk next time
+        }
+    }
+
     func markEphemeral(cacheKey: UUID, canonicalURL: String? = nil, lastAccess: Date = Date()) {
         let dir = directory(for: cacheKey)
         try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -416,7 +438,7 @@ extension ArticleAudioCache {
             createdAt: existing?.createdAt ?? Date(),
             lastAccessAt: lastAccess
         )
-        try? JSONEncoder().encode(meta).write(to: metaURL(for: cacheKey), options: .atomic)
+        writeMeta(meta, for: cacheKey)
     }
 
     func markSaved(cacheKey: UUID) {
@@ -429,7 +451,7 @@ extension ArticleAudioCache {
             createdAt: existing?.createdAt ?? Date(),
             lastAccessAt: Date()
         )
-        try? JSONEncoder().encode(meta).write(to: metaURL(for: cacheKey), options: .atomic)
+        writeMeta(meta, for: cacheKey)
     }
 
     /// Moves an article's audio under another key (Save of a legacy reader key, adopting a v1
@@ -452,6 +474,8 @@ extension ArticleAudioCache {
             try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
             try fileManager.moveItem(at: src, to: dst)
             indexes[oldKey] = .some(nil)
+            kinds[oldKey] = .some(nil)
+            kinds[newKey] = nil
             dropIndex(for: newKey)
             bumpContentRevision()
             try step(.movedDirectory)

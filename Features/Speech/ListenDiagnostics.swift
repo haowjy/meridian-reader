@@ -29,7 +29,7 @@ final class ListenDiagnostics {
         case .background:
             player.backgroundStats = .init()
             deferralsAtBackground = deferrals
-            fields["ready_ahead"] = speech.activeEngine?.debug.readyAhead ?? 0
+            fields["rendered_paragraphs_ahead"] = speech.activeEngine?.debug.renderedParagraphsAhead ?? 0
         case .active:
             if player.backgroundStats != .init() || deferrals > deferralsAtBackground {
                 lastBackgroundSummary = player.backgroundStats.label + " · deferred \(deferrals - deferralsAtBackground)"
@@ -73,7 +73,7 @@ final class ListenDiagnostics {
         let isEph: Bool = {
             guard let key = identityKey else { return false }
             if let flagged = queue.isEphemeral(cacheKey: key) { return flagged }
-            return localTTS.audioCache.loadMeta(for: key)?.kind == .ephemeral
+            return localTTS.audioCache.isEphemeral(key)
         }()
         let articleIdentity: String = {
             guard let key = identityKey else { return "—" }
@@ -83,7 +83,7 @@ final class ListenDiagnostics {
         let queuePrimary: String = {
             guard let key = queue.primaryCacheKey else { return "—" }
             let kind = (queue.isEphemeral(cacheKey: key) == true
-                        || localTTS.audioCache.loadMeta(for: key)?.kind == .ephemeral) ? "eph" : "svd"
+                        || localTTS.audioCache.isEphemeral(key)) ? "eph" : "svd"
             return "\(kind):\(key.uuidString.prefix(8))"
         }()
         let activeBake: String = {
@@ -138,7 +138,7 @@ final class ListenDiagnostics {
             lastBakeEvent: queue.lastBakeEvent,
             language: languageLabel,
             renderMode: speech.activeEngine == nil ? "idle · \(queue.runState.phase.rawValue)" : engine.renderMode,
-            readyAhead: engine.readyAhead,
+            renderedParagraphsAhead: engine.renderedParagraphsAhead,
             background: queue.runState.phase == .background
                 ? "now: " + speech.localEngine.player.backgroundStats.label
                 : lastBackgroundSummary,

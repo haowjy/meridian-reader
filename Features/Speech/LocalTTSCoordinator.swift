@@ -453,7 +453,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
               !audioCache.held.contains(cacheKey) else { return false }
         synthQueue.stageNext(cacheKey: cacheKey, after: playing, paragraphs: paragraphs,
                              upTo: Self.stagedChapterParagraphs,
-                             isEphemeral: audioCache.loadMeta(for: cacheKey)?.kind == .ephemeral)
+                             isEphemeral: audioCache.isEphemeral(cacheKey))
         return true
     }
 
@@ -575,7 +575,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
                 cacheKey: job.articleID,
                 paragraphs: job.paragraphs,
                 priorityStart: job.priorityStart,
-                isEphemeral: audioCache.loadMeta(for: job.articleID)?.kind == .ephemeral
+                isEphemeral: audioCache.isEphemeral(job.articleID)
             )
         }, focusKey: focusCacheKey)
     }

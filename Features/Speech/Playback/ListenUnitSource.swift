@@ -110,7 +110,7 @@ final class QueueUnitSource: ListenUnitSource {
         try await queue.ensureChunk(
             cacheKey: articleID, paragraphIndex: paragraph, chunk: chunk, text: paragraphs[paragraph],
             paragraphs: paragraphs,
-            isEphemeral: cache.loadMeta(for: articleID)?.kind == .ephemeral)
+            isEphemeral: cache.isEphemeral(articleID))
     }
 
     func isChunkReady(paragraph: Int, chunk: Int) -> Bool {

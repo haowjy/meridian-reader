@@ -54,6 +54,27 @@ final class ArticleAudioCacheIndexTests: XCTestCase {
         XCTAssertNil(reloaded.audioURL(articleID: key, paragraphIndex: 1, engineID: engine, voiceID: voice))
     }
 
+    /// Whether an article's audio is ephemeral is kept in memory (it is asked per chunk) and
+    /// follows every meta write: a stale "ephemeral" would let the prune delete saved audio.
+    func testTheEphemeralKindFollowsEveryMetaWrite() throws {
+        let cache = ArticleAudioCache(root: tempRoot())
+        let key = UUID()
+        XCTAssertFalse(cache.isEphemeral(key), "no audio")
+        cache.markEphemeral(cacheKey: key)
+        XCTAssertTrue(cache.isEphemeral(key))
+        cache.markSaved(cacheKey: key)
+        XCTAssertFalse(cache.isEphemeral(key))
+        cache.markEphemeral(cacheKey: key)
+        XCTAssertTrue(ArticleAudioCache(root: cache.root).isEphemeral(key), "as on disk")
+        let saved = UUID()
+        try cache.rekeyCache(from: key, to: saved)
+        XCTAssertFalse(cache.isEphemeral(key), "moved away")
+        XCTAssertFalse(cache.isEphemeral(saved), "rekeyed audio is saved")
+        cache.markEphemeral(cacheKey: saved)
+        try cache.deleteAudio(for: saved)
+        XCTAssertFalse(cache.isEphemeral(saved), "deleted")
+    }
+
     func testDeleteAndReconcileKeepMemoryInStep() throws {
         let cache = ArticleAudioCache(root: tempRoot())
         let key = UUID()

@@ -108,7 +108,7 @@ final class LocalListenEngine: ListenEngine {
             cacheKey: request.articleID,
             paragraphs: document.paragraphs,
             from: start.paragraph,
-            isEphemeral: coordinator.audioCache.loadMeta(for: request.articleID)?.kind == .ephemeral
+            isEphemeral: coordinator.audioCache.isEphemeral(request.articleID)
         )
         if !request.startPaused { startClock() }
         Task { @MainActor in
@@ -186,7 +186,8 @@ final class LocalListenEngine: ListenEngine {
             producerActive: player.isProducing, epoch: player.debugEpoch,
             currentCAF: player.debugCurrentCAF, secondsSinceEnqueue: player.debugSecondsSinceEnqueue,
             lastHandoffGapMs: player.debugLastHandoffGapMs, lastHandoffWasPrimed: player.debugLastHandoffWasPrimed,
-            starveEventCount: player.debugStarveEventCount, renderMode: renderMode, readyAhead: readyAhead)
+            starveEventCount: player.debugStarveEventCount, renderMode: renderMode,
+            renderedParagraphsAhead: renderedParagraphsAhead)
     }
 
     /// How audio is produced right now (route, app phase).
@@ -210,7 +211,7 @@ final class LocalListenEngine: ListenEngine {
     }
 
     /// Consecutive paragraphs after the playing one already rendered in the current voice.
-    private var readyAhead: Int {
+    private var renderedParagraphsAhead: Int {
         guard let source else { return 0 }
         var n = 0
         var i = paragraph + 1
