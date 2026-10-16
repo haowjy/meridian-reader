@@ -173,41 +173,6 @@ final class SpeechController {
     /// Detected language of the prepared session's article (nil = unknown / none prepared).
     private(set) var sessionDetectedLanguage: String?
 
-    /// Engine the language picker would use: the active local engine (selected or pending),
-    /// else the selected one.
-    var languageEngineDescriptor: EngineDescriptor? {
-        localTTS.engines.descriptor(localTTS.activeLocalEngineID ?? localTTS.selectedEngineID)
-    }
-
-    /// Language + engine for an article with `detected` language under the current settings.
-    func languageResolution(detected: String?) -> ListenLanguageResolution {
-        ListenLanguageResolution.resolve(
-            automatic: languageAutomatic,
-            manualCode: selectedLanguageCode,
-            detectedCode: detected,
-            selectedEngine: languageEngineDescriptor
-        )
-    }
-
-    /// Resolution for the prepared session (Settings / listen bar).
-    var languageResolution: ListenLanguageResolution { languageResolution(detected: sessionDetectedLanguage) }
-
-    /// Language the current session speaks in.
-    var effectiveLanguageCode: String { languageResolution.languageCode }
-
-    /// Apple voice for the current session (`appleVoice(forLanguage:)` of its language).
-    var effectiveAppleVoice: AVSpeechSynthesisVoice? { appleVoice(forLanguage: effectiveLanguageCode) }
-
-    /// The Apple voice that speaks `code`: the user's pick when it speaks that language, else the
-    /// best installed voice for it. Apple speech and every Apple fallback of the on-device engine
-    /// (live and in the render queue, `LocalTTSCoordinator.appleVoiceForArticle`) use it.
-    func appleVoice(forLanguage code: String) -> AVSpeechSynthesisVoice? {
-        if let voice = selectedVoice, ListenLanguage.baseCode(voice.language) == ListenLanguage.baseCode(code) {
-            return voice
-        }
-        return VoiceCatalog.bestVoice(forLanguage: code)
-    }
-
     var isPlaying: Bool { playbackPhase == .playing }
 
     /// Copies `playback` into the published properties (only the ones that changed), then
@@ -443,6 +408,10 @@ final class SpeechController {
         }
     }
 
+    /// The speed nearest `value` among `ListenRate.options` (the pickers pass one; the lock screen
+    /// any rate).
+    func setRateMultiplier(_ value: Double) { rateMultiplier = ListenRate.nearest(to: value) }
+
     var selectedVoiceIdentifier: String? {
         didSet { UserDefaults.standard.set(selectedVoiceIdentifier, forKey: voiceDefaultsKey) }
     }
@@ -520,11 +489,6 @@ final class SpeechController {
     }
 
     // MARK: - Display
-
-    var selectedVoice: AVSpeechSynthesisVoice? {
-        guard let id = selectedVoiceIdentifier else { return nil }
-        return AVSpeechSynthesisVoice(identifier: id)
-    }
 
     var isPrepared: Bool { activeSessionID != nil && !document.isEmpty }
     var isActive: Bool { activeSessionID != nil && (playbackPhase == .playing || playbackPhase == .paused) }
@@ -631,71 +595,6 @@ final class SpeechController {
         speak(fromUTF16Offset: document.startUTF16Offset(forParagraph: paragraph), startPaused: false)
     }
 
-    // MARK: - Voice / rate
-
-    /// Settings → Language → Automatic (match article).
-    func selectAutomaticLanguage() {
-        guard !languageAutomatic else { return }
-        languageAutomatic = true
-        languageSettingChanged()
-    }
-
-    /// Settings → Language → a specific language (turns Automatic off).
-    func selectLanguage(_ code: String) {
-        guard languageAutomatic || selectedLanguageCode != code else { return }
-        let codeChanged = selectedLanguageCode != code
-        languageAutomatic = false
-        selectedLanguageCode = code
-        if codeChanged { selectedVoiceIdentifier = nil }
-        languageSettingChanged()
-    }
-
-    /// Language change can move the article between the local engine and Apple: restart the
-    /// utterance and let the bake queue / marks follow.
-    private func languageSettingChanged() {
-        localTTS.noteBakeMarksChanged()
-        restartUtteranceIfNeeded()
-    }
-
-    func selectVoice(identifier: String?) {
-        let changed = selectedVoiceIdentifier != identifier
-        selectedVoiceIdentifier = identifier
-        if !languageAutomatic, let identifier, let voice = AVSpeechSynthesisVoice(identifier: identifier) {
-            selectedLanguageCode = voice.language
-        }
-        guard changed else { return }
-        restartUtteranceIfNeeded()
-    }
-
-    /// The speed nearest `value` among `ListenRate.options` (the pickers pass one; the lock screen
-    /// any rate).
-    func setRateMultiplier(_ value: Double) { rateMultiplier = ListenRate.nearest(to: value) }
-
-    // MARK: - Remote commands (lock screen / Control Center / headphones)
-
-    /// Every remote command becomes a Session intent — the same path as the on-screen buttons.
-    @discardableResult
-    func handleRemoteCommand(_ command: RemoteCommand) -> RemoteCommandOutcome {
-        guard playback.isPrepared else { return .noActionableNowPlayingItem }
-        ListenTimingLog.log("remote_command", [
-            "cmd": String(describing: command), "phase": String(describing: playback.phase), "p": playback.playhead,
-        ])
-        if case .changePlaybackRate(let rate) = command {
-            noteUserIntent()
-            setRateMultiplier(rate)
-            return .success
-        }
-        switch command {
-        case .nextTrack where !canSkipToNextParagraph, .previousTrack where !canSkipToPreviousParagraph:
-            return .commandFailed
-        default:
-            break
-        }
-        guard let intent = command.intent else { return .commandFailed }
-        userPerform(intent)
-        return .success
-    }
-
     // MARK: - Interruptions / route changes
 
     /// Calls / Siri pause (and resume if iOS says `shouldResume`); losing the headphones pauses.
@@ -719,24 +618,6 @@ final class SpeechController {
         case .none:
             break
         }
-    }
-
-    // MARK: - Now Playing
-
-    /// The lock screen shows what the bar shows (`nowPlaying`), while it plays or is paused; its
-    /// ⏮ ⏭ follow the on-screen ones.
-    private func refreshNowPlaying() {
-        guard let now = nowPlaying, now.phase == .playing || now.phase == .paused else {
-            lockScreen.update(nil)
-            return
-        }
-        var album: String?
-        if case .folder(_, let name) = now.playingFrom { album = name }
-        let info = NowPlayingInfo(
-            title: now.title, site: now.byline, album: album,
-            paragraph: currentParagraphIndex + 1, paragraphCount: document.count,
-            isPlaying: now.phase == .playing, rate: rateMultiplier, artwork: now.artwork)
-        lockScreen.update(info, canNext: canSkipToNextParagraph, canPrevious: canSkipToPreviousParagraph)
     }
 
     // MARK: - Foreground / background
@@ -826,7 +707,7 @@ final class SpeechController {
         }
     }
 
-    private func restartUtteranceIfNeeded() {
+    func restartUtteranceIfNeeded() {
         guard playback.isPrepared else { return }
         guard playback.phase == .playing || playback.phase == .paused else { return }
         speak(fromUTF16Offset: playback.utf16Offset, startPaused: playback.phase == .paused)

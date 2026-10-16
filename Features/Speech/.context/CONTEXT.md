@@ -5,7 +5,9 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
 
 ## Where to start reading
 
-`SpeechController` (intents, engine binding) → `Playback/PlaybackSession.swift` (the state machine)
+`SpeechController` (intents, engine binding; `+Advance` carries on through folders, `+NowPlaying`
+is the lock screen and remote commands, `+Settings` the language, voice and `ListenRate`) →
+`Playback/PlaybackSession.swift` (the state machine)
 → `Playback/` adapters (`AppleListenEngine`, `LocalListenEngine` → `LocalListenPlayer`) →
 `LocalTTSCoordinator` (engine selection, `LocalSynthService`, launch recovery) →
 `Core/TTS/GlobalSynthQueue.swift` (render queue) and `Core/TTS/ArticleAudioCache.swift`.

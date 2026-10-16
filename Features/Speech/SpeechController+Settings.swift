@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 
 /// The listen speed: one of `options`. The stored setting and its launch argument, the setter,
@@ -18,7 +19,88 @@ enum ListenRate {
     }
 }
 
+/// What Settings chooses: the language, the Apple voice and the speed's options. The stored
+/// settings themselves live on `SpeechController` (`languageAutomatic`, `selectedLanguageCode`,
+/// `selectedVoiceIdentifier`, `rateMultiplier`).
 extension SpeechController {
     /// Settings → Speed lists these (`ListenRate.options`).
     static var rateOptions: [Double] { ListenRate.options }
+
+    // MARK: - Language
+
+    /// Engine the language picker would use: the active local engine (selected or pending),
+    /// else the selected one.
+    var languageEngineDescriptor: EngineDescriptor? {
+        localTTS.engines.descriptor(localTTS.activeLocalEngineID ?? localTTS.selectedEngineID)
+    }
+
+    /// Language + engine for an article with `detected` language under the current settings.
+    func languageResolution(detected: String?) -> ListenLanguageResolution {
+        ListenLanguageResolution.resolve(
+            automatic: languageAutomatic,
+            manualCode: selectedLanguageCode,
+            detectedCode: detected,
+            selectedEngine: languageEngineDescriptor
+        )
+    }
+
+    /// Resolution for the prepared session (Settings / listen bar).
+    var languageResolution: ListenLanguageResolution { languageResolution(detected: sessionDetectedLanguage) }
+
+    /// Language the current session speaks in.
+    var effectiveLanguageCode: String { languageResolution.languageCode }
+
+    /// Apple voice for the current session (`appleVoice(forLanguage:)` of its language).
+    var effectiveAppleVoice: AVSpeechSynthesisVoice? { appleVoice(forLanguage: effectiveLanguageCode) }
+
+    /// The Apple voice that speaks `code`: the user's pick when it speaks that language, else the
+    /// best installed voice for it. Apple speech and every Apple fallback of the on-device engine
+    /// (live and in the render queue, `LocalTTSCoordinator.appleVoiceForArticle`) use it.
+    func appleVoice(forLanguage code: String) -> AVSpeechSynthesisVoice? {
+        if let voice = selectedVoice, ListenLanguage.baseCode(voice.language) == ListenLanguage.baseCode(code) {
+            return voice
+        }
+        return VoiceCatalog.bestVoice(forLanguage: code)
+    }
+
+    var selectedVoice: AVSpeechSynthesisVoice? {
+        guard let id = selectedVoiceIdentifier else { return nil }
+        return AVSpeechSynthesisVoice(identifier: id)
+    }
+
+    // MARK: - Choosing
+
+    /// Settings → Language → Automatic (match article).
+    func selectAutomaticLanguage() {
+        guard !languageAutomatic else { return }
+        languageAutomatic = true
+        languageSettingChanged()
+    }
+
+    /// Settings → Language → a specific language (turns Automatic off).
+    func selectLanguage(_ code: String) {
+        guard languageAutomatic || selectedLanguageCode != code else { return }
+        let codeChanged = selectedLanguageCode != code
+        languageAutomatic = false
+        selectedLanguageCode = code
+        if codeChanged { selectedVoiceIdentifier = nil }
+        languageSettingChanged()
+    }
+
+    /// Language change can move the article between the local engine and Apple: restart the
+    /// utterance and let the bake queue / marks follow.
+    private func languageSettingChanged() {
+        localTTS.noteBakeMarksChanged()
+        restartUtteranceIfNeeded()
+    }
+
+    func selectVoice(identifier: String?) {
+        let changed = selectedVoiceIdentifier != identifier
+        selectedVoiceIdentifier = identifier
+        if !languageAutomatic, let identifier, let voice = AVSpeechSynthesisVoice(identifier: identifier) {
+            selectedLanguageCode = voice.language
+        }
+        guard changed else { return }
+        restartUtteranceIfNeeded()
+    }
 }
