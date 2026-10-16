@@ -98,7 +98,7 @@ final class DesignConsistencyUITests: XCTestCase {
             heights[done] = button.frame.height
             button.tap()
             XCTAssertTrue(eventually(5) { !button.exists }, "\(done) closes its sheet")
-            if !eventually(1) { app.libraryHome.exists } { app.buttons["browseLibrary"].tap() }
+            if !eventually(1, { app.libraryHome.exists }) { app.buttons["browseLibrary"].tap() }
             XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         }
         let values = Array(heights.values)

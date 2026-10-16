@@ -14,11 +14,6 @@ final class ReaderSaveFromPageUITests: XCTestCase {
         add(attachment)
     }
 
-    private func waitFor(_ predicate: String, _ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
-        let exp = XCTNSPredicateExpectation(predicate: NSPredicate(format: predicate), object: element)
-        return XCTWaiter().wait(for: [exp], timeout: timeout) == .completed
-    }
-
     /// 📄: the Reader, or Now Playing when the page is what you hear (`close` names which, by its
     /// close pill).
     private func openReader(_ app: XCUIApplication, close: String = "readerClose") {
@@ -29,11 +24,7 @@ final class ReaderSaveFromPageUITests: XCTestCase {
     }
 
     func testSaveFromPageReaderMatchesSavedReader() throws {
-        let app = XCUIApplication()
-        // The demo seed empties Saved, so the page starts unsaved whatever an earlier run left.
-        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-browseTestPages", "-resetBookmarks",
-                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"]
-        app.launch()
+        let app = launchTestPages()
         let link = app.links["Next page"]
         XCTAssertTrue(link.waitForExistence(timeout: 10))
         link.tap()
@@ -54,11 +45,11 @@ final class ReaderSaveFromPageUITests: XCTestCase {
         // fills; playback keeps going, same screen.
         let play = app.buttons["listenPlayPause"]
         play.tap()
-        XCTAssertTrue(waitFor("label == 'Pause'", play, timeout: 8), "playing")
+        XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
         let playing = app.buttons["nowPlayingBookmark"]
         XCTAssertEqual(playing.value as? String, "Not saved", "Now Playing's 🔖 says what the Reader's did")
         playing.tap()
-        XCTAssertTrue(waitFor("value == 'Saved'", playing))
+        XCTAssertTrue(eventually { playing.value as? String == "Saved" })
         XCTAssertEqual(play.label, "Pause", "Save must not stop playback")
         XCTAssertTrue(app.buttons["nowPlayingClose"].exists, "Save must not leave Now Playing")
         shot(app, "3-page-reader-saved-while-playing")
@@ -66,11 +57,11 @@ final class ReaderSaveFromPageUITests: XCTestCase {
 
         // Reopen over the same page: it is what you hear, so Now Playing, and saved.
         app.buttons["nowPlayingClose"].tap()
-        XCTAssertTrue(waitFor("exists == false", app.buttons["nowPlayingClose"]))
+        XCTAssertTrue(eventually { !app.buttons["nowPlayingClose"].exists })
         openReader(app, close: "nowPlayingClose")
         XCTAssertEqual(app.buttons["nowPlayingBookmark"].value as? String, "Saved", "a saved page opens saved")
         app.buttons["nowPlayingClose"].tap()
-        XCTAssertTrue(waitFor("exists == false", app.buttons["nowPlayingClose"]))
+        XCTAssertTrue(eventually { !app.buttons["nowPlayingClose"].exists })
 
         // Library: exactly one row for the page, and it opens the same screen.
         app.buttons["browseLibrary"].tap()

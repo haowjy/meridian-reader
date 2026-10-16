@@ -12,12 +12,17 @@ struct UITestSetup: ExpressibleByArrayLiteral {
     var rate: Double?
     /// false: the library and settings the last launch left stay (a relaunch).
     var resetsLibrary: Bool
+    /// true: no `-uiTesting`, so live Google suggestions, as a normal launch has them (a
+    /// screenshot run that shows them).
+    var usesNetwork: Bool
 
-    init(_ arguments: [String] = [], engine: String = "apple", rate: Double? = nil, resetsLibrary: Bool = true) {
+    init(_ arguments: [String] = [], engine: String = "apple", rate: Double? = nil, resetsLibrary: Bool = true,
+         usesNetwork: Bool = false) {
         self.arguments = arguments
         self.engine = engine
         self.rate = rate
         self.resetsLibrary = resetsLibrary
+        self.usesNetwork = usesNetwork
     }
 
     init(arrayLiteral arguments: String...) { self.init(arguments) }
@@ -26,9 +31,15 @@ struct UITestSetup: ExpressibleByArrayLiteral {
     static func relaunch(_ arguments: [String] = []) -> UITestSetup { UITestSetup(arguments, resetsLibrary: false) }
 
     var launchArguments: [String] {
-        ["-uiTesting"] + (resetsLibrary ? ["-resetLibrary"] : []) + ["-selectEngine", engine]
+        (usesNetwork ? [] : ["-uiTesting"]) + (resetsLibrary ? ["-resetLibrary"] : []) + ["-selectEngine", engine]
             + (rate.map { ["-reader.rateMultiplier", "\($0)"] } ?? []) + arguments
     }
+}
+
+extension XCUIElement {
+    /// Whether the element holds the keyboard focus: an attribute XCUIElement has but doesn't
+    /// declare.
+    var hasKeyboardFocus: Bool { (value(forKey: "hasKeyboardFocus") as? Bool) ?? false }
 }
 
 /// Launches, waits and lookups shared by the UI tests.
@@ -45,6 +56,13 @@ extension XCTestCase {
     /// The demo article, 40 paragraphs long, in the Library.
     func launchLongDemo(_ extra: [String] = []) -> XCUIApplication {
         launch(UITestSetup(["-seedDemoArticle", "-seedDemoParagraphs", "40", "-openLibrary"] + extra))
+    }
+
+    /// The long demo article's text is laid out on the reading page, so a drag really scrolls it.
+    func waitForLongDemoText(_ app: XCUIApplication) {
+        let text = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Extra paragraph 12'")).firstMatch
+        XCTAssertTrue(text.waitForExistence(timeout: 15), "article text loaded")
+        idle(0.5)
     }
 
     func find(_ app: XCUIApplication, _ id: String) -> XCUIElement {

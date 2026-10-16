@@ -32,36 +32,13 @@ final class ScreenshotCaptureTests: XCTestCase {
         try screenshot.pngRepresentation.write(to: dir.appendingPathComponent(name + ".png"))
     }
 
-    private func wait(_ s: TimeInterval) { RunLoop.current.run(until: Date().addingTimeInterval(s)) }
-
-    private func el(_ app: XCUIApplication, _ id: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(identifier: id).firstMatch
-    }
-
-    private func launch(_ arguments: [String]) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-selectEngine", "apple"] + arguments
-        app.launch()
-        return app
-    }
-
     /// Offline page two (an article): the page with its reader icon showing.
     private func openTestArticlePage(_ app: XCUIApplication) {
         let link = app.links["Next page"]
         XCTAssertTrue(link.waitForExistence(timeout: 30))
         link.tap()
-        XCTAssertTrue(el(app, "addressReader").waitForExistence(timeout: 5))
-        wait(1)
-    }
-
-    private func dismissMenu(_ app: XCUIApplication, settle: TimeInterval = 0.8) {
-        let dismiss = el(app, "moreMenuDismiss")
-        if dismiss.waitForExistence(timeout: 2) {
-            tapMenuDim(dismiss)
-        } else {
-            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
-        }
-        wait(settle)
+        XCTAssertTrue(find(app, "addressReader").waitForExistence(timeout: 5))
+        idle(1)
     }
 
     // MARK: - Offline
@@ -69,41 +46,41 @@ final class ScreenshotCaptureTests: XCTestCase {
     /// Toolbars and ⋯ menus on a page and in its Reader (developer options off), the Reader
     /// scrolled mid-article, Settings down to the version row, and the Now Playing bar.
     func testMenusOnPageAndInReader() throws {
-        let app = launch(["-resetBookmarks", "-browseTestPages", "-reader.developerOptions", "NO"])
+        let app = launch(["-browseTestPages", "-reader.developerOptions", "NO"])
         openTestArticlePage(app)
         try shot("1-browse-toolbar")
         app.buttons["browseMore"].tap()
-        wait(1.5)
+        idle(1.5)
         try shot("2-browse-menu")
-        dismissMenu(app)
+        closeMenu(app)
 
-        el(app, "addressReader").tap()
+        find(app, "addressReader").tap()
         XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 10))
-        wait(1.5)
+        idle(1.5)
         try shot("3-reader-toolbar")
         let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62))
         from.press(forDuration: 0.05, thenDragTo: from.withOffset(CGVector(dx: 0, dy: -300)),
                    withVelocity: .slow, thenHoldForDuration: 0.1)
-        wait(1.2)
+        idle(1.2)
         try shot("4-reader-scrolled")
         app.buttons["readerMore"].tap()
-        wait(1.5)
+        idle(1.5)
         try shot("5-reader-menu")
 
-        el(app, "moreSettings").tap()
+        find(app, "moreSettings").tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
-        wait(1)
+        idle(1)
         try shot("6-settings")
-        for _ in 0..<10 where !el(app, "settingsVersionRow").isHittable { app.swipeUp() }
-        wait(0.8)
+        for _ in 0..<10 where !find(app, "settingsVersionRow").isHittable { app.swipeUp() }
+        idle(0.8)
         try shot("7-settings-version")
         app.buttons["settingsDone"].tap()
-        wait(1)
+        idle(1)
 
         app.buttons["listenPlayPause"].tap() // Listen: the Reader turns into Now Playing
-        wait(2)
+        idle(2)
         app.buttons["nowPlayingClose"].tap() // ⌄
-        wait(1.5)
+        idle(1.5)
         try shot("8-browse-now-playing-bar")
         app.buttons["nowPlayingBarPlayPause"].tap()
     }
@@ -112,29 +89,29 @@ final class ScreenshotCaptureTests: XCTestCase {
     /// start page (Reader disabled), on a page, and in the reader.
     func testMenuMorph() throws {
         let morph: TimeInterval = 3
-        let app = launch(["-resetBookmarks", "-browseTestPages", "-slowMenuAnimation"])
+        let app = launch(["-browseTestPages", "-slowMenuAnimation"])
         func sequence(button: String, prefix: String) throws {
             try shot("\(prefix)-closed")
             app.buttons[button].tap()
-            wait(0.9)
+            idle(0.9)
             try shot("\(prefix)-mid-animation")
-            wait(morph)
-            XCTAssertTrue(el(app, "moreMenuPanel").exists)
+            idle(morph)
+            XCTAssertTrue(find(app, "moreMenuPanel").exists)
             try shot("\(prefix)-open")
         }
 
         XCTAssertTrue(app.links["Next page"].waitForExistence(timeout: 10))
         app.buttons["browseMore"].tap()
-        wait(morph + 0.6)
-        XCTAssertFalse(el(app, "moreReaderToggle").isEnabled, "page one isn't readable")
+        idle(morph + 0.6)
+        XCTAssertFalse(find(app, "moreReaderToggle").isEnabled, "page one isn't readable")
         try shot("non-article-open")
-        dismissMenu(app, settle: morph + 0.6)
+        closeMenu(app)
 
         openTestArticlePage(app)
         try sequence(button: "browseMore", prefix: "browse")
-        el(app, "moreReaderToggle").tap()
+        find(app, "moreReaderToggle").tap()
         XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 10))
-        wait(morph + 1)
+        idle(morph + 1)
         try sequence(button: "readerMore", prefix: "reader")
     }
 
@@ -142,47 +119,46 @@ final class ScreenshotCaptureTests: XCTestCase {
     /// slots): the Reader, its ☝︎ on, then Listen: Now Playing paused, its ☝︎ on, the speed list and
     /// the ⋯ menu.
     func testReaderAndNowPlayingSheets() throws {
-        let app = launch(["-seedDemoArticle", "-seedDemoParagraphs", "12", "-openLibrary", "-resetBookmarks",
-                          "-reader.rateMultiplier", "1"])
+        let app = launch(["-seedDemoArticle", "-seedDemoParagraphs", "12", "-openLibrary"])
         let row = app.cells.staticTexts["Demo Listen Article"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(play.waitForExistence(timeout: 10))
-        wait(1.5)
+        idle(1.5)
         try shot("1-reader")
         app.buttons["listenJump"].tap()
-        wait(1)
+        idle(1)
         try shot("2-reader-jump-on")
         app.buttons["listenJump"].tap()
-        wait(0.6)
+        idle(0.6)
 
         play.tap() // Listen: the Reader turns into Now Playing
-        XCTAssertTrue(el(app, "nowPlayingHeader").waitForExistence(timeout: 5))
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5))
         XCTAssertTrue(eventually(8) { play.label == "Pause" })
         play.tap()
         XCTAssertTrue(eventually(5) { play.label == "Play" })
-        wait(1.5)
+        idle(1.5)
         try shot("3-now-playing")
         app.buttons["listenJump"].tap()
-        wait(1)
+        idle(1)
         try shot("4-now-playing-jump-on")
         app.buttons["listenJump"].tap()
-        wait(0.6)
+        idle(0.6)
         app.buttons["listenSpeed"].tap()
-        wait(1.2)
+        idle(1.2)
         try shot("5-now-playing-speed")
-        el(app, "listenSpeedOption-1×").tap()
-        wait(0.8)
+        find(app, "listenSpeedOption-1×").tap()
+        idle(0.8)
         app.buttons["nowPlayingMore"].tap()
-        wait(1.5)
+        idle(1.5)
         try shot("6-now-playing-menu")
-        dismissMenu(app)
+        closeMenu(app)
     }
 
     /// The scrub bubble frozen mid fine-scrub (`-scrubBubbleDemo`), on Now Playing (paused).
     func testScrubBubble() throws {
-        let app = launch(["-seedDemoArticle", "-seedDemoParagraphs", "12", "-openLibrary", "-resetBookmarks",
+        let app = launch(["-seedDemoArticle", "-seedDemoParagraphs", "12", "-openLibrary",
                           "-scrubBubbleDemo"])
         let row = app.cells.staticTexts["Demo Listen Article"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))
@@ -190,9 +166,9 @@ final class ScreenshotCaptureTests: XCTestCase {
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(play.waitForExistence(timeout: 5))
         play.tap()
-        wait(1)
+        idle(1)
         play.tap()
-        wait(2.5)
+        idle(2.5)
         try shot("scrub-bubble-fine")
     }
 
@@ -200,30 +176,30 @@ final class ScreenshotCaptureTests: XCTestCase {
     /// browser shows page B; then B's Reader with A in the bar, Now Playing, and A's page with its
     /// 🎧 playing. Offline test pages.
     func testTwoStates() throws {
-        let app = launch(["-resetBookmarks", "-browseTestPages", "-reader.developerOptions", "NO"])
+        let app = launch(["-browseTestPages", "-reader.developerOptions", "NO"])
         openTestArticlePage(app) // A: page two
-        el(app, "addressListen").tap()
-        wait(3)
+        find(app, "addressListen").tap()
+        idle(3)
         try shot("1-a-playing-on-its-page")
         app.buttons["browseBack"].tap()
         let third = app.links["Third page"]
         XCTAssertTrue(third.waitForExistence(timeout: 10))
         third.tap()
-        XCTAssertTrue(el(app, "addressListen").waitForExistence(timeout: 10))
-        wait(1.5)
+        XCTAssertTrue(find(app, "addressListen").waitForExistence(timeout: 10))
+        idle(1.5)
         try shot("2-browsing-b-while-a-plays")
-        el(app, "addressReader").tap()
+        find(app, "addressReader").tap()
         XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 10))
-        wait(1.5)
+        idle(1.5)
         try shot("3-reader-b-while-a-plays")
-        el(app, "nowPlayingBarOpen").tap()
-        XCTAssertTrue(el(app, "nowPlayingHeader").waitForExistence(timeout: 5))
-        wait(2)
+        find(app, "nowPlayingBarOpen").tap()
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5))
+        idle(2)
         try shot("4-now-playing-a")
         let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
         from.press(forDuration: 0.05, thenDragTo: from.withOffset(CGVector(dx: 0, dy: -200)),
                    withVelocity: .slow, thenHoldForDuration: 0.1)
-        wait(1)
+        idle(1)
         try shot("5-now-playing-scrolled-back-to-audio")
         // B's Reader (with its own Listen) is still under Now Playing: pause by Now Playing's label.
         app.buttons.matching(identifier: "listenPlayPause").matching(NSPredicate(format: "label == 'Pause'"))
@@ -235,38 +211,38 @@ final class ScreenshotCaptureTests: XCTestCase {
     /// favorites (their icons are letter tiles without the network).
     func testBrowserSurfaces() throws {
         let app = launch(["-seedBookmarks", "-seedDemoArticle", "-seedDemoParagraphs", "12"])
-        wait(2)
+        idle(2)
         try shot("start")
 
         app.buttons["browseMore"].tap()
-        wait(1.2)
+        idle(1.2)
         try shot("menu")
-        el(app, "moreFavorites").tap()
+        find(app, "moreFavorites").tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
-        wait(1)
+        idle(1)
         try shot("favorites")
 
         app.buttons["Everything"].tap() // Favorites is the Library's filter; back to all of it
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
-        wait(1.2)
+        idle(1.2)
         try shot("library")
         app.cells.staticTexts["Demo Listen Article"].tap()
         XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 10))
-        wait(2)
+        idle(2)
         try shot("library-reader")
 
         let play = app.buttons["listenPlayPause"]
         play.tap() // Listen: Now Playing
-        XCTAssertTrue(el(app, "nowPlayingHeader").waitForExistence(timeout: 5))
-        wait(2.5)
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5))
+        idle(2.5)
         try shot("now-playing")
         app.buttons["nowPlayingClose"].tap() // ⌄
-        XCTAssertTrue(el(app, "nowPlayingBar").waitForExistence(timeout: 5))
-        wait(1)
+        XCTAssertTrue(find(app, "nowPlayingBar").waitForExistence(timeout: 5))
+        idle(1)
         try shot("library-now-playing-bar")
         app.buttons["libraryBrowser"].tap()
-        XCTAssertTrue(el(app, "nowPlayingBar").waitForExistence(timeout: 5))
-        wait(1.5)
+        XCTAssertTrue(find(app, "nowPlayingBar").waitForExistence(timeout: 5))
+        idle(1.5)
         try shot("start-now-playing-bar")
         app.buttons["nowPlayingBarPlayPause"].tap()
     }
@@ -277,61 +253,61 @@ final class ScreenshotCaptureTests: XCTestCase {
         let app = launch(["-seedDemoArticle", "-seedDemoBook", "-seedDemoFolders", "-seedBookmarks", "-openLibrary",
                           "-reader.developerOptions", "NO"])
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10))
-        wait(1.5)
+        idle(1.5)
         try shot("1-library-home")
 
         row(app, "Demo Finance").tap()
-        XCTAssertTrue(el(app, "folderScreen").waitForExistence(timeout: 5))
-        wait(1.2)
+        XCTAssertTrue(find(app, "folderScreen").waitForExistence(timeout: 5))
+        idle(1.2)
         try shot("2-folder")
         app.buttons["libraryMore"].tap()
-        wait(1.2)
+        idle(1.2)
         try shot("3-folder-menu")
-        dismissMenu(app)
-        el(app, "folderEdit").tap()
-        wait(0.8)
+        closeMenu(app)
+        find(app, "folderEdit").tap()
+        idle(0.8)
         row(app, "Index Funds").tap()
-        wait(0.6)
+        idle(0.6)
         try shot("4-folder-edit")
-        el(app, "editMove").tap()
-        XCTAssertTrue(el(app, "moveTree").waitForExistence(timeout: 5))
-        wait(1.2)
+        find(app, "editMove").tap()
+        XCTAssertTrue(find(app, "moveTree").waitForExistence(timeout: 5))
+        idle(1.2)
         try shot("5-move-tree")
-        el(app, "moveCancel").tap()
-        wait(0.8)
-        el(app, "folderEdit").tap()
+        find(app, "moveCancel").tap()
+        idle(0.8)
+        find(app, "folderEdit").tap()
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        wait(1)
+        idle(1)
 
         row(app, "The Demo Book").tap()
-        XCTAssertTrue(el(app, "folderScreen").waitForExistence(timeout: 5))
-        wait(1.2)
+        XCTAssertTrue(find(app, "folderScreen").waitForExistence(timeout: 5))
+        idle(1.2)
         try shot("6-book")
-        el(app, "folderContinue").tap()
-        XCTAssertTrue(el(app, "nowPlayingBar").waitForExistence(timeout: 10))
-        wait(1.5)
+        find(app, "folderContinue").tap()
+        XCTAssertTrue(find(app, "nowPlayingBar").waitForExistence(timeout: 10))
+        idle(1.5)
         try shot("7-book-playing")
         app.buttons["nowPlayingBarPlayPause"].tap()
         app.buttons["libraryMore"].tap()
-        wait(1.2)
+        idle(1.2)
         try shot("8-book-menu")
-        dismissMenu(app)
+        closeMenu(app)
 
         app.buttons["libraryBrowser"].tap()
-        XCTAssertTrue(el(app, "startFavorites").waitForExistence(timeout: 5))
-        wait(1)
+        XCTAssertTrue(find(app, "startFavorites").waitForExistence(timeout: 5))
+        idle(1)
         try shot("9-start-page-favorites")
 
         app.buttons["browseMore"].tap()
-        let favorites = el(app, "moreFavorites")
+        let favorites = find(app, "moreFavorites")
         XCTAssertTrue(favorites.waitForExistence(timeout: 3))
-        wait(0.6)
+        idle(0.6)
         favorites.tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
-        wait(1.2)
+        idle(1.2)
         try shot("10-favorites-tab")
         app.buttons["libraryMore"].tap()
-        wait(1.2)
+        idle(1.2)
         try shot("11-favorites-tab-menu")
     }
 
@@ -342,38 +318,38 @@ final class ScreenshotCaptureTests: XCTestCase {
     /// showing the page played last, paused.
     func testSharedBand() throws {
         let app = launch(["-seedDemoArticle", "-browseTestPages"])
-        XCTAssertTrue(el(app, "bandField").waitForExistence(timeout: 30))
+        XCTAssertTrue(find(app, "bandField").waitForExistence(timeout: 30))
         try shot("chrome-browse-first-page")
         openTestArticlePage(app)
-        wait(1)
+        idle(1)
         try shot("chrome-browse")
         app.buttons["browseLibrary"].tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
-        wait(1.5)
+        idle(1.5)
         try shot("chrome-library")
     }
 
     func testBookAndFolderHeaders() throws {
         for (suffix, size) in [("", nil), ("-ax5", "UICTContentSizeCategoryAccessibilityXXXL")] as [(String, String?)] {
-            var arguments = ["-seedDemoBook", "-seedDemoBookPlace", "2", "-seedDemoFolders", "-resetBookmarks",
+            var arguments = ["-seedDemoBook", "-seedDemoBookPlace", "2", "-seedDemoFolders",
                              "-openLibrary", "-reader.developerOptions", "NO"]
             if let size { arguments += ["-UIPreferredContentSizeCategoryName", size] }
-            let app = launch(arguments)
+            let app = launch(UITestSetup(arguments))
             XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10))
             row(app, "The Demo Book").tap()
-            XCTAssertTrue(el(app, "folderScreen").waitForExistence(timeout: 5))
-            wait(1.2)
+            XCTAssertTrue(find(app, "folderScreen").waitForExistence(timeout: 5))
+            idle(1.2)
             try shot("1-book-part-way\(suffix)")
             if size != nil {
                 app.swipeUp()
-                wait(1)
+                idle(1)
                 try shot("1b-book-buttons\(suffix)")
             }
             app.navigationBars.buttons.element(boundBy: 0).tap()
-            wait(1)
+            idle(1)
             row(app, "Demo Finance").tap()
-            XCTAssertTrue(el(app, "folderScreen").waitForExistence(timeout: 5))
-            wait(1.2)
+            XCTAssertTrue(find(app, "folderScreen").waitForExistence(timeout: 5))
+            idle(1.2)
             try shot("2-folder-part-way\(suffix)")
             app.terminate()
         }
@@ -384,65 +360,62 @@ final class ScreenshotCaptureTests: XCTestCase {
     /// while it renders and once done, the Downloaded marks on the chapters and the book's row, after a voice change (Different Voice), and the Reader's ⋯
     /// with *Download*.
     func testDownloads() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoBook", "-seedDemoFolders", "-resetBookmarks", "-resetDownloads",
-                               "-testVoice", "-testVoiceDelay", "0.5", "-selectEngine", "test.voice", "-openLibrary",
-                               "-reader.developerOptions", "NO"]
-        app.launch()
+        let app = launch(UITestSetup(["-seedDemoBook", "-seedDemoFolders", "-testVoice", "-testVoiceDelay", "0.5",
+                                      "-openLibrary", "-reader.developerOptions", "NO"], engine: "test.voice"))
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10))
         row(app, "The Demo Book").tap()
-        XCTAssertTrue(el(app, "folderScreen").waitForExistence(timeout: 5))
+        XCTAssertTrue(find(app, "folderScreen").waitForExistence(timeout: 5))
         app.buttons["libraryMore"].tap()
-        wait(1.2)
+        idle(1.2)
         try shot("1-book-menu")
-        el(app, "moreDownload").tap()
-        wait(1.5)
+        find(app, "moreDownload").tap()
+        idle(1.5)
         try shot("2-progress-line-and-toast")
-        wait(4)
+        idle(4)
         try shot("3-progress-line")
         app.buttons["libraryMore"].tap()
-        wait(1.2)
-        el(app, "moreDownloads").tap()
-        XCTAssertTrue(el(app, "downloadsSheet").waitForExistence(timeout: 5))
-        wait(1.2)
+        idle(1.2)
+        find(app, "moreDownloads").tap()
+        XCTAssertTrue(find(app, "downloadsSheet").waitForExistence(timeout: 5))
+        idle(1.2)
         try shot("4-downloads-queued")
-        XCTAssertTrue(el(app, "downloadsDoneHeader").waitForExistence(timeout: 90))
-        wait(1.5)
+        XCTAssertTrue(find(app, "downloadsDoneHeader").waitForExistence(timeout: 90))
+        idle(1.5)
         try shot("5-downloads-done")
-        el(app, "downloadsDone").tap()
-        wait(1)
+        find(app, "downloadsDone").tap()
+        idle(1)
         try shot("5b-book-downloaded")
 
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        wait(1)
+        idle(1)
         try shot("5c-home-downloaded")
         app.buttons["libraryMore"].tap()
-        wait(1.2)
+        idle(1.2)
         try shot("6-home-menu")
-        el(app, "moreSettings").tap()
+        find(app, "moreSettings").tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         openSettingsRow(app, "settingsVoice")
-        let two = el(app, "voiceRow-two")
+        let two = find(app, "voiceRow-two")
         for _ in 0..<6 where !(two.exists && two.isHittable) { app.swipeUp() }
         two.tap()
-        wait(1)
+        idle(1)
         app.navigationBars["Voice"].buttons.firstMatch.tap()
         app.buttons["settingsDone"].tap()
-        wait(1)
+        idle(1)
         app.buttons["libraryMore"].tap()
-        wait(1.2)
-        el(app, "moreDownloads").tap()
-        XCTAssertTrue(el(app, "downloadsDifferentVoiceHeader").waitForExistence(timeout: 5))
-        wait(1.2)
+        idle(1.2)
+        find(app, "moreDownloads").tap()
+        XCTAssertTrue(find(app, "downloadsDifferentVoiceHeader").waitForExistence(timeout: 5))
+        idle(1.2)
         try shot("7-downloads-different-voice")
-        el(app, "downloadsDone").tap()
-        wait(1)
+        find(app, "downloadsDone").tap()
+        idle(1)
 
         row(app, "Demo Loose Page").tap()
         XCTAssertTrue(app.buttons["readerMore"].waitForExistence(timeout: 10))
-        wait(1)
+        idle(1)
         app.buttons["readerMore"].tap()
-        wait(1.2)
+        idle(1.2)
         try shot("8-reader-menu")
     }
 
@@ -450,42 +423,42 @@ final class ScreenshotCaptureTests: XCTestCase {
     /// sheet for a book downloaded from page one's link (medium and large), its *Add to* tree,
     /// the book it lands on, and D13's question when it's imported again.
     func testBookImport() throws {
-        let app = launch(["-browseTestPages", "-resetBookmarks", "-seedDemoFolders", "-importTestEPUB",
+        let app = launch(["-browseTestPages", "-seedDemoFolders", "-importTestEPUB",
                           "-reader.developerOptions", "NO"])
         let link = app.links["Download a book"]
         XCTAssertTrue(link.waitForExistence(timeout: 10))
         app.buttons["browseLibrary"].tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
-        wait(1)
+        idle(1)
         app.buttons["libraryMore"].tap()
-        wait(1.2)
+        idle(1.2)
         try shot("1-library-menu")
-        dismissMenu(app)
+        closeMenu(app)
         app.buttons["libraryAdd"].tap()
-        wait(1)
+        idle(1)
         try shot("2-add-menu")
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
-        wait(0.6)
+        idle(0.6)
         app.buttons["libraryBrowser"].tap()
 
         XCTAssertTrue(link.waitForExistence(timeout: 5))
         link.tap()
-        XCTAssertTrue(el(app, "importSheet").waitForExistence(timeout: 15))
-        wait(1.5)
+        XCTAssertTrue(find(app, "importSheet").waitForExistence(timeout: 15))
+        idle(1.5)
         try shot("3-import-sheet")
-        el(app, "importHeader").swipeUp()
-        wait(1)
+        find(app, "importHeader").swipeUp()
+        idle(1)
         try shot("4-import-sheet-large")
-        el(app, "importChange").tap()
-        XCTAssertTrue(el(app, "importAddToTree").waitForExistence(timeout: 5))
-        wait(1)
+        find(app, "importChange").tap()
+        XCTAssertTrue(find(app, "importAddToTree").waitForExistence(timeout: 5))
+        idle(1)
         try shot("5-import-add-to")
         app.buttons.matching(identifier: "moveFolder").matching(NSPredicate(format: "label == %@", "Demo Finance")).firstMatch.tap()
-        wait(1)
+        idle(1)
         try shot("6-import-sheet-changed")
-        el(app, "importStart").tap()
-        XCTAssertTrue(el(app, "folderScreen").waitForExistence(timeout: 30))
-        wait(1.2)
+        find(app, "importStart").tap()
+        XCTAssertTrue(find(app, "folderScreen").waitForExistence(timeout: 30))
+        idle(1.2)
         try shot("7-landed-book")
 
         app.buttons["libraryAdd"].tap()
@@ -494,7 +467,7 @@ final class ScreenshotCaptureTests: XCTestCase {
         item.tap()
         let ask = app.alerts.firstMatch
         XCTAssertTrue(ask.waitForExistence(timeout: 30))
-        wait(1)
+        idle(1)
         try shot("8-already-in-library")
         ask.buttons["Cancel"].firstMatch.tap()
     }
@@ -509,53 +482,44 @@ final class ScreenshotCaptureTests: XCTestCase {
     /// The address bar idle on a page, editing with Recent Searches, editing with Google
     /// suggestions (this test turns them on: no `-uiTesting`), and the ⋯ menu.
     func testBrowseBar() throws {
-        let app = XCUIApplication()
-        app.launch()
+        let app = launch(UITestSetup(usesNetwork: true))
         let field = app.textFields["addressField"]
         func open(_ text: String) {
             XCTAssertTrue(field.waitForExistence(timeout: 5))
             field.tap()
-            wait(0.6) // the page address is selected on focus, so typing replaces it
+            idle(0.6) // the page address is selected on focus, so typing replaces it
             field.typeText(text + "\n")
-            wait(6)
+            idle(6)
         }
         open("text to speech") // a search → Recent Searches
         open("en.wikipedia.org/wiki/Speech_synthesis")
         try shot("idle")
         field.tap()
-        wait(1.2)
+        idle(1.2)
         try shot("editing")
         field.typeText("speech")
-        wait(2.5)
+        idle(2.5)
         try shot("editing-suggestions")
         app.buttons["addressCancel"].tap()
-        wait(1)
+        idle(1)
         app.buttons["browseMore"].tap()
-        wait(1.2)
+        idle(1.2)
         try shot("menu")
     }
 
     /// Kokoro rendering ahead of the playhead: the scrubber's lighter buffered fill.
     func testBufferedFill() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-selectEngine", "local.kokoro", "-openLibrary"]
-        app.launch()
-        addTeardownBlock {
-            let reset = XCUIApplication()
-            reset.launchArguments = ["-uiTesting", "-selectEngine", "apple"]
-            reset.launch()
-            reset.terminate()
-        }
-        wait(20) // Kokoro load on the Simulator
+        let app = launch(UITestSetup(["-seedDemoArticle", "-seedDemoParagraphs", "12", "-openLibrary"], engine: "local.kokoro"))
+        idle(20) // Kokoro load on the Simulator
         let firstRow = app.cells.element(boundBy: 0)
         XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
         firstRow.staticTexts.element(boundBy: 0).tap()
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(play.waitForExistence(timeout: 10))
         play.tap()
-        wait(30) // play + render ahead
+        idle(30) // play + render ahead
         play.tap()
-        wait(4)
+        idle(4)
         try shot("reader-buffered-fill")
     }
 }

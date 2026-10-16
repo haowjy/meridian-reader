@@ -25,7 +25,7 @@ final class LibraryHomeUITests: XCTestCase {
         let bar = app.buttons["nowPlayingBarPlayPause"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10), "the bar shows what you hear")
         XCTAssertTrue(eventually(10) { bar.label == "Pause" }, "playing")
-        idle(0.8)
+        idle(0.8) // anything that would move has by now
         XCTAssertEqual(find(app, "libraryTitle").frame, header, "nothing on the home moves when playback starts")
         XCTAssertEqual(libraryCell(app, "Demo Finance").frame, finance)
         XCTAssertTrue(eventually(5) { (page.value as? String)?.contains("Playing") == true },
@@ -34,7 +34,7 @@ final class LibraryHomeUITests: XCTestCase {
         // The tint itself: the row's background turns the playing green (`Palette.playingTint`).
         // Read above the bar, which now covers the list's bottom: scroll the row up first.
         find(app, "libraryHome").swipeUp()
-        idle(0.8)
+        XCTAssertNotNil(settledFrames([cell]), "the list stops scrolling")
         var visible = cell.frame
         let barTop = find(app, "nowPlayingBar").frame.minY
         if barTop < visible.maxY { visible.size.height = max(0, barTop - visible.minY) }
@@ -149,6 +149,8 @@ final class LibraryHomeUITests: XCTestCase {
         let tabs = find(app, "libraryTabs")
         XCTAssertTrue(eventually(5) { tabs.buttons["Favorites"].isSelected }, "⋯ → Favorites")
         XCTAssertFalse(libraryRow(app, "Demo Listen Article").exists, "not starred")
+        // The panel is modal until it has gone: a tap on the bar while it collapses is lost.
+        waitForMenuToClose(app)
 
         find(app, "nowPlayingBarOpen").tap()
         XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5), "Now Playing")
@@ -156,8 +158,7 @@ final class LibraryHomeUITests: XCTestCase {
         let goTo = find(app, "moreGoTo")
         XCTAssertTrue(goTo.waitForExistence(timeout: 3))
         XCTAssertEqual(goTo.label, "Go to Library")
-        idle(0.6)
-        goTo.tap()
+        tapMenuRow(app, "moreGoTo")
         XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingHeader").exists }, "Now Playing closes")
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5), "the Library's home")
         XCTAssertTrue(eventually(5) { tabs.buttons["Everything"].isSelected }, "on Everything")

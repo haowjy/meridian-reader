@@ -10,28 +10,13 @@ final class ListenProbeUITests: XCTestCase {
         return "\(words[1])/\(words[3])"
     }
 
-    private func waitForLabel(_ element: XCUIElement, _ label: String, timeout: TimeInterval = 5) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if element.label == label { return true }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-        return element.label == label
-    }
-
-    private func waitForIndexPrefix(_ app: XCUIApplication, _ prefix: String, timeout: TimeInterval = 5) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if let value = indexValue(app), value.hasPrefix(prefix) { return true }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-        return indexValue(app)?.hasPrefix(prefix) == true
+    /// The scrubber is on paragraph `prefix` ("2/").
+    private func atIndex(_ app: XCUIApplication, _ prefix: String) -> Bool {
+        indexValue(app)?.hasPrefix(prefix) == true
     }
 
     func testPlaySkipSpeedAndParagraphTap() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-seedDemoArticle", "-uiTesting", "-openLibrary", "-reader.rateMultiplier", "1"]
-        app.launch()
+        let app = launch(["-seedDemoArticle", "-openLibrary"])
 
         XCTAssertTrue(app.cells.staticTexts["Demo Listen Article"].waitForExistence(timeout: 5))
         app.cells.staticTexts["Demo Listen Article"].tap()
@@ -40,29 +25,29 @@ final class ListenProbeUITests: XCTestCase {
         XCTAssertTrue(playPause.waitForExistence(timeout: 5))
 
         playPause.tap()
-        XCTAssertTrue(waitForLabel(playPause, "Pause"), "Play starts")
-        XCTAssertTrue(waitForIndexPrefix(app, "1/"), "Index 1, got \(indexValue(app) ?? "nil")")
+        XCTAssertTrue(eventually { playPause.label == "Pause" }, "Play starts")
+        XCTAssertTrue(eventually { atIndex(app, "1/") }, "Index 1, got \(indexValue(app) ?? "nil")")
 
         // Pause so TTS cannot race skip checks. Index stays while session is prepared.
         playPause.tap()
-        XCTAssertTrue(waitForLabel(playPause, "Play"), "Paused")
-        XCTAssertTrue(waitForIndexPrefix(app, "1/"), "Index still visible while paused")
+        XCTAssertTrue(eventually { playPause.label == "Play" }, "Paused")
+        XCTAssertTrue(eventually { atIndex(app, "1/") }, "Index still visible while paused")
 
         app.buttons["Next paragraph"].tap()
-        XCTAssertTrue(waitForIndexPrefix(app, "2/"), "Next -> 2, got \(indexValue(app) ?? "nil")")
+        XCTAssertTrue(eventually { atIndex(app, "2/") }, "Next -> 2, got \(indexValue(app) ?? "nil")")
 
         app.buttons["Previous paragraph"].tap()
-        XCTAssertTrue(waitForIndexPrefix(app, "1/"), "Previous -> 1, got \(indexValue(app) ?? "nil")")
+        XCTAssertTrue(eventually { atIndex(app, "1/") }, "Previous -> 1, got \(indexValue(app) ?? "nil")")
 
         // Scrubber seek while paused: moves the playhead, stays paused (no stop-and-reload).
         let scrubber = app.descendants(matching: .any)["readerScrubber"]
         // A tap on the track scrubs + commits there (the three demo paragraphs are similar length).
         scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        XCTAssertTrue(waitForIndexPrefix(app, "2/"), "Scrub -> 2, got \(indexValue(app) ?? "nil")")
-        RunLoop.current.run(until: Date().addingTimeInterval(0.8))
+        XCTAssertTrue(eventually { atIndex(app, "2/") }, "Scrub -> 2, got \(indexValue(app) ?? "nil")")
+        idle(0.8) // a seek that started playback would have by now
         XCTAssertEqual(playPause.label, "Play", "paused seek stays paused")
         scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.03, dy: 0.5)).tap()
-        XCTAssertTrue(waitForIndexPrefix(app, "1/"), "Scrub back -> 1, got \(indexValue(app) ?? "nil")")
+        XCTAssertTrue(eventually { atIndex(app, "1/") }, "Scrub back -> 1, got \(indexValue(app) ?? "nil")")
 
         let speed = app.buttons["listenSpeed"]
         let before = speed.label
@@ -77,8 +62,7 @@ final class ListenProbeUITests: XCTestCase {
         } else if app.buttons["1×"].waitForExistence(timeout: 1) {
             app.buttons["1×"].tap()
         }
-        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
-        XCTAssertNotEqual(before, speed.label, "Speed popover should change rate")
+        XCTAssertTrue(eventually(3) { speed.label != before }, "Speed popover should change rate")
 
         // The listen bar's rightmost slot is the reader ⋯ menu (voice settings live there).
         XCTAssertTrue(app.buttons["nowPlayingMore"].waitForExistence(timeout: 3))
@@ -90,10 +74,9 @@ final class ListenProbeUITests: XCTestCase {
         jump.tap()
         XCTAssertTrue(app.descendants(matching: .any)["listenJumpHint"].waitForExistence(timeout: 3))
         app.buttons["listenJumpCancel"].tap()
-        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
-        XCTAssertFalse(app.descendants(matching: .any)["listenJumpHint"].exists)
+        XCTAssertTrue(eventually(3) { !app.descendants(matching: .any)["listenJumpHint"].exists })
         jump.tap()
-        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        XCTAssertTrue(app.descendants(matching: .any)["listenJumpHint"].waitForExistence(timeout: 3))
         let shot = XCUIScreen.main.screenshot()
         try? shot.pngRepresentation.write(to: URL(fileURLWithPath: "/tmp/reader_jump_mode.png"))
     }

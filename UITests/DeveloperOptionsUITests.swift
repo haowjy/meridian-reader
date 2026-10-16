@@ -6,59 +6,40 @@ import XCTest
 final class DeveloperOptionsUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
-    private func el(_ app: XCUIApplication, _ id: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(identifier: id).firstMatch
-    }
-
-    private func wait(_ s: TimeInterval) { RunLoop.current.run(until: Date().addingTimeInterval(s)) }
-
-    private func waitFor(_ timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if condition() { return true }
-            wait(0.1)
-        }
-        return condition()
-    }
-
     /// Release default (forced here with the launch argument): no Debug anywhere; the version row
     /// is at the bottom of Settings.
     func testDeveloperOptionsOffHidesDebug() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-seedDemoArticle", "-uiTesting", "-openLibrary", "-resetBookmarks", "-reader.rateMultiplier", "1",
-                               "-selectEngine", "apple",
-                               "-reader.developerOptions", "NO", "-reader.listenDebugEnabled", "YES"]
-        app.launch()
+        let app = launch(["-seedDemoArticle", "-openLibrary", "-reader.developerOptions", "NO",
+                          "-reader.listenDebugEnabled", "YES"])
         let row = app.cells.staticTexts["Demo Listen Article"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
         XCTAssertTrue(app.buttons["readerClose"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["listenPlayPause"].waitForExistence(timeout: 5))
-        XCTAssertFalse(el(app, "listenBakeDebugChip").exists, "no Debug pill even with Listen debug stored on")
+        XCTAssertFalse(find(app, "listenBakeDebugChip").exists, "no Debug pill even with Listen debug stored on")
 
         app.buttons["readerMore"].tap()
-        XCTAssertTrue(el(app, "moreSettings").waitForExistence(timeout: 3))
-        XCTAssertFalse(el(app, "moreDebug").exists, "no Debug row in the reader ⋯")
-        wait(0.6)
-        el(app, "moreSettings").tap()
+        XCTAssertTrue(find(app, "moreSettings").waitForExistence(timeout: 3))
+        XCTAssertFalse(find(app, "moreDebug").exists, "no Debug row in the reader ⋯")
+        tapMenuRow(app, "moreSettings")
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
-        let version = el(app, "settingsVersionRow")
-        for _ in 0..<10 where !(version.exists && version.isHittable) { el(app, "settingsList").swipeUp() }
+        let version = find(app, "settingsVersionRow")
+        for _ in 0..<10 where !(version.exists && version.isHittable) { find(app, "settingsList").swipeUp() }
         XCTAssertTrue(version.waitForExistence(timeout: 3), "version row")
-        XCTAssertFalse(el(app, "listenDebugEnabledToggle").exists, "no Developer section")
+        XCTAssertFalse(find(app, "listenDebugEnabledToggle").exists, "no Developer section")
 
         // Long-press the version (2 s): developer options on, the Developer section comes back.
         version.press(forDuration: 2.4)
         let alert = app.alerts["Developer options on"]
         XCTAssertTrue(alert.waitForExistence(timeout: 3), "confirmation")
         alert.buttons["OK"].tap()
-        XCTAssertTrue(el(app, "listenDebugEnabledToggle").waitForExistence(timeout: 3), "Developer section shown")
-        XCTAssertTrue(el(app, "fakeExtractionFailureToggle").exists, "with the browser's fake failure")
-        for _ in 0..<4 where !(version.exists && version.isHittable) { el(app, "settingsList").swipeUp() }
+        XCTAssertTrue(find(app, "listenDebugEnabledToggle").waitForExistence(timeout: 3), "Developer section shown")
+        XCTAssertTrue(find(app, "fakeExtractionFailureToggle").exists, "with the browser's fake failure")
+        for _ in 0..<4 where !(version.exists && version.isHittable) { find(app, "settingsList").swipeUp() }
         version.press(forDuration: 2.4)
         XCTAssertTrue(app.alerts["Developer options off"].waitForExistence(timeout: 3))
         app.alerts["Developer options off"].buttons["OK"].tap()
-        XCTAssertTrue(waitFor { !self.el(app, "listenDebugEnabledToggle").exists })
+        XCTAssertTrue(eventually { !self.find(app, "listenDebugEnabledToggle").exists })
     }
 
     /// Developer options on or off, no ⋯ has a Debug row: debug tools live in Settings › Developer.
