@@ -129,4 +129,4 @@ xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -confi
 Directory-scoped working notes live next to the code in `<dir>/.context/CONTEXT.md` (deferred
 items in `<dir>/.context/FUTURE.md`); read them before changing that directory:
 `Features/Speech/.context/`, `Features/Shell/.context/`, `Features/Library/.context/`,
-`Features/Downloads/.context/`.
+`Features/Downloads/.context/`, and `Core/Persistence/.context/` (deferred items only).
