@@ -285,21 +285,17 @@ final class SpeechController {
         }
     }
 
-    /// A play button was pressed: pause what you hear, resume it (replay from the start once
-    /// finished), or run `start` for something that isn't it (replacing what's playing). Never
-    /// navigates.
+    /// A play button was pressed: pause what you hear, resume it (a finished page from its top,
+    /// `PlaybackIntent`), or run `start` for something that isn't it (replacing what's playing).
+    /// Never navigates.
     func press(_ target: ListenTarget, start: () -> Void) {
         switch playState(of: target) {
         case .playing:
             pause()
         case .paused:
             noteUserIntent()
-            if playback.phase == .finished {
-                perform(.replay)
-            } else {
-                playback.reconcile(with: engineSnapshot())
-                perform(playback.phase == .prepared ? .play(from: playback.playhead) : .resume)
-            }
+            playback.reconcile(with: engineSnapshot())
+            perform(playback.phase == .prepared ? .play(from: playback.playhead) : .resume)
         case .idle, .preparing:
             start()
         }

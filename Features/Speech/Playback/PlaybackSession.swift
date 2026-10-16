@@ -10,10 +10,11 @@ enum PlaybackPhase: Equatable, Sendable {
 }
 
 /// What the UI / controller wants.
+/// On a finished page, `resume`, `toggle` and `play(from:)` the playhead play it again from its
+/// top, whatever spot the voice finished at: the on-screen ▶, headphones, the lock screen and
+/// CarPlay all do the same.
 enum PlaybackIntent: Equatable {
     case play(from: Int)
-    /// ▶ on a finished page: from the very start, whatever spot the voice finished at.
-    case replay
     case pause
     case resume
     case toggle
@@ -193,6 +194,7 @@ struct PlaybackSessionState: Equatable {
         }
         switch intent {
         case .play(let from):
+            if phase == .finished, from == playhead { return replay() }
             let clamped = document.isEmpty ? 0 : max(0, min(from, document.count - 1))
             // Play from the playhead keeps a sub-paragraph spot (scrubbed while prepared).
             let keepsOffset = clamped == playhead && !document.isEmpty
@@ -206,18 +208,12 @@ struct PlaybackSessionState: Equatable {
             phase = .playing
             return [.enginePlay(from: clamped)]
 
-        case .replay:
-            guard isPrepared else { return [] }
-            playhead = 0
-            utf16Offset = 0
-            phase = .playing
-            return [.enginePlay(from: 0)]
-
         case .pause:
             guard engine.isAudible || engine.isPaused || phase == .playing || phase == .paused else { return [] }
             return pause(engine: engine)
 
         case .resume:
+            if phase == .finished { return replay() }
             if engine.isAudible {
                 phase = .playing
                 return []
@@ -231,6 +227,7 @@ struct PlaybackSessionState: Equatable {
             return [.enginePlay(from: playhead)]
 
         case .toggle:
+            if phase == .finished { return replay() }
             // Audible wins over a stale phase.
             if engine.isAudible || phase == .playing {
                 return pause(engine: engine)
@@ -272,6 +269,16 @@ struct PlaybackSessionState: Equatable {
             let clamped = max(0, min(utf16, max(0, length - 1)))
             return seek(toParagraph: document.index(containingUTF16Offset: clamped), utf16: clamped, engine: engine)
         }
+    }
+
+    /// A finished page plays again from its very start (both coordinates: on a one-paragraph page
+    /// the playhead is already paragraph 0).
+    private mutating func replay() -> [PlaybackCommand] {
+        guard isPrepared else { return [] }
+        playhead = 0
+        utf16Offset = 0
+        phase = .playing
+        return [.enginePlay(from: 0)]
     }
 
     /// The phase turns paused when the engine confirms (`becamePaused`); an engine already

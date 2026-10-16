@@ -16,7 +16,7 @@ extension RemoteCommand {
     /// The Session intent this command maps to (nil: not a playhead/phase intent — rate).
     var intent: PlaybackIntent? {
         switch self {
-        case .play: return .resume // paused → resume; prepared / finished → play from the playhead
+        case .play: return .resume // paused → resume; prepared → play from the playhead; finished → from its top
         case .pause: return .pause
         case .togglePlayPause: return .toggle
         case .nextTrack: return .skip(delta: 1)

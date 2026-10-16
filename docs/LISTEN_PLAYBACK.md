@@ -53,8 +53,10 @@ Rules:
   carries on, and otherwise the session finishes.
 - At the end of a page (or of a book or series) the engines stop, the audio session deactivates
   and the lock screen clears, but the page stays bound in `finished`: the Now Playing bar keeps it
-  with ▶ and "✓ Finished", and ▶ plays it again from the start. Only *Stop Listening* (the bar's
-  long-press) unbinds it.
+  with ▶ and "✓ Finished". Only *Stop Listening* (the bar's long-press) unbinds it.
+- On a finished page, `resume`, `toggle` and `play` from the playhead play it again from its top
+  (paragraph 0, offset 0), whatever spot the voice finished at: the on-screen ▶, headphones, the
+  lock screen and CarPlay all replay it, and the lock screen shows it again.
 - `toggle`: playing **or** the engine audible → pause; paused → resume; else play.
 - Seek (scrubber release) moves the playhead and offset; playing keeps playing from there, paused
   stays paused (the engine re-queues without sounding), prepared / finished just move where Play
@@ -76,8 +78,7 @@ Rules:
   request that `isStillPreparing` may start),
   `playing`, or `paused` (`.prepared` and `.finished` show as paused). Every ▶ / ⏸ / 🎧 comes from
   it.
-- **`press(_:start:)`**: playing → pause; paused → resume (from `.finished`, the session's `.replay`: both the paragraph and the
-  offset go back to the start); anything
+- **`press(_:start:)`**: playing → pause; paused → resume (a finished page from its top); anything
   else runs `start`, which replaces what is playing. Pressing never navigates.
 - **`nowPlayingContent()`**: Now Playing's reading content, asked of the injected
   `NowPlayingContentResolving`: the library, which has every page that has played (a page played
