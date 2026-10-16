@@ -121,6 +121,9 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   replaces it (Recent Searches show full-bleed, Safari-style); ✕ cancels and restores the page's
   address. Swipe down lowers the keyboard but stays in search mode (typed text and ✕ kept). The
   page stays loaded underneath. ⋯ → *New Search* opens the start page with an empty field.
+  Text without a scheme loads as an address only when its host ends in letters (`.com`, `.uk`,
+  `.js`) or is an IP address; anything else ("3.14", "e.g.") is a Google search, and the
+  suggestions follow the same rule (`BrowseURLParser`).
 - **🔖** (slot 3) is the Reader's 🔖 for the page on screen: tap saves it to the Library's top level
   (extracted first; 🔖 spins), or removes it when it is saved (filled, jade); held, it opens the
   Move tree (*Save to Folder…*). Dimmed on the start page. **🕘** (slot 4) opens History.

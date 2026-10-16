@@ -287,7 +287,7 @@ struct BrowseStartView: View {
     private func submit(_ text: String) {
         let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = BrowseURLParser.destination(from: raw) else { return }
-        if RecentSearches.isSearch(raw) {
+        if BrowseURLParser.isSearch(raw) {
             recentSearchesRaw = RecentSearches.encode(RecentSearches.adding(raw, to: recentSearches))
         }
         shell.navigate(to: url)

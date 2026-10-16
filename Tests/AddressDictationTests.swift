@@ -200,9 +200,9 @@ final class AddressDictationTests: XCTestCase {
         XCTAssertEqual(list.count, RecentSearches.maxEntries)
         XCTAssertEqual(RecentSearches.decode(RecentSearches.encode(list)), list)
 
-        XCTAssertTrue(RecentSearches.isSearch("best pizza"))
-        XCTAssertFalse(RecentSearches.isSearch("example.com"))
-        XCTAssertFalse(RecentSearches.isSearch("https://www.google.com/search?q=x"))
-        XCTAssertFalse(RecentSearches.isSearch("   "))
+        XCTAssertTrue(BrowseURLParser.isSearch("best pizza"))
+        XCTAssertFalse(BrowseURLParser.isSearch("example.com"))
+        XCTAssertFalse(BrowseURLParser.isSearch("https://www.google.com/search?q=x"))
+        XCTAssertFalse(BrowseURLParser.isSearch("   "))
     }
 }
