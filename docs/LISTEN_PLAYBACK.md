@@ -83,6 +83,10 @@ Rules:
   it.
 - **`press(_:start:)`**: playing → pause; paused → resume (a finished page from its top); anything
   else runs `start`, which replaces what is playing. Pressing never navigates.
+- **`userPerform(_:)`**: every intent the user asks for (▶ / ⏸, ⏮ / ⏭, a swipe, the scrubber,
+  ☝︎, headphones and the lock screen, its speed change included) first forgets an auto-resume
+  after an interruption and ends a preparation, then goes to the session. What the app does on
+  its own (the next chapter, an interruption) goes straight to the session.
 - **`start(_:at:)`** is the one way a page starts: a `SpeechSession` from a `ListenSpot`, replacing
   what plays. `listen(to:at:)` wraps it for a `ReaderArticle` (the Reader's Listen, 🎧), handing the
   article to `onListen` first; `playPage` (Contents, *Play from Here*) loads a library page and
@@ -603,7 +607,7 @@ with `.notifyOthersOnDeactivation` on stop or finish.
   previousTrack (previous paragraph, or restart paragraph 1) and changePlaybackRate (snapped to
   the listen-bar rates). Skip, seek and position commands are off.
 - Every command goes through `SpeechController.handleRemoteCommand` → `RemoteCommand.intent` →
-  `PlaybackSessionState.handle`, the same path as the on-screen buttons. Now Playing is
+  `userPerform` → `PlaybackSessionState.handle`, the same path as the on-screen buttons. Now Playing is
   re-derived from `playback` on every change; identical updates are skipped.
 
 **Interruptions and route changes** (`ListenInterruptionPolicy`, pure and unit-tested; every pause
@@ -615,7 +619,7 @@ and resume goes through session intents):
 | Interruption ends with `.shouldResume`, and it was playing | Reactivate the session and resume |
 | Interruption ends without `.shouldResume` | Stay paused |
 | `appWasSuspended` notice | Not a real interruption; never auto-resume |
-| User pauses, stops or plays during an interruption | Forget the auto-resume |
+| User does anything during an interruption (play, pause, skip, seek, stop, a speed change on the lock screen) | Forget the auto-resume |
 | Route change `oldDeviceUnavailable` (headphones out, Bluetooth lost) | Pause |
 | Media services reset | Reconfigure the category and pause |
 

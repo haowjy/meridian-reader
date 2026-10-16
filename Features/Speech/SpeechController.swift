@@ -291,11 +291,9 @@ final class SpeechController {
     func press(_ target: ListenTarget, start: () -> Void) {
         switch playState(of: target) {
         case .playing:
-            pause()
+            userPerform(.pause)
         case .paused:
-            noteUserIntent()
-            playback.reconcile(with: engineSnapshot())
-            perform(playback.phase == .prepared ? .play(from: playback.playhead) : .resume)
+            userPerform(.resume)
         case .idle, .preparing:
             start()
         }
@@ -333,6 +331,14 @@ final class SpeechController {
         supersedePreparation()
     }
 
+    /// Every intent the user asks for (a button, a gesture, the scrubber, headphones, the lock
+    /// screen) goes through here. What the app does on its own (carrying on to the next chapter,
+    /// an interruption) calls `perform`.
+    func userPerform(_ intent: PlaybackIntent) {
+        noteUserIntent()
+        perform(intent)
+    }
+
     /// Plays `article` from `spot` (`start`). The article goes to `onListen` first, so a page the
     /// library doesn't have is kept once it plays.
     func listen(to article: ReaderArticle, at spot: ListenSpot = .top) {
@@ -347,9 +353,8 @@ final class SpeechController {
     /// already bound plays from `spot`'s paragraph). A page in a folder carries on through it.
     func start(_ session: SpeechSession, at spot: ListenSpot = .top) {
         guard !session.document.isEmpty else { return }
-        noteUserIntent()
         prepare(session, at: spot)
-        perform(.play(from: spot.paragraph))
+        userPerform(.play(from: spot.paragraph))
     }
 
     /// The page's icon arrived after it started playing (🎧 starts before fetching it).
@@ -362,16 +367,14 @@ final class SpeechController {
     /// Plays the bound page from `paragraph` (☝︎ in Now Playing).
     func play(fromParagraph paragraph: Int) {
         guard isPrepared else { return }
-        noteUserIntent()
-        perform(.play(from: paragraph))
+        userPerform(.play(from: paragraph))
     }
 
     /// Scrubber release in Now Playing: the bound page's playhead to document offset `utf16`
     /// (a sentence start), keeping play / pause as it is.
     func seek(toUTF16Offset utf16: Int) {
         guard isPrepared else { return }
-        noteUserIntent()
-        perform(.seekOffset(utf16: utf16))
+        userPerform(.seekOffset(utf16: utf16))
     }
 
     /// The reading content of what you hear, for Now Playing.
@@ -567,30 +570,21 @@ final class SpeechController {
 
     func skipToPreviousParagraph() {
         guard isPrepared else { return }
-        supersedePreparation()
-        perform(.skip(delta: -1))
+        userPerform(.skip(delta: -1))
     }
 
     func skipToNextParagraph() {
         guard isPrepared else { return }
-        supersedePreparation()
-        perform(.skip(delta: 1))
+        userPerform(.skip(delta: 1))
     }
 
-    func pause() {
-        noteUserIntent()
-        perform(.pause)
-    }
+    func pause() { userPerform(.pause) }
 
-    func resume() {
-        supersedePreparation()
-        perform(.resume)
-    }
+    func resume() { userPerform(.resume) }
 
     /// Stop Listening: unbinds the page, so the bar goes away.
     func stop() {
-        noteUserIntent()
-        perform(.stop)
+        userPerform(.stop)
         endChapterFlow()
         // Listen preempts bake; on stop, resume gap-fill so save-time work still lands on disk.
         finishSession(restartBake: true)
@@ -687,20 +681,18 @@ final class SpeechController {
     @discardableResult
     func handleRemoteCommand(_ command: RemoteCommand) -> RemoteCommandOutcome {
         guard playback.isPrepared else { return .noActionableNowPlayingItem }
-        interruptionPolicy.noteUserIntent()
         ListenTimingLog.log("remote_command", [
             "cmd": String(describing: command), "phase": String(describing: playback.phase), "p": playback.playhead,
         ])
         if case .changePlaybackRate(let rate) = command {
+            noteUserIntent()
             let nearest = Self.rateOptions.min { abs($0 - rate) < abs($1 - rate) } ?? 1.0
             setRateMultiplier(nearest)
             return .success
         }
-        supersedePreparation()
         if command == .nextTrack, !canSkipToNextParagraph { return .commandFailed }
-        if command == .togglePlayPause { playback.reconcile(with: engineSnapshot()) }
         guard let intent = command.intent else { return .commandFailed }
-        perform(intent)
+        userPerform(intent)
         return .success
     }
 

@@ -162,8 +162,10 @@ final class BackgroundListeningTests: XCTestCase {
         XCTAssertEqual(speech.handleRemoteCommand(.previousTrack), .success)
         XCTAssertEqual(speech.currentParagraphIndex, 1)
 
+        let preparing = speech.beginPreparing(.page(UUID()))
         XCTAssertEqual(speech.handleRemoteCommand(.changePlaybackRate(1.4)), .success)
         XCTAssertEqual(speech.rateMultiplier, 1.5, "snapped to the nearest listen-bar rate")
+        XCTAssertFalse(speech.isStillPreparing(preparing), "a lock-screen speed change is the user's too")
         XCTAssertEqual(nowPlaying.lastInfo?.rate, 1.5)
 
         speech.stop() // Browse ✕
@@ -228,6 +230,20 @@ final class BackgroundListeningTests: XCTestCase {
         XCTAssertEqual(speech.playback.phase, .playing)
         speech.handleAudioSessionEvent(.oldDeviceUnavailable) // headphones out
         XCTAssertEqual(speech.playback.phase, .paused)
+    }
+
+    /// A skip during a call is the user's choice: the call ending with `shouldResume` doesn't
+    /// start playback again.
+    func testASkipDuringAnInterruptionCancelsTheAutoResume() {
+        let (speech, _, _) = makeSpeech()
+        speech.start(session())
+        speech.handleAudioSessionEvent(.interruptionBegan)
+        XCTAssertEqual(speech.playback.phase, .paused)
+
+        speech.skipToNextParagraph()
+        XCTAssertEqual(speech.currentParagraphIndex, 1)
+        speech.handleAudioSessionEvent(.interruptionEnded(shouldResume: true))
+        XCTAssertEqual(speech.playback.phase, .paused, "no auto-resume after the user's skip")
     }
 
     // MARK: - Background compute switch (fake engine)

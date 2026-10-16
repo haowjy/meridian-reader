@@ -217,7 +217,9 @@ struct PlaybackSessionState: Equatable {
 
         case .toggle:
             if phase == .finished { return replay() }
-            // Audible wins over a stale phase.
+            // The engine first: a stale paused can't block Pause while audible, nor a stale
+            // playing Play when nothing is held.
+            reconcile(with: engine)
             if engine.isAudible || phase == .playing {
                 return pause(engine: engine)
             }
