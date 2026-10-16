@@ -3,18 +3,26 @@ import UIKit
 import WebKit
 
 enum FaviconFetcher {
-    /// A page's best icon: from its live document when there is one, else the host's
-    /// conventional icons.
+    /// A page's best icon: from its live document when the web view still shows that page, else
+    /// the host's conventional icons. Asked after an extraction or a save, the web view may have
+    /// moved on to another page by then; its icon isn't this page's.
     @MainActor
     static func best(for url: URL, webView: WKWebView?) async -> Data? {
-        if let webView, let icon = await fetch(from: webView) { return icon }
+        if let live = document(in: webView, showing: url), let icon = await fetch(from: live) { return icon }
         guard let host = url.host else { return nil }
         return await fetch(forHost: host)
     }
 
-    /// Best-effort icon URL from the live document, then download bytes (capped).
+    /// `webView` while it shows the page at `url` (the same page, `URL.isSamePage`), else nil.
     @MainActor
-    static func fetch(from webView: WKWebView) async -> Data? {
+    static func document(in webView: WKWebView?, showing url: URL) -> WKWebView? {
+        guard let webView, webView.url.map({ $0.isSamePage(as: url) }) == true else { return nil }
+        return webView
+    }
+
+    /// Best-effort icon URL from the live document, then its bytes (`download`).
+    @MainActor
+    private static func fetch(from webView: WKWebView) async -> Data? {
         let href = await iconHREF(from: webView)
         guard let href, let url = URL(string: href) else { return nil }
         return await download(url: url)
@@ -55,20 +63,24 @@ enum FaviconFetcher {
         }
     }
 
-    static func download(url: URL) async -> Data? {
+    /// The icon at `url`, or nil when the answer isn't one (`icon(_:response:)`).
+    private static func download(url: URL) async -> Data? {
         var request = URLRequest(url: url)
         request.timeoutInterval = 8
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                return nil
-            }
-            // Skip huge or empty payloads.
-            guard data.count > 32, data.count < 256_000 else { return nil }
-            return data
+            return icon(data, response: response)
         } catch {
             return nil
         }
+    }
+
+    /// A download's bytes when they are an icon: a 2xx answer, neither empty nor huge, that
+    /// decodes as an image. Many sites answer a missing `/favicon.ico` with a 200 HTML page.
+    static func icon(_ data: Data, response: URLResponse) -> Data? {
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+              data.count > 32, data.count < 256_000, UIImage(data: data) != nil else { return nil }
+        return data
     }
 
     /// Fallback when no live WebView (e.g. backfill): the conventional `apple-touch-icon.png`
@@ -78,7 +90,7 @@ enum FaviconFetcher {
         guard !cleaned.isEmpty else { return nil }
         for path in ["apple-touch-icon.png", "favicon.ico"] {
             guard let url = URL(string: "https://\(cleaned)/\(path)") else { continue }
-            if let data = await download(url: url), UIImage(data: data) != nil { return data }
+            if let data = await download(url: url) { return data }
         }
         return nil
     }
