@@ -519,6 +519,12 @@ Reader shows the Now Playing bar of another page above its row.
 └──────────────────────────────────────┘
 ```
 
+The heading is always the serif title, then the site and length under it. When the article's own
+first heading repeats the title, that heading takes the title's look and the source line moves
+under it. The reading style always wins over a page's own styles (an extracted page's
+stylesheets are left out), and an extracted title drops a trailing site name ("Speech synthesis
+- Wikipedia" reads "Speech synthesis").
+
 - **A sheet over the surface that opened it** (`ReaderSheetScreen`, `ShellState.reader`). From
   the browser (📄, ⋯ → Reader, a Favorites tile) the pill reads *‹ Browser*; from the Library
   *‹ Library*. The pill, the grabber and a pull down all close it to exactly where you were.
