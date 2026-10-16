@@ -93,7 +93,7 @@ extension LibraryStore {
     /// Notes where the crash-resume point is expected when `work` runs, if it names the source.
     private func planResumePoint(_ work: LibraryAudioWork) {
         if !audioPlan.resumeLoaded {
-            audioPlan.resume = ListenResumePointStore.shared.load()
+            audioPlan.resume = audio.resumePoints.load()
             audioPlan.resumeLoaded = true
         }
         guard let source = work.sourceKey, work.key != nil, let point = audioPlan.resume,
@@ -215,7 +215,7 @@ extension LibraryStore {
         if work.stampsSource { try cache.stampMissingHashes(articleID: key, paragraphs: work.sourceParagraphs) }
         let rec = try cache.reconcile(articleID: key, paragraphs: new) { self.audio.chunkPlans.chunks(for: $1, engineID: $0) }
         guard cache.isAligned(articleID: key, paragraphs: new) else { throw LibraryAudioWorkError.notAligned(key) }
-        let pending = PendingBakeJobStore.shared
+        let pending = audio.pendingBakes
         if let job = pending.pendingJobs().first(where: { $0.articleID == key }), job.paragraphs != new {
             let start = ParagraphPositionMap.mapParagraphStart(job.priorityStart, from: ParagraphDocument(parts: job.paragraphs),
                                                                to: ParagraphDocument(parts: new))
@@ -354,7 +354,7 @@ extension LibraryStore {
     private func moveResumePoints(_ work: LibraryAudioWork, onto paragraphs: [String], live: Bool) {
         guard let source = work.sourceKey, let target = work.key else { return }
         if let paragraph = work.resumeParagraph, let at = work.resumeAt {
-            let store = ListenResumePointStore.shared
+            let store = audio.resumePoints
             if let point = store.load(), point.matches(source), point.paragraph == paragraph,
                abs(point.at.timeIntervalSince(at)) < 0.001 {
                 let moved = Self.move(point, by: work, onto: paragraphs)

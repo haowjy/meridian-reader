@@ -1,4 +1,3 @@
-import SwiftData
 import XCTest
 @testable import MeridianReader
 
@@ -6,12 +5,15 @@ import XCTest
 @MainActor
 final class PlayStateTests: XCTestCase {
     private var fixture: TestSpeech!
-    /// The library store of a test that needs one.
-    private var container: ModelContainer?
+    /// The library of a test that needs one, over the same speech stack.
+    private var env: LibraryTestEnvironment?
     private var speech: SpeechController { fixture.speech }
 
     override func setUp() async throws { fixture = TestSpeech() }
-    override func tearDown() async throws { fixture.tearDown() }
+    override func tearDown() async throws {
+        env?.cleanUp()
+        fixture.tearDown()
+    }
 
     private let pageA = "https://example.com/a"
     private let pageB = "https://example.com/b"
@@ -39,9 +41,9 @@ final class PlayStateTests: XCTestCase {
     func testLegacyRandomKeyPageMatchesItsWebPage() throws {
         // A save from before identity v2 became a page with its random key; played from its row
         // (no article at hand), its web page still matches it by canonical URL.
-        let container = try LibraryStoreConfiguration.makeInMemoryContainer()
-        self.container = container
-        let library = LibraryStore(context: container.mainContext, audio: speech.localTTS)
+        let env = try LibraryTestEnvironment(speech: fixture)
+        self.env = env
+        let library: LibraryStore = env.library
         let legacy = try library.save(TestSpeech.article(pageA, id: UUID()))
         XCTAssertNotEqual(legacy.listenKey, ArticleIdentity.articleKey(canonicalURL: canonical(pageA)))
         speech.press(.page(legacy.listenKey)) {

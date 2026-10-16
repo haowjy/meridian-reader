@@ -107,6 +107,9 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
 
 - Fakes: `Tests/Fakes/FakeEngineProvider.swift` (an engine with configurable latency, caps and
   failures), `FakeListenEngine`, `FakeUnitSource`, `ArticleAudioCache+Fixtures.swift`.
+- `TestSpeech` builds the coordinator and controller over a test's own files (audio cache, crash
+  guard, bake jobs, resume file) and defaults suite; `LibraryTestEnvironment` builds a library
+  over one. Nothing else in Tests constructs either, so no test reads the app's files.
 - Behavior that only shows on a device (the libBNNS crash, real render speed, background
   limits) is measured with a Release build and the timing log; see LISTEN_PLAYBACK.md →
   "Diagnostics".

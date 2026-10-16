@@ -8,14 +8,14 @@ extension LocalTTSCoordinator: LibraryAudioEffects {
         synthQueue.remove(cacheKey: articleID)
         try audioCache.deleteAudio(for: articleID)
         noteBakeMarksChanged()
-        PendingBakeJobStore.shared.removePending(articleID: articleID)
+        pendingBakes.removePending(articleID: articleID)
     }
 
     /// Also when a download stops (paused, removed). `DownloadCenter` never asks this of a page
     /// listening needs (`needsAudio`): removing a job fails its chunk waiters.
     func removeBakeJob(cacheKey: UUID) {
         synthQueue.remove(cacheKey: cacheKey)
-        PendingBakeJobStore.shared.removePending(articleID: cacheKey)
+        pendingBakes.removePending(articleID: cacheKey)
     }
 
     func markListenCacheSaved(_ key: UUID) {

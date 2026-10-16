@@ -26,9 +26,6 @@ final class SpeechController {
             publishPlayback()
         }
     }
-    /// Durable "what is playing" point for crash auto-resume (nil: tests that don't want it).
-    @ObservationIgnored private let resumePoints: ListenResumePointStore?
-
     // MARK: Published playback (what views observe)
     //
     // Observation tracks stored properties one by one. The in-paragraph offset moves several
@@ -392,7 +389,7 @@ final class SpeechController {
 
     /// The session's resume point changed (playing a new paragraph, paused, stopped).
     private func saveResumePoint() {
-        guard let resumePoints else { return }
+        let resumePoints = localTTS.resumePoints
         if let point = playback.resumePoint {
             resumePoints.save(article: point.article, paragraph: point.paragraph, text: point.text)
         } else {
@@ -422,24 +419,21 @@ final class SpeechController {
         didSet { UserDefaults.standard.set(selectedVoiceIdentifier, forKey: voiceDefaultsKey) }
     }
 
-    /// `localTTS` / `audioSession` / `nowPlaying` / `appleEngine` / `resumePoints` are injectable
-    /// for unit tests (temp cache, no process-wide audio session or remote command registration, a
-    /// scripted Apple engine, no resume file). `keepsStoredRate` false starts at 1× whatever is
-    /// stored (a UI-test launch that passes no rate: `LaunchOptions.keepsStoredRate`).
-    init(engines: EngineRegistry,
-         localTTS: LocalTTSCoordinator? = nil,
+    /// Over `localTTS`, which also holds the crash-resume file this writes as playback moves.
+    /// `audioSession` / `nowPlaying` / `appleEngine` are injectable for unit tests (no
+    /// process-wide audio session or remote command registration, a scripted Apple engine).
+    /// `keepsStoredRate` false starts at 1× whatever is stored (a UI-test launch that passes no
+    /// rate: `LaunchOptions.keepsStoredRate`).
+    init(localTTS: LocalTTSCoordinator,
          audioSession: ListenAudioSession? = nil,
          nowPlaying: NowPlayingController? = nil,
          appleEngine: ListenEngine? = nil,
-         resumePoints: ListenResumePointStore? = .shared,
          keepsStoredRate: Bool = true) {
-        let coordinator = localTTS ?? LocalTTSCoordinator(engines: engines)
-        self.localTTS = coordinator
-        self.appleEngine = appleEngine ?? AppleListenEngine(runState: coordinator.synthQueue.runState)
-        self.localEngine = LocalListenEngine(coordinator: coordinator)
+        self.localTTS = localTTS
+        self.appleEngine = appleEngine ?? AppleListenEngine(runState: localTTS.synthQueue.runState)
+        self.localEngine = LocalListenEngine(coordinator: localTTS)
         self.audioSession = audioSession ?? ListenAudioSession()
         self.lockScreen = nowPlaying ?? NowPlayingController()
-        self.resumePoints = resumePoints
         let storedLanguage = UserDefaults.standard.string(forKey: languageDefaultsKey)
         let fallback = Locale.current.language.languageCode.map {
             "\($0.identifier)-\(Locale.current.region?.identifier ?? "US")"

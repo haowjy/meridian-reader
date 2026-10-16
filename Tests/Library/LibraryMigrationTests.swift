@@ -26,7 +26,7 @@ final class LibraryMigrationTests: XCTestCase {
         try env.storeAudio(legacyID, paragraphs: paragraphs)
         let indexBefore = try Data(contentsOf: env.cache.indexURL(for: legacyID))
         env.writeHistory([legacyID: (at: date(3).timeIntervalSince1970, done: false)])
-        ListenResumePointStore.shared.save(article: legacyID, paragraph: 2, at: date(3))
+        env.tts.resumePoints.save(article: legacyID, paragraph: 2, at: date(3))
 
         let report = library.migrateLegacy()
         XCTAssertEqual(report.copiedArticles, 1)
@@ -50,7 +50,7 @@ final class LibraryMigrationTests: XCTestCase {
         XCTAssertTrue(env.cache.hasCache(for: legacyID), "the audio is found under the same key")
         XCTAssertEqual(try Data(contentsOf: env.cache.indexURL(for: legacyID)), indexBefore, "and wasn't rewritten")
         XCTAssertTrue(PageProgress.isPartWay(page), "part-way: its row shows the time left")
-        let target = try XCTUnwrap(ListenResumePointStore.shared.load())
+        let target = try XCTUnwrap(env.tts.resumePoints.load())
         XCTAssertIdentical(library.page(matching: target), page, "crash resume finds it")
         let oldMarker = ListenResumeTarget(articleKey: String(legacyID.uuidString.prefix(8)), paragraph: 2, at: date(3))
         XCTAssertIdentical(library.page(matching: oldMarker), page, "and by an old 8-character crash marker")

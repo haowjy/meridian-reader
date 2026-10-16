@@ -68,7 +68,7 @@ final class LibraryLayoutMigrationTests: XCTestCase {
         try writeStitched(cache, article: key, index: iLast, text: oldList.paragraphs[iLast], lengths: [4800])
         // The resume point in the text that played, old layout and numbering.
         let played = ArticleIdentity.contentFingerprint(paragraphs: oldList.paragraphs)
-        ListenResumePointStore.shared.save(article: key, paragraph: iAfter, text: played)
+        env.tts.resumePoints.save(article: key, paragraph: iAfter, text: played)
         // A crash-resume target read at coordinator init (before migration) — old numbering.
         coordinator.pendingResume = ListenResumeTarget(articleKey: key.uuidString, paragraph: iAfter, text: played, at: Date())
 
@@ -86,10 +86,10 @@ final class LibraryLayoutMigrationTests: XCTestCase {
         XCTAssertTrue(new.paragraphs[page.positionParagraph].hasPrefix("The head had been beaten"))
         XCTAssertEqual(page.positionUTF16, new.utf16Ranges[first + 2].location)
         // Crash-resume point follows its paragraph.
-        XCTAssertEqual(ListenResumePointStore.shared.load()?.paragraph, iAfter + 3)
+        XCTAssertEqual(env.tts.resumePoints.load()?.paragraph, iAfter + 3)
         XCTAssertEqual(coordinator.pendingResume?.paragraph, iAfter + 3, "in-memory crash target remapped too")
         // In the text the page holds now, so crash resume applies them.
-        XCTAssertTrue(library.holds(page, text: ListenResumePointStore.shared.load()?.text))
+        XCTAssertTrue(library.holds(page, text: env.tts.resumePoints.load()?.text))
         XCTAssertTrue(library.holds(page, text: coordinator.pendingResume?.text))
 
         // Unsplit paragraphs keep their audio at the shifted index.

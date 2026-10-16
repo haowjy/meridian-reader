@@ -64,6 +64,6 @@ extension LocalTTSCoordinator {
     /// The bake job of `cacheKey` is still queued, or waits on disk for the engine to load.
     func hasDownloadJob(cacheKey: UUID) -> Bool {
         synthQueue.hasJob(cacheKey: cacheKey)
-            || PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == cacheKey }
+            || pendingBakes.pendingJobs().contains { $0.articleID == cacheKey }
     }
 }

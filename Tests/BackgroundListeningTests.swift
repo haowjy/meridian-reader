@@ -16,32 +16,16 @@ final class BackgroundListeningTests: XCTestCase {
     // MARK: - Helpers
 
     /// Real SpeechController + Session over a scripted Apple engine that confirms pause / resume
-    /// at once, with a temp cache, no resume file and no process-wide audio session / remote
-    /// command registration.
+    /// at once (`TestSpeech`).
     private func makeSpeech() -> (SpeechController, ListenAudioSession, NowPlayingController) {
-        let suite = "BackgroundListening-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        let registry = EngineRegistry(providers: [AppleSpeechProvider()], gate: { _ in true })
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent("BGListen-\(UUID().uuidString)")
-        let guardDir = tmp.appendingPathComponent("BGListenGuard-\(UUID().uuidString)")
-        let coordinator = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                              audioCache: ArticleAudioCache(root: root),
-                                              crashGuard: EngineCrashGuard(directory: guardDir))
-        let audio = ListenAudioSession(managesSystemSession: false)
-        let nowPlaying = NowPlayingController(commandCenter: nil, infoCenter: nil)
-        let speech = SpeechController(engines: registry, localTTS: coordinator, audioSession: audio, nowPlaying: nowPlaying,
-                                      appleEngine: FakeListenEngine(), resumePoints: nil)
+        let stack = TestSpeech()
         let savedRate = UserDefaults.standard.object(forKey: "reader.rateMultiplier")
         cleanups.append {
-            speech.stop()
+            stack.tearDown()
             if let savedRate { UserDefaults.standard.set(savedRate, forKey: "reader.rateMultiplier") }
             else { UserDefaults.standard.removeObject(forKey: "reader.rateMultiplier") }
-            defaults.removePersistentDomain(forName: suite)
-            try? FileManager.default.removeItem(at: root)
-            try? FileManager.default.removeItem(at: guardDir)
         }
-        return (speech, audio, nowPlaying)
+        return (stack.speech, stack.audioSession, stack.nowPlaying)
     }
 
     private func session() -> SpeechSession {

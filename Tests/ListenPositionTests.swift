@@ -7,13 +7,10 @@ import XCTest
 @MainActor
 final class ListenPositionTests: XCTestCase {
     private var cleanups: [() -> Void] = []
-    private var sessionIDs: [UUID] = []
 
     override func tearDown() async throws {
         cleanups.reversed().forEach { $0() }
         cleanups = []
-        for id in sessionIDs { PendingBakeJobStore.shared.removePending(articleID: id) }
-        sessionIDs = []
     }
 
     // MARK: - Mapper
@@ -88,33 +85,14 @@ final class ListenPositionTests: XCTestCase {
 
     // MARK: - Controller
 
-    private func makeSpeech(resumeFile: URL) -> (SpeechController, LocalTTSCoordinator, FakeListenEngine) {
-        let suite = "ListenPosition-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), FakeEngineProvider()], gate: { _ in true })
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent("ListenPosition-\(UUID().uuidString)")
-        let coordinator = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                              audioCache: ArticleAudioCache(root: root),
-                                              crashGuard: EngineCrashGuard(directory: root.appendingPathComponent("guard")))
-        let apple = FakeListenEngine()
-        let speech = SpeechController(engines: registry, localTTS: coordinator,
-                                      audioSession: ListenAudioSession(managesSystemSession: false),
-                                      nowPlaying: NowPlayingController(commandCenter: nil, infoCenter: nil),
-                                      appleEngine: apple, resumePoints: ListenResumePointStore(url: resumeFile))
-        cleanups.append {
-            speech.stop()
-            defaults.removePersistentDomain(forName: suite)
-            try? FileManager.default.removeItem(at: root)
-            try? FileManager.default.removeItem(at: resumeFile)
-        }
-        return (speech, coordinator, apple)
+    private func makeSpeech() -> TestSpeech {
+        let stack = TestSpeech(providers: [FakeEngineProvider()])
+        cleanups.append { stack.tearDown() }
+        return stack
     }
 
     private func session(_ parts: [String]) -> SpeechSession {
-        let id = UUID()
-        sessionIDs.append(id)
-        return SpeechSession(id: id, document: ParagraphDocument(parts: parts), detectedLanguage: "en", title: "Position")
+        SpeechSession(id: UUID(), document: ParagraphDocument(parts: parts), detectedLanguage: "en", title: "Position")
     }
 
     private func waitUntil(_ condition: () -> Bool, _ message: String) async {
@@ -125,9 +103,8 @@ final class ListenPositionTests: XCTestCase {
     }
 
     func testTheResumeFileHoldsTheParagraphPlayingWhateverTheEngine() {
-        let file = FileManager.default.temporaryDirectory.appendingPathComponent("resume-\(UUID().uuidString).json")
-        let store = ListenResumePointStore(url: file)
-        let (speech, _, apple) = makeSpeech(resumeFile: file)
+        let stack = makeSpeech()
+        let (speech, store, apple) = (stack.speech, stack.resumePoints, stack.apple)
         let s = session(["One.", "Two.", "Three."])
 
         speech.start(s)
@@ -147,9 +124,9 @@ final class ListenPositionTests: XCTestCase {
     }
 
     func testTheLocalEngineReportsPositionFromPlayerTimeFromTheScrubbedSentence() async {
-        let file = FileManager.default.temporaryDirectory.appendingPathComponent("resume-\(UUID().uuidString).json")
-        let (speech, coordinator, _) = makeSpeech(resumeFile: file)
-        await coordinator.selectEngine(FakeEngineProvider.fakeID)
+        let stack = makeSpeech()
+        let speech = stack.speech
+        await stack.tts.selectEngine(FakeEngineProvider.fakeID)
         let s = session([
             "Opening line.",
             "The first sentence of the second paragraph runs on a bit. Then the scrubbed sentence starts "

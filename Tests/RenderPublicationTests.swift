@@ -1,4 +1,3 @@
-import SwiftData
 import XCTest
 @testable import MeridianReader
 
@@ -18,27 +17,13 @@ final class RenderPublicationTests: XCTestCase {
         cleanups = []
     }
 
-    /// The speech stack over the fake on-device engine (loaded), with its own audio cache.
-    private func makeSpeech() async -> SpeechController {
-        let suite = "RenderPublication-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.set(FakeEngineProvider.fakeID.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), FakeEngineProvider()], gate: { _ in true })
-        let root = FileManager.default.temporaryDirectory.appending(path: "RenderPublication-\(UUID().uuidString)")
-        let tts = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                      audioCache: ArticleAudioCache(root: root.appending(path: "cache")),
-                                      crashGuard: EngineCrashGuard(directory: root.appending(path: "guard")))
-        await tts.selectEngine(FakeEngineProvider.fakeID)
-        let speech = SpeechController(engines: registry, localTTS: tts,
-                                      audioSession: ListenAudioSession(managesSystemSession: false),
-                                      nowPlaying: NowPlayingController(commandCenter: nil, infoCenter: nil),
-                                      appleEngine: FakeListenEngine(), resumePoints: nil)
-        cleanups.append {
-            speech.stop()
-            defaults.removePersistentDomain(forName: suite)
-            try? FileManager.default.removeItem(at: root)
-        }
-        return speech
+    /// A library over the speech stack, its fake on-device engine loaded.
+    private func makeLibrary() async throws -> LibraryTestEnvironment {
+        let env = try LibraryTestEnvironment(speech: TestSpeech(providers: [FakeEngineProvider()],
+                                                                selected: FakeEngineProvider.fakeID))
+        cleanups.append { env.cleanUp() }
+        await env.tts.selectEngine(FakeEngineProvider.fakeID)
+        return env
     }
 
     /// The page at `url` as extracted, with `paragraphs` as its text.
@@ -121,11 +106,10 @@ final class RenderPublicationTests: XCTestCase {
     /// #1 with its plan, takes them too: A's render never lands on paragraph 0, and every paragraph
     /// ends with audio of its own text.
     func testBrowserSaveOfNewerTextGivesTheReadersJobTheNewParagraphs() async throws {
-        let speech = await makeSpeech()
-        let tts = speech.localTTS
+        let env = try await makeLibrary()
+        let tts = env.tts, speech = env.speech.speech
+        let library: LibraryStore = env.library
         XCTAssertTrue(tts.usesLocalEngine)
-        let container = try LibraryStoreConfiguration.makeInMemoryContainer()
-        let library = LibraryStore(context: container.mainContext, audio: tts)
         let a = "Alpha is the paragraph the page opened with.", b = "Bravo comes after it.", c = "Charlie is new at the top."
         let opened = article("https://example.com/refreshed", [a, b])
         let refreshed = article("https://example.com/refreshed", [c, a, b])

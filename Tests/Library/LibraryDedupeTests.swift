@@ -136,14 +136,14 @@ final class LibraryDedupeTests: XCTestCase {
         let keeper = page("https://example.com/c1", position: 3, in: series)
         let extra = page("https://example.com/c1", position: 1)
         series.currentPageKey = extra.key
-        ListenResumePointStore.shared.save(article: extra.key!, paragraph: 1)
+        env.tts.resumePoints.save(article: extra.key!, paragraph: 1)
         var merged: [(UUID, UUID)] = []
         library.keyMerged = { from, to, _ in merged.append((from, to)) }
         try env.context.save()
 
         library.dedupe()
         XCTAssertEqual(series.currentPageKey, keeper.key)
-        XCTAssertEqual(ListenResumePointStore.shared.load()?.articleKey, keeper.key?.uuidString)
+        XCTAssertEqual(env.tts.resumePoints.load()?.articleKey, keeper.key?.uuidString)
         XCTAssertEqual(merged.map(\.0), [extra.key!])
         XCTAssertEqual(merged.map(\.1), [keeper.key!])
         XCTAssertIdentical(keeper.folder, series, "a page in a series keeps it")
@@ -160,7 +160,7 @@ final class LibraryDedupeTests: XCTestCase {
         let keeper = page("https://example.com/c2", position: 1)
         keeper.storeListenParagraphs(["Alpha one.", "Beta two."])
         let text = ArticleIdentity.contentFingerprint(paragraphs: played)
-        ListenResumePointStore.shared.save(article: extra.key!, paragraph: 2, text: text, at: env.now)
+        env.tts.resumePoints.save(article: extra.key!, paragraph: 2, text: text, at: env.now)
         env.tts.pendingResume = ListenResumeTarget(articleKey: extra.key!.uuidString, paragraph: 2, text: text,
                                                    at: env.now, autoPlay: true)
         try env.context.save()
@@ -171,7 +171,7 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertEqual(target.paragraph, 1, "on \"Beta two.\", its paragraph there")
         XCTAssertTrue(library.holds(keeper, text: target.text), "in the text the kept page holds")
         XCTAssertTrue(target.autoPlay)
-        let file = try XCTUnwrap(ListenResumePointStore.shared.load())
+        let file = try XCTUnwrap(env.tts.resumePoints.load())
         XCTAssertEqual(file.articleKey, keeper.key?.uuidString)
         XCTAssertEqual(file.paragraph, 1)
         XCTAssertEqual(file.text, target.text)
@@ -187,7 +187,7 @@ final class LibraryDedupeTests: XCTestCase {
         let keeper = page("https://example.com/c3", position: 1)
         keeper.storeListenParagraphs(["Alpha one.", "Beta two."])
         let older = ArticleIdentity.contentFingerprint(paragraphs: ["An older intro.", "Older one.", "Older two."])
-        ListenResumePointStore.shared.save(article: extra.key!, paragraph: 2, text: older, at: env.now)
+        env.tts.resumePoints.save(article: extra.key!, paragraph: 2, text: older, at: env.now)
         env.tts.pendingResume = ListenResumeTarget(articleKey: extra.key!.uuidString, paragraph: 2, text: older,
                                                    at: env.now, autoPlay: true)
         try env.context.save()
@@ -198,7 +198,7 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertEqual(target.paragraph, 2, "its paragraph unmapped")
         XCTAssertEqual(target.text, older, "still in the text it was played in")
         XCTAssertFalse(library.holds(keeper, text: target.text))
-        let file = try XCTUnwrap(ListenResumePointStore.shared.load())
+        let file = try XCTUnwrap(env.tts.resumePoints.load())
         XCTAssertEqual(file.articleKey, keeper.key?.uuidString)
         XCTAssertEqual(file.paragraph, 2)
         XCTAssertEqual(file.text, older)

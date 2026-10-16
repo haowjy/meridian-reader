@@ -9,6 +9,10 @@ protocol LibraryAudioEffects: AnyObject {
     var audioCache: ArticleAudioCache { get }
     /// Chunk plans by engine: what aligning audio with rebuilt paragraphs cuts them by.
     var chunkPlans: ChunkPlans { get }
+    /// Bake jobs waiting for the engine: a rebuilt page's job follows its paragraphs.
+    var pendingBakes: PendingBakeJobStore { get }
+    /// The crash-resume file: library work moves the point it names along with the page.
+    var resumePoints: ListenResumePointStore { get }
     /// `key`'s audio, queued renders and saved bake job are deleted.
     func clearListenAudio(for key: UUID) throws
     /// `key`'s queued renders and saved bake job go; its audio stays.

@@ -16,18 +16,9 @@ final class RenderTargetTests: XCTestCase {
     }
 
     private func makeCoordinator(_ provider: FakeEngineProvider) -> LocalTTSCoordinator {
-        let suite = "RenderTarget-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.set(FakeEngineProvider.fakeID.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), provider], gate: { _ in true })
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("RenderTarget-\(UUID().uuidString)")
-        cleanups.append {
-            defaults.removePersistentDomain(forName: suite)
-            try? FileManager.default.removeItem(at: root)
-        }
-        return LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                   audioCache: ArticleAudioCache(root: root.appendingPathComponent("cache")),
-                                   crashGuard: EngineCrashGuard(directory: root.appendingPathComponent("guard")))
+        let stack = TestSpeech(providers: [provider], selected: FakeEngineProvider.fakeID)
+        cleanups.append { stack.tearDown() }
+        return stack.tts
     }
 
     private func makeQueue(_ provider: FakeEngineProvider) -> (GlobalSynthQueue, FakeQueueContext) {

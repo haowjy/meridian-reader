@@ -7,25 +7,20 @@ import XCTest
 /// it whatever the phase.
 @MainActor
 final class LocalListenEngineClockTests: XCTestCase {
-    private let suite = "LocalListenEngineClock-\(UUID().uuidString)"
-    private let root = FileManager.default.temporaryDirectory.appending(path: "LocalListenEngineClock-\(UUID().uuidString)")
+    private var stack: TestSpeech!
     private var engine: LocalListenEngine!
     private let runState = AppRunState(phase: .active)
 
     override func setUp() {
-        let registry = EngineRegistry(providers: [AppleSpeechProvider()], gate: { _ in true })
-        let coordinator = LocalTTSCoordinator(engines: registry, defaults: UserDefaults(suiteName: suite)!,
-                                              audioCache: ArticleAudioCache(root: root.appending(path: "cache")),
-                                              crashGuard: EngineCrashGuard(directory: root.appending(path: "guard")))
-        coordinator.synthQueue.runState = runState
-        engine = LocalListenEngine(coordinator: coordinator)
+        stack = TestSpeech()
+        stack.tts.synthQueue.runState = runState
+        engine = LocalListenEngine(coordinator: stack.tts)
     }
 
     override func tearDown() {
         engine.stop()
         engine = nil
-        UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
-        try? FileManager.default.removeItem(at: root)
+        stack.tearDown()
     }
 
     private func play(paused: Bool = false) {

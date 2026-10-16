@@ -32,12 +32,8 @@ final class LibraryAudioWorkTests: XCTestCase {
         env.legacyRow("https://example.com/dup", id: rows.kept, savedAt: date(1), paragraphs: rows.keptText, position: 2)
         try env.storeAudio(rows.merged, paragraphs: rows.mergedText)
         try env.storeAudio(rows.kept, paragraph: 1, text: "Beta changed.")
-        PendingBakeJobStore.shared.enqueuePending(articleID: rows.merged, paragraphs: rows.mergedText, priorityStart: 0)
-        ListenResumePointStore.shared.save(article: rows.merged, paragraph: 1, at: date(2))
-        addTeardownBlock { @MainActor in
-            PendingBakeJobStore.shared.removePending(articleID: rows.merged)
-            PendingBakeJobStore.shared.removePending(articleID: rows.kept)
-        }
+        env.tts.pendingBakes.enqueuePending(articleID: rows.merged, paragraphs: rows.mergedText, priorityStart: 0)
+        env.tts.resumePoints.save(article: rows.merged, paragraph: 1, at: date(2))
         return rows
     }
 
@@ -70,8 +66,8 @@ final class LibraryAudioWorkTests: XCTestCase {
                            ArticleIdentity.paragraphHash(text), "\(note) paragraph \(i)", file: file, line: line)
         }
         XCTAssertFalse(env.cache.hasDirectory(for: rows.merged), note, file: file, line: line)
-        XCTAssertFalse(PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == rows.merged }, note, file: file, line: line)
-        let resume = try XCTUnwrap(ListenResumePointStore.shared.load(), note, file: file, line: line)
+        XCTAssertFalse(env.tts.pendingBakes.pendingJobs().contains { $0.articleID == rows.merged }, note, file: file, line: line)
+        let resume = try XCTUnwrap(env.tts.resumePoints.load(), note, file: file, line: line)
         XCTAssertNotNil(env.library.page(matching: resume), "\(note) the resume point names a page that exists", file: file, line: line)
         XCTAssertEqual(resume.articleKey, rows.kept.uuidString, note, file: file, line: line)
         XCTAssertEqual(resume.paragraph, 1, note, file: file, line: line)
@@ -96,18 +92,13 @@ final class LibraryAudioWorkTests: XCTestCase {
     private func steps(of fixture: (LibraryTestEnvironment) throws -> Void,
                        _ run: (LibraryStore) -> Void) throws -> Int {
         let env = try LibraryTestEnvironment(fileBacked: true)
-        defer { cleanUp(env) }
+        defer { env.cleanUp() }
         try fixture(env)
         var count = 0
         env.cache.faultHook = { _ in count += 1 }
         run(env.library)
         XCTAssertTrue(pendingWork(env).isEmpty, "the uninterrupted run finishes")
         return count
-    }
-
-    private func cleanUp(_ env: LibraryTestEnvironment) {
-        for key in env.pages().compactMap(\.key) { PendingBakeJobStore.shared.removePending(articleID: key) }
-        env.cleanUp()
     }
 
     /// A cold load (a new cache over the same directory) finds every CAF the saved indexes list,
@@ -144,8 +135,8 @@ final class LibraryAudioWorkTests: XCTestCase {
             try env.storeAudio(rows.merged, paragraph: i, text: text, level: 0.2 + Float(i) / 10)
         }
         try env.storeAudio(rows.kept, paragraph: 1, text: "Beta changed.", level: 0.7)
-        PendingBakeJobStore.shared.enqueuePending(articleID: rows.merged, paragraphs: rows.mergedText, priorityStart: 0)
-        ListenResumePointStore.shared.save(article: rows.merged, paragraph: 1, at: date(2))
+        env.tts.pendingBakes.enqueuePending(articleID: rows.merged, paragraphs: rows.mergedText, priorityStart: 0)
+        env.tts.resumePoints.save(article: rows.merged, paragraph: 1, at: date(2))
         var needed: [String: Data] = [:]
         needed["Alpha one."] = try bytes(env, rows.merged, paragraph: 0)
         needed["Gamma three."] = try bytes(env, rows.merged, paragraph: 2)
@@ -161,7 +152,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         XCTAssertGreaterThan(count, 3)
         for k in 0..<count {
             let env = try LibraryTestEnvironment(fileBacked: true)
-            defer { cleanUp(env) }
+            defer { env.cleanUp() }
             let (rows, needed) = try distinctDuplicateRows(env)
             env.cache.faultHook = dieAt(k)
             XCTAssertTrue(env.library.migrateLegacy().saved, "step \(k)")
@@ -226,8 +217,8 @@ final class LibraryAudioWorkTests: XCTestCase {
         var kept: [String: Data] = [:]
         kept[old[iGiant + 1]] = try writeStitched(env, key, iGiant + 1, old[iGiant + 1], lengths: [4800], level: 0.5)
         kept[old[old.count - 1]] = try writeStitched(env, key, old.count - 1, old[old.count - 1], lengths: [4800], level: 0.6)
-        ListenResumePointStore.shared.save(article: key, paragraph: iGiant + 1, at: date(1))
-        PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: old, priorityStart: 0)
+        env.tts.resumePoints.save(article: key, paragraph: iGiant + 1, at: date(1))
+        env.tts.pendingBakes.enqueuePending(articleID: key, paragraphs: old, priorityStart: 0)
         return LayoutFixture(key: key, old: old, new: new, iAfter: iGiant + 1, firstPiece: iGiant + 1, kept: kept,
                              giant: (old[iGiant], giant))
     }
@@ -241,7 +232,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         XCTAssertGreaterThan(count, 3)
         for k in 0..<count {
             let env = try LibraryTestEnvironment(fileBacked: true)
-            defer { cleanUp(env) }
+            defer { env.cleanUp() }
             let f = try layoutFixture(env)
             env.cache.faultHook = dieAt(k)
             env.library.migrateParagraphLayout()
@@ -263,8 +254,8 @@ final class LibraryAudioWorkTests: XCTestCase {
             XCTAssertEqual(try bytes(env, f.key, paragraph: f.new.count - 1), f.kept[f.old[f.old.count - 1]], "step \(k)")
             XCTAssertEqual(env.cache.entry(articleID: f.key, paragraphIndex: f.firstPiece)?.textHash,
                            ArticleIdentity.paragraphHash(f.new[f.firstPiece]), "step \(k): the first piece is sliced")
-            XCTAssertEqual(ListenResumePointStore.shared.load()?.paragraph, after, "step \(k): the resume point follows")
-            XCTAssertEqual(PendingBakeJobStore.shared.pendingJobs().first { $0.articleID == f.key }?.paragraphs, f.new, "step \(k)")
+            XCTAssertEqual(env.tts.resumePoints.load()?.paragraph, after, "step \(k): the resume point follows")
+            XCTAssertEqual(env.tts.pendingBakes.pendingJobs().first { $0.articleID == f.key }?.paragraphs, f.new, "step \(k)")
             XCTAssertTrue(pendingWork(env).isEmpty, "step \(k)")
         }
     }
@@ -273,7 +264,6 @@ final class LibraryAudioWorkTests: XCTestCase {
     /// where it can finish.
     func testWorkThatFailsIsKeptUntilALaunchCanFinishIt() throws {
         let (rows, needed) = try distinctDuplicateRows(env)
-        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: rows.merged) }
         env.cache.faultHook = { _ in throw Died() }
         XCTAssertTrue(library.migrateLegacy().saved)
         XCTAssertEqual(pendingWork().count, 1, "not retired")
@@ -325,15 +315,15 @@ final class LibraryAudioWorkTests: XCTestCase {
     func testAFailedSaveLeavesAudioPendingRendersAndTheResumePointAlone() throws {
         let rows = try duplicateRows()
         let audioBefore = (try audioFiles(rows.merged), try audioFiles(rows.kept))
-        let jobsBefore = PendingBakeJobStore.shared.pendingJobs()
-        let resumeBefore = ListenResumePointStore.shared.load()
+        let jobsBefore = env.tts.pendingBakes.pendingJobs()
+        let resumeBefore = env.tts.resumePoints.load()
         library.saveContext = { _ in throw SaveFailed() }
 
         XCTAssertFalse(library.migrateLegacy().saved)
         XCTAssertEqual(try audioFiles(rows.merged), audioBefore.0, "the merged copy's audio is untouched")
         XCTAssertEqual(try audioFiles(rows.kept), audioBefore.1, "and so is the kept one's")
-        XCTAssertEqual(PendingBakeJobStore.shared.pendingJobs(), jobsBefore, "the pending render is still there")
-        XCTAssertEqual(ListenResumePointStore.shared.load(), resumeBefore, "the resume point is unchanged")
+        XCTAssertEqual(env.tts.pendingBakes.pendingJobs(), jobsBefore, "the pending render is still there")
+        XCTAssertEqual(env.tts.resumePoints.load(), resumeBefore, "the resume point is unchanged")
 
         try env.relaunch()
         XCTAssertTrue(library.migrateLegacy().saved)
@@ -347,9 +337,8 @@ final class LibraryAudioWorkTests: XCTestCase {
         let page = try library.save(env.article("https://example.com/\(path)"), placement: .folder(folder))
         let key = try XCTUnwrap(page.key)
         try env.storeAudio(key, paragraphs: page.cachedListenParagraphs ?? [])
-        PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: page.cachedListenParagraphs ?? [],
+        env.tts.pendingBakes.enqueuePending(articleID: key, paragraphs: page.cachedListenParagraphs ?? [],
                                                   priorityStart: 0)
-        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: key) }
         return (page, key)
     }
 
@@ -373,7 +362,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         XCTAssertNotNil(library.folder(id: shelf.id), "and the folder")
         XCTAssertEqual(try audioFiles(looseKey), audioBefore.0, "its audio is untouched")
         XCTAssertEqual(try audioFiles(shelvedKey), audioBefore.1)
-        XCTAssertEqual(Set(PendingBakeJobStore.shared.pendingJobs().map(\.articleID)).intersection([looseKey, shelvedKey]),
+        XCTAssertEqual(Set(env.tts.pendingBakes.pendingJobs().map(\.articleID)).intersection([looseKey, shelvedKey]),
                        [looseKey, shelvedKey], "the pending renders stay")
         XCTAssertTrue(pendingWork().isEmpty, "nothing waits to delete the audio later")
 
@@ -384,7 +373,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         library.delete(try XCTUnwrap(library.page(key: looseKey)))
         XCTAssertNil(library.page(key: looseKey))
         XCTAssertFalse(env.cache.hasDirectory(for: looseKey), "a saved delete takes its audio")
-        XCTAssertFalse(PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == looseKey })
+        XCTAssertFalse(env.tts.pendingBakes.pendingJobs().contains { $0.articleID == looseKey })
         XCTAssertTrue(pendingWork().isEmpty)
     }
 
@@ -596,7 +585,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         env.context.insert(page)
         try env.context.save()
         try env.storeAudio(key, paragraph: iAfter, text: old.paragraphs[iAfter])
-        ListenResumePointStore.shared.save(article: key, paragraph: iAfter, at: date(1))
+        env.tts.resumePoints.save(article: key, paragraph: iAfter, at: date(1))
 
         var saves = 0
         library.saveContext = { context in
@@ -606,7 +595,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         }
         library.migrateParagraphLayout()
         let shifted = iAfter + 3
-        XCTAssertEqual(ListenResumePointStore.shared.load()?.paragraph, shifted)
+        XCTAssertEqual(env.tts.resumePoints.load()?.paragraph, shifted)
         XCTAssertEqual(env.cache.entry(articleID: key, paragraphIndex: shifted)?.textHash,
                        ArticleIdentity.paragraphHash(new.paragraphs[shifted]))
         let files = try audioFiles(key).keys.sorted()
@@ -614,7 +603,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         try env.relaunch()
         XCTAssertEqual(pendingWork().count, 1, "the done work's record survived")
         XCTAssertEqual(library.finishAudioWork().finished, 1)
-        XCTAssertEqual(ListenResumePointStore.shared.load()?.paragraph, shifted, "moved once")
+        XCTAssertEqual(env.tts.resumePoints.load()?.paragraph, shifted, "moved once")
         XCTAssertEqual(env.cache.entry(articleID: key, paragraphIndex: shifted)?.textHash,
                        ArticleIdentity.paragraphHash(new.paragraphs[shifted]))
         XCTAssertEqual(try audioFiles(key).keys.sorted(), files, "the audio is as the first run left it")
@@ -638,7 +627,6 @@ final class LibraryAudioWorkTests: XCTestCase {
     /// that finally succeeds stores the newer page without aligning its audio to the old plan.
     func testAFailedLayoutSaveIsRolledBackSoALaterSaveCantRunItOnNewerText() throws {
         let f = try layoutFixture(env)
-        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: f.key) }
         var failing = true
         library.saveContext = { context in
             if failing { throw SaveFailed() }
@@ -669,7 +657,6 @@ final class LibraryAudioWorkTests: XCTestCase {
     /// A layout pass whose save failed is planned again by the next launch.
     func testAFailedLayoutSaveIsPlannedAgainNextLaunch() throws {
         let f = try layoutFixture(env)
-        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: f.key) }
         library.saveContext = { _ in throw SaveFailed() }
         XCTAssertTrue(library.migrateParagraphLayout().rolledBack)
 
@@ -688,7 +675,6 @@ final class LibraryAudioWorkTests: XCTestCase {
     /// newer audio alone.
     func testWaitingLayoutWorkWhosePageChangedSinceIsDropped() throws {
         let f = try layoutFixture(env)
-        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: f.key) }
         env.cache.faultHook = { _ in throw Died() }
         library.migrateParagraphLayout()
         XCTAssertEqual(pendingWork().count, 1, "waiting")
@@ -717,7 +703,6 @@ final class LibraryAudioWorkTests: XCTestCase {
     /// now, and the newer audio stays.
     func testAWaitingMergeFollowsWhatTheKeptPageHoldsNow() throws {
         let (rows, needed) = try distinctDuplicateRows(env)
-        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: rows.merged) }
         env.cache.faultHook = { _ in throw Died() }
         XCTAssertTrue(library.migrateLegacy().saved)
         XCTAssertEqual(pendingWork().count, 1, "waiting")
@@ -744,8 +729,7 @@ final class LibraryAudioWorkTests: XCTestCase {
     /// now: on the same paragraphs its audio is aligned with, not the ones planned.
     func testAWaitingMergeMovesTheResumePointOntoWhatTheKeptPageHoldsNow() throws {
         let (rows, _) = try distinctDuplicateRows(env)
-        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: rows.merged) }
-        ListenResumePointStore.shared.save(article: rows.merged, paragraph: 0, at: date(2))
+        env.tts.resumePoints.save(article: rows.merged, paragraph: 0, at: date(2))
         env.cache.faultHook = { _ in throw Died() }
         XCTAssertTrue(library.migrateLegacy().saved)
         XCTAssertEqual(pendingWork().count, 1, "waiting")
@@ -760,7 +744,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         XCTAssertEqual(library.finishAudioWork().finished, 1)
         XCTAssertEqual(env.cache.entry(articleID: rows.kept, paragraphIndex: 1)?.textHash,
                        ArticleIdentity.paragraphHash("Alpha one."), "the audio follows what the kept page holds")
-        let resume = try XCTUnwrap(ListenResumePointStore.shared.load())
+        let resume = try XCTUnwrap(env.tts.resumePoints.load())
         XCTAssertEqual(resume.articleKey, rows.kept.uuidString)
         XCTAssertEqual(resume.paragraph, 1, "the resume point is on \"Alpha one.\" too")
         XCTAssertEqual(env.tts.pendingResume.map { $0.matches(rows.kept) }, true)
@@ -772,7 +756,6 @@ final class LibraryAudioWorkTests: XCTestCase {
     /// audio, so it is left to the cache's age prune, not moved under a deleted key.
     func testAWaitingMergeWhoseKeptPageIsDeletedLeavesItsAudioToTheAgePrune() throws {
         let (rows, _) = try distinctDuplicateRows(env)
-        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: rows.merged) }
         env.cache.faultHook = { _ in throw Died() }
         XCTAssertTrue(library.migrateLegacy().saved)
         env.cache.faultHook = nil
@@ -784,7 +767,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         XCTAssertTrue(env.cache.hasCache(for: rows.merged), "not deleted outright")
         XCTAssertEqual(env.cache.loadMeta(for: rows.merged)?.kind, .ephemeral)
         XCTAssertFalse(env.cache.hasDirectory(for: rows.kept), "nothing moved under the deleted page's key")
-        XCTAssertFalse(PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == rows.merged })
+        XCTAssertFalse(env.tts.pendingBakes.pendingJobs().contains { $0.articleID == rows.merged })
         XCTAssertTrue(pendingWork().isEmpty)
     }
 }

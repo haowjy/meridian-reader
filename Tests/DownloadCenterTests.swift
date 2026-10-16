@@ -440,13 +440,9 @@ final class DownloadCenterTests: XCTestCase {
 /// in a temporary directory.
 @MainActor
 final class DownloadTestEnvironment {
-    let dir: URL
-    let container: ModelContainer
+    private let base: LibraryTestEnvironment
     let provider: FakeEngineProvider
-    let tts: LocalTTSCoordinator
-    let library: LibraryStore
     let runState = AppRunState(phase: .active)
-    private let suite: String
     private(set) var center: DownloadCenter!
     /// What the fake fetcher returns, by address; any other address fails.
     var fetched: [URL: [String]] = [:]
@@ -456,28 +452,19 @@ final class DownloadTestEnvironment {
     private var callsBefore = 0
 
     init() async throws {
-        dir = FileManager.default.temporaryDirectory.appending(path: "Downloads-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        container = try LibraryStoreConfiguration.makeInMemoryContainer()
-        suite = "Downloads-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.set(FakeEngineProvider.fakeID.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
         provider = FakeEngineProvider()
         provider.voices = [EngineVoice(id: "alpha", label: "Alpha"), EngineVoice(id: "beta", label: "Beta")]
         provider.defaultVoice = "alpha"
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), provider], gate: { _ in true })
-        tts = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                  audioCache: ArticleAudioCache(root: dir.appending(path: "TTSCache")),
-                                  crashGuard: EngineCrashGuard(directory: dir.appending(path: "guard")))
+        base = try LibraryTestEnvironment(speech: TestSpeech(providers: [provider], selected: FakeEngineProvider.fakeID))
+        base.now = now
         tts.synthQueue.runState = runState
-        library = LibraryStore(context: container.mainContext, audio: tts, now: { Date(timeIntervalSince1970: 1_800_000_000) })
         await tts.selectEngine(FakeEngineProvider.fakeID)
         center = makeCenter()
         center.start()
     }
 
     func makeCenter() -> DownloadCenter {
-        DownloadCenter(library: library, tts: tts, store: DownloadListStore(url: dir.appending(path: "Downloads.json")),
+        DownloadCenter(library: library, tts: tts, store: DownloadListStore(url: base.dir.appending(path: "Downloads.json")),
                        runState: runState,
                        fetch: { [unowned self] url in
                            guard let paragraphs = fetched[url] else { throw URLError(.cannotConnectToHost) }
@@ -491,17 +478,11 @@ final class DownloadTestEnvironment {
                        isListening: { [unowned self] in $0 == listening })
     }
 
-    var context: ModelContext { container.mainContext }
+    var tts: LocalTTSCoordinator { base.tts }
+    var library: LibraryStore { base.library }
+    var context: ModelContext { base.context }
 
-    func cleanUp() {
-        // The pending-job file is the app's own: only this test's pages leave it.
-        for page in (try? context.fetch(FetchDescriptor<Page>())) ?? [] {
-            tts.synthQueue.remove(cacheKey: page.listenKey)
-            PendingBakeJobStore.shared.removePending(articleID: page.listenKey)
-        }
-        UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
-        try? FileManager.default.removeItem(at: dir)
-    }
+    func cleanUp() { base.cleanUp() }
 
     func paragraphs(_ count: Int, tag: String = "Tides") -> [String] {
         (1...count).map { "\(tag) paragraph \($0) has a sentence in it." }

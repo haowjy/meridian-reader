@@ -14,6 +14,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Engine selection, voices and launch-step flags (a suite in tests).
     let defaults: UserDefaults
     let crashGuard: EngineCrashGuard
+    /// Bake jobs waiting for the engine to load, kept across launches.
+    let pendingBakes: PendingBakeJobStore
+    /// What was playing, written as it plays: launch reads it to resume after a crash.
+    let resumePoints: ListenResumePointStore
 
     /// The on-device engine's model: lifecycle, host and renderer. The render queue renders through it.
     let synth: LocalSynthService
@@ -62,18 +66,23 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// Picks the launch engine (`selecting`, else the stored selection after crash recovery) and
     /// starts loading it. `selecting` is a Debug launch's `-selectEngine` (`LaunchOptions`).
-    /// One-time launch steps are `LaunchMigration`s, run by `AppComposition`.
+    /// One-time launch steps are `LaunchMigration`s, run by `AppComposition`, which builds the
+    /// files and settings it works over (tests: `TestSpeech`).
     init(
         engines: EngineRegistry,
-        defaults: UserDefaults = .standard,
-        audioCache: ArticleAudioCache? = nil,
-        crashGuard: EngineCrashGuard = .shared,
+        defaults: UserDefaults,
+        audioCache: ArticleAudioCache,
+        crashGuard: EngineCrashGuard,
+        pendingBakes: PendingBakeJobStore,
+        resumePoints: ListenResumePointStore,
         selecting launchEngine: SpeechEngineID? = nil
     ) {
         self.engines = engines
         self.defaults = defaults
-        self.audioCache = audioCache ?? ArticleAudioCache(root: AppDirectories.audioCache)
+        self.audioCache = audioCache
         self.crashGuard = crashGuard
+        self.pendingBakes = pendingBakes
+        self.resumePoints = resumePoints
         self.synth = LocalSynthService(engines: engines)
         self.chunkPlans = ChunkPlans { engines.descriptor(SpeechEngineID(rawValue: $0))?.onDevice?.limits }
         for d in engines.localDescriptors where !d.voices.isEmpty {
@@ -85,7 +94,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         var initial = storedSelection()
         // What was playing, and when it was last recorded: a marker much older than that is
         // from a call the process outlived.
-        let playing = ListenResumePointStore.shared.load()
+        let playing = resumePoints.load()
         launchCrash = crashGuard.consumeCrashInfo(lastActivity: playing?.at)
         if let launchCrash { initial = recover(from: launchCrash, selection: initial, playing: playing) }
         if let launchEngine, engines.contains(launchEngine) {
@@ -282,7 +291,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     }
 
     func bakeCompleted(cacheKey: UUID) {
-        PendingBakeJobStore.shared.removePending(articleID: cacheKey)
+        pendingBakes.removePending(articleID: cacheKey)
         renderObserver?.bakeCompleted(cacheKey: cacheKey)
     }
 
@@ -415,7 +424,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
         focusCacheKey = cacheKey
         guard usesLocalEngine else {
-            PendingBakeJobStore.shared.enqueuePending(articleID: cacheKey, paragraphs: paragraphs,
+            pendingBakes.enqueuePending(articleID: cacheKey, paragraphs: paragraphs,
                                                       priorityStart: max(0, start))
             return
         }
@@ -448,7 +457,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     func startBakeIfNeeded(articleID: UUID, paragraphs: [String]) {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
         audioCache.markSaved(cacheKey: articleID)
-        PendingBakeJobStore.shared.enqueuePending(articleID: articleID, paragraphs: paragraphs, priorityStart: 0)
+        pendingBakes.enqueuePending(articleID: articleID, paragraphs: paragraphs, priorityStart: 0)
         // Still loading: the job joins the queue when the load finishes.
         guard usesLocalEngine else { return }
         synthQueue.enqueue(cacheKey: articleID, paragraphs: paragraphs, isEphemeral: false, at: .back)
@@ -541,7 +550,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// held for unfinished library work (`ArticleAudioCache.held`) waits on disk.
     private func drainPendingIntoQueue() {
         guard usesLocalEngine, !isHeldForLaunch else { return }
-        let pending = PendingBakeJobStore.shared.pendingJobs()
+        let pending = pendingBakes.pendingJobs()
             .filter { localLanguageAllows($0.paragraphs) && !audioCache.held.contains($0.articleID) }
         guard !pending.isEmpty else { return }
         print("[SynthQueue] draining \(pending.count) pending job(s)")

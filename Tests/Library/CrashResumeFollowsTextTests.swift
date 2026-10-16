@@ -11,30 +11,26 @@ import XCTest
 @MainActor
 final class CrashResumeFollowsTextTests: XCTestCase {
     private var env: LibraryTestEnvironment!
-    private var fixture: TestSpeech!
     private var recorder: ListeningProgressRecorder?
     private var shell = ShellState()
     private let notifications = NotificationCenter()
-    private var resumePoints: ListenResumePointStore!
-    private var speech: SpeechController { fixture.speech }
+    private var resumePoints: ListenResumePointStore { env.speech.resumePoints }
+    private var speech: SpeechController { env.speech.speech }
     private var library: LibraryStore { env.library }
 
     override func setUp() async throws {
         env = try LibraryTestEnvironment(fileBacked: true)
-        resumePoints = ListenResumePointStore(url: env.dir.appending(path: "ListenTiming/listen_resume.json"))
         startApp()
     }
 
     override func tearDown() async throws {
         recorder = nil
-        fixture.tearDown()
         env.cleanUp()
     }
 
     /// The controller, writing the resume file, and the recorder, as `AppComposition` wires them.
     private func startApp() {
-        fixture = TestSpeech(resumePoints: resumePoints)
-        recorder = ListeningProgressRecorder(speech: fixture.speech, library: env.library, notificationCenter: notifications)
+        recorder = ListeningProgressRecorder(speech: speech, library: env.library, notificationCenter: notifications)
         shell = ShellState()
     }
 
@@ -73,7 +69,7 @@ final class CrashResumeFollowsTextTests: XCTestCase {
     @discardableResult
     private func listen(to paragraph: Int, into: Int = 0) -> Spot {
         let at = speech.document.startUTF16Offset(forParagraph: paragraph) + into
-        fixture.apple.emit(.position(paragraph: paragraph, utf16: at))
+        env.speech.apple.emit(.position(paragraph: paragraph, utf16: at))
         return Spot(paragraph: paragraph, utf16: at)
     }
 
@@ -96,7 +92,6 @@ final class CrashResumeFollowsTextTests: XCTestCase {
                                                    settings: KokoroRouteSettings(defaults: env.defaults))
         let target = try XCTUnwrap(recovery.resume, "Kokoro resumes after an ONNX crash")
         recorder = nil
-        fixture.tearDown()
         try env.relaunch()
         startApp()
         speech.localTTS.pendingResume = target
@@ -112,7 +107,6 @@ final class CrashResumeFollowsTextTests: XCTestCase {
     /// Quitting and opening the app again, with no crash.
     private func relaunch() throws {
         recorder = nil
-        fixture.tearDown()
         try env.relaunch()
         startApp()
     }

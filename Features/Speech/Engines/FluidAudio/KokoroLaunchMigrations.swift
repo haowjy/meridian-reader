@@ -40,7 +40,7 @@ struct KokoroONNXMainMigration: LaunchMigration {
         route.fastGPURouteEnabled = false
         route.onnxCrashCount = 0
         var target = ListenResumeTarget.forCrash(article: last.articleKey, paragraph: last.paragraph,
-                                                 crashAt: last.at, playing: ListenResumePointStore.shared.load())
+                                                 crashAt: last.at, playing: tts.resumePoints.load())
         target?.autoPlay = false
         tts.applyLaunchRecovery(.stay(notice: KokoroCrashRecovery.resumedNotice, resume: target), crashed: .kokoro)
         ListenTimingLog.log("kokoro_onnx_migration", [

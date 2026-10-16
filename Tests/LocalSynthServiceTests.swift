@@ -43,14 +43,9 @@ final class LocalSynthServiceTests: XCTestCase {
     /// host goes first and the queue holds, then both come back.
     func testRenderingQuietLetsTheHostGoUntilTheWorkEnds() async {
         let sessions = FakeSessionCount()
-        let provider = FakeEngineProvider(config: .init(sessions: sessions))
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), provider], gate: { _ in true })
-        let suite = "LocalSynthService-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let tts = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                      audioCache: ArticleAudioCache(root: root.appendingPathComponent("cache")),
-                                      crashGuard: EngineCrashGuard(directory: root.appendingPathComponent("guard")))
+        let stack = TestSpeech(providers: [FakeEngineProvider(config: .init(sessions: sessions))])
+        defer { stack.tearDown() }
+        let tts = stack.tts
         await tts.selectEngine(FakeEngineProvider.fakeID)
         XCTAssertEqual(sessions.live, 1)
 

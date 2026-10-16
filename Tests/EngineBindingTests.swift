@@ -7,50 +7,25 @@ import XCTest
 @MainActor
 final class EngineBindingTests: XCTestCase {
     private var cleanups: [() -> Void] = []
-    private var sessionIDs: [UUID] = []
 
     override func tearDown() async throws {
         cleanups.reversed().forEach { $0() }
         cleanups = []
-        // Stopping on the local engine files a gap-fill bake job in the process-wide store; another
-        // test's coordinator would adopt it when its engine warms.
-        for id in sessionIDs { PendingBakeJobStore.shared.removePending(articleID: id) }
-        sessionIDs = []
     }
 
     /// SpeechController over a scripted Apple engine + a fake on-device engine. Apple is selected,
     /// so the fake engine is cold until the test selects it (stands in for the launch warm-up
     /// finishing).
     private func makeSpeech() -> (SpeechController, LocalTTSCoordinator, FakeListenEngine) {
-        let suite = "EngineBinding-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), FakeEngineProvider()], gate: { _ in true })
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent("EngineBinding-\(UUID().uuidString)")
-        let guardDir = tmp.appendingPathComponent("EngineBindingGuard-\(UUID().uuidString)")
-        let coordinator = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                              audioCache: ArticleAudioCache(root: root),
-                                              crashGuard: EngineCrashGuard(directory: guardDir))
-        let apple = FakeListenEngine()
-        let speech = SpeechController(engines: registry, localTTS: coordinator,
-                                      audioSession: ListenAudioSession(managesSystemSession: false),
-                                      nowPlaying: NowPlayingController(commandCenter: nil, infoCenter: nil),
-                                      appleEngine: apple, resumePoints: nil)
-        cleanups.append {
-            speech.stop()
-            defaults.removePersistentDomain(forName: suite)
-            try? FileManager.default.removeItem(at: root)
-            try? FileManager.default.removeItem(at: guardDir)
-        }
-        return (speech, coordinator, apple)
+        let stack = TestSpeech(providers: [FakeEngineProvider()])
+        cleanups.append { stack.tearDown() }
+        return (stack.speech, stack.tts, stack.apple)
     }
 
     private func session() -> SpeechSession {
         let long = Array(repeating: "The first paragraph keeps the synthesizer busy for a good while.", count: 12)
             .joined(separator: " ")
-        let id = UUID()
-        sessionIDs.append(id)
-        return SpeechSession(id: id,
+        return SpeechSession(id: UUID(),
                              document: ParagraphDocument(parts: [long, "The second paragraph.", "The third one."]),
                              detectedLanguage: "en", title: "Binding")
     }
