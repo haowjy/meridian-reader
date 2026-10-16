@@ -159,7 +159,7 @@ final class FakeQueueContext: SynthQueueContext, SynthChunkRendering {
     let chunkRenderer: LocalChunkRenderer
     let host: FakeSynthHost
     var cacheEngineID: String { FakeEngineProvider.fakeID.rawValue }
-    var activeChunkLimits: TextChunker.Limits { chunkRenderer.descriptor.limits }
+    let chunkPlans: ChunkPlans
     var synthRenderer: SynthChunkRendering { self }
     var engineShortName: String { "Fake" }
 
@@ -174,6 +174,8 @@ final class FakeQueueContext: SynthQueueContext, SynthChunkRendering {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("FakeTTSCache-\(UUID().uuidString)")
         audioCache = ArticleAudioCache(root: root)
         host = provider.makeHost(for: FakeEngineProvider.fakeID, voice: nil) as! FakeSynthHost
+        let limits = provider.descriptor.limits
+        chunkPlans = ChunkPlans { $0 == FakeEngineProvider.fakeID.rawValue ? limits : nil }
         // Private gate: the test host app may be warming a real engine on the shared gate.
         chunkRenderer = LocalChunkRenderer(host: host, descriptor: provider.descriptor, gate: SynthRenderGate(),
                                            runState: runState)

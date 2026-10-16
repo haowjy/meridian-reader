@@ -16,10 +16,10 @@ protocol SynthQueueContext: AnyObject {
     /// What renders now; nil while no on-device engine is ready (Apple selected, a model loading,
     /// failed or deleted). The queue parks while it is nil: it never loads a model itself.
     var renderTarget: RenderTarget? { get }
-    /// `ArticleAudioCache` engine key of the active local engine.
+    /// `ArticleAudioCache` engine key of the active local engine (loaded or loading): the plan
+    /// the listen player cuts paragraphs by.
     var cacheEngineID: String { get }
-    /// Chunk sizing of the active local engine (from its `EngineDescriptor`).
-    var activeChunkLimits: TextChunker.Limits { get }
+    var chunkPlans: ChunkPlans { get }
     var synthRenderer: SynthChunkRendering { get }
     /// The Apple voice that speaks an article with `paragraphs` where the engine can't: the one
     /// the listen player falls back to for it (nil: the system voice).

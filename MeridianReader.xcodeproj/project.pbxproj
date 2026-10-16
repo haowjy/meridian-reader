@@ -384,6 +384,7 @@
 		DD5C41FAC9EB889577BFAD5E /* ListenEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD13DD8AE82088E1E9D231E /* ListenEngine.swift */; };
 		DD63A99BA91EEA2DAE0EE07A /* Toast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3673FA3644E64C3A86E798C1 /* Toast.swift */; };
 		DE3E3F4E7324F594C21BFDB3 /* LocalListenEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADF8D80897881E1AFCAA670F /* LocalListenEngine.swift */; };
+		DE7AF4BB6E545FBBA125120F /* ChunkPlans.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DCFD8122AB86B954C845571 /* ChunkPlans.swift */; };
 		DEB5A4F48567A148729F2962 /* LockedFetchProbeVerdictTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3A5098975102362B5534C7 /* LockedFetchProbeVerdictTests.swift */; };
 		DEBDDAFA0A4BABE647BB99BC /* SynthRenderGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6A414F24CB0DFCEF2AD94F3 /* SynthRenderGate.swift */; };
 		DEF1B7ACE2E894C337EBDC21 /* BrowseStartPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D34BCA10E720A744ECD793A8 /* BrowseStartPage.swift */; };
@@ -522,6 +523,7 @@
 		1C5ED07FBAC06E47C3D68DE5 /* SingleWebPageSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleWebPageSource.swift; sourceTree = "<group>"; };
 		1D34C7C40ACB9A435DD26C9E /* ReaderSheetScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderSheetScreen.swift; sourceTree = "<group>"; };
 		1D4F674667887FF6AB3C24AF /* PageOrigin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageOrigin.swift; sourceTree = "<group>"; };
+		1DCFD8122AB86B954C845571 /* ChunkPlans.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChunkPlans.swift; sourceTree = "<group>"; };
 		1F968C0F18E9D51BBA4E89AD /* SheetPullHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetPullHandoff.swift; sourceTree = "<group>"; };
 		1FCB8C07B9103BC06876BDC4 /* FolderDetailsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderDetailsTests.swift; sourceTree = "<group>"; };
 		200A921CF2E55F3F5B341E26 /* Motion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Motion.swift; sourceTree = "<group>"; };
@@ -1304,6 +1306,7 @@
 				E1E9EE8DE693A563EBB37961 /* BakeConditions.swift */,
 				C29C868F37B0682223CEF80A /* ChunkAudioStitcher.swift */,
 				69101B36563BEFB062F50A18 /* ChunkEdgeTrim.swift */,
+				1DCFD8122AB86B954C845571 /* ChunkPlans.swift */,
 				3EDC61BFA8A6F15B60E78B33 /* CoreMLCompileCacheJanitor.swift */,
 				13C569C67B9A84615D623816 /* GlobalSynthQueue.swift */,
 				52855C3FAA1F254E9AA301BF /* GlobalSynthQueue+Jobs.swift */,
@@ -1919,6 +1922,7 @@
 				25E4AB683B5878AFEF392941 /* ChapterAdvance.swift in Sources */,
 				B37EEA4800583E79310746D2 /* ChunkAudioStitcher.swift in Sources */,
 				E53AD7AA943DBE0C4BF08D68 /* ChunkEdgeTrim.swift in Sources */,
+				DE7AF4BB6E545FBBA125120F /* ChunkPlans.swift in Sources */,
 				AB136BF85F8806D51410C826 /* ChunkPlaybackQueue.swift in Sources */,
 				39707669F9685AF595CC2AA5 /* CoreMLBreadcrumbFile.swift in Sources */,
 				8EDAEA133614342A68EABDFF /* CoreMLCompileCacheJanitor.swift in Sources */,

@@ -34,7 +34,7 @@ final class EngineRegistryTests: XCTestCase {
         XCTAssertFalse(registry.descriptor(.apple)!.supportsBakeCache)
         XCTAssertTrue(registry.descriptor(.kokoro)!.supportsBakeCache)
         XCTAssertTrue(registry.descriptor(.kokoro)!.crashGuarded)
-        XCTAssertEqual(registry.limits(for: .kokoro), .kokoroCPU, "ONNX CPU route is the default")
+        XCTAssertEqual(registry.descriptor(.kokoro)?.limits, .kokoroCPU, "ONNX CPU route is the default")
     }
 
     func testHardwareGateAndBlockReason() {

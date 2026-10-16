@@ -17,6 +17,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// The on-device engine's model: lifecycle, host and renderer. The render queue renders through it.
     let synth: LocalSynthService
+    /// Every chunk plan, by engine (the render queue, the player, alignment, readiness).
+    let chunkPlans: ChunkPlans
     /// Called after every engine-state change and engine-voice change. `SpeechController` uses it
     /// to decide whether the live utterance moves to another engine (views never coordinate that).
     @ObservationIgnored var onEngineChange: (() -> Void)?
@@ -71,6 +73,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         self.audioCache = audioCache ?? ArticleAudioCache()
         self.crashGuard = crashGuard
         self.synth = LocalSynthService(engines: engines)
+        self.chunkPlans = ChunkPlans { engines.descriptor(SpeechEngineID(rawValue: $0))?.limits }
         for d in engines.localDescriptors where !d.voices.isEmpty {
             // Stored voice if still offered (curated list), else the engine default.
             engineVoices[d.id] = d.resolvedVoice(defaults.string(forKey: d.resolvedVoiceDefaultsKey))
@@ -247,9 +250,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// `ArticleAudioCache` engine key for the active local engine.
     var cacheEngineID: String { (activeLocalEngineID ?? engines.defaultLocalEngineID).rawValue }
-
-    /// Chunk sizing for the active local engine.
-    var activeChunkLimits: TextChunker.Limits { engines.limits(for: activeLocalEngineID ?? engines.defaultLocalEngineID) }
 
     var synthRenderer: SynthChunkRendering { synth }
 
@@ -535,7 +535,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
             }
             // Giant paragraphs split since this audio was rendered (layout v3) keep the pieces
             // whose chunks line up with the old render; the rest re-render.
-            let result = try audioCache.reconcile(articleID: key, paragraphs: paragraphs) { self.chunkPlan(engineID: $0, text: $1) }
+            let result = try audioCache.reconcile(articleID: key, paragraphs: paragraphs) {
+                self.chunkPlans.chunks(for: $1, engineID: $0)
+            }
             // The job renders what the audio now follows, or it would file renders of its old
             // text on these paragraphs (Save doesn't reopen a job that is already #1).
             synthQueue.updateParagraphs(cacheKey: key, paragraphs: paragraphs)
@@ -548,12 +550,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             ListenDebugLog.shared.append("identity \(key.uuidString.prefix(8)) align failed: \(error.localizedDescription)")
             print("[Identity] align failed: \(error.localizedDescription)")
         }
-    }
-
-    /// The render queue's chunk plan for `text` as rendered by `engineID` (nil if unknown engine).
-    func chunkPlan(engineID: String, text: String) -> [String]? {
-        guard let d = engines.descriptor(SpeechEngineID(rawValue: engineID)) else { return nil }
-        return TextChunker.chunks(for: text, limits: d.limits)
     }
 
     /// Bake only for engines that declare `supportsBakeCache` (Apple: no).

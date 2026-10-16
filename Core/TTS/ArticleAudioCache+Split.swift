@@ -11,7 +11,7 @@ extension ArticleAudioCache {
     /// `chunkDurations`) into new `s-` files in `dir`, as units on their new paragraph. A piece
     /// some unit already has audio for is skipped; the others are left missing (they re-render).
     /// Part of `reconcile`, which places these first and drops the old split CAFs.
-    /// `chunkPlan(engineID, text)` must be the render queue's plan; nil = don't slice.
+    /// `chunkPlan(engineID, text)` must be the render queue's plan (`ChunkPlans`); nil = don't slice.
     func slices(of units: [AlignUnit], paragraphs: [String], into dir: URL,
                 chunkPlan: ((String, String) -> [String]?)?, _ result: inout ReconcileResult) throws -> [AlignUnit] {
         guard let chunkPlan, paragraphs.count > 1 else { return [] }

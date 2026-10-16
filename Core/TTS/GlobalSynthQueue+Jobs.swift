@@ -2,7 +2,7 @@ import Foundation
 
 /// The values `GlobalSynthQueue` works with: its jobs, the persisted work it adopts
 /// (`adoptPending` folds it in), what a producer gets back for a chunk, the staged chapter, and
-/// the keys chunk plans and waiters are filed under.
+/// the keys waiters are filed under.
 extension GlobalSynthQueue {
     struct ArticleJob: Equatable {
         var cacheKey: UUID
@@ -31,12 +31,6 @@ extension GlobalSynthQueue {
         func renderable(_ work: [Int], cap: Int?, aheadOnly: Bool) -> [Int] {
             work.filter { $0 < (cap ?? .max) && !(aheadOnly && $0 < plan.priorityStart) }
         }
-    }
-
-    /// A chunk plan's cache key: plans are per engine and text.
-    struct ChunkPlanKey: Hashable {
-        var engine: String
-        var text: String
     }
 
     struct ParagraphKey: Hashable {

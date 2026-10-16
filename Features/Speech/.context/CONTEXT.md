@@ -76,7 +76,8 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
 - **`renderObserver` is told inside the queue's work** (`noteBakeMarksChanged` runs mid drain,
   `bakeCompleted` from the worker): an observer acts later, never re-entering the queue in the
   call.
-- **Chunk plans are data.** Live playback and bake-ahead share one deterministic plan per text;
+- **Chunk plans are data.** Live playback and bake-ahead share one deterministic plan per text
+  and engine, from one owner (`LocalTTSCoordinator.chunkPlans`);
   stitched paragraphs store `chunkDurations` by it. Changing `TextChunker` limits or rules changes
   plans: stitched audio stays playable, but mid-paragraph seek offsets into old audio drift until
   it re-renders. Decide whether that needs a cache purge (`KokoroAudioCachePurge` bumps a version).

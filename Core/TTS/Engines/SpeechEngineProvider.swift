@@ -80,12 +80,6 @@ final class EngineRegistry {
     func shortName(_ id: SpeechEngineID) -> String { descriptor(id)?.shortName ?? id.rawValue }
     func displayName(_ id: SpeechEngineID) -> String { descriptor(id)?.displayName ?? id.rawValue }
 
-    /// Chunk limits for `id` (unknown → the most conservative registered limits).
-    func limits(for id: SpeechEngineID) -> TextChunker.Limits {
-        if let d = descriptor(id) { return d.limits }
-        return localDescriptors.map(\.limits).min { $0.hardMax < $1.hardMax } ?? .kokoro
-    }
-
     func supports(_ id: SpeechEngineID) -> Bool {
         guard let d = descriptor(id) else { return false }
         return gate(d.hardware)

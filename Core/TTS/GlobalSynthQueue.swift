@@ -67,7 +67,6 @@ final class GlobalSynthQueue {
     /// (key|index|textHash) that failed the engine *and* Apple fallback — skipped by the worker so a
     /// bad unit cannot spin forever. A live request for the unit clears its mark (fresh try).
     private var failedUnits: Set<String> = []
-    private var chunkPlanCache: [ChunkPlanKey: [String]] = [:]
 
     /// Foreground / background gate for Core ML (injectable for tests).
     var runState: AppRunState = .shared {
@@ -352,13 +351,11 @@ final class GlobalSynthQueue {
 
     // MARK: - Chunk-level live ensure (play-while-building)
 
-    /// Synth chunks for a paragraph's text (deterministic; cached per engine and text).
+    /// Synth chunks of a paragraph's text for the active engine (`ChunkPlans`): what the listen
+    /// player plays chunk by chunk.
     func chunkTexts(for text: String) -> [String] {
-        let key = ChunkPlanKey(engine: coordinator?.cacheEngineID ?? "?", text: text)
-        if let cached = chunkPlanCache[key] { return cached }
-        let chunks = TextChunker.chunks(for: text, limits: coordinator?.activeChunkLimits ?? .kokoro)
-        chunkPlanCache[key] = chunks
-        return chunks
+        guard let coordinator else { return [] }
+        return coordinator.chunkPlans.chunks(for: text, engineID: coordinator.cacheEngineID) ?? []
     }
 
     /// The render target changed (an engine loaded or went away, another voice): failure marks
@@ -599,7 +596,7 @@ final class GlobalSynthQueue {
             guard job.paragraphs.indices.contains(index) else { continue }
             let text = job.paragraphs[index]
             let hash = job.paragraphHashes[index]
-            let chunks = chunkTexts(for: text)
+            let chunks = coordinator.chunkPlans.chunks(for: text, engineID: target.engineID) ?? []
             guard !chunks.isEmpty else {
                 // Nothing speakable (punctuation only). Mark failed so we don't spin; producer
                 // treats an empty chunk plan as nothing to play.

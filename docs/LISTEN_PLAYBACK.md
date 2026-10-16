@@ -386,12 +386,14 @@ once. An overflowing call (`inputTooLong`) is re-split down to 24 units.
 
 The paragraph is the listen unit; internally `TextChunker` cuts it into chunks sized per engine
 (`EngineDescriptor.limits`; units ≈ characters, digits count 3). Invariant (unit-tested):
-`chunks.joined(" ") == normalize(text)`.
+`chunks.joined(" ") == normalize(text)`. One owner keeps the plans, `ChunkPlans` (on the
+coordinator, keyed by engine and text, bounded to the paragraphs asked about last, kept across a
+voice change): the render queue, the player, the audio cache's alignment and the "still needs
+audio" rule all read it.
 
 | Limits | Target | Hard max | First chunk | Used by |
 |---|---|---|---|---|
-| `kokoroCPU` | 240 | 280 | 80 (a whole first sentence ≤ 104) | Kokoro, ONNX route |
-| `kokoro` | 220 | 300 | 100 | Kokoro, Core ML route sizing |
+| `kokoroCPU` | 240 | 280 | 80 (a whole first sentence ≤ 104) | Kokoro, either route |
 | `tenSecondCall` | 120 | 140 | 90 | Apple fallback text, ~10 s-per-call engines |
 
 - **Sentences first.** Whole sentences are packed up to the chunk's budget (abbreviation-,
