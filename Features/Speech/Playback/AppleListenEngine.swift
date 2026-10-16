@@ -12,7 +12,8 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
     let name = "Apple"
     var onEvent: ((PlaybackEngineEvent) -> Void)?
 
-    nonisolated(unsafe) private let synthesizer = AVSpeechSynthesizer()
+    /// Replaced after a media-services reset (`mediaServicesWereReset`).
+    nonisolated(unsafe) private var synthesizer = AVSpeechSynthesizer()
     private var request: ListenPlayRequest?
     /// The utterance speaking or paused now (nil: stopped, or a paused `play` holding nothing).
     private(set) var utterance: AVSpeechUtterance?
@@ -80,6 +81,12 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
     var isWaitingForAudio: Bool { false }
     var sourceNote: String? { nil }
     func appDidBecomeActive() {}
+
+    func mediaServicesWereReset() {
+        stop()
+        synthesizer = AVSpeechSynthesizer()
+        synthesizer.delegate = self
+    }
 
     var debug: ListenEngineDebug {
         ListenEngineDebug(isSpeaking: synthesizer.isSpeaking, isPaused: synthesizer.isPaused,

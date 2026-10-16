@@ -625,7 +625,7 @@ and resume goes through session intents):
 | `appWasSuspended` notice | Not a real interruption; never auto-resume |
 | User does anything during an interruption (play, pause, skip, seek, stop, a speed change on the lock screen) | Forget the auto-resume |
 | Route change `oldDeviceUnavailable` (headphones out, Bluetooth lost) | Pause |
-| Media services reset | Reconfigure the category and pause |
+| Media services reset | Reconfigure the category; the engines drop their dead audio objects (Apple builds a new synthesizer), and a page playing or paused is bound again paused at its spot, so Play speaks through new ones |
 
 **Rendering in the background.** `AppRunState` mirrors `UIApplication` (active / inactive /
 background), thread-safe; admission follows the table in "Render queue". On a host that can't render in the background a

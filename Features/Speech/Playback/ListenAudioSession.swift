@@ -13,6 +13,9 @@ enum ListenAudioEvent: Equatable {
 
 enum ListenAudioAction: Equatable {
     case none, pause, resume
+    /// iOS restarted its media services: every audio object the engines hold is dead. They build
+    /// new ones, and the page is held paused at its spot.
+    case rebuildEngines
 }
 
 /// Pure interruption / route-change rules (unit-tested). Pause goes through the Session like any
@@ -30,9 +33,12 @@ struct ListenInterruptionPolicy: Equatable {
         case .interruptionEnded(let shouldResume):
             defer { resumeAfterInterruption = false }
             return shouldResume && resumeAfterInterruption ? .resume : .none
-        case .oldDeviceUnavailable, .mediaServicesReset:
+        case .oldDeviceUnavailable:
             resumeAfterInterruption = false
             return isPlaying ? .pause : .none
+        case .mediaServicesReset:
+            resumeAfterInterruption = false
+            return .rebuildEngines
         }
     }
 

@@ -295,6 +295,15 @@ struct PlaybackSessionState: Equatable {
         return []
     }
 
+    /// The engines lost their audio objects (a media-services reset): a page playing or paused is
+    /// held paused at its spot, bound to the engine again without sounding, so Play speaks from
+    /// there through new ones. Between chapters only the phase changes (the next one binds paused).
+    mutating func holdForRebuiltEngines() -> [PlaybackCommand] {
+        guard isPrepared, phase == .playing || phase == .paused else { return [] }
+        phase = .paused
+        return awaitingPage ? [] : [.engineSeek]
+    }
+
     mutating func handle(_ event: PlaybackEngineEvent) {
         switch event {
         case .becameAudible:

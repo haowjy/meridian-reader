@@ -179,6 +179,9 @@ final class LocalListenEngine: ListenEngine {
     /// and re-rendered; the queue cursor moves to the restart paragraph first.
     func appDidBecomeActive() { player.reclaimBackgroundFallbacks() }
 
+    /// Each unit gets its own `AVAudioPlayer`, so stopping drops every dead one.
+    func mediaServicesWereReset() { stop() }
+
     var debug: ListenEngineDebug {
         ListenEngineDebug(
             isSpeaking: player.isSpeaking, isPaused: player.isPaused,

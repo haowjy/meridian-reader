@@ -193,6 +193,11 @@ final class BackgroundListeningTests: XCTestCase {
 
         XCTAssertEqual(p.handle(.oldDeviceUnavailable, isPlaying: true), .pause, "headphones unplugged")
         XCTAssertEqual(p.handle(.oldDeviceUnavailable, isPlaying: false), .none)
+
+        XCTAssertEqual(p.handle(.interruptionBegan, isPlaying: true), .pause)
+        XCTAssertEqual(p.handle(.mediaServicesReset, isPlaying: false), .rebuildEngines)
+        XCTAssertEqual(p.handle(.interruptionEnded(shouldResume: true), isPlaying: false), .none,
+                       "a reset ends the auto-resume")
     }
 
     func testAudioSessionNotificationParsing() {
@@ -230,6 +235,29 @@ final class BackgroundListeningTests: XCTestCase {
         XCTAssertEqual(speech.playback.phase, .playing)
         speech.handleAudioSessionEvent(.oldDeviceUnavailable) // headphones out
         XCTAssertEqual(speech.playback.phase, .paused)
+    }
+
+    /// iOS reset its media services: the engines' audio objects are dead. A page playing is held
+    /// paused at its spot on rebuilt engines, and Play speaks from there through new ones.
+    func testAMediaServicesResetHoldsThePagePausedOnRebuiltEngines() {
+        let fixture = TestSpeech()
+        defer { fixture.tearDown() }
+        let speech = fixture.speech
+        let s = session()
+        speech.start(s)
+        let spot = s.document.startUTF16Offset(forParagraph: 1) + 7
+        fixture.apple.emit(.position(paragraph: 1, utf16: spot))
+
+        speech.handleAudioSessionEvent(.mediaServicesReset)
+        XCTAssertEqual(speech.playbackPhase, .paused)
+        XCTAssertEqual(fixture.apple.resetCount, 1, "the engine builds new audio objects")
+        XCTAssertEqual(fixture.apple.plays.last?.startPaused, true, "bound again without sounding")
+        XCTAssertEqual(fixture.apple.plays.last?.utf16Offset, spot)
+
+        speech.press(.page(s.id)) { XCTFail("▶ plays what you hear") }
+        XCTAssertEqual(speech.playbackPhase, .playing)
+        XCTAssertEqual(fixture.apple.plays.last?.startPaused, false)
+        XCTAssertEqual(fixture.apple.plays.last?.utf16Offset, spot, "Play speaks from the held spot")
     }
 
     /// A skip during a call is the user's choice: the call ending with `shouldResume` doesn't

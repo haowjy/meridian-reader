@@ -701,6 +701,10 @@ final class SpeechController {
         case .resume:
             audioSession.activate()
             perform(.resume)
+        case .rebuildEngines:
+            stopEngines()
+            for engine in listenEngines { engine.mediaServicesWereReset() }
+            execute(playback.holdForRebuiltEngines())
         case .none:
             break
         }
