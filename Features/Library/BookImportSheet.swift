@@ -131,7 +131,7 @@ struct BookImportSheet: View {
 
     private var destinationName: String {
         if flow.isDestinationGone { return String(localized: "Deleted folder") }
-        return flow.destination?.displayName ?? String(localized: "Library")
+        return flow.destination?.name ?? String(localized: "Library")
     }
 
     private var destinationRow: some View {
@@ -171,7 +171,7 @@ struct BookImportSheet: View {
         guard let folder = flow.destination else {
             return String(localized: "The book becomes a folder in the Library, one page per chapter.")
         }
-        return String(localized: "The book becomes a folder inside \(folder.displayName), one page per chapter.")
+        return String(localized: "The book becomes a folder inside \(folder.name), one page per chapter.")
     }
 
     // MARK: - Chapters

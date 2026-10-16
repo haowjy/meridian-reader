@@ -299,7 +299,7 @@ private struct DownloadShown {
             unit = nil
         case .folder(let id):
             let folder = library.folder(id: id)
-            title = folder?.displayName ?? record.title
+            title = folder?.name ?? record.title
             leading = .folder(symbol: folder?.rowSymbol ?? Icons.folder, cover: folder?.coverImage)
             unit = folder?.kind.isBookOrSeries == true ? String(localized: "chapters") : String(localized: "pages")
         }

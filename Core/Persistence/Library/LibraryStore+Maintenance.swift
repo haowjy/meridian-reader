@@ -109,7 +109,7 @@ extension LibraryStore {
     @discardableResult
     func trimFinishedAudio(folder: Folder) -> Int {
         guard folder.kind.isBookOrSeries, let place = folder.currentPageKey else { return 0 }
-        let order = playOrder(of: folder)
+        let order = pages(in: folder)
         guard let current = order.firstIndex(where: { $0.key == place }), current > 2 else { return 0 }
         var trimmed = 0
         for page in order[..<(current - 2)] where page.finishedAt != nil {

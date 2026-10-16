@@ -43,7 +43,7 @@ struct DownloadActions {
     }
 
     func download(_ folder: Folder) {
-        report(downloads.download(folder), title: folder.displayName)
+        report(downloads.download(folder), title: folder.name)
     }
 
     private func report(_ request: DownloadCenter.Request, title: String) {

@@ -210,7 +210,7 @@ extension LibraryStore {
                 if page.lastPlayedAt == nil { clearText(page) }
                 if let key = page.key { planEphemeral(key: key) }
             }
-            log("unsave \(Self.short(page.key)) → link in \(page.folder?.displayName ?? "-")")
+            log("unsave \(Self.short(page.key)) → link in \(page.folder?.name ?? "-")")
         } else {
             try remove([page])
         }
@@ -283,7 +283,7 @@ extension LibraryStore {
     /// before it (none if it was the first).
     func movePlaceOff(_ page: Page) {
         guard let folder = page.folder, let key = page.key, folder.currentPageKey == key else { return }
-        let order = playOrder(of: folder)
+        let order = pages(in: folder)
         let index = order.firstIndex { $0 === page } ?? 0
         folder.currentPageKey = index > 0 ? order[index - 1].key : nil
     }

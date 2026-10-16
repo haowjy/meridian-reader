@@ -199,7 +199,7 @@ final class BookImportFlowTests: XCTestCase {
         guard case .added(let existing) = try await BookImporter(library: library)
             .importBook(at: try BookImportTests.sampleBook().write(in: self), into: nil, ifAlreadyInLibrary: .cancel)
         else { return XCTFail("first import") }
-        let chapters = library.playOrder(of: existing).map(\.key)
+        let chapters = library.pages(in: existing).map(\.key)
         let file = try picked()
         let flow = start(file)
         try await until("D13's question") { flow.phase == .alreadyInLibrary(existing.id) }
@@ -208,7 +208,7 @@ final class BookImportFlowTests: XCTestCase {
         XCTAssertEqual(closes, 1, "the sheet closes")
         XCTAssertTrue(fileIsGone(file))
         XCTAssertEqual(books().count, 1)
-        XCTAssertEqual(library.playOrder(of: existing).map(\.key), chapters, "the book is untouched")
+        XCTAssertEqual(library.pages(in: existing).map(\.key), chapters, "the book is untouched")
         XCTAssertTrue(landed.isEmpty)
     }
 
@@ -273,8 +273,8 @@ final class BookImportFlowTests: XCTestCase {
         guard case .added(let existing) = try await BookImporter(library: library)
             .importBook(at: try BookImportTests.sampleBook().write(in: self), into: nil, ifAlreadyInLibrary: .cancel)
         else { return XCTFail("first import") }
-        let chapters = library.playOrder(of: existing).map(\.key)
-        let texts = library.playOrder(of: existing).map(\.cachedListenParagraphs)
+        let chapters = library.pages(in: existing).map(\.key)
+        let texts = library.pages(in: existing).map(\.cachedListenParagraphs)
         let file = try picked(revisedBook())
         let flow = start(file)
         try await until("D13's question") { flow.phase == .alreadyInLibrary(existing.id) }
@@ -285,8 +285,8 @@ final class BookImportFlowTests: XCTestCase {
         XCTAssertEqual(flow.phase, .failed("Meridian couldn't save the book. Try again."))
         XCTAssertFalse(env.context.hasChanges, "nothing waits for a later save")
         XCTAssertEqual(books().count, 1)
-        XCTAssertEqual(library.playOrder(of: existing).map(\.key), chapters, "every chapter is still there")
-        XCTAssertEqual(library.playOrder(of: existing).map(\.cachedListenParagraphs), texts, "with its text")
+        XCTAssertEqual(library.pages(in: existing).map(\.key), chapters, "every chapter is still there")
+        XCTAssertEqual(library.pages(in: existing).map(\.cachedListenParagraphs), texts, "with its text")
         XCTAssertTrue(landed.isEmpty)
         XCTAssertTrue(fileIsGone(file))
     }

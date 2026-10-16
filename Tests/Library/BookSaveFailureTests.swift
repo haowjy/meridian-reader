@@ -102,7 +102,7 @@ final class BookSaveFailureTests: XCTestCase {
     private func assertBookAsItWas(_ library: LibraryStore, spot: (paragraph: Int, utf16: Int), audio: [[String: Data]],
                                    _ when: String, file: StaticString = #filePath, line: UInt = #line) throws {
         let book = try XCTUnwrap(library.book(key: bookKey), when, file: file, line: line)
-        XCTAssertEqual(library.playOrder(of: book).map(\.key), [one, two, three],
+        XCTAssertEqual(library.pages(in: book).map(\.key), [one, two, three],
                        "\(when): no chapter dropped or added", file: file, line: line)
         XCTAssertEqual(library.page(key: two)?.cachedListenParagraphs, textTwo, "\(when): no text changed", file: file, line: line)
         XCTAssertEqual(library.page(key: two)?.positionParagraph, spot.paragraph, "\(when): the spot stopping recorded",
@@ -500,7 +500,7 @@ final class BookSaveFailureTests: XCTestCase {
 
         recorder = nil
         try env.relaunch()
-        XCTAssertEqual(env.library.playOrder(of: try XCTUnwrap(env.library.book(key: bookKey))).map(\.key), [one, two])
+        XCTAssertEqual(env.library.pages(in: try XCTUnwrap(env.library.book(key: bookKey))).map(\.key), [one, two])
         XCTAssertNil(env.library.page(key: three))
         XCTAssertTrue(audioWork(in: env.context).isEmpty)
     }
@@ -528,7 +528,7 @@ final class BookSaveFailureTests: XCTestCase {
 
         recorder = nil
         try env.relaunch()
-        XCTAssertEqual(env.library.playOrder(of: try XCTUnwrap(env.library.book(key: bookKey))).map(\.key), [one, two])
+        XCTAssertEqual(env.library.pages(in: try XCTUnwrap(env.library.book(key: bookKey))).map(\.key), [one, two])
         XCTAssertTrue(audioWork(in: env.context).isEmpty)
     }
 

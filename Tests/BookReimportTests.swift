@@ -155,7 +155,7 @@ final class BookReimportTests: XCTestCase {
         XCTAssertFalse(env.cache.hasCache(for: three), "its audio is deleted")
         XCTAssertEqual(env.stoppedKeys, [three], "playback of it stops first")
         XCTAssertEqual(book.currentPageKey, two, "the place it held moves to the chapter before it")
-        XCTAssertEqual(library.playOrder(of: book).map(\.key), [one, two, four])
+        XCTAssertEqual(library.pages(in: book).map(\.key), [one, two, four])
     }
 
     /// As deleting a chapter does: a dropped place moves back to the nearest chapter that stays,
@@ -216,7 +216,7 @@ final class BookReimportTests: XCTestCase {
 
         try env.relaunch()
         let stored = try XCTUnwrap(library.book(key: bookKey))
-        XCTAssertEqual(library.playOrder(of: stored).map(\.key), [one, two, three], "every page is still there")
+        XCTAssertEqual(library.pages(in: stored).map(\.key), [one, two, three], "every page is still there")
         XCTAssertEqual(page(two)?.cachedListenParagraphs, textTwo, "with its text")
         XCTAssertEqual(stored.currentPageKey, three, "and the book's place")
         XCTAssertEqual(ready(three), [0, 1, 2])
@@ -307,7 +307,7 @@ final class BookReimportTests: XCTestCase {
 
         try env.relaunch()
         let stored = try XCTUnwrap(library.book(key: bookKey))
-        XCTAssertEqual(library.playOrder(of: stored).map(\.key), [one, two, three], "no chapter dropped or added")
+        XCTAssertEqual(library.pages(in: stored).map(\.key), [one, two, three], "no chapter dropped or added")
         XCTAssertEqual(stored.byline, "Ada Example", "no detail changed")
         XCTAssertEqual(stored.currentPageKey, two)
         XCTAssertEqual(page(two)?.cachedListenParagraphs, textTwo, "no text changed")
@@ -342,7 +342,7 @@ final class BookReimportTests: XCTestCase {
         XCTAssertEqual(ready(three), [0, 1, 2], "died before the work: the audio is still there")
 
         try env.relaunch()
-        XCTAssertEqual(library.playOrder(of: try XCTUnwrap(library.book(key: bookKey))).map(\.key), [one, two, four],
+        XCTAssertEqual(library.pages(in: try XCTUnwrap(library.book(key: bookKey))).map(\.key), [one, two, four],
                        "the Replace was saved")
         XCTAssertEqual(audioWork().map(\.kind), [.delete], "with its audio work")
         XCTAssertEqual(audioWork().first?.key, three)

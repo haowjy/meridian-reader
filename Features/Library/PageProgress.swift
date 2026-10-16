@@ -63,7 +63,7 @@ struct FolderProgress {
     /// One of its pages is what you hear.
     let isPlaying: Bool
 
-    /// `pages` in play order (`LibraryStore.playOrder`); `playingKey`: the page playing, when one
+    /// `pages` in play order (`LibraryStore.pages(in:)`); `playingKey`: the page playing, when one
     /// of this folder's is what you hear.
     @MainActor
     init(folder: Folder, pages: [Page], playingKey: UUID?, library: LibraryStore) {

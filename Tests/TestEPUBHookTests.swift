@@ -18,7 +18,7 @@ final class TestEPUBHookTests: XCTestCase {
         XCTAssertEqual(library.topLevelFolders().map(\.name), ["Shelf", TestEPUB.title])
         XCTAssertTrue(library.pages(in: shelf).isEmpty)
 
-        let pages = library.playOrder(of: book)
+        let pages = library.pages(in: book)
         let keys = pages.map(\.key)
         XCTAssertEqual(pages.map(\.title), ["Title Page"] + TestEPUB.chapterTitles)
         XCTAssertEqual(pages.map(\.skipsInPlayback), [true, false, false, false])
@@ -37,7 +37,7 @@ final class TestEPUBHookTests: XCTestCase {
         let again = try XCTUnwrap(againOrNil)
         XCTAssertEqual(env.folders().filter { $0.kind == .book }.count, 1)
         XCTAssertNil(again.currentPageKey)
-        XCTAssertEqual(library.playOrder(of: again).map(\.positionParagraph), [0, 0, 0, 0])
-        XCTAssertEqual(library.playOrder(of: again).map(\.key), keys, "the same file, the same keys")
+        XCTAssertEqual(library.pages(in: again).map(\.positionParagraph), [0, 0, 0, 0])
+        XCTAssertEqual(library.pages(in: again).map(\.key), keys, "the same file, the same keys")
     }
 }

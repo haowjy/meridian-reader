@@ -37,7 +37,7 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertEqual(report.mergedFolders, 1)
         XCTAssertEqual(report.mergedPages, 1)
         XCTAssertEqual(env.folders().filter { $0.kind == .book }.map(\.name), ["Book"], "into the older folder")
-        let pages = library.playOrder(of: older)
+        let pages = library.pages(in: older)
         XCTAssertEqual(pages.count, 2, "one page per key, none left split")
         XCTAssertTrue(pages.contains { $0 === copy } || pages.contains { $0.key == shared })
         XCTAssertIdentical(onlyInCopy.folder, older)

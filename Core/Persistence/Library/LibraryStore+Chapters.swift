@@ -10,7 +10,7 @@ extension LibraryStore {
     /// fetch) only in a series; elsewhere it is skipped (a favorite is an address, with nothing
     /// to fetch it). A locked series chapter, or one that needs the browser, says why it can't.
     func chapterSnapshot(of folder: Folder) -> [ChapterAdvance.Chapter] {
-        chapterSnapshot(of: folder, pages: playOrder(of: folder))
+        chapterSnapshot(of: folder, pages: pages(in: folder))
     }
 
     /// The snapshot of `pages`, the folder's pages in play order (before they are saved, for

@@ -33,7 +33,7 @@ extension LibraryStore {
             stageChapters(chapters, plan: plan, in: folder, order: [])
             return folder
         }
-        log("book \(details.title): \(chapters.count) chapters in \(destination?.displayName ?? "the top level")")
+        log("book \(details.title): \(chapters.count) chapters in \(destination?.name ?? "the top level")")
         return folder
     }
 
@@ -63,7 +63,7 @@ extension LibraryStore {
     /// it in the book's order that stays, as deleting a page moves it (none if no earlier page
     /// stays).
     func replaceBook(_ folder: Folder, with details: FolderDetails, chapters: [PageContent]) throws {
-        let shown = playOrder(of: folder)
+        let shown = pages(in: folder)
         let order = pages(in: folder, sort: .manual)
         let place = folder.currentPageKey
         let plan = replacement(of: recordedChapters(of: folder), in: folder, with: chapters)
@@ -120,11 +120,6 @@ extension LibraryStore {
         let changing = plan.dropped.compactMap(\.key)
             + plan.byKey.filter { !Self.reads($0.value, as: chapters[$0.key]) }.compactMap { $0.value.key }
         for key in changing + keysWaitingToMerge(into: Set(changing)) { stopPlaybackIfPlaying(key) }
-    }
-
-    /// `folder`'s pages in `sort`.
-    private func pages(in folder: Folder, sort: PageSort) -> [Page] {
-        (try? context.fetch(LibraryQueries.pages(inFolder: folder.id, sort: sort))) ?? []
     }
 
     /// Which page each chapter comes from (decision D13).

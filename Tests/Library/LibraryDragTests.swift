@@ -120,7 +120,7 @@ final class LibraryDragTests: XCTestCase {
         let c = try library.makeFolder(name: "C", in: a)
         try library.arrange([c], in: nil, before: a)
         XCTAssertNil(c.parent, "out of A, to the top level")
-        XCTAssertEqual(library.topLevelFolders().map(\.displayName), ["C", "A", "B"],
+        XCTAssertEqual(library.topLevelFolders().map(\.name), ["C", "A", "B"],
                        "a folder drops into the requested sibling position")
     }
 

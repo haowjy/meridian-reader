@@ -31,7 +31,7 @@ final class LibraryPlayOrderTests: XCTestCase {
         _ = chapter(2, in: book, sortKey: 1.5, saved: true)
         try env.context.save()
 
-        let order = library.playOrder(of: book)
+        let order = library.pages(in: book)
         XCTAssertEqual(order.map(\.title), ["Chapter 0", "Chapter 1", "Chapter 2", "Chapter 3"])
         XCTAssertEqual(order.map(\.skipsInPlayback), [true, false, false, false])
     }
@@ -44,7 +44,7 @@ final class LibraryPlayOrderTests: XCTestCase {
         _ = chapter(3, in: series, sortKey: 2, saved: false)
         try env.context.save()
 
-        let order = library.playOrder(of: series)
+        let order = library.pages(in: series)
         XCTAssertEqual(order.map(\.title), ["Chapter 1", "Chapter 2", "Chapter 3"])
         XCTAssertEqual(order.map(\.contentState), [.saved, .link, .link])
         XCTAssertEqual(series.pageSort, .manual, "the source's order first")
@@ -78,6 +78,6 @@ final class LibraryPlayOrderTests: XCTestCase {
             XCTAssertEqual(order, expected[sort], "\(sort)")
         }
         let reopened = try XCTUnwrap(env.library.folder(id: folderID))
-        XCTAssertEqual(env.library.playOrder(of: reopened).compactMap(\.key), undated + dated)
+        XCTAssertEqual(env.library.pages(in: reopened).compactMap(\.key), undated + dated)
     }
 }

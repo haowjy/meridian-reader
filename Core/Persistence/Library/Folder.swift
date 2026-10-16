@@ -92,8 +92,6 @@ final class Folder {
         set { pageSortRaw = newValue.rawValue }
     }
 
-    var displayName: String { name }
-
     /// It has a cover or a byline: its screen has the header with the cover and the author, and its
     /// row the cover (decision D17). Details change only the look.
     var hasDetails: Bool { coverData != nil || !(byline ?? "").isEmpty }

@@ -191,8 +191,8 @@ final class DownloadCenter {
             return (page.title, [page.listenKey])
         case .folder(let id):
             guard let folder = library.folder(id: id) else { return nil }
-            let pages = library.playOrder(of: folder).filter { Self.covers($0, in: folder) }
-            return (folder.displayName, pages.map(\.listenKey))
+            let pages = library.pages(in: folder).filter { Self.covers($0, in: folder) }
+            return (folder.name, pages.map(\.listenKey))
         }
     }
 

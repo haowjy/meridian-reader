@@ -15,7 +15,7 @@ final class FolderProgressTests: XCTestCase {
         let folder = try library.makeFolder(name: "Finance", in: nil)
         let pages = try (1...count).map { try library.save(env.article("https://example.com/\($0)", title: "Page \($0)")) }
         try library.move(pages.map(LibraryItem.page), to: folder)
-        return (folder, library.playOrder(of: folder))
+        return (folder, library.pages(in: folder))
     }
 
     func testANeverPlayedFolderHasNotStarted() throws {
@@ -47,7 +47,7 @@ final class FolderProgressTests: XCTestCase {
                                          paragraphs: Array(repeating: paragraph, count: 10)))
         }
         try library.move(pages.map(LibraryItem.page), to: folder)
-        let ordered = library.playOrder(of: folder)
+        let ordered = library.pages(in: folder)
         library.recordPosition(ordered[0], paragraph: 1, utf16Offset: 0)
         try library.setFinished([ordered[2]], true)
         let progress = FolderProgress(folder: folder, pages: ordered, playingKey: nil, library: library)

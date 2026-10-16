@@ -104,7 +104,7 @@ enum LaunchHooks {
             try TestEPUB.write(to: file)
             let outcome = try await BookImporter(library: library).importBook(at: file, into: nil, ifAlreadyInLibrary: .cancel)
             guard case .added(let book) = outcome else { return nil }
-            ListenTimingLog.log("debug_import_test_epub", ["ok": true, "chapters": library.playOrder(of: book).count], console: true)
+            ListenTimingLog.log("debug_import_test_epub", ["ok": true, "chapters": library.pages(in: book).count], console: true)
             return book
         } catch {
             ListenTimingLog.log("debug_import_test_epub", ["ok": false, "error": "\(error)"], console: true)

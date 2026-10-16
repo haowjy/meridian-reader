@@ -72,10 +72,10 @@ final class LibraryTreeTests: XCTestCase {
         }
         let article = try savedPage("Article", in: nil)
         try library.arrange([chapters[2], article], in: book, before: chapters[0], shownIn: .manual)
-        XCTAssertEqual(library.playOrder(of: book).map(\.title), ["Ch 3", "Article", "Ch 1", "Ch 2"])
+        XCTAssertEqual(library.pages(in: book).map(\.title), ["Ch 3", "Article", "Ch 1", "Ch 2"])
         try library.setSort(.title, for: book)
         XCTAssertEqual(book.pageSort, .title)
-        XCTAssertEqual(library.playOrder(of: book).map(\.title), ["Article", "Ch 1", "Ch 2", "Ch 3"], "it plays in its sort")
+        XCTAssertEqual(library.pages(in: book).map(\.title), ["Article", "Ch 1", "Ch 2", "Ch 3"], "it plays in its sort")
     }
 
     func testDeleteFolderAndContentsDeletesNestedBooksAndTheirAudio() throws {
@@ -105,7 +105,7 @@ final class LibraryTreeTests: XCTestCase {
         let other = try library.makeFolder(name: "Other", in: nil)
         try library.rename(favorites, to: "Mine")
         try library.move([.folder(favorites)], to: other)
-        XCTAssertEqual(favorites.displayName, "Mine")
+        XCTAssertEqual(favorites.name, "Mine")
         XCTAssertIdentical(favorites.parent, other)
     }
 

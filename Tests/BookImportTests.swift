@@ -88,7 +88,7 @@ final class BookImportTests: XCTestCase {
         let cover = try XCTUnwrap(book.coverData.flatMap(UIImage.init(data:)), "a cover thumbnail")
         XCTAssertEqual(max(cover.size.width * cover.scale, cover.size.height * cover.scale), 600)
 
-        let pages = library.playOrder(of: book)
+        let pages = library.pages(in: book)
         XCTAssertEqual(pages.map(\.title), ["Title Page", "Chapter 1: The Harbor", "Chapter 2: The Lighthouse",
                                             "Chapter 3: The Tide"])
         XCTAssertEqual(pages.map(\.key), cut.chapters.map { Optional($0.key) }, "the chapters' book keys")
@@ -118,7 +118,7 @@ final class BookImportTests: XCTestCase {
 
     func testLooseTextIsReadAndFootnotesPicturesAndNoteMarksAreNot() async throws {
         let book = try added(try await importBook(Self.sampleBook()))
-        let chapter = try XCTUnwrap(library.playOrder(of: book).first { $0.title == "Chapter 1: The Harbor" })
+        let chapter = try XCTUnwrap(library.pages(in: book).first { $0.title == "Chapter 1: The Harbor" })
         let blocks = try XCTUnwrap(chapter.cachedListenParagraphs)
         XCTAssertEqual(Array(blocks.prefix(2)), ["Chapter 1: The Harbor", Self.looseText], "the loose text is read")
         XCTAssertTrue(blocks.contains("A sentence with a note."), "the note mark is gone")
@@ -193,18 +193,18 @@ final class BookImportTests: XCTestCase {
 
     func testCancelLeavesABookAlreadyInTheLibrary() async throws {
         let book = try added(try await importBook(Self.sampleBook()))
-        let keys = library.playOrder(of: book).map(\.key)
+        let keys = library.pages(in: book).map(\.key)
         let again = try await importBook(Self.sampleBook(), choice: .cancel)
         guard case .alreadyInLibrary(let existing) = again else { return XCTFail("\(again)") }
         XCTAssertTrue(existing === book)
-        XCTAssertEqual(library.playOrder(of: book).map(\.key), keys)
+        XCTAssertEqual(library.pages(in: book).map(\.key), keys)
         XCTAssertEqual(env.folders().count, 1)
     }
 
     func testReplaceRebuildsTheSameFolder() async throws {
         let book = try added(try await importBook(Self.sampleBook()))
         try library.rename(book, to: "Renamed by me")
-        let chapterTwo = try XCTUnwrap(library.playOrder(of: book).first { $0.title == "Chapter 2: The Lighthouse" })
+        let chapterTwo = try XCTUnwrap(library.pages(in: book).first { $0.title == "Chapter 2: The Lighthouse" })
         library.recordPosition(chapterTwo, paragraph: 2, utf16Offset: 10)
         var edited = Self.sampleBook()
         edited.documents[3].body = SyntheticEPUB.xhtml(body: SyntheticEPUB.chapter(id: "c3", heading: "Chapter 3: The Tide",
@@ -214,7 +214,7 @@ final class BookImportTests: XCTestCase {
         XCTAssertTrue(replaced === book)
         XCTAssertEqual(book.name, "Renamed by me", "its name stays")
         XCTAssertEqual(env.folders().count, 1)
-        let pages = library.playOrder(of: book)
+        let pages = library.pages(in: book)
         XCTAssertEqual(pages.count, 4)
         XCTAssertEqual(pages.first { $0.title == "Chapter 2: The Lighthouse" }?.positionParagraph, 2, "unchanged chapter keeps its place")
         XCTAssertEqual(pages.last?.wordCount, 420, "the edited chapter's text")
@@ -242,7 +242,7 @@ final class BookImportTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(notes.provisionalWordCount, 150)
 
         let book = try added(try await importBook(epub))
-        let pages = library.playOrder(of: book)
+        let pages = library.pages(in: book)
         XCTAssertFalse(pages.contains { $0.key == epigraph.key || $0.key == notes.key }, "their keys are never kept")
         XCTAssertEqual(pages.map(\.title), ["Title Page", "Chapter 1: The Harbor", "Chapter 2: The Lighthouse",
                                             "Chapter 3: The Tide"])
@@ -266,7 +266,7 @@ final class BookImportTests: XCTestCase {
 
         var steps: [BookImportProgress] = []
         let book = try added(try await importBook(epub, importer: importer) { steps.append($0) })
-        let words = library.playOrder(of: book).map(\.wordCount)
+        let words = library.pages(in: book).map(\.wordCount)
         XCTAssertGreaterThan(words.count, firstCut.chapters.count)
         XCTAssertTrue(words.allSatisfy { (100...800).contains($0) }, "\(words)")
         XCTAssertEqual(words.reduce(0, +), 2_700 + 3 * 2, "every word kept")
@@ -312,7 +312,7 @@ final class BookImportTests: XCTestCase {
 
     func testReplacingABookWithOneWithNothingToReadLeavesItAsItWas() async throws {
         let book = try added(try await importBook(Self.sampleBook()))
-        let pages = library.playOrder(of: book)
+        let pages = library.pages(in: book)
         let chapterTwo = try XCTUnwrap(pages.first { $0.title == "Chapter 2: The Lighthouse" })
         library.recordPlayback(ReaderArticle(page: chapterTwo))
         library.recordPosition(chapterTwo, paragraph: 2, utf16Offset: 10)
@@ -320,7 +320,7 @@ final class BookImportTests: XCTestCase {
         XCTAssertEqual(try empty.read(in: self).key, try Self.sampleBook().read(in: self).key, "the same book key")
 
         await assertUnreadable { _ = try await self.importBook(empty, choice: .replace) }
-        XCTAssertEqual(library.playOrder(of: book).map(\.key), pages.map(\.key), "every chapter is still there")
+        XCTAssertEqual(library.pages(in: book).map(\.key), pages.map(\.key), "every chapter is still there")
         XCTAssertEqual(book.currentPageKey, chapterTwo.key)
         XCTAssertEqual(chapterTwo.positionParagraph, 2)
         XCTAssertEqual(env.folders().count, 1)
@@ -377,14 +377,14 @@ final class BookImportTests: XCTestCase {
 
     func testACancelledReplaceLeavesTheBookAsItWas() async throws {
         let book = try added(try await importBook(Self.sampleBook()))
-        let pages = library.playOrder(of: book).map { ($0.key, $0.wordCount) }
+        let pages = library.pages(in: book).map { ($0.key, $0.wordCount) }
         var edited = Self.sampleBook()
         edited.documents[3].body = SyntheticEPUB.xhtml(body: SyntheticEPUB.chapter(id: "c3", heading: "Chapter 3: The Tide",
                                                                                    words: 420, seed: 9))
         let result = try await importCancelled(at: { $0 == .storing(title: "The Lantern Keeper") }, edited, choice: .replace)
         guard case .failure(let error) = result, error is CancellationError else { return XCTFail("\(result)") }
-        XCTAssertEqual(library.playOrder(of: book).map(\.key), pages.map(\.0))
-        XCTAssertEqual(library.playOrder(of: book).map(\.wordCount), pages.map(\.1), "the text is the first import's")
+        XCTAssertEqual(library.pages(in: book).map(\.key), pages.map(\.0))
+        XCTAssertEqual(library.pages(in: book).map(\.wordCount), pages.map(\.1), "the text is the first import's")
     }
 
     func testADestinationDeletedWhileTheBookIsReadKeepsNothing() async throws {

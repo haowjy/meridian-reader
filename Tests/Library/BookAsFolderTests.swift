@@ -41,7 +41,7 @@ final class BookAsFolderTests: XCTestCase {
 
     private func page(_ n: Int) throws -> Page { try XCTUnwrap(library.page(key: keys[n]), "chapter \(n)") }
 
-    private func titles(_ folder: Folder) -> [String] { library.playOrder(of: folder).map(\.title) }
+    private func titles(_ folder: Folder) -> [String] { library.pages(in: folder).map(\.title) }
 
     private func assertOnePagePerKey(file: StaticString = #filePath, line: UInt = #line) {
         let stored = env.pages().compactMap(\.key)

@@ -18,7 +18,7 @@ extension LibraryStore {
     /// *Mark All Above as Finished*: every page before `page` in its folder's play order.
     func markAllAbove(_ page: Page) throws {
         guard let folder = page.folder else { return }
-        let order = playOrder(of: folder)
+        let order = pages(in: folder)
         guard let index = order.firstIndex(where: { $0 === page }), index > 0 else { return }
         try setFinished(Array(order[..<index]), true)
     }
@@ -32,7 +32,7 @@ extension LibraryStore {
 
     /// *Delete Downloads* on a folder: the audio of every page in it; the pages stay saved.
     func deleteDownloads(of folder: Folder) {
-        for page in playOrder(of: folder) { deleteDownloads(page) }
+        for page in pages(in: folder) { deleteDownloads(page) }
     }
 
     /// Whether `page` has audio on disk for any voice (*Delete Downloads* is offered).

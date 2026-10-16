@@ -90,7 +90,7 @@ struct MoveTreeList: View {
                       isCurrent: current == .topLevel, isEnabled: true, id: "moveTopLevel") { pick(nil) }
                 ForEach(tree, id: \.folder.id) { entry in
                     let folder = entry.folder
-                    place(folder.displayName, symbol: folder.rowSymbol, depth: entry.depth,
+                    place(folder.name, symbol: folder.rowSymbol, depth: entry.depth,
                           isCurrent: current == .folder(folder.id),
                           isEnabled: !isMoving(folder), id: "moveFolder") { pick(folder) }
                         .contextMenu {
@@ -105,7 +105,7 @@ struct MoveTreeList: View {
         }
         .libraryListStyle()
         .newFolderAlert(isPresented: $naming, name: $newName,
-                        message: newParent.map { "It goes inside “\($0.displayName)”, and this goes into it." }
+                        message: newParent.map { "It goes inside “\($0.name)”, and this goes into it." }
                             ?? "It goes at the top level, and this goes into it.") {
             pickNewFolder(newName, newParent)
         }

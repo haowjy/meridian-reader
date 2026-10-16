@@ -51,12 +51,12 @@ struct FolderScreen: View {
         FolderContentsList(folder: folder, sort: folder.pageSort, headerTitleHidden: $headerTitleHidden)
             // The title names the screen for VoiceOver, the back button and tests; drawn only
             // once the header's own title has scrolled away.
-            .navigationTitle(folder.displayName)
+            .navigationTitle(folder.name)
             .navigationBarTitleDisplayMode(.inline)
             .modifier(BarTitleRemoved())
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text(folder.displayName)
+                    Text(folder.name)
                         .typeStyle(.row, weight: .semibold)
                         .foregroundStyle(Palette.ink)
                         .lineLimit(1)
@@ -191,7 +191,7 @@ private struct FolderContentsList: View {
     /// title, the author before the counts. Without them, the title and counts.
     @ViewBuilder
     private var header: some View {
-        let title = folder.displayName
+        let title = folder.name
         let style: FolderHeaderStyle = folder.hasDetails ? .detailed(cover: folder.coverImage) : .folder
         let detail = [folder.byline].compactMap { $0 } + counts
         Group {
