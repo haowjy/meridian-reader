@@ -214,7 +214,7 @@ final class BackgroundListeningTests: XCTestCase {
     private func ensure(_ queue: GlobalSynthQueue, _ key: UUID, _ paras: [String], p: Int, c: Int) async throws
         -> GlobalSynthQueue.ChunkResolution {
         try await queue.ensureChunk(cacheKey: key, paragraphIndex: p, chunk: c, text: paras[p], paragraphs: paras,
-                                    voiceID: "v", isEphemeral: false)
+                                    isEphemeral: false)
     }
 
     func testRendererRefusesModelCallInBackground() async {
@@ -237,7 +237,7 @@ final class BackgroundListeningTests: XCTestCase {
         let (queue, ctx) = makeQueue(FakeEngineProvider(), runState: state)
         let key = UUID()
         let paras = [sentence(1), (2...4).map(sentence).joined(separator: " ")]
-        queue.openArticle(cacheKey: key, paragraphs: paras, voiceID: "v", isEphemeral: false)
+        queue.openArticle(cacheKey: key, paragraphs: paras, isEphemeral: false)
         try await waitIdle(queue)
         XCTAssertTrue(ctx.host.calls.isEmpty, "bake-ahead waits in the background")
 
@@ -256,7 +256,7 @@ final class BackgroundListeningTests: XCTestCase {
         let expected = paras.flatMap(queue.chunkTexts(for:))
         XCTAssertEqual(ctx.host.calls.filter(\.ok).count, expected.count)
         for i in paras.indices {
-            XCTAssertNotNil(ctx.audioCache.audioURL(articleID: key, paragraphIndex: i, engineID: ctx.cacheEngineID, voiceID: "v"))
+            XCTAssertNotNil(ctx.audioCache.audioURL(articleID: key, paragraphIndex: i, engineID: ctx.cacheEngineID, voiceID: "fake.default"))
         }
     }
 
@@ -267,10 +267,10 @@ final class BackgroundListeningTests: XCTestCase {
         let paras = [(1...4).map(sentence).joined(separator: " "), (5...7).map(sentence).joined(separator: " ")]
         let chunks0 = queue.chunkTexts(for: paras[0])
         XCTAssertGreaterThanOrEqual(chunks0.count, 4)
-        queue.openArticle(cacheKey: key, paragraphs: paras, voiceID: "v", isEphemeral: false)
+        queue.openArticle(cacheKey: key, paragraphs: paras, isEphemeral: false)
 
         let hash = ArticleIdentity.paragraphHash(paras[0])
-        let c0 = ctx.audioCache.chunkURL(articleID: key, paragraphIndex: 0, textHash: hash, chunk: 0)
+        let c0 = ctx.audioCache.chunkURL(articleID: key, paragraphIndex: 0, textHash: hash, voice: "fake.default", chunk: 0)
         let start = Date()
         while !ctx.audioCache.isUsableAudioFile(c0) {
             if Date().timeIntervalSince(start) > 10 { XCTFail("chunk 0 never rendered"); return }
@@ -299,7 +299,7 @@ final class BackgroundListeningTests: XCTestCase {
         try await waitIdle(queue)
         let expected = paras.flatMap(queue.chunkTexts(for:))
         XCTAssertEqual(ctx.host.calls.filter(\.ok).count, expected.count, "each chunk rendered once (none lost to the switch)")
-        XCTAssertNotNil(ctx.audioCache.audioURL(articleID: key, paragraphIndex: 1, engineID: ctx.cacheEngineID, voiceID: "v"))
+        XCTAssertNotNil(ctx.audioCache.audioURL(articleID: key, paragraphIndex: 1, engineID: ctx.cacheEngineID, voiceID: "fake.default"))
     }
 
     func testInactiveServesTheListenerButHoldsBakeAhead() async throws {
@@ -307,7 +307,7 @@ final class BackgroundListeningTests: XCTestCase {
         let (queue, ctx) = makeQueue(FakeEngineProvider(), runState: state)
         let key = UUID()
         let paras = [sentence(1), sentence(2), sentence(3)]
-        queue.openArticle(cacheKey: key, paragraphs: paras, voiceID: "v", isEphemeral: false)
+        queue.openArticle(cacheKey: key, paragraphs: paras, isEphemeral: false)
         try await waitIdle(queue)
         XCTAssertTrue(ctx.renders.isEmpty, "no bake-ahead while inactive")
 
@@ -329,15 +329,15 @@ final class BackgroundListeningTests: XCTestCase {
         ctx.playingCacheKey = playing
         let paras = [sentence(1), sentence(2), sentence(3)]
         let otherParas = [sentence(7), sentence(8)]
-        queue.openArticle(cacheKey: other, paragraphs: otherParas, voiceID: "v", isEphemeral: false)
-        queue.openArticle(cacheKey: playing, paragraphs: paras, voiceID: "v", isEphemeral: false)
+        queue.openArticle(cacheKey: other, paragraphs: otherParas, isEphemeral: false)
+        queue.openArticle(cacheKey: playing, paragraphs: paras, isEphemeral: false)
 
         // Live chunk renders on the model (no Apple fallback, no deferral).
         if case .chunk = try await ensure(queue, playing, paras, p: 0, c: 0) {} else { XCTFail("expected a rendered chunk") }
         XCTAssertEqual(queue.backgroundDeferrals, 0)
         try await waitIdle(queue)
         for i in paras.indices {
-            XCTAssertNotNil(ctx.audioCache.audioURL(articleID: playing, paragraphIndex: i, engineID: ctx.cacheEngineID, voiceID: "v"),
+            XCTAssertNotNil(ctx.audioCache.audioURL(articleID: playing, paragraphIndex: i, engineID: ctx.cacheEngineID, voiceID: "fake.default"),
                             "bake of the playing article continues in the background")
         }
         XCTAssertFalse(ctx.renders.contains { $0.key == other }, "other articles wait for the foreground")

@@ -44,8 +44,8 @@ struct ListenPlayRequest {
     /// word being spoken when an utterance restarts.
     var utf16Offset: Int
     var startPaused: Bool
-    /// The Apple voice for this article's language (Apple speech, and the on-device engine's
-    /// Apple fallback renders).
+    /// The Apple voice for this article's language (Apple speech; the on-device engine's fallback
+    /// renders ask the coordinator, `LocalTTSCoordinator.appleFallbackVoice(for:)`, by the same rule).
     var appleVoice: AVSpeechSynthesisVoice?
 }
 

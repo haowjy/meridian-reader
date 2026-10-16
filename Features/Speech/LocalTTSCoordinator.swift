@@ -54,6 +54,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// False when the article's effective language isn't supported by the engine (it then
     /// speaks with Apple). nil = always.
     var localLanguageGate: (([String]) -> Bool)?
+    /// Set by `SpeechController`: the Apple voice that speaks an article with these listen blocks
+    /// (the voice for its language). The listen player and the render queue fall back to it alike.
+    var appleVoiceForArticle: (([String]) -> String?)?
 
     /// Picks the launch engine (the stored selection, after crash recovery) and starts loading
     /// it. One-time launch steps are `LaunchMigration`s, run by `AppComposition`.
@@ -226,9 +229,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     private func reloadKokoroHost() async {
         RenderPace.shared.reset()
         guard activeLocalEngineID == .kokoro else { return }
-        let load = synth.reload(.kokoro, voice: engineVoices[.kokoro])
-        synthQueue.engineDidChange()
-        await load.value
+        await synth.reload(.kokoro, voice: engineVoices[.kokoro]).value
     }
 
     // MARK: - SynthQueueContext (route-aware background)
@@ -255,24 +256,26 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Voice selected for a multi-voice engine (nil for single-voice engines).
     func voice(for id: SpeechEngineID) -> String? { engineVoices[id] }
 
-    /// `ArticleAudioCache` voice key per the active engine's `CacheVoiceKeyStyle`
-    /// (Kokoro: "kokoro.<voice>" — key format unchanged since the Kokoro release).
-    func cacheVoiceID(appleVoice: String?) -> String {
-        guard let id = activeLocalEngineID, let d = engines.descriptor(id) else { return appleVoice ?? "system" }
-        return d.cacheVoiceID(engineVoice: engineVoices[id], appleVoice: appleVoice)
+    /// `ArticleAudioCache` voice key of engine `id`'s audio in its selected voice
+    /// ("kokoro.af_heart"; the format is persisted); nil for an engine that renders nothing ahead.
+    func cacheVoice(of id: SpeechEngineID) -> String? {
+        engines.descriptor(id)?.cacheVoiceID(engineVoice: engineVoices[id])
     }
 
-    /// Map any stored/passed voice key onto the active engine's key space (pending jobs may
-    /// carry an Apple voice id from an old session, or another voice's key after a voice switch).
-    func normalizedCacheVoice(_ voiceID: String) -> String {
-        if let id = activeLocalEngineID, let d = engines.descriptor(id), case .prefixed = d.cacheVoiceKey {
-            return d.cacheVoiceID(engineVoice: engineVoices[id], appleVoice: nil)
-        }
-        return engines.isEngineVoiceKey(voiceID) ? "system" : voiceID
+    /// Cache voice key of the active local engine (loaded or loading): what bake marks count.
+    var activeCacheVoice: String? { activeLocalEngineID.flatMap(cacheVoice(of:)) }
+
+    /// What the render queue renders: the loaded on-device engine in its selected voice. nil while
+    /// none is loaded (Apple selected, a model loading, failed or deleted), and then nothing
+    /// renders: a model loads only when it is selected (`selectEngine`, launch), never because
+    /// work is queued.
+    var renderTarget: RenderTarget? {
+        guard let id = synth.state.readyEngineID, let voice = cacheVoice(of: id) else { return nil }
+        return RenderTarget(engineID: id.rawValue, cacheVoice: voice)
     }
 
-    func fallbackAppleVoice(forCacheVoice voiceID: String) -> String? {
-        (voiceID == "system" || engines.isEngineVoiceKey(voiceID)) ? nil : voiceID
+    func appleFallbackVoice(for paragraphs: [String]) -> String? {
+        appleVoiceForArticle?(paragraphs)
     }
 
     func bakeCompleted(cacheKey: UUID) {
@@ -291,7 +294,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         defaults.set(voice, forKey: d.resolvedVoiceDefaultsKey)
         guard activeLocalEngineID == id else { return }
         synth.setVoice(voice, for: id)
-        synthQueue.engineDidChange()
+        synthQueue.renderTargetChanged()
         noteBakeMarksChanged()
         onEngineChange?()
     }
@@ -354,23 +357,22 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
     }
 
-    /// Load `id` (see `LocalSynthService.load`); the queue drops the old engine's chunk plans
-    /// and scratch.
+    /// Load `id` (see `LocalSynthService.load`).
     @discardableResult
     private func beginWarm(_ id: SpeechEngineID) -> Task<Void, Never> {
-        let load = synth.load(id, voice: engineVoices[id])
-        synthQueue.engineDidChange()
-        return load
+        synth.load(id, voice: engineVoices[id])
     }
 
-    /// Persist the selection, let the controller move the live utterance, and once a load
-    /// finishes fold the waiting bake jobs into the queue.
+    /// Persist the selection, let the controller move the live utterance, tell the render queue
+    /// what renders now (nothing unless an engine is loaded), and once a load finishes fold the
+    /// waiting bake jobs into the queue.
     private func engineStateChanged() {
         let state = synth.state
         if let persisted = state.persistedSelection {
             defaults.set(persisted.rawValue, forKey: Self.engineIDKey)
         }
         onEngineChange?()
+        synthQueue.renderTargetChanged()
         if case .ready = state {
             noteBakeMarksChanged()
             drainPendingIntoQueue()
@@ -422,22 +424,17 @@ final class LocalTTSCoordinator: SynthQueueContext {
     func warmListenAudio(
         cacheKey: UUID,
         paragraphs: [String],
-        voiceID: String,
         resumeParagraph: Int = 0,
         isEphemeral: Bool
     ) {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
-        let voiceID = normalizedCacheVoice(voiceID)
         focusCacheKey = cacheKey
         guard usesLocalEngine else {
             // Still loading: the job waits on disk and joins the queue when the load finishes.
             PendingBakeJobStore.shared.enqueuePending(
                 articleID: cacheKey,
                 paragraphs: paragraphs,
-                voiceID: voiceID,
-                plan: resumeParagraph <= 0
-                    ? .topDown(paragraphCount: paragraphs.count)
-                    : .fromPlayhead(resumeParagraph, paragraphCount: paragraphs.count)
+                priorityStart: max(0, resumeParagraph)
             )
             print("[SynthQueue] queued pending key=\(cacheKey.uuidString.prefix(8)) (local engine warming)")
             return
@@ -450,7 +447,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         synthQueue.openArticle(
             cacheKey: cacheKey,
             paragraphs: paragraphs,
-            voiceID: voiceID,
             resumeParagraph: resumeParagraph,
             isEphemeral: isEphemeral
         )
@@ -461,11 +457,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
         cacheKey: UUID,
         playhead: Int,
         paragraphs: [String],
-        voiceID: String,
         isEphemeral: Bool = false
     ) {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
-        let voiceID = normalizedCacheVoice(voiceID)
         focusCacheKey = cacheKey
         if isEphemeral {
             audioCache.markEphemeral(cacheKey: cacheKey, lastAccess: Date())
@@ -474,7 +468,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             synthQueue.openArticle(
                 cacheKey: cacheKey,
                 paragraphs: paragraphs,
-                voiceID: voiceID,
                 resumeParagraph: playhead,
                 isEphemeral: isEphemeral
             )
@@ -483,7 +476,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             warmListenAudio(
                 cacheKey: cacheKey,
                 paragraphs: paragraphs,
-                voiceID: voiceID,
                 resumeParagraph: playhead,
                 isEphemeral: isEphemeral
             )
@@ -499,25 +491,23 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// and for audio held for unfinished library work (`ArticleAudioCache.held`), which a render
     /// would overwrite before that work reads it.
     @discardableResult
-    func stageNextChapter(cacheKey: UUID, after playing: UUID, paragraphs: [String], voiceID: String) -> Bool {
+    func stageNextChapter(cacheKey: UUID, after playing: UUID, paragraphs: [String]) -> Bool {
         guard !paragraphs.isEmpty, wantsLocalBake, usesLocalEngine, localLanguageAllows(paragraphs),
               !audioCache.held.contains(cacheKey) else { return false }
         synthQueue.stageNext(cacheKey: cacheKey, after: playing, paragraphs: paragraphs,
-                             voiceID: normalizedCacheVoice(voiceID), upTo: Self.stagedChapterParagraphs,
+                             upTo: Self.stagedChapterParagraphs,
                              isEphemeral: audioCache.loadMeta(for: cacheKey)?.kind == .ephemeral)
         return true
     }
 
     /// On article save: enqueue (demoted if something else is #1) top → down.
-    func startBakeIfNeeded(articleID: UUID, paragraphs: [String], voiceID: String) {
+    func startBakeIfNeeded(articleID: UUID, paragraphs: [String]) {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
-        let voiceID = normalizedCacheVoice(voiceID)
         audioCache.markSaved(cacheKey: articleID)
         PendingBakeJobStore.shared.enqueuePending(
             articleID: articleID,
             paragraphs: paragraphs,
-            voiceID: voiceID,
-            plan: .topDown(paragraphCount: paragraphs.count)
+            priorityStart: 0
         )
         // Still loading: the job joins the queue when the load finishes.
         guard usesLocalEngine else { return }
@@ -531,7 +521,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             synthQueue.openArticle(
                 cacheKey: articleID,
                 paragraphs: paragraphs,
-                voiceID: voiceID,
                 resumeParagraph: 0,
                 isEphemeral: false
             )
@@ -539,7 +528,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             synthQueue.enqueueDemoted(
                 cacheKey: articleID,
                 paragraphs: paragraphs,
-                voiceID: voiceID,
                 isEphemeral: false
             )
         }
@@ -654,7 +642,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             GlobalSynthQueue.PendingWork(
                 cacheKey: job.articleID,
                 paragraphs: job.paragraphs,
-                voiceID: normalizedCacheVoice(job.voiceID),
                 priorityStart: job.priorityStart,
                 isEphemeral: audioCache.loadMeta(for: job.articleID)?.kind == .ephemeral
             )

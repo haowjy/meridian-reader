@@ -195,18 +195,18 @@ final class SpeechController {
     /// Language the current session speaks in.
     var effectiveLanguageCode: String { languageResolution.languageCode }
 
-    /// Apple voice for the current session: the user's pick when it speaks the effective
-    /// language, else the best installed voice for that language.
-    var effectiveAppleVoice: AVSpeechSynthesisVoice? {
-        let code = effectiveLanguageCode
+    /// Apple voice for the current session (`appleVoice(forLanguage:)` of its language).
+    var effectiveAppleVoice: AVSpeechSynthesisVoice? { appleVoice(forLanguage: effectiveLanguageCode) }
+
+    /// The Apple voice that speaks `code`: the user's pick when it speaks that language, else the
+    /// best installed voice for it. Apple speech and every Apple fallback of the on-device engine
+    /// (live and in the render queue, `LocalTTSCoordinator.appleVoiceForArticle`) use it.
+    func appleVoice(forLanguage code: String) -> AVSpeechSynthesisVoice? {
         if let voice = selectedVoice, ListenLanguage.baseCode(voice.language) == ListenLanguage.baseCode(code) {
             return voice
         }
         return VoiceCatalog.bestVoice(forLanguage: code)
     }
-
-    /// Cache voice key for local-engine audio (e.g. "kokoro.af_heart").
-    var cacheVoiceID: String { localTTS.cacheVoiceID(appleVoice: selectedVoiceIdentifier) }
 
     var isPlaying: Bool { playbackPhase == .playing }
 
@@ -488,6 +488,11 @@ final class SpeechController {
         self.localTTS.localLanguageGate = { [weak self] paragraphs in
             guard let self else { return true }
             return self.languageResolution(detected: ListenLanguage.detectCached(paragraphs: paragraphs)).engineID.isLocal
+        }
+        self.localTTS.appleVoiceForArticle = { [weak self] paragraphs in
+            guard let self else { return nil }
+            let language = self.languageResolution(detected: ListenLanguage.detectCached(paragraphs: paragraphs))
+            return self.appleVoice(forLanguage: language.languageCode)?.identifier
         }
         self.localTTS.onEngineChange = { [weak self] in self?.localEngineChanged() }
         for engine in listenEngines {
@@ -933,7 +938,6 @@ final class SpeechController {
     private func finishSession(restartBake: Bool) {
         let articleID = playback.articleID
         let paragraphs = playback.document.paragraphs
-        let voiceID = cacheVoiceID
         let isChapter = sessionMeta?.id == articleID && sessionMeta?.folder?.isBookOrSeries == true
         stopEngines()
         // Let other apps' audio resume (Stop Listening / the end of an article or a book).
@@ -942,11 +946,7 @@ final class SpeechController {
         // Books and series don't bake whole (D7): only the chapter playing and the next render.
         if restartBake, !isChapter, let articleID, !paragraphs.isEmpty {
             // Return-to-top gap fill so any paragraphs above the listen playhead still bake.
-            localTTS.startBakeIfNeeded(
-                articleID: articleID,
-                paragraphs: paragraphs,
-                voiceID: voiceID
-            )
+            localTTS.startBakeIfNeeded(articleID: articleID, paragraphs: paragraphs)
         }
     }
 
@@ -957,7 +957,7 @@ final class SpeechController {
     /// `nil` means hide marks (Apple path — no CAF bake, don't fake "not ready").
     func bakeReadyParagraphIndices(articleID: UUID, paragraphCount: Int, detectedLanguage: String? = nil) -> Set<Int>? {
         guard let localID = localTTS.activeLocalEngineID, localTTS.engines.supports(localID),
-              localTTS.engines.descriptor(localID)?.supportsBakeCache == true else { return nil }
+              let voice = localTTS.activeCacheVoice else { return nil }
         // Article speaks with Apple (language the engine can't speak): no marks, like Apple.
         let detected = detectedLanguage ?? (articleID == activeSessionID ? sessionDetectedLanguage : nil)
         guard languageResolution(detected: detected).engineID.isLocal else { return nil }
@@ -968,8 +968,8 @@ final class SpeechController {
         return localTTS.audioCache.readyIndices(
             articleID: articleID,
             paragraphCount: paragraphCount,
-            engineID: self.localTTS.cacheEngineID,
-            voiceID: cacheVoiceID
+            engineID: localID.rawValue,
+            voiceID: voice
         )
     }
 }

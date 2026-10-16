@@ -19,9 +19,7 @@ extension LocalTTSCoordinator {
     /// The voice downloads render in, as a cache voice key: the selected on-device voice, or, while
     /// Apple's voice is selected, the voice the default on-device engine would use.
     var downloadVoice: String? {
-        let id = wantsLocalBake ? activeLocalEngineID : engines.defaultLocalEngineID
-        guard let id, let d = engines.descriptor(id), d.supportsBakeCache else { return nil }
-        return d.cacheVoiceID(engineVoice: engineVoices[id], appleVoice: nil)
+        (wantsLocalBake ? activeLocalEngineID : engines.defaultLocalEngineID).flatMap(cacheVoice(of:))
     }
 
     /// An on-device voice that renders downloads is selected (it may still be loading).
@@ -47,11 +45,11 @@ extension LocalTTSCoordinator {
 
     /// Queue `paragraphs` of `cacheKey` to render in full in the download voice.
     func queueDownload(cacheKey: UUID, paragraphs: [String]) -> DownloadQueueing {
-        guard rendersDownloads, let voice = downloadVoice else { return .notRendering }
+        guard rendersDownloads else { return .notRendering }
         guard localLanguageAllows(paragraphs) else { return .speaksLive }
         guard !audioCache.held.contains(cacheKey) else { return .held }
         if missingDownloadParagraphs(cacheKey: cacheKey, paragraphs: paragraphs) == 0 { return .ready }
-        startBakeIfNeeded(articleID: cacheKey, paragraphs: paragraphs, voiceID: voice)
+        startBakeIfNeeded(articleID: cacheKey, paragraphs: paragraphs)
         return .rendering
     }
 

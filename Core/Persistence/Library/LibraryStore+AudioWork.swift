@@ -234,10 +234,7 @@ extension LibraryStore {
         if let job = pending.pendingJobs().first(where: { $0.articleID == key }), job.paragraphs != new {
             let start = ParagraphPositionMap.mapParagraphStart(job.priorityStart, from: ParagraphDocument(parts: job.paragraphs),
                                                                to: ParagraphDocument(parts: new))
-            pending.enqueuePending(articleID: key, paragraphs: new, voiceID: job.voiceID,
-                                   plan: BakePriorityPlan(priorityStart: start,
-                                                          fillGapsFromTopAfterPriority: job.fillGapsFromTopAfterPriority,
-                                                          paragraphCount: new.count))
+            pending.enqueuePending(articleID: key, paragraphs: new, priorityStart: start)
         }
         moveResumePoints(work, onto: new, live: live)
         ListenTimingLog.log("library_audio_work", [

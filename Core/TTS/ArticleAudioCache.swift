@@ -273,10 +273,10 @@ final class ArticleAudioCache {
     }
 
     /// A name of its own to stitch paragraph `paragraphIndex` into, inside the chunk scratch of
-    /// its text: no index lists it and no alignment touches it, and the launch's scratch cleanup
-    /// removes one an app died with.
-    func stitchingURL(articleID: UUID, paragraphIndex: Int, textHash: String) -> URL {
-        chunkDirectory(articleID: articleID, paragraphIndex: paragraphIndex, textHash: textHash)
+    /// its text and voice: no index lists it and no alignment touches it, and the launch's
+    /// scratch cleanup removes one an app died with.
+    func stitchingURL(articleID: UUID, paragraphIndex: Int, textHash: String, voice: String) -> URL {
+        chunkDirectory(articleID: articleID, paragraphIndex: paragraphIndex, textHash: textHash, voice: voice)
             .appendingPathComponent("paragraph-" + UUID().uuidString.prefix(8) + ".caf")
     }
 
@@ -354,17 +354,24 @@ final class ArticleAudioCache {
 
     // MARK: - Synth chunk scratch (GlobalSynthQueue)
 
-    /// `<article>/chunks/p-NNNN-<texthash>/c-KK.caf` — per-chunk renders of a paragraph that is
-    /// still being built. Stitched into `p-NNNN.caf` when every chunk is present.
-    func chunkDirectory(articleID: UUID, paragraphIndex: Int, textHash: String) -> URL {
+    /// `<article>/chunks/p-NNNN-<texthash>-<voice>/c-KK.caf` — per-chunk renders of a paragraph
+    /// that is still being built, in one cache voice. A call in flight when the voice changes
+    /// writes into its own voice's folder, never where the new voice looks. Stitched into
+    /// `p-NNNN.caf` when every chunk is present.
+    func chunkDirectory(articleID: UUID, paragraphIndex: Int, textHash: String, voice: String) -> URL {
         directory(for: articleID)
             .appendingPathComponent("chunks", isDirectory: true)
-            .appendingPathComponent(String(format: "p-%04d-", paragraphIndex) + textHash, isDirectory: true)
+            .appendingPathComponent(Self.chunkFolderPrefix(paragraphIndex, textHash) + voice, isDirectory: true)
     }
 
-    func chunkURL(articleID: UUID, paragraphIndex: Int, textHash: String, chunk: Int) -> URL {
-        chunkDirectory(articleID: articleID, paragraphIndex: paragraphIndex, textHash: textHash)
+    func chunkURL(articleID: UUID, paragraphIndex: Int, textHash: String, voice: String, chunk: Int) -> URL {
+        chunkDirectory(articleID: articleID, paragraphIndex: paragraphIndex, textHash: textHash, voice: voice)
             .appendingPathComponent(String(format: "c-%02d.caf", chunk))
+    }
+
+    /// The part of a chunk folder's name that names the paragraph and its text: `p-NNNN-<texthash>-`.
+    private static func chunkFolderPrefix(_ paragraphIndex: Int, _ textHash: String) -> String {
+        String(format: "p-%04d-", paragraphIndex) + textHash + "-"
     }
 
     /// Drop chunk scratch for one article (never while it is the live playback session).
@@ -374,16 +381,14 @@ final class ArticleAudioCache {
     }
 
     /// Drop chunk scratch for one article except the dirs that still match `paragraphs`
-    /// (same index + text hash): those hold finished chunks of a paragraph the queue is
-    /// baking right now. Wiping them made the worker synthesize the same chunks again —
+    /// (same index + text hash, any voice): those hold finished chunks of a paragraph the queue
+    /// is baking right now. Wiping them made the worker synthesize the same chunks again —
     /// extra Core ML calls, each one more exposure to the Kokoro libBNNS crash (#844).
     func removeChunkScratch(for articleID: UUID, keepingCurrent paragraphs: [String]) {
         let dir = directory(for: articleID).appendingPathComponent("chunks", isDirectory: true)
         guard let subdirs = try? fileManager.contentsOfDirectory(atPath: dir.path) else { return }
-        let keep = Set(paragraphs.indices.map {
-            String(format: "p-%04d-", $0) + ArticleIdentity.paragraphHash(paragraphs[$0])
-        })
-        for name in subdirs where !keep.contains(name) {
+        let keep = Set(paragraphs.indices.map { Self.chunkFolderPrefix($0, ArticleIdentity.paragraphHash(paragraphs[$0])) })
+        for name in subdirs where !keep.contains(where: name.hasPrefix) {
             try? fileManager.removeItem(at: dir.appendingPathComponent(name, isDirectory: true))
         }
     }

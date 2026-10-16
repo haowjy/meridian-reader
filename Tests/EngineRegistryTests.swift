@@ -14,8 +14,9 @@ final class EngineRegistryTests: XCTestCase {
         XCTAssertEqual(SpeechEngineID.kokoro.rawValue, "local.kokoro")
         XCTAssertEqual(SpeechEngineID.retiredChatterboxNano.rawValue, "local.chatterbox-nano")
         let kokoro = FluidAudioProvider.kokoroDescriptor
-        XCTAssertEqual(kokoro.cacheVoiceID(engineVoice: "af_heart", appleVoice: "com.apple.voice.x"), "kokoro.af_heart")
-        XCTAssertEqual(kokoro.cacheVoiceID(engineVoice: nil, appleVoice: nil), "kokoro.af_heart")
+        XCTAssertEqual(kokoro.cacheVoiceID(engineVoice: "af_heart"), "kokoro.af_heart")
+        XCTAssertEqual(kokoro.cacheVoiceID(engineVoice: nil), "kokoro.af_heart")
+        XCTAssertNil(AppleSpeechProvider.descriptor.cacheVoiceID(engineVoice: nil), "Apple renders nothing ahead")
         XCTAssertEqual(kokoro.resolvedVoiceDefaultsKey, "reader.tts.kokoroVoice")
         let retired = FluidAudioProvider().retiredEngines
         XCTAssertEqual(retired.map(\.id), [.retiredChatterboxNano])
@@ -34,9 +35,6 @@ final class EngineRegistryTests: XCTestCase {
         XCTAssertTrue(registry.descriptor(.kokoro)!.supportsBakeCache)
         XCTAssertTrue(registry.descriptor(.kokoro)!.crashGuarded)
         XCTAssertEqual(registry.limits(for: .kokoro), .kokoroCPU, "ONNX CPU route is the default")
-        XCTAssertTrue(registry.isEngineVoiceKey("kokoro.af_bella"))
-        XCTAssertFalse(registry.isEngineVoiceKey("com.apple.voice.compact.en-US.Samantha"))
-        XCTAssertFalse(registry.isEngineVoiceKey("system"))
     }
 
     func testHardwareGateAndBlockReason() {

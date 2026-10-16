@@ -290,7 +290,7 @@ final class KokoroStubProvider: SpeechEngineProvider {
             id: .kokoro, kind: .onDevice,
             displayName: "Kokoro (stub)", shortName: "Kokoro", subtitle: "Test",
             isRecommended: true, sortOrder: 1,
-            voices: [], defaultVoiceID: nil, voiceDefaultsKey: nil, cacheVoiceKey: .prefixed("kstub"),
+            voices: [], defaultVoiceID: nil, voiceDefaultsKey: nil, cacheVoicePrefix: "kstub",
             limits: .kokoroCPU, hardware: .none, supportsBakeCache: true,
             crashGuarded: true, crashNoticeDetail: "test", supportedLanguages: [])]
     }

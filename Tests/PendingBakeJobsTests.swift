@@ -2,7 +2,7 @@ import XCTest
 @testable import MeridianReader
 
 /// Pending bake jobs live in a small JSON file; jobs older builds left in UserDefaults move there
-/// on the first load.
+/// on the first load. Files with fields jobs no longer keep still decode.
 @MainActor
 final class PendingBakeJobsTests: XCTestCase {
     func testLegacyUserDefaultsJobsMoveToTheFileOnce() throws {
@@ -26,11 +26,14 @@ final class PendingBakeJobsTests: XCTestCase {
         XCTAssertEqual(jobs.first?.paragraphs, ["One.", "Two."])
         XCTAssertEqual(jobs.first?.priorityStart, 1)
         XCTAssertNil(defaults.object(forKey: "reader.tts.pendingBakeJobs"), "moved out of UserDefaults")
+        let written = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertFalse(written.contains("voiceID"), "a job renders in the voice selected when it runs")
+        XCTAssertFalse(written.contains("fillGapsFromTopAfterPriority"), "the plan is rebuilt from priorityStart")
 
         // Another instance reads the file.
         XCTAssertEqual(PendingBakeJobStore(storeURL: url, defaults: defaults).pendingJobs(), jobs)
 
-        store.enqueuePending(articleID: UUID(), paragraphs: ["Three."], voiceID: "v", plan: .topDown(paragraphCount: 1))
+        store.enqueuePending(articleID: UUID(), paragraphs: ["Three."], priorityStart: 0)
         XCTAssertEqual(store.pendingJobs().count, 2)
         for job in store.pendingJobs() { store.removePending(articleID: job.articleID) }
         XCTAssertTrue(store.pendingJobs().isEmpty)

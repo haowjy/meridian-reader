@@ -32,8 +32,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         env.legacyRow("https://example.com/dup", id: rows.kept, savedAt: date(1), paragraphs: rows.keptText, position: 2)
         try env.storeAudio(rows.merged, paragraphs: rows.mergedText)
         try env.storeAudio(rows.kept, paragraph: 1, text: "Beta changed.")
-        PendingBakeJobStore.shared.enqueuePending(articleID: rows.merged, paragraphs: rows.mergedText, voiceID: "voiceA",
-                                                  plan: .topDown(paragraphCount: 3))
+        PendingBakeJobStore.shared.enqueuePending(articleID: rows.merged, paragraphs: rows.mergedText, priorityStart: 0)
         ListenResumePointStore.shared.save(article: rows.merged, paragraph: 1, at: date(2))
         addTeardownBlock { @MainActor in
             PendingBakeJobStore.shared.removePending(articleID: rows.merged)
@@ -145,8 +144,7 @@ final class LibraryAudioWorkTests: XCTestCase {
             try env.storeAudio(rows.merged, paragraph: i, text: text, level: 0.2 + Float(i) / 10)
         }
         try env.storeAudio(rows.kept, paragraph: 1, text: "Beta changed.", level: 0.7)
-        PendingBakeJobStore.shared.enqueuePending(articleID: rows.merged, paragraphs: rows.mergedText, voiceID: "voiceA",
-                                                  plan: .topDown(paragraphCount: 3))
+        PendingBakeJobStore.shared.enqueuePending(articleID: rows.merged, paragraphs: rows.mergedText, priorityStart: 0)
         ListenResumePointStore.shared.save(article: rows.merged, paragraph: 1, at: date(2))
         var needed: [String: Data] = [:]
         needed["Alpha one."] = try bytes(env, rows.merged, paragraph: 0)
@@ -229,8 +227,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         kept[old[iGiant + 1]] = try writeStitched(env, key, iGiant + 1, old[iGiant + 1], lengths: [4800], level: 0.5)
         kept[old[old.count - 1]] = try writeStitched(env, key, old.count - 1, old[old.count - 1], lengths: [4800], level: 0.6)
         ListenResumePointStore.shared.save(article: key, paragraph: iGiant + 1, at: date(1))
-        PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: old, voiceID: "voiceA",
-                                                  plan: .topDown(paragraphCount: old.count))
+        PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: old, priorityStart: 0)
         return LayoutFixture(key: key, old: old, new: new, iAfter: iGiant + 1, firstPiece: iGiant + 1, kept: kept,
                              giant: (old[iGiant], giant))
     }
@@ -351,7 +348,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         let key = try XCTUnwrap(page.key)
         try env.storeAudio(key, paragraphs: page.cachedListenParagraphs ?? [])
         PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: page.cachedListenParagraphs ?? [],
-                                                  voiceID: "voiceA", plan: .topDown(paragraphCount: 2))
+                                                  priorityStart: 0)
         addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: key) }
         return (page, key)
     }

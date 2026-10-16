@@ -154,7 +154,7 @@ LocalSynthHost (thin: load + ONE call)
 ```
 
 The shared core has no `import FluidAudio` and no switch on engine types: `GlobalSynthQueue`
-(`SynthQueueContext`, `RenderAdmission`), `ArticleAudioCache` keys, `TextChunker`,
+(`SynthQueueContext` and its `RenderTarget`, `RenderAdmission`), `ArticleAudioCache` keys, `TextChunker`,
 `LocalChunkRenderer`, `EngineCrashGuard`, `SynthRenderGate`, the Settings voice list, the engine
 probe. Library code lives only under `Features/Speech/Engines/<Library>/`, including its crash
 policy and its launch steps.
@@ -182,8 +182,8 @@ Test seam: `Tests/Fakes/FakeEngineProvider.swift` (tone/silence PCM, latency, pe
    `SynthRenderGate.shared` while loading; report `onProgress`), `synthesizeOnce(text:)` (one call →
    `SynthesizedPCM`; map the library's "input too long" error to `LocalSynthError.inputTooLong` so
    the shared renderer re-splits), `setVoice`, `resetPrepared`, `unload`.
-3. **Descriptor.** A new, never-changing `id` (e.g. `local.qwen3-tts`), `cacheVoiceKey:
-   .prefixed("<short>")`, chunk `limits` sized from the per-call cap (measure chars or phonemes per
+3. **Descriptor.** A new, never-changing `id` (e.g. `local.qwen3-tts`), `cacheVoicePrefix:
+   "<short>"` (cache voice keys `<short>.<voice>`), chunk `limits` sized from the per-call cap (measure chars or phonemes per
    second of audio on a device), `hardware`, `crashGuarded` if the library can die uncatchably.
 4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,
    `deleteModels`; override `recover(from:playing:)` if a crash needs more than "switch away".

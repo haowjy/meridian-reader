@@ -13,6 +13,10 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
         var silence = false
         var sampleRate = 24_000
         var secondsPerChar = 0.05
+        /// Seconds per character in a voice set with `setVoice` (else `secondsPerChar`): a chunk's
+        /// duration tells which voice rendered it. The voice is read when a call starts, as
+        /// Kokoro's host does.
+        var secondsPerCharByVoice: [String: Double] = [:]
         /// Behave like Kokoro's ONNX CPU route (may render while backgrounded).
         var rendersInBackground = false
         /// Calls (1-based, every call counted) that throw `engineUnavailable` and leave the host
@@ -32,6 +36,8 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
     private var prepared = false
     private var _prepares = 0
     private var _calls: [(text: String, ok: Bool)] = []
+    private var voice: String?
+    private var _started = 0
 
     init(engineID: SpeechEngineID, config: Config) {
         self.engineID = engineID
@@ -39,6 +45,8 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
     }
 
     var calls: [(text: String, ok: Bool)] { lock.withLock { _calls } }
+    /// Calls that have started (read their voice), finished or not.
+    var startedCalls: Int { lock.withLock { _started } }
     var isPrepared: Bool { lock.withLock { prepared } }
     /// Loads, the first included.
     var prepares: Int { lock.withLock { _prepares } }
@@ -49,6 +57,10 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
     }
 
     func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM {
+        let secondsPerChar: Double = lock.withLock {
+            _started += 1
+            return voice.flatMap { config.secondsPerCharByVoice[$0] } ?? config.secondsPerChar
+        }
         if config.latency > 0 { try await Task.sleep(nanoseconds: UInt64(config.latency * 1e9)) }
         let unloads: Bool = lock.withLock {
             guard config.failingCalls.contains(_calls.count + 1) else { return false }
@@ -66,12 +78,12 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
             throw LocalSynthError.inputTooLong("fake cap \(cap) < \(text.count)")
         }
         lock.withLock { _calls.append((text, true)) }
-        return SynthesizedPCM(samples: Self.tone(seconds: Double(text.count) * config.secondsPerChar,
+        return SynthesizedPCM(samples: Self.tone(seconds: Double(text.count) * secondsPerChar,
                                                  sampleRate: config.sampleRate, silence: config.silence),
                               sampleRate: config.sampleRate)
     }
 
-    func setVoice(_ voice: String) {}
+    func setVoice(_ voice: String) { lock.withLock { self.voice = voice } }
     func resetPrepared() { lock.withLock { prepared = false } }
     func unload() async { resetPrepared() }
 
@@ -111,7 +123,7 @@ final class FakeEngineProvider: SpeechEngineProvider {
             id: Self.fakeID, kind: .onDevice,
             displayName: "Fake (test)", shortName: "Fake", subtitle: "Test engine",
             isRecommended: false, sortOrder: 99,
-            voices: voices, defaultVoiceID: defaultVoice, voiceDefaultsKey: nil, cacheVoiceKey: .prefixed("fake"),
+            voices: voices, defaultVoiceID: defaultVoice, voiceDefaultsKey: nil, cacheVoicePrefix: "fake",
             limits: limits, hardware: .none, supportsBakeCache: true,
             crashGuarded: false, crashNoticeDetail: nil, supportedLanguages: languages)
     }
@@ -121,6 +133,7 @@ final class FakeEngineProvider: SpeechEngineProvider {
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {
         guard id == Self.fakeID else { return nil }
         let host = FakeSynthHost(engineID: id, config: config)
+        if let voice { host.setVoice(voice) }
         lastHost = host
         return host
     }
@@ -153,6 +166,8 @@ final class FakeQueueContext: SynthQueueContext, SynthChunkRendering {
     /// (article key, paragraph, chunk, priority) in render order.
     private(set) var renders: [(key: UUID, p: Int, c: Int, priority: RenderPriority)] = []
     private(set) var fallbackTexts: [String] = []
+    /// The Apple voice of each fallback render, in order.
+    private(set) var fallbackVoices: [String?] = []
     private(set) var completed: [UUID] = []
 
     init(provider: FakeEngineProvider, runState: AppRunState = .shared) {
@@ -166,10 +181,11 @@ final class FakeQueueContext: SynthQueueContext, SynthChunkRendering {
 
     func cleanUp() { try? FileManager.default.removeItem(at: root) }
 
-    /// Active cache voice (like the app's selected engine voice); nil = keep job voices as-is.
-    var activeVoice: String?
-    func normalizedCacheVoice(_ voiceID: String) -> String { activeVoice ?? voiceID }
-    func fallbackAppleVoice(forCacheVoice voiceID: String) -> String? { nil }
+    /// What renders (like the app's loaded engine in its selected voice); nil: no engine loaded.
+    var renderTarget: RenderTarget? = RenderTarget(engineID: FakeEngineProvider.fakeID.rawValue, cacheVoice: "fake.default")
+    /// The Apple voice the app would give for an article (the user's pick for its language).
+    var appleVoice: String?
+    func appleFallbackVoice(for paragraphs: [String]) -> String? { appleVoice }
     var activeRouteRendersInBackground: Bool { host.rendersInBackground }
     /// Article "playing" right now (listener priority; background bake-ahead scope on the CPU route).
     var playingCacheKey: UUID?
@@ -193,6 +209,7 @@ final class FakeQueueContext: SynthQueueContext, SynthChunkRendering {
     /// Stand-in for Apple TTS (AVSpeechSynthesizer.write is unreliable in unit tests).
     func renderAppleFallback(text: String, destination: URL, voiceID: String?) async throws -> TimeInterval {
         fallbackTexts.append(text)
+        fallbackVoices.append(voiceID)
         let samples = FakeSynthHost.tone(seconds: Double(text.count) * 0.05, sampleRate: 24_000)
         try LocalPCMWriter.write(samples, sampleRate: 24_000, to: destination)
         return Double(samples.count) / 24_000

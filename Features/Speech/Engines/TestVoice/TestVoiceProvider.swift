@@ -22,7 +22,7 @@ final class TestVoiceProvider: SpeechEngineProvider {
             displayName: "Test Voice (UI tests)", shortName: "Test Voice", subtitle: "A tone, for UI tests",
             isRecommended: false, sortOrder: 90,
             voices: [EngineVoice(id: "one", label: "One"), EngineVoice(id: "two", label: "Two")],
-            defaultVoiceID: "one", voiceDefaultsKey: nil, cacheVoiceKey: .prefixed("testvoice"),
+            defaultVoiceID: "one", voiceDefaultsKey: nil, cacheVoicePrefix: "testvoice",
             limits: .init(target: 120, hardMax: 160, firstTarget: 60, minResplit: 20), hardware: .none,
             supportsBakeCache: true, crashGuarded: false, crashNoticeDetail: nil)]
     }

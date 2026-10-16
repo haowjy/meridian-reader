@@ -14,18 +14,15 @@ extension GlobalSynthQueue {
         /// `ArticleIdentity.paragraphHash` of each paragraph (chunk scratch dirs, failure marks):
         /// hashed when the text is set, not again for every chunk the worker picks.
         private(set) var paragraphHashes: [String]
-        var voiceID: String
         var plan: BakePriorityPlan
         /// FIFO demotion order among non-#1 articles (lower = older / demoted earlier).
         var demoteOrder: Int
         var isEphemeral: Bool
 
-        init(cacheKey: UUID, paragraphs: [String], voiceID: String, plan: BakePriorityPlan,
-             demoteOrder: Int, isEphemeral: Bool) {
+        init(cacheKey: UUID, paragraphs: [String], plan: BakePriorityPlan, demoteOrder: Int, isEphemeral: Bool) {
             self.cacheKey = cacheKey
             self.paragraphs = paragraphs
             self.paragraphHashes = paragraphs.map(ArticleIdentity.paragraphHash)
-            self.voiceID = voiceID
             self.plan = plan
             self.demoteOrder = demoteOrder
             self.isEphemeral = isEphemeral
@@ -61,7 +58,6 @@ extension GlobalSynthQueue {
     struct PendingWork: Equatable {
         var cacheKey: UUID
         var paragraphs: [String]
-        var voiceID: String
         var priorityStart: Int
         var isEphemeral: Bool
     }
@@ -85,10 +81,10 @@ extension GlobalSynthQueue {
                 continue // already #1 with a live plan; don't reset its playhead cursor
             } else if primary == nil || job.cacheKey == focusKey {
                 openArticle(cacheKey: job.cacheKey, paragraphs: job.paragraphs,
-                            voiceID: job.voiceID, resumeParagraph: job.priorityStart, isEphemeral: job.isEphemeral)
+                            resumeParagraph: job.priorityStart, isEphemeral: job.isEphemeral)
             } else {
                 enqueueDemoted(cacheKey: job.cacheKey, paragraphs: job.paragraphs,
-                               voiceID: job.voiceID, resumeParagraph: job.priorityStart, isEphemeral: job.isEphemeral)
+                               resumeParagraph: job.priorityStart, isEphemeral: job.isEphemeral)
             }
         }
     }

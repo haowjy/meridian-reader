@@ -29,7 +29,7 @@ final class SpeechSwiftProvider: SpeechEngineProvider {
         voices: [],
         defaultVoiceID: nil,
         voiceDefaultsKey: nil,
-        cacheVoiceKey: .prefixed("qwen3"),
+        cacheVoicePrefix: "qwen3",
         // ≤125 codec tokens ≈ 10 s audio per call → `.tenSecondCall` until s/char is measured on
         // device. Model: hf:aufklarer/Qwen3-TTS-CoreML (0.6B), bundle-default compute units.
         limits: .tenSecondCall,

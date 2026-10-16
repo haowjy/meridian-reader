@@ -85,7 +85,7 @@ final class LocalListenEngine: ListenEngine {
         let generation = playGeneration
         document = request.document
         let source = QueueUnitSource(coordinator: coordinator, articleID: request.articleID,
-                                     paragraphs: document.paragraphs, appleVoiceID: request.appleVoice?.identifier)
+                                     paragraphs: document.paragraphs)
         self.source = source
         let queue = coordinator.synthQueue
         mapper = ListenPositionMapper(document: document) { queue.chunkTexts(for: $0) }
@@ -108,7 +108,6 @@ final class LocalListenEngine: ListenEngine {
             cacheKey: request.articleID,
             playhead: start.paragraph,
             paragraphs: document.paragraphs,
-            voiceID: coordinator.cacheVoiceID(appleVoice: request.appleVoice?.identifier),
             isEphemeral: coordinator.audioCache.loadMeta(for: request.articleID)?.kind == .ephemeral
         )
         if !request.startPaused { startClock() }

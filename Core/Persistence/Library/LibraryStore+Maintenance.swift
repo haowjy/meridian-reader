@@ -123,13 +123,12 @@ extension LibraryStore {
 
     // MARK: - Audio ready
 
-    /// Every listen paragraph of the page has audio rendered in this voice (the cache voice id,
-    /// as `SpeechController.cacheVoiceID` gives it). Apple voices render nothing ahead, so a page
-    /// is never "ready" for them, which is right: they need no file.
+    /// Every listen paragraph of the page has audio rendered in this cache voice
+    /// ("kokoro.af_heart").
     func isAudioReady(_ page: Page, voiceID: String) -> Bool {
         guard let key = page.key else { return false }
         return tts.audioCache.isAudioReady(articleID: key, paragraphCount: page.paragraphCount,
-                                           engineID: tts.cacheEngineID, voiceID: tts.normalizedCacheVoice(voiceID))
+                                           engineID: tts.cacheEngineID, voiceID: voiceID)
     }
 
     // MARK: - Crash resume

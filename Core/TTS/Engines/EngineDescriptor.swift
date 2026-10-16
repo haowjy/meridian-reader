@@ -41,15 +41,6 @@ struct HardwareRequirement: Sendable, Equatable {
     static let none = HardwareRequirement()
 }
 
-/// How the engine's paragraphs are keyed in `ArticleAudioCache` (voice half of the key).
-/// Must stay stable per engine or existing caches stop matching.
-enum CacheVoiceKeyStyle: Sendable, Equatable {
-    /// The user's Apple voice id (or "system").
-    case appleVoice
-    /// "<prefix>.<engine voice id>", e.g. "kokoro.af_heart".
-    case prefixed(String)
-}
-
 enum EngineKind: Sendable, Equatable {
     /// OS speech (Apple). Not rendered through the synth queue.
     case system
@@ -77,7 +68,10 @@ struct EngineDescriptor: Sendable, Identifiable {
     let defaultVoiceID: String?
     /// UserDefaults key for the selected voice (nil → "reader.tts.voice.<id>").
     let voiceDefaultsKey: String?
-    let cacheVoiceKey: CacheVoiceKeyStyle
+    /// The voice half of the engine's `ArticleAudioCache` keys: "<prefix>.<engine voice id>",
+    /// e.g. "kokoro.af_heart". Must stay stable per engine or existing caches stop matching. nil
+    /// for an engine that renders nothing ahead (Apple).
+    let cacheVoicePrefix: String?
 
     /// Per-call chunk sizing used by `TextChunker` (units = chars, digits ×3).
     let limits: TextChunker.Limits
@@ -115,12 +109,10 @@ struct EngineDescriptor: Sendable, Identifiable {
         return defaultVoiceID ?? voices.first?.id
     }
 
-    /// Cache voice key for this engine given its voice and the user's Apple voice.
-    func cacheVoiceID(engineVoice: String?, appleVoice: String?) -> String {
-        switch cacheVoiceKey {
-        case .appleVoice: return appleVoice ?? "system"
-        case .prefixed(let prefix): return "\(prefix).\(engineVoice ?? defaultVoiceID ?? "default")"
-        }
+    /// Cache voice key of this engine's audio in `engineVoice` (nil: its default voice); nil for
+    /// an engine that renders nothing ahead.
+    func cacheVoiceID(engineVoice: String?) -> String? {
+        cacheVoicePrefix.map { "\($0).\(engineVoice ?? defaultVoiceID ?? "default")" }
     }
 }
 

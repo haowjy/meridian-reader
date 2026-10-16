@@ -1,18 +1,29 @@
 import Foundation
 
+/// What the render queue renders: the on-device engine that is loaded and the voice it speaks in,
+/// as `ArticleAudioCache` keys (`engineID` "local.kokoro", `cacheVoice` "kokoro.af_heart"). Every
+/// render, readiness check and publish of the queue reads it from the one owner
+/// (`SynthQueueContext.renderTarget`), so a render made for one voice is never filed under another.
+struct RenderTarget: Equatable {
+    var engineID: String
+    var cacheVoice: String
+}
+
 /// What `GlobalSynthQueue` needs from its owner. `LocalTTSCoordinator` in the app; a fake in tests.
 @MainActor
 protocol SynthQueueContext: AnyObject {
     var audioCache: ArticleAudioCache { get }
+    /// What renders now; nil while no on-device engine is ready (Apple selected, a model loading,
+    /// failed or deleted). The queue parks while it is nil: it never loads a model itself.
+    var renderTarget: RenderTarget? { get }
     /// `ArticleAudioCache` engine key of the active local engine.
     var cacheEngineID: String { get }
     /// Chunk sizing of the active local engine (from its `EngineDescriptor`).
     var activeChunkLimits: TextChunker.Limits { get }
     var synthRenderer: SynthChunkRendering { get }
-    /// Apple voice for the never-skip fallback given a cache voice key (nil = system default).
-    func fallbackAppleVoice(forCacheVoice voiceID: String) -> String?
-    /// Map a (possibly stale) cache voice key onto the active engine/voice key space.
-    func normalizedCacheVoice(_ voiceID: String) -> String
+    /// The Apple voice that speaks an article with `paragraphs` where the engine can't: the one
+    /// the listen player falls back to for it (nil: the system voice).
+    func appleFallbackVoice(for paragraphs: [String]) -> String?
     func noteBakeMarksChanged()
     /// An article is fully baked (drop its persisted pending job).
     func bakeCompleted(cacheKey: UUID)

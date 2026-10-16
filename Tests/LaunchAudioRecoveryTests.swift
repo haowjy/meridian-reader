@@ -66,8 +66,7 @@ final class LaunchAudioRecoveryTests: XCTestCase {
         env.context.insert(page)
         let last = old.count - 1
         try env.storeAudio(chapter, paragraph: last, text: old[last], level: 0.2)
-        PendingBakeJobStore.shared.enqueuePending(articleID: chapter, paragraphs: old, voiceID: "voiceA",
-                                                  plan: .topDown(paragraphCount: old.count))
+        PendingBakeJobStore.shared.enqueuePending(articleID: chapter, paragraphs: old, priorityStart: 0)
 
         let text = ["One paragraph.", "Two paragraphs."]
         _ = self.page(saved, "https://example.com/article", paragraphs: text, added: env.now, position: 1)
@@ -130,8 +129,7 @@ final class LaunchAudioRecoveryTests: XCTestCase {
         let merged = audio(played)
         XCTAssertEqual(merged.count, 2)
         XCTAssertEqual(env.cache.index(for: played)?.engineID, SpeechEngineID.kokoro.rawValue, "audio the Kokoro purge would take")
-        PendingBakeJobStore.shared.enqueuePending(articleID: saved, paragraphs: text, voiceID: "voiceA",
-                                                  plan: .topDown(paragraphCount: text.count))
+        PendingBakeJobStore.shared.enqueuePending(articleID: saved, paragraphs: text, priorityStart: 0)
         env.cache.faultHook = { _ in throw Died() }
         XCTAssertEqual(env.library.dedupe().mergedPages, 1)
         XCTAssertEqual(work(), 1, "saved, not done")
@@ -186,8 +184,7 @@ final class LaunchAudioRecoveryTests: XCTestCase {
         XCTAssertEqual(merged.count, 2)
         XCTAssertEqual(env.cache.index(for: played)?.engineID, SpeechEngineID.kokoro.rawValue, "audio the Kokoro purge would take")
         for key in [saved, played] {
-            PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: text, voiceID: "voiceA",
-                                                      plan: .topDown(paragraphCount: text.count))
+            PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: text, priorityStart: 0)
         }
         env.cache.faultHook = { _ in throw Died() }
         XCTAssertEqual(env.library.dedupe().mergedPages, 1)
@@ -245,8 +242,7 @@ final class LaunchAudioRecoveryTests: XCTestCase {
         page.paragraphCount = old.count
         env.context.insert(page)
         try env.context.save()
-        PendingBakeJobStore.shared.enqueuePending(articleID: chapter, paragraphs: old, voiceID: "voiceA",
-                                                  plan: .topDown(paragraphCount: old.count))
+        PendingBakeJobStore.shared.enqueuePending(articleID: chapter, paragraphs: old, priorityStart: 0)
 
         env.defaults.set(SpeechEngineID.kokoro.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
         try env.relaunch()
@@ -283,8 +279,7 @@ final class LaunchAudioRecoveryTests: XCTestCase {
         unsaved.canonicalURL = "https://example.com/old-news"
         unsaved.lastPlayedAt = env.now.addingTimeInterval(-30 * 24 * 3600)
         try env.context.save()
-        PendingBakeJobStore.shared.enqueuePending(articleID: chapter, paragraphs: old, voiceID: "voiceA",
-                                                  plan: .topDown(paragraphCount: old.count))
+        PendingBakeJobStore.shared.enqueuePending(articleID: chapter, paragraphs: old, priorityStart: 0)
 
         env.defaults.set(SpeechEngineID.kokoro.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
         try env.relaunch()

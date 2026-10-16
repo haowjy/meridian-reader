@@ -69,7 +69,7 @@ final class BackgroundRenderBurstTests: XCTestCase {
         let playing = UUID()
         ctx.playingCacheKey = playing
         ctx.readyAhead = { [high] in high + 60 }
-        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 4), voiceID: "v", isEphemeral: false)
+        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 4), isEphemeral: false)
         try await waitIdle(queue)
         XCTAssertTrue(ctx.renders.isEmpty)
     }
@@ -79,7 +79,7 @@ final class BackgroundRenderBurstTests: XCTestCase {
         let playing = UUID()
         ctx.playingCacheKey = playing
         ctx.readyAhead = { [low, high] in (low + high) / 2 }
-        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 4), voiceID: "v", isEphemeral: false)
+        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 4), isEphemeral: false)
         try await waitIdle(queue)
         queue.playbackAdvanced()
         try await waitIdle(queue)
@@ -95,7 +95,7 @@ final class BackgroundRenderBurstTests: XCTestCase {
         ctx.playingCacheKey = playing
         var played: TimeInterval = 0
         ctx.readyAhead = { [unowned ctx] in 200 + 60 * Double(ctx.renders.count) - played }
-        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 14), voiceID: "v", isEphemeral: false)
+        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 14), isEphemeral: false)
         try await waitIdle(queue)
         XCTAssertEqual(ctx.renders.count, 5, "200 s + 5 × 60 s reaches the high-water mark (480 s)")
         XCTAssertFalse(queue.isWorkerRunning, "idle between bursts")
@@ -118,7 +118,7 @@ final class BackgroundRenderBurstTests: XCTestCase {
         let (queue, ctx, state) = makeQueue(phase: .background)
         let playing = UUID()
         ctx.playingCacheKey = playing
-        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 6), voiceID: "v", resumeParagraph: 3,
+        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 6), resumeParagraph: 3,
                           isEphemeral: false)
         try await waitIdle(queue)
         XCTAssertEqual(ctx.renders.map(\.p), [3, 4, 5])
@@ -137,9 +137,9 @@ final class BackgroundRenderBurstTests: XCTestCase {
         ctx.playingCacheKey = playing
         ctx.readyAhead = { [high] in high + 60 }
         let text = paragraphs("Playing", 6)
-        queue.openArticle(cacheKey: playing, paragraphs: text, voiceID: "v", isEphemeral: false)
+        queue.openArticle(cacheKey: playing, paragraphs: text, isEphemeral: false)
         _ = try await queue.ensureChunk(cacheKey: playing, paragraphIndex: 3, chunk: 0, text: text[3], paragraphs: text,
-                                        voiceID: "v", isEphemeral: false)
+                                        isEphemeral: false)
         try await waitIdle(queue)
         XCTAssertEqual(ctx.renders.map { "\($0.p).\($0.c)" }, ["3.0"], "the listener's chunk, then no bake-ahead")
     }
@@ -150,7 +150,7 @@ final class BackgroundRenderBurstTests: XCTestCase {
             let playing = UUID()
             ctx.playingCacheKey = playing
             ctx.readyAhead = { [high] in high * 10 }
-            queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 4), voiceID: "v", isEphemeral: false)
+            queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 4), isEphemeral: false)
             try await waitIdle(queue)
             XCTAssertEqual(ctx.renders.count, 4, "\(phase): the whole article renders")
         }
@@ -162,8 +162,8 @@ final class BackgroundRenderBurstTests: XCTestCase {
         let playing = UUID(), saved = UUID()
         ctx.playingCacheKey = playing
         ctx.readyAhead = { [high] in high + 60 }
-        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 3), voiceID: "v", isEphemeral: false)
-        queue.enqueueDemoted(cacheKey: saved, paragraphs: paragraphs("Saved", 2), voiceID: "v", isEphemeral: false)
+        queue.openArticle(cacheKey: playing, paragraphs: paragraphs("Playing", 3), isEphemeral: false)
+        queue.enqueueDemoted(cacheKey: saved, paragraphs: paragraphs("Saved", 2), isEphemeral: false)
         try await waitIdle(queue)
         XCTAssertTrue(ctx.renders.isEmpty)
 
@@ -181,7 +181,7 @@ final class BackgroundRenderBurstTests: XCTestCase {
         ctx.playingCacheKey = playing
         var ahead: TimeInterval = (low + high) / 2
         ctx.readyAhead = { ahead }
-        queue.stageNext(cacheKey: next, after: playing, paragraphs: paragraphs("Next", 5), voiceID: "v", upTo: 3,
+        queue.stageNext(cacheKey: next, after: playing, paragraphs: paragraphs("Next", 5), upTo: 3,
                         isEphemeral: false)
         try await waitIdle(queue)
         XCTAssertTrue(ctx.renders.isEmpty, "enough of the chapter playing is ready ahead")

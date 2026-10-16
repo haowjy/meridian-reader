@@ -362,7 +362,7 @@ final class PlaybackAdvanceTests: XCTestCase {
         XCTAssertTrue(tts.usesLocalEngine)
         let stage = { (index: Int) in
             tts.stageNextChapter(cacheKey: book.key(index), after: book.key(index - 1),
-                                 paragraphs: book.sessions[index].document.paragraphs, voiceID: speech.cacheVoiceID)
+                                 paragraphs: book.sessions[index].document.paragraphs)
         }
         for hold in [ArticleAudioCache.Hold.pages([book.key(1)]), .all] {
             tts.holdRenderingForLaunch()

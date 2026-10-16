@@ -40,7 +40,7 @@ struct ArticleSaveCoordinator {
                 isLivePlayback: live
             )
         }
-        tts.startBakeIfNeeded(articleID: key, paragraphs: article.document.paragraphs, voiceID: speech.cacheVoiceID)
+        tts.startBakeIfNeeded(articleID: key, paragraphs: article.document.paragraphs)
         return key
     }
 

@@ -125,7 +125,8 @@ adapter keeps, bound or not. Adapters report facts; they own no bake policy and 
   lifecycle `state` (`LocalEngineState`): `off` (Apple speaks), `warming(id, progress, task)`
   (download / load in flight; `task` is the single load, cancelling it abandons the load),
   `ready(id)`, `failed(id, message)` (Apple speaks; Settings shows the message). On every change
-  the coordinator persists `reader.tts.engineID` and calls `onEngineChange`.
+  the coordinator persists `reader.tts.engineID`, calls `onEngineChange` and tells the render
+  queue what renders now (`renderTarget`, Render queue).
 - `speak` picks the engine once (`ListenRoute`: Apple, or the ready on-device engine and its
   voice when it speaks the article's language) and binds it. Pause, resume, the play icon,
   "Preparing next…" and stop go to the bound engine until stop or the next `speak`.
@@ -270,6 +271,17 @@ one **chunk** per iteration, so the playhead can preempt bake-ahead between chun
 calls never run at once (`SynthRenderGate.shared`). Actions reorder the queue (`openArticle`,
 `focusPlayhead`, demote on switch); nothing builds its own render loop.
 
+**What it renders for.** The coordinator owns one render target
+(`LocalTTSCoordinator.renderTarget`, `RenderTarget`): the loaded on-device engine in its selected
+voice, as the audio cache's engine and voice keys. Jobs and pending jobs carry no voice; every
+readiness check, chunk file and publish reads the target at that step. While no engine is loaded
+(Apple selected, a model loading or failed, *Delete model*, a cancelled download) there is no
+target and nothing renders: the worker parks before its next chunk (the call in flight finishes
+and files nothing), a listener's chunk plays with Apple, and the queue never loads a model itself.
+Once an engine is ready the coordinator restarts it (`GlobalSynthQueue.renderTargetChanged`) and
+the queued jobs, downloads and saves included, render in that engine's voice
+(`RenderTargetTests`).
+
 1. Open an article → it becomes #1; render from the resume point to the end, then fill gaps
    above it.
 2. Skip / jump / seek → still #1; the cursor moves to the new paragraph.
@@ -331,6 +343,9 @@ Mode is on (`BakeConditions`) and resumes on the change notification. Before eve
 | inactive | render | listener's chunks only; bake-ahead parks |
 | background | listener's chunks; bake-ahead of the playing article and the staged next chapter during a burst (below); other articles park | no model call: a listener's chunk plays with Apple, bake-ahead parks |
 
+With no engine loaded (no render target) no model call starts in any phase: a listener's chunk
+plays with Apple, bake-ahead parks.
+
 The renderer checks it again right before each model call (`LocalChunkRenderer`,
 `RenderAdmission.modelCallsAllowed`). No Core ML call ever starts in the background (no GPU
 there, and the CPU fallback is the libBNNS crash path): Kokoro's Core ML route
@@ -352,7 +367,10 @@ one Apple speaks and falling behind again there; the skipped paragraph is render
 the top. A chunk the engine fails on does the same. Only listener calls feed `RenderPace`.
 
 **Never silent, never skipped.** A chunk the engine can't render is rendered with Apple
-(ahead), or the rest of the paragraph is spoken with Apple (live). Only if Apple also fails is
+(ahead), or the rest of the paragraph is spoken with Apple (live), both in the Apple voice for the
+article's language: the user's pick when it speaks that language, else the best installed voice
+for it (`SpeechController.appleVoice(forLanguage:)`, handed to the coordinator as
+`appleVoiceForArticle`). Only if Apple also fails is
 the paragraph skipped, logged as `SKIP pN` in the debug overlay and `skip` in the timing log.
 A live Apple unit is a one-off file in `tmp/ReaderTTSLive`, never cached: it is deleted once the
 unit leaves the player (`ChunkPlaybackQueue.onItemDone`: played out, dropped when the engine
@@ -452,18 +470,23 @@ highlight and the paragraph picker stay fine-grained.
   (a cold load drops nothing), and running the change again finishes it
   (`ArticleAudioCacheCrashTests` stops each change at every step). A key with no directory takes
   another's whole, in one rename.
-- Chunk scratch: `chunks/p-NNNN-<texthash>/c-KK.caf`. Once every chunk of a paragraph exists the
+- Chunk scratch: `chunks/p-NNNN-<texthash>-<voice>/c-KK.caf`, filed by cache voice: a call in
+  flight when the voice changes writes into its own voice's folder, never where the new voice
+  looks, and a chunk rendered for a target that changed during the call is neither handed to a
+  listener nor stitched. Once every chunk of a paragraph exists the
   worker stitches them off the main actor into a file of their own in that scratch
   (`paragraph-<id>.caf`). Back on the main actor it is published only if the queue still wants
-  that text on that paragraph: its job still has the article with the same text hash there
-  (an alignment of the article's audio, opening it with newer text, or clearing, deleting or
-  rekeying it may have landed meanwhile); otherwise it is dropped. Every alignment of an
+  that text on that paragraph in that voice: its job still has the article with the same text
+  hash there (an alignment of the article's audio, opening it with newer text, or clearing,
+  deleting or rekeying it may have landed meanwhile) and the render target is unchanged;
+  otherwise it is dropped. Every alignment of an
   article's audio with new paragraphs (opening it, Save) gives its job those paragraphs too,
   keeping the job's place and plan, so a job never renders old text onto them. Publishing renames
   it over `p-NNNN.caf` (a CAF that may be playing is never written into) and records it in the
   same main-actor step, so no alignment runs between the file and its entry
   (`RenderPublicationTests`). Replays use the stitched file. Scratch is disposable at launch;
-  while an article has a queue job, scratch whose text hash still matches its paragraphs is kept
+  while an article has a queue job, scratch whose text hash still matches its paragraphs (in any
+  voice) is kept
   (`removeChunkScratch(for:keepingCurrent:)`), because every extra Kokoro call is exposure to the
   libBNNS crash (`BrowseSaveWhilePlayingTests` pins the call count).
 - **Keys** (`ARTICLE_IDENTITY.md`): one per canonical URL, saved or not. Leaving an unsaved
@@ -481,14 +504,15 @@ highlight and the paragraph picker stay fine-grained.
   stay, stamped stale. Ready / missing counts look only at the target voice, so the queue
   re-renders the article, while playback uses the stale CAF until each paragraph is replaced
   (`playableAudioURL`). When the article is complete in the new voice, `finalizeVoiceSwitch`
-  deletes the leftovers. `GlobalSynthQueue.engineDidChange` retargets queued jobs
+  deletes the leftovers. Queued jobs carry no voice, so after a switch they render in the new one
   (`VoiceSwitchTests`).
 - **Language gate.** An article in a language the engine doesn't speak plays with Apple and is
   kept out of the on-device queue (`LocalTTSCoordinator.localLanguageGate`).
 
 **Pending jobs.** Articles saved or opened while the engine was cold are kept as pending bake
-jobs in `Application Support/PendingBakeJobs.json` (`PendingBakeJobStore`) and fold into the
-queue once the engine is ready. At launch the queue is held from the first audio-cache step
+jobs in `Application Support/PendingBakeJobs.json` (`PendingBakeJobStore`: the paragraphs and the
+paragraph to start from; they render in the voice selected when they do) and fold into the queue
+once the engine is ready. At launch the queue is held from the first audio-cache step
 (`AppComposition.prepareAudioCache`, before the first frame) until the library's launch
 maintenance has finished (`AppLaunch.maintainLibrary`: left audio work, layout pass, dedupe,
 prune): it adopts no pending job and renders nothing, though the engine loads meanwhile

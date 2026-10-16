@@ -51,12 +51,12 @@ final class BrowseSaveWhilePlayingTests: XCTestCase {
         let c = makeCoordinator(provider)
         await c.selectEngine(FakeEngineProvider.fakeID)
         XCTAssertTrue(c.usesLocalEngine)
-        let voice = c.normalizedCacheVoice("fake.default")
+        let voice = try XCTUnwrap(c.renderTarget?.cacheVoice)
 
         // Saved article A is playing from its baked audio.
         let a = UUID()
         let aParas = ["The saved article that is already playing has its own words."]
-        c.synthQueue.openArticle(cacheKey: a, paragraphs: aParas, voiceID: voice, isEphemeral: false)
+        c.synthQueue.openArticle(cacheKey: a, paragraphs: aParas, isEphemeral: false)
         try await waitIdle(c.synthQueue)
         XCTAssertNotNil(c.audioCache.audioURL(articleID: a, paragraphIndex: 0, engineID: c.cacheEngineID, voiceID: voice))
 
@@ -65,11 +65,11 @@ final class BrowseSaveWhilePlayingTests: XCTestCase {
         let bParas = [(1...5).map(sentence).joined(separator: " "), sentence(9)]
         let chunks0 = c.synthQueue.chunkTexts(for: bParas[0])
         XCTAssertGreaterThanOrEqual(chunks0.count, 3)
-        c.synthQueue.openArticle(cacheKey: b, paragraphs: bParas, voiceID: voice, isEphemeral: false)
+        c.synthQueue.openArticle(cacheKey: b, paragraphs: bParas, isEphemeral: false)
 
         // Wait until chunk 0 of B p0 is on disk (mid-paragraph bake).
         let hash = ArticleIdentity.paragraphHash(bParas[0])
-        let c0 = c.audioCache.chunkURL(articleID: b, paragraphIndex: 0, textHash: hash, chunk: 0)
+        let c0 = c.audioCache.chunkURL(articleID: b, paragraphIndex: 0, textHash: hash, voice: voice, chunk: 0)
         let start = Date()
         while !c.audioCache.isUsableAudioFile(c0) {
             if Date().timeIntervalSince(start) > 10 { XCTFail("chunk 0 never rendered"); return }
@@ -78,7 +78,7 @@ final class BrowseSaveWhilePlayingTests: XCTestCase {
 
         // → Open in Reader. A is the live session, so B's open is NOT live playback.
         c.prepareListenIdentity(key: b, paragraphs: bParas, isLivePlayback: false)
-        c.warmListenAudio(cacheKey: b, paragraphs: bParas, voiceID: voice, isEphemeral: false)
+        c.warmListenAudio(cacheKey: b, paragraphs: bParas, isEphemeral: false)
         try await waitIdle(c.synthQueue)
 
         let texts = provider.lastHost!.calls.filter(\.ok).map(\.text)

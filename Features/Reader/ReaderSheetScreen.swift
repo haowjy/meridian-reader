@@ -272,7 +272,6 @@ struct ReaderSheetScreen: View {
         speech.localTTS.warmListenAudio(
             cacheKey: article.id,
             paragraphs: paragraphs,
-            voiceID: speech.cacheVoiceID,
             resumeParagraph: resumeParagraph,
             isEphemeral: !isSaved
         )

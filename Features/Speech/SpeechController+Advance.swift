@@ -136,16 +136,15 @@ extension SpeechController {
     /// in front again. The ONNX route renders in the background and keeps its voice.
     private func appleStandsIn(for session: SpeechSession) -> Bool {
         guard case .local = wantedRoute, localTTS.synthQueue.runState.phase == .background,
-              !localTTS.activeRouteRendersInBackground else { return false }
+              !localTTS.activeRouteRendersInBackground, let target = localTTS.renderTarget else { return false }
         return !localTTS.audioCache.isAudioReady(articleID: session.id, paragraphCount: session.document.count,
-                                                 engineID: localTTS.cacheEngineID,
-                                                 voiceID: localTTS.normalizedCacheVoice(cacheVoiceID))
+                                                 engineID: target.engineID, voiceID: target.cacheVoice)
     }
 
     private func isRendered(_ key: UUID, paragraph: Int, of count: Int) -> Bool {
-        guard count > paragraph else { return false }
-        return localTTS.audioCache.readyIndices(articleID: key, paragraphCount: count, engineID: localTTS.cacheEngineID,
-                                                voiceID: localTTS.normalizedCacheVoice(cacheVoiceID)).contains(paragraph)
+        guard count > paragraph, let target = localTTS.renderTarget else { return false }
+        return localTTS.audioCache.readyIndices(articleID: key, paragraphCount: count, engineID: target.engineID,
+                                                voiceID: target.cacheVoice).contains(paragraph)
     }
 
     // MARK: - Waiting for a link chapter
@@ -215,18 +214,17 @@ extension SpeechController {
     /// engine, not for audio held for unfinished library work; once per chapter.
     func stageNextChapterIfDue() {
         guard let key = playback.articleID, let folderID = playback.folderID, let library = nextChapters,
-              chapterFlow.stagedAfter != key, case .local = wantedRoute else { return }
+              chapterFlow.stagedAfter != key, case .local = wantedRoute,
+              let target = localTTS.renderTarget else { return }
         let count = playback.paragraphCount
         let missing = localTTS.audioCache.missingIndices(articleID: key, paragraphCount: count,
-                                                         engineID: localTTS.cacheEngineID,
-                                                         voiceID: localTTS.normalizedCacheVoice(cacheVoiceID))
+                                                         engineID: target.engineID, voiceID: target.cacheVoice)
         guard !missing.contains(where: { $0 >= playback.playhead && $0 < count - 2 }) else { return }
         chapterFlow.stagedAfter = key
         guard case .ready(let next) = ChapterAdvance.after(key, in: library.chapters(of: folderID)),
               let session = library.load(next) else { return }
         chapterFlow.nextSession = session
-        localTTS.stageNextChapter(cacheKey: next, after: key, paragraphs: session.document.paragraphs,
-                                  voiceID: cacheVoiceID)
+        localTTS.stageNextChapter(cacheKey: next, after: key, paragraphs: session.document.paragraphs)
     }
 
     /// The bound engine became audible: the boundary it closes goes into the timing log (the

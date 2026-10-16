@@ -121,7 +121,7 @@ final class VoiceSwitchTests: XCTestCase {
     }
 
     /// Queue level: a queued article already baked in the old voice is re-rendered in the new
-    /// voice after `engineDidChange`, and no old-voice audio remains when it completes.
+    /// voice once the render target changes, and no old-voice audio remains when it completes.
     func testQueueRerendersInNewVoiceAfterSwitch() async throws {
         let ctx = FakeQueueContext(provider: FakeEngineProvider())
         contexts.append(ctx)
@@ -129,15 +129,16 @@ final class VoiceSwitchTests: XCTestCase {
         queue.attach(coordinator: ctx)
         let key = UUID()
         let paras = ["First paragraph here.", "Second paragraph, a bit longer than the first.", "Third."]
-        queue.openArticle(cacheKey: key, paragraphs: paras, voiceID: "fake.a", isEphemeral: false)
+        ctx.renderTarget?.cacheVoice = "fake.a"
+        queue.openArticle(cacheKey: key, paragraphs: paras, isEphemeral: false)
         try await waitIdle(queue)
         XCTAssertEqual(ready(ctx.audioCache, key, 3, engine: ctx.cacheEngineID, voice: "fake.a"), [0, 1, 2])
 
-        // Background job still carries the old voice when the user switches.
+        // The article is queued again when the user switches.
         queue.isPausedForProbe = true
-        queue.openArticle(cacheKey: key, paragraphs: paras, voiceID: "fake.a", isEphemeral: false)
-        ctx.activeVoice = "fake.b"
-        queue.engineDidChange()
+        queue.openArticle(cacheKey: key, paragraphs: paras, isEphemeral: false)
+        ctx.renderTarget?.cacheVoice = "fake.b"
+        queue.renderTargetChanged()
         queue.isPausedForProbe = false
         try await waitIdle(queue)
 
