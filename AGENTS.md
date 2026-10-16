@@ -25,8 +25,6 @@ xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -confi
   (`-only-testing:MeridianReaderTests/<Class>`). Run the full `MeridianReaderTests` once at the end,
   then the full `MeridianReaderUITests` once, under `gtimeout`. A UI test that stalls with the app
   idle: rerun it alone, once.
-- Known flake: `PlaybackRateAndChromeTests.testSpeedChangeAppliesInPlaceWithoutRestartingTheUnit`;
-  rerun it alone.
 - UI tests drive the app with launch arguments (`App/LaunchOptions.swift`, Debug builds only):
   `-uiTesting` (test markers on, Google suggestions off), `-seedDemoArticle`, `-seedDemoBook`
   (a demo book; `-chainDemoChapters` plays it), `-importTestEPUB` (*Import Book…* takes a

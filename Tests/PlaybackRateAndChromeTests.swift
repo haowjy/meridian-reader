@@ -28,8 +28,13 @@ final class PlaybackRateAndChromeTests: XCTestCase {
         return url
     }
 
-    private func spin(_ seconds: TimeInterval) {
-        RunLoop.current.run(until: Date().addingTimeInterval(seconds))
+    /// Runs the main run loop until `condition` holds (the player's callbacks arrive on it).
+    private func waitUntil(_ timeout: TimeInterval, _ condition: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition(), Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+        }
+        return condition()
     }
 
     func testSpeedChangeAppliesInPlaceWithoutRestartingTheUnit() throws {
@@ -39,16 +44,19 @@ final class PlaybackRateAndChromeTests: XCTestCase {
         queue.onUnitStarted = { started.append($0.paragraphIndex) }
         queue.enqueue(.init(paragraphIndex: 0, fileURL: try makeTone(seconds: 3), source: .baked, duration: 3))
         queue.enqueue(.init(paragraphIndex: 1, fileURL: try makeTone(seconds: 0.6), source: .baked, duration: 0.6))
-        spin(0.5)
+        // Well into the first unit, so a restart (back to 0) can't pass for where it was.
+        XCTAssertTrue(waitUntil(2.5) { (queue.currentPosition?.time ?? 0) >= 0.3 }, "the first unit plays")
         guard let before = queue.currentPosition else { return XCTFail("nothing playing") }
         XCTAssertEqual(before.item.paragraphIndex, 0)
         XCTAssertEqual(queue.currentPlayerRate, 1)
 
         queue.setRate(1.5)
 
+        // The player reports its time through the time-stretch's output latency, so the time read
+        // just after a rate change can sit a few milliseconds behind the one read before it.
         let after = try XCTUnwrap(queue.currentPosition)
         XCTAssertEqual(after.item.paragraphIndex, 0, "same unit keeps playing")
-        XCTAssertGreaterThanOrEqual(after.time, before.time, "not restarted from the beginning")
+        XCTAssertEqual(after.time, before.time, accuracy: 0.1, "carries on where it was, not restarted from the beginning")
         XCTAssertEqual(queue.currentPlayerRate, 1.5)
         XCTAssertEqual(started, [0], "no re-queue / restart")
         XCTAssertEqual(queue.playbackRate, 1.5)
