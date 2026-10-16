@@ -16,7 +16,16 @@ final class KokoroNaNProbeTests: XCTestCase {
         "Turner had a considerable household, some half-dozen at the least.",
     ]
 
-    func testPatchedModelHasNoNaNAndOtherwiseIdenticalAudio() async throws {
+    /// The Mac research model and Heart's voice pack, with the model patched into a temporary
+    /// folder of this case's own (removed when the case ends), so no case reads what another wrote.
+    private struct ResearchModel {
+        let model: URL
+        let patched: URL
+        let guarded: Int
+        let pack: [Float]
+    }
+
+    private func researchModel() throws -> ResearchModel {
         guard let home = ProcessInfo.processInfo.environment["SIMULATOR_HOST_HOME"] else { throw XCTSkip("sim only") }
         let model = URL(fileURLWithPath: home + "/Developer/tts-audition/bg-research/models/onnxcommunity-model_fp16.onnx")
         let packURL = URL(fileURLWithPath: home + "/.cache/fluidaudio/Models/kokoro-82m-coreml/ANE/af_heart.bin")
@@ -27,18 +36,20 @@ final class KokoroNaNProbeTests: XCTestCase {
 
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("nanfix-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tmp) }
+        addTeardownBlock { try? FileManager.default.removeItem(at: tmp) }
         let original = tmp.appendingPathComponent("model_fp16.onnx")
         try FileManager.default.createSymbolicLink(at: original, withDestinationURL: model)
         let t0 = Date()
-        let (patchedURL, guarded) = try KokoroONNXModelPatch.writePatched(from: original)
+        let (patched, guarded) = try KokoroONNXModelPatch.writePatched(from: original)
         print("NANFIX patch_ms=\(Int(Date().timeIntervalSince(t0) * 1000)) guarded=\(guarded)")
-        XCTAssertEqual(guarded, 1)
+        return ResearchModel(model: model, patched: patched, guarded: guarded, pack: pack)
+    }
+
+    func testPatchedModelHasNoNaNAndOtherwiseIdenticalAudio() async throws {
+        let research = try researchModel()
+        let (model, patchedURL, pack) = (research.model, research.patched, research.pack)
+        XCTAssertEqual(research.guarded, 1)
         XCTAssertEqual(patchedURL.lastPathComponent, "model_fp16_atan2nanfix.onnx")
-        // Export for the Mac Python cross-check.
-        let export = URL(fileURLWithPath: home + "/Developer/Reader/.probe/nan/patched_swift.onnx")
-        try? FileManager.default.removeItem(at: export)
-        try? FileManager.default.copyItem(at: patchedURL, to: export)
 
         let fe = try KokoroAneCPUFrontendHandle()
         let plain = try KokoroONNXSession(modelURL: model, threads: 3)
@@ -63,15 +74,10 @@ final class KokoroNaNProbeTests: XCTestCase {
     /// chunk finite, no full-scale runs, joins ≈ the boundary pause (sentence ≈0.4 s, comma
     /// ≈0.22 s) rather than Kokoro's ≈0.8 s of padding.
     func testGiantParagraphRendersCleanWithNaturalJoins() async throws {
-        guard let home = ProcessInfo.processInfo.environment["SIMULATOR_HOST_HOME"] else { throw XCTSkip("sim only") }
-        let patched = URL(fileURLWithPath: home + "/Developer/Reader/.probe/nan/patched_swift.onnx")
-        let packURL = URL(fileURLWithPath: home + "/.cache/fluidaudio/Models/kokoro-82m-coreml/ANE/af_heart.bin")
-        guard FileManager.default.fileExists(atPath: patched.path) else { throw XCTSkip("patched model absent") }
-        let packData = try Data(contentsOf: packURL)
-        var pack = [Float](repeating: 0, count: packData.count / 4)
-        _ = pack.withUnsafeMutableBytes { packData.copyBytes(to: $0) }
+        let research = try researchModel()
+        let pack = research.pack
         let fe = try KokoroAneCPUFrontendHandle()
-        let session = try KokoroONNXSession(modelURL: patched, threads: 3)
+        let session = try KokoroONNXSession(modelURL: research.patched, threads: 3)
         let sr = KokoroCPUAudio.sampleRate
         let chunks = TextChunker.chunks(for: HierarchicalChunkerTests.inquest, limits: .kokoroCPU)
         var rendered: [[Float]] = []

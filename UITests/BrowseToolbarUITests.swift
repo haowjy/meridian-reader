@@ -1,28 +1,15 @@
 import XCTest
 
-/// Browser bottom bar: no tab bar, 📚 beside the Now Playing bar, toolbar `[‹][›][🔖][🕘][⋯]` (⋯ =
+/// Browser bottom bar: no tab bar, 📚 before the address field, toolbar `[‹][›][🔖][🕘][⋯]` (⋯ =
 /// the morph menu panel with Favorites / History), the address-field reader icon (readable pages only), Favorites,
 /// and edit mode that cancels via ✕ or a pull-down (restoring the page address).
 final class BrowseToolbarUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
-    private func launch(testPage: Bool) -> XCUIApplication {
-        let app = XCUIApplication()
-        // Developer options on (Debug rows), whatever an earlier test stored.
-        app.launchArguments = ["-uiTesting", "-resetBookmarks", "-reader.developerOptions", "YES",
-                               "-reader.rateMultiplier", "1"]
-            + (testPage ? ["-browseTestPages"] : [])
-        app.launch()
-        return app
-    }
-
-    private func element(_ app: XCUIApplication, _ id: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(identifier: id).firstMatch
-    }
-
-    private func waitFor(_ predicate: String, _ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
-        let exp = XCTNSPredicateExpectation(predicate: NSPredicate(format: predicate), object: element)
-        return XCTWaiter().wait(for: [exp], timeout: timeout) == .completed
+    /// The browser (on the offline test pages, or the start page), developer options on (Debug
+    /// rows).
+    private func launchBrowser(testPage: Bool) -> XCUIApplication {
+        launch(UITestSetup(["-reader.developerOptions", "YES"] + (testPage ? ["-browseTestPages"] : [])))
     }
 
     /// Tap the dimmed backdrop of the morph menu (Safari-style: tap outside collapses it).
@@ -33,38 +20,29 @@ final class BrowseToolbarUITests: XCTestCase {
     /// icon's measured center.
     private func assertMenuAligned(_ app: XCUIApplication, more moreFrame: CGRect, button id: String,
                                    file: StaticString = #filePath, line: UInt = #line) {
-        let focus = element(app, "moreMenuFocus")
+        let focus = find(app, "moreMenuFocus")
         XCTAssertTrue(focus.waitForExistence(timeout: 3), "focus marker", file: file, line: line)
-        RunLoop.current.run(until: Date().addingTimeInterval(1.0)) // morph finished
+        XCTAssertNotNil(settledFrames([focus, find(app, "moreMenuPanel")]), "morph finished", file: file, line: line)
         let f = center(focus.frame), m = center(moreFrame)
         let x = m.x - MorphMenuUITestOffset.width, y = m.y - MorphMenuUITestOffset.height
         XCTAssertEqual(f.x, x, accuracy: 1, "icon left of ⋯", file: file, line: line)
         XCTAssertEqual(f.y, y, accuracy: 1, "icon above ⋯", file: file, line: line)
-        XCTAssertEqual(element(app, id).frame.midX, x, accuracy: 1, "\(id) centered on the focus point", file: file, line: line)
-    }
-
-    private func dismissMenu(_ app: XCUIApplication) {
-        let dismiss = element(app, "moreMenuDismiss")
-        if dismiss.waitForExistence(timeout: 2) {
-            tapMenuDim(dismiss)
-        } else {
-            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
-        }
+        XCTAssertEqual(find(app, id).frame.midX, x, accuracy: 1, "\(id) centered on the focus point", file: file, line: line)
     }
 
     func testToolbarButtonsAndHistoryState() throws {
-        let app = launch(testPage: true)
+        let app = launchBrowser(testPage: true)
         let back = app.buttons["browseBack"]
         let forward = app.buttons["browseForward"]
         XCTAssertTrue(back.waitForExistence(timeout: 5))
         for id in ["browseForward", "browseMore"] {
-            XCTAssertTrue(element(app, id).exists, "\(id) exists")
+            XCTAssertTrue(find(app, id).exists, "\(id) exists")
         }
-        XCTAssertFalse(element(app, "browseSaved").exists, "Saved lives in ⋯ (Safari-style)")
-        XCTAssertFalse(element(app, "browseReader").exists, "Reader is the address-field icon / ⋯ toggle")
-        XCTAssertTrue(element(app, "browseLibrary").exists, "Library↔Browser swap beside the Now Playing bar")
-        XCTAssertFalse(element(app, "browseSearch").exists, "a new search is a tap on the field")
-        XCTAssertFalse(element(app, "addressMic").exists, "mic only while searching, not idle")
+        XCTAssertFalse(find(app, "browseSaved").exists, "Saved lives in ⋯ (Safari-style)")
+        XCTAssertFalse(find(app, "browseReader").exists, "Reader is the address-field icon / ⋯ toggle")
+        XCTAssertTrue(find(app, "browseLibrary").exists, "Library↔Browser swap before the field")
+        XCTAssertFalse(find(app, "browseSearch").exists, "a new search is a tap on the field")
+        XCTAssertFalse(find(app, "addressMic").exists, "mic only while searching, not idle")
         XCTAssertFalse(app.tabBars.firstMatch.isHittable, "no tab bar on Browse")
 
         let link = app.links["Next page"]
@@ -72,21 +50,21 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertFalse(back.isEnabled, "nothing to go back to yet")
         XCTAssertFalse(forward.isEnabled)
 
-        XCTAssertFalse(element(app, "addressReader").exists, "page one isn't an article: no reader icon")
+        XCTAssertFalse(find(app, "addressReader").exists, "page one isn't an article: no reader icon")
 
         link.tap()
         XCTAssertTrue(app.staticTexts["Second page"].waitForExistence(timeout: 5), "second page loaded")
-        XCTAssertTrue(element(app, "addressReader").waitForExistence(timeout: 5), "article page: reader icon")
-        XCTAssertTrue(waitFor("isEnabled == true", back), "back enables after navigating")
+        XCTAssertTrue(find(app, "addressReader").waitForExistence(timeout: 5), "article page: reader icon")
+        XCTAssertTrue(eventually { back.exists && back.isEnabled }, "back enables after navigating")
         XCTAssertFalse(forward.isEnabled)
 
         back.tap()
-        XCTAssertTrue(waitFor("isEnabled == true", forward), "forward enables after going back")
-        XCTAssertTrue(waitFor("isEnabled == false", back), "back disables at the start of history")
+        XCTAssertTrue(eventually { forward.exists && forward.isEnabled }, "forward enables after going back")
+        XCTAssertTrue(eventually { back.exists && !back.isEnabled }, "back disables at the start of history")
 
         forward.tap()
-        XCTAssertTrue(waitFor("isEnabled == true", back))
-        XCTAssertTrue(waitFor("isEnabled == false", forward))
+        XCTAssertTrue(eventually { back.exists && back.isEnabled })
+        XCTAssertTrue(eventually { forward.exists && !forward.isEnabled })
 
         // Five-slot grid: 🔖 in the middle slot (3 of 5), 🕘 in slot 4, ⋯ in slot 5.
         let save = app.buttons["browseSave"]
@@ -99,11 +77,11 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertGreaterThan(app.buttons["browseMore"].frame.minX, app.buttons["browseHistory"].frame.maxX - 1, "⋯ last")
         let field = app.textFields["addressField"]
         field.tap()
-        XCTAssertTrue(waitFor("hasKeyboardFocus == true", field), "tapping the field searches")
-        XCTAssertTrue(element(app, "addressMic").waitForExistence(timeout: 2), "mic while searching")
-        XCTAssertTrue(element(app, "addressCancel").exists)
-        element(app, "addressCancel").tap()
-        XCTAssertTrue(waitFor("hasKeyboardFocus == false", field))
+        XCTAssertTrue(eventually { field.exists && field.hasKeyboardFocus }, "tapping the field searches")
+        XCTAssertTrue(find(app, "addressMic").waitForExistence(timeout: 2), "mic while searching")
+        XCTAssertTrue(find(app, "addressCancel").exists)
+        find(app, "addressCancel").tap()
+        XCTAssertTrue(eventually { field.exists && !field.hasKeyboardFocus })
         XCTAssertTrue(back.isEnabled, "still on the same page")
 
         // ⋯ panel: action rows, then the big Favorites / History / Reader buttons.
@@ -112,20 +90,20 @@ final class BrowseToolbarUITests: XCTestCase {
         assertMenuAligned(app, more: browseMoreFrame, button: "moreReaderToggle")
         for id in ["moreNewSearch", "moreSave", "moreFavorite", "moreShare", "moreReload",
                    "moreDownloads", "moreSettings", "moreFavorites", "moreHistory", "moreReaderToggle"] {
-            XCTAssertTrue(element(app, id).waitForExistence(timeout: 3), "⋯ has \(id)")
+            XCTAssertTrue(find(app, id).waitForExistence(timeout: 3), "⋯ has \(id)")
         }
-        XCTAssertFalse(element(app, "moreLibrary").exists, "the Library is the band's swap, not a big button")
-        XCTAssertFalse(element(app, "moreReader").exists, "the Open in Reader row is gone (bottom-right toggle)")
-        XCTAssertTrue(element(app, "moreMenuPanel").exists, "Safari-style panel (no popover arrow)")
-        element(app, "moreReload").tap()
-        XCTAssertTrue(waitFor("exists == false", element(app, "moreReload")), "panel closes")
+        XCTAssertFalse(find(app, "moreLibrary").exists, "the Library is the band's swap, not a big button")
+        XCTAssertFalse(find(app, "moreReader").exists, "the Open in Reader row is gone (bottom-right toggle)")
+        XCTAssertTrue(find(app, "moreMenuPanel").exists, "Safari-style panel (no popover arrow)")
+        find(app, "moreReload").tap()
+        XCTAssertTrue(eventually { !find(app, "moreReload").exists }, "panel closes")
 
         // 📚 → the library surface (shared chrome); Browser slot returns to the page.
-        app.buttons["browseLibrary"].tap()
+        tapWhenHittable(app.buttons["browseLibrary"])
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5), "library surface")
-        XCTAssertTrue(element(app, "libraryBrowser").waitForExistence(timeout: 3), "Browser swap slot")
-        element(app, "libraryBrowser").tap()
-        XCTAssertTrue(waitFor("exists == false", app.libraryHome), "back on the browser")
+        XCTAssertTrue(find(app, "libraryBrowser").waitForExistence(timeout: 3), "Browser swap slot")
+        find(app, "libraryBrowser").tap()
+        XCTAssertTrue(eventually { !app.libraryHome.exists }, "back on the browser")
         XCTAssertTrue(back.isEnabled, "page state kept")
 
         // 🕘 → the visited pages; tapping one opens it.
@@ -134,80 +112,81 @@ final class BrowseToolbarUITests: XCTestCase {
         let secondVisit = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Second page'")).firstMatch
         if secondVisit.waitForExistence(timeout: 3) {
             secondVisit.tap()
-            XCTAssertTrue(waitFor("exists == false", app.navigationBars["History"]))
+            XCTAssertTrue(eventually { !app.navigationBars["History"].exists })
         } else {
             app.navigationBars["History"].swipeDown(velocity: .fast)
         }
     }
 
     func testReaderToggleDisabledOnStartPage() throws {
-        let app = launch(testPage: false)
+        let app = launchBrowser(testPage: false)
         let more = app.buttons["browseMore"]
         XCTAssertTrue(more.waitForExistence(timeout: 5))
         more.tap()
-        let toggle = element(app, "moreReaderToggle")
+        let toggle = find(app, "moreReaderToggle")
         XCTAssertTrue(toggle.waitForExistence(timeout: 3))
         XCTAssertFalse(toggle.isEnabled, "new page / start page → Reader disabled")
         XCTAssertFalse(toggle.isSelected)
-        XCTAssertTrue(element(app, "moreMenuPanel").exists, "morph panel open")
-        dismissMenu(app)
-        XCTAssertTrue(waitFor("exists == false", element(app, "moreMenuPanel")))
+        XCTAssertTrue(find(app, "moreMenuPanel").exists, "morph panel open")
+        closeMenu(app)
     }
 
     /// The ⋯ panel follows a vertical drag: an upward one springs back (rubber band), a downward
     /// one collapses it back into the button.
     func testMenuPanelSwipeUpSpringsBackAndSwipeDownCollapses() throws {
-        let app = launch(testPage: false)
+        let app = launchBrowser(testPage: false)
         let more = app.buttons["browseMore"]
         XCTAssertTrue(more.waitForExistence(timeout: 5))
         more.tap()
-        let panel = element(app, "moreMenuPanel")
+        let panel = find(app, "moreMenuPanel")
         XCTAssertTrue(panel.waitForExistence(timeout: 3))
-        RunLoop.current.run(until: Date().addingTimeInterval(1.0)) // morph finished
-        let open = panel.frame
+        let open = try XCTUnwrap(settledFrames([panel])?.first, "morph finished")
 
         panel.swipeUp()
-        RunLoop.current.run(until: Date().addingTimeInterval(1.0))
+        XCTAssertNotNil(settledFrames([panel]), "the panel comes to rest")
         XCTAssertTrue(panel.exists, "an upward drag doesn't close the menu")
         XCTAssertEqual(panel.frame.minY, open.minY, accuracy: 1, "…and the panel springs back")
 
         panel.swipeDown()
-        XCTAssertTrue(waitFor("exists == false", panel), "swipe down collapses the menu")
-        more.tap()
+        XCTAssertTrue(eventually { !panel.exists }, "swipe down collapses the menu")
+        tapWhenHittable(more)
         XCTAssertTrue(panel.waitForExistence(timeout: 3), "⋯ is back and opens the menu again")
     }
 
     func testReaderIconAndReaderToggle() throws {
-        let app = launch(testPage: true)
+        let app = launchBrowser(testPage: true)
         let link = app.links["Next page"]
         XCTAssertTrue(link.waitForExistence(timeout: 10))
         // Page one isn't readable: the ⋯ Reader toggle is disabled.
         app.buttons["browseMore"].tap()
-        let toggle = element(app, "moreReaderToggle")
+        let toggle = find(app, "moreReaderToggle")
         XCTAssertTrue(toggle.waitForExistence(timeout: 3))
         XCTAssertFalse(toggle.isEnabled, "not readable → disabled")
-        dismissMenu(app)
-        XCTAssertTrue(waitFor("exists == false", toggle))
+        closeMenu(app)
+        XCTAssertTrue(eventually { !toggle.exists })
 
-        link.tap()
-        let icon = element(app, "addressReader")
+        tapWhenHittable(link)
+        let icon = find(app, "addressReader")
         XCTAssertTrue(icon.waitForExistence(timeout: 5))
         icon.tap()
         let close = app.buttons["readerClose"]
         XCTAssertTrue(close.waitForExistence(timeout: 10), "reader icon opens the reader")
         XCTAssertEqual(close.label, "Back to Browser", "opened over the page")
         close.tap()
-        XCTAssertTrue(waitFor("exists == false", close))
+        XCTAssertTrue(eventually { !close.exists })
+        // The sheet's exit runs on after its close pill leaves the tree, and a full-screen window
+        // left over the app keeps XCUITest from saying when ⋯ takes taps: give the exit its time.
+        idle(1)
 
         // ⋯ → Reader (bottom-right) switches into reader mode…
         let browseMoreFrame = app.buttons["browseMore"].frame
         app.buttons["browseMore"].tap()
-        XCTAssertTrue(waitFor("isEnabled == true", toggle), "readable → enabled")
+        XCTAssertTrue(eventually { toggle.exists && toggle.isEnabled }, "readable → enabled")
         XCTAssertFalse(toggle.isSelected)
         toggle.tap()
         XCTAssertTrue(close.waitForExistence(timeout: 10), "⋯ → Reader opens the reader")
 
-        let website = element(app, "moreWebsite")
+        let website = find(app, "moreWebsite")
         // …where ⋯ sits in the Reader's bottom-right (no gear) and shows the same panel.
         XCTAssertFalse(app.buttons["listenQuickSettings"].exists, "no gear: voice settings live in ⋯")
         let readerMore = app.buttons["readerMore"]
@@ -226,39 +205,35 @@ final class BrowseToolbarUITests: XCTestCase {
         assertMenuAligned(app, more: rf, button: "moreWebsite")
         for id in ["moreSettings", "moreSave", "moreFavorite", "moreShare",
                    "moreFavorites", "moreHistory"] {
-            XCTAssertTrue(element(app, id).exists, "reader ⋯ has \(id)")
+            XCTAssertTrue(find(app, id).exists, "reader ⋯ has \(id)")
         }
-        XCTAssertFalse(element(app, "moreNewSearch").exists, "browser-only rows stay out of the reader menu")
-        XCTAssertFalse(element(app, "moreReload").exists)
+        XCTAssertFalse(find(app, "moreNewSearch").exists, "browser-only rows stay out of the reader menu")
+        XCTAssertFalse(find(app, "moreReload").exists)
 
         // Settings opens as a sheet.
-        element(app, "moreSettings").tap()
+        find(app, "moreSettings").tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5), "Settings sheet")
         app.navigationBars["Settings"].buttons["Done"].tap()
-        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Settings"]))
+        XCTAssertTrue(eventually { !app.navigationBars["Settings"].exists })
 
         // Add the page to Favorites from the reader (wait for the morph to finish growing before tapping
         // a row: mid-animation the rows are still scaled toward the ⋯ button).
-        readerMore.tap()
+        tapWhenHittable(readerMore)
         XCTAssertTrue(website.waitForExistence(timeout: 3))
-        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
-        element(app, "moreFavorite").tap()
-        XCTAssertTrue(waitFor("exists == false", website), "panel closes")
-        readerMore.tap()
-        XCTAssertTrue(waitFor("label == 'Remove from Favorites'", element(app, "moreFavorite")), "a favorite from the reader")
+        tapMenuRow(app, "moreFavorite")
+        XCTAssertTrue(eventually { !website.exists }, "panel closes")
+        tapWhenHittable(readerMore)
+        XCTAssertTrue(eventually { find(app, "moreFavorite").exists && find(app, "moreFavorite").label == "Remove from Favorites" }, "a favorite from the reader")
 
         // Website → back to the web page (already loaded: revealed, not reloaded).
-        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
-        website.tap()
-        XCTAssertTrue(waitFor("exists == false", close), "Website leaves reader mode")
+        tapMenuRow(app, "moreWebsite")
+        XCTAssertTrue(eventually { !close.exists }, "Website leaves reader mode")
         XCTAssertTrue(app.buttons["browseMore"].waitForExistence(timeout: 5), "web page chrome is back")
         XCTAssertTrue(app.staticTexts["Second page"].exists, "same page")
     }
 
     func testReaderMenuInLibraryReader() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-seedDemoArticle", "-uiTesting", "-openLibrary", "-resetBookmarks", "-reader.rateMultiplier", "1"]
-        app.launch()
+        let app = launch(["-seedDemoArticle", "-openLibrary"])
         let row = app.cells.staticTexts["Demo Listen Article"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
@@ -270,22 +245,21 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(readerMore.waitForExistence(timeout: 5))
         let moreFrame = readerMore.frame
         readerMore.tap()
-        XCTAssertTrue(element(app, "moreWebsite").waitForExistence(timeout: 3))
-        XCTAssertFalse(element(app, "moreReaderToggle").exists)
+        XCTAssertTrue(find(app, "moreWebsite").waitForExistence(timeout: 3))
+        XCTAssertFalse(find(app, "moreReaderToggle").exists)
         assertMenuAligned(app, more: moreFrame, button: "moreWebsite")
 
         // ⋯ → History from the library reader: the library closes, History opens.
-        tapMenuDim(element(app, "moreMenuDismiss"))
-        XCTAssertTrue(waitFor("exists == false", element(app, "moreMenuPanel")))
+        closeMenu(app)
         readerMore.tap()
-        element(app, "moreHistory").tap()
+        find(app, "moreHistory").tap()
         XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 8), "history sheet")
         XCTAssertFalse(app.libraryHome.exists, "library closed first")
     }
 
     /// The library's ⋯ is its own menu: nothing in it acts on the page hidden under the library.
     func testLibraryMenuLeavesThePageAlone() throws {
-        let app = launch(testPage: true)
+        let app = launchBrowser(testPage: true)
         XCTAssertTrue(app.links["Next page"].waitForExistence(timeout: 10))
         app.buttons["browseLibrary"].tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5), "library surface")
@@ -295,29 +269,27 @@ final class BrowseToolbarUITests: XCTestCase {
         libraryMore.tap()
         assertMenuAligned(app, more: moreFrame, button: "moreBrowser")
         for id in ["moreSettings", "moreNewFolder", "moreFavorites", "moreHistory", "moreBrowser"] {
-            XCTAssertTrue(element(app, id).exists, "library ⋯ has \(id)")
+            XCTAssertTrue(find(app, id).exists, "library ⋯ has \(id)")
         }
         for id in ["moreNewSearch", "moreReload", "moreSave", "moreFavorite", "moreShare", "moreReaderToggle", "moreLibrary"] {
-            XCTAssertFalse(element(app, id).exists, "page actions stay out of the library menu: \(id)")
+            XCTAssertFalse(find(app, id).exists, "page actions stay out of the library menu: \(id)")
         }
 
         // History leaves the library first; the page underneath is still there.
-        element(app, "moreHistory").tap()
+        find(app, "moreHistory").tap()
         XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 5), "history sheet")
         XCTAssertFalse(app.libraryHome.exists, "library closed first")
         app.navigationBars["History"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
-        XCTAssertTrue(waitFor("exists == false", app.navigationBars["History"]))
+        XCTAssertTrue(eventually { !app.navigationBars["History"].exists })
         XCTAssertTrue(app.links["Next page"].exists, "same page")
 
         // Browser (big button) returns to the page as it was.
-        app.buttons["browseLibrary"].tap()
+        tapWhenHittable(app.buttons["browseLibrary"])
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         libraryMore.tap()
-        XCTAssertTrue(element(app, "moreBrowser").waitForExistence(timeout: 3))
-        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
-        element(app, "moreBrowser").tap()
-        XCTAssertTrue(waitFor("exists == false", app.libraryHome), "library left")
+        tapMenuRow(app, "moreBrowser")
+        XCTAssertTrue(eventually { !app.libraryHome.exists }, "library left")
         XCTAssertTrue(app.links["Next page"].exists, "page kept")
         XCTAssertEqual(app.textFields["addressField"].value as? String, "pages/one")
     }
@@ -325,10 +297,7 @@ final class BrowseToolbarUITests: XCTestCase {
     /// Open a saved article, Listen (the Reader turns into Now Playing), ⋯ → Website: Now Playing and
     /// the library close, the browser loads the article's page, and the voice keeps going (the bar).
     func testSavedArticleWebsiteOpensPageAndKeepsPlaying() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-seedDemoArticle", "-uiTesting", "-openLibrary", "-resetBookmarks", "-reader.rateMultiplier", "1",
-                               "-selectEngine", "apple"]
-        app.launch()
+        let app = launch(["-seedDemoArticle", "-openLibrary"])
         let row = app.cells.staticTexts["Demo Listen Article"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
@@ -338,48 +307,45 @@ final class BrowseToolbarUITests: XCTestCase {
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(play.waitForExistence(timeout: 5))
         play.tap()
-        XCTAssertTrue(waitFor("label == 'Pause'", play, timeout: 8), "playing")
+        XCTAssertTrue(eventually(8) { play.exists && play.label == "Pause" }, "playing")
 
         app.buttons["nowPlayingMore"].tap()
-        let website = element(app, "moreWebsite")
-        XCTAssertTrue(website.waitForExistence(timeout: 3))
-        RunLoop.current.run(until: Date().addingTimeInterval(0.8))
-        website.tap()
+        tapMenuRow(app, "moreWebsite")
 
         // Listen turned the Reader into Now Playing; Website takes it down.
-        XCTAssertTrue(waitFor("exists == false", app.buttons["nowPlayingClose"], timeout: 8), "Now Playing closed")
-        XCTAssertTrue(waitFor("exists == false", app.libraryHome, timeout: 8), "library closed")
+        XCTAssertTrue(eventually(8) { !app.buttons["nowPlayingClose"].exists }, "Now Playing closed")
+        XCTAssertTrue(eventually(8) { !app.libraryHome.exists }, "library closed")
         let field = app.textFields["addressField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
-        XCTAssertTrue(waitFor("value CONTAINS 'example.com/demo'", field, timeout: 8), "the article's page is loading")
+        XCTAssertTrue(eventually(8) { field.exists && (field.value as? String)?.contains("example.com/demo") == true }, "the article's page is loading")
         let mini = app.buttons["nowPlayingBarPlayPause"]
         XCTAssertTrue(mini.waitForExistence(timeout: 5), "the Now Playing bar shows")
         XCTAssertEqual(mini.label, "Pause", "the voice keeps playing")
-        RunLoop.current.run(until: Date().addingTimeInterval(1.5))
+        idle(1.5) // the load doesn't stop it
         XCTAssertEqual(mini.label, "Pause", "…and is still playing")
         mini.tap()
     }
 
     func testFavoriteShowsOnStartPageAndDeletes() throws {
-        let app = launch(testPage: true)
+        let app = launchBrowser(testPage: true)
         XCTAssertTrue(app.links["Next page"].waitForExistence(timeout: 10))
         app.buttons["browseMore"].tap()
-        let favorite = element(app, "moreFavorite")
+        let favorite = find(app, "moreFavorite")
         XCTAssertTrue(favorite.waitForExistence(timeout: 3))
         XCTAssertEqual(favorite.label, "Add to Favorites")
         favorite.tap()
-        XCTAssertTrue(waitFor("exists == false", favorite), "panel closes")
+        XCTAssertTrue(eventually { !favorite.exists }, "panel closes")
 
-        app.buttons["browseMore"].tap()
-        XCTAssertTrue(waitFor("label == 'Remove from Favorites'", element(app, "moreFavorite")), "now a favorite")
-        element(app, "moreNewSearch").tap() // → start page
+        tapWhenHittable(app.buttons["browseMore"])
+        XCTAssertTrue(eventually { find(app, "moreFavorite").exists && find(app, "moreFavorite").label == "Remove from Favorites" }, "now a favorite")
+        find(app, "moreNewSearch").tap() // → start page
 
         let tile = app.buttons.matching(identifier: "favoriteTile").firstMatch
         XCTAssertTrue(tile.waitForExistence(timeout: 5), "Favorites grid on the start page")
         XCTAssertEqual(tile.label, "First page")
 
         // Show All opens the Library's Favorites tab.
-        element(app, "startFavoritesShowAll").tap()
+        find(app, "startFavoritesShowAll").tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Favorites"].isSelected)
         app.buttons["libraryBrowser"].tap()
@@ -390,14 +356,14 @@ final class BrowseToolbarUITests: XCTestCase {
         let delete = app.buttons["Remove from Favorites"]
         XCTAssertTrue(delete.waitForExistence(timeout: 3))
         delete.tap()
-        XCTAssertTrue(waitFor("exists == false", tile), "deleted")
+        XCTAssertTrue(eventually { !tile.exists }, "deleted")
     }
 
     func testCancelButtonRestoresAddress() throws {
-        let app = launch(testPage: true)
+        let app = launchBrowser(testPage: true)
         let field = app.textFields["addressField"]
         XCTAssertTrue(app.links["Next page"].waitForExistence(timeout: 10))
-        XCTAssertTrue(waitFor("value == 'pages/one'", field), "shows the page address")
+        XCTAssertTrue(eventually { field.exists && field.value as? String == "pages/one" }, "shows the page address")
 
         field.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
@@ -407,27 +373,27 @@ final class BrowseToolbarUITests: XCTestCase {
         field.typeText("something else")
 
         cancel.tap()
-        XCTAssertTrue(waitFor("exists == false", app.keyboards.firstMatch), "keyboard dismissed")
+        XCTAssertTrue(eventually { !app.keyboards.firstMatch.exists }, "keyboard dismissed")
         XCTAssertEqual(field.value as? String, "pages/one", "previous address restored")
         XCTAssertFalse(cancel.exists)
         XCTAssertTrue(app.buttons["browseBack"].waitForExistence(timeout: 3), "toolbar back")
     }
 
     func testSwipeDownLowersKeyboardKeepsSearch() throws {
-        let app = launch(testPage: true)
+        let app = launchBrowser(testPage: true)
         let field = app.textFields["addressField"]
         XCTAssertTrue(app.links["Next page"].waitForExistence(timeout: 10))
-        XCTAssertTrue(waitFor("value == 'pages/one'", field))
+        XCTAssertTrue(eventually { field.exists && field.value as? String == "pages/one" })
 
         field.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         field.typeText("zzq")
-        let backdrop = element(app, "addressEditBackdrop")
+        let backdrop = find(app, "addressEditBackdrop")
         XCTAssertTrue(backdrop.waitForExistence(timeout: 3))
         backdrop.swipeDown()
 
         // Safari: swipe-down dismisses the keyboard but stays in search mode.
-        XCTAssertTrue(waitFor("exists == false", app.keyboards.firstMatch), "pull-down dismissed keyboard")
+        XCTAssertTrue(eventually { !app.keyboards.firstMatch.exists }, "pull-down dismissed keyboard")
         XCTAssertEqual(field.value as? String, "zzq", "typed text kept")
         let cancel = app.buttons["addressCancel"]
         XCTAssertTrue(cancel.exists, "✕ still shown")
@@ -439,14 +405,14 @@ final class BrowseToolbarUITests: XCTestCase {
     }
 
     func testSwipeDownLowersKeyboardOnStartPage() throws {
-        let app = launch(testPage: false)
+        let app = launchBrowser(testPage: false)
         let field = app.textFields["addressField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         field.typeText("abc")
-        element(app, "addressEditBackdrop").swipeDown()
-        XCTAssertTrue(waitFor("exists == false", app.keyboards.firstMatch))
+        find(app, "addressEditBackdrop").swipeDown()
+        XCTAssertTrue(eventually { !app.keyboards.firstMatch.exists })
         XCTAssertEqual(field.value as? String, "abc", "typed text kept while still searching")
         XCTAssertTrue(app.buttons["addressCancel"].exists, "✕ still shown")
         app.buttons["addressCancel"].tap()

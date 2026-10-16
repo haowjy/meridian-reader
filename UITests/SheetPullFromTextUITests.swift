@@ -8,14 +8,6 @@ final class SheetPullFromTextUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    private func launchLongDemo() -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoParagraphs", "40", "-openLibrary",
-                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"]
-        app.launch()
-        return app
-    }
-
     /// A slow finger drag on the text, from 45% of the way down the screen, held before lifting
     /// (no fling).
     private func dragText(_ app: XCUIApplication, by dy: CGFloat) {
@@ -25,12 +17,6 @@ final class SheetPullFromTextUITests: XCTestCase {
         idle(1)
     }
 
-    private func waitForArticleText(_ app: XCUIApplication) {
-        let text = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Extra paragraph 12'")).firstMatch
-        XCTAssertTrue(text.waitForExistence(timeout: 15), "article text loaded")
-        idle(0.5)
-    }
-
     func testPullingTheReadersTextDownFromItsTopClosesItButNotFromMidArticle() throws {
         let app = launchLongDemo()
         let row = app.cells.staticTexts["Demo Listen Article"]
@@ -38,7 +24,7 @@ final class SheetPullFromTextUITests: XCTestCase {
         row.tap()
         let close = app.buttons["readerClose"]
         XCTAssertTrue(close.waitForExistence(timeout: 5))
-        waitForArticleText(app)
+        waitForLongDemoText(app)
         let resting = close.frame
 
         // Mid-article: scroll in, then drag back down further than that. The text reaches its
@@ -71,7 +57,7 @@ final class SheetPullFromTextUITests: XCTestCase {
         let from = find(app, "nowPlayingHeader")
         XCTAssertTrue(from.waitForExistence(timeout: 5), "Listen turns the Reader into Now Playing")
         XCTAssertTrue(eventually(8) { listen.label == "Pause" }, "playing")
-        waitForArticleText(app)
+        waitForLongDemoText(app)
 
         // A short pull from the top springs back and leaves it following the audio.
         dragText(app, by: 50)

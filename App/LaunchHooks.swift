@@ -14,25 +14,49 @@ enum LaunchHooks {
         if options.rerunsLibraryMigration { library.resetForMigrationRerun() }
     }
 
-    /// After the migration copy, before the layout pass: the demo seeds.
+    /// `-resetLibrary`'s stored settings, before anything reads them (`AppMain`): the engine and
+    /// every registered engine's voice, the Apple voice, language and speed, the app's and the
+    /// reading page's appearance, the remembered surface and the Library's tab, the top level's
+    /// sort, Recent Searches and the download list. Launch arguments (`-reading.theme sepia`) still
+    /// apply over what is cleared.
+    static func resetStoredSettings(engines: EngineRegistry, defaults: UserDefaults = .standard,
+                                    downloads: DownloadListStore = DownloadListStore()) {
+        let keys = [LocalTTSCoordinator.engineIDKey, SpeechController.voiceDefaultsKey,
+                    SpeechController.languageDefaultsKey, SpeechController.languageAutomaticKey,
+                    SpeechController.rateDefaultsKey, AppAppearance.modeKey, AppAppearance.accentKey,
+                    ReadingAppearance.themeKey, ReadingAppearance.fontKey, ReadingAppearance.textSizeKey,
+                    ReadingAppearance.lineSpacingKey, LibraryTopLevel.sortKey, RecentSearches.storageKey]
+            + engines.descriptors.map(\.resolvedVoiceDefaultsKey)
+        for key in keys { defaults.removeObject(forKey: key) }
+        SurfaceMemoryStore(defaults: defaults).clear()
+        downloads.save([])
+    }
+
+    /// After the migration copy, before the layout pass: `-resetLibrary`, then the demo seeds,
+    /// which add to what is left.
     static func runSeeds(_ options: LaunchOptions, library: LibraryStore) {
+        if options.resetsLibrary { resetLibrary(library) }
         if let demo = options.demoArticle { seedDemoArticle(demo, in: library) }
         if options.seedsDemoBook { seedDemoBook(in: library, place: options.demoBookPlace) }
         if options.seedsDemoFolders { seedDemoFolders(in: library) }
-        if options.importsTestEPUB { removeTestEPUB(in: library) }
     }
 
-    /// The folder `-seedDemoFolders` adds, found by its name at the top level.
-    static let demoFoldersName = "Demo Finance"
+    /// `-resetLibrary`: every page (link pages too) and every folder goes, each page's audio,
+    /// queued renders and bake job with it (as a delete does), and the browsing history.
+    static func resetLibrary(_ library: LibraryStore) {
+        let context = library.context
+        _ = try? library.edit("reset library") {
+            for page in (try? context.fetch(FetchDescriptor<Page>())) ?? [] { library.deleteWithoutSaving(page) }
+            for folder in (try? context.fetch(FetchDescriptor<Folder>())) ?? [] { context.delete(folder) }
+            for visit in (try? context.fetch(FetchDescriptor<RecentVisit>())) ?? [] { context.delete(visit) }
+        }
+    }
 
     /// `-seedDemoFolders`: "Demo Finance" with the subfolders "Bonds" (holding "Coupon Basics") and
     /// "Taxes", and three saved pages of its own, one part-way and one finished. Synthetic text,
-    /// `example.com` addresses; an earlier seed's folder and its pages go first.
+    /// `example.com` addresses.
     static func seedDemoFolders(in library: LibraryStore) {
-        for folder in library.topLevelFolders() where folder.kind == .plain && folder.name == demoFoldersName {
-            try? library.deleteFolder(folder)
-        }
-        guard let finance = try? library.makeFolder(name: demoFoldersName, in: nil),
+        guard let finance = try? library.makeFolder(name: "Demo Finance", in: nil),
               let bonds = try? library.makeFolder(name: "Bonds", in: finance),
               (try? library.makeFolder(name: "Taxes", in: finance)) != nil else { return }
         func page(_ title: String, slug: String, in folder: Folder, sortKey: Double) -> Page {
@@ -60,7 +84,7 @@ enum LaunchHooks {
     static func runAfterMigrations(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController,
                                    shell: ShellState) {
         if let prefix = options.bakeArticlePrefix { bakeArticle(prefix: prefix, in: library, speech: speech) }
-        if let setup = options.bookmarks { setUpBookmarks(setup, in: library) }
+        if options.seedsBookmarks { seedBookmarks(in: library) }
         if options.servesTestPages, !options.restoresSurface, let url = URL(string: "reader-test://pages/one") {
             shell.navigate(to: url)
         }
@@ -83,18 +107,12 @@ enum LaunchHooks {
         if options.probesLockedFetch { await LockedFetchProbe.run(speech: speech) }
     }
 
-    /// `-importTestEPUB`: an earlier launch's import of the synthetic EPUB goes, with its audio,
-    /// so *Import Book…* imports it fresh.
-    static func removeTestEPUB(in library: LibraryStore) {
-        if let earlier = library.book(key: TestEPUB.bookKey) { try? library.deleteFolder(earlier) }
-    }
-
     /// `-playTestEPUB`: the synthetic EPUB, written to a temporary file and imported into the top
     /// level through `BookImporter` (no sheet). An earlier launch's import of it is deleted first,
     /// with its audio, so the book starts unplayed. Logged as `debug_import_test_epub`.
     @discardableResult
     static func importTestEPUB(in library: LibraryStore) async -> Folder? {
-        removeTestEPUB(in: library)
+        if let earlier = library.book(key: TestEPUB.bookKey) { try? library.deleteFolder(earlier) }
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("test-book.epub")
         defer { try? FileManager.default.removeItem(at: file) }
         do {
@@ -211,22 +229,10 @@ enum LaunchHooks {
         return start
     }
 
-    /// `-seedDemoArticle`: replace the saved and played pages, and every folder with what is in
-    /// it, with one deterministic article, so a stored resume position can't stick at the end
-    /// between tests (and, with `-seedPlayedPages N`, N pages played without saving; with
-    /// `-seedLoosePages N`, N more saved pages in no folder). Link pages in no folder stay, starred
-    /// ones too (`-resetBookmarks` / `-seedBookmarks` handle stars). The top level's sort goes back
-    /// to its default.
+    /// `-seedDemoArticle`: one deterministic article in no folder (and, with `-seedPlayedPages N`,
+    /// N pages played without saving; with `-seedLoosePages N`, N more saved pages in no folder).
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in library: LibraryStore) {
         let context = library.context
-        UserDefaults.standard.removeObject(forKey: LibraryTopLevel.sortKey)
-        // Every folder goes too, so the Library home starts the same each time.
-        for folder in library.topLevelFolders() {
-            try? library.deleteFolder(folder)
-        }
-        for page in (try? context.fetch(FetchDescriptor<Page>())) ?? [] where !page.isLink {
-            context.delete(page)
-        }
         let plain = """
         First paragraph for listen probe. This one is intentionally longer so Simulator UI tests can press next and previous before speech finishes the whole article on its own.
 
@@ -296,21 +302,21 @@ enum LaunchHooks {
         speech.localTTS.startBakeIfNeeded(articleID: page.listenKey, paragraphs: paragraphs)
     }
 
-    /// `-resetBookmarks` / `-seedBookmarks`: clears favorite flags, then optionally seeds links.
-    static func setUpBookmarks(_ setup: LaunchOptions.BookmarkSetup, in library: LibraryStore) {
-        for page in library.favoritePages() { try? library.removeFavorite(page) }
-        let folders = (try? library.context.fetch(FetchDescriptor<Folder>())) ?? []
-        for folder in folders where folder.isFavorite { try? library.toggleFavorite(folder) }
-        guard setup == .seed else { return }
+    /// `-seedBookmarks`: five starred links on `example.com` hosts. They count as this launch's
+    /// icon fetch already tried (`LibraryStore.iconTried`), so their icons stay letter tiles and
+    /// nothing goes to the network for them.
+    static func seedBookmarks(in library: LibraryStore) {
         let seeds = [
-            ("https://www.gutenberg.org/", "Project Gutenberg"),
-            ("https://en.wikipedia.org/wiki/Speech_synthesis", "Speech synthesis"),
-            ("https://news.ycombinator.com/", "Hacker News"),
-            ("https://www.theverge.com/", "The Verge"),
+            ("https://books.example.com/", "Public Domain Books"),
+            ("https://wiki.example.com/Speech_synthesis", "Speech synthesis"),
+            ("https://news.example.com/", "News Front Page"),
+            ("https://tech.example.com/", "Tech Review"),
             ("https://example.com/", "Example"),
         ]
-        for (url, title) in seeds {
-            if let url = URL(string: url) { _ = try? library.addFavorite(url: url, title: title, artwork: nil) }
+        for (address, title) in seeds {
+            guard let url = URL(string: address), let page = try? library.addFavorite(url: url, title: title, artwork: nil),
+                  let key = page.key else { continue }
+            library.iconTried.insert(key)
         }
     }
 

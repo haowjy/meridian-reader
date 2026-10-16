@@ -34,6 +34,8 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     @ViewBuilder var panel: (Item, MorphMenuClose) -> Panel
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.morphMenuAnimation) private var morphAnimation
+    @Environment(\.morphMenuMarksFocus) private var marksFocus
     /// The item on screen: set while open and kept while collapsing back into the button
     /// (non-nil = in the hierarchy).
     @State private var shown: Item?
@@ -132,7 +134,7 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
             #if DEBUG
             .overlay(alignment: .topLeading) {
                 // UI tests: where the focus icon's center really ends up on screen.
-                if LaunchOptions.current.uiTesting, let focus {
+                if marksFocus, let focus {
                     Color.clear
                         .frame(width: 2, height: 2)
                         .offset(x: focus.x - 1, y: focus.y - 1)
@@ -160,7 +162,7 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
             .accessibilityAction(.escape, dismiss)
             // First frame is button-sized; then grow.
             .onAppear {
-                withAnimation(MorphMenu.animation) { expanded = true }
+                withAnimation(morphAnimation) { expanded = true }
             }
             .readingSurface(reading)
     }
@@ -172,18 +174,18 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
         shown = item
         if collapsing {
             // Re-opened while collapsing: grow back from where it is.
-            withAnimation(MorphMenu.animation) { expanded = true }
+            withAnimation(morphAnimation) { expanded = true }
         } else {
             expanded = false
         }
     }
 
     private func collapse() {
-        let morph = flingCollapse ?? MorphMenu.animation
+        let morph = flingCollapse ?? morphAnimation
         flingCollapse = nil
         guard shown != nil else { return }
         // Shrink back into the button from wherever a swipe left the panel.
-        withAnimation(MorphMenu.animation) { dragOffset = 0 }
+        withAnimation(morphAnimation) { dragOffset = 0 }
         withAnimation(morph) {
             expanded = false
         } completion: {
@@ -242,14 +244,15 @@ enum MorphMenu {
     /// from a Safari iOS 26 screenshot, where All Tabs sits inset of the tabs/⋯ control rather
     /// than covering it dead-on.
     static let focusOffsetFromAnchor = CGSize(width: 12, height: 10)
-    #if DEBUG
-    /// `Motion.standard`; screenshot runs can slow it so a mid-animation frame can be captured.
-    static var animation: Animation {
-        LaunchOptions.current.slowMenuAnimation ? .easeInOut(duration: 3) : Motion.standard
-    }
-    #else
-    static let animation = Motion.standard
-    #endif
+}
+
+extension EnvironmentValues {
+    /// The ⋯ panel's morph and its button's fade. A screenshot run slows it, so a frame mid-way
+    /// can be captured.
+    @Entry var morphMenuAnimation = Motion.standard
+    /// The open ⋯ panel marks where its focus icon's center lands (`moreMenuFocus`), for the UI
+    /// tests' geometry checks (Debug builds).
+    @Entry var morphMenuMarksFocus = false
 }
 
 /// The morph, as one animatable progress (0 = the ⋯ button, 1 = the full panel). The glass is
@@ -380,8 +383,18 @@ extension View {
 
     /// The ⋯ glyph fades while its panel is open, so the button reads as becoming the panel.
     func morphMenuButtonHidden(_ hidden: Bool) -> some View {
-        opacity(hidden ? 0 : 1)
-            .animation(MorphMenu.animation, value: hidden)
+        modifier(MorphMenuButtonFade(hidden: hidden))
+    }
+}
+
+private struct MorphMenuButtonFade: ViewModifier {
+    let hidden: Bool
+    @Environment(\.morphMenuAnimation) private var animation
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(hidden ? 0 : 1)
+            .animation(animation, value: hidden)
     }
 }
 

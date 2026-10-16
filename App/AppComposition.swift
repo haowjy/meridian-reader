@@ -10,9 +10,7 @@ enum AppComposition {
 
     static let speechController: SpeechController = {
         #if DEBUG
-        let options = LaunchOptions.current
-        return SpeechController(localTTS: makeLocalTTS(selecting: options.selectsEngine),
-                                keepsStoredRate: options.keepsStoredRate)
+        return SpeechController(localTTS: makeLocalTTS(selecting: LaunchOptions.current.selectsEngine))
         #else
         return SpeechController(localTTS: makeLocalTTS(selecting: nil))
         #endif
@@ -35,9 +33,7 @@ enum AppComposition {
 
     private static var restoresSurface: Bool {
         #if DEBUG
-        let options = LaunchOptions.current
-        if options.resetsSurface { SurfaceMemoryStore.standard.clear() }
-        return options.restoresSurface
+        return LaunchOptions.current.restoresSurface
         #else
         return true
         #endif
@@ -67,29 +63,15 @@ enum AppComposition {
         progressRecorder = ListeningProgressRecorder(speech: speechController, library: library)
     }
 
-    /// The reading appearance store (Settings › Reading and the Aa panel). A UI-test launch
-    /// (`-uiTesting`) first clears what an earlier run stored for both appearance stores, so each
-    /// test starts at the defaults; launch arguments (`-reading.theme sepia`) still apply over that.
-    static func makeReadingAppearance() -> ReadingAppearance {
-        #if DEBUG
-        if LaunchOptions.current.uiTesting {
-            for key in [AppAppearance.modeKey, AppAppearance.accentKey, ReadingAppearance.themeKey,
-                        ReadingAppearance.fontKey, ReadingAppearance.textSizeKey, ReadingAppearance.lineSpacingKey] {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-        #endif
-        return ReadingAppearance(defaults: .standard)
-    }
-
     /// Downloads (decision D16) over the app's library: a link page's text is fetched out of
     /// sight (`URLPageFetcher`) and saved through the one save path, which also queues its bake.
     /// It starts once the launch's library maintenance is done (`AppLaunch`).
     static func makeDownloads(library: LibraryStore) -> DownloadCenter {
         let speech = speechController
-        let fetcher = URLPageFetcher()
         #if DEBUG
-        if LaunchOptions.current.resetsDownloads { DownloadListStore().save([]) }
+        let fetcher = URLPageFetcher(schemeHandlers: TestPageSchemeHandler.handlers)
+        #else
+        let fetcher = URLPageFetcher()
         #endif
         return DownloadCenter(library: library, tts: speech.localTTS,
                               fetch: { try await fetcher.content(of: $0) },
@@ -128,11 +110,7 @@ enum AppComposition {
             AppleSpeechProvider(),
             FluidAudioProvider(coreMLUnits: options.kokoroUnits),
         ]
-        if options.usesTestVoice {
-            // Every test-voice launch starts on voice One, whatever an earlier run picked.
-            UserDefaults.standard.removeObject(forKey: TestVoiceProvider.descriptor.resolvedVoiceDefaultsKey)
-            providers.append(TestVoiceProvider(delay: options.testVoiceDelay ?? 0.15))
-        }
+        if options.usesTestVoice { providers.append(TestVoiceProvider(delay: options.testVoiceDelay ?? 0.15)) }
         return providers
         #else
         return [AppleSpeechProvider(), FluidAudioProvider()]

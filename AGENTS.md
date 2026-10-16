@@ -25,24 +25,31 @@ xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -confi
   (`-only-testing:MeridianReaderTests/<Class>`). Run the full `MeridianReaderTests` once at the end,
   then the full `MeridianReaderUITests` once, under `gtimeout`. A UI test that stalls with the app
   idle: rerun it alone, once.
-- Known flake: `PlaybackRateAndChromeTests.testSpeedChangeAppliesInPlaceWithoutRestartingTheUnit`;
-  rerun it alone.
-- UI tests drive the app with launch arguments (`App/LaunchOptions.swift`, Debug builds only):
-  `-uiTesting` (test markers on, Google suggestions off), `-seedDemoArticle`, `-seedDemoBook`
-  (a demo book; `-chainDemoChapters` plays it), `-importTestEPUB` (*Import Book…* takes a
-  synthetic EPUB instead of the Files picker; `-playTestEPUB` imports it at launch and plays it), `-pickTestCover` (*Edit Details*' *Choose from
-  Files* takes a synthetic picture), `-browseTestPages` (offline `reader-test://` pages),
-  `-selectEngine apple`, `-testVoice` (an offline on-device test voice for downloads; `-selectEngine
-  test.voice`), `-resetDownloads`. Keep UI tests offline; use the test pages, not live sites.
+- UI tests drive the app with launch arguments (`App/LaunchOptions.swift`, Debug builds only),
+  always through `launch(UITestSetup)` (`UITests/UITestSupport.swift`), which passes `-uiTesting`
+  (test markers on, Google suggestions off), `-resetLibrary` (an empty library and the stored
+  settings cleared, as on a fresh install) and `-selectEngine apple` (or the setup's engine). The
+  seeds add to that: `-seedDemoArticle`, `-seedDemoBook` (a demo book; `-chainDemoChapters` plays
+  it), `-seedDemoFolders`, `-seedBookmarks`. Other options: `-importTestEPUB` (*Import Book…*
+  takes a synthetic EPUB instead of the Files picker; `-playTestEPUB` imports it at launch and
+  plays it), `-pickTestCover` (*Edit Details*' *Choose from Files* takes a synthetic picture),
+  `-browseTestPages` (offline `reader-test://` pages), `-openLibrary`, `-restoreSurface` (a
+  relaunch reopens where the last launch left), `-testVoice` (an offline on-device test voice for
+  downloads; `-selectEngine test.voice`). Keep UI tests offline; use the test pages, not live sites.
   `LaunchOptions` parses every launch argument, the diagnostics' too (`-engineProbe`,
   `-KokoroStress`, `-kokoroUnits`; `docs/LISTEN_PLAYBACK.md` → "Diagnostics"); the speech stack
-  gets the values from `AppComposition`, never from the process arguments.
+  gets the values from `AppComposition`, never from the process arguments. The exceptions are
+  stored settings a launch overrides through UserDefaults' argument domain
+  (`-reader.developerOptions YES`, `-reader.listenDebugEnabled YES`; the speed through the
+  setup's `rate`).
 - `ScreenshotCaptureTests` is skipped unless `TEST_RUNNER_READER_SCREENSHOTS_DIR=<dir>` is set in
   xcodebuild's environment.
 - `KokoroNaNProbeTests` and `KokoroONNXSessionTests` run only when the Mac research model is at
   `~/Developer/tts-audition/bg-research/models/`; otherwise they skip. `KokoroONNXThreadSweepTests`
   also needs `TEST_RUNNER_READER_ONNX_SWEEP=1`: it prints × real time per ONNX thread count on the
-  Mac's CPU (a proxy; measure the phone with the CPU route benchmark).
+  Mac's CPU (a proxy; measure the phone with the CPU route benchmark). `KokoroSwiftG2PTests`
+  runs whenever the Mac's FluidAudio cache (`~/.cache/fluidaudio/Models/kokoro`) holds the G2P
+  models; otherwise it skips.
 - `EPUBLocalBooksTests` is skipped unless `TEST_RUNNER_READER_EPUB_DIR=<dir>` is set: it reads every
   `.epub` there (real books stay out of the repo) and writes `<dir>/epub-report.txt`.
 - Release must keep building: test hooks live behind `#if DEBUG`.
@@ -53,7 +60,7 @@ xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -confi
 
 | Path | What lives there |
 |------|------------------|
-| `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks |
+| `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks and test fixtures (`App/Fixtures/`) |
 | `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `Extraction` (Readability, the listen normalizer), `Sources` (`PageSource`s, the book import), `Persistence` (SwiftData; `Library/`: `Folder`, `Page`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web`, `Device` |
 | `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Library` (the Library's screens, rows, the Move tree, Favorites), `Downloads` (`DownloadCenter`, the Downloads list, the progress line), `Browse`, `Reader`, `Saved` (the save path), `Speech` (playback, engines, settings) |
 | `Tests/`, `UITests/` | Unit tests (fakes in `Tests/Fakes/`), UI tests |
@@ -129,4 +136,4 @@ xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -confi
 Directory-scoped working notes live next to the code in `<dir>/.context/CONTEXT.md` (deferred
 items in `<dir>/.context/FUTURE.md`); read them before changing that directory:
 `Features/Speech/.context/`, `Features/Shell/.context/`, `Features/Library/.context/`,
-`Features/Downloads/.context/`.
+`Features/Downloads/.context/`, and `Core/Persistence/.context/` (deferred items only).

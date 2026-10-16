@@ -20,7 +20,7 @@ import WebKit
 ///   processes can be suspended while the app is in the background, and their calls then don't
 ///   answer; a late answer is dropped.
 ///
-/// Debug builds serve the offline `reader-test://` pages (`TestPageSchemeHandler`) to it.
+/// `schemeHandlers`: URL schemes it serves itself (a Debug build's offline `reader-test://` pages).
 /// One fetch at a time is the caller's rule.
 @MainActor
 final class URLPageFetcher {
@@ -47,10 +47,13 @@ final class URLPageFetcher {
 
     let extractor: any ArticleExtracting
     let timeout: TimeInterval
+    private let schemeHandlers: [String: any WKURLSchemeHandler]
 
-    init(extractor: any ArticleExtracting = ReadabilityArticleExtractor(), timeout: TimeInterval = 30) {
+    init(extractor: any ArticleExtracting = ReadabilityArticleExtractor(), timeout: TimeInterval = 30,
+         schemeHandlers: [String: any WKURLSchemeHandler] = [:]) {
         self.extractor = extractor
         self.timeout = timeout
+        self.schemeHandlers = schemeHandlers
     }
 
     /// The page at `url`, loaded, snapshotted and extracted.
@@ -61,7 +64,7 @@ final class URLPageFetcher {
     /// The page at `url`, loaded in a hidden view and snapshotted.
     func snapshot(of url: URL) async throws -> Snapshot {
         guard let window = Self.hostWindow() else { throw FetchError.noWindow }
-        let view = Self.makeView(in: window)
+        let view = Self.makeView(in: window, schemeHandlers: schemeHandlers)
         let navigation = NavigationWait()
         view.navigationDelegate = navigation
         defer {
@@ -95,13 +98,11 @@ final class URLPageFetcher {
         return windows.first(where: \.isKeyWindow) ?? windows.first
     }
 
-    private static func makeView(in window: UIWindow) -> WKWebView {
+    private static func makeView(in window: UIWindow, schemeHandlers: [String: any WKURLSchemeHandler]) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         config.defaultWebpagePreferences.allowsContentJavaScript = false
-        #if DEBUG
-        config.setURLSchemeHandler(TestPageSchemeHandler(), forURLScheme: TestPageSchemeHandler.scheme)
-        #endif
+        for (scheme, handler) in schemeHandlers { config.setURLSchemeHandler(handler, forURLScheme: scheme) }
         let size = window.bounds.size
         let frame = CGRect(x: -size.width - 100, y: 0, width: size.width, height: size.height)
         let view = WKWebView(frame: frame, configuration: config)

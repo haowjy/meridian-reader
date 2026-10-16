@@ -8,7 +8,6 @@ final class EngineLaunchOptionsTests: XCTestCase {
         XCTAssertNil(none.selectsEngine)
         XCTAssertNil(none.engineProbe)
         XCTAssertNil(none.kokoroStress)
-        XCTAssertTrue(none.keepsStoredRate)
 
         let all = LaunchOptions(arguments: [
             "Reader", "-uiTesting", "-selectEngine", "test.voice", "-kokoroUnits", "cpuOnly",
@@ -19,8 +18,6 @@ final class EngineLaunchOptionsTests: XCTestCase {
         XCTAssertEqual(all.kokoroUnits, "cpuOnly")
         XCTAssertEqual(all.engineProbe, .init(engines: ["kokoro", "test voice"], stressCalls: 20))
         XCTAssertEqual(all.kokoroStress, .init(route: .coreml, calls: 1, fresh: true))
-        XCTAssertFalse(all.keepsStoredRate, "a UI test starts at 1× unless it passes a rate")
-        XCTAssertTrue(LaunchOptions(arguments: ["-uiTesting", "-reader.rateMultiplier", "2"]).keepsStoredRate)
         XCTAssertEqual(LaunchOptions(arguments: ["-engineProbe", "-probeStress", "-probeStressN", "5"]).engineProbe?.stressCalls, 5)
         XCTAssertNil(LaunchOptions(arguments: ["-KokoroStress", "gpu"]).kokoroStress, "unknown route")
     }

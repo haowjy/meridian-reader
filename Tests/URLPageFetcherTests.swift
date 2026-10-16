@@ -11,7 +11,7 @@ final class URLPageFetcherTests: XCTestCase {
     private let hiddenLines = TestPageSchemeHandler.hiddenLines
 
     func testTheSnapshotDropsCSSHiddenTextAndExtractsAsTheBrowserDoes() async throws {
-        let fetcher = URLPageFetcher(timeout: 20)
+        let fetcher = URLPageFetcher(timeout: 20, schemeHandlers: TestPageSchemeHandler.handlers)
         let snapshot = try await fetcher.snapshot(of: page)
         XCTAssertEqual(snapshot.url, page)
         XCTAssertEqual(snapshot.title, "Hidden span page")
@@ -48,7 +48,7 @@ final class URLPageFetcherTests: XCTestCase {
     }
 
     func testALoadThatNeverFinishesGivesUpAtTheTimeLimit() async throws {
-        let fetcher = URLPageFetcher(timeout: 1)
+        let fetcher = URLPageFetcher(timeout: 1, schemeHandlers: TestPageSchemeHandler.handlers)
         let started = Date()
         do {
             _ = try await fetcher.snapshot(of: TestPageSchemeHandler.stallingPage)

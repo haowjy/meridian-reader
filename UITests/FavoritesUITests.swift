@@ -80,7 +80,7 @@ final class FavoritesUITests: XCTestCase {
         dragRow(app, "Demo Listen Article", to: rowPoint(app, "Bonds"))
         // The press opened the row's menu instead of lifting it: close the menu.
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap()
-        idle(1)
+        XCTAssertTrue(eventually(5) { self.libraryRow(app, "Bonds").isHittable }, "the menu closed")
 
         libraryRow(app, "Bonds").tap()
         XCTAssertTrue(app.navigationBars["Bonds"].waitForExistence(timeout: 5), "Bonds' screen")
@@ -99,7 +99,7 @@ final class FavoritesUITests: XCTestCase {
         openTestPage(app, "Third page")
         star(app)
         XCTAssertTrue(find(app, "toast").waitForExistence(timeout: 5))
-        idle(1)
+        waitForMenuToClose(app)
         app.buttons["browseMore"].tap()
         tapMenuRow(app, "moreNewSearch")
         XCTAssertTrue(find(app, "startFavoritesShowAll").waitForExistence(timeout: 5))

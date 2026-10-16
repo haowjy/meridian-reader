@@ -740,8 +740,8 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
 - `-importTestEPUB`: *Import Book…* takes a synthetic EPUB built in code (`TestEPUB`: a title
   page, then the demo book's three chapters, the first with a line loose in a `<div>` and a
   footnote) instead of opening the Files picker, which a UI test can't drive; the import sheet
-  and import are the real ones. At launch an earlier import of it is deleted with its audio.
-  `-playTestEPUB`: at launch, import it into the Library's top level (no sheet), then play it from
+  and import are the real ones. `-playTestEPUB`: at launch, import it into the Library's top
+  level (no sheet; an earlier import of it is deleted first, with its audio), then play it from
   where Continue would (chapter 1, not the title page). The offline test pages' page one links to
   the same book as a `blob:` URL, for the `.epub` link path.
 - `-probeLockedFetch`: the locked-phone check web serials need (`LockedFetchProbe`). It runs only

@@ -59,14 +59,16 @@ final class SearchSessionTests: XCTestCase {
         XCTAssertFalse(none.uiTesting)
         XCTAssertTrue(none.fetchesSuggestions)
         XCTAssertNil(none.demoArticle)
-        XCTAssertNil(none.bookmarks)
+        XCTAssertFalse(none.resetsLibrary)
+        XCTAssertFalse(none.seedsBookmarks)
 
         let ui = LaunchOptions(arguments: ["Reader", "-uiTesting", "-seedDemoArticle", "-seedDemoParagraphs", "40",
-                                           "-seedDemoTitle", "Long", "-resetBookmarks", "-seedBookmarks",
+                                           "-seedDemoTitle", "Long", "-resetLibrary", "-seedBookmarks",
                                            "-bakeArticle", "0c25b7ee", "-scrubBubbleDemo"])
         XCTAssertFalse(ui.fetchesSuggestions, "UI tests never depend on live Google suggestions")
         XCTAssertEqual(ui.demoArticle, .init(title: "Long", paragraphs: 40, progress: 0))
-        XCTAssertEqual(ui.bookmarks, .seed)
+        XCTAssertTrue(ui.resetsLibrary)
+        XCTAssertTrue(ui.seedsBookmarks)
         XCTAssertEqual(ui.bakeArticlePrefix, "0C25B7EE")
         XCTAssertTrue(ui.scrubBubbleDemo)
         XCTAssertEqual(LaunchOptions(arguments: ["-seedDemoArticle", "-seedDemoParagraphs", "1"]).demoArticle?.paragraphs, 3)

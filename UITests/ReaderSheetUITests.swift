@@ -47,10 +47,7 @@ final class ReaderSheetUITests: XCTestCase {
     /// A plain-text article (no reading HTML) reads on the same HTML reading page in the Reader.
     /// With ☝︎ on its paragraphs are buttons, "Paragraph N", and one plays from that paragraph.
     func testPlainTextReaderReadsOnTheReadingPageAndJumpsByParagraph() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoPlainText", "-openLibrary",
-                               "-selectEngine", "apple"]
-        app.launch()
+        let app = launch(["-seedDemoArticle", "-seedDemoPlainText", "-openLibrary"])
         let row = app.cells.staticTexts["Demo Listen Article"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
@@ -69,7 +66,7 @@ final class ReaderSheetUITests: XCTestCase {
         let hint = app.descendants(matching: .any)["listenJumpHint"]
         XCTAssertTrue(eventually(3) { !hint.exists }, "the hint has gone")
         // A ☝︎ tap during the hint's exit (~0.4 s after Cancel) is lost on the Simulator; let it settle.
-        RunLoop.current.run(until: Date().addingTimeInterval(1.5))
+        idle(1.5)
 
         app.buttons["listenJump"].tap()
         XCTAssertTrue(eventually(3) { app.buttons["listenJump"].label == "Cancel listen from a paragraph" }, "☝︎ on")
@@ -85,9 +82,7 @@ final class ReaderSheetUITests: XCTestCase {
     }
 
     func testReaderOverTheLibrary() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-openLibrary", "-selectEngine", "apple"]
-        app.launch()
+        let app = launch(["-seedDemoArticle", "-openLibrary"])
         let row = app.cells.staticTexts["Demo Listen Article"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()

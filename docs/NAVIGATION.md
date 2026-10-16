@@ -10,19 +10,14 @@ their text when it is at its top, which does exactly what that button does.
 
 | Button | Presentation | Gesture | Provided by |
 |--------|--------------|---------|-------------|
-| ‹ | real push in a `NavigationStack` (`NavigationLink` / `navigationDestination`) | left-edge swipe-back | UIKit with the system back button; `.edgeSwipeBack()` (`App/SwipeBackSupport.swift`) with a custom one |
+| ‹ | real push in a `NavigationStack` (`NavigationLink` / `navigationDestination`) | left-edge swipe-back | UIKit, with the system back button |
 | ✕ | modal: `.sheet`, or the design system's `Sheet` (the Reader, Now Playing) | swipe down | `.sheet` does it natively; `Sheet` implements it (see below) |
 
 ## ‹ = push + swipe-back
 
 - Never show a ‹ screen with `.sheet` / `.fullScreenCover`; push it.
-- A custom back control is fine: hide only the system back button
-  (`.navigationBarBackButtonHidden(true)`), put your row in the bar
-  (`ToolbarItem(placement: .principal)`), and add `.edgeSwipeBack()` to the screen. UIKit disables
-  swipe-back once the back button is hidden; `.edgeSwipeBack()` re-enables it for that screen only:
-  the edge gesture begins only at stack depth > 1 and not mid-transition, and scroll views yield
-  to it only at the very left edge. iOS 26's full-width content swipe is off on that screen, so
-  sideways drags (the reader's scrubber, text selection) never pop it.
+- Keep the system back button: every pushed screen does. UIKit turns swipe-back off on a screen
+  that hides it (`.navigationBarBackButtonHidden(true)`).
 - **Don't hide the whole navigation bar on a pushed screen** (`.toolbar(.hidden, for: .navigationBar)`)
   when the screen below shows one. The bar is shared by the stack, so mid-swipe the parent's bar
   (large title, search field, toolbar buttons) pops in full-width on top of the page you're leaving.
@@ -30,10 +25,10 @@ their text when it is at its top, which does exactly what that button does.
   stack's root, has no bar: its title is the first thing in its list. The screens pushed over it
   keep theirs.)
 - Don't build swipe-back by hand. Push with `NavigationStack`; with the system back button it just
-  works, with a custom one add `.edgeSwipeBack()`.
-- A custom back control should just `dismiss()`; put "leaving" side effects in `onDisappear` so
-  the swipe and the tap stay identical. No screen saves the listening position: the playback
-  session does, through `ListeningProgressRecorder` (`LISTEN_PLAYBACK.md`).
+  works.
+- Put "leaving" side effects in `onDisappear`, so the swipe and the tap stay identical. No screen
+  saves the listening position: the playback session does, through `ListeningProgressRecorder`
+  (`LISTEN_PLAYBACK.md`).
 
 ## ✕ = modal + swipe-down
 
@@ -65,10 +60,10 @@ their text when it is at its top, which does exactly what that button does.
 
 ## Two surfaces: the Library and the browser (no tab bar)
 
-There is no tab bar. The app has two surfaces, swapped by the icon left of the Now Playing bar
-(📚 on the browser, 🌐 on the Library): the **Library**, the folder tree, and the **browser**, a
-web page or the start page. `BrowseStartView` hosts both (`ShellState.surface`); all chrome is
-one bottom band, the same on both (decision D22), and each surface uses everything between the
+There is no tab bar. The app has two surfaces, swapped by the icon before the field (📚 on the
+browser, 🌐 on the Library): the **Library**, the folder tree, and the **browser**, a web page or
+the start page. `BrowseStartView` hosts both (`ShellState.surface`); all chrome is one bottom
+band, the same on both (decisions D22 and D23), and each surface uses everything between the
 status bar and it (safe area respected).
 
 **The app reopens on the surface you left** (decision D10): the Library at the folder you were in
@@ -79,17 +74,20 @@ first time you go there (🌐), and stays remembered until then, across relaunch
 start on the browser unless `-restoreSurface`.
 
 ```
-[📚] ╭ [art] Now playing title         ⏸ ╮   ← swap over slot 1; the Now Playing bar over 2–5,
-     ╰ site   N min left ━━━━━━──────────╯     always there
-( 📄 address …                        🎧 )   ← 📄 / 🎧 on readable pages; 🎤 only while searching
+╭ [art] Now playing title              ⏸ ╮   ← the Now Playing bar alone, full width, always
+╰ site   N min left ━━━━━━───────────────╯     there; ⏸ over ⋯'s slot
+[📚]( 📄 address …                   🎧 )   ← the swap, then the field; 📄 / 🎧 on readable
+                                                pages; 🎤 only while searching
 [ ‹ ]   [ › ]   [ 🔖 ]   [ 🕘 ]   [ ⋯ ]    ← 5 equal slots, the Library's roles slot for slot
 ```
 
-**The band is the same on the browser and the Library** (`SurfaceBand`, decision D22): the same
-three rows at the same height, every control at the same frame, so swapping surfaces changes
-what the controls say and nothing else. Row 1 is the swap (📚 / 🌐, a full slot wide, centred
-over ‹) and the Now Playing bar across slots 2–5. Row 2 is the field: the address field on the
-browser, *Search Library* on the Library. Row 3 is the toolbar, each slot one role on both:
+**The band is the same on the browser and the Library** (`SurfaceBand`, decisions D22 and D23):
+the same three rows at the same height, every control at the same frame, so swapping surfaces
+changes what the controls say and nothing else. Row 1 is the Now Playing bar alone, across the
+band's full width. Row 2 is the swap (📚 / 🌐, its 44 pt tap target tight to the leading edge),
+then the field filling the rest: the address field on the browser, *Search Library* on the
+Library. While searching, the swap steps aside with the bar and the toolbar. Row 3 is the
+toolbar, each slot one role on both:
 
 | Slot | Browser | Library |
 |---|---|---|
@@ -224,7 +222,7 @@ path in place of its site, and a folder opens in its place, under its parents, s
 parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on Favorites;
 going to a place in the Library (Now Playing's ⋯ → *Go to …*, a favorite folder's tile, an
 imported book) opens it on Everything, where every place shows; 📚 comes back to the tab you
-left. The tab is remembered with the surface. The band is the browser's (above): 🌐 beside the Now Playing bar, the search
+left. The tab is remembered with the surface. The band is the browser's (above): the Now Playing bar, 🌐 then the search
 field, `[‹][›][＋][🕘][⋯]`. ＋ is *Import
 Book…* and *New Folder*, both made in the folder on screen (a book's too). 🌐 shows the browser as
 it was; 📚 there comes back to the same folder. The
@@ -764,7 +762,7 @@ Debug builds (`App/LaunchOptions.swift`).
 | Reader / Now Playing → Aa (`TextAppearanceControl`) | tap outside | popover from Aa |
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | Done (grabber) | `.sheet`, medium/large |
-| Band 📚 / Library (`LibrarySurface`): the home | 🌐 beside the Now Playing bar | in-place surface (shared bottom chrome); leave restores browse |
+| Band 📚 / Library (`LibrarySurface`): the home | 🌐 before the band's field | in-place surface (shared bottom chrome); leave restores browse |
 | Library → a folder (a book or series too) (`FolderScreen`) | ‹ system | push (`navigationDestination`) |
 | Move to…, Save to Folder… (`MoveTreeSheet`) | Cancel (grabber) | `.sheet`, medium/large |
 | Import Book… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |

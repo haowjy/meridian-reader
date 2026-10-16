@@ -77,8 +77,7 @@ final class NowPlayingUITests: XCTestCase {
         let goTo = find(app, "moreGoTo")
         XCTAssertTrue(goTo.waitForExistence(timeout: 3), "⋯ → Go to")
         XCTAssertEqual(goTo.label, "Go to Library")
-        idle(0.6)
-        goTo.tap()
+        tapMenuRow(app, "moreGoTo")
         XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingHeader").exists }, "Now Playing closes")
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5), "on the Library")
     }
@@ -155,16 +154,16 @@ final class NowPlayingUITests: XCTestCase {
         row.tap()
         let listen = app.buttons["listenPlayPause"]
         XCTAssertTrue(listen.waitForExistence(timeout: 10))
-        idle(1.5)
         // Each control's id in the Reader, and in Now Playing.
         let controls = [("bookmark", "readerBookmark", "nowPlayingBookmark"), ("more", "readerMore", "nowPlayingMore"),
                         ("jump", "listenJump", "listenJump"), ("close", "readerClose", "nowPlayingClose")]
+        XCTAssertNotNil(settledFrames(controls.map { app.buttons[$0.1] }), "the Reader has risen")
         let reader = Dictionary(uniqueKeysWithValues: controls.map { ($0.0, app.buttons[$0.1].frame) })
         XCTAssertEqual(app.buttons["readerClose"].label, "Back to Library")
 
         listen.tap()
         XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5), "Now Playing")
-        idle(1.5)
+        XCTAssertNotNil(settledFrames(controls.map { app.buttons[$0.2] }), "Now Playing has settled")
         XCTAssertFalse(app.buttons["readerClose"].exists, "the Reader turned into Now Playing")
         let player = Dictionary(uniqueKeysWithValues: controls.map { ($0.0, app.buttons[$0.2].frame) })
         XCTAssertEqual(app.buttons["nowPlayingClose"].label, "Close Now Playing")
@@ -280,7 +279,7 @@ final class NowPlayingUITests: XCTestCase {
             row.tap()
             let listen = app.buttons["listenPlayPause"]
             XCTAssertTrue(listen.waitForExistence(timeout: 10))
-            idle(1)
+            XCTAssertTrue(eventually(10) { listen.isEnabled }, "listen document ready")
             listen.tap()
             let header = find(app, "nowPlayingHeader")
             XCTAssertTrue(header.waitForExistence(timeout: 5))
@@ -339,12 +338,9 @@ final class NowPlayingUITests: XCTestCase {
         assertStatusBar(.light, "over Now Playing")
 
         find(app, "nowPlayingMore").tap()
-        let settings = find(app, "moreSettings")
-        XCTAssertTrue(settings.waitForExistence(timeout: 3))
-        idle(0.6)
-        settings.tap()
+        tapMenuRow(app, "moreSettings")
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5), "Settings over Now Playing")
-        idle(1)
+        XCTAssertNotNil(settledFrames([app.navigationBars["Settings"]]), "the sheet has risen")
         assertStatusBar(nil, "over Settings")
         app.buttons["settingsDone"].tap()
         XCTAssertTrue(eventually(5) { !app.navigationBars["Settings"].exists })
@@ -464,11 +460,9 @@ final class NowPlayingUITests: XCTestCase {
         guard let match = text.firstMatch(of: #/(?:paragraph|harbor)\s+(\d+)/#) else { return nil }
         return Int(match.1)
     }
+
     func testAtTheEndNowPlayingStaysWithPlay() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-openLibrary", "-selectEngine", "apple",
-                               "-reader.rateMultiplier", "2"]
-        app.launch()
+        let app = launch(UITestSetup(["-seedDemoArticle", "-openLibrary"], rate: 2))
         let row = app.cells.staticTexts["Demo Listen Article"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
@@ -499,10 +493,7 @@ final class NowPlayingUITests: XCTestCase {
     /// The bar writes the time left as the page's row does (at 1×, both count at 1×): past the
     /// hour, "1 h 23 min left", for the same spot before and after Stop Listening.
     func testTheBarWritesTimeLeftAsTheRowDoes() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoParagraphs", "500", "-openLibrary",
-                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"]
-        app.launch()
+        let app = launch(["-seedDemoArticle", "-seedDemoParagraphs", "500", "-openLibrary"])
         openNowPlayingFromTheLibrary(app)
         app.buttons["Next paragraph"].tap()
         app.buttons["Next paragraph"].tap()
@@ -637,15 +628,6 @@ final class NowPlayingUITests: XCTestCase {
         }
         if peak > 0 { lines.append(peak) }
         return lines
-    }
-
-    /// The demo article, 40 paragraphs long, in the Library, Apple voice at 1×.
-    private func launchLongDemo(_ extra: [String] = []) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoParagraphs", "40", "-openLibrary",
-                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"] + extra
-        app.launch()
-        return app
     }
 
     private func openNowPlayingFromTheLibrary(_ app: XCUIApplication) {

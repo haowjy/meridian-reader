@@ -54,9 +54,9 @@ changing the shell code.
   Ignore focus changes under 0.5 pt (`MorphMenu.isNewFocus`): pixel rounding of the placement
   nudges the measurement each pass, and without the threshold the panel re-places itself forever
   (a layout loop at 100% CPU). The glass grows by frame and corner radius, never by scale.
-- **The browser and the Library draw one band** (`SurfaceBand`, D22): swap + `BandNowPlayingBar`,
-  the field, then a `BottomToolbarLayout` whose items name their slots (`.toolbarSlot`), one role
-  per slot on both surfaces. Change a row in `SurfaceBand`, not in one surface, or the two drift;
+- **The browser and the Library draw one band** (`SurfaceBand`, D22, rows as D23):
+  `BandNowPlayingBar` alone, then the swap and the field, then a `BottomToolbarLayout` whose
+  items name their slots (`.toolbarSlot`), one role per slot on both surfaces. Change a row in `SurfaceBand`, not in one surface, or the two drift;
   `ToolbarGridUITests.testBandIsPixelStableAcrossLibraryAndBrowse` compares their frames. The
   band's bar never goes away (it keeps its space hidden when covered), so its height never
   changes; the Reader's `NowPlayingBarView` still hides.
@@ -67,7 +67,7 @@ changing the shell code.
   grows with Dynamic Type up to `BottomChrome.maxTextGrowth` (1.5×); every control gets a 44 pt
   tap area through `tapTarget`.
 - **Gestures.** Drags that dismiss or collapse lock their axis on the first movement and rubber-band
-  the wrong direction (`SwipeGesturePolicy`, `App/SwipeBackSupport.swift`); releases seed the
+  the wrong direction (`SwipeGesturePolicy`, in the design system); releases seed the
   spring with the finger's speed, capped (`Motion.dismiss`, `Motion.maxReleaseVelocity`). A
   `Sheet`'s scrolling body pulls it from its top: `Sheet` puts a `SheetPullHandoff` in its
   content's environment, and a UIKit scroll view there feeds it through `ScrollPullHandoff` (a

@@ -69,10 +69,17 @@ UITests/    UI tests (MeridianReaderUITests)
   shows of what you hear (`nowPlaying`, `playState(of:)`); `PlaybackSessionState` owns what you
   hear and its position; `LocalTTSCoordinator` owns the on-device engine, render queue and audio cache.
   Details in `LISTEN_PLAYBACK.md`.
-- **Dependency direction.** Features → Core: Core names no Features type (the library reaches
-  the speech stack through `LibraryAudioEffects`, the render queue through `SynthQueueContext`).
-  Core never imports a voice library (FluidAudio and ONNX Runtime live in
-  `Features/Speech/Engines/`). Features never name a concrete extractor.
+- **Dependency direction.** App → Features → Core: Core names no Features or App type (the
+  library reaches the speech stack through `LibraryAudioEffects`, the render queue through
+  `SynthQueueContext`), and the design system names nothing outside itself and Core. Core never
+  imports a voice library (FluidAudio and ONNX Runtime live in `Features/Speech/Engines/`).
+  Features never name a concrete extractor. The Debug test fixtures (the demo book, the
+  synthetic EPUB and cover, the offline test pages' `TestPageSchemeHandler`) live in
+  `App/Fixtures/`; App hands Core and the design system what a launch asks for: the test pages'
+  handler to the browser's web view (`webViewSchemeHandlers`) and to `URLPageFetcher`, the ⋯
+  panel's test marker and slowed morph (`morphMenuMarksFocus`, `morphMenuAnimation`). Some
+  feature screens still read `LaunchOptions` for their Debug hooks (the test EPUB and cover
+  pickers, the scrub-bubble screenshot, Google suggestions off under `-uiTesting`).
 
 ## Extraction
 

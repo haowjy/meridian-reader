@@ -3,8 +3,6 @@ import XCTest
 /// Browse: while typing in the (bottom) address field with the keyboard up, the field must stay
 /// visible — above the keyboard and below the status bar — however many suggestions there are.
 final class BrowseAddressKeyboardUITests: XCTestCase {
-    private func wait(_ s: TimeInterval) { RunLoop.current.run(until: Date().addingTimeInterval(s)) }
-
     private func statusBarBottom() -> CGFloat {
         let bar = XCUIApplication(bundleIdentifier: "com.apple.springboard").statusBars.firstMatch
         if bar.exists, bar.frame.height > 0 { return bar.frame.maxY }
@@ -30,22 +28,23 @@ final class BrowseAddressKeyboardUITests: XCTestCase {
     }
 
     func testAddressFieldStaysVisibleAboveKeyboard() throws {
-        let app = XCUIApplication()
-        // Seeded save (example.com) + any recents give local suggestions even without network.
-        app.launchArguments = ["-seedDemoArticle", "-uiTesting"]
-        app.launch()
+        // The seeded save (example.com) is a local suggestion; UI tests fetch none from Google.
+        let app = launch(["-seedDemoArticle"])
 
         let field = app.textFields["addressField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "software keyboard is up")
 
+        let suggestion = find(app, "addressEditBackdrop").staticTexts["Demo Listen Article"]
         field.typeText("e")
-        wait(2) // Google suggestions (if online) arrive after a short debounce
+        XCTAssertTrue(suggestion.waitForExistence(timeout: 5), "the saved article is suggested")
+        XCTAssertNotNil(settledFrames([field, suggestion]), "the field and its suggestions settle")
         assertFieldVisible(app, field, typed: "e")
 
         field.typeText("xample")
-        wait(2)
+        XCTAssertTrue(eventually { field.value as? String == "example" })
+        XCTAssertNotNil(settledFrames([field, suggestion]), "the field and its suggestions settle")
         assertFieldVisible(app, field, typed: "example")
     }
 }

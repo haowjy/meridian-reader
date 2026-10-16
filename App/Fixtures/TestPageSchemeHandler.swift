@@ -4,21 +4,23 @@ import WebKit
 
 /// Offline pages (Debug builds only), served at `reader-test://<host>/<name>`:
 ///
-/// - **`pages`**: the browser's, with `LaunchOptions.servesTestPages` (real navigations, so they
-///   get real back/forward history):
+/// - **`pages`**: the browser's, with `-browseTestPages` (`RootView` gives the browser's web view
+///   the handler; real navigations, so they get real back/forward history):
 ///   - `one`: not an article (no 📄 / 🎧), with links to the others and to a book (`bookLink`);
 ///   - `two` ("Second page") and `three` ("Third page"): articles (pass `isProbablyReaderable`);
 ///   - `thin` ("Thin page"): readable by that check, but its article text is invisible, so the
 ///     saved copy (which drops short invisible text) has almost nothing to listen to;
 ///   - `book-N`: chapter N of the demo book (`DemoBook`, `-seedDemoBook`).
-/// - **`fetch`**: `URLPageFetcher`'s, always served to it in Debug builds:
+/// - **`fetch`**: `URLPageFetcher`'s, which a Debug build always serves (`AppComposition`):
 ///   - `hidden-span` ("Hidden span page"): an article whose paragraphs carry two short lines the
 ///     page's stylesheet hides (`hiddenLines`), as anti-copy lines are hidden;
 ///   - `stall`: never answers, so a load waits until it is stopped.
 ///
 /// An unknown name is page one.
 final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
-    static let scheme = "reader-test"
+    static let scheme = URL.testPageScheme
+    /// What a web view that serves the offline pages registers (`schemeHandlers`).
+    static var handlers: [String: any WKURLSchemeHandler] { [scheme: TestPageSchemeHandler()] }
     /// `reader-test://fetch/hidden-span`.
     static let hiddenSpanPage = URL(string: "reader-test://fetch/hidden-span")!
     /// `reader-test://fetch/stall`.

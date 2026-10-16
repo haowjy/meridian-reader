@@ -7,25 +7,23 @@ import XCTest
 final class BackgroundListenProbeUITests: XCTestCase {
     func testListenContinuesInBackgroundWithoutCoreML() throws {
         try XCTSkipUnless(ProcessInfo.processInfo.environment["READER_BG_PROBE"] == "1", "probe only")
-        let app = XCUIApplication()
-        app.launchArguments = ["-seedDemoArticle", "-seedDemoParagraphs", "14",
-                               "-selectEngine", "local.kokoro", "-uiTesting", "-openLibrary"]
-        app.launch()
+        let app = launch(UITestSetup(["-seedDemoArticle", "-seedDemoParagraphs", "14", "-openLibrary"],
+                                     engine: "local.kokoro"))
         XCTAssertTrue(app.cells.staticTexts["Demo Listen Article"].waitForExistence(timeout: 10))
         // Let Kokoro load (Simulator) before Play so the local engine is used.
-        RunLoop.current.run(until: Date().addingTimeInterval(20))
+        idle(20)
         app.cells.staticTexts["Demo Listen Article"].tap()
         let playPause = app.buttons["listenPlayPause"]
         XCTAssertTrue(playPause.waitForExistence(timeout: 10))
         playPause.tap()
-        RunLoop.current.run(until: Date().addingTimeInterval(10)) // foreground: play + bake ahead
+        idle(10) // foreground: play + bake ahead
 
         XCUIDevice.shared.press(.home) // leave the app
-        RunLoop.current.run(until: Date().addingTimeInterval(40))
+        idle(40)
 
         app.activate()
         XCTAssertTrue(playPause.waitForExistence(timeout: 10))
-        RunLoop.current.run(until: Date().addingTimeInterval(16)) // Kokoro should take over again
+        idle(16) // Kokoro should take over again
         let add = XCTAttachment(screenshot: app.screenshot())
         add.lifetime = .keepAlways
         self.add(add)
