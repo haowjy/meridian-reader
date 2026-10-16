@@ -125,8 +125,8 @@ struct ReaderSheetScreen: View {
 
     /// The source and the length, as separate parts: ["example.org", "9 min"].
     private var detail: [String] {
-        let minutes = ListeningTime.minutes(utf16Length: totalLength)
-        return [article.sourceLabel, minutes > 0 ? "\(minutes) min" : ""].filter { !$0.isEmpty }
+        let minutes = ListeningTime.minutes(utf16Length: totalLength, rate: 1)
+        return [article.sourceLabel, minutes > 0 ? ListeningTime.label(minutes: minutes) : ""].filter { !$0.isEmpty }
     }
 
     /// Listen's title and the lighter time after it: "Listen" "9 min", "Resume" "6 min left",
@@ -136,9 +136,10 @@ struct ReaderSheetScreen: View {
         let doc = article.document
         if listenStart.isPartWay, doc.paragraphs.indices.contains(listenStart.paragraph) {
             let at = listenStart.resolved(in: doc).utf16Offset
-            return (String(localized: "Resume"), "\(ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at)) min left")
+            let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at, rate: 1)
+            return (String(localized: "Resume"), ListeningTime.leftLabel(minutes: left))
         }
-        return (String(localized: "Listen"), "\(ListeningTime.minutes(utf16Length: totalLength)) min")
+        return (String(localized: "Listen"), ListeningTime.label(minutes: ListeningTime.minutes(utf16Length: totalLength, rate: 1)))
     }
 
     // MARK: - ⋯ menu

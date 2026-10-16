@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Now Playing's bottom band (on the player palette), top to bottom: the status notes (buffering, the Apple-fallback and
-/// language notes, "✓ Finished", the developer Debug chip), the scrub row (sentence-precise
+/// language notes, the developer Debug chip; "✓ Finished" is the title card's), the scrub row (sentence-precise
 /// scrubber, the speed at its end) and the transport row (🔖 and ⋯ in the Reader's slots). Notes sit above the scrubber so appearing text
 /// never pushes it when you skip.
 ///
@@ -22,7 +22,8 @@ struct NowPlayingControls: View {
     static let debugChipText = Palette.playerInk
     static let debugChipOnFill = Palette.playerAccentWash
 
-    private var isFinished: Bool { speech.playbackPhase == .finished }
+    /// The same fact the title card reads for its "✓ Finished".
+    private var isFinished: Bool { speech.nowPlaying?.isFinished == true }
 
     var body: some View {
         VStack(spacing: BottomChrome.rowSpacing) {
@@ -64,7 +65,7 @@ struct NowPlayingControls: View {
         }
     }
 
-    /// Buffering / Apple-fallback / language / finished notes and the developer Debug chip.
+    /// Buffering / Apple-fallback / language notes and the developer Debug chip.
     @ViewBuilder
     private var notes: some View {
         let languageNote = speech.languageResolution(detected: detectedLanguage).note
@@ -95,7 +96,8 @@ struct NowPlayingControls: View {
             .padding(.horizontal, Spacing.xs)
         }
         if isFinished {
-            note("✓ Finished", id: "nowPlayingFinished")
+            // The title card says "✓ Finished"; no note under it.
+            EmptyView()
         } else if speech.isBufferingNext {
             HStack(spacing: Spacing.xs) {
                 ProgressView()

@@ -79,7 +79,7 @@ private struct BarProgress: View {
         let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: offset, rate: speech.rateMultiplier)
         NowPlayingBar(
             title: now.title,
-            detail: now.isFinished ? ["✓ Finished"] : [now.source, "\(left) min left"],
+            detail: now.isFinished ? [ListeningTime.finishedLabel] : [now.source, ListeningTime.leftLabel(minutes: left)],
             artwork: now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
             artworkLetter: now.source.isEmpty ? now.title : now.source,
             progress: doc.progress(atUTF16Offset: offset),
@@ -134,8 +134,8 @@ private struct ResumeBar: View {
 
     private func detail(_ progress: ListRow.Progress) -> [String] {
         switch progress {
-        case .partWay(_, let minutesLeft): [source, String(localized: "\(minutesLeft) min left")]
-        case .finished: ["✓ Finished"]
+        case .partWay(_, let minutesLeft): [source, ListeningTime.leftLabel(minutes: minutesLeft)]
+        case .finished: [ListeningTime.finishedLabel]
         default: [source]
         }
     }

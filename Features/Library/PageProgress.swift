@@ -8,18 +8,25 @@ enum PageProgress {
     static func of(_ page: Page) -> ListRow.Progress {
         if page.finishedAt != nil { return .finished }
         if page.skipsInPlayback { return .skipped }
-        if isPartWay(page), let paragraphs = page.cachedListenParagraphs, !paragraphs.isEmpty {
-            let document = ParagraphDocument(parts: paragraphs)
-            let offset = utf16Offset(in: document, paragraph: page.positionParagraph, utf16Offset: page.positionUTF16)
-            return .partWay(fraction: document.progress(atUTF16Offset: offset),
-                            minutesLeft: ListeningTime.minutesLeft(in: document, fromUTF16Offset: offset))
-        }
+        if let spot = spot(of: page) { return .partWay(fraction: spot.fraction, minutesLeft: spot.minutesLeft) }
         return .unplayed(minutes: page.hasText ? page.estimatedMinutes : nil)
     }
 
     /// Started and not finished.
     static func isPartWay(_ page: Page) -> Bool {
         page.finishedAt == nil && (page.positionParagraph > 0 || page.positionUTF16 > 0)
+    }
+
+    /// A part-way page's place, measured on its stored listen text at 1×: how far through, the
+    /// minutes left, and the minutes the whole text takes on the same measure, so what is left
+    /// never exceeds the whole. Nil unless part-way with stored paragraphs.
+    static func spot(of page: Page) -> (fraction: Double, minutesLeft: Int, minutes: Int)? {
+        guard isPartWay(page), let paragraphs = page.cachedListenParagraphs, !paragraphs.isEmpty else { return nil }
+        let document = ParagraphDocument(parts: paragraphs)
+        let offset = utf16Offset(in: document, paragraph: page.positionParagraph, utf16Offset: page.positionUTF16)
+        return (document.progress(atUTF16Offset: offset),
+                ListeningTime.minutesLeft(in: document, fromUTF16Offset: offset, rate: 1),
+                ListeningTime.minutes(utf16Length: document.utf16Length, rate: 1))
     }
 
     /// The stored spot as an offset into the listen text: the offset when it lies in the stored
@@ -77,12 +84,18 @@ struct FolderProgress {
         let timed = plays.filter { !$0.isLink }
         hasPagesToPlay = !timed.isEmpty
         isFinished = hasPagesToPlay && timed.allSatisfy { $0.finishedAt != nil }
-        let total = timed.reduce(0) { $0 + $1.estimatedMinutes }
-        let left = timed.reduce(0) { sum, page in
-            switch PageProgress.of(page) {
-            case .finished: sum
-            case .partWay(_, let minutes): sum + minutes
-            default: sum + page.estimatedMinutes
+        // Each page's whole and what is left on one measure: a part-way page's both come from its
+        // listen text, the rest from its word count.
+        var total = 0, left = 0
+        for page in timed {
+            if page.finishedAt != nil {
+                total += page.estimatedMinutes
+            } else if let spot = PageProgress.spot(of: page) {
+                total += spot.minutes
+                left += spot.minutesLeft
+            } else {
+                total += page.estimatedMinutes
+                left += page.estimatedMinutes
             }
         }
         minutesLeft = left
@@ -103,6 +116,6 @@ struct FolderProgress {
     /// The header's bar and ["38%", "6 h 10 min left"], once a page is finished or part-way.
     var header: (fraction: Double?, label: [String]) {
         guard let fraction else { return (nil, []) }
-        return (fraction, ["\(Int((fraction * 100).rounded()))%", "\(ListeningTime.label(minutes: minutesLeft)) left"])
+        return (fraction, ["\(Int((fraction * 100).rounded()))%", ListeningTime.leftLabel(minutes: minutesLeft)])
     }
 }
