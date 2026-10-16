@@ -155,7 +155,6 @@ enum LaunchHooks {
                     page.positionParagraph = 2
                     page.lastPlayedAt = .now.addingTimeInterval(-600)
                     book.currentPageKey = page.key
-                    book.lastPlayedAt = page.lastPlayedAt
                 }
             }
         }
