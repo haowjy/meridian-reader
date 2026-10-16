@@ -58,7 +58,9 @@ UITests/    UI tests (MeridianReaderUITests)
   writes listening progress to it).
   `AppLaunch.run` does the launch work once: the library's launch maintenance
   (`maintainLibrary`, which then lets the render queue adopt and render), with the Debug launch
-  hooks before and after it, then crash resume. Views only render.
+  hooks before and after it, then crash resume. Views only render. A Debug build hosting the unit
+  tests builds none of it (`AppMain`): tests build their own stacks over their own files
+  (`TestSpeech`, `LibraryTestEnvironment`).
 - **Navigation.** `ShellState` owns what you see: the surface (browser or library), the Reader
   sheet and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
   It asks the playback session what you hear (`isHearing`) and stores nothing about it. Browse and the library share
