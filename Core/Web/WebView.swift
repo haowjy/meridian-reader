@@ -1,6 +1,12 @@
 import SwiftUI
 import WebKit
 
+extension EnvironmentValues {
+    /// URL schemes the browser's web view serves itself, by scheme: none in a normal launch; the UI
+    /// tests' offline pages when a Debug launch asks for them (App sets it).
+    @Entry var webViewSchemeHandlers: [String: any WKURLSchemeHandler] = [:]
+}
+
 struct WebView: UIViewRepresentable {
     var store: WebViewStore
 
@@ -11,11 +17,9 @@ struct WebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
-        #if DEBUG
-        if LaunchOptions.current.servesTestPages {
-            config.setURLSchemeHandler(TestPageSchemeHandler(), forURLScheme: TestPageSchemeHandler.scheme)
+        for (scheme, handler) in context.environment.webViewSchemeHandlers {
+            config.setURLSchemeHandler(handler, forURLScheme: scheme)
         }
-        #endif
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator

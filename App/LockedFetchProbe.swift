@@ -283,7 +283,7 @@ final class LockedFetchProbe {
     /// Loads, snapshots and extracts the test page, logging each stage: what WebKit's answers
     /// say, before the conditions they were given in are checked.
     private func fetchAndExtract() async -> (Ruling, error: String?) {
-        let fetcher = URLPageFetcher(timeout: Self.fetchTimeout)
+        let fetcher = URLPageFetcher(timeout: Self.fetchTimeout, schemeHandlers: TestPageSchemeHandler.handlers)
         let started = ListenTimingLog.now()
         let snapshot: URLPageFetcher.Snapshot
         do {

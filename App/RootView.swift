@@ -30,7 +30,8 @@ struct RootView: View {
 #if DEBUG
 /// What the launch arguments ask of the views for UI tests and screenshot runs: still playing
 /// bars (`-uiTesting`, so the app can go idle between test steps) and the ⋯ panel's focus marker,
-/// and the ⋯ morph slowed (`-slowMenuAnimation`).
+/// the ⋯ morph slowed (`-slowMenuAnimation`), and the offline test pages in the browser
+/// (`-browseTestPages`).
 private struct LaunchTestHooks: ViewModifier {
     let options: LaunchOptions
 
@@ -39,6 +40,7 @@ private struct LaunchTestHooks: ViewModifier {
             .environment(\.playingBarsMove, !options.uiTesting)
             .environment(\.morphMenuMarksFocus, options.uiTesting)
             .environment(\.morphMenuAnimation, options.slowMenuAnimation ? .easeInOut(duration: 3) : Motion.standard)
+            .environment(\.webViewSchemeHandlers, options.servesTestPages ? TestPageSchemeHandler.handlers : [:])
     }
 }
 #endif

@@ -83,7 +83,11 @@ enum AppComposition {
     /// It starts once the launch's library maintenance is done (`AppLaunch`).
     static func makeDownloads(library: LibraryStore) -> DownloadCenter {
         let speech = speechController
+        #if DEBUG
+        let fetcher = URLPageFetcher(schemeHandlers: TestPageSchemeHandler.handlers)
+        #else
         let fetcher = URLPageFetcher()
+        #endif
         return DownloadCenter(library: library, tts: speech.localTTS,
                               fetch: { try await fetcher.content(of: $0) },
                               save: { try ArticleSaveCoordinator(library: library, speech: speech).save($0) },
