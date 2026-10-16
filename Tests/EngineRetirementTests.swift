@@ -64,15 +64,15 @@ final class EngineRetirementTests: XCTestCase {
         XCTAssertEqual(cache.purgeEngine(nano), .init(), "idempotent")
     }
 
-    private func coordinator(selected: String, installed: Bool, provider: FakeEngineProvider,
-                             defaults: UserDefaults, cacheRoot: URL) -> LocalTTSCoordinator {
-        defaults.set(selected, forKey: LocalTTSCoordinator.engineIDKey)
+    /// A launch with `selected` stored and the replacement installed or not, then the retired
+    /// engines' cleanup, as the composition runs it.
+    private func launch(_ stack: TestSpeech, selected: String, installed: Bool,
+                        provider: FakeEngineProvider) -> LocalTTSCoordinator {
+        stack.relaunch()
+        stack.defaults.set(selected, forKey: LocalTTSCoordinator.engineIDKey)
         provider.installed = installed
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), provider], gate: { _ in true })
-        let tts = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                      audioCache: ArticleAudioCache(root: cacheRoot),
-                                      crashGuard: EngineCrashGuard(directory: tempDir("Guard")))
-        for engine in registry.retiredEngines { RetiredEngineCleanup(engine: engine).runIfNeeded(tts) }
+        let tts = stack.tts
+        for engine in stack.engines.retiredEngines { RetiredEngineCleanup(engine: engine).runIfNeeded(tts) }
         return tts
     }
 
@@ -82,17 +82,16 @@ final class EngineRetirementTests: XCTestCase {
         provider.retired = [RetiredEngine(id: .retiredChatterboxNano, displayName: "Chatterbox Nano",
                                           doneKey: "test.retired.done", replacement: FakeEngineProvider.fakeID,
                                           deleteFiles: { deleteCalls += 1; return 1234 })]
-        let suite = "EngineRetirementTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let root = tempDir("RetireCache")
+        let stack = TestSpeech(providers: [provider])
+        defer { stack.tearDown() }
+        let defaults = stack.defaults
         let key = UUID()
-        let cache = ArticleAudioCache(root: root)
+        let cache = ArticleAudioCache(root: stack.cacheRoot)
         try writeCAF(cache.directory(for: key).appendingPathComponent("p-0000.caf"))
         try writeIndex(cache, key, json: #"{"engineID":"\#(nano)","voiceID":"system","createdAt":0,"paragraphs":[\#(entry(0))]}"#)
 
         // Replacement not installed → Apple. Cleanup runs (cache + files).
-        let c1 = coordinator(selected: nano, installed: false, provider: provider, defaults: defaults, cacheRoot: root)
+        let c1 = launch(stack, selected: nano, installed: false, provider: provider)
         XCTAssertEqual(c1.selectedEngineID, .apple)
         XCTAssertEqual(defaults.string(forKey: LocalTTSCoordinator.engineIDKey), "apple")
         XCTAssertEqual(deleteCalls, 1)
@@ -100,7 +99,7 @@ final class EngineRetirementTests: XCTestCase {
         XCTAssertFalse(cache.hasCache(for: key), "Nano-keyed audio deleted")
 
         // Replacement installed → it. Cleanup does not run again.
-        let c2 = coordinator(selected: nano, installed: true, provider: provider, defaults: defaults, cacheRoot: root)
+        let c2 = launch(stack, selected: nano, installed: true, provider: provider)
         XCTAssertEqual(c2.selectedEngineID, FakeEngineProvider.fakeID)
         XCTAssertEqual(deleteCalls, 1, "one-time")
     }

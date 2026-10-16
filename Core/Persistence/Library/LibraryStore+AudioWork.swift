@@ -93,7 +93,7 @@ extension LibraryStore {
     /// Notes where the crash-resume point is expected when `work` runs, if it names the source.
     private func planResumePoint(_ work: LibraryAudioWork) {
         if !audioPlan.resumeLoaded {
-            audioPlan.resume = ListenResumePointStore.shared.load()
+            audioPlan.resume = audio.resumePoints.load()
             audioPlan.resumeLoaded = true
         }
         guard let source = work.sourceKey, work.key != nil, let point = audioPlan.resume,
@@ -136,7 +136,7 @@ extension LibraryStore {
     @discardableResult
     private func performStoredWork(planned: Set<ObjectIdentifier>) -> LibraryAudioWorkOutcome {
         var outcome = LibraryAudioWorkOutcome()
-        defer { tts.audioCache.held = outcome.held }
+        defer { audio.audioCache.held = outcome.held }
         let rows: [LibraryAudioWork]
         do {
             rows = try fetchAudioWork(context)
@@ -167,7 +167,7 @@ extension LibraryStore {
             context.delete(row)
             outcome.finished += 1
         }
-        tts.noteBakeMarksChanged()
+        audio.noteBakeMarksChanged()
         guard outcome.finished > 0 else { return outcome }
         do {
             try saveChanges()
@@ -211,11 +211,11 @@ extension LibraryStore {
             ListenTimingLog.log("library_audio_work", ["kind": "align", "key": ListenTimingLog.shortKey(key), "skipped": "page changed"])
             return
         }
-        let cache = tts.audioCache
+        let cache = audio.audioCache
         if work.stampsSource { try cache.stampMissingHashes(articleID: key, paragraphs: work.sourceParagraphs) }
-        let rec = try cache.reconcile(articleID: key, paragraphs: new) { self.tts.chunkPlans.chunks(for: $1, engineID: $0) }
+        let rec = try cache.reconcile(articleID: key, paragraphs: new) { self.audio.chunkPlans.chunks(for: $1, engineID: $0) }
         guard cache.isAligned(articleID: key, paragraphs: new) else { throw LibraryAudioWorkError.notAligned(key) }
-        let pending = PendingBakeJobStore.shared
+        let pending = audio.pendingBakes
         if let job = pending.pendingJobs().first(where: { $0.articleID == key }), job.paragraphs != new {
             let start = ParagraphPositionMap.mapParagraphStart(job.priorityStart, from: ParagraphDocument(parts: job.paragraphs),
                                                                to: ParagraphDocument(parts: new))
@@ -262,11 +262,10 @@ extension LibraryStore {
                                                        "from": ListenTimingLog.shortKey(from), "skipped": "key reused"])
             return
         }
-        let cache = tts.audioCache
+        let cache = audio.audioCache
         guard let keeper = try context.fetch(LibraryQueries.page(key: to)).first else {
             if cache.hasDirectory(for: from) { cache.markEphemeral(cacheKey: from) }
-            tts.synthQueue.remove(cacheKey: from)
-            PendingBakeJobStore.shared.removePending(articleID: from)
+            audio.removeBakeJob(cacheKey: from)
             log("audio \(Self.short(from)): the page it merged into is gone; left to the age prune")
             ListenTimingLog.log("library_audio_work", ["kind": "merge", "key": ListenTimingLog.shortKey(to),
                                                        "from": ListenTimingLog.shortKey(from), "skipped": "kept page gone"])
@@ -282,14 +281,13 @@ extension LibraryStore {
             try cache.rekeyCache(from: from, to: to)
         } else {
             rec = try cache.reconcile(articleID: to, paragraphs: paragraphs, adopting: from) {
-                self.tts.chunkPlans.chunks(for: $1, engineID: $0)
+                self.audio.chunkPlans.chunks(for: $1, engineID: $0)
             }
         }
         guard !cache.hasDirectory(for: from), paragraphs.isEmpty || cache.isAligned(articleID: to, paragraphs: paragraphs) else {
             throw LibraryAudioWorkError.notAligned(to)
         }
-        tts.synthQueue.remove(cacheKey: from)
-        PendingBakeJobStore.shared.removePending(articleID: from)
+        audio.removeBakeJob(cacheKey: from)
         moveResumePoints(work, onto: paragraphs, live: live)
         keyMerged(from, to, textFingerprint(of: keeper))
         ListenTimingLog.log("library_audio_work", [
@@ -310,8 +308,8 @@ extension LibraryStore {
             try settleAudio(key, page: page)
             return
         }
-        try tts.clearListenAudio(for: key)
-        guard !tts.audioCache.hasDirectory(for: key) else { throw LibraryAudioWorkError.notDeleted(key) }
+        try audio.clearListenAudio(for: key)
+        guard !audio.audioCache.hasDirectory(for: key) else { throw LibraryAudioWorkError.notDeleted(key) }
         ListenTimingLog.log("library_audio_work", ["kind": "delete", "key": ListenTimingLog.shortKey(key)])
         log("audio \(Self.short(key)) deleted with its page")
     }
@@ -332,15 +330,15 @@ extension LibraryStore {
     /// saved in the Library (a page with no audio yet has none to mark); for any other page, or
     /// none, the ephemeral TTL, with the address the page has now. The files stay either way.
     private func settleAudio(_ key: UUID, page: Page?) throws {
-        let cache = tts.audioCache
+        let cache = audio.audioCache
         if page?.isSavedToLibrary == true {
-            tts.migrateListenCache(from: key, to: key)
+            audio.markListenCacheSaved(key)
             guard !cache.hasDirectory(for: key) || cache.loadMeta(for: key)?.kind == .saved else {
                 throw LibraryAudioWorkError.notSaved(key)
             }
             log("audio \(Self.short(key)) saved with its page")
         } else {
-            tts.markListenCacheEphemeral(key, canonicalURL: page?.canonicalURL)
+            audio.markListenCacheEphemeral(key, canonicalURL: page?.canonicalURL)
             guard cache.loadMeta(for: key)?.kind == .ephemeral else { throw LibraryAudioWorkError.notEphemeral(key) }
             log("audio \(Self.short(key)) on the ephemeral TTL (\(page == nil ? "no page" : "not saved in the Library"))")
         }
@@ -356,15 +354,16 @@ extension LibraryStore {
     private func moveResumePoints(_ work: LibraryAudioWork, onto paragraphs: [String], live: Bool) {
         guard let source = work.sourceKey, let target = work.key else { return }
         if let paragraph = work.resumeParagraph, let at = work.resumeAt {
-            let store = ListenResumePointStore.shared
+            let store = audio.resumePoints
             if let point = store.load(), point.matches(source), point.paragraph == paragraph,
                abs(point.at.timeIntervalSince(at)) < 0.001 {
                 let moved = Self.move(point, by: work, onto: paragraphs)
                 store.save(article: target, paragraph: moved.paragraph, text: moved.text, at: point.at)
             }
         }
-        guard live || (tts.pendingResume.map { $0.paragraph == work.resumeParagraph } ?? false) else { return }
-        tts.remapPendingResume(article: source) { Self.move($0, by: work, onto: paragraphs) }
+        audio.remapPendingResume(article: source) { target in
+            live || target.paragraph == work.resumeParagraph ? Self.move(target, by: work, onto: paragraphs) : target
+        }
     }
 
     /// A crash-resume point once `work` has moved its page onto `paragraphs`: under the work's

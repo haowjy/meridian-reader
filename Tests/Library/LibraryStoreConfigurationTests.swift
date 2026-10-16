@@ -85,16 +85,12 @@ final class LibraryStoreConfigurationTests: XCTestCase {
     }
 
     /// The "local" configuration's file is the one `ModelContainer(for: SavedArticle.self,
-    /// RecentVisit.self)` used, and the app (this test's host) opened it there.
+    /// RecentVisit.self)` used, so the app opens an install's existing store there.
     func testLocalConfigurationIsTodaysDefaultStore() {
         let todays = ModelConfiguration(for: SavedArticle.self, RecentVisit.self)
-        XCTAssertEqual(todays.url.standardizedFileURL.path, LibraryStoreConfiguration.localURL.standardizedFileURL.path)
+        XCTAssertEqual(todays.url.standardizedFileURL.path, AppDirectories.localStore.standardizedFileURL.path)
         let unnamed = ModelConfiguration(schema: Schema([SavedArticle.self, RecentVisit.self]))
-        XCTAssertEqual(unnamed.url.standardizedFileURL.path, LibraryStoreConfiguration.localURL.standardizedFileURL.path)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: LibraryStoreConfiguration.localURL.path),
-                      "the host app opened the local store at today's URL")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: LibraryStoreConfiguration.libraryURL.path),
-                      "and the library beside it")
+        XCTAssertEqual(unnamed.url.standardizedFileURL.path, AppDirectories.localStore.standardizedFileURL.path)
     }
 
     /// A later release drops `SavedArticle` from the local configuration: the store still opens

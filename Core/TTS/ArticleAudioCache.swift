@@ -93,15 +93,9 @@ final class ArticleAudioCache {
     @ObservationIgnored var faultHook: ((ChangeStep) throws -> Void)?
     #endif
 
-    init(fileManager: FileManager = .default, root: URL = ArticleAudioCache.cacheRoot) {
+    init(fileManager: FileManager = .default, root: URL) {
         self.fileManager = fileManager
         self.root = root
-    }
-
-    nonisolated static var cacheRoot: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("TTSCache", isDirectory: true)
     }
 
     /// Keeps the cache out of backups (audio the app can render again); at launch, before

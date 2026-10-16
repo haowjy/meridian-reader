@@ -9,20 +9,12 @@ import Foundation
 /// `reader.tts.pendingBakeJobs` UserDefaults key move to the file on the first load.
 @MainActor
 final class PendingBakeJobStore {
-    static let shared = PendingBakeJobStore()
-
     private static let legacyDefaultsKey = "reader.tts.pendingBakeJobs"
     private let storeURL: URL
     private let defaults: UserDefaults
 
-    nonisolated static var defaultStoreURL: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("PendingBakeJobs.json")
-    }
-
-    /// `storeURL` / `defaults` are injectable for tests.
-    init(storeURL: URL = PendingBakeJobStore.defaultStoreURL, defaults: UserDefaults = .standard) {
+    /// `defaults`: where jobs an older build kept still are.
+    init(storeURL: URL, defaults: UserDefaults) {
         self.storeURL = storeURL
         self.defaults = defaults
     }

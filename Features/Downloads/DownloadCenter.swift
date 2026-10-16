@@ -491,7 +491,7 @@ final class DownloadCenter {
     /// The page rendering now stops (paused, removed): its job leaves the queue, unless listening
     /// needs it (`needsAudio`). It stays queued in its download.
     private func stopActive() {
-        if let active, case .rendering = active.phase, !needsAudio(active.key) { tts.cancelDownload(cacheKey: active.key) }
+        if let active, case .rendering = active.phase, !needsAudio(active.key) { tts.removeBakeJob(cacheKey: active.key) }
         active = nil
     }
 

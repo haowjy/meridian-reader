@@ -11,13 +11,22 @@ enum AppComposition {
     static let speechController: SpeechController = {
         #if DEBUG
         let options = LaunchOptions.current
-        return SpeechController(engines: engineRegistry,
-                                localTTS: LocalTTSCoordinator(engines: engineRegistry, selecting: options.selectsEngine),
+        return SpeechController(localTTS: makeLocalTTS(selecting: options.selectsEngine),
                                 keepsStoredRate: options.keepsStoredRate)
         #else
-        return SpeechController(engines: engineRegistry)
+        return SpeechController(localTTS: makeLocalTTS(selecting: nil))
         #endif
     }()
+
+    /// The on-device engine's coordinator over the app's files (`AppDirectories`) and settings.
+    private static func makeLocalTTS(selecting engine: SpeechEngineID?) -> LocalTTSCoordinator {
+        LocalTTSCoordinator(engines: engineRegistry, defaults: .standard,
+                            audioCache: ArticleAudioCache(root: AppDirectories.audioCache),
+                            crashGuard: .shared,
+                            pendingBakes: PendingBakeJobStore(storeURL: AppDirectories.pendingBakeJobs, defaults: .standard),
+                            resumePoints: ListenResumePointStore(url: AppDirectories.listenResumePoint),
+                            selecting: engine)
+    }
 
     /// What you see. It asks the playback session what you hear, so the Reader of the playing
     /// page opens as Now Playing, and reopens on the surface you left (decision D10).
@@ -42,7 +51,7 @@ enum AppComposition {
     /// the text it plays (otherwise the session stops).
     static func makeLibrary(context: ModelContext) -> LibraryStore {
         let speech = speechController
-        let library = LibraryStore(context: context, tts: speech.localTTS)
+        let library = LibraryStore(context: context, audio: speech.localTTS)
         library.stopPlaybackIfPlaying = { key in
             if speech.activeSessionID == key { speech.stop() }
         }
@@ -87,8 +96,7 @@ enum AppComposition {
     /// excepted), the chunk scratch (nothing plays at launch) and the prune of unsaved audio
     /// (7 days, 500 MB; held audio excepted). First of all the cache is kept out of backups: it
     /// is audio the app can render again (`BackupExclusion`).
-    static func prepareAudioCache(library: LibraryStore, migrations: [LaunchMigration]) {
-        let tts = library.tts
+    static func prepareAudioCache(library: LibraryStore, tts: LocalTTSCoordinator, migrations: [LaunchMigration]) {
         tts.audioCache.excludeFromBackup()
         tts.holdRenderingForLaunch()
         library.finishAudioWork()
@@ -96,7 +104,7 @@ enum AppComposition {
         tts.audioCache.removeAllChunkScratch()
         let pruned = tts.audioCache.pruneEphemeral()
         if pruned.removed > 0 {
-            print("[TTSCache] pruned ephemeral removed=\(pruned.removed) freed=\(pruned.freedBytes)")
+            ListenTimingLog.log("audio_cache_prune", ["removed": pruned.removed, "bytes": pruned.freedBytes])
         }
     }
 
@@ -135,9 +143,9 @@ enum AppComposition {
     /// background-GPU probe, and pruning Core ML's compiled-model cache of bundles from previous
     /// installs (once per install, background).
     static func runLaunchMaintenance(library: LibraryStore) {
-        let tts = library.tts
-        prepareAudioCache(library: library, migrations: launchMigrations(for: engineRegistry))
-        for directory in engineRegistry.regenerableDirectories + [ListenTimingLog.directory] {
+        let tts = speechController.localTTS
+        prepareAudioCache(library: library, tts: tts, migrations: launchMigrations(for: engineRegistry))
+        for directory in engineRegistry.regenerableDirectories + [AppDirectories.listenTiming] {
             BackupExclusion.exclude(directory)
         }
         ListenTimingLog.log("app_launch", ["engine": tts.selectedEngineID.rawValue, "build": LocalTTSCoordinator.buildConfiguration])

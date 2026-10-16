@@ -1,4 +1,3 @@
-import SwiftData
 import XCTest
 @testable import MeridianReader
 
@@ -6,9 +5,9 @@ import XCTest
 /// or another 🎧 during extraction supersedes it, and only the current request may start.
 @MainActor
 final class ListenNowTests: XCTestCase {
-    private var fixture: TestSpeech!
-    private var container: ModelContainer!
-    private var library: LibraryStore!
+    private var env: LibraryTestEnvironment!
+    private var fixture: TestSpeech { env.speech }
+    private var library: LibraryStore { env.library }
     private let extractor = DelayedExtractor()
     private var speech: SpeechController { fixture.speech }
 
@@ -16,13 +15,9 @@ final class ListenNowTests: XCTestCase {
     private let pageB = URL(string: "https://example.com/b")!
     private let pageC = URL(string: "https://example.com/c")!
 
-    override func setUp() async throws {
-        fixture = TestSpeech()
-        container = try LibraryStoreConfiguration.makeInMemoryContainer()
-        library = LibraryStore(context: container.mainContext, tts: fixture.speech.localTTS)
-    }
+    override func setUp() async throws { env = try LibraryTestEnvironment(speech: TestSpeech()) }
 
-    override func tearDown() async throws { fixture.tearDown() }
+    override func tearDown() async throws { env.cleanUp() }
 
     private func target(_ url: URL) -> ListenTarget {
         .webPage(canonicalURL: ArticleIdentity.canonicalURLString(from: url))
@@ -30,7 +25,7 @@ final class ListenNowTests: XCTestCase {
 
     /// 🎧 on the page at `url`, extracting through `extractor`; returns the running request.
     private func tapListen(_ url: URL) -> Task<ListenNowOutcome, Never> {
-        let library = library!
+        let library = library
         let extractor = extractor
         let speech = speech
         return Task {

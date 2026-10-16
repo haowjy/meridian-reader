@@ -33,6 +33,6 @@ extension LibraryStore {
     /// Whether `page` has audio on disk for any voice (*Delete Downloads* is offered).
     func hasDownloads(_ page: Page) -> Bool {
         guard let key = page.key else { return false }
-        return tts.hasListenAudio(for: key)
+        return audio.audioCache.hasCache(for: key)
     }
 }

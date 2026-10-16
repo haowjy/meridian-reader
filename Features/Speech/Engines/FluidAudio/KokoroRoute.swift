@@ -153,7 +153,6 @@ enum KokoroCrashRecovery {
             "onnx_crashes": onnxCount, "resume_key": resume?.articleKey.prefix(8) ?? "",
             "resume_p": resume?.paragraph ?? -1, "auto_play": resume?.autoPlay ?? false,
         ])
-        print("[TTS] Kokoro crash (route \(crash.route ?? "legacy")) → \(outcome)")
         return recovery
     }
 }

@@ -8,7 +8,7 @@ import Foundation
 struct BookImportFiles {
     let directory: URL
 
-    static let standard = BookImportFiles(directory: URL.applicationSupportDirectory.appending(path: "Imports", directoryHint: .isDirectory))
+    static let standard = BookImportFiles(directory: AppDirectories.imports)
 
     /// A copy of the file the picker gave (`url`, security-scoped or not). A copy that fails
     /// leaves nothing here.

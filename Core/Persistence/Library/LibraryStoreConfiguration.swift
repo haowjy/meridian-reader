@@ -17,13 +17,10 @@ enum LibraryStoreConfiguration {
     static var localModels: [any PersistentModel.Type] { [SavedArticle.self, RecentVisit.self] }
     static var libraryModels: [any PersistentModel.Type] { [Folder.self, Page.self, LibraryMigrationReceipt.self, LibraryAudioWork.self] }
 
-    static var storeDirectory: URL { URL.applicationSupportDirectory }
-    /// What `ModelConfiguration()` resolves to (`LibraryStoreConfigurationTests` checks it).
-    static var localURL: URL { storeDirectory.appending(path: "default.store") }
-    static var libraryURL: URL { storeDirectory.appending(path: "library.store") }
-
-    /// The app's container, over the two files.
-    static func makeContainer(localURL: URL = localURL, libraryURL: URL = libraryURL) throws -> ModelContainer {
+    /// The app's container, over the two files. The local one is where `ModelConfiguration()`
+    /// resolves to (`LibraryStoreConfigurationTests` checks it).
+    static func makeContainer(localURL: URL = AppDirectories.localStore,
+                              libraryURL: URL = AppDirectories.libraryStore) throws -> ModelContainer {
         try FileManager.default.createDirectory(at: localURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: libraryURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         let local = ModelConfiguration(localName, schema: Schema(localModels), url: localURL)

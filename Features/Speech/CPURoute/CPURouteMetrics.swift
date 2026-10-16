@@ -78,7 +78,7 @@ final class FootprintSampler: @unchecked Sendable {
 /// configs, soak chunks, start/end markers). Pulled with the same devicectl command as timing.jsonl.
 enum CPUBenchLog {
     private static let queue = DispatchQueue(label: "reader.cpubench-log", qos: .utility)
-    static var fileURL: URL { ListenTimingLog.directory.appendingPathComponent("cpubench.jsonl") }
+    static var fileURL: URL { AppDirectories.listenTiming.appendingPathComponent("cpubench.jsonl") }
 
     static func append(_ event: String, _ fields: [String: Any]) {
         var obj = fields
@@ -89,7 +89,7 @@ enum CPUBenchLog {
             guard JSONSerialization.isValidJSONObject(obj),
                   let data = try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys]) else { return }
             let fm = FileManager.default
-            try? fm.createDirectory(at: ListenTimingLog.directory, withIntermediateDirectories: true)
+            try? fm.createDirectory(at: AppDirectories.listenTiming, withIntermediateDirectories: true)
             if !fm.fileExists(atPath: fileURL.path) { fm.createFile(atPath: fileURL.path, contents: nil) }
             guard let h = try? FileHandle(forWritingTo: fileURL) else { return }
             defer { try? h.close() }

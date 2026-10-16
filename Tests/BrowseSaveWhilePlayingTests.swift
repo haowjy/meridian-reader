@@ -16,21 +16,9 @@ final class BrowseSaveWhilePlayingTests: XCTestCase {
     }
 
     private func makeCoordinator(_ provider: FakeEngineProvider) -> LocalTTSCoordinator {
-        let suite = "BrowseSaveWhilePlaying-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.set(FakeEngineProvider.fakeID.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), provider], gate: { _ in true })
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent("BrowseSave-\(UUID().uuidString)")
-        let guardDir = tmp.appendingPathComponent("BrowseSaveGuard-\(UUID().uuidString)")
-        cleanups.append {
-            defaults.removePersistentDomain(forName: suite)
-            try? FileManager.default.removeItem(at: root)
-            try? FileManager.default.removeItem(at: guardDir)
-        }
-        return LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                   audioCache: ArticleAudioCache(root: root),
-                                   crashGuard: EngineCrashGuard(directory: guardDir))
+        let stack = TestSpeech(providers: [provider], selected: FakeEngineProvider.fakeID)
+        cleanups.append { stack.tearDown() }
+        return stack.tts
     }
 
     private func waitIdle(_ queue: GlobalSynthQueue, timeout: TimeInterval = 30) async throws {

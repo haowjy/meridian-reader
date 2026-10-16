@@ -14,6 +14,9 @@ final class LocalSynthService: SynthChunkRendering {
     @ObservationIgnored var onStateChange: (() -> Void)?
 
     @ObservationIgnored private let engines: EngineRegistry
+    /// Where a guarded engine's calls leave their in-flight marker: the coordinator's, which reads
+    /// it at the next launch.
+    @ObservationIgnored private let crashGuard: EngineCrashGuard
     /// Engine whose host renders: the last one loaded (the default local engine before any load).
     @ObservationIgnored private(set) var engineID: SpeechEngineID
     @ObservationIgnored private var engineVoice: String?
@@ -25,8 +28,9 @@ final class LocalSynthService: SynthChunkRendering {
     @ObservationIgnored private var retiring: Task<Void, Never>?
     @ObservationIgnored private let appleRenderer = AppleFallbackRenderer()
 
-    init(engines: EngineRegistry) {
+    init(engines: EngineRegistry, crashGuard: EngineCrashGuard) {
         self.engines = engines
+        self.crashGuard = crashGuard
         self.engineID = engines.defaultLocalEngineID
     }
 
@@ -172,7 +176,7 @@ final class LocalSynthService: SynthChunkRendering {
         if let renderer, renderer.engineID == engineID { return renderer }
         guard let descriptor = engines.descriptor(engineID),
               let host = engines.makeHost(for: engineID, voice: engineVoice),
-              let made = LocalChunkRenderer(host: host, descriptor: descriptor)
+              let made = LocalChunkRenderer(host: host, descriptor: descriptor, crashGuard: crashGuard)
         else {
             throw LocalSynthError.engineUnavailable(
                 engines.blockReason(engineID) ?? "\(engines.displayName(engineID)) is not available on this device.")

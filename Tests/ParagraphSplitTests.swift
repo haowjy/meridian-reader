@@ -211,24 +211,13 @@ final class ParagraphLayoutMigrationTests: XCTestCase {
     override func tearDown() {
         cleanups.forEach { $0() }
         cleanups = []
-        ListenResumePointStore.shared.clear()
         super.tearDown()
     }
 
     private func makeCoordinator() -> LocalTTSCoordinator {
-        let suite = "LayoutMigration-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent("LayoutMig-\(UUID().uuidString)")
-        let guardDir = tmp.appendingPathComponent("LayoutMigGuard-\(UUID().uuidString)")
-        cleanups.append {
-            defaults.removePersistentDomain(forName: suite)
-            try? FileManager.default.removeItem(at: root)
-            try? FileManager.default.removeItem(at: guardDir)
-        }
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), KokoroStubProvider()], gate: { _ in true })
-        return LocalTTSCoordinator(engines: registry, defaults: defaults, audioCache: ArticleAudioCache(root: root),
-                                   crashGuard: EngineCrashGuard(directory: guardDir))
+        let stack = TestSpeech(providers: [KokoroStubProvider()])
+        cleanups.append { stack.tearDown() }
+        return stack.tts
     }
 
     /// A stitched paragraph CAF like the queue writes: chunk k = `lengths[k]` samples of value k+1.

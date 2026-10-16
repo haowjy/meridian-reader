@@ -58,7 +58,9 @@ UITests/    UI tests (MeridianReaderUITests)
   writes listening progress to it).
   `AppLaunch.run` does the launch work once: the library's launch maintenance
   (`maintainLibrary`, which then lets the render queue adopt and render), with the Debug launch
-  hooks before and after it, then crash resume. Views only render.
+  hooks before and after it, then crash resume. Views only render. A Debug build hosting the unit
+  tests builds none of it (`AppMain`): tests build their own stacks over their own files
+  (`TestSpeech`, `LibraryTestEnvironment`).
 - **Navigation.** `ShellState` owns what you see: the surface (browser or library), the Reader
   sheet and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
   It asks the playback session what you hear (`isHearing`) and stores nothing about it. Browse and the library share
@@ -67,8 +69,10 @@ UITests/    UI tests (MeridianReaderUITests)
   shows of what you hear (`nowPlaying`, `playState(of:)`); `PlaybackSessionState` owns what you
   hear and its position; `LocalTTSCoordinator` owns the on-device engine, render queue and audio cache.
   Details in `LISTEN_PLAYBACK.md`.
-- **Dependency direction.** Features → Core. Core never imports a voice library (FluidAudio and
-  ONNX Runtime live in `Features/Speech/Engines/`). Features never name a concrete extractor.
+- **Dependency direction.** Features → Core: Core names no Features type (the library reaches
+  the speech stack through `LibraryAudioEffects`, the render queue through `SynthQueueContext`).
+  Core never imports a voice library (FluidAudio and ONNX Runtime live in
+  `Features/Speech/Engines/`). Features never name a concrete extractor.
 
 ## Extraction
 
@@ -335,7 +339,7 @@ text's positions on another.
 **`RecentVisit`** (SwiftData): browser history, the last 30 top-level http(s) pages (canonical
 URL, title, host, visit time, favicon), deduped by URL, recorded when a load finishes.
 
-Elsewhere:
+Elsewhere (`AppDirectories` names every file under Application Support):
 
 | What | Where |
 |------|-------|

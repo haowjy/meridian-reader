@@ -3,16 +3,16 @@ import SwiftData
 import XCTest
 @testable import MeridianReader
 
-/// A library over an in-memory container (or, `fileBacked`, the two store files), with its own
-/// audio cache, defaults and bookmarks file in a temp directory. `cleanUp()` removes them.
+/// A library over an in-memory container (or, `fileBacked`, the two store files) and a speech
+/// stack (`TestSpeech`, its files in the same temp directory unless the test brings its own), with
+/// its own defaults and bookmarks file. With `TestSpeech`, the only way tests build a store.
+/// `cleanUp()` removes them.
 @MainActor
 final class LibraryTestEnvironment {
     let dir: URL
     private(set) var container: ModelContainer
     let fileBacked: Bool
-    private(set) var tts: LocalTTSCoordinator
-    let defaults: UserDefaults
-    let suite: String
+    let speech: TestSpeech
     let legacy: LegacyLibrarySources
     var now = Date(timeIntervalSince1970: 1_800_000_000)
     private(set) var library: LibraryStore!
@@ -23,15 +23,16 @@ final class LibraryTestEnvironment {
     /// saves the position on Stop.
     var onStop: ((UUID) -> Void)?
 
-    init(fileBacked: Bool = false) throws {
+    /// `speech`: the stack the library's audio work goes through (by default Apple and a Kokoro
+    /// stub, over this directory).
+    init(fileBacked: Bool = false, speech: TestSpeech? = nil) throws {
         dir = FileManager.default.temporaryDirectory.appending(path: "LibraryTest-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         self.fileBacked = fileBacked
         container = try Self.makeContainer(dir: dir, fileBacked: fileBacked)
-        suite = "LibraryTest-\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suite)!
-        tts = Self.makeTTS(dir: dir, defaults: defaults)
-        legacy = LegacyLibrarySources(bookmarksURL: dir.appending(path: "Bookmarks/bookmarks.json"), defaults: defaults)
+        self.speech = speech ?? TestSpeech(providers: [KokoroStubProvider()], root: dir)
+        legacy = LegacyLibrarySources(bookmarksURL: dir.appending(path: "Bookmarks/bookmarks.json"),
+                                      defaults: self.speech.defaults)
         library = makeLibrary()
     }
 
@@ -45,27 +46,19 @@ final class LibraryTestEnvironment {
                                                            libraryURL: stores.appending(path: "library.store"))
     }
 
-    /// A coordinator over the audio cache in `dir/TTSCache`, its crash guard in `dir/guard`.
-    static func makeTTS(dir: URL, defaults: UserDefaults) -> LocalTTSCoordinator {
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), KokoroStubProvider()], gate: { _ in true })
-        return LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                   audioCache: ArticleAudioCache(root: dir.appending(path: "TTSCache")),
-                                   crashGuard: EngineCrashGuard(directory: dir.appending(path: "guard")))
-    }
-
     /// A relaunch from disk: a fresh container on the same store files (file-backed only), a
     /// fresh coordinator and audio cache over the same directory (nothing kept in memory), and a
     /// new library over them. Objects fetched before belong to the old container.
     func relaunch() throws {
         precondition(fileBacked, "relaunch needs the store files")
         container = try Self.makeContainer(dir: dir, fileBacked: true)
-        tts = Self.makeTTS(dir: dir, defaults: defaults)
+        speech.relaunch()
         library = makeLibrary()
     }
 
     /// A second store over the same container (a relaunch, as far as the library is concerned).
     func makeLibrary() -> LibraryStore {
-        let store = LibraryStore(context: container.mainContext, tts: tts, legacy: legacy, now: { [unowned self] in now })
+        let store = LibraryStore(context: container.mainContext, audio: speech.tts, legacy: legacy, now: { [unowned self] in now })
         store.stopPlaybackIfPlaying = { [unowned self] key in
             guard key == playingKey else { return }
             stoppedKeys.append(key)
@@ -76,13 +69,14 @@ final class LibraryTestEnvironment {
     }
 
     var context: ModelContext { container.mainContext }
+    var tts: LocalTTSCoordinator { speech.tts }
     var cache: ArticleAudioCache { tts.audioCache }
+    var defaults: UserDefaults { speech.defaults }
 
     func cleanUp() {
         try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.path)
-        defaults.removePersistentDomain(forName: suite)
+        speech.tearDown()
         try? FileManager.default.removeItem(at: dir)
-        ListenResumePointStore.shared.clear()
     }
 
     // MARK: Fixtures

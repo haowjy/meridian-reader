@@ -1,4 +1,3 @@
-import SwiftData
 import XCTest
 @testable import MeridianReader
 
@@ -9,22 +8,14 @@ import XCTest
 @MainActor
 final class ArticleSaveFailureTests: XCTestCase {
     private var env: LibraryTestEnvironment!
-    private var test: TestSpeech!
-    /// Over the environment's file-backed store and the speech's audio, as in the app.
-    private var library: LibraryStore!
-    private var saver: ArticleSaveCoordinator { ArticleSaveCoordinator(library: library, speech: test.speech) }
-    private var cache: ArticleAudioCache { test.speech.localTTS.audioCache }
+    /// Over the environment's file-backed store and its speech stack's audio, as in the app.
+    private var library: LibraryStore { env.library }
+    private var saver: ArticleSaveCoordinator { ArticleSaveCoordinator(library: library, speech: env.speech.speech) }
+    private var cache: ArticleAudioCache { env.cache }
 
-    override func setUp() async throws {
-        env = try LibraryTestEnvironment(fileBacked: true)
-        test = TestSpeech()
-        library = LibraryStore(context: env.context, tts: test.speech.localTTS, legacy: env.legacy)
-    }
+    override func setUp() async throws { env = try LibraryTestEnvironment(fileBacked: true) }
 
-    override func tearDown() async throws {
-        test.tearDown()
-        env.cleanUp()
-    }
+    override func tearDown() async throws { env.cleanUp() }
 
     private struct SaveFailed: Error {}
     private func failSaves() { library.saveContext = { _ in throw SaveFailed() } }

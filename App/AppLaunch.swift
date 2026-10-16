@@ -25,7 +25,7 @@ enum AppLaunch {
         LaunchHooks.runBeforeMigrations(.current, library: library, tts: speech.localTTS)
         #endif
 
-        maintainLibrary(library)
+        maintainLibrary(library, tts: speech.localTTS)
         downloads?.start()
         shell.restoreAtLaunch { library.folder(id: $0) != nil }
 
@@ -44,7 +44,7 @@ enum AppLaunch {
     /// adopts the saved bake jobs as this left them, and renders. Audio work an earlier launch
     /// left was finished before the first frame (`AppComposition.prepareAudioCache`), which
     /// started the hold.
-    static func maintainLibrary(_ library: LibraryStore) {
+    static func maintainLibrary(_ library: LibraryStore, tts: LocalTTSCoordinator) {
         // Copy saved articles and bookmarks without a receipt (layout pass and dedupe included).
         library.migrateLegacy()
         library.migrateFavoritesFolder()
@@ -61,7 +61,7 @@ enum AppLaunch {
         // save: both run again next launch).
         if !library.migrateParagraphLayout().rolledBack { library.dedupe() }
         library.pruneUnsaved()
-        library.tts.endLaunchHold()
+        tts.endLaunchHold()
     }
 
     /// Kokoro crashed last session: reopen the page in Now Playing at the paragraph that was

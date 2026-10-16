@@ -9,16 +9,11 @@ final class LibrarySizeTests: XCTestCase {
     static let chapterCount = 2_000
     static let budget: TimeInterval = 0.100
 
-    private var dir: URL!
+    private var env: LibraryTestEnvironment!
 
-    override func setUp() async throws {
-        dir = FileManager.default.temporaryDirectory.appending(path: "LibrarySize-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    }
+    override func setUp() async throws { env = try LibraryTestEnvironment(fileBacked: true) }
 
-    override func tearDown() async throws {
-        try? FileManager.default.removeItem(at: dir)
-    }
+    override func tearDown() async throws { env.cleanUp() }
 
     private func time(_ label: String, _ work: () -> Int) -> TimeInterval {
         let start = Date()
@@ -29,9 +24,7 @@ final class LibrarySizeTests: XCTestCase {
     }
 
     func testTwoThousandChapterSeriesPlayOrderAndFolderFetchUnder100ms() throws {
-        let container = try LibraryStoreConfiguration.makeContainer(localURL: dir.appending(path: "default.store"),
-                                                                    libraryURL: dir.appending(path: "library.store"))
-        let seed = ModelContext(container)
+        let seed = ModelContext(env.container)
         let series = Folder(name: "A Long Serial", kind: .series)
         seed.insert(series)
         // Chapters inserted out of order, so the sort is real work.
@@ -50,12 +43,8 @@ final class LibrarySizeTests: XCTestCase {
         }
         try seed.save()
 
-        let tts = LocalTTSCoordinator(engines: EngineRegistry(providers: [AppleSpeechProvider()], gate: { _ in true }),
-                                      defaults: UserDefaults(suiteName: "LibrarySize-\(UUID().uuidString)")!,
-                                      audioCache: ArticleAudioCache(root: dir.appending(path: "TTSCache")),
-                                      crashGuard: EngineCrashGuard(directory: dir.appending(path: "guard")))
-        // A fresh context, as at launch: nothing cached in memory.
-        let store = LibraryStore(context: ModelContext(container), tts: tts)
+        // The library's own context has fetched nothing yet: nothing cached in memory.
+        let store: LibraryStore = env.library
         let folder = try XCTUnwrap(store.folder(id: series.id))
 
         var order: [Page] = []

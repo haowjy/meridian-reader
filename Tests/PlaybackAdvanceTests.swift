@@ -10,9 +10,6 @@ final class PlaybackAdvanceTests: XCTestCase {
     private var speech: SpeechController { fixture.speech }
     private var apple: FakeListenEngine { fixture.apple }
     private var cleanups: [() -> Void] = []
-    /// Pages of tests with an on-device engine: stopping may file a bake job for them in the
-    /// process-wide store, which another test's engine would adopt. Removed once all has stopped.
-    private var bakeKeys: [UUID] = []
 
     override func setUp() async throws { fixture = TestSpeech() }
 
@@ -20,8 +17,6 @@ final class PlaybackAdvanceTests: XCTestCase {
         fixture.tearDown()
         cleanups.reversed().forEach { $0() }
         cleanups = []
-        for key in bakeKeys { PendingBakeJobStore.shared.removePending(articleID: key) }
-        bakeKeys = []
     }
 
     /// Plays chapter `index` of `book` from its start, with `book` as the library.
@@ -354,7 +349,6 @@ final class PlaybackAdvanceTests: XCTestCase {
         let (speech, _) = makeSpeech(runState: AppRunState(phase: .active), provider: FakeEngineProvider())
         let tts = speech.localTTS
         let book = FakeChapterLibrary(chapters: 3)
-        bakeKeys += book.sessions.map(\.id)
         await tts.selectEngine(FakeEngineProvider.fakeID)
         XCTAssertTrue(tts.usesLocalEngine)
         let stage = { (index: Int) in
@@ -381,7 +375,6 @@ final class PlaybackAdvanceTests: XCTestCase {
         let page = SpeechSession(id: UUID(), document: ParagraphDocument(parts: ["A page outside any book.", "Its end."]),
                                  detectedLanguage: "en", title: "Page")
         let book = FakeChapterLibrary(chapters: 1)
-        bakeKeys += [page.id, book.key(0)]
         speech.nextChapters = book
         // Apple speaks while the on-device engine loads, and finishes before it hands over.
         speech.start(page)
@@ -389,7 +382,7 @@ final class PlaybackAdvanceTests: XCTestCase {
         XCTAssertTrue(speech.localTTS.usesLocalEngine)
         apple.emit(.finished)
         XCTAssertEqual(speech.playbackPhase, .finished)
-        XCTAssertTrue(PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == page.id },
+        XCTAssertTrue(speech.localTTS.pendingBakes.pendingJobs().contains { $0.articleID == page.id },
                       "a page outside books bakes its gaps")
 
         speech.stop()
@@ -398,7 +391,7 @@ final class PlaybackAdvanceTests: XCTestCase {
         await speech.localTTS.selectEngine(FakeEngineProvider.fakeID)
         apple.emit(.finished)
         XCTAssertEqual(speech.playbackPhase, .finished, "the book's end")
-        XCTAssertFalse(PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == book.key(0) },
+        XCTAssertFalse(speech.localTTS.pendingBakes.pendingJobs().contains { $0.articleID == book.key(0) },
                        "a chapter doesn't")
     }
 
@@ -410,7 +403,6 @@ final class PlaybackAdvanceTests: XCTestCase {
         let provider = FakeEngineProvider()
         let (speech, apple) = makeSpeech(runState: state, provider: provider)
         let book = FakeChapterLibrary(chapters: 2)
-        bakeKeys += book.sessions.map(\.id)
         play(book, chapter: 0, on: speech)
         await speech.localTTS.selectEngine(FakeEngineProvider.fakeID)
         XCTAssertTrue(speech.localTTS.usesLocalEngine)
@@ -445,7 +437,6 @@ final class PlaybackAdvanceTests: XCTestCase {
                      "And one more after that."]
         let book = FakeChapterLibrary([.init(title: "One"), .init(title: "Two", paragraphs: words, verbatim: true),
                                        .init(title: "Three")])
-        bakeKeys += book.sessions.map(\.id)
         play(book, chapter: 0, on: speech)
         await speech.localTTS.selectEngine(FakeEngineProvider.fakeID)
         let target = try XCTUnwrap(speech.localTTS.renderTarget)
@@ -467,7 +458,6 @@ final class PlaybackAdvanceTests: XCTestCase {
         let provider = FakeEngineProvider(config: .init(rendersInBackground: true))
         let (speech, apple) = makeSpeech(runState: state, provider: provider)
         let book = FakeChapterLibrary(chapters: 2)
-        bakeKeys += book.sessions.map(\.id)
         play(book, chapter: 0, on: speech)
         await speech.localTTS.selectEngine(FakeEngineProvider.fakeID)
         state.set(.background)
@@ -522,25 +512,10 @@ final class PlaybackAdvanceTests: XCTestCase {
     /// A controller over a scripted Apple engine and, given `provider`, a fake on-device engine
     /// (Apple selected until the test selects it), its render queue on `runState`.
     private func makeSpeech(runState: AppRunState, provider: FakeEngineProvider?) -> (SpeechController, FakeListenEngine) {
-        let suite = "PlaybackAdvance-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        let registry = EngineRegistry(providers: [AppleSpeechProvider()] + (provider.map { [$0] } ?? []), gate: { _ in true })
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("PlaybackAdvance-\(UUID().uuidString)")
-        let coordinator = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                              audioCache: ArticleAudioCache(root: root.appendingPathComponent("cache")),
-                                              crashGuard: EngineCrashGuard(directory: root.appendingPathComponent("guard")))
-        coordinator.synthQueue.usesBackgroundGrace = false
-        coordinator.synthQueue.runState = runState
-        let apple = FakeListenEngine()
-        let speech = SpeechController(engines: registry, localTTS: coordinator,
-                                      audioSession: ListenAudioSession(managesSystemSession: false),
-                                      nowPlaying: NowPlayingController(commandCenter: nil, infoCenter: nil),
-                                      appleEngine: apple, resumePoints: nil)
-        cleanups.append {
-            speech.stop()
-            defaults.removePersistentDomain(forName: suite)
-            try? FileManager.default.removeItem(at: root)
-        }
-        return (speech, apple)
+        let stack = TestSpeech(providers: provider.map { [$0] } ?? [])
+        cleanups.append { stack.tearDown() }
+        stack.tts.synthQueue.usesBackgroundGrace = false
+        stack.tts.synthQueue.runState = runState
+        return (stack.speech, stack.apple)
     }
 }

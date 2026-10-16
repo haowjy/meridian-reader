@@ -228,7 +228,7 @@ final class BookSaveFailureTests: XCTestCase {
         try env.storeAudio(three, paragraphs: textThree)
         let spot = (paragraph: 1, utf16: ParagraphDocument(parts: textThree).utf16Ranges[1].location + 4)
         library.recordPosition(try XCTUnwrap(library.page(key: three)), paragraph: spot.paragraph, utf16Offset: spot.utf16)
-        ListenResumePointStore.shared.save(article: three, paragraph: spot.paragraph, at: env.now)
+        env.tts.resumePoints.save(article: three, paragraph: spot.paragraph, at: env.now)
         env.cache.faultHook = { _ in throw SaveFailed() }
         try library.replaceBook(book, with: details, chapters: withRenamed)
         XCTAssertEqual(audioWork(in: env.context).map(\.kind), [.align, .merge], "the merge waits behind the align")
@@ -252,10 +252,7 @@ final class BookSaveFailureTests: XCTestCase {
     /// with a pending render waiting for the engine.
     private func renderNewThree() throws {
         for (i, text) in textNew.enumerated() { try env.storeAudio(three, paragraph: i, text: text, level: 0.4 + Float(i) / 10) }
-        PendingBakeJobStore.shared.enqueuePending(articleID: three, paragraphs: textNew, priorityStart: 0)
-        addTeardownBlock { @MainActor in
-            for key in [self.three, self.renamed, self.five] { PendingBakeJobStore.shared.removePending(articleID: key) }
-        }
+        env.tts.pendingBakes.enqueuePending(articleID: three, paragraphs: textNew, priorityStart: 0)
     }
 
     /// The audio files under `key` other than the cache's meta file, which marking saved rewrites.
@@ -269,7 +266,7 @@ final class BookSaveFailureTests: XCTestCase {
     }
 
     private func pendingRender(_ key: UUID) -> Bool {
-        PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == key }
+        env.tts.pendingBakes.pendingJobs().contains { $0.articleID == key }
     }
 
     /// Plays chapter three (its new text) to `paragraph`; returns the spot.
@@ -317,7 +314,7 @@ final class BookSaveFailureTests: XCTestCase {
         XCTAssertEqual(try renders(three), audio, "chapter three keeps its audio")
         XCTAssertEqual(env.cache.loadMeta(for: three)?.kind, .saved, "saved, as the chapter is")
         XCTAssertTrue(pendingRender(three), "and its pending render")
-        XCTAssertEqual(ListenResumePointStore.shared.load()?.articleKey, three.uuidString, "and the crash-resume point")
+        XCTAssertEqual(env.tts.resumePoints.load()?.articleKey, three.uuidString, "and the crash-resume point")
         XCTAssertFalse(env.cache.hasDirectory(for: renamed), "nothing moved under the merge's key")
 
         let spot = listen(to: 2)

@@ -37,17 +37,10 @@ final class VoiceAndLanguageTests: XCTestCase {
 
     // MARK: - Voice download on select
 
-    private func makeCoordinator(_ provider: FakeEngineProvider) -> (LocalTTSCoordinator, UserDefaults, String) {
-        let suite = "VoiceAndLanguageTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.set(FakeEngineProvider.fakeID.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), provider], gate: { _ in true })
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("VoiceLang-\(UUID().uuidString)")
-        let guardDir = FileManager.default.temporaryDirectory.appendingPathComponent("VoiceLangGuard-\(UUID().uuidString)")
-        let coordinator = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                              audioCache: ArticleAudioCache(root: root),
-                                              crashGuard: EngineCrashGuard(directory: guardDir))
-        return (coordinator, defaults, suite)
+    private func makeCoordinator(_ provider: FakeEngineProvider) -> LocalTTSCoordinator {
+        let stack = TestSpeech(providers: [provider], selected: FakeEngineProvider.fakeID)
+        addTeardownBlock { @MainActor in stack.tearDown() }
+        return stack.tts
     }
 
     private func fakeWithVoices() -> FakeEngineProvider {
@@ -59,8 +52,7 @@ final class VoiceAndLanguageTests: XCTestCase {
 
     func testChooseVoiceDownloadsThenSwitches() async {
         let provider = fakeWithVoices()
-        let (c, defaults, suite) = makeCoordinator(provider)
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let c = makeCoordinator(provider)
         XCTAssertEqual(c.voice(for: FakeEngineProvider.fakeID), "v1")
         let changed = await c.chooseVoice("v2", for: FakeEngineProvider.fakeID)
         XCTAssertTrue(changed)
@@ -78,8 +70,7 @@ final class VoiceAndLanguageTests: XCTestCase {
         struct Offline: Error {}
         let provider = fakeWithVoices()
         provider.voiceDownloadError = Offline()
-        let (c, defaults, suite) = makeCoordinator(provider)
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let c = makeCoordinator(provider)
         let changed = await c.chooseVoice("v2", for: FakeEngineProvider.fakeID)
         XCTAssertFalse(changed)
         XCTAssertEqual(c.voice(for: FakeEngineProvider.fakeID), "v1")
@@ -170,8 +161,7 @@ final class VoiceAndLanguageTests: XCTestCase {
     func testLanguageGateStopsBakeForUnsupportedArticles() async {
         let provider = FakeEngineProvider()
         provider.languages = ["en"]
-        let (c, defaults, suite) = makeCoordinator(provider)
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let c = makeCoordinator(provider)
         await c.selectEngine(FakeEngineProvider.fakeID)
         XCTAssertTrue(c.usesLocalEngine)
         let gateCalls = GateRecorder()

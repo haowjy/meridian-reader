@@ -50,12 +50,6 @@ struct ListenResumeTarget: Equatable, Sendable {
 struct ListenResumePointStore: Sendable {
     let url: URL
 
-    static let shared = ListenResumePointStore(url: {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("ListenTiming/listen_resume.json")
-    }())
-
     func save(article: UUID, paragraph: Int, text: String? = nil, at date: Date = Date()) {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         var obj: [String: Any] = ["article": article.uuidString, "p": paragraph, "t": date.timeIntervalSince1970]

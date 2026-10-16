@@ -44,7 +44,7 @@ final class BackupExclusionTests: XCTestCase {
         let env = try LibraryTestEnvironment()
         defer { env.cleanUp() }
         XCTAssertFalse(BackupExclusion.isExcluded(env.cache.root))
-        AppComposition.prepareAudioCache(library: env.library, migrations: [])
+        AppComposition.prepareAudioCache(library: env.library, tts: env.tts, migrations: [])
         XCTAssertTrue(BackupExclusion.isExcluded(env.cache.root))
     }
 

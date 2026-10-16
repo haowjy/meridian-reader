@@ -114,8 +114,8 @@ extension LibraryStore {
         guard let current = order.firstIndex(where: { $0.key == place }), current > 2 else { return 0 }
         var trimmed = 0
         for page in order[..<(current - 2)] where page.finishedAt != nil {
-            guard let key = page.key, tts.audioCache.hasCache(for: key), !tts.audioCache.held.contains(key) else { continue }
-            try? tts.clearListenAudio(for: key)
+            guard let key = page.key, audio.audioCache.hasCache(for: key), !audio.audioCache.held.contains(key) else { continue }
+            try? audio.clearListenAudio(for: key)
             trimmed += 1
         }
         if trimmed > 0 { log("trimmed audio of \(trimmed) finished chapters in \(folder.name)") }

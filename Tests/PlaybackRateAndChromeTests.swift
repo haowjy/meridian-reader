@@ -61,24 +61,15 @@ final class PlaybackRateAndChromeTests: XCTestCase {
     }
 
     func testRateMultiplierPersistsAndReachesThePlayerAndLockScreen() {
-        let suite = "RateTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        let registry = EngineRegistry(providers: [AppleSpeechProvider()], gate: { _ in true })
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("RateTests-\(UUID().uuidString)")
-        let coordinator = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                              audioCache: ArticleAudioCache(root: root),
-                                              crashGuard: EngineCrashGuard(directory: root.appendingPathComponent("guard")))
-        let nowPlaying = NowPlayingController(commandCenter: nil, infoCenter: nil)
+        let stack = TestSpeech()
+        let nowPlaying = stack.nowPlaying
         let saved = UserDefaults.standard.object(forKey: "reader.rateMultiplier")
         defer {
             if let saved { UserDefaults.standard.set(saved, forKey: "reader.rateMultiplier") }
             else { UserDefaults.standard.removeObject(forKey: "reader.rateMultiplier") }
-            defaults.removePersistentDomain(forName: suite)
-            try? FileManager.default.removeItem(at: root)
+            stack.tearDown()
         }
-        let speech = SpeechController(engines: registry, localTTS: coordinator,
-                                      audioSession: ListenAudioSession(managesSystemSession: false), nowPlaying: nowPlaying)
-        defer { speech.stop() }
+        let speech = stack.speech
         speech.setRateMultiplier(1.25)
         XCTAssertEqual(UserDefaults.standard.double(forKey: "reader.rateMultiplier"), 1.25, "persisted")
         XCTAssertEqual(speech.localEngine.player.playbackRate, 1.25, "player time-stretch rate")

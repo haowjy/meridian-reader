@@ -88,13 +88,7 @@ struct DownloadRecord: Codable, Equatable, Identifiable {
 final class DownloadListStore: Sendable {
     private let url: URL
 
-    static var defaultURL: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("Downloads.json")
-    }
-
-    init(url: URL = DownloadListStore.defaultURL) {
+    init(url: URL = AppDirectories.downloads) {
         self.url = url
     }
 

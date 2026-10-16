@@ -20,7 +20,7 @@ final class LocalSynthServiceTests: XCTestCase {
         let sessions = FakeSessionCount()
         let provider = FakeEngineProvider(config: .init(latency: 0.4, sessions: sessions))
         let registry = EngineRegistry(providers: [AppleSpeechProvider(), provider], gate: { _ in true })
-        let synth = LocalSynthService(engines: registry)
+        let synth = LocalSynthService(engines: registry, crashGuard: EngineCrashGuard(directory: root.appendingPathComponent("guard")))
         await synth.load(FakeEngineProvider.fakeID, voice: nil).value
         let firstHost = try XCTUnwrap(provider.lastHost)
 
@@ -39,18 +39,36 @@ final class LocalSynthServiceTests: XCTestCase {
         XCTAssertEqual(sessions.peak, 1)
     }
 
+    /// A guarded engine's call leaves its in-flight marker in the coordinator's crash guard, the
+    /// one the next launch reads to tell whether the engine killed the process.
+    func testAGuardedCallIsMarkedInTheCoordinatorsCrashGuard() async throws {
+        let provider = FakeEngineProvider(config: .init(latency: 0.4))
+        provider.crashNotice = "test"
+        let stack = TestSpeech(providers: [provider])
+        defer { stack.tearDown() }
+        let tts = stack.tts
+        await tts.selectEngine(FakeEngineProvider.fakeID)
+        let host = try XCTUnwrap(provider.lastHost)
+        let marker = stack.guardDirectory.appending(path: "engine_inflight.json")
+
+        let render = Task {
+            try await tts.synth.renderChunkToFile(text: "A sentence for the engine to render.",
+                                                  destination: root.appendingPathComponent("c.caf"),
+                                                  request: ChunkRenderRequest(chunk: 0))
+        }
+        while host.startedCalls == 0 { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path), "marked while the call runs")
+        _ = try await render.value
+        XCTAssertFalse(FileManager.default.fileExists(atPath: marker.path), "cleared when it returns")
+    }
+
     /// The engine probe, the stress run and the CPU bench load models of their own: the app's
     /// host goes first and the queue holds, then both come back.
     func testRenderingQuietLetsTheHostGoUntilTheWorkEnds() async {
         let sessions = FakeSessionCount()
-        let provider = FakeEngineProvider(config: .init(sessions: sessions))
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), provider], gate: { _ in true })
-        let suite = "LocalSynthService-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let tts = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                      audioCache: ArticleAudioCache(root: root.appendingPathComponent("cache")),
-                                      crashGuard: EngineCrashGuard(directory: root.appendingPathComponent("guard")))
+        let stack = TestSpeech(providers: [FakeEngineProvider(config: .init(sessions: sessions))])
+        defer { stack.tearDown() }
+        let tts = stack.tts
         await tts.selectEngine(FakeEngineProvider.fakeID)
         XCTAssertEqual(sessions.live, 1)
 

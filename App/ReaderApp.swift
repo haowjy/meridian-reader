@@ -1,7 +1,29 @@
 import SwiftUI
 import SwiftData
 
+/// The process's entry. A Debug build hosting the unit tests (XCTest runs inside this process)
+/// is only their host: it builds no library or speech stack, runs no launch work and loads no
+/// engine, so the tests share nothing with a live app and the Mac's memory isn't spent on a model.
 @main
+enum AppMain {
+    static func main() {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            UnitTestHostApp.main()
+            return
+        }
+        #endif
+        ReaderApp.main()
+    }
+}
+
+#if DEBUG
+/// One empty window: tests that host a web view attach it to the app's window scene.
+private struct UnitTestHostApp: App {
+    var body: some Scene { WindowGroup { EmptyView() } }
+}
+#endif
+
 struct ReaderApp: App {
     private let extractor: any ArticleExtracting = ReadabilityArticleExtractor()
     private let container: ModelContainer

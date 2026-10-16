@@ -187,7 +187,7 @@ final class BookReimportTests: XCTestCase {
     }
 
     private func pendingRender(_ key: UUID) -> Bool {
-        PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == key }
+        env.tts.pendingBakes.pendingJobs().contains { $0.articleID == key }
     }
 
     /// Checked on disk, after a relaunch: what the store holds, not only what the context shows.
@@ -197,9 +197,8 @@ final class BookReimportTests: XCTestCase {
         let book = try addBook()
         try env.storeAudio(two, paragraphs: textTwo)
         try env.storeAudio(three, paragraphs: textThree)
-        PendingBakeJobStore.shared.enqueuePending(articleID: three, paragraphs: textThree, priorityStart: 0)
+        env.tts.pendingBakes.enqueuePending(articleID: three, paragraphs: textThree, priorityStart: 0)
         let dropped = three
-        addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: dropped) }
         library.recordPlayback(ReaderArticle(page: try XCTUnwrap(page(three))))
         let four = UUID()
         let edited = ["Two begins.", "Two goes on, differently now.", "Two ends."]
@@ -326,10 +325,9 @@ final class BookReimportTests: XCTestCase {
         let book = try addBook()
         for (key, text) in [(one, textOne), (two, textTwo), (three, textThree)] {
             try env.storeAudio(key, paragraphs: text)
-            PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: text, priorityStart: 0)
+            env.tts.pendingBakes.enqueuePending(articleID: key, paragraphs: text, priorityStart: 0)
         }
         let keys = [one, two, three]
-        addTeardownBlock { @MainActor in for key in keys { PendingBakeJobStore.shared.removePending(articleID: key) } }
         let web = try library.save(env.article("https://example.com/kept", paragraphs: ["Kept one.", "Kept two."]))
         let webKey = try XCTUnwrap(web.key)
         try env.storeAudio(webKey, paragraphs: ["Kept one.", "Kept two."])
@@ -347,7 +345,7 @@ final class BookReimportTests: XCTestCase {
         XCTAssertEqual(audioWork().map(\.kind), [.delete], "with its audio work")
         XCTAssertEqual(audioWork().first?.key, three)
 
-        AppComposition.prepareAudioCache(library: library, migrations: [])
+        AppComposition.prepareAudioCache(library: library, tts: env.tts, migrations: [])
         let cold = ArticleAudioCache(root: env.cache.root)
         XCTAssertFalse(cold.hasDirectory(for: three), "the dropped chapter's audio is gone")
         XCTAssertFalse(pendingRender(three), "and its pending render")

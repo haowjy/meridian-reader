@@ -15,25 +15,9 @@ final class PlaybackObservationTests: XCTestCase {
     }
 
     private func makeSpeech() -> SpeechController {
-        let suite = "PlaybackObservation-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        let registry = EngineRegistry(providers: [AppleSpeechProvider()], gate: { _ in true })
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent("PlaybackObservation-\(UUID().uuidString)")
-        let guardDir = tmp.appendingPathComponent("PlaybackObservationGuard-\(UUID().uuidString)")
-        let coordinator = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                              audioCache: ArticleAudioCache(root: root),
-                                              crashGuard: EngineCrashGuard(directory: guardDir))
-        let speech = SpeechController(engines: registry, localTTS: coordinator,
-                                      audioSession: ListenAudioSession(managesSystemSession: false),
-                                      nowPlaying: NowPlayingController(commandCenter: nil, infoCenter: nil))
-        cleanups.append {
-            speech.stop()
-            defaults.removePersistentDomain(forName: suite)
-            try? FileManager.default.removeItem(at: root)
-            try? FileManager.default.removeItem(at: guardDir)
-        }
-        return speech
+        let stack = TestSpeech()
+        cleanups.append { stack.tearDown() }
+        return stack.speech
     }
 
     private func session() -> SpeechSession {

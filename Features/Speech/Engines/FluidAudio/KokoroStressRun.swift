@@ -164,7 +164,6 @@ enum KokoroStressRun {
     }
 
     private static func say(_ s: String) {
-        print("[KokoroStress] \(s)")
         ListenDebugLog.shared.append("stress: \(s)")
     }
 }

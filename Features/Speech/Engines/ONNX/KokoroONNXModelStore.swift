@@ -97,9 +97,7 @@ final class KokoroONNXModelStore {
     }
 
     nonisolated static var directory: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("CPURoute/kokoro-82m-v1.0-onnx", isDirectory: true)
+        AppDirectories.applicationSupport.appendingPathComponent("CPURoute/kokoro-82m-v1.0-onnx", isDirectory: true)
     }
 
     nonisolated static var modelURL: URL { directory.appendingPathComponent("model_fp16.onnx") }

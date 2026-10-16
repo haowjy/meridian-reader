@@ -79,7 +79,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
     /// FluidAudio's model cache (vocab, voice packs, G2P and lexicon; the Core ML stages on the
     /// debug route) and the ONNX model's folder: all downloaded again when missing.
     var regenerableDirectories: [URL] {
-        [KokoroAssets.fluidAudioDirectory, KokoroONNXModelStore.directory.deletingLastPathComponent()].compactMap { $0 }
+        [KokoroAssets.fluidAudioDirectory, KokoroONNXModelStore.directory.deletingLastPathComponent()]
     }
 
     /// Kokoro's launch steps, run by `AppComposition.prepareAudioCache`. `keepingCoreMLStages`:
@@ -170,11 +170,9 @@ final class FluidAudioProvider: SpeechEngineProvider {
     /// Reader's model mirror (`TTSModels/chatterbox-nano`) and Nano probe outputs.
     /// Returns bytes freed.
     nonisolated static func deleteRetiredNanoFiles(fileManager fm: FileManager = .default) -> Int64 {
-        var targets: [URL] = []
-        if let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
-            targets.append(support.appendingPathComponent("fluidaudio/Models/chatterbox-nano", isDirectory: true))
-            targets.append(support.appendingPathComponent("TTSModels/chatterbox-nano", isDirectory: true))
-        }
+        let support = AppDirectories.applicationSupport
+        var targets = [support.appendingPathComponent("fluidaudio/Models/chatterbox-nano", isDirectory: true),
+                       support.appendingPathComponent("TTSModels/chatterbox-nano", isDirectory: true)]
         if let docs = fm.urls(for: .documentDirectory, in: .userDomainMask).first,
            let items = try? fm.contentsOfDirectory(atPath: docs.path) {
             targets += items.filter { $0.hasPrefix("nano_") }.map { docs.appendingPathComponent($0) }

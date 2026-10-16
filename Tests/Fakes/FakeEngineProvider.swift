@@ -157,6 +157,8 @@ final class FakeEngineProvider: SpeechEngineProvider {
     var languages: [String] = []
     /// When set, `prepareVoice` throws it (voice download failure).
     var voiceDownloadError: Error?
+    /// When set, the engine is guarded: each call leaves a crash marker while it runs.
+    var crashNotice: String?
     private(set) var preparedVoices: [String] = []
 
     init(config: FakeSynthHost.Config = .init(),
@@ -171,7 +173,7 @@ final class FakeEngineProvider: SpeechEngineProvider {
             displayName: "Fake (test)", shortName: "Fake", subtitle: "Test engine",
             sortOrder: 99,
             voices: voices, defaultVoiceID: defaultVoice, supportedLanguages: languages,
-            onDevice: OnDeviceTraits(cacheVoicePrefix: "fake", limits: limits))
+            onDevice: OnDeviceTraits(cacheVoicePrefix: "fake", limits: limits, crashNotice: crashNotice))
     }
 
     var descriptors: [EngineDescriptor] { [descriptor] }

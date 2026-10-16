@@ -201,8 +201,8 @@ final class DownloadCenterTests: XCTestCase {
 
         center.remove(try XCTUnwrap(center.record(for: .folder(folder.id))?.id))
         XCTAssertTrue(center.overview.isEmpty)
-        XCTAssertTrue(tts.hasListenAudio(for: heard.listenKey), "what you hear keeps its audio")
-        XCTAssertFalse(tts.hasListenAudio(for: other.listenKey))
+        XCTAssertTrue(tts.audioCache.hasCache(for: heard.listenKey), "what you hear keeps its audio")
+        XCTAssertFalse(tts.audioCache.hasCache(for: other.listenKey))
         XCTAssertTrue(other.isSaved, "the page stays in the Library")
     }
 
@@ -216,15 +216,15 @@ final class DownloadCenterTests: XCTestCase {
         let heard = try env.savedPage("https://example.com/heard-page", paragraphs: env.paragraphs(12))
         _ = center.download(heard)
         env.listening = heard.listenKey
-        try await env.waitUntil { self.tts.hasListenAudio(for: heard.listenKey) }
+        try await env.waitUntil { self.tts.audioCache.hasCache(for: heard.listenKey) }
 
         center.deleteDownloads(of: heard)
         XCTAssertNil(center.record(for: .page(heard.listenKey)), "its download goes")
-        XCTAssertTrue(tts.hasListenAudio(for: heard.listenKey), "its audio stays")
+        XCTAssertTrue(tts.audioCache.hasCache(for: heard.listenKey), "its audio stays")
         XCTAssertTrue(tts.synthQueue.hasJob(cacheKey: heard.listenKey), "and its render job")
 
         center.deleteDownloads(of: other)
-        XCTAssertFalse(tts.hasListenAudio(for: other.listenKey), "another page's audio goes")
+        XCTAssertFalse(tts.audioCache.hasCache(for: other.listenKey), "another page's audio goes")
     }
 
     /// *Delete Downloads* on the chapter staged to play next leaves its audio and its render job.
@@ -234,10 +234,10 @@ final class DownloadCenterTests: XCTestCase {
         let chapter = UUID()
         tts.openArticle(cacheKey: chapter, paragraphs: env.paragraphs(4, tag: "Chapter"), from: 0, isEphemeral: false)
         XCTAssertTrue(tts.stageNextChapter(cacheKey: next.listenKey, after: chapter, paragraphs: next.listenDocument().paragraphs))
-        try await env.waitUntil { self.tts.hasListenAudio(for: next.listenKey) }
+        try await env.waitUntil { self.tts.audioCache.hasCache(for: next.listenKey) }
 
         center.deleteDownloads(of: next)
-        XCTAssertTrue(tts.hasListenAudio(for: next.listenKey), "its audio stays")
+        XCTAssertTrue(tts.audioCache.hasCache(for: next.listenKey), "its audio stays")
         XCTAssertEqual(tts.synthQueue.stagedCacheKey, next.listenKey, "still staged")
         XCTAssertTrue(tts.synthQueue.hasJob(cacheKey: next.listenKey), "with its render job")
         tts.synthQueue.remove(cacheKey: chapter)
@@ -283,7 +283,7 @@ final class DownloadCenterTests: XCTestCase {
         try library.remove([page])
         XCTAssertTrue(center.overview.isEmpty, "off the list")
         XCTAssertNil(center.record(for: .page(page.listenKey)))
-        XCTAssertTrue(tts.hasListenAudio(for: page.listenKey), "its audio is kept, ephemeral")
+        XCTAssertTrue(tts.audioCache.hasCache(for: page.listenKey), "its audio is kept, ephemeral")
     }
 
     /// A deleted folder's download leaves the list once the delete is stored.
@@ -440,13 +440,9 @@ final class DownloadCenterTests: XCTestCase {
 /// in a temporary directory.
 @MainActor
 final class DownloadTestEnvironment {
-    let dir: URL
-    let container: ModelContainer
+    private let base: LibraryTestEnvironment
     let provider: FakeEngineProvider
-    let tts: LocalTTSCoordinator
-    let library: LibraryStore
     let runState = AppRunState(phase: .active)
-    private let suite: String
     private(set) var center: DownloadCenter!
     /// What the fake fetcher returns, by address; any other address fails.
     var fetched: [URL: [String]] = [:]
@@ -456,28 +452,19 @@ final class DownloadTestEnvironment {
     private var callsBefore = 0
 
     init() async throws {
-        dir = FileManager.default.temporaryDirectory.appending(path: "Downloads-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        container = try LibraryStoreConfiguration.makeInMemoryContainer()
-        suite = "Downloads-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.set(FakeEngineProvider.fakeID.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
         provider = FakeEngineProvider()
         provider.voices = [EngineVoice(id: "alpha", label: "Alpha"), EngineVoice(id: "beta", label: "Beta")]
         provider.defaultVoice = "alpha"
-        let registry = EngineRegistry(providers: [AppleSpeechProvider(), provider], gate: { _ in true })
-        tts = LocalTTSCoordinator(engines: registry, defaults: defaults,
-                                  audioCache: ArticleAudioCache(root: dir.appending(path: "TTSCache")),
-                                  crashGuard: EngineCrashGuard(directory: dir.appending(path: "guard")))
+        base = try LibraryTestEnvironment(speech: TestSpeech(providers: [provider], selected: FakeEngineProvider.fakeID))
+        base.now = now
         tts.synthQueue.runState = runState
-        library = LibraryStore(context: container.mainContext, tts: tts, now: { Date(timeIntervalSince1970: 1_800_000_000) })
         await tts.selectEngine(FakeEngineProvider.fakeID)
         center = makeCenter()
         center.start()
     }
 
     func makeCenter() -> DownloadCenter {
-        DownloadCenter(library: library, tts: tts, store: DownloadListStore(url: dir.appending(path: "Downloads.json")),
+        DownloadCenter(library: library, tts: tts, store: DownloadListStore(url: base.dir.appending(path: "Downloads.json")),
                        runState: runState,
                        fetch: { [unowned self] url in
                            guard let paragraphs = fetched[url] else { throw URLError(.cannotConnectToHost) }
@@ -491,17 +478,11 @@ final class DownloadTestEnvironment {
                        isListening: { [unowned self] in $0 == listening })
     }
 
-    var context: ModelContext { container.mainContext }
+    var tts: LocalTTSCoordinator { base.tts }
+    var library: LibraryStore { base.library }
+    var context: ModelContext { base.context }
 
-    func cleanUp() {
-        // The pending-job file is the app's own: only this test's pages leave it.
-        for page in (try? context.fetch(FetchDescriptor<Page>())) ?? [] {
-            tts.synthQueue.remove(cacheKey: page.listenKey)
-            PendingBakeJobStore.shared.removePending(articleID: page.listenKey)
-        }
-        UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
-        try? FileManager.default.removeItem(at: dir)
-    }
+    func cleanUp() { base.cleanUp() }
 
     func paragraphs(_ count: Int, tag: String = "Tides") -> [String] {
         (1...count).map { "\(tag) paragraph \($0) has a sentence in it." }
