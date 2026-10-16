@@ -2,7 +2,7 @@ import SwiftData
 import XCTest
 @testable import MeridianReader
 
-/// Save (🔖, ⋯ → Save to Library…, *Save to Folder…*) whose save fails: it throws
+/// Save (🔖, ⋯ → Save to Folder…, *Save to Folder…*) whose save fails: it throws
 /// `LibraryStoreError.saveFailed`, nothing is saved (in memory, after a later unrelated save, or
 /// after a relaunch), nothing waits in the context, and the audio is left as it was: not marked
 /// saved, not moved under another key.
@@ -57,7 +57,7 @@ final class ArticleSaveFailureTests: XCTestCase {
         XCTAssertTrue(env.folders().contains { $0.name == "Later" }, "the later save itself stored")
     }
 
-    /// Save into another folder (⋯ → Save to Library… on a saved page, *Save to Folder…* on a
+    /// Save into another folder (⋯ → Save to Folder… on a saved page, *Save to Folder…* on a
     /// favorite link): a saved page stays in its folder, a link stays a link in Favorites, after
     /// a later save and after a relaunch.
     func testAFailedSaveIntoAnotherFolderLeavesThePageWhereItWas() throws {
