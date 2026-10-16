@@ -31,9 +31,9 @@ enum ScrubSpeed: Equatable, CaseIterable {
     var label: String? {
         switch self {
         case .normal: return nil
-        case .half: return "Half-speed scrubbing"
-        case .quarter: return "Quarter-speed scrubbing"
-        case .fine: return "Fine scrubbing"
+        case .half: return String(localized: "Half-speed scrubbing")
+        case .quarter: return String(localized: "Quarter-speed scrubbing")
+        case .fine: return String(localized: "Fine scrubbing")
         }
     }
 
@@ -41,9 +41,9 @@ enum ScrubSpeed: Equatable, CaseIterable {
     var chip: String? {
         switch self {
         case .normal: return nil
-        case .half: return "½×"
-        case .quarter: return "¼×"
-        case .fine: return "Fine"
+        case .half: return String(localized: "½×", comment: "The scrub bubble's chip at half speed")
+        case .quarter: return String(localized: "¼×", comment: "The scrub bubble's chip at quarter speed")
+        case .fine: return String(localized: "Fine", comment: "The scrub bubble's chip at fine speed")
         }
     }
 }
