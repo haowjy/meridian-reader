@@ -1,8 +1,8 @@
 import SwiftUI
 import UIKit
 
-/// The bottom band the browser and the Library share (decision D22): built here once, so it sits
-/// at the same height with every control at the same place on both, and swapping surfaces
+/// The bottom band the browser and the Library share (decisions D22 and D23): built here once, so
+/// it sits at the same height with every control at the same place on both, and swapping surfaces
 /// changes only what the controls say.
 ///
 /// ```
@@ -16,7 +16,7 @@ import UIKit
 /// session (`lowersKeyboardOnPullDown`). The band owns the field's focus and keeps it in sync with
 /// `session.isFocused`.
 struct SurfaceBand<Field: View, Toolbar: View>: View {
-    /// The swap to the other surface, in slot 1 of the first row.
+    /// The swap to the other surface, at the leading edge of the field's row (row 2).
     struct Swap {
         let systemImage: String
         let label: String

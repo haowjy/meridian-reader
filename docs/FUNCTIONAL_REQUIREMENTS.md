@@ -8,7 +8,7 @@ the screens look and move: `NAVIGATION.md`. How it is built: `TECHNICAL_SPEC.md`
 
 | Surface | Role |
 |--------|------|
-| **Library** | The folder tree: the home is the top level, with Everything (its folders, books and series among them, then the pages in no folder, pages played without saving on top, in the top level's sort) and Favorites (starred folders and pages from anywhere) tabs, then folder → folder at any depth. The same bottom band as the browser (D22): the swap beside the Now Playing bar, the search field, then ‹ › ＋ 🕘 ⋯ in the browser's ‹ › 🔖 🕘 ⋯ slots. No tab bar. |
+| **Library** | The folder tree: the home is the top level, with Everything (its folders, books and series among them, then the pages in no folder, pages played without saving on top, in the top level's sort) and Favorites (starred folders and pages from anywhere) tabs, then folder → folder at any depth. The same bottom band as the browser (D22, D23): the Now Playing bar across the top, the swap then the search field, then ‹ › ＋ 🕘 ⋯ in the browser's ‹ › 🔖 🕘 ⋯ slots. No tab bar. |
 | **Browser** | A start page (Favorites, Recent Searches) or a web page, with one bottom bar (address field + toolbar). |
 | **Reader** | A sheet for reading any page, over the browser or the Library, with its own Listen. |
 | **Now Playing** | A sheet over everything for what you hear, in the Reader's reading theme and type: a title card, the text following the audio (the spoken paragraph highlighted, the others dimmed), and the player's controls. |
