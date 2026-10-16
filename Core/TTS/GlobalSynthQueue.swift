@@ -78,8 +78,6 @@ final class GlobalSynthQueue {
     #if canImport(UIKit)
     /// Lets an in-flight chunk (and its CAF write) finish when the app leaves the foreground.
     private lazy var drainGrace = BackgroundGrace(name: "ReaderSynthDrain")
-    /// Off in unit tests that flip the fake run state.
-    var usesBackgroundGrace = true
     #endif
     /// Thermal state / Low Power Mode (injectable for tests).
     var bakeConditions: () -> BakeConditions = { .current }
@@ -132,7 +130,7 @@ final class GlobalSynthQueue {
             // The in-flight chunk finishes (its waiter gets it, and its file is written); the
             // worker then decides what may run next.
             #if canImport(UIKit)
-            if usesBackgroundGrace { drainGrace.begin() }
+            drainGrace.begin()
             #endif
         } else if admission(isLiveRequest: true, cacheKey: nil) == .deferToApple {
             failAllLiveWaiters(LocalSynthError.deferredInBackground)
@@ -530,12 +528,6 @@ final class GlobalSynthQueue {
         didSet { if !isHeldForLaunch { kickWorker() } }
     }
 
-    #if DEBUG
-    /// Tests: runs once a paragraph is stitched, before it is published (key, paragraph), as
-    /// something landing on the main actor while the stitch was in flight would.
-    var beforePublishing: ((UUID, Int) -> Void)?
-    #endif
-
     private func kickWorker() {
         guard worker == nil, !isPausedForProbe, !isHeldForLaunch else { return }
         worker = Task { [weak self] in
@@ -684,9 +676,6 @@ final class GlobalSynthQueue {
             try? FileManager.default.removeItem(at: stitching)
             return
         }
-        #if DEBUG
-        beforePublishing?(job.cacheKey, index)
-        #endif
         guard stillWants(job.cacheKey, index, hash), coordinator.renderTarget == target,
               cache.isUsableAudioFile(stitching) else {
             try? FileManager.default.removeItem(at: stitching)

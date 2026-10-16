@@ -59,7 +59,6 @@ extension ArticleAudioCache {
                     result.misaligned += 1
                     continue
                 }
-                try step(.wroteFile)
                 let entry = IndexFile.ParagraphEntry(index: target, file: url.lastPathComponent, duration: length,
                                                      textHash: pieceHash,
                                                      chunkDurations: plan.count > 1 ? Array(durations[q..<(q + plan.count)]) : nil)

@@ -137,8 +137,6 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         if p.rate != playbackRate { p.rate = playbackRate }
     }
 
-    /// Rate of the unit playing now (nil when nothing is loaded) — tests / debug.
-    var currentPlayerRate: Float? { player?.rate }
     /// Where the current unit is: item, seconds into the file, file duration (nil when idle).
     var currentPosition: (item: Item, time: TimeInterval, duration: TimeInterval)? {
         guard let player, let current else { return nil }

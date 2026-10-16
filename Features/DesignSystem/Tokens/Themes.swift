@@ -28,7 +28,7 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 
 /// The app's colour: the accent and what is drawn from it (the playing tint, letter tiles). Paper
 /// and ink stay neutral in every theme. Each value keeps 4.5:1 as text on `paper`, `chrome` and its
-/// own playing tint, and its `onAccent` 4.5:1 on it (`ColorContrastTests`).
+/// own playing tint, and its `onAccent` 4.5:1 on it; check a new or changed theme's ratios.
 ///
 /// | Theme | accent | playingTint | placeholderTile | placeholderInk |
 /// |---|---|---|---|---|

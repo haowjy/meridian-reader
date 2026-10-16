@@ -13,8 +13,7 @@ import WebKit
 ///   - `book-N`: chapter N of the demo book (`DemoBook`, `-seedDemoBook`).
 /// - **`fetch`**: `URLPageFetcher`'s, which a Debug build always serves (`AppComposition`):
 ///   - `hidden-span` ("Hidden span page"): an article whose paragraphs carry two short lines the
-///     page's stylesheet hides (`hiddenLines`), as anti-copy lines are hidden;
-///   - `stall`: never answers, so a load waits until it is stopped.
+///     page's stylesheet hides (`hiddenLines`), as anti-copy lines are hidden.
 ///
 /// An unknown name is page one.
 final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
@@ -23,8 +22,6 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
     static var handlers: [String: any WKURLSchemeHandler] { [scheme: TestPageSchemeHandler()] }
     /// `reader-test://fetch/hidden-span`.
     static let hiddenSpanPage = URL(string: "reader-test://fetch/hidden-span")!
-    /// `reader-test://fetch/stall`.
-    static let stallingPage = URL(string: "reader-test://fetch/stall")!
 
     /// The lines `hidden-span` hides with its stylesheet: one with `display: none`, one placed far
     /// off the page's left edge (which only layout can tell).
@@ -37,8 +34,7 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
         guard let url = urlSchemeTask.request.url else { return }
         let html: String
         if url.host == "fetch" {
-            guard let page = Self.fetchPage(url.lastPathComponent) else { return }
-            html = page
+            html = Self.fetchPage(url.lastPathComponent)
         } else {
             html = Self.page(url.lastPathComponent)
         }
@@ -50,11 +46,6 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {}
-
-    /// Every `pages` page served, by name.
-    static var pageNames: [String] {
-        ["one", "two", "three", "thin"] + DemoBook.chapters.indices.map { "book-\($0)" }
-    }
 
     /// The `pages` page's HTML; an unknown name is page one.
     static func page(_ name: String) -> String {
@@ -91,11 +82,9 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
         return document(title: title, body: body)
     }
 
-    /// The `fetch` page's HTML; nil for `stall`, which never answers. An unknown name is page one.
-    static func fetchPage(_ name: String) -> String? {
+    /// The `fetch` page's HTML. An unknown name is page one.
+    static func fetchPage(_ name: String) -> String {
         switch name {
-        case "stall":
-            return nil
         case "hidden-span":
             // The hiding rules sit in the stylesheet, by class (as anti-copy lines are hidden):
             // Readability looks only at inline styles, so without the snapshot both lines would

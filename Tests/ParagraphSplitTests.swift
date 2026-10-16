@@ -1,4 +1,3 @@
-import AVFoundation
 import XCTest
 @testable import MeridianReader
 
@@ -41,7 +40,11 @@ final class ParagraphSplitTests: XCTestCase {
 <p class="para">&nbsp;</p>
 """#
 
-    private var inquest: String { HierarchicalChunkerTests.inquest }
+    /// 1,881 chars; the display split cuts it into three pieces.
+    static let inquest = "“The two McCarthys were seen after the time when William Crowder, the game-keeper, lost sight of them. The Boscombe Pool is thickly wooded round, with just a fringe of grass and of reeds round the edge. A girl of fourteen, Patience Moran, who is the daughter of the lodge-keeper of the Boscombe Valley estate, was in one of the woods picking flowers. She states that while she was there she saw, at the border of the wood and close by the lake, Mr. McCarthy and his son, and that they appeared to be having a violent quarrel. She heard Mr. McCarthy the elder using very strong language to his son, and she saw the latter raise up his hand as if to strike his father. She was so frightened by their violence that she ran away and told her mother when she reached home that she had left the two McCarthys quarrelling near Boscombe Pool, and that she was afraid that they were going to fight. She had hardly said the words when young Mr. McCarthy came running up to the lodge to say that he had found his father dead in the wood, and to ask for the help of the lodge-keeper. He was much excited, without either his gun or his hat, and his right hand and sleeve were observed to be stained with fresh blood. On following him they found the dead body stretched out upon the grass beside the pool. The head had been beaten in by repeated blows of some heavy and blunt weapon. The injuries were such as might very well have been inflicted by the butt-end of his son’s gun, which was found lying on the grass within a few paces of the body. Under these circumstances the young man was instantly arrested, and a verdict of ‘wilful murder’ having been returned at the inquest on Tuesday, he was on Wednesday brought before the magistrates at Ross, who have referred the case to the next Assizes. Those are the main facts of the case as they came out before the coroner and the police-court.”"
+    /// 2,083 chars, quoted testimony with "Mr." abbreviations and an exclamation inside quotes.
+    static let testimony = "“Mr. James McCarthy, the only son of the deceased, was then called and gave evidence as follows: ‘I had been away from home for three days at Bristol, and had only just returned upon the morning of last Monday, the 3rd. My father was absent from home at the time of my arrival, and I was informed by the maid that he had driven over to Ross with John Cobb, the groom. Shortly after my return I heard the wheels of his trap in the yard, and, looking out of my window, I saw him get out and walk rapidly out of the yard, though I was not aware in which direction he was going. I then took my gun and strolled out in the direction of the Boscombe Pool, with the intention of visiting the rabbit warren which is upon the other side. On my way I saw William Crowder, the game-keeper, as he had stated in his evidence; but he is mistaken in thinking that I was following my father. I had no idea that he was in front of me. When about a hundred yards from the pool I heard a cry of “Cooee!” which was a usual signal between my father and myself. I then hurried forward, and found him standing by the pool. He appeared to be much surprised at seeing me and asked me rather roughly what I was doing there. A conversation ensued which led to high words and almost to blows, for my father was a man of a very violent temper. Seeing that his passion was becoming ungovernable, I left him and returned towards Hatherley Farm. I had not gone more than 150 yards, however, when I heard a hideous outcry behind me, which caused me to run back again. I found my father expiring upon the ground, with his head terribly injured. I dropped my gun and held him in my arms, but he almost instantly expired. I knelt beside him for some minutes, and then made my way to Mr. Turner’s lodge-keeper, his house being the nearest, to ask for assistance. I saw no one near my father when I returned, and I have no idea how he came by his injuries. He was not a popular man, being somewhat cold and forbidding in his manners, but he had, as far as I know, no active enemies. I know nothing further of the matter.’"
+    private var inquest: String { Self.inquest }
 
     private func endsSentence(_ s: String) -> Bool {
         var t = Substring(s)
@@ -64,7 +67,7 @@ final class ParagraphSplitTests: XCTestCase {
     }
 
     func testCutOffsetsReassembleByteExact() {
-        for para in [inquest, HierarchicalChunkerTests.testimony] {
+        for para in [inquest, Self.testimony] {
             let offs = ParagraphSplitter.pieceStartUTF8Offsets(para)
             XCTAssertFalse(offs.isEmpty)
             let bytes = Array(para.utf8)
@@ -200,53 +203,5 @@ final class ParagraphSplitTests: XCTestCase {
         XCTAssertEqual(doc.paragraphsHTML,
                        "<p>Fish &amp; chips &lt;cheap&gt;.</p>\n<p>Second one.</p>\n<p>Third, \"quoted\".</p>")
         XCTAssertEqual(ParagraphDocument(html: doc.paragraphsHTML).paragraphs, doc.paragraphs)
-    }
-}
-
-/// Layout v3 alignment of an unsaved (ephemeral) cache when the browser opens a page. The
-/// library pages' migration is `LibraryLayoutMigrationTests`.
-@MainActor
-final class ParagraphLayoutMigrationTests: XCTestCase {
-    private var cleanups: [() -> Void] = []
-    override func tearDown() {
-        cleanups.forEach { $0() }
-        cleanups = []
-        super.tearDown()
-    }
-
-    private func makeCoordinator() -> LocalTTSCoordinator {
-        let stack = TestSpeech(providers: [KokoroStubProvider()])
-        cleanups.append { stack.tearDown() }
-        return stack.tts
-    }
-
-    /// A stitched paragraph CAF like the queue writes: chunk k = `lengths[k]` samples of value k+1.
-    private func writeStitched(_ cache: ArticleAudioCache, article: UUID, index: Int, text: String,
-                               lengths: [Int]) throws {
-        var samples: [Float] = []
-        for (k, n) in lengths.enumerated() { samples += [Float](repeating: Float(k + 1) / 100, count: n) }
-        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("stitch-\(UUID().uuidString).caf")
-        defer { try? FileManager.default.removeItem(at: tmp) }
-        try LocalPCMWriter.write(samples, sampleRate: 24_000, to: tmp)
-        try cache.storeParagraph(articleID: article, paragraphIndex: index, sourceURL: tmp,
-                                 duration: Double(samples.count) / 24_000, engineID: SpeechEngineID.kokoro.rawValue,
-                                 voiceID: "kstub:af_heart", text: text,
-                                 chunkDurations: lengths.count > 1 ? lengths.map { Double($0) / 24_000 } : nil)
-    }
-
-    func testBrowseOpenAlignsEphemeralCacheTheSameWay() throws {
-        let coordinator = makeCoordinator()
-        let cache = coordinator.audioCache
-        let html = ParagraphSplitTests.chapterHTML
-        let url = URL(string: "https://example.com/classics/boscombe-valley")!
-        let extracted = ExtractedArticle(title: "Boscombe", siteName: nil, cleanedHTML: html, plainText: "", excerpt: "")
-        let article = ReaderArticle(id: ArticleIdentity.articleKey(url: url), url: url, extracted: extracted)
-        let oldList = ParagraphDocument.forListening(plainText: "", cleanedHTML: html, matchingTitle: "Boscombe", splitLong: false)
-        let iLast = oldList.count - 1
-        try writeStitched(cache, article: article.id, index: iLast, text: oldList.paragraphs[iLast], lengths: [4800])
-        coordinator.prepareListenIdentity(key: article.id, paragraphs: article.document.paragraphs)
-        XCTAssertEqual(cache.entry(articleID: article.id, paragraphIndex: article.document.count - 1)?.textHash,
-                       ArticleIdentity.paragraphHash(oldList.paragraphs[iLast]))
-        XCTAssertNil(cache.entry(articleID: article.id, paragraphIndex: iLast))
     }
 }

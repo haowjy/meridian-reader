@@ -296,34 +296,3 @@ extension KokoroCPUHost: KokoroCPURouteFrontend {
 enum KokoroAneCPUFrontendFiles {
     static var present: Bool { KokoroAneCPUFrontend.assetsPresent() }
 }
-
-// MARK: - Test / diagnostics hooks (simulator tests only; never called on device paths)
-
-extension KokoroCPUHost {
-    /// (repo dir holding `vocab.json`, kokoro dir holding the G2P bundle + lexicon).
-    static func debugFrontendDirectories() throws -> (repo: URL, kokoro: URL) {
-        (try KokoroAneCPUFrontend.defaultRepoDirectory(), try KokoroAneCPUFrontend.defaultKokoroDirectory())
-    }
-
-    /// Swift BART vs Core ML `G2PModel` on `words`; returns mismatches. Runs Core ML.
-    static func debugCompareG2PWithCoreML(words: [String]) async throws -> [(word: String, swift: String, coreML: String)] {
-        try await KokoroAneCPUFrontend.debugCompareWithCoreML(words: words)
-    }
-
-    /// Full ONNX-route frontend: text → IPA (lexicon + Swift BART), no Core ML.
-    static func debugPhonemes(text: String) async throws -> (phonemes: String, oovWords: Int) {
-        let frontend = try KokoroAneCPUFrontend()
-        let p = try await frontend.phonemes(for: text)
-        return (p, await frontend.oovWordCount)
-    }
-}
-
-/// Test handle over the ONNX-route frontend (text → token ids + phoneme count), no Core ML.
-final class KokoroAneCPUFrontendHandle: @unchecked Sendable {
-    private let frontend: KokoroAneCPUFrontend
-    init() throws { frontend = try KokoroAneCPUFrontend() }
-    func ids(for text: String) async throws -> (ids: [Int32], phonemeCount: Int) {
-        let p = try await frontend.phonemes(for: text)
-        return (try await frontend.tokenIDs(for: p), p.count)
-    }
-}

@@ -1,26 +1,16 @@
 #if DEBUG
 import Foundation
 
-/// Launch arguments, parsed once (Debug builds only). UI tests and diagnostics drive the app
-/// through these; a normal launch has none of them.
+/// Launch arguments, parsed once (Debug builds only). Probes of the running app, the UI tests
+/// and diagnostics drive the app through these; a normal launch has none of them.
 struct LaunchOptions: Equatable {
     /// `-seedDemoArticle`: one deterministic demo article.
     struct DemoArticle: Equatable {
-        /// `-seedDemoTitle "<title>"` (long-title layout checks).
-        var title: String?
-        /// `-seedDemoParagraphs N`: a longer article (background-listening probe). At least 3.
-        var paragraphs = 3
-        /// `-seedDemoProgress N`: saved playhead paragraph (resume checks).
-        var progress = 0
         /// `-seedDemoPlainText`: the article has no HTML, only its plain text.
         var plainTextOnly = false
         /// `-seedPlayedPages N`: also N pages played without saving, part-way ("Played Page 1"
         /// played most recently): the "Not saved" rows at the top of the Library's *Pages*.
         var playedPages = 0
-        /// `-seedLoosePages N`: also N saved pages in no folder ("Loose Page 1"…), added after the
-        /// demo article in that order, but numbered in reverse for *Manual* (so a drag that keeps
-        /// the order shown is told apart from one that falls back to the stored order).
-        var loosePages = 0
     }
 
     /// `-uiTesting`: expose test-only accessibility markers and skip network-dependent features
@@ -74,9 +64,6 @@ struct LaunchOptions: Equatable {
     /// `-importTestEPUB`: *Import Book…* imports the synthetic EPUB (`TestEPUB`) instead of
     /// opening the Files picker, which a UI test can't drive.
     var importsTestEPUB = false
-    /// `-pickTestCover`: *Edit Details*' *Choose from Files…* takes a synthetic picture
-    /// (`TestCover`) instead of opening the Files picker, which a UI test can't drive.
-    var picksTestCover = false
     /// `-playTestEPUB`: at launch, import the synthetic EPUB into the Library's top level (no
     /// sheet), then play it from its place, as a book's Play does.
     var playsTestEPUB = false
@@ -89,8 +76,6 @@ struct LaunchOptions: Equatable {
     /// `-testVoice`: register an offline on-device test voice (`TestVoiceProvider`, "Test Voice"
     /// with voices One and Two); `-selectEngine test.voice` picks it. Downloads render with it.
     var usesTestVoice = false
-    /// `-testVoiceDelay <seconds>`: how long each test-voice render takes (0.15 s if not given).
-    var testVoiceDelay: TimeInterval?
     /// `-selectEngine <engine id>` (`local.kokoro`, `apple`, `test.voice`): the engine to load at
     /// launch, persisted as the selection.
     var selectsEngine: SpeechEngineID?
@@ -114,14 +99,8 @@ struct LaunchOptions: Equatable {
         uiTesting = flags.contains("-uiTesting")
         resetsLibrary = flags.contains("-resetLibrary")
         if flags.contains("-seedDemoArticle") {
-            demoArticle = DemoArticle(
-                title: value(after: "-seedDemoTitle"),
-                paragraphs: max(3, value(after: "-seedDemoParagraphs").flatMap(Int.init) ?? 3),
-                progress: value(after: "-seedDemoProgress").flatMap(Int.init) ?? 0,
-                plainTextOnly: flags.contains("-seedDemoPlainText"),
-                playedPages: value(after: "-seedPlayedPages").flatMap(Int.init) ?? 0,
-                loosePages: value(after: "-seedLoosePages").flatMap(Int.init) ?? 0
-            )
+            demoArticle = DemoArticle(plainTextOnly: flags.contains("-seedDemoPlainText"),
+                                      playedPages: value(after: "-seedPlayedPages").flatMap(Int.init) ?? 0)
         }
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")
         opensLibrary = flags.contains("-openLibrary")
@@ -138,11 +117,9 @@ struct LaunchOptions: Equatable {
         restoresSurfaceInUITests = flags.contains("-restoreSurface")
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")
-        picksTestCover = flags.contains("-pickTestCover")
         failsLibrarySaves = flags.contains("-failLibrarySaves")
         probesLockedFetch = flags.contains("-probeLockedFetch")
         usesTestVoice = flags.contains("-testVoice")
-        testVoiceDelay = value(after: "-testVoiceDelay").flatMap(TimeInterval.init)
         selectsEngine = value(after: "-selectEngine").map(SpeechEngineID.init(rawValue:))
         kokoroUnits = value(after: "-kokoroUnits")
         if flags.contains("-engineProbe") {

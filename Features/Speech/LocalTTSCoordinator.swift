@@ -41,8 +41,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
     private var crashedEngineID: SpeechEngineID?
     /// The crash this launch found (the engine killed the previous process inside a call).
     private(set) var launchCrash: EngineCrashGuard.CrashInfo?
-    /// Article + paragraph to resume after a crash, handed to the UI once (`takePendingResume`).
-    /// Settable in-module for tests.
+    /// Article + paragraph to resume after a crash, handed to the UI once (`takePendingResume`);
+    /// the library's moves remap it (`remapPendingResume`).
     var pendingResume: ListenResumeTarget?
     /// Bumped when CAF ready set changes — reading UI observes this for live bake marks.
     private(set) var bakeMarksRevision: UInt64 = 0
@@ -67,7 +67,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Picks the launch engine (`selecting`, else the stored selection after crash recovery) and
     /// starts loading it. `selecting` is a Debug launch's `-selectEngine` (`LaunchOptions`).
     /// One-time launch steps are `LaunchMigration`s, run by `AppComposition`, which builds the
-    /// files and settings it works over (tests: `TestSpeech`).
+    /// files and settings it works over (tests: `LibraryTestEnvironment`).
     init(
         engines: EngineRegistry,
         defaults: UserDefaults,

@@ -18,7 +18,7 @@ enum LibraryStoreConfiguration {
     static var libraryModels: [any PersistentModel.Type] { [Folder.self, Page.self, LibraryMigrationReceipt.self, LibraryAudioWork.self] }
 
     /// The app's container, over the two files. The local one is where `ModelConfiguration()`
-    /// resolves to (`LibraryStoreConfigurationTests` checks it).
+    /// resolves to.
     static func makeContainer(localURL: URL = AppDirectories.localStore,
                               libraryURL: URL = AppDirectories.libraryStore) throws -> ModelContainer {
         try FileManager.default.createDirectory(at: localURL.deletingLastPathComponent(), withIntermediateDirectories: true)

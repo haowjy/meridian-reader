@@ -32,7 +32,7 @@ The app icon source is `Resources/Brand/meridian-reader-icon-g1.svg`, exported i
 
 ## Where to read next
 
-- `AGENTS.md`: build and test commands, layout, cross-cutting rules
+- `AGENTS.md`: build commands, how changes are verified, layout, cross-cutting rules
 - `docs/TECHNICAL_SPEC.md`: architecture, extraction, persistence
 - `docs/NAVIGATION.md`: browser, reader and library navigation
 - `docs/LISTEN_PLAYBACK.md` and `docs/TTS_ENGINES.md`: playback and voice engines

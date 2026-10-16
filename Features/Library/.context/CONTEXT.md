@@ -20,14 +20,14 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   tests (`UIDragEvent`), never a touch: a row lifts as its long press opens the menu, and let go
   there no drag starts, so the next touch, with no drop session in, ends that lift.
 - **A draggable row's open menu never lets XCUITest go idle** (the platform's lift and menu
-  together; `.draggable` does the same): every UI action while the menu is up waits ~60 s. Tests
-  that open a draggable row's menu take ~2 min each; run FolderUITests in two halves.
+  together; `.draggable` does the same): every UI action while the menu is up waits ~60 s, so
+  a UI test or probe that opens a draggable row's menu takes minutes.
   The Library surface owns the zone and screen key.
 - **Swipe actions follow AGENTS.md's rule.** A folder's *Delete* only asks, so it takes
   `Palette.destructive`: with the role, *Cancel* would leave the row missing and the delete abort
   in UIKit. A page's *Remove* takes the tint too: its row goes once the remove is stored, and a
   save that fails keeps it (a toast says so); with the role, the List would have taken the row
-  out first and aborted on the update. `FolderDeleteUITests` checks both.
+  out first and aborted on the update. `CoreFlowsUITests` swipe-removes a playing page.
 - **The home's lists are `LibraryQueries`' too**: the starred folders (`favoriteFolders`), the
   top level's folders (`topLevel`, a filter after the fetch: no predicate on `parent`), and the
   search (`searchPages`, `searchFolders`). The home picks the descriptors in its `init` from the
@@ -93,8 +93,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   (`DownloadCenter.isQueued`).
 - **Headers sit on the page margin with the cards** (`FolderHeader`, `FolderPlayButtons`): the
   section header is already at the margin in a Library list, so the header adds no padding of its
-  own; the bar and the button row span the width, so all four edges line up
-  (`BookFolderUITests.testHeaderBlocksShareTheCardsEdges` checks them).
+  own; the bar and the button row span the width, so all four edges line up.
 - **Books and series are folders** (decision D19): one screen (`FolderScreen`), one page row
   (`LibraryPageRow`), one ⋯ (`LibraryMenu.Screen.folder`), one delete question. Nothing refuses
   a move, a drop, a sort or a subfolder because of `kind`: only cycles, and a page out of the
@@ -107,8 +106,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **Details are not a kind** (decision D17): *Edit Details* (`FolderDetailsSheet`, a shell sheet)
   writes a folder's name, byline and cover in one `LibraryStore.setDetails`. `Folder.hasDetails`
   picks the header's look (`FolderHeaderStyle.detailed`), a book's too. `FolderPlayButtons` is
-  the header's button row. UI tests read the look from `folderHeaderLook` (the cover tile is
-  hidden from accessibility); `-pickTestCover` stands in for the Files picker.
+  the header's button row.
 - **Rows ask `DownloadCenter.isDownloaded`** (a page, or a folder with the pages its row already
   sorted) and `state(of:isDownloaded:)` for their Download control; `ListRow` only draws the
   `ListRow.Download` it is given.

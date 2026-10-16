@@ -204,31 +204,7 @@ private struct FolderContentsList: View {
                 FolderHeader(style: style, title: title, detail: detail) { EmptyView() }
             }
         }
-        .overlay { headerLookMarker(style) }
     }
-
-    #if DEBUG
-    /// UI tests: which header shows ("detailed", "detailed with cover", "plain"); the cover tile
-    /// itself is hidden from accessibility.
-    @ViewBuilder
-    private func headerLookMarker(_ style: FolderHeaderStyle) -> some View {
-        if LaunchOptions.current.uiTesting {
-            let look = switch style {
-            case .folder: "plain"
-            case .detailed(let cover): cover == nil ? "detailed" : "detailed with cover"
-            }
-            Color.clear
-                .frame(width: 2, height: 2)
-                .allowsHitTesting(false)
-                .accessibilityElement()
-                .accessibilityLabel("Header look")
-                .accessibilityValue(look)
-                .accessibilityIdentifier("folderHeaderLook")
-        }
-    }
-    #else
-    private func headerLookMarker(_ style: FolderHeaderStyle) -> some View { EmptyView() }
-    #endif
 
     /// ["2 folders", "7 pages"]; none for an empty folder, whose list says so.
     private var counts: [String] {
