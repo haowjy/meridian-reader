@@ -80,15 +80,17 @@ final class DownloadCenter {
 
     /// Once the launch's library maintenance is done (pages it merges or rebuilds are settled):
     /// downloads of things no longer in the Library go, and the list carries on where it was.
+    /// From then on, each stored library edit drops the downloads it took out of the Library.
     func start() {
         guard !isStarted else { return }
         isStarted = true
         tts.renderObserver = self
+        library.editStored = { [weak self] in self?.dropWhatLeftTheLibrary() }
         runStateObserver = NotificationCenter.default.addObserver(forName: AppRunState.didChange, object: runState,
                                                                   queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.scheduleCheck() }
         }
-        records.removeAll { !targetExists($0.target) }
+        dropWhatLeftTheLibrary()
         advance()
     }
 
@@ -200,11 +202,24 @@ final class DownloadCenter {
         !page.skipsInPlayback && !(folder.kind.isBookOrSeries && page.finishedAt != nil)
     }
 
-    private func targetExists(_ target: DownloadRecord.Target) -> Bool {
+    /// The list's line, the Library's (`LibraryQueries`): a download is listed while what it
+    /// downloads is in the Library. A page removed from it (still kept for what plays) isn't.
+    private func isInLibrary(_ target: DownloadRecord.Target) -> Bool {
         switch target {
-        case .page(let key): library.page(key: key) != nil
+        case .page(let key): library.page(key: key)?.isInLibrary == true
         case .folder(let id): library.folder(id: id) != nil
         }
+    }
+
+    /// Downloads of what left the Library (a page removed, a page or folder deleted) leave the
+    /// list, and the page rendering for one stops. Their audio is the library's to keep or
+    /// delete: a removed page's is ephemeral already, a deleted one's is gone.
+    private func dropWhatLeftTheLibrary() {
+        let gone = Set(records.filter { !isInLibrary($0.target) }.map(\.id))
+        guard !gone.isEmpty else { return }
+        if let active, gone.contains(active.recordID) { stopActive() }
+        records.removeAll { gone.contains($0.id) }
+        advance()
     }
 
     // MARK: - The list's actions
@@ -292,7 +307,7 @@ final class DownloadCenter {
     private func runQueue() async {
         while runState.phase != .background, tts.rendersDownloads, active == nil, let next = nextQueued() {
             let (recordID, key) = (next.recordID, next.key)
-            guard let page = library.page(key: key) else {
+            guard let page = library.page(key: key), page.isInLibrary else {
                 finish(recordID, key, .failed, String(localized: "It’s no longer in the Library"))
                 continue
             }

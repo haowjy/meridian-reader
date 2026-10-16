@@ -173,6 +173,9 @@ final class LibraryStoreConfigurationTests: XCTestCase {
         unsavedOld.lastPlayedAt = old
         let unsavedNew = page("unsaved-new", added: nil)
         unsavedNew.lastPlayedAt = now.addingTimeInterval(-60)
+        let removed = page("removed", added: nil)
+        removed.lastPlayedAt = now.addingTimeInterval(1)
+        removed.removedAt = now
         let chapter = page("chapter")
         chapter.setFolder(book)
         try context.save()
@@ -188,15 +191,13 @@ final class LibraryStoreConfigurationTests: XCTestCase {
         XCTAssertEqual(try titles(LibraryQueries.pages(inFolder: favorites.id)), ["link"])
         XCTAssertEqual(try titles(LibraryQueries.pages(inFolder: book.id)), ["chapter"])
         XCTAssertEqual(try context.fetch(LibraryQueries.playedNotSaved).map(\.title), ["unsaved-new", "unsaved-old"],
-                       "played without saving, most recent first")
-        XCTAssertEqual(try titles(LibraryQueries.search("LOOS")), ["loose"])
-        XCTAssertEqual(try titles(LibraryQueries.search("unsaved")), [], "pages not in the Library aren't found")
+                       "played without saving, most recent first; not the page removed from the Library")
+        XCTAssertEqual(try context.fetch(LibraryQueries.lastPlayed).first?.title, "removed", "the bar still resumes it")
         XCTAssertEqual(try titles(LibraryQueries.prunable(before: cutoff)), ["unsaved-old"])
         XCTAssertEqual(try titles(LibraryQueries.staleLinkCaches(before: cutoff)), ["link"])
         XCTAssertEqual(try titles(LibraryQueries.page(key: loose.key!)), ["loose"])
         XCTAssertEqual(try titles(LibraryQueries.pages(canonicalURL: "https://example.com/link")), ["link"])
         XCTAssertEqual(try context.fetch(LibraryQueries.folder(id: book.id)).map(\.name), ["A Book"])
         XCTAssertEqual(try context.fetch(LibraryQueries.favorites).count, 1)
-        XCTAssertEqual(try context.fetch(LibraryQueries.searchFolders("book")).map(\.name), ["A Book"])
     }
 }

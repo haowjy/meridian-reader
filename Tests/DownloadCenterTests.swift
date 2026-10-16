@@ -4,8 +4,8 @@ import XCTest
 
 /// Downloads (decision D16) against the real render queue and a fake on-device voice: a page, a
 /// book's chapters and a link page get their whole audio in the download voice, one page at a
-/// time, behind what plays; pausing, removing, a voice change (*Different voice*, *Keep*,
-/// *Re-download*) and the background (nothing new starts).
+/// time, behind what plays; pausing, removing, what leaves the Library leaving the list, a voice
+/// change (*Different voice*, *Keep*, *Re-download*) and the background (nothing new starts).
 @MainActor
 final class DownloadCenterTests: XCTestCase {
     private var env: DownloadTestEnvironment!
@@ -207,6 +207,68 @@ final class DownloadCenterTests: XCTestCase {
         XCTAssertTrue(tts.hasListenAudio(for: heard.listenKey), "what you hear keeps its audio")
         XCTAssertFalse(tts.hasListenAudio(for: other.listenKey))
         XCTAssertTrue(other.isSaved, "the page stays in the Library")
+    }
+
+    // MARK: - Leaving the Library
+
+    private struct SaveFailed: Error {}
+
+    /// *Remove from Library* on a downloaded page: its download leaves the list at once. Its audio
+    /// stays, ephemeral: the library's to keep for what plays.
+    func testAPageRemovedFromTheLibraryLeavesTheListAndKeepsItsAudio() async throws {
+        let page = try env.savedPage("https://example.com/removed")
+        _ = center.download(page)
+        try await env.waitUntil { self.center.overview.done.count == 1 }
+
+        try library.remove([page])
+        XCTAssertTrue(center.overview.isEmpty, "off the list")
+        XCTAssertNil(center.record(for: .page(page.listenKey)))
+        XCTAssertTrue(tts.hasListenAudio(for: page.listenKey), "its audio is kept, ephemeral")
+    }
+
+    /// A deleted folder's download leaves the list once the delete is stored.
+    func testADeletedFolderLeavesTheList() async throws {
+        let page = try env.savedPage("https://example.com/in-folder")
+        let folder = try library.makeFolder(name: "Gone", in: nil)
+        page.setFolder(folder)
+        try env.context.save()
+        _ = center.download(folder)
+        try await env.waitUntil { self.center.overview.done.count == 1 }
+
+        try library.deleteFolders([folder], keepContents: false)
+        XCTAssertTrue(center.overview.isEmpty)
+    }
+
+    /// A remove that can't be stored changes nothing: the download stays.
+    func testARemoveThatCantBeStoredKeepsTheDownload() async throws {
+        let page = try env.savedPage("https://example.com/kept-download")
+        _ = center.download(page)
+        try await env.waitUntil { self.center.overview.done.count == 1 }
+
+        library.saveContext = { _ in throw SaveFailed() }
+        XCTAssertThrowsError(try library.remove([page]))
+        XCTAssertEqual(center.overview.done.map(\.record.target), [.page(page.listenKey)])
+    }
+
+    /// A folder's page removed from the Library before its turn isn't downloaded: it fails as no
+    /// longer in the Library, and the folder's download goes on.
+    func testAFolderPageRemovedFromTheLibraryIsntDownloaded() async throws {
+        let kept = try env.savedPage("https://example.com/kept-page", title: "Kept")
+        let removed = try env.savedPage("https://example.com/removed-page", title: "Removed")
+        let folder = try library.makeFolder(name: "Two", in: nil)
+        kept.setFolder(folder)
+        removed.setFolder(folder)
+        try env.context.save()
+        env.runState.set(.background)
+        _ = center.download(folder)
+
+        try library.remove([removed])
+        XCTAssertNotNil(center.record(for: .folder(folder.id)), "the folder is still in the Library")
+        env.runState.set(.active)
+        try await env.waitUntil { self.center.overview.done.count == 1 }
+        let record = try XCTUnwrap(center.record(for: .folder(folder.id)))
+        XCTAssertEqual(record.entries.first { $0.key == removed.listenKey }?.failure, "It’s no longer in the Library")
+        XCTAssertEqual(record.entries.first { $0.key == kept.listenKey }?.state, .done)
     }
 
     // MARK: - The voice

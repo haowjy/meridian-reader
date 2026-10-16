@@ -20,8 +20,9 @@ enum PageFetchState: String, Codable {
     case needsBrowser
 }
 
-/// A page in the library tree: a saved article, a link (favorite), a book chapter, or a page you
-/// played without saving (`addedAt == nil`, kept 7 days). One page per canonical URL, app-wide,
+/// A page in the library tree: a saved article, a link (favorite), a book chapter, a page you
+/// played without saving (`addedAt == nil`, kept 7 days), or one you removed from the Library
+/// (`removedAt`, in no list, kept 7 days as well). One page per canonical URL, app-wide,
 /// enforced by `LibraryStore` and the launch dedupe pass rather than `.unique` (CloudKit can't
 /// sync unique constraints).
 @Model
@@ -39,9 +40,16 @@ final class Page {
     /// Book chapters: "href#fragment" of the contents entry.
     var locator: String?
     var contentStateRaw: String = PageContentState.link.rawValue
-    /// nil = not in the Library: played without saving. Shows at the top of *Pages*, "Not saved", and in the bar;
-    /// pruned 7 days after it was last played.
+    /// nil = not in the Library: played without saving, or removed (`removedAt`). Pruned 7 days
+    /// after it was last played.
     var addedAt: Date?
+    /// When *Remove from Library* took it out of the Library, until you listen to it again from
+    /// its article (🎧, the Reader's Listen: `LibraryStore.recordPlayback`). Out of the Library
+    /// with this set, it is in no list, not even *Not saved* (`LibraryQueries`); it is kept only
+    /// for what plays and the bar until the prune. Playing on, pausing and resuming leave it set.
+    /// Read only with `addedAt == nil`: saving it again leaves the date, which the next remove
+    /// replaces.
+    var removedAt: Date?
     /// Favorite is an independent flag; it does not imply a special location in the tree.
     var isFavorite: Bool = false
     /// Order inside its folder, or among pages with no folder.

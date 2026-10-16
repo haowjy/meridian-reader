@@ -157,16 +157,28 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `urlString`, `canonicalURL` | The page; one page per canonical URL |
 | `title`, `byline`, `excerpt`, `artworkData` | Rows, Now Playing (`byline` = site domain for web pages) |
 | `contentStateRaw` | `link` (a favorite; any text is a cache) or `saved` |
-| `addedAt` | When it joined the Library; nil = played without saving (kept 7 days after its last play) |
+| `addedAt` | When it joined the Library; nil = played without saving or removed (kept 7 days after its last play) |
+| `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, a page is in no list, not even "Not saved"; read only while `addedAt` is nil |
 | `folder`, `folderID`, `sortKey` | Its folder (none = the pages in no folder) and order there; `folderID` mirrors the relationship for predicates |
 | `bodyHTML`, `plainTextData` | Offline reading; the listen text comes from the HTML |
 | `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount` |
 | `positionParagraph`, `positionUTF16` | Resume position (paragraph + offset inside the document) |
-| `lastPlayedAt`, `finishedAt` | the "Not saved" pages' order and prune, and a row's "✓ Finished" |
+| `lastPlayedAt`, `finishedAt` | the "Not saved" pages' order, the prune and the bar's resume, and a row's "✓ Finished" |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
 | `skipsInPlayback`, `fetchStateRaw` | Pages in folders (book front matter, *Skip in Playback*) and series links: what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
 | `locator` | Book chapters: where the chapter starts in the book, `href#fragment` |
+
+**Which lists a page is in** is decided in one place, `LibraryQueries`, from three standings: in
+the Library (`addedAt` set: its folder or the top level's *Pages*, Favorites while starred,
+search, address suggestions); played without saving (out of the Library, played, `removedAt`
+nil: the top of *Pages* as "Not saved", and search); removed (out of the Library, `removedAt`
+set: no list). *Remove from Library* (`LibraryStore.remove`) takes a page out of every list it was
+in at once, playing or not, and playing on, pausing or resuming doesn't list it again; a save
+puts it back, and so does listening to it again from its article (🎧, the Reader's Listen, which
+clears `removedAt`, through a rollback too: `PendingListening`). The Downloads list keeps downloads of what
+is in the Library (`DownloadCenter`, after each stored edit, `LibraryStore.editStored`). The bar's
+resume (`LibraryQueries.lastPlayed`) and the prune read every page, removed ones too.
 
 **`Folder`** (library): `name`, `kindRaw` (`plain`, `book`, `series`, `favorites`), `sortKey`,
 `parent` / `children` (any depth), `pages`, `pageSortRaw`, its details (`byline`, `coverData`,

@@ -1,10 +1,23 @@
 import Foundation
 import SwiftData
 
-/// Every library list's fetch, in one place, so no list forgets to leave out pages that aren't in
-/// the Library (`addedAt == nil`). Predicates never go through the optional `folder`
-/// relationship (iOS 17 can't always translate it); they use `Page.folderID`. Optional dates are
-/// compared through `?? distantPast`.
+/// Every library list's fetch, in one place: which lists a page is in is decided here and nowhere
+/// else. A page is in exactly one of three standings, and a list shows pages of one:
+///
+/// - **In the Library** (`addedAt` set): its folder's list (`pages(inFolder:)`) or the top level's
+///   *Pages* (`loosePages`), Favorites while starred (`favoritePages`), the home's search
+///   (`inLibrary`), address suggestions (`savedInLibrary`).
+/// - **Played without saving** (`playedNotSaved`): out of the Library, played, not removed since
+///   you last listened to it. The top of *Pages*, "Not saved", and the home's search.
+/// - **Removed** (out of the Library with `removedAt` set): in no list. *Remove from Library*
+///   takes a page out of every list it was in, at once, and playing on doesn't bring it back;
+///   saving it does, and so does listening to it again (🎧, the Reader's Listen).
+///
+/// Downloads go by the same line: the Downloads list keeps what is in the Library
+/// (`DownloadCenter`). The bar's resume (`lastPlayed`) and the prune (`prunable`) aren't lists: they read every
+/// page by when it was played. Predicates never go through the optional `folder` relationship
+/// (iOS 17 can't always translate it); they use `Page.folderID`. Optional dates are compared
+/// through `?? distantPast`.
 enum LibraryQueries {
     // MARK: Pages
 
@@ -38,17 +51,21 @@ enum LibraryQueries {
 
     /// Pages played without saving (decision D5), most recently played first: the top of the
     /// Library home's *Pages* and the *Pages* screen, marked "Not saved", until the 7-day prune
-    /// (`prunable`) deletes them. Book chapters never qualify (they are always in their folder).
+    /// (`prunable`) deletes them. A page removed from the Library (`removedAt`) isn't one, even
+    /// as it plays on, until you listen to it again. Book chapters never qualify (they are always
+    /// in their folder).
     static var playedNotSaved: FetchDescriptor<Page> {
         let past = Date.distantPast
         let saved = PageContentState.saved.rawValue
         return FetchDescriptor(predicate: #Predicate<Page> {
-            $0.addedAt == nil && $0.folderID == nil && $0.contentStateRaw == saved && ($0.lastPlayedAt ?? past) > past
+            $0.addedAt == nil && $0.removedAt == nil && $0.folderID == nil && $0.contentStateRaw == saved
+                && ($0.lastPlayedAt ?? past) > past
         }, sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse), SortDescriptor(\Page.key)])
     }
 
-    /// The pages played most recently, newest first, in the Library or not: the band's Now Playing
-    /// bar offers the first one still there to resume once nothing is bound. A few, so a page
+    /// The pages played most recently, newest first, in the Library or not (removed ones too:
+    /// removing never touches what you hear): the band's Now Playing bar offers the first one
+    /// still there to resume once nothing is bound. A few, so a page
     /// deleted before its query updates leaves another.
     static var lastPlayed: FetchDescriptor<Page> {
         let past = Date.distantPast
@@ -56,15 +73,6 @@ enum LibraryQueries {
                                          sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse)])
         descriptor.fetchLimit = 3
         return descriptor
-    }
-
-    /// Titles, bylines and excerpts across the tree, in the Library only.
-    static func search(_ text: String) -> FetchDescriptor<Page> {
-        FetchDescriptor(predicate: #Predicate<Page> {
-            $0.addedAt != nil && ($0.title.localizedStandardContains(text)
-                || $0.byline.localizedStandardContains(text)
-                || $0.excerpt.localizedStandardContains(text))
-        }, sortBy: [SortDescriptor(\Page.title)])
     }
 
     /// Pages not in the Library, not played since `cutoff`: deleted by the prune.
@@ -107,12 +115,6 @@ enum LibraryQueries {
         let favorites = "favorites"
         return FetchDescriptor(predicate: #Predicate<Folder> { $0.kindRaw == favorites },
                                sortBy: [SortDescriptor(\Folder.createdAt)])
-    }
-
-    /// Folders by name, across the tree.
-    static func searchFolders(_ text: String) -> FetchDescriptor<Folder> {
-        FetchDescriptor(predicate: #Predicate<Folder> { $0.name.localizedStandardContains(text) },
-                        sortBy: [SortDescriptor(\Folder.name)])
     }
 
     // MARK: Sorts

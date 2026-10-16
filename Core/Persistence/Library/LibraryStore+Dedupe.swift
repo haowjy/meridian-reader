@@ -207,6 +207,8 @@ extension LibraryStore {
         if keeper.canonicalURL == nil { keeper.canonicalURL = extra.canonicalURL }
         if extra.isSaved { keeper.contentState = .saved }
         keeper.addedAt = [keeper.addedAt, extra.addedAt].compactMap { $0 }.min()
+        // Out of the Library, a remove on either copy holds: the merged page stays in no list.
+        keeper.removedAt = [keeper.removedAt, extra.removedAt].compactMap { $0 }.max()
         if (extra.lastPlayedAt ?? .distantPast) > (keeper.lastPlayedAt ?? .distantPast) {
             keeper.lastPlayedAt = extra.lastPlayedAt
         }

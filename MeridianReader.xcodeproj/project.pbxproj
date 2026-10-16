@@ -65,7 +65,6 @@
 		1F75AE09D0AE641756A126D0 /* URLPageFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 163EED39DB94FCE35429022B /* URLPageFetcher.swift */; };
 		1FC18A0770426ABD6F00A2D8 /* ArticleAudioCache+Align.swift in Sources */ = {isa = PBXBuildFile; fileRef = F364FDB30777B33DF66D93C7 /* ArticleAudioCache+Align.swift */; };
 		20AEF996CF9EDD0F3253DA4C /* DemoBook.swift in Sources */ = {isa = PBXBuildFile; fileRef = C11D2D93D9A13FD22D426688 /* DemoBook.swift */; };
-		21761983FDCC1FB33568B89D /* LibrarySearchResults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85C54AECC08367FF24985BB1 /* LibrarySearchResults.swift */; };
 		21C4C8AC05401E80588560BB /* LaunchMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F2EBDAEA5A6CBE28EB592CD /* LaunchMigration.swift */; };
 		226484534E9D2603A6BA1837 /* PageSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D282C004AA190DFCE36597C /* PageSource.swift */; };
 		23281994276B6B571981768B /* LibrarySizeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA624E99742858E269B7EBC /* LibrarySizeTests.swift */; };
@@ -690,7 +689,6 @@
 		8590E6BBEF65EA96E6BFB1F8 /* ExtractedArticle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractedArticle.swift; sourceTree = "<group>"; };
 		85BD0CB2334229FBB81BC138 /* TitleCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleCard.swift; sourceTree = "<group>"; };
 		85C2E7A2C17138C2F9B8BF1D /* BookChapterFinalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookChapterFinalizer.swift; sourceTree = "<group>"; };
-		85C54AECC08367FF24985BB1 /* LibrarySearchResults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySearchResults.swift; sourceTree = "<group>"; };
 		86CF140FA5951EC59EA28D92 /* ChapterAdvanceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterAdvanceUITests.swift; sourceTree = "<group>"; };
 		873A935475797F25334192D6 /* URL+Web.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+Web.swift"; sourceTree = "<group>"; };
 		873CFACDDDE0EF2DBAA840D1 /* ParagraphSplitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParagraphSplitTests.swift; sourceTree = "<group>"; };
@@ -1205,7 +1203,6 @@
 				3168F04034BB68E04693CF50 /* LibraryRows.swift */,
 				9F097A8E7263234EEC9CF2D8 /* LibraryScreenMenu.swift */,
 				B2F96E8FC45BF96643D8BE08 /* LibraryScreenState.swift */,
-				85C54AECC08367FF24985BB1 /* LibrarySearchResults.swift */,
 				49B52C3690AF6D602EC1E385 /* LibrarySurface.swift */,
 				7409E49A2BF7FF09539F7227 /* MoveTreeSheet.swift */,
 				1263FEE393E809D99BD18CAC /* PageProgress.swift */,
@@ -2001,7 +1998,6 @@
 				889F518F617D7BDC7B6D8C14 /* LibraryRows.swift in Sources */,
 				59373BA865E0685F6A730F48 /* LibraryScreenMenu.swift in Sources */,
 				B75DC75CE7C36850B96EEB52 /* LibraryScreenState.swift in Sources */,
-				21761983FDCC1FB33568B89D /* LibrarySearchResults.swift in Sources */,
 				6024E9155DAA66133BCE4CC4 /* LibraryStore+AudioWork.swift in Sources */,
 				ADCFE5A0DC3553F42BBB3FB8 /* LibraryStore+Books.swift in Sources */,
 				9EE4744E29560EE67808E7F0 /* LibraryStore+Chapters.swift in Sources */,

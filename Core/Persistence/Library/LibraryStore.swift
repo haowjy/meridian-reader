@@ -27,6 +27,9 @@ final class LibraryStore {
     /// follows, the live session only while it plays that text
     /// (`SpeechController.rekeyActiveSession`).
     @ObservationIgnored var keyMerged: (UUID, UUID, String?) -> Void = { _, _, _ in }
+    /// An edit was stored (`edit`): pages or folders may have left the Library, and what lists
+    /// them outside it follows (the Downloads list, `DownloadCenter`).
+    @ObservationIgnored var editStored: () -> Void = {}
     /// Favorites whose icon `backfillFavoriteIcons` already fetched this launch.
     @ObservationIgnored var iconTried = Set<UUID>()
     /// How `commit` saves; tests make it fail.
@@ -157,9 +160,10 @@ final class LibraryStore {
     }
 
     /// An edit someone asked for (a save, a move, a rename, a mark, a remove, a delete): `stage`
-    /// writes it to the context, then one save stores it. A save that fails is rolled back
-    /// (`rollBack`) and throws `LibraryStoreError.saveFailed`, so the edit neither shows as done
-    /// nor waits in the context for a later save to store, or a later rollback to drop.
+    /// writes it to the context, then one save stores it, and `editStored` follows. A save that
+    /// fails is rolled back (`rollBack`) and throws `LibraryStoreError.saveFailed`, so the edit
+    /// neither shows as done nor waits in the context for a later save to store, or a later
+    /// rollback to drop.
     ///
     /// While `stage` runs, `commit` stores nothing: it would store the edit half made. `stage`
     /// can cause a commit: deleting the playing page stops it, and stopping records its position.
@@ -176,6 +180,7 @@ final class LibraryStore {
             rollBack()
             throw LibraryStoreError.saveFailed
         }
+        editStored()
         return result
     }
 

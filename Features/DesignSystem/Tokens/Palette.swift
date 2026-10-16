@@ -50,8 +50,8 @@ enum Palette {
     static let placeholderInk = Color(light: 0x1F5A4D, dark: 0xD5EDE5)
     static let playingTint = Color(light: 0xE6F1ED, dark: 0x163029)
     /// A swipe action that can leave its row in the list (it asks first, as a folder row's
-    /// *Delete*; it deletes what the row only shows, as an engine's download; or the row comes
-    /// back, as a played page's *Remove*): the system's red, as a `.destructive` role draws it.
+    /// *Delete*; it deletes what the row only shows, as an engine's download; or its change can
+    /// fail to save, as a page's *Remove*): the system's red, as a `.destructive` role draws it.
     /// Such an action takes this tint, not the role, which has the list take the row out at once
     /// (`LibraryFolderRow`, `LibraryPageRow`, `SpeechSettingsView`).
     static let destructive = Color(uiColor: .systemRed)

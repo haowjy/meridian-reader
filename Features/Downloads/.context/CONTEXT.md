@@ -20,6 +20,12 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   the observer.
 - **Only `cancelDownload` takes a job out**, and never the page playing or staged: removing a
   job fails its chunk waiters.
+- **The list keeps downloads of what is in the Library** (`isInLibrary`, the line
+  `LibraryQueries` draws): at `start`, and after each stored library edit
+  (`LibraryStore.editStored`), a download whose page was removed from the Library, or whose page
+  or folder was deleted, leaves the list without touching audio (the library already made it
+  ephemeral or deleted it). A folder download's page that left the Library fails as "no longer in
+  the Library" when its turn comes.
 - **Folder downloads list their pages when asked**: a book's or series' chapters that play and
   aren't finished (D7 trims finished ones' audio anyway), any other folder's own pages. Pages added
   later need *Re-download*.

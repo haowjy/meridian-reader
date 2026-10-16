@@ -52,11 +52,13 @@ extension LibraryStore {
 
     // MARK: - Playing
 
-    /// The page started playing: it is dated (`lastPlayedAt`) and unfinished, and a page in a
-    /// folder becomes its folder's place. The first play of a page the library doesn't have keeps it as a
-    /// page not in the Library (`addedAt == nil`), so it survives a relaunch for 7 days; a link
-    /// page keeps the text as a cache. This and the writes below are kept until a save stores
-    /// them (`PendingListening`): a rollback doesn't lose them.
+    /// A listen to `article` started (🎧, the Reader's Listen): the page is dated (`lastPlayedAt`)
+    /// and unfinished, and a page in a folder becomes its folder's place. The first play of a page
+    /// the library doesn't have keeps it as a page not in the Library (`addedAt == nil`), so it
+    /// survives a relaunch for 7 days; a link page keeps the text as a cache. A page removed from
+    /// the Library is played without saving again: "Not saved" lists it (`removedAt` cleared), as
+    /// for any page you listen to. This and the writes below are kept until a save stores them
+    /// (`PendingListening`): a rollback doesn't lose them.
     @discardableResult
     func recordPlayback(_ article: ReaderArticle) -> Page {
         let at = now()
@@ -64,8 +66,10 @@ extension LibraryStore {
         noteListening(page) {
             if textNotStored { $0.article = article }
             $0.start(at: at)
+            $0.listened = true
         }
         applyStart(page, at: at)
+        page.removedAt = nil
         commit("record playback")
         trimChapterAudio(behind: page)
         return page
@@ -191,13 +195,14 @@ extension LibraryStore {
         return page
     }
 
-    /// Unsave (🔖, ⋯ → Remove from Library): a page in a folder stays there as a link (a favorite
-    /// stays a favorite); a page in no folder, or one with no address to keep as a link (a book's
-    /// chapter), is removed from the Library. The audio stays, back on the ephemeral TTL once
-    /// that is saved (`planEphemeral`), so playback goes on. A save that fails is rolled back and
-    /// throws `LibraryStoreError.saveFailed`: still saved.
+    /// Unsave (🔖, ⋯ → Remove from Library) a page saved in the Library: a page in a folder stays
+    /// there as a link (a favorite stays a favorite); a page in no folder, or one with no address
+    /// to keep as a link (a book's chapter), is removed from the Library (`remove`: in no list
+    /// after). The audio stays, back on the ephemeral TTL once that is saved (`planEphemeral`), so
+    /// playback goes on. Any other page has nothing to unsave. A save that fails is rolled back
+    /// and throws `LibraryStoreError.saveFailed`: still saved.
     func unsave(_ page: Page) throws {
-        guard page.isSaved else { return }
+        guard page.isSavedToLibrary else { return }
         if (page.folder != nil || page.isFavorite), page.url != nil {
             try edit("unsave to link") {
                 page.contentState = .link
@@ -233,14 +238,15 @@ extension LibraryStore {
 
     // MARK: - Removing and deleting
 
-    /// *Remove from Library* (a row's menu and swipe, Edit's *Remove*), all of `pages` in one
-    /// save: a saved page leaves the Library (`addedAt = nil`, no folder, no longer a favorite)
-    /// and is pruned 7 days after it was last played; once that is saved its audio turns
-    /// ephemeral (`planEphemeral`).
-    /// A link page is deleted, unless it holds the text of a play, when it is kept like any
-    /// played page. A chapter leaves its book as any page leaves its folder. Never touches
-    /// playback. A save that fails is rolled back and throws `LibraryStoreError.saveFailed`:
-    /// every page stays where it was, none removed.
+    /// *Remove from Library* (a row's menu and swipe, Edit's *Remove*, unsaving a page in no
+    /// folder), all of `pages` in one save: a saved page leaves the Library and every list it was
+    /// in (`addedAt = nil`, `removedAt` now, no folder, no longer a favorite), *Not saved*
+    /// included (`LibraryQueries`), and is pruned 7 days after it was last played; once that is
+    /// saved its audio turns ephemeral (`planEphemeral`).
+    /// A link page is deleted, unless it holds the text of a play, when it is kept as any removed
+    /// page. A chapter leaves its book as any page leaves its folder. Never touches playback. A
+    /// save that fails is rolled back and throws `LibraryStoreError.saveFailed`: every page stays
+    /// where it was, none removed.
     func remove(_ pages: [Page]) throws {
         guard !pages.isEmpty else { return }
         var notes: [String] = []
@@ -253,6 +259,7 @@ extension LibraryStore {
                 }
                 page.contentState = .saved
                 page.addedAt = nil
+                page.removedAt = now()
                 page.isFavorite = false
                 movePlaceOff(page)
                 page.setFolder(nil)

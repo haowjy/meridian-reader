@@ -7,7 +7,8 @@ import SwiftUI
 /// names the author or site, so rows don't repeat it. Front matter is dimmed and "skipped" (any
 /// page skipped in playback is), with no ▶. Saved pages have Download beside ▶. Tap
 /// opens it (the Reader, Now Playing when it is what you hear, the browser for a link);
-/// long-press is its menu (decision D11); swipe left removes it from the Library. A page in the
+/// long-press is its menu (decision D11); swipe left removes it from the Library, and from every
+/// list it shows in (`LibraryQueries`). A page in the
 /// Library lifts into a drag from the long press, to be filed in a folder or placed between rows
 /// (`LibraryDrag`), a chapter as any page (decision D19). While its screen is in Edit the List's
 /// selection takes the tap.
@@ -51,8 +52,9 @@ struct LibraryPageRow: View {
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
                 if page.isInLibrary {
-                    // The row can stay: a played page comes back in the same list as "Not saved",
-                    // and a save that fails keeps it. So not `.destructive` (`Palette.destructive`).
+                    // The row leaves every list once the remove is stored; a save that fails keeps
+                    // it, with a toast. So not `.destructive`, which takes the row out first
+                    // (`Palette.destructive`).
                     Button("Remove") { actions.remove([page]) }
                         .tint(Palette.destructive)
                 }
