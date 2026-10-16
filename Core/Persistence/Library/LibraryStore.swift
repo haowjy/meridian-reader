@@ -85,16 +85,6 @@ final class LibraryStore {
         try? context.fetch(LibraryQueries.folder(id: id)).first
     }
 
-    /// Legacy Favorites folder adapter for old imports and migrations. Normal app views use
-    /// independent favorite flags; launch converts this folder and removes it.
-    @discardableResult
-    func favorites() -> Folder {
-        if let existing = try? context.fetch(LibraryQueries.favorites).first { return existing }
-        let folder = Folder(name: "", kind: .favorites, sortKey: -1)
-        context.insert(folder)
-        return folder
-    }
-
     /// The top-level folders, by `sortKey` (equal keys by id).
     func topLevelFolders() -> [Folder] {
         Self.ordered(LibraryQueries.topLevel((try? context.fetch(LibraryQueries.folders)) ?? []))

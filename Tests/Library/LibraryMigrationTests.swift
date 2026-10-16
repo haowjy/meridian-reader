@@ -3,8 +3,8 @@ import XCTest
 @testable import MeridianReader
 
 /// The copy from saved articles, bookmarks and listen history into the library: same keys, audio
-/// found where it is, bookmark pages converted to independent favorite flags, copy-once by the
-/// receipts saved with the copy, and nothing legacy ever written.
+/// found where it is, bookmarks starred where their pages are, copy-once by the receipts saved
+/// with the copy, and nothing legacy ever written.
 @MainActor
 final class LibraryMigrationTests: XCTestCase {
     private var env: LibraryTestEnvironment!
@@ -15,14 +15,6 @@ final class LibraryMigrationTests: XCTestCase {
 
     private let day: TimeInterval = 24 * 3600
     private func date(_ days: Double) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + days * day) }
-
-    /// Both launch steps: copy legacy bookmarks, then remove their temporary Favorites container.
-    private func migrateLaunch(_ store: LibraryStore? = nil) -> LibraryStore.MigrationReport {
-        let store = store ?? library
-        let report = store.migrateLegacy()
-        store.migrateFavoritesFolder()
-        return report
-    }
 
     func testLegacyRandomIDRowKeepsItsKeyAudioHistoryAndCrashResume() throws {
         let legacyID = UUID() // a pre-identity-v2 random id, not the URL's key
@@ -36,7 +28,7 @@ final class LibraryMigrationTests: XCTestCase {
         env.writeHistory([legacyID: (at: date(3).timeIntervalSince1970, done: false)])
         ListenResumePointStore.shared.save(article: legacyID, paragraph: 2, at: date(3))
 
-        let report = migrateLaunch()
+        let report = library.migrateLegacy()
         XCTAssertEqual(report.copiedArticles, 1)
         XCTAssertTrue(report.saved)
 
@@ -74,7 +66,7 @@ final class LibraryMigrationTests: XCTestCase {
         ]
         try env.writeBookmarks(bookmarks)
 
-        let report = migrateLaunch()
+        let report = library.migrateLegacy()
         XCTAssertEqual(report.copiedBookmarks, 3)
         XCTAssertEqual(report.savedIntoFavorites, 1)
 
@@ -91,23 +83,39 @@ final class LibraryMigrationTests: XCTestCase {
         XCTAssertEqual(env.pages().count, 3, "one page per address")
         XCTAssertTrue(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).contains { $0.key == savedID },
                       "a favorite stays in the normal root list")
-        XCTAssertTrue(library.topLevelFolders().isEmpty, "the temporary legacy Favorites container is removed")
+        XCTAssertTrue(library.topLevelFolders().isEmpty, "no folder is made for them")
     }
 
-    /// Every launch after the copy has nothing to copy: no legacy Favorites folder is made (and
-    /// then removed), and nothing is saved (a save makes every list on screen fetch again).
+    /// A bookmark for a page filed in a folder stars it there: it keeps its folder and its place.
+    func testABookmarkedPageInAFolderStaysThereStarred() throws {
+        let shelf = try library.makeFolder(name: "Shelf", in: nil)
+        let filed = try library.save(env.article("https://example.com/filed"), placement: .folder(shelf))
+        let place = filed.sortKey
+        try env.writeBookmarks([SiteBookmark(urlString: "https://example.com/filed?utm_source=x", title: "Filed",
+                                             host: "example.com", createdAt: date(1))])
+
+        let report = library.migrateLegacy()
+        XCTAssertEqual(report.copiedBookmarks, 1)
+        XCTAssertTrue(LibraryStore.isFavorite(filed), "starred")
+        XCTAssertIdentical(filed.folder, shelf, "in the folder it was filed in")
+        XCTAssertEqual(filed.sortKey, place, "at its place there")
+        XCTAssertEqual(env.folders().map(\.name), ["Shelf"], "no other folder")
+    }
+
+    /// Every launch after the copy has nothing to copy: nothing is saved (a save makes every list
+    /// on screen fetch again).
     func testALaunchWithNothingToCopyMakesNoFolderAndNoSave() throws {
         env.legacyRow("https://example.com/1", savedAt: date(0))
         try env.writeBookmarks([SiteBookmark(urlString: "https://example.com/fav", title: "Fav", host: "example.com")])
-        migrateLaunch()
+        library.migrateLegacy()
 
         let relaunched = env.makeLibrary()
         var saves = 0
         relaunched.saveContext = { saves += 1; try $0.save() }
-        let report = migrateLaunch(relaunched)
+        let report = relaunched.migrateLegacy()
         XCTAssertEqual(report, LibraryStore.MigrationReport())
         XCTAssertEqual(saves, 0, "no save")
-        XCTAssertTrue(env.folders().isEmpty, "no legacy Favorites folder")
+        XCTAssertTrue(env.folders().isEmpty, "no folder")
         XCTAssertFalse(env.context.hasChanges)
         XCTAssertEqual(relaunched.favoritePages().map(\.title), ["Fav"])
     }
@@ -116,18 +124,18 @@ final class LibraryMigrationTests: XCTestCase {
         env.legacyRow("https://example.com/1", savedAt: date(0))
         env.legacyRow("https://example.com/2", savedAt: date(1))
         try env.writeBookmarks([SiteBookmark(urlString: "https://example.com/fav", title: "Fav", host: "example.com")])
-        migrateLaunch()
+        library.migrateLegacy()
         XCTAssertEqual(env.pages().count, 3)
-        XCTAssertTrue(env.folders().isEmpty, "the launch migration removes the temporary container")
+        XCTAssertTrue(env.folders().isEmpty, "no folder is made for the bookmarks")
 
-        let again = migrateLaunch(env.makeLibrary())
+        let again = env.makeLibrary().migrateLegacy()
         XCTAssertEqual(again.copiedArticles + again.copiedBookmarks, 0)
         XCTAssertEqual(env.pages().count, 3, "same counts")
         XCTAssertTrue(env.folders().isEmpty)
 
         library.delete(try XCTUnwrap(library.page(url: URL(string: "https://example.com/1")!)))
         try library.removeFavorite(XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
-        migrateLaunch(env.makeLibrary())
+        env.makeLibrary().migrateLegacy()
         XCTAssertNil(library.page(url: URL(string: "https://example.com/1")!), "a deleted page never comes back")
         XCTAssertFalse(try XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)).isFavorite,
                        "removing a favorite only clears its flag")
@@ -147,14 +155,14 @@ final class LibraryMigrationTests: XCTestCase {
         // Only the store folder (and the folders already there) take new files.
         try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: env.dir.path)
 
-        migrateLaunch()
+        library.migrateLegacy()
         XCTAssertEqual(env.pages().count, 4)
         library.delete(try XCTUnwrap(library.page(url: URL(string: "https://example.com/deleted")!)))
         try library.unsave(XCTUnwrap(library.page(url: URL(string: "https://example.com/unsaved")!)))
         try library.removeFavorite(XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
 
         try env.relaunch()
-        let report = migrateLaunch()
+        let report = library.migrateLegacy()
         XCTAssertEqual(report.copiedArticles + report.copiedBookmarks, 0, "everything was recorded as copied")
         XCTAssertNil(library.page(url: URL(string: "https://example.com/deleted")!), "a deleted page stays deleted")
         XCTAssertEqual(library.page(url: URL(string: "https://example.com/unsaved")!)?.isInLibrary, false,
@@ -172,7 +180,7 @@ final class LibraryMigrationTests: XCTestCase {
             try FileManager.default.createDirectory(at: env.legacy.bookmarksURL.deletingLastPathComponent(),
                                                     withIntermediateDirectories: true)
             try bytes.write(to: env.legacy.bookmarksURL)
-            let report = migrateLaunch(env.makeLibrary())
+            let report = env.makeLibrary().migrateLegacy()
             XCTAssertFalse(report.bookmarksUnreadable, "\(bytes.count) bytes")
             XCTAssertEqual(report.copiedBookmarks, 0)
             XCTAssertTrue(library.favoritePages().isEmpty)
@@ -193,7 +201,7 @@ final class LibraryMigrationTests: XCTestCase {
                                                 withIntermediateDirectories: true)
         try corrupt.write(to: env.legacy.bookmarksURL)
 
-        let report = migrateLaunch()
+        let report = library.migrateLegacy()
         XCTAssertTrue(report.bookmarksUnreadable)
         XCTAssertTrue(report.saved)
         XCTAssertEqual(report.copiedArticles, 1, "the saved rows still come over")
@@ -202,7 +210,7 @@ final class LibraryMigrationTests: XCTestCase {
         XCTAssertFalse(env.receipts().contains { $0.source == .bookmark }, "nothing recorded from it")
 
         try env.writeBookmarks([SiteBookmark(urlString: "https://example.com/fav", title: "Fav", host: "example.com")])
-        let later = migrateLaunch(env.makeLibrary())
+        let later = env.makeLibrary().migrateLegacy()
         XCTAssertFalse(later.bookmarksUnreadable)
         XCTAssertEqual(later.copiedBookmarks, 1)
         XCTAssertEqual(library.favoritePages().map(\.title), ["Fav"])
@@ -210,7 +218,7 @@ final class LibraryMigrationTests: XCTestCase {
         // Copied once: removed, it stays removed when the next launch migrates from the files.
         try library.removeFavorite(XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
         try env.relaunch()
-        let again = migrateLaunch()
+        let again = library.migrateLegacy()
         XCTAssertEqual(again.copiedArticles + again.copiedBookmarks, 0)
         XCTAssertTrue(library.favoritePages().isEmpty, "the removed favorite stays removed")
         XCTAssertFalse(try XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)).isFavorite)
@@ -221,7 +229,7 @@ final class LibraryMigrationTests: XCTestCase {
         env.legacyRow("https://example.com/1", savedAt: date(0))
         let fav = SiteBookmark(urlString: "https://example.com/fav", title: "Fav", host: "example.com")
         try env.writeBookmarks([fav])
-        migrateLaunch()
+        library.migrateLegacy()
         // Removed in this build.
         try library.removeFavorite(XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
 
@@ -232,7 +240,7 @@ final class LibraryMigrationTests: XCTestCase {
             SiteBookmark(urlString: "https://example.com/new", title: "New", host: "example.com"),
         ])
 
-        let report = migrateLaunch(env.makeLibrary())
+        let report = env.makeLibrary().migrateLegacy()
         XCTAssertEqual(report.copiedArticles, 1)
         XCTAssertEqual(report.copiedBookmarks, 2)
         XCTAssertEqual(library.page(url: URL(string: "https://example.com/2")!)?.title, "During rollback")
@@ -247,7 +255,7 @@ final class LibraryMigrationTests: XCTestCase {
         let paragraphs = ["Alpha sentence.", "Beta sentence."]
         let row = env.legacyRow("https://example.com/frozen", id: id, savedAt: date(0), paragraphs: paragraphs, position: 1)
         try env.storeAudio(id, paragraphs: paragraphs)
-        migrateLaunch()
+        library.migrateLegacy()
         library.dedupe()
         library.migrateParagraphLayout()
         let files = try FileManager.default.contentsOfDirectory(atPath: env.cache.directory(for: id).path).sorted()
@@ -257,7 +265,7 @@ final class LibraryMigrationTests: XCTestCase {
         row.listenBlocksVersion = 2
         try env.context.save()
         let relaunch = env.makeLibrary()
-        migrateLaunch(relaunch)
+        relaunch.migrateLegacy()
         relaunch.dedupe()
         XCTAssertEqual(relaunch.migrateParagraphLayout().articles, 0, "the copied page is current; the row isn't migrated")
         relaunch.pruneUnsaved()
@@ -288,7 +296,7 @@ final class LibraryMigrationTests: XCTestCase {
         try env.relaunch()
         XCTAssertTrue(env.pages().isEmpty, "nothing reached the store")
         XCTAssertTrue(env.receipts().isEmpty)
-        let retried = migrateLaunch()
+        let retried = library.migrateLegacy()
         XCTAssertTrue(retried.saved)
         XCTAssertEqual(retried.copiedArticles, 2)
         XCTAssertEqual(retried.copiedBookmarks, 1)
@@ -298,7 +306,7 @@ final class LibraryMigrationTests: XCTestCase {
         try library.unsave(XCTUnwrap(library.page(url: URL(string: "https://example.com/2")!)))
         try library.removeFavorite(XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)))
         try env.relaunch()
-        let again = migrateLaunch()
+        let again = library.migrateLegacy()
         XCTAssertEqual(again.copiedArticles + again.copiedBookmarks, 0)
         XCTAssertFalse(try XCTUnwrap(library.page(url: URL(string: "https://example.com/fav")!)).isFavorite)
         XCTAssertEqual(library.page(url: URL(string: "https://example.com/2")!)?.isInLibrary, false)
@@ -307,12 +315,12 @@ final class LibraryMigrationTests: XCTestCase {
     #if DEBUG
     func testRerunLibraryMigrationCopiesEverythingAgain() throws {
         env.legacyRow("https://example.com/1", savedAt: date(0))
-        migrateLaunch()
+        library.migrateLegacy()
         library.delete(try XCTUnwrap(library.page(url: URL(string: "https://example.com/1")!)))
         library.resetForMigrationRerun()
         XCTAssertTrue(env.pages().isEmpty)
         XCTAssertTrue(env.receipts().isEmpty)
-        XCTAssertEqual(migrateLaunch().copiedArticles, 1)
+        XCTAssertEqual(library.migrateLegacy().copiedArticles, 1)
         XCTAssertNotNil(library.page(url: URL(string: "https://example.com/1")!))
     }
     #endif
@@ -325,7 +333,7 @@ final class LibraryMigrationTests: XCTestCase {
         env.writeHistory([row.id: (at: date(1).timeIntervalSince1970, done: true)])
         let historyBefore = env.defaults.data(forKey: ListenHistory.storageKey)
 
-        migrateLaunch()
+        library.migrateLegacy()
         let page = try XCTUnwrap(library.page(key: row.id))
         XCTAssertEqual(page.finishedAt, date(1), "finished history folded in")
         try library.save(env.article("https://example.com/1", title: "Edited"))

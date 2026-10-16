@@ -302,9 +302,6 @@ enum LaunchHooks {
 
     /// `-resetBookmarks` / `-seedBookmarks`: clears favorite flags, then optionally seeds links.
     static func setUpBookmarks(_ setup: LaunchOptions.BookmarkSetup, in library: LibraryStore) {
-        // A prior debug launch can leave legacy containers in the test store. Migrate them before
-        // resetting flags so test setup obeys the same tree behavior as the product.
-        library.migrateFavoritesFolder()
         for page in library.favoritePages() { try? library.removeFavorite(page) }
         let folders = (try? library.context.fetch(FetchDescriptor<Folder>())) ?? []
         for folder in folders where folder.isFavorite { try? library.toggleFavorite(folder) }

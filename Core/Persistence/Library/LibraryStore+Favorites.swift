@@ -83,8 +83,10 @@ extension LibraryStore {
         try edit("toggle favorite folder") { folder.isFavorite.toggle() }
     }
 
-    /// Converts the old pinned Favorites folder once. Children keep their structure; direct
-    /// pages become loose at the root. The folder is deleted only in the same saved edit.
+    /// Converts the legacy Favorites folder an older build left in the store (any number of
+    /// copies, wherever they are) into stars, at launch: its pages are starred and become loose at
+    /// the top level; its subfolders move to the top level, starred with everything in them. The
+    /// folder is deleted in the same saved edit.
     func migrateFavoritesFolder() {
         let legacyFolders = (try? context.fetch(LibraryQueries.favorites)) ?? []
         guard !legacyFolders.isEmpty else { return }

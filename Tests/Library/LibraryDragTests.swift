@@ -42,14 +42,12 @@ final class LibraryDragTests: XCTestCase {
         XCTAssertNil(library.moveRefusal(.page(page), to: outer), "a page onto a folder")
         XCTAssertNil(library.moveRefusal(.folder(inner), to: nil), "a folder to the top level")
         XCTAssertNil(library.moveRefusal(.folder(book), to: outer), "a book itself can be filed")
-        XCTAssertNil(library.moveRefusal(.page(page), to: library.favorites()), "a page onto Favorites")
 
         XCTAssertNil(library.moveRefusal(.page(page), to: book), "a book takes drops (decision D19)")
         XCTAssertNil(library.moveRefusal(.folder(inner), to: book))
         XCTAssertNil(library.moveRefusal(.page(chapter), to: nil), "a chapter leaves its book")
         XCTAssertEqual(library.moveRefusal(.folder(outer), to: outer), .cycle, "a folder onto itself")
         XCTAssertEqual(library.moveRefusal(.folder(outer), to: inner), .cycle, "a folder into its own subfolder")
-        XCTAssertNil(library.moveRefusal(.folder(library.favorites()), to: outer), "legacy Favorites containers follow folder rules")
     }
 
     /// Pages are placed among a book's chapters, and chapters out of it, as in any folder; only a

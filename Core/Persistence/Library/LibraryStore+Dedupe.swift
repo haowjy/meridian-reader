@@ -2,14 +2,13 @@ import Foundation
 import SwiftData
 
 /// The launch dedupe pass. One device never makes these cases, but sync (later) and a migration
-/// copy can: two pages for one address, two Favorites, two copies of a book, a folder cycle.
+/// copy can: two pages for one address, two copies of a book, a folder cycle.
 /// Handling them now means sync adds no new code paths.
 extension LibraryStore {
     struct DedupeReport: Equatable {
         var mergedFolders = 0
         var mergedPages = 0
         var brokenCycles = 0
-        var movedFavoritesToTop = 0
         var repairedFolderIDs = 0
     }
 
@@ -20,8 +19,6 @@ extension LibraryStore {
     func dedupe(saving: Bool = true) -> DedupeReport {
         var report = DedupeReport()
         dedupeSourceFolders(&report)
-        dedupeFavorites(&report)
-        moveFavoritesToTop(&report)
         breakCycles(&report)
         // One read of every page for both page passes (each page's text comes with it).
         let pages = (try? context.fetch(FetchDescriptor<Page>())) ?? []
@@ -73,31 +70,6 @@ extension LibraryStore {
         }
     }
 
-    /// Two Favorites folders: the newer one's contents move into the older, after its own.
-    private func dedupeFavorites(_ report: inout DedupeReport) {
-        let all = (try? context.fetch(LibraryQueries.favorites)) ?? []
-        guard all.count > 1 else { return }
-        let ordered = all.sorted(by: Self.olderFirst)
-        let keeper = ordered[0]
-        for extra in ordered.dropFirst() {
-            var pageKey = nextSortKey(in: keeper)
-            for page in pages(in: extra) {
-                page.setFolder(keeper)
-                page.sortKey = pageKey
-                pageKey += 1
-            }
-            var folderKey = nextFolderSortKey(in: keeper)
-            for child in subfolders(of: extra) {
-                child.parent = keeper
-                child.sortKey = folderKey
-                folderKey += 1
-            }
-            context.delete(extra)
-            report.mergedFolders += 1
-        }
-        keeper.parent = nil
-    }
-
     /// When a page in `folder` last played.
     private func lastPlayed(_ folder: Folder) -> Date {
         pages(in: folder).compactMap(\.lastPlayedAt).max() ?? .distantPast
@@ -112,15 +84,6 @@ extension LibraryStore {
         guard !missing.isEmpty else { return }
         state.chapterKeys = keeperKeys + missing
         keeper.sourceStateData = try? JSONEncoder().encode(state)
-    }
-
-    /// Favorites stays at the top level: one found inside another folder moves back up.
-    private func moveFavoritesToTop(_ report: inout DedupeReport) {
-        let all = (try? context.fetch(LibraryQueries.favorites)) ?? []
-        for favorites in all where favorites.parent != nil {
-            favorites.parent = nil
-            report.movedFavoritesToTop += 1
-        }
     }
 
     /// A folder cycle (device A moved X into Y while B moved Y into X): the newest folder in it

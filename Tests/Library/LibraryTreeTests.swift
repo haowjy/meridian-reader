@@ -143,7 +143,7 @@ final class LibraryTreeTests: XCTestCase {
     }
 
     func testLegacyFavoritesFolderHasOrdinaryFolderRules() throws {
-        let favorites = library.favorites()
+        let favorites = env.legacyFavoritesFolder()
         let other = try library.makeFolder(name: "Other", in: nil)
         try library.rename(favorites, to: "Mine")
         try library.move([.folder(favorites)], to: other)

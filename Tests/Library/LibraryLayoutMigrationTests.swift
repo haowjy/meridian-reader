@@ -242,7 +242,7 @@ final class LibraryLayoutMigrationTests: XCTestCase {
     }
 
     func testLinksWithoutTextAreSkipped() throws {
-        let link = try library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: library.favorites())
+        let link = try library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: nil)
         XCTAssertEqual(link.listenBlocksVersion, 0)
         XCTAssertEqual(library.migrateParagraphLayout().articles, 0)
         XCTAssertFalse(link.hasText)
