@@ -31,7 +31,7 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 App/        @main, composition root (AppComposition), launch work (AppLaunch), Debug-only launch hooks
 Core/
   Device/       chip / OS gates
-  Domain/       ReaderArticle, PageOrigin, ParagraphDocument, ParagraphSplitter, ArticleIdentity, ReaderScrubMap
+  Domain/       ReaderArticle, PageOrigin, ParagraphDocument, ParagraphSplitter, ArticleIdentity, ReaderScrubMap, WordCount
   EPUB/         EPUB reading: zip container, package, contents, chapter cutting, BookIdentity
   Extraction/   ArticleExtracting, Readability runner, ListenContentNormalizer, reader scripts
   Sources/      PageSource (SingleWebPageSource, EPUBSource), BookImporter, chapter settling, cover thumbnails, Imports/ files
@@ -157,11 +157,11 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `urlString`, `canonicalURL` | The page; one page per canonical URL |
 | `title`, `byline`, `excerpt`, `artworkData` | Rows, Now Playing (`byline` = site domain for web pages) |
 | `contentStateRaw` | `link` (a favorite; any text is a cache) or `saved` |
-| `addedAt` | When it joined the Library; nil = played without saving or removed (kept 7 days after its last play) |
+| `addedAt` | When it joined the Library; nil = played without saving or removed (kept 7 days after its last play; a removed page never played, until the next launch) |
 | `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, a page is in no list, not even "Not saved"; read only while `addedAt` is nil |
 | `folder`, `folderID`, `sortKey` | Its folder (none = the pages in no folder) and order there; `folderID` mirrors the relationship for predicates |
 | `bodyHTML`, `plainTextData` | Offline reading; the listen text comes from the HTML |
-| `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount` |
+| `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount`. Words are counted by one rule, `WordCount`, for web pages and chapters alike (each Chinese or Japanese character is a word); every text write goes through `Page.setText` |
 | `positionParagraph`, `positionUTF16` | Resume position (paragraph + offset inside the document) |
 | `lastPlayedAt`, `finishedAt` | the "Not saved" pages' order, the prune and the bar's resume, and a row's "✓ Finished" |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
@@ -181,14 +181,16 @@ is in the Library (`DownloadCenter`, after each stored edit, `LibraryStore.editS
 resume (`LibraryQueries.lastPlayed`) and the prune read every page, removed ones too.
 
 **`Folder`** (library): `name`, `kindRaw` (`plain`, `book`, `series`, `favorites`), `sortKey`,
-`parent` / `children` (any depth), `pages`, `pageSortRaw`, its details (`byline`, `coverData`,
-`languageCode`: a book's from its file; *Edit Details* changes `name`, `byline` and `coverData`
+`parent` / `children` (any depth), `pages`, `pageSortRaw`, its details (`byline`, `coverData`:
+a book's from its file; *Edit Details* changes `name`, `byline` and `coverData`
 of any folder through `LibraryStore.setDetails`; a folder with a byline or cover,
 `hasDetails`, shows the detailed header), for books and series their source
 (`sourceIdentifier`, `sourceURLString`, `sourceStateData`: a book's `BookSourceState`, its file's
 SHA-256 and the keys of the chapters its file gave, in order), and for every folder its place
-(`currentPageKey`, `lastPlayedAt`, `finishedAt`, written as its pages play: every folder plays
-page to page in its sort). **Every folder follows the same rules (decision D19)**: books and
+(`currentPageKey`, the page that last started: every folder plays page to page in its sort).
+Whether a folder is finished isn't stored: `FolderProgress.isFinished` works it out from its pages.
+`languageCode`, `lastPlayedAt` and `finishedAt` are kept as older builds stored them and nothing
+writes or reads them. **Every folder follows the same rules (decision D19)**: books and
 series take pages and subfolders, their chapters move out and reorder, their sort is the user's
 (*Manual*, in the source's order, until changed). `kind` says only where a folder came from:
 *Replace* finds a book by its key (`book(key:)`), a series' link pages are fetched when playback
@@ -197,8 +199,9 @@ Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their 
   launch dedupe merges two copies of one source. Favorites are independent flags on pages and
   folders; a favorite page is one in the Library (`LibraryStore.isFavorite`,
   `LibraryQueries.favoritePages`): starring a page that isn't sets its `addedAt`, and *Remove
-  from Library* clears its flag. The legacy Favorites folder is migrated on launch: its pages and nested folders are
-  starred, direct pages return to the root, and the container is removed.
+  from Library* clears its flag. A legacy Favorites folder an older build left in the store is
+  migrated on launch (`migrateFavoritesFolder`): its pages and nested folders are starred, direct
+  pages return to the root, and the container is removed.
 
 **Book import** (`BookImporter`, run for the import sheet by `BookImportFlow`):
 0. The file is the import's own copy in `Application Support/Imports/<uuid>/<name>.epub`
@@ -254,16 +257,15 @@ stops right after reading, and the sheet asks, then runs again with `.replace` o
 **Migration (copy-once).** At launch `LibraryStore.migrateLegacy` copies every `SavedArticle`
 row and every bookmark in `bookmarks.json` without a receipt (`LibraryMigrationReceipt`, in the
 library store): saved rows become saved pages in no folder (same key, text, position, icon; the
-listen history becomes `lastPlayedAt` / `finishedAt`), bookmarks become link pages in Favorites
-in file order, and a bookmark for a saved page moves that page into Favorites at the bookmark's
-place. The paragraph layout pass then moves copied pages on older listen blocks to today's
+listen history becomes `lastPlayedAt` / `finishedAt`), bookmarks become starred link pages in no
+folder in file order, and a bookmark for a page the library has stars that page where it is (one
+in a folder stays there; one out of the Library joins it as a link). The paragraph layout pass then moves copied pages on older listen blocks to today's
 layout, and only then does dedupe merge duplicates, so positions and audio are compared on the
 same paragraphs. The pages and a receipt for every item copied are saved together: a failed save
 leaves neither, so the next launch copies again, and a page deleted after the copy never comes
 back. Receipts that can't be read stop the copy. A bookmarks file that doesn't decode is logged
 and left as it is: nothing is copied or recorded from it, so it is copied if it becomes readable.
-A launch with nothing to copy (every launch after the first) changes nothing and saves nothing:
-the legacy Favorites folder the bookmarks pass through is made only when there are bookmarks.
+A launch with nothing to copy (every launch after the first) changes nothing and saves nothing.
 Nothing legacy is written again: the rows, the
 bookmarks file and the listen history stay as they were, so the previous build still works after
 a rollback, and pages keep their rows' audio keys. Then the paragraph layout pass, the dedupe pass

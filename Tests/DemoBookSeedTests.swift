@@ -46,7 +46,7 @@ final class DemoBookSeedTests: XCTestCase {
 
         XCTAssertEqual(demoBooks().count, 1, "the earlier seed's book is replaced")
         XCTAssertFalse(demoBooks().first === firstBook)
-        XCTAssertEqual(demoBooks().first.map { env.library.playOrder(of: $0).count }, DemoBook.chapters.count)
+        XCTAssertEqual(demoBooks().first.map { env.library.pages(in: $0).count }, DemoBook.chapters.count)
         let loose = pages(at: DemoBook.loosePageURL)
         XCTAssertEqual(loose.count, 1, "and its page in no folder")
         XCTAssertEqual(loose.first?.locator, DemoBook.loosePageMarker)
@@ -77,11 +77,22 @@ final class DemoBookSeedTests: XCTestCase {
                 XCTAssertTrue(env.cache.hasCache(for: key), "launch \(run): its audio")
             }
             XCTAssertEqual(demoBooks().count, 1, "launch \(run)")
-            let chapters = try XCTUnwrap(demoBooks().first.map(env.library.playOrder(of:)))
+            let chapters = try XCTUnwrap(demoBooks().first.map { env.library.pages(in: $0) })
             XCTAssertEqual(chapters.count, DemoBook.chapters.count, "launch \(run): every chapter seeded")
             XCTAssertNil(chapters[1].urlString, "launch \(run): the chapter whose address is taken goes without it")
             XCTAssertEqual(chapters[2].urlString, DemoBook.url(ofChapter: 2).absoluteString)
             XCTAssertTrue(env.pages().allSatisfy { $0.locator != DemoBook.loosePageMarker }, "launch \(run)")
+        }
+    }
+
+    /// Seeded chapters hold what an imported one does: their listen paragraphs and word count.
+    func testSeededChaptersHoldTheirListenParagraphs() throws {
+        launch()
+        let chapters = try XCTUnwrap(demoBooks().first.map { env.library.pages(in: $0) })
+        for chapter in chapters {
+            XCTAssertFalse(chapter.cachedListenParagraphs?.isEmpty ?? true, chapter.title)
+            XCTAssertEqual(chapter.paragraphCount, chapter.cachedListenParagraphs?.count, chapter.title)
+            XCTAssertEqual(chapter.wordCount, WordCount.count(chapter.plainText), chapter.title)
         }
     }
 }

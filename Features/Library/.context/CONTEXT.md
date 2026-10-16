@@ -52,8 +52,8 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   `FolderDeletePrompt` (unit-tested): one destructive choice, deleting with contents (no keep-contents choice, D18).
 - **One ⋯ for the Library surface.** `LibraryScreenMenu` decides the rows and actions for the
   screen on top; the surface supplies its root and big-button actions.
-- **Deletes, removes and Save go through `LibraryStore`'s audio journal** (`planDelete`,
-  `planEphemeral`, `planSaved`): the audio changes only after the save, and a failed save is
+- **Deletes, removes and Save go through `LibraryStore`'s audio journal** (`plan(.delete`,
+  `.ephemeral` or `.saved, key:)`): the audio changes only after the save, and a failed save is
   rolled back. Work that waited acts on the page as it is when it runs. Save also moves audio
   when an older page holds the address under another key (`ArticleSaveCoordinator` then rekeys
   the live session too, without a restart), or, for a page not playing, through
@@ -97,7 +97,8 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   (`BookFolderUITests.testHeaderBlocksShareTheCardsEdges` checks them).
 - **Books and series are folders** (decision D19): one screen (`FolderScreen`), one page row
   (`LibraryPageRow`), one ⋯ (`LibraryMenu.Screen.folder`), one delete question. Nothing refuses
-  a move, a drop, a sort or a subfolder because of `kind`: only cycles (`LibraryTreeError`).
+  a move, a drop, a sort or a subfolder because of `kind`: only cycles, and a page out of the
+  Library, which has no place in the tree (`LibraryTreeError`).
   `kind` is a hint of where a folder came from
   (`FolderKind.isBookOrSeries`): the row appearance comes from details; kind still supplies
   symbol, *Replace*'s lookup, a series' fetchable links, D7's trim, the bar's source. *Replace*

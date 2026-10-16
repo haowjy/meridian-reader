@@ -107,10 +107,8 @@ final class ChapterAdvanceTests: XCTestCase {
 
         book.currentPageKey = pages[3].key
         pages[3].finishedAt = env.now
-        book.finishedAt = env.now
         start = try XCTUnwrap(library.continueStart(of: book))
         XCTAssertTrue(start.page === pages[1], "a finished book starts again")
-        XCTAssertNil(book.finishedAt, "and is no longer finished")
     }
 
     /// D7 leaves audio held for library work a launch couldn't finish (`ArticleAudioCache.held`),

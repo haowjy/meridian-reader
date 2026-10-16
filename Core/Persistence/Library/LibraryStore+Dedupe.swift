@@ -2,14 +2,13 @@ import Foundation
 import SwiftData
 
 /// The launch dedupe pass. One device never makes these cases, but sync (later) and a migration
-/// copy can: two pages for one address, two Favorites, two copies of a book, a folder cycle.
+/// copy can: two pages for one address, two copies of a book, a folder cycle.
 /// Handling them now means sync adds no new code paths.
 extension LibraryStore {
     struct DedupeReport: Equatable {
         var mergedFolders = 0
         var mergedPages = 0
         var brokenCycles = 0
-        var movedFavoritesToTop = 0
         var repairedFolderIDs = 0
     }
 
@@ -20,8 +19,6 @@ extension LibraryStore {
     func dedupe(saving: Bool = true) -> DedupeReport {
         var report = DedupeReport()
         dedupeSourceFolders(&report)
-        dedupeFavorites(&report)
-        moveFavoritesToTop(&report)
         breakCycles(&report)
         // One read of every page for both page passes (each page's text comes with it).
         let pages = (try? context.fetch(FetchDescriptor<Page>())) ?? []
@@ -42,6 +39,7 @@ extension LibraryStore {
 
     /// Two books or series with one `sourceIdentifier` merge into the older one: the other's pages
     /// and subfolders move in after its own, and pages sharing a key merge in the page pass below.
+    /// The copy a page of which played last keeps its place (Continue's page).
     private func dedupeSourceFolders(_ report: inout DedupeReport) {
         let folders = ((try? context.fetch(FetchDescriptor<Folder>())) ?? []).filter { $0.kind.isBookOrSeries && $0.sourceIdentifier != nil }
         let groups = Dictionary(grouping: folders) { "\($0.kindRaw)|\($0.sourceIdentifier ?? "")" }.values.filter { $0.count > 1 }
@@ -49,23 +47,8 @@ extension LibraryStore {
             let ordered = group.sorted(by: Self.olderFirst)
             let keeper = ordered[0]
             for extra in ordered.dropFirst() {
-                var pageKey = nextSortKey(in: keeper)
-                for page in pages(in: extra) {
-                    page.setFolder(keeper)
-                    page.sortKey = pageKey
-                    pageKey += 1
-                }
-                var folderKey = nextFolderSortKey(in: keeper)
-                for child in subfolders(of: extra) {
-                    child.parent = keeper
-                    child.sortKey = folderKey
-                    folderKey += 1
-                }
-                if (extra.lastPlayedAt ?? .distantPast) > (keeper.lastPlayedAt ?? .distantPast) {
-                    keeper.currentPageKey = extra.currentPageKey
-                    keeper.lastPlayedAt = extra.lastPlayedAt
-                    keeper.finishedAt = extra.finishedAt
-                }
+                if lastPlayed(extra) > lastPlayed(keeper) { keeper.currentPageKey = extra.currentPageKey }
+                append(pages(in: extra).map(LibraryItem.page) + subfolders(of: extra).map(LibraryItem.folder), to: keeper)
                 if keeper.coverData == nil { keeper.coverData = extra.coverData }
                 mergeChapterRecord(of: extra, into: keeper)
                 log("dedupe folder \(extra.name) → \(keeper.name)")
@@ -75,29 +58,9 @@ extension LibraryStore {
         }
     }
 
-    /// Two Favorites folders: the newer one's contents move into the older, after its own.
-    private func dedupeFavorites(_ report: inout DedupeReport) {
-        let all = (try? context.fetch(LibraryQueries.favorites)) ?? []
-        guard all.count > 1 else { return }
-        let ordered = all.sorted(by: Self.olderFirst)
-        let keeper = ordered[0]
-        for extra in ordered.dropFirst() {
-            var pageKey = nextSortKey(in: keeper)
-            for page in pages(in: extra) {
-                page.setFolder(keeper)
-                page.sortKey = pageKey
-                pageKey += 1
-            }
-            var folderKey = nextFolderSortKey(in: keeper)
-            for child in subfolders(of: extra) {
-                child.parent = keeper
-                child.sortKey = folderKey
-                folderKey += 1
-            }
-            context.delete(extra)
-            report.mergedFolders += 1
-        }
-        keeper.parent = nil
+    /// When a page in `folder` last played.
+    private func lastPlayed(_ folder: Folder) -> Date {
+        pages(in: folder).compactMap(\.lastPlayedAt).max() ?? .distantPast
     }
 
     /// A book's record of its chapters takes the other copy's chapters it lacks, so *Replace*
@@ -109,15 +72,6 @@ extension LibraryStore {
         guard !missing.isEmpty else { return }
         state.chapterKeys = keeperKeys + missing
         keeper.sourceStateData = try? JSONEncoder().encode(state)
-    }
-
-    /// Favorites stays at the top level: one found inside another folder moves back up.
-    private func moveFavoritesToTop(_ report: inout DedupeReport) {
-        let all = (try? context.fetch(LibraryQueries.favorites)) ?? []
-        for favorites in all where favorites.parent != nil {
-            favorites.parent = nil
-            report.movedFavoritesToTop += 1
-        }
     }
 
     /// A folder cycle (device A moved X into Y while B moved Y into X): the newest folder in it
@@ -152,9 +106,10 @@ extension LibraryStore {
     // MARK: - Pages
 
     /// Pages sharing a key or a canonical URL become one, the keeper chosen by: saved over link;
-    /// the furthest position; the latest play; the older. The keeper takes content it lacks, the
-    /// other's audio, the earliest `addedAt` (a save is never lost) and the latest play; any
-    /// place or crash-resume point on the other's key follows it.
+    /// the furthest position; the latest play; the older. The keeper takes in the other
+    /// (`Page.absorb`: what it lacks, the earliest `addedAt` so a save is never lost, the latest
+    /// play, the star) and its audio, and its folder when it has none; any place or crash-resume
+    /// point on the other's key follows it.
     private func dedupePages(_ pages: [Page], _ report: inout DedupeReport) {
         // Union by key and by canonical URL.
         var parent = Array(pages.indices)
@@ -190,29 +145,7 @@ extension LibraryStore {
             keeper.sortKey = extra.sortKey
             keeper.setFolder(folder)
         }
-        if !keeper.hasText, extra.hasText {
-            keeper.bodyHTML = extra.bodyHTML
-            keeper.plainTextData = extra.plainTextData
-            keeper.excerpt = extra.excerpt
-            keeper.wordCount = extra.wordCount
-        }
-        if keeper.listenBlocksData == nil, extra.listenBlocksData != nil {
-            keeper.listenBlocksData = extra.listenBlocksData
-            keeper.listenBlocksVersion = extra.listenBlocksVersion
-            keeper.paragraphCount = extra.paragraphCount
-            keeper.detectedLanguageCode = extra.detectedLanguageCode
-        }
-        if keeper.artworkData == nil { keeper.artworkData = extra.artworkData }
-        if keeper.urlString == nil { keeper.urlString = extra.urlString }
-        if keeper.canonicalURL == nil { keeper.canonicalURL = extra.canonicalURL }
-        if extra.isSaved { keeper.contentState = .saved }
-        keeper.addedAt = [keeper.addedAt, extra.addedAt].compactMap { $0 }.min()
-        // Out of the Library, a remove on either copy holds: the merged page stays in no list.
-        keeper.removedAt = [keeper.removedAt, extra.removedAt].compactMap { $0 }.max()
-        if (extra.lastPlayedAt ?? .distantPast) > (keeper.lastPlayedAt ?? .distantPast) {
-            keeper.lastPlayedAt = extra.lastPlayedAt
-        }
-        if keeper.key == nil { keeper.key = extra.key }
+        keeper.absorb(extra)
         if let from = extra.key, let to = keeper.key, from != to { mergeAudio(from: from, fromPage: extra, into: to, keeper: keeper) }
         log("dedupe page \(Self.short(extra.key)) → keeper \(Self.short(keeper.key)) (\(keeper.canonicalURL ?? "-"))")
         context.delete(extra)

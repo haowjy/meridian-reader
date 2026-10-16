@@ -41,6 +41,6 @@ extension LibraryStore: NextChapterProviding {
 
 extension PlaybackFolder {
     init(_ folder: Folder) {
-        self.init(id: folder.id, name: folder.displayName, isBookOrSeries: folder.kind.isBookOrSeries)
+        self.init(id: folder.id, name: folder.name, isBookOrSeries: folder.kind.isBookOrSeries)
     }
 }

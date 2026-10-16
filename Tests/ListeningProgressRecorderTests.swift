@@ -458,7 +458,7 @@ final class ListeningProgressRecorderTests: XCTestCase {
         library.saveContext = { if failing { throw SaveFailed() }; try $0.save() }
         stopsPlaybackOnDelete { failing = true }
 
-        XCTAssertThrowsError(try library.deleteFolder(shelf, keepContents: false)) {
+        XCTAssertThrowsError(try library.deleteFolder(shelf)) {
             XCTAssertEqual($0 as? LibraryStoreError, .saveFailed)
         }
         XCTAssertNil(speech.nowPlaying, "playback stopped")

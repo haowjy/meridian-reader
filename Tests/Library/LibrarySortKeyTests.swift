@@ -49,7 +49,7 @@ final class LibrarySortKeyTests: XCTestCase {
         let b = try library.makeFolder(name: "B", in: nil)
         let c = try library.makeFolder(name: "C", in: nil)
         try library.arrange([c], in: nil, before: a)
-        XCTAssertEqual(library.topLevelFolders().map(\.displayName), ["C", "A", "B"])
+        XCTAssertEqual(library.topLevelFolders().map(\.name), ["C", "A", "B"])
         let shelf = try library.makeFolder(name: "Shelf", in: a)
         let other = try library.makeFolder(name: "Other", in: a)
         try library.arrange([other], in: a, before: shelf)
@@ -60,6 +60,6 @@ final class LibrarySortKeyTests: XCTestCase {
         }
         let keys = library.topLevelFolders().map(\.sortKey)
         XCTAssertEqual(Set(keys).count, keys.count, "many moves never collide")
-        XCTAssertEqual(library.topLevelFolders().map(\.displayName), ["C", "B", "A"])
+        XCTAssertEqual(library.topLevelFolders().map(\.name), ["C", "B", "A"])
     }
 }

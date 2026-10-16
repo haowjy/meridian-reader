@@ -91,6 +91,13 @@ final class LibraryTestEnvironment {
     func receipts() -> [LibraryMigrationReceipt] { (try? context.fetch(FetchDescriptor<LibraryMigrationReceipt>())) ?? [] }
     func folders() -> [Folder] { (try? context.fetch(FetchDescriptor<Folder>())) ?? [] }
 
+    /// The Favorites folder an older build kept, as a store it left still holds it.
+    func legacyFavoritesFolder() -> Folder {
+        let folder = Folder(name: "", kind: .favorites, sortKey: -1)
+        context.insert(folder)
+        return folder
+    }
+
     /// A reader article for `url` with `paragraphs` as its text.
     func article(_ url: String, title: String = "Title", paragraphs: [String] = ["First paragraph here.", "Second paragraph here."],
                  key: UUID? = nil) -> ReaderArticle {

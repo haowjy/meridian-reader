@@ -50,7 +50,6 @@ final class LibrarySaveFailureTests: XCTestCase {
             var parent: UUID?
             var sortKey: Double
             var sort: String
-            var finishedAt: Date?
             var children: Set<UUID>
             var pages: Set<UUID>
         }
@@ -74,7 +73,7 @@ final class LibrarySaveFailureTests: XCTestCase {
         var shot = Snapshot()
         for f in env.folders() {
             shot.folders[f.id] = .init(name: f.name, parent: f.parent?.id, sortKey: f.sortKey, sort: f.pageSortRaw,
-                                       finishedAt: f.finishedAt, children: Set((f.children ?? []).map(\.id)),
+                                       children: Set((f.children ?? []).map(\.id)),
                                        pages: Set((f.pages ?? []).compactMap(\.key)))
         }
         for p in env.pages() {
@@ -197,8 +196,7 @@ final class LibrarySaveFailureTests: XCTestCase {
             ("☆ a saved page", { _ = try self.library.addFavorite(url: try XCTUnwrap(s.loose.url), title: nil, artwork: nil) }),
             ("Remove from Favorites", { try self.library.removeFavorite(favorite) }),
             ("Rename a favorite", { try self.library.renameFavorite(favorite, to: "Renamed") }),
-            ("Delete Folder Only", { try self.library.deleteFolders([s.fiction], keepContents: true) }),
-            ("Delete Folder and Contents", { try self.library.deleteFolders([s.essays], keepContents: false) }),
+            ("Delete Folder and Contents", { try self.library.deleteFolders([s.essays]) }),
         ]
         for (name, edit) in edits {
             XCTAssertThrowsError(try edit(), name) { XCTAssertEqual($0 as? LibraryStoreError, .saveFailed, name) }
@@ -241,8 +239,6 @@ final class LibrarySaveFailureTests: XCTestCase {
         func check(_ library: LibraryStore, _ when: String) throws {
             let book = try XCTUnwrap(library.page(key: oneKey)?.folder, when)
             XCTAssertEqual(book.currentPageKey, twoKey, "\(when): the chapter that started last is the place")
-            XCTAssertEqual(book.lastPlayedAt, start.addingTimeInterval(61), when)
-            XCTAssertNil(book.finishedAt, "\(when): a chapter is still to play")
             XCTAssertEqual(library.page(key: oneKey)?.finishedAt, start.addingTimeInterval(60), when)
             let two = try XCTUnwrap(library.page(key: twoKey), when)
             XCTAssertEqual(two.lastPlayedAt, start.addingTimeInterval(61), when)
@@ -297,10 +293,10 @@ final class LibrarySaveFailureTests: XCTestCase {
         try check(env.library, "after a relaunch")
     }
 
-    /// Continue on a finished book restarts it while saves fail: the restart's own save fails,
-    /// its first chapter starts, then a failed edit rolls everything back. The book stays
-    /// restarted: unfinished, its place the first chapter, which is unfinished and dated; the
-    /// second chapter stays finished. Once saves work it is stored, and a relaunch agrees.
+    /// Continue on a finished book restarts it while saves fail: its first chapter starts, then a
+    /// failed edit rolls everything back. The book stays restarted: its place the first chapter,
+    /// which is unfinished and dated; the second chapter stays finished. Once saves work it is
+    /// stored, and a relaunch agrees.
     func testABookRestartedWhileSavesFailStaysRestartedThroughARollback() throws {
         let book = Folder(name: "Book", kind: .book)
         env.context.insert(book)
@@ -308,7 +304,6 @@ final class LibrarySaveFailureTests: XCTestCase {
         let chapters = try urls.map { try library.addLink(url: URL(string: $0)!, title: $0, artwork: nil, in: book) }
         for url in urls { try library.save(env.article(url)) }
         try library.setFinished(chapters, true)
-        XCTAssertNotNil(book.finishedAt, "finished: every chapter is")
         let (oneKey, twoKey) = (try XCTUnwrap(chapters[0].key), try XCTUnwrap(chapters[1].key))
         env.now = env.now.addingTimeInterval(600)
         let restarted = env.now
@@ -316,16 +311,13 @@ final class LibrarySaveFailureTests: XCTestCase {
 
         let start = try XCTUnwrap(library.continueStart(of: book), "Continue on the finished book")
         XCTAssertEqual(start.page.key, oneKey, "starts again at its first chapter")
-        XCTAssertNil(book.finishedAt)
         library.recordPlaybackStarted(start.page)
         env.now = restarted.addingTimeInterval(60)
         XCTAssertThrowsError(try library.makeFolder(name: "Later", in: nil))
         func check(_ library: LibraryStore, _ when: String) throws {
             let one = try XCTUnwrap(library.page(key: oneKey), when)
             let book = try XCTUnwrap(one.folder, when)
-            XCTAssertNil(book.finishedAt, "\(when): the book is listened to again")
             XCTAssertEqual(book.currentPageKey, oneKey, "\(when): its place is the first chapter")
-            XCTAssertEqual(book.lastPlayedAt, restarted, when)
             XCTAssertNil(one.finishedAt, when)
             XCTAssertEqual(one.lastPlayedAt, restarted, when)
             XCTAssertNotNil(library.page(key: twoKey)?.finishedAt, "\(when): the second chapter stays finished")

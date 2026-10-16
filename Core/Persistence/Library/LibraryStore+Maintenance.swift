@@ -75,7 +75,8 @@ extension LibraryStore {
         var clearedLinkCaches = 0
     }
 
-    /// Pages not in the Library and not played for 7 days are deleted, except the page played
+    /// Pages not in the Library and not played for 7 days are deleted (a removed page never
+    /// played counts as played long ago: it goes at the next launch), except the page played
     /// most recently (what the Now Playing bar restores). Their audio is already ephemeral; the
     /// audio cache's own age and size prune removes it. Link pages' text caches unplayed for 7
     /// days are cleared; the links stay. A failed save is rolled back (the next launch prunes).
@@ -109,7 +110,7 @@ extension LibraryStore {
     @discardableResult
     func trimFinishedAudio(folder: Folder) -> Int {
         guard folder.kind.isBookOrSeries, let place = folder.currentPageKey else { return 0 }
-        let order = playOrder(of: folder)
+        let order = pages(in: folder)
         guard let current = order.firstIndex(where: { $0.key == place }), current > 2 else { return 0 }
         var trimmed = 0
         for page in order[..<(current - 2)] where page.finishedAt != nil {

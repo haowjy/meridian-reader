@@ -22,11 +22,6 @@ extension LocalTTSCoordinator {
         (wantsLocalBake ? activeLocalEngineID : engines.defaultLocalEngineID).flatMap(cacheVoice(of:))
     }
 
-    /// "Kokoro Heart" for a cache voice key.
-    func voiceLabel(forCacheVoice voiceID: String) -> String {
-        engines.voiceLabel(forCacheVoice: voiceID)
-    }
-
     enum DownloadQueueing: Equatable {
         /// Its bake job is queued (or waits for the engine to load); `bakeCompleted` follows.
         case rendering
@@ -72,10 +67,9 @@ extension LocalTTSCoordinator {
             || PendingBakeJobStore.shared.pendingJobs().contains { $0.articleID == cacheKey }
     }
 
-    /// A download stops (paused, removed): its bake job leaves the queue, unless the page is what
-    /// plays or the chapter staged to play next, whose audio listening needs.
+    /// A download stops (paused, removed): its bake job leaves the queue. `DownloadCenter` never
+    /// asks this of a page listening needs (`needsAudio`): removing a job fails its chunk waiters.
     func cancelDownload(cacheKey: UUID) {
-        guard cacheKey != playingCacheKey, cacheKey != synthQueue.stagedCacheKey else { return }
         synthQueue.remove(cacheKey: cacheKey)
         PendingBakeJobStore.shared.removePending(articleID: cacheKey)
     }

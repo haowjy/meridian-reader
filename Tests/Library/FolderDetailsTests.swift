@@ -96,7 +96,7 @@ final class FolderDetailsTests: XCTestCase {
     }
 
     func testLegacyFavoritesContainerCanHaveOrdinaryFolderDetails() throws {
-        let favorites = library.favorites()
+        let favorites = env.legacyFavoritesFolder()
         try library.setDetails(of: favorites, name: "Mine", byline: "A. Writer", cover: cover)
         XCTAssertEqual(favorites.name, "Mine")
         XCTAssertEqual(favorites.byline, "A. Writer")

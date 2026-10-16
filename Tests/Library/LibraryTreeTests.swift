@@ -72,34 +72,10 @@ final class LibraryTreeTests: XCTestCase {
         }
         let article = try savedPage("Article", in: nil)
         try library.arrange([chapters[2], article], in: book, before: chapters[0], shownIn: .manual)
-        XCTAssertEqual(library.playOrder(of: book).map(\.title), ["Ch 3", "Article", "Ch 1", "Ch 2"])
+        XCTAssertEqual(library.pages(in: book).map(\.title), ["Ch 3", "Article", "Ch 1", "Ch 2"])
         try library.setSort(.title, for: book)
         XCTAssertEqual(book.pageSort, .title)
-        XCTAssertEqual(library.playOrder(of: book).map(\.title), ["Article", "Ch 1", "Ch 2", "Ch 3"], "it plays in its sort")
-    }
-
-    func testDeleteFolderOnlyMovesItsContentsUpOneLevelInOrder() throws {
-        let parent = try library.makeFolder(name: "Parent", in: nil)
-        let existing = try savedPage("existing", in: parent)
-        let doomed = try library.makeFolder(name: "Doomed", in: parent)
-        let sub1 = try library.makeFolder(name: "Sub 1", in: doomed)
-        let sub2 = try library.makeFolder(name: "Sub 2", in: doomed)
-        let pages = try ["p1", "p2", "p3"].map { try savedPage($0, in: doomed) }
-        let key = try XCTUnwrap(pages[0].key)
-        try env.storeAudio(key, paragraphs: pages[0].cachedListenParagraphs ?? [])
-
-        try library.deleteFolder(doomed, keepContents: true)
-        XCTAssertFalse(env.folders().contains { $0.name == "Doomed" })
-        XCTAssertEqual(library.subfolders(of: parent).map(\.name), ["Sub 1", "Sub 2"])
-        XCTAssertEqual(library.pages(in: parent).map(\.title), ["existing", "p1", "p2", "p3"],
-                       "after the parent's own pages, in their order")
-        XCTAssertTrue(env.cache.hasCache(for: key), "nothing's audio is touched")
-        _ = (existing, sub1, sub2)
-
-        // At the top level, contents go to the top level.
-        try library.deleteFolder(parent, keepContents: true)
-        XCTAssertEqual(Set(library.topLevelFolders().map(\.name)), ["Sub 1", "Sub 2"])
-        XCTAssertEqual(try env.context.fetch(LibraryQueries.loosePages(sort: .manual)).map(\.title), ["existing", "p1", "p2", "p3"])
+        XCTAssertEqual(library.pages(in: book).map(\.title), ["Article", "Ch 1", "Ch 2", "Ch 3"], "it plays in its sort")
     }
 
     func testDeleteFolderAndContentsDeletesNestedBooksAndTheirAudio() throws {
@@ -117,37 +93,19 @@ final class LibraryTreeTests: XCTestCase {
         XCTAssertEqual(library.contents(of: shelf).pages, 2)
         env.playingKey = chapter.key
 
-        try library.deleteFolder(shelf, keepContents: false)
+        try library.deleteFolder(shelf)
         XCTAssertTrue(env.folders().filter { $0.kind != .favorites }.isEmpty)
         XCTAssertTrue(env.pages().isEmpty)
         for key in keys { XCTAssertFalse(env.cache.hasCache(for: key)) }
         XCTAssertEqual(env.stoppedKeys, [keys[0]], "the playing chapter stopped first")
     }
 
-    /// A book deleted keeping its contents is a folder deleted keeping its contents: its chapters
-    /// move up, with their audio (decision D19).
-    func testDeletingABookKeepingContentsMovesItsChaptersUp() throws {
-        let shelf = try library.makeFolder(name: "Shelf", in: nil)
-        let book = Folder(name: "Book", kind: .book)
-        env.context.insert(book)
-        book.parent = shelf
-        let chapter = try library.save(env.article("https://example.com/book/ch1", title: "Ch 1"))
-        chapter.setFolder(book)
-        let key = try XCTUnwrap(chapter.key)
-        try env.storeAudio(key, paragraphs: chapter.cachedListenParagraphs ?? [])
-
-        try library.deleteFolders([book], keepContents: true)
-        XCTAssertIdentical(chapter.folder, shelf, "the chapter moved up")
-        XCTAssertTrue(env.cache.hasCache(for: key), "with its audio")
-        XCTAssertFalse(env.folders().contains { $0.kind == .book })
-    }
-
     func testLegacyFavoritesFolderHasOrdinaryFolderRules() throws {
-        let favorites = library.favorites()
+        let favorites = env.legacyFavoritesFolder()
         let other = try library.makeFolder(name: "Other", in: nil)
         try library.rename(favorites, to: "Mine")
         try library.move([.folder(favorites)], to: other)
-        XCTAssertEqual(favorites.displayName, "Mine")
+        XCTAssertEqual(favorites.name, "Mine")
         XCTAssertIdentical(favorites.parent, other)
     }
 

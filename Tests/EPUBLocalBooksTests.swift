@@ -40,7 +40,7 @@ final class EPUBLocalBooksTests: XCTestCase {
                 XCTFail("\(file.lastPathComponent): \(outcome)")
                 continue
             }
-            let pages = env.library.playOrder(of: book)
+            let pages = env.library.pages(in: book)
             let body = pages.filter { !$0.skipsInPlayback }.map(\.wordCount).sorted()
             report += "\(file.lastPathComponent): \(book.name) · \(book.byline ?? "")\n"
             report += "  pages \(pages.count) (\(body.count) body); body words min \(body.first ?? 0) / median \(body.isEmpty ? 0 : body[body.count / 2]) / max \(body.last ?? 0); cover \(book.coverData?.count ?? 0) bytes; imported in \(started.duration(to: .now))\n"

@@ -33,7 +33,7 @@ extension LibraryStore {
             stageChapters(chapters, plan: plan, in: folder, order: [])
             return folder
         }
-        log("book \(details.title): \(chapters.count) chapters in \(destination?.displayName ?? "the top level")")
+        log("book \(details.title): \(chapters.count) chapters in \(destination?.name ?? "the top level")")
         return folder
     }
 
@@ -54,17 +54,16 @@ extension LibraryStore {
     ///
     /// The book's chapters no chapter comes from are deleted if they are still in the book, after
     /// playback of them stops (and of a session a waiting merge would move onto them); their
-    /// audio goes once the save succeeds (audio work, `planDelete`), so a save that fails leaves
+    /// audio goes once the save succeeds (audio work, `plan(.delete, key:)`), so a save that fails leaves
     /// every page and its audio as they were. One moved out of the book stays where it was put.
     /// Pages moved into the book from elsewhere are never touched.
     /// It is one edit (`edit`): a save that fails is rolled back and throws
     /// `LibraryStoreError.saveFailed`, and the book reads as it did.
     /// The book's place follows its page; when that page goes, it moves to the nearest page before
     /// it in the book's order that stays, as deleting a page moves it (none if no earlier page
-    /// stays). When what plays, its text, order or skipping changed, the book stays finished only
-    /// if its place is a finished page with nothing playable after it.
+    /// stays).
     func replaceBook(_ folder: Folder, with details: FolderDetails, chapters: [PageContent]) throws {
-        let shown = playOrder(of: folder)
+        let shown = pages(in: folder)
         let order = pages(in: folder, sort: .manual)
         let place = folder.currentPageKey
         let plan = replacement(of: recordedChapters(of: folder), in: folder, with: chapters)
@@ -77,10 +76,8 @@ extension LibraryStore {
         try edit("replace book") {
             for page in plan.dropped { dropChapter(page) }
             apply(details, chapters: chapters, to: folder)
-            let staged = stageChapters(chapters, plan: plan, in: folder, order: order)
-            let after = staged.order.sorted(using: LibraryQueries.sortDescriptors(folder.pageSort))
+            stageChapters(chapters, plan: plan, in: folder, order: order)
             folder.currentPageKey = Self.place(place, in: shown, after: plan, chapters: chapters)
-            if staged.changed || shown.map(\.listenKey) != after.map(\.listenKey) { settleFinished(folder, pages: after) }
         }
         log("book \(folder.name) replaced: \(chapters.count) chapters, \(plan.byKey.count) by key, \(plan.byText.count) by text, \(plan.dropped.count) dropped")
     }
@@ -125,11 +122,6 @@ extension LibraryStore {
         for key in changing + keysWaitingToMerge(into: Set(changing)) { stopPlaybackIfPlaying(key) }
     }
 
-    /// `folder`'s pages in `sort`.
-    private func pages(in folder: Folder, sort: PageSort) -> [Page] {
-        (try? context.fetch(LibraryQueries.pages(inFolder: folder.id, sort: sort))) ?? []
-    }
-
     /// Which page each chapter comes from (decision D13).
     private struct Replacement {
         /// Chapter index → the page with its key, wherever it is.
@@ -169,20 +161,14 @@ extension LibraryStore {
     /// Writes `chapters` by `plan`, the book being `folder`, whose pages were `order` (its manual
     /// order) before: a chapter's own page stays where it is; one carried over from a page under
     /// another key takes that page's folder and place; the rest go into the book (`slot`).
-    /// Returns the book's pages in its manual order after the change, and whether the text or the
-    /// skipping of a chapter changed.
-    @discardableResult
-    private func stageChapters(_ chapters: [PageContent], plan: Replacement, in folder: Folder,
-                               order: [Page]) -> (order: [Page], changed: Bool) {
+    private func stageChapters(_ chapters: [PageContent], plan: Replacement, in folder: Folder, order: [Page]) {
         let dropped = Set(plan.dropped.map(ObjectIdentifier.init))
         var order = order.filter { !dropped.contains(ObjectIdentifier($0)) }
-        var changed = false
         var pages: [Page] = []
         var newcomers: [Page] = []
         for (index, chapter) in chapters.enumerated() {
             if let page = plan.byKey[index] {
-                if page.skipsInPlayback != chapter.ref.skipsInPlayback { changed = true }
-                if updateChapter(page, to: chapter, byline: folder.byline) { changed = true }
+                updateChapter(page, to: chapter, byline: folder.byline)
                 if !page.isInLibrary {
                     page.addedAt = now()
                     newcomers.append(page)
@@ -190,12 +176,11 @@ extension LibraryStore {
                 pages.append(page)
             } else if let from = plan.byText[index] {
                 let page = makeChapter(chapter, byline: folder.byline)
-                carryListening(from: from, to: page)
+                page.absorb(from)
                 if let fromKey = from.key {
                     planMerge(from: fromKey, into: chapter.ref.key, fromParagraphs: from.cachedListenParagraphs ?? [],
                               paragraphs: chapter.document.paragraphs)
                 }
-                if from.skipsInPlayback != chapter.ref.skipsInPlayback { changed = true }
                 if from.isInLibrary {
                     page.sortKey = from.sortKey
                     page.setFolder(from.folder)
@@ -215,7 +200,6 @@ extension LibraryStore {
             }
         }
         slot(newcomers, among: pages, into: folder, order: &order)
-        return (order, changed)
     }
 
     /// Files `newcomers` into `folder`, whose pages are `order` (its manual order): each just
@@ -254,21 +238,6 @@ extension LibraryStore {
         }.first
     }
 
-    /// After *Replace* changed what the book plays, what its chapters say or their order (`pages`:
-    /// its pages in play order after it): the book stays finished only while its place is a
-    /// finished page with nothing playable after it, the rule it finished by
-    /// (`noteChapterFinished`). *Replace* never finishes a book; listening does.
-    private func settleFinished(_ folder: Folder, pages: [Page]) {
-        guard folder.finishedAt != nil else { return }
-        let place = folder.currentPageKey.flatMap { key in pages.first { $0.key == key } }
-        if let place, place.finishedAt != nil,
-           ChapterAdvance.after(place.listenKey, in: chapterSnapshot(of: folder, pages: pages)) == .none {
-            return
-        }
-        folder.finishedAt = nil
-        log("book \(folder.name): no longer finished after replace")
-    }
-
     // MARK: - Pieces
 
     /// The file's details, and the record of its chapters (`BookSourceState.chapterKeys`).
@@ -281,7 +250,6 @@ extension LibraryStore {
             ?? BookSourceState()
         state.chapterKeys = chapters.map(\.ref.key)
         folder.sourceStateData = try? JSONEncoder().encode(state)
-        folder.languageCode = details.languageCode
     }
 
     /// A new chapter page, in no folder yet.
@@ -299,14 +267,14 @@ extension LibraryStore {
     }
 
     /// A chapter's page keeps its listening when its text is unchanged; otherwise see
-    /// `replaceBook`. Returns whether its text changed.
-    private func updateChapter(_ page: Page, to chapter: PageContent, byline: String?) -> Bool {
+    /// `replaceBook`.
+    private func updateChapter(_ page: Page, to chapter: PageContent, byline: String?) {
         let old = page.cachedListenParagraphs ?? page.listenDocument().paragraphs
         let new = chapter.document
         page.byline = byline ?? ""
         if old == new.paragraphs {
             fillChapter(page, from: chapter)
-            return false
+            return
         }
         // What was heard isn't what it says now: a finished chapter starts again from its top,
         // so neither Continue nor the D7 trim treats the revision as heard.
@@ -318,13 +286,12 @@ extension LibraryStore {
         page.positionParagraph = position?.paragraph ?? 0
         page.positionUTF16 = position?.utf16Offset ?? 0
         if let key = page.key { planAlign(key: key, old: old, new: new.paragraphs) }
-        return true
     }
 
     /// A chapter of the book no chapter comes from: the page goes in this save; its audio once the save
-    /// succeeds (`planDelete`). Playback of it was stopped before.
+    /// succeeds (`plan(.delete, key:)`). Playback of it was stopped before.
     private func dropChapter(_ page: Page) {
-        if let key = page.key { planDelete(key: key) }
+        if let key = page.key { plan(.delete, key: key) }
         log("delete \(Self.short(page.key))")
         context.delete(page)
     }
@@ -332,20 +299,9 @@ extension LibraryStore {
     private func fillChapter(_ page: Page, from chapter: PageContent) {
         page.title = chapter.title
         page.locator = Self.locator(of: chapter.ref)
-        page.cleanedHTML = chapter.bodyHTML
-        page.plainText = chapter.plainText
-        page.excerpt = chapter.excerpt
-        page.wordCount = EPUBWordCount.count(chapter.plainText)
         page.skipsInPlayback = chapter.ref.skipsInPlayback
-        page.storeListenParagraphs(chapter.document.paragraphs)
-    }
-
-    private func carryListening(from old: Page, to page: Page) {
-        page.positionParagraph = old.positionParagraph
-        page.positionUTF16 = old.positionUTF16
-        page.lastPlayedAt = old.lastPlayedAt
-        page.finishedAt = old.finishedAt
-        page.addedAt = old.addedAt ?? page.addedAt
+        page.setText(html: chapter.bodyHTML, plain: chapter.plainText, excerpt: chapter.excerpt,
+                     paragraphs: chapter.document.paragraphs)
     }
 
     private static func locator(of ref: PageRef) -> String? {

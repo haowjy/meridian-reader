@@ -19,7 +19,7 @@ final class BookAsFolderTests: XCTestCase {
 
     private var details: FolderDetails {
         FolderDetails(kind: .book, title: "The Book", byline: "Ada Example", cover: nil, sourceURL: nil,
-                      sourceIdentifier: bookKey.uuidString, languageCode: "en",
+                      sourceIdentifier: bookKey.uuidString,
                       sourceState: try? JSONEncoder().encode(BookSourceState(fileFingerprint: "abc")))
     }
 
@@ -41,7 +41,7 @@ final class BookAsFolderTests: XCTestCase {
 
     private func page(_ n: Int) throws -> Page { try XCTUnwrap(library.page(key: keys[n]), "chapter \(n)") }
 
-    private func titles(_ folder: Folder) -> [String] { library.playOrder(of: folder).map(\.title) }
+    private func titles(_ folder: Folder) -> [String] { library.pages(in: folder).map(\.title) }
 
     private func assertOnePagePerKey(file: StaticString = #filePath, line: UInt = #line) {
         let stored = env.pages().compactMap(\.key)
@@ -131,7 +131,7 @@ final class BookAsFolderTests: XCTestCase {
         let book = try library.addBook(details, chapters: edition([0, 1, 2]), in: nil)
         let elsewhere = try library.makeFolder(name: "Elsewhere", in: nil)
         try library.move([.page(page(1))], to: elsewhere)
-        try library.deleteFolder(book, keepContents: false)
+        try library.deleteFolder(book)
         XCTAssertNil(library.book(key: bookKey))
 
         let again = try library.addBook(details, chapters: edition([0, 1, 2]), in: nil)
@@ -171,7 +171,6 @@ final class BookAsFolderTests: XCTestCase {
         XCTAssertEqual(book2.pageSort, .manual)
         XCTAssertEqual(book2.byline, "Ada Example")
         XCTAssertEqual(book2.coverData, Data([1, 2, 3]))
-        XCTAssertEqual(book2.languageCode, "en")
         XCTAssertEqual(book2.currentPageKey, keys[1], "its place")
         XCTAssertEqual(try page(1).positionParagraph, 2)
         XCTAssertEqual(try page(1).positionUTF16, 4)

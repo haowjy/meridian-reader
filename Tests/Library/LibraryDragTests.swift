@@ -42,14 +42,16 @@ final class LibraryDragTests: XCTestCase {
         XCTAssertNil(library.moveRefusal(.page(page), to: outer), "a page onto a folder")
         XCTAssertNil(library.moveRefusal(.folder(inner), to: nil), "a folder to the top level")
         XCTAssertNil(library.moveRefusal(.folder(book), to: outer), "a book itself can be filed")
-        XCTAssertNil(library.moveRefusal(.page(page), to: library.favorites()), "a page onto Favorites")
 
         XCTAssertNil(library.moveRefusal(.page(page), to: book), "a book takes drops (decision D19)")
         XCTAssertNil(library.moveRefusal(.folder(inner), to: book))
         XCTAssertNil(library.moveRefusal(.page(chapter), to: nil), "a chapter leaves its book")
         XCTAssertEqual(library.moveRefusal(.folder(outer), to: outer), .cycle, "a folder onto itself")
         XCTAssertEqual(library.moveRefusal(.folder(outer), to: inner), .cycle, "a folder into its own subfolder")
-        XCTAssertNil(library.moveRefusal(.folder(library.favorites()), to: outer), "legacy Favorites containers follow folder rules")
+        let played = library.recordPlayback(env.article("https://example.com/played"))
+        XCTAssertEqual(library.moveRefusal(.page(played), to: outer), .notInLibrary, "a page out of the Library")
+        XCTAssertThrowsError(try library.move([.page(played)], to: outer)) { XCTAssertEqual($0 as? LibraryTreeError, .notInLibrary) }
+        XCTAssertNil(played.folder, "a page in a folder is in the Library")
     }
 
     /// Pages are placed among a book's chapters, and chapters out of it, as in any folder; only a
@@ -118,7 +120,7 @@ final class LibraryDragTests: XCTestCase {
         let c = try library.makeFolder(name: "C", in: a)
         try library.arrange([c], in: nil, before: a)
         XCTAssertNil(c.parent, "out of A, to the top level")
-        XCTAssertEqual(library.topLevelFolders().map(\.displayName), ["C", "A", "B"],
+        XCTAssertEqual(library.topLevelFolders().map(\.name), ["C", "A", "B"],
                        "a folder drops into the requested sibling position")
     }
 

@@ -37,7 +37,7 @@ final class EPUBSource: PageSource {
         let details = FolderDetails(
             kind: .book, title: title, byline: authors.isEmpty ? nil : authors,
             cover: book.cover.flatMap { CoverThumbnail.make(from: $0.data) },
-            sourceURL: nil, sourceIdentifier: book.key.uuidString, languageCode: book.metadata.language,
+            sourceURL: nil, sourceIdentifier: book.key.uuidString,
             sourceState: try? JSONEncoder().encode(BookSourceState(fileFingerprint: book.fileFingerprint)))
         return EPUBSource(book: book, details: details, chapters: BookChapterFinalizer.finalize(prepared, bar: bar))
     }

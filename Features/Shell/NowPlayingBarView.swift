@@ -126,7 +126,7 @@ private struct ResumeBar: View {
 
     /// The book or series it belongs to, else its site.
     private var source: String {
-        if let folder = page.folder, folder.kind.isBookOrSeries { return folder.displayName }
+        if let folder = page.folder, folder.kind.isBookOrSeries { return folder.name }
         return page.byline
     }
 

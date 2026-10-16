@@ -30,7 +30,7 @@ final class LibraryStoreTests: XCTestCase {
     }
 
     func testLegacyFavoritesMigrationKeepsItemsAndRemovesPinnedFolder() throws {
-        let legacy = library.favorites()
+        let legacy = env.legacyFavoritesFolder()
         let page = try library.addLink(url: URL(string: "https://example.com/saved-link")!, title: "Saved link",
                                        artwork: nil, in: legacy)
         let child = try library.makeFolder(name: "Serials", in: legacy)
@@ -57,7 +57,7 @@ final class LibraryStoreTests: XCTestCase {
 
     func testOnePagePerCanonicalURLWhateverItsState() throws {
         let url = URL(string: "https://example.com/story")!
-        try library.addLink(url: url, title: "Story", artwork: nil, in: library.favorites())
+        try library.addLink(url: url, title: "Story", artwork: nil, in: nil)
         library.recordPlayback(env.article("https://example.com/story?utm_source=x"))
         try library.save(env.article("https://EXAMPLE.com/story#comments"))
         XCTAssertIdentical(try library.addFavorite(url: URL(string: "https://example.com/story/")!, title: nil, artwork: nil),
@@ -75,20 +75,27 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertEqual(reopened.id, legacyKey, "the browser reuses the page's key, so its audio")
     }
 
+    /// A web page counts its words as a chapter does: each Chinese or Japanese character is one.
+    func testAWebPageCountsWordsAsAChapterDoes() throws {
+        let page = try library.save(env.article("https://example.com/tokyo", paragraphs: ["東京は晴れ。 Sunny today."]))
+        XCTAssertEqual(page.wordCount, 7)
+    }
+
     func testSaveOnALinkTurnsItSavedInPlace() throws {
-        let favorites = library.favorites()
-        let link = try library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: favorites)
+        let reading = try library.makeFolder(name: "Reading", in: nil)
+        let link = try library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: reading)
         XCTAssertTrue(link.isLink)
         XCTAssertFalse(link.hasText)
         let saved = try library.save(env.article("https://example.com/a", title: "Article A"))
         XCTAssertIdentical(saved, link)
         XCTAssertTrue(saved.isSavedToLibrary)
-        XCTAssertIdentical(saved.folder, favorites, "it keeps its folder")
+        XCTAssertIdentical(saved.folder, reading, "it keeps its folder")
         XCTAssertEqual(saved.cachedListenParagraphs?.count, 2)
     }
 
     func testPlayingALinkKeepsItALinkWithATextCachePrunedAfter7Days() throws {
-        let link = try library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: library.favorites())
+        let link = try library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil,
+                                       in: try library.makeFolder(name: "Links", in: nil))
         let played = library.recordPlayback(env.article("https://example.com/a"))
         XCTAssertIdentical(played, link)
         XCTAssertTrue(link.isLink, "listening doesn't save")
@@ -169,15 +176,15 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertIdentical(link.folder, series)
     }
 
-    /// *Library (no folder)* in the Move tree files the page in no folder, out of Favorites or a
-    /// book; an ordinary save keeps it where it is.
-    func testPickingNoFolderTakesALinkOutOfFavoritesAndAnOrdinarySaveKeepsIt() throws {
-        let favorites = library.favorites()
-        try library.addLink(url: URL(string: "https://example.com/kept")!, title: "Kept", artwork: nil, in: favorites)
+    /// *Library (no folder)* in the Move tree files the page in no folder, out of the folder or
+    /// book it was in; an ordinary save keeps it where it is.
+    func testPickingNoFolderTakesALinkOutOfItsFolderAndAnOrdinarySaveKeepsIt() throws {
+        let reading = try library.makeFolder(name: "Reading", in: nil)
+        try library.addLink(url: URL(string: "https://example.com/kept")!, title: "Kept", artwork: nil, in: reading)
         let kept = try library.save(env.article("https://example.com/kept"))
-        XCTAssertIdentical(kept.folder, favorites, "an ordinary save keeps its folder")
+        XCTAssertIdentical(kept.folder, reading, "an ordinary save keeps its folder")
 
-        try library.addLink(url: URL(string: "https://example.com/out")!, title: "Out", artwork: nil, in: favorites)
+        try library.addLink(url: URL(string: "https://example.com/out")!, title: "Out", artwork: nil, in: reading)
         let out = try library.save(env.article("https://example.com/out"), placement: .folder(nil))
         XCTAssertNil(out.folder, "picked: no folder")
         XCTAssertTrue(out.isSavedToLibrary)
@@ -245,7 +252,8 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertEqual(env.cache.loadMeta(for: key)?.kind, .ephemeral, "…on the ephemeral TTL")
         XCTAssertNotNil(library.page(key: key))
 
-        let link = try library.addLink(url: URL(string: "https://example.com/link")!, title: "L", artwork: nil, in: library.favorites())
+        let link = try library.addLink(url: URL(string: "https://example.com/link")!, title: "L", artwork: nil,
+                                       in: try library.makeFolder(name: "Links", in: nil))
         try library.remove([link])
         XCTAssertNil(library.page(url: URL(string: "https://example.com/link")!), "a link is deleted")
     }
@@ -255,7 +263,7 @@ final class LibraryStoreTests: XCTestCase {
     /// any page out of the Library.
     func testRemovingAPlayedLinkKeepsItOutOfEveryListUntilThePrune() throws {
         let url = URL(string: "https://example.com/played-link")!
-        let link = try library.addLink(url: url, title: "Played link", artwork: nil, in: library.favorites())
+        let link = try library.addLink(url: url, title: "Played link", artwork: nil, in: try library.makeFolder(name: "Links", in: nil))
         library.recordPlayback(env.article(url.absoluteString))
         let key = try XCTUnwrap(link.key)
         try env.storeAudio(key, paragraphs: link.cachedListenParagraphs ?? [])
@@ -265,7 +273,7 @@ final class LibraryStoreTests: XCTestCase {
         let page = try XCTUnwrap(library.page(url: url), "kept: it holds the text of a play")
         XCTAssertIdentical(page, link)
         XCTAssertFalse(page.isInLibrary)
-        XCTAssertNil(page.folder, "out of Favorites")
+        XCTAssertNil(page.folder, "out of its folder")
         XCTAssertTrue(library.favoritePages().isEmpty)
         XCTAssertTrue(page.hasText)
         XCTAssertEqual(page.cachedListenParagraphs?.count, 2)

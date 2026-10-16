@@ -70,7 +70,7 @@ final class FolderDeleteTests: XCTestCase {
         let shell = ShellState()
         shell.libraryPath = [.folder(shelf.id), .folder(book.id)]
 
-        try library.deleteFolders([shelf], keepContents: false)
+        try library.deleteFolders([shelf])
         shell.pruneLibraryPath { library.folder(id: $0) != nil }
 
         // Playback stopped, the bar has nothing to show, and the chapter's end carries nothing on
@@ -122,7 +122,7 @@ final class FolderDeleteTests: XCTestCase {
         for page in pages { try env.storeAudio(XCTUnwrap(page.key), paragraphs: page.cachedListenParagraphs ?? []) }
 
         library.saveContext = { _ in throw LibraryStoreError.saveFailed }
-        XCTAssertThrowsError(try library.deleteFolders([shelf], keepContents: false))
+        XCTAssertThrowsError(try library.deleteFolders([shelf]))
 
         XCTAssertTrue(shelf.isLive)
         XCTAssertTrue(nested.isLive)

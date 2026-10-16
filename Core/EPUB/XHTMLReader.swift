@@ -1,7 +1,7 @@
 import Foundation
 
 /// A start tag as written: its name, local name (lowercased, prefix dropped) and attributes.
-struct XHTMLTag: Equatable, Sendable {
+struct XHTMLTag: Equatable, Sendable, MarkupAttributes {
     var name: String
     var localName: String
     var attributes: [XHTMLAttribute]
@@ -15,12 +15,6 @@ struct XHTMLTag: Equatable, Sendable {
     /// The value of the attribute named exactly `name` (ASCII case-insensitive), e.g. `"epub:type"`.
     func attribute(_ name: String) -> String? {
         attributes.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }?.value
-    }
-
-    /// Whitespace-separated tokens of an attribute such as `class` or `epub:type`.
-    func tokens(of attributeName: String) -> Set<String> {
-        guard let value = attribute(attributeName) else { return [] }
-        return Set(value.split(whereSeparator: \.isWhitespace).map { $0.lowercased() })
     }
 
     static func localName(of qualifiedName: String) -> String {

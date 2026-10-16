@@ -1,7 +1,23 @@
 import Foundation
 
+/// Attributes read by name: a start tag as the XHTML reader meets it (`XHTMLTag`), or a parsed
+/// element (`MarkupElement`).
+protocol MarkupAttributes {
+    /// The value of the attribute named exactly `name`, ignoring ASCII case.
+    func attribute(_ name: String) -> String?
+}
+
+extension MarkupAttributes {
+    /// Whitespace-separated, lowercased tokens of an attribute such as `class`, `epub:type` or
+    /// `properties`.
+    func tokens(of attributeName: String) -> Set<String> {
+        guard let value = attribute(attributeName) else { return [] }
+        return Set(value.split(whereSeparator: \.isWhitespace).map { $0.lowercased() })
+    }
+}
+
 /// A parsed XML or XHTML element: just what the package and contents readers need.
-struct MarkupElement: Equatable, Sendable {
+struct MarkupElement: Equatable, Sendable, MarkupAttributes {
     /// As written, with any prefix (`dc:title`).
     var name: String
     /// Lowercased, prefix dropped (`title`).
@@ -20,12 +36,6 @@ struct MarkupElement: Equatable, Sendable {
     func attribute(_ name: String) -> String? {
         if let value = attributes[name] { return value }
         return attributes.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value
-    }
-
-    /// Whitespace-separated, lowercased tokens of an attribute such as `epub:type` or `properties`.
-    func tokens(of attributeName: String) -> Set<String> {
-        guard let value = attribute(attributeName) else { return [] }
-        return Set(value.split(whereSeparator: \.isWhitespace).map { $0.lowercased() })
     }
 
     var elements: [MarkupElement] {

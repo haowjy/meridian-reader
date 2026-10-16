@@ -30,7 +30,7 @@ struct EPUBChapter: Equatable, Sendable {
     var locator: EPUBLocator
     /// Spine files the chapter runs across, in order.
     var spineHrefs: [String]
-    /// Words in the chapter's raw XHTML (`EPUBWordCount`), as cutting counted them; part 2
+    /// Words in the chapter's raw XHTML (`WordCount`), as cutting counted them; part 2
     /// recounts on the listen blocks.
     var provisionalWordCount: Int
     /// Wholly front or back matter (or a short unlisted page such as the cover).

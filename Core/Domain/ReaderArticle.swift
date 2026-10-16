@@ -77,16 +77,11 @@ struct ReaderArticle: Equatable, Identifiable {
 
     /// A library page holding text (saved, played, or a link with a text cache). Uses stored
     /// listen blocks when valid; otherwise `document` is empty and the caller builds it off-main
-    /// (`Page.buildListenDocument`). A page with a web address is a web page, even a book
-    /// chapter that has one.
+    /// (`Page.buildListenDocument`).
     @MainActor
     init(page: Page) {
         self.id = page.listenKey
-        if let url = page.url {
-            self.origin = .web(url, canonicalURL: page.canonicalURL ?? ArticleIdentity.canonicalURLString(from: url))
-        } else {
-            self.origin = .book(locator: page.locator ?? "")
-        }
+        self.origin = page.origin
         self.title = page.title
         self.sourceLabel = page.byline
         self.siteName = nil

@@ -30,7 +30,7 @@ enum LaunchHooks {
     /// `example.com` addresses; an earlier seed's folder and its pages go first.
     static func seedDemoFolders(in library: LibraryStore) {
         for folder in library.topLevelFolders() where folder.kind == .plain && folder.name == demoFoldersName {
-            try? library.deleteFolder(folder, keepContents: false)
+            try? library.deleteFolder(folder)
         }
         guard let finance = try? library.makeFolder(name: demoFoldersName, in: nil),
               let bonds = try? library.makeFolder(name: "Bonds", in: finance),
@@ -40,11 +40,8 @@ enum LaunchHooks {
             let page = Page(key: UUID(), title: title, byline: "investing.example.com",
                             urlString: "https://investing.example.com/\(slug)-\(UUID().uuidString.prefix(6))",
                             contentState: .saved, addedAt: .now, sortKey: sortKey)
-            page.cleanedHTML = paragraphs.map { "<p>\($0)</p>" }.joined()
-            page.plainText = paragraphs.joined(separator: "\n\n")
-            page.excerpt = paragraphs[0]
-            page.wordCount = SavedArticle.wordCount(of: page.plainText) * 20
-            page.storeListenParagraphs(paragraphs)
+            page.setText(html: paragraphs.map { "<p>\($0)</p>" }.joined(), plain: paragraphs.joined(separator: "\n\n"),
+                         excerpt: paragraphs[0], paragraphs: paragraphs)
             library.context.insert(page)
             page.setFolder(folder)
             return page
@@ -89,7 +86,7 @@ enum LaunchHooks {
     /// `-importTestEPUB`: an earlier launch's import of the synthetic EPUB goes, with its audio,
     /// so *Import Book…* imports it fresh.
     static func removeTestEPUB(in library: LibraryStore) {
-        if let earlier = library.book(key: TestEPUB.bookKey) { try? library.deleteFolder(earlier, keepContents: false) }
+        if let earlier = library.book(key: TestEPUB.bookKey) { try? library.deleteFolder(earlier) }
     }
 
     /// `-playTestEPUB`: the synthetic EPUB, written to a temporary file and imported into the top
@@ -104,7 +101,7 @@ enum LaunchHooks {
             try TestEPUB.write(to: file)
             let outcome = try await BookImporter(library: library).importBook(at: file, into: nil, ifAlreadyInLibrary: .cancel)
             guard case .added(let book) = outcome else { return nil }
-            ListenTimingLog.log("debug_import_test_epub", ["ok": true, "chapters": library.playOrder(of: book).count], console: true)
+            ListenTimingLog.log("debug_import_test_epub", ["ok": true, "chapters": library.pages(in: book).count], console: true)
             return book
         } catch {
             ListenTimingLog.log("debug_import_test_epub", ["ok": false, "error": "\(error)"], console: true)
@@ -134,7 +131,9 @@ enum LaunchHooks {
     static func seedDemoBook(in library: LibraryStore, place: Int? = nil) {
         for folder in demoBooks(in: library) {
             for page in (folder.bookState?.chapterKeys ?? []).compactMap(library.page(key:)) { library.delete(page) }
-            try? library.deleteFolder(folder, keepContents: true)
+            let strays = library.subfolders(of: folder).map(LibraryItem.folder) + library.pages(in: folder).map(LibraryItem.page)
+            try? library.move(strays, to: folder.parent)
+            try? library.deleteFolder(folder)
         }
         for page in seededLoosePages(in: library) { library.delete(page) }
         let book = Folder(name: DemoBook.title, kind: .book, sortKey: library.nextFolderSortKey(in: nil))
@@ -156,7 +155,6 @@ enum LaunchHooks {
                     page.positionParagraph = 2
                     page.lastPlayedAt = .now.addingTimeInterval(-600)
                     book.currentPageKey = page.key
-                    book.lastPlayedAt = page.lastPlayedAt
                 }
             }
         }
@@ -186,10 +184,7 @@ enum LaunchHooks {
     private static func demoPage(_ chapter: DemoBook.Chapter, url: URL?, sortKey: Double) -> Page {
         let page = Page(key: UUID(), title: chapter.title, byline: DemoBook.author, urlString: url?.absoluteString,
                         contentState: .saved, addedAt: .now, sortKey: sortKey)
-        page.cleanedHTML = chapter.html
-        page.plainText = chapter.plainText
-        page.excerpt = String(chapter.plainText.prefix(140))
-        page.wordCount = SavedArticle.wordCount(of: chapter.plainText)
+        seedText(page, html: chapter.html, plain: chapter.plainText)
         return page
     }
 
@@ -216,17 +211,18 @@ enum LaunchHooks {
         return start
     }
 
-    /// `-seedDemoArticle`: replace the saved and played pages, and every folder but Favorites, with
-    /// one deterministic article, so a stored resume position can't stick at the end between tests (and, with
-    /// `-seedPlayedPages N`, N pages played without saving; with `-seedLoosePages N`, N more saved
-    /// pages in no folder). Favorites' links stay (`-resetBookmarks` / `-seedBookmarks` handle
-    /// them). The top level's sort goes back to its default.
+    /// `-seedDemoArticle`: replace the saved and played pages, and every folder with what is in
+    /// it, with one deterministic article, so a stored resume position can't stick at the end
+    /// between tests (and, with `-seedPlayedPages N`, N pages played without saving; with
+    /// `-seedLoosePages N`, N more saved pages in no folder). Link pages in no folder stay, starred
+    /// ones too (`-resetBookmarks` / `-seedBookmarks` handle stars). The top level's sort goes back
+    /// to its default.
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in library: LibraryStore) {
         let context = library.context
         UserDefaults.standard.removeObject(forKey: LibraryTopLevel.sortKey)
-        // Every folder but Favorites goes too, so the Library home starts the same each time.
+        // Every folder goes too, so the Library home starts the same each time.
         for folder in library.topLevelFolders() {
-            try? library.deleteFolder(folder, keepContents: false)
+            try? library.deleteFolder(folder)
         }
         for page in (try? context.fetch(FetchDescriptor<Page>())) ?? [] where !page.isLink {
             context.delete(page)
@@ -253,19 +249,14 @@ enum LaunchHooks {
         let page = Page(key: UUID(), title: demo.title ?? "Demo Listen Article", byline: "example.com",
                         urlString: "https://example.com/demo", contentState: .saved, addedAt: .now,
                         sortKey: library.nextSortKey(in: nil))
-        page.cleanedHTML = demo.plainTextOnly ? "" : htmlAll
-        page.plainText = plainAll
-        page.excerpt = String(plain.prefix(140))
-        page.wordCount = SavedArticle.wordCount(of: plainAll)
+        seedText(page, html: demo.plainTextOnly ? "" : htmlAll, plain: plainAll)
         page.positionParagraph = demo.progress
         context.insert(page)
         for i in 0..<demo.playedPages {
             let text = ["Played page \(i + 1), first paragraph.", "Played page \(i + 1), second paragraph."]
             let played = Page(key: UUID(), title: "Played Page \(i + 1)", byline: "example.com",
                               urlString: "https://example.com/played-\(i + 1)", contentState: .saved, addedAt: nil)
-            played.cleanedHTML = text.map { "<p>\($0)</p>" }.joined()
-            played.plainText = text.joined(separator: "\n\n")
-            played.storeListenParagraphs(text)
+            seedText(played, html: text.map { "<p>\($0)</p>" }.joined(), plain: text.joined(separator: "\n\n"))
             played.lastPlayedAt = Date.now.addingTimeInterval(-60 * Double(i + 1))
             context.insert(played)
         }
@@ -275,12 +266,17 @@ enum LaunchHooks {
                              urlString: "https://example.com/loose-\(i + 1)", contentState: .saved,
                              addedAt: page.addedAt?.addingTimeInterval(-60 * Double(i + 1)),
                              sortKey: page.sortKey - Double(demo.loosePages - i))
-            loose.cleanedHTML = text.map { "<p>\($0)</p>" }.joined()
-            loose.plainText = text.joined(separator: "\n\n")
-            loose.storeListenParagraphs(text)
+            seedText(loose, html: text.map { "<p>\($0)</p>" }.joined(), plain: text.joined(separator: "\n\n"))
             context.insert(loose)
         }
         library.commit("demo seed")
+    }
+
+    /// A seeded page's text, as saving the page would store it: its listen paragraphs built from
+    /// `html` and `plain` by the reader's rules (`Page.buildListenDocument`), and a real word count.
+    private static func seedText(_ page: Page, html: String, plain: String) {
+        let paragraphs = Page.buildListenDocument(plainText: plain, cleanedHTML: html, title: page.title).paragraphs
+        page.setText(html: html, plain: plain, excerpt: String(plain.prefix(140)), paragraphs: paragraphs)
     }
 
     /// `-bakeArticle <id prefix>` (e.g. `xcrun devicectl device process launch …
@@ -302,9 +298,6 @@ enum LaunchHooks {
 
     /// `-resetBookmarks` / `-seedBookmarks`: clears favorite flags, then optionally seeds links.
     static func setUpBookmarks(_ setup: LaunchOptions.BookmarkSetup, in library: LibraryStore) {
-        // A prior debug launch can leave legacy containers in the test store. Migrate them before
-        // resetting flags so test setup obeys the same tree behavior as the product.
-        library.migrateFavoritesFolder()
         for page in library.favoritePages() { try? library.removeFavorite(page) }
         let folders = (try? library.context.fetch(FetchDescriptor<Folder>())) ?? []
         for folder in folders where folder.isFavorite { try? library.toggleFavorite(folder) }

@@ -55,13 +55,17 @@ final class Folder {
     /// Codable per kind: series finder state; a book's file fingerprint and chapter keys
     /// (`BookSourceState`).
     var sourceStateData: Data?
+    /// Not written or read (kept as stored by older builds; persisted fields don't change).
     var languageCode: String?
 
     // Listening.
     /// The page that last played: where Continue resumes.
     var currentPageKey: UUID?
+    /// Not written or read: when the folder's place last played is its page's `lastPlayedAt`
+    /// (kept as stored by older builds; persisted fields don't change).
     var lastPlayedAt: Date?
-    /// Set when the last playable page finishes; cleared when one in it plays again.
+    /// Not written or read: whether a folder is finished is worked out from its pages
+    /// (`FolderProgress.isFinished`; kept as stored by older builds; persisted fields don't change).
     var finishedAt: Date?
 
     var parent: Folder?
@@ -87,8 +91,6 @@ final class Folder {
         get { PageSort(rawValue: pageSortRaw) ?? .manual }
         set { pageSortRaw = newValue.rawValue }
     }
-
-    var displayName: String { name }
 
     /// It has a cover or a byline: its screen has the header with the cover and the author, and its
     /// row the cover (decision D17). Details change only the look.

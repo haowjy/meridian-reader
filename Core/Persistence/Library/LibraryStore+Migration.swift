@@ -10,7 +10,7 @@ extension LibraryStore {
     struct MigrationReport: Equatable {
         var copiedArticles = 0
         var copiedBookmarks = 0
-        /// Bookmarks whose page was already saved: that page moved into Favorites (D6).
+        /// Bookmarks whose page was already saved: that page is starred where it is (D6).
         var savedIntoFavorites = 0
         var mergedDuplicates = 0
         /// `bookmarks.json` holds bytes that don't decode: none of it was copied or recorded, and
@@ -63,32 +63,31 @@ extension LibraryStore {
             report.copiedArticles += 1
         }
 
-        // Bookmarks → link pages in the legacy Favorites folder, made only for them, in file
-        // order; `migrateFavoritesFolder` then stars them and removes the folder. A bookmark for
-        // a page that exists (saved) files that page there at the bookmark's place (D6).
-        let favorites = bookmarks.isEmpty ? nil : favorites()
-        var favoriteKey = nextSortKey(in: favorites)
+        // Bookmarks → starred pages, in file order. A bookmark for a page that exists stars it
+        // where it is (D6): one in a folder stays there; one out of the Library joins it as a
+        // link, in no folder. Any other bookmark is a new starred link page in no folder.
         for bookmark in bookmarks {
             let canonical = ArticleIdentity.canonicalURLString(from: bookmark.urlString)
             if let existing = copiedByURL[canonical] ?? page(canonicalURL: canonical) {
                 if existing.addedAt == nil {
                     existing.contentState = .link
                     existing.addedAt = bookmark.createdAt
+                    existing.sortKey = looseKey
+                    looseKey += 1
                 }
-                existing.setFolder(favorites)
-                existing.sortKey = favoriteKey
+                existing.isFavorite = true
                 if existing.artworkData == nil { existing.artworkData = bookmark.faviconData }
                 if existing.isSaved { report.savedIntoFavorites += 1 }
             } else {
                 let page = Page(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: bookmark.title,
                                 byline: bookmark.host, urlString: bookmark.urlString, contentState: .link,
-                                addedAt: bookmark.createdAt, sortKey: favoriteKey, artworkData: bookmark.faviconData)
+                                addedAt: bookmark.createdAt, sortKey: looseKey, artworkData: bookmark.faviconData)
                 page.canonicalURL = canonical
+                page.isFavorite = true
                 context.insert(page)
-                page.setFolder(favorites)
+                looseKey += 1
                 copiedByURL[canonical] = page
             }
-            favoriteKey += 1
             report.copiedBookmarks += 1
         }
 
@@ -120,7 +119,7 @@ extension LibraryStore {
         page.cleanedHTML = row.cleanedHTML
         page.plainText = row.plainText
         page.excerpt = row.excerpt
-        page.wordCount = row.wordCount
+        page.wordCount = WordCount.count(row.plainText)
         page.listenBlocksData = row.listenBlocksData
         page.listenBlocksVersion = row.listenBlocksVersion
         page.detectedLanguageCode = row.detectedLanguageCode

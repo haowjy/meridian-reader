@@ -59,19 +59,19 @@ final class LibrarySizeTests: XCTestCase {
         let folder = try XCTUnwrap(store.folder(id: series.id))
 
         var order: [Page] = []
-        let cold = time("playOrder (cold)") { order = store.playOrder(of: folder); return order.count }
+        let cold = time("pages(in:) (cold)") { order = store.pages(in: folder); return order.count }
         XCTAssertEqual(order.count, Self.chapterCount)
         XCTAssertEqual(order.prefix(3).map(\.title), ["Chapter 1", "Chapter 2", "Chapter 3"])
         XCTAssertEqual(order.last?.title, "Chapter \(Self.chapterCount)")
-        let warm = time("playOrder (warm)") { store.playOrder(of: folder).count }
+        let warm = time("pages(in:) (warm)") { store.pages(in: folder).count }
         let fetch = time("folder page fetch") {
             (try? store.context.fetch(LibraryQueries.pages(inFolder: folder.id, sort: folder.pageSort)))?.count ?? 0
         }
         let titleSort = time("folder page fetch, title sort") {
             (try? store.context.fetch(LibraryQueries.pages(inFolder: folder.id, sort: .title)))?.count ?? 0
         }
-        XCTAssertLessThan(cold, Self.budget, "playOrder(of:) cold")
-        XCTAssertLessThan(warm, Self.budget, "playOrder(of:) warm")
+        XCTAssertLessThan(cold, Self.budget, "pages(in:) cold")
+        XCTAssertLessThan(warm, Self.budget, "pages(in:) warm")
         XCTAssertLessThan(fetch, Self.budget, "the folder's page fetch")
         XCTAssertLessThan(titleSort, Self.budget, "the folder's page fetch sorted by title")
     }

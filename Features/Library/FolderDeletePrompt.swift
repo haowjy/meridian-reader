@@ -26,7 +26,7 @@ struct FolderDeletePrompt: Equatable {
             inside.pageKeys.formUnion(inner.pageKeys)
         }
         let one = folders.count == 1
-        title = one ? "Delete the folder “\(folders[0].displayName)”?" : "Delete \(folders.count) folders?"
+        title = one ? "Delete the folder “\(folders[0].name)”?" : "Delete \(folders.count) folders?"
         var lines: [String] = []
         if let summary = inside.summary {
             lines.append("\(one ? "It holds" : "They hold") \(summary). They're deleted too.")

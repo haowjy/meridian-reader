@@ -365,7 +365,7 @@ final class LibraryAudioWorkTests: XCTestCase {
         library.saveContext = { _ in throw SaveFailed() }
 
         library.delete(loose)
-        XCTAssertThrowsError(try library.deleteFolder(shelf, keepContents: false), "the delete says it failed") {
+        XCTAssertThrowsError(try library.deleteFolder(shelf), "the delete says it failed") {
             XCTAssertEqual($0 as? LibraryStoreError, .saveFailed)
         }
         XCTAssertNotNil(library.page(key: looseKey), "the page is back")

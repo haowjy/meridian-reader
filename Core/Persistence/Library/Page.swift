@@ -21,8 +21,9 @@ enum PageFetchState: String, Codable {
 }
 
 /// A page in the library tree: a saved article, a link (favorite), a book chapter, a page you
-/// played without saving (`addedAt == nil`, kept 7 days), or one you removed from the Library
-/// (`removedAt`, in no list, kept 7 days as well). One page per canonical URL, app-wide,
+/// played without saving (`addedAt == nil`, kept 7 days after its last play), or one you removed
+/// from the Library (`removedAt`, in no list, kept 7 days after its last play; one never played
+/// goes at the next launch). One page per canonical URL, app-wide,
 /// enforced by `LibraryStore` and the launch dedupe pass rather than `.unique` (CloudKit can't
 /// sync unique constraints).
 @Model
@@ -41,7 +42,7 @@ final class Page {
     var locator: String?
     var contentStateRaw: String = PageContentState.link.rawValue
     /// nil = not in the Library: played without saving, or removed (`removedAt`). Pruned 7 days
-    /// after it was last played.
+    /// after it was last played; a removed page never played, at the next launch.
     var addedAt: Date?
     /// When *Remove from Library* took it out of the Library, until you listen to it again from
     /// its article (🎧, the Reader's Listen: `LibraryStore.recordPlayback`). Out of the Library
@@ -132,9 +133,63 @@ final class Page {
     }
 }
 
-// MARK: - Stored listen paragraphs
+// MARK: - Two records of one page
 
 extension Page {
+    /// Takes in `other`, another record of this page that is about to be deleted (dedupe's
+    /// duplicate, or the chapter *Replace* finds under a new key), so nothing either one held is
+    /// lost: its text, listen paragraphs, icon, address and key where this one has none; saved if
+    /// either is; in the Library since the earlier date, and removed as of the later; the later
+    /// play; its spot when this one has none, and finished if either is; starred, and skipped in
+    /// playback, if either is. Where the page sits (its folder and order) is the caller's: dedupe
+    /// and *Replace* place it by different rules.
+    func absorb(_ other: Page) {
+        if !hasText, other.hasText {
+            bodyHTML = other.bodyHTML
+            plainTextData = other.plainTextData
+            excerpt = other.excerpt
+            wordCount = other.wordCount
+        }
+        if listenBlocksData == nil, other.listenBlocksData != nil {
+            listenBlocksData = other.listenBlocksData
+            listenBlocksVersion = other.listenBlocksVersion
+            paragraphCount = other.paragraphCount
+            detectedLanguageCode = other.detectedLanguageCode
+        }
+        if artworkData == nil { artworkData = other.artworkData }
+        if urlString == nil { urlString = other.urlString }
+        if canonicalURL == nil { canonicalURL = other.canonicalURL }
+        if key == nil { key = other.key }
+        if other.isSaved { contentState = .saved }
+        addedAt = [addedAt, other.addedAt].compactMap { $0 }.min()
+        // Out of the Library, a remove on either holds: the page stays in no list.
+        removedAt = [removedAt, other.removedAt].compactMap { $0 }.max()
+        lastPlayedAt = [lastPlayedAt, other.lastPlayedAt].compactMap { $0 }.max()
+        if positionParagraph == 0, positionUTF16 == 0 {
+            positionParagraph = other.positionParagraph
+            positionUTF16 = other.positionUTF16
+        }
+        finishedAt = finishedAt ?? other.finishedAt
+        isFavorite = isFavorite || other.isFavorite
+        skipsInPlayback = skipsInPlayback || other.skipsInPlayback
+    }
+}
+
+// MARK: - Its text
+
+extension Page {
+    /// The page's reading text: the cleaned HTML, the plain text, the excerpt and the listen
+    /// paragraphs (with their count and language), and the words in the plain text (`WordCount`).
+    /// Every text write goes through here: a web page saved or played, a chapter imported or
+    /// replaced, a seeded page.
+    func setText(html: String, plain: String, excerpt: String, paragraphs: [String]) {
+        cleanedHTML = html
+        plainText = plain
+        self.excerpt = excerpt
+        wordCount = WordCount.count(plain)
+        storeListenParagraphs(paragraphs)
+    }
+
     /// Stored paragraphs when present and built by the current parser rules; nil means rebuild.
     var cachedListenParagraphs: [String]? {
         Self.decodeListenParagraphs(listenBlocksData, version: listenBlocksVersion)

@@ -65,28 +65,17 @@ struct DownloadsSheet: View {
 
     private func queued(_ items: [DownloadOverview.Item]) -> some View {
         let anyRunning = items.contains { !$0.record.isPaused }
-        return Section {
-            ForEach(items) { item in
-                row(item)
-                    .contextMenu {
-                        if item.record.isPaused {
-                            Button("Resume", systemImage: Icons.download) { downloads.setPaused(item.id, false) }
-                        } else {
-                            Button("Pause", systemImage: Icons.pause) { downloads.setPaused(item.id, true) }
-                        }
-                        removeButton(item)
-                    }
+        let header = SectionHeader(title: String(localized: "Queued"), count: items.count,
+                                   actionTitle: anyRunning ? String(localized: "Pause All") : String(localized: "Resume All"),
+                                   actionIdentifier: "downloadsPauseAll") {
+            downloads.setAllPaused(anyRunning)
+        }
+        return section(items, header: header, headerID: "downloadsQueuedHeader") { item in
+            if item.record.isPaused {
+                Button("Resume", systemImage: Icons.download) { downloads.setPaused(item.id, false) }
+            } else {
+                Button("Pause", systemImage: Icons.pause) { downloads.setPaused(item.id, true) }
             }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Palette.chrome)
-        } header: {
-            SectionHeader(title: String(localized: "Queued"), count: items.count,
-                          actionTitle: anyRunning ? String(localized: "Pause All") : String(localized: "Resume All"),
-                          actionIdentifier: "downloadsPauseAll") {
-                downloads.setAllPaused(anyRunning)
-            }
-            .libraryHeader()
-            .accessibilityIdentifier("downloadsQueuedHeader")
         } footer: {
             if !speech.localTTS.wantsLocalBake {
                 waitingNote
@@ -96,20 +85,9 @@ struct DownloadsSheet: View {
     }
 
     private func done(_ items: [DownloadOverview.Item]) -> some View {
-        Section {
-            ForEach(items) { item in
-                row(item)
-                    .contextMenu {
-                        Button("Re-download", systemImage: Icons.redownload) { downloads.redownload(item.id) }
-                        removeButton(item)
-                    }
-            }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Palette.chrome)
-        } header: {
-            SectionHeader(title: String(localized: "Downloaded"), count: items.count)
-                .libraryHeader()
-                .accessibilityIdentifier("downloadsDoneHeader")
+        section(items, header: SectionHeader(title: String(localized: "Downloaded"), count: items.count),
+                headerID: "downloadsDoneHeader") { item in
+            Button("Re-download", systemImage: Icons.redownload) { downloads.redownload(item.id) }
         } footer: {
             let total = items.compactMap { sizes[$0.id] }.reduce(0, +)
             if total > 0 {
@@ -121,29 +99,49 @@ struct DownloadsSheet: View {
     }
 
     private func differentVoice(_ items: [DownloadOverview.Item]) -> some View {
-        Section {
+        section(items, header: SectionHeader(title: String(localized: "Different Voice"), count: items.count),
+                headerID: "downloadsDifferentVoiceHeader") { item in
+            Button("Re-download", systemImage: Icons.redownload) { downloads.redownload(item.id) }
+            if let voice = item.voice {
+                Button("Keep", systemImage: Icons.keep) { downloads.keep(item.id, voice: voice) }
+            }
+        } footer: {
+            if let voice = speech.localTTS.downloadVoice {
+                footnote(String(localized: "Downloads now render in \(voiceLabel(voice)). Re-download one to hear it in that voice, or keep it as it is."))
+                    .libraryFooter()
+            }
+        }
+    }
+
+    /// A section of downloads: each row with its long-press `menu` and *Remove* last, under
+    /// `header` (identified `headerID`), with `footer` below.
+    private func section<Menu: View, Footer: View>(
+        _ items: [DownloadOverview.Item], header: SectionHeader, headerID: String,
+        @ViewBuilder menu: @escaping (DownloadOverview.Item) -> Menu, @ViewBuilder footer: () -> Footer
+    ) -> some View {
+        let footer = footer()
+        return Section {
             ForEach(items) { item in
                 row(item)
                     .contextMenu {
-                        Button("Re-download", systemImage: Icons.redownload) { downloads.redownload(item.id) }
-                        if let voice = item.voice {
-                            Button("Keep", systemImage: Icons.keep) { downloads.keep(item.id, voice: voice) }
-                        }
+                        menu(item)
                         removeButton(item)
                     }
             }
             .listRowInsets(EdgeInsets())
             .listRowBackground(Palette.chrome)
         } header: {
-            SectionHeader(title: String(localized: "Different Voice"), count: items.count)
+            header
                 .libraryHeader()
-                .accessibilityIdentifier("downloadsDifferentVoiceHeader")
+                .accessibilityIdentifier(headerID)
         } footer: {
-            if let voice = speech.localTTS.downloadVoice {
-                footnote(String(localized: "Downloads now render in \(speech.localTTS.voiceLabel(forCacheVoice: voice)). Re-download one to hear it in that voice, or keep it as it is."))
-                    .libraryFooter()
-            }
+            footer
         }
+    }
+
+    /// "Kokoro Heart" for a cache voice key.
+    private func voiceLabel(_ voice: String) -> String {
+        speech.localTTS.engines.voiceLabel(forCacheVoice: voice)
     }
 
     private func removeButton(_ item: DownloadOverview.Item) -> some View {
@@ -202,14 +200,15 @@ struct DownloadsSheet: View {
     /// The voice, then where it is: "Kokoro Heart   4 of 12 chapters   38%", "Kokoro Heart   12 MB".
     private func detail(_ item: DownloadOverview.Item, unit: String?) -> [String] {
         let record = item.record
-        let voice = item.voice.map(speech.localTTS.voiceLabel(forCacheVoice:))
+        let voice = item.voice.map(voiceLabel)
         let count = unit.map { String(localized: "\(record.finishedCount) of \(record.entries.count) \($0)") }
         let size = sizes[record.id].map(FileSizes.label)
         func percent(_ f: Double) -> String { "\(Int((f * 100).rounded()))%" }
         switch item.status {
         case .downloading(let f):
-            let fetching = downloads.active?.recordID == record.id && downloads.active?.phase == .fetching
-            return [voice, count, fetching ? String(localized: "Getting the page") : percent(f)].compactMap { $0 }
+            return [voice, count, percent(f)].compactMap { $0 }
+        case .fetching:
+            return [voice, count, String(localized: "Getting the page")].compactMap { $0 }
         case .queued:
             return [voice, count, String(localized: "Queued")].compactMap { $0 }
         case .paused(let f):
@@ -299,7 +298,7 @@ private struct DownloadShown {
             unit = nil
         case .folder(let id):
             let folder = library.folder(id: id)
-            title = folder?.displayName ?? record.title
+            title = folder?.name ?? record.title
             leading = .folder(symbol: folder?.rowSymbol ?? Icons.folder, cover: folder?.coverImage)
             unit = folder?.kind.isBookOrSeries == true ? String(localized: "chapters") : String(localized: "pages")
         }

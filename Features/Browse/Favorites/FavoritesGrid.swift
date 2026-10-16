@@ -38,10 +38,10 @@ struct FavoritesGrid: View {
             }
             ForEach(folders, id: \.id) { folder in
                 Button { onOpenFolder(folder) } label: {
-                    tile(title: folder.displayName) { folderIcon(folder) }
+                    tile(title: folder.name) { folderIcon(folder) }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(folder.displayName)
+                .accessibilityLabel(folder.name)
                 .accessibilityHint("Folder")
                 .accessibilityIdentifier("favoriteFolderTile")
             }
@@ -76,7 +76,7 @@ struct FavoritesGrid: View {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(Palette.chrome)
             if let cover = folder.coverImage {
-                ArtworkTile(image: cover, letter: folder.displayName, size: Self.tileSize * 0.5, isCover: true)
+                ArtworkTile(image: cover, letter: folder.name, size: Self.tileSize * 0.5, isCover: true)
             } else {
                 Image(systemName: folder.rowSymbol)
                     .font(.title2)

@@ -28,21 +28,20 @@ final class LibraryDedupeTests: XCTestCase {
         for f in [older, newer] { f.sourceIdentifier = "book-key"; env.context.insert(f) }
         let shared = UUID()
         _ = page("https://example.com/ch1", key: shared, in: older)
-        let copy = page("https://example.com/ch1", key: shared, position: 4, in: newer)
+        let copy = page("https://example.com/ch1", key: shared, position: 4, played: env.now + 20, in: newer)
         let onlyInCopy = page("https://example.com/ch2", in: newer)
         newer.currentPageKey = shared
-        newer.lastPlayedAt = env.now + 20
         try env.context.save()
 
         let report = library.dedupe()
         XCTAssertEqual(report.mergedFolders, 1)
         XCTAssertEqual(report.mergedPages, 1)
         XCTAssertEqual(env.folders().filter { $0.kind == .book }.map(\.name), ["Book"], "into the older folder")
-        let pages = library.playOrder(of: older)
+        let pages = library.pages(in: older)
         XCTAssertEqual(pages.count, 2, "one page per key, none left split")
         XCTAssertTrue(pages.contains { $0 === copy } || pages.contains { $0.key == shared })
         XCTAssertIdentical(onlyInCopy.folder, older)
-        XCTAssertEqual(older.currentPageKey, shared, "the later place is kept")
+        XCTAssertEqual(older.currentPageKey, shared, "the place of the copy played later is kept")
         XCTAssertEqual(pages.first { $0.key == shared }?.positionParagraph, 4, "the furthest copy is the keeper")
     }
 
@@ -56,10 +55,9 @@ final class LibraryDedupeTests: XCTestCase {
         for f in [older, newer] { f.sourceIdentifier = "book-key"; env.context.insert(f) }
         let shared = UUID()
         let original = page("https://example.com/ch1", key: shared, in: older)
-        let copy = page("https://example.com/ch1", key: shared, position: 4, in: newer)
+        let copy = page("https://example.com/ch1", key: shared, position: 4, played: env.now + 20, in: newer)
         let onlyInCopy = page("https://example.com/ch2", in: newer)
         newer.currentPageKey = shared
-        newer.lastPlayedAt = env.now + 20
         try env.context.save()
         library.saveContext = { _ in throw SaveFailed() }
 
@@ -67,7 +65,6 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertFalse(env.context.hasChanges)
         XCTAssertFalse(newer.isDeleted)
         XCTAssertNil(older.currentPageKey, "the older book's place")
-        XCTAssertNil(older.lastPlayedAt)
         XCTAssertEqual((older.pages ?? []).map(\.key), [shared], "its pages")
         XCTAssertEqual(Set((newer.pages ?? []).map(\.key)), [shared, onlyInCopy.key], "the copy's")
         XCTAssertTrue(onlyInCopy.folder === newer)
@@ -78,8 +75,10 @@ final class LibraryDedupeTests: XCTestCase {
     }
 
     func testSavedBeatsLinkAtEqualPositionAndTheKeeperTakesWhatItLacks() throws {
+        let reading = Folder(name: "Reading")
+        env.context.insert(reading)
         let link = page("https://example.com/a", key: ArticleIdentity.articleKey(canonicalURL: "https://example.com/a"),
-                        state: .link, added: env.now - 100, in: library.favorites())
+                        state: .link, added: env.now - 100, in: reading)
         link.artworkData = Data([5])
         let saved = page("https://example.com/a?utm_source=x", added: env.now)
         saved.canonicalURL = "https://example.com/a"
@@ -94,11 +93,27 @@ final class LibraryDedupeTests: XCTestCase {
         let keeper = try XCTUnwrap(pages.first)
         XCTAssertIdentical(keeper, saved, "saved beats link")
         XCTAssertEqual(keeper.artworkData, Data([5]), "missing content copied into the keeper")
-        XCTAssertEqual(keeper.folder?.kind, .favorites, "the keeper had no folder: it takes the other's")
+        XCTAssertIdentical(keeper.folder, reading, "the keeper had no folder: it takes the other's")
         XCTAssertEqual(keeper.folderID, keeper.folder?.id)
         XCTAssertEqual(keeper.addedAt, env.now - 100, "the earliest add")
         XCTAssertTrue(env.cache.hasCache(for: saved.key!), "the other's audio merged into the keeper")
         XCTAssertFalse(env.cache.hasCache(for: link.key!))
+    }
+
+    /// The duplicate that loses was starred, finished and skipped: the keeper is too.
+    func testTheKeeperTakesTheStarAndMarksOfTheDuplicateThatLoses() throws {
+        let keeper = page("https://example.com/starred", position: 3)
+        let loser = page("https://example.com/starred", position: 1)
+        loser.isFavorite = true
+        loser.finishedAt = env.now
+        loser.skipsInPlayback = true
+        try env.context.save()
+
+        XCTAssertEqual(library.dedupe().mergedPages, 1)
+        XCTAssertEqual(env.pages().map(\.positionParagraph), [3], "the furthest copy is kept")
+        XCTAssertTrue(keeper.isFavorite, "the star of the copy that lost")
+        XCTAssertEqual(keeper.finishedAt, env.now)
+        XCTAssertTrue(keeper.skipsInPlayback)
     }
 
     func testKeeperOrderFurthestThenLatestPlayThenOlder() throws {
@@ -189,25 +204,7 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertEqual(file.text, older)
     }
 
-    func testTwoFavoritesMergeIntoTheOlder() throws {
-        let older = Folder(name: "", kind: .favorites, createdAt: env.now)
-        let newer = Folder(name: "", kind: .favorites, createdAt: env.now + 5)
-        env.context.insert(older)
-        env.context.insert(newer)
-        let a = page("https://example.com/a", state: .link, in: older)
-        let b = page("https://example.com/b", state: .link, in: newer)
-        let sub = Folder(name: "Sub", kind: .plain)
-        env.context.insert(sub)
-        sub.parent = newer
-        try env.context.save()
-
-        library.dedupe()
-        XCTAssertEqual(env.folders().filter { $0.kind == .favorites }.count, 1)
-        XCTAssertEqual(library.pages(in: older).map(\.title), [a.title, b.title], "after its own pages")
-        XCTAssertIdentical(sub.parent, older)
-    }
-
-    func testCyclesFolderIDsAndAFavoritesBelowTheTopAreRepaired() throws {
+    func testCyclesAndFolderIDsAreRepaired() throws {
         let x = Folder(name: "X", createdAt: env.now)
         let y = Folder(name: "Y", createdAt: env.now + 1)
         env.context.insert(x)
@@ -220,7 +217,6 @@ final class LibraryDedupeTests: XCTestCase {
         for f in [book, shelf, inside] { env.context.insert(f) }
         book.parent = shelf
         inside.parent = book
-        library.favorites().parent = shelf
         let p = page("https://example.com/p", in: shelf)
         p.folderID = UUID() // disagrees with the relationship
         try env.context.save()
@@ -230,8 +226,6 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertNil(y.parent, "the newest folder in the cycle moves to the top level")
         XCTAssertIdentical(x.parent, y)
         XCTAssertIdentical(inside.parent, book, "a folder inside a book stays (decision D19)")
-        XCTAssertNil(library.favorites().parent, "Favorites back at the top level")
-        XCTAssertEqual(report.movedFavoritesToTop, 1)
         XCTAssertEqual(p.folderID, shelf.id, "the relationship wins")
         XCTAssertEqual(library.dedupe(), LibraryStore.DedupeReport(), "idempotent")
     }

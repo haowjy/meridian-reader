@@ -190,9 +190,9 @@ holding the page it writes to rather than fetching it per paragraph. A page star
 `ReaderArticle` (`SpeechController.onListen`: the Reader's Listen, 🎧) is recorded from it on its
 first start, so a page the library doesn't have is kept with its text: played without saving,
 not in the Library, pruned 7 days after its last play. For a page in a folder (a book's or
-series' chapter, or a page in any folder you made or Favorites) the same writes also move the
-folder's place (`Folder.currentPageKey`, `lastPlayedAt`, unfinished again) to the page that
-starts, and the last playable page's end finishes the folder (`LibraryStore+Chapters`). A page
+series' chapter, or a page in any folder you made) the same writes also move the folder's place
+(`Folder.currentPageKey`) to the page that starts (`LibraryStore+Chapters`); whether the folder is
+finished is worked out from its pages (`FolderProgress.isFinished`), never stored. A page
 filed elsewhere takes the place off its old folder (to the page before it). A write whose save fails waits in the context for the next save, and
 a failed edit's rollback doesn't drop it: `LibraryStore` keeps the progress it hasn't stored
 (`PendingListening`: a start, and the text it played when the store may not hold it, from the
@@ -361,7 +361,11 @@ thermal / Low Power hold applies, and in the background a download's job parks l
 article that isn't playing (admission, below). No page is handed to the queue while the app is in
 the background (a fetch needs a window), and nothing renders for downloads while Apple's voice is
 selected (`wantsLocalBake`). Pause and *Remove* take the page's job out of the queue
-(`cancelDownload`), except the page playing or staged. The voice a download is shown in is read
+(`cancelDownload`), and *Remove* and *Delete Downloads* delete audio (`DownloadCenter.purgeAudio`),
+never for what listening needs (`needsAudio`: the page bound to the session, playing, paused or
+finished, and the chapter staged after it): its job and its audio stay. *Delete Downloads* on the
+page playing takes its download off the list, and its audio stays for the session, saved or
+ephemeral as the library keeps the page. The voice a download is shown in is read
 from its audio (`ArticleAudioCache.renderedVoice`: the voice most of its paragraphs are in), so a
 voice change shows at once; finished downloads aren't re-rendered by it (*Re-download* does that).
 

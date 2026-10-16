@@ -18,8 +18,12 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
 - **Render-queue events arrive inside the queue's work** (`noteBakeMarksChanged` is called mid
   drain): `scheduleCheck` looks afterwards, coalesced. Don't act on the queue synchronously from
   the observer.
-- **Only `cancelDownload` takes a job out**, and never the page playing or staged: removing a
-  job fails its chunk waiters.
+- **Downloads never take away what listening needs** (`DownloadCenter.needsAudio`: the page bound
+  to the session, in any phase, and the chapter staged after it). `purgeAudio` is the one way
+  *Remove* and both *Delete Downloads* delete audio, and it skips those keys; `stopActive` leaves
+  their job in the queue (`cancelDownload` takes any other out: removing a job fails its chunk
+  waiters). *Delete Downloads* on the playing page still takes its download off the list; its
+  audio stays for the session, saved or ephemeral as the library keeps the page.
 - **The list keeps downloads of what is in the Library** (`isInLibrary`, the line
   `LibraryQueries` draws): at `start`, and after each stored library edit
   (`LibraryStore.editStored`), a download whose page was removed from the Library, or whose page
@@ -29,14 +33,22 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
 - **Folder downloads list their pages when asked**: a book's or series' chapters that play and
   aren't finished (D7 trims finished ones' audio anyway), any other folder's own pages. Pages added
   later need *Re-download*.
-- **A row's Downloaded ✓ is the Done section's rule, per page** (`DownloadCenter.isDownloaded`,
-  `DownloadOverview.isDownloaded`): an entry `.done` and its audio in the download voice now.
+- **A row's Downloaded ✓ is the *Downloaded* section's rule (`done`), per page** (`DownloadCenter.isDownloaded`,
+  `DownloadOverview.isDownloaded` → `DownloadRecord.hasDownloaded`): an entry `.done` and its
+  audio there, in a voice its download accepts (`DownloadRecord.accepts`: the download voice now,
+  or the one *Keep* stored). So after *Keep* the rows are marked and a folder's Download button is
+  done. *Delete Downloads* keeps the two in step (`forgetDone`): a download of just a page whose
+  audio it deleted goes, and a folder's download puts the page back in its queue while it covers
+  it (so it leaves *Downloaded* and renders it again), else takes it off its list.
   While queued, a Download control's ring shows `DownloadOverview.fraction(of:active:)`, the
   list's own figure (`DownloadCenter.state(of:isDownloaded:)`). A
   folder row passes the pages it already holds (`covers`, the same filter a folder download
   uses), so it fetches nothing; the cache's indexes are in memory.
-- **`DownloadOverview` is pure** (sections, statuses, the progress line); `DownloadOverviewTests`
-  pins its rules. The bottom chrome reads only `DownloadCenter.progress`, which reads no voices.
+- **`DownloadOverview` is pure** (sections, statuses, the progress line, a link page's fetch as
+  `.fetching`); `DownloadOverviewTests` pins its rules, and the sheet reads only it. The bottom
+  chrome reads only `DownloadCenter.progress`, which reads no voices.
+- **The list changes through `updateRecords` / `withRecord`**: a copy, assigned once, so each
+  change writes `Downloads.json` once (pausing everything too).
 - **UI tests** use the Debug test voice (`-testVoice`, `-selectEngine test.voice`,
   `-testVoiceDelay`, `-resetDownloads`): the Simulator has no Kokoro model. Each `-testVoice`
   launch resets the voice to One.

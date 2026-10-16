@@ -81,7 +81,6 @@ struct FolderDetails: Equatable, Sendable {
     var sourceURL: URL?
     /// One folder per identifier: a book's key, a series' canonical contents URL.
     var sourceIdentifier: String
-    var languageCode: String?
     /// Per kind (`Folder.sourceStateData`): a book's file fingerprint.
     var sourceState: Data?
 }

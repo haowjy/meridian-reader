@@ -202,7 +202,7 @@ struct LibraryFolderRow: View {
         }
     }
 
-    /// Its pages in play order, from the relationship (sorted here as `LibraryStore.playOrder`
+    /// Its pages in play order, from the relationship (sorted here as `LibraryStore.pages(in:)`
     /// sorts, so a home with a long series doesn't fetch on every redraw).
     private var playOrder: [Page] {
         livePages.sorted(using: LibraryQueries.sortDescriptors(folder.pageSort))
@@ -224,13 +224,13 @@ struct LibraryFolderRow: View {
         let edge = screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil
         let isFavorite = marksFavorite && folder.isFavorite
         if plays {
-            ListRow(kind: kind, title: folder.displayName, subtitle: location ?? place(progress), progress: rowProgress(progress),
+            ListRow(kind: kind, title: folder.name, subtitle: location ?? place(progress), progress: rowProgress(progress),
                     playState: actions.playState(of: folder), opensScreen: true,
                     onPlay: isEditing ? nil : { actions.playFolder(folder) }, isDropTarget: isDropTarget,
                     insertionEdge: edge, download: download(isDownloaded: isDownloaded), isFavorite: isFavorite,
                     folderHasDetails: folder.hasDetails)
         } else {
-            ListRow(kind: kind, title: folder.displayName, subtitle: location ?? folder.byline, opensScreen: true,
+            ListRow(kind: kind, title: folder.name, subtitle: location ?? folder.byline, opensScreen: true,
                     isDropTarget: isDropTarget, insertionEdge: edge, isFavorite: isFavorite,
                     folderHasDetails: folder.hasDetails)
         }
@@ -329,7 +329,7 @@ extension Page {
 extension Folder {
     /// "Finance › Bonds": the folders from the top level down to this one.
     var pathName: String {
-        (ancestors.reversed() + [self]).map(\.displayName).joined(separator: " › ")
+        (ancestors.reversed() + [self]).map(\.name).joined(separator: " › ")
     }
 
     var coverImage: Image? {

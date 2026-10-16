@@ -176,7 +176,8 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
   without saving (kept 7 days, shown at the top of the Library's *Pages* as "Not saved", and in
   the bar). *Remove from Library* takes a page out of every list it was in, "Not saved" too,
-  even while it plays; it is kept 7 days for what plays and the bar, and comes back only when
+  even while it plays; it is kept 7 days after its last play for what plays and the bar (a page
+  never played goes at the next launch), and comes back only when
   you save it or listen to it again (🎧, the Reader's Listen). There is one page per
   address: saving a favorite saves it in place; unsaving a page in a folder leaves it there as a
   link. 🔖 = saved, ☆ = favorite.
@@ -421,14 +422,18 @@ section, on the cards' edge), and **Different Voice** (done, but rendered in ano
 now). Every row names its voice ("Kokoro Heart"); its parts are set apart by space, never a dot.
 After a voice change a finished download moves to *Different Voice*, with **Re-download** (renders
 it again in the voice selected; the old voice keeps playing until each paragraph is replaced) and
-**Keep** (stays as it is, counted as done, still named by its own voice), on one action row (symbols alone when short of room, D21). A row opens what was
+**Keep** (stays as it is, counted as done and marked downloaded on its rows, still named by its
+own voice), on one action row (symbols alone when short of room, D21). A row opens what was
 downloaded (the Reader, or the Library at the folder); swipe left *Remove* takes the download off
 the list and its audio off the phone (not the audio of what you hear). The list holds downloads
 of what is in the Library: removing a page from the Library, or deleting a page or folder, takes
 its download off the list too (a removed page's audio stays, ephemeral); its long-press menu has
 *Pause / Resume*, *Re-download*, *Keep* and *Remove* as they apply. While Apple's voice is
 selected nothing renders: queued downloads say *Waiting for an on-device voice*, with *Voice
-Settings*. *Delete Downloads* on a page or a folder deletes its audio and its download. A page
+Settings*. *Delete Downloads* on a page or a folder deletes its audio and its download; the audio
+of the page you hear and of the chapter staged after it stays for listening. A folder's download
+that covered the page no longer counts it as done: it renders the page again while the folder
+still covers it (the folder is back under *Queued*), else drops it. A page
 that couldn't be fetched or rendered is counted ("2 couldn’t download"), and *Re-download* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch. With
 nothing in it, a card says *Nothing downloaded*: tap ⬇ on a page, a folder or a book in the
