@@ -62,15 +62,17 @@ final class FavoritesUITests: XCTestCase {
     /// where it was. A nested favorite folder opens under its parents, so ‹ goes to its parent.
     func testFavoritesRowsDontDragAndANestedFolderOpensUnderItsParent() throws {
         let app = launchLibrary()
-        openFolder(app, "Demo Finance")
-        starRow(app, "Bonds")
-        app.navigationBars["Demo Finance"].buttons["Library"].tap()
-        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         libraryRow(app, "Demo Listen Article").tap()
         find(app, "readerMore").tap()
         tapMenuRow(app, "moreFavorite")
         XCTAssertTrue(find(app, "toast").waitForExistence(timeout: 5), "Added to Favorites")
         closeReader(app)
+        // Starred from a search result, whose rows don't lift, so its menu leaves XCUITest idle.
+        let search = app.textFields["librarySearchField"]
+        search.tap()
+        search.typeText("Bonds")
+        starRow(app, "Bonds")
+        app.buttons["librarySearchCancel"].tap()
 
         app.buttons["Favorites"].tap()
         XCTAssertTrue(libraryRow(app, "Bonds").waitForExistence(timeout: 5))
