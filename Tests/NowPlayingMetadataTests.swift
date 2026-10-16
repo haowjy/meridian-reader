@@ -27,11 +27,25 @@ final class NowPlayingMetadataTests: XCTestCase {
         XCTAssertEqual(info.albumTitle, "Pride and Prejudice")
         XCTAssertEqual(info.artwork, Self.cover)
 
-        let fields = info.dictionary
+        let fields = speech.lockScreen.fields(for: info)
         XCTAssertEqual(fields[MPMediaItemPropertyTitle] as? String, "Chapter 12: Hunsford")
         XCTAssertEqual(fields[MPMediaItemPropertyArtist] as? String, "Jane Austen – Paragraph 2 of 3")
         XCTAssertEqual(fields[MPMediaItemPropertyAlbumTitle] as? String, "Pride and Prejudice")
-        XCTAssertNotNil(fields[MPMediaItemPropertyArtwork])
+        let artwork = try XCTUnwrap(fields[MPMediaItemPropertyArtwork] as? MPMediaItemArtwork)
+
+        speech.skipToNextParagraph()
+        let next = try XCTUnwrap(speech.lockScreen.lastInfo)
+        XCTAssertEqual(next.subtitle, "Jane Austen – Paragraph 3 of 3")
+        XCTAssertTrue(speech.lockScreen.fields(for: next)[MPMediaItemPropertyArtwork] as? MPMediaItemArtwork === artwork,
+                      "the artwork is made once per picture, not per paragraph")
+    }
+
+    /// The lock screen and the bar show the same title, so a page without one reads "Untitled" on
+    /// both.
+    func testAPageWithoutATitleReadsTheSameOnTheLockScreenAndTheBar() throws {
+        speech.start(SpeechSession(id: UUID(), document: ParagraphDocument(parts: ["One.", "Two."])))
+        XCTAssertEqual(speech.nowPlaying?.title, "Untitled")
+        XCTAssertEqual(try XCTUnwrap(speech.lockScreen.lastInfo).title, "Untitled")
     }
 
     func testAPageInNoBookShowsItsSite() throws {

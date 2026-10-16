@@ -144,6 +144,7 @@ final class BackgroundListeningTests: XCTestCase {
         XCTAssertEqual(speech.handleRemoteCommand(.play), .success)
         XCTAssertEqual(speech.playback.phase, .playing)
         XCTAssertTrue(audio.isActive, "audio session activated when playback starts")
+        XCTAssertEqual(speech.handleRemoteCommand(.previousTrack), .commandFailed, "nothing before the first paragraph, as ⏮")
         XCTAssertEqual(nowPlaying.lastInfo?.title, "Remote Test")
         XCTAssertEqual(nowPlaying.lastInfo?.site, "example.com")
         XCTAssertEqual(nowPlaying.lastInfo?.progressLabel, "Paragraph 1 of 3")

@@ -26,6 +26,9 @@ struct NowPlaying: Equatable {
     /// The book or series for a chapter ("Pride and Prejudice"), else the site
     /// ("investopedia.com").
     var source: String
+    /// Who it is by, as the lock screen's subtitle shows it: the site's name or the page's author,
+    /// for a chapter the book's byline.
+    var byline: String?
     var artwork: Data?
     var playingFrom: PlayingFrom
     /// `.prepared` and `.finished` included: the bar stays for both.

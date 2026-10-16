@@ -20,7 +20,7 @@ extension RemoteCommand {
         case .pause: return .pause
         case .togglePlayPause: return .toggle
         case .nextTrack: return .skip(delta: 1)
-        case .previousTrack: return .skip(delta: -1) // at paragraph 1: restarts it
+        case .previousTrack: return .skip(delta: -1)
         case .changePlaybackRate: return nil
         }
     }
@@ -71,9 +71,6 @@ struct NowPlayingInfo: Equatable {
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? rate : 0,
             MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
         ]
-        if let artwork, let image = UIImage(data: artwork) {
-            d[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-        }
         return d
     }
 }
@@ -88,6 +85,9 @@ final class NowPlayingController {
     /// between chapters.
     private(set) var clearCount = 0
     private var registered = false
+    /// The artwork the lock screen shows, made once per picture: a new page (or its icon arriving)
+    /// makes one, a new paragraph doesn't.
+    private var artwork: (data: Data, item: MPMediaItemArtwork)?
 
     init(commandCenter: MPRemoteCommandCenter? = .shared(), infoCenter: MPNowPlayingInfoCenter? = .default()) {
         self.commandCenter = commandCenter
@@ -136,6 +136,22 @@ final class NowPlayingController {
             c.previousTrackCommand.isEnabled = info != nil && canPrevious
         }
         guard let infoCenter else { return }
-        infoCenter.nowPlayingInfo = info?.dictionary
+        infoCenter.nowPlayingInfo = info.map(fields(for:))
+    }
+
+    /// What the lock screen gets for `info`: its fields, with the artwork.
+    func fields(for info: NowPlayingInfo) -> [String: Any] {
+        var fields = info.dictionary
+        if let item = artworkItem(info.artwork) { fields[MPMediaItemPropertyArtwork] = item }
+        return fields
+    }
+
+    private func artworkItem(_ data: Data?) -> MPMediaItemArtwork? {
+        guard let data else { return nil }
+        if let artwork, artwork.data == data { return artwork.item }
+        guard let image = UIImage(data: data) else { return nil }
+        let item = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+        artwork = (data, item)
+        return item
     }
 }

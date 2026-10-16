@@ -70,7 +70,7 @@ Rules:
 `SpeechController` derives everything the screens show about what you hear from the session:
 
 - **`nowPlaying`** (`NowPlaying`): the bound page's key, canonical URL, title, source (its host,
-  or the book's or series' name for a chapter), artwork, where it plays from
+  or the book's or series' name for a chapter), byline (the lock screen's subtitle), artwork, where it plays from
   (`PlayingFrom.folder(id:name:)` for a page in a folder, else `.site(host:)`) and phase. nil only before anything has played and after Stop
   Listening.
 - **`playState(of:)`** for a `ListenTarget` (`.page(key)`, `.webPage(canonicalURL:)`, compared
@@ -604,11 +604,13 @@ with `.notifyOthersOnDeactivation` on stop or finish.
   en dash joins the parts), album = site,
   chapter number and count (paragraphs), progress N/M, favicon artwork, rate 0 while paused. For
   a chapter of a book or series: title = the chapter, artist = "<the book's byline> – Paragraph N
-  of M", album = the book or series, artwork = the chapter's, else the book's cover. Shown while
-  playing or paused, and kept across a chapter boundary; cleared on stop or at the end.
+  of M", album = the book or series, artwork = the chapter's, else the book's cover. Built from
+  `nowPlaying`, as the bar is (one title fallback, "Untitled"; the subtitle's byline is
+  `NowPlaying.byline`), with the artwork made once per picture rather than every paragraph. Shown
+  while playing or paused, and kept across a chapter boundary; cleared on stop or at the end.
 - `MPRemoteCommandCenter` (decision D4: headphone and lock-screen skips are paragraph skips, like
   the on-screen ⏮ ⏭): play, pause, togglePlayPause, nextTrack (next paragraph),
-  previousTrack (previous paragraph, or restart paragraph 1) and changePlaybackRate (snapped to
+  previousTrack (previous paragraph; off at the first, as ⏮ is) and changePlaybackRate (snapped to
   the listen-bar rates). Skip, seek and position commands are off.
 - Every command goes through `SpeechController.handleRemoteCommand` → `RemoteCommand.intent` →
   `userPerform` → `PlaybackSessionState.handle`, the same path as the on-screen buttons. Now Playing is

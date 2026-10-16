@@ -252,14 +252,20 @@ final class SpeechController {
     /// Stop Listening; a finished page stays bound (`.finished`), so the bar keeps it with ▶.
     var nowPlaying: NowPlaying? {
         guard let id = activeSessionID, !document.isEmpty else { return nil }
-        let meta = sessionMeta?.id == id ? sessionMeta : nil
+        let meta = boundMeta
         let raw = meta?.sourceLabel ?? meta?.site ?? ""
         let host = raw.hasPrefix("www.") ? String(raw.dropFirst(4)) : raw
         let folder = meta?.folder
         let playingFrom: PlayingFrom = folder.map { .folder(id: $0.id, name: $0.name) } ?? .site(host: host)
         return NowPlaying(pageKey: id, canonicalURL: meta?.canonicalURL, title: meta?.title ?? "Untitled",
-                          source: folder?.isBookOrSeries == true ? folder?.name ?? host : host, artwork: meta?.artwork,
-                          playingFrom: playingFrom, phase: playbackPhase)
+                          source: folder?.isBookOrSeries == true ? folder?.name ?? host : host, byline: meta?.site,
+                          artwork: meta?.artwork, playingFrom: playingFrom, phase: playbackPhase)
+    }
+
+    /// What the bound page is (nil while the metadata adopted last belongs to another page).
+    private var boundMeta: SessionMeta? {
+        guard let id = activeSessionID, sessionMeta?.id == id else { return nil }
+        return sessionMeta
     }
 
     /// The one place a ▶ / ⏸ comes from. Reads only session fields, so it is cheap on every
@@ -279,7 +285,7 @@ final class SpeechController {
         case .page(let key):
             return key == id
         case .webPage(let url):
-            return sessionMeta?.id == id && sessionMeta?.canonicalURL == url
+            return boundMeta?.canonicalURL == url
         case .folder(let folderID):
             return activeFolderID == folderID
         }
@@ -359,7 +365,7 @@ final class SpeechController {
 
     /// The page's icon arrived after it started playing (🎧 starts before fetching it).
     func setArtwork(_ data: Data, for pageKey: UUID) {
-        guard sessionMeta?.id == pageKey, sessionMeta?.artwork == nil else { return }
+        guard boundMeta?.id == pageKey, boundMeta?.artwork == nil else { return }
         sessionMeta?.artwork = data
         refreshNowPlaying()
     }
@@ -679,7 +685,12 @@ final class SpeechController {
             setRateMultiplier(rate)
             return .success
         }
-        if command == .nextTrack, !canSkipToNextParagraph { return .commandFailed }
+        switch command {
+        case .nextTrack where !canSkipToNextParagraph, .previousTrack where !canSkipToPreviousParagraph:
+            return .commandFailed
+        default:
+            break
+        }
         guard let intent = command.intent else { return .commandFailed }
         userPerform(intent)
         return .success
@@ -712,18 +723,20 @@ final class SpeechController {
 
     // MARK: - Now Playing
 
+    /// The lock screen shows what the bar shows (`nowPlaying`), while it plays or is paused; its
+    /// ⏮ ⏭ follow the on-screen ones.
     private func refreshNowPlaying() {
-        guard let id = playback.articleID, playback.isPrepared,
-              playback.phase == .playing || playback.phase == .paused else {
+        guard let now = nowPlaying, now.phase == .playing || now.phase == .paused else {
             lockScreen.update(nil)
             return
         }
-        let meta = sessionMeta?.id == id ? sessionMeta : nil
+        var album: String?
+        if case .folder(_, let name) = now.playingFrom { album = name }
         let info = NowPlayingInfo(
-            title: meta?.title ?? "Meridian Reader", site: meta?.site, album: meta?.folder?.name,
-            paragraph: playback.playhead + 1, paragraphCount: playback.paragraphCount,
-            isPlaying: playback.phase == .playing, rate: rateMultiplier, artwork: meta?.artwork)
-        lockScreen.update(info, canNext: playback.playhead + 1 < playback.paragraphCount, canPrevious: true)
+            title: now.title, site: now.byline, album: album,
+            paragraph: currentParagraphIndex + 1, paragraphCount: document.count,
+            isPlaying: now.phase == .playing, rate: rateMultiplier, artwork: now.artwork)
+        lockScreen.update(info, canNext: canSkipToNextParagraph, canPrevious: canSkipToPreviousParagraph)
     }
 
     // MARK: - Foreground / background
@@ -854,7 +867,7 @@ final class SpeechController {
     private func finishSession(restartBake: Bool) {
         let articleID = playback.articleID
         let paragraphs = playback.document.paragraphs
-        let isChapter = sessionMeta?.id == articleID && sessionMeta?.folder?.isBookOrSeries == true
+        let isChapter = boundMeta?.folder?.isBookOrSeries == true
         stopEngines()
         // Let other apps' audio resume (Stop Listening / the end of an article or a book).
         audioSession.deactivate()
