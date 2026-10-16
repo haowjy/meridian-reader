@@ -206,6 +206,43 @@ final class DownloadCenterTests: XCTestCase {
         XCTAssertTrue(other.isSaved, "the page stays in the Library")
     }
 
+    /// *Delete Downloads* on the page you hear takes its download off the list and leaves its
+    /// audio and its render job; on another page it deletes the audio.
+    func testDeleteDownloadsKeepsTheAudioOfThePageYouHear() async throws {
+        let other = try env.savedPage("https://example.com/other-page")
+        _ = center.download(other)
+        try await env.waitUntil { self.center.overview.done.count == 1 }
+        env.provider.config.latency = 0.05
+        let heard = try env.savedPage("https://example.com/heard-page", paragraphs: env.paragraphs(12))
+        _ = center.download(heard)
+        env.listening = heard.listenKey
+        try await env.waitUntil { self.tts.hasListenAudio(for: heard.listenKey) }
+
+        center.deleteDownloads(of: heard)
+        XCTAssertNil(center.record(for: .page(heard.listenKey)), "its download goes")
+        XCTAssertTrue(tts.hasListenAudio(for: heard.listenKey), "its audio stays")
+        XCTAssertTrue(tts.synthQueue.hasJob(cacheKey: heard.listenKey), "and its render job")
+
+        center.deleteDownloads(of: other)
+        XCTAssertFalse(tts.hasListenAudio(for: other.listenKey), "another page's audio goes")
+    }
+
+    /// *Delete Downloads* on the chapter staged to play next leaves its audio and its render job.
+    func testDeleteDownloadsKeepsTheAudioOfTheStagedChapter() async throws {
+        env.provider.config.latency = 0.05
+        let next = try env.savedPage("https://example.com/next-chapter", paragraphs: env.paragraphs(12, tag: "Next"))
+        let chapter = UUID()
+        tts.openArticle(cacheKey: chapter, paragraphs: env.paragraphs(4, tag: "Chapter"), from: 0, isEphemeral: false)
+        XCTAssertTrue(tts.stageNextChapter(cacheKey: next.listenKey, after: chapter, paragraphs: next.listenDocument().paragraphs))
+        try await env.waitUntil { self.tts.hasListenAudio(for: next.listenKey) }
+
+        center.deleteDownloads(of: next)
+        XCTAssertTrue(tts.hasListenAudio(for: next.listenKey), "its audio stays")
+        XCTAssertEqual(tts.synthQueue.stagedCacheKey, next.listenKey, "still staged")
+        XCTAssertTrue(tts.synthQueue.hasJob(cacheKey: next.listenKey), "with its render job")
+        tts.synthQueue.remove(cacheKey: chapter)
+    }
+
     // MARK: - Leaving the Library
 
     private struct SaveFailed: Error {}

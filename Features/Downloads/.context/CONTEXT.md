@@ -18,8 +18,12 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
 - **Render-queue events arrive inside the queue's work** (`noteBakeMarksChanged` is called mid
   drain): `scheduleCheck` looks afterwards, coalesced. Don't act on the queue synchronously from
   the observer.
-- **Only `cancelDownload` takes a job out**, and never the page playing or staged: removing a
-  job fails its chunk waiters.
+- **Downloads never take away what listening needs** (`DownloadCenter.needsAudio`: the page bound
+  to the session, in any phase, and the chapter staged after it). `purgeAudio` is the one way
+  *Remove* and both *Delete Downloads* delete audio, and it skips those keys; `stopActive` leaves
+  their job in the queue (`cancelDownload` takes any other out: removing a job fails its chunk
+  waiters). *Delete Downloads* on the playing page still takes its download off the list; its
+  audio stays for the session, saved or ephemeral as the library keeps the page.
 - **The list keeps downloads of what is in the Library** (`isInLibrary`, the line
   `LibraryQueries` draws): at `start`, and after each stored library edit
   (`LibraryStore.editStored`), a download whose page was removed from the Library, or whose page

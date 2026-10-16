@@ -56,7 +56,7 @@ final class DownloadCenter {
     @ObservationIgnored private let fetch: (URL) async throws -> PageContent
     /// The one save path (`ArticleSaveCoordinator`), returning the saved page's key.
     @ObservationIgnored private let save: (ReaderArticle) throws -> UUID
-    /// Whether a page is what you hear: its audio stays when its download is removed.
+    /// Whether a page is bound to the playback session (playing, paused or finished).
     @ObservationIgnored private let isListening: (UUID) -> Bool
     @ObservationIgnored private var isStarted = false
     @ObservationIgnored private var runner: Task<Void, Never>?
@@ -239,15 +239,13 @@ final class DownloadCenter {
     }
 
     /// Takes the download off the list, and its pages' audio off the phone (*Remove*), except the
-    /// audio of what you hear and of pages another download covers.
+    /// audio listening needs (`purgeAudio`) and that of pages another download covers.
     func remove(_ id: UUID) {
         guard let index = records.firstIndex(where: { $0.id == id }) else { return }
         if active?.recordID == id { stopActive() }
         let record = records.remove(at: index)
         let kept = Set(records.flatMap { $0.entries.map(\.key) })
-        for entry in record.entries where !kept.contains(entry.key) && !isListening(entry.key) {
-            if let page = library.page(key: entry.key) { library.deleteDownloads(page) }
-        }
+        purgeAudio(record.entries.map(\.key).filter { !kept.contains($0) })
         advance()
     }
 
@@ -268,20 +266,45 @@ final class DownloadCenter {
         records[index].keptVoice = voice
     }
 
-    /// *Delete Downloads* on a page's row: its audio goes, and so does a download of just that page.
+    /// *Delete Downloads* on a page's row: its audio goes (unless listening needs it,
+    /// `purgeAudio`), and so does a download of just that page.
     func deleteDownloads(of page: Page) {
         records.removeAll { $0.target == .page(page.listenKey) }
         if active?.key == page.listenKey { stopActive() }
-        library.deleteDownloads(page)
+        purgeAudio([page.listenKey])
         advance()
     }
 
-    /// *Delete Downloads* on a book or series: every chapter's audio, and its download.
+    /// *Delete Downloads* on a folder: its pages' audio (unless listening needs it, `purgeAudio`),
+    /// and its download.
     func deleteDownloads(of folder: Folder) {
         if let record = record(for: .folder(folder.id)), active?.recordID == record.id { stopActive() }
         records.removeAll { $0.target == .folder(folder.id) }
-        library.deleteDownloads(of: folder)
+        purgeAudio(library.pages(in: folder).map(\.listenKey))
         advance()
+    }
+
+    // MARK: - What listening needs
+
+    /// Listening needs `key`'s audio and its render job now: it is the page bound to the session
+    /// (playing, paused or finished), or the chapter staged to play after it. Nothing Downloads
+    /// does takes either away.
+    private func needsAudio(_ key: UUID) -> Bool {
+        isListening(key) || tts.synthQueue.stagedCacheKey == key
+    }
+
+    /// Deletes the audio, pending render and queued renders of `keys`' pages, except what
+    /// listening needs (`needsAudio`): that audio stays for the session, saved or ephemeral as
+    /// the library keeps its page. Returns the keys whose audio went.
+    @discardableResult
+    private func purgeAudio(_ keys: [UUID]) -> [UUID] {
+        var purged: [UUID] = []
+        for key in keys where !needsAudio(key) {
+            guard let page = library.page(key: key) else { continue }
+            library.deleteDownloads(page)
+            purged.append(key)
+        }
+        return purged
     }
 
     // MARK: - Working through the list
@@ -409,9 +432,9 @@ final class DownloadCenter {
     }
 
     /// The page rendering now stops (paused, removed): its job leaves the queue, unless listening
-    /// needs it. It stays queued in its download.
+    /// needs it (`needsAudio`). It stays queued in its download.
     private func stopActive() {
-        if let active, case .rendering = active.phase { tts.cancelDownload(cacheKey: active.key) }
+        if let active, case .rendering = active.phase, !needsAudio(active.key) { tts.cancelDownload(cacheKey: active.key) }
         active = nil
     }
 

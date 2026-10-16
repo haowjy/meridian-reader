@@ -361,7 +361,11 @@ thermal / Low Power hold applies, and in the background a download's job parks l
 article that isn't playing (admission, below). No page is handed to the queue while the app is in
 the background (a fetch needs a window), and nothing renders for downloads while Apple's voice is
 selected (`wantsLocalBake`). Pause and *Remove* take the page's job out of the queue
-(`cancelDownload`), except the page playing or staged. The voice a download is shown in is read
+(`cancelDownload`), and *Remove* and *Delete Downloads* delete audio (`DownloadCenter.purgeAudio`),
+never for what listening needs (`needsAudio`: the page bound to the session, playing, paused or
+finished, and the chapter staged after it): its job and its audio stay. *Delete Downloads* on the
+page playing takes its download off the list, and its audio stays for the session, saved or
+ephemeral as the library keeps the page. The voice a download is shown in is read
 from its audio (`ArticleAudioCache.renderedVoice`: the voice most of its paragraphs are in), so a
 voice change shows at once; finished downloads aren't re-rendered by it (*Re-download* does that).
 

@@ -30,11 +30,6 @@ extension LibraryStore {
         try edit(skips ? "skip in playback" : "play in playback") { page.skipsInPlayback = skips }
     }
 
-    /// *Delete Downloads* on a folder: the audio of every page in it; the pages stay saved.
-    func deleteDownloads(of folder: Folder) {
-        for page in pages(in: folder) { deleteDownloads(page) }
-    }
-
     /// Whether `page` has audio on disk for any voice (*Delete Downloads* is offered).
     func hasDownloads(_ page: Page) -> Bool {
         guard let key = page.key else { return false }

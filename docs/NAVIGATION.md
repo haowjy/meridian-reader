@@ -429,7 +429,8 @@ of what is in the Library: removing a page from the Library, or deleting a page 
 its download off the list too (a removed page's audio stays, ephemeral); its long-press menu has
 *Pause / Resume*, *Re-download*, *Keep* and *Remove* as they apply. While Apple's voice is
 selected nothing renders: queued downloads say *Waiting for an on-device voice*, with *Voice
-Settings*. *Delete Downloads* on a page or a folder deletes its audio and its download. A page
+Settings*. *Delete Downloads* on a page or a folder deletes its audio and its download; the audio
+of the page you hear and of the chapter staged after it stays for listening. A page
 that couldn't be fetched or rendered is counted ("2 couldn’t download"), and *Re-download* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch. With
 nothing in it, a card says *Nothing downloaded*: tap ⬇ on a page, a folder or a book in the
