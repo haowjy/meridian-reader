@@ -692,11 +692,10 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
 Debug tools are hidden in normal use: the ⋯ Debug rows (Browse "Debug ›" with Fake extraction
 failure; Reader, Now Playing and Library "Debug" → Listen debug panel), Voice
 settings → Listen debug (and Open full panel), the listen bar's Debug pill / bake overlay, and
-long-press ▶︎ → Listen debug panel. The entry points that open the full panel set
-`speech.showListenDebug` (Browse's Debug › only fakes an extraction failure; the Debug pill
-toggles the bake overlay); the shell's root
-presents the panel (`listenDebugSheet`) while no shell sheet is up, and Voice settings present it
-over themselves. They show only with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
+long-press ▶︎ → Listen debug panel. The entry points that open the full panel present the
+shell's `ShellSheet.listenDebug` (Browse's Debug › only fakes an extraction failure; the Debug pill
+toggles the bake overlay): the one sheet, or over Voice settings when they are up
+(`ShellState.overSheet`), which stay when it closes. They show only with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
 default in Release builds, on by default in Debug builds. To toggle in any build, long-press the
 **version row** at the bottom of Voice settings for 2 s (haptic + "Developer options on/off"
 confirmation). A Release build clears a stored "on" once, so a Debug pill left from an older build
@@ -723,7 +722,7 @@ Debug builds (`App/LaunchOptions.swift`).
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
 | Reader sheet (`ReaderSheetScreen`): 📄, ⋯ → Reader, a Favorites tile, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface; pull the header down |
 | Now Playing (`NowPlayingScreen`): the bar, the Reader of the playing page, Listen, crash resume | *⌄ <playing from>* pill, top left | `Sheet` over everything; pull the header down |
-| Listen debug panel | Done | `.sheet` |
+| Listen debug panel | Done | `.sheet` (over Voice settings when opened from them) |
 | Speed picker | — | popover |
 
 The browser's own ‹ / › are web-history buttons (the web view also has its edge swipes), not screens.

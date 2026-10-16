@@ -38,6 +38,9 @@ enum ShellSheet: Identifiable, Equatable {
     case downloads
     /// *Edit Details* for a folder, book or series: its name, author and cover.
     case folderDetails(UUID)
+    /// Developer options: the listen debug panel (⋯ → Debug, a long-press on ▶ / ⏸, Voice
+    /// settings' *Open full panel*). The one sheet that shows over another (`showsOverASheet`).
+    case listenDebug
 
     var id: String {
         switch self {
@@ -48,15 +51,20 @@ enum ShellSheet: Identifiable, Equatable {
         case .importBook(let flow): "importBook-\(flow.id)"
         case .downloads: "downloads"
         case .folderDetails(let id): "folderDetails-\(id.uuidString)"
+        case .listenDebug: "listenDebug"
         }
     }
+
+    /// Presented while another sheet is up, it shows over that one and closes back to it: the
+    /// listen debug panel opened from Voice settings.
+    var showsOverASheet: Bool { self == .listenDebug }
 
     /// History lists browser destinations, so it belongs to the browser: presenting it from the
     /// library leaves the library first. The others show over whatever is on screen.
     var belongsToBrowser: Bool {
         switch self {
         case .history: true
-        case .voiceSettings, .share, .moveTo, .importBook, .downloads, .folderDetails: false
+        case .voiceSettings, .share, .moveTo, .importBook, .downloads, .folderDetails, .listenDebug: false
         }
     }
 }
@@ -144,7 +152,11 @@ final class ShellState {
     /// `handOver`) when its Listen turned it into Now Playing (it appears in place, without
     /// rising). nil = it rises and finds the audio.
     private(set) var nowPlayingOpensAt: ReadingHandOver?
-    var sheet: ShellSheet?
+    var sheet: ShellSheet? {
+        didSet { if sheet == nil { overSheet = nil } }
+    }
+    /// A sheet over `sheet` (`ShellSheet.showsOverASheet`); it goes with it.
+    var overSheet: ShellSheet?
     /// *Import Book…*'s Files picker is up (`pickBook(into:)`).
     var isPickingBook = false
     /// Where the picked book goes (nil: the Library's top level).
@@ -431,7 +443,11 @@ final class ShellState {
 
     func present(_ sheet: ShellSheet) {
         if sheet.belongsToBrowser { leaveLibrary() }
-        self.sheet = sheet
+        if sheet.showsOverASheet, let under = self.sheet, under != sheet {
+            overSheet = sheet
+        } else {
+            self.sheet = sheet
+        }
     }
 
     /// The import sheet's flow, while it is the sheet up.

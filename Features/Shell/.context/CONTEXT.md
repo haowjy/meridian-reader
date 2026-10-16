@@ -11,7 +11,9 @@ changing the shell code.
   Add a screen by adding a case here, not a presentation flag in a view. The surface,
   path and tab are written to `SurfaceMemoryStore` on every change and restored at launch (D10); a UI-test
   launch doesn't restore unless `-restoreSurface`, so tests start on the browser whatever the
-  last one left. One sheet at a time. It never stores what
+  last one left. One sheet at a time, except the listen debug panel, which shows over Voice
+  settings when opened from them (`overSheet`, `ShellSheet.showsOverASheet`); the sheet's view
+  presents it, so nothing else hosts a sheet of its own. It never stores what
   you hear: `isHearing` (injected) asks the playback session, so `openReader` of the playing page
   opens Now Playing.
 - **Layers** (`BrowseStartView.layers`): surface → Reader sheet → Now Playing → ⋯ menu → system

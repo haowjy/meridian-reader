@@ -157,7 +157,7 @@ struct NowPlayingScreen: View {
         case .share: if let shareURL { shell.present(.share(shareURL)) }
         case .download: if let savedPage { DownloadActions(downloads: downloads, shell: shell).download(savedPage) }
         case .downloads: shell.present(.downloads)
-        case .listenDebug: speech.showListenDebug = true
+        case .listenDebug: shell.present(.listenDebug)
         case .favorites: shell.showFavorites()
         case .history: shell.present(.history)
         case .openWebsite: openWebsite()

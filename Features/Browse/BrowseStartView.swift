@@ -79,9 +79,6 @@ struct BrowseStartView: View {
                 guard case .success(let url) = result else { return }
                 BookImportActions(library: library, shell: shell).importPicked(url, into: shell.bookPickDestination)
             }
-            // The ⋯ Debug row (Reader, Now Playing, Library) and long-press ▶: over every layer.
-            // A shell sheet with a Debug entry hosts its own.
-            .listenDebugSheet(speech, hosts: shell.sheet == nil)
             .modifier(BrowseAlerts(extractionError: $alertMessage, dictation: dictation))
             .onChange(of: webStore.currentURL) { _, _ in shell.browserPageChanged() }
             .onAppear { webStore.onBookDownload = bookDownloaded }

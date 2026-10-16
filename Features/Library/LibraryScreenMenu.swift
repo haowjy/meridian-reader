@@ -69,7 +69,7 @@ struct LibraryScreenMenu {
         case .deleteDownloads: if let folder { downloads.deleteDownloads(of: folder) }
         case .download: if let folder { DownloadActions(downloads: downloads, shell: shell).download(folder) }
         case .downloads: shell.present(.downloads)
-        case .listenDebug: speech.showListenDebug = true
+        case .listenDebug: shell.present(.listenDebug)
         case .favorites, .history, .browser: tile(action)
         }
     }

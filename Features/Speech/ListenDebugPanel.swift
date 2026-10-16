@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// Developer overlay for local-engine listen gaps / bake queue.
-/// Open: the ⋯ Debug row (Reader, Now Playing, Library), Settings → Listen →
-/// Open full panel, the bake overlay, or long-press play/pause. Each sets
-/// `speech.showListenDebug`; `listenDebugSheet` presents it.
+/// Developer overlay for local-engine listen gaps / bake queue: the shell's
+/// `ShellSheet.listenDebug`. Open: the ⋯ Debug row (Reader, Now Playing, Library), Voice settings'
+/// *Open full panel* (over that sheet), the bake overlay, or long-press play/pause.
 struct ListenDebugPanel: View {
     @Bindable var speech: SpeechController
     @Environment(\.dismiss) private var dismiss
@@ -103,10 +102,7 @@ struct ListenDebugPanel: View {
                     Button("Clear log") { ListenDebugLog.shared.clear() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        speech.showListenDebug = false
-                        dismiss()
-                    }
+                    Button("Done") { dismiss() }
                 }
             }
             .onAppear { snapshot = speech.diagnostics.snapshot() }
@@ -208,18 +204,5 @@ struct BakeDebugOverlay: View {
         guard total > 0 else { return "—%" }
         let pct = Int((100.0 * Double(s.bakeReadyCount) / Double(total)).rounded())
         return "\(pct)%"
-    }
-}
-
-extension View {
-    /// Presents the listen debug panel while `speech.showListenDebug` is on. One host per layer that
-    /// can present: the shell's root (`hosts` only while no shell sheet is up, since a presenting
-    /// view can't show a second sheet) and each shell sheet with a Debug entry (Voice settings, the
-    /// Library surface).
-    func listenDebugSheet(_ speech: SpeechController, hosts: Bool = true) -> some View {
-        sheet(isPresented: Binding(get: { hosts && speech.showListenDebug },
-                                   set: { speech.showListenDebug = $0 })) {
-            ListenDebugPanel(speech: speech)
-        }
     }
 }

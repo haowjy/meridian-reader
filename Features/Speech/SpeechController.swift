@@ -107,8 +107,6 @@ final class SpeechController {
     @ObservationIgnored let localEngine: LocalListenEngine
     private var listenEngines: [ListenEngine] { [appleEngine, localEngine] }
 
-    /// Developer Listen debug sheet (Settings, Debug chip, or long-press play).
-    var showListenDebug = false
     /// When true, the listen bar shows a Debug chip that toggles the bake overlay.
     /// Persisted; Settings → Listen → Listen debug.
     var listenDebugEnabled: Bool {
@@ -121,7 +119,6 @@ final class SpeechController {
             UserDefaults.standard.set(developerOptionsEnabled, forKey: DeveloperOptions.defaultsKey)
             if !developerOptionsEnabled {
                 showBakeDebugOverlay = false
-                showListenDebug = false
             }
         }
     }
@@ -451,7 +448,6 @@ final class SpeechController {
         // Init skips didSet — keep overlays off when Release reset / default leaves options off.
         if !developerOptionsEnabled {
             showBakeDebugOverlay = false
-            showListenDebug = false
         }
         // Bake / warm only articles the local engine can speak (others speak with Apple).
         self.localTTS.localLanguageGate = { [weak self] paragraphs in

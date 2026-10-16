@@ -1,8 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// The shell's one sheet (`ShellState.sheet`). Picking a history entry loads it in the browser;
-/// The Move tree, the import sheet and *Edit Details* are Library screens.
+/// The shell's one sheet (`ShellState.sheet`), and the one that can show over it
+/// (`ShellState.overSheet`). Picking a history entry loads it in the browser; the Move tree, the
+/// import sheet and *Edit Details* are Library screens.
 struct ShellSheetView: View {
     let sheet: ShellSheet
 
@@ -11,6 +12,12 @@ struct ShellSheetView: View {
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
 
     var body: some View {
+        content(sheet)
+            .sheet(item: Binding(get: { shell.overSheet }, set: { shell.overSheet = $0 })) { content($0) }
+    }
+
+    @ViewBuilder
+    private func content(_ sheet: ShellSheet) -> some View {
         switch sheet {
         case .moveTo(let request):
             MoveTreeSheet(request: request)
@@ -41,6 +48,8 @@ struct ShellSheetView: View {
             ActivityShareSheet(items: [url])
                 .presentationDetents([.medium, .large])
                 .ignoresSafeArea()
+        case .listenDebug:
+            ListenDebugPanel(speech: speech)
         }
     }
 
