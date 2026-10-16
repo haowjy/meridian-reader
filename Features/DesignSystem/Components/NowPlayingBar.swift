@@ -10,7 +10,8 @@ import SwiftUI
 /// ╰━━━━━━━━━━━━━━━━━━━━━━━━──────────────────╯   progress along the bottom edge
 /// ```
 ///
-/// Tap or swipe up opens (`onOpen`); long-press offers Stop Listening when there is `onStop`.
+/// Tap or swipe up opens (`onOpen`); long-press offers Stop Listening, dimmed with no `onStop`
+/// (the page played last, which nothing has loaded); the placeholder has no menu.
 /// While the next chapter loads the state is `.preparing` and `detail` says so.
 /// `NowPlayingBar.placeholder` is the same card, greyed, with nothing to open or play: the band
 /// shows it before anything has played, so the band keeps its height.
@@ -31,7 +32,7 @@ struct NowPlayingBar: View {
     var identifier = "nowPlayingBar"
     let onOpen: () -> Void
     let onPlayPause: () -> Void
-    /// Long-press → Stop Listening (nil: no menu).
+    /// Long-press → Stop Listening (nil: dimmed).
     let onStop: (() -> Void)?
     /// The greyed stand-in (`placeholder`).
     private var isPlaceholder = false
@@ -133,9 +134,8 @@ struct NowPlayingBar: View {
         .floatingShadow(opacity: isPlaceholder ? Self.placeholderShadowOpacity : 0.14)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
         .contextMenu {
-            if let onStop {
-                Button("Stop Listening", systemImage: Icons.stop, action: onStop)
-            }
+            Button("Stop Listening", systemImage: Icons.stop) { onStop?() }
+                .menuAvailability(MenuAvailability(applies: !isPlaceholder, when: onStop != nil))
         }
         .accessibilityElement(children: .contain)
         .accessibilityValue(isPlaceholder ? "" : "\(Int((progress * 100).rounded())) percent")

@@ -83,58 +83,49 @@ struct LibraryPageRow: View {
         }
     }
 
+    /// Its long-press menu, row by row through `MenuAvailability` (DR-09): *Select* only where
+    /// the screen has Edit; *Play from Here* and the play-order rows only in a folder; *Share* only
+    /// with a web address. The rest shows for every page, dimmed until it can run (a page not in
+    /// the Library can't be moved, marked or downloaded until it is saved).
     @ViewBuilder
     private var menu: some View {
-        if let onSelect {
-            Button("Select", systemImage: Icons.select, action: onSelect)
+        let inLibrary = page.isInLibrary
+        let inFolder = page.folder != nil
+        let isSaved = page.isSavedToLibrary
+        Button("Select", systemImage: Icons.select) { onSelect?() }
+            .menuAvailability(MenuAvailability(applies: onSelect != nil))
+        Button("Play from Here", systemImage: Icons.play) { actions.playFromStart(page) }
+            .menuAvailability(MenuAvailability(applies: inFolder, when: isSaved))
+        Button(Verbs.moveTo, systemImage: Icons.move) { actions.move([.page(page)]) }
+            .menuAvailability(MenuAvailability(when: inLibrary))
+        Button(page.finishedAt == nil ? Verbs.markFinished : Verbs.markUnfinished,
+               systemImage: page.finishedAt == nil ? Icons.markFinished : Icons.markUnfinished) {
+            actions.setFinished([page], page.finishedAt == nil)
         }
-        if !page.isInLibrary {
-            Button("Save", systemImage: Icons.save) { actions.save(page) }
-            if page.url?.isWeb == true {
-                Button("Share", systemImage: Icons.share) { actions.share(page) }
-            }
-        } else {
-            let inFolder = page.folder != nil
-            if inFolder, page.isSaved {
-                Button("Play from Here", systemImage: Icons.play) { actions.playFromStart(page) }
-            }
-            Button(Verbs.moveTo, systemImage: Icons.move) { actions.move([.page(page)]) }
-            if page.isSaved {
-                if page.finishedAt == nil {
-                    Button(Verbs.markFinished, systemImage: Icons.markFinished) { actions.setFinished([page], true) }
-                } else {
-                    Button(Verbs.markUnfinished, systemImage: Icons.markUnfinished) { actions.setFinished([page], false) }
-                }
-                if inFolder {
-                    Button("Mark All Above as Finished", systemImage: Icons.markAllAboveFinished) {
-                        actions.markAllAbove(page)
-                    }
-                    Button(page.skipsInPlayback ? "Play in Playback" : "Skip in Playback",
-                           systemImage: page.skipsInPlayback ? Icons.includeInPlayback : Icons.skipInPlayback) {
-                        actions.toggleSkipsInPlayback(page)
-                    }
-                }
-            }
-            if page.url?.isWeb == true {
-                Button("Share", systemImage: Icons.share) { actions.share(page) }
-            }
-            if !downloads.isQueued(.page(page.listenKey)) {
-                Button("Download", systemImage: Icons.download) {
-                    DownloadActions(downloads: downloads, shell: shell).download(page)
-                }
-            }
-            if page.isSaved, library.hasDownloads(page) {
-                Button("Delete Downloads", systemImage: Icons.deleteDownloads) { downloads.deleteDownloads(of: page) }
-            }
-            Button("Remove from Library", systemImage: Icons.unsave, role: .destructive) { actions.remove([page]) }
+        .menuAvailability(MenuAvailability(when: isSaved))
+        Button("Mark All Above as Finished", systemImage: Icons.markAllAboveFinished) { actions.markAllAbove(page) }
+            .menuAvailability(MenuAvailability(applies: inFolder, when: isSaved))
+        Button(page.skipsInPlayback ? "Play in Playback" : "Skip in Playback",
+               systemImage: page.skipsInPlayback ? Icons.includeInPlayback : Icons.skipInPlayback) {
+            actions.toggleSkipsInPlayback(page)
         }
-        if LibraryStore.canFavorite(page) {
-            let isFavorite = LibraryStore.isFavorite(page)
-            Button(isFavorite ? "Remove from Favorites" : "Add to Favorites",
-                   systemImage: isFavorite ? Icons.unfavorite : Icons.favorite) {
-                FavoriteFlow(library: library, shell: shell).toggle(page)
-            }
+        .menuAvailability(MenuAvailability(applies: inFolder, when: isSaved))
+        Button("Share", systemImage: Icons.share) { actions.share(page) }
+            .menuAvailability(MenuAvailability(applies: page.url?.isWeb == true))
+        Button("Download", systemImage: Icons.download) { DownloadActions(downloads: downloads, shell: shell).download(page) }
+            .menuAvailability(MenuAvailability(when: inLibrary && !downloads.isQueued(.page(page.listenKey))))
+        Button("Delete Downloads", systemImage: Icons.deleteDownloads) { downloads.deleteDownloads(of: page) }
+            .menuAvailability(MenuAvailability(when: isSaved && library.hasDownloads(page)))
+        Button(inLibrary ? Verbs.removeFromLibrary : "Save", systemImage: inLibrary ? Icons.unsave : Icons.save,
+               role: inLibrary ? .destructive : nil) {
+            if inLibrary { actions.remove([page]) } else { actions.save(page) }
         }
+        let isFavorite = LibraryStore.isFavorite(page)
+        Button(isFavorite ? "Remove from Favorites" : "Add to Favorites",
+               systemImage: isFavorite ? Icons.unfavorite : Icons.favorite) {
+            FavoriteFlow(library: library, shell: shell).toggle(page)
+        }
+        .menuAvailability(MenuAvailability(when: LibraryStore.canFavorite(page)))
     }
 }
 
@@ -268,20 +259,18 @@ struct LibraryFolderRow: View {
         return .unplayed(minutes: progress.minutesLeft > 0 ? progress.minutesLeft : nil)
     }
 
+    /// Its long-press menu (`MenuAvailability`, DR-09): *Select* only where the screen has Edit;
+    /// *Continue*, *From Start* and *Download* dimmed while it has no pages to play or download.
     @ViewBuilder
     private func menu(_ progress: FolderProgress) -> some View {
-        if let onSelect {
-            Button("Select", systemImage: Icons.select, action: onSelect)
-        }
-        if progress.hasPagesToPlay {
-            Button("Continue", systemImage: Icons.play) { actions.playFolder(folder) }
-            Button(Verbs.playFromStart, systemImage: Icons.previous) { actions.playFolderFromStart(folder) }
-        }
-        if !livePages.isEmpty, !downloads.isQueued(.folder(folder.id)) {
-            Button("Download", systemImage: Icons.download) {
-                DownloadActions(downloads: downloads, shell: shell).download(folder)
-            }
-        }
+        Button("Select", systemImage: Icons.select) { onSelect?() }
+            .menuAvailability(MenuAvailability(applies: onSelect != nil))
+        Button("Continue", systemImage: Icons.play) { actions.playFolder(folder) }
+            .menuAvailability(MenuAvailability(when: progress.hasPagesToPlay))
+        Button(Verbs.playFromStart, systemImage: Icons.previous) { actions.playFolderFromStart(folder) }
+            .menuAvailability(MenuAvailability(when: progress.hasPagesToPlay))
+        Button("Download", systemImage: Icons.download) { DownloadActions(downloads: downloads, shell: shell).download(folder) }
+            .menuAvailability(MenuAvailability(when: !livePages.isEmpty && !downloads.isQueued(.folder(folder.id))))
         Button(folder.isFavorite ? "Remove from Favorites" : "Add to Favorites",
                systemImage: folder.isFavorite ? Icons.unfavorite : Icons.favorite) {
             FavoriteFlow(library: library, shell: shell).toggle(folder)

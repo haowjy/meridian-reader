@@ -29,21 +29,17 @@ struct LibraryScreenMenu {
     }
 
     var menu: LibraryMenu {
-        var menu = screenMenu
-        if let folder = topFolder {
-            menu.isBook = folder.kind == .book
-            if !downloads.isQueued(.folder(folder.id)) {
-                menu.downloadTitle = Verbs.downloadFolder(isBook: menu.isBook)
-            }
-        }
-        return menu
-    }
-
-    private var screenMenu: LibraryMenu {
         guard let folder = topFolder else {
             return LibraryMenu(screen: .home, sort: PageSort(rawValue: topLevelSort.wrappedValue) ?? LibraryTopLevel.defaultSort)
         }
-        return LibraryMenu(screen: .folder, sort: folder.pageSort)
+        let isQueued = downloads.isQueued(.folder(folder.id))
+        let pages = library.pages(in: folder)
+        let rows = LibraryMenu.FolderRows(
+            isBook: folder.kind == .book,
+            download: MenuAvailability(when: !pages.isEmpty && !isQueued),
+            deleteDownloads: MenuAvailability(when: isQueued || pages.contains(where: library.hasDownloads))
+        )
+        return LibraryMenu(screen: .folder(rows), sort: folder.pageSort)
     }
 
     /// Nothing here touches the browser's page.

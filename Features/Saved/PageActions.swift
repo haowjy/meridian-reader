@@ -65,17 +65,17 @@ struct PageActions {
 
     // MARK: - The Reader's and Now Playing's ⋯
 
-    /// The page's ⋯ (decision D24); Now Playing's with its *Go to* (`goTo`).
-    func readerMenu(goTo: ReaderMenu.Place? = nil) -> ReaderMenu {
+    /// The page's ⋯ (decision D24). The Reader's has no *Go to*; Now Playing sets it.
+    var readerMenu: ReaderMenu {
         ReaderMenu(
-            goTo: goTo,
             isSaved: isSaved,
-            canSave: canSave,
             isFavorite: isFavorite,
-            canFavorite: canFavorite,
-            canShare: shareURL != nil,
-            canOpenWebsite: websiteURL != nil,
-            canDownload: savedPage.map { !downloads.isQueued(.page($0.listenKey)) } == true
+            save: MenuAvailability(when: canSave),
+            moveTo: MenuAvailability(when: isSaved && canSave),
+            favorite: MenuAvailability(when: canFavorite),
+            share: MenuAvailability(when: shareURL != nil),
+            download: MenuAvailability(when: savedPage.map { !downloads.isQueued(.page($0.listenKey)) } == true),
+            website: MenuAvailability(when: websiteURL != nil)
         )
     }
 

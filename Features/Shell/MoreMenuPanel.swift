@@ -5,9 +5,10 @@ import SwiftUI
 /// closes the panel and runs its action once the panel has started collapsing.
 ///
 /// Every context lists its own actions first, then the same tail in the same order: Download
-/// (where there is something to download), Downloads, Settings. Settings is always the last row,
-/// just above the divider, whichever surface opened the panel. Labels come from `Verbs`. On the
-/// Reader and Now Playing the panel takes the reading page's colours (`readingPalette`).
+/// (on what can be downloaded), Downloads, Settings. Settings is always the last row,
+/// just above the divider, whichever surface opened the panel. Labels come from `Verbs`; whether a
+/// row shows, dimmed or not, comes from the menu's `MenuAvailability` (DR-09). On the Reader and
+/// Now Playing the panel takes the reading page's colours (`readingPalette`).
 struct MoreMenuPanel: View {
     let context: MenuContext
     let close: MorphMenuClose
@@ -34,19 +35,15 @@ struct MoreMenuPanel: View {
     @ViewBuilder
     private func browse(_ menu: BrowseMenu, run: @escaping (BrowseMenu.Action) -> Void) -> some View {
         row("New Search", Icons.search, id: "moreNewSearch") { run(.newSearch) }
-        if menu.isSaved {
-            row(Verbs.removeFromLibrary, Icons.unsave, id: "moreSave") { run(.removeFromLibrary) }
-                .disabled(!menu.canSave)
-        } else {
-            row(Verbs.saveToFolder, Icons.save, id: "moreSave") { run(.saveToLibrary) }
-                .disabled(!menu.canSave)
-        }
+        row(menu.isSaved ? Verbs.removeFromLibrary : Verbs.saveToFolder, menu.isSaved ? Icons.unsave : Icons.save,
+            id: "moreSave") { run(menu.isSaved ? .removeFromLibrary : .saveToLibrary) }
+            .menuAvailability(menu.save)
         favoriteRow(isFavorite: menu.isFavorite) { run(.toggleFavorite) }
-            .disabled(!menu.canFavorite)
+            .menuAvailability(menu.favorite)
         shareRow { run(.share) }
-            .disabled(!menu.canShare)
+            .menuAvailability(menu.share)
         row("Reload", Icons.reload, id: "moreReload") { run(.reload) }
-            .disabled(!menu.hasPage)
+            .menuAvailability(menu.reload)
         downloadsRow { run(.downloads) }
         settingsRow { run(.settings) }
         divider
@@ -54,7 +51,7 @@ struct MoreMenuPanel: View {
             favoritesTile { run(.favorites) }
             tile("History", Icons.history, id: "moreHistory") { run(.history) }
             tile("Reader", Icons.reader, id: "moreReaderToggle", focus: true) { run(.openReader) }
-                .disabled(!menu.canOpenReader)
+                .menuAvailability(menu.reader)
                 .accessibilityLabel("Reader")
                 .accessibilityHint("Open in Reader")
         }
@@ -62,22 +59,19 @@ struct MoreMenuPanel: View {
 
     @ViewBuilder
     private func reader(_ menu: ReaderMenu, run: @escaping (ReaderMenu.Action) -> Void) -> some View {
-        if let place = menu.goTo {
-            row(String(localized: "Go to \(place.name)"), place.symbol, id: "moreGoTo") { run(.goTo) }
-        }
+        row(String(localized: "Go to \(menu.place.name)"), menu.place.symbol, id: "moreGoTo") { run(.goTo) }
+            .menuAvailability(menu.goTo)
         row(menu.isSaved ? Verbs.removeFromLibrary : Verbs.saveToLibrary, menu.isSaved ? Icons.unsave : Icons.save,
             id: "moreSave") { run(.toggleSave) }
-            .disabled(!menu.canSave)
-        if menu.isSaved {
-            row(Verbs.moveTo, Icons.move, id: "moreMove") { run(.moveTo) }
-        }
+            .menuAvailability(menu.save)
+        row(Verbs.moveTo, Icons.move, id: "moreMove") { run(.moveTo) }
+            .menuAvailability(menu.moveTo)
         favoriteRow(isFavorite: menu.isFavorite) { run(.toggleFavorite) }
-            .disabled(!menu.canFavorite)
+            .menuAvailability(menu.favorite)
         shareRow { run(.share) }
-            .disabled(!menu.canShare)
-        if menu.canDownload {
-            downloadRow(Verbs.download) { run(.download) }
-        }
+            .menuAvailability(menu.share)
+        downloadRow(Verbs.download) { run(.download) }
+            .menuAvailability(menu.download)
         downloadsRow { run(.downloads) }
         settingsRow { run(.settings) }
         divider
@@ -87,7 +81,7 @@ struct MoreMenuPanel: View {
             // The page's own web page in the browser, wherever the sheet was opened from.
             // Playback keeps going.
             tile("Website", Icons.browser, id: "moreWebsite", focus: true) { run(.openWebsite) }
-                .disabled(!menu.canOpenWebsite)
+                .menuAvailability(menu.website)
                 .accessibilityLabel("View Website")
                 .accessibilityHint("Opens the page in the browser")
         }
@@ -100,16 +94,18 @@ struct MoreMenuPanel: View {
             sortMenu(menu.sort, run: run)
             importBookRow { run(.importBook) }
             row("New Folder", Icons.newFolder, id: "moreNewFolder") { run(.newFolder) }
-        case .folder:
+        case .folder(let folder):
             sortMenu(menu.sort, run: run)
             row("New Folder Inside", Icons.newFolder, id: "moreNewFolder") { run(.newFolder) }
             importBookRow { run(.importBook) }
             row("Rename", Icons.rename, id: "moreRename") { run(.rename) }
             editDetailsRow { run(.editDetails) }
             row(Verbs.moveTo, Icons.move, id: "moreMove") { run(.move) }
-            row(Verbs.deleteFolder(isBook: menu.isBook), Icons.delete, id: "moreDeleteFolder") { run(.deleteFolder) }
-            if let title = menu.downloadTitle { downloadRow(title) { run(.download) } }
+            row(Verbs.deleteFolder(isBook: folder.isBook), Icons.delete, id: "moreDeleteFolder") { run(.deleteFolder) }
+            downloadRow(Verbs.downloadFolder(isBook: folder.isBook)) { run(.download) }
+                .menuAvailability(folder.download)
             row(Verbs.deleteDownloads, Icons.deleteDownloads, id: "moreDeleteDownloads") { run(.deleteDownloads) }
+                .menuAvailability(folder.deleteDownloads)
         }
         downloadsRow { run(.downloads) }
         settingsRow { run(.settings) }

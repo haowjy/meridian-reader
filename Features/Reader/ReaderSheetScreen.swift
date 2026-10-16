@@ -70,7 +70,7 @@ struct ReaderSheetScreen: View {
         } bar: {
             NowPlayingBarView(speech: speech)
         } more: {
-            MoreMenuButton(id: "readerMore") { .reader(actions.readerMenu(), perform: { actions.perform($0) }) }
+            MoreMenuButton(id: "readerMore") { .reader(actions.readerMenu, perform: { actions.perform($0) }) }
         } floating: {
             // The line at the band's top edge; the toast floats above it.
             ZStack(alignment: .top) {

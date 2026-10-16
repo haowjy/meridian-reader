@@ -216,13 +216,13 @@ struct BrowseStartView: View {
 
     private func browseMenu(_ actions: PageActions) -> BrowseMenu {
         BrowseMenu(
-            hasPage: hasPage,
-            canOpenReader: canOpenReader,
             isSaved: actions.isSaved,
-            canSave: hasPage && shell.busy == nil,
             isFavorite: actions.isFavorite,
-            canFavorite: actions.canFavorite,
-            canShare: actions.shareURL != nil
+            save: MenuAvailability(when: hasPage && shell.busy == nil),
+            favorite: MenuAvailability(when: actions.canFavorite),
+            share: MenuAvailability(when: actions.shareURL != nil),
+            reload: MenuAvailability(when: hasPage),
+            reader: MenuAvailability(when: canOpenReader)
         )
     }
 

@@ -90,7 +90,7 @@ final class PageActionsTests: XCTestCase {
         let actions = PageActions(article: reading, page: chapter, library: library, shell: shell, speech: env.speech.speech,
                                   downloads: downloads)
         XCTAssertTrue(actions.canFavorite)
-        XCTAssertTrue(actions.readerMenu().canFavorite)
+        XCTAssertEqual(actions.readerMenu.favorite, .enabled)
 
         actions.toggleFavorite()
         XCTAssertTrue(LibraryStore.isFavorite(chapter))

@@ -81,8 +81,7 @@ struct NowPlayingScreen: View {
                                                onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
                     .disabled(actions.article == nil)),
                 more: AnyView(MoreMenuButton(id: "nowPlayingMore") {
-                    .reader(actions.readerMenu(goTo: goToPlace(now, saved: actions.isSaved)),
-                            perform: { actions.perform($0) { goTo(now) } })
+                    .reader(menu(now, actions), perform: { actions.perform($0) { goTo(now) } })
                 }),
                 onScrubPreview: { p in
                     scrubPreview = p
@@ -131,11 +130,17 @@ struct NowPlayingScreen: View {
         return saved ? String(localized: "Library") : now.playingFrom.name
     }
 
-    /// ⋯ → *Go to*: the folder the page plays from, or the Library for a saved page in none; nil
-    /// for a page that plays from its site (⋯ → Website opens it).
-    private func goToPlace(_ now: NowPlaying, saved: Bool) -> ReaderMenu.Place? {
-        if case .folder = now.playingFrom { return ReaderMenu.Place(name: now.playingFrom.name, symbol: Icons.folder) }
-        return saved ? ReaderMenu.Place(name: String(localized: "Library"), symbol: Icons.library) : nil
+    /// The page's ⋯ with *Go to*: the folder the page plays from, or the Library for a saved page
+    /// in none; dimmed *Go to Library* for a page that plays from its site (⋯ → Website opens it).
+    private func menu(_ now: NowPlaying, _ actions: PageActions) -> ReaderMenu {
+        var menu = actions.readerMenu
+        if case .folder = now.playingFrom {
+            menu.place = ReaderMenu.Place(name: now.playingFrom.name, symbol: Icons.folder)
+            menu.goTo = .enabled
+        } else {
+            menu.goTo = MenuAvailability(when: actions.isSaved)
+        }
+        return menu
     }
 
     /// ⋯ → *Go to*: the Library at the folder, or the Library's home. Playback keeps going.
