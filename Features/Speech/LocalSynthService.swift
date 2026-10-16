@@ -23,7 +23,7 @@ final class LocalSynthService: SynthChunkRendering {
     /// for them first, so two hosts' models are never resident together (two ORT sessions are
     /// ≈1 GB).
     @ObservationIgnored private var retiring: Task<Void, Never>?
-    @ObservationIgnored private let appleRenderer = ProbePCMRenderer()
+    @ObservationIgnored private let appleRenderer = AppleFallbackRenderer()
 
     init(engines: EngineRegistry) {
         self.engines = engines
@@ -202,8 +202,8 @@ final class LocalSynthService: SynthChunkRendering {
     }
 
     /// Apple TTS render of `text` (the engine couldn't produce it): `voiceID`, else the system
-    /// voice for US English.
+    /// voice for US English. Throws when Apple fails too, or stops responding.
     func renderAppleFallback(text: String, destination: URL, voiceID: String?) async throws -> TimeInterval {
-        try await appleRenderer.render(text: text, to: destination, voiceID: voiceID, language: "en-US")
+        try await appleRenderer.render(text: text, to: destination, voiceID: voiceID)
     }
 }

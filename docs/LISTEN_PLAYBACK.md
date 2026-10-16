@@ -143,7 +143,10 @@ so the players, the Apple voice and the lock screen agree. Adapters report facts
 ### Engine binding
 
 - `LocalSynthService` (`LocalTTSCoordinator.synth`) holds the on-device model: the one resident
-  host behind `LocalChunkRenderer`, the Apple renderer for text the engine can't produce, and the
+  host behind `LocalChunkRenderer`, the Apple renderer for text the engine can't produce
+  (`AppleFallbackRenderer`: a synthesizer per render, so the render queue's fallback and the
+  player's never wait on each other and none outlives a media-services reset; a synthesizer that
+  sends nothing for 10 s is stopped and the render fails like any other), and the
   lifecycle `state` (`LocalEngineState`). A reload, an engine switch, *Delete model*, Settings'
   cancel or a failed start lets the host go: its load in flight stops, its models are released and
   the model call in flight on it finishes, and only then does the next host load, so two hosts'
