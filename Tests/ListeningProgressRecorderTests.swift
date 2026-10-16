@@ -104,7 +104,7 @@ final class ListeningProgressRecorderTests: XCTestCase {
         XCTAssertEqual(opened?.document.paragraphs, b.document.paragraphs, "the Reader has its text")
         XCTAssertEqual(opened?.resumeParagraph, 1, "and opens it at its spot")
 
-        let nowPlaying = await env.library.content(for: b.id)
+        let nowPlaying = env.library.nowPlayingContent(for: b.id)
         XCTAssertEqual(nowPlaying?.title, "Unsaved", "Now Playing shows it")
         XCTAssertEqual(nowPlaying?.displayHTML.contains("first paragraph of Unsaved"), true)
     }

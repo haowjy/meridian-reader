@@ -1,10 +1,10 @@
 import Foundation
 
-/// Saving, unsaving and deleting articles, with their listen audio, in one place. Pages go
-/// through `LibraryStore` (one page per canonical URL); the audio cache follows once the library
-/// change is stored: saved audio is kept and baked ahead, unsaved audio goes back to the
-/// ephemeral TTL, deleted audio is removed. Used by the browser's ⋯ → Save to Library…, the
-/// Reader's and Now Playing's 🔖, ⋯ → Save and *Save to Folder…*.
+/// Saving an article, with its listen audio, in one place. Pages go through `LibraryStore` (one
+/// page per canonical URL); the audio cache follows once the library change is stored: saved
+/// audio is kept and baked ahead. (Unsaving is `LibraryStore.unsave`, which puts the audio back
+/// on the ephemeral TTL.) Used by the browser's ⋯ → Save to Library…, and through `PageActions`
+/// by the Reader's and Now Playing's 🔖, ⋯ → Save and *Save to Folder…*.
 @MainActor
 struct ArticleSaveCoordinator {
     let library: LibraryStore
@@ -42,13 +42,5 @@ struct ArticleSaveCoordinator {
         }
         tts.startBakeIfNeeded(articleID: key, paragraphs: article.document.paragraphs)
         return key
-    }
-
-    /// Removes the article from the Library (a favorite stays a favorite, as a link). Its audio and
-    /// position stay, back on the ephemeral TTL, so a reader showing it keeps playing. Throws
-    /// `LibraryStoreError.saveFailed` when that can't be saved: it is still saved.
-    func unsave(key: UUID, canonicalURL: String?) throws {
-        guard let page = library.page(key: key, canonicalURL: canonicalURL) else { return }
-        try library.unsave(page)
     }
 }

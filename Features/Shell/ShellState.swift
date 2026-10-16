@@ -236,11 +236,6 @@ final class ShellState {
         reader = state
     }
 
-    /// Closes the Reader sheet at once (its ⋯ → Saved from the Library). Playback keeps going.
-    func closeReader() {
-        reader = nil
-    }
-
     /// The Reader sheet shown as `presentation` has gone (its back pill, the grabber's pull down,
     /// after its own close animation). A Reader opened since stays.
     func readerDidClose(_ presentation: UUID) {

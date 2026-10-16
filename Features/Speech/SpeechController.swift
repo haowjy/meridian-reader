@@ -84,8 +84,6 @@ final class SpeechController {
     /// A newer request, Stop Listening and every other playback intent end it; only the current
     /// request may start playing (`isStillPreparing`).
     private(set) var preparation: ListenPreparation?
-    /// Where Now Playing's reading content comes from (`nowPlayingContent()`).
-    @ObservationIgnored var contentResolver: NowPlayingContentResolving?
     /// Told about every position worth keeping (`ListeningProgressRecorder`), synchronously, in the
     /// same transaction as the change, so a replaced page's last spot is reported before the next
     /// page binds.
@@ -347,12 +345,6 @@ final class SpeechController {
     func seek(toUTF16Offset utf16: Int) {
         guard isPrepared else { return }
         userPerform(.seekOffset(utf16: utf16))
-    }
-
-    /// The reading content of what you hear, for Now Playing.
-    func nowPlayingContent() async -> ReaderArticle? {
-        guard let id = activeSessionID else { return nil }
-        return await contentResolver?.content(for: id)
     }
 
     /// Listen intent is active but nothing is audible and more audio is on its way (the bound

@@ -173,8 +173,13 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   Library where it is, with its played text, so it shows in Favorites and the 7-day prune of
   unsaved pages leaves it. A starred page in the Library is a favorite: ☆ then reads *Remove
   from Favorites*, which clears the star and leaves the page where it is (a link ☆ made stays).
-  *Remove from Library* clears the star too. A Library row's menu stars the same way, with the
-  same toasts, and stars any page in the Library, a book's chapter too.
+  *Remove from Library* clears the star too. A Library row's menu (a page's or a folder's) stars
+  the same way, with the same toasts. ☆ is offered for a web page or a page in the Library, a
+  book's chapter too, in the Library's rows and in the Reader's and Now Playing's ⋯ alike.
+- **One saved state**: the browser's 🔖 and ⋯, the Reader and Now Playing all read "is this page
+  saved?" from the page for its address, else its key (`PageActions`, `PageLookup`), the page
+  Save saves into and *Remove from Library* removes, and they follow a change made anywhere at
+  once.
 - **One library**: everything is a page in a folder (or in none). A page is a *link* (an address
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
   without saving (kept 7 days, shown at the top of the Library's *Pages* as "Not saved", and in

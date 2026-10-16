@@ -284,10 +284,7 @@ struct LibraryFolderRow: View {
         }
         Button(folder.isFavorite ? "Remove from Favorites" : "Add to Favorites",
                systemImage: folder.isFavorite ? Icons.unfavorite : Icons.favorite) {
-            shell.attempt(folder.isFavorite ? String(localized: "Couldn’t remove from Favorites")
-                                            : String(localized: "Couldn’t add to Favorites")) {
-                try library.toggleFavorite(folder)
-            }
+            FavoriteFlow(library: library, shell: shell).toggle(folder)
         }
         Button(Verbs.moveTo, systemImage: Icons.move) { actions.move([.folder(folder)]) }
         Button("Rename", systemImage: Icons.rename) { screen.rename(folder) }

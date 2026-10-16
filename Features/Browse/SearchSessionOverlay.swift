@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 /// The address search session's full-bleed layer over the page (Safari): Recent Searches while
@@ -8,11 +9,12 @@ struct SearchSessionOverlay: View {
     let session: SearchSession
     let recentSearches: [String]
     let visits: [RecentVisit]
-    let articles: [Page]
     var isDictating: Bool
     var onSubmit: (String) -> Void
     var onClearRecentSearches: () -> Void
 
+    /// The saved pages, for suggestions: read only while the layer is up.
+    @Query(LibraryQueries.savedInLibrary) private var articles: [Page]
     @State private var google: [String] = []
 
     /// Live Google suggestions; off in UI tests so results don't depend on the network.

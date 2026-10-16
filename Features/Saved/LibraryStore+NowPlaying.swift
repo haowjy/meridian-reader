@@ -1,9 +1,12 @@
 import Foundation
 
-/// Now Playing's text is the playing page's: saved, played without saving (kept 7 days) or a link
-/// holding the text it was played from, so it is there after a relaunch too.
-extension LibraryStore: NowPlayingContentResolving {
-    func content(for pageKey: UUID) async -> ReaderArticle? {
+extension LibraryStore {
+    /// Now Playing's text: the playing page's. `SpeechSession` carries the paragraphs, not the
+    /// reading HTML, and some starts never had a `ReaderArticle` (a Library row's ▶, crash resume),
+    /// so it is looked up by key. The library has every page that has played: saved, played
+    /// without saving (kept 7 days) or a link holding the text it was played from, so it is there
+    /// after a relaunch too. nil when the page holds no text.
+    func nowPlayingContent(for pageKey: UUID) -> ReaderArticle? {
         guard let page = page(key: pageKey), page.hasText else { return nil }
         return ReaderArticle(page: page)
     }

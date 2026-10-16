@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 
 /// The Reader sheet (`ReaderSheet`): one page for reading, over the surface that opened it, with
 /// its own Listen. The close pill names what is underneath ("‹ Browser", "‹ Library"); it, the
@@ -16,7 +15,8 @@ import SwiftData
 ///   after that the text never scrolls by itself.
 /// - 🔖 saves / unsaves (tap) or files the page (long-press, *Save to Folder…*: the Move tree);
 ///   ⋯ is the page's menu (Save / Remove from Library, Move to…, Add to Favorites, Share,
-///   Download, Voice Settings, Downloads, Debug; Favorites / History / Website).
+///   Download, Voice Settings, Downloads, Debug; Favorites / History / Website). Both act through
+///   `PageActions`, as in Now Playing.
 ///
 /// Save / Unsave only flips 🔖: the article key is already the saved id (identity v2), so the
 /// view and any playing audio are untouched.
@@ -27,61 +27,45 @@ struct ReaderSheetScreen: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
     @Environment(DownloadCenter.self) private var downloads
-    /// The article's library page, if it has one (saved, played, or a favorite).
-    @Query private var pages: [Page]
     @State private var jumpMode = false
     @State private var scroll = ReadingScrollHandle()
 
-    init(state: ReaderSheetState, speech: SpeechController) {
-        self.state = state
-        _speech = Bindable(speech)
-        let id = state.article.id
-        // A page with no web address is found by its key alone; no page has an empty address.
-        let canonical = state.article.origin.canonicalURL ?? ""
-        _pages = Query(filter: #Predicate<Page> { $0.key == id || $0.canonicalURL == canonical })
-    }
-
     private var article: ReaderArticle { state.article }
-
-    private var page: Page? {
-        pages.first { $0.key == article.id } ?? pages.first
-    }
-
-    private var isSaved: Bool { page?.isSavedToLibrary == true }
 
     private var sessionReady: Bool { !article.document.isEmpty }
 
-    /// Where Listen starts: the page's saved spot, or its top once it is finished.
-    private var listenStart: ListenSpot {
-        page?.listenStart ?? ListenSpot(paragraph: article.resumeParagraph)
-    }
-
-    private var isFinished: Bool {
-        page?.finishedAt != nil
-    }
-
     var body: some View {
-        ReaderSheet(
+        // The article's library page, if it has one (saved, played, or a favorite).
+        PageLookup(key: article.id, canonicalURL: article.origin.canonicalURL) { page in
+            sheet(PageActions(article: article, page: page, library: library, shell: shell, speech: speech,
+                              downloads: downloads))
+        }
+    }
+
+    private func sheet(_ actions: PageActions) -> some View {
+        let start = listenStart(actions.page)
+        let listen = listenLabel(start, finished: actions.page?.finishedAt != nil)
+        return ReaderSheet(
             backTitle: state.origin.backTitle,
             listenTitle: listen.title,
             listenDetail: listen.detail,
             listenState: speech.playState(of: .page(article.id)),
-            isSaved: isSaved,
+            isSaved: actions.isSaved,
             onClose: { [shell, presentation = state.presentation] in shell.readerDidClose(presentation) },
-            onListen: { listen(from: nil) },
-            onToggleSave: toggleSaved,
-            onSaveToFolder: saveToFolder
+            onListen: { self.listen(from: nil, start: start) },
+            onToggleSave: actions.toggleSaved,
+            onSaveToFolder: actions.saveToFolder
         ) {
             JumpModeButton(isOn: jumpMode) { jumpMode.toggle() }
                 .disabled(!sessionReady)
         } text: {
-            text
+            text(start)
                 .jumpHint(jumpMode) { jumpMode = false }
                 .animation(Motion.snappy, value: jumpMode)
         } bar: {
             NowPlayingBarView(speech: speech)
         } more: {
-            MoreMenuButton(id: "readerMore") { .reader(readerMenu, perform: perform) }
+            MoreMenuButton(id: "readerMore") { .reader(actions.readerMenu(), perform: { actions.perform($0) }) }
                 .foregroundStyle(Palette.ink)
         } floating: {
             // The line at the band's top edge; the toast floats above it.
@@ -91,28 +75,32 @@ struct ReaderSheetScreen: View {
             }
         }
         .task(id: WarmKey(id: article.id, count: article.document.count)) {
-            prepareListen()
+            prepareListen(from: start, saved: actions.isSaved)
         }
+    }
+
+    /// Where Listen starts: the page's saved spot, or its top once it is finished.
+    private func listenStart(_ page: Page?) -> ListenSpot {
+        page?.listenStart ?? ListenSpot(paragraph: article.resumeParagraph)
     }
 
     // MARK: - Text
 
     @ViewBuilder
-    private var text: some View {
+    private func text(_ start: ListenSpot) -> some View {
         // A plain-text article reads as its paragraphs, on the same page.
         let html = article.displayHTML.contains(where: { !$0.isWhitespace })
             ? article.displayHTML : article.document.paragraphsHTML
         HTMLReadingView(html: html, heading: ReaderHeading(title: article.title, detail: detail),
-                        activeParagraphIndex: nil, sentence: savedSentence, jumpMode: jumpMode,
+                        activeParagraphIndex: nil, sentence: savedSentence(start), jumpMode: jumpMode,
                         opensAtSentence: true, scrollHandle: scroll) { index in
-            if jumpMode { listen(from: index) }
+            if jumpMode { listen(from: index, start: start) }
         }
     }
 
     /// The sentence at the page's saved listening spot, while it is part-way through: the text
     /// opens with it in the middle, underlined, where Resume starts.
-    private var savedSentence: ReaderSentence? {
-        let start = listenStart
+    private func savedSentence(_ start: ListenSpot) -> ReaderSentence? {
         guard start.isPartWay else { return nil }
         return ReaderSentence(in: article.document, paragraph: start.paragraph, utf16Offset: start.utf16Offset)
     }
@@ -129,130 +117,42 @@ struct ReaderSheetScreen: View {
 
     /// Listen's title and the lighter time after it: "Listen" "9 min", "Resume" "6 min left",
     /// "Listen Again".
-    private var listen: (title: String, detail: String?) {
-        if isFinished { return (String(localized: "Listen Again"), nil) }
+    private func listenLabel(_ start: ListenSpot, finished: Bool) -> (title: String, detail: String?) {
+        if finished { return (String(localized: "Listen Again"), nil) }
         let doc = article.document
-        if listenStart.isPartWay, doc.paragraphs.indices.contains(listenStart.paragraph) {
-            let at = listenStart.resolved(in: doc).utf16Offset
+        if start.isPartWay, doc.paragraphs.indices.contains(start.paragraph) {
+            let at = start.resolved(in: doc).utf16Offset
             let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at, rate: 1)
             return (String(localized: "Resume"), ListeningTime.leftLabel(minutes: left))
         }
         return (String(localized: "Listen"), ListeningTime.label(minutes: ListeningTime.minutes(utf16Length: totalLength, rate: 1)))
     }
 
-    // MARK: - ⋯ menu
-
-    private var readerMenu: ReaderMenu {
-        ReaderMenu(
-            isSaved: isSaved,
-            canSave: sessionReady,
-            isFavorite: library.favorite(for: articleURL) != nil,
-            canFavorite: articleURL.map(LibraryStore.canFavorite) ?? false,
-            canShare: shareURL != nil,
-            canOpenWebsite: websiteURL != nil,
-            showsDebug: speech.developerOptionsEnabled,
-            canDownload: isSaved && page.map { !downloads.isQueued(.page($0.listenKey)) } == true
-        )
-    }
-
-    private var articleURL: URL? { article.origin.url }
-
-    /// The article's own page, for ⋯ → Website (any loadable page URL, not just http(s)).
-    private var websiteURL: URL? {
-        guard let url = articleURL, url.scheme != nil, url.host?.isEmpty == false else { return nil }
-        return url
-    }
-
-    private var shareURL: URL? {
-        guard let url = articleURL, url.isWeb else { return nil }
-        return url
-    }
-
-    private func perform(_ action: ReaderMenu.Action) {
-        switch action {
-        case .goTo: break // Now Playing only
-        case .voiceSettings: shell.present(.voiceSettings)
-        case .toggleSave: toggleSaved()
-        case .moveTo: saveToFolder()
-        case .toggleFavorite: toggleFavorite()
-        case .share: if let shareURL { shell.present(.share(shareURL)) }
-        case .download: if let page { DownloadActions(downloads: downloads, shell: shell).download(page) }
-        case .downloads: shell.present(.downloads)
-        case .listenDebug: shell.present(.listenDebug)
-        case .favorites: shell.showFavorites()
-        case .history: shell.present(.history)
-        // Reader off = the article's own web page in the browser, wherever the Reader was opened
-        // from. Playback keeps going.
-        case .openWebsite: if let websiteURL { shell.openWebsite(websiteURL) } else { shell.closeReader() }
-        }
-    }
-
-    /// ☆: the article's page in or out of Favorites (`FavoriteFlow`).
-    private func toggleFavorite() {
-        guard let url = articleURL, LibraryStore.canFavorite(url) else { return }
-        FavoriteFlow(library: library, shell: shell).toggle(url: url, title: article.title, artwork: article.artwork) {
-            await FaviconFetcher.best(for: url, webView: nil)
-        }
-    }
-
-    /// 🔖's long-press (*Save to Folder…*) and ⋯ → Move to…: the Move tree; the page is saved
-    /// into the folder picked (a saved page moves there). A save or move that can't be stored
-    /// keeps the tree up, with a toast saying so.
-    private func saveToFolder() {
-        guard sessionReady else { return }
-        let current: MoveRequest.Place? = isSaved ? (page?.folder.map { .folder($0.id) } ?? .topLevel) : nil
-        FavoriteFlow(library: library, shell: shell).saveToFolder(
-            title: isSaved ? String(localized: "Move to…") : String(localized: "Save to…"), current: current
-        ) { [library, speech, shell, article] folder in
-            if let saved = library.page(key: article.id, canonicalURL: article.origin.canonicalURL), saved.isSavedToLibrary {
-                return shell.attempt(String(localized: "Couldn’t move")) { try library.move([.page(saved)], to: folder) } != nil
-            }
-            guard let savedID = shell.attempt(String(localized: "Couldn’t save"), {
-                try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
-            }) else { return false }
-            if savedID != article.id { shell.updateReader(id: article.id) { $0.id = savedID } }
-            return true
-        }
-    }
-
     // MARK: - Actions
 
-    /// Listen (`paragraph` nil: from the page's saved spot; a finished page from the start), or
-    /// ☝︎ then a tap on a paragraph. The page becomes what you hear, and the Reader turns into Now
-    /// Playing at the same scroll position.
-    private func listen(from paragraph: Int?) {
+    /// Listen (`paragraph` nil: from the page's saved spot, `start`; a finished page from the
+    /// start), or ☝︎ then a tap on a paragraph. The page becomes what you hear, and the Reader
+    /// turns into Now Playing at the same scroll position.
+    private func listen(from paragraph: Int?, start: ListenSpot) {
         guard sessionReady else { return }
         jumpMode = false
         let handOver = scroll.handOver
-        speech.listen(to: article, at: paragraph.map { ListenSpot(paragraph: $0) } ?? listenStart)
+        speech.listen(to: article, at: paragraph.map { ListenSpot(paragraph: $0) } ?? start)
         shell.turnReaderIntoNowPlaying(handOver: handOver)
-    }
-
-    /// 🔖 / ⋯ → Save. Neither direction touches the screen or playback (see the type comment).
-    private func toggleSaved() {
-        let saver = ArticleSaveCoordinator(library: library, speech: speech)
-        if isSaved {
-            shell.attempt(String(localized: "Couldn’t remove from Library")) {
-                try saver.unsave(key: page?.listenKey ?? article.id, canonicalURL: article.origin.canonicalURL)
-            }
-            return
-        }
-        guard let savedID = shell.attempt(String(localized: "Couldn’t save"), { try saver.save(article) }) else { return }
-        if savedID != article.id { shell.updateReader(id: article.id) { $0.id = savedID } }
     }
 
     /// Identity alignment + the first audio for this article, so Listen starts quickly. The Reader
     /// never shows what is playing, so this never touches live playback.
-    private func prepareListen() {
+    private func prepareListen(from start: ListenSpot, saved: Bool) {
         guard sessionReady else { return }
         let paragraphs = article.document.paragraphs
         ListenTimingLog.log("reader_open", [
             "key": ListenTimingLog.shortKey(article.id),
             "paragraphs": paragraphs.count,
             "chars": paragraphs.reduce(0) { $0 + $1.count },
-            "resume_p": listenStart.paragraph,
+            "resume_p": start.paragraph,
             "local_ready": speech.localTTS.usesLocalEngine,
-            "saved": isSaved,
+            "saved": saved,
         ])
         speech.localTTS.prepareListenIdentity(
             key: article.id,
@@ -261,8 +161,8 @@ struct ReaderSheetScreen: View {
             legacyKeys: article.legacyCacheKeys,
             isLivePlayback: false
         )
-        speech.localTTS.openArticle(cacheKey: article.id, paragraphs: paragraphs, from: listenStart.paragraph,
-                                    isEphemeral: !isSaved)
+        speech.localTTS.openArticle(cacheKey: article.id, paragraphs: paragraphs, from: start.paragraph,
+                                    isEphemeral: !saved)
     }
 
     private struct WarmKey: Hashable {
