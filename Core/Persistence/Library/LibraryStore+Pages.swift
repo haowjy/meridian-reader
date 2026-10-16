@@ -221,8 +221,8 @@ extension LibraryStore {
     /// *Remove from Library* (a row's menu and swipe, Edit's *Remove*, unsaving a page in no
     /// folder), all of `pages` in one save: a saved page leaves the Library and every list it was
     /// in (`addedAt = nil`, `removedAt` now, no folder, no longer a favorite), *Not saved*
-    /// included (`LibraryQueries`), and is pruned 7 days after it was last played; once that is
-    /// saved its audio turns ephemeral (`plan(.ephemeral, key:)`).
+    /// included (`LibraryQueries`), and is pruned 7 days after it was last played (one never
+    /// played, at the next launch); once that is saved its audio turns ephemeral (`plan(.ephemeral, key:)`).
     /// A link page is deleted, unless it holds the text of a play, when it is kept as any removed
     /// page. A chapter leaves its book as any page leaves its folder. Never touches playback. A
     /// save that fails is rolled back and throws `LibraryStoreError.saveFailed`: every page stays

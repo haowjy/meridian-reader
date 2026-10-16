@@ -157,7 +157,7 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `urlString`, `canonicalURL` | The page; one page per canonical URL |
 | `title`, `byline`, `excerpt`, `artworkData` | Rows, Now Playing (`byline` = site domain for web pages) |
 | `contentStateRaw` | `link` (a favorite; any text is a cache) or `saved` |
-| `addedAt` | When it joined the Library; nil = played without saving or removed (kept 7 days after its last play) |
+| `addedAt` | When it joined the Library; nil = played without saving or removed (kept 7 days after its last play; a removed page never played, until the next launch) |
 | `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, a page is in no list, not even "Not saved"; read only while `addedAt` is nil |
 | `folder`, `folderID`, `sortKey` | Its folder (none = the pages in no folder) and order there; `folderID` mirrors the relationship for predicates |
 | `bodyHTML`, `plainTextData` | Offline reading; the listen text comes from the HTML |

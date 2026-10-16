@@ -21,8 +21,9 @@ enum PageFetchState: String, Codable {
 }
 
 /// A page in the library tree: a saved article, a link (favorite), a book chapter, a page you
-/// played without saving (`addedAt == nil`, kept 7 days), or one you removed from the Library
-/// (`removedAt`, in no list, kept 7 days as well). One page per canonical URL, app-wide,
+/// played without saving (`addedAt == nil`, kept 7 days after its last play), or one you removed
+/// from the Library (`removedAt`, in no list, kept 7 days after its last play; one never played
+/// goes at the next launch). One page per canonical URL, app-wide,
 /// enforced by `LibraryStore` and the launch dedupe pass rather than `.unique` (CloudKit can't
 /// sync unique constraints).
 @Model
@@ -41,7 +42,7 @@ final class Page {
     var locator: String?
     var contentStateRaw: String = PageContentState.link.rawValue
     /// nil = not in the Library: played without saving, or removed (`removedAt`). Pruned 7 days
-    /// after it was last played.
+    /// after it was last played; a removed page never played, at the next launch.
     var addedAt: Date?
     /// When *Remove from Library* took it out of the Library, until you listen to it again from
     /// its article (🎧, the Reader's Listen: `LibraryStore.recordPlayback`). Out of the Library

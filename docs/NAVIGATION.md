@@ -176,7 +176,8 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
   without saving (kept 7 days, shown at the top of the Library's *Pages* as "Not saved", and in
   the bar). *Remove from Library* takes a page out of every list it was in, "Not saved" too,
-  even while it plays; it is kept 7 days for what plays and the bar, and comes back only when
+  even while it plays; it is kept 7 days after its last play for what plays and the bar (a page
+  never played goes at the next launch), and comes back only when
   you save it or listen to it again (🎧, the Reader's Listen). There is one page per
   address: saving a favorite saves it in place; unsaving a page in a folder leaves it there as a
   link. 🔖 = saved, ☆ = favorite.
