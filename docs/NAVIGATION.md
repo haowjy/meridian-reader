@@ -252,7 +252,7 @@ commas.
   to listen to*, with *Browse the web* and *Import a book* on one action row. The home is the
   top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
   default, or *Title*), *Voice Settings, Import Book…, New Folder*.
-- **A folder** (`FolderScreen`, Favorites, books and series included): its title and counts,
+- **A folder** (`FolderScreen`, books and series included): its title and counts,
   subfolders first (by their order), then pages by the folder's sort. A folder with pages that
   play has the play header (decision D15): how far through (a bar across the content width, with
   "38%" and "6 h 10 min left" on one line under it), the round play button (*▶ Play* before
@@ -418,13 +418,12 @@ Settings*. *Delete Downloads* on a page or a folder deletes its audio and its do
 that couldn't be fetched or rendered is counted ("2 couldn’t download"), and *Re-download* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch.
 
-**The Move tree** (`MoveTreeSheet`): one sheet for *Move to…*, *Save to Library…*, 🔖's *Save to
-Folder…* and *Change Folder*; the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋
+**The Move tree** (`MoveTreeSheet`): one sheet for *Move to…*, *Save to Library…* and 🔖's *Save
+to Folder…*; the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋
 New Folder* (made at the top level, and the item goes in it), *Library (no folder)*, then
-Favorites and every folder, depth first. One tap files; ✓ marks the current place; a folder's
+every folder, depth first. One tap files; ✓ marks the current place; a folder's
 long-press offers *New Folder Inside* (made in it, and the item goes in that). *Library (no
-folder)* files the page in no folder, out of the folder it was in (a link in Favorites leaves
-Favorites, saved); an ordinary 🔖 or *Save* keeps a page's folder. Every folder is a
+folder)* files the page in no folder, out of the folder it was in; an ordinary 🔖 or *Save* keeps a page's folder. Every folder is a
 destination, books and series too; a folder being moved, and everything inside it, can't be
 picked. The tree closes
 once what was picked is saved; a pick, or a *New Folder*, that can't be saved leaves it up under
@@ -686,7 +685,7 @@ Debug builds (`App/LaunchOptions.swift`).
 | ⋯ → History (`BrowseHistoryView`) | — (grabber) | `.sheet`, medium/large |
 | Band 📚 / Library (`LibrarySurface`): the home | 🌐 beside the Now Playing bar | in-place surface (shared bottom chrome); leave restores browse |
 | Library → a folder (a book or series too) (`FolderScreen`) | ‹ system | push (`navigationDestination`) |
-| Move, Save to Library…, Save to Folder…, Change Folder (`MoveTreeSheet`) | ✕ (grabber) | `.sheet`, medium/large |
+| Move, Save to Library…, Save to Folder… (`MoveTreeSheet`) | ✕ (grabber) | `.sheet`, medium/large |
 | Import Book… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
 | Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |

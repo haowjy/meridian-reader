@@ -170,9 +170,9 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `locator` | Book chapters: where the chapter starts in the book, `href#fragment` |
 
 **Which lists a page is in** is decided in one place, `LibraryQueries`, from three standings: in
-the Library (`addedAt` set: its folder or the top level's *Pages*, Favorites while starred,
+the Library (`addedAt` set: its folder or the home's top level, Favorites while starred,
 search, address suggestions); played without saving (out of the Library, played, `removedAt`
-nil: the top of *Pages* as "Not saved", and search); removed (out of the Library, `removedAt`
+nil: the top of the home's pages as "Not saved", and search); removed (out of the Library, `removedAt`
 set: no list). *Remove from Library* (`LibraryStore.remove`) takes a page out of every list it was
 in at once, playing or not, and playing on, pausing or resuming doesn't list it again; a save
 puts it back, and so does listening to it again from its article (🎧, the Reader's Listen, which
@@ -183,7 +183,7 @@ resume (`LibraryQueries.lastPlayed`) and the prune read every page, removed ones
 **`Folder`** (library): `name`, `kindRaw` (`plain`, `book`, `series`, `favorites`), `sortKey`,
 `parent` / `children` (any depth), `pages`, `pageSortRaw`, its details (`byline`, `coverData`,
 `languageCode`: a book's from its file; *Edit Details* changes `name`, `byline` and `coverData`
-of any folder but Favorites through `LibraryStore.setDetails`; a folder with a byline or cover,
+of any folder through `LibraryStore.setDetails`; a folder with a byline or cover,
 `hasDetails`, shows the detailed header), for books and series their source
 (`sourceIdentifier`, `sourceURLString`, `sourceStateData`: a book's `BookSourceState`, its file's
 SHA-256 and the keys of the chapters its file gave, in order), and for every folder its place

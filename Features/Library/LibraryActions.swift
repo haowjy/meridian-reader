@@ -71,7 +71,7 @@ struct LibraryActions {
                        playingKey: playState(of: folder).isCurrent ? speech.activeSessionID : nil, library: library)
     }
 
-    /// A folder's ▶ and its screen's round button (a book, a series, Favorites, a folder you
+    /// A folder's ▶ and its screen's round button (a book, a series, a folder you
     /// made): pause or resume while one of its pages is what you hear; otherwise Continue from
     /// its place (`LibraryStore.continueStart`), carrying on page to page in its order.
     func playFolder(_ folder: Folder) {
@@ -196,8 +196,7 @@ extension LibraryActions {
     }
 
     /// Whether the row `id` may be dropped into the folder row `row`: what the Move tree allows
-    /// (`LibraryStore.moveRefusal`), so never a folder into itself or below itself, nor Favorites
-    /// below the top level. False when `row` isn't a folder.
+    /// (`LibraryStore.moveRefusal`), so never a folder into itself or below itself. False when `row` isn't a folder.
     func canFile(_ id: LibraryItemID, into row: LibraryItemID) -> Bool {
         guard case .folder(let folderID) = row, let folder = library.folder(id: folderID), let item = item(id) else { return false }
         return library.moveRefusal(item, to: folder) == nil

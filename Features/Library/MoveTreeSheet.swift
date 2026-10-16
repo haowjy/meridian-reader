@@ -1,8 +1,8 @@
 import SwiftData
 import SwiftUI
 
-/// The Move tree: one sheet for Move, *Save to Library…*, 🔖's *Save to Folder…* and *Change
-/// Folder* (the import sheet's *Add to* pushes the same list, `MoveTreeList`). The whole tree as
+/// The Move tree: one sheet for Move, *Save to Library…* and 🔖's *Save to Folder…* (the import
+/// sheet's *Add to* pushes the same list, `MoveTreeList`). The whole tree as
 /// one indented list, like Safari's bookmark-folder picker; one tap files, ✓ marks the current
 /// place. *New Folder* makes one at the top level; a folder's
 /// long-press, *New Folder Inside*, makes one in it; either way what is being filed goes into the
@@ -15,8 +15,6 @@ import SwiftUI
 /// Move to…                                    ✕
 ///  ＋ New Folder
 ///  Library (no folder)
-///  ★ Favorites
-///      📁 Serial sites
 ///  📁 Fiction                                 ✓   ← long-press: New Folder Inside
 ///      📕 Pride and Prejudice
 /// ```

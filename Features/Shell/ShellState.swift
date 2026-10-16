@@ -30,7 +30,7 @@ enum ShellSheet: Identifiable, Equatable {
     case history
     case voiceSettings
     case share(URL)
-    /// The Move tree: Move, *Save to Library…*, 🔖's *Save to Folder…*, *Change Folder*.
+    /// The Move tree: Move, *Save to Library…*, 🔖's *Save to Folder…*.
     case moveTo(MoveRequest)
     /// A book being imported: its progress, *Add to*, and D13's question.
     case importBook(BookImportFlow)
@@ -83,8 +83,7 @@ struct MoveRequest: Identifiable, Equatable {
     static func == (a: MoveRequest, b: MoveRequest) -> Bool { a.id == b.id }
 }
 
-/// A short message over the bottom chrome, with an optional action ("Added to Favorites",
-/// *Change Folder*).
+/// A short message over the bottom chrome ("Added to Favorites"), with an optional action button.
 struct ShellToast: Identifiable, Equatable {
     let id = UUID()
     var message: String

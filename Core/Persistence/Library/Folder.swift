@@ -44,7 +44,7 @@ final class Folder {
     var isFavorite: Bool = false
 
     // Details. A book or series starts with its source's; any folder's are edited in *Edit
-    // Details* (`LibraryStore.setDetails`). Favorites has none.
+    // Details* (`LibraryStore.setDetails`).
     var byline: String?
     /// A thumbnail (`CoverThumbnail`), never the full-size image.
     @Attribute(.externalStorage) var coverData: Data?
