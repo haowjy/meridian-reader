@@ -65,7 +65,7 @@ final class ProgressFollowsTextTests: XCTestCase {
 
     private var details: FolderDetails {
         FolderDetails(kind: .book, title: "The Book", byline: "Ada Example", cover: nil, sourceURL: nil,
-                      sourceIdentifier: bookKey.uuidString, languageCode: "en", sourceState: nil)
+                      sourceIdentifier: bookKey.uuidString, sourceState: nil)
     }
 
     private func chapter(_ key: UUID, _ ordinal: Int, _ title: String, _ paragraphs: [String]) -> PageContent {
@@ -164,7 +164,6 @@ final class ProgressFollowsTextTests: XCTestCase {
         XCTAssertEqual(spot(back), Spot(paragraph: 0, utf16: 0), "no position in the old text on the new chapter")
         XCTAssertNil(back.lastPlayedAt, "no start")
         XCTAssertNil(back.finishedAt, "and no end: the new chapter wasn't heard")
-        XCTAssertNil(book.finishedAt, "nor is the book finished by it")
         XCTAssertEqual(spot(library.page(key: renamed)), carried, "the moved chapter keeps its spot")
 
         try runWaitingWork()

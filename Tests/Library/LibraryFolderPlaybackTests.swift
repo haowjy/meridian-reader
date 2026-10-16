@@ -51,13 +51,11 @@ final class LibraryFolderPlaybackTests: XCTestCase {
         library.recordPlaybackStarted(b)
         library.recordPosition(b, paragraph: 1, utf16Offset: 0)
         XCTAssertEqual(folder.currentPageKey, b.listenKey, "the recorder stores the folder's place")
-        XCTAssertNotNil(folder.lastPlayedAt)
         let start = try XCTUnwrap(library.continueStart(of: folder))
         XCTAssertIdentical(start.page, b)
         XCTAssertEqual(start.spot.paragraph, 1, "at its spot")
 
         library.recordFinished(b)
-        XCTAssertNil(folder.finishedAt, "a page still follows")
         XCTAssertEqual(library.continueStart(of: folder)?.page.listenKey, library.pages(in: folder)[2].listenKey,
                        "a finished place: Continue goes on to the next page")
 
@@ -77,15 +75,13 @@ final class LibraryFolderPlaybackTests: XCTestCase {
         XCTAssertEqual(start.spot.paragraph, 1)
     }
 
-    func testTheLastPageFinishedFinishesTheFolder() throws {
+    func testContinueOnAFolderWhoseLastPageFinishedStartsItAgain() throws {
         let folder = try library.makeFolder(name: "Finance", in: nil)
         _ = try savedPage("a", in: folder)
         let b = try savedPage("b", in: folder)
         library.recordPlaybackStarted(b)
         library.recordFinished(b)
-        XCTAssertNotNil(folder.finishedAt)
         XCTAssertEqual(library.continueStart(of: folder)?.page.title, "a", "a finished folder starts again")
-        XCTAssertNil(folder.finishedAt)
     }
 
     func testAPageOfAFolderPlaysFromItAndABookChapterShowsItsBook() throws {

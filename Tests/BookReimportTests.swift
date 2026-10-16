@@ -21,7 +21,7 @@ final class BookReimportTests: XCTestCase {
 
     private var details: FolderDetails {
         FolderDetails(kind: .book, title: "The Book", byline: "Ada Example", cover: nil, sourceURL: nil,
-                      sourceIdentifier: bookKey.uuidString, languageCode: "en", sourceState: nil)
+                      sourceIdentifier: bookKey.uuidString, sourceState: nil)
     }
 
     private func chapter(_ key: UUID, _ ordinal: Int, _ title: String, _ paragraphs: [String],
@@ -222,7 +222,6 @@ final class BookReimportTests: XCTestCase {
         library.recordPosition(p2, paragraph: 1, utf16Offset: 3)
         library.recordPlayback(ReaderArticle(page: p3))
         library.recordFinished(p3)
-        let finished = try XCTUnwrap(book.finishedAt, "the last chapter finished the book")
 
         var newDetails = details
         newDetails.byline = "Ben Sample"
@@ -235,7 +234,6 @@ final class BookReimportTests: XCTestCase {
         XCTAssertFalse(env.context.hasChanges)
         XCTAssertEqual(book.byline, "Ada Example", "the book's details")
         XCTAssertEqual(book.currentPageKey, three, "its place")
-        XCTAssertEqual(book.finishedAt, finished, "still finished")
         XCTAssertEqual(Set((book.pages ?? []).compactMap(\.key)), [one, two, three], "its chapters, none inserted")
         XCTAssertEqual(p2.title, "Two")
         XCTAssertEqual(p2.byline, "Ada Example")
@@ -407,40 +405,31 @@ final class BookReimportTests: XCTestCase {
         XCTAssertEqual(start.spot.utf16Offset, 0)
     }
 
-    func testAFinishedBookWhoseLastChapterIsRevisedIsNoLongerFinished() throws {
+    func testContinueOnAFinishedBookPlaysItsRevisedLastChapter() throws {
         let book = try addBook()
         let p3 = try XCTUnwrap(page(three))
         library.recordPlayback(ReaderArticle(page: p3))
         library.recordFinished(p3)
-        XCTAssertNotNil(book.finishedAt)
 
         let revised = ["Three begins.", "Three goes on, revised.", "Three ends."]
         try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", textTwo),
                                                                 chapter(three, 2, "Three", revised)])
-        XCTAssertNil(book.finishedAt)
         let start = try XCTUnwrap(library.continueStart(of: book))
         XCTAssertEqual(start.page.key, three, "Continue plays the revised last chapter, not the book from its start")
         XCTAssertEqual(start.spot.paragraph, 0)
     }
 
-    func testAFinishedBookStaysFinishedWhileItsPlaceIsFinishedAndLast() throws {
+    func testContinueOnAFinishedBookPlaysAChapterAddedAfterItsPlace() throws {
         let book = try addBook()
         let p3 = try XCTUnwrap(page(three))
         library.recordPlayback(ReaderArticle(page: p3))
         library.recordFinished(p3)
-        let finished = try XCTUnwrap(book.finishedAt)
-
-        let revised = ["One begins.", "One goes on, revised.", "One ends."]
-        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", revised), chapter(two, 1, "Two", textTwo),
-                                                                chapter(three, 2, "Three", textThree)])
-        XCTAssertEqual(book.finishedAt, finished, "an earlier chapter's revision doesn't unfinish the book")
 
         let four = UUID()
-        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", revised), chapter(two, 1, "Two", textTwo),
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", textTwo),
                                                                 chapter(three, 2, "Three", textThree),
                                                                 chapter(four, 3, "Four", ["Four is new."])])
-        XCTAssertNil(book.finishedAt, "a chapter after its place: there is more to hear")
-        XCTAssertEqual(library.continueStart(of: book)?.page.key, four)
+        XCTAssertEqual(library.continueStart(of: book)?.page.key, four, "a chapter after its place: there is more to hear")
     }
 
     func testTheD7TrimLeavesTheAudioOfARevisedFinishedChapter() throws {

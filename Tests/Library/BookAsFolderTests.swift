@@ -19,7 +19,7 @@ final class BookAsFolderTests: XCTestCase {
 
     private var details: FolderDetails {
         FolderDetails(kind: .book, title: "The Book", byline: "Ada Example", cover: nil, sourceURL: nil,
-                      sourceIdentifier: bookKey.uuidString, languageCode: "en",
+                      sourceIdentifier: bookKey.uuidString,
                       sourceState: try? JSONEncoder().encode(BookSourceState(fileFingerprint: "abc")))
     }
 
@@ -171,7 +171,6 @@ final class BookAsFolderTests: XCTestCase {
         XCTAssertEqual(book2.pageSort, .manual)
         XCTAssertEqual(book2.byline, "Ada Example")
         XCTAssertEqual(book2.coverData, Data([1, 2, 3]))
-        XCTAssertEqual(book2.languageCode, "en")
         XCTAssertEqual(book2.currentPageKey, keys[1], "its place")
         XCTAssertEqual(try page(1).positionParagraph, 2)
         XCTAssertEqual(try page(1).positionUTF16, 4)

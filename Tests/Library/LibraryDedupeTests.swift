@@ -28,10 +28,9 @@ final class LibraryDedupeTests: XCTestCase {
         for f in [older, newer] { f.sourceIdentifier = "book-key"; env.context.insert(f) }
         let shared = UUID()
         _ = page("https://example.com/ch1", key: shared, in: older)
-        let copy = page("https://example.com/ch1", key: shared, position: 4, in: newer)
+        let copy = page("https://example.com/ch1", key: shared, position: 4, played: env.now + 20, in: newer)
         let onlyInCopy = page("https://example.com/ch2", in: newer)
         newer.currentPageKey = shared
-        newer.lastPlayedAt = env.now + 20
         try env.context.save()
 
         let report = library.dedupe()
@@ -42,7 +41,7 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertEqual(pages.count, 2, "one page per key, none left split")
         XCTAssertTrue(pages.contains { $0 === copy } || pages.contains { $0.key == shared })
         XCTAssertIdentical(onlyInCopy.folder, older)
-        XCTAssertEqual(older.currentPageKey, shared, "the later place is kept")
+        XCTAssertEqual(older.currentPageKey, shared, "the place of the copy played later is kept")
         XCTAssertEqual(pages.first { $0.key == shared }?.positionParagraph, 4, "the furthest copy is the keeper")
     }
 
@@ -56,10 +55,9 @@ final class LibraryDedupeTests: XCTestCase {
         for f in [older, newer] { f.sourceIdentifier = "book-key"; env.context.insert(f) }
         let shared = UUID()
         let original = page("https://example.com/ch1", key: shared, in: older)
-        let copy = page("https://example.com/ch1", key: shared, position: 4, in: newer)
+        let copy = page("https://example.com/ch1", key: shared, position: 4, played: env.now + 20, in: newer)
         let onlyInCopy = page("https://example.com/ch2", in: newer)
         newer.currentPageKey = shared
-        newer.lastPlayedAt = env.now + 20
         try env.context.save()
         library.saveContext = { _ in throw SaveFailed() }
 
@@ -67,7 +65,6 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertFalse(env.context.hasChanges)
         XCTAssertFalse(newer.isDeleted)
         XCTAssertNil(older.currentPageKey, "the older book's place")
-        XCTAssertNil(older.lastPlayedAt)
         XCTAssertEqual((older.pages ?? []).map(\.key), [shared], "its pages")
         XCTAssertEqual(Set((newer.pages ?? []).map(\.key)), [shared, onlyInCopy.key], "the copy's")
         XCTAssertTrue(onlyInCopy.folder === newer)

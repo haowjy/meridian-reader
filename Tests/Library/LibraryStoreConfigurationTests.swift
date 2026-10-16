@@ -159,7 +159,6 @@ final class LibraryStoreConfigurationTests: XCTestCase {
         let book = Folder(name: "A Book", kind: .book)
         context.insert(favorites)
         context.insert(book)
-        book.lastPlayedAt = now
 
         let loose = page("loose")
         loose.lastPlayedAt = now

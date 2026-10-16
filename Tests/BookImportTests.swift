@@ -82,7 +82,6 @@ final class BookImportTests: XCTestCase {
         XCTAssertTrue(book.parent === shelf, "placed at the destination")
         XCTAssertEqual(book.name, "The Lantern Keeper")
         XCTAssertEqual(book.byline, "Ada Example, Ben Sample")
-        XCTAssertEqual(book.languageCode, "en")
         XCTAssertEqual(book.sourceIdentifier, cut.key.uuidString)
         XCTAssertEqual(try JSONDecoder().decode(BookSourceState.self, from: XCTUnwrap(book.sourceStateData)).fileFingerprint,
                        cut.fileFingerprint)

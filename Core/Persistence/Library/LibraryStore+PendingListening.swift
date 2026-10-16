@@ -63,7 +63,7 @@ extension LibraryStore {
     func applyStart(_ page: Page, at date: Date) {
         page.lastPlayedAt = date
         page.finishedAt = nil
-        placeChapter(page, at: date)
+        placeChapter(page)
     }
 
     func applyPosition(_ page: Page, paragraph: Int, utf16Offset: Int) {
@@ -74,7 +74,6 @@ extension LibraryStore {
     func applyFinish(_ page: Page, at date: Date) {
         page.finishedAt = date
         page.lastPlayedAt = date
-        noteChapterFinished(page, at: date)
     }
 
     /// After a rollback: the listening progress it dropped is written again, with the dates it

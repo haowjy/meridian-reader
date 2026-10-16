@@ -181,14 +181,16 @@ is in the Library (`DownloadCenter`, after each stored edit, `LibraryStore.editS
 resume (`LibraryQueries.lastPlayed`) and the prune read every page, removed ones too.
 
 **`Folder`** (library): `name`, `kindRaw` (`plain`, `book`, `series`, `favorites`), `sortKey`,
-`parent` / `children` (any depth), `pages`, `pageSortRaw`, its details (`byline`, `coverData`,
-`languageCode`: a book's from its file; *Edit Details* changes `name`, `byline` and `coverData`
+`parent` / `children` (any depth), `pages`, `pageSortRaw`, its details (`byline`, `coverData`:
+a book's from its file; *Edit Details* changes `name`, `byline` and `coverData`
 of any folder through `LibraryStore.setDetails`; a folder with a byline or cover,
 `hasDetails`, shows the detailed header), for books and series their source
 (`sourceIdentifier`, `sourceURLString`, `sourceStateData`: a book's `BookSourceState`, its file's
 SHA-256 and the keys of the chapters its file gave, in order), and for every folder its place
-(`currentPageKey`, `lastPlayedAt`, `finishedAt`, written as its pages play: every folder plays
-page to page in its sort). **Every folder follows the same rules (decision D19)**: books and
+(`currentPageKey`, the page that last started: every folder plays page to page in its sort).
+Whether a folder is finished isn't stored: `FolderProgress.isFinished` works it out from its pages.
+`languageCode`, `lastPlayedAt` and `finishedAt` are kept as older builds stored them and nothing
+writes or reads them. **Every folder follows the same rules (decision D19)**: books and
 series take pages and subfolders, their chapters move out and reorder, their sort is the user's
 (*Manual*, in the source's order, until changed). `kind` says only where a folder came from:
 *Replace* finds a book by its key (`book(key:)`), a series' link pages are fetched when playback

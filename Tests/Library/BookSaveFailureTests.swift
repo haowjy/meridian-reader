@@ -45,7 +45,7 @@ final class BookSaveFailureTests: XCTestCase {
 
     private var details: FolderDetails {
         FolderDetails(kind: .book, title: "The Book", byline: "Ada Example", cover: nil, sourceURL: nil,
-                      sourceIdentifier: bookKey.uuidString, languageCode: "en", sourceState: nil)
+                      sourceIdentifier: bookKey.uuidString, sourceState: nil)
     }
 
     private func chapter(_ key: UUID, _ ordinal: Int, _ title: String, _ paragraphs: [String]) -> PageContent {

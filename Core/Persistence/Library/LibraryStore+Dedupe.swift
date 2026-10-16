@@ -42,6 +42,7 @@ extension LibraryStore {
 
     /// Two books or series with one `sourceIdentifier` merge into the older one: the other's pages
     /// and subfolders move in after its own, and pages sharing a key merge in the page pass below.
+    /// The copy a page of which played last keeps its place (Continue's page).
     private func dedupeSourceFolders(_ report: inout DedupeReport) {
         let folders = ((try? context.fetch(FetchDescriptor<Folder>())) ?? []).filter { $0.kind.isBookOrSeries && $0.sourceIdentifier != nil }
         let groups = Dictionary(grouping: folders) { "\($0.kindRaw)|\($0.sourceIdentifier ?? "")" }.values.filter { $0.count > 1 }
@@ -49,6 +50,7 @@ extension LibraryStore {
             let ordered = group.sorted(by: Self.olderFirst)
             let keeper = ordered[0]
             for extra in ordered.dropFirst() {
+                let extraPlayedLater = lastPlayed(extra) > lastPlayed(keeper)
                 var pageKey = nextSortKey(in: keeper)
                 for page in pages(in: extra) {
                     page.setFolder(keeper)
@@ -61,11 +63,7 @@ extension LibraryStore {
                     child.sortKey = folderKey
                     folderKey += 1
                 }
-                if (extra.lastPlayedAt ?? .distantPast) > (keeper.lastPlayedAt ?? .distantPast) {
-                    keeper.currentPageKey = extra.currentPageKey
-                    keeper.lastPlayedAt = extra.lastPlayedAt
-                    keeper.finishedAt = extra.finishedAt
-                }
+                if extraPlayedLater { keeper.currentPageKey = extra.currentPageKey }
                 if keeper.coverData == nil { keeper.coverData = extra.coverData }
                 mergeChapterRecord(of: extra, into: keeper)
                 log("dedupe folder \(extra.name) → \(keeper.name)")
@@ -98,6 +96,11 @@ extension LibraryStore {
             report.mergedFolders += 1
         }
         keeper.parent = nil
+    }
+
+    /// When a page in `folder` last played.
+    private func lastPlayed(_ folder: Folder) -> Date {
+        pages(in: folder).compactMap(\.lastPlayedAt).max() ?? .distantPast
     }
 
     /// A book's record of its chapters takes the other copy's chapters it lacks, so *Replace*

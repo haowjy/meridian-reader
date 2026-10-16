@@ -186,18 +186,15 @@ final class PlaybackAdvanceTests: XCTestCase {
         XCTAssertEqual(speech.activeFolderID, book.id)
         XCTAssertEqual(speech.lockScreen.lastInfo?.albumTitle, "The Book")
         XCTAssertEqual(book.currentPageKey, pages[1].key, "the chapter playing is the book's place")
-        XCTAssertNotNil(book.lastPlayedAt)
 
         finishChapter()
         XCTAssertEqual(speech.activeSessionID, pages[2].key)
         XCTAssertNotNil(pages[1].finishedAt, "chapter one is finished")
         XCTAssertEqual(book.currentPageKey, pages[2].key, "the place moved on")
-        XCTAssertNil(book.finishedAt)
 
         finishChapter()
         XCTAssertEqual(speech.playbackPhase, .finished)
         XCTAssertNotNil(pages[2].finishedAt)
-        XCTAssertNotNil(book.finishedAt, "its last chapter finished the book")
         XCTAssertEqual(book.currentPageKey, pages[2].key)
     }
 

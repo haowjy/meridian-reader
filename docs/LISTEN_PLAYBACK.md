@@ -190,9 +190,9 @@ holding the page it writes to rather than fetching it per paragraph. A page star
 `ReaderArticle` (`SpeechController.onListen`: the Reader's Listen, 🎧) is recorded from it on its
 first start, so a page the library doesn't have is kept with its text: played without saving,
 not in the Library, pruned 7 days after its last play. For a page in a folder (a book's or
-series' chapter, or a page in any folder you made or Favorites) the same writes also move the
-folder's place (`Folder.currentPageKey`, `lastPlayedAt`, unfinished again) to the page that
-starts, and the last playable page's end finishes the folder (`LibraryStore+Chapters`). A page
+series' chapter, or a page in any folder you made) the same writes also move the folder's place
+(`Folder.currentPageKey`) to the page that starts (`LibraryStore+Chapters`); whether the folder is
+finished is worked out from its pages (`FolderProgress.isFinished`), never stored. A page
 filed elsewhere takes the place off its old folder (to the page before it). A write whose save fails waits in the context for the next save, and
 a failed edit's rollback doesn't drop it: `LibraryStore` keeps the progress it hasn't stored
 (`PendingListening`: a start, and the text it played when the store may not hold it, from the
