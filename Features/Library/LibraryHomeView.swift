@@ -71,12 +71,12 @@ struct LibraryHomeView: View {
             }
             Section {
                 ForEach(topLevelFolders, id: \.id) { folder in
-                    LibraryFolderRow(folder: folder, subtitleOverride: (favoritesOnly || !searchText.isEmpty) ? location(of: folder.parent) : nil)
+                    LibraryFolderRow(folder: folder)
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Palette.chrome)
                 ForEach(pages, id: \.listenKey) { page in
-                    LibraryPageRow(page: page, subtitleOverride: (favoritesOnly || !searchText.isEmpty) ? location(of: page.folder) : nil)
+                    LibraryPageRow(page: page)
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Palette.chrome)
@@ -88,15 +88,11 @@ struct LibraryHomeView: View {
             }
         }
         .libraryListStyle()
+        .environment(\.libraryScreenKey, favoritesOnly || !searchText.isEmpty ? .filtered : .home)
         .animation(Motion.standard, value: pages.map(\.listenKey))
         .navigationTitle("Library")
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityIdentifier("libraryHome")
-    }
-
-    private func location(of folder: Folder?) -> String? {
-        guard let folder else { return String(localized: "Library") }
-        return (folder.ancestors.reversed() + [folder]).map(\.displayName).joined(separator: " › ")
     }
 
     @ViewBuilder

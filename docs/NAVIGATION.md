@@ -208,8 +208,9 @@ The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the 
 back up, as does the band's ‹ (dimmed at the home). The home has **Everything / Favorites** tabs
 at the top; *Search Library* is the band's field. Each tab filters
 the same mixed list: folders and pages share a single list, with no section headings. Favorites
-are independent stars; rows found outside their current location show their folder path and open
-in that location. ⋯ → **Favorites** (and the start page's Show All) opens the home on Favorites;
+are independent stars. On Favorites and in search results a row in a folder shows that folder's
+path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
+parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on Favorites;
 going to a place in the Library (Now Playing's ⋯ → *Go to …*, a favorite folder's tile, an
 imported book) opens it on Everything, where every place shows; 📚 comes back to the tab you
 left. The tab is remembered with the surface. The band is the browser's (above): 🌐 beside the Now Playing bar, the search
@@ -242,7 +243,8 @@ commas.
 - **The home** (`LibraryHomeView`): Everything shows top-level folders and pages in no folder;
   played-but-unsaved pages remain visible as *Not saved*. Favorites shows all starred folders
   and pages wherever they live. Search filters folders and pages across the tree in either tab;
-  a result keeps its location and shows the path. The old Favorites folder is migrated into star
+  a result keeps its location and shows the path (one at the top level keeps its own second
+  line). The old Favorites folder is migrated into star
   flags; direct pages become loose and nested folders stay nested. Rows use large book-like art,
   a Download state and Play (pages: the two-line row below). The bar's ▶ resumes what you last heard, and a folder row's ▶
   resumes its own pages without opening it (D14). A first-run empty Library shows *Find something
@@ -347,7 +349,7 @@ row shows the place and the time left and its ▶ resumes there, as a book's doe
 anything in it has played, the first page starts where it was left. Now Playing's "Playing
 from" names the folder.
 
-**Dragging rows** (decision D15), on the home, folder screens and Favorites, without Edit: a
+**Dragging rows** (decision D15), on the home and folder screens, without Edit: a
 long press lifts a row (its menu, which the press opened, goes as it moves). Let go on a folder
 row (its middle, for a folder) to file it at the end of that folder; the folder lights up in the
 accent while it takes the row, with a tick. Let go between rows to place it there, a line
@@ -355,8 +357,9 @@ marking the place: a page among pages, a folder among folders (over a folder row
 quarter); placing a page makes its folder's sort *Manual* (the top level's too, until the home's
 ⋯ → *Sort* picks another), numbered first as it was shown. A row lands with a success tick; a refused one with an error buzz. A book or
 series takes drops as any folder, and its chapters lift as any page (decision D19). A folder
-dragged over itself or a folder inside it is refused (the drag shows ⊘); Favorites, a page
-played without saving and rows in Edit don't lift. The list doesn't scroll by itself while a row is dragged.
+dragged over itself or a folder inside it is refused (the drag shows ⊘); rows on the home's
+Favorites tab or in search results (gathered from across the tree), a page played without saving
+and rows in Edit don't lift. The list doesn't scroll by itself while a row is dragged.
 
 | Row | Tap | Trailing | Menu (long-press) | Swipe left |
 |---|---|---|---|---|

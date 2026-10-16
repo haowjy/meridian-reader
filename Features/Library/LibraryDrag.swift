@@ -14,9 +14,10 @@ import UniformTypeIdentifiers
 ///   middle, into it). An accent line marks the place (`ListRow.insertionEdge`). Placing a page
 ///   makes its folder's sort *Manual*, numbered first as the screen showed it, so it lands where
 ///   it was let go (`LibraryStore.arrange`).
-/// - What doesn't drag: Favorites (always first), a page played without saving (not in the
-///   Library), any row in Edit (which has its own drag handles). A book's or series' chapters
-///   drag as any page.
+/// - What doesn't drag: the home's Favorites tab and search results (`LibraryScreenKey.filtered`:
+///   their rows come from across the tree, so a place beside one isn't a place in it), a page
+///   played without saving (not in the Library), any row in Edit (which has its own drag
+///   handles). A book's or series' chapters drag as any page.
 ///
 /// SwiftUI's List takes no drops of its own here (neither on its rows nor between them), so the
 /// surface lays one drop zone over itself while a Library row is dragged (`libraryDropZone`).
@@ -46,8 +47,10 @@ extension LibraryItemID {
 enum LibraryScreenKey: Hashable {
     case home
     case route(LibraryRoute)
-    /// Search results, over the home: nothing drops there.
-    case search
+    /// The home filtered, on its Favorites tab or by a search: rows from anywhere in the tree,
+    /// each showing where it is. None lifts or takes a drop (the zone looks for `.home`), and a
+    /// folder row opens under its parents (`LibraryStore.path(to:)`).
+    case filtered
 }
 
 /// Where the rows on screen are, for the drop zone: frames in global coordinates, kept as they
