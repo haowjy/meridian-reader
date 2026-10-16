@@ -69,6 +69,7 @@ private struct BarProgress: View {
     let now: NowPlaying
 
     @Environment(ShellState.self) private var shell
+    @State private var cover = BarCover()
 
     var body: some View {
         let doc = speech.document
@@ -77,7 +78,7 @@ private struct BarProgress: View {
         NowPlayingBar(
             title: now.title,
             detail: now.isFinished ? [ListeningTime.finishedLabel] : [now.source, ListeningTime.leftLabel(minutes: left)],
-            artwork: now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
+            artwork: cover.image(for: now.pageKey, data: now.artwork),
             artworkLetter: now.source.isEmpty ? now.title : now.source,
             progress: doc.progress(atUTF16Offset: offset),
             state: speech.playState(of: .page(now.pageKey)),
@@ -95,6 +96,8 @@ private struct ResumeBar: View {
     let page: Page
     let actions: LibraryActions
 
+    @State private var cover = BarCover()
+
     var body: some View {
         // A delete being saved can redraw this once more after the page's data is gone; reading
         // it then traps (`isLive`), so the placeholder stands in.
@@ -110,7 +113,7 @@ private struct ResumeBar: View {
         NowPlayingBar(
             title: page.title,
             detail: detail(progress),
-            artwork: page.artworkData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
+            artwork: cover.image(for: page.listenKey, data: page.artworkData),
             artworkLetter: source.isEmpty ? page.title : source,
             progress: fraction(progress),
             state: actions.playState(of: page),
@@ -141,5 +144,23 @@ private struct ResumeBar: View {
         case .finished: 1
         default: 0
         }
+    }
+}
+
+/// The bar's cover, decoded once per page: the bar redraws several times a second while playing,
+/// and a fresh `UIImage` each pass would decode the picture again. Not observed: filling it
+/// redraws nothing.
+private final class BarCover {
+    private var key: UUID?
+    private var data: Data?
+    private var image: Image?
+
+    func image(for key: UUID, data: Data?) -> Image? {
+        if key != self.key || data != self.data {
+            self.key = key
+            self.data = data
+            image = data.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))
+        }
+        return image
     }
 }
