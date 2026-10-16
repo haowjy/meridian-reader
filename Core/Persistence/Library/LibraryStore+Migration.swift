@@ -119,7 +119,7 @@ extension LibraryStore {
         page.cleanedHTML = row.cleanedHTML
         page.plainText = row.plainText
         page.excerpt = row.excerpt
-        page.wordCount = row.wordCount
+        page.wordCount = WordCount.count(row.plainText)
         page.listenBlocksData = row.listenBlocksData
         page.listenBlocksVersion = row.listenBlocksVersion
         page.detectedLanguageCode = row.detectedLanguageCode

@@ -252,7 +252,7 @@ struct SyntheticEPUB {
 
     /// A chapter body: a section with an id, an `h2` heading, then filler; `words` in all.
     static func chapter(id: String, heading: String, words: Int, seed: Int = 0) -> String {
-        let filler = paragraphs(max(0, words - EPUBWordCount.count(heading)), seed: seed)
+        let filler = paragraphs(max(0, words - WordCount.count(heading)), seed: seed)
         return "<section id=\"\(id)\"><h2>\(heading)</h2>\n\(filler)</section>"
     }
 }

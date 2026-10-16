@@ -84,4 +84,15 @@ final class DemoBookSeedTests: XCTestCase {
             XCTAssertTrue(env.pages().allSatisfy { $0.locator != DemoBook.loosePageMarker }, "launch \(run)")
         }
     }
+
+    /// Seeded chapters hold what an imported one does: their listen paragraphs and word count.
+    func testSeededChaptersHoldTheirListenParagraphs() throws {
+        launch()
+        let chapters = try XCTUnwrap(demoBooks().first.map { env.library.pages(in: $0) })
+        for chapter in chapters {
+            XCTAssertFalse(chapter.cachedListenParagraphs?.isEmpty ?? true, chapter.title)
+            XCTAssertEqual(chapter.paragraphCount, chapter.cachedListenParagraphs?.count, chapter.title)
+            XCTAssertEqual(chapter.wordCount, WordCount.count(chapter.plainText), chapter.title)
+        }
+    }
 }

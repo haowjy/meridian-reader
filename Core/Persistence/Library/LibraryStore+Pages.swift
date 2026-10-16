@@ -300,15 +300,11 @@ extension LibraryStore {
         }
         page.title = article.title
         page.byline = article.sourceLabel
-        page.cleanedHTML = article.cleanedHTML
-        page.plainText = article.plainText
-        page.excerpt = article.excerpt
-        page.wordCount = SavedArticle.wordCount(of: article.plainText)
         let paragraphs = article.document.isEmpty
             ? Page.buildListenDocument(plainText: article.plainText, cleanedHTML: article.cleanedHTML,
                                        title: article.title).paragraphs
             : article.document.paragraphs
-        page.storeListenParagraphs(paragraphs)
+        page.setText(html: article.cleanedHTML, plain: article.plainText, excerpt: article.excerpt, paragraphs: paragraphs)
         page.positionParagraph = min(page.positionParagraph, max(0, paragraphs.count - 1))
     }
 

@@ -31,7 +31,7 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 App/        @main, composition root (AppComposition), launch work (AppLaunch), Debug-only launch hooks
 Core/
   Device/       chip / OS gates
-  Domain/       ReaderArticle, PageOrigin, ParagraphDocument, ParagraphSplitter, ArticleIdentity, ReaderScrubMap
+  Domain/       ReaderArticle, PageOrigin, ParagraphDocument, ParagraphSplitter, ArticleIdentity, ReaderScrubMap, WordCount
   EPUB/         EPUB reading: zip container, package, contents, chapter cutting, BookIdentity
   Extraction/   ArticleExtracting, Readability runner, ListenContentNormalizer, reader scripts
   Sources/      PageSource (SingleWebPageSource, EPUBSource), BookImporter, chapter settling, cover thumbnails, Imports/ files
@@ -161,7 +161,7 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, a page is in no list, not even "Not saved"; read only while `addedAt` is nil |
 | `folder`, `folderID`, `sortKey` | Its folder (none = the pages in no folder) and order there; `folderID` mirrors the relationship for predicates |
 | `bodyHTML`, `plainTextData` | Offline reading; the listen text comes from the HTML |
-| `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount` |
+| `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount`. Words are counted by one rule, `WordCount`, for web pages and chapters alike (each Chinese or Japanese character is a word); every text write goes through `Page.setText` |
 | `positionParagraph`, `positionUTF16` | Resume position (paragraph + offset inside the document) |
 | `lastPlayedAt`, `finishedAt` | the "Not saved" pages' order, the prune and the bar's resume, and a row's "✓ Finished" |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |

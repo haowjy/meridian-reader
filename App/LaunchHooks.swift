@@ -40,11 +40,8 @@ enum LaunchHooks {
             let page = Page(key: UUID(), title: title, byline: "investing.example.com",
                             urlString: "https://investing.example.com/\(slug)-\(UUID().uuidString.prefix(6))",
                             contentState: .saved, addedAt: .now, sortKey: sortKey)
-            page.cleanedHTML = paragraphs.map { "<p>\($0)</p>" }.joined()
-            page.plainText = paragraphs.joined(separator: "\n\n")
-            page.excerpt = paragraphs[0]
-            page.wordCount = SavedArticle.wordCount(of: page.plainText) * 20
-            page.storeListenParagraphs(paragraphs)
+            page.setText(html: paragraphs.map { "<p>\($0)</p>" }.joined(), plain: paragraphs.joined(separator: "\n\n"),
+                         excerpt: paragraphs[0], paragraphs: paragraphs)
             library.context.insert(page)
             page.setFolder(folder)
             return page
@@ -188,10 +185,7 @@ enum LaunchHooks {
     private static func demoPage(_ chapter: DemoBook.Chapter, url: URL?, sortKey: Double) -> Page {
         let page = Page(key: UUID(), title: chapter.title, byline: DemoBook.author, urlString: url?.absoluteString,
                         contentState: .saved, addedAt: .now, sortKey: sortKey)
-        page.cleanedHTML = chapter.html
-        page.plainText = chapter.plainText
-        page.excerpt = String(chapter.plainText.prefix(140))
-        page.wordCount = SavedArticle.wordCount(of: chapter.plainText)
+        seedText(page, html: chapter.html, plain: chapter.plainText)
         return page
     }
 
@@ -255,19 +249,14 @@ enum LaunchHooks {
         let page = Page(key: UUID(), title: demo.title ?? "Demo Listen Article", byline: "example.com",
                         urlString: "https://example.com/demo", contentState: .saved, addedAt: .now,
                         sortKey: library.nextSortKey(in: nil))
-        page.cleanedHTML = demo.plainTextOnly ? "" : htmlAll
-        page.plainText = plainAll
-        page.excerpt = String(plain.prefix(140))
-        page.wordCount = SavedArticle.wordCount(of: plainAll)
+        seedText(page, html: demo.plainTextOnly ? "" : htmlAll, plain: plainAll)
         page.positionParagraph = demo.progress
         context.insert(page)
         for i in 0..<demo.playedPages {
             let text = ["Played page \(i + 1), first paragraph.", "Played page \(i + 1), second paragraph."]
             let played = Page(key: UUID(), title: "Played Page \(i + 1)", byline: "example.com",
                               urlString: "https://example.com/played-\(i + 1)", contentState: .saved, addedAt: nil)
-            played.cleanedHTML = text.map { "<p>\($0)</p>" }.joined()
-            played.plainText = text.joined(separator: "\n\n")
-            played.storeListenParagraphs(text)
+            seedText(played, html: text.map { "<p>\($0)</p>" }.joined(), plain: text.joined(separator: "\n\n"))
             played.lastPlayedAt = Date.now.addingTimeInterval(-60 * Double(i + 1))
             context.insert(played)
         }
@@ -277,12 +266,17 @@ enum LaunchHooks {
                              urlString: "https://example.com/loose-\(i + 1)", contentState: .saved,
                              addedAt: page.addedAt?.addingTimeInterval(-60 * Double(i + 1)),
                              sortKey: page.sortKey - Double(demo.loosePages - i))
-            loose.cleanedHTML = text.map { "<p>\($0)</p>" }.joined()
-            loose.plainText = text.joined(separator: "\n\n")
-            loose.storeListenParagraphs(text)
+            seedText(loose, html: text.map { "<p>\($0)</p>" }.joined(), plain: text.joined(separator: "\n\n"))
             context.insert(loose)
         }
         library.commit("demo seed")
+    }
+
+    /// A seeded page's text, as saving the page would store it: its listen paragraphs built from
+    /// `html` and `plain` by the reader's rules (`Page.buildListenDocument`), and a real word count.
+    private static func seedText(_ page: Page, html: String, plain: String) {
+        let paragraphs = Page.buildListenDocument(plainText: plain, cleanedHTML: html, title: page.title).paragraphs
+        page.setText(html: html, plain: plain, excerpt: String(plain.prefix(140)), paragraphs: paragraphs)
     }
 
     /// `-bakeArticle <id prefix>` (e.g. `xcrun devicectl device process launch …

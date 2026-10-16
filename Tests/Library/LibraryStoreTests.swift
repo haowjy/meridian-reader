@@ -75,6 +75,12 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertEqual(reopened.id, legacyKey, "the browser reuses the page's key, so its audio")
     }
 
+    /// A web page counts its words as a chapter does: each Chinese or Japanese character is one.
+    func testAWebPageCountsWordsAsAChapterDoes() throws {
+        let page = try library.save(env.article("https://example.com/tokyo", paragraphs: ["東京は晴れ。 Sunny today."]))
+        XCTAssertEqual(page.wordCount, 7)
+    }
+
     func testSaveOnALinkTurnsItSavedInPlace() throws {
         let reading = try library.makeFolder(name: "Reading", in: nil)
         let link = try library.addLink(url: URL(string: "https://example.com/a")!, title: "A", artwork: nil, in: reading)

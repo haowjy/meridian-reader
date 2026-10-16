@@ -174,9 +174,21 @@ extension Page {
     }
 }
 
-// MARK: - Stored listen paragraphs
+// MARK: - Its text
 
 extension Page {
+    /// The page's reading text: the cleaned HTML, the plain text, the excerpt and the listen
+    /// paragraphs (with their count and language), and the words in the plain text (`WordCount`).
+    /// Every text write goes through here: a web page saved or played, a chapter imported or
+    /// replaced, a seeded page.
+    func setText(html: String, plain: String, excerpt: String, paragraphs: [String]) {
+        cleanedHTML = html
+        plainText = plain
+        self.excerpt = excerpt
+        wordCount = WordCount.count(plain)
+        storeListenParagraphs(paragraphs)
+    }
+
     /// Stored paragraphs when present and built by the current parser rules; nil means rebuild.
     var cachedListenParagraphs: [String]? {
         Self.decodeListenParagraphs(listenBlocksData, version: listenBlocksVersion)

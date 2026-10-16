@@ -5,7 +5,7 @@ import Foundation
 /// real books (chapters nested under one entry; a contents with one entry); these bounds were
 /// checked against books from Gutenberg, Standard Ebooks and the Internet Archive.
 ///
-/// Word counts here are provisional: they're counted on the raw XHTML (`EPUBWordCount`), before
+/// Word counts here are provisional: they're counted on the raw XHTML (`WordCount`), before
 /// the normalizer turns a chapter into listen blocks. Part 2 finalizes cuts, emptiness and sizes
 /// against the listen blocks.
 struct EPUBCutRules: Equatable, Sendable {
@@ -62,7 +62,7 @@ struct EPUBCut: Equatable, Sendable {
     var end: EPUBTextStream.Position
     var title: String?
     var locator: EPUBLocator
-    /// Words in the raw XHTML (`EPUBWordCount`); part 2 recounts on the listen blocks.
+    /// Words in the raw XHTML (`WordCount`); part 2 recounts on the listen blocks.
     var provisionalWordCount: Int
     var skipsInPlayback: Bool
 }

@@ -66,12 +66,3 @@ final class SavedArticle {
         self.faviconData = faviconData
     }
 }
-
-// MARK: - Length
-
-extension SavedArticle {
-    /// Whitespace-separated words in `text`.
-    nonisolated static func wordCount(of text: String) -> Int {
-        text.split { $0.isWhitespace || $0.isNewline }.count
-    }
-}

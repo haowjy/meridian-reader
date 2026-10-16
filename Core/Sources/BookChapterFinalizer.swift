@@ -11,7 +11,7 @@ struct PreparedChapter: Equatable, Sendable {
     var skipsInPlayback: Bool
     var html: String
     private(set) var document: ParagraphDocument
-    /// `EPUBWordCount` of the listen blocks.
+    /// `WordCount` of the listen blocks.
     private(set) var words: Int
 
     /// `title` nil: the chapter's first words (a chapter no contents entry names).
@@ -41,7 +41,7 @@ struct PreparedChapter: Equatable, Sendable {
 
     private mutating func rebuild() {
         document = ParagraphDocument.forListening(plainText: "", cleanedHTML: html, matchingTitle: title)
-        words = EPUBWordCount.count(document.joinedText)
+        words = WordCount.count(document.joinedText)
     }
 
     /// The first listen block, cut after `wordLimit` words.
@@ -122,7 +122,7 @@ enum BookChapterFinalizer {
         /// What the library will store for the chapter: its listen blocks.
         init(_ chapter: PageContent) {
             self.init(title: chapter.title, hasBlocks: !chapter.document.isEmpty,
-                      words: EPUBWordCount.count(chapter.document.joinedText), skipsInPlayback: chapter.ref.skipsInPlayback)
+                      words: WordCount.count(chapter.document.joinedText), skipsInPlayback: chapter.ref.skipsInPlayback)
         }
     }
 

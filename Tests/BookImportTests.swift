@@ -125,7 +125,7 @@ final class BookImportTests: XCTestCase {
         XCTAssertFalse(blocks.contains { $0.contains("footnote's own words") })
         XCTAssertFalse(chapter.cleanedHTML.contains("<img"))
         XCTAssertFalse(chapter.cleanedHTML.contains("<a "))
-        XCTAssertEqual(chapter.wordCount, EPUBWordCount.count(blocks.joined(separator: " ")))
+        XCTAssertEqual(chapter.wordCount, WordCount.count(blocks.joined(separator: " ")))
     }
 
     func testProgressCountsEveryChapter() async throws {

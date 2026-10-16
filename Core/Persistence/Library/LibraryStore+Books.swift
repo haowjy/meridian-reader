@@ -299,12 +299,9 @@ extension LibraryStore {
     private func fillChapter(_ page: Page, from chapter: PageContent) {
         page.title = chapter.title
         page.locator = Self.locator(of: chapter.ref)
-        page.cleanedHTML = chapter.bodyHTML
-        page.plainText = chapter.plainText
-        page.excerpt = chapter.excerpt
-        page.wordCount = EPUBWordCount.count(chapter.plainText)
         page.skipsInPlayback = chapter.ref.skipsInPlayback
-        page.storeListenParagraphs(chapter.document.paragraphs)
+        page.setText(html: chapter.bodyHTML, plain: chapter.plainText, excerpt: chapter.excerpt,
+                     paragraphs: chapter.document.paragraphs)
     }
 
     private static func locator(of ref: PageRef) -> String? {

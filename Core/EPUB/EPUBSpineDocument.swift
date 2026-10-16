@@ -67,7 +67,7 @@ struct EPUBSpineDocument: Sendable {
         var events: [XHTMLEvent] = []
         var runStarts: [Int] = []
         for event in bodyRange.map({ Array(all[$0]) }) ?? Self.withoutHead(all) {
-            guard case .text(let text) = event, EPUBWordCount.count(text) > maxRunWords else {
+            guard case .text(let text) = event, WordCount.count(text) > maxRunWords else {
                 events.append(event)
                 continue
             }
@@ -111,7 +111,7 @@ struct EPUBSpineDocument: Sendable {
                 if open.boilerplate { boilerplate.append(open.open..<(index + 1)) }
             case .text(let text):
                 parent[index] = stack.last?.open ?? -1
-                words[index] = EPUBWordCount.count(text)
+                words[index] = WordCount.count(text)
                 marked[index] = enclosingMarked
             }
         }
@@ -185,47 +185,6 @@ extension Collection where Element == XHTMLEvent {
     }
 }
 
-/// Provisional word counts for cutting: counted on the raw XHTML's text events, before part 2's
-/// normalizer turns it into listen blocks (which drops footnotes and the like, and doesn't split
-/// a word that inline markup splits into two events). A word is a run of non-space characters
-/// holding a letter or digit. Each Chinese or Japanese character counts as a word, since those
-/// scripts don't put spaces between words.
-enum EPUBWordCount {
-    static func count(_ text: String) -> Int {
-        var count = 0
-        var inToken = false
-        var tokenHasWordCharacter = false
-        for scalar in text.unicodeScalars {
-            if scalar.properties.isWhitespace {
-                if inToken, tokenHasWordCharacter { count += 1 }
-                inToken = false
-                tokenHasWordCharacter = false
-            } else if isIdeographic(scalar) {
-                if inToken, tokenHasWordCharacter { count += 1 }
-                count += 1
-                inToken = false
-                tokenHasWordCharacter = false
-            } else {
-                inToken = true
-                if isWordCharacter(scalar) { tokenHasWordCharacter = true }
-            }
-        }
-        if inToken, tokenHasWordCharacter { count += 1 }
-        return count
-    }
-
-    static func isWordCharacter(_ scalar: Unicode.Scalar) -> Bool {
-        scalar.properties.isAlphabetic || scalar.properties.numericType != nil
-    }
-
-    static func isIdeographic(_ scalar: Unicode.Scalar) -> Bool {
-        switch scalar.value {
-        case 0x3040...0x30FF, 0x3400...0x4DBF, 0x4E00...0x9FFF, 0xF900...0xFAFF, 0x20000...0x2A6DF: true
-        default: false
-        }
-    }
-}
-
 /// Text too long to keep as one cut point, cut into runs: each ends after a sentence in its second
 /// half where one ends there, else between words. A run boundary falls before the whitespace that
 /// follows a word (or beside a Chinese or Japanese character), so the runs' word counts add up to
@@ -255,13 +214,13 @@ enum EPUBTextRuns {
         for (index, scalar) in scalars.enumerated() {
             if scalar.properties.isWhitespace {
                 endToken(at: index)
-            } else if EPUBWordCount.isIdeographic(scalar) {
+            } else if WordCount.isIdeographic(scalar) {
                 endToken(at: index)
                 words += 1
                 boundaries.append((index + 1, words, false))
             } else {
                 inToken = true
-                if EPUBWordCount.isWordCharacter(scalar) { tokenHasWord = true }
+                if WordCount.isWordCharacter(scalar) { tokenHasWord = true }
                 if sentenceEnds.contains(scalar) {
                     tokenEndsSentence = true
                 } else if !closingMarks.contains(scalar) {

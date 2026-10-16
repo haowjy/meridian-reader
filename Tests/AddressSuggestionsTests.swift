@@ -53,8 +53,4 @@ final class AddressSuggestionsTests: XCTestCase {
         XCTAssertFalse(URL(string: "about:blank")!.isWeb)
         XCTAssertFalse(URL(string: "reader-test://pages/one")!.isWeb)
     }
-
-    func testWordCount() {
-        XCTAssertEqual(SavedArticle.wordCount(of: "one two\n\nthree"), 3)
-    }
 }
