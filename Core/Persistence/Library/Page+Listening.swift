@@ -1,10 +1,17 @@
 import Foundation
 
 extension Page {
+    /// Where its text comes from: its web address when it has one (a book chapter with one is a
+    /// web page too), else its place in its book.
+    var origin: PageOrigin {
+        guard let url else { return .book(locator: locator ?? "") }
+        return .web(url, canonicalURL: canonicalURL ?? ArticleIdentity.canonicalURLString(from: url))
+    }
+
     /// The page's listen / audio cache key. Every page `LibraryStore` makes has one; a page
     /// synced without it would use its address's key.
     var listenKey: UUID {
-        key ?? ArticleIdentity.articleKey(canonicalURL: canonicalURL ?? urlString ?? title)
+        key ?? ArticleIdentity.articleKey(canonicalURL: origin.canonicalURL ?? title)
     }
 
     /// Where listening to the page starts: its saved spot, or its top once it is finished.
@@ -30,7 +37,7 @@ extension SpeechSession {
                              detectedLanguage: page.detectedLanguageBackfilling(),
                              title: page.title, site: book?.byline ?? page.byline,
                              artwork: page.artworkData ?? book?.coverData,
-                             canonicalURL: page.canonicalURL ?? page.urlString.map { ArticleIdentity.canonicalURLString(from: $0) },
+                             canonicalURL: page.origin.canonicalURL,
                              sourceLabel: page.byline, folder: folder.map(PlaybackFolder.init))
     }
 }
