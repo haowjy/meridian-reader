@@ -9,6 +9,7 @@ import Foundation
 @MainActor
 final class LocalListenPlayer {
     private let player: ChunkPlaybackQueue
+    private let runState: AppRunState
     private let tempDir: URL
     /// Audio of the current play (nil: stopped).
     private var source: ListenUnitSource?
@@ -78,9 +79,11 @@ final class LocalListenPlayer {
         return dir
     }()
 
-    /// `player` is injectable so tests can end units without waiting for real audio.
-    init(player injected: ChunkPlaybackQueue? = nil) {
+    /// `player` is injectable so tests can end units without waiting for real audio; `runState` is
+    /// the render queue's (units played in the background are counted for the debug panel).
+    init(player injected: ChunkPlaybackQueue? = nil, runState: AppRunState = .shared) {
         self.player = injected ?? ChunkPlaybackQueue(maxBuffered: 8)
+        self.runState = runState
         self.tempDir = Self.fallbackDirectory
 
         player.onUnitStarted = { [weak self] item in
@@ -521,7 +524,7 @@ final class LocalListenPlayer {
         } else {
             currentAppleFallbackReason = nil
         }
-        guard AppRunState.shared.phase == .background else { return }
+        guard runState.phase == .background else { return }
         switch item.source {
         case .baked, .stitched: backgroundStats.bakedParagraphs += 1
         case .chunk: backgroundStats.engineChunks += 1

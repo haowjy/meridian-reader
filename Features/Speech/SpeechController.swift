@@ -270,6 +270,12 @@ final class SpeechController {
         }
     }
 
+    /// ▶ / ⏸ on what you hear (the Now Playing bar, Now Playing's transport).
+    func pressNowPlaying() {
+        guard let id = activeSessionID else { return }
+        press(.page(id)) {}
+    }
+
     /// `target` is being made ready (its page extracting): its button shows `.preparing`, and
     /// what's playing keeps playing until it is ready. Replaces any earlier request.
     func beginPreparing(_ target: ListenTarget) -> ListenPreparation {
@@ -427,7 +433,7 @@ final class SpeechController {
          resumePoints: ListenResumePointStore? = .shared) {
         let coordinator = localTTS ?? LocalTTSCoordinator(engines: engines)
         self.localTTS = coordinator
-        self.appleEngine = appleEngine ?? AppleListenEngine()
+        self.appleEngine = appleEngine ?? AppleListenEngine(runState: coordinator.synthQueue.runState)
         self.localEngine = LocalListenEngine(coordinator: coordinator)
         self.audioSession = audioSession ?? ListenAudioSession()
         self.lockScreen = nowPlaying ?? NowPlayingController()
@@ -527,12 +533,12 @@ final class SpeechController {
     }
 
     func skipToPreviousParagraph() {
-        guard isPrepared else { return }
+        guard canSkipToPreviousParagraph else { return }
         userPerform(.skip(delta: -1))
     }
 
     func skipToNextParagraph() {
-        guard isPrepared else { return }
+        guard canSkipToNextParagraph else { return }
         userPerform(.skip(delta: 1))
     }
 

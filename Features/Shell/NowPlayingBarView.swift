@@ -86,7 +86,7 @@ private struct BarProgress: View {
             state: speech.playState(of: .page(now.pageKey)),
             spansSlots: spansSlots,
             onOpen: shell.showNowPlaying,
-            onPlayPause: { speech.press(.page(now.pageKey)) {} },
+            onPlayPause: speech.pressNowPlaying,
             onStop: speech.stop
         )
     }

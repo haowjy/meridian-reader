@@ -45,7 +45,7 @@ final class LocalListenEngine: ListenEngine {
 
     init(coordinator: LocalTTSCoordinator) {
         self.coordinator = coordinator
-        let player = LocalListenPlayer()
+        let player = LocalListenPlayer(runState: coordinator.synthQueue.runState)
         self.player = player
         coordinator.listenPlayer = player
         player.onUnitStarted = { [weak self] idx in

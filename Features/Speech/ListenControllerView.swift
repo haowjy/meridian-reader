@@ -22,10 +22,7 @@ struct ListenControllerView: View {
             canSkipForward: speech.canSkipToNextParagraph,
             onSkipBack: speech.skipToPreviousParagraph,
             onSkipForward: speech.skipToNextParagraph,
-            onPlayPause: {
-                guard let id = speech.activeSessionID else { return }
-                speech.press(.page(id)) {}
-            },
+            onPlayPause: speech.pressNowPlaying,
             onPlayLongPress: speech.developerOptionsEnabled ? { speech.showListenDebug = true } : nil
         ) {
             slot(leading)
@@ -57,9 +54,9 @@ struct ListenControllerView: View {
                 else { return }
                 switch direction {
                 case .right:
-                    if speech.canSkipToPreviousParagraph { speech.skipToPreviousParagraph() }
+                    speech.skipToPreviousParagraph()
                 case .left:
-                    if speech.canSkipToNextParagraph { speech.skipToNextParagraph() }
+                    speech.skipToNextParagraph()
                 }
             }
     }
