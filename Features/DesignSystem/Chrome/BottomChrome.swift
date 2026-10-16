@@ -6,9 +6,9 @@ import SwiftUI
 ///
 /// ```
 /// ┌ .bar band ────────────────────────────────────┐
-/// │  [⇄] ╭ Now Playing bar (or placeholder) ────╮ │  ← `BottomBandTopRow`: swap in slot 1,
-/// │      ╰──────────────────────────────────────╯ │    the bar across slots 2–5
-/// │ ( field capsule: address / Library search   ) │  ← `bottomChromeField()`
+/// │ ╭ Now Playing bar (or placeholder) ─────────╮ │  ← the full row; ⏸ over ⋯'s slot
+/// │ ╰───────────────────────────────────────────╯ │
+/// │ [⇄] ( field capsule: address / Library search ) │  ← the swap, then `bottomChromeField()`
 /// │  [‹]   [›]   [＋/🔖]  [🕘]   [⋯]              │  ← `BottomToolbarLayout`, explicit slots,
 /// └───────────────────────────────── home indicator ┘    ⋯ always slot 5
 /// ```
@@ -231,37 +231,6 @@ extension View {
     }
 }
 
-/// The band's first row: the surface swap (🌐 / 📚) centred in toolbar slot 1, over ‹, and the
-/// (unused by the band since D23: Now Playing is alone in row 1) Now Playing bar, its ▶︎ / ⏸ over ⋯ (`NowPlayingBar(spansSlots: 4)`). The row
-/// is as tall as the bar; the swap keeps a full slot × `rowHeight` tap area, centred on it.
-///
-/// ```
-///  [🌐] ╭ [art] Notes on Tides            ▶︎ ╮
-///       ╰────────────────────────────────────╯
-/// ```
-struct BottomBandTopRow: Layout {
-    /// The slots the bar spans.
-    static let barSlots = BottomToolbarLayout.slotCount
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? 320
-        let barWidth = BottomToolbarLayout.slotWidth(rowWidth: width) * CGFloat(Self.barSlots)
-        let barHeight = subviews.count > 1
-            ? subviews[1].sizeThatFits(ProposedViewSize(width: barWidth, height: nil)).height : 0
-        return CGSize(width: width, height: max(BottomChrome.rowHeight, barHeight))
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        guard subviews.count == 2 else { return }
-        let slot = BottomToolbarLayout.slotWidth(rowWidth: bounds.width)
-        subviews[0].place(at: CGPoint(x: bounds.minX + BottomToolbarLayout.slotCenterX(0, rowWidth: bounds.width),
-                                      y: bounds.midY),
-                          anchor: .center, proposal: ProposedViewSize(width: slot, height: BottomChrome.rowHeight))
-        subviews[1].place(at: CGPoint(x: bounds.minX + slot, y: bounds.midY), anchor: .leading,
-                          proposal: ProposedViewSize(width: slot * CGFloat(Self.barSlots), height: bounds.height))
-    }
-}
-
 /// A toolbar row with one wide control: the first item in slot 1, the last in slot 5 (⋯, so the
 /// morph menu grows from the same spot as everywhere else), and the middle one across slots 2–4
 /// with `Spacing.xs` either side. The end items keep the toolbar row's height at its bottom, so
@@ -299,8 +268,10 @@ struct BottomToolbarGallery: View {
         PreviewGallery {
             PreviewState("browser") {
                 band {
-                    topRow(Icons.library, bar: playing)
-                    AddressField(reader: .available, listen: .idle) { Text("news.example.org") }
+                    barRow(playing)
+                    fieldRow(Icons.library) {
+                        AddressField(reader: .available, listen: .idle) { Text("news.example.org") }
+                    }
                     BottomToolbarLayout {
                         icon(Icons.back).toolbarSlot(0)
                         icon(Icons.forward).disabled(true).toolbarSlot(1)
@@ -312,8 +283,8 @@ struct BottomToolbarGallery: View {
             }
             PreviewState("library, nothing played") {
                 band {
-                    topRow(Icons.browser, bar: NowPlayingBar.placeholder(spansSlots: BottomBandTopRow.barSlots))
-                    SearchField(text: .constant(""))
+                    barRow(NowPlayingBar.placeholder())
+                    fieldRow(Icons.browser) { SearchField(text: .constant("")) }
                     BottomToolbarLayout {
                         icon(Icons.back).disabled(true).toolbarSlot(0)
                         icon(Icons.forward).disabled(true).toolbarSlot(1)
@@ -345,15 +316,19 @@ struct BottomToolbarGallery: View {
 
     private var playing: NowPlayingBar {
         NowPlayingBar(title: "Notes on Tides", detail: ["example.com", "6 min left"], progress: 0.4, state: .paused,
-                      spansSlots: BottomBandTopRow.barSlots, onOpen: {}, onPlayPause: {}, onStop: {})
+                      onOpen: {}, onPlayPause: {}, onStop: {})
     }
 
-    private func topRow(_ swap: String, bar: NowPlayingBar) -> some View {
-        BottomBandTopRow {
-            icon(swap)
-            bar
+    private func barRow(_ bar: NowPlayingBar) -> some View {
+        bar.padding(.bottom, Spacing.xxs)
+    }
+
+    /// The swap, a toolbar button tight to the leading edge, then the field.
+    private func fieldRow<Field: View>(_ swap: String, @ViewBuilder field: () -> Field) -> some View {
+        HStack(spacing: Spacing.xxs) {
+            icon(swap).frame(width: BottomChrome.rowHeight, height: BottomChrome.rowHeight)
+            field()
         }
-        .padding(.bottom, Spacing.xxs)
     }
 
     private func band<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {

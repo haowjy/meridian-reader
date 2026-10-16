@@ -32,7 +32,7 @@ final class DesignSystemGalleryTests: XCTestCase {
         ("BottomToolbar", AnyView(BottomToolbarGallery())),
         ("MorphMenu", AnyView(MorphMenuGallery())),
         ("DownloadRow", AnyView(DownloadRowGallery())),
-        ("DownloadProgressLine", AnyView(DownloadProgressLineGallery())),
+        ("ProgressLine", AnyView(ProgressLineGallery())),
     ]
 
     func testEveryGalleryRendersInEveryVariant() throws {

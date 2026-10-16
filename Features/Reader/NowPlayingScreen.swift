@@ -18,7 +18,8 @@ import SwiftUI
 /// - The top bar, 🔖 and ⋯ are the Reader's (decision D24): ☝︎ then a tap on a paragraph plays
 ///   from there; 🔖 saves / unsaves (tap) or files the page (long-press, *Save to Folder…*); ⋯ is
 ///   the Reader's menu.
-/// - At the end it stays: the text stays, all in full ink, "✓ Finished", ▶ plays it again.
+/// - At the end it stays: the text stays, all in full ink, the title card says "✓ Finished"
+///   (the one place it shows, where the Reader shows the page's length), ▶ plays it again.
 /// - The pill or a pull down shrinks it back into the bar.
 struct NowPlayingScreen: View {
     @Bindable var speech: SpeechController
@@ -335,8 +336,8 @@ private struct SpokenText: View {
         let doc = speech.document
         let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: speech.spokenUTF16Offset,
                                              rate: speech.rateMultiplier)
-        let detail = finished ? ["✓ Finished"]
-            : [card.source, doc.isEmpty ? "" : "\(left) min left"].filter { !$0.isEmpty }
+        let detail = finished ? [ListeningTime.finishedLabel]
+            : [card.source, doc.isEmpty ? "" : ListeningTime.leftLabel(minutes: left)].filter { !$0.isEmpty }
         let letter = card.source.isEmpty ? card.title : card.source
         return ReadingTopView(
             id: [card.title, detail.joined(separator: "\n"), letter, card.artwork == nil ? "" : "artwork"],

@@ -72,7 +72,11 @@ Rules:
 - **`nowPlaying`** (`NowPlaying`): the bound page's key, canonical URL, title, source (its host,
   or the book's or series' name for a chapter), byline (the lock screen's subtitle), artwork, where it plays from
   (`PlayingFrom.folder(id:name:)` for a page in a folder, else `.site(host:)`) and phase. nil only before anything has played and after Stop
-  Listening.
+  Listening. `isFinished` (phase `.finished`) is what the bar and Now Playing read for "✓ Finished".
+- **Time left** is `ListeningTime`'s: one reading rate (180 words a minute, a word being 6 UTF-16
+  units of the listen text; a page not yet played by its stored word count), one way to write it
+  ("9 min left", "6 h 10 min left"), and an explicit playback rate at every call. The bar and Now
+  Playing count at the speed you hear; rows, folder headers, the resume bar and the Reader at 1×.
 - **`playState(of:)`** for a `ListenTarget` (`.page(key)`, `.webPage(canonicalURL:)`, compared
   as strings so a saved article with a pre-v2 random id still matches its page, or `.folder(id)`,
   current while any page of that folder is bound): `idle`,

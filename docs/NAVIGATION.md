@@ -182,7 +182,8 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
 - **The Now Playing bar** (`BandNowPlayingBar` / `NowPlayingBarView` → `NowPlayingBar`) is the
   one thing that shows what you hear: a floating card 8 pt above the field capsule with the page's
   artwork (favicon or a letter tile), its title, the site and the time left (two parts set apart
-  by space, the time in lighter ink), a thin progress line along its bottom edge, and
+  by space, the time in lighter ink; at the playback speed, written as rows write it: "9 min left",
+  "6 h 10 min left"), a thin progress line along its bottom edge, and
   play/pause centered over the ⋯ slot. It looks the same on the browser, the start page, the
   Library and the Reader sheet. At the end of a page it stays, reading "✓ Finished", and ▶ plays
   the page again. Tap or swipe up → Now Playing; long-press → *Stop Listening* (unloads the page).
@@ -507,7 +508,7 @@ Reader shows the Now Playing bar of another page above its row.
   the browser (📄, ⋯ → Reader, a Favorites tile) the pill reads *‹ Browser*; from the Library
   *‹ Library*. The pill, the grabber and a pull down all close it to exactly where you were.
 - **Listen** reads *▶ **Listen** 9 min*, *▶ **Resume** 6 min left* for a page part-way through
-  (the time in regular weight after the semibold title, left out when the pill is short of room
+  (at 1×, written as rows write it, "1 h 5 min left" past the hour; the time in regular weight after the semibold title, left out when the pill is short of room
   at large text sizes), or *▶ Listen Again* for a finished one. It starts at the page's saved spot, makes the page what you
   hear (replacing what plays) and turns the Reader into Now Playing in place, where the Reader was
   (decision D2):
@@ -557,7 +558,7 @@ Reader shows the Now Playing bar of another page above its row.
 │   paragraph in full ink, the         │
 │   sentence underlined …              │
 │            ( Jump to Audio )         │ ← after you scroll away
-│ Preparing next… / ✓ Finished         │ ← status notes, above the scrubber
+│ Preparing next…                      │ ← status notes, above the scrubber
 │ ( ━━━━━●━━━━░░░░──           1× )    │ ← the scrub capsule, the speed at its end
 │ [🔖]  [⏮]  (⏸)  [⏭]  [ ⋯ ]          │ ← 🔖 and ⋯ as in the Reader; the round ⏸ / ▶
 └──────────────────────────────────────┘
@@ -603,15 +604,16 @@ Reader shows the Now Playing bar of another page above its row.
   above the controls (no arrow: the spoken sentence may be above or below).
   Tap it (or start another page) and following resumes. Scrubbing scrolls to the paragraph under
   the thumb.
-- **At the end** it stays on the page: the text stays, all of it in full ink, a note says
-  "✓ Finished", and ▶ plays the page again.
+- **At the end** it stays on the page: the text stays, all of it in full ink, the title card
+  says "✓ Finished" where the time left was (where the Reader shows a page's length), and ▶
+  plays the page again.
 - **Controls** (today's listen rows): the scrub capsule (the speed at its trailing end) and
   `[🔖][⏮][▶︎][⏭][⋯]` in the browser's five-slot grid (🔖 under ‹, ⏮ under ›, ▶︎ under 🔖, ⏭
   under 🕘, ⋯ under ⋯). ▶︎ / ⏸ is a
   64 pt round button (accent fill, dark glyph; fixed size, like the toolbar glyphs). The row stays
   44 pt, so every slot sits where it does on the other surfaces; the disc overhangs it. ⏮ ⏭ and
   headphone / lock-screen skips are paragraph skips (D4). A sideways swipe on the row skips too.
-- **Status notes** ("Preparing next…", Apple-fallback / language notes, "✓ Finished", the
+- **Status notes** ("Preparing next…", Apple-fallback / language notes, the
   developer-only Debug chip) sit **above** the scrubber so appearing text never pushes it.
 - **⋯**: the Reader's menu for the page you hear, after *Go to <name>* (when it plays from a
   folder or the Library): *Save / Remove from Library, Move to…, Add to Favorites, Share,

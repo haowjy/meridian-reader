@@ -27,9 +27,6 @@ struct NowPlayingBar: View {
     let state: PlayState
     /// A sleep timer is set: 🌙 before the detail.
     var sleepTimerSet = false
-    /// How many toolbar slots the bar spans, ending at ⋯'s: 5 across the band (the Reader), 4
-    /// beside the band's swap (`BottomBandTopRow`). ⏸ sits over the last.
-    var spansSlots = BottomToolbarLayout.slotCount
     /// Accessibility identifier; its parts add "Open" and "PlayPause".
     var identifier = "nowPlayingBar"
     let onOpen: () -> Void
@@ -39,14 +36,13 @@ struct NowPlayingBar: View {
     /// The greyed stand-in (`placeholder`).
     private var isPlaceholder = false
 
-    /// The bar's width: ⏸ sits over its last slot.
+    /// The bar's width: it spans a full toolbar row, so ⏸ sits over ⋯'s slot.
     @State private var width: CGFloat = 0
 
     static let artworkSize: CGFloat = 36
 
     init(title: String, detail: [String], artwork: Image? = nil, artworkLetter: String = "", progress: Double,
-         state: PlayState, sleepTimerSet: Bool = false, spansSlots: Int = BottomToolbarLayout.slotCount,
-         identifier: String = "nowPlayingBar", onOpen: @escaping () -> Void, onPlayPause: @escaping () -> Void,
+         state: PlayState, sleepTimerSet: Bool = false, identifier: String = "nowPlayingBar", onOpen: @escaping () -> Void, onPlayPause: @escaping () -> Void,
          onStop: (() -> Void)?) {
         self.title = title
         self.detail = detail
@@ -55,7 +51,6 @@ struct NowPlayingBar: View {
         self.progress = progress
         self.state = state
         self.sleepTimerSet = sleepTimerSet
-        self.spansSlots = spansSlots
         self.identifier = identifier
         self.onOpen = onOpen
         self.onPlayPause = onPlayPause
@@ -64,26 +59,20 @@ struct NowPlayingBar: View {
 
     /// Nothing has played: the bar's shape, greyed, with ▶ dimmed. Same height as the bar at
     /// every text size (same rows, same controls).
-    static func placeholder(spansSlots: Int = BottomToolbarLayout.slotCount) -> NowPlayingBar {
+    static func placeholder() -> NowPlayingBar {
         var bar = NowPlayingBar(title: String(localized: "Nothing playing"),
                                 detail: [String(localized: "Pick something to play")],
-                                artworkLetter: " ", progress: 0, state: .idle, spansSlots: spansSlots,
+                                artworkLetter: " ", progress: 0, state: .idle,
                                 identifier: "nowPlayingBarPlaceholder", onOpen: {}, onPlayPause: {}, onStop: nil)
         bar.isPlaceholder = true
         return bar
     }
 
-    /// Trailing padding that centres a 44 pt control on slot 5 of a full toolbar row `rowWidth`
-    /// wide (the Reader's bar; list rows' trailing column).
+    /// Trailing padding that centres a 44 pt control on slot 5 (⋯'s) of a toolbar row `rowWidth`
+    /// wide: the bar's ⏸, list rows' trailing column.
     static func trailingPadding(rowWidth: CGFloat) -> CGFloat {
-        trailingPadding(barWidth: rowWidth, spansSlots: BottomToolbarLayout.slotCount)
-    }
-
-    /// Trailing padding that centres a 44 pt play button on the last slot of a bar `barWidth`
-    /// wide spanning `spansSlots` toolbar slots.
-    static func trailingPadding(barWidth: CGFloat, spansSlots: Int) -> CGFloat {
-        guard barWidth > 0, spansSlots > 0 else { return 0 }
-        return max(0, barWidth / CGFloat(spansSlots) / 2 - BottomChrome.minTapTarget / 2)
+        guard rowWidth > 0 else { return 0 }
+        return max(0, BottomToolbarLayout.slotWidth(rowWidth: rowWidth) / 2 - BottomChrome.minTapTarget / 2)
     }
 
     var body: some View {
@@ -126,7 +115,7 @@ struct NowPlayingBar: View {
                 .accessibilityIdentifier(identifier + "PlayPause")
         }
         .padding(.leading, Spacing.xs)
-        .padding(.trailing, Self.trailingPadding(barWidth: width, spansSlots: spansSlots))
+        .padding(.trailing, Self.trailingPadding(rowWidth: width))
         .padding(.vertical, Spacing.xs)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay(alignment: .bottom) {

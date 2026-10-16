@@ -15,14 +15,14 @@ struct NowPlayingBarView: View {
 
     var body: some View {
         if let now = speech.nowPlaying, !shell.isNowPlayingPresented, shell.sheet == nil {
-            BarProgress(speech: speech, now: now, spansSlots: BottomToolbarLayout.slotCount)
+            BarProgress(speech: speech, now: now)
                 .transition(.opacity)
         }
     }
 }
 
-/// The Now Playing bar in the band the browser and the Library share (`SurfaceBand`), across
-/// toolbar slots 2–5. It is always there, at one height, so the band never changes size:
+/// The Now Playing bar in the band the browser and the Library share (`SurfaceBand`), the full
+/// width of its first row. It is always there, at one height, so the band never changes size:
 ///
 /// - what you hear, as in the Reader (`speech.nowPlaying`);
 /// - nothing bound (before anything plays this launch, after Stop Listening): the page played
@@ -40,8 +40,6 @@ struct BandNowPlayingBar: View {
     @Environment(LibraryStore.self) private var library
     @Query(LibraryQueries.lastPlayed) private var lastPlayed: [Page]
 
-    private static let slots = BottomBandTopRow.barSlots
-
     private var isHidden: Bool {
         isCovered || shell.isNowPlayingPresented || shell.sheet != nil
     }
@@ -49,15 +47,15 @@ struct BandNowPlayingBar: View {
     var body: some View {
         Group {
             if isHidden {
-                NowPlayingBar.placeholder(spansSlots: Self.slots)
+                NowPlayingBar.placeholder()
                     .hidden()
                     .accessibilityHidden(true)
             } else if let now = speech.nowPlaying {
-                BarProgress(speech: speech, now: now, spansSlots: Self.slots)
+                BarProgress(speech: speech, now: now)
             } else if let page = lastPlayed.first(where: \.isLive) {
                 ResumeBar(page: page, actions: LibraryActions(library: library, speech: speech, shell: shell))
             } else {
-                NowPlayingBar.placeholder(spansSlots: Self.slots)
+                NowPlayingBar.placeholder()
             }
         }
         .transition(.opacity)
@@ -69,9 +67,9 @@ struct BandNowPlayingBar: View {
 private struct BarProgress: View {
     let speech: SpeechController
     let now: NowPlaying
-    let spansSlots: Int
 
     @Environment(ShellState.self) private var shell
+    @State private var cover = BarCover()
 
     var body: some View {
         let doc = speech.document
@@ -79,12 +77,11 @@ private struct BarProgress: View {
         let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: offset, rate: speech.rateMultiplier)
         NowPlayingBar(
             title: now.title,
-            detail: now.isFinished ? ["✓ Finished"] : [now.source, "\(left) min left"],
-            artwork: now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
+            detail: now.isFinished ? [ListeningTime.finishedLabel] : [now.source, ListeningTime.leftLabel(minutes: left)],
+            artwork: cover.image(for: now.pageKey, data: now.artwork),
             artworkLetter: now.source.isEmpty ? now.title : now.source,
             progress: doc.progress(atUTF16Offset: offset),
             state: speech.playState(of: .page(now.pageKey)),
-            spansSlots: spansSlots,
             onOpen: shell.showNowPlaying,
             onPlayPause: speech.pressNowPlaying,
             onStop: speech.stop
@@ -99,13 +96,15 @@ private struct ResumeBar: View {
     let page: Page
     let actions: LibraryActions
 
+    @State private var cover = BarCover()
+
     var body: some View {
         // A delete being saved can redraw this once more after the page's data is gone; reading
         // it then traps (`isLive`), so the placeholder stands in.
         if page.isLive {
             bar
         } else {
-            NowPlayingBar.placeholder(spansSlots: BottomBandTopRow.barSlots)
+            NowPlayingBar.placeholder()
         }
     }
 
@@ -114,11 +113,10 @@ private struct ResumeBar: View {
         NowPlayingBar(
             title: page.title,
             detail: detail(progress),
-            artwork: page.artworkData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
+            artwork: cover.image(for: page.listenKey, data: page.artworkData),
             artworkLetter: source.isEmpty ? page.title : source,
             progress: fraction(progress),
             state: actions.playState(of: page),
-            spansSlots: BottomBandTopRow.barSlots,
             identifier: "nowPlayingBarResume",
             onOpen: { actions.open(page) },
             onPlayPause: { actions.play(page) },
@@ -134,8 +132,8 @@ private struct ResumeBar: View {
 
     private func detail(_ progress: ListRow.Progress) -> [String] {
         switch progress {
-        case .partWay(_, let minutesLeft): [source, String(localized: "\(minutesLeft) min left")]
-        case .finished: ["✓ Finished"]
+        case .partWay(_, let minutesLeft): [source, ListeningTime.leftLabel(minutes: minutesLeft)]
+        case .finished: [ListeningTime.finishedLabel]
         default: [source]
         }
     }
@@ -146,5 +144,23 @@ private struct ResumeBar: View {
         case .finished: 1
         default: 0
         }
+    }
+}
+
+/// The bar's cover, decoded once per page: the bar redraws several times a second while playing,
+/// and a fresh `UIImage` each pass would decode the picture again. Not observed: filling it
+/// redraws nothing.
+private final class BarCover {
+    private var key: UUID?
+    private var data: Data?
+    private var image: Image?
+
+    func image(for key: UUID, data: Data?) -> Image? {
+        if key != self.key || data != self.data {
+            self.key = key
+            self.data = data
+            image = data.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))
+        }
+        return image
     }
 }

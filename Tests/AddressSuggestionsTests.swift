@@ -54,9 +54,7 @@ final class AddressSuggestionsTests: XCTestCase {
         XCTAssertFalse(URL(string: "reader-test://pages/one")!.isWeb)
     }
 
-    func testEstimatedMinutes() {
+    func testWordCount() {
         XCTAssertEqual(SavedArticle.wordCount(of: "one two\n\nthree"), 3)
-        XCTAssertEqual(SavedArticle.estimatedMinutes(words: 0), 1)
-        XCTAssertEqual(SavedArticle.estimatedMinutes(words: 201), 2)
     }
 }

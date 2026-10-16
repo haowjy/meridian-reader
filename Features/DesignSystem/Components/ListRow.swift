@@ -294,7 +294,7 @@ struct ListRow: View {
         switch (kind, progress) {
         case (_, .unplayed(let minutes?)): return ListeningTime.label(minutes: minutes)
         case (_, .unplayed(nil)): return nil
-        case (_, .partWay(_, let left)): return "\(ListeningTime.label(minutes: left)) left"
+        case (_, .partWay(_, let left)): return ListeningTime.leftLabel(minutes: left)
         case (.chapter, .finished): return String(localized: "Finished")
         case (_, .finished): return String(localized: "✓ Finished")
         case (_, .skipped): return String(localized: "skipped")
@@ -315,7 +315,7 @@ struct ListRow: View {
             switch progress {
             case .unplayed(let minutes?): parts.append(ListeningTime.label(minutes: minutes))
             case .unplayed(nil): break
-            case .partWay(_, let left): parts.append("\(ListeningTime.label(minutes: left)) left")
+            case .partWay(_, let left): parts.append(ListeningTime.leftLabel(minutes: left))
             case .finished: parts.append("Finished")
             case .skipped: parts.append("Skipped in playback")
             }

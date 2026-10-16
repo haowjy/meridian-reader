@@ -131,11 +131,8 @@ final class PlaybackRateAndChromeTests: XCTestCase {
         XCTAssertEqual(BottomToolbarLayout.slot(named: 2, forSubview: 1), 2)
         XCTAssertEqual((0..<5).map { BottomToolbarLayout.slot(named: nil, forSubview: $0) }, [0, 1, 2, 3, 4])
         XCTAssertEqual(BottomToolbarLayout.slot(named: 9, forSubview: 0), 4, "within the row")
-        // The Now Playing bar's play/pause centered on slot 5 (the ⋯ column): full width (the
-        // Reader), and across slots 2–5 beside the band's swap.
-        let pad = NowPlayingBar.trailingPadding(barWidth: width, spansSlots: 5)
+        // The Now Playing bar's play/pause centered on slot 5 (the ⋯ column) of a full-width bar.
+        let pad = NowPlayingBar.trailingPadding(rowWidth: width)
         XCTAssertEqual(width - pad - BottomChrome.minTapTarget / 2, centers[4], accuracy: 1e-9)
-        // The band's bar is full width too (D23): Now Playing alone in row 1.
-        XCTAssertEqual(BottomBandTopRow.barSlots, 5)
     }
 }

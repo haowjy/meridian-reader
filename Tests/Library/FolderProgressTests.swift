@@ -36,6 +36,34 @@ final class FolderProgressTests: XCTestCase {
         XCTAssertEqual(progress.buttonTitle.title, "Continue", "and its button continues")
     }
 
+    /// Long words: the stored word count says far less than the listen text's length does. The
+    /// part-way page's whole and its time left come from one measure, so what is left never
+    /// exceeds the whole and the fraction stays in 0…1.
+    func testAPartWayFolderNeverHasMoreLeftThanItsWhole() throws {
+        let folder = try library.makeFolder(name: "Words", in: nil)
+        let paragraph = Array(repeating: "internationalization", count: 200).joined(separator: " ")
+        let pages = try (1...3).map {
+            try library.save(env.article("https://example.com/long-\($0)", title: "Long \($0)",
+                                         paragraphs: Array(repeating: paragraph, count: 10)))
+        }
+        try library.move(pages.map(LibraryItem.page), to: folder)
+        let ordered = library.playOrder(of: folder)
+        library.recordPosition(ordered[0], paragraph: 1, utf16Offset: 0)
+        try library.setFinished([ordered[2]], true)
+        let progress = FolderProgress(folder: folder, pages: ordered, playingKey: nil, library: library)
+
+        let fraction = try XCTUnwrap(progress.fraction)
+        XCTAssertGreaterThan(fraction, 0)
+        XCTAssertLessThanOrEqual(fraction, 1)
+        XCTAssertGreaterThan(progress.minutesLeft, 0)
+        XCTAssertFalse(progress.header.label.first?.hasPrefix("-") ?? true, progress.header.label.description)
+        guard case .partWay(let pageFraction, let pageLeft) = PageProgress.of(ordered[0]) else {
+            return XCTFail("the first page is part-way")
+        }
+        XCTAssertGreaterThan(pageFraction, 0)
+        XCTAssertLessThanOrEqual(pageLeft, try XCTUnwrap(PageProgress.spot(of: ordered[0])).minutes)
+    }
+
     func testThePagePlayingNamesTheButton() throws {
         let (folder, pages) = try folder(with: 2)
         let progress = FolderProgress(folder: folder, pages: pages, playingKey: pages[1].listenKey, library: library)

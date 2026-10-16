@@ -438,8 +438,11 @@ final class NowPlayingUITests: XCTestCase {
         // The last paragraph, then let it finish.
         app.buttons["Next paragraph"].tap()
         app.buttons["Next paragraph"].tap()
-        let finished = find(app, "nowPlayingFinished")
-        XCTAssertTrue(finished.waitForExistence(timeout: 45), "✓ Finished")
+        let card = find(app, "nowPlayingTitleCard")
+        XCTAssertTrue(eventually(45) { card.label.contains("✓ Finished") }, "✓ Finished, on the title card: \(card.label)")
+        let elsewhere = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Finished"))
+            .allElementsBoundByIndex.filter { !card.frame.contains($0.frame) }
+        XCTAssertTrue(elsewhere.isEmpty, "shown once, not again under the text: \(elsewhere.map(\.label))")
         XCTAssertTrue(find(app, "nowPlayingHeader").exists, "Now Playing stays on the page")
         XCTAssertEqual(play.label, "Play", "with ▶")
 
@@ -450,6 +453,42 @@ final class NowPlayingUITests: XCTestCase {
         find(app, "nowPlayingBarPlayPause").tap()
         XCTAssertTrue(eventually(5) { self.find(app, "nowPlayingBarPlayPause").label == "Pause" }, "▶ plays it again")
         find(app, "nowPlayingBarPlayPause").tap()
+    }
+
+    /// The bar writes the time left as the page's row does (at 1×, both count at 1×): past the
+    /// hour, "1 h 23 min left", for the same spot before and after Stop Listening.
+    func testTheBarWritesTimeLeftAsTheRowDoes() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoParagraphs", "500", "-openLibrary",
+                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"]
+        app.launch()
+        openNowPlayingFromTheLibrary(app)
+        app.buttons["Next paragraph"].tap()
+        app.buttons["Next paragraph"].tap()
+        let play = app.buttons["listenPlayPause"]
+        XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
+        play.tap()
+        XCTAssertTrue(eventually(5) { play.label == "Play" }, "paused")
+        app.buttons["readerClose"].tap()
+
+        let bar = find(app, "nowPlayingBarOpen")
+        XCTAssertTrue(bar.waitForExistence(timeout: 5), "the bar, on the Library")
+        let barLeft = try XCTUnwrap(Self.timeLeft(in: bar.label), bar.label)
+        XCTAssertNotNil(barLeft.firstMatch(of: #/^\d+ h( \d+ min)? left$/#), "hours and minutes: \(barLeft)")
+
+        find(app, "nowPlayingBar").press(forDuration: 1.0)
+        let stop = app.buttons["Stop Listening"]
+        XCTAssertTrue(stop.waitForExistence(timeout: 5), "the bar's long-press")
+        stop.tap()
+        let row = app.cells.staticTexts["Demo Listen Article"]
+        XCTAssertTrue(eventually(5) { (row.value as? String)?.contains("left") == true },
+                      "the row shows its time left once nothing plays: \(String(describing: row.value))")
+        XCTAssertEqual((row.value as? String).flatMap(Self.timeLeft(in:)), barLeft, "the row says what the bar said")
+    }
+
+    /// "1 h 23 min left", "6 min left" or "2 h left" out of an accessibility label.
+    private static func timeLeft(in label: String) -> String? {
+        label.firstMatch(of: #/(\d+ h \d+ min|\d+ h|\d+ min) left/#).map { String($0.output.0) }
     }
 
     // MARK: - Helpers

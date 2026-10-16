@@ -12,7 +12,7 @@ struct RootView: View {
             .overlay(alignment: .top) {
                 if let notice = speech.localTTS.engineCrashNotice {
                     EngineNoticeBanner(text: notice) { speech.localTTS.dismissCrashNotice() }
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, Spacing.s)
                         .transition(.slideAndFade(from: .top, reduceMotion: reduceMotion))
                 }
             }
@@ -29,31 +29,33 @@ struct RootView: View {
 }
 
 /// One-line, dismissible notice (e.g. "Kokoro stopped unexpectedly; resumed on the stable route.").
+/// The ✕ fills a 44 pt square at the trailing end, so the banner is at least that tall.
 struct EngineNoticeBanner: View {
     let text: String
     let onDismiss: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.xs) {
             Image(systemName: Icons.warning)
                 .foregroundStyle(.orange)
             Text(text)
-                .font(.footnote)
+                .typeStyle(.caption)
                 .lineLimit(text.count <= 64 ? 1 : 3)
                 .minimumScaleFactor(0.75)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, Spacing.xs)
             Button(action: onDismiss) {
                 Image(systemName: Icons.close)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(6)
+                    .typeStyle(.caption, weight: .semibold)
+                    .foregroundStyle(Palette.secondaryInk)
+                    .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Dismiss")
             .accessibilityIdentifier("engineNoticeDismiss")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.leading, Spacing.s)
         .background(.regularMaterial, in: Capsule())
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("engineNotice")

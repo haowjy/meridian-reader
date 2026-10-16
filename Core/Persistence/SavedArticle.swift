@@ -74,9 +74,4 @@ extension SavedArticle {
     nonisolated static func wordCount(of text: String) -> Int {
         text.split { $0.isWhitespace || $0.isNewline }.count
     }
-
-    /// Listening / reading time at 200 words a minute, at least one minute.
-    nonisolated static func estimatedMinutes(words: Int) -> Int {
-        max(1, Int((Double(words) / 200.0).rounded(.up)))
-    }
 }

@@ -69,7 +69,7 @@ struct FolderHeader<Actions: View>: View {
             }
             if let progress {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    ThinProgressBar(value: progress)
+                    ProgressLine(fraction: progress, height: ProgressLine.barHeight, track: .groove)
                     if !progressLabel.isEmpty { progressLine }
                 }
                 .accessibilityElement(children: .ignore)
