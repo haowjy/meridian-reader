@@ -10,6 +10,8 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         let paragraphIndex: Int
         let fileURL: URL
         let source: UnitSource
+        /// Seconds of audio in `fileURL` (at 1×), read once when the unit was made.
+        let duration: TimeInterval
         /// Start offset into `fileURL` (a chunk boundary of a stitched paragraph, or a
         /// sub-paragraph start).
         var startTime: TimeInterval = 0
@@ -79,19 +81,8 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
     var bufferedSecondsAhead: TimeInterval {
         var total = 0.0
         if let player, current != nil { total += max(0, player.duration - player.currentTime) }
-        for item in queue { total += max(0, fileDuration(item.fileURL) - item.startTime) }
+        for item in queue { total += max(0, item.duration - item.startTime) }
         return total
-    }
-
-    private var durationCache: [String: TimeInterval] = [:]
-
-    private func fileDuration(_ url: URL) -> TimeInterval {
-        if let d = durationCache[url.path] { return d }
-        guard let f = try? AVAudioFile(forReading: url), f.fileFormat.sampleRate > 0 else { return 0 }
-        let d = Double(f.length) / f.fileFormat.sampleRate
-        if durationCache.count > 256 { durationCache.removeAll() }
-        durationCache[url.path] = d
-        return d
     }
     var canAcceptMore: Bool { bufferedCount < maxBuffered }
     var isAudible: Bool { player?.isPlaying == true }
@@ -188,7 +179,6 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         discardPrime()
         queue.removeAll()
         unitEndedAt = nil
-        durationCache.removeAll()
         done.forEach { onItemDone?($0) }
     }
 

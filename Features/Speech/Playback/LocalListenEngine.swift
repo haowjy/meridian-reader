@@ -85,7 +85,7 @@ final class LocalListenEngine: ListenEngine {
         let generation = playGeneration
         document = request.document
         let source = QueueUnitSource(coordinator: coordinator, articleID: request.articleID,
-                                     paragraphs: document.paragraphs, appleVoiceID: request.appleVoice?.identifier)
+                                     paragraphs: document.paragraphs)
         self.source = source
         let queue = coordinator.synthQueue
         mapper = ListenPositionMapper(document: document) { queue.chunkTexts(for: $0) }
@@ -104,12 +104,11 @@ final class LocalListenEngine: ListenEngine {
             "worker_p": queue.activeBakeIndex ?? -1,
         ])
         // Reshuffle the global queue: this article #1, cursor at the playhead.
-        coordinator.prioritizeListen(
+        coordinator.openArticle(
             cacheKey: request.articleID,
-            playhead: start.paragraph,
             paragraphs: document.paragraphs,
-            voiceID: coordinator.cacheVoiceID(appleVoice: request.appleVoice?.identifier),
-            isEphemeral: coordinator.audioCache.loadMeta(for: request.articleID)?.kind == .ephemeral
+            from: start.paragraph,
+            isEphemeral: coordinator.audioCache.isEphemeral(request.articleID)
         )
         if !request.startPaused { startClock() }
         Task { @MainActor in
@@ -187,7 +186,8 @@ final class LocalListenEngine: ListenEngine {
             producerActive: player.isProducing, epoch: player.debugEpoch,
             currentCAF: player.debugCurrentCAF, secondsSinceEnqueue: player.debugSecondsSinceEnqueue,
             lastHandoffGapMs: player.debugLastHandoffGapMs, lastHandoffWasPrimed: player.debugLastHandoffWasPrimed,
-            starveEventCount: player.debugStarveEventCount, renderMode: renderMode, readyAhead: readyAhead)
+            starveEventCount: player.debugStarveEventCount, renderMode: renderMode,
+            renderedParagraphsAhead: renderedParagraphsAhead)
     }
 
     /// How audio is produced right now (route, app phase).
@@ -211,7 +211,7 @@ final class LocalListenEngine: ListenEngine {
     }
 
     /// Consecutive paragraphs after the playing one already rendered in the current voice.
-    private var readyAhead: Int {
+    private var renderedParagraphsAhead: Int {
         guard let source else { return 0 }
         var n = 0
         var i = paragraph + 1

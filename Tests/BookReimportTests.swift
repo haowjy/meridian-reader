@@ -179,8 +179,7 @@ final class BookReimportTests: XCTestCase {
         let book = try addBook()
         try env.storeAudio(two, paragraphs: textTwo)
         try env.storeAudio(three, paragraphs: textThree)
-        PendingBakeJobStore.shared.enqueuePending(articleID: three, paragraphs: textThree, voiceID: "voiceA",
-                                                  plan: .topDown(paragraphCount: 3))
+        PendingBakeJobStore.shared.enqueuePending(articleID: three, paragraphs: textThree, priorityStart: 0)
         let dropped = three
         addTeardownBlock { @MainActor in PendingBakeJobStore.shared.removePending(articleID: dropped) }
         library.recordPlayback(ReaderArticle(page: try XCTUnwrap(page(three))))
@@ -311,8 +310,7 @@ final class BookReimportTests: XCTestCase {
         let book = try addBook()
         for (key, text) in [(one, textOne), (two, textTwo), (three, textThree)] {
             try env.storeAudio(key, paragraphs: text)
-            PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: text, voiceID: "voiceA",
-                                                      plan: .topDown(paragraphCount: 3))
+            PendingBakeJobStore.shared.enqueuePending(articleID: key, paragraphs: text, priorityStart: 0)
         }
         let keys = [one, two, three]
         addTeardownBlock { @MainActor in for key in keys { PendingBakeJobStore.shared.removePending(articleID: key) } }

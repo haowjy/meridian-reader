@@ -50,6 +50,16 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
 - **Per-tick cost.** The live offset changes several times a second. Read it only in leaf views
   (`PlayheadReader`, the Now Playing bar's progress, Now Playing's sentence underline); reading it
   in a screen's body redraws the screen on every tick.
+- **One render target.** The render queue renders only for `LocalTTSCoordinator.renderTarget`
+  (the loaded engine in its selected voice), read at each step; no job, pending job or entry
+  point carries a voice. Code that renders, checks readiness or files audio reads the target;
+  code that changes the engine's state or voice tells the queue (`renderTargetChanged`, from
+  `engineStateChanged` and `setVoice`). With no target the queue parks: nothing may build a host
+  for it, a model loads only when it is selected (`RenderTargetTests`).
+- **What still needs audio** is decided only by `ArticleAudioCache.missingParagraphs` (a
+  paragraph with chunks and no CAF in the voice; a bare "—" is never missing). Anything new that
+  asks "is this rendered / done" calls it rather than counting `readyIndices` against the
+  paragraph count.
 - **Model calls.** One at a time (`SynthRenderGate`), never a Core ML call in the background
   (`RenderAdmission`; the Core ML route's `KokoroSplitHost` switches itself to ONNX there for the
   rest of the process). Every extra Kokoro call is exposure to an uncatchable crash on iOS 26.4+, so
@@ -70,7 +80,8 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
 - **`renderObserver` is told inside the queue's work** (`noteBakeMarksChanged` runs mid drain,
   `bakeCompleted` from the worker): an observer acts later, never re-entering the queue in the
   call.
-- **Chunk plans are data.** Live playback and bake-ahead share one deterministic plan per text;
+- **Chunk plans are data.** Live playback and bake-ahead share one deterministic plan per text
+  and engine, from one owner (`LocalTTSCoordinator.chunkPlans`);
   stitched paragraphs store `chunkDurations` by it. Changing `TextChunker` limits or rules changes
   plans: stitched audio stays playable, but mid-paragraph seek offsets into old audio drift until
   it re-renders. Decide whether that needs a cache purge (`KokoroAudioCachePurge` bumps a version).

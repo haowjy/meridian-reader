@@ -37,8 +37,8 @@ final class PlaybackRateAndChromeTests: XCTestCase {
         defer { queue.clear() }
         var started: [Int] = []
         queue.onUnitStarted = { started.append($0.paragraphIndex) }
-        queue.enqueue(.init(paragraphIndex: 0, fileURL: try makeTone(seconds: 3), source: .baked))
-        queue.enqueue(.init(paragraphIndex: 1, fileURL: try makeTone(seconds: 0.6), source: .baked))
+        queue.enqueue(.init(paragraphIndex: 0, fileURL: try makeTone(seconds: 3), source: .baked, duration: 3))
+        queue.enqueue(.init(paragraphIndex: 1, fileURL: try makeTone(seconds: 0.6), source: .baked, duration: 0.6))
         spin(0.5)
         guard let before = queue.currentPosition else { return XCTFail("nothing playing") }
         XCTAssertEqual(before.item.paragraphIndex, 0)
@@ -56,7 +56,7 @@ final class PlaybackRateAndChromeTests: XCTestCase {
         // The next unit starts at the new speed; clear() keeps it (a setting, not queue state).
         queue.clear()
         XCTAssertEqual(queue.playbackRate, 1.5)
-        queue.enqueue(.init(paragraphIndex: 2, fileURL: try makeTone(seconds: 1), source: .baked))
+        queue.enqueue(.init(paragraphIndex: 2, fileURL: try makeTone(seconds: 1), source: .baked, duration: 1))
         XCTAssertEqual(queue.currentPlayerRate, 1.5)
     }
 

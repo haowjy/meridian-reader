@@ -228,16 +228,13 @@ extension LibraryStore {
         }
         let cache = tts.audioCache
         if work.stampsSource { try cache.stampMissingHashes(articleID: key, paragraphs: work.sourceParagraphs) }
-        let rec = try cache.reconcile(articleID: key, paragraphs: new) { self.tts.chunkPlan(engineID: $0, text: $1) }
+        let rec = try cache.reconcile(articleID: key, paragraphs: new) { self.tts.chunkPlans.chunks(for: $1, engineID: $0) }
         guard cache.isAligned(articleID: key, paragraphs: new) else { throw LibraryAudioWorkError.notAligned(key) }
         let pending = PendingBakeJobStore.shared
         if let job = pending.pendingJobs().first(where: { $0.articleID == key }), job.paragraphs != new {
             let start = ParagraphPositionMap.mapParagraphStart(job.priorityStart, from: ParagraphDocument(parts: job.paragraphs),
                                                                to: ParagraphDocument(parts: new))
-            pending.enqueuePending(articleID: key, paragraphs: new, voiceID: job.voiceID,
-                                   plan: BakePriorityPlan(priorityStart: start,
-                                                          fillGapsFromTopAfterPriority: job.fillGapsFromTopAfterPriority,
-                                                          paragraphCount: new.count))
+            pending.enqueuePending(articleID: key, paragraphs: new, priorityStart: start)
         }
         moveResumePoints(work, onto: new, live: live)
         ListenTimingLog.log("library_audio_work", [
@@ -300,7 +297,7 @@ extension LibraryStore {
             try cache.rekeyCache(from: from, to: to)
         } else {
             rec = try cache.reconcile(articleID: to, paragraphs: paragraphs, adopting: from) {
-                self.tts.chunkPlan(engineID: $0, text: $1)
+                self.tts.chunkPlans.chunks(for: $1, engineID: $0)
             }
         }
         guard !cache.hasDirectory(for: from), paragraphs.isEmpty || cache.isAligned(articleID: to, paragraphs: paragraphs) else {

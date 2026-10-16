@@ -343,9 +343,10 @@ final class LocalListenPlayer {
                 // Rendered paragraph (all chunks stitched) → play the whole CAF.
                 if nextProduceChunk == 0, let rendered = source.renderedParagraph(index) {
                     nextProduceIndex = index + 1
-                    let start = consumeStartTime(fileURL: rendered.url, chunk: 0, fileStartTime: 0,
+                    let start = consumeStartTime(fileDuration: rendered.duration, chunk: 0, fileStartTime: 0,
                                                  wholeParagraph: true, chunkDurations: rendered.chunkDurations)
-                    player.enqueue(.init(paragraphIndex: index, fileURL: rendered.url, source: .baked, startTime: start,
+                    player.enqueue(.init(paragraphIndex: index, fileURL: rendered.url, source: .baked,
+                                         duration: rendered.duration, startTime: start,
                                          chunkDurations: rendered.chunkDurations))
                     continue
                 }
@@ -366,11 +367,14 @@ final class LocalListenPlayer {
                 do {
                     let resolution = try await source.chunk(paragraph: index, chunk: k)
                     guard e == epoch else { return }
+                    let duration = await Self.duration(of: resolution.fileURL)
+                    guard e == epoch else { return }
                     switch resolution {
                     case .chunk(let url):
-                        let start = consumeStartTime(fileURL: url, chunk: k, fileStartTime: 0,
+                        let start = consumeStartTime(fileDuration: duration, chunk: k, fileStartTime: 0,
                                                      wholeParagraph: false, chunkDurations: nil)
-                        player.enqueue(.init(paragraphIndex: index, fileURL: url, source: .chunk(k), startTime: start))
+                        player.enqueue(.init(paragraphIndex: index, fileURL: url, source: .chunk(k), duration: duration,
+                                             startTime: start))
                         if k + 1 >= chunks.count {
                             nextProduceIndex = index + 1
                             nextProduceChunk = 0
@@ -380,10 +384,10 @@ final class LocalListenPlayer {
                     case .paragraph(let url, let startTime):
                         // Paragraph finished (scratch gone) — play the rest from the stitched CAF.
                         let durations = source.chunkDurations(paragraph: index)
-                        let start = consumeStartTime(fileURL: url, chunk: k, fileStartTime: startTime,
+                        let start = consumeStartTime(fileDuration: duration, chunk: k, fileStartTime: startTime,
                                                      wholeParagraph: true, chunkDurations: durations)
                         player.enqueue(.init(paragraphIndex: index, fileURL: url, source: .stitched(fromChunk: k),
-                                             startTime: start, chunkDurations: durations))
+                                             duration: duration, startTime: start, chunkDurations: durations))
                         nextProduceIndex = index + 1
                         nextProduceChunk = 0
                     }
@@ -411,8 +415,8 @@ final class LocalListenPlayer {
     /// Start time for the first unit after a sub-paragraph speak (`pendingStartFraction` of chunk
     /// `chunk`), then 0 for every later unit. `fileStartTime` = where chunk `chunk` begins in the
     /// file (stitched paragraph) — the fraction is applied to that chunk's duration
-    /// (`chunkDurations`, the paragraph file's index entry).
-    private func consumeStartTime(fileURL: URL, chunk: Int, fileStartTime: TimeInterval,
+    /// (`chunkDurations`, the paragraph file's index entry). `fileDuration`: the unit's file.
+    private func consumeStartTime(fileDuration: TimeInterval, chunk: Int, fileStartTime: TimeInterval,
                                   wholeParagraph: Bool, chunkDurations: [TimeInterval]?) -> TimeInterval {
         let fraction = pendingStartFraction
         pendingStartFraction = 0
@@ -422,17 +426,17 @@ final class LocalListenPlayer {
             if let durations = chunkDurations, durations.indices.contains(chunk) {
                 chunkDuration = durations[chunk]
             } else {
-                chunkDuration = max(0, Self.audioDuration(fileURL) - fileStartTime) // single chunk: the whole file
+                chunkDuration = max(0, fileDuration - fileStartTime) // single chunk: the whole file
             }
         } else {
-            chunkDuration = Self.audioDuration(fileURL)
+            chunkDuration = fileDuration
         }
         return max(fileStartTime, fileStartTime + chunkDuration * fraction - Self.subChunkLeadIn)
     }
 
-    private static func audioDuration(_ url: URL) -> TimeInterval {
-        guard let f = try? AVAudioFile(forReading: url), f.fileFormat.sampleRate > 0 else { return 0 }
-        return Double(f.length) / f.fileFormat.sampleRate
+    /// A unit file's length, read off the main actor (`LocalPCMWriter.duration`).
+    private static func duration(of url: URL) async -> TimeInterval {
+        await Task.detached(priority: .userInitiated) { LocalPCMWriter.duration(of: url) }.value
     }
 
     /// Head-start rule: on a route that keeps rendering while audio plays (ONNX CPU), if the
@@ -496,7 +500,7 @@ final class LocalListenPlayer {
         let url = tempDir.appendingPathComponent("apple-\(e)-\(index)-\(fromChunk)-\(fallbackRenders).caf")
         let t0 = ListenTimingLog.now()
         do {
-            try await source.renderApple(remainder, to: url)
+            let duration = try await source.renderApple(remainder, to: url)
             guard e == epoch else {
                 Self.deleteFallbackFile(url)
                 return
@@ -506,7 +510,7 @@ final class LocalListenPlayer {
                                                    "engine": engine, "local_err": error.localizedDescription])
             let queued = ArticleAudioCache.hasAudio(at: url)
                 && player.enqueue(.init(paragraphIndex: index, fileURL: url,
-                                        source: .appleFallback(fromChunk: fromChunk, reason: reason)))
+                                        source: .appleFallback(fromChunk: fromChunk, reason: reason), duration: duration))
             if !queued { Self.deleteFallbackFile(url) }
         } catch {
             Self.deleteFallbackFile(url)

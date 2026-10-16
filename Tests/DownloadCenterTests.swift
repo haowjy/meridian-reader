@@ -44,8 +44,7 @@ final class DownloadCenterTests: XCTestCase {
 
     func testAPageAlreadyRenderedIsDoneWithoutAModelCall() async throws {
         let page = try env.savedPage("https://example.com/ready")
-        tts.startBakeIfNeeded(articleID: page.listenKey, paragraphs: page.listenDocument().paragraphs,
-                              voiceID: tts.downloadVoice!)
+        tts.startBakeIfNeeded(articleID: page.listenKey, paragraphs: page.listenDocument().paragraphs)
         try await env.waitForQueueIdle()
         XCTAssertTrue(env.isReady(page))
         let calls = env.provider.lastHost?.calls.count
@@ -130,8 +129,7 @@ final class DownloadCenterTests: XCTestCase {
     func testADownloadWaitsBehindTheArticleThatPlays() async throws {
         env.provider.config.latency = 0.02
         let playing = UUID()
-        tts.synthQueue.openArticle(cacheKey: playing, paragraphs: env.paragraphs(30, tag: "Playing"),
-                                   voiceID: tts.downloadVoice!, isEphemeral: false)
+        tts.synthQueue.enqueue(cacheKey: playing, paragraphs: env.paragraphs(30, tag: "Playing"), isEphemeral: false, at: .front)
         let page = try env.savedPage("https://example.com/later")
 
         _ = center.download(page)
@@ -146,7 +144,6 @@ final class DownloadCenterTests: XCTestCase {
     /// next chapter staged: the playhead to the chapter's end, the next chapter's opening, the
     /// paragraphs above the playhead, and only then the download.
     func testTheCurrentChapterAndWhatComesNextRenderBeforeADownloadQueuedFirst() async throws {
-        let voice = try XCTUnwrap(tts.downloadVoice)
         func text(_ tag: String, _ count: Int) -> [String] { (0..<count).map { "\(tag) \($0) ends." } }
         let queue = tts.synthQueue
         queue.isHeldForLaunch = true // the queue's shape first, then let it run
@@ -157,8 +154,8 @@ final class DownloadCenterTests: XCTestCase {
 
         let chapter = UUID(), next = UUID()
         env.clearCalls()
-        tts.prioritizeListen(cacheKey: chapter, playhead: 2, paragraphs: text("Chapter", 4), voiceID: voice)
-        XCTAssertTrue(tts.stageNextChapter(cacheKey: next, after: chapter, paragraphs: text("Next", 5), voiceID: voice))
+        tts.openArticle(cacheKey: chapter, paragraphs: text("Chapter", 4), from: 2, isEphemeral: false)
+        XCTAssertTrue(tts.stageNextChapter(cacheKey: next, after: chapter, paragraphs: text("Next", 5)))
         queue.isHeldForLaunch = false
         try await env.waitUntil { self.center.overview.done.count == 1 }
 
@@ -296,7 +293,7 @@ final class DownloadCenterTests: XCTestCase {
     func testWithApplesVoiceDownloadsWaitForAnOnDeviceVoice() async throws {
         let page = try env.savedPage("https://example.com/apple")
         await tts.selectEngine(.apple)
-        XCTAssertFalse(tts.rendersDownloads)
+        XCTAssertFalse(tts.wantsLocalBake)
         XCTAssertEqual(tts.downloadVoice, "fake.alpha", "still names the voice downloads will use")
 
         _ = center.download(page)

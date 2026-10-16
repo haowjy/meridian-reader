@@ -17,7 +17,7 @@ final class AppleSpeechProvider: SpeechEngineProvider {
         voices: [], // Apple voices are picked in the separate "Apple voice" section
         defaultVoiceID: nil,
         voiceDefaultsKey: "reader.selectedVoiceIdentifier",
-        cacheVoiceKey: .appleVoice,
+        cacheVoicePrefix: nil,
         limits: .tenSecondCall, // only used to split Apple *fallback* text; any sane size works
         hardware: .none,
         supportsBakeCache: false,

@@ -56,12 +56,12 @@ final class BakeThrottleTests: XCTestCase {
         queue.bakeConditions = { conditions }
         let key = UUID()
 
-        queue.openArticle(cacheKey: key, paragraphs: paras, voiceID: "v", isEphemeral: false)
+        queue.enqueue(cacheKey: key, paragraphs: paras, isEphemeral: false, at: .front)
         try await waitIdle(queue)
         XCTAssertTrue(ctx.renders.isEmpty, "saved-article bake waits while the device is hot")
 
         _ = try await queue.ensureChunk(cacheKey: key, paragraphIndex: 1, chunk: 0, text: paras[1],
-                                        paragraphs: paras, voiceID: "v", isEphemeral: false)
+                                        paragraphs: paras, isEphemeral: false)
         try await waitIdle(queue)
         XCTAssertEqual(ctx.renders.map { "\($0.p).\($0.c)" }, ["1.0"], "only the chunk a listener waits for")
         XCTAssertEqual(ctx.renders.map(\.priority), [.listener])
@@ -78,7 +78,7 @@ final class BakeThrottleTests: XCTestCase {
         let (queue, ctx) = makeQueue()
         let playing = UUID()
         ctx.playingCacheKey = playing
-        queue.openArticle(cacheKey: playing, paragraphs: paras, voiceID: "v", isEphemeral: false)
+        queue.enqueue(cacheKey: playing, paragraphs: paras, isEphemeral: false, at: .front)
         try await waitIdle(queue)
         XCTAssertFalse(ctx.renders.isEmpty)
         XCTAssertTrue(ctx.renders.allSatisfy { $0.priority == .listener })

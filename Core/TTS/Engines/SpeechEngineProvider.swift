@@ -80,12 +80,6 @@ final class EngineRegistry {
     func shortName(_ id: SpeechEngineID) -> String { descriptor(id)?.shortName ?? id.rawValue }
     func displayName(_ id: SpeechEngineID) -> String { descriptor(id)?.displayName ?? id.rawValue }
 
-    /// Chunk limits for `id` (unknown → the most conservative registered limits).
-    func limits(for id: SpeechEngineID) -> TextChunker.Limits {
-        if let d = descriptor(id) { return d.limits }
-        return localDescriptors.map(\.limits).min { $0.hardMax < $1.hardMax } ?? .kokoro
-    }
-
     func supports(_ id: SpeechEngineID) -> Bool {
         guard let d = descriptor(id) else { return false }
         return gate(d.hardware)
@@ -114,20 +108,12 @@ final class EngineRegistry {
         try await byID[id]?.1.prepareVoice(voice, for: id)
     }
 
-    /// True if `voiceID` is some engine's prefixed cache voice key (not an Apple voice id).
-    func isEngineVoiceKey(_ voiceID: String) -> Bool {
-        descriptors.contains {
-            if case .prefixed(let p) = $0.cacheVoiceKey { return voiceID.hasPrefix(p + ".") }
-            return false
-        }
-    }
-
     /// A cache voice key as people read it: "kokoro.af_heart" → "Kokoro Heart" (the engine's short
     /// name, then the voice's), a single-voice engine's by its short name; any other key is an
     /// Apple voice ("Apple").
     func voiceLabel(forCacheVoice voiceID: String) -> String {
         for d in descriptors {
-            guard case .prefixed(let p) = d.cacheVoiceKey, voiceID.hasPrefix(p + ".") else { continue }
+            guard let p = d.cacheVoicePrefix, voiceID.hasPrefix(p + ".") else { continue }
             let voice = String(voiceID.dropFirst(p.count + 1))
             guard let label = d.voices.first(where: { $0.id == voice })?.label else { return d.shortName }
             return "\(d.shortName) \(label)"

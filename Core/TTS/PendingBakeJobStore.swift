@@ -27,31 +27,21 @@ final class PendingBakeJobStore {
         self.defaults = defaults
     }
 
+    /// A job renders in whatever voice is selected when it runs, so it stores no voice. Files
+    /// written with the `voiceID` and `fillGapsFromTopAfterPriority` fields still decode: the
+    /// decoder ignores keys it doesn't know.
     struct PendingJob: Codable, Equatable {
         var articleID: UUID
         var paragraphs: [String]
-        var voiceID: String
         var priorityStart: Int
-        var fillGapsFromTopAfterPriority: Bool
     }
 
-    func enqueuePending(
-        articleID: UUID,
-        paragraphs: [String],
-        voiceID: String,
-        plan: BakePriorityPlan
-    ) {
+    /// `priorityStart`: the paragraph rendering starts from (then the rest to the end, then the
+    /// paragraphs above it).
+    func enqueuePending(articleID: UUID, paragraphs: [String], priorityStart: Int) {
         var jobs = loadPending()
         jobs.removeAll { $0.articleID == articleID }
-        jobs.append(
-            PendingJob(
-                articleID: articleID,
-                paragraphs: paragraphs,
-                voiceID: voiceID,
-                priorityStart: plan.priorityStart,
-                fillGapsFromTopAfterPriority: plan.fillGapsFromTopAfterPriority
-            )
-        )
+        jobs.append(PendingJob(articleID: articleID, paragraphs: paragraphs, priorityStart: priorityStart))
         savePending(jobs)
     }
 

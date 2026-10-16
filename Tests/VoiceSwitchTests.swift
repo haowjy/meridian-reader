@@ -11,6 +11,8 @@ final class VoiceSwitchTests: XCTestCase {
     private let kokoro = "local.kokoro"
     private let heart = "kokoro.af_heart"
     private let bella = "kokoro.af_bella"
+    private var plans: ChunkPlans { ChunkPlans { _ in .kokoroCPU } }
+    private let texts = ["The first paragraph.", "The second paragraph.", "The third paragraph.", "A fourth one."]
 
     override func tearDown() async throws {
         roots.forEach { try? FileManager.default.removeItem(at: $0) }
@@ -58,7 +60,8 @@ final class VoiceSwitchTests: XCTestCase {
 
         // Switch to Bella: nothing counts as ready (marks/% = new voice), all still playable.
         XCTAssertEqual(ready(cache, key, 3, voice: bella), [])
-        XCTAssertEqual(cache.missingIndices(articleID: key, paragraphCount: 3, engineID: kokoro, voiceID: bella), [0, 1, 2])
+        XCTAssertEqual(cache.missingParagraphs(articleID: key, paragraphs: Array(texts.prefix(3)), engineID: kokoro,
+                                               voiceID: bella, plans: plans), [0, 1, 2])
         for i in 0..<3 {
             XCTAssertNil(cache.audioURL(articleID: key, paragraphIndex: i, engineID: kokoro, voiceID: bella))
             XCTAssertNotNil(cache.playableAudioURL(articleID: key, paragraphIndex: i, engineID: kokoro, voiceID: bella),
@@ -77,7 +80,6 @@ final class VoiceSwitchTests: XCTestCase {
                        0.4, accuracy: 0.01, "p1 plays the new voice")
         XCTAssertEqual(duration(cache.playableAudioURL(articleID: key, paragraphIndex: 0, engineID: kokoro, voiceID: bella)),
                        0.2, accuracy: 0.01, "p0 still plays the old voice")
-        XCTAssertEqual(cache.status(for: key, expectedParagraphs: 3), .partial(ready: 1, total: 3))
 
         // Done: only Bella remains.
         try store(cache, key, 0, voice: bella, seconds: 0.4)
@@ -87,7 +89,6 @@ final class VoiceSwitchTests: XCTestCase {
         let done = try XCTUnwrap(cache.index(for: key))
         XCTAssertTrue(done.paragraphs.allSatisfy { $0.voiceID == nil && $0.engineID == nil }, "no old-voice entries")
         XCTAssertEqual(cafFiles(cache, key).count, 3)
-        XCTAssertEqual(cache.status(for: key, expectedParagraphs: 3), .ready(paragraphCount: 3))
     }
 
     func testFinalizeRemovesLeftoverOldVoiceUnits() throws {
@@ -97,9 +98,10 @@ final class VoiceSwitchTests: XCTestCase {
         // Article now has 3 paragraphs; all re-rendered in Bella. p3 (Heart) is a leftover.
         for i in 0..<3 { try store(cache, key, i, voice: bella, seconds: 0.4) }
         XCTAssertEqual(cafFiles(cache, key).count, 4)
-        XCTAssertEqual(cache.finalizeVoiceSwitch(articleID: key, paragraphCount: 4, engineID: kokoro, voiceID: bella), 0,
-                       "not complete for 4 paragraphs → keep")
-        let freed = cache.finalizeVoiceSwitch(articleID: key, paragraphCount: 3, engineID: kokoro, voiceID: bella)
+        XCTAssertEqual(cache.finalizeVoiceSwitch(articleID: key, paragraphs: texts, engineID: kokoro, voiceID: bella,
+                                                 plans: plans), 0, "not complete for 4 paragraphs → keep")
+        let freed = cache.finalizeVoiceSwitch(articleID: key, paragraphs: Array(texts.prefix(3)), engineID: kokoro,
+                                              voiceID: bella, plans: plans)
         XCTAssertGreaterThan(freed, 0)
         XCTAssertEqual(cafFiles(cache, key), ["p-0000.caf", "p-0001.caf", "p-0002.caf"])
         XCTAssertEqual(try XCTUnwrap(cache.index(for: key)).paragraphs.map(\.index), [0, 1, 2])
@@ -121,7 +123,7 @@ final class VoiceSwitchTests: XCTestCase {
     }
 
     /// Queue level: a queued article already baked in the old voice is re-rendered in the new
-    /// voice after `engineDidChange`, and no old-voice audio remains when it completes.
+    /// voice once the render target changes, and no old-voice audio remains when it completes.
     func testQueueRerendersInNewVoiceAfterSwitch() async throws {
         let ctx = FakeQueueContext(provider: FakeEngineProvider())
         contexts.append(ctx)
@@ -129,15 +131,16 @@ final class VoiceSwitchTests: XCTestCase {
         queue.attach(coordinator: ctx)
         let key = UUID()
         let paras = ["First paragraph here.", "Second paragraph, a bit longer than the first.", "Third."]
-        queue.openArticle(cacheKey: key, paragraphs: paras, voiceID: "fake.a", isEphemeral: false)
+        ctx.renderTarget?.cacheVoice = "fake.a"
+        queue.enqueue(cacheKey: key, paragraphs: paras, isEphemeral: false, at: .front)
         try await waitIdle(queue)
         XCTAssertEqual(ready(ctx.audioCache, key, 3, engine: ctx.cacheEngineID, voice: "fake.a"), [0, 1, 2])
 
-        // Background job still carries the old voice when the user switches.
+        // The article is queued again when the user switches.
         queue.isPausedForProbe = true
-        queue.openArticle(cacheKey: key, paragraphs: paras, voiceID: "fake.a", isEphemeral: false)
-        ctx.activeVoice = "fake.b"
-        queue.engineDidChange()
+        queue.enqueue(cacheKey: key, paragraphs: paras, isEphemeral: false, at: .front)
+        ctx.renderTarget?.cacheVoice = "fake.b"
+        queue.renderTargetChanged()
         queue.isPausedForProbe = false
         try await waitIdle(queue)
 
@@ -148,6 +151,30 @@ final class VoiceSwitchTests: XCTestCase {
         XCTAssertTrue(index.paragraphs.allSatisfy { $0.voiceID == nil })
         XCTAssertEqual(cafFiles(ctx.audioCache, key).count, 3, "no staging or old-voice files left")
         XCTAssertEqual(ctx.completed, [key, key])
+    }
+
+    /// A paragraph with nothing to speak (a bare "—") never gets audio: once the others are
+    /// rendered in the new voice the article is complete, so the old voice's leftovers (the
+    /// paragraph past the end, the one that has no words now) are deleted when its job finishes.
+    func testAParagraphWithNothingToSpeakDoesntHoldBackTheVoiceSwitchCleanup() async throws {
+        let ctx = FakeQueueContext(provider: FakeEngineProvider())
+        contexts.append(ctx)
+        let queue = GlobalSynthQueue()
+        queue.attach(coordinator: ctx)
+        let key = UUID()
+        let fake = ctx.cacheEngineID
+        for i in 0..<4 { try store(ctx.audioCache, key, i, engine: fake, voice: "fake.a", seconds: 0.2) }
+        let paras = ["First paragraph here.", "—", "Third paragraph here."]
+        ctx.renderTarget?.cacheVoice = "fake.b"
+        queue.enqueue(cacheKey: key, paragraphs: paras, isEphemeral: false, at: .front)
+        try await waitIdle(queue)
+
+        XCTAssertEqual(ctx.audioCache.missingParagraphs(articleID: key, paragraphs: paras, engineID: fake, voiceID: "fake.b",
+                                                        plans: ctx.chunkPlans), [], "rendered")
+        XCTAssertEqual(ready(ctx.audioCache, key, 3, engine: fake, voice: "fake.b"), [0, 2])
+        XCTAssertEqual(cafFiles(ctx.audioCache, key), ["p-0000.caf", "p-0002.caf"], "no old-voice audio left")
+        XCTAssertTrue(try XCTUnwrap(ctx.audioCache.index(for: key)).paragraphs.allSatisfy { $0.voiceID == nil })
+        XCTAssertEqual(ctx.completed, [key])
     }
 
     /// Index files and pending bake jobs written before units were always rendered at 1× carry a

@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 @testable import MeridianReader
 
@@ -21,7 +22,7 @@ final class VoiceAndLanguageTests: XCTestCase {
         XCTAssertEqual(kokoro.resolvedVoice("af_nicole"), "af_heart")
         XCTAssertEqual(kokoro.resolvedVoice(nil), "af_heart")
         // Cache key format unchanged (existing article audio keeps matching).
-        XCTAssertEqual(kokoro.cacheVoiceID(engineVoice: "am_puck", appleVoice: nil), "kokoro.am_puck")
+        XCTAssertEqual(kokoro.cacheVoiceID(engineVoice: "am_puck"), "kokoro.am_puck")
     }
 
     func testEveryCuratedVoiceHasABundledPreview() throws {
@@ -65,7 +66,7 @@ final class VoiceAndLanguageTests: XCTestCase {
         XCTAssertTrue(changed)
         XCTAssertEqual(provider.preparedVoices, ["v2"])
         XCTAssertEqual(c.voice(for: FakeEngineProvider.fakeID), "v2")
-        XCTAssertEqual(c.cacheVoiceID(appleVoice: nil), "fake.v2", "cache key follows the new voice")
+        XCTAssertEqual(c.activeCacheVoice, "fake.v2", "cache key follows the new voice")
         XCTAssertNil(c.voiceDownloadID)
         XCTAssertNil(c.voiceDownloadError)
         let again = await c.chooseVoice("v2", for: FakeEngineProvider.fakeID)
@@ -82,7 +83,7 @@ final class VoiceAndLanguageTests: XCTestCase {
         let changed = await c.chooseVoice("v2", for: FakeEngineProvider.fakeID)
         XCTAssertFalse(changed)
         XCTAssertEqual(c.voice(for: FakeEngineProvider.fakeID), "v1")
-        XCTAssertEqual(c.cacheVoiceID(appleVoice: nil), "fake.v1")
+        XCTAssertEqual(c.activeCacheVoice, "fake.v1")
         XCTAssertNotNil(c.voiceDownloadError)
         XCTAssertNil(c.voiceDownloadID)
     }
@@ -183,17 +184,42 @@ final class VoiceAndLanguageTests: XCTestCase {
         }
         let french = ["Le comité s'est réuni mardi pour discuter de la nouvelle bibliothèque, qui ouvrira au printemps prochain."]
         let key = UUID()
-        c.warmListenAudio(cacheKey: key, paragraphs: french, voiceID: "fake.default",
-                          resumeParagraph: 0, isEphemeral: true)
+        c.openArticle(cacheKey: key, paragraphs: french, from: 0, isEphemeral: true)
         XCTAssertEqual(gateCalls.count, 1)
         XCTAssertFalse(c.synthQueue.hasJob(cacheKey: key), "French article must not bake with an English-only engine")
 
         let english = ["The committee met on Tuesday to discuss the new library, which will open next spring."]
         let key2 = UUID()
-        c.warmListenAudio(cacheKey: key2, paragraphs: english, voiceID: "fake.default",
-                          resumeParagraph: 0, isEphemeral: true)
+        c.openArticle(cacheKey: key2, paragraphs: english, from: 0, isEphemeral: true)
         XCTAssertTrue(c.synthQueue.hasJob(cacheKey: key2), "English article bakes")
         c.synthQueue.remove(cacheKey: key2)
+    }
+
+    /// The render queue's Apple fallback for an article is the voice the player falls back to:
+    /// the user's pick when it speaks the article's language, else the best voice for that
+    /// language.
+    func testTheRenderQueueFallsBackToTheUsersAppleVoice() throws {
+        let english = AVSpeechSynthesisVoice.speechVoices().filter { ListenLanguage.baseCode($0.language) == "en" }
+        let best = VoiceCatalog.bestVoice(forLanguage: "en")?.identifier
+        guard let pick = english.first(where: { $0.identifier != best }) else { throw XCTSkip("needs two English voices") }
+        let standard = UserDefaults.standard
+        let savedVoice = standard.string(forKey: "reader.selectedVoiceIdentifier")
+        let savedAutomatic = standard.object(forKey: SpeechController.languageAutomaticKey)
+        let t = TestSpeech()
+        defer {
+            t.tearDown()
+            standard.set(savedVoice, forKey: "reader.selectedVoiceIdentifier")
+            standard.set(savedAutomatic, forKey: SpeechController.languageAutomaticKey)
+        }
+        t.speech.languageAutomatic = true
+        let article = ["The committee met on Tuesday to discuss the new library, which will open next spring."]
+        XCTAssertEqual(t.speech.localTTS.appleFallbackVoice(for: article), best, "no pick: the best English voice")
+
+        t.speech.selectedVoiceIdentifier = pick.identifier
+        XCTAssertEqual(t.speech.localTTS.appleFallbackVoice(for: article), pick.identifier, "the user's English voice")
+        let french = ["Le comité s'est réuni mardi pour discuter de la nouvelle bibliothèque, qui ouvrira au printemps prochain."]
+        XCTAssertEqual(t.speech.localTTS.appleFallbackVoice(for: french), VoiceCatalog.bestVoice(forLanguage: "fr")?.identifier,
+                       "an English pick doesn't speak French")
     }
 }
 

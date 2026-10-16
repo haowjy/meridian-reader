@@ -45,7 +45,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
         voices: kokoroVoices,
         defaultVoiceID: KokoroVoiceCatalog.defaultVoice,
         voiceDefaultsKey: "reader.tts.kokoroVoice", // pre-DI key, keep
-        cacheVoiceKey: .prefixed("kokoro"),          // "kokoro.af_heart" (existing caches)
+        cacheVoicePrefix: "kokoro",          // "kokoro.af_heart" (existing caches)
         // Chunks ≤ 280 units; a call over `KokoroCPUHost.maxTokensPerCall` throws inputTooLong
         // and the renderer re-splits.
         limits: .kokoroCPU,

@@ -18,8 +18,6 @@ struct EngineCrashGuard: Sendable {
     }())
 
     private var inflightURL: URL { directory.appendingPathComponent("engine_inflight.json") }
-    /// Pre-DI builds wrote this name (Kokoro only).
-    private var legacyInflightURL: URL { directory.appendingPathComponent("kokoro_inflight.json") }
     private var crashesURL: URL { directory.appendingPathComponent("engine_crashes.json") }
 
     /// What the previous process was doing when it died.
@@ -56,26 +54,14 @@ struct EngineCrashGuard: Sendable {
         try? FileManager.default.removeItem(at: inflightURL)
     }
 
-    /// Call once at launch. Returns the engine the previous process died inside, if any.
-    /// A legacy marker without an engine field is attributed to `legacyEngine`.
-    func consumeCrashMarker(legacyEngine: SpeechEngineID?) -> SpeechEngineID? {
-        consumeCrashInfo(legacyEngine: legacyEngine)?.engine
-    }
-
-    /// Like `consumeCrashMarker`, with route / article / paragraph for auto-recover.
-    func consumeCrashInfo(legacyEngine: SpeechEngineID?) -> CrashInfo? {
+    /// Call once at launch: what the previous process was doing when it died inside an engine
+    /// call (the engine, route, article and paragraph, for auto-recover), or nil.
+    func consumeCrashInfo() -> CrashInfo? {
         let fm = FileManager.default
-        let url: URL
-        if fm.fileExists(atPath: inflightURL.path) {
-            url = inflightURL
-        } else if fm.fileExists(atPath: legacyInflightURL.path) {
-            url = legacyInflightURL
-        } else {
-            return nil
-        }
-        let info = (try? Data(contentsOf: url)).flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any]
-        try? fm.removeItem(at: url)
-        let engine = (info?["engine"] as? String).map(SpeechEngineID.init(rawValue:)) ?? legacyEngine
+        guard fm.fileExists(atPath: inflightURL.path) else { return nil }
+        let info = (try? Data(contentsOf: inflightURL)).flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any]
+        try? fm.removeItem(at: inflightURL)
+        let engine = (info?["engine"] as? String).map(SpeechEngineID.init(rawValue:))
         let count = crashCount + 1
         let obj: [String: Any] = ["count": count, "last": info ?? [:], "at": Date().timeIntervalSince1970]
         if let data = try? JSONSerialization.data(withJSONObject: obj) {

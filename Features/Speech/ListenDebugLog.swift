@@ -65,7 +65,7 @@ struct ListenDebugSnapshot: Equatable {
     /// "foreground · Kokoro Core ML (aneTailGpu)" / "background · no Core ML — baked audio + Apple fallback" / "Apple TTS …".
     var renderMode: String = ""
     /// Paragraphs after the playhead already rendered (how far ahead the queue is).
-    var readyAhead: Int = 0
+    var renderedParagraphsAhead: Int = 0
     /// Last background stretch: units played baked / as chunks / as Apple fallback, deferrals.
     var background: String = "—"
     var audioSession: String = ""

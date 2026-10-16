@@ -46,16 +46,17 @@ final class ListenPositionTests: XCTestCase {
         let p1 = doc.startUTF16Offset(forParagraph: 1)
         let file = URL(fileURLWithPath: "/unused.caf")
 
-        let chunk = ChunkPlaybackQueue.Item(paragraphIndex: 1, fileURL: file, source: .chunk(1))
+        let chunk = ChunkPlaybackQueue.Item(paragraphIndex: 1, fileURL: file, source: .chunk(1), duration: 2)
         XCTAssertEqual(mapper.position(of: chunk, time: 1, duration: 2)?.utf16, p1 + 21 + 12, "half of chunk 1")
 
-        let baked = ChunkPlaybackQueue.Item(paragraphIndex: 1, fileURL: file, source: .baked, chunkDurations: [1, 2, 1])
+        let baked = ChunkPlaybackQueue.Item(paragraphIndex: 1, fileURL: file, source: .baked, duration: 4,
+                                                 chunkDurations: [1, 2, 1])
         XCTAssertEqual(mapper.position(of: baked, time: 3, duration: 4)?.utf16, p1 + 46, "chunk 2 starts at 3 s")
 
         let apple = ChunkPlaybackQueue.Item(paragraphIndex: 1, fileURL: file,
-                                            source: .appleFallback(fromChunk: 1, reason: .behind))
+                                            source: .appleFallback(fromChunk: 1, reason: .behind), duration: 5)
         XCTAssertEqual(mapper.position(of: apple, time: 0, duration: 5)?.utf16, p1 + 21)
-        XCTAssertNil(mapper.position(of: .init(paragraphIndex: 7, fileURL: file, source: .baked), time: 0, duration: 1))
+        XCTAssertNil(mapper.position(of: .init(paragraphIndex: 7, fileURL: file, source: .baked, duration: 1), time: 0, duration: 1))
     }
 
     // MARK: - Session

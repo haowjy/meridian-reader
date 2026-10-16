@@ -5,7 +5,8 @@ import Foundation
 /// Actions **reorganize** this queue — they do not spawn separate bake systems.
 ///
 /// Priority rules:
-/// 1. `openArticle` — that article becomes #1; synthesize from start (or resume) downward.
+/// 1. `enqueue(at: .front)` — that article becomes #1; synthesize from its start (or resume)
+///    downward, then the paragraphs above. `.back` queues it behind what is there.
 /// 2. `focusPlayhead` — same article stays #1; cursor moves to paragraph→end, then gap-fill top.
 /// 3. Opening a different article demotes the previous #1 (cache kept); worker switches to new #1.
 /// 4. One worker drains #1’s next missing unit, then continues.
@@ -41,8 +42,15 @@ import Foundation
 /// run at `.listener` priority; everything else is bake-ahead — a cooler QoS, and held while the
 /// device is hot or in Low Power Mode (`BakeConditions`).
 ///
-/// Depends only on `SynthQueueContext` (cache, active engine's key + limits, renderer), never on
-/// a concrete engine — the app passes `LocalTTSCoordinator`, tests pass a fake.
+/// What it renders for is the context's `renderTarget`: the loaded engine and its voice. Jobs carry
+/// no voice; every readiness check, chunk file and publish uses the target read at that step, so
+/// a voice switch can't file one voice's audio under another. While there is no target (Apple
+/// selected, a model loading, failed or deleted) the worker parks (`RenderAdmission`) and never
+/// loads a model itself; the coordinator restarts it once an engine is ready
+/// (`renderTargetChanged`).
+///
+/// Depends only on `SynthQueueContext` (cache, render target, chunk limits, renderer), never on a
+/// concrete engine — the app passes `LocalTTSCoordinator`, tests pass a fake.
 @MainActor
 final class GlobalSynthQueue {
     private weak var coordinator: SynthQueueContext?
@@ -51,7 +59,6 @@ final class GlobalSynthQueue {
     private var stack: [UUID] = []
     /// The next chapter of the book or series playing, rendering its opening ahead (`stageNext`).
     private var staged: StagedJob?
-    private var demoteCounter = 0
     private var worker: Task<Void, Never>?
     private var chunkWaiters: [ChunkKey: [CheckedContinuation<ChunkResolution, Error>]] = [:]
     /// Paragraphs whose chunk files a live player may reference — keep their scratch after
@@ -60,7 +67,6 @@ final class GlobalSynthQueue {
     /// (key|index|textHash) that failed the engine *and* Apple fallback — skipped by the worker so a
     /// bad unit cannot spin forever. A live request for the unit clears its mark (fresh try).
     private var failedUnits: Set<String> = []
-    private var chunkPlanCache: [ChunkPlanKey: [String]] = [:]
 
     /// Foreground / background gate for Core ML (injectable for tests).
     var runState: AppRunState = .shared {
@@ -166,7 +172,8 @@ final class GlobalSynthQueue {
 
     /// `RenderAdmission` for audio of `cacheKey` now.
     private func admission(isLiveRequest: Bool, cacheKey: UUID?) -> RenderAdmission {
-        RenderAdmission.decide(phase: runState.phase, rendersInBackground: rendersInBackground,
+        RenderAdmission.decide(engineReady: coordinator?.renderTarget != nil,
+                               phase: runState.phase, rendersInBackground: rendersInBackground,
                                isLiveRequest: isLiveRequest,
                                isPlayingArticle: cacheKey.map(playingCacheKeys.contains) ?? false,
                                inBackgroundBurst: backgroundBursts.isBursting)
@@ -192,88 +199,45 @@ final class GlobalSynthQueue {
 
     // MARK: - Reshuffle APIs
 
-    /// Article becomes #1. Synthesize from `resumeParagraph` (default 0) → end, then gap-fill.
-    func openArticle(
-        cacheKey: UUID,
-        paragraphs: [String],
-        voiceID: String,
-        resumeParagraph: Int = 0,
-        isEphemeral: Bool
-    ) {
+    /// Where `enqueue` puts a job.
+    enum Placement: Equatable {
+        /// #1: it renders next (an article opened, played, a jump). A staged chapter put here is
+        /// playing: its cap lifts.
+        case front
+        /// Last, or where it already is (a save, a download, work adopted from disk).
+        case back
+        /// Right behind this job, or at the front when it isn't queued (the staged next chapter).
+        case behind(UUID?)
+    }
+
+    /// Queue `cacheKey` to render `paragraphs`, or refresh its queued job, and place it. A job
+    /// put at the front renders from paragraph `start` to the end, then the paragraphs above it; a
+    /// queued job placed anywhere else keeps its start, and a new one starts at `start`. A queued
+    /// job keeps its paragraph hashes when the text is unchanged (every play and seek opens the
+    /// article again).
+    func enqueue(cacheKey: UUID, paragraphs: [String], from start: Int = 0, isEphemeral: Bool, at placement: Placement) {
         guard !paragraphs.isEmpty else { return }
-        let plan: BakePriorityPlan = resumeParagraph <= 0
-            ? .topDown(paragraphCount: paragraphs.count)
-            : .fromPlayhead(resumeParagraph, paragraphCount: paragraphs.count)
-        upsert(
-            cacheKey: cacheKey,
-            paragraphs: paragraphs,
-            voiceID: voiceID,
-            plan: plan,
-            isEphemeral: isEphemeral,
-            makePrimary: true
-        )
+        if var job = jobs[cacheKey] {
+            let resume = placement == .front ? start : job.plan.priorityStart
+            job.paragraphs = paragraphs
+            job.plan = BakePriorityPlan(resume: resume, count: paragraphs.count)
+            job.isEphemeral = isEphemeral
+            jobs[cacheKey] = job
+        } else {
+            jobs[cacheKey] = ArticleJob(cacheKey: cacheKey, paragraphs: paragraphs,
+                                        plan: BakePriorityPlan(resume: start, count: paragraphs.count),
+                                        isEphemeral: isEphemeral)
+        }
+        place(cacheKey, placement)
         kickWorker()
     }
 
     /// Same article stays #1; move priority cursor to `paragraph` → end, then gap-fill top.
-    func focusPlayhead(
-        cacheKey: UUID,
-        paragraph: Int,
-        paragraphs: [String]? = nil,
-        voiceID: String? = nil
-    ) {
-        guard var job = jobs[cacheKey] else {
-            if let paragraphs, let voiceID {
-                openArticle(
-                    cacheKey: cacheKey,
-                    paragraphs: paragraphs,
-                    voiceID: voiceID,
-                    resumeParagraph: paragraph,
-                    isEphemeral: false
-                )
-            }
-            return
-        }
-        if let paragraphs { job.paragraphs = paragraphs }
-        if let voiceID { job.voiceID = voiceID }
-        job.plan = .fromPlayhead(paragraph, paragraphCount: job.paragraphs.count)
+    func focusPlayhead(cacheKey: UUID, paragraph: Int) {
+        guard var job = jobs[cacheKey] else { return }
+        job.plan = BakePriorityPlan(resume: paragraph, count: job.paragraphs.count)
         jobs[cacheKey] = job
-        promoteToPrimary(cacheKey)
-        kickWorker()
-    }
-
-    /// Ensure article is in the queue without stealing #1 (e.g. background save FIFO).
-    /// `resumeParagraph` > 0 keeps a mid-article plan (from there → end, then gap-fill) for when
-    /// this job's turn comes; it never changes the stack position.
-    func enqueueDemoted(
-        cacheKey: UUID,
-        paragraphs: [String],
-        voiceID: String,
-        resumeParagraph: Int = 0,
-        isEphemeral: Bool
-    ) {
-        guard !paragraphs.isEmpty else { return }
-        if jobs[cacheKey] != nil {
-            // Refresh payload but keep stack position.
-            var job = jobs[cacheKey]!
-            job.paragraphs = paragraphs
-            job.voiceID = voiceID
-            job.isEphemeral = isEphemeral
-            jobs[cacheKey] = job
-        } else {
-            demoteCounter += 1
-            jobs[cacheKey] = ArticleJob(
-                cacheKey: cacheKey,
-                paragraphs: paragraphs,
-                voiceID: voiceID,
-                plan: resumeParagraph <= 0
-                    ? .topDown(paragraphCount: paragraphs.count)
-                    : .fromPlayhead(resumeParagraph, paragraphCount: paragraphs.count),
-                demoteOrder: demoteCounter,
-                isEphemeral: isEphemeral
-            )
-            stack.append(cacheKey)
-        }
+        place(cacheKey, .front)
         kickWorker()
     }
 
@@ -285,28 +249,15 @@ final class GlobalSynthQueue {
     /// never `.listener`, and only its first `cap` paragraphs until it becomes #1 (it plays), when
     /// the cap lifts. At its cap it steps aside, so jobs behind it keep running. A later stage
     /// replaces it.
-    func stageNext(cacheKey: UUID, after playing: UUID?, paragraphs: [String], voiceID: String, upTo cap: Int,
-                   isEphemeral: Bool) {
+    func stageNext(cacheKey: UUID, after playing: UUID?, paragraphs: [String], upTo cap: Int, isEphemeral: Bool) {
         guard !paragraphs.isEmpty, stack.first != cacheKey else { return }
         if let staged, staged.cacheKey != cacheKey { unstage() }
         let wasQueued = staged?.wasQueued ?? (jobs[cacheKey] != nil)
-        if var job = jobs[cacheKey] {
-            job.paragraphs = paragraphs
-            job.voiceID = voiceID
-            job.isEphemeral = isEphemeral
-            jobs[cacheKey] = job
-        } else {
-            demoteCounter += 1
-            jobs[cacheKey] = ArticleJob(cacheKey: cacheKey, paragraphs: paragraphs, voiceID: voiceID,
-                                        plan: .topDown(paragraphCount: paragraphs.count), demoteOrder: demoteCounter,
-                                        isEphemeral: isEphemeral)
-        }
+        enqueue(cacheKey: cacheKey, paragraphs: paragraphs, isEphemeral: isEphemeral, at: .behind(playing))
         staged = StagedJob(cacheKey: cacheKey, behind: playing, cap: cap, wasQueued: wasQueued)
-        placeStaged()
         let position = stack.firstIndex(of: cacheKey) ?? 0
         ListenTimingLog.log("chapter_staged", ["key": ListenTimingLog.shortKey(cacheKey), "cap": cap,
                                                "behind": ListenTimingLog.shortKey(position > 0 ? stack[position - 1] : nil)])
-        kickWorker()
     }
 
     /// The staged job's place: right behind the playing chapter's job while that is queued, else
@@ -316,9 +267,22 @@ final class GlobalSynthQueue {
     /// render in the background.
     private func placeStaged() {
         guard let staged, jobs[staged.cacheKey] != nil else { return }
-        stack.removeAll { $0 == staged.cacheKey }
-        let position = staged.behind.flatMap { stack.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
-        stack.insert(staged.cacheKey, at: position)
+        place(staged.cacheKey, .behind(staged.behind))
+    }
+
+    private func place(_ cacheKey: UUID, _ placement: Placement) {
+        switch placement {
+        case .front:
+            stack.removeAll { $0 == cacheKey }
+            stack.insert(cacheKey, at: 0)
+            if staged?.cacheKey == cacheKey { staged = nil }
+        case .back:
+            if !stack.contains(cacheKey) { stack.append(cacheKey) }
+        case .behind(let job):
+            stack.removeAll { $0 == cacheKey }
+            let position = job.flatMap { stack.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
+            stack.insert(cacheKey, at: position)
+        }
     }
 
     /// The staged chapter won't play next (another page plays, the book ended): a job staging
@@ -353,14 +317,13 @@ final class GlobalSynthQueue {
 
     /// The article's audio was just aligned with `paragraphs` (Save, or an open with newer text):
     /// its job renders them from now on, so a render of the text it had isn't published over
-    /// them (`stillWants`). Its place in the queue, voice and plan stay; the plan's start moves
-    /// to the same place in the new text.
+    /// them (`stillWants`). Its place in the queue and plan stay; the plan's start moves to the
+    /// same place in the new text.
     func updateParagraphs(cacheKey: UUID, paragraphs: [String]) {
         guard !paragraphs.isEmpty, var job = jobs[cacheKey], job.paragraphs != paragraphs else { return }
         let start = ParagraphPositionMap.mapParagraphStart(job.plan.priorityStart, from: ParagraphDocument(parts: job.paragraphs),
                                                            to: ParagraphDocument(parts: paragraphs))
-        job.plan = BakePriorityPlan(priorityStart: start, fillGapsFromTopAfterPriority: job.plan.fillGapsFromTopAfterPriority,
-                                    paragraphCount: paragraphs.count)
+        job.plan = BakePriorityPlan(resume: start, count: paragraphs.count)
         job.paragraphs = paragraphs
         jobs[cacheKey] = job
         kickWorker()
@@ -388,31 +351,23 @@ final class GlobalSynthQueue {
 
     // MARK: - Chunk-level live ensure (play-while-building)
 
-    /// Synth chunks for a paragraph's text (deterministic; cached per engine and text).
+    /// Synth chunks of a paragraph's text for the active engine (`ChunkPlans`): what the listen
+    /// player plays chunk by chunk.
     func chunkTexts(for text: String) -> [String] {
-        let key = ChunkPlanKey(engine: coordinator?.cacheEngineID ?? "?", text: text)
-        if let cached = chunkPlanCache[key] { return cached }
-        let chunks = TextChunker.chunks(for: text, limits: coordinator?.activeChunkLimits ?? .kokoro)
-        chunkPlanCache[key] = chunks
-        return chunks
+        guard let coordinator else { return [] }
+        return coordinator.chunkPlans.chunks(for: text, engineID: coordinator.cacheEngineID) ?? []
     }
 
-    /// The local engine or its voice changed: drop chunk plans, chunk scratch and failure marks
-    /// (they belong to the old engine/voice) and retarget every queued article to the new cache
-    /// voice so the worker re-renders in it. Paragraph CAFs are keyed by engine+voice in
-    /// `index.json`: old-voice ones stay playable until each paragraph is replaced
-    /// (`playableAudioURL`) but never count as ready.
-    func engineDidChange() {
-        chunkPlanCache.removeAll()
+    /// The render target changed (an engine loaded or went away, another voice): failure marks
+    /// were the old target's, and once an engine is ready the worker renders what is queued, in
+    /// the new voice. Nothing else is retargeted: jobs carry no voice. Paragraph CAFs are keyed
+    /// by engine+voice in `index.json`: old-voice ones stay playable until each paragraph is
+    /// replaced (`playableAudioURL`) but never count as ready. Chunk scratch is filed by voice
+    /// and stays (the launch clears it).
+    func renderTargetChanged() {
         failedUnits.removeAll()
-        liveChunkParagraphs.removeAll()
-        coordinator?.audioCache.removeAllChunkScratch()
-        if let coordinator {
-            for key in jobs.keys {
-                if let v = jobs[key]?.voiceID { jobs[key]?.voiceID = coordinator.normalizedCacheVoice(v) }
-            }
-        }
-        if !stack.isEmpty { kickWorker() }
+        guard coordinator?.renderTarget != nil, !stack.isEmpty else { return }
+        kickWorker()
     }
 
     /// Await a playable URL for chunk `chunk` of `paragraphIndex`. Moves the playhead cursor
@@ -423,22 +378,24 @@ final class GlobalSynthQueue {
         chunk: Int,
         text: String,
         paragraphs: [String],
-        voiceID: String,
         isEphemeral: Bool
     ) async throws -> ChunkResolution {
         guard let coordinator else {
             throw NSError(domain: "GlobalSynthQueue", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "Coordinator not attached"])
         }
+        // No engine loaded: nothing will render it (the controller moves listening to Apple).
+        guard let target = coordinator.renderTarget else { throw Self.noEngine }
         let cache = coordinator.audioCache
         let hash = ArticleIdentity.paragraphHash(text)
         let unit = ParagraphKey(cacheKey: cacheKey, index: paragraphIndex)
         liveChunkParagraphs.insert(unit)
         failedUnits.remove(failedID(cacheKey, paragraphIndex, hash)) // live request = fresh try
 
-        let chunkURL = cache.chunkURL(articleID: cacheKey, paragraphIndex: paragraphIndex, textHash: hash, chunk: chunk)
+        let chunkURL = cache.chunkURL(articleID: cacheKey, paragraphIndex: paragraphIndex, textHash: hash,
+                                      voice: target.cacheVoice, chunk: chunk)
         if cache.isUsableAudioFile(chunkURL) { return .chunk(chunkURL) }
-        if let resolved = paragraphResolution(cacheKey: cacheKey, index: paragraphIndex, chunk: chunk, voiceID: voiceID) {
+        if let resolved = paragraphResolution(cacheKey: cacheKey, index: paragraphIndex, chunk: chunk) {
             return resolved
         }
 
@@ -451,10 +408,10 @@ final class GlobalSynthQueue {
         }
         // Make this article #1 with the cursor on this paragraph.
         if jobs[cacheKey] == nil || jobs[cacheKey]?.paragraphs.count != paragraphs.count {
-            openArticle(cacheKey: cacheKey, paragraphs: paragraphs, voiceID: voiceID,
-                        resumeParagraph: paragraphIndex, isEphemeral: isEphemeral)
+            enqueue(cacheKey: cacheKey, paragraphs: paragraphs, from: paragraphIndex, isEphemeral: isEphemeral, at: .front)
+        } else {
+            focusPlayhead(cacheKey: cacheKey, paragraph: paragraphIndex)
         }
-        focusPlayhead(cacheKey: cacheKey, paragraph: paragraphIndex, voiceID: voiceID)
         if var job = jobs[cacheKey], job.paragraphs.indices.contains(paragraphIndex),
            job.paragraphs[paragraphIndex] != text {
             job.paragraphs[paragraphIndex] = text
@@ -484,20 +441,21 @@ final class GlobalSynthQueue {
     }
 
     /// Is (paragraph, chunk) playable right now without waiting for a render?
-    func isChunkReady(cacheKey: UUID, paragraphIndex: Int, chunk: Int, text: String, voiceID: String) -> Bool {
-        guard let coordinator else { return false }
+    func isChunkReady(cacheKey: UUID, paragraphIndex: Int, chunk: Int, text: String) -> Bool {
+        guard let coordinator, let target = coordinator.renderTarget else { return false }
         let cache = coordinator.audioCache
         let url = cache.chunkURL(articleID: cacheKey, paragraphIndex: paragraphIndex,
-                                 textHash: ArticleIdentity.paragraphHash(text), chunk: chunk)
+                                 textHash: ArticleIdentity.paragraphHash(text), voice: target.cacheVoice, chunk: chunk)
         if cache.isUsableAudioFile(url) { return true }
-        return paragraphResolution(cacheKey: cacheKey, index: paragraphIndex, chunk: chunk, voiceID: voiceID) != nil
+        return paragraphResolution(cacheKey: cacheKey, index: paragraphIndex, chunk: chunk) != nil
     }
 
-    private func paragraphResolution(cacheKey: UUID, index: Int, chunk: Int, voiceID: String) -> ChunkResolution? {
-        guard let coordinator,
+    /// The stitched paragraph in the render target's voice, at chunk `chunk`'s offset.
+    private func paragraphResolution(cacheKey: UUID, index: Int, chunk: Int) -> ChunkResolution? {
+        guard let coordinator, let target = coordinator.renderTarget,
               let url = coordinator.audioCache.audioURL(
                 articleID: cacheKey, paragraphIndex: index,
-                engineID: coordinator.cacheEngineID, voiceID: voiceID)
+                engineID: target.engineID, voiceID: target.cacheVoice)
         else { return nil }
         guard chunk > 0 else { return .paragraph(url, startTime: 0) }
         let durations = coordinator.audioCache.entry(articleID: cacheKey, paragraphIndex: index)?.chunkDurations ?? []
@@ -529,8 +487,8 @@ final class GlobalSynthQueue {
     var isWorkerRunning: Bool { worker != nil }
 
     func pendingUnitCount(for cacheKey: UUID) -> Int {
-        guard let job = jobs[cacheKey], let coordinator else { return 0 }
-        return missingParagraphs(of: job, coordinator).count
+        guard let job = jobs[cacheKey], let target = coordinator?.renderTarget else { return 0 }
+        return missingParagraphs(of: job, in: target).count
     }
 
     func planDescription(for cacheKey: UUID) -> String? {
@@ -544,52 +502,21 @@ final class GlobalSynthQueue {
 
     /// Next missing unit index for #1 under its current plan (nil if none / empty).
     func nextMissingIndex(for cacheKey: UUID? = nil) -> Int? {
-        guard let coordinator else { return nil }
+        guard let target = coordinator?.renderTarget else { return nil }
         let key = cacheKey ?? stack.first
         guard let key, let job = jobs[key] else { return nil }
-        return job.plan.orderedWork(missing: missingParagraphs(of: job, coordinator)).first
+        return job.plan.orderedWork(missing: missingParagraphs(of: job, in: target)).first
     }
 
     // MARK: - Private
 
-    /// Paragraphs of `job` without audio in its voice yet.
-    private func missingParagraphs(of job: ArticleJob, _ coordinator: SynthQueueContext) -> [Int] {
-        coordinator.audioCache.missingIndices(articleID: job.cacheKey, paragraphCount: job.paragraphs.count,
-                                              engineID: coordinator.cacheEngineID, voiceID: job.voiceID)
-    }
-
-    private func upsert(
-        cacheKey: UUID,
-        paragraphs: [String],
-        voiceID: String,
-        plan: BakePriorityPlan,
-        isEphemeral: Bool,
-        makePrimary: Bool
-    ) {
-        demoteCounter += 1
-        let existing = jobs[cacheKey]
-        // Reusing the job keeps its paragraph hashes when the text is unchanged (every play / seek
-        // re-opens the article).
-        var job = existing ?? ArticleJob(cacheKey: cacheKey, paragraphs: paragraphs, voiceID: voiceID,
-                                         plan: plan, demoteOrder: demoteCounter, isEphemeral: isEphemeral)
-        job.paragraphs = paragraphs
-        job.voiceID = voiceID
-        job.plan = plan
-        job.demoteOrder = makePrimary ? (existing?.demoteOrder ?? demoteCounter) : demoteCounter
-        job.isEphemeral = isEphemeral
-        jobs[cacheKey] = job
-        if makePrimary {
-            promoteToPrimary(cacheKey)
-        } else if !stack.contains(cacheKey) {
-            stack.append(cacheKey)
-        }
-    }
-
-    /// `cacheKey` becomes #1. A staged chapter that becomes #1 is playing: its cap lifts.
-    private func promoteToPrimary(_ cacheKey: UUID) {
-        stack.removeAll { $0 == cacheKey }
-        stack.insert(cacheKey, at: 0)
-        if staged?.cacheKey == cacheKey { staged = nil }
+    /// Paragraphs of `job` that still need audio in the target's voice
+    /// (`ArticleAudioCache.missingParagraphs`).
+    private func missingParagraphs(of job: ArticleJob, in target: RenderTarget) -> [Int] {
+        guard let coordinator else { return [] }
+        return coordinator.audioCache.missingParagraphs(articleID: job.cacheKey, paragraphs: job.paragraphs,
+                                                        engineID: target.engineID, voiceID: target.cacheVoice,
+                                                        plans: coordinator.chunkPlans)
     }
 
     /// Debug engine probe: hold the worker between chunks so probe timings aren't interleaved.
@@ -620,173 +547,186 @@ final class GlobalSynthQueue {
         var stopReason = "queue_empty"
         defer {
             worker = nil
-            activeBakeCacheKey = nil
-            activeBakeIndex = nil
             backgroundBursts.end(reason: stopReason, readyAhead: readyAhead)
             #if canImport(UIKit)
             drainGrace.end()
             #endif
         }
-        while !isPausedForProbe, !isHeldForLaunch, let next = nextWorkUnit() {
-            guard let coordinator else { break }
-            #if canImport(UIKit)
-            drainGrace.end() // the chunk in flight at backgrounding is done; playing audio keeps the app alive
-            #endif
-            // Check the app state before every chunk (see `RenderAdmission`).
-            let phase = runState.phase
-            let playing = playingCacheKeys.contains(next.0.cacheKey)
-            if phase == .background, rendersInBackground, playing, !hasLiveWaiters {
-                backgroundBursts.update(readyAhead: readyAhead())
-            }
-            guard admission(isLiveRequest: hasLiveWaiters, cacheKey: next.0.cacheKey) == .render else {
-                // Restarted by `runStateChanged`, `playbackAdvanced` (or a listener's request).
-                failAllLiveWaiters(LocalSynthError.deferredInBackground)
-                stopReason = noteParked(phase: phase, engine: coordinator.synthRenderer.engineShortName,
-                                        playing: playing)
+        while !isPausedForProbe, !isHeldForLaunch {
+            if let stop = await renderStep() {
+                stopReason = stop
                 return
             }
-            let (job, index) = next
-            let priority = renderPriority(for: job.cacheKey)
-            if priority == .bakeAhead, let hold = bakeConditions().bakeAheadHold {
-                lastBakeEvent = "bake-ahead held: \(hold.label) (resumes when it clears)"
-                ListenTimingLog.log("synth_queue_parked", ["phase": runState.phase.rawValue, "reason": hold.label])
-                stopReason = "bake_held"
-                return // `bakeConditionsChanged` (or a listener's request) restarts the worker
-            }
-            let engineID = coordinator.cacheEngineID
-            let cache = coordinator.audioCache
-            // Already ready?
-            if cache.audioURL(articleID: job.cacheKey, paragraphIndex: index,
-                              engineID: engineID, voiceID: job.voiceID) != nil {
-                resumeChunkWaitersWithParagraph(cacheKey: job.cacheKey, index: index, voiceID: job.voiceID)
-                continue
-            }
-            guard job.paragraphs.indices.contains(index) else { continue }
-            let text = job.paragraphs[index]
-            let hash = job.paragraphHashes[index]
-            let chunks = chunkTexts(for: text)
-            guard !chunks.isEmpty else {
-                // Nothing speakable (punctuation only). Mark failed so we don't spin; producer
-                // treats an empty chunk plan as nothing to play.
-                failedUnits.insert(failedID(job.cacheKey, index, hash))
-                failWaiters(cacheKey: job.cacheKey, index: index, error: NothingSpeakable())
-                continue
-            }
-            activeBakeCacheKey = job.cacheKey
-            activeBakeIndex = index
-            let chunkURLs = chunks.indices.map {
-                cache.chunkURL(articleID: job.cacheKey, paragraphIndex: index, textHash: hash, chunk: $0)
-            }
-            do {
-                try Task.checkCancellation()
-                // A listener waiting on a later chunk (scrubbed to a sentence mid-paragraph)
-                // gets that chunk first; otherwise chunks render in order.
-                let waited = chunkWaiters.keys
-                    .filter { $0.cacheKey == job.cacheKey && $0.index == index }
-                    .map(\.chunk).sorted()
-                    .first { chunkURLs.indices.contains($0) && !cache.isUsableAudioFile(chunkURLs[$0]) }
-                if let k = waited ?? chunkURLs.firstIndex(where: { !cache.isUsableAudioFile($0) }) {
-                    // Render ONE chunk, then loop (re-evaluates priority between chunks).
-                    try await renderChunk(job: job, index: index, chunk: k, of: chunks.count,
-                                          text: chunks[k], next: k + 1 < chunks.count ? chunks[k + 1] : nil,
-                                          to: chunkURLs[k], hash: hash, priority: priority)
-                    backgroundBursts.noteChunkRendered()
-                    resumeChunkWaiters(cacheKey: job.cacheKey, index: index, chunk: k, url: chunkURLs[k])
-                    if chunkURLs.allSatisfy(cache.isUsableAudioFile) == false {
-                        activeBakeCacheKey = nil
-                        activeBakeIndex = nil
-                        continue
-                    }
-                }
-                // All chunks present → stitch them off the main actor (a read / convert / write
-                // of the whole paragraph) into a file of their own, then publish it here only if
-                // the queue still wants this text on this paragraph. Meanwhile the article's audio
-                // may have been aligned with other paragraphs (opening it with newer text, a
-                // merge) and its job given them, or the article left the queue (audio cleared,
-                // deleted, rekeyed): a render of the old paragraph isn't filed on the new one.
-                let staged = cache.stitchingURL(articleID: job.cacheKey, paragraphIndex: index, textHash: hash)
-                let stitched: ChunkAudioStitcher.Result
-                do {
-                    stitched = try await Task.detached(priority: priority.taskPriority) {
-                        try ArticleAudioCache.stitchParagraph(chunkURLs, to: staged)
-                    }.value
-                } catch where !chunkURLs.allSatisfy(cache.isUsableAudioFile) {
-                    // The chunk scratch went away meanwhile (engine / voice change, identity
-                    // prep): not this paragraph's failure — look again.
-                    try? FileManager.default.removeItem(at: staged)
-                    activeBakeCacheKey = nil
-                    activeBakeIndex = nil
-                    continue
-                }
-                #if DEBUG
-                beforePublishing?(job.cacheKey, index)
-                #endif
-                guard stillWants(job.cacheKey, index, hash), cache.isUsableAudioFile(staged) else {
-                    try? FileManager.default.removeItem(at: staged)
-                    ListenTimingLog.log("paragraph_discarded", ["key": ListenTimingLog.shortKey(job.cacheKey), "p": index])
-                    activeBakeCacheKey = nil
-                    activeBakeIndex = nil
-                    continue
-                }
-                try cache.publishParagraph(
-                    staged: staged,
-                    articleID: job.cacheKey,
-                    paragraphIndex: index,
-                    duration: stitched.duration,
-                    engineID: engineID,
-                    voiceID: job.voiceID,
-                    textHash: hash,
-                    chunkDurations: chunks.count > 1 ? stitched.chunkDurations : nil
-                )
-                coordinator.noteBakeMarksChanged()
-                if job.isEphemeral {
-                    cache.markEphemeral(cacheKey: job.cacheKey, lastAccess: Date())
-                }
-                if !liveChunkParagraphs.contains(ParagraphKey(cacheKey: job.cacheKey, index: index)) {
-                    try? FileManager.default.removeItem(
-                        at: cache.chunkDirectory(articleID: job.cacheKey, paragraphIndex: index, textHash: hash))
-                }
-                resumeChunkWaitersWithParagraph(cacheKey: job.cacheKey, index: index, voiceID: job.voiceID)
-                let readyMsg = "bake ok \(job.cacheKey.uuidString.prefix(8)) p\(index) (\(chunks.count) chunk\(chunks.count == 1 ? "" : "s"))"
-                lastBakeEvent = readyMsg
-                ListenDebugLog.shared.append(readyMsg)
-                ListenTimingLog.log("paragraph_ready", [
-                    "key": ListenTimingLog.shortKey(job.cacheKey), "p": index, "chunks": chunks.count,
-                    "chars": text.count, "audio_s": (stitched.duration * 100).rounded() / 100,
-                    "primary": stack.first == job.cacheKey,
-                ])
-            } catch is CancellationError {
-                activeBakeCacheKey = nil
-                activeBakeIndex = nil
-                failWaiters(cacheKey: job.cacheKey, index: index, error: CancellationError())
-                stopReason = "cancelled"
-                return
-            } catch LocalSynthError.deferredInBackground {
-                // Went to background mid-paragraph: finished chunks stay on disk; not a failure.
-                failAllLiveWaiters(LocalSynthError.deferredInBackground)
-                lastBakeEvent = "background: \(coordinator.synthRenderer.engineShortName) paused at "
-                    + "\(job.cacheKey.uuidString.prefix(8)) p\(index)"
-                ListenTimingLog.log("synth_queue_parked", ["phase": runState.phase.rawValue, "p": index])
-                stopReason = "deferred"
-                return
-            } catch {
-                // Engine AND Apple fallback failed (or stitch/store failed). Don't hot-loop.
-                failedUnits.insert(failedID(job.cacheKey, index, hash))
-                let failMsg = "bake FAIL \(job.cacheKey.uuidString.prefix(8)) p\(index): \(error.localizedDescription)"
-                lastBakeEvent = failMsg
-                ListenDebugLog.shared.append(failMsg)
-                ListenTimingLog.log("paragraph_failed", [
-                    "key": ListenTimingLog.shortKey(job.cacheKey), "p": index, "err": error.localizedDescription,
-                ])
-                print("[SynthQueue] fail key=\(job.cacheKey.uuidString.prefix(8)) p=\(index): \(error.localizedDescription)")
-                failWaiters(cacheKey: job.cacheKey, index: index, error: error)
-            }
+        }
+    }
+
+    /// One step of the worker: pick the next unit and do one piece of it (`renderOrStitch`).
+    /// Returns why the worker stops (a background burst's stop line), or nil to go on.
+    private func renderStep() async -> String? {
+        guard let coordinator else { return "queue_empty" }
+        guard let target = coordinator.renderTarget else {
+            // No engine loaded (`RenderAdmission`): `renderTargetChanged` restarts the worker
+            // once one is. Nothing here may load a model.
+            failAllLiveWaiters(Self.noEngine)
+            lastBakeEvent = "no on-device voice loaded: rendering waits"
+            ListenTimingLog.log("synth_queue_parked", ["phase": runState.phase.rawValue, "reason": "no_engine"])
+            return "no_engine"
+        }
+        guard let next = nextWorkUnit(in: target) else { return "queue_empty" }
+        let (job, index) = next
+        #if canImport(UIKit)
+        drainGrace.end() // the chunk in flight at backgrounding is done; playing audio keeps the app alive
+        #endif
+        // Check the app state before every chunk (see `RenderAdmission`).
+        let phase = runState.phase
+        let playing = playingCacheKeys.contains(job.cacheKey)
+        if phase == .background, rendersInBackground, playing, !hasLiveWaiters {
+            backgroundBursts.update(readyAhead: readyAhead())
+        }
+        guard admission(isLiveRequest: hasLiveWaiters, cacheKey: job.cacheKey) == .render else {
+            // Restarted by `runStateChanged`, `playbackAdvanced` (or a listener's request).
+            failAllLiveWaiters(LocalSynthError.deferredInBackground)
+            return noteParked(phase: phase, engine: coordinator.synthRenderer.engineShortName, playing: playing)
+        }
+        let priority = renderPriority(for: job.cacheKey)
+        if priority == .bakeAhead, let hold = bakeConditions().bakeAheadHold {
+            lastBakeEvent = "bake-ahead held: \(hold.label) (resumes when it clears)"
+            ListenTimingLog.log("synth_queue_parked", ["phase": runState.phase.rawValue, "reason": hold.label])
+            return "bake_held" // `bakeConditionsChanged` (or a listener's request) restarts the worker
+        }
+        if coordinator.audioCache.audioURL(articleID: job.cacheKey, paragraphIndex: index,
+                                           engineID: target.engineID, voiceID: target.cacheVoice) != nil {
+            resumeChunkWaitersWithParagraph(cacheKey: job.cacheKey, index: index)
+            return nil
+        }
+        guard job.paragraphs.indices.contains(index) else { return nil }
+        activeBakeCacheKey = job.cacheKey
+        activeBakeIndex = index
+        defer {
             activeBakeCacheKey = nil
             activeBakeIndex = nil
         }
-        // Drop completed articles from stack.
-        compactCompleted()
+        do {
+            try Task.checkCancellation()
+            try await renderOrStitch(job, paragraph: index, in: target, priority: priority)
+        } catch is CancellationError {
+            failWaiters(cacheKey: job.cacheKey, index: index, error: CancellationError())
+            return "cancelled"
+        } catch LocalSynthError.deferredInBackground {
+            // Went to background mid-paragraph: finished chunks stay on disk; not a failure.
+            failAllLiveWaiters(LocalSynthError.deferredInBackground)
+            lastBakeEvent = "background: \(coordinator.synthRenderer.engineShortName) paused at "
+                + "\(job.cacheKey.uuidString.prefix(8)) p\(index)"
+            ListenTimingLog.log("synth_queue_parked", ["phase": runState.phase.rawValue, "p": index])
+            return "deferred"
+        } catch {
+            // Engine AND Apple fallback failed (or stitch/store failed). Don't hot-loop.
+            failedUnits.insert(failedID(job.cacheKey, index, job.paragraphHashes[index]))
+            let failMsg = "bake FAIL \(job.cacheKey.uuidString.prefix(8)) p\(index): \(error.localizedDescription)"
+            lastBakeEvent = failMsg
+            ListenDebugLog.shared.append(failMsg)
+            ListenTimingLog.log("paragraph_failed", [
+                "key": ListenTimingLog.shortKey(job.cacheKey), "p": index, "err": error.localizedDescription,
+            ])
+            print("[SynthQueue] fail key=\(job.cacheKey.uuidString.prefix(8)) p=\(index): \(error.localizedDescription)")
+            failWaiters(cacheKey: job.cacheKey, index: index, error: error)
+        }
+        return nil
     }
+
+    /// Renders one chunk of the paragraph (one a listener waits for first, else the next in
+    /// order), or, once every chunk is on disk, stitches them and publishes the paragraph. At most
+    /// one model call, so the worker weighs priority again between chunks.
+    private func renderOrStitch(_ job: ArticleJob, paragraph index: Int, in target: RenderTarget,
+                                priority: RenderPriority) async throws {
+        guard let coordinator else { throw CancellationError() }
+        let cache = coordinator.audioCache
+        let text = job.paragraphs[index]
+        let hash = job.paragraphHashes[index]
+        // Never empty: a paragraph with nothing to speak is never missing.
+        let chunks = coordinator.chunkPlans.chunks(for: text, engineID: target.engineID) ?? []
+        let chunkURLs = chunks.indices.map {
+            cache.chunkURL(articleID: job.cacheKey, paragraphIndex: index, textHash: hash,
+                           voice: target.cacheVoice, chunk: $0)
+        }
+        // A listener waiting on a later chunk (scrubbed to a sentence mid-paragraph) gets that
+        // chunk first; otherwise chunks render in order.
+        let waited = chunkWaiters.keys
+            .filter { $0.cacheKey == job.cacheKey && $0.index == index }
+            .map(\.chunk).sorted()
+            .first { chunkURLs.indices.contains($0) && !cache.isUsableAudioFile(chunkURLs[$0]) }
+        if let k = waited ?? chunkURLs.firstIndex(where: { !cache.isUsableAudioFile($0) }) {
+            try await renderChunk(job: job, index: index, chunk: k, of: chunks.count,
+                                  text: chunks[k], next: k + 1 < chunks.count ? chunks[k + 1] : nil,
+                                  to: chunkURLs[k], for: target, priority: priority)
+            // The engine or voice changed during the call: the chunk is filed under its own
+            // voice, and its waiters wait for the new voice's render.
+            guard coordinator.renderTarget == target else { return }
+            backgroundBursts.noteChunkRendered()
+            resumeChunkWaiters(cacheKey: job.cacheKey, index: index, chunk: k, url: chunkURLs[k])
+            guard chunkURLs.allSatisfy(cache.isUsableAudioFile) else { return }
+        }
+        // All chunks present → stitch them off the main actor (a read / convert / write of the
+        // whole paragraph) into a file of their own, then publish it here only if the queue still
+        // wants this text on this paragraph, in this voice. Meanwhile the article's audio may have
+        // been aligned with other paragraphs (opening it with newer text, a merge) and its job
+        // given them, the article left the queue (audio cleared, deleted, rekeyed), or the voice
+        // changed: a render of the old paragraph or voice isn't filed on the new one.
+        let stitching = cache.stitchingURL(articleID: job.cacheKey, paragraphIndex: index, textHash: hash,
+                                           voice: target.cacheVoice)
+        let stitched: ChunkAudioStitcher.Result
+        do {
+            stitched = try await Task.detached(priority: priority.taskPriority) {
+                try ArticleAudioCache.stitchParagraph(chunkURLs, to: stitching)
+            }.value
+        } catch where !chunkURLs.allSatisfy(cache.isUsableAudioFile) {
+            // The chunk scratch went away meanwhile (identity prep): not this paragraph's failure —
+            // look again.
+            try? FileManager.default.removeItem(at: stitching)
+            return
+        }
+        #if DEBUG
+        beforePublishing?(job.cacheKey, index)
+        #endif
+        guard stillWants(job.cacheKey, index, hash), coordinator.renderTarget == target,
+              cache.isUsableAudioFile(stitching) else {
+            try? FileManager.default.removeItem(at: stitching)
+            ListenTimingLog.log("paragraph_discarded", ["key": ListenTimingLog.shortKey(job.cacheKey), "p": index])
+            return
+        }
+        try cache.publishParagraph(
+            staged: stitching,
+            articleID: job.cacheKey,
+            paragraphIndex: index,
+            duration: stitched.duration,
+            engineID: target.engineID,
+            voiceID: target.cacheVoice,
+            textHash: hash,
+            chunkDurations: chunks.count > 1 ? stitched.chunkDurations : nil
+        )
+        coordinator.noteBakeMarksChanged()
+        if job.isEphemeral {
+            cache.markEphemeral(cacheKey: job.cacheKey, lastAccess: Date())
+        }
+        if !liveChunkParagraphs.contains(ParagraphKey(cacheKey: job.cacheKey, index: index)) {
+            try? FileManager.default.removeItem(
+                at: cache.chunkDirectory(articleID: job.cacheKey, paragraphIndex: index, textHash: hash,
+                                         voice: target.cacheVoice))
+        }
+        resumeChunkWaitersWithParagraph(cacheKey: job.cacheKey, index: index)
+        let readyMsg = "bake ok \(job.cacheKey.uuidString.prefix(8)) p\(index) (\(chunks.count) chunk\(chunks.count == 1 ? "" : "s"))"
+        lastBakeEvent = readyMsg
+        ListenDebugLog.shared.append(readyMsg)
+        ListenTimingLog.log("paragraph_ready", [
+            "key": ListenTimingLog.shortKey(job.cacheKey), "p": index, "chunks": chunks.count,
+            "chars": text.count, "audio_s": (stitched.duration * 100).rounded() / 100,
+            "primary": stack.first == job.cacheKey,
+        ])
+    }
+
+    /// What a listener waiting on a chunk gets while no engine is loaded: the player speaks it
+    /// with Apple.
+    private static let noEngine = LocalSynthError.engineUnavailable("No on-device voice is loaded.")
 
     /// The worker stopped before a chunk (`RenderAdmission` said not now). Returns the reason
     /// (a background burst's stop line).
@@ -816,15 +756,13 @@ final class GlobalSynthQueue {
         }
     }
 
-    private struct NothingSpeakable: LocalizedError {
-        var errorDescription: String? { "Nothing speakable in paragraph" }
-    }
-
     /// Engine first (recursive re-split inside the renderer); Apple TTS for this chunk if the engine
-    /// still fails. Throws only when both fail.
+    /// still fails, in the voice the listen player falls back to for this article. Throws only
+    /// when both fail. Writes nothing when the engine fails because `target` went away or changed
+    /// during the call (the next step renders it for what renders now, or parks).
     private func renderChunk(
         job: ArticleJob, index: Int, chunk: Int, of count: Int, text: String, next: String? = nil,
-        to url: URL, hash: String, priority: RenderPriority
+        to url: URL, for target: RenderTarget, priority: RenderPriority
     ) async throws {
         guard let coordinator else { throw CancellationError() }
         let engine = coordinator.synthRenderer
@@ -852,6 +790,7 @@ final class GlobalSynthQueue {
             // Backgrounded (or the call was refused because of it): don't write Apple audio into
             // the engine's cache — the chunk renders with the engine once it may run again.
             if case LocalSynthError.deferredInBackground = error { throw error }
+            guard coordinator.renderTarget == target else { return }
             if admission(isLiveRequest: hasLiveWaiters, cacheKey: job.cacheKey) != .render {
                 throw LocalSynthError.deferredInBackground
             }
@@ -859,8 +798,7 @@ final class GlobalSynthQueue {
             let msg = "\(engine.engineShortName) FAIL p\(index) c\(chunk) → Apple TTS: \(localError)"
             ListenDebugLog.shared.append(msg)
             lastBakeEvent = msg
-            // Engine cache voice keys ("kokoro.af_heart") are not Apple voice ids.
-            let voice = coordinator.fallbackAppleVoice(forCacheVoice: job.voiceID)
+            let voice = coordinator.appleFallbackVoice(for: job.paragraphs)
             let duration = try await engine.renderAppleFallback(text: text, destination: url, voiceID: voice)
             ListenTimingLog.log("fallback_apple", ctx.merging([
                 "chars": text.count, "ms": ListenTimingLog.ms(since: t0),
@@ -877,8 +815,7 @@ final class GlobalSynthQueue {
     /// background on a route that renders there, a job steps aside once only those are left:
     /// listening doesn't need them, and a burst rendering them would never reach the high-water
     /// mark. They render in front.
-    private func nextWorkUnit() -> (ArticleJob, Int)? {
-        guard let coordinator else { return nil }
+    private func nextWorkUnit(in target: RenderTarget) -> (ArticleJob, Int)? {
         placeStaged()
         let aheadOnly = runState.phase == .background && rendersInBackground
         var position = 0
@@ -888,11 +825,11 @@ final class GlobalSynthQueue {
                 stack.remove(at: position)
                 continue
             }
-            let missing = missingParagraphs(of: job, coordinator)
+            let missing = missingParagraphs(of: job, in: target)
             let work = remainingWork(of: job, missing: missing)
             let cap = staged?.cacheKey == key ? staged?.cap : nil
             if let index = job.renderable(work, cap: cap, aheadOnly: aheadOnly).first {
-                if index < job.plan.priorityStart, staged?.behind == key, let opening = stagedOpening(coordinator) {
+                if index < job.plan.priorityStart, staged?.behind == key, let opening = stagedOpening(in: target) {
                     return opening
                 }
                 return (job, index)
@@ -902,7 +839,7 @@ final class GlobalSynthQueue {
                 continue
             }
             // Fully baked: off the queue, and try the next.
-            finishJob(job, missing: missing)
+            finishJob(job, in: target)
             jobs[key] = nil
             stack.remove(at: position)
             if staged?.cacheKey == key { staged = nil }
@@ -920,40 +857,23 @@ final class GlobalSynthQueue {
     }
 
     /// The staged chapter's next paragraph under its cap (nil: its opening is rendered).
-    private func stagedOpening(_ coordinator: SynthQueueContext) -> (ArticleJob, Int)? {
+    private func stagedOpening(in target: RenderTarget) -> (ArticleJob, Int)? {
         guard let staged, let job = jobs[staged.cacheKey] else { return nil }
-        let work = remainingWork(of: job, missing: missingParagraphs(of: job, coordinator))
+        let work = remainingWork(of: job, missing: missingParagraphs(of: job, in: target))
         return job.renderable(work, cap: staged.cap, aheadOnly: false).first.map { (job, $0) }
     }
 
-    private func compactCompleted() {
+    /// Article done: drop its persisted pending job; if no paragraph needs audio in the target's
+    /// voice any more, delete any leftover units of an older voice/engine (one voice per article).
+    private func finishJob(_ job: ArticleJob, in target: RenderTarget) {
         guard let coordinator else { return }
-        stack.removeAll { key in
-            guard let job = jobs[key] else { return true }
-            let missing = missingParagraphs(of: job, coordinator)
-            if missing.isEmpty {
-                jobs[key] = nil
-                finishJob(job, missing: missing)
-                return true
-            }
-            return false
-        }
-        if let staged, jobs[staged.cacheKey] == nil { self.staged = nil }
-    }
-
-    /// Article done: drop its persisted pending job; if every paragraph is in the job's voice,
-    /// delete any leftover units of an older voice/engine (one voice per article).
-    private func finishJob(_ job: ArticleJob, missing: [Int]) {
-        guard let coordinator else { return }
-        if missing.isEmpty {
-            let freed = coordinator.audioCache.finalizeVoiceSwitch(
-                articleID: job.cacheKey, paragraphCount: job.paragraphs.count,
-                engineID: coordinator.cacheEngineID, voiceID: job.voiceID)
-            if freed > 0 {
-                ListenDebugLog.shared.append(
-                    "voice switch done \(job.cacheKey.uuidString.prefix(8)): old-voice audio removed (\(FileSizes.label(freed)))")
-                coordinator.noteBakeMarksChanged()
-            }
+        let freed = coordinator.audioCache.finalizeVoiceSwitch(
+            articleID: job.cacheKey, paragraphs: job.paragraphs,
+            engineID: target.engineID, voiceID: target.cacheVoice, plans: coordinator.chunkPlans)
+        if freed > 0 {
+            ListenDebugLog.shared.append(
+                "voice switch done \(job.cacheKey.uuidString.prefix(8)): old-voice audio removed (\(FileSizes.label(freed)))")
+            coordinator.noteBakeMarksChanged()
         }
         coordinator.bakeCompleted(cacheKey: job.cacheKey)
     }
@@ -964,15 +884,17 @@ final class GlobalSynthQueue {
         for cont in conts { cont.resume(returning: .chunk(url)) }
     }
 
-    /// Paragraph finished: any chunk waiter of it gets a chunk file if kept, else the stitched
-    /// paragraph at that chunk's offset.
-    private func resumeChunkWaitersWithParagraph(cacheKey: UUID, index: Int, voiceID: String) {
+    /// Paragraph finished: any chunk waiter of it gets the stitched paragraph at that chunk's
+    /// offset. One whose paragraph can't be found in what renders now is failed (the producer
+    /// asks again), never dropped: a dropped continuation would hang its producer for good.
+    private func resumeChunkWaitersWithParagraph(cacheKey: UUID, index: Int) {
         let keys = chunkWaiters.keys.filter { $0.cacheKey == cacheKey && $0.index == index }
         for key in keys {
             let conts = chunkWaiters.removeValue(forKey: key) ?? []
-            guard let resolution = paragraphResolution(cacheKey: cacheKey, index: index, chunk: key.chunk, voiceID: voiceID)
-            else { continue }
-            for cont in conts { cont.resume(returning: resolution) }
+            let resolution = paragraphResolution(cacheKey: cacheKey, index: index, chunk: key.chunk)
+            for cont in conts {
+                if let resolution { cont.resume(returning: resolution) } else { cont.resume(throwing: CancellationError()) }
+            }
         }
     }
 

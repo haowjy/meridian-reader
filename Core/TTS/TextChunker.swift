@@ -43,14 +43,7 @@ enum TextChunker {
         /// Apple *fallback* text.
         static let tenSecondCall = Limits(target: 120, hardMax: 140, firstTarget: 90, minResplit: 24)
 
-        /// Kokoro (KokoroAne): input cap 510 IPA phonemes (`KokoroAneConstants.maxPhonemeLength`,
-        /// ALBERT 512 ctx) and 2000 acoustic frames (≈50 s at 40 frames/s — never binds first).
-        /// English Misaki IPA runs ≈0.8–1.0 phoneme chars per text char (stress marks included),
-        /// so 300 units stays well under 510 even for dense text; overflow is re-split anyway.
-        /// First chunk kept short (~100 chars ≈ 6 s audio) for fast first audio.
-        static let kokoro = Limits(target: 220, hardMax: 300, firstTarget: 100, minResplit: 24)
-
-        /// Kokoro on the ONNX CPU route (the default route). ≈1.0–1.3 phonemes
+        /// Kokoro, on either route (sized for the ONNX CPU route, the default). ≈1.0–1.3 phonemes
         /// per char. Chunks ramp so playback never waits after the first one: first ≤ 80 units
         /// (≈5 s of audio, ≈1.5 s to render on iPhone 17 Pro at ≈2.7× real time), second ≤ 160
         /// (renders in ≈3.5 s, inside the first chunk's 5 s), then whole sentences packed to 240,
@@ -61,12 +54,6 @@ enum TextChunker {
         static let kokoroCPU = Limits(target: 240, hardMax: 280, firstTarget: 80, minResplit: 24,
                                       alwaysSplitFirst: true, secondTarget: 160)
     }
-
-    /// Defaults = Kokoro (the only on-device engine). Callers normally pass `limits:`.
-    static let target = Limits.kokoro.target
-    static let hardMax = Limits.kokoro.hardMax
-    static let firstTarget = Limits.kokoro.firstTarget
-    static let minResplit = Limits.kokoro.minResplit
 
     static func chunks(for text: String, limits: Limits) -> [String] {
         chunks(for: text, target: limits.target, hardMax: limits.hardMax, firstTarget: limits.firstTarget,
@@ -163,9 +150,9 @@ enum TextChunker {
     /// - Sentences longer than `hardMax` are cut into balanced pieces at the strongest boundaries.
     static func chunks(
         for text: String,
-        target: Int = TextChunker.target,
-        hardMax: Int = TextChunker.hardMax,
-        firstTarget: Int = TextChunker.firstTarget,
+        target: Int,
+        hardMax: Int,
+        firstTarget: Int,
         secondTarget: Int? = nil,
         alwaysSplitFirst: Bool = false
     ) -> [String] {
@@ -424,7 +411,7 @@ enum TextChunker {
 
     /// Split one chunk that still overflowed the engine (retry path): roughly in half at the best
     /// clause/space boundary. Returns `[text]` when it cannot be split further.
-    static func resplit(_ text: String, minResplit: Int = TextChunker.minResplit) -> [String] {
+    static func resplit(_ text: String, minResplit: Int) -> [String] {
         let units = estimatedUnits(text)
         guard units > minResplit * 2 else { return [text] }
         let half = max(minResplit, units / 2 + 8)

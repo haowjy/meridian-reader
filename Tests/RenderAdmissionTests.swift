@@ -9,6 +9,7 @@ final class RenderAdmissionTests: XCTestCase {
         var live: Bool
         var playing: Bool
         var burst = false
+        var engineReady = true
         var expected: RenderAdmission
     }
 
@@ -34,10 +35,16 @@ final class RenderAdmissionTests: XCTestCase {
             Row(phase: .background, cpuRoute: true, live: false, playing: true, burst: true, expected: .render),
             Row(phase: .background, cpuRoute: true, live: false, playing: true, burst: false, expected: .park),
             Row(phase: .background, cpuRoute: true, live: false, playing: false, burst: true, expected: .park),
+            // No engine ready (Apple selected, a model loading or deleted): nothing renders in any
+            // phase; a listener's audio goes to Apple.
+            Row(phase: .active, cpuRoute: true, live: false, playing: true, engineReady: false, expected: .park),
+            Row(phase: .active, cpuRoute: true, live: true, playing: true, engineReady: false, expected: .deferToApple),
+            Row(phase: .background, cpuRoute: true, live: false, playing: true, burst: true, engineReady: false,
+                expected: .park),
         ]
         for row in rows {
             XCTAssertEqual(
-                RenderAdmission.decide(phase: row.phase, rendersInBackground: row.cpuRoute,
+                RenderAdmission.decide(engineReady: row.engineReady, phase: row.phase, rendersInBackground: row.cpuRoute,
                                        isLiveRequest: row.live, isPlayingArticle: row.playing,
                                        inBackgroundBurst: row.burst),
                 row.expected, "\(row)")

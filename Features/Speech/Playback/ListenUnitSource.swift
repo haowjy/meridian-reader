@@ -29,7 +29,8 @@ protocol ListenUnitSource: AnyObject {
     /// What the render worker is doing relative to `paragraph`.
     func workerStatus(paragraph: Int) -> RenderWorkerStatus
     /// Render `text` with Apple TTS into `destination` (the engine can't provide it in time).
-    func renderApple(_ text: String, to destination: URL) async throws
+    /// Returns its length in seconds.
+    func renderApple(_ text: String, to destination: URL) async throws -> TimeInterval
     /// Production restarts at `paragraph`: render from there first.
     func focus(paragraph: Int)
 }
@@ -55,23 +56,21 @@ enum RenderWorkerStatus: Equatable {
 final class QueueUnitSource: ListenUnitSource {
     private(set) var articleID: UUID
     let paragraphs: [String]
-    /// Cache keys of the audio this play uses (the engine and voice when playback started; an
-    /// engine or voice change restarts playback with a new source).
-    private let cacheEngineID: String
-    private let voiceKey: String
-    /// Apple voice for fallback renders (the article's effective Apple voice).
+    /// The engine and voice of the audio this play uses: the render target when playback started
+    /// (an engine or voice change restarts playback with a new source). nil: no engine is loaded.
+    private let target: RenderTarget?
+    /// Apple voice for fallback renders: the one the render queue falls back to for this article.
     private let appleVoiceID: String?
     private let coordinator: LocalTTSCoordinator
     private var queue: GlobalSynthQueue { coordinator.synthQueue }
     private var cache: ArticleAudioCache { coordinator.audioCache }
 
-    init(coordinator: LocalTTSCoordinator, articleID: UUID, paragraphs: [String], appleVoiceID: String?) {
+    init(coordinator: LocalTTSCoordinator, articleID: UUID, paragraphs: [String]) {
         self.coordinator = coordinator
         self.articleID = articleID
         self.paragraphs = paragraphs
-        self.appleVoiceID = appleVoiceID
-        self.cacheEngineID = coordinator.cacheEngineID
-        self.voiceKey = coordinator.cacheVoiceID(appleVoice: appleVoiceID)
+        self.target = coordinator.renderTarget
+        self.appleVoiceID = coordinator.appleFallbackVoice(for: paragraphs)
     }
 
     /// Save landed on a different key than the reader's: keep playing under the new one.
@@ -83,8 +82,9 @@ final class QueueUnitSource: ListenUnitSource {
     func prepare() async throws { try await coordinator.synth.prepare() }
 
     func renderedParagraph(_ paragraph: Int) -> RenderedParagraph? {
-        guard let url = cache.playableAudioURL(articleID: articleID, paragraphIndex: paragraph,
-                                               engineID: cacheEngineID, voiceID: voiceKey),
+        guard let target,
+              let url = cache.playableAudioURL(articleID: articleID, paragraphIndex: paragraph,
+                                               engineID: target.engineID, voiceID: target.cacheVoice),
               cache.isUsableAudioFile(url) else { return nil }
         let entry = cache.entry(articleID: articleID, paragraphIndex: paragraph)
         return RenderedParagraph(url: url, duration: entry?.duration ?? 0, chunkDurations: entry?.chunkDurations)
@@ -92,7 +92,9 @@ final class QueueUnitSource: ListenUnitSource {
 
     /// Rendered in this play's voice (not an older voice's file awaiting re-render).
     func isRenderedInThisVoice(paragraph: Int) -> Bool {
-        cache.audioURL(articleID: articleID, paragraphIndex: paragraph, engineID: cacheEngineID, voiceID: voiceKey) != nil
+        guard let target else { return false }
+        return cache.audioURL(articleID: articleID, paragraphIndex: paragraph,
+                              engineID: target.engineID, voiceID: target.cacheVoice) != nil
     }
 
     func chunks(paragraph: Int) -> [String] {
@@ -107,13 +109,12 @@ final class QueueUnitSource: ListenUnitSource {
     func chunk(paragraph: Int, chunk: Int) async throws -> GlobalSynthQueue.ChunkResolution {
         try await queue.ensureChunk(
             cacheKey: articleID, paragraphIndex: paragraph, chunk: chunk, text: paragraphs[paragraph],
-            paragraphs: paragraphs, voiceID: voiceKey,
-            isEphemeral: cache.loadMeta(for: articleID)?.kind == .ephemeral)
+            paragraphs: paragraphs,
+            isEphemeral: cache.isEphemeral(articleID))
     }
 
     func isChunkReady(paragraph: Int, chunk: Int) -> Bool {
-        queue.isChunkReady(cacheKey: articleID, paragraphIndex: paragraph, chunk: chunk,
-                           text: paragraphs[paragraph], voiceID: voiceKey)
+        queue.isChunkReady(cacheKey: articleID, paragraphIndex: paragraph, chunk: chunk, text: paragraphs[paragraph])
     }
 
     func workerStatus(paragraph: Int) -> RenderWorkerStatus {
@@ -121,8 +122,8 @@ final class QueueUnitSource: ListenUnitSource {
         return active == articleID && queue.activeBakeIndex == paragraph ? .renderingThisParagraph : .busyElsewhere
     }
 
-    func renderApple(_ text: String, to destination: URL) async throws {
-        _ = try await coordinator.synth.renderAppleFallback(text: text, destination: destination, voiceID: appleVoiceID)
+    func renderApple(_ text: String, to destination: URL) async throws -> TimeInterval {
+        try await coordinator.synth.renderAppleFallback(text: text, destination: destination, voiceID: appleVoiceID)
     }
 
     func focus(paragraph: Int) {

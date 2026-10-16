@@ -50,9 +50,10 @@ final class FakeUnitSource: ListenUnitSource {
     func isChunkReady(paragraph: Int, chunk: Int) -> Bool { rendered != nil }
     func workerStatus(paragraph: Int) -> RenderWorkerStatus { .idle }
 
-    func renderApple(_ text: String, to destination: URL) async throws {
+    func renderApple(_ text: String, to destination: URL) async throws -> TimeInterval {
         appleRenders.append(text)
         try LocalPCMWriter.write(FakeSynthHost.tone(seconds: 30, sampleRate: 24_000), sampleRate: 24_000, to: destination)
+        return 30
     }
 
     func focus(paragraph: Int) { focused.append(paragraph) }

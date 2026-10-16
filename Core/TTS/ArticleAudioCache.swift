@@ -4,12 +4,6 @@ import Observation
 @MainActor
 @Observable
 final class ArticleAudioCache {
-    enum Status: Equatable {
-        case missing
-        case partial(ready: Int, total: Int)
-        case ready(paragraphCount: Int)
-    }
-
     struct IndexFile: Codable, Equatable {
         var engineID: String
         var voiceID: String
@@ -69,6 +63,9 @@ final class ArticleAudioCache {
     /// checked when the index is loaded and when a unit is stored — so reads never touch the
     /// disk; they run on every scrubber redraw and per synth chunk. `.some(nil)`: no index.
     @ObservationIgnored private var indexes: [UUID: IndexFile?] = [:]
+    /// Each article's `meta.json` kind, read once and kept current by every meta write (all of
+    /// them go through this class): asked per chunk request. `.some(nil)`: no meta.
+    @ObservationIgnored private var kinds: [UUID: CacheMeta.Kind?] = [:]
     /// Audio that waits for library work a launch couldn't finish (`LibraryStore.finishAudioWork`).
     /// Until a run of that work replaces it, the engine purges and the prune leave it alone, and
     /// its saved bake jobs aren't adopted: the work still needs what is there.
@@ -177,17 +174,6 @@ final class ArticleAudioCache {
 
     // MARK: Reads
 
-    func status(for articleID: UUID, expectedParagraphs: Int? = nil) -> Status {
-        guard let index = index(for: articleID) else { return .missing }
-        let total = expectedParagraphs ?? index.paragraphs.count
-        if total == 0 { return .missing }
-        // Units in the index's (latest) engine/voice only; stale units of a previous voice don't count.
-        let ready = index.paragraphs.filter { $0.engineID == nil && $0.voiceID == nil }.count
-        if ready >= total { return .ready(paragraphCount: ready) }
-        if ready == 0 { return .missing }
-        return .partial(ready: ready, total: total)
-    }
-
     /// CAF for this paragraph rendered with exactly this engine/voice (bake state, queue).
     func audioURL(articleID: UUID, paragraphIndex: Int, engineID: String, voiceID: String) -> URL? {
         guard let index = index(for: articleID),
@@ -223,28 +209,18 @@ final class ArticleAudioCache {
             .map(\.index))
     }
 
-    /// Paragraph indices still missing a usable CAF for this engine/voice.
-    func missingIndices(
-        articleID: UUID,
-        paragraphCount: Int,
-        engineID: String,
-        voiceID: String
-    ) -> [Int] {
-        let ready = readyIndices(
-            articleID: articleID,
-            paragraphCount: paragraphCount,
-            engineID: engineID,
-            voiceID: voiceID
-        )
-        return (0..<paragraphCount).filter { !ready.contains($0) }
-    }
-
-    /// "Audio ready": every paragraph `0..<paragraphCount` has a CAF rendered with exactly this
-    /// engine and voice (stale units of another voice don't count).
-    func isAudioReady(articleID: UUID, paragraphCount: Int, engineID: String, voiceID: String) -> Bool {
-        paragraphCount > 0
-            && readyIndices(articleID: articleID, paragraphCount: paragraphCount, engineID: engineID,
-                            voiceID: voiceID).count == paragraphCount
+    /// The one rule for "this paragraph still needs audio": of `paragraphs`, those with something
+    /// to speak (a chunk plan with chunks, from `plans`) and no CAF in exactly this engine and
+    /// voice (stale units of another voice don't count). A paragraph with nothing to speak (a bare
+    /// "—") never gets audio, so it is never missing: an article is rendered once the rest is.
+    /// The render queue, Downloads, staging the next chapter, Apple standing in for a chapter and
+    /// the voice-switch cleanup all ask this.
+    func missingParagraphs(articleID: UUID, paragraphs: [String], engineID: String, voiceID: String,
+                           plans: ChunkPlans) -> [Int] {
+        let ready = readyIndices(articleID: articleID, paragraphCount: paragraphs.count, engineID: engineID, voiceID: voiceID)
+        return paragraphs.indices.filter {
+            !ready.contains($0) && plans.chunks(for: paragraphs[$0], engineID: engineID)?.isEmpty != true
+        }
     }
 
     /// Index entry for a ready paragraph (for chunk-boundary offsets).
@@ -264,6 +240,7 @@ final class ArticleAudioCache {
             try fileManager.removeItem(at: dir)
         }
         indexes[articleID] = .some(nil)
+        kinds[articleID] = .some(nil)
         bumpContentRevision()
     }
 
@@ -273,10 +250,10 @@ final class ArticleAudioCache {
     }
 
     /// A name of its own to stitch paragraph `paragraphIndex` into, inside the chunk scratch of
-    /// its text: no index lists it and no alignment touches it, and the launch's scratch cleanup
-    /// removes one an app died with.
-    func stitchingURL(articleID: UUID, paragraphIndex: Int, textHash: String) -> URL {
-        chunkDirectory(articleID: articleID, paragraphIndex: paragraphIndex, textHash: textHash)
+    /// its text and voice: no index lists it and no alignment touches it, and the launch's
+    /// scratch cleanup removes one an app died with.
+    func stitchingURL(articleID: UUID, paragraphIndex: Int, textHash: String, voice: String) -> URL {
+        chunkDirectory(articleID: articleID, paragraphIndex: paragraphIndex, textHash: textHash, voice: voice)
             .appendingPathComponent("paragraph-" + UUID().uuidString.prefix(8) + ".caf")
     }
 
@@ -354,17 +331,24 @@ final class ArticleAudioCache {
 
     // MARK: - Synth chunk scratch (GlobalSynthQueue)
 
-    /// `<article>/chunks/p-NNNN-<texthash>/c-KK.caf` — per-chunk renders of a paragraph that is
-    /// still being built. Stitched into `p-NNNN.caf` when every chunk is present.
-    func chunkDirectory(articleID: UUID, paragraphIndex: Int, textHash: String) -> URL {
+    /// `<article>/chunks/p-NNNN-<texthash>-<voice>/c-KK.caf` — per-chunk renders of a paragraph
+    /// that is still being built, in one cache voice. A call in flight when the voice changes
+    /// writes into its own voice's folder, never where the new voice looks. Stitched into
+    /// `p-NNNN.caf` when every chunk is present.
+    func chunkDirectory(articleID: UUID, paragraphIndex: Int, textHash: String, voice: String) -> URL {
         directory(for: articleID)
             .appendingPathComponent("chunks", isDirectory: true)
-            .appendingPathComponent(String(format: "p-%04d-", paragraphIndex) + textHash, isDirectory: true)
+            .appendingPathComponent(Self.chunkFolderPrefix(paragraphIndex, textHash) + voice, isDirectory: true)
     }
 
-    func chunkURL(articleID: UUID, paragraphIndex: Int, textHash: String, chunk: Int) -> URL {
-        chunkDirectory(articleID: articleID, paragraphIndex: paragraphIndex, textHash: textHash)
+    func chunkURL(articleID: UUID, paragraphIndex: Int, textHash: String, voice: String, chunk: Int) -> URL {
+        chunkDirectory(articleID: articleID, paragraphIndex: paragraphIndex, textHash: textHash, voice: voice)
             .appendingPathComponent(String(format: "c-%02d.caf", chunk))
+    }
+
+    /// The part of a chunk folder's name that names the paragraph and its text: `p-NNNN-<texthash>-`.
+    private static func chunkFolderPrefix(_ paragraphIndex: Int, _ textHash: String) -> String {
+        String(format: "p-%04d-", paragraphIndex) + textHash + "-"
     }
 
     /// Drop chunk scratch for one article (never while it is the live playback session).
@@ -374,16 +358,14 @@ final class ArticleAudioCache {
     }
 
     /// Drop chunk scratch for one article except the dirs that still match `paragraphs`
-    /// (same index + text hash): those hold finished chunks of a paragraph the queue is
-    /// baking right now. Wiping them made the worker synthesize the same chunks again —
+    /// (same index + text hash, any voice): those hold finished chunks of a paragraph the queue
+    /// is baking right now. Wiping them made the worker synthesize the same chunks again —
     /// extra Core ML calls, each one more exposure to the Kokoro libBNNS crash (#844).
     func removeChunkScratch(for articleID: UUID, keepingCurrent paragraphs: [String]) {
         let dir = directory(for: articleID).appendingPathComponent("chunks", isDirectory: true)
         guard let subdirs = try? fileManager.contentsOfDirectory(atPath: dir.path) else { return }
-        let keep = Set(paragraphs.indices.map {
-            String(format: "p-%04d-", $0) + ArticleIdentity.paragraphHash(paragraphs[$0])
-        })
-        for name in subdirs where !keep.contains(name) {
+        let keep = Set(paragraphs.indices.map { Self.chunkFolderPrefix($0, ArticleIdentity.paragraphHash(paragraphs[$0])) })
+        for name in subdirs where !keep.contains(where: name.hasPrefix) {
             try? fileManager.removeItem(at: dir.appendingPathComponent(name, isDirectory: true))
         }
     }
@@ -408,50 +390,6 @@ final class ArticleAudioCache {
     }
 }
 
-/// Explicit bake order for one article. Single Core ML worker walks this plan.
-/// Policy: priority stretch first (from `priorityStart` → end), then optionally return to top
-/// for any missing units below the jump/playhead so the full article lands on disk.
-struct BakePriorityPlan: Equatable, Sendable {
-    /// First index of the priority stretch (save → 0; listen/jump → selected paragraph).
-    var priorityStart: Int
-    /// After priority stretch finishes, bake missing indices in `0..<priorityStart`.
-    var fillGapsFromTopAfterPriority: Bool
-    var paragraphCount: Int
-
-    static func topDown(paragraphCount: Int) -> BakePriorityPlan {
-        BakePriorityPlan(
-            priorityStart: 0,
-            fillGapsFromTopAfterPriority: false,
-            paragraphCount: paragraphCount
-        )
-    }
-
-    static func fromPlayhead(_ start: Int, paragraphCount: Int) -> BakePriorityPlan {
-        let clamped = max(0, min(start, max(paragraphCount - 1, 0)))
-        return BakePriorityPlan(
-            priorityStart: clamped,
-            fillGapsFromTopAfterPriority: true,
-            paragraphCount: paragraphCount
-        )
-    }
-
-    /// Ordered indices still needing work. `missing` should be ascending.
-    func orderedWork(missing: [Int]) -> [Int] {
-        let start = max(0, min(priorityStart, paragraphCount))
-        var order: [Int] = []
-        let missingSet = Set(missing)
-        for i in start..<paragraphCount where missingSet.contains(i) {
-            order.append(i)
-        }
-        if fillGapsFromTopAfterPriority {
-            for i in 0..<start where missingSet.contains(i) {
-                order.append(i)
-            }
-        }
-        return order
-    }
-}
-
 // MARK: - Ephemeral meta, rekey, prune
 
 extension ArticleAudioCache {
@@ -472,6 +410,24 @@ extension ArticleAudioCache {
         return try? JSONDecoder().decode(CacheMeta.self, from: data)
     }
 
+    /// The article's audio is on the ephemeral TTL (an unsaved page's). From memory after the
+    /// first read of `meta.json`.
+    func isEphemeral(_ articleID: UUID) -> Bool {
+        if let kind = kinds[articleID] { return kind == .ephemeral }
+        let kind = loadMeta(for: articleID)?.kind
+        kinds[articleID] = .some(kind)
+        return kind == .ephemeral
+    }
+
+    private func writeMeta(_ meta: CacheMeta, for articleID: UUID) {
+        do {
+            try JSONEncoder().encode(meta).write(to: metaURL(for: articleID), options: .atomic)
+            kinds[articleID] = .some(meta.kind)
+        } catch {
+            kinds[articleID] = nil // read from disk next time
+        }
+    }
+
     func markEphemeral(cacheKey: UUID, canonicalURL: String? = nil, lastAccess: Date = Date()) {
         let dir = directory(for: cacheKey)
         try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -482,7 +438,7 @@ extension ArticleAudioCache {
             createdAt: existing?.createdAt ?? Date(),
             lastAccessAt: lastAccess
         )
-        try? JSONEncoder().encode(meta).write(to: metaURL(for: cacheKey), options: .atomic)
+        writeMeta(meta, for: cacheKey)
     }
 
     func markSaved(cacheKey: UUID) {
@@ -495,7 +451,7 @@ extension ArticleAudioCache {
             createdAt: existing?.createdAt ?? Date(),
             lastAccessAt: Date()
         )
-        try? JSONEncoder().encode(meta).write(to: metaURL(for: cacheKey), options: .atomic)
+        writeMeta(meta, for: cacheKey)
     }
 
     /// Moves an article's audio under another key (Save of a legacy reader key, adopting a v1
@@ -518,6 +474,8 @@ extension ArticleAudioCache {
             try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
             try fileManager.moveItem(at: src, to: dst)
             indexes[oldKey] = .some(nil)
+            kinds[oldKey] = .some(nil)
+            kinds[newKey] = nil
             dropIndex(for: newKey)
             bumpContentRevision()
             try step(.movedDirectory)
@@ -627,15 +585,17 @@ extension ArticleAudioCache {
     /// engine, see `RetiredEngineCleanup`) wrote those.
     nonisolated static let legacyEngineID = "local.chatterbox-nano"
 
-    /// Once every paragraph `0..<paragraphCount` has a CAF in `engineID`/`voiceID`, delete any
-    /// remaining units of other voices/engines (e.g. indices past the end). Returns bytes freed.
+    /// Once no paragraph of `paragraphs` needs audio in `engineID`/`voiceID` any more
+    /// (`missingParagraphs`), delete any remaining units of other voices/engines (e.g. indices
+    /// past the end, or a paragraph that has nothing to speak now). Returns bytes freed.
     @discardableResult
-    func finalizeVoiceSwitch(articleID: UUID, paragraphCount: Int, engineID: String, voiceID: String) -> Int64 {
-        guard paragraphCount > 0, var index = index(for: articleID) else { return 0 }
+    func finalizeVoiceSwitch(articleID: UUID, paragraphs: [String], engineID: String, voiceID: String,
+                             plans: ChunkPlans) -> Int64 {
+        guard !paragraphs.isEmpty, var index = index(for: articleID) else { return 0 }
         let stale = index.paragraphs.filter { !index.matches($0, engineID: engineID, voiceID: voiceID) }
         guard !stale.isEmpty,
-              readyIndices(articleID: articleID, paragraphCount: paragraphCount,
-                           engineID: engineID, voiceID: voiceID).count == paragraphCount
+              missingParagraphs(articleID: articleID, paragraphs: paragraphs, engineID: engineID, voiceID: voiceID,
+                                plans: plans).isEmpty
         else { return 0 }
         let dir = directory(for: articleID)
         let keptFiles = Set(index.paragraphs.filter { index.matches($0, engineID: engineID, voiceID: voiceID) }.map(\.file))

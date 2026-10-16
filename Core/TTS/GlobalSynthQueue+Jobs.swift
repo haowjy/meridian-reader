@@ -2,7 +2,7 @@ import Foundation
 
 /// The values `GlobalSynthQueue` works with: its jobs, the persisted work it adopts
 /// (`adoptPending` folds it in), what a producer gets back for a chunk, the staged chapter, and
-/// the keys chunk plans and waiters are filed under.
+/// the keys waiters are filed under.
 extension GlobalSynthQueue {
     struct ArticleJob: Equatable {
         var cacheKey: UUID
@@ -14,20 +14,14 @@ extension GlobalSynthQueue {
         /// `ArticleIdentity.paragraphHash` of each paragraph (chunk scratch dirs, failure marks):
         /// hashed when the text is set, not again for every chunk the worker picks.
         private(set) var paragraphHashes: [String]
-        var voiceID: String
         var plan: BakePriorityPlan
-        /// FIFO demotion order among non-#1 articles (lower = older / demoted earlier).
-        var demoteOrder: Int
         var isEphemeral: Bool
 
-        init(cacheKey: UUID, paragraphs: [String], voiceID: String, plan: BakePriorityPlan,
-             demoteOrder: Int, isEphemeral: Bool) {
+        init(cacheKey: UUID, paragraphs: [String], plan: BakePriorityPlan, isEphemeral: Bool) {
             self.cacheKey = cacheKey
             self.paragraphs = paragraphs
             self.paragraphHashes = paragraphs.map(ArticleIdentity.paragraphHash)
-            self.voiceID = voiceID
             self.plan = plan
-            self.demoteOrder = demoteOrder
             self.isEphemeral = isEphemeral
         }
 
@@ -37,12 +31,6 @@ extension GlobalSynthQueue {
         func renderable(_ work: [Int], cap: Int?, aheadOnly: Bool) -> [Int] {
             work.filter { $0 < (cap ?? .max) && !(aheadOnly && $0 < plan.priorityStart) }
         }
-    }
-
-    /// A chunk plan's cache key: plans are per engine and text.
-    struct ChunkPlanKey: Hashable {
-        var engine: String
-        var text: String
     }
 
     struct ParagraphKey: Hashable {
@@ -61,7 +49,6 @@ extension GlobalSynthQueue {
     struct PendingWork: Equatable {
         var cacheKey: UUID
         var paragraphs: [String]
-        var voiceID: String
         var priorityStart: Int
         var isEphemeral: Bool
     }
@@ -81,15 +68,9 @@ extension GlobalSynthQueue {
         }
         for job in ordered {
             let primary = primaryCacheKey
-            if primary == job.cacheKey {
-                continue // already #1 with a live plan; don't reset its playhead cursor
-            } else if primary == nil || job.cacheKey == focusKey {
-                openArticle(cacheKey: job.cacheKey, paragraphs: job.paragraphs,
-                            voiceID: job.voiceID, resumeParagraph: job.priorityStart, isEphemeral: job.isEphemeral)
-            } else {
-                enqueueDemoted(cacheKey: job.cacheKey, paragraphs: job.paragraphs,
-                               voiceID: job.voiceID, resumeParagraph: job.priorityStart, isEphemeral: job.isEphemeral)
-            }
+            guard primary != job.cacheKey else { continue } // #1 with a live plan: keep its playhead cursor
+            enqueue(cacheKey: job.cacheKey, paragraphs: job.paragraphs, from: job.priorityStart,
+                    isEphemeral: job.isEphemeral, at: primary == nil || job.cacheKey == focusKey ? .front : .back)
         }
     }
 
@@ -99,6 +80,13 @@ extension GlobalSynthQueue {
         case chunk(URL)
         /// Paragraph already stitched; play `url` from `startTime` (chunk boundary).
         case paragraph(URL, startTime: TimeInterval)
+
+        /// The file to play.
+        var fileURL: URL {
+            switch self {
+            case .chunk(let url), .paragraph(let url, _): url
+            }
+        }
     }
 
     /// The next chapter staged behind the one playing (`stageNext`).
@@ -111,5 +99,26 @@ extension GlobalSynthQueue {
         /// The job was in the queue before it was staged (a book's demoted bake): unstaging
         /// leaves it there.
         var wasQueued: Bool
+    }
+}
+
+/// Render order for one article: the priority stretch from `priorityStart` (the resume point, a
+/// jump, 0 for a save) to the end, then the missing paragraphs above it, so the whole article
+/// lands on disk.
+struct BakePriorityPlan: Equatable, Sendable {
+    /// First paragraph of the priority stretch.
+    let priorityStart: Int
+    let paragraphCount: Int
+
+    init(resume: Int, count: Int) {
+        priorityStart = max(0, min(resume, max(count - 1, 0)))
+        paragraphCount = count
+    }
+
+    /// `missing` (ascending) in render order.
+    func orderedWork(missing: [Int]) -> [Int] {
+        let start = min(priorityStart, paragraphCount)
+        let missingSet = Set(missing)
+        return (start..<paragraphCount).filter(missingSet.contains) + (0..<start).filter(missingSet.contains)
     }
 }

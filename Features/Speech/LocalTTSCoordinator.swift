@@ -17,6 +17,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// The on-device engine's model: lifecycle, host and renderer. The render queue renders through it.
     let synth: LocalSynthService
+    /// Every chunk plan, by engine (the render queue, the player, alignment, readiness).
+    let chunkPlans: ChunkPlans
     /// Called after every engine-state change and engine-voice change. `SpeechController` uses it
     /// to decide whether the live utterance moves to another engine (views never coordinate that).
     @ObservationIgnored var onEngineChange: (() -> Void)?
@@ -54,6 +56,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// False when the article's effective language isn't supported by the engine (it then
     /// speaks with Apple). nil = always.
     var localLanguageGate: (([String]) -> Bool)?
+    /// Set by `SpeechController`: the Apple voice that speaks an article with these listen blocks
+    /// (the voice for its language). The listen player and the render queue fall back to it alike.
+    var appleVoiceForArticle: (([String]) -> String?)?
 
     /// Picks the launch engine (the stored selection, after crash recovery) and starts loading
     /// it. One-time launch steps are `LaunchMigration`s, run by `AppComposition`.
@@ -68,6 +73,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         self.audioCache = audioCache ?? ArticleAudioCache()
         self.crashGuard = crashGuard
         self.synth = LocalSynthService(engines: engines)
+        self.chunkPlans = ChunkPlans { engines.descriptor(SpeechEngineID(rawValue: $0))?.limits }
         for d in engines.localDescriptors where !d.voices.isEmpty {
             // Stored voice if still offered (curated list), else the engine default.
             engineVoices[d.id] = d.resolvedVoice(defaults.string(forKey: d.resolvedVoiceDefaultsKey))
@@ -75,8 +81,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         synthQueue.attach(coordinator: self)
         synth.onStateChange = { [weak self] in self?.engineStateChanged() }
         var initial = storedSelection()
-        // Pre-DI crash markers carry no engine id; only crash-guarded engines ever wrote them.
-        launchCrash = crashGuard.consumeCrashInfo(legacyEngine: engines.localDescriptors.first { $0.crashGuarded }?.id)
+        launchCrash = crashGuard.consumeCrashInfo()
         if let launchCrash { initial = recover(from: launchCrash, selection: initial) }
         #if DEBUG
         // Dev/test hook: `-selectEngine <engine id>` (persisted), e.g. local.kokoro.
@@ -226,9 +231,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     private func reloadKokoroHost() async {
         RenderPace.shared.reset()
         guard activeLocalEngineID == .kokoro else { return }
-        let load = synth.reload(.kokoro, voice: engineVoices[.kokoro])
-        synthQueue.engineDidChange()
-        await load.value
+        await synth.reload(.kokoro, voice: engineVoices[.kokoro]).value
     }
 
     // MARK: - SynthQueueContext (route-aware background)
@@ -247,32 +250,39 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// `ArticleAudioCache` engine key for the active local engine.
     var cacheEngineID: String { (activeLocalEngineID ?? engines.defaultLocalEngineID).rawValue }
 
-    /// Chunk sizing for the active local engine.
-    var activeChunkLimits: TextChunker.Limits { engines.limits(for: activeLocalEngineID ?? engines.defaultLocalEngineID) }
-
     var synthRenderer: SynthChunkRendering { synth }
 
     /// Voice selected for a multi-voice engine (nil for single-voice engines).
     func voice(for id: SpeechEngineID) -> String? { engineVoices[id] }
 
-    /// `ArticleAudioCache` voice key per the active engine's `CacheVoiceKeyStyle`
-    /// (Kokoro: "kokoro.<voice>" — key format unchanged since the Kokoro release).
-    func cacheVoiceID(appleVoice: String?) -> String {
-        guard let id = activeLocalEngineID, let d = engines.descriptor(id) else { return appleVoice ?? "system" }
-        return d.cacheVoiceID(engineVoice: engineVoices[id], appleVoice: appleVoice)
+    /// `ArticleAudioCache` voice key of engine `id`'s audio in its selected voice
+    /// ("kokoro.af_heart"; the format is persisted); nil for an engine that renders nothing ahead.
+    func cacheVoice(of id: SpeechEngineID) -> String? {
+        engines.descriptor(id)?.cacheVoiceID(engineVoice: engineVoices[id])
     }
 
-    /// Map any stored/passed voice key onto the active engine's key space (pending jobs may
-    /// carry an Apple voice id from an old session, or another voice's key after a voice switch).
-    func normalizedCacheVoice(_ voiceID: String) -> String {
-        if let id = activeLocalEngineID, let d = engines.descriptor(id), case .prefixed = d.cacheVoiceKey {
-            return d.cacheVoiceID(engineVoice: engineVoices[id], appleVoice: nil)
-        }
-        return engines.isEngineVoiceKey(voiceID) ? "system" : voiceID
+    /// Cache voice key of the active local engine (loaded or loading): what bake marks count.
+    var activeCacheVoice: String? { activeLocalEngineID.flatMap(cacheVoice(of:)) }
+
+    /// What the render queue renders: the loaded on-device engine in its selected voice. nil while
+    /// none is loaded (Apple selected, a model loading, failed or deleted), and then nothing
+    /// renders: a model loads only when it is selected (`selectEngine`, launch), never because
+    /// work is queued.
+    var renderTarget: RenderTarget? {
+        guard let id = synth.state.readyEngineID, let voice = cacheVoice(of: id) else { return nil }
+        return RenderTarget(engineID: id.rawValue, cacheVoice: voice)
     }
 
-    func fallbackAppleVoice(forCacheVoice voiceID: String) -> String? {
-        (voiceID == "system" || engines.isEngineVoiceKey(voiceID)) ? nil : voiceID
+    func appleFallbackVoice(for paragraphs: [String]) -> String? {
+        appleVoiceForArticle?(paragraphs)
+    }
+
+    /// Paragraphs of `cacheKey` that still need audio in what renders now
+    /// (`ArticleAudioCache.missingParagraphs`); nil while no engine is loaded.
+    func missingParagraphs(of cacheKey: UUID, paragraphs: [String]) -> [Int]? {
+        guard let target = renderTarget else { return nil }
+        return audioCache.missingParagraphs(articleID: cacheKey, paragraphs: paragraphs, engineID: target.engineID,
+                                            voiceID: target.cacheVoice, plans: chunkPlans)
     }
 
     func bakeCompleted(cacheKey: UUID) {
@@ -291,7 +301,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         defaults.set(voice, forKey: d.resolvedVoiceDefaultsKey)
         guard activeLocalEngineID == id else { return }
         synth.setVoice(voice, for: id)
-        synthQueue.engineDidChange()
+        synthQueue.renderTargetChanged()
         noteBakeMarksChanged()
         onEngineChange?()
     }
@@ -354,23 +364,22 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
     }
 
-    /// Load `id` (see `LocalSynthService.load`); the queue drops the old engine's chunk plans
-    /// and scratch.
+    /// Load `id` (see `LocalSynthService.load`).
     @discardableResult
     private func beginWarm(_ id: SpeechEngineID) -> Task<Void, Never> {
-        let load = synth.load(id, voice: engineVoices[id])
-        synthQueue.engineDidChange()
-        return load
+        synth.load(id, voice: engineVoices[id])
     }
 
-    /// Persist the selection, let the controller move the live utterance, and once a load
-    /// finishes fold the waiting bake jobs into the queue.
+    /// Persist the selection, let the controller move the live utterance, tell the render queue
+    /// what renders now (nothing unless an engine is loaded), and once a load finishes fold the
+    /// waiting bake jobs into the queue.
     private func engineStateChanged() {
         let state = synth.state
         if let persisted = state.persistedSelection {
             defaults.set(persisted.rawValue, forKey: Self.engineIDKey)
         }
         onEngineChange?()
+        synthQueue.renderTargetChanged()
         if case .ready = state {
             noteBakeMarksChanged()
             drainPendingIntoQueue()
@@ -411,83 +420,23 @@ final class LocalTTSCoordinator: SynthQueueContext {
         synthQueue.pendingUnitCount(for: articleID)
     }
 
-    func bakeStatus(for articleID: UUID, paragraphCount: Int) -> ArticleAudioCache.Status {
-        audioCache.status(for: articleID, expectedParagraphs: paragraphCount)
-    }
+    // MARK: - Queue reshuffle (Reader, listening, Save)
 
-    // MARK: - Shared warm / queue reshuffle (Browse + Saved)
-
-    /// Open/focus an article as queue #1 and bake from resume downward.
-    /// Shared by Browse Reader and Offline — not separate bake stacks.
-    func warmListenAudio(
-        cacheKey: UUID,
-        paragraphs: [String],
-        voiceID: String,
-        resumeParagraph: Int = 0,
-        isEphemeral: Bool
-    ) {
+    /// The Reader opened `cacheKey`, or listening starts or jumps there: its job becomes #1 and
+    /// renders from paragraph `start` to the end, then the paragraphs above. While the engine
+    /// loads, the job waits on disk and joins the queue when the load finishes. An ephemeral
+    /// page's audio starts its TTL again; Save is what marks audio saved.
+    func openArticle(cacheKey: UUID, paragraphs: [String], from start: Int, isEphemeral: Bool) {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
-        let voiceID = normalizedCacheVoice(voiceID)
         focusCacheKey = cacheKey
         guard usesLocalEngine else {
-            // Still loading: the job waits on disk and joins the queue when the load finishes.
-            PendingBakeJobStore.shared.enqueuePending(
-                articleID: cacheKey,
-                paragraphs: paragraphs,
-                voiceID: voiceID,
-                plan: resumeParagraph <= 0
-                    ? .topDown(paragraphCount: paragraphs.count)
-                    : .fromPlayhead(resumeParagraph, paragraphCount: paragraphs.count)
-            )
-            print("[SynthQueue] queued pending key=\(cacheKey.uuidString.prefix(8)) (local engine warming)")
+            PendingBakeJobStore.shared.enqueuePending(articleID: cacheKey, paragraphs: paragraphs,
+                                                      priorityStart: max(0, start))
             return
         }
-        if isEphemeral {
-            audioCache.markEphemeral(cacheKey: cacheKey, lastAccess: Date())
-        } else {
-            audioCache.markSaved(cacheKey: cacheKey)
-        }
-        synthQueue.openArticle(
-            cacheKey: cacheKey,
-            paragraphs: paragraphs,
-            voiceID: voiceID,
-            resumeParagraph: resumeParagraph,
-            isEphemeral: isEphemeral
-        )
-    }
-
-    /// Listen start / jump: article stays #1; cursor → paragraph…end then gap-fill.
-    func prioritizeListen(
-        cacheKey: UUID,
-        playhead: Int,
-        paragraphs: [String],
-        voiceID: String,
-        isEphemeral: Bool = false
-    ) {
-        guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
-        let voiceID = normalizedCacheVoice(voiceID)
-        focusCacheKey = cacheKey
-        if isEphemeral {
-            audioCache.markEphemeral(cacheKey: cacheKey, lastAccess: Date())
-        }
-        if usesLocalEngine {
-            synthQueue.openArticle(
-                cacheKey: cacheKey,
-                paragraphs: paragraphs,
-                voiceID: voiceID,
-                resumeParagraph: playhead,
-                isEphemeral: isEphemeral
-            )
-            synthQueue.focusPlayhead(cacheKey: cacheKey, paragraph: playhead)
-        } else {
-            warmListenAudio(
-                cacheKey: cacheKey,
-                paragraphs: paragraphs,
-                voiceID: voiceID,
-                resumeParagraph: playhead,
-                isEphemeral: isEphemeral
-            )
-        }
+        if isEphemeral { audioCache.markEphemeral(cacheKey: cacheKey, lastAccess: Date()) }
+        synthQueue.enqueue(cacheKey: cacheKey, paragraphs: paragraphs, from: start, isEphemeral: isEphemeral,
+                           at: .front)
     }
 
     /// Paragraphs of the next chapter rendered before it plays (`stageNextChapter`).
@@ -499,50 +448,25 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// and for audio held for unfinished library work (`ArticleAudioCache.held`), which a render
     /// would overwrite before that work reads it.
     @discardableResult
-    func stageNextChapter(cacheKey: UUID, after playing: UUID, paragraphs: [String], voiceID: String) -> Bool {
+    func stageNextChapter(cacheKey: UUID, after playing: UUID, paragraphs: [String]) -> Bool {
         guard !paragraphs.isEmpty, wantsLocalBake, usesLocalEngine, localLanguageAllows(paragraphs),
               !audioCache.held.contains(cacheKey) else { return false }
         synthQueue.stageNext(cacheKey: cacheKey, after: playing, paragraphs: paragraphs,
-                             voiceID: normalizedCacheVoice(voiceID), upTo: Self.stagedChapterParagraphs,
-                             isEphemeral: audioCache.loadMeta(for: cacheKey)?.kind == .ephemeral)
+                             upTo: Self.stagedChapterParagraphs,
+                             isEphemeral: audioCache.isEphemeral(cacheKey))
         return true
     }
 
-    /// On article save: enqueue (demoted if something else is #1) top → down.
-    func startBakeIfNeeded(articleID: UUID, paragraphs: [String], voiceID: String) {
+    /// On article save (or a download, a finished listen's gap fill): render it in full, top
+    /// down, behind what is queued (#1 when nothing is). A job already queued, the one playing
+    /// included, keeps its place and plan and just turns saved.
+    func startBakeIfNeeded(articleID: UUID, paragraphs: [String]) {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
-        let voiceID = normalizedCacheVoice(voiceID)
         audioCache.markSaved(cacheKey: articleID)
-        PendingBakeJobStore.shared.enqueuePending(
-            articleID: articleID,
-            paragraphs: paragraphs,
-            voiceID: voiceID,
-            plan: .topDown(paragraphCount: paragraphs.count)
-        )
+        PendingBakeJobStore.shared.enqueuePending(articleID: articleID, paragraphs: paragraphs, priorityStart: 0)
         // Still loading: the job joins the queue when the load finishes.
         guard usesLocalEngine else { return }
-        // Already #1 (e.g. Save mid-listen): keep its playhead plan; just flip to saved.
-        if synthQueue.primaryCacheKey == articleID, synthQueue.hasJob(cacheKey: articleID) {
-            synthQueue.setEphemeral(cacheKey: articleID, false)
-            return
-        }
-        // If nothing is playing, open as #1; else demote behind current listen.
-        if synthQueue.primaryCacheKey == nil || synthQueue.primaryCacheKey == articleID {
-            synthQueue.openArticle(
-                cacheKey: articleID,
-                paragraphs: paragraphs,
-                voiceID: voiceID,
-                resumeParagraph: 0,
-                isEphemeral: false
-            )
-        } else {
-            synthQueue.enqueueDemoted(
-                cacheKey: articleID,
-                paragraphs: paragraphs,
-                voiceID: voiceID,
-                isEphemeral: false
-            )
-        }
+        synthQueue.enqueue(cacheKey: articleID, paragraphs: paragraphs, isEphemeral: false, at: .back)
     }
 
     /// After Save: move ephemeral CAFs onto the saved page's key and reshuffle the queue key.
@@ -614,7 +538,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
             }
             // Giant paragraphs split since this audio was rendered (layout v3) keep the pieces
             // whose chunks line up with the old render; the rest re-render.
-            let result = try audioCache.reconcile(articleID: key, paragraphs: paragraphs) { self.chunkPlan(engineID: $0, text: $1) }
+            let result = try audioCache.reconcile(articleID: key, paragraphs: paragraphs) {
+                self.chunkPlans.chunks(for: $1, engineID: $0)
+            }
             // The job renders what the audio now follows, or it would file renders of its old
             // text on these paragraphs (Save doesn't reopen a job that is already #1).
             synthQueue.updateParagraphs(cacheKey: key, paragraphs: paragraphs)
@@ -627,12 +553,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
             ListenDebugLog.shared.append("identity \(key.uuidString.prefix(8)) align failed: \(error.localizedDescription)")
             print("[Identity] align failed: \(error.localizedDescription)")
         }
-    }
-
-    /// The render queue's chunk plan for `text` as rendered by `engineID` (nil if unknown engine).
-    func chunkPlan(engineID: String, text: String) -> [String]? {
-        guard let d = engines.descriptor(SpeechEngineID(rawValue: engineID)) else { return nil }
-        return TextChunker.chunks(for: text, limits: d.limits)
     }
 
     /// Bake only for engines that declare `supportsBakeCache` (Apple: no).
@@ -654,9 +574,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
             GlobalSynthQueue.PendingWork(
                 cacheKey: job.articleID,
                 paragraphs: job.paragraphs,
-                voiceID: normalizedCacheVoice(job.voiceID),
                 priorityStart: job.priorityStart,
-                isEphemeral: audioCache.loadMeta(for: job.articleID)?.kind == .ephemeral
+                isEphemeral: audioCache.isEphemeral(job.articleID)
             )
         }, focusKey: focusCacheKey)
     }

@@ -303,7 +303,7 @@ enum LaunchHooks {
         ListenTimingLog.log("debug_bake_article", [
             "prefix": prefix, "found": true, "key": ListenTimingLog.shortKey(page.listenKey), "paragraphs": paragraphs.count,
         ])
-        speech.localTTS.startBakeIfNeeded(articleID: page.listenKey, paragraphs: paragraphs, voiceID: speech.cacheVoiceID)
+        speech.localTTS.startBakeIfNeeded(articleID: page.listenKey, paragraphs: paragraphs)
     }
 
     /// `-resetBookmarks` / `-seedBookmarks`: clears favorite flags, then optionally seeds links.

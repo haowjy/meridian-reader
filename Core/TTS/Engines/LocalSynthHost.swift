@@ -82,15 +82,14 @@ extension LocalSynthHost {
     var trimsEdgeSilence: Bool { false }
 }
 
-/// 24 kHz mono Int16 CAF writer shared by all local hosts (and `ChunkAudioStitcher` readers).
+/// The one CAF writer for rendered audio (mono Int16): every chunk a host renders
+/// (`LocalChunkRenderer`) and every stitched paragraph (`ChunkAudioStitcher`).
 enum LocalPCMWriter {
     enum WriteError: LocalizedError {
         case failed(String)
-        case emptyText
         var errorDescription: String? {
             switch self {
             case .failed(let detail): return "Failed to write PCM: \(detail)"
-            case .emptyText: return "Nothing to synthesize."
             }
         }
     }
@@ -115,7 +114,7 @@ enum LocalPCMWriter {
         }
 
         let frameCount = AVAudioFrameCount(samples.count)
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: max(frameCount, 1)) else {
             throw LocalPCMWriter.WriteError.failed("Could not allocate PCM buffer (\(samples.count) frames)")
         }
         buffer.frameLength = frameCount
@@ -150,5 +149,13 @@ enum LocalPCMWriter {
             interleaved: true
         )
         try file.write(from: buffer)
+    }
+
+    /// Seconds of audio in the file at `url` (any format `AVAudioFile` reads); 0 when it can't be
+    /// read. The one duration reader: blocking file I/O, so the player reads each unit's length
+    /// once, off the main actor, and carries it with the unit.
+    nonisolated static func duration(of url: URL) -> TimeInterval {
+        guard let file = try? AVAudioFile(forReading: url), file.fileFormat.sampleRate > 0 else { return 0 }
+        return Double(file.length) / file.fileFormat.sampleRate
     }
 }

@@ -14,8 +14,9 @@ final class EngineRegistryTests: XCTestCase {
         XCTAssertEqual(SpeechEngineID.kokoro.rawValue, "local.kokoro")
         XCTAssertEqual(SpeechEngineID.retiredChatterboxNano.rawValue, "local.chatterbox-nano")
         let kokoro = FluidAudioProvider.kokoroDescriptor
-        XCTAssertEqual(kokoro.cacheVoiceID(engineVoice: "af_heart", appleVoice: "com.apple.voice.x"), "kokoro.af_heart")
-        XCTAssertEqual(kokoro.cacheVoiceID(engineVoice: nil, appleVoice: nil), "kokoro.af_heart")
+        XCTAssertEqual(kokoro.cacheVoiceID(engineVoice: "af_heart"), "kokoro.af_heart")
+        XCTAssertEqual(kokoro.cacheVoiceID(engineVoice: nil), "kokoro.af_heart")
+        XCTAssertNil(AppleSpeechProvider.descriptor.cacheVoiceID(engineVoice: nil), "Apple renders nothing ahead")
         XCTAssertEqual(kokoro.resolvedVoiceDefaultsKey, "reader.tts.kokoroVoice")
         let retired = FluidAudioProvider().retiredEngines
         XCTAssertEqual(retired.map(\.id), [.retiredChatterboxNano])
@@ -33,10 +34,7 @@ final class EngineRegistryTests: XCTestCase {
         XCTAssertFalse(registry.descriptor(.apple)!.supportsBakeCache)
         XCTAssertTrue(registry.descriptor(.kokoro)!.supportsBakeCache)
         XCTAssertTrue(registry.descriptor(.kokoro)!.crashGuarded)
-        XCTAssertEqual(registry.limits(for: .kokoro), .kokoroCPU, "ONNX CPU route is the default")
-        XCTAssertTrue(registry.isEngineVoiceKey("kokoro.af_bella"))
-        XCTAssertFalse(registry.isEngineVoiceKey("com.apple.voice.compact.en-US.Samantha"))
-        XCTAssertFalse(registry.isEngineVoiceKey("system"))
+        XCTAssertEqual(registry.descriptor(.kokoro)?.limits, .kokoroCPU, "ONNX CPU route is the default")
     }
 
     func testHardwareGateAndBlockReason() {
@@ -74,16 +72,12 @@ final class EngineRegistryTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("crashguard-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }
         let guardian = EngineCrashGuard(directory: dir)
-        XCTAssertNil(guardian.consumeCrashMarker(legacyEngine: .kokoro))
+        XCTAssertNil(guardian.consumeCrashInfo())
         guardian.beginCall(engine: .kokoro, chars: 42, context: "t")
         guardian.endCall()
-        XCTAssertNil(guardian.consumeCrashMarker(legacyEngine: nil), "clean call leaves no marker")
+        XCTAssertNil(guardian.consumeCrashInfo(), "clean call leaves no marker")
         guardian.beginCall(engine: .kokoro, chars: 42, context: "t") // process "dies" here
-        XCTAssertEqual(guardian.consumeCrashMarker(legacyEngine: nil), .kokoro)
+        XCTAssertEqual(guardian.consumeCrashInfo()?.engine, .kokoro)
         XCTAssertEqual(guardian.crashCount, 1)
-        // Pre-DI marker (no engine field) is attributed to the legacy engine.
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try Data(#"{"chars":10}"#.utf8).write(to: dir.appendingPathComponent("kokoro_inflight.json"))
-        XCTAssertEqual(guardian.consumeCrashMarker(legacyEngine: .kokoro), .kokoro)
     }
 }

@@ -252,8 +252,7 @@ final class BookSaveFailureTests: XCTestCase {
     /// with a pending render waiting for the engine.
     private func renderNewThree() throws {
         for (i, text) in textNew.enumerated() { try env.storeAudio(three, paragraph: i, text: text, level: 0.4 + Float(i) / 10) }
-        PendingBakeJobStore.shared.enqueuePending(articleID: three, paragraphs: textNew, voiceID: "voiceA",
-                                                  plan: .topDown(paragraphCount: textNew.count))
+        PendingBakeJobStore.shared.enqueuePending(articleID: three, paragraphs: textNew, priorityStart: 0)
         addTeardownBlock { @MainActor in
             for key in [self.three, self.renamed, self.five] { PendingBakeJobStore.shared.removePending(articleID: key) }
         }

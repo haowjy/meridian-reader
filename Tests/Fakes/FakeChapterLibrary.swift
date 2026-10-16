@@ -9,6 +9,8 @@ final class FakeChapterLibrary: NextChapterProviding {
     struct Spec {
         var title: String
         var paragraphs = ["The first paragraph of a chapter.", "Its second paragraph.", "And its third."]
+        /// The paragraphs as they are, not prefixed with the title.
+        var verbatim = false
         var skips = false
         var isLink = false
         var blockedReason: String?
@@ -27,7 +29,8 @@ final class FakeChapterLibrary: NextChapterProviding {
         let folder = PlaybackFolder(id: UUID(), name: name, isBookOrSeries: isBookOrSeries)
         self.folder = folder
         sessions = specs.map { spec in
-            SpeechSession(id: UUID(), document: ParagraphDocument(parts: spec.paragraphs.map { "\(spec.title): \($0)" }),
+            SpeechSession(id: UUID(), document: ParagraphDocument(parts: spec.verbatim ? spec.paragraphs
+                                                                      : spec.paragraphs.map { "\(spec.title): \($0)" }),
                           detectedLanguage: "en", title: spec.title, site: "An Author", folder: folder)
         }
         chapters = zip(sessions, specs).map { session, spec in

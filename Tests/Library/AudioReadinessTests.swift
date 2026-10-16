@@ -2,9 +2,10 @@ import SwiftData
 import XCTest
 @testable import MeridianReader
 
-/// "Audio ready": every listen paragraph (`Page.paragraphCount`) rendered in the current voice.
-/// Derived from the audio cache, so a voice change, the trim of finished chapters, Delete
-/// Downloads and a remap all change it without anything stored on the page.
+/// "Audio ready": no listen paragraph of the page still needs audio in the voice
+/// (`ArticleAudioCache.missingParagraphs`). Derived from the audio cache, so a voice change, the
+/// trim of finished chapters, Delete Downloads and a remap all change it without anything stored
+/// on the page; a paragraph with nothing to speak never holds it back.
 @MainActor
 final class AudioReadinessTests: XCTestCase {
     private var env: LibraryTestEnvironment!
@@ -16,38 +17,58 @@ final class AudioReadinessTests: XCTestCase {
     private let paragraphs = ["The first paragraph of the page.", "The second paragraph of the page.",
                               "The third paragraph of the page."]
 
+    private func isReady(_ page: Page, voiceID: String) -> Bool {
+        guard let key = page.key else { return false }
+        return env.cache.missingParagraphs(articleID: key, paragraphs: page.listenDocument().paragraphs,
+                                           engineID: env.tts.cacheEngineID, voiceID: voiceID,
+                                           plans: env.tts.chunkPlans).isEmpty
+    }
+
+    /// A bare "—" paragraph has nothing to speak and never gets audio: the page is ready once
+    /// the others are.
+    func testAParagraphWithNothingToSpeakDoesntHoldItBack() throws {
+        let text = ["The first paragraph of the page.", "—", "The last paragraph of the page."]
+        let page = try library.save(env.article("https://example.com/rule", paragraphs: text))
+        let key = try XCTUnwrap(page.key)
+        XCTAssertEqual(page.listenDocument().paragraphs, text)
+        try env.storeAudio(key, paragraph: 0, text: text[0])
+        XCTAssertFalse(isReady(page, voiceID: "voiceA"))
+        try env.storeAudio(key, paragraph: 2, text: text[2])
+        XCTAssertTrue(isReady(page, voiceID: "voiceA"))
+    }
+
     func testReadyWhenEveryParagraphIsStoredForTheCurrentVoice() throws {
         let page = try library.save(env.article("https://example.com/a", paragraphs: paragraphs))
         let key = try XCTUnwrap(page.key)
         XCTAssertEqual(page.paragraphCount, 3)
-        XCTAssertFalse(library.isAudioReady(page, voiceID: "voiceA"), "nothing rendered")
+        XCTAssertFalse(isReady(page, voiceID: "voiceA"), "nothing rendered")
         try env.storeAudio(key, paragraph: 0, text: paragraphs[0])
         try env.storeAudio(key, paragraph: 1, text: paragraphs[1])
-        XCTAssertFalse(library.isAudioReady(page, voiceID: "voiceA"), "partly rendered")
+        XCTAssertFalse(isReady(page, voiceID: "voiceA"), "partly rendered")
         try env.storeAudio(key, paragraph: 2, text: paragraphs[2])
-        XCTAssertTrue(library.isAudioReady(page, voiceID: "voiceA"))
-        XCTAssertFalse(library.isAudioReady(page, voiceID: "voiceB"), "another voice isn't ready")
+        XCTAssertTrue(isReady(page, voiceID: "voiceA"))
+        XCTAssertFalse(isReady(page, voiceID: "voiceB"), "another voice isn't ready")
     }
 
     func testAVoiceChangeMakesItNotReadyUntilRerendered() throws {
         let page = try library.save(env.article("https://example.com/a", paragraphs: paragraphs))
         let key = try XCTUnwrap(page.key)
         try env.storeAudio(key, paragraphs: paragraphs, voice: "voiceA")
-        XCTAssertTrue(library.isAudioReady(page, voiceID: "voiceA"))
+        XCTAssertTrue(isReady(page, voiceID: "voiceA"))
         // One paragraph re-rendered in the new voice: the index moves to it, the rest go stale.
         try env.storeAudio(key, paragraph: 0, text: paragraphs[0], voice: "voiceB")
-        XCTAssertFalse(library.isAudioReady(page, voiceID: "voiceB"))
-        XCTAssertFalse(library.isAudioReady(page, voiceID: "voiceA"))
+        XCTAssertFalse(isReady(page, voiceID: "voiceB"))
+        XCTAssertFalse(isReady(page, voiceID: "voiceA"))
         try env.storeAudio(key, paragraph: 1, text: paragraphs[1], voice: "voiceB")
         try env.storeAudio(key, paragraph: 2, text: paragraphs[2], voice: "voiceB")
-        XCTAssertTrue(library.isAudioReady(page, voiceID: "voiceB"))
+        XCTAssertTrue(isReady(page, voiceID: "voiceB"))
     }
 
     func testDeleteDownloadsMakesItNotReady() throws {
         let page = try library.save(env.article("https://example.com/a", paragraphs: paragraphs))
         try env.storeAudio(page.key!, paragraphs: paragraphs)
         library.deleteDownloads(page)
-        XCTAssertFalse(library.isAudioReady(page, voiceID: "voiceA"))
+        XCTAssertFalse(isReady(page, voiceID: "voiceA"))
         XCTAssertTrue(page.isSavedToLibrary, "the page stays saved")
     }
 
@@ -55,7 +76,7 @@ final class AudioReadinessTests: XCTestCase {
         let page = try library.save(env.article("https://example.com/a", paragraphs: paragraphs))
         let key = try XCTUnwrap(page.key)
         try env.storeAudio(key, paragraphs: paragraphs)
-        XCTAssertTrue(library.isAudioReady(page, voiceID: "voiceA"))
+        XCTAssertTrue(isReady(page, voiceID: "voiceA"))
 
         // The page changed: a new paragraph in front. Opening it refreshes the page and
         // reconciles the audio, which moves to the shifted indices.
@@ -64,10 +85,10 @@ final class AudioReadinessTests: XCTestCase {
                                             extracted: env.article("https://example.com/a", paragraphs: changed).extracted)
         env.tts.prepareListenIdentity(key: article.id, paragraphs: article.document.paragraphs)
         XCTAssertEqual(page.paragraphCount, 4)
-        XCTAssertFalse(library.isAudioReady(page, voiceID: "voiceA"), "the new paragraph has no audio")
+        XCTAssertFalse(isReady(page, voiceID: "voiceA"), "the new paragraph has no audio")
         XCTAssertEqual(env.cache.entry(articleID: key, paragraphIndex: 3)?.textHash, ArticleIdentity.paragraphHash(paragraphs[2]))
         try env.storeAudio(key, paragraph: 0, text: changed[0])
-        XCTAssertTrue(library.isAudioReady(page, voiceID: "voiceA"))
+        XCTAssertTrue(isReady(page, voiceID: "voiceA"))
     }
 
     /// D7: finished chapters more than 2 behind the book's place lose their audio; the text
@@ -88,7 +109,7 @@ final class AudioReadinessTests: XCTestCase {
         try env.context.save()
 
         XCTAssertEqual(library.trimFinishedAudio(folder: book), 3)
-        XCTAssertEqual(chapters.map { library.isAudioReady($0, voiceID: "voiceA") }, [false, false, false, true, true, true])
+        XCTAssertEqual(chapters.map { isReady($0, voiceID: "voiceA") }, [false, false, false, true, true, true])
         XCTAssertTrue(chapters.allSatisfy { $0.hasText && $0.isSavedToLibrary }, "the text stays")
         XCTAssertEqual(library.trimFinishedAudio(folder: book), 0, "nothing more to trim")
 

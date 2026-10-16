@@ -44,7 +44,7 @@ final class TextChunkerTests: XCTestCase {
 
     func testChunksPreserveAllText() {
         for text in [longA, "Short one.", "A b c.  D e f!  G h i?"] {
-            let chunks = TextChunker.chunks(for: text)
+            let chunks = TextChunker.chunks(for: text, limits: .kokoroCPU)
             XCTAssertEqual(chunks.joined(separator: " "), TextChunker.normalize(text))
         }
     }
@@ -82,40 +82,37 @@ final class TextChunkerTests: XCTestCase {
     }
 
     func testShortParagraphIsSingleChunk() {
-        XCTAssertEqual(TextChunker.chunks(for: "  Hello there.  "), ["Hello there."])
-        XCTAssertEqual(TextChunker.chunks(for: "   "), [])
+        XCTAssertEqual(TextChunker.chunks(for: "  Hello there.  ", limits: .kokoroCPU), ["Hello there."])
+        XCTAssertEqual(TextChunker.chunks(for: "   ", limits: .kokoroCPU), [])
     }
 
     func testNoSentenceBoundaryStillSplits() {
         let runOn = Array(repeating: "and then the wind kept rising", count: 20).joined(separator: " ")
-        let chunks = TextChunker.chunks(for: runOn)
+        let chunks = TextChunker.chunks(for: runOn, limits: .kokoroCPU)
         XCTAssertGreaterThan(chunks.count, 1)
-        XCTAssertTrue(chunks.allSatisfy { TextChunker.estimatedUnits($0) <= TextChunker.hardMax })
+        XCTAssertTrue(chunks.allSatisfy { TextChunker.estimatedUnits($0) <= TextChunker.Limits.kokoroCPU.hardMax })
         XCTAssertEqual(chunks.joined(separator: " "), TextChunker.normalize(runOn))
     }
 
     func testResplitHalvesOverflowingChunk() {
         let chunk = "The ports closed, the farms failed, the grid went dark, and nobody could say when it would end."
-        let parts = TextChunker.resplit(chunk)
+        let parts = TextChunker.resplit(chunk, minResplit: 24)
         XCTAssertGreaterThan(parts.count, 1)
         XCTAssertEqual(parts.joined(separator: " "), chunk)
         XCTAssertTrue(parts.allSatisfy { $0.count < chunk.count })
         // Tiny text cannot be re-split further → caller falls back to Apple TTS.
-        XCTAssertEqual(TextChunker.resplit("Too short."), ["Too short."])
+        XCTAssertEqual(TextChunker.resplit("Too short.", minResplit: 24), ["Too short."])
     }
 
-    func testKokoroLimitsAllowLongerChunksButStayUnderPhonemeCap() {
-        // The descriptor uses .kokoroCPU (ONNX route, short first chunk); .kokoro is the Core ML sizing.
-        XCTAssertEqual(FluidAudioProvider.kokoroDescriptor.limits, .kokoroCPU)
-        let limits = TextChunker.Limits.kokoro
+    func testKokoroLimitsAllowLongerChunksButStayUnderItsCap() {
+        let limits = FluidAudioProvider.kokoroDescriptor.limits
+        XCTAssertEqual(limits, .kokoroCPU)
         let chunks = TextChunker.chunks(for: longA, limits: limits)
         XCTAssertLessThan(chunks.count, TextChunker.chunks(for: longA, limits: .tenSecondCall).count)
         for chunk in chunks {
-            // 300 units keeps IPA well under KokoroAne's 510-phoneme input cap.
+            // 280 units stays under the ≈300-token call the ONNX route is sized for.
             XCTAssertLessThanOrEqual(TextChunker.estimatedUnits(chunk), limits.hardMax)
         }
-        XCTAssertLessThanOrEqual(TextChunker.estimatedUnits(chunks[0]), limits.firstTarget + TextChunker.Limits.firstSlack)
-        XCTAssertTrue(chunks[0].hasSuffix(".") || TextChunker.estimatedUnits(chunks[0]) <= limits.firstTarget)
         XCTAssertEqual(chunks.joined(separator: " "), TextChunker.normalize(longA))
     }
 
@@ -214,24 +211,24 @@ final class TextChunkerTests: XCTestCase {
 
     func testGiantPunctuatedParagraph() {
         XCTAssertGreaterThanOrEqual(Self.giantPunctuated.count, 10_000)
-        XCTAssertGreaterThan(Self.sentencePool[0].count, TextChunker.Limits.kokoro.firstTarget)
-        assertInvariants(Self.giantPunctuated, .kokoro)
+        XCTAssertGreaterThan(Self.sentencePool[0].count, TextChunker.Limits.kokoroCPU.firstTarget)
+        assertInvariants(Self.giantPunctuated, .kokoroCPU)
         assertInvariants(Self.giantPunctuated, .tenSecondCall)
     }
 
     func testGiantRunOnSentenceWithoutPunctuation() {
         XCTAssertGreaterThanOrEqual(Self.giantRunOn.count, 5_000)
         XCTAssertFalse(Self.giantRunOn.contains(where: { ".,;:!?".contains($0) }))
-        assertInvariants(Self.giantRunOn, .kokoro)
+        assertInvariants(Self.giantRunOn, .kokoroCPU)
         assertInvariants(Self.giantRunOn, .tenSecondCall)
     }
 
     func testLongTokenWithoutSpaces() {
         XCTAssertEqual(Self.longURL.count, 600)
-        assertInvariants(Self.longURL, .kokoro)
-        assertInvariants("See \(Self.longURL) for the full minutes of the meeting.", .kokoro)
+        assertInvariants(Self.longURL, .kokoroCPU)
+        assertInvariants("See \(Self.longURL) for the full minutes of the meeting.", .kokoroCPU)
         assertInvariants(Self.longURL, .tenSecondCall)
         // Cut pieces reassemble to the exact token.
-        XCTAssertEqual(TextChunker.chunks(for: Self.longURL, limits: .kokoro).joined(), Self.longURL)
+        XCTAssertEqual(TextChunker.chunks(for: Self.longURL, limits: .kokoroCPU).joined(), Self.longURL)
     }
 }
