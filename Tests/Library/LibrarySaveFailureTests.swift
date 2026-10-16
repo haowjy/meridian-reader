@@ -478,7 +478,7 @@ final class LibrarySaveFailureTests: XCTestCase {
 
     private func editing(_ items: [LibraryItemID]) -> LibraryScreenState {
         let screen = LibraryScreenState()
-        screen.beginEditing(folderID: nil)
+        screen.beginEditing(folderID: UUID())
         screen.selection = Set(items)
         return screen
     }

@@ -12,9 +12,9 @@ enum LibraryItemID: Hashable {
 @MainActor
 @Observable
 final class LibraryScreenState {
-    /// The screen in Edit: its folder (nil: the top level's pages).
+    /// The folder screen in Edit.
     struct Editing: Equatable {
-        var folderID: UUID?
+        var folderID: UUID
     }
 
     /// Where a new folder goes.
@@ -50,9 +50,9 @@ final class LibraryScreenState {
 
     var isEditing: Bool { editing != nil }
 
-    func isEditing(folderID: UUID?) -> Bool { editing == Editing(folderID: folderID) }
+    func isEditing(folderID: UUID) -> Bool { editing == Editing(folderID: folderID) }
 
-    func beginEditing(folderID: UUID?) {
+    func beginEditing(folderID: UUID) {
         selection = []
         editing = Editing(folderID: folderID)
     }

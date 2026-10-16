@@ -114,6 +114,32 @@ final class LibraryHomeUITests: XCTestCase {
         XCTAssertFalse(app.navigationBars["Favorites"].exists)
     }
 
+    /// Placing a page among the home's pages makes the top level *Manual*; the home's ⋯ → Sort →
+    /// Newest puts them back newest first, which is where a new save lands.
+    func testDraggingAPageMakesTheHomeManualAndItsSortTurnsItBack() throws {
+        let app = launchLibrary(["-seedLoosePages", "2"])
+        let titles = ["Demo Listen Article", "Loose Page 1", "Loose Page 2"]
+        find(app, "libraryHome").swipeUp()
+        for title in titles { XCTAssertTrue(libraryRow(app, title).waitForExistence(timeout: 5), title) }
+        XCTAssertEqual(order(app, titles), titles, "newest first")
+
+        dragRow(app, "Loose Page 2", to: rowPoint(app, "Demo Listen Article", dy: 0.15))
+        let placed = ["Loose Page 2", "Demo Listen Article", "Loose Page 1"]
+        XCTAssertTrue(eventually(5) { self.order(app, titles) == placed }, "placed on top: \(order(app, titles))")
+
+        app.buttons["libraryMore"].tap()
+        tapMenuRow(app, "moreSort")
+        let newest = app.buttons["Newest"]
+        XCTAssertTrue(newest.waitForExistence(timeout: 3), "the home's Sort")
+        newest.tap()
+        XCTAssertTrue(eventually(5) { self.order(app, titles) == titles }, "newest first again: \(order(app, titles))")
+    }
+
+    /// `titles` in the order their rows sit on screen.
+    private func order(_ app: XCUIApplication, _ titles: [String]) -> [String] {
+        titles.sorted { libraryCell(app, $0).frame.minY < libraryCell(app, $1).frame.minY }
+    }
+
     func testSearchFindsAPageInANestedFolderAndFiltersIt() throws {
         let app = launchLibrary(["-browseTestPages"])
         let field = app.textFields["librarySearchField"]

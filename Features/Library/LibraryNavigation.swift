@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// The screen for a pushed `LibraryRoute`: a folder (a book or series as any other, decision D19),
-/// or the pages in no folder.
+/// The screen for a pushed `LibraryRoute`: a folder (a book or series as any other, decision D19).
 struct LibraryRouteView: View {
     let route: LibraryRoute
 
@@ -20,8 +19,6 @@ struct LibraryRouteView: View {
             } else {
                 FolderGoneView()
             }
-        case .pages:
-            FolderScreen(folder: nil)
         }
     }
 }

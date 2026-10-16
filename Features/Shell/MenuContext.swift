@@ -65,15 +65,12 @@ struct ReaderMenu {
     var canDownload = false
 }
 
-/// The Library's menu, for the screen on top: the home, a folder (a book or series as any other),
-/// the top level's pages. Nothing in it acts on the browser's page.
+/// The Library's menu, for the screen on top: the home (the top level) or a folder (a book or
+/// series as any other). Nothing in it acts on the browser's page.
 struct LibraryMenu {
     enum Screen: Equatable {
         case home
-        /// A plain folder or Favorites (`isFavorites`: only Sort and New Folder Inside).
-        case folder(isFavorites: Bool)
-        /// The pages in no folder (*Pages · Show All*).
-        case pages
+        case folder
     }
 
     enum Action {
@@ -83,9 +80,7 @@ struct LibraryMenu {
     }
 
     var screen: Screen
-    /// *Import Book…* on the home and folders.
-    var canImportBook = false
-    /// The screen's page sort (folders and the top level's pages).
+    /// The screen's page sort: the folder's, or on the home the top level's.
     var sort: PageSort = .manual
     /// *Download Folder* for the folder on screen; nil when it is downloading already, or isn't a
     /// folder.

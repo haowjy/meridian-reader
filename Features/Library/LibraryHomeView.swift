@@ -143,6 +143,20 @@ struct LibraryHomeView: View {
     }
 }
 
+/// The top level's page sort: the order of the home's pages in no folder, kept on the device
+/// (`library.topLevel.sort`; the key is persisted). The home's ⋯ → Sort sets it, and placing a
+/// page among them by a drag makes it *Manual*.
+enum LibraryTopLevel {
+    static let sortKey = "library.topLevel.sort"
+    static let defaultSort = PageSort.newest
+
+    /// The sort, outside a view (views read it through `@AppStorage(sortKey)`).
+    static var sort: PageSort {
+        get { UserDefaults.standard.string(forKey: sortKey).flatMap(PageSort.init(rawValue:)) ?? defaultSort }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: sortKey) }
+    }
+}
+
 extension View {
     /// A section header in the Library's lists: in line with the cards (no extra header inset).
     func libraryHeader() -> some View {

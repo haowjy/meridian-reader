@@ -50,7 +50,7 @@ enum LibraryQueries {
     }
 
     /// Pages played without saving (decision D5), most recently played first: the top of the
-    /// Library home's *Pages* and the *Pages* screen, marked "Not saved", until the 7-day prune
+    /// Library home's pages, marked "Not saved", until the 7-day prune
     /// (`prunable`) deletes them. A page removed from the Library (`removedAt`) isn't one, even
     /// as it plays on, until you listen to it again. Book chapters never qualify (they are always
     /// in their folder).

@@ -89,10 +89,10 @@ struct LibrarySurface: View {
                 .toolbarSlot(1)
             Menu {
                 Button("Import Book…", systemImage: Icons.book) {
-                    BookImportActions(library: library, shell: shell).pickBook(into: screenMenu.newFolderParent)
+                    BookImportActions(library: library, shell: shell).pickBook(into: screenMenu.topFolder)
                 }
                 .accessibilityIdentifier("libraryImportBook")
-                Button("New Folder", systemImage: Icons.newFolder) { screen.makeFolder(in: screenMenu.newFolderParent) }
+                Button("New Folder", systemImage: Icons.newFolder) { screen.makeFolder(in: screenMenu.topFolder) }
                     .accessibilityIdentifier("libraryNewFolder")
             } label: {
                 Image(systemName: Icons.add).toolbarIconFrame()

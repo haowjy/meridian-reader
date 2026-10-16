@@ -243,7 +243,9 @@ commas.
   flags; direct pages become loose and nested folders stay nested. Rows use large book-like art,
   a Download state and Play (pages: the two-line row below). The bar's ▶ resumes what you last heard, and a folder row's ▶
   resumes its own pages without opening it (D14). A first-run empty Library shows *Find something
-  to listen to*, with *Browse the web* and *Import a book* on one action row.
+  to listen to*, with *Browse the web* and *Import a book* on one action row. The home is the
+  top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
+  default, or *Title*), *Voice Settings, Import Book…, New Folder*.
 - **A folder** (`FolderScreen`, Favorites, books and series included): its title and counts,
   subfolders first (by their order), then pages by the folder's sort. A folder with pages that
   play has the play header (decision D15): how far through (a bar across the content width, with
@@ -347,8 +349,8 @@ long press lifts a row (its menu, which the press opened, goes as it moves). Let
 row (its middle, for a folder) to file it at the end of that folder; the folder lights up in the
 accent while it takes the row, with a tick. Let go between rows to place it there, a line
 marking the place: a page among pages, a folder among folders (over a folder row's top or bottom
-quarter); placing a page makes its folder's sort *Manual* (the top level's too), numbered first
-as it was shown. A row lands with a success tick; a refused one with an error buzz. A book or
+quarter); placing a page makes its folder's sort *Manual* (the top level's too, until the home's
+⋯ → *Sort* picks another), numbered first as it was shown. A row lands with a success tick; a refused one with an error buzz. A book or
 series takes drops as any folder, and its chapters lift as any page (decision D19). A folder
 dragged over itself or a folder inside it is refused (the drag shows ⊘); Favorites, a page
 played without saving and rows in Edit don't lift. The list doesn't scroll by itself while a row is dragged.
@@ -676,7 +678,7 @@ Debug builds (`App/LaunchOptions.swift`).
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | — (grabber) | `.sheet`, medium/large |
 | Band 📚 / Library (`LibrarySurface`): the home | 🌐 beside the Now Playing bar | in-place surface (shared bottom chrome); leave restores browse |
-| Library → a folder (a book or series too), Pages · Show All (`FolderScreen`) | ‹ system | push (`navigationDestination`) |
+| Library → a folder (a book or series too) (`FolderScreen`) | ‹ system | push (`navigationDestination`) |
 | Move, Save to Library…, Save to Folder…, Change Folder (`MoveTreeSheet`) | ✕ (grabber) | `.sheet`, medium/large |
 | Import Book… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
 | Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |

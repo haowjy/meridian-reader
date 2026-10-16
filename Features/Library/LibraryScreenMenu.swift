@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The ⋯ and ＋ (*New Folder*, *Import Book…*) for the Library screen on top, shared by the Library surface and the
-/// The Library screen on top: which rows the panel shows (`LibraryMenu`) and what each does there.
+/// The ⋯ for the Library screen on top (the home or a folder): which rows the panel shows
+/// (`LibraryMenu`) and what each does there. The surface's ＋ (*New Folder*, *Import Book…*) acts
+/// on the same screen through `topFolder`.
 @MainActor
 struct LibraryScreenMenu {
     let library: LibraryStore
@@ -9,33 +10,27 @@ struct LibraryScreenMenu {
     let shell: ShellState
     let downloads: DownloadCenter
     let screen: LibraryScreenState
-    /// The pushed screen on top (nil: the root).
+    /// The pushed screen on top (nil: the home).
     let top: LibraryRoute?
-    /// The top level's page sort (`LibraryTopLevel.sortKey`).
+    /// The top level's page sort (`LibraryTopLevel.sortKey`), which the home's Sort sets.
     let topLevelSort: Binding<String>
     /// A folder moved from its own screen: show it where it went.
     let showMoved: (Folder) -> Void
     /// The big buttons: *Favorites*, *History*, *Browser*.
     let tile: (LibraryMenu.Action) -> Void
 
-    /// The folder whose screen is on top (nil: the home, or the pages in no folder).
+    /// The folder whose screen is on top (nil: the home). New folders and imported books go in
+    /// it (a book or series too), or at the top level from the home.
     var topFolder: Folder? {
         switch top {
         case .folder(let id): library.folder(id: id)
-        case .pages: nil
         case nil: nil
         }
     }
 
-    /// New Folder and an imported book go in the folder on screen (a book or series too).
-    var newFolderParent: Folder? { topFolder }
-
-    private var pagesSort: PageSort { PageSort(rawValue: topLevelSort.wrappedValue) ?? LibraryTopLevel.defaultSort }
-
     var menu: LibraryMenu {
         var menu = screenMenu
         menu.showsDebug = speech.developerOptionsEnabled
-        menu.canImportBook = true
         if let folder = topFolder, !downloads.isQueued(.folder(folder.id)) {
             menu.downloadTitle = String(localized: "Download Folder")
         }
@@ -43,9 +38,10 @@ struct LibraryScreenMenu {
     }
 
     private var screenMenu: LibraryMenu {
-        if top == .pages { return LibraryMenu(screen: .pages, sort: pagesSort) }
-        guard let folder = topFolder else { return LibraryMenu(screen: .home) }
-        return LibraryMenu(screen: .folder(isFavorites: false), sort: folder.pageSort)
+        guard let folder = topFolder else {
+            return LibraryMenu(screen: .home, sort: PageSort(rawValue: topLevelSort.wrappedValue) ?? LibraryTopLevel.defaultSort)
+        }
+        return LibraryMenu(screen: .folder, sort: folder.pageSort)
     }
 
     /// Nothing here touches the browser's page.
@@ -53,8 +49,8 @@ struct LibraryScreenMenu {
         let folder = topFolder
         switch action {
         case .voiceSettings: shell.present(.voiceSettings)
-        case .newFolder: screen.makeFolder(in: newFolderParent)
-        case .importBook: BookImportActions(library: library, shell: shell).pickBook(into: newFolderParent)
+        case .newFolder: screen.makeFolder(in: folder)
+        case .importBook: BookImportActions(library: library, shell: shell).pickBook(into: folder)
         case .sort(let sort):
             if let folder {
                 shell.attempt(String(localized: "Couldn’t change the sort")) { try library.setSort(sort, for: folder) }

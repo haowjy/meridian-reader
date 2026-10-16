@@ -80,4 +80,31 @@ final class SurfaceMemoryTests: XCTestCase {
         XCTAssertTrue(ShellState(memory: store, restores: false).isBrowsing)
         XCTAssertTrue(ShellState().isBrowsing, "no memory: as before")
     }
+
+    /// A stored path can name a screen this version doesn't have (the top level's own pages
+    /// screen): that element is dropped and the rest still opens, instead of the whole memory
+    /// failing to decode.
+    func testAStoredPathDropsAScreenItDoesNotKnow() throws {
+        let folder = UUID()
+        let json = """
+        {"base":"library","libraryPath":[{"folder":{"_0":"\(folder.uuidString)"}},{"pages":{}}],\
+        "browserURL":"https://example.com/story"}
+        """
+        defaults.set(Data(json.utf8), forKey: SurfaceMemoryStore.key)
+        let memory = try XCTUnwrap(store.load())
+        XCTAssertEqual(memory.base, .library)
+        XCTAssertEqual(memory.libraryPath, [.folder(folder)])
+        XCTAssertEqual(memory.browserURL, "https://example.com/story")
+
+        let shell = ShellState(memory: store, restores: true)
+        XCTAssertTrue(shell.isInLibrary)
+        XCTAssertEqual(shell.libraryPath, [.folder(folder)])
+    }
+
+    /// The encoding of a path is unchanged: what this version writes, it reads back.
+    func testAPathRoundTrips() {
+        let a = UUID(), b = UUID()
+        store.save(SurfaceMemory(base: .browse, libraryPath: [.folder(a), .folder(b)], browserURL: nil))
+        XCTAssertEqual(store.load(), SurfaceMemory(base: .browse, libraryPath: [.folder(a), .folder(b)], browserURL: nil))
+    }
 }
