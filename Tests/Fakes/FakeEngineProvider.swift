@@ -22,6 +22,9 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
         /// Calls (1-based, every call counted) that throw `engineUnavailable` and leave the host
         /// unprepared, as Kokoro's ONNX host does when rebuilding its session for a phase fails.
         var failingCalls: Set<Int> = []
+        /// Counts the "sessions" hosts hold (one from each load until its unload), and, like an
+        /// ORT session, a call in flight keeps its host's session alive past the unload.
+        var sessions: FakeSessionCount? = nil
     }
 
     struct FakeError: LocalizedError { var errorDescription: String? { "fake engine failure" } }
@@ -38,6 +41,9 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
     private var _calls: [(text: String, ok: Bool)] = []
     private var voice: String?
     private var _started = 0
+    private var holdsSession = false
+    private var callsInFlight = 0
+    private var unloaded = false
 
     init(engineID: SpeechEngineID, config: Config) {
         self.engineID = engineID
@@ -53,13 +59,27 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
 
     func prepare() async throws {
         onProgress?(1)
-        lock.withLock { prepared = true; _prepares += 1 }
+        let opens: Bool = lock.withLock {
+            prepared = true
+            _prepares += 1
+            defer { holdsSession = true }
+            return !holdsSession
+        }
+        if opens { config.sessions?.open() }
     }
 
     func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM {
         let secondsPerChar: Double = lock.withLock {
             _started += 1
+            callsInFlight += 1
             return voice.flatMap { config.secondsPerCharByVoice[$0] } ?? config.secondsPerChar
+        }
+        defer {
+            let closes: Bool = lock.withLock {
+                callsInFlight -= 1
+                return releaseSessionIfIdle()
+            }
+            if closes { config.sessions?.close() }
         }
         if config.latency > 0 { try await Task.sleep(nanoseconds: UInt64(config.latency * 1e9)) }
         let unloads: Bool = lock.withLock {
@@ -84,14 +104,40 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
     }
 
     func setVoice(_ voice: String) { lock.withLock { self.voice = voice } }
-    func resetPrepared() { lock.withLock { prepared = false } }
-    func unload() async { resetPrepared() }
+
+    func unload() async {
+        let closes: Bool = lock.withLock {
+            prepared = false
+            unloaded = true
+            return releaseSessionIfIdle()
+        }
+        if closes { config.sessions?.close() }
+    }
+
+    /// Called with `lock` held.
+    private func releaseSessionIfIdle() -> Bool {
+        guard unloaded, holdsSession, callsInFlight == 0 else { return false }
+        holdsSession = false
+        return true
+    }
 
     static func tone(seconds: Double, sampleRate: Int, silence: Bool = false) -> [Float] {
         let n = max(1, Int(seconds * Double(sampleRate)))
         if silence { return [Float](repeating: 0, count: n) }
         return (0..<n).map { Float(sin(2 * Double.pi * 440 * Double($0) / Double(sampleRate)) * 0.1) }
     }
+}
+
+/// Live fake sessions across hosts, and the most ever live at once.
+final class FakeSessionCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var live = 0
+    private var _peak = 0
+
+    var peak: Int { lock.withLock { _peak } }
+
+    func open() { lock.withLock { live += 1; _peak = max(_peak, live) } }
+    func close() { lock.withLock { live -= 1 } }
 }
 
 /// Registers one fake on-device engine (`test.fake`).

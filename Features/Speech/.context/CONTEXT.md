@@ -64,7 +64,9 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
   paragraph with chunks and no CAF in the voice; a bare "—" is never missing). Anything new that
   asks "is this rendered / done" calls it rather than counting `readyIndices` against the
   paragraph count.
-- **Model calls.** One at a time (`SynthRenderGate`), never a Core ML call in the background
+- **Model calls.** One host's models resident at a time: `LocalSynthService` lets a host go
+  (`LocalChunkRenderer.unload`) before it loads the next, and an unloaded host is never used again
+  (`LocalSynthServiceTests`). One call at a time (`SynthRenderGate`), never a Core ML call in the background
   (`RenderAdmission`; the Core ML route's `KokoroSplitHost` switches itself to ONNX there for the
   rest of the process). Every extra Kokoro call is exposure to an uncatchable crash on iOS 26.4+, so
   don't add re-renders: `BrowseSaveWhilePlayingTests` pins the call count.

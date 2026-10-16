@@ -181,10 +181,12 @@ Test seam: `Tests/Fakes/FakeEngineProvider.swift` (tone/silence PCM, latency, pe
 1. **Dependency.** Add the package in `project.yml` (`packages:` and the target's
    `dependencies:`), then `xcodegen generate`. Library imports stay in
    `Features/Speech/Engines/<Library>/`.
-2. **Host.** Implement `LocalSynthHost`: `prepare()` (download and load; hold
-   `SynthRenderGate.shared` while loading; report `onProgress`), `synthesizeOnce(text:)` (one call →
-   `SynthesizedPCM`; map the library's "input too long" error to `LocalSynthError.inputTooLong` so
-   the shared renderer re-splits), `setVoice`, `resetPrepared`, `unload`.
+2. **Host.** Implement `LocalSynthHost`: `prepare()` (download and load through a
+   `SingleFlightLoad`, so callers share one load and a cancel reaches it; hold
+   `SynthRenderGate.shared` while loading Core ML; report `onProgress`), `synthesizeOnce(text:)`
+   (one call → `SynthesizedPCM`; map the library's "input too long" error to
+   `LocalSynthError.inputTooLong` so the shared renderer re-splits), `setVoice`, `unload` (for good:
+   close the load first, so a load in flight can't set the models again).
 3. **Descriptor.** A new, never-changing `id` (e.g. `local.<engine>`), `hardware`, and
    `OnDeviceTraits`: `cacheVoicePrefix: "<short>"` (cache voice keys `<short>.<voice>`), chunk
    `limits` sized from the per-call cap (measure chars or phonemes per second of audio on a

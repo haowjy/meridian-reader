@@ -45,9 +45,8 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     static let maxTokensPerCall = 360
     static let gain = KokoroCPUAudio.coreMLMatchGain
 
+    private let load = SingleFlightLoad()
     private let lock = NSLock()
-    private var didPrepare = false
-    private var prepareTask: Task<Void, Error>?
     private var voice: String
     private var sessions: KokoroONNXSessionSlot<KokoroONNXSession>?
     private var frontend: KokoroAneCPUFrontend?
@@ -89,37 +88,14 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
 
     func setVoice(_ voice: String) { lock.withLock { self.voice = voice } }
     private var currentVoice: String { lock.withLock { voice } }
-    var isPrepared: Bool { lock.withLock { didPrepare } }
+    var isPrepared: Bool { load.isLoaded }
 
     func prepare() async throws {
-        let task: Task<Void, Error>? = lock.withLock {
-            if didPrepare { return nil }
-            if let existing = prepareTask { return existing }
-            let created = makePrepareTask()
-            prepareTask = created
-            return created
-        }
-        guard let task else { return }
-        do {
-            try await withTaskCancellationHandler {
-                try await task.value
-            } onCancel: {
-                task.cancel()
-            }
-            lock.withLock { didPrepare = true; prepareTask = nil }
-        } catch {
-            lock.withLock { didPrepare = false; prepareTask = nil }
-            throw error
-        }
-    }
-
-    /// Called with `lock` held.
-    private func makePrepareTask() -> Task<Void, Error> {
         let progress = onProgress
-        let voice = self.voice
+        let voice = currentVoice
         let threads = phaseThreads
         let qos = self.sessionQoS
-        return Task {
+        try await load.run {
             let t0 = ListenTimingLog.now()
             let reused = KokoroONNXModelStore.fileLooksInstalled
             ListenTimingLog.log("kokoro_cpu_init_start", ["voice": voice, "threads": threads, "model_on_disk": reused])
@@ -166,14 +142,10 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
         }
     }
 
-    func resetPrepared() {
-        lock.withLock { didPrepare = false; prepareTask = nil }
-    }
-
+    /// After the load in flight (if any) has stopped, so it can't set a session again.
     func unload() async {
+        await load.close()
         lock.withLock {
-            didPrepare = false
-            prepareTask = nil
             sessions = nil
             frontend = nil
             packs.removeAll()
@@ -252,7 +224,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
             return session
         } catch {
             ListenTimingLog.log("kokoro_cpu_threads_switch", ["to": wanted, "ok": false, "err": error.localizedDescription])
-            lock.withLock { didPrepare = false }
+            load.reset()
             throw error
         }
     }

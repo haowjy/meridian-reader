@@ -19,6 +19,10 @@ final class LocalSynthService: SynthChunkRendering {
     @ObservationIgnored private var engineVoice: String?
     /// Host + renderer for `engineID` (nil until first use, and after an unload).
     @ObservationIgnored private var renderer: LocalChunkRenderer?
+    /// The hosts let go, releasing their models (`LocalChunkRenderer.unload`). Every load waits
+    /// for them first, so two hosts' models are never resident together (two ORT sessions are
+    /// ≈1 GB).
+    @ObservationIgnored private var retiring: Task<Void, Never>?
     @ObservationIgnored private let appleRenderer = ProbePCMRenderer()
 
     init(engines: EngineRegistry) {
@@ -90,14 +94,14 @@ final class LocalSynthService: SynthChunkRendering {
     func cancelDownload() {
         guard case .warming = state else { return }
         cancelLoad()
-        resetHost()
+        unloadHost()
         setState(.off)
     }
 
     /// The live listen could not start on the engine: drop its host and let Apple speak.
     func noteSpeakFailed(_ error: Error) {
         guard let id = state.readyEngineID else { return }
-        resetHost()
+        unloadHost()
         setState(.failed(id, message: friendlyError(error, engine: id)))
     }
 
@@ -134,15 +138,23 @@ final class LocalSynthService: SynthChunkRendering {
         engineID = id
     }
 
+    /// Let the live host go: its load in flight stops, its models are released and the render in
+    /// flight on it finishes; the next load or render waits for all of that, then builds a new one.
     private func unloadHost() {
         guard let old = renderer else { return }
         renderer = nil
-        Task { await old.host.unload() }
+        let earlier = retiring
+        retiring = Task {
+            await earlier?.value
+            await old.unload()
+        }
     }
 
-    private func resetHost() {
-        renderer?.host.resetPrepared()
-        renderer = nil
+    private func waitForRetiredHosts() async {
+        while let pending = retiring {
+            await pending.value
+            if retiring == pending { retiring = nil }
+        }
     }
 
     private func friendlyError(_ error: Error, engine: SpeechEngineID) -> String {
@@ -175,8 +187,10 @@ final class LocalSynthService: SynthChunkRendering {
         setState(.warming(id, progress: fraction, task: task))
     }
 
-    /// Build and load the host if needed (no-op once loaded).
+    /// Build and load the host if needed (no-op once loaded), once every host let go has
+    /// released its models.
     func prepare() async throws {
+        await waitForRetiredHosts()
         try await currentRenderer().prepare()
     }
 

@@ -64,7 +64,6 @@ private final class TestVoiceHost: LocalSynthHost, @unchecked Sendable {
     }
 
     func setVoice(_ voice: String) {}
-    func resetPrepared() { lock.withLock { prepared = false } }
-    func unload() async { resetPrepared() }
+    func unload() async { lock.withLock { prepared = false } }
 }
 #endif

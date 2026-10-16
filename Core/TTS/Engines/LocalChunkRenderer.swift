@@ -33,6 +33,14 @@ final class LocalChunkRenderer: Sendable {
         if !host.isPrepared { try await host.prepare() }
     }
 
+    /// Release the host's models for good (`LocalSynthHost.unload`), then wait out the model
+    /// call in flight on it (it holds the gate), so nothing uses them once this returns.
+    func unload() async {
+        await host.unload()
+        await gate.acquire()
+        await gate.release()
+    }
+
     /// Synthesize ONE chunk (already sized by `TextChunker` with the engine's limits) → CAF.
     func renderChunk(text: String, to destination: URL, context: [String: Any],
                      priority: RenderPriority = .listener) async throws -> TimeInterval {

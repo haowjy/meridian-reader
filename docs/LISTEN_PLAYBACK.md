@@ -144,7 +144,10 @@ so the players, the Apple voice and the lock screen agree. Adapters report facts
 
 - `LocalSynthService` (`LocalTTSCoordinator.synth`) holds the on-device model: the one resident
   host behind `LocalChunkRenderer`, the Apple renderer for text the engine can't produce, and the
-  lifecycle `state` (`LocalEngineState`): `off` (Apple speaks), `warming(id, progress, task)`
+  lifecycle `state` (`LocalEngineState`). A reload, an engine switch, *Delete model*, Settings'
+  cancel or a failed start lets the host go: its load in flight stops, its models are released and
+  the model call in flight on it finishes, and only then does the next host load, so two hosts'
+  models (two ORT sessions, ≈1 GB) are never resident together. The states: `off` (Apple speaks), `warming(id, progress, task)`
   (download / load in flight; `task` is the single load, cancelling it abandons the load),
   `ready(id)`, `failed(id, message)` (Apple speaks; Settings shows the message). On every change
   the coordinator persists `reader.tts.engineID`, calls `onEngineChange` and tells the render
