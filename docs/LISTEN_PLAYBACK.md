@@ -596,7 +596,10 @@ keeps it playing too; the Now Playing bar shows it.
 `.playback`, mode `.spokenAudio`, no options: a mixable (ducking) session never becomes the Now
 Playing app, so other apps' audio pauses while Meridian Reader speaks, like a podcast app. Only the
 category is set at launch; the session activates when playback starts or resumes and deactivates
-with `.notifyOthersOnDeactivation` on stop or finish.
+with `.notifyOthersOnDeactivation` on stop or finish. Address-bar dictation borrows it through
+`ListenAudioSession` (`lendForRecording`, `.record` while the mic is open, then `reclaim`): Listen
+pauses first, gets its category back after, and resumes if it was playing; a session Listen
+wasn't holding is released, so other apps' audio can resume.
 
 **Lock screen / Control Center** (`NowPlayingController`):
 

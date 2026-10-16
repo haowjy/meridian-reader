@@ -63,6 +63,8 @@ final class ListenAudioSession {
     private(set) var deactivationCount = 0
     var onEvent: ((ListenAudioEvent) -> Void)?
     private var tokens: [NSObjectProtocol] = []
+    /// Lent to dictation (`lendForRecording`): whether Listen held the session active before.
+    private var lentWhileActive: Bool?
 
     init(managesSystemSession: Bool = true) {
         self.managesSystemSession = managesSystemSession
@@ -100,6 +102,31 @@ final class ListenAudioSession {
             ListenTimingLog.log("audio_session", ["op": "deactivate"])
         } catch {
             ListenTimingLog.log("audio_session_error", ["op": "deactivate", "err": error.localizedDescription])
+        }
+    }
+
+    /// Dictation borrows the session for the microphone (`.record`, active) until `reclaim()`.
+    /// Listen is paused first, by the caller.
+    func lendForRecording() throws {
+        lentWhileActive = isActive
+        guard managesSystemSession else { return }
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.record, mode: .measurement, options: [])
+        try session.setActive(true)
+    }
+
+    /// The microphone is closed: Listen's category again. A session Listen held stays active, as
+    /// the recorder left it (so a resume plays at once); otherwise it is released, notifying
+    /// others so their audio can resume.
+    func reclaim() {
+        guard let heldBefore = lentWhileActive else { return }
+        lentWhileActive = nil
+        configure()
+        guard !heldBefore, managesSystemSession else { return }
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        } catch {
+            ListenTimingLog.log("audio_session_error", ["op": "release after dictation", "err": error.localizedDescription])
         }
     }
 
