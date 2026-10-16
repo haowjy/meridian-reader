@@ -1,5 +1,4 @@
 import Foundation
-import ObjectiveC
 import WebKit
 
 /// The off-screen `WKWebView` extraction and the listen normalizer run in: never shown, with page
@@ -15,45 +14,20 @@ enum OffscreenWebView {
         return WKWebView(frame: .zero, configuration: config)
     }
 
-    /// Loads `html` and returns once it has finished loading.
-    static func load(_ webView: WKWebView, html: String, baseURL: URL?) async throws {
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-            let nav = NavigationWaiter(continuation: cont)
-            webView.navigationDelegate = nav
-            objc_setAssociatedObject(webView, &Associated.navKey, nav, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-            webView.loadHTMLString(html, baseURL: baseURL)
+    /// Loads `html` and returns once it has finished loading. Throws when the load fails, its
+    /// content process ends, `timeout` passes first (`ExtractionError.engineFailed`; WebKit's
+    /// processes can be suspended while the app is in the background, and then don't answer), or
+    /// the calling task is cancelled.
+    static func load(_ webView: WKWebView, html: String, baseURL: URL?, timeout: TimeInterval = 30) async throws {
+        let navigation = NavigationWait()
+        webView.navigationDelegate = navigation
+        defer {
+            navigation.cancel()
+            webView.navigationDelegate = nil
         }
-    }
-
-    private enum Associated {
-        static var navKey: UInt8 = 0
-    }
-
-    private final class NavigationWaiter: NSObject, WKNavigationDelegate {
-        private var continuation: CheckedContinuation<Void, Error>?
-        private var finished = false
-
-        init(continuation: CheckedContinuation<Void, Error>) {
-            self.continuation = continuation
-        }
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            finish(.success(()))
-        }
-
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            finish(.failure(ExtractionError.engineFailed(message: error.localizedDescription)))
-        }
-
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            finish(.failure(ExtractionError.engineFailed(message: error.localizedDescription)))
-        }
-
-        private func finish(_ outcome: Swift.Result<Void, Error>) {
-            guard !finished else { return }
-            finished = true
-            continuation?.resume(with: outcome)
-            continuation = nil
+        let late = ExtractionError.engineFailed(message: String(localized: "The page took too long to load."))
+        try await NavigationWait.within(timeout, orThrow: late) {
+            try await navigation.run { webView.loadHTMLString(html, baseURL: baseURL) }
         }
     }
 }
