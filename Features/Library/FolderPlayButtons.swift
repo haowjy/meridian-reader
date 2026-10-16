@@ -2,10 +2,12 @@ import SwiftUI
 
 /// A folder header's action row, for any folder whose pages play (a book or series too): the
 /// round *Continue* / *Playing* button (`title`), *From Start*, both through `LibraryActions`,
-/// and the folder's Download, icon only. One `ActionButtonRow`, so it never wraps (decision D21).
+/// and the folder's Download, drawn as a row's (the same ⬇ / ✓ as the rows under it). One
+/// `ActionButtonRow`, so it never wraps (decision D21). *From Start* keeps its name at every
+/// width: the place after Continue gives way first, then both show their symbols alone.
 ///
 /// ```
-/// ( ▶ Continue  4 of 18          ) ( ⏮ From Start ) (⬇)
+/// ( ▶ Continue  4 of 18          ) ( ⏮ From Start )  ⬇
 /// ```
 struct FolderPlayButtons: View {
     let folder: Folder
@@ -24,16 +26,14 @@ struct FolderPlayButtons: View {
                 actions.playFolder(folder)
             }
             .accessibilityIdentifier("folderContinue")
-            PillButton(String(localized: "From Start"), shortTitle: String(localized: "Start"),
-                       systemImage: Icons.previous, style: .neutral, fit: fit) {
+            PillButton(Verbs.fromStart, systemImage: Icons.previous, style: .neutral, fit: fit) {
                 actions.playFolderFromStart(folder)
             }
-            .accessibilityLabel(String(localized: "Play from Start"))
+            .accessibilityLabel(Verbs.playFromStart)
             .accessibilityIdentifier("folderPlayFromStart")
             if !pages.isEmpty {
                 DownloadStateButton(state: downloads.state(of: .folder(folder.id),
-                                                           isDownloaded: downloads.isDownloaded(folder, pages: pages)),
-                                    look: .round) {
+                                                           isDownloaded: downloads.isDownloaded(folder, pages: pages))) {
                     DownloadActions(downloads: downloads, shell: shell).download(folder)
                 }
                 .accessibilityIdentifier("folderDownload")

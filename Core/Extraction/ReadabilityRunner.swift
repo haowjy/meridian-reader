@@ -65,7 +65,12 @@ enum ReadabilityRunner {
             let reason = (obj["reason"] as? String) ?? "Extraction failed."
             throw ExtractionError.unavailable(reason: reason)
         }
-        let title = (obj["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        // Without the site's name after a separator: the heading below and the page's title say
+        // the same, and the source line names the site.
+        let title = ArticleTitle.withoutSiteSuffix(
+            (obj["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
+            siteName: (obj["siteName"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+            host: baseURL.host)
         let text = (obj["textContent"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let content = try await ListenContentNormalizer.normalize((obj["content"] as? String) ?? "", in: webView)
         if title.isEmpty || text.isEmpty || content.isEmpty {

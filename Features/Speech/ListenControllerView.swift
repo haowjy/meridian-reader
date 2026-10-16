@@ -80,10 +80,14 @@ struct SpeedButton: View {
         .popover(isPresented: $showsPicker, arrowEdge: .bottom) {
             SpeedPickerPopover(speech: speech) { showsPicker = false }
                 .presentationCompactAdaptation(.popover)
+                // Drawn on the player, as the sheet it points from.
+                .presentationBackground(Palette.playerBackground)
+                .environment(\.colorScheme, .dark)
         }
     }
 }
 
+/// The speed list, on the player's palette: its rows on a `playerCard` card.
 private struct SpeedPickerPopover: View {
     @Bindable var speech: SpeechController
     var onDone: () -> Void
@@ -92,6 +96,7 @@ private struct SpeedPickerPopover: View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text("Speed")
                 .typeStyle(.row, weight: .semibold)
+                .foregroundStyle(Palette.playerInk)
                 .padding(.horizontal, Spacing.xxs)
 
             VStack(spacing: 0) {
@@ -104,11 +109,11 @@ private struct SpeedPickerPopover: View {
                             Text(ListenRate.label(rate))
                                 .typeStyle(.row)
                                 .monospacedDigit()
-                                .foregroundStyle(Palette.ink)
+                                .foregroundStyle(Palette.playerInk)
                             Spacer()
                             if speech.rateMultiplier == rate {
                                 Image(systemName: Icons.checkmark)
-                                    .foregroundStyle(Palette.accent)
+                                    .foregroundStyle(Palette.playerAccent)
                             }
                         }
                         .padding(.horizontal, Spacing.s)
@@ -122,7 +127,7 @@ private struct SpeedPickerPopover: View {
                     }
                 }
             }
-            .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.card))
+            .background(Palette.playerCard, in: RoundedRectangle(cornerRadius: Radius.card))
         }
         .padding(Spacing.m)
         .frame(minWidth: 220)

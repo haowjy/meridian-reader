@@ -9,15 +9,24 @@ import SwiftUI
 struct ShellToastLayer: View {
     @Environment(ShellState.self) private var shell
 
+    /// A line with no height at the chrome's top edge; the toast hangs above it, its bottom a gap
+    /// over the chrome (over the Now Playing bar's top, never on it).
     var body: some View {
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: 0)
+            .overlay(alignment: .bottom) { toast }
+    }
+
+    @ViewBuilder
+    private var toast: some View {
         if let toast = shell.toast {
             Toast(message: toast.message, systemImage: toast.systemImage, actionTitle: toast.actionTitle) {
                 shell.dismissToast(toast.id)
                 toast.action?()
             }
             .padding(.horizontal, Spacing.pageMargin)
-            // Its bottom edge a gap above the chrome's top.
-            .alignmentGuide(.top) { $0[.bottom] + Spacing.xs }
+            .padding(.bottom, Spacing.xs)
             .transition(.opacity)
             .task(id: toast.id) {
                 await shell.expireToast(toast.id, after: toast.actionTitle == nil ? Toast.duration : Toast.actionDuration)

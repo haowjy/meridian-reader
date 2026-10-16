@@ -3,9 +3,18 @@ import SwiftUI
 /// The ⋯ menu panel's content (shown by `MorphMenuOverlay`): action rows, a divider, then a row
 /// of big buttons whose rightmost one is the panel's focus point (`morphMenuFocus`). Every row
 /// closes the panel and runs its action once the panel has started collapsing.
+///
+/// Every context lists its own actions first, then the same tail in the same order: Download,
+/// Voice Settings, Downloads, Debug. Labels come from `Verbs`. On the player (Now Playing) the
+/// panel takes the player's palette (`onPlayerPalette`).
 struct MoreMenuPanel: View {
     let context: MenuContext
     let close: MorphMenuClose
+
+    @Environment(\.onPlayerPalette) private var onPlayer
+
+    private var ink: Color { onPlayer ? Palette.playerInk : Palette.ink }
+    private var secondaryInk: Color { onPlayer ? Palette.playerSecondaryInk : Palette.secondaryInk }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,10 +34,10 @@ struct MoreMenuPanel: View {
     private func browse(_ menu: BrowseMenu, run: @escaping (BrowseMenu.Action) -> Void) -> some View {
         row("New Search", Icons.search, id: "moreNewSearch") { run(.newSearch) }
         if menu.isSaved {
-            row("Remove from Library", Icons.unsave, id: "moreSave") { run(.removeFromLibrary) }
+            row(Verbs.removeFromLibrary, Icons.unsave, id: "moreSave") { run(.removeFromLibrary) }
                 .disabled(!menu.canSave)
         } else {
-            row("Save to Library…", Icons.save, id: "moreSave") { run(.saveToLibrary) }
+            row(Verbs.saveToFolder, Icons.save, id: "moreSave") { run(.saveToLibrary) }
                 .disabled(!menu.canSave)
         }
         favoriteRow(isFavorite: menu.isFavorite) { run(.toggleFavorite) }
@@ -63,18 +72,18 @@ struct MoreMenuPanel: View {
         if let place = menu.goTo {
             row(String(localized: "Go to \(place.name)"), place.symbol, id: "moreGoTo") { run(.goTo) }
         }
-        row(menu.isSaved ? "Remove from Library" : "Save to Library", menu.isSaved ? Icons.unsave : Icons.save,
+        row(menu.isSaved ? Verbs.removeFromLibrary : Verbs.saveToLibrary, menu.isSaved ? Icons.unsave : Icons.save,
             id: "moreSave") { run(.toggleSave) }
             .disabled(!menu.canSave)
         if menu.isSaved {
-            row("Move to…", Icons.move, id: "moreMove") { run(.moveTo) }
+            row(Verbs.moveTo, Icons.move, id: "moreMove") { run(.moveTo) }
         }
         favoriteRow(isFavorite: menu.isFavorite) { run(.toggleFavorite) }
             .disabled(!menu.canFavorite)
         shareRow { run(.share) }
             .disabled(!menu.canShare)
         if menu.canDownload {
-            downloadRow("Download") { run(.download) }
+            downloadRow(Verbs.download) { run(.download) }
         }
         voiceRow { run(.voiceSettings) }
         downloadsRow { run(.downloads) }
@@ -99,20 +108,20 @@ struct MoreMenuPanel: View {
         switch menu.screen {
         case .home:
             sortMenu(menu.sort, run: run)
-            voiceRow { run(.voiceSettings) }
             importBookRow { run(.importBook) }
             row("New Folder", Icons.newFolder, id: "moreNewFolder") { run(.newFolder) }
         case .folder:
             sortMenu(menu.sort, run: run)
             row("New Folder Inside", Icons.newFolder, id: "moreNewFolder") { run(.newFolder) }
             importBookRow { run(.importBook) }
-            if let title = menu.downloadTitle { downloadRow(title) { run(.download) } }
-            row("Delete Downloads", Icons.deleteDownloads, id: "moreDeleteDownloads") { run(.deleteDownloads) }
             row("Rename", Icons.rename, id: "moreRename") { run(.rename) }
             editDetailsRow { run(.editDetails) }
-            row("Move…", Icons.move, id: "moreMove") { run(.move) }
-            row("Delete Folder…", Icons.delete, id: "moreDeleteFolder") { run(.deleteFolder) }
+            row(Verbs.moveTo, Icons.move, id: "moreMove") { run(.move) }
+            row(Verbs.deleteFolder(isBook: menu.isBook), Icons.delete, id: "moreDeleteFolder") { run(.deleteFolder) }
+            if let title = menu.downloadTitle { downloadRow(title) { run(.download) } }
+            row(Verbs.deleteDownloads, Icons.deleteDownloads, id: "moreDeleteDownloads") { run(.deleteDownloads) }
         }
+        voiceRow { run(.voiceSettings) }
         downloadsRow { run(.downloads) }
         if menu.showsDebug {
             row("Debug", Icons.debug, id: "moreDebug") { run(.listenDebug) }
@@ -147,7 +156,7 @@ struct MoreMenuPanel: View {
     }
 
     private func favoriteRow(isFavorite: Bool, action: @escaping () -> Void) -> some View {
-        row(isFavorite ? "Remove from Favorites" : "Add to Favorites", isFavorite ? Icons.unfavorite : Icons.favorite,
+        row(isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites, isFavorite ? Icons.unfavorite : Icons.favorite,
             id: "moreFavorite", action: action)
     }
 
@@ -164,15 +173,15 @@ struct MoreMenuPanel: View {
     }
 
     private func voiceRow(action: @escaping () -> Void) -> some View {
-        row("Voice Settings", Icons.voice, id: "moreVoice", action: action)
+        row(Verbs.voiceSettings, Icons.voice, id: "moreVoice", action: action)
     }
 
     /// ⋯ › Downloads: the list of what is downloading and downloaded.
     private func downloadsRow(action: @escaping () -> Void) -> some View {
-        row("Downloads", Icons.downloads, id: "moreDownloads", action: action)
+        row(Verbs.downloads, Icons.downloads, id: "moreDownloads", action: action)
     }
 
-    /// *Download* (a page), *Download Folder*.
+    /// *Download* (a page), *Download Folder*, *Download Book*.
     private func downloadRow(_ title: String, action: @escaping () -> Void) -> some View {
         row(title, Icons.download, id: "moreDownload", action: action)
     }
@@ -202,10 +211,10 @@ struct MoreMenuPanel: View {
             if let trailing {
                 Image(systemName: trailing)
                     .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Palette.secondaryInk)
+                    .foregroundStyle(secondaryInk)
             }
         }
-        .foregroundStyle(Palette.ink)
+        .foregroundStyle(ink)
         .padding(.horizontal, Spacing.l)
         .padding(.vertical, Spacing.s)
         .contentShape(Rectangle())
@@ -230,7 +239,7 @@ struct MoreMenuPanel: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .foregroundStyle(Palette.ink)
+            .foregroundStyle(ink)
             .frame(maxWidth: .infinity)
             .padding(.vertical, Spacing.s)
             .contentShape(Rectangle())
@@ -244,13 +253,14 @@ struct MoreMenuPanel: View {
 private struct MenuRowStyle: ButtonStyle {
     var cornerRadius: CGFloat = 0
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.onPlayerPalette) private var onPlayer
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .opacity(isEnabled ? 1 : 0.35)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(Palette.ink.opacity(configuration.isPressed ? 0.08 : 0))
+                    .fill((onPlayer ? Palette.playerInk : Palette.ink).opacity(configuration.isPressed ? 0.08 : 0))
             )
     }
 }

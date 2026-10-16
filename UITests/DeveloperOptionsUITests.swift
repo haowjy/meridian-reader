@@ -41,7 +41,7 @@ final class DeveloperOptionsUITests: XCTestCase {
         XCTAssertFalse(el(app, "moreDebug").exists, "no Debug row in the reader ⋯")
         wait(0.6)
         el(app, "moreVoice").tap()
-        XCTAssertTrue(app.navigationBars["Listen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Voice Settings"].waitForExistence(timeout: 5))
         let version = el(app, "settingsVersionRow")
         for _ in 0..<6 where !version.exists { app.swipeUp() }
         XCTAssertTrue(version.waitForExistence(timeout: 3), "version row")
@@ -119,14 +119,14 @@ final class DeveloperOptionsUITests: XCTestCase {
 
         app.buttons["readerMore"].tap()
         tapMenuRow(app, "moreVoice")
-        XCTAssertTrue(app.navigationBars["Listen"].waitForExistence(timeout: 5), "Voice settings")
+        XCTAssertTrue(app.navigationBars["Voice Settings"].waitForExistence(timeout: 5), "Voice settings")
         let open = find(app, "listenDebugSettings")
         for _ in 0..<6 where !(open.exists && open.isHittable) { app.swipeUp() }
         open.tap()
         XCTAssertTrue(panel.waitForExistence(timeout: 5), "the panel over Voice settings")
         panel.buttons["Done"].tap()
         XCTAssertTrue(eventually(5) { !panel.exists })
-        XCTAssertTrue(app.navigationBars["Listen"].exists, "Voice settings stays")
+        XCTAssertTrue(app.navigationBars["Voice Settings"].exists, "Voice settings stays")
     }
 
     /// Developer options off: no Debug row in the Library's ⋯.

@@ -46,7 +46,7 @@ struct SaveToggleButton: View {
         .accessibilityIdentifier(identifier)
         .accessibilityActions {
             if let onSaveToFolder {
-                Button("Save to Folder…", action: onSaveToFolder)
+                Button(Verbs.saveToFolder, action: onSaveToFolder)
             }
         }
     }

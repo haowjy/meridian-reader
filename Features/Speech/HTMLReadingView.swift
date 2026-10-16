@@ -712,7 +712,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
             <body>
             \(header)
             <main class="reader-text">
-            \(html)
+            \(ReadingStyle.withoutPageStyles(html))
             </main>
             </body>
             </html>

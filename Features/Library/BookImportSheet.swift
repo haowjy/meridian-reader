@@ -219,16 +219,10 @@ struct BookImportSheet: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .cancellationAction) {
-            Button("Cancel") { flow.cancel() }
-                .tint(Palette.accent)
-                .accessibilityIdentifier("importCancel")
-        }
+        SheetBarButton(Verbs.cancel, placement: .cancellationAction, identifier: "importCancel") { flow.cancel() }
         if flow.phase == .ready {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Import") { flow.startImport() }
-                    .tint(Palette.accent)
-                    .accessibilityIdentifier("importStart")
+            SheetBarButton(String(localized: "Import"), placement: .confirmationAction, identifier: "importStart") {
+                flow.startImport()
             }
         }
     }

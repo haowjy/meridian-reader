@@ -12,6 +12,12 @@ enum MenuContext {
     case browse(BrowseMenu, perform: (BrowseMenu.Action) -> Void)
     case reader(ReaderMenu, perform: (ReaderMenu.Action) -> Void)
     case library(LibraryMenu, perform: (LibraryMenu.Action) -> Void)
+
+    /// Opened from Now Playing: the panel takes the player's palette.
+    var isOnPlayer: Bool {
+        if case .reader(let menu, _) = self { return menu.isOnPlayer }
+        return false
+    }
 }
 
 /// The web page / start page menu.
@@ -51,6 +57,8 @@ struct ReaderMenu {
     /// Now Playing: *Go to* the folder or the Library it plays from. nil (the Reader, or a page
     /// that plays from its site, which Website opens): no row.
     var goTo: Place?
+    /// Opened from Now Playing (drawn on the player's palette).
+    var isOnPlayer = false
 
     var isSaved: Bool
     var canSave: Bool
@@ -82,9 +90,11 @@ struct LibraryMenu {
     var screen: Screen
     /// The screen's page sort: the folder's, or on the home the top level's.
     var sort: PageSort = .manual
-    /// *Download Folder* for the folder on screen; nil when it is downloading already, or isn't a
-    /// folder.
+    /// *Download Folder* (*Download Book*) for the folder on screen; nil when it is downloading
+    /// already, or isn't a folder.
     var downloadTitle: String?
+    /// The folder on screen is a book or series: *Delete Book…*.
+    var isBook = false
     /// Developer options: the Debug row (listen debug panel), last on every screen.
     var showsDebug = false
 }

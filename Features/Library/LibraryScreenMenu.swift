@@ -31,8 +31,11 @@ struct LibraryScreenMenu {
     var menu: LibraryMenu {
         var menu = screenMenu
         menu.showsDebug = speech.developerOptionsEnabled
-        if let folder = topFolder, !downloads.isQueued(.folder(folder.id)) {
-            menu.downloadTitle = String(localized: "Download Folder")
+        if let folder = topFolder {
+            menu.isBook = folder.kind == .book
+            if !downloads.isQueued(.folder(folder.id)) {
+                menu.downloadTitle = Verbs.downloadFolder(isBook: menu.isBook)
+            }
         }
         return menu
     }

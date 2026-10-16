@@ -13,14 +13,18 @@ import SwiftUI
 /// Edit, a long press lifts a row to drop on a folder or between rows (`LibraryDrag`); placing a
 /// page between pages makes the sort *Manual*.
 ///
+/// The name shows once, in the header; the navigation bar's title stays blank until the
+/// header's title scrolls under it.
+///
 /// ```
-/// ‹ Library                Finance                    Edit
+/// ‹                                                   Edit
 /// Finance
 /// 2 folders   7 pages
 /// ━━━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░░░░
 /// 38%   52 min left
-/// ( ▶ Continue  3 of 7       ) ( ⏮ Start ) (⬇)   one line, always (`ActionButtonRow`)
-///  📁 Bonds                             4  ›
+/// ( ▶ Continue  3 of 7       ) ( ⏮ From Start )  ⬇   one line, always (`ActionButtonRow`)
+///  📁 Bonds                                ›
+///     4 pages
 ///  ▣ Coupon Basics                      ✓   ▶
 ///  ▣ ✓ Finished
 ///  ▣ Seven-Day Yield                    ⬇   ⏸   ← playing: tinted, with bars
@@ -31,6 +35,8 @@ struct FolderScreen: View {
     let folder: Folder
 
     @Environment(LibraryScreenState.self) private var screen
+    /// The header's title has scrolled under the navigation bar: the bar shows the name.
+    @State private var headerTitleHidden = false
 
     var body: some View {
         if !folder.isLive {
@@ -42,10 +48,22 @@ struct FolderScreen: View {
     }
 
     private var contents: some View {
-        FolderContentsList(folder: folder, sort: folder.pageSort)
+        FolderContentsList(folder: folder, sort: folder.pageSort, headerTitleHidden: $headerTitleHidden)
+            // The title names the screen for VoiceOver, the back button and tests; drawn only
+            // once the header's own title has scrolled away.
             .navigationTitle(folder.displayName)
             .navigationBarTitleDisplayMode(.inline)
+            .modifier(BarTitleRemoved())
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text(folder.displayName)
+                        .typeStyle(.row, weight: .semibold)
+                        .foregroundStyle(Palette.ink)
+                        .lineLimit(1)
+                        .opacity(headerTitleHidden ? 1 : 0)
+                        .animation(Motion.snappy, value: headerTitleHidden)
+                        .accessibilityHidden(!headerTitleHidden)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     let editing = screen.isEditing(folderID: folder.id)
                     Button(editing ? "Done" : "Edit") {
@@ -61,6 +79,19 @@ struct FolderScreen: View {
     }
 }
 
+/// The navigation bar draws no title of its own (the principal item stands in for it); the
+/// screen keeps its `navigationTitle` for VoiceOver and the back button. Before iOS 18 the bar
+/// shows its title as well.
+private struct BarTitleRemoved: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) {
+            content.toolbar(removing: .title)
+        } else {
+            content
+        }
+    }
+}
+
 /// The folder's list, made with its sort (a query is fixed when its view is made).
 private struct FolderContentsList: View {
     let folder: Folder
@@ -72,9 +103,15 @@ private struct FolderContentsList: View {
     @Environment(LibraryScreenState.self) private var screen
     @Query private var queriedPages: [Page]
 
-    init(folder: Folder, sort: PageSort) {
+    @Binding var headerTitleHidden: Bool
+    /// Where the list's visible content starts (under the navigation bar), in global coordinates.
+    @State private var contentTop: CGFloat = 0
+    @ScaledMetric(relativeTo: TypeStyle.title.relativeTo) private var titleLineHeight = TypeStyle.title.lineHeight
+
+    init(folder: Folder, sort: PageSort, headerTitleHidden: Binding<Bool>) {
         self.folder = folder
         self.sort = sort
+        _headerTitleHidden = headerTitleHidden
         _queriedPages = Query(LibraryQueries.pages(inFolder: folder.id, sort: sort))
     }
 
@@ -102,6 +139,10 @@ private struct FolderContentsList: View {
                 EmptyView()
             } header: {
                 header
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { top in
+                        let hidden = top + titleLineHeight < contentTop
+                        if hidden != headerTitleHidden { headerTitleHidden = hidden }
+                    }
                     .libraryHeader()
             }
             // One mixed list of compact rows (D23): subfolders, then pages, in one card.
@@ -124,13 +165,22 @@ private struct FolderContentsList: View {
                 }
             }
             if subfolders.isEmpty && pages.isEmpty {
-                Text("Move pages here, or save them here from the Reader’s 🔖.")
-                    .typeStyle(.row)
-                    .foregroundStyle(Palette.secondaryInk)
-                    .listRowBackground(Color.clear)
+                // A header, like the folder's own: on the page margin, unclipped by a cell.
+                Section {
+                    EmptyView()
+                } header: {
+                    Text("Move pages here, or save them here from the Reader’s \(Text.symbol(Icons.save)).")
+                        .typeStyle(.row)
+                        .foregroundStyle(Palette.secondaryInk)
+                        .accessibilityIdentifier("folderEmpty")
+                        .libraryHeader()
+                }
             }
         }
         .libraryListStyle()
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY + $0.safeAreaInsets.top } action: {
+            contentTop = $0
+        }
         .environment(\.editMode, .constant(isEditing ? .active : .inactive))
         .accessibilityIdentifier("folderScreen")
     }
@@ -180,8 +230,9 @@ private struct FolderContentsList: View {
     private func headerLookMarker(_ style: FolderHeaderStyle) -> some View { EmptyView() }
     #endif
 
-    /// ["2 folders", "7 pages"].
+    /// ["2 folders", "7 pages"]; none for an empty folder, whose list says so.
     private var counts: [String] {
+        guard !subfolders.isEmpty || !pages.isEmpty else { return [] }
         var parts: [String] = []
         if !subfolders.isEmpty { parts.append("\(subfolders.count) folder\(subfolders.count == 1 ? "" : "s")") }
         parts.append("\(pages.count) page\(pages.count == 1 ? "" : "s")")

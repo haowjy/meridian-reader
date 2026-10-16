@@ -176,13 +176,17 @@ extension HTMLReadingWebView {
             if (range) CSS.highlights.set('reader-sentence', new Highlight(range));
           };
           reindex();
-          // The article's own leading heading already says the title: keep only the source line.
+          // The article's own leading heading already says the title: it takes the title's look,
+          // and the source line moves under it (the heading stays a listen block, so numbering
+          // doesn't change; the header isn't one wherever it sits).
           (function() {
             var title = document.querySelector('.reader-title');
             var first = blocks()[0];
             var norm = function(t) { return (t || '').replace(/\\s+/g, ' ').trim().toLowerCase(); };
             if (title && first && /^H[1-3]$/.test(first.tagName) && norm(first.textContent) === norm(title.textContent)) {
               title.style.display = 'none';
+              first.classList.add('reader-title');
+              first.parentNode.insertBefore(title.parentNode, first.nextSibling);
             }
           })();
         })();

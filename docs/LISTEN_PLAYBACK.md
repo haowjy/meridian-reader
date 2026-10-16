@@ -583,18 +583,20 @@ Logs `coreml_cache_prune`.
   best Apple voice for the language, without changing settings, and the listen bar and the
   Language footer say so ("Apple voice for French (Kokoro is English-only)").
 
-## Settings → Listen
+## Voice Settings
 
-`SpeechSettingsView`. Every row is one `SettingsRow` (title, optional one-line subtitle, fixed
-accessory and check slots, min height 48), so state changes never move rows
-(`ListenSettingsLayoutUITests`).
+`SpeechSettingsView` (⋯ → *Voice Settings*, titled the same), on the Library's list style: chrome
+cards on paper, `SectionHeader`s, notes in secondary ink. Every row is one `SettingsRow` (title,
+optional one-line subtitle, fixed accessory and check slots, min height 48), so state changes
+never move rows (`ListenSettingsLayoutUITests`).
 
 1. **Engine**: Apple and the registry's on-device engines. State lives in the subtitle
    ("Downloading… 42%", "Preparing voice…", "Ready (recommended)") and the accessory (a progress
    ring with a stop square cancels). Swipe to delete a downloaded engine; crash and failure
    notices in the footer.
-2. **Voice (<engine>)**: the selected engine's voices (Kokoro: curated rows with preview; Apple:
-   "System default" and good-quality system voices for the language).
+2. **Voice**: the selected engine's voices (the engine ticked above; Kokoro: curated rows with
+   preview, the default one marked "(default)"; Apple: "System default" and good-quality system
+   voices for the language).
 3. **Language**, 4. **Speed**.
 5. The version row (a 2 s long-press toggles developer options, `NAVIGATION.md`), then **Listen
    debug** while developer options are on.
@@ -682,7 +684,7 @@ fallbacks above still apply: a paragraph that would starve playback plays with A
 
 Developer options on (`NAVIGATION.md` → "Developer options"):
 
-- **Listen debug** (Settings → Listen): a **Debug** chip on the listen bar opens a live overlay
+- **Listen debug** (Voice Settings): a **Debug** chip on the listen bar opens a live overlay
   above the controls: article identity (`eph:` / `svd:` + short id), queue #1 and demoted count,
   active / next unit, worker busy or idle, warming model, article render % (ready / total),
   phase, last render event, render mode ("foreground · …", "inactive · …", "background · …"),

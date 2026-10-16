@@ -69,7 +69,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   `deleteFolders`); the folders stay selected until their delete is saved.
 - **The Move tree's pick reports success.** `MoveRequest.onPick` returns false when the change
   couldn't be saved, and the tree stays up (`MoveRequest.pick`); return true only once it is
-  saved (the browser's *Save to Library…*, which extracts first, returns true and reports its own
+  saved (the browser's *Save to Folder…*, which extracts first, returns true and reports its own
   failure). `MoveTreeList` is the tree itself, shared with the import sheet's *Add to*: it hands
   a pick and a *New Folder* name to its caller, and both callers make the folder through
   `MoveTreeList.makeFolder` (`attempt`), so one that can't be saved picks nothing and leaves the

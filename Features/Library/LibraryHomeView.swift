@@ -93,6 +93,7 @@ struct LibraryHomeView: View {
             }
         }
         .libraryListStyle()
+        .statusBarBacking()
         .environment(\.libraryScreenKey, isFiltered ? .filtered : .home)
         .animation(Motion.standard, value: pages.map(\.listenKey))
         .navigationTitle("Library")
@@ -122,7 +123,7 @@ struct LibraryHomeView: View {
             Text("Find something to listen to")
                 .typeStyle(.row, weight: .semibold)
                 .foregroundStyle(Palette.ink)
-            Text("Tap 🌐 to find a page, or ＋ to import a book. Pages you save or listen to, books you import and folders you make show up here.")
+            Text("Tap \(Text.symbol(Icons.browser)) to find a page, or \(Text.symbol(Icons.add)) to import a book. Pages you save or listen to, books you import and folders you make show up here.")
                 .typeStyle(.row)
                 .foregroundStyle(Palette.secondaryInk)
             ActionButtonRow { fit in
@@ -163,6 +164,26 @@ extension View {
     func libraryHeader() -> some View {
         textCase(nil)
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: Spacing.xs, trailing: 0))
+    }
+
+    /// A section footer in the Library's lists (a note under a card): in line with the cards.
+    func libraryFooter() -> some View {
+        textCase(nil)
+            .listRowInsets(EdgeInsets(top: Spacing.xs, leading: 0, bottom: 0, trailing: 0))
+    }
+
+    /// A screen with no navigation bar (the Library home): paper behind the status bar, so rows
+    /// scrolled up pass under it rather than under the clock.
+    func statusBarBacking() -> some View {
+        // A line with no height at the safe area's top; its paper reaches up through the status
+        // bar. (The list itself runs edge to edge, so an overlay of it starts above the clock.)
+        safeAreaInset(edge: .top, spacing: 0) {
+            Color.clear
+                .frame(height: 0)
+                .background(Palette.paper.ignoresSafeArea(edges: .top))
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
     }
 
     /// The Library's lists: grouped cards on paper, at the page margin, `Spacing.l` between
