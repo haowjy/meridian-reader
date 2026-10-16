@@ -37,15 +37,15 @@ extension LibraryStore {
     /// it played since it was made), the first page at its own saved spot, so a page heard part
     /// way on its own resumes. A finished folder starts again at its first page and is no longer
     /// finished. nil when that page isn't saved yet.
-    func continueStart(of folder: Folder) -> (page: Page, paragraph: Int, utf16Offset: Int)? {
+    func continueStart(of folder: Folder) -> (page: Page, spot: ListenSpot)? {
         let next = ChapterAdvance.start(chapterSnapshot(of: folder), place: folder.currentPageKey)
         guard case .ready(let key) = next, let page = page(key: key) else { return nil }
         if folder.finishedAt != nil {
             folder.finishedAt = nil
             commit("restart book")
         }
-        guard key == folder.currentPageKey || folder.currentPageKey == nil, page.finishedAt == nil else { return (page, 0, 0) }
-        return (page, page.positionParagraph, page.positionUTF16)
+        let atPlace = key == folder.currentPageKey || folder.currentPageKey == nil
+        return (page, atPlace ? page.listenStart : .top)
     }
 
     /// A page in a folder started playing at `date`: the folder's place moves to it, and the

@@ -82,8 +82,7 @@ extension SpeechController {
     /// series carries on from it.
     func playPage(_ key: UUID) {
         guard let session = nextChapters?.load(key) else { return }
-        noteUserIntent()
-        start(session, fromParagraph: 0)
+        start(session)
     }
 
     /// Nothing carries on from the bound page any more (another page binds, Stop Listening): the
@@ -123,7 +122,7 @@ extension SpeechController {
         chapterFlow.boundary?.nextWasRendered = isRendered(session.id, paragraph: 0, of: session.document.count)
         let commands = handlePageInput(.advance(pageKey: session.id, document: session.document,
                                                 folderID: session.folderID ?? folderID))
-        guard commands.contains(.enginePlay(from: 0)) else {
+        guard commands.contains(.enginePlay) else {
             stopEngines()
             chapterFlow.boundary = nil
             return

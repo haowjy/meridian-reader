@@ -20,7 +20,7 @@ final class NowPlayingMetadataTests: XCTestCase {
         let session = SpeechSession(id: UUID(), document: ParagraphDocument(parts: ["One.", "Two.", "Three."]),
                                     detectedLanguage: "en", title: "Chapter 12: Hunsford", site: "Jane Austen",
                                     artwork: Self.cover, folder: PlaybackFolder(id: UUID(), name: "Pride and Prejudice", isBookOrSeries: true))
-        speech.start(session, fromParagraph: 1)
+        speech.start(session, at: ListenSpot(paragraph: 1))
         let info = try XCTUnwrap(speech.lockScreen.lastInfo)
         XCTAssertEqual(info.title, "Chapter 12: Hunsford")
         XCTAssertEqual(info.subtitle, "Jane Austen – Paragraph 2 of 3")
@@ -53,7 +53,7 @@ final class NowPlayingMetadataTests: XCTestCase {
         book.coverData = Self.cover
         pages[1].byline = "chapter byline"
 
-        speech.start(.page(pages[1]), fromParagraph: 0)
+        speech.start(.page(pages[1]))
         let info = try XCTUnwrap(speech.lockScreen.lastInfo)
         XCTAssertEqual(info.title, "Chapter 2")
         XCTAssertEqual(info.subtitle, "Book Author – Paragraph 1 of 3")
@@ -63,7 +63,7 @@ final class NowPlayingMetadataTests: XCTestCase {
 
         let own = UIImage(systemName: "star")!.pngData()!
         pages[0].artworkData = own
-        speech.start(.page(pages[0]), fromParagraph: 0)
+        speech.start(.page(pages[0]))
         XCTAssertEqual(speech.lockScreen.lastInfo?.artwork, own, "a chapter's own artwork first")
     }
 }

@@ -54,7 +54,7 @@ final class LibraryFolderPlaybackTests: XCTestCase {
         XCTAssertNotNil(folder.lastPlayedAt)
         let start = try XCTUnwrap(library.continueStart(of: folder))
         XCTAssertIdentical(start.page, b)
-        XCTAssertEqual(start.paragraph, 1, "at its spot")
+        XCTAssertEqual(start.spot.paragraph, 1, "at its spot")
 
         library.recordFinished(b)
         XCTAssertNil(folder.finishedAt, "a page still follows")
@@ -74,7 +74,7 @@ final class LibraryFolderPlaybackTests: XCTestCase {
 
         let start = try XCTUnwrap(library.continueStart(of: folder))
         XCTAssertIdentical(start.page, a)
-        XCTAssertEqual(start.paragraph, 1)
+        XCTAssertEqual(start.spot.paragraph, 1)
     }
 
     func testTheLastPageFinishedFinishesTheFolder() throws {

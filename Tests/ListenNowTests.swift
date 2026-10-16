@@ -85,8 +85,7 @@ final class ListenNowTests: XCTestCase {
 
         // The Saved row's ▶ (SavedListView).
         speech.press(.page(c.listenKey)) {
-            speech.toggle(.page(c), resumeParagraph: c.positionParagraph,
-                          resumeUTF16Offset: c.positionUTF16)
+            speech.start(.page(c), at: c.listenStart)
         }
         XCTAssertEqual(speech.playState(of: .page(c.listenKey)), .playing)
         XCTAssertEqual(speech.playState(of: target(pageB)), .idle)

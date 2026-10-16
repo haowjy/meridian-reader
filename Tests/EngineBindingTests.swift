@@ -67,7 +67,7 @@ final class EngineBindingTests: XCTestCase {
     func testWarmUpFinishingMidPlaybackLeavesAppleInChargeOfItsUtterance() async {
         let (speech, coordinator, apple) = makeSpeech()
         let s = session()
-        speech.start(s, fromParagraph: 0)
+        speech.start(s)
         XCTAssertEqual(engineName(speech), "Apple")
 
         await coordinator.selectEngine(FakeEngineProvider.fakeID)
@@ -84,7 +84,7 @@ final class EngineBindingTests: XCTestCase {
     func testPlayingSessionMovesToTheWarmEngineAtTheNextParagraph() async {
         let (speech, coordinator, apple) = makeSpeech()
         let s = session()
-        speech.start(s, fromParagraph: 0)
+        speech.start(s)
         await coordinator.selectEngine(FakeEngineProvider.fakeID)
         XCTAssertEqual(engineName(speech), "Apple")
 
@@ -110,7 +110,7 @@ final class EngineBindingTests: XCTestCase {
     func testPausedSessionMovesToTheWarmEngineAtOnce() async {
         let (speech, coordinator, _) = makeSpeech()
         let s = session()
-        speech.start(s, fromParagraph: 0)
+        speech.start(s)
         speech.pause()
         await coordinator.selectEngine(FakeEngineProvider.fakeID)
         XCTAssertEqual(engineName(speech), "Fake", "nothing audible: rebinds at the paused spot")
@@ -121,7 +121,7 @@ final class EngineBindingTests: XCTestCase {
         let (speech, coordinator, apple) = makeSpeech()
         await coordinator.selectEngine(FakeEngineProvider.fakeID)
         let s = session()
-        speech.start(s, fromParagraph: 0)
+        speech.start(s)
         XCTAssertEqual(engineName(speech), "Fake")
         await waitUntil({ speech.localEngine.player.isSpeaking }, "the local engine started")
 
@@ -136,7 +136,7 @@ final class EngineBindingTests: XCTestCase {
     func testLocalVoiceChangeRestartsTheUtteranceOnTheNewVoice() async {
         let (speech, coordinator, _) = makeSpeech()
         await coordinator.selectEngine(FakeEngineProvider.fakeID)
-        speech.start(session(), fromParagraph: 0)
+        speech.start(session())
         await waitUntil({ speech.localEngine.player.isSpeaking }, "the local engine started")
         let before = speech.localEngine.player.debugEpoch
 

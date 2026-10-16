@@ -7,6 +7,11 @@ extension Page {
         key ?? ArticleIdentity.articleKey(canonicalURL: canonicalURL ?? urlString ?? title)
     }
 
+    /// Where listening to the page starts: its saved spot, or its top once it is finished.
+    var listenStart: ListenSpot {
+        finishedAt == nil ? ListenSpot(paragraph: positionParagraph, utf16Offset: positionUTF16) : .top
+    }
+
     /// Saved in the Library: what the reader's 🔖 and ⋯ → Save show as saved. A link (a favorite
     /// only) or a page played without saving isn't.
     var isSavedToLibrary: Bool { isSaved && isInLibrary }

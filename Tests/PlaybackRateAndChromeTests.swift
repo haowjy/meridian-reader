@@ -85,7 +85,7 @@ final class PlaybackRateAndChromeTests: XCTestCase {
 
         let session = SpeechSession(id: UUID(), document: ParagraphDocument(parts: ["One two three.", "Four five."]),
                                     title: "Rate")
-        speech.start(session, fromParagraph: 0)
+        speech.start(session)
         speech.pause()
         speech.setRateMultiplier(1.75)
         XCTAssertEqual(nowPlaying.lastInfo?.rate, 1.75, "lock screen reports the new rate")

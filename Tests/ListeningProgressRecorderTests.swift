@@ -32,7 +32,7 @@ final class ListeningProgressRecorderTests: XCTestCase {
     /// A Saved row's ▶ on `page` (no article at hand).
     private func play(_ page: Page) {
         speech.press(.page(page.listenKey)) {
-            speech.toggle(.page(page), resumeParagraph: page.positionParagraph, resumeUTF16Offset: page.positionUTF16)
+            speech.start(.page(page), at: page.listenStart)
         }
     }
 
@@ -134,7 +134,7 @@ final class ListeningProgressRecorderTests: XCTestCase {
         let page = try library.save(article("https://example.com/a", title: "A"))
         let key = page.listenKey
         speech.press(.page(key)) {
-            speech.toggle(.page(page), resumeParagraph: page.positionParagraph, resumeUTF16Offset: page.positionUTF16)
+            speech.start(.page(page), at: page.listenStart)
         }
         XCTAssertNotNil(page.lastPlayedAt, "dated when it starts")
         let doc = speech.document

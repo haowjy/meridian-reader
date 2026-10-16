@@ -333,18 +333,23 @@ final class SpeechController {
         supersedePreparation()
     }
 
-    /// Plays `article` from `paragraph` (at `utf16Offset` inside it, when given), replacing what's
-    /// playing. The article goes to `onListen` first, so a page the library doesn't have is kept
-    /// once it plays.
-    func listen(to article: ReaderArticle, fromParagraph paragraph: Int = 0, utf16Offset: Int? = nil) {
+    /// Plays `article` from `spot` (`start`). The article goes to `onListen` first, so a page the
+    /// library doesn't have is kept once it plays.
+    func listen(to article: ReaderArticle, at spot: ListenSpot = .top) {
         guard !article.document.isEmpty else { return }
         onListen?(article)
-        noteUserIntent()
         var session = SpeechSession(article: article)
         session.folder = nextChapters?.folder(containing: article.id)
-        prepare(session, startingParagraph: paragraph)
-        placeResumeOffset(utf16Offset, paragraph: paragraph)
-        perform(.play(from: paragraph))
+        start(session, at: spot)
+    }
+
+    /// The one way a page starts playing: `session` from `spot`, replacing what plays (a page
+    /// already bound plays from `spot`'s paragraph). A page in a folder carries on through it.
+    func start(_ session: SpeechSession, at spot: ListenSpot = .top) {
+        guard !session.document.isEmpty else { return }
+        noteUserIntent()
+        prepare(session, at: spot)
+        perform(.play(from: spot.paragraph))
     }
 
     /// The page's icon arrived after it started playing (🎧 starts before fetching it).
@@ -530,23 +535,17 @@ final class SpeechController {
     var canSkipToPreviousParagraph: Bool { isPrepared && currentParagraphIndex > 0 }
     var canSkipToNextParagraph: Bool { isPrepared && currentParagraphIndex + 1 < document.count }
 
-    func isPrepared(sessionID: UUID) -> Bool {
-        activeSessionID == sessionID && isPrepared
-    }
-
 
     // MARK: - Session API (intents)
 
-    /// Binds `session` paused at `startingParagraph`: at its start, or at document offset `utf16`
-    /// when that lies in it. A session already bound to it stays as it is.
-    func prepare(_ session: SpeechSession, startingParagraph: Int = 0, utf16: Int? = nil) {
+    /// Binds `session` paused at `spot`. A session already bound to it stays as it is.
+    func prepare(_ session: SpeechSession, at spot: ListenSpot = .top) {
         supersedePreparation()
         adoptMeta(of: session)
         if playback.articleID == session.id, !playback.document.isEmpty { return }
         execute(playback.handle(.stop, engine: engineSnapshot()))
         endChapterFlow()
-        playback.bind(articleID: session.id, document: session.document, startingAt: startingParagraph,
-                      utf16: utf16, folderID: session.folderID)
+        playback.bind(articleID: session.id, document: session.document, at: spot, folderID: session.folderID)
     }
 
     /// What the lock screen, the bar and the language rules show for `session`, before it binds.
@@ -566,42 +565,6 @@ final class SpeechController {
         playback.handle(input)
     }
 
-    func toggle(_ session: SpeechSession, resumeParagraph: Int? = nil, resumeUTF16Offset: Int? = nil) {
-        noteUserIntent()
-        if playback.articleID != session.id {
-            prepare(session, startingParagraph: resumeParagraph ?? 0)
-            placeResumeOffset(resumeUTF16Offset, paragraph: resumeParagraph ?? 0)
-            perform(.play(from: resumeParagraph ?? 0))
-            return
-        }
-        if !playback.isPrepared {
-            prepare(session, startingParagraph: resumeParagraph ?? playback.playhead)
-            placeResumeOffset(resumeUTF16Offset, paragraph: resumeParagraph ?? playback.playhead)
-        }
-        // Reconcile before toggle so stale .paused cannot block Pause while audible.
-        playback.reconcile(with: engineSnapshot())
-        if playback.phase == .prepared || playback.phase == .idle || playback.phase == .finished {
-            let index = resumeParagraph ?? playback.playhead
-            perform(.play(from: index))
-        } else {
-            perform(.toggle)
-        }
-    }
-
-    /// Prepared (not playing): put the playhead on the stored / scrubbed sentence so Play starts
-    /// there instead of at the paragraph start.
-    private func placeResumeOffset(_ offset: Int?, paragraph: Int) {
-        guard let offset, playback.phase == .prepared, !document.isEmpty,
-              document.index(containingUTF16Offset: offset) == paragraph else { return }
-        perform(.seekOffset(utf16: offset))
-    }
-
-    func start(_ session: SpeechSession, fromParagraph index: Int) {
-        prepare(session, startingParagraph: index)
-        guard !document.isEmpty else { return }
-        perform(.play(from: index))
-    }
-
     func skipToPreviousParagraph() {
         guard isPrepared else { return }
         supersedePreparation()
@@ -612,32 +575,6 @@ final class SpeechController {
         guard isPrepared else { return }
         supersedePreparation()
         perform(.skip(delta: 1))
-    }
-
-    /// Scrubber: move `session`'s playhead to `paragraph` without changing play/pause state
-    /// (a proper paused seek, not stop-and-reload). No-op unless `session` is the prepared one.
-    func seek(_ session: SpeechSession, toParagraph paragraph: Int) {
-        guard isPrepared(sessionID: session.id) else { return }
-        noteUserIntent()
-        perform(.seek(paragraph: paragraph))
-    }
-
-    /// Scrubber inside a paragraph: move to document offset `utf16` (a sentence start)
-    /// without changing play/pause state. Local engine: starts at the synth chunk holding that
-    /// sentence, offset into its audio; Apple: speaks from that character.
-    func seek(_ session: SpeechSession, toUTF16Offset utf16: Int) {
-        guard isPrepared(sessionID: session.id) else { return }
-        noteUserIntent()
-        perform(.seekOffset(utf16: utf16))
-    }
-
-    /// Where a play / seek of `paragraph` starts: the session's sub-paragraph offset when it lies
-    /// in that paragraph (scrubbed to a sentence), else the paragraph start.
-    private func startOffset(forParagraph paragraph: Int) -> Int {
-        guard !document.isEmpty else { return 0 }
-        let offset = playback.utf16Offset
-        return document.index(containingUTF16Offset: offset) == paragraph
-            ? offset : document.startUTF16Offset(forParagraph: paragraph)
     }
 
     func pause() {
@@ -830,18 +767,16 @@ final class SpeechController {
     func execute(_ commands: [PlaybackCommand]) {
         for command in commands {
             switch command {
-            case .enginePlay(let from):
-                speak(fromUTF16Offset: startOffset(forParagraph: from), startPaused: false)
+            case .enginePlay:
+                speak(fromUTF16Offset: playback.utf16Offset, startPaused: false)
             case .enginePause:
                 pauseEngines()
             case .engineResume:
                 resumeEngines()
             case .engineStop:
                 stopEngines()
-            case .engineSeek(let paragraph):
-                let offset = startOffset(forParagraph: paragraph)
-                let startPaused = playback.phase == .paused
-                speak(fromUTF16Offset: offset, startPaused: startPaused)
+            case .engineSeek:
+                speak(fromUTF16Offset: playback.utf16Offset, startPaused: playback.phase == .paused)
             }
         }
     }
@@ -859,7 +794,7 @@ final class SpeechController {
         audioSession.activate()
         guard let engine = activeEngine, engine.snapshot.isPaused || engine.snapshot.isAudible else {
             // Nothing held: play from the playhead (the scrubbed sentence, if any).
-            speak(fromUTF16Offset: startOffset(forParagraph: playback.playhead), startPaused: false)
+            speak(fromUTF16Offset: playback.utf16Offset, startPaused: false)
             return
         }
         engine.resume()

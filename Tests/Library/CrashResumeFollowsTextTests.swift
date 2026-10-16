@@ -64,7 +64,7 @@ final class CrashResumeFollowsTextTests: XCTestCase {
     /// A row's ▶ on `page`, as `LibraryActions.play` does it.
     private func play(_ page: Page) {
         speech.press(.page(page.listenKey)) {
-            speech.toggle(.page(page), resumeParagraph: page.positionParagraph, resumeUTF16Offset: page.positionUTF16)
+            speech.start(.page(page), at: page.listenStart)
         }
     }
 

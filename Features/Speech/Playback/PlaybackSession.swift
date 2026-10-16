@@ -20,8 +20,7 @@ enum PlaybackIntent: Equatable {
     case toggle
     case stop
     case skip(delta: Int)
-    case seek(paragraph: Int)
-    /// Scrubber commit inside a paragraph: document UTF-16 offset of a sentence start.
+    /// Scrubber commit: document UTF-16 offset of a sentence start.
     case seekOffset(utf16: Int)
 }
 
@@ -54,13 +53,15 @@ struct PlaybackEngineSnapshot: Equatable {
     var isPaused: Bool
 }
 
-/// Commands the session asks the controller to run on adapters / producer.
+/// Commands the session asks the controller to run on adapters / producer. A play or seek speaks
+/// from the position the session settled before it asked (`playhead` + `utf16Offset`).
 enum PlaybackCommand: Equatable {
-    case enginePlay(from: Int)
+    case enginePlay
     case enginePause
     case engineResume
     case engineStop
-    case engineSeek(paragraph: Int)
+    /// Speak from the position, held paused when the phase is paused.
+    case engineSeek
 }
 
 /// Owns the document, the position (`playhead` paragraph + document `utf16Offset`) and the phase.
@@ -109,22 +110,16 @@ struct PlaybackSessionState: Equatable {
         playhead = document.isEmpty ? 0 : document.index(containingUTF16Offset: clamped)
     }
 
-    /// Binds `document` at paragraph `startingAt`: at its start, or at document offset `utf16`
-    /// when that lies in the paragraph (a stored spot inside it).
-    mutating func bind(articleID: UUID, document: ParagraphDocument, startingAt: Int, utf16: Int? = nil,
+    /// Binds `document` at `spot` (a stored or chosen start: its offset when that lies in its
+    /// paragraph, else the paragraph's start).
+    mutating func bind(articleID: UUID, document: ParagraphDocument, at spot: ListenSpot = .top,
                        folderID: UUID? = nil) {
         self.articleID = articleID
         self.folderID = folderID
         self.document = document
         textFingerprint = ArticleIdentity.contentFingerprint(paragraphs: document.paragraphs)
         awaitingPage = false
-        let clamped = document.isEmpty ? 0 : max(0, min(startingAt, document.count - 1))
-        playhead = clamped
-        if let utf16, !document.isEmpty, document.index(containingUTF16Offset: utf16) == clamped {
-            utf16Offset = utf16
-        } else {
-            utf16Offset = document.isEmpty ? 0 : document.startUTF16Offset(forParagraph: clamped)
-        }
+        (playhead, utf16Offset) = spot.resolved(in: document)
         phase = document.isEmpty ? .idle : .prepared
     }
 
@@ -162,7 +157,7 @@ struct PlaybackSessionState: Equatable {
             }
             if phase == .paused { return [] }
             phase = .playing
-            return [.enginePlay(from: 0)]
+            return [.enginePlay]
         case .awaitPage:
             awaitingPage = true
             phase = .playing
@@ -195,18 +190,12 @@ struct PlaybackSessionState: Equatable {
         switch intent {
         case .play(let from):
             if phase == .finished, from == playhead { return replay() }
-            let clamped = document.isEmpty ? 0 : max(0, min(from, document.count - 1))
-            // Play from the playhead keeps a sub-paragraph spot (scrubbed while prepared).
-            let keepsOffset = clamped == playhead && !document.isEmpty
-                && document.index(containingUTF16Offset: utf16Offset) == clamped
-            playhead = clamped
-            if !keepsOffset {
-                utf16Offset = document.isEmpty ? 0 : document.startUTF16Offset(forParagraph: clamped)
-            }
+            // Play from the playhead keeps its spot inside the paragraph (scrubbed, or stored).
+            (playhead, utf16Offset) = ListenSpot(paragraph: from, utf16Offset: utf16Offset).resolved(in: document)
             // Tentative playing; engine `becameAudible` confirms. Allows UI to show pause affordance
             // while first local unit prepares — reconcile snaps back if engine never starts.
             phase = .playing
-            return [.enginePlay(from: clamped)]
+            return [.enginePlay]
 
         case .pause:
             guard engine.isAudible || engine.isPaused || phase == .playing || phase == .paused else { return [] }
@@ -224,7 +213,7 @@ struct PlaybackSessionState: Equatable {
             }
             // Nothing to resume — fall through to play from playhead.
             phase = .playing
-            return [.enginePlay(from: playhead)]
+            return [.enginePlay]
 
         case .toggle:
             if phase == .finished { return replay() }
@@ -238,7 +227,7 @@ struct PlaybackSessionState: Equatable {
             }
             if isPrepared {
                 phase = .playing
-                return [.enginePlay(from: playhead)]
+                return [.enginePlay]
             }
             return []
 
@@ -254,14 +243,9 @@ struct PlaybackSessionState: Equatable {
             if phase == .playing || phase == .paused || engine.isAudible || engine.isPaused {
                 let resumePaused = phase == .paused && !engine.isAudible
                 phase = resumePaused ? .paused : .playing
-                return [.engineSeek(paragraph: next)]
+                return [.engineSeek]
             }
             return []
-
-        case .seek(let paragraph):
-            guard isPrepared else { return [] }
-            let next = max(0, min(document.count - 1, paragraph))
-            return seek(toParagraph: next, utf16: document.startUTF16Offset(forParagraph: next), engine: engine)
 
         case .seekOffset(let utf16):
             guard isPrepared else { return [] }
@@ -278,7 +262,7 @@ struct PlaybackSessionState: Equatable {
         playhead = 0
         utf16Offset = 0
         phase = .playing
-        return [.enginePlay(from: 0)]
+        return [.enginePlay]
     }
 
     /// The phase turns paused when the engine confirms (`becamePaused`); an engine already
@@ -299,11 +283,11 @@ struct PlaybackSessionState: Equatable {
         utf16Offset = utf16
         if phase == .playing || engine.isAudible {
             phase = .playing
-            return [.engineSeek(paragraph: next)]
+            return [.engineSeek]
         }
         if phase == .paused || engine.isPaused {
             phase = .paused
-            return [.engineSeek(paragraph: next)]
+            return [.engineSeek]
         }
         if phase == .finished { phase = .prepared }
         return []

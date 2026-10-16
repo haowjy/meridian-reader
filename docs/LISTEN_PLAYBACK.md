@@ -39,7 +39,7 @@ writes it to `ListenResumePointStore` whenever it changes.
 Phase and position change only through:
 
 - **intents** from the UI and remote commands: `play`, `pause`, `resume`, `toggle`, `stop`,
-  `skip`, `seek`, `seekOffset`;
+  `skip`, `seekOffset`;
 - **engine events**: `becameAudible`, `becamePaused`, `position(paragraph, utf16)`, `finished`
   (`statusChanged` only tells the controller to re-read the listen-bar status);
 - **page inputs** inside a folder (`PlaybackPageInput`, "Books, series and folders" below):
@@ -47,6 +47,9 @@ Phase and position change only through:
 
 Rules:
 
+- The session settles the position before it asks an engine to play or seek; the commands carry
+  none, and the controller speaks from `utf16Offset`. A start spot (`ListenSpot`: a paragraph,
+  and an offset that counts only while it lies in that paragraph) goes in through `bind`.
 - Pause sends `.pause` to the engine; the phase turns paused on `becamePaused`, or at once when
   the engine snapshot already shows it paused.
 - Engines never clear the session. They emit `finished`; the controller decides whether a book
@@ -80,6 +83,12 @@ Rules:
   it.
 - **`press(_:start:)`**: playing → pause; paused → resume (a finished page from its top); anything
   else runs `start`, which replaces what is playing. Pressing never navigates.
+- **`start(_:at:)`** is the one way a page starts: a `SpeechSession` from a `ListenSpot`, replacing
+  what plays. `listen(to:at:)` wraps it for a `ReaderArticle` (the Reader's Listen, 🎧), handing the
+  article to `onListen` first; `playPage` (Contents, *Play from Here*) loads a library page and
+  starts it at its top. A library page starts at `Page.listenStart`: its saved spot, or its top
+  once it is finished; the Reader's Listen label, its underlined sentence, a row's ▶ and 🎧 all use
+  it. Continue on a folder starts at `LibraryStore.continueStart`'s spot.
 - **`nowPlayingContent()`**: Now Playing's reading content, asked of the injected
   `NowPlayingContentResolving`: the library, which has every page that has played (a page played
   without saving, or removed from the Library, is kept 7 days after its last play), so it is

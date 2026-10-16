@@ -51,8 +51,9 @@ struct ReaderSheetScreen: View {
 
     private var sessionReady: Bool { !article.document.isEmpty }
 
-    private var resumeParagraph: Int {
-        page?.positionParagraph ?? article.resumeParagraph
+    /// Where Listen starts: the page's saved spot, or its top once it is finished.
+    private var listenStart: ListenSpot {
+        page?.listenStart ?? ListenSpot(paragraph: article.resumeParagraph)
     }
 
     private var isFinished: Bool {
@@ -113,9 +114,9 @@ struct ReaderSheetScreen: View {
     /// The sentence at the page's saved listening spot, while it is part-way through: the text
     /// opens with it in the middle, underlined, where Resume starts.
     private var savedSentence: ReaderSentence? {
-        let offset = page?.positionUTF16 ?? 0
-        guard !isFinished, resumeParagraph > 0 || offset > 0 else { return nil }
-        return ReaderSentence(in: article.document, paragraph: resumeParagraph, utf16Offset: offset)
+        let start = listenStart
+        guard start.isPartWay else { return nil }
+        return ReaderSentence(in: article.document, paragraph: start.paragraph, utf16Offset: start.utf16Offset)
     }
 
     private var totalLength: Int {
@@ -133,8 +134,8 @@ struct ReaderSheetScreen: View {
     private var listen: (title: String, detail: String?) {
         if isFinished { return (String(localized: "Listen Again"), nil) }
         let doc = article.document
-        if resumeParagraph > 0, doc.paragraphs.indices.contains(resumeParagraph) {
-            let at = doc.startUTF16Offset(forParagraph: resumeParagraph)
+        if listenStart.isPartWay, doc.paragraphs.indices.contains(listenStart.paragraph) {
+            let at = listenStart.resolved(in: doc).utf16Offset
             return (String(localized: "Resume"), "\(ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at)) min left")
         }
         return (String(localized: "Listen"), "\(ListeningTime.minutes(utf16Length: totalLength)) min")
@@ -226,13 +227,7 @@ struct ReaderSheetScreen: View {
         guard sessionReady else { return }
         jumpMode = false
         let handOver = scroll.handOver
-        if let paragraph {
-            speech.listen(to: article, fromParagraph: paragraph)
-        } else if isFinished {
-            speech.listen(to: article, fromParagraph: 0)
-        } else {
-            speech.listen(to: article, fromParagraph: resumeParagraph, utf16Offset: page?.positionUTF16)
-        }
+        speech.listen(to: article, at: paragraph.map { ListenSpot(paragraph: $0) } ?? listenStart)
         shell.turnReaderIntoNowPlaying(handOver: handOver)
     }
 
@@ -258,7 +253,7 @@ struct ReaderSheetScreen: View {
             "key": ListenTimingLog.shortKey(article.id),
             "paragraphs": paragraphs.count,
             "chars": paragraphs.reduce(0) { $0 + $1.count },
-            "resume_p": resumeParagraph,
+            "resume_p": listenStart.paragraph,
             "local_ready": speech.localTTS.usesLocalEngine,
             "saved": isSaved,
         ])
@@ -269,7 +264,7 @@ struct ReaderSheetScreen: View {
             legacyKeys: article.legacyCacheKeys,
             isLivePlayback: false
         )
-        speech.localTTS.openArticle(cacheKey: article.id, paragraphs: paragraphs, from: resumeParagraph,
+        speech.localTTS.openArticle(cacheKey: article.id, paragraphs: paragraphs, from: listenStart.paragraph,
                                     isEphemeral: !isSaved)
     }
 

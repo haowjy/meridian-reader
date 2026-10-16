@@ -62,11 +62,11 @@ final class BackgroundListeningTests: XCTestCase {
 
         // The Session decides (single source of truth) — deterministic engine snapshots.
         var s = PlaybackSessionState()
-        s.bind(articleID: UUID(), document: ParagraphDocument(parts: ["a.", "b.", "c."]), startingAt: 0)
+        s.bind(articleID: UUID(), document: ParagraphDocument(parts: ["a.", "b.", "c."]))
         let silent = PlaybackEngineSnapshot(isAudible: false, isPaused: false)
         let audible = PlaybackEngineSnapshot(isAudible: true, isPaused: false)
         let paused = PlaybackEngineSnapshot(isAudible: false, isPaused: true)
-        XCTAssertEqual(s.handle(RemoteCommand.play.intent!, engine: silent), [.enginePlay(from: 0)])
+        XCTAssertEqual(s.handle(RemoteCommand.play.intent!, engine: silent), [.enginePlay])
         XCTAssertEqual(s.phase, .playing)
         XCTAssertEqual(s.handle(RemoteCommand.togglePlayPause.intent!, engine: audible), [.enginePause])
         XCTAssertEqual(s.phase, .playing, "paused only once the engine confirms")
@@ -74,9 +74,9 @@ final class BackgroundListeningTests: XCTestCase {
         XCTAssertEqual(s.phase, .paused)
         XCTAssertEqual(s.handle(RemoteCommand.play.intent!, engine: paused), [.engineResume])
         XCTAssertEqual(s.phase, .playing)
-        XCTAssertEqual(s.handle(RemoteCommand.nextTrack.intent!, engine: audible), [.engineSeek(paragraph: 1)])
+        XCTAssertEqual(s.handle(RemoteCommand.nextTrack.intent!, engine: audible), [.engineSeek])
         XCTAssertEqual(s.playhead, 1)
-        XCTAssertEqual(s.handle(RemoteCommand.previousTrack.intent!, engine: audible), [.engineSeek(paragraph: 0)])
+        XCTAssertEqual(s.handle(RemoteCommand.previousTrack.intent!, engine: audible), [.engineSeek])
         XCTAssertEqual(s.playhead, 0)
         XCTAssertEqual(s.handle(RemoteCommand.pause.intent!, engine: audible), [.enginePause])
         XCTAssertEqual(s.phase, .playing)
@@ -93,20 +93,20 @@ final class BackgroundListeningTests: XCTestCase {
         let silent = PlaybackEngineSnapshot(isAudible: false, isPaused: false)
         func finished() -> PlaybackSessionState {
             var s = PlaybackSessionState()
-            s.bind(articleID: UUID(), document: document, startingAt: 2)
+            s.bind(articleID: UUID(), document: document, at: ListenSpot(paragraph: 2))
             s.handle(.position(paragraph: 2, utf16: document.startUTF16Offset(forParagraph: 2) + 5))
             s.handle(.finished)
             return s
         }
         for intent in [RemoteCommand.play.intent!, RemoteCommand.togglePlayPause.intent!, .play(from: 2)] {
             var s = finished()
-            XCTAssertEqual(s.handle(intent, engine: silent), [.enginePlay(from: 0)], "\(intent)")
+            XCTAssertEqual(s.handle(intent, engine: silent), [.enginePlay], "\(intent)")
             XCTAssertEqual(s.playhead, 0, "\(intent)")
             XCTAssertEqual(s.utf16Offset, 0, "\(intent): not where the voice finished")
             XCTAssertEqual(s.phase, .playing, "\(intent)")
         }
         var s = finished()
-        XCTAssertEqual(s.handle(.play(from: 1), engine: silent), [.enginePlay(from: 1)])
+        XCTAssertEqual(s.handle(.play(from: 1), engine: silent), [.enginePlay])
         XCTAssertEqual(s.utf16Offset, document.startUTF16Offset(forParagraph: 1))
     }
 
@@ -117,7 +117,7 @@ final class BackgroundListeningTests: XCTestCase {
         defer { fixture.tearDown() }
         let speech = fixture.speech
         let s = session()
-        speech.start(s, fromParagraph: 0)
+        speech.start(s)
         for command in [RemoteCommand.play, .togglePlayPause] {
             fixture.apple.emit(.position(paragraph: 2, utf16: s.document.startUTF16Offset(forParagraph: 2) + 6))
             fixture.apple.emit(.finished)
@@ -211,7 +211,7 @@ final class BackgroundListeningTests: XCTestCase {
 
     func testInterruptionsPauseAndResumeTheSession() {
         let (speech, audio, _) = makeSpeech()
-        speech.start(session(), fromParagraph: 0)
+        speech.start(session())
         XCTAssertEqual(speech.playback.phase, .playing)
 
         speech.handleAudioSessionEvent(.interruptionBegan) // call / Siri

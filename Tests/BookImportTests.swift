@@ -114,7 +114,7 @@ final class BookImportTests: XCTestCase {
         let book = try added(try await importBook(Self.sampleBook()))
         let start = try XCTUnwrap(library.continueStart(of: book))
         XCTAssertEqual(start.page.title, "Chapter 1: The Harbor")
-        XCTAssertEqual(start.paragraph, 0)
+        XCTAssertEqual(start.spot.paragraph, 0)
     }
 
     func testLooseTextIsReadAndFootnotesPicturesAndNoteMarksAreNot() async throws {
