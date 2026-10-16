@@ -25,32 +25,18 @@ enum KokoroStressRun {
 
     enum Route: String { case coreml, onnx }
 
+    /// What the launch asked for (`LaunchOptions.kokoroStress`).
     struct Request: Equatable {
         var route: Route
-        var calls: Int
-        var fresh: Bool
-
-        init?(arguments: [String]) {
-            func value(after flag: String) -> String? {
-                guard let i = arguments.firstIndex(of: flag), i + 1 < arguments.count else { return nil }
-                return arguments[i + 1]
-            }
-            guard let raw = value(after: "-KokoroStress"), let route = Route(rawValue: raw.lowercased()) else { return nil }
-            self.route = route
-            calls = value(after: "-KokoroStressCalls").flatMap(Int.init).map { max(1, $0) } ?? KokoroStressCorpus.calls
-            fresh = arguments.contains("-KokoroStressFresh")
-        }
+        var calls: Int = KokoroStressCorpus.calls
+        var fresh = false
     }
 
     private static var didRun = false
 
-    /// A Core ML run is requested: the launch keeps the Core ML stages.
-    nonisolated static var usesCoreML: Bool {
-        Request(arguments: ProcessInfo.processInfo.arguments)?.route == .coreml
-    }
-
-    static func runIfRequested(coordinator: LocalTTSCoordinator) {
-        guard !didRun, let request = Request(arguments: ProcessInfo.processInfo.arguments) else { return }
+    /// Once per process.
+    static func start(_ request: Request, coordinator: LocalTTSCoordinator) {
+        guard !didRun else { return }
         didRun = true
         Task { await run(request, coordinator: coordinator) }
     }
@@ -95,7 +81,8 @@ enum KokoroStressRun {
             let voice = KokoroHost.defaultVoice
             let host: LocalSynthHost
             switch request.route {
-            case .coreml: host = KokoroHost(voice: voice)
+            case .coreml:
+                host = KokoroHost(voice: voice, units: coordinator.engines.provider(FluidAudioProvider.self)?.coreMLUnits)
             case .onnx: host = KokoroCPUHost(voice: voice, threads: KokoroRouteSettings().cpuThreads)
             }
             let start = history.nextIndex

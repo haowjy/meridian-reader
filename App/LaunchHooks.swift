@@ -9,8 +9,8 @@ enum LaunchHooks {
     /// Before the library's launch maintenance: the engine probe, the Kokoro stress run, and
     /// `-rerunLibraryMigration`.
     static func runBeforeMigrations(_ options: LaunchOptions, library: LibraryStore, tts: LocalTTSCoordinator) {
-        EngineLatencyProbe.runIfRequested(coordinator: tts)
-        KokoroStressRun.runIfRequested(coordinator: tts)
+        if let probe = options.engineProbe { EngineLatencyProbe.start(probe, coordinator: tts) }
+        if let stress = options.kokoroStress { KokoroStressRun.start(stress, coordinator: tts) }
         if options.rerunsLibraryMigration { library.resetForMigrationRerun() }
     }
 

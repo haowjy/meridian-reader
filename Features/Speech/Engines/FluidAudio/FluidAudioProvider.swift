@@ -23,9 +23,12 @@ final class FluidAudioProvider: SpeechEngineProvider {
     let name = "FluidAudio"
     /// Route settings source (tests inject a suite).
     let routeSettings: KokoroRouteSettings
+    /// Compute units of the Core ML route's host (`KokoroHost.unitsLabel`); nil: its default.
+    let coreMLUnits: String?
 
-    init(routeSettings: KokoroRouteSettings = KokoroRouteSettings()) {
+    init(routeSettings: KokoroRouteSettings = KokoroRouteSettings(), coreMLUnits: String? = nil) {
         self.routeSettings = routeSettings
+        self.coreMLUnits = coreMLUnits
     }
 
     /// Curated voices live in `KokoroVoiceCatalog` (one-line swaps).
@@ -112,7 +115,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
         case .onnxCPU: return KokoroCPUHost(voice: voice, threads: routeSettings.cpuThreads, crashCount: routeSettings)
         case .coreMLGPU:
             return KokoroSplitHost(
-                coreML: KokoroHost(voice: voice),
+                coreML: KokoroHost(voice: voice, units: coreMLUnits),
                 onnx: KokoroCPUHost(voice: voice, threads: routeSettings.cpuThreads, crashCount: routeSettings))
         }
     }

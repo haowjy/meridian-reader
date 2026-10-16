@@ -710,7 +710,8 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   --destination /tmp/timing
 ```
 
-**Debug-build tools** (launch arguments compile only in Debug):
+**Debug-build tools** (launch arguments compile only in Debug; `LaunchOptions` parses them and
+`AppComposition` / `LaunchHooks` hand them on):
 
 - `-engineProbe [-probeOnly Kokoro]` or the panel's "Run engine probe": per engine, init,
   first-chunk latency and wall vs audio time for 60 / 150 / 400 characters, into

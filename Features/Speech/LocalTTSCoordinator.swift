@@ -60,13 +60,15 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// (the voice for its language). The listen player and the render queue fall back to it alike.
     var appleVoiceForArticle: (([String]) -> String?)?
 
-    /// Picks the launch engine (the stored selection, after crash recovery) and starts loading
-    /// it. One-time launch steps are `LaunchMigration`s, run by `AppComposition`.
+    /// Picks the launch engine (`selecting`, else the stored selection after crash recovery) and
+    /// starts loading it. `selecting` is a Debug launch's `-selectEngine` (`LaunchOptions`).
+    /// One-time launch steps are `LaunchMigration`s, run by `AppComposition`.
     init(
         engines: EngineRegistry,
         defaults: UserDefaults = .standard,
         audioCache: ArticleAudioCache? = nil,
-        crashGuard: EngineCrashGuard = .shared
+        crashGuard: EngineCrashGuard = .shared,
+        selecting launchEngine: SpeechEngineID? = nil
     ) {
         self.engines = engines
         self.defaults = defaults
@@ -86,15 +88,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
         let playing = ListenResumePointStore.shared.load()
         launchCrash = crashGuard.consumeCrashInfo(lastActivity: playing?.at)
         if let launchCrash { initial = recover(from: launchCrash, selection: initial, playing: playing) }
-        #if DEBUG
-        // Dev/test hook: `-selectEngine <engine id>` (persisted), e.g. local.kokoro.
-        let args = ProcessInfo.processInfo.arguments
-        if let i = args.firstIndex(of: "-selectEngine"), i + 1 < args.count,
-           engines.contains(SpeechEngineID(rawValue: args[i + 1])) {
-            initial = SpeechEngineID(rawValue: args[i + 1])
+        if let launchEngine, engines.contains(launchEngine) {
+            initial = launchEngine
             if initial == crashedEngineID { engineCrashNotice = nil; crashedEngineID = nil }
         }
-        #endif
         start(initial)
     }
 

@@ -29,26 +29,17 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
     /// `.cpuAndNeuralEngine`, noise and the iSTFT tail on `.cpuAndGPU`, so the tail never runs on
     /// the CPU (BNNS). Pinned rather than FluidAudio's `.default`, which moves noise and tail to
     /// `.cpuOnly` on OS 27.
-    /// Debug knob: `-kokoroUnits default|cpuAndGpu|cpuOnly|allAne|aneTailGpu|aneTailCpu|gpuAneVocoder|aneFrontGpuBack`.
+    /// Debug knob (`FluidAudioProvider.coreMLUnits`, from `-kokoroUnits`):
+    /// `default|cpuAndGpu|cpuOnly|allAne|aneTailGpu|aneTailCpu|gpuAneVocoder|aneFrontGpuBack`.
     let unitsLabel: String
     var routingLabel: String? { unitsLabel }
     var routeTag: String? { KokoroRoute.coreMLGPU.rawValue }
 
     static let defaultUnitsLabel = "aneTailGpu"
 
-    static var launchArgUnits: String? {
-        #if DEBUG
-        let args = ProcessInfo.processInfo.arguments
-        guard let i = args.firstIndex(of: "-kokoroUnits"), i + 1 < args.count else { return nil }
-        return args[i + 1]
-        #else
-        return nil
-        #endif
-    }
-
-    init(voice: String = KokoroHost.defaultVoice, unitsOverride: String? = nil) {
+    init(voice: String = KokoroHost.defaultVoice, units: String? = nil) {
         self.voice = voice
-        let label = unitsOverride ?? Self.launchArgUnits ?? Self.defaultUnitsLabel
+        let label = units ?? Self.defaultUnitsLabel
         self.unitsLabel = label
         let units: KokoroAneComputeUnits
         switch label {

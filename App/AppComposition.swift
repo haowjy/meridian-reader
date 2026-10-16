@@ -8,7 +8,16 @@ import SwiftData
 enum AppComposition {
     static let engineRegistry = EngineRegistry(providers: makeProviders())
 
-    static let speechController = SpeechController(engines: engineRegistry)
+    static let speechController: SpeechController = {
+        #if DEBUG
+        let options = LaunchOptions.current
+        return SpeechController(engines: engineRegistry,
+                                localTTS: LocalTTSCoordinator(engines: engineRegistry, selecting: options.selectsEngine),
+                                keepsStoredRate: options.keepsStoredRate)
+        #else
+        return SpeechController(engines: engineRegistry)
+        #endif
+    }()
 
     /// What you see. It asks the playback session what you hear, so the Reader of the playing
     /// page opens as Now Playing, and reopens on the surface you left (decision D10).
@@ -92,25 +101,27 @@ enum AppComposition {
     }
 
     static func makeProviders() -> [SpeechEngineProvider] {
-        var providers: [SpeechEngineProvider] = [
-            AppleSpeechProvider(),
-            FluidAudioProvider(),
-        ]
         #if DEBUG
         let options = LaunchOptions.current
+        var providers: [SpeechEngineProvider] = [
+            AppleSpeechProvider(),
+            FluidAudioProvider(coreMLUnits: options.kokoroUnits),
+        ]
         if options.usesTestVoice {
             // Every test-voice launch starts on voice One, whatever an earlier run picked.
             UserDefaults.standard.removeObject(forKey: TestVoiceProvider.descriptor.resolvedVoiceDefaultsKey)
             providers.append(TestVoiceProvider(delay: options.testVoiceDelay ?? 0.15))
         }
-        #endif
         return providers
+        #else
+        return [AppleSpeechProvider(), FluidAudioProvider()]
+        #endif
     }
 
     /// Launch steps, in order: retired engines' cleanup, then each voice library's own.
     static func launchMigrations(for engines: EngineRegistry) -> [LaunchMigration] {
         #if DEBUG
-        let keepsCoreMLStages = KokoroStressRun.usesCoreML
+        let keepsCoreMLStages = LaunchOptions.current.kokoroStress?.route == .coreml
         #else
         let keepsCoreMLStages = false
         #endif

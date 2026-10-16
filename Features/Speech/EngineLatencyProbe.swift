@@ -3,10 +3,10 @@ import Foundation
 
 /// Debug-only device timing for every registered on-device engine (production hosts via the
 /// registry, shared `LocalChunkRenderer`, per-engine chunk limits, same gate).
-/// Limit engines with `-probeOnly Kokoro[,Other]` (short names).
 ///
-/// Trigger: launch arg `-engineProbe` (e.g. `xcrun devicectl device process launch … -engineProbe`)
-/// or Settings → Listen → Listen debug → Open full panel → "Run engine probe".
+/// Trigger: launch arg `-engineProbe` (e.g. `xcrun devicectl device process launch … -engineProbe`;
+/// `LaunchOptions.engineProbe`) or Settings → Listen → Listen debug → Open full panel → "Run
+/// engine probe" (every engine, no stress calls).
 /// Output: `Documents/engine_probe.txt` (one line per step, written *before* each step so a
 /// crash shows where it died) + `engine_probe` events in ListenTimingLog.
 ///
@@ -16,7 +16,13 @@ import Foundation
 @MainActor
 enum EngineLatencyProbe {
     private(set) static var isRunning = false
-    static var isRequested: Bool { ProcessInfo.processInfo.arguments.contains("-engineProbe") }
+
+    struct Request: Equatable {
+        /// `-probeOnly Kokoro[,Other]`: these engines (short names, any case); nil: every one.
+        var engines: Set<String>? = nil
+        /// `-probeStress [-probeStressN n]`: this many 150-character calls after the timed texts.
+        var stressCalls: Int? = nil
+    }
 
     static let texts: [(label: String, text: String)] = [
         ("60", "The rain had stopped by morning, and the streets were quiet."),
@@ -26,10 +32,11 @@ enum EngineLatencyProbe {
 
     private static var didAutoRun = false
 
-    static func runIfRequested(coordinator: LocalTTSCoordinator) {
-        guard isRequested, !didAutoRun else { return }
+    /// The launch's request, once per process.
+    static func start(_ request: Request, coordinator: LocalTTSCoordinator) {
+        guard !didAutoRun else { return }
         didAutoRun = true
-        Task { await run(coordinator: coordinator) }
+        Task { await run(request, coordinator: coordinator) }
     }
 
     static var outputURL: URL {
@@ -37,7 +44,7 @@ enum EngineLatencyProbe {
             .appendingPathComponent("engine_probe.txt")
     }
 
-    static func run(coordinator: LocalTTSCoordinator) async {
+    static func run(_ request: Request = Request(), coordinator: LocalTTSCoordinator) async {
         guard !isRunning else { return }
         isRunning = true
         defer { isRunning = false }
@@ -60,25 +67,20 @@ enum EngineLatencyProbe {
         let waitStart = ListenTimingLog.now()
         await coordinator.withRenderingQuiet {
             log("app engine=\(coordinator.selectedEngineID.rawValue) quiet after \(ListenTimingLog.ms(since: waitStart)) ms (crash guard count=\(EngineCrashGuard.shared.crashCount))")
-            let args = ProcessInfo.processInfo.arguments
-            var only: Set<String>? = nil
-            if let i = args.firstIndex(of: "-probeOnly"), i + 1 < args.count {
-                only = Set(args[i + 1].split(separator: ",").map { $0.lowercased() })
-            }
             let registry = coordinator.engines
             // Reverse descriptor order (recommended engine last).
             let descriptors = registry.localDescriptors.reversed().filter {
-                registry.supports($0.id) && (only?.contains($0.shortName.lowercased()) ?? true)
+                registry.supports($0.id) && (request.engines?.contains($0.shortName.lowercased()) ?? true)
             }
             for descriptor in descriptors {
-                await probe(descriptor, coordinator: coordinator, log: log)
+                await probe(descriptor, stressCalls: request.stressCalls, coordinator: coordinator, log: log)
             }
         }
         log("done")
     }
 
     /// One engine on a host of its own: init, the timed texts, the stress calls, then unload.
-    private static func probe(_ descriptor: EngineDescriptor, coordinator: LocalTTSCoordinator,
+    private static func probe(_ descriptor: EngineDescriptor, stressCalls: Int?, coordinator: LocalTTSCoordinator,
                               log: (String) -> Void) async {
         let engine = descriptor.id
         let name = descriptor.shortName
@@ -129,12 +131,7 @@ enum EngineLatencyProbe {
                 log("[\(name)] synth \(label) FAILED after \(ListenTimingLog.ms(since: t0)) ms: \(error.localizedDescription)")
             }
         }
-        let args = ProcessInfo.processInfo.arguments
-        if args.contains("-probeStress") {
-            let n: Int = {
-                if let i = args.firstIndex(of: "-probeStressN"), i + 1 < args.count, let v = Int(args[i + 1]) { return v }
-                return 20
-            }()
+        if let n = stressCalls {
             log("[\(name)] stress \(n)× 150-char calls start")
             let tS = ListenTimingLog.now()
             for i in 0..<n {
