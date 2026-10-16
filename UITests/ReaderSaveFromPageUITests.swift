@@ -63,7 +63,9 @@ final class ReaderSaveFromPageUITests: XCTestCase {
         app.buttons["nowPlayingClose"].tap()
         XCTAssertTrue(eventually { !app.buttons["nowPlayingClose"].exists })
 
-        // Library: exactly one row for the page, and it opens the same screen.
+        // Library: exactly one row for the page, and it opens the same screen. The close pill
+        // leaves the tree before the sheet has gone; 📚 takes taps once it has.
+        XCTAssertTrue(eventually(5) { app.buttons["browseLibrary"].isHittable }, "Now Playing has gone")
         app.buttons["browseLibrary"].tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         let rows = app.cells.staticTexts.matching(NSPredicate(format: "label == %@", "Second page"))

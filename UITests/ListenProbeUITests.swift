@@ -75,6 +75,8 @@ final class ListenProbeUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["listenJumpHint"].waitForExistence(timeout: 3))
         app.buttons["listenJumpCancel"].tap()
         XCTAssertTrue(eventually(3) { !app.descendants(matching: .any)["listenJumpHint"].exists })
+        // A ☝︎ tap during the hint's exit (~0.4 s after Cancel) is lost on the Simulator; let it settle.
+        idle(1.5)
         jump.tap()
         XCTAssertTrue(app.descendants(matching: .any)["listenJumpHint"].waitForExistence(timeout: 3))
         let shot = XCUIScreen.main.screenshot()
