@@ -95,17 +95,6 @@ struct ShellToast: Identifiable, Equatable {
     static func == (a: ShellToast, b: ShellToast) -> Bool { a.id == b.id }
 }
 
-/// A question with one confirming choice and Cancel ("Move it to Favorites?").
-struct ShellPrompt: Identifiable, Equatable {
-    let id = UUID()
-    var title: String
-    var message: String?
-    var confirmTitle: String
-    let confirm: () -> Void
-
-    static func == (a: ShellPrompt, b: ShellPrompt) -> Bool { a.id == b.id }
-}
-
 /// Page extraction in progress (spinner on the address-bar reader icon, or on ⋯ for Save).
 enum BusyAction: Equatable {
     case reader
@@ -158,8 +147,6 @@ final class ShellState {
     var menu: MenuContext?
     /// A short message over the bottom chrome of the surface on screen.
     private(set) var toast: ShellToast?
-    /// A question waiting for an answer.
-    var prompt: ShellPrompt?
     /// Global frame of the ⋯ button the open menu grows from.
     private(set) var menuAnchor: CGRect = .zero
     var busy: BusyAction?
@@ -450,7 +437,7 @@ final class ShellState {
         isPickingBook = true
     }
 
-    // MARK: - Toasts and prompts
+    // MARK: - Toasts
 
     func showToast(_ toast: ShellToast) {
         self.toast = toast
