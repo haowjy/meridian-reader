@@ -36,7 +36,6 @@ final class FluidAudioProvider: SpeechEngineProvider {
     /// libBNNS (FluidAudio #844).
     static let kokoroDescriptor = EngineDescriptor(
         id: .kokoro,
-        kind: .onDevice,
         displayName: "Kokoro (on-device)",
         shortName: "Kokoro",
         subtitle: "Recommended, ~175 MB download",
@@ -45,20 +44,19 @@ final class FluidAudioProvider: SpeechEngineProvider {
         voices: kokoroVoices,
         defaultVoiceID: KokoroVoiceCatalog.defaultVoice,
         voiceDefaultsKey: "reader.tts.kokoroVoice", // pre-DI key, keep
-        cacheVoicePrefix: "kokoro",          // "kokoro.af_heart" (existing caches)
-        // Chunks ≤ 280 units; a call over `KokoroCPUHost.maxTokensPerCall` throws inputTooLong
-        // and the renderer re-splits.
-        limits: .kokoroCPU,
         hardware: HardwareRequirement(minimumOSMajor: 17, minimumChip: .a15, allowsSimulator: true,
                                       summary: "iPhone 13 or newer (A15+)"),
-        supportsBakeCache: true,
-        crashGuarded: true,
-        crashNoticeDetail: "Kokoro stopped unexpectedly",
         // Reader loads FluidAudio's `.english` variant only: Misaki US lexicon + BART G2P
         // fallback. British packs (bf_/bm_) change the timbre, not the pronunciation.
         // FluidAudio also has separate Mandarin/Japanese Kokoro variants (other model bundles,
         // not wired up here).
-        supportedLanguages: ["en"]
+        supportedLanguages: ["en"],
+        onDevice: OnDeviceTraits(
+            cacheVoicePrefix: "kokoro", // "kokoro.af_heart" (existing caches)
+            // Chunks ≤ 280 units; a call over `KokoroCPUHost.maxTokensPerCall` throws
+            // inputTooLong and the renderer re-splits.
+            limits: .kokoroCPU,
+            crashNotice: "Kokoro stopped unexpectedly")
     )
 
     var descriptors: [EngineDescriptor] { [Self.kokoroDescriptor] }

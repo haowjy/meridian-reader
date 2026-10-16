@@ -408,7 +408,7 @@ once. An overflowing call (`inputTooLong`) is re-split down to 24 units.
 ### Chunking
 
 The paragraph is the listen unit; internally `TextChunker` cuts it into chunks sized per engine
-(`EngineDescriptor.limits`; units ≈ characters, digits count 3). Invariant (unit-tested):
+(`OnDeviceTraits.limits` in its descriptor; units ≈ characters, digits count 3). Invariant (unit-tested):
 `chunks.joined(" ") == normalize(text)`. One owner keeps the plans, `ChunkPlans` (on the
 coordinator, keyed by engine and text, bounded to the paragraphs asked about last, kept across a
 voice change): the render queue, the player, the audio cache's alignment and the "still needs
@@ -417,7 +417,6 @@ audio" rule all read it.
 | Limits | Target | Hard max | First chunk | Used by |
 |---|---|---|---|---|
 | `kokoroCPU` | 240 | 280 | 80 (a whole first sentence ≤ 104) | Kokoro, either route |
-| `tenSecondCall` | 120 | 140 | 90 | Apple fallback text, ~10 s-per-call engines |
 
 - **Sentences first.** Whole sentences are packed up to the chunk's budget (abbreviation-,
   initial-, "U.S.A."- and decimal-aware). A sentence that fits the hard max is split only to make

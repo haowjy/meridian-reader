@@ -83,6 +83,7 @@ enum EngineLatencyProbe {
         }
 
         for descriptor in descriptors {
+            guard let limits = descriptor.onDevice?.limits else { continue }
             let engine = descriptor.id
             let name = descriptor.shortName
             let installed = coordinator.isModelInstalled(engine)
@@ -95,11 +96,12 @@ enum EngineLatencyProbe {
                 host = live
                 log("[\(name)] reusing app host (live engine)")
             } else {
-                guard let made = registry.makeHost(for: engine, voice: coordinator.voice(for: engine)) else {
+                guard let made = registry.makeHost(for: engine, voice: coordinator.voice(for: engine)),
+                      let renderer = LocalChunkRenderer(host: made, descriptor: descriptor) else {
                     log("[\(name)] no host on this OS")
                     continue
                 }
-                host = LocalChunkRenderer(host: made, descriptor: descriptor)
+                host = renderer
             }
             if let routing = host.host.routingLabel { log("[\(name)] compute units=\(routing)") }
             let tInit = ListenTimingLog.now()
@@ -115,7 +117,7 @@ enum EngineLatencyProbe {
 
             let runs = texts + [("60-warm", texts[0].text)]
             for (label, text) in runs {
-                let chunks = TextChunker.chunks(for: text, limits: descriptor.limits)
+                let chunks = TextChunker.chunks(for: text, limits: limits)
                 log("[\(name)] synth \(label) chars=\(text.count) chunks=\(chunks.count) start")
                 let t0 = ListenTimingLog.now()
                 var firstMs = 0

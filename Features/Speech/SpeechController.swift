@@ -159,7 +159,7 @@ final class SpeechController {
     /// article's language, else Apple.
     var wantedRoute: ListenRoute {
         guard let id = localTTS.synth.state.readyEngineID, localTTS.engines.supports(id),
-              languageResolution.engineID.isLocal else { return .apple }
+              localTTS.engines.isOnDevice(languageResolution.engineID) else { return .apple }
         return .local(id, voice: localTTS.voice(for: id))
     }
 
@@ -466,7 +466,8 @@ final class SpeechController {
         // Bake / warm only articles the local engine can speak (others speak with Apple).
         self.localTTS.localLanguageGate = { [weak self] paragraphs in
             guard let self else { return true }
-            return self.languageResolution(detected: ListenLanguage.detectCached(paragraphs: paragraphs)).engineID.isLocal
+            let language = self.languageResolution(detected: ListenLanguage.detectCached(paragraphs: paragraphs))
+            return self.localTTS.engines.isOnDevice(language.engineID)
         }
         self.localTTS.appleVoiceForArticle = { [weak self] paragraphs in
             guard let self else { return nil }
@@ -775,7 +776,7 @@ final class SpeechController {
               let voice = localTTS.activeCacheVoice else { return nil }
         // Article speaks with Apple (language the engine can't speak): no marks, like Apple.
         let detected = detectedLanguage ?? (articleID == activeSessionID ? sessionDetectedLanguage : nil)
-        guard languageResolution(detected: detected).engineID.isLocal else { return nil }
+        guard localTTS.engines.isOnDevice(languageResolution(detected: detected).engineID) else { return nil }
         // Hide until unit count is known — empty Set would mark every HTML block not-ready.
         guard paragraphCount > 0 else { return nil }
         _ = localTTS.bakeMarksRevision

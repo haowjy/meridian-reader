@@ -7,20 +7,24 @@ import Foundation
 final class LocalChunkRenderer: Sendable {
     let host: LocalSynthHost
     let descriptor: EngineDescriptor
+    private let limits: TextChunker.Limits
     private let gate: SynthRenderGate
     private let crashGuard: EngineCrashGuard?
     /// Checked right before every model call: nothing starts while backgrounded.
     private let runState: AppRunState
     static let maxResplitDepth = 5
 
-    init(host: LocalSynthHost, descriptor: EngineDescriptor,
-         gate: SynthRenderGate = .shared, crashGuard: EngineCrashGuard = .shared,
-         runState: AppRunState = .shared) {
+    /// nil for an engine that isn't on-device (no `OnDeviceTraits`).
+    init?(host: LocalSynthHost, descriptor: EngineDescriptor,
+          gate: SynthRenderGate = .shared, crashGuard: EngineCrashGuard = .shared,
+          runState: AppRunState = .shared) {
+        guard let traits = descriptor.onDevice else { return nil }
         self.host = host
         self.descriptor = descriptor
+        self.limits = traits.limits
         self.gate = gate
         self.runState = runState
-        self.crashGuard = descriptor.crashGuarded ? crashGuard : nil
+        self.crashGuard = traits.crashNotice != nil ? crashGuard : nil
     }
 
     var engineID: SpeechEngineID { descriptor.id }
@@ -29,7 +33,7 @@ final class LocalChunkRenderer: Sendable {
         if !host.isPrepared { try await host.prepare() }
     }
 
-    /// Synthesize ONE chunk (already sized by `TextChunker` with `descriptor.limits`) → CAF.
+    /// Synthesize ONE chunk (already sized by `TextChunker` with the engine's limits) → CAF.
     func renderChunk(text: String, to destination: URL, context: [String: Any],
                      priority: RenderPriority = .listener) async throws -> TimeInterval {
         let trimmed = TextChunker.normalize(text)
@@ -97,7 +101,7 @@ final class LocalChunkRenderer: Sendable {
             fields["err"] = error.localizedDescription
             ListenTimingLog.log("synth", fields)
             guard case LocalSynthError.inputTooLong = error else { throw error }
-            let pieces = TextChunker.resplit(text, minResplit: descriptor.limits.minResplit)
+            let pieces = TextChunker.resplit(text, minResplit: limits.minResplit)
             guard pieces.count > 1, depth < Self.maxResplitDepth else { throw error }
             var merged = SynthesizedPCM(samples: [], sampleRate: 24_000)
             for piece in pieces {

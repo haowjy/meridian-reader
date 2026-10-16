@@ -31,10 +31,10 @@ final class EngineRegistryTests: XCTestCase {
         XCTAssertNil(registry.makeHost(for: .retiredChatterboxNano, voice: nil))
         XCTAssertEqual(registry.systemDescriptor?.id, .apple)
         XCTAssertEqual(registry.defaultLocalEngineID, .kokoro)
-        XCTAssertFalse(registry.descriptor(.apple)!.supportsBakeCache)
-        XCTAssertTrue(registry.descriptor(.kokoro)!.supportsBakeCache)
-        XCTAssertTrue(registry.descriptor(.kokoro)!.crashGuarded)
-        XCTAssertEqual(registry.descriptor(.kokoro)?.limits, .kokoroCPU, "ONNX CPU route is the default")
+        XCTAssertFalse(registry.isOnDevice(.apple))
+        XCTAssertTrue(registry.isOnDevice(.kokoro))
+        XCTAssertNotNil(registry.descriptor(.kokoro)?.onDevice?.crashNotice, "Kokoro calls are crash-guarded")
+        XCTAssertEqual(registry.descriptor(.kokoro)?.onDevice?.limits, .kokoroCPU, "ONNX CPU route is the default")
     }
 
     func testHardwareGateAndBlockReason() {

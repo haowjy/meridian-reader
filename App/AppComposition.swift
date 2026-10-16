@@ -100,7 +100,7 @@ enum AppComposition {
         let options = LaunchOptions.current
         if options.usesTestVoice {
             // Every test-voice launch starts on voice One, whatever an earlier run picked.
-            UserDefaults.standard.removeObject(forKey: "reader.tts.voice.\(TestVoiceProvider.id.rawValue)")
+            UserDefaults.standard.removeObject(forKey: TestVoiceProvider.descriptor.resolvedVoiceDefaultsKey)
             providers.append(TestVoiceProvider(delay: options.testVoiceDelay ?? 0.15))
         }
         #endif

@@ -150,7 +150,7 @@ struct SpeechSettingsView: View {
 
     @ViewBuilder
     private var voiceSection: some View {
-        if let descriptor = localTTS.engines.descriptor(voiceEngineID), descriptor.kind == .onDevice,
+        if let descriptor = localTTS.engines.descriptor(voiceEngineID), descriptor.onDevice != nil,
            !descriptor.voices.isEmpty {
             localVoiceSection(descriptor)
         } else {

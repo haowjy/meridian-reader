@@ -111,7 +111,7 @@ chunk with Apple, and `LocalPCMWriter` writes non-finite samples as 0.
 
 The libBNNS crash kills the process; nothing catches it. `EngineCrashGuard` writes an in-flight
 marker (`ListenTiming/engine_inflight.json`) around every call of an engine whose descriptor sets
-`crashGuarded`, with the route, article, paragraph and phase. On the next launch the provider
+a crash notice (`OnDeviceTraits.crashNotice`), with the route, article, paragraph and phase. On the next launch the provider
 decides (`SpeechEngineProvider.recover(from:playing:)`; engines without a hook switch to Apple).
 Kokoro answers with `KokoroCrashRecovery`:
 
@@ -146,13 +146,16 @@ AppComposition (composition root: the only file that lists libraries)
 
 SpeechEngineProvider (one per library)      EngineDescriptor (per engine)
   descriptors / retiredEngines                 id, names, subtitle, recommended, sort order
-  makeHost(for:voice:) → LocalSynthHost        voices + default, voice defaults key, cache voice key style
-  isInstalled / deleteModels                   chunk limits, hardware gate, languages
-  recover(from:playing:) / launchMigrations    supportsBakeCache, crashGuarded, crash notice text
+  makeHost(for:voice:) → LocalSynthHost        voices + default, voice defaults key
+  isInstalled / deleteModels                   hardware gate, languages
+  recover(from:playing:) / launchMigrations    onDevice: OnDeviceTraits? (nil for Apple)
+                                                 cache voice prefix, chunk limits, crash notice
 LocalSynthHost (thin: load + ONE call)
   → LocalChunkRenderer (shared: normalize, gate, crash guard, re-split on inputTooLong, log, CAF)
 ```
 
+An engine is on-device exactly when its descriptor has `OnDeviceTraits`
+(`EngineRegistry.isOnDevice`): it renders ahead into the audio cache through the render queue.
 The shared core has no `import FluidAudio` and no switch on engine types: `GlobalSynthQueue`
 (`SynthQueueContext` and its `RenderTarget`, `RenderAdmission`), `ArticleAudioCache` keys, `TextChunker`,
 `LocalChunkRenderer`, `EngineCrashGuard`, `SynthRenderGate`, the Settings voice list, the engine
@@ -182,9 +185,10 @@ Test seam: `Tests/Fakes/FakeEngineProvider.swift` (tone/silence PCM, latency, pe
    `SynthRenderGate.shared` while loading; report `onProgress`), `synthesizeOnce(text:)` (one call →
    `SynthesizedPCM`; map the library's "input too long" error to `LocalSynthError.inputTooLong` so
    the shared renderer re-splits), `setVoice`, `resetPrepared`, `unload`.
-3. **Descriptor.** A new, never-changing `id` (e.g. `local.<engine>`), `cacheVoicePrefix:
-   "<short>"` (cache voice keys `<short>.<voice>`), chunk `limits` sized from the per-call cap (measure chars or phonemes per
-   second of audio on a device), `hardware`, `crashGuarded` if the library can die uncatchably.
+3. **Descriptor.** A new, never-changing `id` (e.g. `local.<engine>`), `hardware`, and
+   `OnDeviceTraits`: `cacheVoicePrefix: "<short>"` (cache voice keys `<short>.<voice>`), chunk
+   `limits` sized from the per-call cap (measure chars or phonemes per second of audio on a
+   device), and a `crashNotice` if the library can die uncatchably.
 4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,
    `deleteModels`; override `recover(from:playing:)` if a crash needs more than "switch away".
 5. **Register.** One line in `AppComposition.makeProviders()`.

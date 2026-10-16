@@ -7,7 +7,7 @@ import Foundation
 /// UserDefaults, which may never reach disk before the process dies). It is removed when the
 /// call returns (success or Swift error). If the app launches and the marker is still there, the
 /// previous process died inside that engine: the coordinator switches away and tells the user.
-/// Which engines are guarded comes from `EngineDescriptor.crashGuarded`.
+/// Which engines are guarded comes from `OnDeviceTraits.crashNotice`.
 struct EngineCrashGuard: Sendable {
     let directory: URL
 

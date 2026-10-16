@@ -73,7 +73,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         self.audioCache = audioCache ?? ArticleAudioCache()
         self.crashGuard = crashGuard
         self.synth = LocalSynthService(engines: engines)
-        self.chunkPlans = ChunkPlans { engines.descriptor(SpeechEngineID(rawValue: $0))?.limits }
+        self.chunkPlans = ChunkPlans { engines.descriptor(SpeechEngineID(rawValue: $0))?.onDevice?.limits }
         for d in engines.localDescriptors where !d.voices.isEmpty {
             // Stored voice if still offered (curated list), else the engine default.
             engineVoices[d.id] = d.resolvedVoice(defaults.string(forKey: d.resolvedVoiceDefaultsKey))
@@ -120,7 +120,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         let d = engines.descriptor(engine)
         let name = d?.shortName ?? engine.rawValue
         print("[TTS] \(name) crash detected → \(fallback.rawValue)")
-        return apply(.switchAway(notice: "\(name) crashed last session (\(d?.crashNoticeDetail ?? "engine crash")). "
+        return apply(.switchAway(notice: "\(name) crashed last session (\(d?.onDevice?.crashNotice ?? "engine crash")). "
             + "Switched to \(engines.displayName(fallback)). Tap \(name) to try again."), crashed: engine)
     }
 
@@ -144,7 +144,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// Persist `id` and load it when it's an on-device engine this device supports; else Apple.
     private func start(_ id: SpeechEngineID) {
-        guard id.isLocal, engines.supports(id) else {
+        guard engines.isOnDevice(id), engines.supports(id) else {
             synth.turnOff()
             return
         }
@@ -340,7 +340,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// local engine's models stay loaded (the other host is dropped). Returns once the choice has
     /// settled (loaded, failed, or replaced by another pick).
     func selectEngine(_ id: SpeechEngineID) async {
-        guard id.isLocal else {
+        guard engines.isOnDevice(id) else {
             synth.turnOff()
             return
         }
@@ -555,11 +555,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
     }
 
-    /// Bake only for engines that declare `supportsBakeCache` (Apple: no).
-    var wantsLocalBake: Bool {
-        guard let id = activeLocalEngineID else { return false }
-        return engines.descriptor(id)?.supportsBakeCache == true
-    }
+    /// An on-device engine is loaded or loading: audio renders ahead (Apple renders nothing ahead).
+    var wantsLocalBake: Bool { activeLocalEngineID != nil }
 
     /// Persisted pending jobs → queue, once the engine is loaded and the launch hold is over. The
     /// focused (active) article stays #1; see `GlobalSynthQueue.adoptPending`. A job for audio

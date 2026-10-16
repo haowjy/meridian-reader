@@ -16,16 +16,16 @@ final class TestVoiceProvider: SpeechEngineProvider {
         self.delay = delay
     }
 
-    var descriptors: [EngineDescriptor] {
-        [EngineDescriptor(
-            id: Self.id, kind: .onDevice,
-            displayName: "Test Voice (UI tests)", shortName: "Test Voice", subtitle: "A tone, for UI tests",
-            isRecommended: false, sortOrder: 90,
-            voices: [EngineVoice(id: "one", label: "One"), EngineVoice(id: "two", label: "Two")],
-            defaultVoiceID: "one", voiceDefaultsKey: nil, cacheVoicePrefix: "testvoice",
-            limits: .init(target: 120, hardMax: 160, firstTarget: 60, minResplit: 20), hardware: .none,
-            supportsBakeCache: true, crashGuarded: false, crashNoticeDetail: nil)]
-    }
+    static let descriptor = EngineDescriptor(
+        id: id,
+        displayName: "Test Voice (UI tests)", shortName: "Test Voice", subtitle: "A tone, for UI tests",
+        sortOrder: 90,
+        voices: [EngineVoice(id: "one", label: "One"), EngineVoice(id: "two", label: "Two")],
+        defaultVoiceID: "one",
+        onDevice: OnDeviceTraits(cacheVoicePrefix: "testvoice",
+                                 limits: .init(target: 120, hardMax: 160, firstTarget: 60, minResplit: 20)))
+
+    var descriptors: [EngineDescriptor] { [Self.descriptor] }
 
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {
         id == Self.id ? TestVoiceHost(engineID: id, delay: delay) : nil

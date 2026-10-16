@@ -14,9 +14,6 @@ struct SpeechEngineID: RawRepresentable, Hashable, Codable, Sendable, Identifiab
 
     /// Apple `AVSpeechSynthesizer` — no model, no bake cache, always available.
     static let apple = SpeechEngineID("apple")
-
-    /// Everything except Apple renders CAF audio through the single GlobalSynthQueue worker.
-    var isLocal: Bool { self != .apple }
 }
 
 /// One selectable voice of an engine.
@@ -41,18 +38,10 @@ struct HardwareRequirement: Sendable, Equatable {
     static let none = HardwareRequirement()
 }
 
-enum EngineKind: Sendable, Equatable {
-    /// OS speech (Apple). Not rendered through the synth queue.
-    case system
-    /// On-device model rendered to CAF through the single synth worker.
-    case onDevice
-}
-
 /// Everything the shared core needs to know about an engine. Core code reads these
 /// capabilities; it never switches on concrete engine types.
 struct EngineDescriptor: Sendable, Identifiable {
     let id: SpeechEngineID
-    let kind: EngineKind
     /// Settings row title ("Kokoro (on-device)").
     let displayName: String
     /// Debug overlay / logs / "Preparing X…" ("Kokoro").
@@ -60,32 +49,22 @@ struct EngineDescriptor: Sendable, Identifiable {
     /// Settings subtitle before the model is downloaded.
     let subtitle: String
     /// Shows "Ready (recommended)" and wins `EngineRegistry.defaultLocalEngineID`.
-    let isRecommended: Bool
+    var isRecommended = false
     /// Settings order among engines (ascending).
     let sortOrder: Int
 
-    let voices: [EngineVoice]
-    let defaultVoiceID: String?
+    /// Settings' Voice section for this engine; empty when its voices are picked elsewhere (Apple).
+    var voices: [EngineVoice] = []
+    var defaultVoiceID: String? = nil
     /// UserDefaults key for the selected voice (nil → "reader.tts.voice.<id>").
-    let voiceDefaultsKey: String?
-    /// The voice half of the engine's `ArticleAudioCache` keys: "<prefix>.<engine voice id>",
-    /// e.g. "kokoro.af_heart". Must stay stable per engine or existing caches stop matching. nil
-    /// for an engine that renders nothing ahead (Apple).
-    let cacheVoicePrefix: String?
-
-    /// Per-call chunk sizing used by `TextChunker` (units = chars, digits ×3).
-    let limits: TextChunker.Limits
-    let hardware: HardwareRequirement
-
-    /// Paragraph CAFs are baked + cached (bake marks, Preparing next, the render queue). Apple: false.
-    let supportsBakeCache: Bool
-    /// Wrap every model call in `EngineCrashGuard` (engine can die uncatchably inside the call).
-    let crashGuarded: Bool
-    /// Human cause shown in the crash notice ("Apple Core ML/BNNS bug on this iOS version").
-    let crashNoticeDetail: String?
+    var voiceDefaultsKey: String? = nil
+    var hardware: HardwareRequirement = .none
     /// Languages the engine can speak, as base language codes ("en"). Empty = any language
     /// (Apple). An article whose effective language isn't listed speaks with Apple instead.
     var supportedLanguages: [String] = []
+    /// What only an on-device model has. An engine is on-device exactly when this is set: it
+    /// renders audio ahead into the cache through the render queue. nil for Apple.
+    let onDevice: OnDeviceTraits?
 
     var resolvedVoiceDefaultsKey: String { voiceDefaultsKey ?? "reader.tts.voice.\(id.rawValue)" }
 
@@ -112,8 +91,21 @@ struct EngineDescriptor: Sendable, Identifiable {
     /// Cache voice key of this engine's audio in `engineVoice` (nil: its default voice); nil for
     /// an engine that renders nothing ahead.
     func cacheVoiceID(engineVoice: String?) -> String? {
-        cacheVoicePrefix.map { "\($0).\(engineVoice ?? defaultVoiceID ?? "default")" }
+        onDevice.map { "\($0.cacheVoicePrefix).\(engineVoice ?? defaultVoiceID ?? "default")" }
     }
+}
+
+/// What an on-device engine adds to its descriptor.
+struct OnDeviceTraits: Sendable {
+    /// The voice half of the engine's `ArticleAudioCache` keys: "<prefix>.<engine voice id>",
+    /// e.g. "kokoro.af_heart". Must stay stable per engine or existing caches stop matching.
+    let cacheVoicePrefix: String
+    /// Per-call chunk sizing used by `TextChunker` (units = chars, digits ×3).
+    let limits: TextChunker.Limits
+    /// The engine can die uncatchably inside a model call: every call is wrapped in
+    /// `EngineCrashGuard`, and this cause goes in the notice after a crash ("Kokoro stopped
+    /// unexpectedly"). nil: not guarded.
+    var crashNotice: String? = nil
 }
 
 /// An engine a provider has removed. At launch (once, idempotent) the

@@ -38,11 +38,6 @@ enum TextChunker {
         /// 4.1 s). +40 keeps first audio ≈ 3 s typical; beyond that the wait becomes noticeable.
         static let firstStretch = 40
 
-        /// Engines capped at ≈10 s of audio per call (e.g. Qwen3-TTS: 125 codec tokens).
-        /// 140 units ≈ 9.0 s at a measured p95 of 0.064 s of audio per char. Also used to split
-        /// Apple *fallback* text.
-        static let tenSecondCall = Limits(target: 120, hardMax: 140, firstTarget: 90, minResplit: 24)
-
         /// Kokoro, on either route (sized for the ONNX CPU route, the default). ≈1.0–1.3 phonemes
         /// per char. Chunks ramp so playback never waits after the first one: first ≤ 80 units
         /// (≈5 s of audio, ≈1.5 s to render on iPhone 17 Pro at ≈2.7× real time), second ≤ 160

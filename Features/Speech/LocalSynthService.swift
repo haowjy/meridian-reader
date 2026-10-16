@@ -119,7 +119,7 @@ final class LocalSynthService: SynthChunkRendering {
     /// Point the service at `id`. Same engine: forward a voice change to its host. Another engine:
     /// unload the old host (the next render or load builds the new one).
     private func use(_ id: SpeechEngineID, voice: String?) {
-        guard id.isLocal else { return }
+        guard engines.isOnDevice(id) else { return }
         let voiceChanged = voice != engineVoice
         engineVoice = voice
         if let renderer, renderer.engineID == id {
@@ -156,8 +156,9 @@ final class LocalSynthService: SynthChunkRendering {
 
     private func currentRenderer() throws -> LocalChunkRenderer {
         if let renderer, renderer.engineID == engineID { return renderer }
-        guard let descriptor = engines.descriptor(engineID), descriptor.kind == .onDevice,
-              let host = engines.makeHost(for: engineID, voice: engineVoice)
+        guard let descriptor = engines.descriptor(engineID),
+              let host = engines.makeHost(for: engineID, voice: engineVoice),
+              let made = LocalChunkRenderer(host: host, descriptor: descriptor)
         else {
             throw LocalSynthError.engineUnavailable(
                 engines.blockReason(engineID) ?? "\(engines.displayName(engineID)) is not available on this device.")
@@ -165,7 +166,6 @@ final class LocalSynthService: SynthChunkRendering {
         host.onProgress = { [weak self] fraction in
             Task { @MainActor in self?.noteLoadProgress(fraction) }
         }
-        let made = LocalChunkRenderer(host: host, descriptor: descriptor)
         renderer = made
         return made
     }

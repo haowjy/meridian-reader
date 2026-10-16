@@ -45,7 +45,7 @@ final class SynthPipelineTests: XCTestCase {
         XCTAssertTrue(chunks.allSatisfy { TextChunker.estimatedUnits($0) <= 50 }, "\(chunks.map(\.count))")
         XCTAssertEqual(chunks.joined(separator: " "), TextChunker.normalize(text))
         // Same text, Kokoro-sized limits → fewer, longer chunks.
-        let kokoro = TextChunker.chunks(for: text, limits: FluidAudioProvider.kokoroDescriptor.limits)
+        let kokoro = TextChunker.chunks(for: text, limits: .kokoroCPU)
         XCTAssertLessThan(kokoro.count, chunks.count)
     }
 

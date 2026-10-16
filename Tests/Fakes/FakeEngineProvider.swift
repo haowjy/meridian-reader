@@ -120,12 +120,11 @@ final class FakeEngineProvider: SpeechEngineProvider {
 
     var descriptor: EngineDescriptor {
         EngineDescriptor(
-            id: Self.fakeID, kind: .onDevice,
+            id: Self.fakeID,
             displayName: "Fake (test)", shortName: "Fake", subtitle: "Test engine",
-            isRecommended: false, sortOrder: 99,
-            voices: voices, defaultVoiceID: defaultVoice, voiceDefaultsKey: nil, cacheVoicePrefix: "fake",
-            limits: limits, hardware: .none, supportsBakeCache: true,
-            crashGuarded: false, crashNoticeDetail: nil, supportedLanguages: languages)
+            sortOrder: 99,
+            voices: voices, defaultVoiceID: defaultVoice, supportedLanguages: languages,
+            onDevice: OnDeviceTraits(cacheVoicePrefix: "fake", limits: limits))
     }
 
     var descriptors: [EngineDescriptor] { [descriptor] }
@@ -174,11 +173,11 @@ final class FakeQueueContext: SynthQueueContext, SynthChunkRendering {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("FakeTTSCache-\(UUID().uuidString)")
         audioCache = ArticleAudioCache(root: root)
         host = provider.makeHost(for: FakeEngineProvider.fakeID, voice: nil) as! FakeSynthHost
-        let limits = provider.descriptor.limits
+        let limits = provider.limits
         chunkPlans = ChunkPlans { $0 == FakeEngineProvider.fakeID.rawValue ? limits : nil }
         // Private gate: the test host app may be warming a real engine on the shared gate.
         chunkRenderer = LocalChunkRenderer(host: host, descriptor: provider.descriptor, gate: SynthRenderGate(),
-                                           runState: runState)
+                                           runState: runState)! // the fake engine is on-device
     }
 
     func cleanUp() { try? FileManager.default.removeItem(at: root) }

@@ -56,7 +56,7 @@ final class KokoroRouteTests: XCTestCase {
         XCTAssertEqual(gpu?.routeTag, "coreml")
         XCTAssertEqual(gpu?.routingLabel, "aneTailGpu")
         XCTAssertEqual(gpu?.rendersInBackground, true, "ONNX takes over in the background")
-        XCTAssertEqual(provider.descriptors.first?.limits, TextChunker.Limits.kokoroCPU)
+        XCTAssertEqual(provider.descriptors.first?.onDevice?.limits, TextChunker.Limits.kokoroCPU)
     }
 
     func testCoreMLRouteNamesONNXForACallInTheBackground() {
@@ -287,12 +287,10 @@ final class KokoroStubProvider: SpeechEngineProvider {
 
     var descriptors: [EngineDescriptor] {
         [EngineDescriptor(
-            id: .kokoro, kind: .onDevice,
+            id: .kokoro,
             displayName: "Kokoro (stub)", shortName: "Kokoro", subtitle: "Test",
             isRecommended: true, sortOrder: 1,
-            voices: [], defaultVoiceID: nil, voiceDefaultsKey: nil, cacheVoicePrefix: "kstub",
-            limits: .kokoroCPU, hardware: .none, supportsBakeCache: true,
-            crashGuarded: true, crashNoticeDetail: "test", supportedLanguages: [])]
+            onDevice: OnDeviceTraits(cacheVoicePrefix: "kstub", limits: .kokoroCPU, crashNotice: "test"))]
     }
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {
         id == .kokoro ? FakeSynthHost(engineID: id, config: .init(rendersInBackground: true)) : nil
