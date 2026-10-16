@@ -45,11 +45,11 @@ final class ReaderSaveFromPageUITests: XCTestCase {
         // fills; playback keeps going, same screen.
         let play = app.buttons["listenPlayPause"]
         play.tap()
-        XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
+        XCTAssertTrue(eventually(8) { play.exists && play.label == "Pause" }, "playing")
         let playing = app.buttons["nowPlayingBookmark"]
         XCTAssertEqual(playing.value as? String, "Not saved", "Now Playing's 🔖 says what the Reader's did")
         playing.tap()
-        XCTAssertTrue(eventually { playing.value as? String == "Saved" })
+        XCTAssertTrue(eventually { playing.exists && playing.value as? String == "Saved" })
         XCTAssertEqual(play.label, "Pause", "Save must not stop playback")
         XCTAssertTrue(app.buttons["nowPlayingClose"].exists, "Save must not leave Now Playing")
         shot(app, "3-page-reader-saved-while-playing")

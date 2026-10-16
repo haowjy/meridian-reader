@@ -55,16 +55,16 @@ final class BrowseToolbarUITests: XCTestCase {
         link.tap()
         XCTAssertTrue(app.staticTexts["Second page"].waitForExistence(timeout: 5), "second page loaded")
         XCTAssertTrue(find(app, "addressReader").waitForExistence(timeout: 5), "article page: reader icon")
-        XCTAssertTrue(eventually { back.isEnabled }, "back enables after navigating")
+        XCTAssertTrue(eventually { back.exists && back.isEnabled }, "back enables after navigating")
         XCTAssertFalse(forward.isEnabled)
 
         back.tap()
-        XCTAssertTrue(eventually { forward.isEnabled }, "forward enables after going back")
-        XCTAssertTrue(eventually { !back.isEnabled }, "back disables at the start of history")
+        XCTAssertTrue(eventually { forward.exists && forward.isEnabled }, "forward enables after going back")
+        XCTAssertTrue(eventually { back.exists && !back.isEnabled }, "back disables at the start of history")
 
         forward.tap()
-        XCTAssertTrue(eventually { back.isEnabled })
-        XCTAssertTrue(eventually { !forward.isEnabled })
+        XCTAssertTrue(eventually { back.exists && back.isEnabled })
+        XCTAssertTrue(eventually { forward.exists && !forward.isEnabled })
 
         // Five-slot grid: 🔖 in the middle slot (3 of 5), 🕘 in slot 4, ⋯ in slot 5.
         let save = app.buttons["browseSave"]
@@ -77,11 +77,11 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertGreaterThan(app.buttons["browseMore"].frame.minX, app.buttons["browseHistory"].frame.maxX - 1, "⋯ last")
         let field = app.textFields["addressField"]
         field.tap()
-        XCTAssertTrue(eventually { field.hasKeyboardFocus }, "tapping the field searches")
+        XCTAssertTrue(eventually { field.exists && field.hasKeyboardFocus }, "tapping the field searches")
         XCTAssertTrue(find(app, "addressMic").waitForExistence(timeout: 2), "mic while searching")
         XCTAssertTrue(find(app, "addressCancel").exists)
         find(app, "addressCancel").tap()
-        XCTAssertTrue(eventually { !field.hasKeyboardFocus })
+        XCTAssertTrue(eventually { field.exists && !field.hasKeyboardFocus })
         XCTAssertTrue(back.isEnabled, "still on the same page")
 
         // ⋯ panel: action rows, then the big Favorites / History / Reader buttons.
@@ -178,7 +178,7 @@ final class BrowseToolbarUITests: XCTestCase {
         // ⋯ → Reader (bottom-right) switches into reader mode…
         let browseMoreFrame = app.buttons["browseMore"].frame
         app.buttons["browseMore"].tap()
-        XCTAssertTrue(eventually { toggle.isEnabled }, "readable → enabled")
+        XCTAssertTrue(eventually { toggle.exists && toggle.isEnabled }, "readable → enabled")
         XCTAssertFalse(toggle.isSelected)
         toggle.tap()
         XCTAssertTrue(close.waitForExistence(timeout: 10), "⋯ → Reader opens the reader")
@@ -304,7 +304,7 @@ final class BrowseToolbarUITests: XCTestCase {
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(play.waitForExistence(timeout: 5))
         play.tap()
-        XCTAssertTrue(eventually(8) { play.label == "Pause" }, "playing")
+        XCTAssertTrue(eventually(8) { play.exists && play.label == "Pause" }, "playing")
 
         app.buttons["nowPlayingMore"].tap()
         tapMenuRow(app, "moreWebsite")
@@ -314,7 +314,7 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(eventually(8) { !app.libraryHome.exists }, "library closed")
         let field = app.textFields["addressField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
-        XCTAssertTrue(eventually(8) { (field.value as? String)?.contains("example.com/demo") == true }, "the article's page is loading")
+        XCTAssertTrue(eventually(8) { field.exists && (field.value as? String)?.contains("example.com/demo") == true }, "the article's page is loading")
         let mini = app.buttons["nowPlayingBarPlayPause"]
         XCTAssertTrue(mini.waitForExistence(timeout: 5), "the Now Playing bar shows")
         XCTAssertEqual(mini.label, "Pause", "the voice keeps playing")
@@ -360,7 +360,7 @@ final class BrowseToolbarUITests: XCTestCase {
         let app = launchBrowser(testPage: true)
         let field = app.textFields["addressField"]
         XCTAssertTrue(app.links["Next page"].waitForExistence(timeout: 10))
-        XCTAssertTrue(eventually { field.value as? String == "pages/one" }, "shows the page address")
+        XCTAssertTrue(eventually { field.exists && field.value as? String == "pages/one" }, "shows the page address")
 
         field.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
@@ -380,7 +380,7 @@ final class BrowseToolbarUITests: XCTestCase {
         let app = launchBrowser(testPage: true)
         let field = app.textFields["addressField"]
         XCTAssertTrue(app.links["Next page"].waitForExistence(timeout: 10))
-        XCTAssertTrue(eventually { field.value as? String == "pages/one" })
+        XCTAssertTrue(eventually { field.exists && field.value as? String == "pages/one" })
 
         field.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
