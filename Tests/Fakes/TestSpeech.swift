@@ -1,10 +1,12 @@
 import Foundation
 @testable import MeridianReader
 
-/// One test's speech stack, sharing nothing with the app or another test: every file it keeps is
-/// under `root` (the audio cache, the crash guard, the saved bake jobs and the crash-resume file)
-/// and its settings are in a defaults suite of its own. With `LibraryTestEnvironment`, the only
-/// way tests build a coordinator.
+/// One test's speech stack. Every file it keeps is under `root` (the audio cache, the crash guard,
+/// the saved bake jobs and the crash-resume file) and the coordinator's settings (engine, voices,
+/// launch steps) are in a defaults suite of its own, so no test reads or writes the app's or
+/// another test's. The controller's listening settings (rate, language, Apple voice, debug
+/// toggles) are still the standard defaults: a test that changes one puts it back. With `LibraryTestEnvironment`,
+/// the only way tests build a coordinator.
 ///
 /// `tts`, the on-device coordinator, and `speech`, a `SpeechController` over it with a scripted
 /// Apple engine (`apple`) and no system audio session or lock screen, are built at first use, as

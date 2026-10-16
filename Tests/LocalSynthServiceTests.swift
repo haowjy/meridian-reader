@@ -20,7 +20,7 @@ final class LocalSynthServiceTests: XCTestCase {
         let sessions = FakeSessionCount()
         let provider = FakeEngineProvider(config: .init(latency: 0.4, sessions: sessions))
         let registry = EngineRegistry(providers: [AppleSpeechProvider(), provider], gate: { _ in true })
-        let synth = LocalSynthService(engines: registry)
+        let synth = LocalSynthService(engines: registry, crashGuard: EngineCrashGuard(directory: root.appendingPathComponent("guard")))
         await synth.load(FakeEngineProvider.fakeID, voice: nil).value
         let firstHost = try XCTUnwrap(provider.lastHost)
 
@@ -37,6 +37,29 @@ final class LocalSynthServiceTests: XCTestCase {
         XCTAssertFalse(provider.lastHost === firstHost, "the reload built a new host")
         XCTAssertEqual(firstHost.calls.map(\.ok), [true], "the call in flight finished")
         XCTAssertEqual(sessions.peak, 1)
+    }
+
+    /// A guarded engine's call leaves its in-flight marker in the coordinator's crash guard, the
+    /// one the next launch reads to tell whether the engine killed the process.
+    func testAGuardedCallIsMarkedInTheCoordinatorsCrashGuard() async throws {
+        let provider = FakeEngineProvider(config: .init(latency: 0.4))
+        provider.crashNotice = "test"
+        let stack = TestSpeech(providers: [provider])
+        defer { stack.tearDown() }
+        let tts = stack.tts
+        await tts.selectEngine(FakeEngineProvider.fakeID)
+        let host = try XCTUnwrap(provider.lastHost)
+        let marker = stack.guardDirectory.appending(path: "engine_inflight.json")
+
+        let render = Task {
+            try await tts.synth.renderChunkToFile(text: "A sentence for the engine to render.",
+                                                  destination: root.appendingPathComponent("c.caf"),
+                                                  request: ChunkRenderRequest(chunk: 0))
+        }
+        while host.startedCalls == 0 { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path), "marked while the call runs")
+        _ = try await render.value
+        XCTAssertFalse(FileManager.default.fileExists(atPath: marker.path), "cleared when it returns")
     }
 
     /// The engine probe, the stress run and the CPU bench load models of their own: the app's

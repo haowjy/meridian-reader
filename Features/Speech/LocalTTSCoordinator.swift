@@ -83,7 +83,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         self.crashGuard = crashGuard
         self.pendingBakes = pendingBakes
         self.resumePoints = resumePoints
-        self.synth = LocalSynthService(engines: engines)
+        self.synth = LocalSynthService(engines: engines, crashGuard: crashGuard)
         self.chunkPlans = ChunkPlans { engines.descriptor(SpeechEngineID(rawValue: $0))?.onDevice?.limits }
         for d in engines.localDescriptors where !d.voices.isEmpty {
             // Stored voice if still offered (curated list), else the engine default.
