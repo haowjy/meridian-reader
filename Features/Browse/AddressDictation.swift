@@ -44,9 +44,9 @@ enum DictationState: Equatable {
 
 // MARK: - State machine
 
-/// Address-bar dictation. Streams partial transcripts through `onTranscript`, stops on a second
-/// tap, on silence (`silenceTimeout` after the last new words; `noSpeechTimeout` if nothing was
-/// heard), on a final result, or on `cancel()`.
+/// Address-bar dictation. Streams partial transcripts through `onTranscript`; stops on silence
+/// (`silenceTimeout` after the last new words; `noSpeechTimeout` if nothing was heard), on a
+/// final result, or on `stop()` (a second tap, typing, leaving the field).
 @MainActor
 @Observable
 final class AddressDictation {
@@ -78,11 +78,6 @@ final class AddressDictation {
         self.noSpeechTimeout = noSpeechTimeout
     }
 
-    /// Mic button: start if idle, otherwise stop (keeping what was heard).
-    func toggle() {
-        if state == .idle { start() } else { stop() }
-    }
-
     /// Enters `.starting` synchronously, so the UI reflects the tap immediately.
     func start() {
         guard state == .idle else { return }
@@ -94,11 +89,9 @@ final class AddressDictation {
         Task { await self.begin(gen) }
     }
 
-    /// Second tap / silence: stop listening and keep the transcript in the field.
+    /// The mic's second tap, typing, leaving the field: stop listening. What was heard stays in
+    /// the field; the caller restores it if it should go.
     func stop() { finish(error: nil) }
-
-    /// Cancel editing: stop listening (the caller restores the field).
-    func cancel() { finish(error: nil) }
 
     private func begin(_ gen: Int) async {
         let permission = await recognizer.requestPermission()

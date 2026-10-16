@@ -97,7 +97,7 @@ struct BrowseStartView: View {
             }
             // Leaving the field (✕, navigating, swipe-down) closes the mic.
             .onChange(of: search.isFocused) { _, focused in
-                if !focused { dictation?.cancel() }
+                if !focused { dictation?.stop() }
             }
     }
 
