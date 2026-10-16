@@ -229,7 +229,6 @@ enum LaunchHooks {
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in library: LibraryStore) {
         let context = library.context
         UserDefaults.standard.removeObject(forKey: LibraryTopLevel.sortKey)
-        UserDefaults.standard.set(false, forKey: "library.favoritesTab")
         // Every folder but Favorites goes too, so the Library home starts the same each time.
         for folder in library.topLevelFolders() {
             try? library.deleteFolder(folder, keepContents: false)

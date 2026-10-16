@@ -1,8 +1,8 @@
 import SwiftData
 import SwiftUI
 
-/// Favorites' pages and subfolders, live, for `content` (the start page's grid). A view of its own
-/// because a query's folder id has to be known when the view is made.
+/// The starred pages and folders, live, for `content` (the start page's grid), by
+/// `LibraryQueries`' favorite lists.
 struct FavoritesQuery<Content: View>: View {
     @Query private var pages: [Page]
     @Query private var folders: [Folder]
@@ -10,8 +10,9 @@ struct FavoritesQuery<Content: View>: View {
 
     init(@ViewBuilder content: @escaping ([Page], [Folder]) -> Content) {
         _pages = Query(LibraryQueries.favoritePages)
+        _folders = Query(LibraryQueries.favoriteFolders)
         self.content = content
     }
 
-    var body: some View { content(pages.filter(\.isLive), LibraryStore.ordered(folders.filter { $0.isLive && $0.isFavorite })) }
+    var body: some View { content(pages.filter(\.isLive), LibraryStore.ordered(folders.filter(\.isLive))) }
 }

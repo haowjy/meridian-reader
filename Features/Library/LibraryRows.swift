@@ -10,15 +10,13 @@ import SwiftUI
 /// long-press is its menu (decision D11); swipe left removes it from the Library, and from every
 /// list it shows in (`LibraryQueries`). A page in the
 /// Library lifts into a drag from the long press, to be filed in a folder or placed between rows
-/// (`LibraryDrag`), a chapter as any page (decision D19). While its screen is in Edit the List's
-/// selection takes the tap.
+/// (`LibraryDrag`), a chapter as any page (decision D19); not on the home's Favorites tab or in
+/// search results (`LibraryScreenKey.filtered`), where a page in a folder shows the folder's path
+/// instead of its site. While its screen is in Edit the List's selection takes the tap.
 struct LibraryPageRow: View {
     let page: Page
-    var subtitleOverride: String?
     /// *Select* in the menu: enters Edit with this row selected (folder screens only).
     var onSelect: (() -> Void)?
-    /// Lifts into a drag (not in search results, which have nowhere to drop it).
-    var drags = true
 
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
@@ -26,11 +24,12 @@ struct LibraryPageRow: View {
     @Environment(DownloadCenter.self) private var downloads
     @Environment(LibraryScreenState.self) private var screen
     @Environment(\.editMode) private var editMode
+    @Environment(\.libraryScreenKey) private var screenKey
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
     private var dragID: LibraryItemID? {
-        guard drags, !isEditing, page.isInLibrary else { return nil }
+        guard screenKey != .filtered, !isEditing, page.isInLibrary else { return nil }
         return .page(page.listenKey)
     }
 
@@ -66,11 +65,11 @@ struct LibraryPageRow: View {
         return .page(artwork: page.artworkImage, letter: page.byline.siteLetter)
     }
 
-    /// Where it is (`subtitleOverride`: a path in Favorites or search), else its site; none in a
-    /// folder, whose header names it.
+    /// Its folder's path on the filtered home, which gathers rows from every folder; elsewhere
+    /// its site, and nothing in a folder, whose header names it.
     private var subtitle: String? {
-        if let subtitleOverride { return subtitleOverride }
-        return page.folder != nil || page.byline.isEmpty ? nil : page.byline
+        if let folder = page.folder { return screenKey == .filtered ? folder.pathName : nil }
+        return page.byline.isEmpty ? nil : page.byline
     }
 
     /// A saved page's Download, beside its ▶ (none out of the Library, or in Edit).
@@ -127,13 +126,11 @@ struct LibraryPageRow: View {
             }
             Button("Remove from Library", systemImage: Icons.unsave, role: .destructive) { actions.remove([page]) }
         }
-        if let url = page.url, LibraryStore.canFavorite(url) {
-            Button(page.isFavorite ? "Remove from Favorites" : "Add to Favorites",
-                   systemImage: page.isFavorite ? Icons.unfavorite : Icons.favorite) {
-                shell.attempt(page.isFavorite ? "Couldn’t remove favorite" : "Couldn’t add favorite") {
-                    if page.isFavorite { try library.removeFavorite(page) }
-                    else { _ = try library.addFavorite(url: url, title: page.title, artwork: page.artworkData) }
-                }
+        if LibraryStore.canFavorite(page) {
+            let isFavorite = LibraryStore.isFavorite(page)
+            Button(isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                   systemImage: isFavorite ? Icons.unfavorite : Icons.favorite) {
+                FavoriteFlow(library: library, shell: shell).toggle(page)
             }
         }
     }
@@ -143,11 +140,12 @@ struct LibraryPageRow: View {
 /// its screen. Its cover, when it has one (a book's, or one given in *Edit Details*), stands in
 /// for the symbol. A folder whose pages play shows its place (the page it is at), the time left
 /// and its own ▶, which resumes it there and carries on page to page; any other folder shows its
-/// count and ›. Long-press is its menu, and lifts it into a drag (not Favorites); a dragged row
-/// let go on it is filed in it. Swipe left asks to delete it (not Favorites).
+/// count and ›. Long-press is its menu, and lifts it into a drag; a dragged row let go on it is
+/// filed in it. Swipe left asks to delete it. On the home's Favorites tab or in search results
+/// (`LibraryScreenKey.filtered`) a nested folder shows its parents' path, opens under them, so ‹
+/// goes to its parent, and doesn't lift.
 struct LibraryFolderRow: View {
     let folder: Folder
-    var subtitleOverride: String?
     /// *Select* in the menu: enters Edit with this row selected (folder screens only).
     var onSelect: (() -> Void)?
 
@@ -157,9 +155,13 @@ struct LibraryFolderRow: View {
     @Environment(DownloadCenter.self) private var downloads
     @Environment(LibraryScreenState.self) private var screen
     @Environment(\.editMode) private var editMode
+    @Environment(\.libraryScreenKey) private var screenKey
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
+    private var isFiltered: Bool { screenKey == .filtered }
+    /// Its parents' path on the filtered home (nil for a folder at the top level).
+    private var location: String? { isFiltered ? folder.parent?.pathName : nil }
 
     var body: some View {
         if folder.isLive { liveBody } else { DeletedRow() }
@@ -167,19 +169,11 @@ struct LibraryFolderRow: View {
 
     @ViewBuilder private var liveBody: some View {
         let pages = playOrder
-        let progress = folderProgress(pages)
-        row(progress, isDownloaded: downloads.isDownloaded(folder, pages: pages))
-            // The link sits behind the row, so the List draws no disclosure of its own: the
-            // row's › shares the ▶ column. Selecting the cell (a tap) follows it; in Edit the
-            // List's selection takes the tap instead.
-            .background {
-                NavigationLink(value: LibraryRoute.folder(folder.id)) { EmptyView() }
-                    .opacity(0)
-                    .accessibilityHidden(true)
-            }
+        let progress = actions.progress(of: folder, pages: pages)
+        opening(row(progress, isDownloaded: downloads.isDownloaded(folder, pages: pages)))
             .accessibilityIdentifier("folderRow")
             .libraryDropRow(.folder(folder.id), in: screen)
-            .libraryDrag(isEditing ? nil : .folder(folder.id), in: screen)
+            .libraryDrag(isEditing || isFiltered ? nil : .folder(folder.id), in: screen)
             .contextMenu { menu(progress) }
             .swipeActions(edge: .trailing) {
                 Button("Delete") { screen.confirmDelete([folder]) }
@@ -187,11 +181,21 @@ struct LibraryFolderRow: View {
             }
     }
 
-    /// Where it is in `pages`, its pages in play order.
-    private func folderProgress(_ pages: [Page]) -> FolderProgress {
-        let state = actions.playState(of: folder)
-        return FolderProgress(folder: folder, pages: pages, playingKey: state.isCurrent ? speech.activeSessionID : nil,
-                              library: library)
+    /// A tap opens its screen. On the filtered home it opens under its parents, as every other
+    /// way to a folder does. Elsewhere the link sits behind the row, so the List draws no
+    /// disclosure of its own: the row's › shares the ▶ column. Selecting the cell (a tap) follows
+    /// it; in Edit the List's selection takes the tap instead.
+    @ViewBuilder
+    private func opening(_ row: some View) -> some View {
+        if isFiltered {
+            row.opensOnTap { shell.libraryPath = library.path(to: folder) }
+        } else {
+            row.background {
+                NavigationLink(value: LibraryRoute.folder(folder.id)) { EmptyView() }
+                    .opacity(0)
+                    .accessibilityHidden(true)
+            }
+        }
     }
 
     /// Its pages in play order, from the relationship (sorted here as `LibraryStore.playOrder`
@@ -207,24 +211,20 @@ struct LibraryFolderRow: View {
         (folder.pages ?? []).filter(\.isLive)
     }
 
-    private func plays(_ progress: FolderProgress) -> Bool {
-        progress.hasPagesToPlay
-    }
-
     @ViewBuilder
     private func row(_ progress: FolderProgress, isDownloaded: Bool) -> some View {
         let kind = ListRow.Kind.folder(symbol: folder.rowSymbol, count: folder.itemCount,
                                        cover: folder.hasDetails ? folder.coverImage : nil)
         let isDropTarget = screen.dropTarget == folder.id
         let edge = screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil
-        if plays(progress) {
-            ListRow(kind: kind, title: folder.displayName, subtitle: subtitleOverride ?? place(progress), progress: rowProgress(progress),
+        if progress.hasPagesToPlay {
+            ListRow(kind: kind, title: folder.displayName, subtitle: location ?? place(progress), progress: rowProgress(progress),
                     playState: actions.playState(of: folder), opensScreen: true,
                     onPlay: isEditing ? nil : { actions.playFolder(folder) }, isDropTarget: isDropTarget,
                     insertionEdge: edge, download: download(isDownloaded: isDownloaded), isFavorite: folder.isFavorite,
                     largeArtwork: true, folderHasDetails: folder.hasDetails)
         } else {
-            ListRow(kind: kind, title: folder.displayName, subtitle: subtitleOverride ?? folder.byline, opensScreen: true,
+            ListRow(kind: kind, title: folder.displayName, subtitle: location ?? folder.byline, opensScreen: true,
                     isDropTarget: isDropTarget, insertionEdge: edge, isFavorite: folder.isFavorite,
                     largeArtwork: true, folderHasDetails: folder.hasDetails)
         }
@@ -241,8 +241,7 @@ struct LibraryFolderRow: View {
     /// Once it has a place: the title of the page it is at. Before that (and once finished), its
     /// byline: a book's author, a series' site, the author given in its details.
     private func place(_ progress: FolderProgress) -> String? {
-        let started = folder.currentPageKey != nil || progress.fraction != nil
-        guard started, !progress.isFinished, let key = progress.currentKey else { return folder.byline }
+        guard progress.hasStarted, !progress.isFinished, let key = progress.currentKey else { return folder.byline }
         return livePages.first { $0.listenKey == key }?.title ?? folder.byline
     }
 
@@ -258,7 +257,7 @@ struct LibraryFolderRow: View {
         if let onSelect {
             Button("Select", systemImage: Icons.select, action: onSelect)
         }
-        if plays(progress) {
+        if progress.hasPagesToPlay {
             Button("Continue", systemImage: Icons.play) { actions.playFolder(folder) }
             Button("Play from Start", systemImage: Icons.previous) { actions.playFolderFromStart(folder) }
         }
@@ -269,7 +268,8 @@ struct LibraryFolderRow: View {
         }
         Button(folder.isFavorite ? "Remove from Favorites" : "Add to Favorites",
                systemImage: folder.isFavorite ? Icons.unfavorite : Icons.favorite) {
-            shell.attempt(folder.isFavorite ? "Couldn’t remove favorite" : "Couldn’t add favorite") {
+            shell.attempt(folder.isFavorite ? String(localized: "Couldn’t remove from Favorites")
+                                            : String(localized: "Couldn’t add to Favorites")) {
                 try library.toggleFavorite(folder)
             }
         }
@@ -311,6 +311,11 @@ extension Page {
 }
 
 extension Folder {
+    /// "Finance › Bonds": the folders from the top level down to this one.
+    var pathName: String {
+        (ancestors.reversed() + [self]).map(\.displayName).joined(separator: " › ")
+    }
+
     var coverImage: Image? {
         coverData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))
     }

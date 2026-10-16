@@ -95,10 +95,9 @@ final class LibraryStore {
         return folder
     }
 
-    /// The top-level folders, Favorites first, then by `sortKey` (equal keys by id).
+    /// The top-level folders, by `sortKey` (equal keys by id).
     func topLevelFolders() -> [Folder] {
-        let all = (try? context.fetch(FetchDescriptor<Folder>())) ?? []
-        return Self.ordered(all.filter { $0.parent == nil })
+        Self.ordered(LibraryQueries.topLevel((try? context.fetch(LibraryQueries.folders)) ?? []))
     }
 
     func subfolders(of folder: Folder) -> [Folder] {

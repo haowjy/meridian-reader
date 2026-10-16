@@ -17,7 +17,7 @@ final class SearchSession {
     /// The field's text: what is typed during a session, the idle text (e.g. the page address)
     /// otherwise.
     var text = ""
-    /// The field has keyboard focus. `SearchSessionChrome` keeps this and the field in sync.
+    /// The field has keyboard focus. `SurfaceBand` keeps this and the field in sync.
     var isFocused = false
 
     var isActive: Bool { phase != .idle }

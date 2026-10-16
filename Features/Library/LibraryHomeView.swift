@@ -1,52 +1,57 @@
 import SwiftData
 import SwiftUI
 
-/// The Library home: the Everything/Favorites filter above one mixed list of folders and pages.
-/// The band's search (`ShellState.librarySearch`) applies to the selected tab across the tree; a result outside its
-/// usual place shows its path. A favorite keeps its location. Items carry their playback and
-/// download state, and folder rows open their normal folder screen.
+/// The Library home: the Everything/Favorites tab (`ShellState.favoritesOnly`) above one mixed
+/// list of folders and pages. Everything is the top level: its folders, the pages played without
+/// saving, then the pages in no folder in the top level's sort. Favorites is the starred folders
+/// and pages from anywhere in the tree. The band's search (`ShellState.librarySearch`) searches
+/// the selected tab across the tree, folders then pages, each by title. Which items each shows is
+/// `LibraryQueries`'. A favorite keeps its location; filtered (Favorites or a search) a row shows
+/// where it is (`LibraryScreenKey.filtered`).
 struct LibraryHomeView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
 
     @Query(LibraryQueries.playedNotSaved) private var notSaved: [Page]
-    @Query private var folders: [Folder]
-    @Query private var loosePages: [Page]
-    @Query(LibraryQueries.inLibrary) private var allPages: [Page]
-    @Query(LibraryQueries.favoritePages) private var favoritePages: [Page]
-    @Binding var favoritesOnly: Bool
+    @Query private var queriedFolders: [Folder]
+    @Query private var queriedPages: [Page]
+    let favoritesOnly: Bool
     /// The band's search text ("" when not searching).
     let searchText: String
 
-    init(pageSort: PageSort, favoritesOnly: Binding<Bool>, searchText: String) {
-        _favoritesOnly = favoritesOnly
+    private var isFiltered: Bool { favoritesOnly || !searchText.isEmpty }
+
+    init(pageSort: PageSort, favoritesOnly: Bool, searchText: String) {
+        self.favoritesOnly = favoritesOnly
         self.searchText = searchText
-        _loosePages = Query(LibraryQueries.loosePages(sort: pageSort))
+        if !searchText.isEmpty {
+            _queriedFolders = Query(LibraryQueries.searchFolders(searchText, favoritesOnly: favoritesOnly))
+            _queriedPages = Query(LibraryQueries.searchPages(searchText, favoritesOnly: favoritesOnly))
+        } else if favoritesOnly {
+            _queriedFolders = Query(LibraryQueries.favoriteFolders)
+            _queriedPages = Query(LibraryQueries.favoritePages)
+        } else {
+            _queriedFolders = Query(LibraryQueries.folders)
+            _queriedPages = Query(LibraryQueries.loosePages(sort: pageSort))
+        }
     }
 
     /// Only folders and pages still in the store: a saved delete can reach the home before its
     /// queries drop them (`isLive`).
-    private var topLevelFolders: [Folder] {
-        LibraryStore.ordered(folders.filter {
-            $0.isLive && (favoritesOnly ? $0.isFavorite : $0.parent == nil || !searchText.isEmpty)
-                && (searchText.isEmpty || $0.displayName.localizedStandardContains(searchText)
-                    || ($0.byline?.localizedStandardContains(searchText) ?? false))
-        })
+    private var folders: [Folder] {
+        let live = queriedFolders.filter(\.isLive)
+        if !searchText.isEmpty { return live }
+        return LibraryStore.ordered(favoritesOnly ? live : LibraryQueries.topLevel(live))
     }
 
-    /// *Pages*: played without saving first, then the pages in no folder.
+    /// Everything's pages played without saving come first; a search finds them itself.
     private var pages: [Page] {
-        let values = favoritesOnly ? favoritePages : searchText.isEmpty ? notSaved + loosePages : notSaved + allPages
-        return values.filter { $0.isLive && (searchText.isEmpty || $0.title.localizedStandardContains(searchText)
-            || $0.byline.localizedStandardContains(searchText) || $0.excerpt.localizedStandardContains(searchText)) }
-    }
-
-    /// Nothing to show but an empty Favorites.
-    private var isEmpty: Bool {
-        pages.isEmpty && topLevelFolders.isEmpty
+        (isFiltered ? queriedPages : notSaved + queriedPages).filter(\.isLive)
     }
 
     var body: some View {
+        @Bindable var shell = shell
+        let folders = folders
         let pages = pages
         List {
             Section {
@@ -60,7 +65,7 @@ struct LibraryHomeView: View {
                     .libraryHeader()
             }
             Section {
-                Picker("Library view", selection: $favoritesOnly) {
+                Picker("Library view", selection: $shell.favoritesOnly) {
                     Text("Everything").tag(false)
                     Text("Favorites").tag(true)
                 }
@@ -70,33 +75,29 @@ struct LibraryHomeView: View {
                 .listRowBackground(Color.clear)
             }
             Section {
-                ForEach(topLevelFolders, id: \.id) { folder in
-                    LibraryFolderRow(folder: folder, subtitleOverride: (favoritesOnly || !searchText.isEmpty) ? location(of: folder.parent) : nil)
+                ForEach(folders, id: \.id) { folder in
+                    LibraryFolderRow(folder: folder)
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Palette.chrome)
                 ForEach(pages, id: \.listenKey) { page in
-                    LibraryPageRow(page: page, subtitleOverride: (favoritesOnly || !searchText.isEmpty) ? location(of: page.folder) : nil)
+                    LibraryPageRow(page: page)
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Palette.chrome)
             }
-            if isEmpty {
+            if folders.isEmpty && pages.isEmpty {
                 Section { emptyState }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
             }
         }
         .libraryListStyle()
+        .environment(\.libraryScreenKey, isFiltered ? .filtered : .home)
         .animation(Motion.standard, value: pages.map(\.listenKey))
         .navigationTitle("Library")
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityIdentifier("libraryHome")
-    }
-
-    private func location(of folder: Folder?) -> String? {
-        guard let folder else { return String(localized: "Library") }
-        return (folder.ancestors.reversed() + [folder]).map(\.displayName).joined(separator: " › ")
     }
 
     @ViewBuilder
@@ -115,7 +116,7 @@ struct LibraryHomeView: View {
 
     // MARK: - Empty
 
-    /// Below Favorites, low in the list: what the toolbar does, with the two first-run actions.
+    /// An empty Everything: what the toolbar does, with the two first-run actions.
     private var emptyCard: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text("Find something to listen to")
@@ -140,6 +141,20 @@ struct LibraryHomeView: View {
         .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("libraryEmpty")
+    }
+}
+
+/// The top level's page sort: the order of the home's pages in no folder, kept on the device
+/// (`library.topLevel.sort`; the key is persisted). The home's ⋯ → Sort sets it, and placing a
+/// page among them by a drag makes it *Manual*.
+enum LibraryTopLevel {
+    static let sortKey = "library.topLevel.sort"
+    static let defaultSort = PageSort.newest
+
+    /// The sort, outside a view (views read it through `@AppStorage(sortKey)`).
+    static var sort: PageSort {
+        get { UserDefaults.standard.string(forKey: sortKey).flatMap(PageSort.init(rawValue:)) ?? defaultSort }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: sortKey) }
     }
 }
 

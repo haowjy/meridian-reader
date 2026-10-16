@@ -2,7 +2,7 @@ import Foundation
 
 /// Folders as playback goes through them: the pages `ChapterAdvance` works on, the folder's place
 /// (`Folder.currentPageKey`, the page that last played) and when it is finished. Every folder
-/// (a book, a series, Favorites) plays in its sort, which is yours; a book's or series' starts as
+/// (a book, a series, one you made) plays in its sort, which is yours; a book's or series' starts as
 /// the source's order.
 extension LibraryStore {
     /// The folder's pages in play order, skipped ones included. A link page plays (after its

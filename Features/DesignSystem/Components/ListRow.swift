@@ -28,14 +28,14 @@ import SwiftUI
 /// accent, with a selection tick as it lights up.
 struct ListRow: View {
     enum Kind {
-        /// A folder (or Favorites, a book, a series): its symbol, or a book's cover when it has
+        /// A folder (a book or a series too): its symbol, or a book's cover when it has
         /// one, and how many things are in it (shown before › on a row without ▶).
         case folder(symbol: String = Icons.folder, count: Int, cover: Image? = nil)
         /// A saved page: its site icon (or a letter tile).
         case page(artwork: Image? = nil, letter: String)
         /// A chapter of a book or series.
         case chapter
-        /// A page that is only an address so far (a link in Favorites, a chapter not fetched).
+        /// A page that is only an address so far (a link ☆ made, a chapter not fetched).
         case link
     }
 

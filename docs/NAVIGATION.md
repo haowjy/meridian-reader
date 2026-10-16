@@ -169,7 +169,8 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   Library where it is, with its played text, so it shows in Favorites and the 7-day prune of
   unsaved pages leaves it. A starred page in the Library is a favorite: ☆ then reads *Remove
   from Favorites*, which clears the star and leaves the page where it is (a link ☆ made stays).
-  *Remove from Library* clears the star too.
+  *Remove from Library* clears the star too. A Library row's menu stars the same way, with the
+  same toasts, and stars any page in the Library, a book's chapter too.
 - **One library**: everything is a page in a folder (or in none). A page is a *link* (an address
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
   without saving (kept 7 days, shown at the top of the Library's *Pages* as "Not saved", and in
@@ -208,8 +209,12 @@ The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the 
 back up, as does the band's ‹ (dimmed at the home). The home has **Everything / Favorites** tabs
 at the top; *Search Library* is the band's field. Each tab filters
 the same mixed list: folders and pages share a single list, with no section headings. Favorites
-are independent stars; rows found outside their current location show their folder path and open
-in that location. The band is the browser's (above): 🌐 beside the Now Playing bar, the search
+are independent stars. On Favorites and in search results a row in a folder shows that folder's
+path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
+parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on Favorites;
+going to a place in the Library (Now Playing's ⋯ → *Go to …*, a favorite folder's tile, an
+imported book) opens it on Everything, where every place shows; 📚 comes back to the tab you
+left. The tab is remembered with the surface. The band is the browser's (above): 🌐 beside the Now Playing bar, the search
 field, `[‹][›][＋][🕘][⋯]`. ＋ is *Import
 Book…* and *New Folder*, both made in the folder on screen (a book's too). 🌐 shows the browser as
 it was; 📚 there comes back to the same folder. The
@@ -238,13 +243,16 @@ commas.
 
 - **The home** (`LibraryHomeView`): Everything shows top-level folders and pages in no folder;
   played-but-unsaved pages remain visible as *Not saved*. Favorites shows all starred folders
-  and pages wherever they live. Search filters folders and pages across the tree in either tab;
-  a result keeps its location and shows the path. The old Favorites folder is migrated into star
+  and pages wherever they live. Search filters folders and pages across the tree in either tab,
+  folders by name, then pages by title (the newest first among equal titles); a result keeps its location and shows the path (one at the top level keeps its own second
+  line). The old Favorites folder is migrated into star
   flags; direct pages become loose and nested folders stay nested. Rows use large book-like art,
   a Download state and Play (pages: the two-line row below). The bar's ▶ resumes what you last heard, and a folder row's ▶
   resumes its own pages without opening it (D14). A first-run empty Library shows *Find something
-  to listen to*, with *Browse the web* and *Import a book* on one action row.
-- **A folder** (`FolderScreen`, Favorites, books and series included): its title and counts,
+  to listen to*, with *Browse the web* and *Import a book* on one action row. The home is the
+  top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
+  default, or *Title*), *Voice Settings, Import Book…, New Folder*.
+- **A folder** (`FolderScreen`, books and series included): its title and counts,
   subfolders first (by their order), then pages by the folder's sort. A folder with pages that
   play has the play header (decision D15): how far through (a bar across the content width, with
   "38%" and "6 h 10 min left" on one line under it), the round play button (*▶ Play* before
@@ -342,22 +350,23 @@ row shows the place and the time left and its ▶ resumes there, as a book's doe
 anything in it has played, the first page starts where it was left. Now Playing's "Playing
 from" names the folder.
 
-**Dragging rows** (decision D15), on the home, folder screens and Favorites, without Edit: a
+**Dragging rows** (decision D15), on the home and folder screens, without Edit: a
 long press lifts a row (its menu, which the press opened, goes as it moves). Let go on a folder
 row (its middle, for a folder) to file it at the end of that folder; the folder lights up in the
 accent while it takes the row, with a tick. Let go between rows to place it there, a line
 marking the place: a page among pages, a folder among folders (over a folder row's top or bottom
-quarter); placing a page makes its folder's sort *Manual* (the top level's too), numbered first
-as it was shown. A row lands with a success tick; a refused one with an error buzz. A book or
+quarter); placing a page makes its folder's sort *Manual* (the top level's too, until the home's
+⋯ → *Sort* picks another), numbered first as it was shown. A row lands with a success tick; a refused one with an error buzz. A book or
 series takes drops as any folder, and its chapters lift as any page (decision D19). A folder
-dragged over itself or a folder inside it is refused (the drag shows ⊘); Favorites, a page
-played without saving and rows in Edit don't lift. The list doesn't scroll by itself while a row is dragged.
+dragged over itself or a folder inside it is refused (the drag shows ⊘); rows on the home's
+Favorites tab or in search results (gathered from across the tree), a page played without saving
+and rows in Edit don't lift. The list doesn't scroll by itself while a row is dragged.
 
 | Row | Tap | Trailing | Menu (long-press) | Swipe left |
 |---|---|---|---|---|
-| Folder, book or series | opens it (push) | Download state; ▶ when its pages play, otherwise › | *Continue, Play from Start* (when its pages play)*, Download* (when it has pages)*, Move to…, Rename, Edit Details, Delete… | Delete… |
-| Saved page (including a chapter) | the Reader (Now Playing if it's what you hear) | Download state; ▶ (not on pages skipped in playback) | *Play from Here* (in a folder)*, Move to…, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback* (in a folder)*, Share, Download, Delete Downloads* (when it has audio)*, Remove from Library* | Remove |
-| Page played without saving ("Not saved") | the Reader (Now Playing if it's what you hear) | ▶ | *Save, Share* | — |
+| Folder, book or series | opens it (push) | Download state; ▶ when its pages play, otherwise › | *Continue, Play from Start* (when its pages play)*, Download* (when it has pages)*, Add to / Remove from Favorites, Move to…, Rename, Edit Details, Delete… | Delete… |
+| Saved page (including a chapter) | the Reader (Now Playing if it's what you hear) | Download state; ▶ (not on pages skipped in playback) | *Play from Here* (in a folder)*, Move to…, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback* (in a folder)*, Share, Download, Delete Downloads* (when it has audio)*, Remove from Library, Add to / Remove from Favorites* | Remove |
+| Page played without saving ("Not saved") | the Reader (Now Playing if it's what you hear) | ▶ | *Save, Share, Add to Favorites* | — |
 | Link page | the page, in the browser | — | *Move to…, Share, Download, Remove from Library* | Remove |
 
 *Download* isn't offered while that page or folder is downloading already (decision D16, below).
@@ -409,13 +418,12 @@ Settings*. *Delete Downloads* on a page or a folder deletes its audio and its do
 that couldn't be fetched or rendered is counted ("2 couldn’t download"), and *Re-download* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch.
 
-**The Move tree** (`MoveTreeSheet`): one sheet for *Move to…*, *Save to Library…*, 🔖's *Save to
-Folder…* and *Change Folder*; the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋
+**The Move tree** (`MoveTreeSheet`): one sheet for *Move to…*, *Save to Library…* and 🔖's *Save
+to Folder…*; the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋
 New Folder* (made at the top level, and the item goes in it), *Library (no folder)*, then
-Favorites and every folder, depth first. One tap files; ✓ marks the current place; a folder's
+every folder, depth first. One tap files; ✓ marks the current place; a folder's
 long-press offers *New Folder Inside* (made in it, and the item goes in that). *Library (no
-folder)* files the page in no folder, out of the folder it was in (a link in Favorites leaves
-Favorites, saved); an ordinary 🔖 or *Save* keeps a page's folder. Every folder is a
+folder)* files the page in no folder, out of the folder it was in; an ordinary 🔖 or *Save* keeps a page's folder. Every folder is a
 destination, books and series too; a folder being moved, and everything inside it, can't be
 picked. The tree closes
 once what was picked is saved; a pick, or a *New Folder*, that can't be saved leaves it up under
@@ -437,8 +445,8 @@ be saved; Edit's *Remove* is two changes, the pages first and then, after the qu
 and Now Playing too. Listening goes on being kept meanwhile: where you are in a page, when you last played it and
 whether you finished it are stored once saving works again, even across failed changes.
 
-**Library search** is the band's field, the same session as the browser's (`SearchSession` +
-`SearchSessionChrome`, `ShellState.librarySearch`): focusing it hides the band's first row and
+**Library search** is the band's field, the same session as the browser's (`SearchSession` in
+`SurfaceBand`, `ShellState.librarySearch`): focusing it hides the band's first row and
 toolbar so the field sits above the keyboard with a round ✕ (on a folder screen it goes back to
 the home first, the list it filters); swipe-down / scroll lowers the keyboard but **stays in search
 mode**; ✕ exits and clears the filter. While there is text, the home's list holds the folders
@@ -573,10 +581,10 @@ Reader shows the Now Playing bar of another page above its row.
   reading HTML) shows its paragraphs on the same reading page, in both, so everything below
   applies to it too.
 - **The close pill names where it plays from** (*⌄ Pride and Prejudice*; VoiceOver: *Close Now
-  Playing*, *Playing from …*): the folder the page is in, a book, a series, Favorites or one you
+  Playing*, *Playing from …*): the folder the page is in, a book, a series or one you
   made; *Library* for a saved page in no folder; the site for a page you haven't saved. Tapping
   it only closes. **⋯ → *Go to <name>*** (the first row) closes Now Playing onto the Library at
-  that folder, or the Library; for a page that plays from its site, ⋯ → *Website* opens it in
+  that folder, or the Library's home, on Everything; for a page that plays from its site, ⋯ → *Website* opens it in
   the browser.
 - **☝︎** (top right, as in the Reader), then a tap on a paragraph, plays from that paragraph.
 - **🔖** (slot 1, as in the Reader) saves / unsaves (tap) or files the page (long-press →
@@ -676,8 +684,8 @@ Debug builds (`App/LaunchOptions.swift`).
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | — (grabber) | `.sheet`, medium/large |
 | Band 📚 / Library (`LibrarySurface`): the home | 🌐 beside the Now Playing bar | in-place surface (shared bottom chrome); leave restores browse |
-| Library → a folder (a book or series too), Pages · Show All (`FolderScreen`) | ‹ system | push (`navigationDestination`) |
-| Move, Save to Library…, Save to Folder…, Change Folder (`MoveTreeSheet`) | ✕ (grabber) | `.sheet`, medium/large |
+| Library → a folder (a book or series too) (`FolderScreen`) | ‹ system | push (`navigationDestination`) |
+| Move, Save to Library…, Save to Folder… (`MoveTreeSheet`) | ✕ (grabber) | `.sheet`, medium/large |
 | Import Book… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
 | Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |

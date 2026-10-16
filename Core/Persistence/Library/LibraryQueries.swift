@@ -5,10 +5,10 @@ import SwiftData
 /// else. A page is in exactly one of three standings, and a list shows pages of one:
 ///
 /// - **In the Library** (`addedAt` set): its folder's list (`pages(inFolder:)`) or the top level's
-///   *Pages* (`loosePages`), Favorites while starred (`favoritePages`), the home's search
-///   (`inLibrary`), address suggestions (`savedInLibrary`).
+///   pages on the home (`loosePages`), Favorites while starred (`favoritePages`), the home's
+///   search (`searchPages`), address suggestions (`savedInLibrary`).
 /// - **Played without saving** (`playedNotSaved`): out of the Library, played, not removed since
-///   you last listened to it. The top of *Pages*, "Not saved", and the home's search.
+///   you last listened to it. The top of the home's pages, "Not saved", and the home's search.
 /// - **Removed** (out of the Library with `removedAt` set): in no list. *Remove from Library*
 ///   takes a page out of every list it was in, at once, and playing on doesn't bring it back;
 ///   saving it does, and so does listening to it again (🎧, the Reader's Listen).
@@ -21,11 +21,8 @@ import SwiftData
 enum LibraryQueries {
     // MARK: Pages
 
-    /// Every page in the Library, any folder.
-    static var inLibrary: FetchDescriptor<Page> {
-        FetchDescriptor(predicate: #Predicate<Page> { $0.addedAt != nil })
-    }
-
+    /// Starred pages in the Library, anywhere in the tree, by title: the home's Favorites tab and
+    /// the start page's grid.
     static var favoritePages: FetchDescriptor<Page> {
         FetchDescriptor(predicate: #Predicate<Page> { $0.addedAt != nil && $0.isFavorite },
                         sortBy: [SortDescriptor(\.title)])
@@ -38,7 +35,7 @@ enum LibraryQueries {
                                sortBy: [SortDescriptor(\Page.addedAt, order: .reverse)])
     }
 
-    /// The pages in no folder: the Library home's *Pages* (today's Saved list).
+    /// The pages in no folder: the Library home's pages, in the top level's sort.
     static func loosePages(sort: PageSort) -> FetchDescriptor<Page> {
         FetchDescriptor(predicate: #Predicate<Page> { $0.folderID == nil && $0.addedAt != nil },
                         sortBy: sortDescriptors(sort))
@@ -50,7 +47,7 @@ enum LibraryQueries {
     }
 
     /// Pages played without saving (decision D5), most recently played first: the top of the
-    /// Library home's *Pages* and the *Pages* screen, marked "Not saved", until the 7-day prune
+    /// Library home's pages, marked "Not saved", until the 7-day prune
     /// (`prunable`) deletes them. A page removed from the Library (`removedAt`) isn't one, even
     /// as it plays on, until you listen to it again. Book chapters never qualify (they are always
     /// in their folder).
@@ -111,10 +108,66 @@ enum LibraryQueries {
         return descriptor
     }
 
+    /// Every folder; `topLevel` picks the top level's from them.
+    static var folders: FetchDescriptor<Folder> { FetchDescriptor() }
+
+    /// The folders at the top level: the home's, beside the pages in no folder. A filter on the
+    /// fetched folders, since a predicate can't go through the optional `parent` relationship
+    /// (iOS 17) and a folder keeps no parent id.
+    static func topLevel(_ folders: [Folder]) -> [Folder] {
+        folders.filter { $0.parent == nil }
+    }
+
+    /// Starred folders, anywhere in the tree: the home's Favorites tab and the start page's grid.
+    static var favoriteFolders: FetchDescriptor<Folder> {
+        FetchDescriptor(predicate: #Predicate<Folder> { $0.isFavorite })
+    }
+
+    /// The legacy Favorites folders, which the launch converts to stars.
     static var favorites: FetchDescriptor<Folder> {
         let favorites = "favorites"
         return FetchDescriptor(predicate: #Predicate<Folder> { $0.kindRaw == favorites },
                                sortBy: [SortDescriptor(\Folder.createdAt)])
+    }
+
+    // MARK: The home
+
+    /// The home's search, across the tree: pages in the Library or played without saving whose
+    /// title, site or author, or excerpt holds `text`; on Favorites, starred pages only. By title,
+    /// then newest first, so the results keep one order.
+    static func searchPages(_ text: String, favoritesOnly: Bool) -> FetchDescriptor<Page> {
+        let sort = [SortDescriptor(\Page.title), SortDescriptor(\Page.addedAt, order: .reverse), SortDescriptor(\Page.key)]
+        if favoritesOnly {
+            return FetchDescriptor(predicate: #Predicate<Page> { page in
+                page.addedAt != nil && page.isFavorite
+                    && (page.title.localizedStandardContains(text) || page.byline.localizedStandardContains(text)
+                        || page.excerpt.localizedStandardContains(text))
+            }, sortBy: sort)
+        }
+        let past = Date.distantPast
+        let saved = PageContentState.saved.rawValue
+        return FetchDescriptor(predicate: #Predicate<Page> { page in
+            (page.addedAt != nil
+                || (page.removedAt == nil && page.folderID == nil && page.contentStateRaw == saved
+                    && (page.lastPlayedAt ?? past) > past))
+                && (page.title.localizedStandardContains(text) || page.byline.localizedStandardContains(text)
+                    || page.excerpt.localizedStandardContains(text))
+        }, sortBy: sort)
+    }
+
+    /// The home's search for folders, across the tree: those whose name or author holds `text`;
+    /// on Favorites, starred ones only. By name, then oldest first.
+    static func searchFolders(_ text: String, favoritesOnly: Bool) -> FetchDescriptor<Folder> {
+        let sort = [SortDescriptor(\Folder.name), SortDescriptor(\Folder.createdAt)]
+        if favoritesOnly {
+            return FetchDescriptor(predicate: #Predicate<Folder> { folder in
+                folder.isFavorite
+                    && (folder.name.localizedStandardContains(text) || folder.byline?.localizedStandardContains(text) == true)
+            }, sortBy: sort)
+        }
+        return FetchDescriptor(predicate: #Predicate<Folder> { folder in
+            folder.name.localizedStandardContains(text) || folder.byline?.localizedStandardContains(text) == true
+        }, sortBy: sort)
     }
 
     // MARK: Sorts

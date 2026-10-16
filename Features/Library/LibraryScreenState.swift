@@ -12,9 +12,9 @@ enum LibraryItemID: Hashable {
 @MainActor
 @Observable
 final class LibraryScreenState {
-    /// The screen in Edit: its folder (nil: the top level's pages).
+    /// The folder screen in Edit.
     struct Editing: Equatable {
-        var folderID: UUID?
+        var folderID: UUID
     }
 
     /// Where a new folder goes.
@@ -50,9 +50,9 @@ final class LibraryScreenState {
 
     var isEditing: Bool { editing != nil }
 
-    func isEditing(folderID: UUID?) -> Bool { editing == Editing(folderID: folderID) }
+    func isEditing(folderID: UUID) -> Bool { editing == Editing(folderID: folderID) }
 
-    func beginEditing(folderID: UUID?) {
+    func beginEditing(folderID: UUID) {
         selection = []
         editing = Editing(folderID: folderID)
     }
@@ -112,6 +112,21 @@ final class LibraryScreenState {
 }
 
 extension View {
+    /// *New Folder*'s alert, the Library's and the Move tree's: a name (blank makes "New Folder",
+    /// `LibraryStore.makeFolder`), *Cancel* and *Create*, which runs `create` and closes it.
+    func newFolderAlert(isPresented: Binding<Bool>, name: Binding<String>, message: String? = nil,
+                        create: @escaping () -> Void) -> some View {
+        alert("New Folder", isPresented: isPresented) {
+            TextField("Name", text: name)
+                .accessibilityIdentifier("newFolderField")
+            Button("Cancel", role: .cancel) {}
+            Button("Create", action: create)
+                .accessibilityIdentifier("newFolderCreate")
+        } message: {
+            if let message { Text(message) }
+        }
+    }
+
     /// The Library's dialogs for `state`: delete confirmations, rename, new folder. Attached once
     /// per surface.
     func libraryDialogs(_ state: LibraryScreenState, onDeleted: @escaping () -> Void) -> some View {
@@ -146,21 +161,12 @@ private struct LibraryDialogs: ViewModifier {
                     state.renaming = nil
                 }
             }
-            .alert("New Folder", isPresented: Binding(get: { state.newFolder != nil },
-                                                     set: { if !$0 { state.newFolder = nil } })) {
-                TextField("Name", text: $state.newFolderName)
-                    .accessibilityIdentifier("newFolderField")
-                Button("Cancel", role: .cancel) { state.newFolder = nil }
-                Button("Create") {
-                    let name = state.newFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if let target = state.newFolder {
-                        shell.attempt(String(localized: "Couldn’t make the folder")) {
-                            try library.makeFolder(name: name.isEmpty ? String(localized: "New Folder") : name, in: target.parent)
-                        }
-                    }
-                    state.newFolder = nil
+            .newFolderAlert(isPresented: Binding(get: { state.newFolder != nil },
+                                                 set: { if !$0 { state.newFolder = nil } }),
+                            name: $state.newFolderName) {
+                if let target = state.newFolder {
+                    MoveTreeList.makeFolder(named: state.newFolderName, in: target.parent, library: library, shell: shell)
                 }
-                .accessibilityIdentifier("newFolderCreate")
             }
     }
 

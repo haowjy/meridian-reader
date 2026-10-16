@@ -28,6 +28,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   in UIKit. A page's *Remove* takes the tint too: its row goes once the remove is stored, and a
   save that fails keeps it (a toast says so); with the role, the List would have taken the row
   out first and aborted on the update. `FolderDeleteUITests` checks both.
+- **The home's lists are `LibraryQueries`' too**: the starred folders (`favoriteFolders`), the
+  top level's folders (`topLevel`, a filter after the fetch: no predicate on `parent`), and the
+  search (`searchPages`, `searchFolders`). The home picks the descriptors in its `init` from the
+  tab and the search text; it filters nothing itself but `isLive`.
 - **Which lists a page is in is `LibraryQueries`' alone** (in the Library, played without saving,
   or removed: in none). *Remove* stamps `removedAt`, so a played page doesn't come back as "Not
   saved" as it plays on (a listen from its article clears it, `recordPlayback`); a view never re-derives a list from `addedAt` or `lastPlayedAt` itself. The Downloads
@@ -38,6 +42,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   loaded traps in SwiftData. Check `isLive` (`isDeleted` reads false again once the delete is
   saved): rows draw `DeletedRow`, a folder's screen `FolderGoneView`, and the home, folder
   screens and search keep only live models.
+- **One ☆ for pages: `FavoriteFlow`** (the browser's, the Reader's and Now Playing's ⋯ by
+  address, a row's menu by page): the same toasts, failure text and icon fetch everywhere, and
+  every label reads `LibraryStore.isFavorite(_:)`. A row offers ☆ when the page is in the Library
+  or has a web address (`LibraryStore.canFavorite(_:)`), so a chapter can be starred.
 - **Edit and the dialogs live in `LibraryScreenState`**, on the Library surface, shared through
   the environment: the bottom bar acts on the selection, and
   `libraryDialogs` shows delete / rename / new folder once. The delete question is
@@ -105,9 +113,12 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   `ListRow.Download` it is given.
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way
   (`PageProgress.of`); counts come from relationships, not fetches.
-- **D20 home:** `LibraryHomeView` renders the Everything/Favorites filter over
-  one folder/page collection, filtered by the band's search (`ShellState.librarySearch`, D22). Star flags never change location; rows outside their parent context
-  show a path. Folder rows use large artwork; rows have Download and Play side by side. A folder
+- **D20 home:** `LibraryHomeView` renders the Everything/Favorites tab (`ShellState.favoritesOnly`)
+  over one folder/page collection, filtered by the band's search (`ShellState.librarySearch`,
+  D22). Star flags never change location. Filtered (Favorites or a search), the list sets
+  `LibraryScreenKey.filtered` and the rows read it: none lifts or takes a drop, a row in a folder
+  shows the folder's path, and a folder row pushes `LibraryStore.path(to:)`, so ‹ goes to its
+  parent as from anywhere else. Folder rows use large artwork; rows have Download and Play side by side. A folder
   header has Continue, From Start and Download.
 - **D21: action rows never wrap; page rows are two lines.** A row of buttons is an
   `ActionButtonRow` (full labels → short titles → no details → symbols), never an HStack or a

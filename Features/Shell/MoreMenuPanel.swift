@@ -98,24 +98,20 @@ struct MoreMenuPanel: View {
     private func library(_ menu: LibraryMenu, run: @escaping (LibraryMenu.Action) -> Void) -> some View {
         switch menu.screen {
         case .home:
+            sortMenu(menu.sort, run: run)
             voiceRow { run(.voiceSettings) }
-            if menu.canImportBook { importBookRow { run(.importBook) } }
+            importBookRow { run(.importBook) }
             row("New Folder", Icons.newFolder, id: "moreNewFolder") { run(.newFolder) }
-        case .folder(let isFavorites):
+        case .folder:
             sortMenu(menu.sort, run: run)
             row("New Folder Inside", Icons.newFolder, id: "moreNewFolder") { run(.newFolder) }
-            if menu.canImportBook { importBookRow { run(.importBook) } }
+            importBookRow { run(.importBook) }
             if let title = menu.downloadTitle { downloadRow(title) { run(.download) } }
             row("Delete Downloads", Icons.deleteDownloads, id: "moreDeleteDownloads") { run(.deleteDownloads) }
-            if !isFavorites {
-                row("Rename", Icons.rename, id: "moreRename") { run(.rename) }
-                editDetailsRow { run(.editDetails) }
-                row("Move…", Icons.move, id: "moreMove") { run(.move) }
-                row("Delete Folder…", Icons.delete, id: "moreDeleteFolder") { run(.deleteFolder) }
-            }
-        case .pages:
-            sortMenu(menu.sort, run: run)
-            voiceRow { run(.voiceSettings) }
+            row("Rename", Icons.rename, id: "moreRename") { run(.rename) }
+            editDetailsRow { run(.editDetails) }
+            row("Move…", Icons.move, id: "moreMove") { run(.move) }
+            row("Delete Folder…", Icons.delete, id: "moreDeleteFolder") { run(.deleteFolder) }
         }
         downloadsRow { run(.downloads) }
         if menu.showsDebug {

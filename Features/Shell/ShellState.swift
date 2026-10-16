@@ -30,7 +30,7 @@ enum ShellSheet: Identifiable, Equatable {
     case history
     case voiceSettings
     case share(URL)
-    /// The Move tree: Move, *Save to Library…*, 🔖's *Save to Folder…*, *Change Folder*.
+    /// The Move tree: Move, *Save to Library…*, 🔖's *Save to Folder…*.
     case moveTo(MoveRequest)
     /// A book being imported: its progress, *Add to*, and D13's question.
     case importBook(BookImportFlow)
@@ -83,8 +83,7 @@ struct MoveRequest: Identifiable, Equatable {
     static func == (a: MoveRequest, b: MoveRequest) -> Bool { a.id == b.id }
 }
 
-/// A short message over the bottom chrome, with an optional action ("Added to Favorites",
-/// *Change Folder*).
+/// A short message over the bottom chrome ("Added to Favorites"), with an optional action button.
 struct ShellToast: Identifiable, Equatable {
     let id = UUID()
     var message: String
@@ -95,17 +94,6 @@ struct ShellToast: Identifiable, Equatable {
     static func == (a: ShellToast, b: ShellToast) -> Bool { a.id == b.id }
 }
 
-/// A question with one confirming choice and Cancel ("Move it to Favorites?").
-struct ShellPrompt: Identifiable, Equatable {
-    let id = UUID()
-    var title: String
-    var message: String?
-    var confirmTitle: String
-    let confirm: () -> Void
-
-    static func == (a: ShellPrompt, b: ShellPrompt) -> Bool { a.id == b.id }
-}
-
 /// Page extraction in progress (spinner on the address-bar reader icon, or on ⋯ for Save).
 enum BusyAction: Equatable {
     case reader
@@ -113,8 +101,8 @@ enum BusyAction: Equatable {
 }
 
 /// What you see: one surface (the browser or the Library at a folder), the Reader sheet over it,
-/// Now Playing over everything, at most one other sheet, at most one ⋯ menu. The surface and the
-/// Library's path are remembered, and the app reopens on them (decision D10). What you hear belongs to the
+/// Now Playing over everything, at most one other sheet, at most one ⋯ menu. The surface, the
+/// Library's path and its home's tab are remembered, and the app reopens on them (decision D10). What you hear belongs to the
 /// playback session; the shell only asks it (`isHearing`), so opening the Reader of the page you
 /// hear opens Now Playing instead.
 ///
@@ -138,6 +126,13 @@ final class ShellState {
     var libraryPath: [LibraryRoute] = [] {
         didSet { remember() }
     }
+    /// The Library home's tab: Favorites (starred folders and pages, wherever they are) or
+    /// Everything. Its picker sets it; going to a place in the Library shows Everything
+    /// (`showLibrary(at:)`), ⋯ → Favorites shows Favorites (`showFavorites`), and 📚 keeps it.
+    /// Remembered with the surface.
+    var favoritesOnly = false {
+        didSet { memory?.saveFavoritesTab(favoritesOnly) }
+    }
     /// The Reader sheet (nil = closed). Removed by `readerDidClose` once its sheet has gone.
     private(set) var reader: ReaderSheetState?
     /// This showing of Now Playing (nil = down), over the surface and the Reader sheet. It shows
@@ -158,8 +153,6 @@ final class ShellState {
     var menu: MenuContext?
     /// A short message over the bottom chrome of the surface on screen.
     private(set) var toast: ShellToast?
-    /// A question waiting for an answer.
-    var prompt: ShellPrompt?
     /// Global frame of the ⋯ button the open menu grows from.
     private(set) var menuAnchor: CGRect = .zero
     var busy: BusyAction?
@@ -176,13 +169,14 @@ final class ShellState {
     /// The browser page to reload at launch (`restoreAtLaunch`).
     private var pendingBrowserURL: URL?
 
-    /// `restores`: open on the remembered surface, or the Library when there is none (a fresh
-    /// install). Otherwise the browser's start page.
+    /// `restores`: open on the remembered surface and Library tab, or the Library when there is
+    /// none (a fresh install). Otherwise the browser's start page, the Library on Everything.
     init(isHearing: @escaping (ListenTarget) -> Bool = { _ in false }, memory: SurfaceMemoryStore? = nil,
          restores: Bool = false) {
         self.isHearing = isHearing
         self.memory = memory
         guard restores, let memory else { return }
+        favoritesOnly = memory.loadFavoritesTab()
         if let last = memory.load() {
             surface = last.base == .library ? .library : .browse
             libraryPath = last.libraryPath
@@ -318,15 +312,25 @@ final class ShellState {
         libraryPath = Array(libraryPath[..<gone])
     }
 
-    /// "Playing from", a search result: the Library at `folder` (pushed under
-    /// the folders above it).
+    /// A place in the Library (*Go to* a folder or the Library, a favorite folder's tile, an
+    /// imported book): the Library at `path` (a folder pushed under the folders above it, or
+    /// `[]` for the home), on Everything, where every place shows.
     func showLibrary(at path: [LibraryRoute]) {
         openLibrary()
         libraryPath = path
+        favoritesOnly = false
+    }
+
+    /// ⋯ → Favorites, the start page's *Show All*: the Library home on its Favorites tab.
+    func showFavorites() {
+        openLibrary()
+        libraryPath = []
+        favoritesOnly = true
     }
 
     // MARK: - Surfaces
 
+    /// 📚: the Library as it was left, its place and its tab.
     func openLibrary() {
         endAddressSearch()
         reader = nil
@@ -450,7 +454,7 @@ final class ShellState {
         isPickingBook = true
     }
 
-    // MARK: - Toasts and prompts
+    // MARK: - Toasts
 
     func showToast(_ toast: ShellToast) {
         self.toast = toast

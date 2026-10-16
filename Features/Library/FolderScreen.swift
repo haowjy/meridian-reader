@@ -1,10 +1,9 @@
 import SwiftData
 import SwiftUI
 
-/// One screen for every folder at every depth, Favorites, books and series included (decision
-/// D19), and for the top level's pages route (`folder == nil`, with pages played
-/// without saving on top): the header, subfolders first (by their order), then pages by the
-/// folder's sort (`LibraryPageRow` everywhere, including imported chapters). A folder whose pages play
+/// One screen for every folder at every depth, books and series included (decision D19): the
+/// header, subfolders first (by their order), then pages by the folder's sort (`LibraryPageRow`
+/// everywhere, including imported chapters). A folder whose pages play
 /// has header actions: *Continue*, *From Start* and *Download*.
 /// A folder with details (a book's from its file, or any folder's from *Edit Details*: a cover or
 /// an author) has the detailed header top: the cover beside the title, the author before the
@@ -29,18 +28,12 @@ import SwiftUI
 ///  🔗  investing.example.com                     (link: lighter, no ▶)
 /// ```
 struct FolderScreen: View {
-    /// nil: the pages in no folder.
-    let folder: Folder?
+    let folder: Folder
 
     @Environment(LibraryScreenState.self) private var screen
-    @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
-
-    private var sort: PageSort {
-        folder?.pageSort ?? PageSort(rawValue: topLevelSort) ?? LibraryTopLevel.defaultSort
-    }
 
     var body: some View {
-        if let folder, !folder.isLive {
+        if !folder.isLive {
             // Deleted: its screen draws once more as the surface leaves it (`isLive`).
             FolderGoneView()
         } else {
@@ -49,40 +42,28 @@ struct FolderScreen: View {
     }
 
     private var contents: some View {
-        FolderContentsList(folder: folder, sort: sort)
-            .navigationTitle(folder?.displayName ?? String(localized: "Pages"))
+        FolderContentsList(folder: folder, sort: folder.pageSort)
+            .navigationTitle(folder.displayName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    let editing = screen.isEditing(folderID: folder?.id)
+                    let editing = screen.isEditing(folderID: folder.id)
                     Button(editing ? "Done" : "Edit") {
                         withAnimation(Motion.snappy) {
-                            if editing { screen.endEditing() } else { screen.beginEditing(folderID: folder?.id) }
+                            if editing { screen.endEditing() } else { screen.beginEditing(folderID: folder.id) }
                         }
                     }
                     .fontWeight(editing ? .semibold : .regular)
                     .accessibilityIdentifier("folderEdit")
                 }
             }
-            .onDisappear { if screen.isEditing(folderID: folder?.id) { screen.endEditing() } }
-    }
-}
-
-/// The top level's page sort, kept on the device (`library.topLevel.sort`; the key is persisted).
-enum LibraryTopLevel {
-    static let sortKey = "library.topLevel.sort"
-    static let defaultSort = PageSort.newest
-
-    /// The sort, outside a view (views read it through `@AppStorage(sortKey)`).
-    static var sort: PageSort {
-        get { UserDefaults.standard.string(forKey: sortKey).flatMap(PageSort.init(rawValue:)) ?? defaultSort }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: sortKey) }
+            .onDisappear { if screen.isEditing(folderID: folder.id) { screen.endEditing() } }
     }
 }
 
 /// The folder's list, made with its sort (a query is fixed when its view is made).
 private struct FolderContentsList: View {
-    let folder: Folder?
+    let folder: Folder
     let sort: PageSort
 
     @Environment(LibraryStore.self) private var library
@@ -90,33 +71,25 @@ private struct FolderContentsList: View {
     @Environment(\.speechController) private var speech
     @Environment(LibraryScreenState.self) private var screen
     @Query private var queriedPages: [Page]
-    /// The top level's pages only: pages played without saving, shown above the rest and out of
-    /// Edit (they aren't in the Library to move, mark or remove).
-    @Query(LibraryQueries.playedNotSaved) private var playedNotSaved: [Page]
 
-    init(folder: Folder?, sort: PageSort) {
+    init(folder: Folder, sort: PageSort) {
         self.folder = folder
         self.sort = sort
-        if let folder {
-            _queriedPages = Query(LibraryQueries.pages(inFolder: folder.id, sort: sort))
-        } else {
-            _queriedPages = Query(LibraryQueries.loosePages(sort: sort))
-        }
+        _queriedPages = Query(LibraryQueries.pages(inFolder: folder.id, sort: sort))
     }
 
     // Only models still in the store: a saved delete can reach this list before its query or
     // relationship drops them, and the header reads every page (`isLive`).
     private var pages: [Page] { queriedPages.filter(\.isLive) }
-    private var subfolders: [Folder] { folder.map { LibraryStore.ordered(($0.children ?? []).filter(\.isLive)) } ?? [] }
-    private var isEditing: Bool { screen.isEditing(folderID: folder?.id) }
+    private var subfolders: [Folder] { LibraryStore.ordered((folder.children ?? []).filter(\.isLive)) }
+    private var isEditing: Bool { screen.isEditing(folderID: folder.id) }
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
-    private var notSaved: [Page] { folder == nil && !isEditing ? playedNotSaved.filter(\.isLive) : [] }
 
     /// *Select* on a row: Edit, with that row selected.
     private func select(_ item: LibraryItemID) -> () -> Void {
         { [screen, folder] in
             withAnimation(Motion.snappy) {
-                screen.beginEditing(folderID: folder?.id)
+                screen.beginEditing(folderID: folder.id)
                 screen.selection = [item]
             }
         }
@@ -132,18 +105,13 @@ private struct FolderContentsList: View {
                     .libraryHeader()
             }
             // One mixed list of compact rows (D23): subfolders, then pages, in one card.
-            if !subfolders.isEmpty || !pages.isEmpty || !notSaved.isEmpty {
+            if !subfolders.isEmpty || !pages.isEmpty {
                 Section {
                     ForEach(subfolders, id: \.id) { child in
                         LibraryFolderRow(folder: child, onSelect: select(.folder(child.id)))
                             .tag(LibraryItemID.folder(child.id))
                     }
                     .onMove(perform: isEditing ? moveFolders : nil)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Palette.chrome)
-                    ForEach(notSaved, id: \.listenKey) { page in
-                        LibraryPageRow(page: page)
-                    }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Palette.chrome)
                     ForEach(pages, id: \.listenKey) { page in
@@ -155,7 +123,7 @@ private struct FolderContentsList: View {
                     .listRowBackground(Palette.chrome)
                 }
             }
-            if subfolders.isEmpty && pages.isEmpty && notSaved.isEmpty {
+            if subfolders.isEmpty && pages.isEmpty {
                 Text("Move pages here, or save them here from the Reader’s 🔖.")
                     .typeStyle(.row)
                     .foregroundStyle(Palette.secondaryInk)
@@ -163,7 +131,6 @@ private struct FolderContentsList: View {
             }
         }
         .libraryListStyle()
-        .animation(Motion.standard, value: notSaved.map(\.listenKey))
         .environment(\.editMode, .constant(isEditing ? .active : .inactive))
         .accessibilityIdentifier("folderScreen")
     }
@@ -174,14 +141,14 @@ private struct FolderContentsList: View {
     /// title, the author before the counts. Without them, the title and counts.
     @ViewBuilder
     private var header: some View {
-        let title = folder?.displayName ?? String(localized: "Pages")
-        let style: FolderHeaderStyle = folder?.hasDetails == true ? .detailed(cover: folder?.coverImage) : .folder
-        let detail = [folder?.byline].compactMap { $0 } + counts
+        let title = folder.displayName
+        let style: FolderHeaderStyle = folder.hasDetails ? .detailed(cover: folder.coverImage) : .folder
+        let detail = [folder.byline].compactMap { $0 } + counts
         Group {
-            if let folder, case let playback = progress(of: folder), playback.hasPagesToPlay {
+            if case let playback = actions.progress(of: folder, pages: pages), playback.hasPagesToPlay {
                 let bar = playback.header
                 FolderHeader(style: style, title: title, detail: detail, progress: bar.fraction, progressLabel: bar.label) {
-                    FolderPlayButtons(folder: folder, title: continueTitle(folder, playback), actions: actions)
+                    FolderPlayButtons(folder: folder, title: playback.buttonTitle, actions: actions)
                 }
             } else {
                 FolderHeader(style: style, title: title, detail: detail) { EmptyView() }
@@ -212,21 +179,6 @@ private struct FolderContentsList: View {
     #else
     private func headerLookMarker(_ style: FolderHeaderStyle) -> some View { EmptyView() }
     #endif
-
-    /// Where the folder is in its pages (the ones on screen, in this order).
-    private func progress(of folder: Folder) -> FolderProgress {
-        let playing = actions.playState(of: folder).isCurrent ? speech.activeSessionID : nil
-        return FolderProgress(folder: folder, pages: pages, playingKey: playing, library: library)
-    }
-
-    /// The round button's title and the lighter place after it: "Continue" "3 of 7", "Playing"
-    /// "3 of 7"; "Play" before anything in it has played.
-    private func continueTitle(_ folder: Folder, _ progress: FolderProgress) -> (title: String, detail: String?) {
-        let place = progress.number.map { "\($0) of \(progress.playingCount)" }
-        if actions.playState(of: folder).isCurrent { return (String(localized: "Playing"), place) }
-        if folder.currentPageKey == nil { return (String(localized: "Play"), nil) }
-        return (String(localized: "Continue"), place)
-    }
 
     /// ["2 folders", "7 pages"].
     private var counts: [String] {

@@ -21,7 +21,8 @@ final class PlayedNotSavedTests: XCTestCase {
     /// Every list a page can be in (`LibraryQueries`), by the lists' own fetches.
     private func lists(holding page: Page) throws -> [String] {
         let lists: [(String, FetchDescriptor<Page>)] = [
-            ("Pages", LibraryQueries.loosePages(sort: .newest)), ("Library", LibraryQueries.inLibrary),
+            ("Pages", LibraryQueries.loosePages(sort: .newest)),
+            ("Search", LibraryQueries.searchPages(page.title, favoritesOnly: false)),
             ("Favorites", LibraryQueries.favoritePages), ("Not saved", LibraryQueries.playedNotSaved),
             ("Suggestions", LibraryQueries.savedInLibrary),
         ]
@@ -86,7 +87,7 @@ final class PlayedNotSavedTests: XCTestCase {
         env.now += 60
         library.recordPlaybackStarted(page)
         library.recordPosition(page, paragraph: 1, utf16Offset: 3)
-        XCTAssertEqual(try lists(holding: page), ["Pages", "Library", "Favorites", "Suggestions"])
+        XCTAssertEqual(try lists(holding: page), ["Pages", "Search", "Favorites", "Suggestions"])
 
         env.now += 60
         try library.remove([page])
@@ -125,7 +126,7 @@ final class PlayedNotSavedTests: XCTestCase {
 
         env.now += 60
         XCTAssertIdentical(library.recordPlayback(article), page, "the same page")
-        XCTAssertEqual(try lists(holding: page), ["Not saved"])
+        XCTAssertEqual(try lists(holding: page), ["Search", "Not saved"])
         XCTAssertNil(page.removedAt)
     }
 
@@ -142,11 +143,11 @@ final class PlayedNotSavedTests: XCTestCase {
         library.saveContext = { _ in throw SaveFailed() }
         library.recordPlayback(article)
         XCTAssertThrowsError(try library.remove([other]), "a failed edit rolls back")
-        XCTAssertEqual(try lists(holding: page), ["Not saved"], "the listen is written again")
+        XCTAssertEqual(try lists(holding: page), ["Search", "Not saved"], "the listen is written again")
 
         library.saveContext = { try $0.save() }
         XCTAssertTrue(library.commit("test"))
-        XCTAssertEqual(try lists(holding: page), ["Not saved"])
+        XCTAssertEqual(try lists(holding: page), ["Search", "Not saved"])
         XCTAssertNil(page.removedAt)
     }
 
@@ -159,7 +160,7 @@ final class PlayedNotSavedTests: XCTestCase {
 
         env.now += 60
         try library.save(ReaderArticle(page: page))
-        XCTAssertEqual(try lists(holding: page), ["Pages", "Library", "Suggestions"])
+        XCTAssertEqual(try lists(holding: page), ["Pages", "Search", "Suggestions"])
 
         env.now += 60
         try library.remove([page])
@@ -176,7 +177,7 @@ final class PlayedNotSavedTests: XCTestCase {
         library.saveContext = { _ in throw SaveFailed() }
 
         XCTAssertThrowsError(try library.remove([page])) { XCTAssertEqual($0 as? LibraryStoreError, .saveFailed) }
-        XCTAssertEqual(try lists(holding: page), ["Pages", "Library", "Suggestions"], "where it was")
+        XCTAssertEqual(try lists(holding: page), ["Pages", "Search", "Suggestions"], "where it was")
         XCTAssertNil(page.removedAt)
         XCTAssertNotNil(page.addedAt)
     }
@@ -186,7 +187,7 @@ final class PlayedNotSavedTests: XCTestCase {
     func testUnsavingAPagePlayedWithoutSavingLeavesIt() throws {
         let page = library.recordPlayback(env.article("https://example.com/unsaved"))
         try library.unsave(page)
-        XCTAssertEqual(try lists(holding: page), ["Not saved"])
+        XCTAssertEqual(try lists(holding: page), ["Search", "Not saved"])
         XCTAssertNil(page.removedAt)
     }
 }

@@ -1,10 +1,9 @@
 import Foundation
 
-/// A screen pushed in the Library: a folder at any depth (a book or series too), or the top
-/// level's pages (*Pages · Show All*). Folder ids, so a path survives a relaunch.
+/// A screen pushed in the Library: a folder at any depth (a book or series too). Folder ids, so a
+/// path survives a relaunch.
 enum LibraryRoute: Hashable, Codable {
     case folder(UUID)
-    case pages
 }
 
 /// The surface you left (decision D10): the Library with its path, or the browser with its page.
@@ -20,11 +19,37 @@ struct SurfaceMemory: Codable, Equatable {
     var libraryPath: [LibraryRoute]
     /// The browser's page (nil: the start page). Reloaded at launch.
     var browserURL: String?
+
+    init(base: Base, libraryPath: [LibraryRoute], browserURL: String?) {
+        self.base = base
+        self.libraryPath = libraryPath
+        self.browserURL = browserURL
+    }
+
+    /// A stored path element this version has no screen for (the top level's own pages screen
+    /// is one) is dropped, so the path still opens the Library at the folders it names.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        base = try container.decode(Base.self, forKey: .base)
+        libraryPath = try container.decode([StoredRoute].self, forKey: .libraryPath).compactMap(\.route)
+        browserURL = try container.decodeIfPresent(String.self, forKey: .browserURL)
+    }
+
+    /// One element of a stored path: the route, or nil when it isn't one this version knows.
+    private struct StoredRoute: Decodable {
+        let route: LibraryRoute?
+
+        init(from decoder: Decoder) throws {
+            route = try? LibraryRoute(from: decoder)
+        }
+    }
 }
 
-/// Where `SurfaceMemory` is kept. The key is persisted and never changes.
+/// Where `SurfaceMemory` is kept, with the Library home's tab beside it. The keys are persisted
+/// and never change.
 struct SurfaceMemoryStore {
     static let key = "shell.lastSurface"
+    static let favoritesTabKey = "library.favoritesTab"
 
     var defaults: UserDefaults
 
@@ -39,7 +64,17 @@ struct SurfaceMemoryStore {
         defaults.set(data, forKey: Self.key)
     }
 
+    /// The Library home showed Favorites (false: Everything).
+    func loadFavoritesTab() -> Bool {
+        defaults.bool(forKey: Self.favoritesTabKey)
+    }
+
+    func saveFavoritesTab(_ favoritesOnly: Bool) {
+        defaults.set(favoritesOnly, forKey: Self.favoritesTabKey)
+    }
+
     func clear() {
         defaults.removeObject(forKey: Self.key)
+        defaults.removeObject(forKey: Self.favoritesTabKey)
     }
 }

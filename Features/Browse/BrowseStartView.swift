@@ -5,8 +5,7 @@ import WebKit
 
 /// The browser, and the root of the shell: the web page or start page with its bottom chrome,
 /// the address search layer, and over it the layers `ShellState` says are up, in order: the
-/// library, the Reader sheet, Now Playing, the one ⋯ menu overlay and the one sheet; the shell's
-/// prompt ("Move it to Favorites?") over all of them.
+/// library, the Reader sheet, Now Playing, the one ⋯ menu overlay and the one sheet.
 struct BrowseStartView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.articleExtractor) private var extractor
@@ -83,18 +82,6 @@ struct BrowseStartView: View {
             // The ⋯ Debug row (Reader, Now Playing, Library) and long-press ▶: over every layer.
             // A shell sheet with a Debug entry hosts its own.
             .listenDebugSheet(speech, hosts: shell.sheet == nil)
-            .alert(shell.prompt?.title ?? "", isPresented: Binding(get: { shell.prompt != nil },
-                                                                    set: { if !$0 { shell.prompt = nil } }),
-                   presenting: shell.prompt) { prompt in
-                Button("Cancel", role: .cancel) { shell.prompt = nil }
-                Button(prompt.confirmTitle) {
-                    shell.prompt = nil
-                    prompt.confirm()
-                }
-                .accessibilityIdentifier("promptConfirm")
-            } message: { prompt in
-                if let message = prompt.message { Text(message) }
-            }
             .modifier(BrowseAlerts(extractionError: $alertMessage, dictation: dictation))
             .onChange(of: webStore.currentURL) { _, _ in shell.browserPageChanged() }
             .onAppear { webStore.onBookDownload = bookDownloaded }
@@ -259,9 +246,7 @@ struct BrowseStartView: View {
         case .saveToLibrary: saveToLibrary()
         case .removeFromLibrary: removeFromLibrary()
         case .toggleFavorite: page.toggleFavorite()
-        case .favorites:
-            UserDefaults.standard.set(true, forKey: "library.favoritesTab")
-            shell.showLibrary(at: [])
+        case .favorites: shell.showFavorites()
         case .reload: webStore.refresh()
         case .share: if let shareURL { shell.present(.share(shareURL)) }
         case .voiceSettings: shell.present(.voiceSettings)
@@ -282,10 +267,7 @@ struct BrowseStartView: View {
                 recentSearches: recentSearches,
                 onOpenFavorite: { LibraryActions(library: library, speech: speech, shell: shell).open($0) },
                 onOpenFavoriteFolder: { shell.showLibrary(at: library.path(to: $0)) },
-                onShowFavorites: {
-                    UserDefaults.standard.set(true, forKey: "library.favoritesTab")
-                    shell.showLibrary(at: [])
-                },
+                onShowFavorites: shell.showFavorites,
                 onRemoveFavorite: { page in
                     shell.attempt(String(localized: "Couldn’t remove from Favorites")) { try library.removeFavorite(page) }
                 },

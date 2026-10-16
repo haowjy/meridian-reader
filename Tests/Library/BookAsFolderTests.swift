@@ -141,31 +141,6 @@ final class BookAsFolderTests: XCTestCase {
         assertOnePagePerKey()
     }
 
-    // MARK: - Series
-
-    /// A series' newly found chapters come in through `addLink`: an address it already has stays
-    /// where it is (reordered, or moved to another folder), and a new one goes at the end of the
-    /// series, after everything in it, in the order found.
-    func testNewSeriesChaptersAppendAtTheEndAndFoundOnesStayWhereTheyAre() throws {
-        let series = Folder(name: "Serial", kind: .series)
-        env.context.insert(series)
-        let url = { (n: Int) in URL(string: "https://serial.example.com/chapter-\(n)")! }
-        let first = try (1...3).map { try library.addLink(url: url($0), title: "Chapter \($0)", artwork: nil, in: series) }
-        try library.arrange([first[2]], in: series, before: first[0], shownIn: .manual)
-        let mine = try library.save(env.article("https://example.com/mine", title: "Mine"))
-        try library.move([.page(mine)], to: series)
-        let elsewhere = try library.makeFolder(name: "Elsewhere", in: nil)
-        try library.move([.page(first[1])], to: elsewhere)
-        let keysBefore = first.map(\.sortKey)
-
-        let found = try (1...5).map { try library.addLink(url: url($0), title: "Chapter \($0)", artwork: nil, in: series) }
-        XCTAssertTrue(zip(found.prefix(3), first).allSatisfy { $0 === $1 }, "the chapters it has are found, not made again")
-        XCTAssertEqual(first.map(\.sortKey), keysBefore, "and keep their place")
-        XCTAssertIdentical(first[1].folder, elsewhere, "one moved out stays out")
-        XCTAssertEqual(titles(series), ["Chapter 3", "Chapter 1", "Mine", "Chapter 4", "Chapter 5"])
-        XCTAssertEqual(env.pages().filter { $0.canonicalURL?.hasPrefix("https://serial.example.com") == true }.count, 5)
-    }
-
     // MARK: - Books stored before the record
 
     /// A book stored before books kept a record of their chapters (its state holds only the

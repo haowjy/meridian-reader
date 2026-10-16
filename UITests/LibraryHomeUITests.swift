@@ -114,6 +114,61 @@ final class LibraryHomeUITests: XCTestCase {
         XCTAssertFalse(app.navigationBars["Favorites"].exists)
     }
 
+    /// Placing a page among the home's pages makes the top level *Manual*; the home's ⋯ → Sort →
+    /// Newest puts them back newest first, which is where a new save lands.
+    func testDraggingAPageMakesTheHomeManualAndItsSortTurnsItBack() throws {
+        let app = launchLibrary(["-seedLoosePages", "2"])
+        let titles = ["Demo Listen Article", "Loose Page 1", "Loose Page 2"]
+        find(app, "libraryHome").swipeUp()
+        for title in titles { XCTAssertTrue(libraryRow(app, title).waitForExistence(timeout: 5), title) }
+        XCTAssertEqual(order(app, titles), titles, "newest first")
+
+        dragRow(app, "Loose Page 2", to: rowPoint(app, "Demo Listen Article", dy: 0.15))
+        let placed = ["Loose Page 2", "Demo Listen Article", "Loose Page 1"]
+        XCTAssertTrue(eventually(5) { self.order(app, titles) == placed }, "placed on top: \(order(app, titles))")
+
+        app.buttons["libraryMore"].tap()
+        tapMenuRow(app, "moreSort")
+        let newest = app.buttons["Newest"]
+        XCTAssertTrue(newest.waitForExistence(timeout: 3), "the home's Sort")
+        newest.tap()
+        XCTAssertTrue(eventually(5) { self.order(app, titles) == titles }, "newest first again: \(order(app, titles))")
+    }
+
+    /// ⋯ → Favorites shows the Favorites tab; Now Playing's *Go to Library* then goes to the home
+    /// on Everything, where the page playing (not starred) is listed.
+    func testGoToLibraryFromNowPlayingShowsEverything() throws {
+        let app = launchLibrary()
+        let cell = libraryCell(app, "Demo Listen Article")
+        XCTAssertTrue(cell.waitForExistence(timeout: 5))
+        cell.buttons["Play"].tap()
+        XCTAssertTrue(app.buttons["nowPlayingBarPlayPause"].waitForExistence(timeout: 10), "playing")
+
+        app.buttons["libraryMore"].tap()
+        tapMenuRow(app, "moreFavorites")
+        let tabs = find(app, "libraryTabs")
+        XCTAssertTrue(eventually(5) { tabs.buttons["Favorites"].isSelected }, "⋯ → Favorites")
+        XCTAssertFalse(libraryRow(app, "Demo Listen Article").exists, "not starred")
+
+        find(app, "nowPlayingBarOpen").tap()
+        XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5), "Now Playing")
+        find(app, "readerMore").tap()
+        let goTo = find(app, "moreGoTo")
+        XCTAssertTrue(goTo.waitForExistence(timeout: 3))
+        XCTAssertEqual(goTo.label, "Go to Library")
+        idle(0.6)
+        goTo.tap()
+        XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingHeader").exists }, "Now Playing closes")
+        XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5), "the Library's home")
+        XCTAssertTrue(eventually(5) { tabs.buttons["Everything"].isSelected }, "on Everything")
+        XCTAssertTrue(libraryRow(app, "Demo Listen Article").waitForExistence(timeout: 5), "where the page is")
+    }
+
+    /// `titles` in the order their rows sit on screen.
+    private func order(_ app: XCUIApplication, _ titles: [String]) -> [String] {
+        titles.sorted { libraryCell(app, $0).frame.minY < libraryCell(app, $1).frame.minY }
+    }
+
     func testSearchFindsAPageInANestedFolderAndFiltersIt() throws {
         let app = launchLibrary(["-browseTestPages"])
         let field = app.textFields["librarySearchField"]

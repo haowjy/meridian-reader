@@ -61,11 +61,13 @@ enum FractionalOrder {
 /// saves at once; a save that fails is rolled back and throws
 /// `LibraryStoreError.saveFailed`.
 extension LibraryStore {
-    /// A new plain folder at the end of `parent` (the top level if nil).
+    /// A new plain folder named `name` ("New Folder" when it is nil or blank) at the end of
+    /// `parent` (the top level if nil).
     @discardableResult
-    func makeFolder(name: String, in parent: Folder?) throws -> Folder {
-        try edit("make folder") {
-            let folder = Folder(name: name.trimmingCharacters(in: .whitespacesAndNewlines), kind: .plain,
+    func makeFolder(name: String?, in parent: Folder?) throws -> Folder {
+        let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return try edit("make folder") {
+            let folder = Folder(name: trimmed.isEmpty ? String(localized: "New Folder") : trimmed, kind: .plain,
                                 sortKey: nextFolderSortKey(in: parent), createdAt: now())
             context.insert(folder)
             folder.parent = parent
@@ -81,7 +83,7 @@ extension LibraryStore {
 
     /// *Edit Details*: the name, byline and cover in one edit. A blank name keeps the name; a blank
     /// byline clears it; a nil cover removes it. The kind never changes, so a plain folder given
-    /// details keeps its order and still takes drops (decision D17). Favorites has no details.
+    /// details keeps its order and still takes drops (decision D17).
     func setDetails(of folder: Folder, name: String, byline: String?, cover: Data?) throws {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let byline = byline?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -149,8 +151,8 @@ extension LibraryStore {
     }
 
     /// Deletes `folders` in one save, each as `deleteFolder` does, keeping or losing their contents
-    /// by `keepContents`. Refuses Favorites, changing nothing. A save that fails is rolled back and throws: every
-    /// folder, page and its audio stay.
+    /// by `keepContents`. A save that fails is rolled back and throws: every folder, page and its
+    /// audio stay.
     func deleteFolders(_ folders: [Folder], keepContents: Bool) throws {
         try edit("delete folder") {
             for folder in folders where !folder.isDeleted {
@@ -217,9 +219,8 @@ extension LibraryStore {
     }
 
     /// Places `folders` just before `before` (the end if nil) among the subfolders of `parent`
-    /// (the top level if nil), coming from wherever they are, the same way. Favorites stays first
-    /// among the top-level folders whatever its key. Refuses, changing nothing, what `move`
-    /// refuses: a folder into itself or below itself, Favorites below the top level.
+    /// (the top level if nil), coming from wherever they are, the same way. Refuses, changing
+    /// nothing, what `move` refuses: a folder into itself or below itself.
     func arrange(_ folders: [Folder], in parent: Folder?, before: Folder?) throws {
         for folder in folders { try checkMove(.folder(folder), to: parent) }
         try edit("arrange folders") {
