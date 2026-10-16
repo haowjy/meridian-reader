@@ -243,6 +243,32 @@ final class DownloadCenterTests: XCTestCase {
         tts.synthQueue.remove(cacheKey: chapter)
     }
 
+    /// *Delete Downloads* on one page of a downloaded folder: the folder's download no longer
+    /// counts it as done. A page it still covers goes back in its queue (the folder leaves Done
+    /// and renders it again); one it no longer covers (skipped in playback) leaves its list.
+    func testDeleteDownloadsOnOnePageTakesItsFolderOutOfDone() async throws {
+        let first = try env.savedPage("https://example.com/first-of-two", title: "First")
+        let second = try env.savedPage("https://example.com/second-of-two", title: "Second")
+        let folder = try library.makeFolder(name: "Two", in: nil)
+        first.setFolder(folder)
+        second.setFolder(folder)
+        try env.context.save()
+        _ = center.download(folder)
+        try await env.waitUntil { self.center.overview.done.count == 1 }
+
+        center.deleteDownloads(of: first)
+        XCTAssertTrue(center.overview.done.isEmpty, "the folder leaves Done")
+        XCTAssertEqual(center.overview.queued.map(\.record.target), [.folder(folder.id)])
+        XCTAssertFalse(center.isDownloaded(folder, pages: [first, second]))
+        try await env.waitUntil { self.center.overview.done.count == 1 }
+        XCTAssertTrue(env.isReady(first), "rendered again")
+
+        try library.setSkipsInPlayback(second, true)
+        center.deleteDownloads(of: second)
+        XCTAssertEqual(center.record(for: .folder(folder.id))?.entries.map(\.key), [first.listenKey], "off its list")
+        XCTAssertEqual(center.overview.done.count, 1)
+    }
+
     // MARK: - Leaving the Library
 
     private struct SaveFailed: Error {}
@@ -325,6 +351,24 @@ final class DownloadCenterTests: XCTestCase {
         center.redownload(different.id)
         try await env.waitUntil(timeout: 30) { self.center.overview.done.first?.voice == "fake.beta" }
         XCTAssertTrue(env.isReady(page))
+    }
+
+    /// After *Keep*, the rows count the download's pages as downloaded and the folder's
+    /// Download button is done, so it can't render the folder again and forget the kept voice.
+    func testAKeptVoiceCountsAsDownloadedOnTheRows() async throws {
+        let page = try env.savedPage("https://example.com/kept-voice")
+        let folder = try library.makeFolder(name: "Kept", in: nil)
+        page.setFolder(folder)
+        try env.context.save()
+        _ = center.download(folder)
+        try await env.waitUntil { self.center.overview.done.count == 1 }
+        tts.setVoice("beta", for: FakeEngineProvider.fakeID)
+        XCTAssertFalse(center.isDownloaded(page), "in another voice")
+
+        center.keep(try XCTUnwrap(center.overview.differentVoice.first).id, voice: "fake.alpha")
+        XCTAssertTrue(center.isDownloaded(page), "the row's mark")
+        XCTAssertEqual(center.state(of: .folder(folder.id), isDownloaded: center.isDownloaded(folder, pages: [page])),
+                       .downloaded, "the folder's button")
     }
 
     func testWithApplesVoiceDownloadsWaitForAnOnDeviceVoice() async throws {

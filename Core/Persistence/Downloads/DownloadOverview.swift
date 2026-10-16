@@ -6,10 +6,12 @@ import Foundation
 ///
 /// - **Queued**: downloads with pages still to fetch or render (the one rendering now first in
 ///   its place, paused ones too).
-/// - **Done**: every page's turn has come, and the audio is in the download voice, or in a voice
-///   the user chose to keep.
-/// - **Different voice**: done, but some of its audio is in another voice than the one
-///   downloads render in now (the voice changed since).
+/// - **Done**: every page's turn has come, and the audio is in a voice the download accepts
+///   (`DownloadRecord.accepts`): the download voice, or a voice the user chose to keep.
+/// - **Different voice**: done, but some of its audio is in a voice it doesn't accept (the voice
+///   changed since).
+///
+/// A row's Downloaded mark follows the same rule, per page (`isDownloaded`).
 struct DownloadOverview: Equatable {
     enum Status: Equatable {
         /// One of its pages is being fetched or rendered now.
@@ -89,8 +91,7 @@ struct DownloadOverview: Equatable {
                 continue
             }
             let voices = Set(record.entries.filter { $0.state == .done }.compactMap { voiceOf($0.key) })
-            let accepted = Set([currentVoice, record.keptVoice].compactMap { $0 })
-            if currentVoice != nil, let other = voices.subtracting(accepted).sorted().first {
+            if currentVoice != nil, let other = record.otherVoice(current: currentVoice, voiceOf: voiceOf) {
                 differentVoice.append(Item(record: record, status: .differentVoice(other), voice: other))
                 continue
             }
@@ -109,15 +110,15 @@ struct DownloadOverview: Equatable {
         active?.recordID == record.id ? min(max(active?.fraction ?? 0, 0), 1) : 0
     }
 
-    /// Whether every one of `keys` is downloaded: a download's turn on it ended with its whole
-    /// audio rendered (`.done`), and that audio is in `currentVoice`, the voice downloads render
-    /// in now (a page the Downloads list shows under *Done*, not *Different voice*). Audio
-    /// deleted since has no voice, so it isn't. Empty `keys`, or no on-device voice: false.
+    /// Whether every one of `keys` is downloaded: a download has its page
+    /// (`DownloadRecord.hasDownloaded`: done, its audio there, in the download voice or one that
+    /// download keeps), as the Downloads list counts it under *Downloaded* (`done`). Empty `keys`: false.
     static func isDownloaded(_ keys: [UUID], records: [DownloadRecord], currentVoice: String?,
                              voiceOf: (UUID) -> String?) -> Bool {
-        guard !keys.isEmpty, let currentVoice else { return false }
-        let done = Set(records.flatMap { $0.entries.filter { $0.state == .done }.map(\.key) })
-        return keys.allSatisfy { done.contains($0) && voiceOf($0) == currentVoice }
+        guard !keys.isEmpty else { return false }
+        return keys.allSatisfy { key in
+            records.contains { $0.hasDownloaded(key, current: currentVoice, voiceOf: voiceOf) }
+        }
     }
 
     /// The progress line's value alone (`progress`), without reading any page's voice: cheap

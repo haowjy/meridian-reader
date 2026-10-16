@@ -51,8 +51,8 @@ final class DownloadOverviewTests: XCTestCase {
         XCTAssertTrue(kept.differentVoice.isEmpty)
     }
 
-    /// A row's Downloaded mark: done, and in the voice downloads render in now.
-    func testDownloadedMeansDoneInTheCurrentVoice() {
+    /// A row's Downloaded mark: done, and in the voice downloads render in now or one kept.
+    func testDownloadedMeansDoneInAVoiceTheDownloadAccepts() {
         let book = record([.done, .done, .queued, .speaksLive, .failed])
         let keys = book.entries.map(\.key)
         var voices = [keys[0]: heart, keys[1]: bella, keys[2]: heart, keys[3]: heart, keys[4]: heart]
@@ -70,6 +70,10 @@ final class DownloadOverviewTests: XCTestCase {
         XCTAssertFalse(downloaded([keys[0]], current: nil), "no on-device voice")
         voices[keys[0]] = nil
         XCTAssertFalse(downloaded([keys[0]]), "its audio deleted since")
+
+        let kept = record([.done], kept: bella)
+        XCTAssertTrue(DownloadOverview.isDownloaded([kept.entries[0].key], records: [kept], currentVoice: heart) { _ in self.bella },
+                      "in the voice its download keeps")
     }
 
     func testAudioInAnotherVoiceIsADifferentVoice() {

@@ -33,8 +33,13 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
 - **Folder downloads list their pages when asked**: a book's or series' chapters that play and
   aren't finished (D7 trims finished ones' audio anyway), any other folder's own pages. Pages added
   later need *Re-download*.
-- **A row's Downloaded ✓ is the Done section's rule, per page** (`DownloadCenter.isDownloaded`,
-  `DownloadOverview.isDownloaded`): an entry `.done` and its audio in the download voice now.
+- **A row's Downloaded ✓ is the *Downloaded* section's rule (`done`), per page** (`DownloadCenter.isDownloaded`,
+  `DownloadOverview.isDownloaded` → `DownloadRecord.hasDownloaded`): an entry `.done` and its
+  audio there, in a voice its download accepts (`DownloadRecord.accepts`: the download voice now,
+  or the one *Keep* stored). So after *Keep* the rows are marked and a folder's Download button is
+  done. *Delete Downloads* keeps the two in step (`forgetDone`): a download of just a page whose
+  audio it deleted goes, and a folder's download puts the page back in its queue while it covers
+  it (so it leaves *Downloaded* and renders it again), else takes it off its list.
   While queued, a Download control's ring shows `DownloadOverview.fraction(of:active:)`, the
   list's own figure (`DownloadCenter.state(of:isDownloaded:)`). A
   folder row passes the pages it already holds (`covers`, the same filter a folder download

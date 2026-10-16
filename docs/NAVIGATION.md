@@ -422,7 +422,8 @@ section, on the cards' edge), and **Different Voice** (done, but rendered in ano
 now). Every row names its voice ("Kokoro Heart"); its parts are set apart by space, never a dot.
 After a voice change a finished download moves to *Different Voice*, with **Re-download** (renders
 it again in the voice selected; the old voice keeps playing until each paragraph is replaced) and
-**Keep** (stays as it is, counted as done, still named by its own voice), on one action row (symbols alone when short of room, D21). A row opens what was
+**Keep** (stays as it is, counted as done and marked downloaded on its rows, still named by its
+own voice), on one action row (symbols alone when short of room, D21). A row opens what was
 downloaded (the Reader, or the Library at the folder); swipe left *Remove* takes the download off
 the list and its audio off the phone (not the audio of what you hear). The list holds downloads
 of what is in the Library: removing a page from the Library, or deleting a page or folder, takes
@@ -430,7 +431,9 @@ its download off the list too (a removed page's audio stays, ephemeral); its lon
 *Pause / Resume*, *Re-download*, *Keep* and *Remove* as they apply. While Apple's voice is
 selected nothing renders: queued downloads say *Waiting for an on-device voice*, with *Voice
 Settings*. *Delete Downloads* on a page or a folder deletes its audio and its download; the audio
-of the page you hear and of the chapter staged after it stays for listening. A page
+of the page you hear and of the chapter staged after it stays for listening. A folder's download
+that covered the page no longer counts it as done: it renders the page again while the folder
+still covers it (the folder is back under *Queued*), else drops it. A page
 that couldn't be fetched or rendered is counted ("2 couldn’t download"), and *Re-download* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch. With
 nothing in it, a card says *Nothing downloaded*: tap ⬇ on a page, a folder or a book in the

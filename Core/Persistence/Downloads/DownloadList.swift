@@ -53,6 +53,28 @@ struct DownloadRecord: Codable, Equatable, Identifiable {
     /// Pages whose turn has come and gone (done, speaking live or failed).
     var finishedCount: Int { entries.filter { $0.state != .queued }.count }
 
+    /// Audio in `voice` (a cache voice key) counts as this download's: it is the voice downloads
+    /// render in now (`current`), or the one the user chose to keep (*Keep*).
+    func accepts(_ voice: String, current: String?) -> Bool {
+        voice == current || voice == keptVoice
+    }
+
+    /// This download has `key`'s page: its turn ended with the whole audio rendered (`.done`),
+    /// and that audio is still there, in a voice the download accepts. What a row's Downloaded
+    /// mark and a folder's Download button ask (`DownloadOverview.isDownloaded`).
+    func hasDownloaded(_ key: UUID, current: String?, voiceOf: (UUID) -> String?) -> Bool {
+        guard entries.contains(where: { $0.key == key && $0.state == .done }), let voice = voiceOf(key) else { return false }
+        return accepts(voice, current: current)
+    }
+
+    /// A voice some of its done pages' audio is in that the download doesn't accept (the first by
+    /// name), which puts it under *Different voice*; nil when every done page's audio, where it
+    /// has any, is in an accepted voice.
+    func otherVoice(current: String?, voiceOf: (UUID) -> String?) -> String? {
+        entries.filter { $0.state == .done }.compactMap { voiceOf($0.key) }
+            .filter { !accepts($0, current: current) }.sorted().first
+    }
+
     /// Every page back in the queue (*Re-download*).
     mutating func requeue(_ keys: [UUID]) {
         entries = keys.map { Entry(key: $0) }

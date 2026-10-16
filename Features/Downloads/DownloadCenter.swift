@@ -136,13 +136,14 @@ final class DownloadCenter {
         return isDownloaded ? .downloaded : .available
     }
 
-    /// The page's audio is downloaded in the current voice (its rows' mark).
+    /// The page's audio is downloaded (its rows' mark): `DownloadOverview.isDownloaded`, the
+    /// Downloads list's own rule.
     func isDownloaded(_ page: Page) -> Bool {
         isDownloaded([page.listenKey])
     }
 
-    /// Every page a download of `folder` covers is downloaded in the current voice; `pages`:
-    /// its pages in play order (a row passes what it already holds, so this fetches nothing).
+    /// Every page a download of `folder` covers is downloaded; `pages`: its pages in play order
+    /// (a row passes what it already holds, so this fetches nothing).
     func isDownloaded(_ folder: Folder, pages: [Page]) -> Bool {
         isDownloaded(pages.filter { Self.covers($0, in: folder) }.map(\.listenKey))
     }
@@ -267,21 +268,45 @@ final class DownloadCenter {
     }
 
     /// *Delete Downloads* on a page's row: its audio goes (unless listening needs it,
-    /// `purgeAudio`), and so does a download of just that page.
+    /// `purgeAudio`), and so does a download of just that page; a folder's download covering it
+    /// no longer counts it as done (`forgetDone`).
     func deleteDownloads(of page: Page) {
         records.removeAll { $0.target == .page(page.listenKey) }
         if active?.key == page.listenKey { stopActive() }
-        purgeAudio([page.listenKey])
+        forgetDone(purgeAudio([page.listenKey]))
         advance()
     }
 
     /// *Delete Downloads* on a folder: its pages' audio (unless listening needs it, `purgeAudio`),
-    /// and its download.
+    /// and its download; downloads of one of those pages no longer count it as done.
     func deleteDownloads(of folder: Folder) {
         if let record = record(for: .folder(folder.id)), active?.recordID == record.id { stopActive() }
         records.removeAll { $0.target == .folder(folder.id) }
-        purgeAudio(library.pages(in: folder).map(\.listenKey))
+        forgetDone(purgeAudio(library.pages(in: folder).map(\.listenKey)))
         advance()
+    }
+
+    /// After *Delete Downloads* took `purged`'s audio, no download counts those pages as done: a
+    /// download of just one of them goes, and a folder's download puts one back in its queue
+    /// while it still covers the page (`covers`), else takes it off its list. So the Downloads
+    /// list and the rows agree that the folder isn't downloaded.
+    private func forgetDone(_ purged: [UUID]) {
+        let purged = Set(purged)
+        guard !purged.isEmpty else { return }
+        var updated = records
+        updated.removeAll { if case .page(let key) = $0.target { purged.contains(key) } else { false } }
+        for index in updated.indices {
+            guard case .folder(let id) = updated[index].target else { continue }
+            let folder = library.folder(id: id)
+            updated[index].entries = updated[index].entries.compactMap { entry in
+                guard entry.state == .done, purged.contains(entry.key) else { return entry }
+                guard let folder, let page = library.page(key: entry.key), page.folder === folder,
+                      Self.covers(page, in: folder) else { return nil }
+                return DownloadRecord.Entry(key: entry.key)
+            }
+        }
+        updated.removeAll { $0.entries.isEmpty }
+        records = updated
     }
 
     // MARK: - What listening needs

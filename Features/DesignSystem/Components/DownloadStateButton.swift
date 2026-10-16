@@ -6,7 +6,7 @@ enum DownloadState: Equatable {
     case available
     /// Queued or rendering: how much of it is ready, 0…1.
     case downloading(fraction: Double)
-    /// Every page it covers is downloaded in the current voice.
+    /// Every page it covers is downloaded (in the download voice, or one its download kept).
     case downloaded
 
     var accessibilityLabel: String {
