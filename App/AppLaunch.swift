@@ -88,12 +88,8 @@ enum AppLaunch {
         let p = inText ? min(max(0, target.paragraph), max(0, session.document.count - 1)) : page.positionParagraph
         let autoPlay = inText && target.autoPlay
         if autoPlay {
-            // Wait (≤20 s) for the Kokoro host so the resume doesn't start on Apple.
-            var waited = 0
-            while tts.synth.state.warmingEngineID != nil, waited < 100 {
-                try? await Task.sleep(for: .milliseconds(200))
-                waited += 1
-            }
+            // The engine loads first, so the resume doesn't start on Apple.
+            await tts.waitForEngineLoad(timeout: .seconds(20))
             speech.start(session, at: ListenSpot(paragraph: p))
         } else {
             speech.prepare(session, at: ListenSpot(paragraph: p, utf16Offset: page.positionUTF16))

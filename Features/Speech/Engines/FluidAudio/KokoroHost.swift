@@ -18,9 +18,8 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID = .kokoro
 
     private let manager: KokoroAneManager
+    private let load = SingleFlightLoad()
     private let lock = NSLock()
-    private var didPrepare = false
-    private var prepareTask: Task<Void, Error>?
     private var voice: String
     var onProgress: (@Sendable (Double) -> Void)?
 
@@ -30,26 +29,17 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
     /// `.cpuAndNeuralEngine`, noise and the iSTFT tail on `.cpuAndGPU`, so the tail never runs on
     /// the CPU (BNNS). Pinned rather than FluidAudio's `.default`, which moves noise and tail to
     /// `.cpuOnly` on OS 27.
-    /// Debug knob: `-kokoroUnits default|cpuAndGpu|cpuOnly|allAne|aneTailGpu|aneTailCpu|gpuAneVocoder|aneFrontGpuBack`.
+    /// Debug knob (`FluidAudioProvider.coreMLUnits`, from `-kokoroUnits`):
+    /// `default|cpuAndGpu|cpuOnly|allAne|aneTailGpu|aneTailCpu|gpuAneVocoder|aneFrontGpuBack`.
     let unitsLabel: String
     var routingLabel: String? { unitsLabel }
     var routeTag: String? { KokoroRoute.coreMLGPU.rawValue }
 
     static let defaultUnitsLabel = "aneTailGpu"
 
-    static var launchArgUnits: String? {
-        #if DEBUG
-        let args = ProcessInfo.processInfo.arguments
-        guard let i = args.firstIndex(of: "-kokoroUnits"), i + 1 < args.count else { return nil }
-        return args[i + 1]
-        #else
-        return nil
-        #endif
-    }
-
-    init(voice: String = KokoroHost.defaultVoice, unitsOverride: String? = nil) {
+    init(voice: String = KokoroHost.defaultVoice, unitsLabel: String? = nil) {
         self.voice = voice
-        let label = unitsOverride ?? Self.launchArgUnits ?? Self.defaultUnitsLabel
+        let label = unitsLabel ?? Self.defaultUnitsLabel
         self.unitsLabel = label
         let units: KokoroAneComputeUnits
         switch label {
@@ -84,36 +74,16 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
         lock.withLock { voice }
     }
 
-    var isPrepared: Bool {
-        lock.withLock { didPrepare }
-    }
+    var isPrepared: Bool { load.isLoaded }
 
     func prepare() async throws {
-        // Single-flight: the first caller creates the load task, later callers await it.
-        let task: Task<Void, Error>? = lock.withLock {
-            if didPrepare { return nil }
-            if let existing = prepareTask { return existing }
-            let created = makePrepareTask()
-            prepareTask = created
-            return created
-        }
-        guard let task else { return }
-        do {
-            try await task.value
-            lock.withLock { didPrepare = true; prepareTask = nil }
-        } catch {
-            lock.withLock { didPrepare = false; prepareTask = nil }
-            throw error
-        }
-    }
-
-    /// Called with `lock` held (don't touch `currentVoice` here — NSLock isn't recursive).
-    private func makePrepareTask() -> Task<Void, Error> {
         let progress = onProgress
-        let voice = self.voice
-        return Task {
+        let voice = currentVoice
+        let manager = self.manager
+        let units = unitsLabel
+        try await load.run {
             let t0 = ListenTimingLog.now()
-            ListenTimingLog.log("kokoro_init_start", ["voice": voice, "units": self.unitsLabel])
+            ListenTimingLog.log("kokoro_init_start", ["voice": voice, "units": units])
             do {
                 // Fetch the 7-stage chain first so Settings can show byte progress;
                 // `initialize()` then finds everything cached and just loads.
@@ -124,7 +94,7 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
                 let tDownloaded = ListenTimingLog.ms(since: t0)
                 await SynthRenderGate.shared.acquire()
                 do {
-                    try await self.manager.initialize(preloadVoices: [voice])
+                    try await manager.initialize(preloadVoices: [voice])
                     await SynthRenderGate.shared.release()
                 } catch {
                     await SynthRenderGate.shared.release()
@@ -142,16 +112,14 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
         }
     }
 
-    func resetPrepared() {
-        lock.withLock { didPrepare = false; prepareTask = nil }
-    }
-
     func unload() async {
-        resetPrepared()
+        await load.close()
         await manager.cleanup()
     }
 
     func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM {
+        // FluidAudio reloads released models on the next call: an unloaded host never calls it.
+        guard load.isLoaded else { throw LocalSynthError.engineUnavailable("Kokoro (Core ML) not loaded") }
         do {
             let r = try await manager.synthesizeDetailed(text: text, voice: currentVoice, speed: 1.0)
             let st = r.timings

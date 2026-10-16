@@ -22,6 +22,9 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
         /// Calls (1-based, every call counted) that throw `engineUnavailable` and leave the host
         /// unprepared, as Kokoro's ONNX host does when rebuilding its session for a phase fails.
         var failingCalls: Set<Int> = []
+        /// Counts the "sessions" hosts hold (one from each load until its unload), and, like an
+        /// ORT session, a call in flight keeps its host's session alive past the unload.
+        var sessions: FakeSessionCount? = nil
     }
 
     struct FakeError: LocalizedError { var errorDescription: String? { "fake engine failure" } }
@@ -38,6 +41,9 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
     private var _calls: [(text: String, ok: Bool)] = []
     private var voice: String?
     private var _started = 0
+    private var holdsSession = false
+    private var callsInFlight = 0
+    private var unloaded = false
 
     init(engineID: SpeechEngineID, config: Config) {
         self.engineID = engineID
@@ -53,13 +59,27 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
 
     func prepare() async throws {
         onProgress?(1)
-        lock.withLock { prepared = true; _prepares += 1 }
+        let opens: Bool = lock.withLock {
+            prepared = true
+            _prepares += 1
+            defer { holdsSession = true }
+            return !holdsSession
+        }
+        if opens { config.sessions?.open() }
     }
 
     func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM {
         let secondsPerChar: Double = lock.withLock {
             _started += 1
+            callsInFlight += 1
             return voice.flatMap { config.secondsPerCharByVoice[$0] } ?? config.secondsPerChar
+        }
+        defer {
+            let closes: Bool = lock.withLock {
+                callsInFlight -= 1
+                return releaseSessionIfIdle()
+            }
+            if closes { config.sessions?.close() }
         }
         if config.latency > 0 { try await Task.sleep(nanoseconds: UInt64(config.latency * 1e9)) }
         let unloads: Bool = lock.withLock {
@@ -84,14 +104,41 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
     }
 
     func setVoice(_ voice: String) { lock.withLock { self.voice = voice } }
-    func resetPrepared() { lock.withLock { prepared = false } }
-    func unload() async { resetPrepared() }
+
+    func unload() async {
+        let closes: Bool = lock.withLock {
+            prepared = false
+            unloaded = true
+            return releaseSessionIfIdle()
+        }
+        if closes { config.sessions?.close() }
+    }
+
+    /// Called with `lock` held.
+    private func releaseSessionIfIdle() -> Bool {
+        guard unloaded, holdsSession, callsInFlight == 0 else { return false }
+        holdsSession = false
+        return true
+    }
 
     static func tone(seconds: Double, sampleRate: Int, silence: Bool = false) -> [Float] {
         let n = max(1, Int(seconds * Double(sampleRate)))
         if silence { return [Float](repeating: 0, count: n) }
         return (0..<n).map { Float(sin(2 * Double.pi * 440 * Double($0) / Double(sampleRate)) * 0.1) }
     }
+}
+
+/// Live fake sessions across hosts, and the most ever live at once.
+final class FakeSessionCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _live = 0
+    private var _peak = 0
+
+    var live: Int { lock.withLock { _live } }
+    var peak: Int { lock.withLock { _peak } }
+
+    func open() { lock.withLock { _live += 1; _peak = max(_peak, _live) } }
+    func close() { lock.withLock { _live -= 1 } }
 }
 
 /// Registers one fake on-device engine (`test.fake`).
@@ -120,12 +167,11 @@ final class FakeEngineProvider: SpeechEngineProvider {
 
     var descriptor: EngineDescriptor {
         EngineDescriptor(
-            id: Self.fakeID, kind: .onDevice,
+            id: Self.fakeID,
             displayName: "Fake (test)", shortName: "Fake", subtitle: "Test engine",
-            isRecommended: false, sortOrder: 99,
-            voices: voices, defaultVoiceID: defaultVoice, voiceDefaultsKey: nil, cacheVoicePrefix: "fake",
-            limits: limits, hardware: .none, supportsBakeCache: true,
-            crashGuarded: false, crashNoticeDetail: nil, supportedLanguages: languages)
+            sortOrder: 99,
+            voices: voices, defaultVoiceID: defaultVoice, supportedLanguages: languages,
+            onDevice: OnDeviceTraits(cacheVoicePrefix: "fake", limits: limits))
     }
 
     var descriptors: [EngineDescriptor] { [descriptor] }
@@ -174,11 +220,11 @@ final class FakeQueueContext: SynthQueueContext, SynthChunkRendering {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("FakeTTSCache-\(UUID().uuidString)")
         audioCache = ArticleAudioCache(root: root)
         host = provider.makeHost(for: FakeEngineProvider.fakeID, voice: nil) as! FakeSynthHost
-        let limits = provider.descriptor.limits
+        let limits = provider.limits
         chunkPlans = ChunkPlans { $0 == FakeEngineProvider.fakeID.rawValue ? limits : nil }
         // Private gate: the test host app may be warming a real engine on the shared gate.
         chunkRenderer = LocalChunkRenderer(host: host, descriptor: provider.descriptor, gate: SynthRenderGate(),
-                                           runState: runState)
+                                           runState: runState)! // the fake engine is on-device
     }
 
     func cleanUp() { try? FileManager.default.removeItem(at: root) }
@@ -198,14 +244,9 @@ final class FakeQueueContext: SynthQueueContext, SynthChunkRendering {
     func noteBakeMarksChanged() {}
     func bakeCompleted(cacheKey: UUID) { completed.append(cacheKey) }
 
-    func renderChunkToFile(text: String, destination: URL, context: [String: Any],
-                           priority: RenderPriority) async throws -> TimeInterval {
-        // Context "key" is only a short prefix; recover the article UUID from the destination
-        // path (<root>/<article uuid>/chunks/…) — the last UUID component (the Simulator's
-        // device / app container ids come earlier in the path).
-        let key = destination.pathComponents.compactMap(UUID.init(uuidString:)).last ?? UUID()
-        renders.append((key, context["p"] as? Int ?? -1, context["c"] as? Int ?? -1, priority))
-        return try await chunkRenderer.renderChunk(text: text, to: destination, context: context, priority: priority)
+    func renderChunkToFile(text: String, destination: URL, request: ChunkRenderRequest) async throws -> TimeInterval {
+        renders.append((request.article ?? UUID(), request.paragraph ?? -1, request.chunk, request.priority))
+        return try await chunkRenderer.renderChunk(text: text, to: destination, request: request)
     }
 
     /// Stand-in for Apple TTS (AVSpeechSynthesizer.write is unreliable in unit tests).

@@ -111,48 +111,72 @@ chunk with Apple, and `LocalPCMWriter` writes non-finite samples as 0.
 
 The libBNNS crash kills the process; nothing catches it. `EngineCrashGuard` writes an in-flight
 marker (`ListenTiming/engine_inflight.json`) around every call of an engine whose descriptor sets
-`crashGuarded`, with the route, article, paragraph and phase. On the next launch the provider
-decides (`SpeechEngineProvider.recover(from:playing:)`; engines without a hook switch to Apple).
-Kokoro answers with `KokoroCrashRecovery`:
+a crash notice (`OnDeviceTraits.crashNotice`), with the route, article, paragraph, app phase and
+memory footprint (`phys_footprint`), and removes it when the call returns, so it exists only
+while a call is in flight. Termination (`willTerminateNotification`, e.g. a swipe-kill while the
+app runs, playing or rendering) removes it and lets no call write another.
+
+A marker found at launch counts as a crash only when the engine killed the process
+(`MarkerVerdict`); otherwise it is logged (`engine_marker_dismissed`) and the launch is a normal
+one: no notice, no crash count, no voice switch, nothing reopened:
+
+- **stale:** the resume point (written per paragraph while listening) is more than 60 s newer
+  than the marker: the process played on long past the call's start, so the call didn't end it;
+- **memory kill:** the call started in the background with a footprint of 1,000 MB or more: iOS
+  reclaiming memory (jetsam), not the engine;
+- **engine crash:** anything else, including every Core ML call (they run only in front).
+
+For a crash the provider decides (`SpeechEngineProvider.recover(from:playing:)`; engines without
+a hook switch to Apple). Kokoro answers with `KokoroCrashRecovery`:
 
 - any crash turns the Core ML route off (the setting, so it stays off until turned on again);
 - a Core ML crash → the ONNX route, and the article reopens at that paragraph;
 - an ONNX crash → ONNX again and the same resume; a second ONNX crash without 40 healthy calls in
   between → Apple, with a notice in Settings ("Tap Kokoro to try again");
 - resume auto-plays when the crash was under 20 minutes ago and something was playing
-  (`ListenResumePoint`);
+  (`ListenResumeTarget.forCrash`);
 - the paragraph is applied only on a page that still holds the text it was played in; otherwise
   the page opens paused at its own spot (`AppLaunch.resumeAfterCrash`, `LISTEN_PLAYBACK.md`).
 
 On the Core ML route `coreml_breadcrumb.json` names the model and stage that was about to run;
-it is logged as `coreml_stage` in `engine_crash_detected`.
+it is logged as `coreml_stage` in `engine_crash_detected`. A process that dies while suspended
+mid-call (no notice, no time to clear) can't be told from a crash, but the render queue holds a
+background task while a call is in flight as the app leaves the front, so the call ends first.
 
-### One-time launch steps
+### Launch steps
 
 `FluidAudioProvider.launchMigrations`, run by `AppComposition.prepareAudioCache` before
 anything plays (after the library's unfinished audio work): `KokoroAudioCachePurge` (drops Kokoro
 audio rendered before the NaN patch and the boundary-trimmed joins;
 `reader.tts.kokoro.audioCacheVersion`; audio held for library work that couldn't finish is left
-for a later launch's purge) and `KokoroONNXMainMigration`
+for a later launch's purge), `KokoroONNXMainMigration`
 (a user that a Core ML crash left on Apple goes back to Kokoro on the ONNX route, at that crash's
-article and paragraph, paused).
+article and paragraph, paused), and `KokoroCoreMLStageCleanup` (with the Core ML route off, the
+stages are deleted off the main thread whenever they are found; skipped for a Core ML stress run).
+
+The route settings (`KokoroRouteSettings`) belong to `FluidAudioProvider`; the Listen debug
+panel changes them through it (`setFastGPURoute`, `setCPUThreads`), then asks the coordinator to
+rebuild the live host (`LocalTTSCoordinator.reloadEngine`, which knows no engine).
 
 ## Engine registry
 
 ```
 AppComposition (composition root: the only file that lists libraries)
-  └─ EngineRegistry(providers: [AppleSpeechProvider, FluidAudioProvider, (SpeechSwiftProvider)])
+  └─ EngineRegistry(providers: [AppleSpeechProvider, FluidAudioProvider])
        └─ injected → SpeechController(engines:) → LocalTTSCoordinator(engines:) → LocalSynthService(engines:)
 
 SpeechEngineProvider (one per library)      EngineDescriptor (per engine)
   descriptors / retiredEngines                 id, names, subtitle, recommended, sort order
-  makeHost(for:voice:) → LocalSynthHost        voices + default, voice defaults key, cache voice key style
-  isInstalled / deleteModels                   chunk limits, hardware gate, languages
-  recover(from:playing:) / launchMigrations    supportsBakeCache, crashGuarded, crash notice text
+  makeHost(for:voice:) → LocalSynthHost        voices + default, voice defaults key
+  isInstalled / deleteModels                   hardware gate, languages
+  recover(from:playing:) / launchMigrations    onDevice: OnDeviceTraits? (nil for Apple)
+                                                 cache voice prefix, chunk limits, crash notice
 LocalSynthHost (thin: load + ONE call)
   → LocalChunkRenderer (shared: normalize, gate, crash guard, re-split on inputTooLong, log, CAF)
 ```
 
+An engine is on-device exactly when its descriptor has `OnDeviceTraits`
+(`EngineRegistry.isOnDevice`): it renders ahead into the audio cache through the render queue.
 The shared core has no `import FluidAudio` and no switch on engine types: `GlobalSynthQueue`
 (`SynthQueueContext` and its `RenderTarget`, `RenderAdmission`), `ArticleAudioCache` keys, `TextChunker`,
 `LocalChunkRenderer`, `EngineCrashGuard`, `SynthRenderGate`, the Settings voice list, the engine
@@ -178,13 +202,16 @@ Test seam: `Tests/Fakes/FakeEngineProvider.swift` (tone/silence PCM, latency, pe
 1. **Dependency.** Add the package in `project.yml` (`packages:` and the target's
    `dependencies:`), then `xcodegen generate`. Library imports stay in
    `Features/Speech/Engines/<Library>/`.
-2. **Host.** Implement `LocalSynthHost`: `prepare()` (download and load; hold
-   `SynthRenderGate.shared` while loading; report `onProgress`), `synthesizeOnce(text:)` (one call →
-   `SynthesizedPCM`; map the library's "input too long" error to `LocalSynthError.inputTooLong` so
-   the shared renderer re-splits), `setVoice`, `resetPrepared`, `unload`.
-3. **Descriptor.** A new, never-changing `id` (e.g. `local.qwen3-tts`), `cacheVoicePrefix:
-   "<short>"` (cache voice keys `<short>.<voice>`), chunk `limits` sized from the per-call cap (measure chars or phonemes per
-   second of audio on a device), `hardware`, `crashGuarded` if the library can die uncatchably.
+2. **Host.** Implement `LocalSynthHost`: `prepare()` (download and load through a
+   `SingleFlightLoad`, so callers share one load and a cancel reaches it; hold
+   `SynthRenderGate.shared` while loading Core ML; report `onProgress`), `synthesizeOnce(text:)`
+   (one call → `SynthesizedPCM`; map the library's "input too long" error to
+   `LocalSynthError.inputTooLong` so the shared renderer re-splits), `setVoice`, `unload` (for good:
+   close the load first, so a load in flight can't set the models again).
+3. **Descriptor.** A new, never-changing `id` (e.g. `local.<engine>`), `hardware`, and
+   `OnDeviceTraits`: `cacheVoicePrefix: "<short>"` (cache voice keys `<short>.<voice>`), chunk
+   `limits` sized from the per-call cap (measure chars or phonemes per second of audio on a
+   device), and a `crashNotice` if the library can die uncatchably.
 4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,
    `deleteModels`; override `recover(from:playing:)` if a crash needs more than "switch away".
 5. **Register.** One line in `AppComposition.makeProviders()`.
@@ -193,12 +220,6 @@ Test seam: `Tests/Fakes/FakeEngineProvider.swift` (tone/silence PCM, latency, pe
 
 The Settings row, download / progress / delete UI, cache, bake-ahead, Apple fallback and probe
 come from the registry.
-
-`Features/Speech/Engines/SpeechSwift/SpeechSwiftProvider.swift` is a compiled-out
-(`#if canImport(Qwen3TTSCoreML)`) provider and host for speech-swift's Qwen3-TTS, registered
-behind the same `#if`. Turning it on means adding the package
-(`https://github.com/soniqo/speech-swift`, product `Qwen3TTSCoreML`, package floor iOS 18), then
-filling in `isInstalled` / `deleteModels`, measured `limits`, `subtitle` and `hardware`.
 
 ## Settings keys
 

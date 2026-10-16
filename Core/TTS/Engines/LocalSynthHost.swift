@@ -56,16 +56,16 @@ protocol LocalSynthHost: AnyObject, Sendable {
     /// Download progress (0…1) while models are fetched; may be called off-main.
     var onProgress: (@Sendable (Double) -> Void)? { get set }
     var isPrepared: Bool { get }
-    /// Download (if needed) and load models. Single-flight. Implementations must hold
-    /// `SynthRenderGate.shared` while loading Core ML models.
+    /// Download (if needed) and load models. Single-flight (`SingleFlightLoad`); cancelling the
+    /// caller cancels the load. Implementations must hold `SynthRenderGate.shared` while loading
+    /// Core ML models.
     func prepare() async throws
     /// ONE model call for already-sized text. The caller holds the render gate.
     func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM
     /// Switch voice (no-op for single-voice engines).
     func setVoice(_ voice: String)
-    /// Drop readiness so the next `prepare()` re-runs initialize.
-    func resetPrepared()
-    /// Release models (best effort).
+    /// Release the models for good, once a load in flight has stopped (it can't set them again).
+    /// An unloaded host isn't used again: `LocalSynthService` builds a new one.
     func unload() async
     /// May this host start a model call while the app is in the background? Only hosts that
     /// never touch Core ML/GPU (Kokoro's ONNX CPU route) say yes. Default: no.

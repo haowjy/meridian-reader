@@ -159,7 +159,7 @@ final class SpeechController {
     /// article's language, else Apple.
     var wantedRoute: ListenRoute {
         guard let id = localTTS.synth.state.readyEngineID, localTTS.engines.supports(id),
-              languageResolution.engineID.isLocal else { return .apple }
+              localTTS.engines.isOnDevice(languageResolution.engineID) else { return .apple }
         return .local(id, voice: localTTS.voice(for: id))
     }
 
@@ -424,13 +424,15 @@ final class SpeechController {
 
     /// `localTTS` / `audioSession` / `nowPlaying` / `appleEngine` / `resumePoints` are injectable
     /// for unit tests (temp cache, no process-wide audio session or remote command registration, a
-    /// scripted Apple engine, no resume file).
+    /// scripted Apple engine, no resume file). `keepsStoredRate` false starts at 1× whatever is
+    /// stored (a UI-test launch that passes no rate: `LaunchOptions.keepsStoredRate`).
     init(engines: EngineRegistry,
          localTTS: LocalTTSCoordinator? = nil,
          audioSession: ListenAudioSession? = nil,
          nowPlaying: NowPlayingController? = nil,
          appleEngine: ListenEngine? = nil,
-         resumePoints: ListenResumePointStore? = .shared) {
+         resumePoints: ListenResumePointStore? = .shared,
+         keepsStoredRate: Bool = true) {
         let coordinator = localTTS ?? LocalTTSCoordinator(engines: engines)
         self.localTTS = coordinator
         self.appleEngine = appleEngine ?? AppleListenEngine(runState: coordinator.synthQueue.runState)
@@ -443,15 +445,8 @@ final class SpeechController {
             "\($0.identifier)-\(Locale.current.region?.identifier ?? "US")"
         } ?? "en-US"
         self.selectedLanguageCode = storedLanguage ?? Locale.preferredLanguages.first ?? fallback
-        // `double(forKey:)` also parses a launch-argument string ("-reader.rateMultiplier 1", UI tests).
-        #if DEBUG
-        // UI tests start at 1× (hermetic) unless they pass the rate explicitly.
-        let ignoreStoredRate = LaunchOptions.current.uiTesting
-            && !ProcessInfo.processInfo.arguments.contains("-\(rateDefaultsKey)")
-        #else
-        let ignoreStoredRate = false
-        #endif
-        let storedRate = !ignoreStoredRate && UserDefaults.standard.object(forKey: rateDefaultsKey) != nil
+        // `double(forKey:)` also parses a launch-argument string ("-reader.rateMultiplier 2", UI tests).
+        let storedRate = keepsStoredRate && UserDefaults.standard.object(forKey: rateDefaultsKey) != nil
             ? UserDefaults.standard.double(forKey: rateDefaultsKey) : 1.0
         self.rateMultiplier = storedRate > 0 ? ListenRate.nearest(to: storedRate) : 1.0
         self.selectedVoiceIdentifier = UserDefaults.standard.string(forKey: voiceDefaultsKey)
@@ -466,7 +461,8 @@ final class SpeechController {
         // Bake / warm only articles the local engine can speak (others speak with Apple).
         self.localTTS.localLanguageGate = { [weak self] paragraphs in
             guard let self else { return true }
-            return self.languageResolution(detected: ListenLanguage.detectCached(paragraphs: paragraphs)).engineID.isLocal
+            let language = self.languageResolution(detected: ListenLanguage.detectCached(paragraphs: paragraphs))
+            return self.localTTS.engines.isOnDevice(language.engineID)
         }
         self.localTTS.appleVoiceForArticle = { [weak self] paragraphs in
             guard let self else { return nil }
@@ -775,7 +771,7 @@ final class SpeechController {
               let voice = localTTS.activeCacheVoice else { return nil }
         // Article speaks with Apple (language the engine can't speak): no marks, like Apple.
         let detected = detectedLanguage ?? (articleID == activeSessionID ? sessionDetectedLanguage : nil)
-        guard languageResolution(detected: detected).engineID.isLocal else { return nil }
+        guard localTTS.engines.isOnDevice(languageResolution(detected: detected).engineID) else { return nil }
         // Hide until unit count is known — empty Set would mark every HTML block not-ready.
         guard paragraphCount > 0 else { return nil }
         _ = localTTS.bakeMarksRevision

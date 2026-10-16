@@ -6,6 +6,8 @@ import XCTest
 /// Giant-paragraph cases (10k chars, 5k-char run-on, 600-char URL) check every invariant.
 @MainActor
 final class TextChunkerTests: XCTestCase {
+    /// Short calls (≈10 s of audio): many chunks per paragraph, so every cut rule runs.
+    private static let shortCalls = TextChunker.Limits(target: 120, hardMax: 140, firstTarget: 90, minResplit: 24)
     /// A synthetic ≈2.5k-char paragraph with what real prose throws at the chunker: curly quotes,
     /// aside dashes, numbers, abbreviations, initials, slashes, double spaces.
     private let longA: String = {
@@ -26,11 +28,11 @@ final class TextChunkerTests: XCTestCase {
 
     func testLongParagraphChunksStayUnderHardMax() {
         XCTAssertGreaterThan(longA.count, 2000)
-        let chunks = TextChunker.chunks(for: longA, limits: .tenSecondCall)
+        let chunks = TextChunker.chunks(for: longA, limits: Self.shortCalls)
         XCTAssertGreaterThan(chunks.count, 10)
         for chunk in chunks {
             XCTAssertLessThanOrEqual(
-                TextChunker.estimatedUnits(chunk), TextChunker.Limits.tenSecondCall.hardMax,
+                TextChunker.estimatedUnits(chunk), Self.shortCalls.hardMax,
                 "chunk over hardMax: \(chunk)"
             )
             XCTAssertFalse(chunk.isEmpty)
@@ -38,8 +40,8 @@ final class TextChunkerTests: XCTestCase {
         // First chunk is small so first audio lands sooner.
         // (A whole first sentence may use `firstSlack` instead of being cut mid-sentence.)
         XCTAssertLessThanOrEqual(TextChunker.estimatedUnits(chunks[0]),
-                                 TextChunker.Limits.tenSecondCall.firstTarget + TextChunker.Limits.firstSlack)
-        XCTAssertTrue(chunks[0].hasSuffix(".") || TextChunker.estimatedUnits(chunks[0]) <= TextChunker.Limits.tenSecondCall.firstTarget)
+                                 Self.shortCalls.firstTarget + TextChunker.Limits.firstSlack)
+        XCTAssertTrue(chunks[0].hasSuffix(".") || TextChunker.estimatedUnits(chunks[0]) <= Self.shortCalls.firstTarget)
     }
 
     func testChunksPreserveAllText() {
@@ -105,10 +107,10 @@ final class TextChunkerTests: XCTestCase {
     }
 
     func testKokoroLimitsAllowLongerChunksButStayUnderItsCap() {
-        let limits = FluidAudioProvider.kokoroDescriptor.limits
-        XCTAssertEqual(limits, .kokoroCPU)
+        let limits = TextChunker.Limits.kokoroCPU
+        XCTAssertEqual(FluidAudioProvider.kokoroDescriptor.onDevice?.limits, limits)
         let chunks = TextChunker.chunks(for: longA, limits: limits)
-        XCTAssertLessThan(chunks.count, TextChunker.chunks(for: longA, limits: .tenSecondCall).count)
+        XCTAssertLessThan(chunks.count, TextChunker.chunks(for: longA, limits: Self.shortCalls).count)
         for chunk in chunks {
             // 280 units stays under the ≈300-token call the ONNX route is sized for.
             XCTAssertLessThanOrEqual(TextChunker.estimatedUnits(chunk), limits.hardMax)
@@ -213,21 +215,21 @@ final class TextChunkerTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(Self.giantPunctuated.count, 10_000)
         XCTAssertGreaterThan(Self.sentencePool[0].count, TextChunker.Limits.kokoroCPU.firstTarget)
         assertInvariants(Self.giantPunctuated, .kokoroCPU)
-        assertInvariants(Self.giantPunctuated, .tenSecondCall)
+        assertInvariants(Self.giantPunctuated, Self.shortCalls)
     }
 
     func testGiantRunOnSentenceWithoutPunctuation() {
         XCTAssertGreaterThanOrEqual(Self.giantRunOn.count, 5_000)
         XCTAssertFalse(Self.giantRunOn.contains(where: { ".,;:!?".contains($0) }))
         assertInvariants(Self.giantRunOn, .kokoroCPU)
-        assertInvariants(Self.giantRunOn, .tenSecondCall)
+        assertInvariants(Self.giantRunOn, Self.shortCalls)
     }
 
     func testLongTokenWithoutSpaces() {
         XCTAssertEqual(Self.longURL.count, 600)
         assertInvariants(Self.longURL, .kokoroCPU)
         assertInvariants("See \(Self.longURL) for the full minutes of the meeting.", .kokoroCPU)
-        assertInvariants(Self.longURL, .tenSecondCall)
+        assertInvariants(Self.longURL, Self.shortCalls)
         // Cut pieces reassemble to the exact token.
         XCTAssertEqual(TextChunker.chunks(for: Self.longURL, limits: .kokoroCPU).joined(), Self.longURL)
     }

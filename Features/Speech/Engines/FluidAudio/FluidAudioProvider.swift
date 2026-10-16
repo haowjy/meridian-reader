@@ -23,9 +23,12 @@ final class FluidAudioProvider: SpeechEngineProvider {
     let name = "FluidAudio"
     /// Route settings source (tests inject a suite).
     let routeSettings: KokoroRouteSettings
+    /// Compute units of the Core ML route's host (`KokoroHost.unitsLabel`); nil: its default.
+    let coreMLUnits: String?
 
-    init(routeSettings: KokoroRouteSettings = KokoroRouteSettings()) {
+    init(routeSettings: KokoroRouteSettings = KokoroRouteSettings(), coreMLUnits: String? = nil) {
         self.routeSettings = routeSettings
+        self.coreMLUnits = coreMLUnits
     }
 
     /// Curated voices live in `KokoroVoiceCatalog` (one-line swaps).
@@ -36,7 +39,6 @@ final class FluidAudioProvider: SpeechEngineProvider {
     /// libBNNS (FluidAudio #844).
     static let kokoroDescriptor = EngineDescriptor(
         id: .kokoro,
-        kind: .onDevice,
         displayName: "Kokoro (on-device)",
         shortName: "Kokoro",
         subtitle: "Recommended, ~175 MB download",
@@ -45,20 +47,19 @@ final class FluidAudioProvider: SpeechEngineProvider {
         voices: kokoroVoices,
         defaultVoiceID: KokoroVoiceCatalog.defaultVoice,
         voiceDefaultsKey: "reader.tts.kokoroVoice", // pre-DI key, keep
-        cacheVoicePrefix: "kokoro",          // "kokoro.af_heart" (existing caches)
-        // Chunks ≤ 280 units; a call over `KokoroCPUHost.maxTokensPerCall` throws inputTooLong
-        // and the renderer re-splits.
-        limits: .kokoroCPU,
         hardware: HardwareRequirement(minimumOSMajor: 17, minimumChip: .a15, allowsSimulator: true,
-                                      summary: "iPhone 13 / recent iPad (A15+)"),
-        supportsBakeCache: true,
-        crashGuarded: true,
-        crashNoticeDetail: "Kokoro stopped unexpectedly",
+                                      summary: "iPhone 13 or newer (A15+)"),
         // Reader loads FluidAudio's `.english` variant only: Misaki US lexicon + BART G2P
         // fallback. British packs (bf_/bm_) change the timbre, not the pronunciation.
         // FluidAudio also has separate Mandarin/Japanese Kokoro variants (other model bundles,
         // not wired up here).
-        supportedLanguages: ["en"]
+        supportedLanguages: ["en"],
+        onDevice: OnDeviceTraits(
+            cacheVoicePrefix: "kokoro", // "kokoro.af_heart" (existing caches)
+            // Chunks ≤ 280 units; a call over `KokoroCPUHost.maxTokensPerCall` throws
+            // inputTooLong and the renderer re-splits.
+            limits: .kokoroCPU,
+            crashNotice: "Kokoro stopped unexpectedly")
     )
 
     var descriptors: [EngineDescriptor] { [Self.kokoroDescriptor] }
@@ -81,8 +82,31 @@ final class FluidAudioProvider: SpeechEngineProvider {
         [KokoroAssets.fluidAudioDirectory, KokoroONNXModelStore.directory.deletingLastPathComponent()].compactMap { $0 }
     }
 
-    /// One-time launch steps for Kokoro, run by `AppComposition.prepareAudioCache`.
-    static var launchMigrations: [LaunchMigration] { [KokoroAudioCachePurge(), KokoroONNXMainMigration()] }
+    /// Kokoro's launch steps, run by `AppComposition.prepareAudioCache`. `keepingCoreMLStages`:
+    /// a Core ML stress run (`-KokoroStress coreml`) loads the stages itself.
+    static func launchMigrations(keepingCoreMLStages: Bool = false) -> [LaunchMigration] {
+        [KokoroAudioCachePurge(), KokoroONNXMainMigration()]
+            + (keepingCoreMLStages ? [] : [KokoroCoreMLStageCleanup()])
+    }
+
+    // MARK: - Route knobs (Listen debug panel)
+
+    /// Turns the Core ML route on or off; true when that changed the route, and the live Kokoro
+    /// host must be rebuilt (`LocalTTSCoordinator.reloadEngine`).
+    func setFastGPURoute(_ on: Bool) -> Bool {
+        guard routeSettings.fastGPURouteEnabled != on else { return false }
+        routeSettings.fastGPURouteEnabled = on
+        ListenTimingLog.log("kokoro_route_change", ["route": routeSettings.route.rawValue])
+        return true
+    }
+
+    /// Sets the ONNX threads in front; true when that changed them (rebuild the live host).
+    func setCPUThreads(_ threads: Int) -> Bool {
+        guard routeSettings.cpuThreads != threads else { return false }
+        routeSettings.cpuThreads = threads
+        ListenTimingLog.log("kokoro_threads_change", ["threads": routeSettings.cpuThreads])
+        return true
+    }
 
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {
         guard id == .kokoro else { return nil }
@@ -91,7 +115,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
         case .onnxCPU: return KokoroCPUHost(voice: voice, threads: routeSettings.cpuThreads, crashCount: routeSettings)
         case .coreMLGPU:
             return KokoroSplitHost(
-                coreML: KokoroHost(voice: voice),
+                coreML: KokoroHost(voice: voice, unitsLabel: coreMLUnits),
                 onnx: KokoroCPUHost(voice: voice, threads: routeSettings.cpuThreads, crashCount: routeSettings))
         }
     }
@@ -140,16 +164,6 @@ final class FluidAudioProvider: SpeechEngineProvider {
             guard KokoroAssets.repoDirectoryExists else { return }
             try await KokoroAssets.ensureVoicePack(voice)
         }
-    }
-
-    /// One-time-per-state cleanup: with the fast GPU route off, the 7 Kokoro Core ML stages
-    /// (≈82 MB) are dead weight — the ONNX route needs only vocab, voice packs and the G2P /
-    /// lexicon files next to them. Re-downloaded automatically if the debug route is turned on.
-    /// Returns bytes freed (0 if nothing to do).
-    @discardableResult
-    nonisolated static func cleanUpUnusedCoreMLStages(settings: KokoroRouteSettings = KokoroRouteSettings()) -> Int64 {
-        guard !settings.fastGPURouteEnabled else { return 0 }
-        return KokoroAssets.deleteCoreMLStages()
     }
 
     /// Everything Chatterbox Nano wrote outside the article cache: FluidAudio's model cache,

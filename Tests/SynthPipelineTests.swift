@@ -45,7 +45,7 @@ final class SynthPipelineTests: XCTestCase {
         XCTAssertTrue(chunks.allSatisfy { TextChunker.estimatedUnits($0) <= 50 }, "\(chunks.map(\.count))")
         XCTAssertEqual(chunks.joined(separator: " "), TextChunker.normalize(text))
         // Same text, Kokoro-sized limits → fewer, longer chunks.
-        let kokoro = TextChunker.chunks(for: text, limits: FluidAudioProvider.kokoroDescriptor.limits)
+        let kokoro = TextChunker.chunks(for: text, limits: .kokoroCPU)
         XCTAssertLessThan(kokoro.count, chunks.count)
     }
 
@@ -76,7 +76,7 @@ final class SynthPipelineTests: XCTestCase {
         contexts.append(ctx)
         let text = "The ports closed, the farms failed, the grid went dark, and nobody could say when."
         let url = ctx.root.appendingPathComponent("one.caf")
-        let duration = try await ctx.chunkRenderer.renderChunk(text: text, to: url, context: [:])
+        let duration = try await ctx.chunkRenderer.renderChunk(text: text, to: url, request: ChunkRenderRequest(chunk: 0))
         let calls = ctx.host.calls
         XCTAssertTrue(calls.contains { !$0.ok && $0.text.count > 30 }, "first call overflowed")
         let ok = calls.filter(\.ok)
@@ -93,7 +93,7 @@ final class SynthPipelineTests: XCTestCase {
         contexts.append(ctx)
         do {
             _ = try await ctx.chunkRenderer.renderChunk(
-                text: "Too long for this engine.", to: ctx.root.appendingPathComponent("x.caf"), context: [:])
+                text: "Too long for this engine.", to: ctx.root.appendingPathComponent("x.caf"), request: ChunkRenderRequest(chunk: 0))
             XCTFail("expected inputTooLong")
         } catch LocalSynthError.inputTooLong {
             // expected

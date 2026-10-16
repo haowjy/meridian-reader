@@ -1,7 +1,7 @@
 import Foundation
 
 /// The one owner of chunk plans: the `TextChunker` cut of a paragraph's text into synth chunks for
-/// an engine, sized by that engine's `EngineDescriptor.limits`. The render queue, the listen
+/// an engine, sized by that engine's `OnDeviceTraits.limits`. The render queue, the listen
 /// player, the audio cache's alignment and the "still needs audio" rule all read plans here, so a
 /// paragraph has one plan per engine wherever it is asked. A plan depends only on the engine and
 /// the text, so a voice change keeps them. The paragraphs asked about last are kept, up to about

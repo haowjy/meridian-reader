@@ -92,6 +92,20 @@ struct LaunchOptions: Equatable {
     var testVoiceDelay: TimeInterval?
     /// `-resetDownloads`: start with an empty download list.
     var resetsDownloads = false
+    /// `-selectEngine <engine id>` (`local.kokoro`, `apple`, `test.voice`): the engine to load at
+    /// launch, persisted as the selection.
+    var selectsEngine: SpeechEngineID?
+    /// `-reader.rateMultiplier <n>` was passed. A UI-test launch without it starts at 1×,
+    /// whatever an earlier run stored.
+    var setsRate = false
+    /// `-kokoroUnits <label>`: compute units of Kokoro's Core ML route (`KokoroHost.unitsLabel`).
+    var kokoroUnits: String?
+    /// `-engineProbe [-probeOnly Kokoro,…] [-probeStress [-probeStressN n]]`: time every on-device
+    /// engine once launched (`EngineLatencyProbe`).
+    var engineProbe: EngineLatencyProbe.Request?
+    /// `-KokoroStress coreml|onnx [-KokoroStressCalls n] [-KokoroStressFresh]`: the Kokoro crash
+    /// and speed run (`KokoroStressRun`).
+    var kokoroStress: KokoroStressRun.Request?
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -138,7 +152,24 @@ struct LaunchOptions: Equatable {
         usesTestVoice = flags.contains("-testVoice")
         testVoiceDelay = value(after: "-testVoiceDelay").flatMap(TimeInterval.init)
         resetsDownloads = flags.contains("-resetDownloads")
+        selectsEngine = value(after: "-selectEngine").map(SpeechEngineID.init(rawValue:))
+        setsRate = flags.contains("-reader.rateMultiplier")
+        kokoroUnits = value(after: "-kokoroUnits")
+        if flags.contains("-engineProbe") {
+            engineProbe = EngineLatencyProbe.Request(
+                engines: value(after: "-probeOnly").map { Set($0.split(separator: ",").map { $0.lowercased() }) },
+                stressCalls: flags.contains("-probeStress") ? value(after: "-probeStressN").flatMap(Int.init) ?? 20 : nil)
+        }
+        if let route = value(after: "-KokoroStress").flatMap({ KokoroStressRun.Route(rawValue: $0.lowercased()) }) {
+            kokoroStress = KokoroStressRun.Request(
+                route: route,
+                calls: value(after: "-KokoroStressCalls").flatMap(Int.init).map { max(1, $0) } ?? KokoroStressCorpus.calls,
+                fresh: flags.contains("-KokoroStressFresh"))
+        }
     }
+
+    /// The stored listen speed applies (not in a UI-test launch that doesn't pass one).
+    var keepsStoredRate: Bool { !uiTesting || setsRate }
 
     /// Whether the app reopens on the surface it was left on.
     var restoresSurface: Bool { !uiTesting || restoresSurfaceInUITests }

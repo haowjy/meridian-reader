@@ -49,7 +49,6 @@ extension SynthQueueContext {
 @MainActor
 protocol SynthChunkRendering: AnyObject {
     var engineShortName: String { get }
-    func renderChunkToFile(text: String, destination: URL, context: [String: Any],
-                           priority: RenderPriority) async throws -> TimeInterval
+    func renderChunkToFile(text: String, destination: URL, request: ChunkRenderRequest) async throws -> TimeInterval
     func renderAppleFallback(text: String, destination: URL, voiceID: String?) async throws -> TimeInterval
 }

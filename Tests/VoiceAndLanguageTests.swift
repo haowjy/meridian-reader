@@ -180,7 +180,7 @@ final class VoiceAndLanguageTests: XCTestCase {
             return ListenLanguageResolution.resolve(
                 automatic: true, manualCode: "en-US",
                 detectedCode: ListenLanguage.detectCached(paragraphs: paragraphs),
-                selectedEngine: provider.descriptor).engineID.isLocal
+                selectedEngine: provider.descriptor).engineID == FakeEngineProvider.fakeID
         }
         let french = ["Le comité s'est réuni mardi pour discuter de la nouvelle bibliothèque, qui ouvrira au printemps prochain."]
         let key = UUID()

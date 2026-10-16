@@ -31,10 +31,10 @@ final class EngineRegistryTests: XCTestCase {
         XCTAssertNil(registry.makeHost(for: .retiredChatterboxNano, voice: nil))
         XCTAssertEqual(registry.systemDescriptor?.id, .apple)
         XCTAssertEqual(registry.defaultLocalEngineID, .kokoro)
-        XCTAssertFalse(registry.descriptor(.apple)!.supportsBakeCache)
-        XCTAssertTrue(registry.descriptor(.kokoro)!.supportsBakeCache)
-        XCTAssertTrue(registry.descriptor(.kokoro)!.crashGuarded)
-        XCTAssertEqual(registry.descriptor(.kokoro)?.limits, .kokoroCPU, "ONNX CPU route is the default")
+        XCTAssertFalse(registry.isOnDevice(.apple))
+        XCTAssertTrue(registry.isOnDevice(.kokoro))
+        XCTAssertNotNil(registry.descriptor(.kokoro)?.onDevice?.crashNotice, "Kokoro calls are crash-guarded")
+        XCTAssertEqual(registry.descriptor(.kokoro)?.onDevice?.limits, .kokoroCPU, "ONNX CPU route is the default")
     }
 
     func testHardwareGateAndBlockReason() {
@@ -42,7 +42,7 @@ final class EngineRegistryTests: XCTestCase {
         let registry = appRegistry(gate: { $0.minimumChip == nil })
         XCTAssertTrue(registry.supports(.apple))
         XCTAssertFalse(registry.supports(.kokoro))
-        XCTAssertEqual(registry.blockReason(.kokoro), "Insufficient hardware. Needs iPhone 13 / recent iPad (A15+).")
+        XCTAssertEqual(registry.blockReason(.kokoro), "Insufficient hardware. Needs iPhone 13 or newer (A15+).")
         XCTAssertEqual(registry.blockReason(.retiredChatterboxNano), "Unknown voice engine.")
         XCTAssertNil(registry.blockReason(.apple))
     }
@@ -73,10 +73,10 @@ final class EngineRegistryTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         let guardian = EngineCrashGuard(directory: dir)
         XCTAssertNil(guardian.consumeCrashInfo())
-        guardian.beginCall(engine: .kokoro, chars: 42, context: "t")
+        guardian.beginCall(engine: .kokoro, chars: 42)
         guardian.endCall()
         XCTAssertNil(guardian.consumeCrashInfo(), "clean call leaves no marker")
-        guardian.beginCall(engine: .kokoro, chars: 42, context: "t") // process "dies" here
+        guardian.beginCall(engine: .kokoro, chars: 42) // process "dies" here
         XCTAssertEqual(guardian.consumeCrashInfo()?.engine, .kokoro)
         XCTAssertEqual(guardian.crashCount, 1)
     }

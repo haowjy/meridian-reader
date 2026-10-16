@@ -6,23 +6,14 @@ import Foundation
 final class AppleSpeechProvider: SpeechEngineProvider {
     let name = "Apple"
 
+    /// Apple voices are picked in Settings' separate "Apple voice" section, not from here.
     static let descriptor = EngineDescriptor(
         id: .apple,
-        kind: .system,
         displayName: "Apple",
         shortName: "Apple",
         subtitle: "System voices, always available",
-        isRecommended: false,
         sortOrder: 0,
-        voices: [], // Apple voices are picked in the separate "Apple voice" section
-        defaultVoiceID: nil,
-        voiceDefaultsKey: "reader.selectedVoiceIdentifier",
-        cacheVoicePrefix: nil,
-        limits: .tenSecondCall, // only used to split Apple *fallback* text; any sane size works
-        hardware: .none,
-        supportsBakeCache: false,
-        crashGuarded: false,
-        crashNoticeDetail: nil
+        onDevice: nil
     )
 
     var descriptors: [EngineDescriptor] { [Self.descriptor] }

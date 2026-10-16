@@ -1,6 +1,6 @@
 import Foundation
 
-/// One adapter per voice library (Apple, FluidAudio, speech-swift, …). Registers the engines
+/// One adapter per voice library (Apple, FluidAudio). Registers the engines
 /// it provides and builds their synth hosts. Only provider files import the library.
 @MainActor
 protocol SpeechEngineProvider: AnyObject {
@@ -66,8 +66,16 @@ final class EngineRegistry {
     func descriptor(_ id: SpeechEngineID) -> EngineDescriptor? { byID[id]?.0 }
     func contains(_ id: SpeechEngineID) -> Bool { byID[id] != nil }
 
-    var systemDescriptor: EngineDescriptor? { descriptors.first { $0.kind == .system } }
-    var localDescriptors: [EngineDescriptor] { descriptors.filter { $0.kind == .onDevice } }
+    /// The registered provider of type `P` (a library's own debug tools reach their provider so).
+    func provider<P: SpeechEngineProvider>(_ type: P.Type) -> P? {
+        providers.lazy.compactMap { $0 as? P }.first
+    }
+
+    var systemDescriptor: EngineDescriptor? { descriptors.first { $0.onDevice == nil } }
+    var localDescriptors: [EngineDescriptor] { descriptors.filter { $0.onDevice != nil } }
+
+    /// `id` is a registered on-device engine (its descriptor has `OnDeviceTraits`).
+    func isOnDevice(_ id: SpeechEngineID) -> Bool { descriptor(id)?.onDevice != nil }
     var retiredEngines: [RetiredEngine] { providers.flatMap(\.retiredEngines) }
     var regenerableDirectories: [URL] { providers.flatMap(\.regenerableDirectories) }
 
@@ -97,7 +105,7 @@ final class EngineRegistry {
 
     func isInstalled(_ id: SpeechEngineID) -> Bool {
         guard let (d, p) = byID[id] else { return false }
-        return d.kind == .system || p.isInstalled(id)
+        return d.onDevice == nil || p.isInstalled(id)
     }
 
     func deleteModels(_ id: SpeechEngineID) throws {
@@ -113,7 +121,7 @@ final class EngineRegistry {
     /// Apple voice ("Apple").
     func voiceLabel(forCacheVoice voiceID: String) -> String {
         for d in descriptors {
-            guard let p = d.cacheVoicePrefix, voiceID.hasPrefix(p + ".") else { continue }
+            guard let p = d.onDevice?.cacheVoicePrefix, voiceID.hasPrefix(p + ".") else { continue }
             let voice = String(voiceID.dropFirst(p.count + 1))
             guard let label = d.voices.first(where: { $0.id == voice })?.label else { return d.shortName }
             return "\(d.shortName) \(label)"

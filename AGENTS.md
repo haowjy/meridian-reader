@@ -34,6 +34,9 @@ xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -confi
   Files* takes a synthetic picture), `-browseTestPages` (offline `reader-test://` pages),
   `-selectEngine apple`, `-testVoice` (an offline on-device test voice for downloads; `-selectEngine
   test.voice`), `-resetDownloads`. Keep UI tests offline; use the test pages, not live sites.
+  `LaunchOptions` parses every launch argument, the diagnostics' too (`-engineProbe`,
+  `-KokoroStress`, `-kokoroUnits`; `docs/LISTEN_PLAYBACK.md` → "Diagnostics"); the speech stack
+  gets the values from `AppComposition`, never from the process arguments.
 - `ScreenshotCaptureTests` is skipped unless `TEST_RUNNER_READER_SCREENSHOTS_DIR=<dir>` is set in
   xcodebuild's environment.
 - `KokoroNaNProbeTests` and `KokoroONNXSessionTests` run only when the Mac research model is at

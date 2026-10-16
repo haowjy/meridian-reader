@@ -58,11 +58,6 @@ final class KokoroSplitHost: LocalSynthHost, @unchecked Sendable {
         onnx.setVoice(voice)
     }
 
-    func resetPrepared() {
-        coreML.resetPrepared()
-        onnx.resetPrepared()
-    }
-
     func unload() async {
         await coreML.unload()
         await onnx.unload()

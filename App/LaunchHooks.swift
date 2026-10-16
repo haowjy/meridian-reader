@@ -9,8 +9,8 @@ enum LaunchHooks {
     /// Before the library's launch maintenance: the engine probe, the Kokoro stress run, and
     /// `-rerunLibraryMigration`.
     static func runBeforeMigrations(_ options: LaunchOptions, library: LibraryStore, tts: LocalTTSCoordinator) {
-        EngineLatencyProbe.runIfRequested(coordinator: tts)
-        KokoroStressRun.runIfRequested(coordinator: tts)
+        if let probe = options.engineProbe { EngineLatencyProbe.start(probe, coordinator: tts) }
+        if let stress = options.kokoroStress { KokoroStressRun.start(stress, coordinator: tts) }
         if options.rerunsLibraryMigration { library.resetForMigrationRerun() }
     }
 
@@ -211,12 +211,7 @@ enum LaunchHooks {
     /// (≤ 20 s) for the on-device engine so it doesn't start on Apple. Returns where it started.
     private static func play(_ book: Folder, library: LibraryStore, speech: SpeechController) async -> (page: Page, spot: ListenSpot)? {
         guard speech.activeSessionID == nil, let start = library.continueStart(of: book) else { return nil }
-        let tts = speech.localTTS
-        var waited = 0
-        while tts.synth.state.warmingEngineID != nil, waited < 100 {
-            try? await Task.sleep(for: .milliseconds(200))
-            waited += 1
-        }
+        await speech.localTTS.waitForEngineLoad(timeout: .seconds(20))
         speech.start(.page(start.page), at: start.spot)
         return start
     }

@@ -1,36 +1,12 @@
 #if DEBUG
 import BackgroundTasks
-import Darwin
 import Foundation
-import os
 #if canImport(UIKit)
 import UIKit
 #endif
 
 /// Process metrics for the CPU route benchmark / soak.
 enum CPURouteMetrics {
-    /// `phys_footprint` (what jetsam counts) and the process-lifetime peak, bytes.
-    static func footprint() -> (current: UInt64, peak: UInt64) {
-        var info = task_vm_info_data_t()
-        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
-        let kr = withUnsafeMutablePointer(to: &info) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
-            }
-        }
-        guard kr == KERN_SUCCESS else { return (0, 0) }
-        return (info.phys_footprint, info.ledger_phys_footprint_peak > 0 ? UInt64(info.ledger_phys_footprint_peak) : 0)
-    }
-
-    /// Bytes the app can still allocate before hitting its jetsam limit (0 if unknown).
-    static func availableMemory() -> UInt64 {
-        #if os(iOS)
-        return UInt64(os_proc_available_memory())
-        #else
-        return 0
-        #endif
-    }
-
     static func mb(_ bytes: UInt64) -> Double { (Double(bytes) / 1_048_576 * 10).rounded() / 10 }
 
     static var thermal: String {
@@ -82,8 +58,8 @@ final class FootprintSampler: @unchecked Sendable {
     }
 
     private func sample() {
-        let fp = CPURouteMetrics.footprint().current
-        let avail = CPURouteMetrics.availableMemory()
+        let fp = ProcessMemory.footprint().current
+        let avail = ProcessMemory.availableMemory()
         lock.withLock {
             maxBytes = max(maxBytes, fp)
             if avail > 0 { minAvail = min(minAvail, avail) }

@@ -45,9 +45,8 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     static let maxTokensPerCall = 360
     static let gain = KokoroCPUAudio.coreMLMatchGain
 
+    private let load = SingleFlightLoad()
     private let lock = NSLock()
-    private var didPrepare = false
-    private var prepareTask: Task<Void, Error>?
     private var voice: String
     private var sessions: KokoroONNXSessionSlot<KokoroONNXSession>?
     private var frontend: KokoroAneCPUFrontend?
@@ -81,7 +80,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     /// Give the ONNX session's memory back and stay prepared: the next call builds it again.
     func releaseSession(reason: String) {
         guard let sessions = lock.withLock({ self.sessions }), sessions.release() else { return }
-        ListenTimingLog.log("kokoro_cpu_session_released", ["reason": reason, "mem_mb": Self.footprintMB()])
+        ListenTimingLog.log("kokoro_cpu_session_released", ["reason": reason, "mem_mb": ProcessMemory.footprintMB])
     }
 
     /// Threads for a call now.
@@ -89,37 +88,14 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
 
     func setVoice(_ voice: String) { lock.withLock { self.voice = voice } }
     private var currentVoice: String { lock.withLock { voice } }
-    var isPrepared: Bool { lock.withLock { didPrepare } }
+    var isPrepared: Bool { load.isLoaded }
 
     func prepare() async throws {
-        let task: Task<Void, Error>? = lock.withLock {
-            if didPrepare { return nil }
-            if let existing = prepareTask { return existing }
-            let created = makePrepareTask()
-            prepareTask = created
-            return created
-        }
-        guard let task else { return }
-        do {
-            try await withTaskCancellationHandler {
-                try await task.value
-            } onCancel: {
-                task.cancel()
-            }
-            lock.withLock { didPrepare = true; prepareTask = nil }
-        } catch {
-            lock.withLock { didPrepare = false; prepareTask = nil }
-            throw error
-        }
-    }
-
-    /// Called with `lock` held.
-    private func makePrepareTask() -> Task<Void, Error> {
         let progress = onProgress
-        let voice = self.voice
+        let voice = currentVoice
         let threads = phaseThreads
         let qos = self.sessionQoS
-        return Task {
+        try await load.run {
             let t0 = ListenTimingLog.now()
             let reused = KokoroONNXModelStore.fileLooksInstalled
             ListenTimingLog.log("kokoro_cpu_init_start", ["voice": voice, "threads": threads, "model_on_disk": reused])
@@ -166,14 +142,10 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
         }
     }
 
-    func resetPrepared() {
-        lock.withLock { didPrepare = false; prepareTask = nil }
-    }
-
+    /// After the load in flight (if any) has stopped, so it can't set a session again.
     func unload() async {
+        await load.close()
         lock.withLock {
-            didPrepare = false
-            prepareTask = nil
             sessions = nil
             frontend = nil
             packs.removeAll()
@@ -223,7 +195,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
             metrics: [
                 "phonemes": phonemes.count, "tokens": ids.count, "style_row": inputs.styleRow,
                 "g2p_ms": g2pMs, "onnx_ms": onnxMs, "threads": session.threads, "nan_retry": nanRetry,
-                "mem_mb": Self.footprintMB(),
+                "mem_mb": ProcessMemory.footprintMB,
             ]
         )
     }
@@ -238,7 +210,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
             let (session, rebuiltFrom) = try await sessions.session(threads: wanted)
             if wasReleased {
                 ListenTimingLog.log("kokoro_cpu_session_rebuilt", [
-                    "threads": wanted, "ms": ListenTimingLog.ms(since: t0), "mem_mb": Self.footprintMB(),
+                    "threads": wanted, "ms": ListenTimingLog.ms(since: t0), "mem_mb": ProcessMemory.footprintMB,
                 ])
             }
             if let rebuiltFrom {
@@ -246,27 +218,15 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
                 RenderPace.shared.reset()
                 ListenTimingLog.log("kokoro_cpu_threads_switch", [
                     "from": rebuiltFrom, "to": wanted, "phase": runState.phase.rawValue,
-                    "ms": ListenTimingLog.ms(since: t0), "mem_mb": Self.footprintMB(),
+                    "ms": ListenTimingLog.ms(since: t0), "mem_mb": ProcessMemory.footprintMB,
                 ])
             }
             return session
         } catch {
             ListenTimingLog.log("kokoro_cpu_threads_switch", ["to": wanted, "ok": false, "err": error.localizedDescription])
-            lock.withLock { didPrepare = false }
+            load.reset()
             throw error
         }
-    }
-
-    /// App memory footprint (what jetsam counts), MB; logged per call to watch chunk-size memory.
-    static func footprintMB() -> Int {
-        var info = task_vm_info_data_t()
-        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
-        let kr = withUnsafeMutablePointer(to: &info) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
-            }
-        }
-        return kr == KERN_SUCCESS ? Int(info.phys_footprint / 1_048_576) : -1
     }
 
     private func voicePack(_ voice: String) throws -> [Float] {

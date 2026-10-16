@@ -64,10 +64,17 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
   paragraph with chunks and no CAF in the voice; a bare "—" is never missing). Anything new that
   asks "is this rendered / done" calls it rather than counting `readyIndices` against the
   paragraph count.
-- **Model calls.** One at a time (`SynthRenderGate`), never a Core ML call in the background
+- **Model calls.** One host's models resident at a time: `LocalSynthService` lets a host go
+  (`LocalChunkRenderer.unload`) before it loads the next, and an unloaded host is never used again
+  (`LocalSynthServiceTests`). One call at a time (`SynthRenderGate`), never a Core ML call in the background
   (`RenderAdmission`; the Core ML route's `KokoroSplitHost` switches itself to ONNX there for the
   rest of the process). Every extra Kokoro call is exposure to an uncatchable crash on iOS 26.4+, so
   don't add re-renders: `BrowseSaveWhilePlayingTests` pins the call count.
+- **Only a death inside the engine is a crash.** The in-flight marker exists only during a
+  guarded call; termination clears it, and launch drops a marker the process outlived or a
+  background memory kill (`EngineCrashGuard.MarkerVerdict`). Anything that adds a long wait inside
+  a guarded call, or changes what the resume point records, moves those verdicts: keep calls far
+  under `EngineCrashGuard.callBound`.
 - **Thread counts are per phase.** In front the ONNX session runs every core but one (3 to 6,
   `KokoroRouteSettings.defaultThreads`), in the background one; the first call after a phase
   change rebuilds the session (`KokoroONNXSessionSlot`). Pick the front count from the CPU route

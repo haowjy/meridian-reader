@@ -107,7 +107,7 @@ struct ListenLanguageResolution: Equatable, Sendable {
             code = manualCode
             source = automatic ? .fallback : .manual
         }
-        guard let engine = selectedEngine, engine.id.isLocal, !engine.supportsLanguage(code) else {
+        guard let engine = selectedEngine, engine.onDevice != nil, !engine.supportsLanguage(code) else {
             return ListenLanguageResolution(
                 languageCode: code, source: source, engineID: selectedEngine?.id ?? .apple,
                 unsupportedEngineID: nil, note: nil)

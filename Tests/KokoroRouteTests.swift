@@ -56,7 +56,7 @@ final class KokoroRouteTests: XCTestCase {
         XCTAssertEqual(gpu?.routeTag, "coreml")
         XCTAssertEqual(gpu?.routingLabel, "aneTailGpu")
         XCTAssertEqual(gpu?.rendersInBackground, true, "ONNX takes over in the background")
-        XCTAssertEqual(provider.descriptors.first?.limits, TextChunker.Limits.kokoroCPU)
+        XCTAssertEqual(provider.descriptors.first?.onDevice?.limits, TextChunker.Limits.kokoroCPU)
     }
 
     func testCoreMLRouteNamesONNXForACallInTheBackground() {
@@ -124,8 +124,7 @@ final class KokoroRouteTests: XCTestCase {
         let guardian = EngineCrashGuard(directory: dir)
         let crumbs = CoreMLBreadcrumbFile(url: dir.appendingPathComponent("coreml_breadcrumb.json"))
         crumbs.write(model: "kokoro", stage: "albert.done", detail: nil, now: Date().addingTimeInterval(-60)) // stale
-        guardian.beginCall(engine: .kokoro, chars: 174, context: "BA7D7639/p14", route: "coreml",
-                           article: UUID().uuidString, paragraph: 14, phase: "foreground")
+        guardian.beginCall(engine: .kokoro, chars: 174, route: "coreml", article: UUID(), paragraph: 14)
         crumbs.write(model: "g2p.bart", stage: "decoder", detail: "Adric")
         let info = guardian.consumeCrashInfo()
         XCTAssertEqual(info?.coreMLStage, "g2p.bart/decoder")
@@ -134,7 +133,7 @@ final class KokoroRouteTests: XCTestCase {
 
         // ONNX route: no Core ML breadcrumb newer than the marker → nil.
         crumbs.write(model: "kokoro", stage: "vocoder", detail: nil, now: Date().addingTimeInterval(-60))
-        guardian.beginCall(engine: .kokoro, chars: 80, context: "x/p1", route: "onnx")
+        guardian.beginCall(engine: .kokoro, chars: 80, route: "onnx")
         XCTAssertNil(guardian.consumeCrashInfo()?.coreMLStage)
     }
 
@@ -158,8 +157,8 @@ final class KokoroRouteTests: XCTestCase {
         let article = UUID()
 
         // Core ML crash → Kokoro kept, fast route off, resume at the marker's paragraph.
-        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 174, context: "BA7D7639/p14",
-                                                       route: "coreml", article: article.uuidString, paragraph: 14)
+        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 174, route: "coreml",
+                                                       article: article, paragraph: 14)
         let c1 = makeCoordinator(defaults: d, guardDir: guardDir)
         XCTAssertEqual(c1.selectedEngineID, .kokoro)
         XCTAssertEqual(c1.engineCrashNotice, KokoroCrashRecovery.resumedNotice)
@@ -170,17 +169,75 @@ final class KokoroRouteTests: XCTestCase {
 
         // First ONNX crash → still Kokoro. A crash on the Core ML route's ONNX half turns the route off too.
         s.fastGPURouteEnabled = true
-        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, context: "x/p2", route: "onnx")
+        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, route: "onnx")
         let c2 = makeCoordinator(defaults: d, guardDir: guardDir)
         XCTAssertEqual(c2.selectedEngineID, .kokoro)
         XCTAssertEqual(KokoroRouteSettings(defaults: d).onnxCrashCount, 1)
         XCTAssertFalse(KokoroRouteSettings(defaults: d).fastGPURouteEnabled)
 
         // Second ONNX crash → Apple, with the explicit notice.
-        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, context: "x/p3", route: "onnx")
+        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, route: "onnx")
         let c3 = makeCoordinator(defaults: d, guardDir: guardDir)
         XCTAssertEqual(c3.selectedEngineID, .apple)
         XCTAssertEqual(c3.engineCrashNotice, KokoroCrashRecovery.appleNotice)
+    }
+
+    /// The libBNNS containment: a death inside the call while listening reopens the page and
+    /// plays on.
+    func testAFreshMarkerStillResumesAndAutoPlays() {
+        let d = suiteDefaults()
+        let guardDir = tempDir()
+        d.set(SpeechEngineID.kokoro.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
+        let article = UUID()
+        ListenResumePointStore.shared.save(article: article, paragraph: 4, at: Date().addingTimeInterval(-5))
+        defer { ListenResumePointStore.shared.clear() }
+        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, route: "onnx",
+                                                       article: article, paragraph: 6)
+        let c = makeCoordinator(defaults: d, guardDir: guardDir)
+        XCTAssertEqual(c.engineCrashNotice, KokoroCrashRecovery.resumedNotice)
+        XCTAssertEqual(KokoroRouteSettings(defaults: d).onnxCrashCount, 1)
+        let resume = c.takePendingResume()
+        XCTAssertEqual(resume?.paragraph, 4, "the paragraph that was playing")
+        XCTAssertEqual(resume?.autoPlay, true)
+    }
+
+    /// The process played on two minutes after the call began: it outlived that call, so the
+    /// marker is no crash (no notice, no count, no resume).
+    func testAStaleMarkerNeitherResumesNorCounts() {
+        let d = suiteDefaults()
+        let guardDir = tempDir()
+        d.set(SpeechEngineID.kokoro.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
+        let article = UUID()
+        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, route: "onnx",
+                                                       article: article, paragraph: 6)
+        ListenResumePointStore.shared.save(article: article, paragraph: 9, at: Date().addingTimeInterval(120))
+        defer { ListenResumePointStore.shared.clear() }
+        let c = makeCoordinator(defaults: d, guardDir: guardDir)
+        XCTAssertEqual(c.selectedEngineID, .kokoro)
+        XCTAssertNil(c.engineCrashNotice)
+        XCTAssertNil(c.takePendingResume(), "nothing plays at launch")
+        XCTAssertEqual(KokoroRouteSettings(defaults: d).onnxCrashCount, 0)
+        XCTAssertNil(c.launchCrash)
+    }
+
+    /// iOS reclaimed a backgrounded app mid-call with a large footprint: that isn't the engine,
+    /// so a second one doesn't switch the voice to Apple.
+    func testABackgroundMemoryKillKeepsTheVoice() throws {
+        ListenResumePointStore.shared.clear()
+        let d = suiteDefaults()
+        let guardDir = tempDir()
+        d.set(SpeechEngineID.kokoro.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
+        KokoroRouteSettings(defaults: d).onnxCrashCount = 1
+        try FileManager.default.createDirectory(at: guardDir, withIntermediateDirectories: true)
+        try JSONSerialization.data(withJSONObject: [
+            "t": Date().timeIntervalSince1970, "engine": "local.kokoro", "chars": 120, "route": "onnx",
+            "article": UUID().uuidString, "p": 3, "phase": "background",
+            "mem_mb": EngineCrashGuard.memoryKillFootprintMB + 200,
+        ]).write(to: guardDir.appendingPathComponent("engine_inflight.json"))
+        let c = makeCoordinator(defaults: d, guardDir: guardDir)
+        XCTAssertEqual(c.selectedEngineID, .kokoro)
+        XCTAssertNil(c.engineCrashNotice)
+        XCTAssertEqual(KokoroRouteSettings(defaults: d).onnxCrashCount, 1)
     }
 
     func testAnEngineWithoutARecoveryHookSwitchesAwayOnlyWhenItWasSelected() async {
@@ -192,7 +249,7 @@ final class KokoroRouteTests: XCTestCase {
                                 crashGuard: EngineCrashGuard(directory: guardDir))
         }
         d.set(FakeEngineProvider.fakeID.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
-        EngineCrashGuard(directory: guardDir).beginCall(engine: FakeEngineProvider.fakeID, chars: 10, context: "x/p1")
+        EngineCrashGuard(directory: guardDir).beginCall(engine: FakeEngineProvider.fakeID, chars: 10)
         let c = coordinator()
         XCTAssertEqual(c.selectedEngineID, .apple)
         XCTAssertEqual(c.engineCrashNotice?.hasPrefix("Fake crashed last session"), true)
@@ -202,19 +259,23 @@ final class KokoroRouteTests: XCTestCase {
 
         // A crash inside an engine that wasn't the selection changes nothing.
         d.set(SpeechEngineID.apple.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
-        EngineCrashGuard(directory: guardDir).beginCall(engine: FakeEngineProvider.fakeID, chars: 10, context: "x/p1")
+        EngineCrashGuard(directory: guardDir).beginCall(engine: FakeEngineProvider.fakeID, chars: 10)
         let quiet = coordinator()
         XCTAssertEqual(quiet.selectedEngineID, .apple)
         XCTAssertNil(quiet.engineCrashNotice)
     }
 
-    func testOneTimeMigrationBringsAppleUserBackToKokoroPaused() {
+    func testOneTimeMigrationBringsAppleUserBackToKokoroPaused() throws {
         ListenResumePointStore.shared.clear()
         let d = suiteDefaults()
         let guardDir = tempDir()
         // Old build: Core ML crash already consumed → Apple selected, engine_crashes.json remains.
+        // Its marker named the article and paragraph in one "ctx" string, and no route.
         let g = EngineCrashGuard(directory: guardDir)
-        g.beginCall(engine: .kokoro, chars: 174, context: "BA7D7639/p14")
+        try FileManager.default.createDirectory(at: guardDir, withIntermediateDirectories: true)
+        try JSONSerialization.data(withJSONObject: [
+            "t": Date().timeIntervalSince1970, "engine": "local.kokoro", "chars": 174, "ctx": "BA7D7639/p14",
+        ]).write(to: guardDir.appendingPathComponent("engine_inflight.json"))
         _ = g.consumeCrashInfo()
         d.set(SpeechEngineID.apple.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
 
@@ -287,12 +348,10 @@ final class KokoroStubProvider: SpeechEngineProvider {
 
     var descriptors: [EngineDescriptor] {
         [EngineDescriptor(
-            id: .kokoro, kind: .onDevice,
+            id: .kokoro,
             displayName: "Kokoro (stub)", shortName: "Kokoro", subtitle: "Test",
             isRecommended: true, sortOrder: 1,
-            voices: [], defaultVoiceID: nil, voiceDefaultsKey: nil, cacheVoicePrefix: "kstub",
-            limits: .kokoroCPU, hardware: .none, supportsBakeCache: true,
-            crashGuarded: true, crashNoticeDetail: "test", supportedLanguages: [])]
+            onDevice: OnDeviceTraits(cacheVoicePrefix: "kstub", limits: .kokoroCPU, crashNotice: "test"))]
     }
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {
         id == .kokoro ? FakeSynthHost(engineID: id, config: .init(rendersInBackground: true)) : nil

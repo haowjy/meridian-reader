@@ -19,7 +19,11 @@ final class LocalSynthService: SynthChunkRendering {
     @ObservationIgnored private var engineVoice: String?
     /// Host + renderer for `engineID` (nil until first use, and after an unload).
     @ObservationIgnored private var renderer: LocalChunkRenderer?
-    @ObservationIgnored private let appleRenderer = ProbePCMRenderer()
+    /// The hosts let go, releasing their models (`LocalChunkRenderer.unload`). Every load waits
+    /// for them first, so two hosts' models are never resident together (two ORT sessions are
+    /// ≈1 GB).
+    @ObservationIgnored private var retiring: Task<Void, Never>?
+    @ObservationIgnored private let appleRenderer = AppleFallbackRenderer()
 
     init(engines: EngineRegistry) {
         self.engines = engines
@@ -29,15 +33,10 @@ final class LocalSynthService: SynthChunkRendering {
     var engineShortName: String { engines.shortName(engineID) }
     /// Routing label of the live host (debug).
     var hostRoutingLabel: String? { renderer?.host.routingLabel }
+    /// Route tag of the live host ("onnx", "coreml"; nil when none is built).
+    var hostRouteTag: String? { renderer?.host.routeTag }
     /// The live host keeps rendering in the background (Kokoro ONNX CPU route).
     var rendersInBackground: Bool { renderer?.host.rendersInBackground ?? false }
-
-    /// The live renderer if it is already built for `id`. The latency probe and the CPU bench
-    /// reuse it: two loaded Kokoro Core ML instances make predictions fail on device.
-    func liveRenderer(for id: SpeechEngineID) -> LocalChunkRenderer? {
-        guard let renderer, renderer.engineID == id else { return nil }
-        return renderer
-    }
 
     // MARK: - Lifecycle
 
@@ -90,14 +89,14 @@ final class LocalSynthService: SynthChunkRendering {
     func cancelDownload() {
         guard case .warming = state else { return }
         cancelLoad()
-        resetHost()
+        unloadHost()
         setState(.off)
     }
 
     /// The live listen could not start on the engine: drop its host and let Apple speak.
     func noteSpeakFailed(_ error: Error) {
         guard let id = state.readyEngineID else { return }
-        resetHost()
+        unloadHost()
         setState(.failed(id, message: friendlyError(error, engine: id)))
     }
 
@@ -119,7 +118,7 @@ final class LocalSynthService: SynthChunkRendering {
     /// Point the service at `id`. Same engine: forward a voice change to its host. Another engine:
     /// unload the old host (the next render or load builds the new one).
     private func use(_ id: SpeechEngineID, voice: String?) {
-        guard id.isLocal else { return }
+        guard engines.isOnDevice(id) else { return }
         let voiceChanged = voice != engineVoice
         engineVoice = voice
         if let renderer, renderer.engineID == id {
@@ -134,15 +133,30 @@ final class LocalSynthService: SynthChunkRendering {
         engineID = id
     }
 
+    /// Let the live host go: its load in flight stops, its models are released and the render in
+    /// flight on it finishes; the next load or render waits for all of that, then builds a new one.
     private func unloadHost() {
         guard let old = renderer else { return }
         renderer = nil
-        Task { await old.host.unload() }
+        let earlier = retiring
+        retiring = Task {
+            await earlier?.value
+            await old.unload()
+        }
     }
 
-    private func resetHost() {
-        renderer?.host.resetPrepared()
-        renderer = nil
+    /// Let the live host go and wait until its models are released: for diagnostics that load
+    /// models of their own. The next render builds and loads a new host.
+    func releaseHost() async {
+        unloadHost()
+        await waitForRetiredHosts()
+    }
+
+    private func waitForRetiredHosts() async {
+        while let pending = retiring {
+            await pending.value
+            if retiring == pending { retiring = nil }
+        }
     }
 
     private func friendlyError(_ error: Error, engine: SpeechEngineID) -> String {
@@ -156,8 +170,9 @@ final class LocalSynthService: SynthChunkRendering {
 
     private func currentRenderer() throws -> LocalChunkRenderer {
         if let renderer, renderer.engineID == engineID { return renderer }
-        guard let descriptor = engines.descriptor(engineID), descriptor.kind == .onDevice,
-              let host = engines.makeHost(for: engineID, voice: engineVoice)
+        guard let descriptor = engines.descriptor(engineID),
+              let host = engines.makeHost(for: engineID, voice: engineVoice),
+              let made = LocalChunkRenderer(host: host, descriptor: descriptor)
         else {
             throw LocalSynthError.engineUnavailable(
                 engines.blockReason(engineID) ?? "\(engines.displayName(engineID)) is not available on this device.")
@@ -165,7 +180,6 @@ final class LocalSynthService: SynthChunkRendering {
         host.onProgress = { [weak self] fraction in
             Task { @MainActor in self?.noteLoadProgress(fraction) }
         }
-        let made = LocalChunkRenderer(host: host, descriptor: descriptor)
         renderer = made
         return made
     }
@@ -175,21 +189,22 @@ final class LocalSynthService: SynthChunkRendering {
         setState(.warming(id, progress: fraction, task: task))
     }
 
-    /// Build and load the host if needed (no-op once loaded).
+    /// Build and load the host if needed (no-op once loaded), once every host let go has
+    /// released its models.
     func prepare() async throws {
+        await waitForRetiredHosts()
         try await currentRenderer().prepare()
     }
 
     /// One synth chunk → CAF (render queue worker). Re-splits internally on overflow.
-    func renderChunkToFile(text: String, destination: URL, context: [String: Any],
-                           priority: RenderPriority) async throws -> TimeInterval {
+    func renderChunkToFile(text: String, destination: URL, request: ChunkRenderRequest) async throws -> TimeInterval {
         try await prepare()
-        return try await currentRenderer().renderChunk(text: text, to: destination, context: context, priority: priority)
+        return try await currentRenderer().renderChunk(text: text, to: destination, request: request)
     }
 
     /// Apple TTS render of `text` (the engine couldn't produce it): `voiceID`, else the system
-    /// voice for US English.
+    /// voice for US English. Throws when Apple fails too, or stops responding.
     func renderAppleFallback(text: String, destination: URL, voiceID: String?) async throws -> TimeInterval {
-        try await appleRenderer.render(text: text, to: destination, voiceID: voiceID, language: "en-US")
+        try await appleRenderer.render(text: text, to: destination, voiceID: voiceID)
     }
 }

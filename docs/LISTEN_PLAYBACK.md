@@ -143,8 +143,14 @@ so the players, the Apple voice and the lock screen agree. Adapters report facts
 ### Engine binding
 
 - `LocalSynthService` (`LocalTTSCoordinator.synth`) holds the on-device model: the one resident
-  host behind `LocalChunkRenderer`, the Apple renderer for text the engine can't produce, and the
-  lifecycle `state` (`LocalEngineState`): `off` (Apple speaks), `warming(id, progress, task)`
+  host behind `LocalChunkRenderer`, the Apple renderer for text the engine can't produce
+  (`AppleFallbackRenderer`: a synthesizer per render, so the render queue's fallback and the
+  player's never wait on each other and none outlives a media-services reset; a synthesizer that
+  sends nothing for 10 s is stopped and the render fails like any other), and the
+  lifecycle `state` (`LocalEngineState`). A reload, an engine switch, *Delete model*, Settings'
+  cancel or a failed start lets the host go: its load in flight stops, its models are released and
+  the model call in flight on it finishes, and only then does the next host load, so two hosts'
+  models (two ORT sessions, ≈1 GB) are never resident together. The states: `off` (Apple speaks), `warming(id, progress, task)`
   (download / load in flight; `task` is the single load, cancelling it abandons the load),
   `ready(id)`, `failed(id, message)` (Apple speaks; Settings shows the message). On every change
   the coordinator persists `reader.tts.engineID`, calls `onEngineChange` and tells the render
@@ -210,7 +216,10 @@ other text on the page starts it over. A session moves to another key only onto 
 its text: a merge whose kept page holds other text when it runs, or a Save landing on an older
 page while the session plays older text, stops it instead (`rekeyActiveSession`).
 
-Crash resume follows the text too. The resume file keeps the playing paragraph with the
+Crash resume runs only after a death the engine caused (`TTS_ENGINES.md` → "Crashes"): a
+terminated process clears its in-flight marker, and a marker the process outlived, or one left by
+a memory kill in the background, is logged and ignored, so nothing reopens or plays. Crash resume
+follows the text too. The resume file keeps the playing paragraph with the
 session's text fingerprint, and the layout pass and merges that move it map the paragraph into
 the text they move it to and give it that text's fingerprint (a point in other text than the page
 they move keeps its paragraph and text). At launch (`AppLaunch.resumeAfterCrash`) the paragraph is
@@ -408,7 +417,7 @@ once. An overflowing call (`inputTooLong`) is re-split down to 24 units.
 ### Chunking
 
 The paragraph is the listen unit; internally `TextChunker` cuts it into chunks sized per engine
-(`EngineDescriptor.limits`; units ≈ characters, digits count 3). Invariant (unit-tested):
+(`OnDeviceTraits.limits` in its descriptor; units ≈ characters, digits count 3). Invariant (unit-tested):
 `chunks.joined(" ") == normalize(text)`. One owner keeps the plans, `ChunkPlans` (on the
 coordinator, keyed by engine and text, bounded to the paragraphs asked about last, kept across a
 voice change): the render queue, the player, the audio cache's alignment and the "still needs
@@ -417,7 +426,6 @@ audio" rule all read it.
 | Limits | Target | Hard max | First chunk | Used by |
 |---|---|---|---|---|
 | `kokoroCPU` | 240 | 280 | 80 (a whole first sentence ≤ 104) | Kokoro, either route |
-| `tenSecondCall` | 120 | 140 | 90 | Apple fallback text, ~10 s-per-call engines |
 
 - **Sentences first.** Whole sentences are packed up to the chunk's budget (abbreviation-,
   initial-, "U.S.A."- and decimal-aware). A sentence that fits the hard max is split only to make
@@ -702,13 +710,17 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   --destination /tmp/timing
 ```
 
-**Debug-build tools** (launch arguments compile only in Debug):
+**Debug-build tools** (launch arguments compile only in Debug; `LaunchOptions` parses them and
+`AppComposition` / `LaunchHooks` hand them on):
 
 - `-engineProbe [-probeOnly Kokoro]` or the panel's "Run engine probe": per engine, init,
   first-chunk latency and wall vs audio time for 60 / 150 / 400 characters, into
-  `Documents/engine_probe.txt` (written before each step, so a crash shows where it died). It
-  reuses the app's live host for the selected engine (a second loaded copy of the same models
-  fails on device) and holds the render worker while it runs.
+  `Documents/engine_probe.txt` (written before each step, so a crash shows where it died). Like
+  the stress run and the CPU route benchmark it runs with the model to itself
+  (`LocalTTSCoordinator.withRenderingQuiet`): the app's load settles, the render worker holds and
+  the app's host goes (a second loaded copy of the same Core ML models fails on device, and a
+  second ORT session doubles the memory), then it builds its own host per engine; the queue's next
+  render loads the app's engine again.
 - `-bakeArticle <saved id prefix>`: render that saved article top-down in the foreground without
   playing it, then pull ListenTiming and TTSCache.
 - `-seedDemoBook`: a synthetic book (a skipped title page and three chapters of about a minute and
@@ -755,7 +767,8 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
 - **CPU route benchmark** (panel → "CPU route benchmark"): `KokoroONNXSession` at 1–6 threads and
   QoS variants on a fixed 501-phoneme passage and its first three sentences (load ms, cold / warm
   times, × real time, CPU-s per audio-s, thermal, memory), plus a lock-screen soak that renders
-  continuously for N minutes. Pauses the queue and holds the render gate. Output
+  continuously for N minutes. The benchmark pauses the queue, lets the app's host go and holds the
+  render gate; the soak runs beside listening. Output
   `ListenTiming/cpubench.jsonl` and a sample WAV.
 
 Measure on a device with a **Release** build: FluidAudio in Debug is ~3× slower per decode step.
