@@ -132,6 +132,48 @@ final class Page {
     }
 }
 
+// MARK: - Two records of one page
+
+extension Page {
+    /// Takes in `other`, another record of this page that is about to be deleted (dedupe's
+    /// duplicate, or the chapter *Replace* finds under a new key), so nothing either one held is
+    /// lost: its text, listen paragraphs, icon, address and key where this one has none; saved if
+    /// either is; in the Library since the earlier date, and removed as of the later; the later
+    /// play; its spot when this one has none, and finished if either is; starred, and skipped in
+    /// playback, if either is. Where the page sits (its folder and order) is the caller's: dedupe
+    /// and *Replace* place it by different rules.
+    func absorb(_ other: Page) {
+        if !hasText, other.hasText {
+            bodyHTML = other.bodyHTML
+            plainTextData = other.plainTextData
+            excerpt = other.excerpt
+            wordCount = other.wordCount
+        }
+        if listenBlocksData == nil, other.listenBlocksData != nil {
+            listenBlocksData = other.listenBlocksData
+            listenBlocksVersion = other.listenBlocksVersion
+            paragraphCount = other.paragraphCount
+            detectedLanguageCode = other.detectedLanguageCode
+        }
+        if artworkData == nil { artworkData = other.artworkData }
+        if urlString == nil { urlString = other.urlString }
+        if canonicalURL == nil { canonicalURL = other.canonicalURL }
+        if key == nil { key = other.key }
+        if other.isSaved { contentState = .saved }
+        addedAt = [addedAt, other.addedAt].compactMap { $0 }.min()
+        // Out of the Library, a remove on either holds: the page stays in no list.
+        removedAt = [removedAt, other.removedAt].compactMap { $0 }.max()
+        lastPlayedAt = [lastPlayedAt, other.lastPlayedAt].compactMap { $0 }.max()
+        if positionParagraph == 0, positionUTF16 == 0 {
+            positionParagraph = other.positionParagraph
+            positionUTF16 = other.positionUTF16
+        }
+        finishedAt = finishedAt ?? other.finishedAt
+        isFavorite = isFavorite || other.isFavorite
+        skipsInPlayback = skipsInPlayback || other.skipsInPlayback
+    }
+}
+
 // MARK: - Stored listen paragraphs
 
 extension Page {

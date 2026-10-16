@@ -124,6 +124,24 @@ final class BookReimportTests: XCTestCase {
         XCTAssertTrue(merged.contains { $0 == (three, renamed) }, "a session playing it follows")
     }
 
+    /// A chapter whose key changes (an anchor or text shift in the file) is carried over whole:
+    /// starred, finished and skipped as it was.
+    func testAStarredChapterWhoseKeyChangesStaysStarred() throws {
+        let book = try addBook()
+        let p3 = try XCTUnwrap(page(three))
+        try library.addFavorite(p3)
+        try library.setFinished([p3], true)
+        try library.setSkipsInPlayback(p3, true)
+        let renamed = UUID()
+
+        try library.replaceBook(book, with: details, chapters: [chapter(one, 0, "One", textOne), chapter(two, 1, "Two", textTwo),
+                                                                chapter(renamed, 2, "Three", textThree)])
+        let moved = try XCTUnwrap(page(renamed))
+        XCTAssertTrue(LibraryStore.isFavorite(moved), "still in Favorites")
+        XCTAssertNotNil(moved.finishedAt)
+        XCTAssertTrue(moved.skipsInPlayback)
+    }
+
     func testChaptersNoLongerInTheBookGoWithTheirAudio() throws {
         let book = try addBook()
         try env.storeAudio(three, paragraphs: textThree)

@@ -181,7 +181,7 @@ extension LibraryStore {
                 pages.append(page)
             } else if let from = plan.byText[index] {
                 let page = makeChapter(chapter, byline: folder.byline)
-                carryListening(from: from, to: page)
+                page.absorb(from)
                 if let fromKey = from.key {
                     planMerge(from: fromKey, into: chapter.ref.key, fromParagraphs: from.cachedListenParagraphs ?? [],
                               paragraphs: chapter.document.paragraphs)
@@ -310,14 +310,6 @@ extension LibraryStore {
         page.wordCount = EPUBWordCount.count(chapter.plainText)
         page.skipsInPlayback = chapter.ref.skipsInPlayback
         page.storeListenParagraphs(chapter.document.paragraphs)
-    }
-
-    private func carryListening(from old: Page, to page: Page) {
-        page.positionParagraph = old.positionParagraph
-        page.positionUTF16 = old.positionUTF16
-        page.lastPlayedAt = old.lastPlayedAt
-        page.finishedAt = old.finishedAt
-        page.addedAt = old.addedAt ?? page.addedAt
     }
 
     private static func locator(of ref: PageRef) -> String? {

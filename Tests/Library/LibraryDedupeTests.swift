@@ -98,6 +98,22 @@ final class LibraryDedupeTests: XCTestCase {
         XCTAssertFalse(env.cache.hasCache(for: link.key!))
     }
 
+    /// The duplicate that loses was starred, finished and skipped: the keeper is too.
+    func testTheKeeperTakesTheStarAndMarksOfTheDuplicateThatLoses() throws {
+        let keeper = page("https://example.com/starred", position: 3)
+        let loser = page("https://example.com/starred", position: 1)
+        loser.isFavorite = true
+        loser.finishedAt = env.now
+        loser.skipsInPlayback = true
+        try env.context.save()
+
+        XCTAssertEqual(library.dedupe().mergedPages, 1)
+        XCTAssertEqual(env.pages().map(\.positionParagraph), [3], "the furthest copy is kept")
+        XCTAssertTrue(keeper.isFavorite, "the star of the copy that lost")
+        XCTAssertEqual(keeper.finishedAt, env.now)
+        XCTAssertTrue(keeper.skipsInPlayback)
+    }
+
     func testKeeperOrderFurthestThenLatestPlayThenOlder() throws {
         let a = page("https://example.com/x", position: 2, added: env.now)
         let b = page("https://example.com/x", position: 5, added: env.now + 1)

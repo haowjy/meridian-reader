@@ -155,9 +155,10 @@ extension LibraryStore {
     // MARK: - Pages
 
     /// Pages sharing a key or a canonical URL become one, the keeper chosen by: saved over link;
-    /// the furthest position; the latest play; the older. The keeper takes content it lacks, the
-    /// other's audio, the earliest `addedAt` (a save is never lost) and the latest play; any
-    /// place or crash-resume point on the other's key follows it.
+    /// the furthest position; the latest play; the older. The keeper takes in the other
+    /// (`Page.absorb`: what it lacks, the earliest `addedAt` so a save is never lost, the latest
+    /// play, the star) and its audio, and its folder when it has none; any place or crash-resume
+    /// point on the other's key follows it.
     private func dedupePages(_ pages: [Page], _ report: inout DedupeReport) {
         // Union by key and by canonical URL.
         var parent = Array(pages.indices)
@@ -193,29 +194,7 @@ extension LibraryStore {
             keeper.sortKey = extra.sortKey
             keeper.setFolder(folder)
         }
-        if !keeper.hasText, extra.hasText {
-            keeper.bodyHTML = extra.bodyHTML
-            keeper.plainTextData = extra.plainTextData
-            keeper.excerpt = extra.excerpt
-            keeper.wordCount = extra.wordCount
-        }
-        if keeper.listenBlocksData == nil, extra.listenBlocksData != nil {
-            keeper.listenBlocksData = extra.listenBlocksData
-            keeper.listenBlocksVersion = extra.listenBlocksVersion
-            keeper.paragraphCount = extra.paragraphCount
-            keeper.detectedLanguageCode = extra.detectedLanguageCode
-        }
-        if keeper.artworkData == nil { keeper.artworkData = extra.artworkData }
-        if keeper.urlString == nil { keeper.urlString = extra.urlString }
-        if keeper.canonicalURL == nil { keeper.canonicalURL = extra.canonicalURL }
-        if extra.isSaved { keeper.contentState = .saved }
-        keeper.addedAt = [keeper.addedAt, extra.addedAt].compactMap { $0 }.min()
-        // Out of the Library, a remove on either copy holds: the merged page stays in no list.
-        keeper.removedAt = [keeper.removedAt, extra.removedAt].compactMap { $0 }.max()
-        if (extra.lastPlayedAt ?? .distantPast) > (keeper.lastPlayedAt ?? .distantPast) {
-            keeper.lastPlayedAt = extra.lastPlayedAt
-        }
-        if keeper.key == nil { keeper.key = extra.key }
+        keeper.absorb(extra)
         if let from = extra.key, let to = keeper.key, from != to { mergeAudio(from: from, fromPage: extra, into: to, keeper: keeper) }
         log("dedupe page \(Self.short(extra.key)) → keeper \(Self.short(keeper.key)) (\(keeper.canonicalURL ?? "-"))")
         context.delete(extra)
