@@ -27,14 +27,15 @@ struct BrowseMenu {
         case favorites, history, openReader
     }
 
-    var hasPage: Bool
-    /// A readable page, and no extraction already running.
-    var canOpenReader: Bool
+    /// The faces of the *Save* / *Remove from Library* and ☆ toggles.
     var isSaved: Bool
-    var canSave: Bool
     var isFavorite: Bool
-    var canFavorite: Bool
-    var canShare: Bool
+    var save: MenuAvailability
+    var favorite: MenuAvailability
+    var share: MenuAvailability
+    var reload: MenuAvailability
+    /// The *Reader* button: a readable page, and no extraction already running.
+    var reader: MenuAvailability
 }
 
 /// The page's menu, the same in the Reader sheet and Now Playing (decision D24): what it holds
@@ -52,19 +53,23 @@ struct ReaderMenu {
         let symbol: String
     }
 
-    /// Now Playing: *Go to* the folder or the Library it plays from. nil (the Reader, or a page
-    /// that plays from its site, which Website opens): no row.
-    var goTo: Place?
+    /// *Go to <place>*: Now Playing's only (hidden in the Reader), dimmed for a page that plays
+    /// from its site, which Website opens.
+    var goTo: MenuAvailability = .hidden
+    var place = Place(name: String(localized: "Library"), symbol: Icons.library)
 
+    /// The faces of the *Save* / *Remove from Library* and ☆ toggles.
     var isSaved: Bool
-    var canSave: Bool
     var isFavorite: Bool
-    var canFavorite: Bool
-    var canShare: Bool
-    /// The article has a web page to go to.
-    var canOpenWebsite: Bool
+    var save: MenuAvailability
+    /// *Move to…*: a saved page.
+    var moveTo: MenuAvailability
+    var favorite: MenuAvailability
+    var share: MenuAvailability
     /// *Download*: a saved page not downloading already.
-    var canDownload = false
+    var download: MenuAvailability
+    /// The *Website* button: the article has a web page to go to.
+    var website: MenuAvailability
 }
 
 /// The Library's menu, for the screen on top: the home (the top level) or a folder (a book or
@@ -72,7 +77,16 @@ struct ReaderMenu {
 struct LibraryMenu {
     enum Screen: Equatable {
         case home
-        case folder
+        case folder(FolderRows)
+    }
+
+    /// A folder screen's own rows. A book reads *Delete Book…* and *Download Book*. *Download*:
+    /// it has pages and isn't downloading already; *Delete Downloads*: some of it is downloaded or
+    /// downloading.
+    struct FolderRows: Equatable {
+        var isBook: Bool
+        var download: MenuAvailability
+        var deleteDownloads: MenuAvailability
     }
 
     enum Action {
@@ -83,10 +97,5 @@ struct LibraryMenu {
 
     var screen: Screen
     /// The screen's page sort: the folder's, or on the home the top level's.
-    var sort: PageSort = .manual
-    /// *Download Folder* (*Download Book*) for the folder on screen; nil when it is downloading
-    /// already, or isn't a folder.
-    var downloadTitle: String?
-    /// The folder on screen is a book or series: *Delete Book…*.
-    var isBook = false
+    var sort: PageSort
 }

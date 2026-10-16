@@ -111,9 +111,10 @@ struct DownloadsList: View {
         section(items, header: SectionHeader(title: String(localized: "Different Voice"), count: items.count),
                 headerID: "downloadsDifferentVoiceHeader") { item in
             Button("Re-download", systemImage: Icons.redownload) { downloads.redownload(item.id) }
-            if let voice = item.voice {
-                Button("Keep", systemImage: Icons.keep) { downloads.keep(item.id, voice: voice) }
+            Button("Keep", systemImage: Icons.keep) {
+                if let voice = item.voice { downloads.keep(item.id, voice: voice) }
             }
+            .menuAvailability(MenuAvailability(when: item.voice != nil))
         } footer: {
             if let voice = speech.localTTS.downloadVoice {
                 footnote(String(localized: "Downloads now render in \(voiceLabel(voice)). Re-download one to hear it in that voice, or keep it as it is."))

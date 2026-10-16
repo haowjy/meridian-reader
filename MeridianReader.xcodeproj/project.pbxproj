@@ -53,6 +53,7 @@
 		16FD4A8898B000359ACF6E8F /* EPUBContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE40BA60E969B2A39E70C43 /* EPUBContainer.swift */; };
 		180785258747FCF6D65F3695 /* BookLinkResponseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCAFCB87897841D05C54FA44 /* BookLinkResponseTests.swift */; };
 		183F00B417CB91AA2755EB34 /* LocalSynthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F3CCB941DF719F129449FF6 /* LocalSynthServiceTests.swift */; };
+		186C0DFFB539ECE208F46C9A /* MenuAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D0254143FCE34E762D2EF88 /* MenuAvailability.swift */; };
 		192E62AC194702AFBA9DBCDB /* ExtractedArticle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8590E6BBEF65EA96E6BFB1F8 /* ExtractedArticle.swift */; };
 		1932D65BD77EF9177F967FFB /* PlayerReadingPageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E7F0EEC7D3884779B85D35E /* PlayerReadingPageTests.swift */; };
 		19565D5BC39B39F2EEB81EA2 /* LaunchResetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1646B1905796F31CBB4C17 /* LaunchResetTests.swift */; };
@@ -566,6 +567,7 @@
 		1BDEC21FC51793A367E7B695 /* DownloadRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadRow.swift; sourceTree = "<group>"; };
 		1C3A5098975102362B5534C7 /* LockedFetchProbeVerdictTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockedFetchProbeVerdictTests.swift; sourceTree = "<group>"; };
 		1C5ED07FBAC06E47C3D68DE5 /* SingleWebPageSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleWebPageSource.swift; sourceTree = "<group>"; };
+		1D0254143FCE34E762D2EF88 /* MenuAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuAvailability.swift; sourceTree = "<group>"; };
 		1D34C7C40ACB9A435DD26C9E /* ReaderSheetScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderSheetScreen.swift; sourceTree = "<group>"; };
 		1D4F674667887FF6AB3C24AF /* PageOrigin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageOrigin.swift; sourceTree = "<group>"; };
 		1DCFD8122AB86B954C845571 /* ChunkPlans.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChunkPlans.swift; sourceTree = "<group>"; };
@@ -1207,6 +1209,7 @@
 				F435929582D7809DC6277EE8 /* DownloadStateButton.swift */,
 				EB6288CC82005F3C9626F13E /* FolderHeader.swift */,
 				314EDF2D242E06532C574191 /* ListRow.swift */,
+				1D0254143FCE34E762D2EF88 /* MenuAvailability.swift */,
 				EE65F9D32D3E76538A47F3E7 /* NowPlayingBar.swift */,
 				1B899FA9684BEEA0747369A9 /* NowPlayingSheet.swift */,
 				193E8BF6E0BDB85E79F073F5 /* PillButton.swift */,
@@ -2210,6 +2213,7 @@
 				806D42738916FCAD368BDB87 /* LockedFetchProbe.swift in Sources */,
 				ECDAFC29EDF7091D84D8D34A /* MarkupBudget.swift in Sources */,
 				BE406CAE610E87236F714D5E /* MarkupElement.swift in Sources */,
+				186C0DFFB539ECE208F46C9A /* MenuAvailability.swift in Sources */,
 				EC284B82B9C806460589538F /* MenuContext.swift in Sources */,
 				63592059F8B5319E135331E6 /* MoreMenuPanel.swift in Sources */,
 				BD3A164DFA743937080819A1 /* MorphMenu.swift in Sources */,

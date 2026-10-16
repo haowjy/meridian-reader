@@ -94,10 +94,9 @@ struct MoveTreeList: View {
                           isCurrent: current == .folder(folder.id),
                           isEnabled: !isMoving(folder), id: "moveFolder") { pick(folder) }
                         .contextMenu {
-                            if !isMoving(folder) {
-                                Button("New Folder Inside", systemImage: Icons.newFolder) { name(in: folder) }
-                                    .accessibilityIdentifier("moveNewFolderInside")
-                            }
+                            Button("New Folder Inside", systemImage: Icons.newFolder) { name(in: folder) }
+                                .accessibilityIdentifier("moveNewFolderInside")
+                                .menuAvailability(MenuAvailability(when: !isMoving(folder)))
                         }
                 }
             }

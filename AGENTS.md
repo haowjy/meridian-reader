@@ -99,6 +99,9 @@ xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -confi
   disagree, and UIKit aborts on the next change ("attempt to delete item … before the update").
   Which lists a page is in is decided only in `LibraryQueries`; an action that takes a row out
   must take it out of every list there.
+- **Menus keep their shape** (decision DR-09): every ⋯ panel and long-press row goes through
+  `MenuAvailability` (`.menuAvailability(_:)`). Hidden only when the action can never apply to that
+  kind of item; dimmed when it applies but can't run now. No bare `if` around a menu row.
 - **Button rows never wrap** (decision D21): two or more buttons side by side go in an
   `ActionButtonRow`, which falls back from full labels to short titles, then no details, then
   symbols alone. Give every button in one a symbol.
