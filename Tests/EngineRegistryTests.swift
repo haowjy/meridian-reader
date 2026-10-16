@@ -72,16 +72,12 @@ final class EngineRegistryTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("crashguard-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }
         let guardian = EngineCrashGuard(directory: dir)
-        XCTAssertNil(guardian.consumeCrashMarker(legacyEngine: .kokoro))
+        XCTAssertNil(guardian.consumeCrashInfo())
         guardian.beginCall(engine: .kokoro, chars: 42, context: "t")
         guardian.endCall()
-        XCTAssertNil(guardian.consumeCrashMarker(legacyEngine: nil), "clean call leaves no marker")
+        XCTAssertNil(guardian.consumeCrashInfo(), "clean call leaves no marker")
         guardian.beginCall(engine: .kokoro, chars: 42, context: "t") // process "dies" here
-        XCTAssertEqual(guardian.consumeCrashMarker(legacyEngine: nil), .kokoro)
+        XCTAssertEqual(guardian.consumeCrashInfo()?.engine, .kokoro)
         XCTAssertEqual(guardian.crashCount, 1)
-        // Pre-DI marker (no engine field) is attributed to the legacy engine.
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try Data(#"{"chars":10}"#.utf8).write(to: dir.appendingPathComponent("kokoro_inflight.json"))
-        XCTAssertEqual(guardian.consumeCrashMarker(legacyEngine: .kokoro), .kokoro)
     }
 }

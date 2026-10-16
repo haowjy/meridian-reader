@@ -127,7 +127,7 @@ final class KokoroRouteTests: XCTestCase {
         guardian.beginCall(engine: .kokoro, chars: 174, context: "BA7D7639/p14", route: "coreml",
                            article: UUID().uuidString, paragraph: 14, phase: "foreground")
         crumbs.write(model: "g2p.bart", stage: "decoder", detail: "Adric")
-        let info = guardian.consumeCrashInfo(legacyEngine: nil)
+        let info = guardian.consumeCrashInfo()
         XCTAssertEqual(info?.coreMLStage, "g2p.bart/decoder")
         XCTAssertEqual(info?.route, "coreml")
         XCTAssertNil(crumbs.read(), "breadcrumb consumed")
@@ -135,7 +135,7 @@ final class KokoroRouteTests: XCTestCase {
         // ONNX route: no Core ML breadcrumb newer than the marker → nil.
         crumbs.write(model: "kokoro", stage: "vocoder", detail: nil, now: Date().addingTimeInterval(-60))
         guardian.beginCall(engine: .kokoro, chars: 80, context: "x/p1", route: "onnx")
-        XCTAssertNil(guardian.consumeCrashInfo(legacyEngine: nil)?.coreMLStage)
+        XCTAssertNil(guardian.consumeCrashInfo()?.coreMLStage)
     }
 
     // MARK: Coordinator auto-recover
@@ -215,7 +215,7 @@ final class KokoroRouteTests: XCTestCase {
         // Old build: Core ML crash already consumed → Apple selected, engine_crashes.json remains.
         let g = EngineCrashGuard(directory: guardDir)
         g.beginCall(engine: .kokoro, chars: 174, context: "BA7D7639/p14")
-        _ = g.consumeCrashInfo(legacyEngine: .kokoro)
+        _ = g.consumeCrashInfo()
         d.set(SpeechEngineID.apple.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
 
         let c = makeCoordinator(defaults: d, guardDir: guardDir)

@@ -86,11 +86,9 @@ extension LocalSynthHost {
 enum LocalPCMWriter {
     enum WriteError: LocalizedError {
         case failed(String)
-        case emptyText
         var errorDescription: String? {
             switch self {
             case .failed(let detail): return "Failed to write PCM: \(detail)"
-            case .emptyText: return "Nothing to synthesize."
             }
         }
     }

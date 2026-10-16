@@ -329,7 +329,7 @@ the page is marked failed. So the article playing and the staged chapter always 
 thermal / Low Power hold applies, and in the background a download's job parks like any other
 article that isn't playing (admission, below). No page is handed to the queue while the app is in
 the background (a fetch needs a window), and nothing renders for downloads while Apple's voice is
-selected (`rendersDownloads`). Pause and *Remove* take the page's job out of the queue
+selected (`wantsLocalBake`). Pause and *Remove* take the page's job out of the queue
 (`cancelDownload`), except the page playing or staged. The voice a download is shown in is read
 from its audio (`ArticleAudioCache.renderedVoice`: the voice most of its paragraphs are in), so a
 voice change shows at once; finished downloads aren't re-rendered by it (*Re-download* does that).

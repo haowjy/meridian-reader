@@ -89,7 +89,7 @@ struct DownloadsSheet: View {
             .libraryHeader()
             .accessibilityIdentifier("downloadsQueuedHeader")
         } footer: {
-            if !speech.localTTS.rendersDownloads {
+            if !speech.localTTS.wantsLocalBake {
                 waitingNote
             }
         }

@@ -99,12 +99,12 @@ final class DownloadCenter {
     var overview: DownloadOverview {
         let cache = tts.audioCache
         return DownloadOverview(records: records, active: activeProgress, currentVoice: tts.downloadVoice,
-                                rendersDownloads: tts.rendersDownloads) { cache.renderedVoice(articleID: $0) }
+                                rendersDownloads: tts.wantsLocalBake) { cache.renderedVoice(articleID: $0) }
     }
 
     /// The progress line's value: nil while nothing runs (`DownloadOverview.progress`).
     var progress: Double? {
-        DownloadOverview.progress(records: records, active: activeProgress, rendersDownloads: tts.rendersDownloads)
+        DownloadOverview.progress(records: records, active: activeProgress, rendersDownloads: tts.wantsLocalBake)
     }
 
     /// The page rendering now and how much of its audio is ready.
@@ -305,7 +305,7 @@ final class DownloadCenter {
     /// Hands pages to the render queue until one is rendering (its `bakeCompleted` brings the
     /// next), the list is done, or no voice renders downloads.
     private func runQueue() async {
-        while runState.phase != .background, tts.rendersDownloads, active == nil, let next = nextQueued() {
+        while runState.phase != .background, tts.wantsLocalBake, active == nil, let next = nextQueued() {
             let (recordID, key) = (next.recordID, next.key)
             guard let page = library.page(key: key), page.isInLibrary else {
                 finish(recordID, key, .failed, String(localized: "It’s no longer in the Library"))
@@ -420,7 +420,7 @@ final class DownloadCenter {
     /// failed on, or a job something else dropped) goes back once, then the page is marked failed.
     private func checkActive() {
         guard let active, case .rendering(let paragraphs) = active.phase else { return advance() }
-        guard tts.rendersDownloads else {
+        guard tts.wantsLocalBake else {
             stopActive()
             return
         }

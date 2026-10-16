@@ -81,8 +81,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         synthQueue.attach(coordinator: self)
         synth.onStateChange = { [weak self] in self?.engineStateChanged() }
         var initial = storedSelection()
-        // Pre-DI crash markers carry no engine id; only crash-guarded engines ever wrote them.
-        launchCrash = crashGuard.consumeCrashInfo(legacyEngine: engines.localDescriptors.first { $0.crashGuarded }?.id)
+        launchCrash = crashGuard.consumeCrashInfo()
         if let launchCrash { initial = recover(from: launchCrash, selection: initial) }
         #if DEBUG
         // Dev/test hook: `-selectEngine <engine id>` (persisted), e.g. local.kokoro.

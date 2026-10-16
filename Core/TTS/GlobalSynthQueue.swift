@@ -725,8 +725,6 @@ final class GlobalSynthQueue {
             activeBakeCacheKey = nil
             activeBakeIndex = nil
         }
-        // Drop completed articles from stack.
-        compactCompleted()
     }
 
     /// What a listener waiting on a chunk gets while no engine is loaded: the player speaks it
@@ -866,20 +864,6 @@ final class GlobalSynthQueue {
         guard let staged, let job = jobs[staged.cacheKey] else { return nil }
         let work = remainingWork(of: job, missing: missingParagraphs(of: job, in: target))
         return job.renderable(work, cap: staged.cap, aheadOnly: false).first.map { (job, $0) }
-    }
-
-    private func compactCompleted() {
-        guard let target = coordinator?.renderTarget else { return }
-        stack.removeAll { key in
-            guard let job = jobs[key] else { return true }
-            if missingParagraphs(of: job, in: target).isEmpty {
-                jobs[key] = nil
-                finishJob(job, in: target)
-                return true
-            }
-            return false
-        }
-        if let staged, jobs[staged.cacheKey] == nil { self.staged = nil }
     }
 
     /// Article done: drop its persisted pending job; if no paragraph needs audio in the target's

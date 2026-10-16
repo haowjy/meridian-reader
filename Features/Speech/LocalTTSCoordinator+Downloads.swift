@@ -22,9 +22,6 @@ extension LocalTTSCoordinator {
         (wantsLocalBake ? activeLocalEngineID : engines.defaultLocalEngineID).flatMap(cacheVoice(of:))
     }
 
-    /// An on-device voice that renders downloads is selected (it may still be loading).
-    var rendersDownloads: Bool { wantsLocalBake }
-
     /// "Kokoro Heart" for a cache voice key.
     func voiceLabel(forCacheVoice voiceID: String) -> String {
         engines.voiceLabel(forCacheVoice: voiceID)
@@ -45,7 +42,7 @@ extension LocalTTSCoordinator {
 
     /// Queue `paragraphs` of `cacheKey` to render in full in the download voice.
     func queueDownload(cacheKey: UUID, paragraphs: [String]) -> DownloadQueueing {
-        guard rendersDownloads else { return .notRendering }
+        guard wantsLocalBake else { return .notRendering }
         guard localLanguageAllows(paragraphs) else { return .speaksLive }
         guard !audioCache.held.contains(cacheKey) else { return .held }
         if missingDownloadParagraphs(cacheKey: cacheKey, paragraphs: paragraphs) == 0 { return .ready }

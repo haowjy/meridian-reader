@@ -293,7 +293,7 @@ final class DownloadCenterTests: XCTestCase {
     func testWithApplesVoiceDownloadsWaitForAnOnDeviceVoice() async throws {
         let page = try env.savedPage("https://example.com/apple")
         await tts.selectEngine(.apple)
-        XCTAssertFalse(tts.rendersDownloads)
+        XCTAssertFalse(tts.wantsLocalBake)
         XCTAssertEqual(tts.downloadVoice, "fake.alpha", "still names the voice downloads will use")
 
         _ = center.download(page)
