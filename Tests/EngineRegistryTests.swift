@@ -42,7 +42,7 @@ final class EngineRegistryTests: XCTestCase {
         let registry = appRegistry(gate: { $0.minimumChip == nil })
         XCTAssertTrue(registry.supports(.apple))
         XCTAssertFalse(registry.supports(.kokoro))
-        XCTAssertEqual(registry.blockReason(.kokoro), "Insufficient hardware. Needs iPhone 13 / recent iPad (A15+).")
+        XCTAssertEqual(registry.blockReason(.kokoro), "Insufficient hardware. Needs iPhone 13 or newer (A15+).")
         XCTAssertEqual(registry.blockReason(.retiredChatterboxNano), "Unknown voice engine.")
         XCTAssertNil(registry.blockReason(.apple))
     }

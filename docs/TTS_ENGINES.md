@@ -141,7 +141,7 @@ article and paragraph, paused).
 
 ```
 AppComposition (composition root: the only file that lists libraries)
-  └─ EngineRegistry(providers: [AppleSpeechProvider, FluidAudioProvider, (SpeechSwiftProvider)])
+  └─ EngineRegistry(providers: [AppleSpeechProvider, FluidAudioProvider])
        └─ injected → SpeechController(engines:) → LocalTTSCoordinator(engines:) → LocalSynthService(engines:)
 
 SpeechEngineProvider (one per library)      EngineDescriptor (per engine)
@@ -182,7 +182,7 @@ Test seam: `Tests/Fakes/FakeEngineProvider.swift` (tone/silence PCM, latency, pe
    `SynthRenderGate.shared` while loading; report `onProgress`), `synthesizeOnce(text:)` (one call →
    `SynthesizedPCM`; map the library's "input too long" error to `LocalSynthError.inputTooLong` so
    the shared renderer re-splits), `setVoice`, `resetPrepared`, `unload`.
-3. **Descriptor.** A new, never-changing `id` (e.g. `local.qwen3-tts`), `cacheVoicePrefix:
+3. **Descriptor.** A new, never-changing `id` (e.g. `local.<engine>`), `cacheVoicePrefix:
    "<short>"` (cache voice keys `<short>.<voice>`), chunk `limits` sized from the per-call cap (measure chars or phonemes per
    second of audio on a device), `hardware`, `crashGuarded` if the library can die uncatchably.
 4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,
@@ -193,12 +193,6 @@ Test seam: `Tests/Fakes/FakeEngineProvider.swift` (tone/silence PCM, latency, pe
 
 The Settings row, download / progress / delete UI, cache, bake-ahead, Apple fallback and probe
 come from the registry.
-
-`Features/Speech/Engines/SpeechSwift/SpeechSwiftProvider.swift` is a compiled-out
-(`#if canImport(Qwen3TTSCoreML)`) provider and host for speech-swift's Qwen3-TTS, registered
-behind the same `#if`. Turning it on means adding the package
-(`https://github.com/soniqo/speech-swift`, product `Qwen3TTSCoreML`, package floor iOS 18), then
-filling in `isInstalled` / `deleteModels`, measured `limits`, `subtitle` and `hardware`.
 
 ## Settings keys
 

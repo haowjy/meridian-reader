@@ -35,7 +35,7 @@ struct HardwareRequirement: Sendable, Equatable {
     var minimumOSMajor: Int = 17
     var minimumChip: DeviceChipGeneration? = nil
     var allowsSimulator: Bool = true
-    /// Short human requirement, e.g. "iPhone 13 / recent iPad (A15+)".
+    /// Short human requirement, e.g. "iPhone 13 or newer (A15+)".
     var summary: String = ""
 
     static let none = HardwareRequirement()

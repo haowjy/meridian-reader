@@ -96,9 +96,6 @@ enum AppComposition {
             AppleSpeechProvider(),
             FluidAudioProvider(),
         ]
-        #if canImport(Qwen3TTSCoreML)
-        providers.append(SpeechSwiftProvider()) // speech-swift (Qwen3-TTS)
-        #endif
         #if DEBUG
         let options = LaunchOptions.current
         if options.usesTestVoice {

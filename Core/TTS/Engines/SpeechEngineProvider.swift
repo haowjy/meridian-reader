@@ -1,6 +1,6 @@
 import Foundation
 
-/// One adapter per voice library (Apple, FluidAudio, speech-swift, …). Registers the engines
+/// One adapter per voice library (Apple, FluidAudio). Registers the engines
 /// it provides and builds their synth hosts. Only provider files import the library.
 @MainActor
 protocol SpeechEngineProvider: AnyObject {

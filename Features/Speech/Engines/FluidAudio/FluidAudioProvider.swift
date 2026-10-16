@@ -50,7 +50,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
         // and the renderer re-splits.
         limits: .kokoroCPU,
         hardware: HardwareRequirement(minimumOSMajor: 17, minimumChip: .a15, allowsSimulator: true,
-                                      summary: "iPhone 13 / recent iPad (A15+)"),
+                                      summary: "iPhone 13 or newer (A15+)"),
         supportsBakeCache: true,
         crashGuarded: true,
         crashNoticeDetail: "Kokoro stopped unexpectedly",
