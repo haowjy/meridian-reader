@@ -29,7 +29,8 @@ protocol ListenUnitSource: AnyObject {
     /// What the render worker is doing relative to `paragraph`.
     func workerStatus(paragraph: Int) -> RenderWorkerStatus
     /// Render `text` with Apple TTS into `destination` (the engine can't provide it in time).
-    func renderApple(_ text: String, to destination: URL) async throws
+    /// Returns its length in seconds.
+    func renderApple(_ text: String, to destination: URL) async throws -> TimeInterval
     /// Production restarts at `paragraph`: render from there first.
     func focus(paragraph: Int)
 }
@@ -121,8 +122,8 @@ final class QueueUnitSource: ListenUnitSource {
         return active == articleID && queue.activeBakeIndex == paragraph ? .renderingThisParagraph : .busyElsewhere
     }
 
-    func renderApple(_ text: String, to destination: URL) async throws {
-        _ = try await coordinator.synth.renderAppleFallback(text: text, destination: destination, voiceID: appleVoiceID)
+    func renderApple(_ text: String, to destination: URL) async throws -> TimeInterval {
+        try await coordinator.synth.renderAppleFallback(text: text, destination: destination, voiceID: appleVoiceID)
     }
 
     func focus(paragraph: Int) {

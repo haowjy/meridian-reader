@@ -80,6 +80,13 @@ extension GlobalSynthQueue {
         case chunk(URL)
         /// Paragraph already stitched; play `url` from `startTime` (chunk boundary).
         case paragraph(URL, startTime: TimeInterval)
+
+        /// The file to play.
+        var fileURL: URL {
+            switch self {
+            case .chunk(let url), .paragraph(let url, _): url
+            }
+        }
     }
 
     /// The next chapter staged behind the one playing (`stageNext`).

@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 @testable import MeridianReader
 
@@ -146,6 +147,34 @@ final class SynthPipelineTests: XCTestCase {
         try await waitIdle(queue)
         XCTAssertFalse(ctx.fallbackTexts.isEmpty)
         XCTAssertNotNil(ctx.audioCache.audioURL(articleID: key, paragraphIndex: 0, engineID: ctx.cacheEngineID, voiceID: "fake.default"))
+    }
+
+    // MARK: - Stitching
+
+    /// A chunk with non-finite samples (an Apple fallback file in Float32, say) stitches to
+    /// silence there, not a full-scale click: stitched paragraphs are written by the one CAF
+    /// writer, with its guard.
+    func testStitchingWritesNonFiniteSamplesAsSilence() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("Stitch-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let chunk = dir.appendingPathComponent("c-00.caf")
+        let samples: [Float] = [0.1, .nan, .infinity, -0.1]
+        let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 24_000, channels: 1,
+                                                 interleaved: false))
+        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4))
+        buffer.frameLength = 4
+        for (i, v) in samples.enumerated() { buffer.floatChannelData![0][i] = v }
+        try AVAudioFile(forWriting: chunk, settings: format.settings).write(from: buffer)
+
+        let paragraph = dir.appendingPathComponent("p.caf")
+        _ = try ChunkAudioStitcher.stitch([chunk], to: paragraph)
+        let out = try ChunkAudioStitcher.readMono24k(paragraph)
+        XCTAssertEqual(out.count, 4)
+        XCTAssertEqual(out[0], 0.1, accuracy: 0.001)
+        XCTAssertEqual(out[1], 0, "NaN")
+        XCTAssertEqual(out[2], 0, "infinity")
+        XCTAssertEqual(out[3], -0.1, accuracy: 0.001)
     }
 
     // MARK: - Queue priority
