@@ -211,15 +211,16 @@ enum LaunchHooks {
         return start
     }
 
-    /// `-seedDemoArticle`: replace the saved and played pages, and every folder but Favorites, with
-    /// one deterministic article, so a stored resume position can't stick at the end between tests (and, with
-    /// `-seedPlayedPages N`, N pages played without saving; with `-seedLoosePages N`, N more saved
-    /// pages in no folder). Favorites' links stay (`-resetBookmarks` / `-seedBookmarks` handle
-    /// them). The top level's sort goes back to its default.
+    /// `-seedDemoArticle`: replace the saved and played pages, and every folder with what is in
+    /// it, with one deterministic article, so a stored resume position can't stick at the end
+    /// between tests (and, with `-seedPlayedPages N`, N pages played without saving; with
+    /// `-seedLoosePages N`, N more saved pages in no folder). Link pages in no folder stay, starred
+    /// ones too (`-resetBookmarks` / `-seedBookmarks` handle stars). The top level's sort goes back
+    /// to its default.
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in library: LibraryStore) {
         let context = library.context
         UserDefaults.standard.removeObject(forKey: LibraryTopLevel.sortKey)
-        // Every folder but Favorites goes too, so the Library home starts the same each time.
+        // Every folder goes too, so the Library home starts the same each time.
         for folder in library.topLevelFolders() {
             try? library.deleteFolder(folder)
         }
