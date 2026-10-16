@@ -131,13 +131,14 @@ final class FakeSynthHost: LocalSynthHost, @unchecked Sendable {
 /// Live fake sessions across hosts, and the most ever live at once.
 final class FakeSessionCount: @unchecked Sendable {
     private let lock = NSLock()
-    private var live = 0
+    private var _live = 0
     private var _peak = 0
 
+    var live: Int { lock.withLock { _live } }
     var peak: Int { lock.withLock { _peak } }
 
-    func open() { lock.withLock { live += 1; _peak = max(_peak, live) } }
-    func close() { lock.withLock { live -= 1 } }
+    func open() { lock.withLock { _live += 1; _peak = max(_peak, _live) } }
+    func close() { lock.withLock { _live -= 1 } }
 }
 
 /// Registers one fake on-device engine (`test.fake`).

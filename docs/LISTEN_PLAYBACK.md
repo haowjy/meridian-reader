@@ -714,9 +714,12 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
 
 - `-engineProbe [-probeOnly Kokoro]` or the panel's "Run engine probe": per engine, init,
   first-chunk latency and wall vs audio time for 60 / 150 / 400 characters, into
-  `Documents/engine_probe.txt` (written before each step, so a crash shows where it died). It
-  reuses the app's live host for the selected engine (a second loaded copy of the same models
-  fails on device) and holds the render worker while it runs.
+  `Documents/engine_probe.txt` (written before each step, so a crash shows where it died). Like
+  the stress run and the CPU route benchmark it runs with the model to itself
+  (`LocalTTSCoordinator.withRenderingQuiet`): the app's load settles, the render worker holds and
+  the app's host goes (a second loaded copy of the same Core ML models fails on device, and a
+  second ORT session doubles the memory), then it builds its own host per engine; the queue's next
+  render loads the app's engine again.
 - `-bakeArticle <saved id prefix>`: render that saved article top-down in the foreground without
   playing it, then pull ListenTiming and TTSCache.
 - `-seedDemoBook`: a synthetic book (a skipped title page and three chapters of about a minute and
@@ -763,7 +766,8 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
 - **CPU route benchmark** (panel → "CPU route benchmark"): `KokoroONNXSession` at 1–6 threads and
   QoS variants on a fixed 501-phoneme passage and its first three sentences (load ms, cold / warm
   times, × real time, CPU-s per audio-s, thermal, memory), plus a lock-screen soak that renders
-  continuously for N minutes. Pauses the queue and holds the render gate. Output
+  continuously for N minutes. The benchmark pauses the queue, lets the app's host go and holds the
+  render gate; the soak runs beside listening. Output
   `ListenTiming/cpubench.jsonl` and a sample WAV.
 
 Measure on a device with a **Release** build: FluidAudio in Debug is ~3× slower per decode step.

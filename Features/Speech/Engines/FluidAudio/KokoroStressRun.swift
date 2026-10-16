@@ -89,86 +89,73 @@ enum KokoroStressRun {
         UIApplication.shared.isIdleTimerDisabled = true
         defer { UIApplication.shared.isIdleTimerDisabled = false }
         #endif
-        await quietTheApp(coordinator)
-        defer { coordinator.synthQueue.isPausedForProbe = false }
-
-        let voice = KokoroHost.defaultVoice
-        let host: LocalSynthHost
-        switch request.route {
-        case .coreml: host = KokoroHost(voice: voice)
-        case .onnx: host = KokoroCPUHost(voice: voice, threads: KokoroRouteSettings().cpuThreads)
-        }
-        let start = history.nextIndex
-        log.append([
-            "ev": "start", "run": runID, "route": request.route.rawValue, "corpus_calls": request.calls,
-            "from": start, "units": host.routingLabel ?? "", "voice": voice,
-            "device": DeviceChipGate.machineIdentifier, "os": ProcessInfo.processInfo.operatingSystemVersionString,
-            "build": LocalTTSCoordinator.buildConfiguration, "optimized": !_isDebugAssertConfiguration(),
-            "thermal": ProcessInfo.processInfo.thermalState.rawValue,
-            "low_power": ProcessInfo.processInfo.isLowPowerModeEnabled, "cores": ProcessInfo.processInfo.activeProcessorCount,
-        ])
-        say("\(request.route.rawValue) run \(runID): calls \(start)..<\(request.calls), \(history.crashes.count) crashes so far")
-
-        let t0 = ListenTimingLog.now()
-        do {
-            try await host.prepare()
-        } catch {
-            log.append(["ev": "prepare_failed", "run": runID, "err": error.localizedDescription])
-            say("prepare failed: \(error.localizedDescription)")
-            return
-        }
-        let prepareMs = ListenTimingLog.ms(since: t0)
-        log.append(["ev": "prepared", "run": runID, "ms": prepareMs, "units": host.routingLabel ?? ""])
-
-        for index in start..<corpus.count {
-            await waitUntilActive(log: log, run: runID)
-            let chunk = corpus[index]
-            log.append(["ev": "begin", "run": runID, "i": index, "chars": chunk.text.count, "para": chunk.paragraph,
-                        "t": Date().timeIntervalSince1970])
-            await SynthRenderGate.shared.acquire()
-            let tCall = ListenTimingLog.now()
-            var fields: [String: Any] = ["ev": "end", "run": runID, "i": index, "chars": chunk.text.count]
-            do {
-                let pcm = try await host.synthesizeOnce(text: chunk.text, priority: .listener)
-                let wallMs = (ListenTimingLog.now() - tCall) * 1000
-                fields["ok"] = true
-                fields["wall_ms"] = Int(wallMs.rounded())
-                fields["audio_s"] = (pcm.duration * 1000).rounded() / 1000
-                if pcm.duration > 0 {
-                    fields["rtf"] = (wallMs / 1000 / pcm.duration * 1000).rounded() / 1000
-                    fields["ms_per_audio_s"] = Int((wallMs / pcm.duration).rounded())
-                }
-                for key in ["stages_ms", "onnx_ms", "g2p_ms", "threads", "phonemes", "tokens"] {
-                    if let v = pcm.metrics[key] { fields[key] = v }
-                }
-            } catch {
-                fields["ok"] = false
-                fields["wall_ms"] = ListenTimingLog.ms(since: tCall)
-                fields["err"] = error.localizedDescription
+        // The app's own Kokoro host goes first: Core ML twice fails on device, and ONNX twice
+        // doubles the memory.
+        await coordinator.withRenderingQuiet {
+            let voice = KokoroHost.defaultVoice
+            let host: LocalSynthHost
+            switch request.route {
+            case .coreml: host = KokoroHost(voice: voice)
+            case .onnx: host = KokoroCPUHost(voice: voice, threads: KokoroRouteSettings().cpuThreads)
             }
-            await SynthRenderGate.shared.release()
-            fields["thermal"] = ProcessInfo.processInfo.thermalState.rawValue
-            fields["mem_mb"] = ProcessMemory.footprintMB
-            if index == start { fields["first_audio_ms"] = ListenTimingLog.ms(since: t0) }
-            log.append(fields)
-            if index % 20 == 19 || index == start { say("\(request.route.rawValue) \(index + 1)/\(corpus.count)") }
-        }
-        await host.unload()
-        finish(log: log, summaryURL: summaryURL, request: request, status: "complete")
-    }
+            let start = history.nextIndex
+            log.append([
+                "ev": "start", "run": runID, "route": request.route.rawValue, "corpus_calls": request.calls,
+                "from": start, "units": host.routingLabel ?? "", "voice": voice,
+                "device": DeviceChipGate.machineIdentifier, "os": ProcessInfo.processInfo.operatingSystemVersionString,
+                "build": LocalTTSCoordinator.buildConfiguration, "optimized": !_isDebugAssertConfiguration(),
+                "thermal": ProcessInfo.processInfo.thermalState.rawValue,
+                "low_power": ProcessInfo.processInfo.isLowPowerModeEnabled, "cores": ProcessInfo.processInfo.activeProcessorCount,
+            ])
+            say("\(request.route.rawValue) run \(runID): calls \(start)..<\(request.calls), \(history.crashes.count) crashes so far")
 
-    /// The app's engine finished loading, its Kokoro host unloaded, the render queue paused and idle.
-    private static func quietTheApp(_ coordinator: LocalTTSCoordinator) async {
-        let waitStart = ListenTimingLog.now()
-        while coordinator.synth.state.warmingEngineID != nil, ListenTimingLog.ms(since: waitStart) < 15 * 60_000 {
-            try? await Task.sleep(nanoseconds: 500_000_000)
+            let t0 = ListenTimingLog.now()
+            do {
+                try await host.prepare()
+            } catch {
+                log.append(["ev": "prepare_failed", "run": runID, "err": error.localizedDescription])
+                say("prepare failed: \(error.localizedDescription)")
+                return
+            }
+            let prepareMs = ListenTimingLog.ms(since: t0)
+            log.append(["ev": "prepared", "run": runID, "ms": prepareMs, "units": host.routingLabel ?? ""])
+
+            for index in start..<corpus.count {
+                await waitUntilActive(log: log, run: runID)
+                let chunk = corpus[index]
+                log.append(["ev": "begin", "run": runID, "i": index, "chars": chunk.text.count, "para": chunk.paragraph,
+                            "t": Date().timeIntervalSince1970])
+                await SynthRenderGate.shared.acquire()
+                let tCall = ListenTimingLog.now()
+                var fields: [String: Any] = ["ev": "end", "run": runID, "i": index, "chars": chunk.text.count]
+                do {
+                    let pcm = try await host.synthesizeOnce(text: chunk.text, priority: .listener)
+                    let wallMs = (ListenTimingLog.now() - tCall) * 1000
+                    fields["ok"] = true
+                    fields["wall_ms"] = Int(wallMs.rounded())
+                    fields["audio_s"] = (pcm.duration * 1000).rounded() / 1000
+                    if pcm.duration > 0 {
+                        fields["rtf"] = (wallMs / 1000 / pcm.duration * 1000).rounded() / 1000
+                        fields["ms_per_audio_s"] = Int((wallMs / pcm.duration).rounded())
+                    }
+                    for key in ["stages_ms", "onnx_ms", "g2p_ms", "threads", "phonemes", "tokens"] {
+                        if let v = pcm.metrics[key] { fields[key] = v }
+                    }
+                } catch {
+                    fields["ok"] = false
+                    fields["wall_ms"] = ListenTimingLog.ms(since: tCall)
+                    fields["err"] = error.localizedDescription
+                }
+                await SynthRenderGate.shared.release()
+                fields["thermal"] = ProcessInfo.processInfo.thermalState.rawValue
+                fields["mem_mb"] = ProcessMemory.footprintMB
+                if index == start { fields["first_audio_ms"] = ListenTimingLog.ms(since: t0) }
+                log.append(fields)
+                if index % 20 == 19 || index == start { say("\(request.route.rawValue) \(index + 1)/\(corpus.count)") }
+            }
+            await host.unload()
+            finish(log: log, summaryURL: summaryURL, request: request, status: "complete")
         }
-        coordinator.synthQueue.isPausedForProbe = true
-        while coordinator.synthQueue.isWorkerRunning, ListenTimingLog.ms(since: waitStart) < 16 * 60_000 {
-            try? await Task.sleep(nanoseconds: 200_000_000)
-        }
-        // A second loaded Kokoro (Core ML twice fails on device; ONNX twice doubles the memory).
-        if let live = coordinator.synth.liveRenderer(for: .kokoro) { await live.host.unload() }
     }
 
     private static func waitUntilActive(log: KokoroStressLog, run: String) async {

@@ -206,6 +206,33 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return pendingResume
     }
 
+    // MARK: - Waiting for the engine (launch, diagnostics)
+
+    /// Waits while a model loads (`LocalEngineState.warming`) until the load settles (loaded,
+    /// failed, cancelled), or `timeout` passes.
+    func waitForEngineLoad(timeout: Duration) async {
+        let deadline = ContinuousClock.now + timeout
+        while synth.state.warmingEngineID != nil, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+    }
+
+    /// Runs `work` with the model to itself: a load in flight settled, the render queue paused
+    /// with its worker stopped (it finishes the chunk in flight) and the live host let go, so the
+    /// models `work` loads are the only ones resident. Each wait gives up after `timeout`. The
+    /// queue resumes afterwards; its next render loads the engine again.
+    func withRenderingQuiet<T>(timeout: Duration = .seconds(15 * 60), _ work: () async throws -> T) async rethrows -> T {
+        let deadline = ContinuousClock.now + timeout
+        await waitForEngineLoad(timeout: timeout)
+        synthQueue.isPausedForProbe = true
+        defer { synthQueue.isPausedForProbe = false }
+        while synthQueue.isWorkerRunning, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+        await synth.releaseHost()
+        return try await work()
+    }
+
     // MARK: - Kokoro route (ONNX CPU default; Core ML in front as a debug opt-in)
 
     var kokoroRouteSettings: KokoroRouteSettings { KokoroRouteSettings(defaults: defaults) }

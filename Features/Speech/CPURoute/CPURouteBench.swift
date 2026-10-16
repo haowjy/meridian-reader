@@ -114,60 +114,55 @@ final class CPURouteBench {
         defer { isRunning = false }
         let runID = String(UUID().uuidString.prefix(8))
 
-        // One heavy job at a time: let any engine prepare finish, then hold the bake worker.
+        // One heavy job at a time: any engine load settles, the bake worker holds and the app's
+        // Kokoro host goes, so the bench's sessions are the only ones loaded.
         status = "Waiting for Kokoro prepare / bake worker…"
         let waitStart = ListenTimingLog.now()
-        while coordinator.synth.state.warmingEngineID != nil, ListenTimingLog.ms(since: waitStart) < 5 * 60_000 {
-            try? await Task.sleep(nanoseconds: 500_000_000)
-        }
-        coordinator.synthQueue.isPausedForProbe = true
-        defer { coordinator.synthQueue.isPausedForProbe = false }
-        while coordinator.synthQueue.isWorkerRunning, ListenTimingLog.ms(since: waitStart) < 7 * 60_000 {
-            try? await Task.sleep(nanoseconds: 200_000_000)
-        }
-        let waitedMs = ListenTimingLog.ms(since: waitStart)
+        await coordinator.withRenderingQuiet(timeout: .seconds(5 * 60)) {
+            let waitedMs = ListenTimingLog.ms(since: waitStart)
 
-        let inputs: Inputs
-        do {
-            status = "Phonemizing (FluidAudio)…"
-            inputs = try await prepareInputs(coordinator: coordinator)
-        } catch {
-            status = "Inputs failed: \(error.localizedDescription)"
-            CPUBenchLog.append("cpubench_error", ["run": runID, "stage": "inputs", "err": error.localizedDescription])
-            return
-        }
-
-        var base = baseFields(runID: runID, inputs: inputs)
-        base["bake_wait_ms"] = waitedMs
-        CPUBenchLog.append("cpubench_start", base)
-        ListenTimingLog.log("cpubench", ["op": "start", "run": runID])
-        ListenDebugLog.shared.append("CPU bench \(runID): start (\(inputs.long.tokenCount)+\(inputs.short.tokenCount) tokens, phonemes \(inputs.phonemesSource))")
-
-        let modelURL = KokoroONNXModelStore.ensurePatchedModel().url
-        for (index, config) in Self.configs.enumerated() {
-            status = "Running \(index + 1)/\(Self.configs.count): \(config.label)…"
+            let inputs: Inputs
             do {
-                let (fields, row, longSamples) = try await Self.measure(config, inputs: inputs, modelURL: modelURL)
-                rows.append(row)
-                var obj = base
-                obj.merge(fields) { _, new in new }
-                obj["app_state"] = AppRunState.shared.phase.rawValue
-                CPUBenchLog.append("cpubench_run", obj)
-                ListenDebugLog.shared.append(String(format: "CPU bench %@: 501 %.2f× 190 %.2f× load %dms", config.label, row.x501, row.x190, row.loadMs))
-                if index == Self.sampleConfigIndex {
-                    saveSample(longSamples, runID: runID)
-                }
+                status = "Phonemizing (FluidAudio)…"
+                inputs = try await prepareInputs()
             } catch {
-                rows.append(Row(label: config.label, loadMs: 0, coldMs: 0, x190: 0, x501: 0, cpuPerAudio501: 0,
-                                peakMB: 0, thermal: CPURouteMetrics.thermal, error: error.localizedDescription))
-                CPUBenchLog.append("cpubench_error", ["run": runID, "config": config.label, "err": error.localizedDescription])
+                status = "Inputs failed: \(error.localizedDescription)"
+                CPUBenchLog.append("cpubench_error", ["run": runID, "stage": "inputs", "err": error.localizedDescription])
+                return
             }
+
+            var base = baseFields(runID: runID, inputs: inputs)
+            base["bake_wait_ms"] = waitedMs
+            CPUBenchLog.append("cpubench_start", base)
+            ListenTimingLog.log("cpubench", ["op": "start", "run": runID])
+            ListenDebugLog.shared.append("CPU bench \(runID): start (\(inputs.long.tokenCount)+\(inputs.short.tokenCount) tokens, phonemes \(inputs.phonemesSource))")
+
+            let modelURL = KokoroONNXModelStore.ensurePatchedModel().url
+            for (index, config) in Self.configs.enumerated() {
+                status = "Running \(index + 1)/\(Self.configs.count): \(config.label)…"
+                do {
+                    let (fields, row, longSamples) = try await Self.measure(config, inputs: inputs, modelURL: modelURL)
+                    rows.append(row)
+                    var obj = base
+                    obj.merge(fields) { _, new in new }
+                    obj["app_state"] = AppRunState.shared.phase.rawValue
+                    CPUBenchLog.append("cpubench_run", obj)
+                    ListenDebugLog.shared.append(String(format: "CPU bench %@: 501 %.2f× 190 %.2f× load %dms", config.label, row.x501, row.x190, row.loadMs))
+                    if index == Self.sampleConfigIndex {
+                        saveSample(longSamples, runID: runID)
+                    }
+                } catch {
+                    rows.append(Row(label: config.label, loadMs: 0, coldMs: 0, x190: 0, x501: 0, cpuPerAudio501: 0,
+                                    peakMB: 0, thermal: CPURouteMetrics.thermal, error: error.localizedDescription))
+                    CPUBenchLog.append("cpubench_error", ["run": runID, "config": config.label, "err": error.localizedDescription])
+                }
+            }
+            let best = rows.filter { $0.error == nil }.max { $0.x501 < $1.x501 }
+            CPUBenchLog.append("cpubench_end", ["run": runID, "thermal": CPURouteMetrics.thermal,
+                                                "best": best?.label ?? "—", "best_x501": best?.x501 ?? 0])
+            ListenTimingLog.log("cpubench", ["op": "end", "run": runID])
+            status = "Done (\(runID)) · best \(best.map { String(format: "%@ %.2f×", $0.label, $0.x501) } ?? "—") · thermal \(CPURouteMetrics.thermal)"
         }
-        let best = rows.filter { $0.error == nil }.max { $0.x501 < $1.x501 }
-        CPUBenchLog.append("cpubench_end", ["run": runID, "thermal": CPURouteMetrics.thermal,
-                                            "best": best?.label ?? "—", "best_x501": best?.x501 ?? 0])
-        ListenTimingLog.log("cpubench", ["op": "end", "run": runID])
-        status = "Done (\(runID)) · best \(best.map { String(format: "%@ %.2f×", $0.label, $0.x501) } ?? "—") · thermal \(CPURouteMetrics.thermal)"
     }
 
     private func baseFields(runID: String, inputs: Inputs) -> [String: Any] {
@@ -247,21 +242,13 @@ final class CPURouteBench {
 
     // MARK: - Inputs (foreground only)
 
-    /// Phonemes (cached on disk after the first on-device run), vocab ids and `af_heart` rows.
-    /// Uses the live CPU-route host's Core-ML-free frontend, else a temporary `KokoroCPUHost`
-    /// (frontend only; its ONNX session is never loaded).
-    private func prepareInputs(coordinator: LocalTTSCoordinator) async throws -> Inputs {
+    /// Phonemes (cached on disk after the first on-device run), vocab ids and `af_heart` rows,
+    /// from a `KokoroCPUHost` used for its Core-ML-free frontend only (its ONNX session is never
+    /// loaded; it goes when this returns).
+    private func prepareInputs() async throws -> Inputs {
         if let cachedInputs { return cachedInputs }
         let text = KokoroCPUBenchText.long
-        var temporary: LocalSynthHost?
-        let frontend: KokoroCPURouteFrontend
-        if let live = coordinator.synth.liveRenderer(for: .kokoro)?.host as? KokoroCPURouteFrontend {
-            frontend = live
-        } else {
-            let made = KokoroCPUHost(voice: KokoroHost.defaultVoice)
-            temporary = made
-            frontend = made
-        }
+        let frontend: KokoroCPURouteFrontend = KokoroCPUHost(voice: KokoroHost.defaultVoice)
 
         var cache = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: Self.phonemeCacheURL))) ?? [:]
         var longPh: String
@@ -280,7 +267,6 @@ final class CPURouteBench {
                 longPh = KokoroCPUBenchText.longPhonemesMac
                 source = "builtin-mac (device G2P failed: \(error.localizedDescription))"
             }
-            if let temporary { await temporary.unload() }
         } else {
             longPh = KokoroCPUBenchText.longPhonemesMac
             source = "builtin-mac (backgrounded)"
@@ -375,7 +361,7 @@ final class CPURouteBench {
         let start = ListenTimingLog.now()
         do {
             soakStatus = "Preparing inputs…"
-            let inputs = try await prepareInputs(coordinator: speech.localTTS)
+            let inputs = try await prepareInputs()
             let modelURL = KokoroONNXModelStore.ensurePatchedModel().url
             let loadStart = ListenTimingLog.now()
             let session = try await KokoroONNXSession.onQueue(.userInitiated) {

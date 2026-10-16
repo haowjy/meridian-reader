@@ -150,6 +150,13 @@ final class LocalSynthService: SynthChunkRendering {
         }
     }
 
+    /// Let the live host go and wait until its models are released: for diagnostics that load
+    /// models of their own. The next render builds and loads a new host.
+    func releaseHost() async {
+        unloadHost()
+        await waitForRetiredHosts()
+    }
+
     private func waitForRetiredHosts() async {
         while let pending = retiring {
             await pending.value

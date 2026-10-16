@@ -38,4 +38,29 @@ final class LocalSynthServiceTests: XCTestCase {
         XCTAssertEqual(firstHost.calls.map(\.ok), [true], "the call in flight finished")
         XCTAssertEqual(sessions.peak, 1)
     }
+
+    /// The engine probe, the stress run and the CPU bench load models of their own: the app's
+    /// host goes first and the queue holds, then both come back.
+    func testRenderingQuietLetsTheHostGoUntilTheWorkEnds() async {
+        let sessions = FakeSessionCount()
+        let provider = FakeEngineProvider(config: .init(sessions: sessions))
+        let registry = EngineRegistry(providers: [AppleSpeechProvider(), provider], gate: { _ in true })
+        let suite = "LocalSynthService-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let tts = LocalTTSCoordinator(engines: registry, defaults: defaults,
+                                      audioCache: ArticleAudioCache(root: root.appendingPathComponent("cache")),
+                                      crashGuard: EngineCrashGuard(directory: root.appendingPathComponent("guard")))
+        await tts.selectEngine(FakeEngineProvider.fakeID)
+        XCTAssertEqual(sessions.live, 1)
+
+        var duringWork: (sessions: Int, paused: Bool)?
+        await tts.withRenderingQuiet {
+            duringWork = (sessions.live, tts.synthQueue.isPausedForProbe)
+        }
+        XCTAssertEqual(duringWork?.sessions, 0, "the app's host had gone")
+        XCTAssertEqual(duringWork?.paused, true)
+        XCTAssertFalse(tts.synthQueue.isPausedForProbe)
+        XCTAssertTrue(tts.usesLocalEngine, "the engine stays selected; the next render loads it")
+    }
 }
