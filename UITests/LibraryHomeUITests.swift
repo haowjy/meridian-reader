@@ -183,7 +183,7 @@ final class LibraryHomeUITests: XCTestCase {
     }
 
     func testGlobeThereAndBackKeepsThePageAndTheFolder() throws {
-        let app = launchTestPages()
+        let app = launchTestPages(["-seedDemoFolders"])
         openTestPage(app, "Next page")
         app.buttons["browseLibrary"].tap()
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
