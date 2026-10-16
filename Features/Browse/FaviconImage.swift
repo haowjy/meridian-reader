@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 
+/// A site's icon on a `chrome` tile, or its letter: the search suggestions' leading column.
 struct FaviconImage: View {
     let data: Data?
     var host: String = ""
@@ -9,7 +10,7 @@ struct FaviconImage: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
+                .fill(Palette.chrome)
             if let data, let image = UIImage(data: data) {
                 Image(uiImage: image)
                     .resizable()
@@ -18,7 +19,7 @@ struct FaviconImage: View {
             } else {
                 Text(monogram)
                     .font(.system(size: size * 0.42, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Palette.secondaryInk)
             }
         }
         .frame(width: size, height: size)

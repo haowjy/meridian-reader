@@ -50,7 +50,7 @@ struct FolderDetailsSheet: View {
                         .libraryHeader()
                 }
                 field(String(localized: "Name"), text: $name, prompt: String(localized: "Name"), id: "detailsName")
-                field(String(localized: "Author"), text: $byline, prompt: String(localized: "None"), id: "detailsAuthor")
+                field(String(localized: "Author"), text: $byline, prompt: String(localized: "Optional"), id: "detailsAuthor")
                 Section {
                     choice(String(localized: "Choose from Photos"), Icons.photos, id: "detailsCoverPhotos") {
                         isPickingPhoto = true
@@ -72,16 +72,11 @@ struct FolderDetailsSheet: View {
             .navigationTitle(String(localized: "Edit Details"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { shell.sheet = nil }
-                        .accessibilityIdentifier("detailsCancel")
+                SheetBarButton(Verbs.cancel, placement: .cancellationAction, identifier: "detailsCancel") {
+                    shell.sheet = nil
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
-                        .fontWeight(.semibold)
-                        .disabled(isPreparingCover)
-                        .accessibilityIdentifier("detailsSave")
-                }
+                SheetBarButton(String(localized: "Save"), placement: .confirmationAction, identifier: "detailsSave",
+                               isDisabled: isPreparingCover) { save() }
             }
         }
         .sheetToastLayer()
@@ -140,7 +135,7 @@ struct FolderDetailsSheet: View {
         Button(action: action) {
             HStack(spacing: Spacing.s) {
                 Image(systemName: symbol)
-                    .foregroundStyle(Palette.accent)
+                    .foregroundStyle(Palette.ink)
                     .frame(width: ListRow.leadingWidth)
                 Text(title)
                     .typeStyle(.row)

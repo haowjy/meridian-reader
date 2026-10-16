@@ -233,9 +233,9 @@ final class BrowseToolbarUITests: XCTestCase {
 
         // Voice settings (what the gear held) opens as a sheet.
         element(app, "moreVoice").tap()
-        XCTAssertTrue(app.navigationBars["Listen"].waitForExistence(timeout: 5), "voice settings sheet")
-        app.navigationBars["Listen"].buttons["Done"].tap()
-        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Listen"]))
+        XCTAssertTrue(app.navigationBars["Voice Settings"].waitForExistence(timeout: 5), "voice settings sheet")
+        app.navigationBars["Voice Settings"].buttons["Done"].tap()
+        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Voice Settings"]))
 
         // Add the page to Favorites from the reader (wait for the morph to finish growing before tapping
         // a row: mid-animation the rows are still scaled toward the ⋯ button).

@@ -19,36 +19,25 @@ enum DownloadState: Equatable {
 }
 
 /// The one Download button, drawn from a `DownloadState`: ⬇ to ask for it, a ring filling while
-/// it downloads, ✓ once it has. Only *available* takes a tap; the other two only report.
+/// it downloads, ✓ once it has. Only *available* takes a tap; the other two only report. The same
+/// glyph beside a row's ▶ and in a folder header's row of pills, so Download reads one way on a
+/// screen.
 ///
-/// | Look | available | downloading | downloaded |
-/// |---|---|---|---|
-/// | `glyph` (a row, beside its ▶) | ⬇ accent | ring | ✓ secondary |
-/// | `round` (a header's row of pills) | ⬇ on a chrome disc | ring on the disc | ✓ on the disc |
+/// | available | downloading | downloaded |
+/// |---|---|---|
+/// | ⬇ accent | ring | ✓ secondary |
 struct DownloadStateButton: View {
-    enum Look {
-        /// A 44 pt glyph, a row's trailing control.
-        case glyph
-        /// A round neutral button the height of a `PillButton`, in an `ActionButtonRow`.
-        case round
-    }
-
     let state: DownloadState
-    var look: Look = .glyph
     let action: () -> Void
 
-    @ScaledMetric(relativeTo: .callout) private var scale: CGFloat = 1
     @ScaledMetric(relativeTo: .title3) private var scaledGlyph: CGFloat = PlayStateButton.glyphSize
 
     var body: some View {
         Button(action: action) {
             mark
-                .frame(width: side, height: side)
-                .background {
-                    if look == .round { Circle().fill(Palette.chrome) }
-                }
+                .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
                 .contentShape(Circle())
-                .tapTarget(side)
+                .tapTarget(BottomChrome.minTapTarget)
         }
         .buttonStyle(PillPressStyle())
         .disabled(state != .available)
@@ -60,41 +49,25 @@ struct DownloadStateButton: View {
         }
     }
 
-    /// A row's glyph keeps the tap target's size; the round look is a `PillButton`'s height and
-    /// grows with it.
-    private var side: CGFloat {
-        switch look {
-        case .glyph: BottomChrome.minTapTarget
-        case .round: BottomChrome.grown(PillButton<EmptyView>.Size.regular.height * scale,
-                                        from: PillButton<EmptyView>.Size.regular.height)
-        }
-    }
-
     @ViewBuilder
     private var mark: some View {
         switch state {
         case .downloading(let fraction):
             ProgressRing(fraction: fraction, size: Glyph.mark)
         case .available, .downloaded:
-            let image = Image(systemName: symbol ?? Icons.downloadInRing)
-            Group {
-                switch look {
-                // A row's glyph matches its ▶ (`PlayStateButton`'s glyph).
-                case .glyph: image.font(.system(size: BottomChrome.grown(scaledGlyph, from: PlayStateButton.glyphSize)))
-                // The round one, a pill's symbol.
-                case .round: image.typeStyle(.row, weight: .semibold)
-                }
-            }
-            .foregroundStyle(state == .downloaded ? Palette.secondaryInk : look == .round ? Palette.ink : Palette.accent)
-            .contentTransition(.symbolEffect(.replace))
+            // Matches its ▶ (`PlayStateButton`'s glyph).
+            Image(systemName: symbol ?? Icons.download)
+                .font(.system(size: BottomChrome.grown(scaledGlyph, from: PlayStateButton.glyphSize)))
+                .foregroundStyle(state == .downloaded ? Palette.secondaryInk : Palette.accent)
+                .contentTransition(.symbolEffect(.replace))
         }
     }
 
     private var symbol: String? {
         switch state {
-        case .available: look == .glyph ? Icons.download : Icons.downloadInRing
+        case .available: Icons.download
         case .downloading: nil
-        case .downloaded: look == .glyph ? Icons.downloaded : Icons.downloadedInRing
+        case .downloaded: Icons.downloaded
         }
     }
 
@@ -110,10 +83,7 @@ struct DownloadStateButtonGallery: View {
         PreviewGallery {
             ForEach([DownloadState.available, .downloading(fraction: 0.4), .downloaded], id: \.accessibilityLabel) { state in
                 PreviewState(state.accessibilityLabel) {
-                    HStack(spacing: Spacing.m) {
-                        DownloadStateButton(state: state) {}
-                        DownloadStateButton(state: state, look: .round) {}
-                    }
+                    DownloadStateButton(state: state) {}
                 }
             }
         }

@@ -1,9 +1,17 @@
 import SwiftUI
 
-/// Recently visited pages (the bounded `RecentVisit` list). Tap to open.
+/// Recently visited pages (the bounded `RecentVisit` list), newest first, in the Library's rows:
+/// the site's icon (or its letter tile), the title, then the site and how long ago. Tap to open.
+///
+/// ```
+/// History                                           ( Done )
+/// ▣  Speech synthesis
+///    en.wikipedia.org   2 hr ago
+/// ```
 struct BrowseHistoryView: View {
     let visits: [RecentVisit]
     var onOpen: (RecentVisit) -> Void
+    var onDone: () -> Void
 
     var body: some View {
         NavigationStack {
@@ -11,34 +19,36 @@ struct BrowseHistoryView: View {
                 if visits.isEmpty {
                     ContentUnavailableView("No history yet", systemImage: Icons.history,
                                            description: Text("Pages you open show up here."))
+                        .background(Palette.paper)
                 } else {
-                    List(visits, id: \.id) { visit in
-                        Button { onOpen(visit) } label: {
-                            HStack(spacing: 12) {
-                                FaviconImage(data: visit.faviconData, host: visit.host, size: 28)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(visit.title)
-                                        .font(.body)
-                                        .foregroundStyle(.primary)
-                                        .lineLimit(1)
-                                    Text(visit.host)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                                Spacer(minLength: 0)
-                                Text(visit.visitedAt, format: .relative(presentation: .numeric, unitsStyle: .abbreviated))
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
+                    List {
+                        Section {
+                            ForEach(visits, id: \.id) { visit in
+                                row(visit)
                             }
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Palette.chrome)
                         }
                     }
-                    .listStyle(.plain)
+                    .libraryListStyle()
                 }
             }
             .navigationTitle("History")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                SheetBarButton(Verbs.done, placement: .confirmationAction, identifier: "historyDone", action: onDone)
+            }
         }
         .accessibilityIdentifier("browseHistory")
+    }
+
+    private func row(_ visit: RecentVisit) -> some View {
+        ListRow(kind: .page(artwork: visit.faviconData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
+                            letter: visit.host.siteLetter),
+                title: visit.title.isEmpty ? visit.host : visit.title, subtitle: visit.host,
+                note: visit.visitedAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
+            .opensOnTap { onOpen(visit) }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityIdentifier("historyRow")
     }
 }

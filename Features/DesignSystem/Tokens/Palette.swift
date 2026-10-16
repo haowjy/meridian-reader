@@ -14,6 +14,7 @@ import UIKit
 /// | accent | #287060 | #5FB8A0 |
 /// | onAccent | #FFFFFF | #141416 |
 /// | playingTint | #E6F1ED | #163029 |
+/// | hairline | #E4E2DC | #3A3A40 |
 /// | destructive | system red | system red |
 ///
 /// Now Playing is a player: deep jade in both appearances, so its tokens have one value
@@ -49,6 +50,8 @@ enum Palette {
     /// The letter on `placeholderTile` (≥ 4.5 : 1 on it in both modes).
     static let placeholderInk = Color(light: 0x1F5A4D, dark: 0xD5EDE5)
     static let playingTint = Color(light: 0xE6F1ED, dark: 0x163029)
+    /// The edge of a floating panel (the ⋯ panel), so it shows over paper in both appearances.
+    static let hairline = Color(light: 0xE4E2DC, dark: 0x3A3A40)
     /// A swipe action that can leave its row in the list (it asks first, as a folder row's
     /// *Delete*; it deletes what the row only shows, as an engine's download; or its change can
     /// fail to save, as a page's *Remove*): the system's red, as a `.destructive` role draws it.
@@ -66,7 +69,7 @@ enum Palette {
     static let playerCard = Color(light: 0x1F3D35, dark: 0x1F3D35)
     /// The scrubber's empty track and artwork without an image.
     static let playerTrack = Color(light: 0x2E4C44, dark: 0x2E4C44)
-    /// Text and glyphs on the player; the spoken paragraph and its underline.
+    /// Text and glyphs on the player; the spoken paragraph.
     static let playerInk = Color(light: 0xF2F1EC, dark: 0xF2F1EC)
     /// The paragraphs not being spoken (lyrics style): about 55% of `playerInk` on
     /// `playerBackground`, the faintest that still reads at 4.5:1.
@@ -76,7 +79,8 @@ enum Palette {
     /// `tertiaryInk` on the player: the time left after the site on the title card and the
     /// scrubber. 4.5:1 on `playerCard`.
     static let playerTertiaryInk = Color(light: 0x91A89F, dark: 0x91A89F)
-    /// The accent on the player (`accent`'s dark value): the big ⏸ / ▶, links, Jump.
+    /// The accent on the player (`accent`'s dark value): the big ⏸ / ▶, links, Jump, the spoken
+    /// sentence's underline (the accent underlines it on paper too).
     static let playerAccent = Color(light: 0x5FB8A0, dark: 0x5FB8A0)
     /// Glyphs on a `playerAccent` fill.
     static let onPlayerAccent = Color(light: 0x141416, dark: 0x141416)

@@ -5,9 +5,9 @@ enum ActionLabelFit: CaseIterable {
     /// The title and its detail: *▶ **Continue**  4 of 18*, *⏮ From Start*.
     case full
     /// The short title (`PillButton.shortTitle`, else the title), still with its detail:
-    /// *▶ **Continue**  4 of 18*, *⏮ Start*.
+    /// *↻ Redo* for *↻ Re-download*.
     case short
-    /// The short title without its detail: *▶ **Continue***, *⏮ Start*.
+    /// The short title without its detail: *▶ **Continue***, *⏮ From Start*.
     case titleOnly
     /// The symbol alone, on a round button; VoiceOver and the large content viewer keep the title.
     case icon
@@ -20,10 +20,9 @@ enum ActionLabelFit: CaseIterable {
 /// when it doesn't fit, so the buttons stay on one line at every width and text size.
 ///
 /// ```
-/// ( ▶ Continue  4 of 18     ) ( ⏮ From Start ) (⬇)     full
-/// ( ▶ Continue  4 of 18          ) ( ⏮ Start ) (⬇)     short
-/// ( ▶ Continue                   ) ( ⏮ Start ) (⬇)     titleOnly
-/// (            ▶                      ) (⏮) (⬇)     icon
+/// ( ▶ Continue  4 of 18     ) ( ⏮ From Start )  ⬇     full (and short: no short titles here)
+/// ( ▶ Continue               ) ( ⏮ From Start )  ⬇     titleOnly
+/// (            ▶                      ) (⏮)  ⬇     icon
 /// ```
 ///
 /// Give each button its symbol (`PillButton(systemImage:)`, a `PlayStateButton` pill): the icon
@@ -57,9 +56,8 @@ struct ActionButtonRowGallery: View {
                     ActionButtonRow { fit in
                         PlayStateButton(state: .idle, look: .pill(title: "Continue", detail: "4 of 18", expands: true,
                                                                    fit: fit)) {}
-                        PillButton("From Start", shortTitle: "Start", systemImage: Icons.previous, style: .neutral,
-                                   fit: fit) {}
-                        DownloadStateButton(state: .available, look: .round) {}
+                        PillButton("From Start", systemImage: Icons.previous, style: .neutral, fit: fit) {}
+                        DownloadStateButton(state: .available) {}
                     }
                     .frame(width: width)
                 }

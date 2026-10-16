@@ -23,6 +23,8 @@ struct ShellSheetView: View {
         case .history:
             BrowseHistoryView(visits: Array(recentVisits.prefix(RecentVisit.maxEntries))) { visit in
                 open(visit.url)
+            } onDone: {
+                shell.sheet = nil
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
@@ -30,8 +32,8 @@ struct ShellSheetView: View {
             NavigationStack {
                 SpeechSettingsView(speech: speech)
                     .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { shell.sheet = nil }
+                        SheetBarButton(Verbs.done, placement: .confirmationAction, identifier: "voiceSettingsDone") {
+                            shell.sheet = nil
                         }
                     }
             }

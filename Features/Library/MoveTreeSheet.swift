@@ -35,10 +35,8 @@ struct MoveTreeSheet: View {
             .navigationTitle(request.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button { shell.sheet = nil } label: { Image(systemName: Icons.close) }
-                        .accessibilityLabel("Cancel")
-                        .accessibilityIdentifier("moveCancel")
+                SheetBarButton(Verbs.cancel, placement: .cancellationAction, identifier: "moveCancel") {
+                    shell.sheet = nil
                 }
             }
         }

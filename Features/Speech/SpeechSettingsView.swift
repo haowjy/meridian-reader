@@ -1,7 +1,7 @@
 import SwiftUI
 import AVFoundation
 
-/// Settings → Listen.
+/// ⋯ → Voice Settings, on the Library's list style (cards on paper, `SectionHeader`s).
 ///
 /// 1. **Engine**: Apple + on-device engines from `EngineRegistry` (download %, cancel, ready,
 ///    swipe-to-delete, crash notice). Fixed two-line rows: state changes only swap the subtitle
@@ -30,7 +30,8 @@ struct SpeechSettingsView: View {
             }
             aboutSection
         }
-        .navigationTitle("Listen")
+        .libraryListStyle()
+        .navigationTitle(Verbs.voiceSettings)
         .navigationBarTitleDisplayMode(.inline)
         .alert(developerToggleNotice ?? "", isPresented: Binding(
             get: { developerToggleNotice != nil },
@@ -71,17 +72,19 @@ struct SpeechSettingsView: View {
                 localEngineRow(descriptor)
             }
         } header: {
-            Text("Engine")
+            header(String(localized: "Engine"))
         } footer: {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 if let notice = localTTS.engineCrashNotice {
-                    Text(notice).foregroundStyle(.orange)
+                    Text(notice).foregroundStyle(Palette.destructive)
                 } else if case .failed(_, let message) = localTTS.synth.state {
-                    Text(message).foregroundStyle(.red)
+                    Text(message).foregroundStyle(Palette.destructive)
                 }
                 Text("On-device voices download once, then work offline. Swipe left on a downloaded engine to delete it.")
             }
+            .settingsFooter()
         }
+        .listRowBackground(Palette.chrome)
     }
 
     @ViewBuilder
@@ -166,7 +169,7 @@ struct SpeechSettingsView: View {
                 let downloading = localTTS.voiceDownloadID == voice.id
                 SettingsRow(
                     title: voice.label,
-                    subtitle: voice.id == descriptor.defaultVoiceID ? "\(voice.detail) (default)" : voice.detail,
+                    subtitle: voice.id == descriptor.defaultVoiceID ? Self.defaultVoiceSubtitle(voice.detail) : voice.detail,
                     selected: current == voice.id && localTTS.voiceDownloadID == nil,
                     busy: downloading,
                     accessibilityID: "voiceRow-\(voice.id)"
@@ -180,7 +183,7 @@ struct SpeechSettingsView: View {
                         } label: {
                             Image(systemName: preview.playingID == voice.id ? Icons.previewStop : Icons.previewPlay)
                                 .font(.title3)
-                                .foregroundStyle(.tint)
+                                .foregroundStyle(Palette.accent)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(preview.playingID == voice.id ? "Stop preview" : "Preview \(voice.label)")
@@ -189,14 +192,19 @@ struct SpeechSettingsView: View {
                 }
             }
         } header: {
-            Text("Voice (\(descriptor.shortName))")
+            // The engine it belongs to is the one ticked above.
+            header(String(localized: "Voice"))
         } footer: {
-            if let error = localTTS.voiceDownloadError {
-                Text(error).foregroundStyle(.red)
-            } else {
-                Text("Switching voice re-renders listened articles in the new voice; the old voice keeps playing until each paragraph is ready.")
+            Group {
+                if let error = localTTS.voiceDownloadError {
+                    Text(error).foregroundStyle(Palette.destructive)
+                } else {
+                    Text("Switching voice re-renders listened articles in the new voice; the old voice keeps playing until each paragraph is ready.")
+                }
             }
+            .settingsFooter()
         }
+        .listRowBackground(Palette.chrome)
     }
 
     private var appleVoices: [VoiceCatalog.Entry] {
@@ -238,10 +246,12 @@ struct SpeechSettingsView: View {
                 }
             }
         } header: {
-            Text("Voice (Apple)")
+            header(String(localized: "Voice"))
         } footer: {
             Text("Enhanced and Premium voices can be added in iOS Settings → Accessibility → Spoken Content → Voices.")
+                .settingsFooter()
         }
+        .listRowBackground(Palette.chrome)
     }
 
     // MARK: - Language
@@ -276,14 +286,18 @@ struct SpeechSettingsView: View {
                 }
             }
         } header: {
-            Text("Language")
+            header(String(localized: "Language"))
         } footer: {
-            if let note = speech.languageResolution.note {
-                Text("This article: \(note).")
-            } else {
-                Text("Automatic detects each article's language. Articles in a language the selected engine can't speak use Apple's voice for that language.")
+            Group {
+                if let note = speech.languageResolution.note {
+                    Text("This article: \(note).")
+                } else {
+                    Text("Automatic detects each article's language. Articles in a language the selected engine can't speak use Apple's voice for that language.")
+                }
             }
+            .settingsFooter()
         }
+        .listRowBackground(Palette.chrome)
     }
 
     private var automaticSubtitle: String {
@@ -308,17 +322,24 @@ struct SpeechSettingsView: View {
                 } label: {
                     HStack {
                         Text(abs(option - 1.0) < 0.01 ? "1×" : String(format: "%g×", option))
-                            .foregroundStyle(.primary)
+                            .typeStyle(.row)
+                            .monospacedDigit()
+                            .foregroundStyle(Palette.ink)
                         Spacer()
                         if abs(speech.rateMultiplier - option) < 0.01 {
-                            Image(systemName: Icons.checkmark).foregroundStyle(.tint)
+                            Image(systemName: Icons.checkmark)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Palette.accent)
                         }
                     }
+                    .frame(minHeight: SettingsRowMetrics.minHeight)
+                    .contentShape(Rectangle())
                 }
             }
         } header: {
-            Text("Speed")
+            header(String(localized: "Speed"))
         }
+        .listRowBackground(Palette.chrome)
     }
 
     // MARK: - Version / developer options
@@ -327,14 +348,15 @@ struct SpeechSettingsView: View {
         Section {
             HStack {
                 Text(DeveloperOptions.versionLabel)
+                    .typeStyle(.row)
                 Spacer()
                 if speech.developerOptionsEnabled {
                     Text("Developer options")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .typeStyle(.caption)
                 }
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Palette.secondaryInk)
+            .frame(minHeight: SettingsRowMetrics.minHeight)
             .contentShape(Rectangle())
             .onLongPressGesture(minimumDuration: DeveloperOptions.unlockPressSeconds) {
                 toggleDeveloperOptions()
@@ -346,6 +368,20 @@ struct SpeechSettingsView: View {
                 toggleDeveloperOptions()
             }
         }
+        .listRowBackground(Palette.chrome)
+    }
+
+    // MARK: - Pieces
+
+    private func header(_ title: String) -> some View {
+        SectionHeader(title: title)
+            .libraryHeader()
+    }
+
+    /// A default voice's second line: its detail, then that it is the default ("Default" alone
+    /// when it has no detail).
+    static func defaultVoiceSubtitle(_ detail: String) -> String {
+        detail.isEmpty ? String(localized: "Default") : String(localized: "\(detail) (default)")
     }
 
     private func toggleDeveloperOptions() {
@@ -363,6 +399,8 @@ struct SpeechSettingsView: View {
         Section {
             Toggle(isOn: $speech.listenDebugEnabled) {
                 Label("Listen debug", systemImage: Icons.debug)
+                    .typeStyle(.row)
+                    .foregroundStyle(Palette.ink)
             }
             .accessibilityIdentifier("listenDebugEnabledToggle")
             if speech.listenDebugEnabled {
@@ -375,7 +413,9 @@ struct SpeechSettingsView: View {
             }
         } footer: {
             Text("When on, a Debug chip appears on the listen bar for a live bake/queue overlay. Long-press play/pause still opens the full panel.")
+                .settingsFooter()
         }
+        .listRowBackground(Palette.chrome)
     }
 }
 
@@ -413,22 +453,23 @@ private struct SettingsRow<Accessory: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.s) {
             Button(action: action) {
                 HStack(spacing: 0) {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 0) {
                         Text(title)
-                            .foregroundStyle(enabled ? .primary : .secondary)
+                            .typeStyle(.row)
+                            .foregroundStyle(enabled ? Palette.ink : Palette.secondaryInk)
                             .lineLimit(1)
                         if let subtitle {
                             Text(subtitle)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .typeStyle(.caption)
+                                .foregroundStyle(Palette.secondaryInk)
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                         }
                     }
-                    Spacer(minLength: 8)
+                    Spacer(minLength: Spacing.xs)
                 }
                 .contentShape(Rectangle())
             }
@@ -438,21 +479,35 @@ private struct SettingsRow<Accessory: View>: View {
             .accessibilityAddTraits(selected ? .isSelected : [])
 
             accessory()
-                .frame(width: 30, height: 30)
+                .frame(width: Glyph.control, height: Glyph.control)
 
             ZStack {
                 if busy {
                     ProgressView().controlSize(.small)
                 } else if selected {
                     Image(systemName: Icons.checkmark)
-                        .foregroundStyle(.tint)
+                        .foregroundStyle(Palette.accent)
                         .fontWeight(.semibold)
                 }
             }
-            .frame(width: 22, height: 22)
+            .frame(width: Glyph.mark, height: Glyph.mark)
             .accessibilityHidden(true)
         }
-        .frame(minHeight: 48)
+        .frame(minHeight: SettingsRowMetrics.minHeight)
+    }
+}
+
+private enum SettingsRowMetrics {
+    /// A settings row: a tap target and a little air, at the default text size.
+    static let minHeight = BottomChrome.minTapTarget + Spacing.xxs
+}
+
+private extension View {
+    /// A note under a settings card: caption, secondary ink, in line with the card.
+    func settingsFooter() -> some View {
+        typeStyle(.caption)
+            .foregroundStyle(Palette.secondaryInk)
+            .libraryFooter()
     }
 }
 
@@ -464,13 +519,13 @@ private struct DownloadRing: View {
     var body: some View {
         ZStack {
             if let fraction, fraction < 1 {
-                Circle().stroke(Color.secondary.opacity(0.25), lineWidth: 2.5)
+                Circle().stroke(Palette.secondaryInk.opacity(0.25), lineWidth: 2.5)
                 Circle()
                     .trim(from: 0, to: max(0.02, fraction))
-                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .stroke(Palette.accent, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                 RoundedRectangle(cornerRadius: 1.5)
-                    .fill(Color.accentColor)
+                    .fill(Palette.accent)
                     .frame(width: 8, height: 8)
             } else {
                 ProgressView().controlSize(.small)

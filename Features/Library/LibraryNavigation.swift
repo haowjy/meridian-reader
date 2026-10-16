@@ -31,9 +31,15 @@ struct FolderGoneView: View {
     }
 }
 
-/// The bottom bar while a folder screen is in Edit: *Move…*, *Mark Finished*, *Remove*, acting on
-/// the selection (Remove asks before deleting folders; `LibraryActions.removeSelection`). The
-/// selection clears once an action is saved and stays when it can't be.
+/// The bottom toolbar while a folder screen is in Edit: the same 5-slot row of symbols as at
+/// rest, so the chrome doesn't change shape. *Move to…* in slot 1, *Mark as Finished* in the
+/// middle, *Remove* in ⋯'s place, acting on the selection (Remove asks before deleting folders;
+/// `LibraryActions.removeSelection`). The selection clears once an action is saved and stays
+/// when it can't be.
+///
+/// ```
+///  [📁]        [✓]        [🗑]
+/// ```
 struct LibraryEditBar: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
@@ -44,28 +50,27 @@ struct LibraryEditBar: View {
 
     var body: some View {
         let nothing = screen.selection.isEmpty
-        BottomToolbarSpanLayout {
-            Button("Move…") {
+        BottomToolbarLayout {
+            BandToolbarButton(systemImage: Icons.move, label: Verbs.moveTo, identifier: "editMove") {
                 let selected = actions.selected(in: screen)
                 actions.move(selected.folders.map(LibraryItem.folder) + selected.pages.map(LibraryItem.page)) {
                     screen.selection = []
                 }
             }
-            .toolbarTextFrame()
             .disabled(nothing)
-            .accessibilityIdentifier("editMove")
-            Button("Mark Finished") {
+            .toolbarSlot(0)
+            BandToolbarButton(systemImage: Icons.markFinished, label: Verbs.markFinished,
+                              identifier: "editMarkFinished") {
                 if actions.setFinished(actions.selected(in: screen).pages.filter(\.isSaved), true) { screen.selection = [] }
             }
-            .toolbarTextFrame()
             .disabled(actions.selected(in: screen).pages.allSatisfy { !$0.isSaved })
-            .accessibilityIdentifier("editMarkFinished")
-            Button("Remove") { actions.removeSelection(of: screen) }
-            .toolbarTextFrame()
+            .toolbarSlot(2)
+            BandToolbarButton(systemImage: Icons.delete, label: Verbs.remove, identifier: "editRemove") {
+                actions.removeSelection(of: screen)
+            }
             .disabled(nothing)
-            .accessibilityIdentifier("editRemove")
+            .toolbarSlot(BottomToolbarLayout.moreSlot)
         }
-        .tint(Palette.ink)
     }
 }
 

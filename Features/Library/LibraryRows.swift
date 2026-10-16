@@ -32,6 +32,8 @@ struct LibraryPageRow: View {
         guard screenKey != .filtered, !isEditing, page.isInLibrary else { return nil }
         return .page(page.listenKey)
     }
+    /// ★ after a favorite's title, except in the Favorites list, where every row is one.
+    private var marksFavorite: Bool { !(screenKey == .filtered && shell.favoritesOnly) }
 
     var body: some View {
         if page.isLive { liveBody } else { DeletedRow() }
@@ -44,7 +46,7 @@ struct LibraryPageRow: View {
                 playState: page.isLink ? .idle : actions.playState(of: page),
                 onPlay: page.isLink || page.skipsInPlayback || isEditing ? nil : { actions.play(page) },
                 insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil,
-                download: download, isFavorite: LibraryStore.isFavorite(page))
+                download: download, isFavorite: marksFavorite && LibraryStore.isFavorite(page))
             .opensOnTap(isEditing ? nil : { actions.open(page) })
             .libraryDropRow(.page(page.listenKey), in: screen)
             .libraryDrag(dragID, in: screen)
@@ -96,12 +98,12 @@ struct LibraryPageRow: View {
             if inFolder, page.isSaved {
                 Button("Play from Here", systemImage: Icons.play) { actions.playFromStart(page) }
             }
-            Button("Move to…", systemImage: Icons.move) { actions.move([.page(page)]) }
+            Button(Verbs.moveTo, systemImage: Icons.move) { actions.move([.page(page)]) }
             if page.isSaved {
                 if page.finishedAt == nil {
-                    Button("Mark as Finished", systemImage: Icons.markFinished) { actions.setFinished([page], true) }
+                    Button(Verbs.markFinished, systemImage: Icons.markFinished) { actions.setFinished([page], true) }
                 } else {
-                    Button("Mark as Unfinished", systemImage: Icons.markUnfinished) { actions.setFinished([page], false) }
+                    Button(Verbs.markUnfinished, systemImage: Icons.markUnfinished) { actions.setFinished([page], false) }
                 }
                 if inFolder {
                     Button("Mark All Above as Finished", systemImage: Icons.markAllAboveFinished) {
@@ -162,6 +164,8 @@ struct LibraryFolderRow: View {
     private var isFiltered: Bool { screenKey == .filtered }
     /// Its parents' path on the filtered home (nil for a folder at the top level).
     private var location: String? { isFiltered ? folder.parent?.pathName : nil }
+    /// ★ after a favorite's title, except in the Favorites list, where every row is one.
+    private var marksFavorite: Bool { !(isFiltered && shell.favoritesOnly) }
 
     var body: some View {
         if folder.isLive { liveBody } else { DeletedRow() }
@@ -213,21 +217,33 @@ struct LibraryFolderRow: View {
 
     @ViewBuilder
     private func row(_ progress: FolderProgress, isDownloaded: Bool) -> some View {
-        let kind = ListRow.Kind.folder(symbol: folder.rowSymbol, count: folder.itemCount,
+        let plays = progress.hasPagesToPlay
+        let kind = ListRow.Kind.folder(symbol: folder.rowSymbol, count: plays ? [] : contents,
                                        cover: folder.hasDetails ? folder.coverImage : nil)
         let isDropTarget = screen.dropTarget == folder.id
         let edge = screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil
-        if progress.hasPagesToPlay {
+        let isFavorite = marksFavorite && folder.isFavorite
+        if plays {
             ListRow(kind: kind, title: folder.displayName, subtitle: location ?? place(progress), progress: rowProgress(progress),
                     playState: actions.playState(of: folder), opensScreen: true,
                     onPlay: isEditing ? nil : { actions.playFolder(folder) }, isDropTarget: isDropTarget,
-                    insertionEdge: edge, download: download(isDownloaded: isDownloaded), isFavorite: folder.isFavorite,
-                    largeArtwork: true, folderHasDetails: folder.hasDetails)
+                    insertionEdge: edge, download: download(isDownloaded: isDownloaded), isFavorite: isFavorite,
+                    folderHasDetails: folder.hasDetails)
         } else {
             ListRow(kind: kind, title: folder.displayName, subtitle: location ?? folder.byline, opensScreen: true,
-                    isDropTarget: isDropTarget, insertionEdge: edge, isFavorite: folder.isFavorite,
-                    largeArtwork: true, folderHasDetails: folder.hasDetails)
+                    isDropTarget: isDropTarget, insertionEdge: edge, isFavorite: isFavorite,
+                    folderHasDetails: folder.hasDetails)
         }
+    }
+
+    /// What is in it, as its screen's header counts it: ["2 folders", "3 pages"]; ["Empty"].
+    private var contents: [String] {
+        let folders = (folder.children ?? []).filter(\.isLive).count
+        let pages = livePages.count
+        var parts: [String] = []
+        if folders > 0 { parts.append(String(localized: "\(folders) folder\(folders == 1 ? "" : "s")")) }
+        if pages > 0 { parts.append(String(localized: "\(pages) page\(pages == 1 ? "" : "s")")) }
+        return parts.isEmpty ? [String(localized: "Empty")] : parts
     }
 
     /// Its Download, beside its ▶ (none in Edit).
@@ -259,7 +275,7 @@ struct LibraryFolderRow: View {
         }
         if progress.hasPagesToPlay {
             Button("Continue", systemImage: Icons.play) { actions.playFolder(folder) }
-            Button("Play from Start", systemImage: Icons.previous) { actions.playFolderFromStart(folder) }
+            Button(Verbs.playFromStart, systemImage: Icons.previous) { actions.playFolderFromStart(folder) }
         }
         if !livePages.isEmpty, !downloads.isQueued(.folder(folder.id)) {
             Button("Download", systemImage: Icons.download) {
@@ -273,7 +289,7 @@ struct LibraryFolderRow: View {
                 try library.toggleFavorite(folder)
             }
         }
-        Button("Move to…", systemImage: Icons.move) { actions.move([.folder(folder)]) }
+        Button(Verbs.moveTo, systemImage: Icons.move) { actions.move([.folder(folder)]) }
         Button("Rename", systemImage: Icons.rename) { screen.rename(folder) }
         Button("Edit Details", systemImage: Icons.editDetails) { shell.present(.folderDetails(folder.id)) }
         Button("Delete…", systemImage: Icons.delete, role: .destructive) { screen.confirmDelete([folder]) }

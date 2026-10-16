@@ -28,9 +28,12 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     var overhang: CGFloat = 0
     /// Focus icon offset from the ⋯ center: positive width = left, positive height = up.
     var focusOffset: CGSize = MorphMenu.focusOffsetFromAnchor
+    /// The item was opened on the player (Now Playing): the panel is drawn on its palette.
+    var isOnPlayer: (Item) -> Bool = { _ in false }
     @ViewBuilder var panel: (Item, MorphMenuClose) -> Panel
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     /// The item on screen: set while open and kept while collapsing back into the button
     /// (non-nil = in the hierarchy).
     @State private var shown: Item?
@@ -114,6 +117,7 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     private func panelView(_ shown: Item, buttonSize: CGSize) -> some View {
         let anchor = focus.map { UnitPoint(x: $0.x / max(1, panelSize.width), y: $0.y / max(1, panelSize.height)) }
             ?? .bottomTrailing
+        let onPlayer = isOnPlayer(shown)
         return panel(shown, MorphMenuClose { next in
             afterClose = next
             item = nil
@@ -158,6 +162,8 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
             .onAppear {
                 withAnimation(MorphMenu.animation) { expanded = true }
             }
+            .environment(\.onPlayerPalette, onPlayer)
+            .environment(\.colorScheme, onPlayer ? .dark : colorScheme)
     }
 
     private func present() {
@@ -320,14 +326,26 @@ extension MorphMenu {
     }
 }
 
-/// Light glass like Safari's menu panel (iOS 26); a thick material before that.
+/// Light glass like Safari's menu panel (iOS 26); a thick material before that. On the player
+/// it is a `playerCard` panel, as the player's other cards. A hairline (`Palette.hairline`) keeps
+/// its edge visible over dark paper.
 private struct MorphMenuPanelBackground: View {
     let shape: MorphPanelShape
 
+    @Environment(\.onPlayerPalette) private var onPlayer
+
     var body: some View {
-        if #available(iOS 26.0, *) {
+        glass
+            .overlay { shape.stroke(onPlayer ? Palette.playerTrack : Palette.hairline, lineWidth: 1) }
+    }
+
+    @ViewBuilder
+    private var glass: some View {
+        if onPlayer {
+            shape.fill(Palette.playerCard)
+        } else if #available(iOS 26.0, *) {
             shape
-                .fill(Color(.systemBackground).opacity(0.55))
+                .fill(Palette.paper.opacity(0.55))
                 .glassEffect(.regular, in: shape)
         } else {
             shape.fill(.thickMaterial)

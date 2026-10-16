@@ -12,7 +12,7 @@ import SwiftUI
 ///                                ╰──────╯  Added 2 Oct
 ///                                ━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░░░
 ///                                38%   6 h 10 min left
-///                                ( ▶ Continue  Ch 24   ) ( ⏮ From Start ) (⬇)
+///                                ( ▶ Continue  Ch 24   ) ( ⏮ From Start )  ⬇
 /// ```
 ///
 /// Every block spans the content width and nothing pads it: in a Library list the section
@@ -161,8 +161,8 @@ private struct PreviewActions: View {
     var body: some View {
         ActionButtonRow { fit in
             PlayStateButton(state: state, look: .pill(title: title, detail: detail, expands: true, fit: fit)) {}
-            PillButton("From Start", shortTitle: "Start", systemImage: Icons.previous, style: .neutral, fit: fit) {}
-            DownloadStateButton(state: download, look: .round) {}
+            PillButton("From Start", systemImage: Icons.previous, style: .neutral, fit: fit) {}
+            DownloadStateButton(state: download) {}
         }
     }
 }

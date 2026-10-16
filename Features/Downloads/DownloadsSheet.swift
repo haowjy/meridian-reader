@@ -10,7 +10,7 @@ import SwiftUI
 ///    Kokoro Heart   4 of 12 chapters   38%
 /// [i] Notes on Tides                           (◔⏸)
 ///    Kokoro Heart   Queued
-/// Done  1
+/// Downloaded  1
 /// [i] Coupon Basics
 ///    Kokoro Heart   12 MB
 /// 12 MB on this iPhone
@@ -49,9 +49,8 @@ struct DownloadsSheet: View {
             .navigationTitle("Downloads")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { shell.sheet = nil }
-                        .accessibilityIdentifier("downloadsDone")
+                SheetBarButton(Verbs.done, placement: .confirmationAction, identifier: "downloadsDone") {
+                    shell.sheet = nil
                 }
             }
         }
@@ -91,6 +90,7 @@ struct DownloadsSheet: View {
         } footer: {
             if !speech.localTTS.wantsLocalBake {
                 waitingNote
+                    .libraryFooter()
             }
         }
     }
@@ -107,7 +107,7 @@ struct DownloadsSheet: View {
             .listRowInsets(EdgeInsets())
             .listRowBackground(Palette.chrome)
         } header: {
-            SectionHeader(title: String(localized: "Done"), count: items.count)
+            SectionHeader(title: String(localized: "Downloaded"), count: items.count)
                 .libraryHeader()
                 .accessibilityIdentifier("downloadsDoneHeader")
         } footer: {
@@ -115,6 +115,7 @@ struct DownloadsSheet: View {
             if total > 0 {
                 footnote(String(localized: "\(FileSizes.label(total)) on this iPhone"))
                     .accessibilityIdentifier("downloadsStorage")
+                    .libraryFooter()
             }
         }
     }
@@ -140,6 +141,7 @@ struct DownloadsSheet: View {
         } footer: {
             if let voice = speech.localTTS.downloadVoice {
                 footnote(String(localized: "Downloads now render in \(speech.localTTS.voiceLabel(forCacheVoice: voice)). Re-download one to hear it in that voice, or keep it as it is."))
+                    .libraryFooter()
             }
         }
     }
@@ -151,7 +153,9 @@ struct DownloadsSheet: View {
     private var waitingNote: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             footnote(String(localized: "Downloads render with an on-device voice. Choose one in Voice Settings to go on."))
-            PillButton(String(localized: "Voice Settings"), style: .neutral, size: .compact) { shell.present(.voiceSettings) }
+            PillButton(Verbs.voiceSettings, systemImage: Icons.voice, style: .neutral, size: .compact) {
+                shell.present(.voiceSettings)
+            }
                 .accessibilityIdentifier("downloadsVoiceSettings")
         }
         .padding(.top, Spacing.xs)
@@ -170,7 +174,7 @@ struct DownloadsSheet: View {
             Text("Nothing downloaded")
                 .typeStyle(.row, weight: .semibold)
                 .foregroundStyle(Palette.ink)
-            Text("Long-press a page, a folder or a book in the Library and choose Download. Its audio is made ahead of time, so it plays offline.")
+            Text("Tap \(Text.symbol(Icons.download)) on a page, a folder or a book in the Library. Its audio is made ahead of time, so it plays offline.")
                 .typeStyle(.row)
                 .foregroundStyle(Palette.secondaryInk)
         }

@@ -3,7 +3,8 @@ import SwiftUI
 /// Every row in the Library, a folder, a book's contents and the Move tree.
 ///
 /// ```
-/// 📁 Bonds                                    4  ›   folder: count, then ›
+/// 📁 Bonds                                       ›   folder: its count on the second line
+///    2 folders   3 pages
 /// ▣  Pride and Prejudice                    ⬇   ▶   book: its place, Download and its own ▶
 ///    Ch 24   ◐ 6 h 10 min left
 /// ▣ Coupon Basics                           ✓   ▶   page: two lines, a thumbnail as tall
@@ -22,15 +23,17 @@ import SwiftUI
 /// status in the accent while it is what you hear ("Playing", "Paused"). The leading parts give
 /// way first, and at accessibility sizes the status shows alone. Download (`download`) and ▶ / ⏸ (`onPlay`) sit side by side,
 /// centred on the row's height; ▶ / ⏸ and › (`opensScreen`) share the last column, centred on
-/// the toolbar's ⋯ slot like the Now Playing bar's ⏸.
+/// the toolbar's ⋯ slot like the Now Playing bar's ⏸. Every row's separator starts at its title,
+/// whatever leads it.
 ///
 /// A folder row under a dragged row that it takes (`isDropTarget`) is washed and outlined in the
 /// accent, with a selection tick as it lights up.
 struct ListRow: View {
     enum Kind {
-        /// A folder (a book or a series too): its symbol, or a book's cover when it has
-        /// one, and how many things are in it (shown before › on a row without ▶).
-        case folder(symbol: String = Icons.folder, count: Int, cover: Image? = nil)
+        /// A folder (a book or a series too): its symbol, or a book's cover when it has one, and
+        /// what is in it ("2 folders", "3 pages"; "Empty") for its second line; none (`[]`) for a
+        /// folder whose pages play, whose second line is its place and time left.
+        case folder(symbol: String = Icons.folder, count: [String], cover: Image? = nil)
         /// A saved page: its site icon (or a letter tile).
         case page(artwork: Image? = nil, letter: String)
         /// A chapter of a book or series.
@@ -67,8 +70,6 @@ struct ListRow: View {
     /// Its Download button: where its download stands and what a tap does (nil: none).
     var download: Download?
     var isFavorite = false
-    /// Kept for callers; every row is now the same compact size (D23).
-    var largeArtwork = false
     var folderHasDetails = false
 
     /// A row's Download button.
@@ -114,14 +115,8 @@ struct ListRow: View {
                         .accessibilityHidden(true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                if let count = folderCount {
-                    Text("\(count)")
-                        .typeStyle(.caption)
-                        .monospacedDigit()
-                        .foregroundStyle(Palette.secondaryInk)
-                        .fixedSize()
-                        .accessibilityHidden(true)
-                }
+                // The separator under the row starts at the title, for every kind of row.
+                .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             }
             if let download {
                 HStack(spacing: Spacing.xxs) {
@@ -186,7 +181,8 @@ struct ListRow: View {
                     .fill(Palette.accent)
                     .frame(height: Self.dropOutlineWidth)
             }
-            .padding(.leading, Spacing.m + ListRow.leadingWidth)
+            // The ring just before the title, the line from the title's leading edge on.
+            .padding(.leading, Spacing.m + thumbnailSide + Spacing.s - Spacing.xs)
             .padding(.trailing, Spacing.m)
             // Centred on the edge, half in this row and half in its neighbour's gap.
             .offset(y: (insertionEdge == .bottom ? 1 : -1) * Spacing.xs / 2)
@@ -218,9 +214,10 @@ struct ListRow: View {
         }
     }
 
-    /// A folder row without ▶ shows its count just before ›.
-    private var folderCount: Int? {
-        guard onPlay == nil, case .folder(_, let count, _) = kind else { return nil }
+    /// What is in a folder, on its second line in place of a status (a folder whose pages play
+    /// gives none: its place and time left stand there, in Edit too).
+    private var folderCount: [String]? {
+        guard case .folder(_, let count, _) = kind, !count.isEmpty else { return nil }
         return count
     }
 
@@ -234,7 +231,8 @@ struct ListRow: View {
     private var secondLine: some View {
         let status = statusText
         // At accessibility sizes there is no room for both: the status alone (VoiceOver reads all).
-        let leads = typeSize.isAccessibilitySize && status != nil ? [] : [subtitle, note].compactMap { $0 }
+        let leads = typeSize.isAccessibilitySize && status != nil ? []
+            : [subtitle, note].compactMap { $0 } + (folderCount ?? [])
         if !leads.isEmpty || status != nil {
             HStack(spacing: partSpacing) {
                 ForEach(Array(leads.enumerated()), id: \.offset) { index, text in
@@ -260,6 +258,8 @@ struct ListRow: View {
                     .frame(width: Glyph.ring, height: Glyph.ring)
             case .ring(let fraction):
                 ProgressRing(fraction: fraction)
+            case .check:
+                Image(systemName: Icons.checkmark)
             case nil:
                 EmptyView()
             }
@@ -273,18 +273,20 @@ struct ListRow: View {
     private enum StatusMark {
         case bars
         case ring(Double)
+        case check
     }
 
-    /// Bars while it is what you hear, a ring part-way; a chapter shows these in its leading
-    /// column instead.
+    /// Bars while it is what you hear, a ring part-way, ✓ once finished; a chapter shows these in
+    /// its leading column instead.
     private var statusMark: StatusMark? {
         if case .chapter = kind { return nil }
         if playState.isCurrent { return .bars }
         if case .partWay(let fraction, _) = progress { return .ring(fraction) }
+        if case .finished = progress { return .check }
         return nil
     }
 
-    /// "Playing", "18 min", "6 min left", "✓ Finished", "skipped"; nil for a folder row with its
+    /// "Playing", "18 min", "6 min left", "Finished", "Skipped"; nil for a folder row with its
     /// count.
     private var statusText: String? {
         if folderCount != nil { return nil }
@@ -295,9 +297,8 @@ struct ListRow: View {
         case (_, .unplayed(let minutes?)): return ListeningTime.label(minutes: minutes)
         case (_, .unplayed(nil)): return nil
         case (_, .partWay(_, let left)): return ListeningTime.leftLabel(minutes: left)
-        case (.chapter, .finished): return String(localized: "Finished")
-        case (_, .finished): return String(localized: "✓ Finished")
-        case (_, .skipped): return String(localized: "skipped")
+        case (_, .finished): return String(localized: "Finished")
+        case (_, .skipped): return String(localized: "Skipped")
         }
     }
 
@@ -310,7 +311,7 @@ struct ListRow: View {
         if isDropTarget { parts.append("Drop to move here") }
         if insertionEdge != nil { parts.append("Drop to place here") }
         if let count = folderCount {
-            parts.append("\(count) items")
+            parts.append(contentsOf: count)
         } else {
             switch progress {
             case .unplayed(let minutes?): parts.append(ListeningTime.label(minutes: minutes))
@@ -388,7 +389,8 @@ struct ListRow: View {
         return BottomChrome.grown(titleLineHeight + captionLineHeight, from: base)
     }
 
-    /// Width of the leading symbol or artwork.
+    /// Width of a leading symbol in the rows built like these (Downloads, the Move tree, the
+    /// import sheet, Edit Details' choices).
     static let leadingWidth: CGFloat = 32
     /// A book cover in a folder row: narrower than the slot, so its height (1.45×) stays inside
     /// the row's 56 pt.
@@ -418,29 +420,29 @@ struct ListRowGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("folder") {
-                ListRow(kind: .folder(count: 4), title: "Bonds", opensScreen: true)
-                ListRow(kind: .folder(symbol: Icons.favorited, count: 12), title: "Favorites", opensScreen: true)
-                ListRow(kind: .folder(count: 3, cover: Image(systemName: Icons.photo)), title: "A book with a cover",
+                ListRow(kind: .folder(count: ["4 pages"]), title: "Bonds", opensScreen: true)
+                ListRow(kind: .folder(symbol: Icons.favorited, count: ["12 pages"]), title: "Favorites", opensScreen: true)
+                ListRow(kind: .folder(count: ["Empty"], cover: Image(systemName: Icons.photo)), title: "A book with a cover",
                         opensScreen: true)
             }
             PreviewState("folder, a dragged row over it") {
-                ListRow(kind: .folder(count: 4), title: "Bonds", opensScreen: true, isDropTarget: true)
+                ListRow(kind: .folder(count: ["4 pages"]), title: "Bonds", opensScreen: true, isDropTarget: true)
             }
             PreviewState("a page with a dragged row about to be placed above it") {
                 ListRow(kind: .page(letter: "M"), title: "Money Market Funds", subtitle: "investing.example.com",
                         progress: .unplayed(minutes: 12), onPlay: {}, insertionEdge: .top)
             }
             PreviewState("folder of pages: its place and its ▶") {
-                ListRow(kind: .folder(count: 7), title: "Finance", subtitle: "Seven-Day Yield",
+                ListRow(kind: .folder(count: []), title: "Finance", subtitle: "Seven-Day Yield",
                         progress: .partWay(fraction: 0.3, minutesLeft: 52), opensScreen: true, onPlay: {})
             }
             PreviewState("book: unplayed, part-way, playing") {
-                ListRow(kind: .folder(symbol: Icons.book, count: 61), title: "Pride and Prejudice",
+                ListRow(kind: .folder(symbol: Icons.book, count: []), title: "Pride and Prejudice",
                         subtitle: "Jane Austen", progress: .unplayed(minutes: 645), opensScreen: true, onPlay: {})
-                ListRow(kind: .folder(symbol: Icons.book, count: 61), title: "Pride and Prejudice",
+                ListRow(kind: .folder(symbol: Icons.book, count: []), title: "Pride and Prejudice",
                         subtitle: "Ch 24", progress: .partWay(fraction: 0.38, minutesLeft: 370), opensScreen: true,
                         onPlay: {})
-                ListRow(kind: .folder(symbol: Icons.library, count: 108), title: "The Lighthouse Keeper",
+                ListRow(kind: .folder(symbol: Icons.library, count: []), title: "The Lighthouse Keeper",
                         subtitle: "Ch 14", progress: .partWay(fraction: 0.12, minutesLeft: 1210), playState: .playing,
                         opensScreen: true, onPlay: {})
             }
@@ -467,9 +469,9 @@ struct ListRowGallery: View {
                         download: .init(state: .downloading(fraction: 0.4)) {})
                 ListRow(kind: .page(letter: "T"), title: "Title Page", progress: .skipped,
                         download: .init(state: .downloaded) {})
-                ListRow(kind: .folder(symbol: Icons.book, count: 61), title: "Pride and Prejudice",
+                ListRow(kind: .folder(symbol: Icons.book, count: []), title: "Pride and Prejudice",
                         subtitle: "Ch 24", progress: .partWay(fraction: 0.38, minutesLeft: 370), opensScreen: true,
-                        onPlay: {}, download: .init(state: .downloaded) {}, largeArtwork: true, folderHasDetails: true)
+                        onPlay: {}, download: .init(state: .downloaded) {}, folderHasDetails: true)
             }
             PreviewState("page, finished") {
                 ListRow(kind: .page(letter: "C"), title: "Coupon Basics", subtitle: "investing.example.com",

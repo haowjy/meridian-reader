@@ -76,9 +76,7 @@ struct ReaderSheetScreen: View {
                 .disabled(!sessionReady)
         } text: {
             text
-                .overlay(alignment: .top) {
-                    if jumpMode { JumpHint { jumpMode = false } }
-                }
+                .jumpHint(jumpMode) { jumpMode = false }
                 .animation(Motion.snappy, value: jumpMode)
         } bar: {
             NowPlayingBarView(speech: speech)

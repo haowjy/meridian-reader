@@ -98,7 +98,7 @@ xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -confi
 - **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `settle`, `dismiss`) and its
   Reduce Motion transitions, not ad-hoc springs.
 - **Bottom chrome**: build controls from `BottomChrome` helpers (`bottomChromeField`,
-  `fieldControlFrame`, `toolbarIconFrame`, `toolbarTextFrame`, `tapTarget`) and the toolbar layouts
+  `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) and the toolbar layouts
   (`BottomToolbarLayout`, `BottomToolbarSpanLayout`) so sizing, Dynamic Type and 44 pt taps stay
   consistent.
 - **Voice libraries stay in `Features/Speech/Engines/<Library>/`**, registered in

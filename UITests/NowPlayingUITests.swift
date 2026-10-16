@@ -304,11 +304,11 @@ final class NowPlayingUITests: XCTestCase {
         XCTAssertTrue(voice.waitForExistence(timeout: 3))
         idle(0.6)
         voice.tap()
-        XCTAssertTrue(app.navigationBars["Listen"].waitForExistence(timeout: 5), "Voice settings over Now Playing")
+        XCTAssertTrue(app.navigationBars["Voice Settings"].waitForExistence(timeout: 5), "Voice settings over Now Playing")
         idle(1)
         assertStatusBar(nil, "over Voice settings")
         app.buttons["Done"].tap()
-        XCTAssertTrue(eventually(5) { !app.navigationBars["Listen"].exists })
+        XCTAssertTrue(eventually(5) { !app.navigationBars["Voice Settings"].exists })
         assertStatusBar(.light, "on Now Playing again")
 
         XCUIDevice.shared.press(.home)

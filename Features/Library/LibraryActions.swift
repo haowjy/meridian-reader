@@ -260,7 +260,4 @@ extension Folder {
     var rowSymbol: String {
         hasDetails ? Icons.book : Icons.folder
     }
-
-    /// Subfolders and pages directly inside.
-    var itemCount: Int { (children?.count ?? 0) + (pages?.count ?? 0) }
 }

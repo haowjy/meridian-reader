@@ -91,13 +91,13 @@ final class ScreenshotCaptureTests: XCTestCase {
         try shot("5-reader-menu")
 
         el(app, "moreVoice").tap()
-        XCTAssertTrue(app.navigationBars["Listen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Voice Settings"].waitForExistence(timeout: 5))
         wait(1)
         try shot("6-voice-settings")
         for _ in 0..<6 where !el(app, "settingsVersionRow").isHittable { app.swipeUp() }
         wait(0.8)
         try shot("7-voice-settings-version")
-        app.navigationBars["Listen"].buttons["Done"].tap()
+        app.navigationBars["Voice Settings"].buttons["Done"].tap()
         wait(1)
 
         app.buttons["listenPlayPause"].tap() // Listen: the Reader turns into Now Playing
@@ -379,7 +379,7 @@ final class ScreenshotCaptureTests: XCTestCase {
         }
     }
 
-    /// Downloads (decision D16) with the offline test voice: the book's ⋯ with *Download Folder*,
+    /// Downloads (decision D16) with the offline test voice: the book's ⋯ with *Download Book*,
     /// the progress line on the bottom chrome (with its toast, then alone), the Downloads list
     /// while it renders and once done, the Downloaded marks on the chapters and the book's row, after a voice change (Different Voice), and the Reader's ⋯
     /// with *Download*.
@@ -420,12 +420,12 @@ final class ScreenshotCaptureTests: XCTestCase {
         wait(1.2)
         try shot("6-home-menu")
         el(app, "moreVoice").tap()
-        XCTAssertTrue(app.navigationBars["Listen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Voice Settings"].waitForExistence(timeout: 5))
         let two = el(app, "voiceRow-two")
         for _ in 0..<6 where !(two.exists && two.isHittable) { app.swipeUp() }
         two.tap()
         wait(1)
-        app.navigationBars["Listen"].buttons["Done"].tap()
+        app.navigationBars["Voice Settings"].buttons["Done"].tap()
         wait(1)
         app.buttons["libraryMore"].tap()
         wait(1.2)

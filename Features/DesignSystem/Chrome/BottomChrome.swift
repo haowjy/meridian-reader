@@ -30,8 +30,8 @@ enum BottomChrome {
     static func fieldFill(onPlayer: Bool) -> Color { onPlayer ? Palette.playerCard : Palette.chrome }
     /// Toolbar glyph size.
     static let iconSize: CGFloat = 19
-    /// Text standing in for a glyph in a toolbar slot (Edit's Move…) or a field control (the
-    /// speed). Like the glyphs it keeps its size at large text sizes, so the slots never crowd.
+    /// Text standing in for a field control (the speed). Like the glyphs it keeps its size at
+    /// large text sizes, so the controls never crowd.
     static let toolbarTextSize: CGFloat = 17
     /// Small controls inside the field capsule (mic, the speed) and in a sheet's top bar (☝︎).
     static let fieldControlSize: CGFloat = 36
@@ -80,14 +80,6 @@ extension View {
             .frame(maxWidth: .infinity, minHeight: BottomChrome.rowHeight)
             .contentShape(Rectangle())
             .accessibilityShowsLargeContentViewer()
-    }
-
-    /// Toolbar text (Edit's Move…, Remove): its cell of the toolbar row, 44 pt tall, full-cell tap
-    /// target, at the fixed `toolbarTextSize` with even-width digits.
-    func toolbarTextFrame() -> some View {
-        self.font(.system(size: BottomChrome.toolbarTextSize, weight: .medium).monospacedDigit())
-            .frame(maxWidth: .infinity, minHeight: BottomChrome.rowHeight)
-            .contentShape(Rectangle())
     }
 
     /// A small control inside the field capsule (mic, Jump, bookmark): 36 pt with a body-size

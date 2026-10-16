@@ -1,3 +1,5 @@
+import SwiftUI
+
 /// One SF Symbol per concept, app-wide (decision D24): the same thing reads the same on every
 /// surface, in a toolbar, a ⋯ row, a context menu or a toast. Feature code names the concept
 /// (`Icons.save`), never the symbol. A concept's states pair up as outline at rest and filled when
@@ -101,10 +103,9 @@ enum Icons {
 
     /// Download (a row's menu, a toast, a download's state on its own).
     static let download = "arrow.down.circle"
-    /// The same inside a progress ring (the ring is the circle).
+    /// The same inside a progress ring (the ring is the circle): resume a paused download.
     static let downloadInRing = "arrow.down"
     static let downloaded = "checkmark.circle"
-    static let downloadedInRing = checkmark
     /// The Downloads list.
     static let downloads = "tray.and.arrow.down"
     static let deleteDownloads = "trash.circle"
@@ -115,4 +116,12 @@ enum Icons {
     // MARK: Notices
 
     static let warning = "exclamationmark.triangle"
+}
+
+extension Text {
+    /// A symbol inside running text (an empty state naming a toolbar button): the toolbar's own
+    /// symbol, in ink, so the prose and the button match.
+    static func symbol(_ name: String) -> Text {
+        Text(Image(systemName: name)).foregroundStyle(Palette.ink)
+    }
 }

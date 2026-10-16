@@ -54,9 +54,7 @@ struct NowPlayingScreen: View {
                     .disabled(speech.document.isEmpty)
             } text: {
                 text(now)
-                    .overlay(alignment: .top) {
-                        if jumpMode { JumpHint { jumpMode = false } }
-                    }
+                    .jumpHint(jumpMode) { jumpMode = false }
                     .animation(Motion.snappy, value: jumpMode)
             } controls: {
                 NowPlayingControls(
@@ -119,6 +117,7 @@ struct NowPlayingScreen: View {
         let page = savedPage
         return ReaderMenu(
             goTo: goToPlace(now),
+            isOnPlayer: true,
             isSaved: savedKey != nil,
             canSave: article != nil,
             isFavorite: articleURL.flatMap { library.favorite(for: $0) } != nil,
@@ -354,8 +353,9 @@ private struct SpokenText: View {
     }
 }
 
-/// "Tap a paragraph to play from there", floating over the top of the text while ☝︎ is on. On the
-/// player it sits on a `playerCard` capsule instead of the material.
+/// "Tap a paragraph to play from there", docked above the text while ☝︎ is on (`jumpHint`), its
+/// capsule at the page margin like the text under it. On the player it sits on a `playerCard`
+/// capsule instead of the material.
 struct JumpHint: View {
     let onCancel: () -> Void
 
@@ -379,8 +379,8 @@ struct JumpHint: View {
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.xs)
         .background { background }
-        .padding(.horizontal, Spacing.s)
-        .padding(.top, Spacing.xs)
+        .padding(.horizontal, Spacing.pageMargin)
+        .padding(.vertical, Spacing.xs)
         .transition(.slideAndFade(from: .top, reduceMotion: reduceMotion))
     }
 
@@ -390,6 +390,17 @@ struct JumpHint: View {
             Capsule().fill(Palette.playerCard)
         } else {
             Capsule().fill(.thinMaterial)
+        }
+    }
+}
+
+extension View {
+    /// The Jump hint above the reading text while ☝︎ is on: the text moves down by the hint's
+    /// height, so the hint never covers the title or the first line.
+    func jumpHint(_ isOn: Bool, onCancel: @escaping () -> Void) -> some View {
+        VStack(spacing: 0) {
+            if isOn { JumpHint(onCancel: onCancel) }
+            self
         }
     }
 }

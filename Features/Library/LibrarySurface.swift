@@ -13,7 +13,7 @@ import SwiftUI
 /// ```
 ///
 /// The search filters the home list in place; starting one on a folder screen goes back to the
-/// home. While a folder is in Edit, the toolbar is *Move…*, *Mark Finished*, *Remove*. Pages
+/// home. While a folder is in Edit, the toolbar's slots are *Move to…*, *Mark as Finished*, *Remove*. Pages
 /// open in the Reader sheet over the Library; 🌐 shows the browser as it was, and the Library
 /// keeps its place.
 struct LibrarySurface: View {

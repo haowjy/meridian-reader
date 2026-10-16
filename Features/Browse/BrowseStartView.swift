@@ -171,7 +171,7 @@ struct BrowseStartView: View {
 
     private var menuOverlay: some View {
         MorphMenuOverlay(item: Binding(get: { shell.menu }, set: { shell.menu = $0 }),
-                         anchor: shell.menuAnchor) { context, close in
+                         anchor: shell.menuAnchor, isOnPlayer: \.isOnPlayer) { context, close in
             MoreMenuPanel(context: context, close: close)
         }
     }

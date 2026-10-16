@@ -35,7 +35,7 @@ final class SaveFailureUITests: XCTestCase {
         XCTAssertTrue(eventually(5) { !tree.exists }, "✕ closes it")
     }
 
-    /// Every way to save a page: the browser's ⋯ → Save to Library…, the Reader's 🔖 and *Save
+    /// Every way to save a page: the browser's ⋯ → Save to Folder…, the Reader's 🔖 and *Save
     /// to Folder…*, Now Playing's 🔖. Each says "Couldn’t save", and the page stays unsaved.
     func testASaveThatCantBeStoredSaysSoAndThePageStaysUnsaved() throws {
         let app = launchTestPages(["-seedDemoArticle", "-failLibrarySaves"])
