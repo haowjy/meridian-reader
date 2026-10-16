@@ -126,13 +126,11 @@ struct LibraryPageRow: View {
             }
             Button("Remove from Library", systemImage: Icons.unsave, role: .destructive) { actions.remove([page]) }
         }
-        if let url = page.url, LibraryStore.canFavorite(url) {
-            Button(page.isFavorite ? "Remove from Favorites" : "Add to Favorites",
-                   systemImage: page.isFavorite ? Icons.unfavorite : Icons.favorite) {
-                shell.attempt(page.isFavorite ? "Couldn’t remove favorite" : "Couldn’t add favorite") {
-                    if page.isFavorite { try library.removeFavorite(page) }
-                    else { _ = try library.addFavorite(url: url, title: page.title, artwork: page.artworkData) }
-                }
+        if LibraryStore.canFavorite(page) {
+            let isFavorite = LibraryStore.isFavorite(page)
+            Button(isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                   systemImage: isFavorite ? Icons.unfavorite : Icons.favorite) {
+                FavoriteFlow(library: library, shell: shell).toggle(page)
             }
         }
     }
@@ -282,7 +280,8 @@ struct LibraryFolderRow: View {
         }
         Button(folder.isFavorite ? "Remove from Favorites" : "Add to Favorites",
                systemImage: folder.isFavorite ? Icons.unfavorite : Icons.favorite) {
-            shell.attempt(folder.isFavorite ? "Couldn’t remove favorite" : "Couldn’t add favorite") {
+            shell.attempt(folder.isFavorite ? String(localized: "Couldn’t remove from Favorites")
+                                            : String(localized: "Couldn’t add to Favorites")) {
                 try library.toggleFavorite(folder)
             }
         }

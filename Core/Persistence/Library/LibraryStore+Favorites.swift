@@ -1,14 +1,6 @@
 import Foundation
 import SwiftData
 
-/// What ☆ on a page leads to (`LibraryStore.favoriteRequest`).
-enum FavoriteRequest {
-    /// Not a favorite yet: one tap sets its independent flag.
-    case add
-    /// Already a favorite: ☆ clears its independent flag.
-    case remove(Page)
-}
-
 /// Favorites are flags on pages and folders, independent of their location. A favorite page is
 /// in the Library (`isFavorite(_:)`, `LibraryQueries.favoritePages`): starring a page that isn't
 /// puts it there, and removing one from the Library clears its flag. Adding, removing and
@@ -31,52 +23,53 @@ extension LibraryStore {
         page.isFavorite && page.isInLibrary
     }
 
-    /// What ☆ on the page at `url` leads to. Its tree location never changes.
-    func favoriteRequest(for url: URL) -> FavoriteRequest {
-        guard let existing = page(url: url) else { return .add }
-        if Self.isFavorite(existing) { return .remove(existing) }
-        return .add
-    }
-
+    /// A web page's address can be starred, whether a page for it exists yet or not.
     static func canFavorite(_ url: URL) -> Bool {
         url.isWebOrTestPage
     }
 
-    /// ⋯ → Add / Remove from Favorites. A new favorite without a tile-sized icon then asks
-    /// `betterIcon` for one.
-    func toggleFavorite(url: URL, title: String?, artwork: Data?, betterIcon: () async -> Data?) async throws {
-        guard Self.canFavorite(url) else { return }
-        if let existing = favorite(for: url) {
-            try removeFavorite(existing)
-            return
-        }
-        let added = try addFavorite(url: url, title: title, artwork: artwork)
-        guard !FaviconFetcher.isTileSized(added.artworkData), let icon = await betterIcon() else { return }
-        offerArtwork(icon, for: added)
+    /// A page can be starred when it is in the Library (a book's chapter too, which has no web
+    /// address) or has a web address, which puts it there.
+    static func canFavorite(_ page: Page) -> Bool {
+        page.isInLibrary || page.url.map(canFavorite) == true
     }
 
-    /// Makes the page for `url` a favorite without moving it: a new link page is loose, or the
-    /// existing page retains its location. A page that isn't in the Library (played without
-    /// saving) joins it where it is, at the end, with its played text: the Favorites tab lists
-    /// it and the 7-day prune of unsaved pages leaves it alone. Its audio is marked saved once
-    /// that is stored, as a Save does.
+    /// Makes the page for `url` a favorite without moving it: the existing page as
+    /// `addFavorite(_:artwork:)` does, or a new link page in no folder, made and starred in one
+    /// save.
     @discardableResult
     func addFavorite(url: URL, title: String?, artwork: Data?) throws -> Page {
-        guard let existing = page(url: url) else {
-            let added = try addLink(url: url, title: title, artwork: artwork, in: nil)
-            try edit("favorite page") { added.isFavorite = true }
-            return added
+        if let existing = page(url: url) {
+            try addFavorite(existing, artwork: artwork)
+            return existing
         }
+        let canonical = ArticleIdentity.canonicalURLString(from: url)
+        let host = url.host ?? url.absoluteString
+        let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return try edit("favorite link") {
+            let page = Page(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: trimmed.isEmpty ? host : trimmed,
+                            byline: host, urlString: url.absoluteString, contentState: .link, addedAt: now(),
+                            sortKey: nextSortKey(in: nil), artworkData: artwork)
+            page.isFavorite = true
+            context.insert(page)
+            return page
+        }
+    }
+
+    /// Stars `page` where it is, taking `artwork` as its icon when it has none. A page that isn't
+    /// in the Library (played without saving) joins it where it is, at the end, with its played
+    /// text: the Favorites tab lists it and the 7-day prune of unsaved pages leaves it alone. Its
+    /// audio is marked saved once that is stored, as a Save does.
+    func addFavorite(_ page: Page, artwork: Data? = nil) throws {
         try edit("favorite") {
-            existing.isFavorite = true
-            if existing.artworkData == nil { existing.artworkData = artwork }
-            if existing.addedAt == nil {
-                existing.sortKey = nextSortKey(in: existing.folder)
-                existing.addedAt = now()
-                if existing.isSaved, let key = existing.key { planSaved(key: key) }
+            page.isFavorite = true
+            if page.artworkData == nil { page.artworkData = artwork }
+            if page.addedAt == nil {
+                page.sortKey = nextSortKey(in: page.folder)
+                page.addedAt = now()
+                if page.isSaved, let key = page.key { planSaved(key: key) }
             }
         }
-        return existing
     }
 
     /// Removes only the favorite flag; location and content stay intact (a link ☆ made stays in

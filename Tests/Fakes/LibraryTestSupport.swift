@@ -140,3 +140,23 @@ final class LibraryTestEnvironment {
         for (i, text) in paragraphs.enumerated() { try storeAudio(key, paragraph: i, text: text, voice: voice) }
     }
 }
+
+extension LibraryStore {
+    /// A link page for `url` in `folder` (the existing page for that address, unchanged), saved:
+    /// a fixture for a page that is only an address, such as a chapter not fetched yet.
+    @discardableResult
+    func addLink(url: URL, title: String?, artwork: Data?, in folder: Folder?) throws -> Page {
+        if let existing = page(url: url) { return existing }
+        let canonical = ArticleIdentity.canonicalURLString(from: url)
+        let host = url.host ?? url.absoluteString
+        let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return try edit("add link") {
+            let page = Page(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: trimmed.isEmpty ? host : trimmed,
+                            byline: host, urlString: url.absoluteString, contentState: .link, addedAt: now(),
+                            sortKey: nextSortKey(in: folder), artworkData: artwork)
+            context.insert(page)
+            page.setFolder(folder)
+            return page
+        }
+    }
+}

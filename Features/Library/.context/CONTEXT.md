@@ -38,6 +38,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   loaded traps in SwiftData. Check `isLive` (`isDeleted` reads false again once the delete is
   saved): rows draw `DeletedRow`, a folder's screen `FolderGoneView`, and the home, folder
   screens and search keep only live models.
+- **One ☆ for pages: `FavoriteFlow`** (the browser's, the Reader's and Now Playing's ⋯ by
+  address, a row's menu by page): the same toasts, failure text and icon fetch everywhere, and
+  every label reads `LibraryStore.isFavorite(_:)`. A row offers ☆ when the page is in the Library
+  or has a web address (`LibraryStore.canFavorite(_:)`), so a chapter can be starred.
 - **Edit and the dialogs live in `LibraryScreenState`**, on the Library surface, shared through
   the environment: the bottom bar acts on the selection, and
   `libraryDialogs` shows delete / rename / new folder once. The delete question is

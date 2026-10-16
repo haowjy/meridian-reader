@@ -2,8 +2,8 @@ import XCTest
 import UIKit
 @testable import MeridianReader
 
-/// Favorites are independent page flags (`LibraryStore+Favorites`): toggled from ⋯, deduped by
-/// canonical URL, renamed, removed, with a tile-sized icon when one can be found.
+/// Favorites are independent page flags (`LibraryStore+Favorites`, ☆ through `FavoriteFlow`):
+/// deduped by canonical URL, renamed, removed, with a tile-sized icon when one can be found.
 @MainActor
 final class BookmarkStoreTests: XCTestCase {
     private var env: LibraryTestEnvironment!
@@ -19,16 +19,92 @@ final class BookmarkStoreTests: XCTestCase {
     }
 
     func testToggleAddsWithABetterIconThenRemoves() async throws {
+        let shell = ShellState()
+        let flow = FavoriteFlow(library: library, shell: shell)
         let url = URL(string: "https://example.com/story")!
         let tile = png(side: 64)
-        try await library.toggleFavorite(url: url, title: "Story", artwork: png(side: 16)) { tile }
-        XCTAssertEqual(library.favorite(for: url)?.artworkData, tile, "a 16 px icon is upgraded to a tile-sized one")
+        flow.toggle(url: url, title: "Story", artwork: png(side: 16)) { tile }
+        XCTAssertEqual(shell.toast?.message, "Added to Favorites")
+        let page = try XCTUnwrap(library.favorite(for: url))
+        try await eventually { page.artworkData == tile }
+        XCTAssertEqual(page.artworkData, tile, "a 16 px icon is upgraded to a tile-sized one")
 
-        try await library.toggleFavorite(url: url, title: "Story", artwork: nil) { XCTFail("not asked when removing"); return nil }
+        flow.toggle(url: url, title: "Story", artwork: nil) { XCTFail("not asked when removing"); return nil }
+        XCTAssertEqual(shell.toast?.message, "Removed from Favorites")
         XCTAssertNil(library.favorite(for: url))
 
-        try await library.toggleFavorite(url: url, title: "Story", artwork: tile) { XCTFail("already tile-sized"); return nil }
+        flow.toggle(url: url, title: "Story", artwork: tile) { XCTFail("already tile-sized"); return nil }
+        await Task.yield()
         XCTAssertEqual(library.favorite(for: url)?.artworkData, tile)
+    }
+
+    /// ☆ in a Library row's menu goes the same way: a toast, the site's icon looked for, and a
+    /// favorite's ☆ takes the star off.
+    func testARowsStarGoesThroughTheSameFlow() throws {
+        let shell = ShellState()
+        let flow = FavoriteFlow(library: library, shell: shell)
+        let saved = try library.save(env.article("https://example.com/saved"))
+        flow.toggle(saved)
+        XCTAssertEqual(shell.toast?.message, "Added to Favorites")
+        XCTAssertTrue(LibraryStore.isFavorite(saved))
+        flow.toggle(saved)
+        XCTAssertEqual(shell.toast?.message, "Removed from Favorites")
+        XCTAssertFalse(saved.isFavorite)
+        XCTAssertTrue(saved.isSavedToLibrary, "unstarring keeps the page")
+    }
+
+    /// A book's chapter has no web address, yet it can be starred like any page in the Library:
+    /// the Favorites tab lists it, still in its book, and it plays from there as from the book.
+    func testAChapterCanBeStarred() throws {
+        let shell = ShellState()
+        let book = Folder(name: "Novel", kind: .book)
+        env.context.insert(book)
+        let chapter = Page(key: UUID(), title: "Chapter 1", byline: "An Author", urlString: nil, contentState: .saved,
+                           addedAt: env.now, sortKey: 0)
+        chapter.plainText = "The first chapter."
+        chapter.storeListenParagraphs(["The first chapter."])
+        env.context.insert(chapter)
+        chapter.setFolder(book)
+        XCTAssertTrue(library.commit("chapter"))
+        XCTAssertTrue(LibraryStore.canFavorite(chapter))
+
+        FavoriteFlow(library: library, shell: shell).toggle(chapter)
+        XCTAssertEqual(shell.toast?.message, "Added to Favorites")
+        XCTAssertEqual(try env.context.fetch(LibraryQueries.favoritePages).map(\.key), [chapter.key], "the Favorites tab")
+        XCTAssertIdentical(chapter.folder, book, "still in its book")
+        XCTAssertEqual(library.continueStart(of: book)?.page.key, chapter.key, "and it plays on from its book")
+    }
+
+    /// Only a page in the Library or with a web address can be starred.
+    func testAPageWithNoAddressOutOfTheLibraryCantBeStarred() throws {
+        let loose = Page(key: UUID(), title: "Gone", byline: "", urlString: nil, contentState: .saved, addedAt: nil)
+        env.context.insert(loose)
+        XCTAssertFalse(LibraryStore.canFavorite(loose))
+        FavoriteFlow(library: library, shell: ShellState()).toggle(loose)
+        XCTAssertFalse(loose.isFavorite)
+    }
+
+    /// A new favorite is one save: when it can't be saved, no link is left behind without its
+    /// star, and when a later save would fail, the favorite is already whole.
+    func testANewFavoriteIsOneSave() throws {
+        let url = URL(string: "https://example.com/new")!
+        var saves = 0
+        library.saveContext = { context in
+            saves += 1
+            guard saves == 1 else { throw CocoaError(.fileWriteUnknown) }
+            try context.save()
+        }
+        let page = try library.addFavorite(url: url, title: "New", artwork: nil)
+        XCTAssertEqual(saves, 1)
+        XCTAssertTrue(LibraryStore.isFavorite(page), "made and starred together")
+
+        let other = URL(string: "https://example.com/other")!
+        XCTAssertThrowsError(try library.addFavorite(url: other, title: "Other", artwork: nil))
+        XCTAssertNil(library.page(url: other), "a save that fails leaves nothing")
+    }
+
+    private func eventually(_ condition: () -> Bool) async throws {
+        for _ in 0..<100 where !condition() { try await Task.sleep(for: .milliseconds(10)) }
     }
 
     func testOfferArtworkNeverReplacesAUsableIconWithASmallerOne() throws {

@@ -147,7 +147,7 @@ final class LibraryStoreTests: XCTestCase {
     }
 
     /// Favorites are independent of folder location, including for a series chapter.
-    func testFavoriteSeriesChapterKeepsItsLocation() async throws {
+    func testFavoriteSeriesChapterKeepsItsLocation() throws {
         let series = Folder(name: "Serial", kind: .series)
         env.context.insert(series)
         let savedURL = URL(string: "https://example.com/serial/1")!
@@ -158,13 +158,12 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertFalse(LibraryStore.isFavorite(saved), "location alone does not favorite a page")
         try library.addFavorite(url: savedURL, title: nil, artwork: nil)
         XCTAssertTrue(LibraryStore.isFavorite(saved))
-        guard case .remove(let page) = library.favoriteRequest(for: savedURL) else { return XCTFail("☆ removes it") }
-        XCTAssertIdentical(page, saved)
+        XCTAssertIdentical(library.favorite(for: savedURL), saved, "☆ removes it")
 
-        try await library.toggleFavorite(url: savedURL, title: nil, artwork: nil) { nil }
+        try library.removeFavorite(saved)
         XCTAssertIdentical(saved.folder, series, "removing a favorite does not move the page")
         XCTAssertTrue(saved.isSavedToLibrary)
-        guard case .add = library.favoriteRequest(for: linkURL) else { return XCTFail("unstarred link can be starred in place") }
+        XCTAssertNil(library.favorite(for: linkURL), "an unstarred link can be starred in place")
         try library.addFavorite(url: linkURL, title: nil, artwork: nil)
         XCTAssertTrue(link.isFavorite)
         XCTAssertIdentical(link.folder, series)

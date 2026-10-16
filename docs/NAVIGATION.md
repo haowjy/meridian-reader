@@ -169,7 +169,8 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   Library where it is, with its played text, so it shows in Favorites and the 7-day prune of
   unsaved pages leaves it. A starred page in the Library is a favorite: ☆ then reads *Remove
   from Favorites*, which clears the star and leaves the page where it is (a link ☆ made stays).
-  *Remove from Library* clears the star too.
+  *Remove from Library* clears the star too. A Library row's menu stars the same way, with the
+  same toasts, and stars any page in the Library, a book's chapter too.
 - **One library**: everything is a page in a folder (or in none). A page is a *link* (an address
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
   without saving (kept 7 days, shown at the top of the Library's *Pages* as "Not saved", and in
@@ -363,9 +364,9 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 
 | Row | Tap | Trailing | Menu (long-press) | Swipe left |
 |---|---|---|---|---|
-| Folder, book or series | opens it (push) | Download state; ▶ when its pages play, otherwise › | *Continue, Play from Start* (when its pages play)*, Download* (when it has pages)*, Move to…, Rename, Edit Details, Delete… | Delete… |
-| Saved page (including a chapter) | the Reader (Now Playing if it's what you hear) | Download state; ▶ (not on pages skipped in playback) | *Play from Here* (in a folder)*, Move to…, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback* (in a folder)*, Share, Download, Delete Downloads* (when it has audio)*, Remove from Library* | Remove |
-| Page played without saving ("Not saved") | the Reader (Now Playing if it's what you hear) | ▶ | *Save, Share* | — |
+| Folder, book or series | opens it (push) | Download state; ▶ when its pages play, otherwise › | *Continue, Play from Start* (when its pages play)*, Download* (when it has pages)*, Add to / Remove from Favorites, Move to…, Rename, Edit Details, Delete… | Delete… |
+| Saved page (including a chapter) | the Reader (Now Playing if it's what you hear) | Download state; ▶ (not on pages skipped in playback) | *Play from Here* (in a folder)*, Move to…, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback* (in a folder)*, Share, Download, Delete Downloads* (when it has audio)*, Remove from Library, Add to / Remove from Favorites* | Remove |
+| Page played without saving ("Not saved") | the Reader (Now Playing if it's what you hear) | ▶ | *Save, Share, Add to Favorites* | — |
 | Link page | the page, in the browser | — | *Move to…, Share, Download, Remove from Library* | Remove |
 
 *Download* isn't offered while that page or folder is downloading already (decision D16, below).
