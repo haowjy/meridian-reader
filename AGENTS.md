@@ -40,7 +40,9 @@ xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -confi
 - `KokoroNaNProbeTests` and `KokoroONNXSessionTests` run only when the Mac research model is at
   `~/Developer/tts-audition/bg-research/models/`; otherwise they skip. `KokoroONNXThreadSweepTests`
   also needs `TEST_RUNNER_READER_ONNX_SWEEP=1`: it prints × real time per ONNX thread count on the
-  Mac's CPU (a proxy; measure the phone with the CPU route benchmark).
+  Mac's CPU (a proxy; measure the phone with the CPU route benchmark). `KokoroSwiftG2PTests`
+  runs whenever the Mac's FluidAudio cache (`~/.cache/fluidaudio/Models/kokoro`) holds the G2P
+  models; otherwise it skips.
 - `EPUBLocalBooksTests` is skipped unless `TEST_RUNNER_READER_EPUB_DIR=<dir>` is set: it reads every
   `.epub` there (real books stay out of the repo) and writes `<dir>/epub-report.txt`.
 - Release must keep building: test hooks live behind `#if DEBUG`.

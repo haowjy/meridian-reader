@@ -38,15 +38,7 @@ final class KokoroSwiftG2PTests: XCTestCase {
 
     func testSwiftBARTMatchesCoreML() async throws {
         try installHostAssets()
-        var words = Set(Self.names)
-        if let home = ProcessInfo.processInfo.environment["SIMULATOR_HOST_HOME"],
-           let text = try? String(contentsOfFile: home + "/Developer/Reader/.probe/crash-2346/article-BA7D7639.txt",
-                                  encoding: .utf8) {
-            for w in text.split(whereSeparator: { !$0.isLetter && $0 != "'" }) where w.count > 1 {
-                words.insert(String(w))
-            }
-        }
-        let list = words.sorted()
+        let list = Self.names.sorted()
         let bad = try await KokoroCPUHost.debugCompareG2PWithCoreML(words: list)
         let identical = Double(list.count - bad.count) / Double(list.count)
         print("G2P_COMPARE words=\(list.count) mismatches=\(bad.count) identical=\(String(format: "%.4f", identical))")
