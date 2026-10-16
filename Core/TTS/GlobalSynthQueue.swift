@@ -628,7 +628,6 @@ final class GlobalSynthQueue {
             ListenTimingLog.log("paragraph_failed", [
                 "key": ListenTimingLog.shortKey(job.cacheKey), "p": index, "err": error.localizedDescription,
             ])
-            print("[SynthQueue] fail key=\(job.cacheKey.uuidString.prefix(8)) p=\(index): \(error.localizedDescription)")
             failWaiters(cacheKey: job.cacheKey, index: index, error: error)
         }
         return nil
@@ -837,7 +836,7 @@ final class GlobalSynthQueue {
             jobs[key] = nil
             stack.remove(at: position)
             if staged?.cacheKey == key { staged = nil }
-            print("[SynthQueue] complete key=\(job.cacheKey.uuidString.prefix(8))")
+            ListenDebugLog.shared.append("bake complete \(job.cacheKey.uuidString.prefix(8))")
         }
         return nil
     }

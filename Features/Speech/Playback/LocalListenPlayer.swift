@@ -103,7 +103,7 @@ final class LocalListenPlayer {
             self?.handleStarved()
         }
         player.onError = { error in
-            print("[LocalPlay] unit error (fail-forward): \(error.localizedDescription)")
+            ListenDebugLog.shared.append("unit error, playing on: \(error.localizedDescription)")
         }
         player.onItemDone = { item in
             if case .appleFallback = item.source { Self.deleteFallbackFile(item.fileURL) }
@@ -305,7 +305,7 @@ final class LocalListenPlayer {
             // Still starved (nothing Ready) — cancel wedged task and restart.
             // Bump epoch so an in-flight resolve cannot enqueue the same index after we restart.
             if self.player.bufferedCount == 0 {
-                print("[LocalPlay] starved watchdog: re-kick produce at index \(self.nextProduceIndex)")
+                ListenDebugLog.shared.append("starved: producing again from p\(self.nextProduceIndex)")
                 self.producerTask?.cancel()
                 self.producerTask = nil
                 self.epoch += 1

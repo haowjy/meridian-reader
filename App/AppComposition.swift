@@ -104,7 +104,7 @@ enum AppComposition {
         tts.audioCache.removeAllChunkScratch()
         let pruned = tts.audioCache.pruneEphemeral()
         if pruned.removed > 0 {
-            print("[TTSCache] pruned ephemeral removed=\(pruned.removed) freed=\(pruned.freedBytes)")
+            ListenTimingLog.log("audio_cache_prune", ["removed": pruned.removed, "bytes": pruned.freedBytes])
         }
     }
 

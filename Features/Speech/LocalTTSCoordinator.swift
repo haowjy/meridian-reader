@@ -129,7 +129,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         let fallback = engines.crashFallback(for: engine)
         let d = engines.descriptor(engine)
         let name = d?.shortName ?? engine.rawValue
-        print("[TTS] \(name) crash detected → \(fallback.rawValue)")
+        ListenDebugLog.shared.append("\(name) crash detected → \(fallback.rawValue)")
         return apply(.switchAway(notice: "\(name) crashed last session (\(d?.onDevice?.crashNotice ?? "engine crash")). "
             + "Switched to \(engines.displayName(fallback)). Tap \(name) to try again."), crashed: engine)
     }
@@ -476,9 +476,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
             synthQueue.rekey(from: ephemeralKey, to: savedKey)
             synthQueue.setEphemeral(cacheKey: savedKey, false)
             noteBakeMarksChanged()
-            print("[TTSCache] migrated \(ephemeralKey.uuidString.prefix(8)) → \(savedKey.uuidString.prefix(8))")
+            ListenDebugLog.shared.append("cache migrated \(ephemeralKey.uuidString.prefix(8)) → \(savedKey.uuidString.prefix(8))")
         } catch {
-            print("[TTSCache] migrate failed: \(error.localizedDescription)")
+            ListenDebugLog.shared.append("cache migrate failed: \(error.localizedDescription)")
         }
     }
 
@@ -512,9 +512,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
                     // v1 key embedded the content hash, so its units match `paragraphs`.
                     try audioCache.stampMissingHashes(articleID: key, paragraphs: paragraphs)
                     ListenDebugLog.shared.append("identity adopt v1 \(legacy.uuidString.prefix(8)) → \(key.uuidString.prefix(8))")
-                    print("[Identity] adopted legacy cache \(legacy.uuidString.prefix(8)) → \(key.uuidString.prefix(8))")
                 } catch {
-                    print("[Identity] legacy adopt failed: \(error.localizedDescription)")
+                    ListenDebugLog.shared.append("identity adopt v1 failed: \(error.localizedDescription)")
                 }
                 break
             }
@@ -533,12 +532,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
             synthQueue.updateParagraphs(cacheKey: key, paragraphs: paragraphs)
             let msg = "identity \(key.uuidString.prefix(8)) fp=\(ArticleIdentity.contentFingerprint(paragraphs: paragraphs).prefix(8)) kept=\(result.kept) moved=\(result.remapped) dropped=\(result.dropped) legacy=\(result.unverified) split=\(result.splitParagraphs) sliced=\(result.sliced)"
             ListenDebugLog.shared.append(msg)
-            print("[Identity] \(msg)")
             if result.changed { noteBakeMarksChanged() }
         } catch {
             // The last saved index is intact (copy-on-write); the next open tries again.
             ListenDebugLog.shared.append("identity \(key.uuidString.prefix(8)) align failed: \(error.localizedDescription)")
-            print("[Identity] align failed: \(error.localizedDescription)")
         }
     }
 
@@ -553,7 +550,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         let pending = pendingBakes.pendingJobs()
             .filter { localLanguageAllows($0.paragraphs) && !audioCache.held.contains($0.articleID) }
         guard !pending.isEmpty else { return }
-        print("[SynthQueue] draining \(pending.count) pending job(s)")
+        ListenDebugLog.shared.append("adopting \(pending.count) saved bake job(s)")
         synthQueue.adoptPending(pending.map { job in
             GlobalSynthQueue.PendingWork(
                 cacheKey: job.articleID,

@@ -52,7 +52,6 @@ enum EngineLatencyProbe {
         try? Data().write(to: out)
         func log(_ s: String) {
             let line = "\(ISO8601DateFormatter().string(from: Date())) \(s)"
-            print("[EngineProbe] \(line)")
             ListenDebugLog.shared.append("probe: \(s)")
             if let h = try? FileHandle(forWritingTo: out) {
                 h.seekToEndOfFile(); h.write(Data((line + "\n").utf8)); try? h.synchronize(); try? h.close()

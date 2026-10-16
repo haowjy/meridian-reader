@@ -197,7 +197,6 @@ final class LibraryStore {
     static func short(_ id: UUID?) -> String { id.map { String($0.uuidString.prefix(8)) } ?? "-" }
 
     func log(_ message: String) {
-        print("[Library] \(message)")
         ListenDebugLog.shared.append("lib: \(message)")
     }
 }
