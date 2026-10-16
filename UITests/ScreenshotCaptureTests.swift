@@ -102,7 +102,7 @@ final class ScreenshotCaptureTests: XCTestCase {
 
         app.buttons["listenPlayPause"].tap() // Listen: the Reader turns into Now Playing
         wait(2)
-        app.buttons["readerClose"].tap() // ⌄
+        app.buttons["nowPlayingClose"].tap() // ⌄
         wait(1.5)
         try shot("8-browse-now-playing-bar")
         app.buttons["nowPlayingBarPlayPause"].tap()
@@ -174,7 +174,7 @@ final class ScreenshotCaptureTests: XCTestCase {
         try shot("5-now-playing-speed")
         el(app, "listenSpeedOption-1×").tap()
         wait(0.8)
-        app.buttons["readerMore"].tap()
+        app.buttons["nowPlayingMore"].tap()
         wait(1.5)
         try shot("6-now-playing-menu")
         dismissMenu(app)
@@ -260,7 +260,7 @@ final class ScreenshotCaptureTests: XCTestCase {
         XCTAssertTrue(el(app, "nowPlayingHeader").waitForExistence(timeout: 5))
         wait(2.5)
         try shot("now-playing")
-        app.buttons["readerClose"].tap() // ⌄
+        app.buttons["nowPlayingClose"].tap() // ⌄
         XCTAssertTrue(el(app, "nowPlayingBar").waitForExistence(timeout: 5))
         wait(1)
         try shot("library-now-playing-bar")

@@ -340,13 +340,14 @@ final class BrowseToolbarUITests: XCTestCase {
         play.tap()
         XCTAssertTrue(waitFor("label == 'Pause'", play, timeout: 8), "playing")
 
-        app.buttons["readerMore"].tap()
+        app.buttons["nowPlayingMore"].tap()
         let website = element(app, "moreWebsite")
         XCTAssertTrue(website.waitForExistence(timeout: 3))
         RunLoop.current.run(until: Date().addingTimeInterval(0.8))
         website.tap()
 
-        XCTAssertTrue(waitFor("exists == false", close, timeout: 8), "reader closed")
+        // Listen turned the Reader into Now Playing; Website takes it down.
+        XCTAssertTrue(waitFor("exists == false", app.buttons["nowPlayingClose"], timeout: 8), "Now Playing closed")
         XCTAssertTrue(waitFor("exists == false", app.libraryHome, timeout: 8), "library closed")
         let field = app.textFields["addressField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))

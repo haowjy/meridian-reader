@@ -152,7 +152,7 @@ final class LibraryHomeUITests: XCTestCase {
 
         find(app, "nowPlayingBarOpen").tap()
         XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5), "Now Playing")
-        find(app, "readerMore").tap()
+        find(app, "nowPlayingMore").tap()
         let goTo = find(app, "moreGoTo")
         XCTAssertTrue(goTo.waitForExistence(timeout: 3))
         XCTAssertEqual(goTo.label, "Go to Library")

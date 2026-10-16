@@ -71,10 +71,10 @@ struct NowPlayingScreen: View {
         } controls: {
             NowPlayingControls(
                 speech: speech, scrubMap: scrubMap, detectedLanguage: speech.sessionDetectedLanguage,
-                save: AnyView(SaveToggleButton(isSaved: actions.isSaved, identifier: "readerBookmark",
+                save: AnyView(SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
                                                onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
                     .disabled(actions.article == nil)),
-                more: AnyView(MoreMenuButton(id: "readerMore") {
+                more: AnyView(MoreMenuButton(id: "nowPlayingMore") {
                     .reader(actions.readerMenu(goTo: goToPlace(now, saved: actions.isSaved), isOnPlayer: true),
                             perform: { actions.perform($0) { goTo(now) } })
                 }
