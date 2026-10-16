@@ -135,14 +135,16 @@ final class FolderUITests: XCTestCase {
         XCTAssertTrue(libraryRow(app, "Seven-Day Yield").exists, "only that row")
     }
 
-    /// A folder whose pages play has a book's header buttons: *Play* (nothing played in it yet)
-    /// and *Play from Start*, which plays its first page; the round button then shows it playing.
+    /// A folder whose pages play has a book's header buttons: *Continue* at its place (the seed's
+    /// Seven-Day Yield is part-way, page 1 of 3) and *Play from Start*, which plays its first page;
+    /// the round button then shows it playing.
     func testAFoldersHeaderPlaysItLikeABook() throws {
         let app = launchLibrary()
         openFolder(app, "Demo Finance")
         let play = app.buttons["folderContinue"]
         XCTAssertTrue(play.waitForExistence(timeout: 5), "the round button")
-        XCTAssertEqual(play.label, "Play", "nothing in it has played yet")
+        XCTAssertTrue(play.label.hasPrefix("Continue") && play.label.contains("1 of 3"),
+                      "Continue at the part-way page: \(play.label)")
         XCTAssertTrue(app.buttons["folderPlayFromStart"].exists, "Play from Start")
         app.buttons["folderPlayFromStart"].tap()
         let bar = find(app, "nowPlayingBarOpen")
