@@ -174,10 +174,13 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertEqual(close.label, "Back to Browser", "opened over the page")
         close.tap()
         XCTAssertTrue(eventually { !close.exists })
+        // The sheet's exit runs on after its close pill leaves the tree, and a full-screen window
+        // left over the app keeps XCUITest from saying when ⋯ takes taps: give the exit its time.
+        idle(1)
 
         // ⋯ → Reader (bottom-right) switches into reader mode…
-        tapWhenHittable(app.buttons["browseMore"])
         let browseMoreFrame = app.buttons["browseMore"].frame
+        app.buttons["browseMore"].tap()
         XCTAssertTrue(eventually { toggle.exists && toggle.isEnabled }, "readable → enabled")
         XCTAssertFalse(toggle.isSelected)
         toggle.tap()
