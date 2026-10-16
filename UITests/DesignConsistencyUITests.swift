@@ -37,7 +37,7 @@ final class DesignConsistencyUITests: XCTestCase {
         openFolder(app, "Demo Finance")
         let bar = app.navigationBars["Demo Finance"]
         XCTAssertTrue(bar.waitForExistence(timeout: 5), "the screen keeps its title for VoiceOver and ‹")
-        idle(0.5)
+        XCTAssertNotNil(settledFrames([bar]), "the push has finished")
         XCTAssertFalse(bar.staticTexts["Demo Finance"].exists, "no second title in the bar at rest")
         XCTAssertTrue(find(app, "folderScreen").staticTexts["Demo Finance"].exists, "the header's title")
     }
@@ -48,7 +48,7 @@ final class DesignConsistencyUITests: XCTestCase {
         let app = launchLibrary()
         app.buttons["libraryMore"].tap()
         assertOrder(app, ["moreNewFolder", "moreDownloads", "moreSettings"], "the home's ⋯")
-        dismissMenu(app)
+        closeMenu(app)
 
         openFolder(app, "Demo Finance")
         app.buttons["libraryMore"].tap()
@@ -56,7 +56,7 @@ final class DesignConsistencyUITests: XCTestCase {
                           "moreSettings"], "a folder's ⋯")
         XCTAssertEqual(find(app, "moreMove").label, "Move to…")
         XCTAssertEqual(find(app, "moreDownload").label, "Download Folder")
-        dismissMenu(app)
+        closeMenu(app)
         app.navigationBars["Demo Finance"].buttons.element(boundBy: 0).tap()
 
         openFolder(app, "The Demo Book")
@@ -64,15 +64,13 @@ final class DesignConsistencyUITests: XCTestCase {
         XCTAssertTrue(find(app, "moreDownload").waitForExistence(timeout: 3))
         XCTAssertEqual(find(app, "moreDownload").label, "Download Book")
         XCTAssertEqual(find(app, "moreDeleteFolder").label, "Delete Book…")
-        dismissMenu(app)
+        closeMenu(app)
     }
 
     /// The toast a download shows sits above the Now Playing bar, not on it.
     func testAToastFloatsAboveTheNowPlayingBar() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoFolders", "-resetBookmarks", "-resetDownloads",
-                               "-testVoice", "-testVoiceDelay", "0.3", "-selectEngine", "test.voice", "-openLibrary"]
-        app.launch()
+        let app = launch(UITestSetup(["-seedDemoArticle", "-seedDemoFolders", "-testVoice", "-testVoiceDelay", "0.3",
+                                      "-openLibrary"], engine: "test.voice"))
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10))
         openFolder(app, "Demo Finance")
         app.buttons["libraryMore"].tap()
@@ -100,8 +98,7 @@ final class DesignConsistencyUITests: XCTestCase {
             heights[done] = button.frame.height
             button.tap()
             XCTAssertTrue(eventually(5) { !button.exists }, "\(done) closes its sheet")
-            idle(0.5)
-            if !app.libraryHome.exists { app.buttons["browseLibrary"].tap() }
+            if !eventually(1) { app.libraryHome.exists } { app.buttons["browseLibrary"].tap() }
             XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5))
         }
         let values = Array(heights.values)
@@ -120,11 +117,5 @@ final class DesignConsistencyUITests: XCTestCase {
             XCTAssertGreaterThan(row.frame.midY, last, "\(what): \(id) after the rows before it", file: file, line: line)
             last = row.frame.midY
         }
-    }
-
-    private func dismissMenu(_ app: XCUIApplication) {
-        let dim = find(app, "moreMenuDismiss")
-        if dim.waitForExistence(timeout: 2) { tapMenuDim(dim) }
-        idle(0.8)
     }
 }

@@ -4,7 +4,7 @@ import Foundation
 /// Launch arguments, parsed once (Debug builds only). UI tests and diagnostics drive the app
 /// through these; a normal launch has none of them.
 struct LaunchOptions: Equatable {
-    /// `-seedDemoArticle`: the library is replaced by one deterministic demo article.
+    /// `-seedDemoArticle`: one deterministic demo article.
     struct DemoArticle: Equatable {
         /// `-seedDemoTitle "<title>"` (long-title layout checks).
         var title: String?
@@ -23,16 +23,17 @@ struct LaunchOptions: Equatable {
         var loosePages = 0
     }
 
-    enum BookmarkSetup: Equatable {
-        /// `-resetBookmarks`: start with none.
-        case reset
-        /// `-seedBookmarks`: start with a fixed few.
-        case seed
-    }
-
     /// `-uiTesting`: expose test-only accessibility markers and skip network-dependent features
     /// (live Google suggestions), so results don't depend on the network.
     var uiTesting = false
+    /// `-resetLibrary`: start as a fresh install does. Before anything reads them, the stored
+    /// settings go: the engine, every engine's voice, the Apple voice, language and speed, the
+    /// remembered surface and the Library's tab and top-level sort, Recent Searches and the
+    /// download list (`LaunchHooks.resetStoredSettings`). Before the seeds, the library's every
+    /// page (link pages too) and folder go, with their audio, and the browsing history
+    /// (`LaunchHooks.resetLibrary`). The seeds then add to an empty library. Every UI test
+    /// launches with it.
+    var resetsLibrary = false
     var demoArticle: DemoArticle?
     /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): start in the reader overlay on it.
     var opensDemoInReader = false
@@ -40,7 +41,8 @@ struct LaunchOptions: Equatable {
     var opensLibrary = false
     /// `-browseTestPages`: serve and open the offline `reader-test://` pages.
     var servesTestPages = false
-    var bookmarks: BookmarkSetup?
+    /// `-seedBookmarks`: a few starred links.
+    var seedsBookmarks = false
     /// `-bakeArticle <id prefix>`: render that saved article's audio top-down without playing.
     var bakeArticlePrefix: String?
     /// `-scrubBubbleDemo` (with `-uiTesting`): freeze a mid-drag scrubber frame for a screenshot.
@@ -51,7 +53,8 @@ struct LaunchOptions: Equatable {
     /// saved articles and bookmarks again.
     var rerunsLibraryMigration = false
     /// `-seedDemoBook`: add the demo book and its page in no folder (`DemoBook`), replacing the
-    /// ones an earlier launch added. The rest of the library is left alone.
+    /// ones an earlier launch added (it also runs on a phone, without `-resetLibrary`). The rest
+    /// of the library is left alone.
     var seedsDemoBook = false
     /// `-seedDemoBookPlace N` (with `-seedDemoBook`): the book's place is chapter N (its index in
     /// `DemoBook.chapters`; 0 is the title page), at its third paragraph, the chapters before it
@@ -61,17 +64,14 @@ struct LaunchOptions: Equatable {
     /// time) and let it carry on (the locked-screen device check).
     var chainsDemoChapters = false
     /// `-seedDemoFolders`: add a "Demo Finance" folder with two subfolders and saved pages (one in a
-    /// subfolder), replacing the one an earlier launch added.
+    /// subfolder).
     var seedsDemoFolders = false
     /// `-restoreSurface` (with `-uiTesting`): reopen on the remembered surface, as a normal launch
     /// does (decision D10). Without it a UI-test launch starts on the browser, whatever an earlier
     /// test left, and `-browseTestPages` loads page one.
     var restoresSurfaceInUITests = false
-    /// `-resetSurface`: forget the remembered surface first, as on a fresh install.
-    var resetsSurface = false
     /// `-importTestEPUB`: *Import Book…* imports the synthetic EPUB (`TestEPUB`) instead of
-    /// opening the Files picker, which a UI test can't drive. At launch an earlier import of it is
-    /// deleted, with its audio, so it imports fresh.
+    /// opening the Files picker, which a UI test can't drive.
     var importsTestEPUB = false
     /// `-pickTestCover`: *Edit Details*' *Choose from Files…* takes a synthetic picture
     /// (`TestCover`) instead of opening the Files picker, which a UI test can't drive.
@@ -90,14 +90,9 @@ struct LaunchOptions: Equatable {
     var usesTestVoice = false
     /// `-testVoiceDelay <seconds>`: how long each test-voice render takes (0.15 s if not given).
     var testVoiceDelay: TimeInterval?
-    /// `-resetDownloads`: start with an empty download list.
-    var resetsDownloads = false
     /// `-selectEngine <engine id>` (`local.kokoro`, `apple`, `test.voice`): the engine to load at
     /// launch, persisted as the selection.
     var selectsEngine: SpeechEngineID?
-    /// `-reader.rateMultiplier <n>` was passed. A UI-test launch without it starts at 1×,
-    /// whatever an earlier run stored.
-    var setsRate = false
     /// `-kokoroUnits <label>`: compute units of Kokoro's Core ML route (`KokoroHost.unitsLabel`).
     var kokoroUnits: String?
     /// `-engineProbe [-probeOnly Kokoro,…] [-probeStress [-probeStressN n]]`: time every on-device
@@ -116,6 +111,7 @@ struct LaunchOptions: Equatable {
             return arguments[i + 1]
         }
         uiTesting = flags.contains("-uiTesting")
+        resetsLibrary = flags.contains("-resetLibrary")
         if flags.contains("-seedDemoArticle") {
             demoArticle = DemoArticle(
                 title: value(after: "-seedDemoTitle"),
@@ -129,11 +125,7 @@ struct LaunchOptions: Equatable {
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")
         opensLibrary = flags.contains("-openLibrary")
         servesTestPages = flags.contains("-browseTestPages")
-        if flags.contains("-seedBookmarks") {
-            bookmarks = .seed
-        } else if flags.contains("-resetBookmarks") {
-            bookmarks = .reset
-        }
+        seedsBookmarks = flags.contains("-seedBookmarks")
         bakeArticlePrefix = value(after: "-bakeArticle")?.uppercased()
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")
         slowMenuAnimation = flags.contains("-slowMenuAnimation")
@@ -143,7 +135,6 @@ struct LaunchOptions: Equatable {
         chainsDemoChapters = flags.contains("-chainDemoChapters")
         seedsDemoFolders = flags.contains("-seedDemoFolders")
         restoresSurfaceInUITests = flags.contains("-restoreSurface")
-        resetsSurface = flags.contains("-resetSurface")
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")
         picksTestCover = flags.contains("-pickTestCover")
@@ -151,9 +142,7 @@ struct LaunchOptions: Equatable {
         probesLockedFetch = flags.contains("-probeLockedFetch")
         usesTestVoice = flags.contains("-testVoice")
         testVoiceDelay = value(after: "-testVoiceDelay").flatMap(TimeInterval.init)
-        resetsDownloads = flags.contains("-resetDownloads")
         selectsEngine = value(after: "-selectEngine").map(SpeechEngineID.init(rawValue:))
-        setsRate = flags.contains("-reader.rateMultiplier")
         kokoroUnits = value(after: "-kokoroUnits")
         if flags.contains("-engineProbe") {
             engineProbe = EngineLatencyProbe.Request(
@@ -167,9 +156,6 @@ struct LaunchOptions: Equatable {
                 fresh: flags.contains("-KokoroStressFresh"))
         }
     }
-
-    /// The stored listen speed applies (not in a UI-test launch that doesn't pass one).
-    var keepsStoredRate: Bool { !uiTesting || setsRate }
 
     /// Whether the app reopens on the surface it was left on.
     var restoresSurface: Bool { !uiTesting || restoresSurfaceInUITests }

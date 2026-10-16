@@ -6,16 +6,11 @@ final class VoiceSettingsDeleteUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
     func testDeletingAnEnginesDownloadKeepsItsRow() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-testVoice", "-selectEngine", "apple", "-openLibrary"]
-        app.launch()
+        let app = launch(["-testVoice", "-openLibrary"])
         let more = app.buttons["libraryMore"]
         XCTAssertTrue(more.waitForExistence(timeout: 10))
         more.tap()
-        let settings = app.descendants(matching: .any).matching(identifier: "moreSettings").firstMatch
-        XCTAssertTrue(settings.waitForExistence(timeout: 3))
-        idle(0.6)
-        settings.tap()
+        tapMenuRow(app, "moreSettings")
 
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5), "Settings")
         let row = app.buttons["engineRow-test.voice"]

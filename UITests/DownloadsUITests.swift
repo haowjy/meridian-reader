@@ -9,11 +9,10 @@ import XCTest
 final class DownloadsUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
-    private func launch(delay: Double = 0.15) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoBook", "-resetBookmarks", "-resetDownloads", "-testVoice",
-                               "-testVoiceDelay", "\(delay)", "-selectEngine", "test.voice", "-openLibrary"]
-        app.launch()
+    /// The Library on the demo book, the test voice taking `delay` seconds per render.
+    private func launchWithTestVoice(delay: Double = 0.15) -> XCUIApplication {
+        let app = launch(UITestSetup(["-seedDemoBook", "-testVoice", "-testVoiceDelay", "\(delay)", "-openLibrary"],
+                                     engine: "test.voice"))
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10), "the Library")
         return app
     }
@@ -35,7 +34,7 @@ final class DownloadsUITests: XCTestCase {
     private func closeDownloads(_ app: XCUIApplication) {
         app.buttons["downloadsDone"].tap()
         XCTAssertTrue(eventually(5) { !find(app, "downloadsSheet").exists })
-        idle(0.5)
+        XCTAssertTrue(eventually(5) { app.buttons["libraryMore"].isHittable }, "the Library takes taps again")
     }
 
     /// The row titled `title` in the Downloads list: its value is its detail line.
@@ -46,7 +45,7 @@ final class DownloadsUITests: XCTestCase {
     private func value(_ element: XCUIElement) -> String { element.value as? String ?? "" }
 
     func testABookDownloadsWithItsVoiceShownAndAVoiceChangeAsksToRedownloadOrKeep() throws {
-        let app = launch()
+        let app = launchWithTestVoice()
         downloadTheBook(app)
         XCTAssertTrue(find(app, "downloadProgress").waitForExistence(timeout: 5), "the progress line while it renders")
         XCTAssertFalse(find(app, "downloadsSheet").exists, "nothing modal")
@@ -78,11 +77,11 @@ final class DownloadsUITests: XCTestCase {
         let two = find(app, "voiceRow-two")
         for _ in 0..<6 where !(two.exists && two.isHittable) { app.swipeUp() }
         two.tap()
-        idle(1)
+        XCTAssertTrue(eventually(5) { two.isSelected }, "voice Two")
         app.navigationBars["Voice"].buttons.firstMatch.tap()
         app.buttons["settingsDone"].tap()
         XCTAssertTrue(eventually(5) { !app.navigationBars["Settings"].exists })
-        idle(0.5)
+        XCTAssertTrue(eventually(5) { app.buttons["libraryMore"].isHittable }, "the Library takes taps again")
 
         openDownloads(app)
         XCTAssertTrue(find(app, "downloadsDifferentVoiceHeader").waitForExistence(timeout: 5), "Different Voice")
@@ -108,7 +107,7 @@ final class DownloadsUITests: XCTestCase {
     }
 
     func testAQueuedDownloadPausesAndIsRemoved() throws {
-        let app = launch(delay: 0.8)
+        let app = launchWithTestVoice(delay: 0.8)
         downloadTheBook(app)
         XCTAssertTrue(find(app, "downloadProgress").waitForExistence(timeout: 5))
 

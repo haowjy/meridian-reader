@@ -2,7 +2,8 @@ import XCTest
 
 /// Decision D10: the app reopens on the surface you left. Left on the browser, it reopens there
 /// on the same page; left on a folder, the Library at that folder; a fresh install opens the
-/// Library. UI-test launches start on the browser unless `-restoreSurface`.
+/// Library. UI-test launches start on the browser unless `-restoreSurface`; the relaunches keep
+/// what the first launch left (`UITestSetup.relaunch`).
 final class ReopenSurfaceUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
@@ -11,9 +12,7 @@ final class ReopenSurfaceUITests: XCTestCase {
         openTestPage(app, "Next page")
         app.terminate()
 
-        let again = XCUIApplication()
-        again.launchArguments = ["-uiTesting", "-browseTestPages", "-selectEngine", "apple", "-restoreSurface"]
-        again.launch()
+        let again = launch(.relaunch(["-browseTestPages", "-restoreSurface"]))
         XCTAssertTrue(again.staticTexts["Second page"].waitForExistence(timeout: 10), "the browser, on its page")
         XCTAssertEqual(again.textFields["addressField"].value as? String, "pages/two")
         XCTAssertFalse(again.libraryHome.exists)
@@ -25,9 +24,7 @@ final class ReopenSurfaceUITests: XCTestCase {
         openFolder(app, "Bonds")
         app.terminate()
 
-        let again = XCUIApplication()
-        again.launchArguments = ["-uiTesting", "-selectEngine", "apple", "-restoreSurface"]
-        again.launch()
+        let again = launch(.relaunch(["-restoreSurface"]))
         XCTAssertTrue(again.navigationBars["Bonds"].waitForExistence(timeout: 10), "the Library at Bonds")
         again.navigationBars["Bonds"].buttons.element(boundBy: 0).tap()
         XCTAssertTrue(again.navigationBars["Demo Finance"].waitForExistence(timeout: 5), "under Demo Finance")
@@ -43,9 +40,7 @@ final class ReopenSurfaceUITests: XCTestCase {
         app.buttons["Favorites"].tap()
         app.terminate()
 
-        let again = XCUIApplication()
-        again.launchArguments = ["-uiTesting", "-browseTestPages", "-selectEngine", "apple", "-restoreSurface"]
-        again.launch()
+        let again = launch(.relaunch(["-browseTestPages", "-restoreSurface"]))
         XCTAssertTrue(again.libraryHome.waitForExistence(timeout: 10), "the Library at Favorites")
         XCTAssertTrue(again.buttons["Favorites"].isSelected)
         again.buttons["libraryBrowser"].tap()
@@ -54,9 +49,7 @@ final class ReopenSurfaceUITests: XCTestCase {
     }
 
     func testAFreshInstallOpensTheLibrary() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-selectEngine", "apple", "-restoreSurface", "-resetSurface"]
-        app.launch()
+        let app = launch(["-restoreSurface"])
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10), "the Library home")
     }
 }

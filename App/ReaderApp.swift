@@ -12,6 +12,8 @@ enum AppMain {
             UnitTestHostApp.main()
             return
         }
+        // Before the composition reads any of them.
+        if LaunchOptions.current.resetsLibrary { LaunchHooks.resetStoredSettings(engines: AppComposition.engineRegistry) }
         #endif
         ReaderApp.main()
     }

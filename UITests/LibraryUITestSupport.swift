@@ -11,12 +11,9 @@ extension XCUIApplication {
 
 /// Lookups shared by the Library's UI tests.
 extension XCTestCase {
-    /// The Library on the demo article, book and folders, the Apple voice, no favorites.
+    /// The Library on the demo article, book and folders.
     func launchLibrary(_ extra: [String] = []) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoBook", "-seedDemoFolders", "-resetBookmarks",
-                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"] + extra + ["-openLibrary"]
-        app.launch()
+        let app = launch(UITestSetup(["-seedDemoArticle", "-seedDemoBook", "-seedDemoFolders", "-openLibrary"] + extra))
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 10), "the Library")
         return app
     }
@@ -75,7 +72,7 @@ extension XCTestCase {
     func tapMenuRow(_ app: XCUIApplication, _ id: String) {
         let row = find(app, id)
         XCTAssertTrue(row.waitForExistence(timeout: 3), "⋯ row \(id)")
-        idle(0.6)
+        XCTAssertNotNil(settledFrames([row]), "the ⋯ panel finished growing")
         row.tap()
     }
 

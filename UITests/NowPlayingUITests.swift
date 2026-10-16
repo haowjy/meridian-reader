@@ -639,15 +639,6 @@ final class NowPlayingUITests: XCTestCase {
         return lines
     }
 
-    /// The demo article, 40 paragraphs long, in the Library, Apple voice at 1×.
-    private func launchLongDemo(_ extra: [String] = []) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoParagraphs", "40", "-openLibrary",
-                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"] + extra
-        app.launch()
-        return app
-    }
-
     private func openNowPlayingFromTheLibrary(_ app: XCUIApplication) {
         let row = app.cells.staticTexts["Demo Listen Article"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))

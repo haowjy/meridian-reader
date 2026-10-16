@@ -13,9 +13,9 @@ final class SpeechController {
     // Exactly one instance per process: built by `AppComposition` (composition root) and
     // injected via ReaderApp + the environment default. A second instance would warm a second
     // copy of the local model.
-    private let voiceDefaultsKey = "reader.selectedVoiceIdentifier"
-    private let languageDefaultsKey = "reader.selectedLanguageCode"
-    private let rateDefaultsKey = "reader.rateMultiplier"
+    static let voiceDefaultsKey = "reader.selectedVoiceIdentifier"
+    static let languageDefaultsKey = "reader.selectedLanguageCode"
+    static let rateDefaultsKey = "reader.rateMultiplier"
     static let languageAutomaticKey = "reader.languageAutomatic"
 
     /// Single source of truth for Listen phase + position. Not observed directly: every change is
@@ -388,13 +388,13 @@ final class SpeechController {
     }
 
     var selectedLanguageCode: String {
-        didSet { UserDefaults.standard.set(selectedLanguageCode, forKey: languageDefaultsKey) }
+        didSet { UserDefaults.standard.set(selectedLanguageCode, forKey: Self.languageDefaultsKey) }
     }
 
     /// The listen speed, always one of `ListenRate.options` (`setRateMultiplier`).
     private(set) var rateMultiplier: Double {
         didSet {
-            UserDefaults.standard.set(rateMultiplier, forKey: rateDefaultsKey)
+            UserDefaults.standard.set(rateMultiplier, forKey: Self.rateDefaultsKey)
             // Every engine keeps the speed; the bound one applies it to what is playing.
             for engine in listenEngines { engine.setRate(rateMultiplier) }
             refreshNowPlaying()
@@ -406,34 +406,31 @@ final class SpeechController {
     func setRateMultiplier(_ value: Double) { rateMultiplier = ListenRate.nearest(to: value) }
 
     var selectedVoiceIdentifier: String? {
-        didSet { UserDefaults.standard.set(selectedVoiceIdentifier, forKey: voiceDefaultsKey) }
+        didSet { UserDefaults.standard.set(selectedVoiceIdentifier, forKey: Self.voiceDefaultsKey) }
     }
 
     /// Over `localTTS`, which also holds the crash-resume file this writes as playback moves.
     /// `audioSession` / `nowPlaying` / `appleEngine` are injectable for unit tests (no
     /// process-wide audio session or remote command registration, a scripted Apple engine).
-    /// `keepsStoredRate` false starts at 1× whatever is stored (a UI-test launch that passes no
-    /// rate: `LaunchOptions.keepsStoredRate`).
     init(localTTS: LocalTTSCoordinator,
          audioSession: ListenAudioSession? = nil,
          nowPlaying: NowPlayingController? = nil,
-         appleEngine: ListenEngine? = nil,
-         keepsStoredRate: Bool = true) {
+         appleEngine: ListenEngine? = nil) {
         self.localTTS = localTTS
         self.appleEngine = appleEngine ?? AppleListenEngine(runState: localTTS.synthQueue.runState)
         self.localEngine = LocalListenEngine(coordinator: localTTS)
         self.audioSession = audioSession ?? ListenAudioSession()
         self.lockScreen = nowPlaying ?? NowPlayingController()
-        let storedLanguage = UserDefaults.standard.string(forKey: languageDefaultsKey)
+        let storedLanguage = UserDefaults.standard.string(forKey: Self.languageDefaultsKey)
         let fallback = Locale.current.language.languageCode.map {
             "\($0.identifier)-\(Locale.current.region?.identifier ?? "US")"
         } ?? "en-US"
         self.selectedLanguageCode = storedLanguage ?? Locale.preferredLanguages.first ?? fallback
         // `double(forKey:)` also parses a launch-argument string ("-reader.rateMultiplier 2", UI tests).
-        let storedRate = keepsStoredRate && UserDefaults.standard.object(forKey: rateDefaultsKey) != nil
-            ? UserDefaults.standard.double(forKey: rateDefaultsKey) : 1.0
+        let storedRate = UserDefaults.standard.object(forKey: Self.rateDefaultsKey) != nil
+            ? UserDefaults.standard.double(forKey: Self.rateDefaultsKey) : 1.0
         self.rateMultiplier = storedRate > 0 ? ListenRate.nearest(to: storedRate) : 1.0
-        self.selectedVoiceIdentifier = UserDefaults.standard.string(forKey: voiceDefaultsKey)
+        self.selectedVoiceIdentifier = UserDefaults.standard.string(forKey: Self.voiceDefaultsKey)
         self.listenDebugEnabled = UserDefaults.standard.bool(forKey: Self.listenDebugEnabledKey)
         self.developerOptionsEnabled = DeveloperOptions.load()
         self.languageAutomatic = (UserDefaults.standard.object(forKey: Self.languageAutomaticKey) as? Bool) ?? true

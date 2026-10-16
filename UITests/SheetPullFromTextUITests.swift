@@ -8,14 +8,6 @@ final class SheetPullFromTextUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    private func launchLongDemo() -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-seedDemoArticle", "-seedDemoParagraphs", "40", "-openLibrary",
-                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"]
-        app.launch()
-        return app
-    }
-
     /// A slow finger drag on the text, from 45% of the way down the screen, held before lifting
     /// (no fling).
     private func dragText(_ app: XCUIApplication, by dy: CGFloat) {

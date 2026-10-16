@@ -101,10 +101,7 @@ final class EPUBImportUITests: XCTestCase {
     }
 
     func testAnImportedBookPlaysChapterOneNotItsTitlePage() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-resetBookmarks", "-importTestEPUB", "-playTestEPUB",
-                               "-selectEngine", "apple", "-reader.rateMultiplier", "1"]
-        app.launch()
+        let app = launch(["-importTestEPUB", "-playTestEPUB"])
 
         let bar = find(app, "nowPlayingBarOpen")
         XCTAssertTrue(bar.waitForExistence(timeout: 30), "the imported book plays")

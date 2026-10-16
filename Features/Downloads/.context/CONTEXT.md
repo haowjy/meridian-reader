@@ -50,5 +50,5 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
 - **The list changes through `updateRecords` / `withRecord`**: a copy, assigned once, so each
   change writes `Downloads.json` once (pausing everything too).
 - **UI tests** use the Debug test voice (`-testVoice`, `-selectEngine test.voice`,
-  `-testVoiceDelay`, `-resetDownloads`): the Simulator has no Kokoro model. Each `-testVoice`
-  launch resets the voice to One.
+  `-testVoiceDelay`): the Simulator has no Kokoro model. Every UI-test launch's `-resetLibrary`
+  empties the download list and puts the voice back on One.

@@ -8,10 +8,7 @@ final class ChapterAdvanceUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
     func testNowPlayingFollowsTheBookIntoItsNextChapterAndAReaderStaysOnItsOwn() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-browseTestPages", "-resetBookmarks", "-seedDemoBook",
-                               "-chainDemoChapters", "-selectEngine", "apple", "-reader.rateMultiplier", "2"]
-        app.launch()
+        let app = launch(UITestSetup(["-browseTestPages", "-seedDemoBook", "-chainDemoChapters"], rate: 2))
 
         let bar = find(app, "nowPlayingBarOpen")
         XCTAssertTrue(bar.waitForExistence(timeout: 15), "the demo book plays at launch")

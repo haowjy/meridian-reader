@@ -10,9 +10,7 @@ enum AppComposition {
 
     static let speechController: SpeechController = {
         #if DEBUG
-        let options = LaunchOptions.current
-        return SpeechController(localTTS: makeLocalTTS(selecting: options.selectsEngine),
-                                keepsStoredRate: options.keepsStoredRate)
+        return SpeechController(localTTS: makeLocalTTS(selecting: LaunchOptions.current.selectsEngine))
         #else
         return SpeechController(localTTS: makeLocalTTS(selecting: nil))
         #endif
@@ -35,9 +33,7 @@ enum AppComposition {
 
     private static var restoresSurface: Bool {
         #if DEBUG
-        let options = LaunchOptions.current
-        if options.resetsSurface { SurfaceMemoryStore.standard.clear() }
-        return options.restoresSurface
+        return LaunchOptions.current.restoresSurface
         #else
         return true
         #endif
@@ -88,9 +84,6 @@ enum AppComposition {
     static func makeDownloads(library: LibraryStore) -> DownloadCenter {
         let speech = speechController
         let fetcher = URLPageFetcher()
-        #if DEBUG
-        if LaunchOptions.current.resetsDownloads { DownloadListStore().save([]) }
-        #endif
         return DownloadCenter(library: library, tts: speech.localTTS,
                               fetch: { try await fetcher.content(of: $0) },
                               save: { try ArticleSaveCoordinator(library: library, speech: speech).save($0) },
@@ -128,11 +121,7 @@ enum AppComposition {
             AppleSpeechProvider(),
             FluidAudioProvider(coreMLUnits: options.kokoroUnits),
         ]
-        if options.usesTestVoice {
-            // Every test-voice launch starts on voice One, whatever an earlier run picked.
-            UserDefaults.standard.removeObject(forKey: TestVoiceProvider.descriptor.resolvedVoiceDefaultsKey)
-            providers.append(TestVoiceProvider(delay: options.testVoiceDelay ?? 0.15))
-        }
+        if options.usesTestVoice { providers.append(TestVoiceProvider(delay: options.testVoiceDelay ?? 0.15)) }
         return providers
         #else
         return [AppleSpeechProvider(), FluidAudioProvider()]
