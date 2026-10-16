@@ -146,7 +146,8 @@ final class LibraryHomeUITests: XCTestCase {
 
         app.buttons["libraryMore"].tap()
         tapMenuRow(app, "moreFavorites")
-        XCTAssertTrue(eventually(5) { app.buttons["Favorites"].isSelected }, "⋯ → Favorites")
+        let tabs = find(app, "libraryTabs")
+        XCTAssertTrue(eventually(5) { tabs.buttons["Favorites"].isSelected }, "⋯ → Favorites")
         XCTAssertFalse(libraryRow(app, "Demo Listen Article").exists, "not starred")
 
         find(app, "nowPlayingBarOpen").tap()
@@ -159,7 +160,7 @@ final class LibraryHomeUITests: XCTestCase {
         goTo.tap()
         XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingHeader").exists }, "Now Playing closes")
         XCTAssertTrue(app.libraryHome.waitForExistence(timeout: 5), "the Library's home")
-        XCTAssertTrue(eventually(5) { app.buttons["Everything"].isSelected }, "on Everything")
+        XCTAssertTrue(eventually(5) { tabs.buttons["Everything"].isSelected }, "on Everything")
         XCTAssertTrue(libraryRow(app, "Demo Listen Article").waitForExistence(timeout: 5), "where the page is")
     }
 
