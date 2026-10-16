@@ -15,14 +15,14 @@ struct NowPlayingBarView: View {
 
     var body: some View {
         if let now = speech.nowPlaying, !shell.isNowPlayingPresented, shell.sheet == nil {
-            BarProgress(speech: speech, now: now, spansSlots: BottomToolbarLayout.slotCount)
+            BarProgress(speech: speech, now: now)
                 .transition(.opacity)
         }
     }
 }
 
-/// The Now Playing bar in the band the browser and the Library share (`SurfaceBand`), across
-/// toolbar slots 2–5. It is always there, at one height, so the band never changes size:
+/// The Now Playing bar in the band the browser and the Library share (`SurfaceBand`), the full
+/// width of its first row. It is always there, at one height, so the band never changes size:
 ///
 /// - what you hear, as in the Reader (`speech.nowPlaying`);
 /// - nothing bound (before anything plays this launch, after Stop Listening): the page played
@@ -40,8 +40,6 @@ struct BandNowPlayingBar: View {
     @Environment(LibraryStore.self) private var library
     @Query(LibraryQueries.lastPlayed) private var lastPlayed: [Page]
 
-    private static let slots = BottomBandTopRow.barSlots
-
     private var isHidden: Bool {
         isCovered || shell.isNowPlayingPresented || shell.sheet != nil
     }
@@ -49,15 +47,15 @@ struct BandNowPlayingBar: View {
     var body: some View {
         Group {
             if isHidden {
-                NowPlayingBar.placeholder(spansSlots: Self.slots)
+                NowPlayingBar.placeholder()
                     .hidden()
                     .accessibilityHidden(true)
             } else if let now = speech.nowPlaying {
-                BarProgress(speech: speech, now: now, spansSlots: Self.slots)
+                BarProgress(speech: speech, now: now)
             } else if let page = lastPlayed.first(where: \.isLive) {
                 ResumeBar(page: page, actions: LibraryActions(library: library, speech: speech, shell: shell))
             } else {
-                NowPlayingBar.placeholder(spansSlots: Self.slots)
+                NowPlayingBar.placeholder()
             }
         }
         .transition(.opacity)
@@ -69,7 +67,6 @@ struct BandNowPlayingBar: View {
 private struct BarProgress: View {
     let speech: SpeechController
     let now: NowPlaying
-    let spansSlots: Int
 
     @Environment(ShellState.self) private var shell
 
@@ -84,7 +81,6 @@ private struct BarProgress: View {
             artworkLetter: now.source.isEmpty ? now.title : now.source,
             progress: doc.progress(atUTF16Offset: offset),
             state: speech.playState(of: .page(now.pageKey)),
-            spansSlots: spansSlots,
             onOpen: shell.showNowPlaying,
             onPlayPause: speech.pressNowPlaying,
             onStop: speech.stop
@@ -105,7 +101,7 @@ private struct ResumeBar: View {
         if page.isLive {
             bar
         } else {
-            NowPlayingBar.placeholder(spansSlots: BottomBandTopRow.barSlots)
+            NowPlayingBar.placeholder()
         }
     }
 
@@ -118,7 +114,6 @@ private struct ResumeBar: View {
             artworkLetter: source.isEmpty ? page.title : source,
             progress: fraction(progress),
             state: actions.playState(of: page),
-            spansSlots: BottomBandTopRow.barSlots,
             identifier: "nowPlayingBarResume",
             onOpen: { actions.open(page) },
             onPlayPause: { actions.play(page) },
