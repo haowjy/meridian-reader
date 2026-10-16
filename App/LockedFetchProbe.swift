@@ -492,9 +492,7 @@ private final class ProbeSeries: NextChapterProviding {
 /// One JSON object per line in `Application Support/LockedFetchProbe/probe.jsonl`, and in the
 /// unified log.
 private struct ProbeLog {
-    static let directory: URL = {
-        AppDirectories.applicationSupport.appendingPathComponent("LockedFetchProbe", isDirectory: true)
-    }()
+    static let directory = AppDirectories.applicationSupport.appendingPathComponent("LockedFetchProbe", isDirectory: true)
     private static let console = Logger(subsystem: "com.jimmyyao.Reader", category: "LockedFetchProbe")
 
     /// A new run: the last run's files go.

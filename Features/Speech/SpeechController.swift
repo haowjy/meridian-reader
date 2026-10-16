@@ -26,6 +26,7 @@ final class SpeechController {
             publishPlayback()
         }
     }
+
     // MARK: Published playback (what views observe)
     //
     // Observation tracks stored properties one by one. The in-paragraph offset moves several

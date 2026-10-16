@@ -424,8 +424,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
         focusCacheKey = cacheKey
         guard usesLocalEngine else {
-            pendingBakes.enqueuePending(articleID: cacheKey, paragraphs: paragraphs,
-                                                      priorityStart: max(0, start))
+            pendingBakes.enqueuePending(articleID: cacheKey, paragraphs: paragraphs, priorityStart: max(0, start))
             return
         }
         if isEphemeral { audioCache.markEphemeral(cacheKey: cacheKey, lastAccess: Date()) }
