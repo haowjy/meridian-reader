@@ -1,8 +1,8 @@
 import Foundation
 
-/// ☆ (*Add to Favorites* in the browser's, the Reader's and Now Playing's ⋯, and in a Library
-/// row's menu) sets an independent favorite flag. It never changes the page's location. One page
-/// per address: ☆ on a favorite clears the flag. Every ☆ says what it did in a toast, and a new
+/// ☆ (*Add to Favorites* in the browser's, the Reader's and Now Playing's ⋯, and in a page's or a
+/// folder's row menu in the Library) sets an independent favorite flag. It never changes where
+/// the page or folder is. One page per address: ☆ on a favorite clears the flag. Every ☆ says what it did in a toast, and a new
 /// favorite without a tile-sized icon then looks for one. A change that can't be saved changes
 /// nothing, and its toast says so instead.
 @MainActor
@@ -36,27 +36,35 @@ struct FavoriteFlow {
         }
     }
 
-    /// Saves `article` into a folder picked in the Move tree (*Save to Library…*, 🔖's *Save to
-    /// Folder…*): a saved page moves there, an unsaved one is saved there. "Library (no
-    /// folder)" (nil) files it in no folder, out of the one it was in; `save` passes it on as
-    /// `SavePlacement.folder`, and returns false when that couldn't be saved (the tree stays up).
-    func saveToFolder(title: String, current: MoveRequest.Place?, save: @escaping (Folder?) -> Bool) {
-        shell.present(.moveTo(MoveRequest(title: title, current: current, onPick: save)))
+    /// ☆ in a folder row's menu (a book or series too).
+    func toggle(_ folder: Folder) {
+        let adding = !folder.isFavorite
+        guard shell.attempt(failure(adding: adding), { try library.toggleFavorite(folder) }) != nil else { return }
+        said(adding: adding)
     }
 
     private func remove(_ page: Page) {
-        guard shell.attempt(String(localized: "Couldn’t remove from Favorites"), { try library.removeFavorite(page) }) != nil
-        else { return }
-        shell.showToast(ShellToast(message: String(localized: "Removed from Favorites"), systemImage: Icons.unfavorite))
+        guard shell.attempt(failure(adding: false), { try library.removeFavorite(page) }) != nil else { return }
+        said(adding: false)
     }
 
     private func add(betterIcon: (() async -> Data?)?, _ star: () throws -> Page) {
-        guard let page = shell.attempt(String(localized: "Couldn’t add to Favorites"), star) else { return }
-        shell.showToast(ShellToast(message: String(localized: "Added to Favorites"), systemImage: Icons.favorited))
+        guard let page = shell.attempt(failure(adding: true), star) else { return }
+        said(adding: true)
         guard let betterIcon, !FaviconFetcher.isTileSized(page.artworkData) else { return }
         let library = library
         Task {
             if let icon = await betterIcon() { library.offerArtwork(icon, for: page) }
         }
+    }
+
+    private func failure(adding: Bool) -> String {
+        adding ? String(localized: "Couldn’t add to Favorites") : String(localized: "Couldn’t remove from Favorites")
+    }
+
+    private func said(adding: Bool) {
+        shell.showToast(adding
+            ? ShellToast(message: String(localized: "Added to Favorites"), systemImage: Icons.favorited)
+            : ShellToast(message: String(localized: "Removed from Favorites"), systemImage: Icons.unfavorite))
     }
 }

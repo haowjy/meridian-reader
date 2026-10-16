@@ -324,9 +324,9 @@ final class LockedFetchProbe {
 
     /// A stage that timed out, or WebKit's process ending, is how a suspended WebKit shows.
     private static func verdict(for error: Error) -> (Ruling, error: String?) {
-        let why = switch error as? URLPageFetcher.FetchError {
-        case .timedOut?, .contentProcessTerminated?: "WebKit didn't answer"
-        case .noWindow?: "no window to put the hidden view in (not WebKit)"
+        let why = switch (error as? URLPageFetcher.FetchError, error as? NavigationWait.Failure) {
+        case (.timedOut?, _), (_, .contentProcessTerminated?): "WebKit didn't answer"
+        case (.noWindow?, _): "no window to put the hidden view in (not WebKit)"
         default: "the fetch failed (not a time limit)"
         }
         return (.fail(why), describe(error))

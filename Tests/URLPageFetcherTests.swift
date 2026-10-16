@@ -82,6 +82,9 @@ final class URLPageFetcherTests: XCTestCase {
         let navigation = NavigationEnd()
         webView.navigationDelegate = navigation
         try await navigation.load(url, in: webView)
+        // WebKit can report the title a moment after `didFinish` (seen after another test's
+        // stalled load); the browser's address field and title follow it on a later event.
+        for _ in 0..<40 where webView.title?.isEmpty != false { try await Task.sleep(for: .milliseconds(50)) }
 
         let store = WebViewStore()
         store.webView = webView

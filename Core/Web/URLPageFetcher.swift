@@ -36,12 +36,11 @@ final class URLPageFetcher {
         case load, snapshot, extract
     }
 
+    /// Besides these, a load that fails or whose content process ends throws
+    /// `NavigationWait.Failure`.
     enum FetchError: Error, Equatable {
         /// The app has no window to put the view in.
         case noWindow
-        case loadFailed(String)
-        /// WebKit's content process ended (memory pressure, a crash) before the page loaded.
-        case contentProcessTerminated
         /// The stage didn't answer within the time limit.
         case timedOut(Stage)
     }
@@ -63,16 +62,16 @@ final class URLPageFetcher {
     func snapshot(of url: URL) async throws -> Snapshot {
         guard let window = Self.hostWindow() else { throw FetchError.noWindow }
         let view = Self.makeView(in: window)
-        let loader = Loader()
-        view.navigationDelegate = loader
+        let navigation = NavigationWait()
+        view.navigationDelegate = navigation
         defer {
-            loader.cancel()
+            navigation.cancel()
             view.stopLoading()
             view.navigationDelegate = nil
             view.removeFromSuperview()
         }
-        try await Self.within(timeout, .load) { try await loader.load(URLRequest(url: url), in: view) }
-        let html = try await Self.within(timeout, .snapshot) { try await PageSnapshot.html(of: view) }
+        try await within(.load) { try await navigation.run { view.load(URLRequest(url: url)) } }
+        let html = try await within(.snapshot) { try await PageSnapshot.html(of: view) }
         return Snapshot(url: view.url ?? url, title: view.title, html: html)
     }
 
@@ -80,7 +79,12 @@ final class URLPageFetcher {
     func content(of snapshot: Snapshot) async throws -> PageContent {
         let page = SingleWebPageSource(url: snapshot.url, pageTitle: snapshot.title, htmlSnapshot: snapshot.html,
                                        extractor: extractor)
-        return try await Self.within(timeout, .extract) { try await page.content(of: page.page) }
+        return try await within(.extract) { try await page.content(of: page.page) }
+    }
+
+    /// `operation`, within the time limit for `stage`.
+    private func within<T>(_ stage: Stage, _ operation: @escaping @MainActor () async throws -> T) async throws -> T {
+        try await NavigationWait.within(timeout, orThrow: FetchError.timedOut(stage), operation)
     }
 
     // MARK: - The view
@@ -105,80 +109,5 @@ final class URLPageFetcher {
         view.accessibilityElementsHidden = true
         window.addSubview(view)
         return view
-    }
-
-    /// Waits for one navigation to end.
-    @MainActor
-    private final class Loader: NSObject, WKNavigationDelegate {
-        private var continuation: CheckedContinuation<Void, Error>?
-
-        func load(_ request: URLRequest, in view: WKWebView) async throws {
-            try await withCheckedThrowingContinuation { continuation in
-                self.continuation = continuation
-                view.load(request)
-            }
-        }
-
-        /// The fetch is over: a load still waiting ends.
-        func cancel() { finish(CancellationError()) }
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            finish(nil)
-        }
-
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            finish(FetchError.loadFailed(error.localizedDescription))
-        }
-
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            finish(FetchError.loadFailed(error.localizedDescription))
-        }
-
-        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-            finish(FetchError.contentProcessTerminated)
-        }
-
-        private func finish(_ error: Error?) {
-            guard let continuation else { return }
-            self.continuation = nil
-            if let error { continuation.resume(throwing: error) } else { continuation.resume() }
-        }
-    }
-
-    // MARK: - Time limits
-
-    /// `operation`'s result, or `FetchError.timedOut(stage)` if `seconds` pass first. WebKit's
-    /// calls can't be cancelled, so the operation runs on and its late result is dropped.
-    private static func within<T>(_ seconds: TimeInterval, _ stage: Stage,
-                                  _ operation: @escaping @MainActor () async throws -> T) async throws -> T {
-        try await withCheckedThrowingContinuation { continuation in
-            let answer = FirstAnswer(continuation)
-            let timer = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-                guard !Task.isCancelled else { return }
-                answer.give(.failure(FetchError.timedOut(stage)))
-            }
-            Task { @MainActor in
-                let result: Result<T, Error>
-                do { result = .success(try await operation()) } catch { result = .failure(error) }
-                timer.cancel()
-                answer.give(result)
-            }
-        }
-    }
-
-    /// Resumes its continuation with the first result given; later ones are dropped.
-    @MainActor
-    private final class FirstAnswer<T> {
-        private var continuation: CheckedContinuation<T, Error>?
-
-        init(_ continuation: CheckedContinuation<T, Error>) {
-            self.continuation = continuation
-        }
-
-        func give(_ result: Result<T, Error>) {
-            continuation?.resume(with: result)
-            continuation = nil
-        }
     }
 }

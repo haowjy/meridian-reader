@@ -34,11 +34,6 @@ struct WebView: UIViewRepresentable {
         if store.webView !== webView {
             context.coordinator.attach(webView)
         }
-        // Only load when the address bar (or chips) explicitly requested a URL.
-        if let pending = store.pendingURL {
-            store.pendingURL = nil
-            webView.load(URLRequest(url: pending))
-        }
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
@@ -48,8 +43,7 @@ struct WebView: UIViewRepresentable {
 
         @MainActor
         func attach(_ webView: WKWebView) {
-            store.webView = webView
-            store.syncNavigationState()
+            store.attach(webView)
             // Delegate callbacks miss same-document history (#fragments, pushState): observe the
             // web view directly so ‹ / › enable exactly when WebKit can go back / forward.
             observations = [
@@ -138,19 +132,6 @@ struct WebView: UIViewRepresentable {
             }
         }
 
-        func webView(
-            _ webView: WKWebView,
-            decidePolicyFor navigationAction: WKNavigationAction,
-            decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
-        ) {
-            if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
-                webView.load(URLRequest(url: url))
-                decisionHandler(.cancel)
-                return
-            }
-            decisionHandler(.allow)
-        }
-
         // MARK: - Books
 
         /// A book (an EPUB) the page links to is downloaded, not shown.
@@ -181,7 +162,11 @@ struct WebView: UIViewRepresentable {
             Task { @MainActor in store.onBookDownload?(event) }
         }
 
-                func webView(
+        // MARK: - New windows
+
+        /// A link that opens a new window (`target=_blank`, `window.open`): there are no tabs, so it
+        /// loads here.
+        func webView(
             _ webView: WKWebView,
             createWebViewWith configuration: WKWebViewConfiguration,
             for navigationAction: WKNavigationAction,

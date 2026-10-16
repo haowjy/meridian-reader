@@ -16,16 +16,10 @@ extension URL {
         return isWeb
     }
 
-    /// Same page, ignoring the fragment, a trailing slash and letter case.
+    /// Same page: the same canonical URL (`ArticleIdentity`), the rule that gives a page its key.
+    /// The fragment, tracking parameters (`utm_*`, …), a trailing slash and the scheme's and
+    /// host's case don't count; the path's and the query's case do.
     func isSamePage(as other: URL) -> Bool {
-        Self.pageKey(self) == Self.pageKey(other)
-    }
-
-    private static func pageKey(_ url: URL) -> String {
-        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        components?.fragment = nil
-        var key = components?.string ?? url.absoluteString
-        if key.hasSuffix("/") { key.removeLast() }
-        return key.lowercased()
+        ArticleIdentity.canonicalURLString(from: self) == ArticleIdentity.canonicalURLString(from: other)
     }
 }

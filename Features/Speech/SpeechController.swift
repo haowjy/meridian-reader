@@ -84,8 +84,6 @@ final class SpeechController {
     /// A newer request, Stop Listening and every other playback intent end it; only the current
     /// request may start playing (`isStillPreparing`).
     private(set) var preparation: ListenPreparation?
-    /// Where Now Playing's reading content comes from (`nowPlayingContent()`).
-    @ObservationIgnored var contentResolver: NowPlayingContentResolving?
     /// Told about every position worth keeping (`ListeningProgressRecorder`), synchronously, in the
     /// same transaction as the change, so a replaced page's last spot is reported before the next
     /// page binds.
@@ -107,8 +105,6 @@ final class SpeechController {
     @ObservationIgnored let localEngine: LocalListenEngine
     private var listenEngines: [ListenEngine] { [appleEngine, localEngine] }
 
-    /// Developer Listen debug sheet (Settings, Debug chip, or long-press play).
-    var showListenDebug = false
     /// When true, the listen bar shows a Debug chip that toggles the bake overlay.
     /// Persisted; Settings → Listen → Listen debug.
     var listenDebugEnabled: Bool {
@@ -121,7 +117,6 @@ final class SpeechController {
             UserDefaults.standard.set(developerOptionsEnabled, forKey: DeveloperOptions.defaultsKey)
             if !developerOptionsEnabled {
                 showBakeDebugOverlay = false
-                showListenDebug = false
             }
         }
     }
@@ -352,12 +347,6 @@ final class SpeechController {
         userPerform(.seekOffset(utf16: utf16))
     }
 
-    /// The reading content of what you hear, for Now Playing.
-    func nowPlayingContent() async -> ReaderArticle? {
-        guard let id = activeSessionID else { return nil }
-        return await contentResolver?.content(for: id)
-    }
-
     /// Listen intent is active but nothing is audible and more audio is on its way (the bound
     /// engine is waiting for it, e.g. the on-device render queue, or the next chapter is being
     /// fetched). Not the same as paused.
@@ -451,7 +440,6 @@ final class SpeechController {
         // Init skips didSet — keep overlays off when Release reset / default leaves options off.
         if !developerOptionsEnabled {
             showBakeDebugOverlay = false
-            showListenDebug = false
         }
         // Bake / warm only articles the local engine can speak (others speak with Apple).
         self.localTTS.localLanguageGate = { [weak self] paragraphs in

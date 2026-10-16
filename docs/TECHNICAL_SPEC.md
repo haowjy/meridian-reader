@@ -80,8 +80,9 @@ UITests/    UI tests (MeridianReaderUITests)
    the page's visible DOM (`PageSnapshot`: `ReaderVisibleSnapshot.js` drops short invisible text
    such as anti-copy lines).
 2. `ReadabilityArticleExtractor` loads that HTML into an **off-screen** `WKWebView`
-   (`OffscreenWebView`; the page URL as base for web pages) with the page's JavaScript off,
-   injects Readability.js and the readerable helper, and runs
+   (`OffscreenWebView`; the page URL as base for web pages) with the page's JavaScript off (its
+   load gives up after 30 s, when WebKit's content process ends, or when the caller is
+   cancelled: `NavigationWait`, shared with `URLPageFetcher`), injects Readability.js and the readerable helper, and runs
    `new Readability(document.cloneNode(true)).parse()`. `ListenContentNormalizer` then runs
    `ReaderNormalize.js` on the result in the same web view, so every piece of readable text sits
    in a listen block (loose text in a `<div>`, lines between `<br><br>`, the lead-in of a list
@@ -337,7 +338,8 @@ text's positions on another.
 `listenBlocksData`, `listenBlocksVersion`, `detectedLanguageCode`). Only the migration reads it.
 
 **`RecentVisit`** (SwiftData): browser history, the last 30 top-level http(s) pages (canonical
-URL, title, host, visit time, favicon), deduped by URL, recorded when a load finishes.
+URL, title, host, visit time, favicon), one per canonical URL (`ArticleIdentity`), recorded when a
+load finishes (`LibraryStore.recordVisit`, stored through `commit`).
 
 Elsewhere (`AppDirectories` names every file under Application Support):
 

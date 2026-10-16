@@ -41,7 +41,16 @@ struct SheetClosePill: View {
         PillButton(title, systemImage: symbol, style: .neutral, size: .compact) { dismissSheet() }
             .accessibilityLabel(label)
             .accessibilityValue(value)
-            .accessibilityIdentifier("readerClose")
+            .accessibilityIdentifier(identifier)
+    }
+
+    /// The Reader's and Now Playing's pills sit at the same place (D24) but are told apart: a
+    /// Reader can stay under Now Playing.
+    private var identifier: String {
+        switch kind {
+        case .back: "readerClose"
+        case .collapse: "nowPlayingClose"
+        }
     }
 
     private var title: String {

@@ -11,9 +11,8 @@ struct BrowseStartView: View {
     @Environment(\.articleExtractor) private var extractor
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
+    @Environment(DownloadCenter.self) private var downloads
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Every saved page, for address suggestions and 🔖.
-    @Query(LibraryQueries.savedInLibrary) private var allSaved: [Page]
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
 
     /// Once true, the browse WKWebView stays in the tree (history / back-forward). Starts false so
@@ -31,22 +30,6 @@ struct BrowseStartView: View {
     /// Something covers the browser (the library, a sheet, Now Playing).
     private var isCovered: Bool {
         shell.isInLibrary || shell.reader != nil || shell.isNowPlayingPresented
-    }
-
-    /// The current page, when it is saved in the Library (⋯ → Save to Library… / Remove from
-    /// Library). Read when the menu opens.
-    private var currentSavedPage: Page? {
-        guard let url = webStore.currentURL, url.isWeb, let page = library.page(url: url),
-              page.isSavedToLibrary else { return nil }
-        return page
-    }
-
-    /// The current page is saved in the Library (🔖 filled). From the saved-pages query, so 🔖
-    /// follows a save or a remove at once.
-    private var isCurrentPageSaved: Bool {
-        guard let url = webStore.currentURL, url.isWeb else { return false }
-        let canonical = ArticleIdentity.canonicalURLString(from: url)
-        return allSaved.contains { $0.canonicalURL == canonical }
     }
 
     private var hasPage: Bool { webStore.hasPage }
@@ -79,9 +62,6 @@ struct BrowseStartView: View {
                 guard case .success(let url) = result else { return }
                 BookImportActions(library: library, shell: shell).importPicked(url, into: shell.bookPickDestination)
             }
-            // The ⋯ Debug row (Reader, Now Playing, Library) and long-press ▶: over every layer.
-            // A shell sheet with a Debug entry hosts its own.
-            .listenDebugSheet(speech, hosts: shell.sheet == nil)
             .modifier(BrowseAlerts(extractionError: $alertMessage, dictation: dictation))
             .onChange(of: webStore.currentURL) { _, _ in shell.browserPageChanged() }
             .onAppear { webStore.onBookDownload = bookDownloaded }
@@ -97,7 +77,7 @@ struct BrowseStartView: View {
             }
             // Leaving the field (✕, navigating, swipe-down) closes the mic.
             .onChange(of: search.isFocused) { _, focused in
-                if !focused { dictation?.cancel() }
+                if !focused { dictation?.stop() }
             }
     }
 
@@ -145,26 +125,34 @@ struct BrowseStartView: View {
             session: search,
             recentSearches: recentSearches,
             visits: recentVisits,
-            articles: allSaved,
             isDictating: dictation?.isActive == true,
             onSubmit: submit,
             onClearRecentSearches: { recentSearchesRaw = "" }
         )
     }
 
+    /// The page the browser shows, for 🔖 and ⋯: a web page (or a UI test's page); the start page
+    /// is none.
+    private var webPage: URL? { webStore.currentURL.flatMap { $0.isWebOrTestPage ? $0 : nil } }
+
     private var bottomChrome: some View {
-        BrowserBottomChrome(
-            speech: speech,
-            dictation: dictation,
-            isSaved: isCurrentPageSaved,
-            onOpenReader: { run { try await $0.openInReader() } },
-            onListen: listen,
-            onSubmit: { submit(search.text) },
-            onMic: toggleDictation,
-            onToggleSave: toggleSaved,
-            onSaveToFolder: saveToLibrary,
-            menu: { .browse(browseMenu, perform: perform) }
-        )
+        let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
+        return PageLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
+            let actions = PageActions(url: webPage, page: page, library: library, shell: shell, speech: speech,
+                                      downloads: downloads)
+            BrowserBottomChrome(
+                speech: speech,
+                dictation: dictation,
+                isSaved: actions.isSaved,
+                onOpenReader: { run { try await $0.openInReader() } },
+                onListen: listen,
+                onSubmit: { submit(search.text) },
+                onMic: toggleDictation,
+                onToggleSave: { toggleSaved(actions) },
+                onSaveToFolder: saveToLibrary,
+                menu: { .browse(browseMenu(actions), perform: { perform($0, actions) }) }
+            )
+        }
         .overlay(alignment: .top) { DownloadProgressEdge() }
         .overlay(alignment: .top) { ShellToastLayer() }
     }
@@ -222,33 +210,29 @@ struct BrowseStartView: View {
 
     // MARK: - ⋯ menu
 
-    private var shareURL: URL? {
-        webStore.currentURL.flatMap { $0.isWeb ? $0 : nil }
-    }
-
-    private var browseMenu: BrowseMenu {
+    private func browseMenu(_ actions: PageActions) -> BrowseMenu {
         BrowseMenu(
             hasPage: hasPage,
             canOpenReader: canOpenReader,
-            isSaved: currentSavedPage != nil,
+            isSaved: actions.isSaved,
             canSave: hasPage && shell.busy == nil,
-            isFavorite: library.favorite(for: webStore.currentURL) != nil,
-            canFavorite: webStore.currentURL.map(LibraryStore.canFavorite) ?? false,
-            canShare: shareURL != nil,
+            isFavorite: actions.isFavorite,
+            canFavorite: actions.canFavorite,
+            canShare: actions.shareURL != nil,
             fakeExtractionFailure: speech.developerOptionsEnabled ? $useFakeFailure : nil
         )
     }
 
-    private func perform(_ action: BrowseMenu.Action) {
+    private func perform(_ action: BrowseMenu.Action, _ actions: PageActions) {
         switch action {
         case .newSearch: shell.showStartPage()
         case .openReader: run { try await $0.openInReader() }
         case .saveToLibrary: saveToLibrary()
-        case .removeFromLibrary: removeFromLibrary()
+        case .removeFromLibrary: actions.unsave()
         case .toggleFavorite: page.toggleFavorite()
         case .favorites: shell.showFavorites()
         case .reload: webStore.refresh()
-        case .share: if let shareURL { shell.present(.share(shareURL)) }
+        case .share: actions.share()
         case .voiceSettings: shell.present(.voiceSettings)
         case .downloads: shell.present(.downloads)
         case .history: shell.present(.history)
@@ -287,7 +271,7 @@ struct BrowseStartView: View {
     private func submit(_ text: String) {
         let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = BrowseURLParser.destination(from: raw) else { return }
-        if RecentSearches.isSearch(raw) {
+        if BrowseURLParser.isSearch(raw) {
             recentSearchesRaw = RecentSearches.encode(RecentSearches.adding(raw, to: recentSearches))
         }
         shell.navigate(to: url)
@@ -349,28 +333,19 @@ struct BrowseStartView: View {
     /// picked. The tree closes on the pick, as the page is extracted first; 🔖 spins, and a save
     /// that can't be stored says so in a toast over the browser.
     private func saveToLibrary() {
-        FavoriteFlow(library: library, shell: shell).saveToFolder(title: String(localized: "Save to…"), current: nil) { folder in
+        shell.present(.moveTo(MoveRequest(title: String(localized: "Save to…"), current: nil) { folder in
             run { try await $0.save(in: folder) }
             return true
-        }
+        }))
     }
 
     /// 🔖: the page into the Library's top level (extracted first; 🔖 spins), or out of it when it
     /// is saved. Held, it is ⋯ → Save to Library… (`saveToLibrary`).
-    private func toggleSaved() {
-        if currentSavedPage != nil {
-            removeFromLibrary()
+    private func toggleSaved(_ actions: PageActions) {
+        if actions.isSaved {
+            actions.unsave()
         } else {
             run { try await $0.save(in: nil) }
-        }
-    }
-
-    /// ⋯ → Remove from Library, by canonical URL.
-    private func removeFromLibrary() {
-        guard let saved = currentSavedPage else { return }
-        shell.attempt(String(localized: "Couldn’t remove from Library")) {
-            try ArticleSaveCoordinator(library: library, speech: speech)
-                .unsave(key: saved.listenKey, canonicalURL: saved.canonicalURL ?? "")
         }
     }
 }

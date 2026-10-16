@@ -63,7 +63,7 @@ final class AddressDictationTests: XCTestCase {
 
     func testStreamsPartialsAndStopsOnSecondTap() async {
         let (d, rec, audio, sink) = make()
-        d.toggle()
+        d.start()
         XCTAssertEqual(d.state, .starting, "reflects the tap immediately")
         await settle()
         XCTAssertEqual(d.state, .listening)
@@ -76,7 +76,7 @@ final class AddressDictationTests: XCTestCase {
         XCTAssertEqual(sink.texts, ["best", "best pizza"])
         XCTAssertEqual(d.transcript, "best pizza")
 
-        d.toggle() // second tap
+        d.stop() // second tap
         XCTAssertEqual(d.state, .idle)
         XCTAssertEqual(rec.stopCount, 1)
         XCTAssertEqual(audio.log, ["begin", "end"], "session handed back exactly once")
@@ -137,13 +137,13 @@ final class AddressDictationTests: XCTestCase {
         XCTAssertEqual(audio.log, [], "Listen is not paused when the mic never opens")
     }
 
-    func testCancelWhilePermissionPromptIsUp() async {
+    func testStopWhilePermissionPromptIsUp() async {
         let (d, rec, audio, _) = make()
         rec.holdPermission = true
         d.start()
         await settle()
         XCTAssertEqual(d.state, .starting)
-        d.cancel()
+        d.stop()
         XCTAssertEqual(d.state, .idle)
         rec.releasePermission()
         await settle()
@@ -200,9 +200,9 @@ final class AddressDictationTests: XCTestCase {
         XCTAssertEqual(list.count, RecentSearches.maxEntries)
         XCTAssertEqual(RecentSearches.decode(RecentSearches.encode(list)), list)
 
-        XCTAssertTrue(RecentSearches.isSearch("best pizza"))
-        XCTAssertFalse(RecentSearches.isSearch("example.com"))
-        XCTAssertFalse(RecentSearches.isSearch("https://www.google.com/search?q=x"))
-        XCTAssertFalse(RecentSearches.isSearch("   "))
+        XCTAssertTrue(BrowseURLParser.isSearch("best pizza"))
+        XCTAssertFalse(BrowseURLParser.isSearch("example.com"))
+        XCTAssertFalse(BrowseURLParser.isSearch("https://www.google.com/search?q=x"))
+        XCTAssertFalse(BrowseURLParser.isSearch("   "))
     }
 }

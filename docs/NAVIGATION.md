@@ -121,6 +121,9 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   replaces it (Recent Searches show full-bleed, Safari-style); ✕ cancels and restores the page's
   address. Swipe down lowers the keyboard but stays in search mode (typed text and ✕ kept). The
   page stays loaded underneath. ⋯ → *New Search* opens the start page with an empty field.
+  Text without a scheme loads as an address only when its host ends in letters (`.com`, `.uk`,
+  `.js`) or is an IP address; anything else ("3.14", "e.g.") is a Google search, and the
+  suggestions follow the same rule (`BrowseURLParser`).
 - **🔖** (slot 3) is the Reader's 🔖 for the page on screen: tap saves it to the Library's top level
   (extracted first; 🔖 spins), or removes it when it is saved (filled, jade); held, it opens the
   Move tree (*Save to Folder…*). Dimmed on the start page. **🕘** (slot 4) opens History.
@@ -170,8 +173,13 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   Library where it is, with its played text, so it shows in Favorites and the 7-day prune of
   unsaved pages leaves it. A starred page in the Library is a favorite: ☆ then reads *Remove
   from Favorites*, which clears the star and leaves the page where it is (a link ☆ made stays).
-  *Remove from Library* clears the star too. A Library row's menu stars the same way, with the
-  same toasts, and stars any page in the Library, a book's chapter too.
+  *Remove from Library* clears the star too. A Library row's menu (a page's or a folder's) stars
+  the same way, with the same toasts. ☆ is offered for a web page or a page in the Library, a
+  book's chapter too, in the Library's rows and in the Reader's and Now Playing's ⋯ alike.
+- **One saved state**: the browser's 🔖 and ⋯, the Reader and Now Playing all read "is this page
+  saved?" from the page for its address, else its key (`PageActions`, `PageLookup`), the page
+  Save saves into and *Remove from Library* removes, and they follow a change made anywhere at
+  once.
 - **One library**: everything is a page in a folder (or in none). A page is a *link* (an address
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
   without saving (kept 7 days, shown at the top of the Library's *Pages* as "Not saved", and in
@@ -689,11 +697,10 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
 Debug tools are hidden in normal use: the ⋯ Debug rows (Browse "Debug ›" with Fake extraction
 failure; Reader, Now Playing and Library "Debug" → Listen debug panel), Voice
 settings → Listen debug (and Open full panel), the listen bar's Debug pill / bake overlay, and
-long-press ▶︎ → Listen debug panel. The entry points that open the full panel set
-`speech.showListenDebug` (Browse's Debug › only fakes an extraction failure; the Debug pill
-toggles the bake overlay); the shell's root
-presents the panel (`listenDebugSheet`) while no shell sheet is up, and Voice settings present it
-over themselves. They show only with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
+long-press ▶︎ → Listen debug panel. The entry points that open the full panel present the
+shell's `ShellSheet.listenDebug` (Browse's Debug › only fakes an extraction failure; the Debug pill
+toggles the bake overlay): the one sheet, or over Voice settings when they are up
+(`ShellState.overSheet`), which stay when it closes. They show only with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
 default in Release builds, on by default in Debug builds. To toggle in any build, long-press the
 **version row** at the bottom of Voice settings for 2 s (haptic + "Developer options on/off"
 confirmation). A Release build clears a stored "on" once, so a Debug pill left from an older build
@@ -720,7 +727,7 @@ Debug builds (`App/LaunchOptions.swift`).
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
 | Reader sheet (`ReaderSheetScreen`): 📄, ⋯ → Reader, a Favorites tile, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface; pull the header down |
 | Now Playing (`NowPlayingScreen`): the bar, the Reader of the playing page, Listen, crash resume | *⌄ <playing from>* pill, top left | `Sheet` over everything; pull the header down |
-| Listen debug panel | Done | `.sheet` |
+| Listen debug panel | Done | `.sheet` (over Voice settings when opened from them) |
 | Speed picker | — | popover |
 
 The browser's own ‹ / › are web-history buttons (the web view also has its edge swipes), not screens.

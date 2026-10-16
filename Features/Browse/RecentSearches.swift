@@ -26,13 +26,4 @@ enum RecentSearches {
         }
         return result
     }
-
-    /// True when the address-field text becomes a web search (not an address).
-    static func isSearch(_ raw: String) -> Bool {
-        let t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !t.isEmpty else { return false }
-        if let url = URL(string: t), url.scheme != nil, url.host != nil { return false }
-        guard let dest = BrowseURLParser.destination(from: t) else { return false }
-        return dest.host == "www.google.com" && dest.path == "/search"
-    }
 }

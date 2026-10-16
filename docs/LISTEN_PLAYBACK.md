@@ -97,10 +97,10 @@ Rules:
   starts it at its top. A library page starts at `Page.listenStart`: its saved spot, or its top
   once it is finished; the Reader's Listen label, its underlined sentence, a row's ▶ and 🎧 all use
   it. Continue on a folder starts at `LibraryStore.continueStart`'s spot.
-- **`nowPlayingContent()`**: Now Playing's reading content, asked of the injected
-  `NowPlayingContentResolving`: the library, which has every page that has played (a page played
-  without saving, or removed from the Library, is kept 7 days after its last play), so it is
-  there after a relaunch too.
+- Now Playing's reading content isn't the controller's: Now Playing looks the playing page up by
+  its key when it changes (`LibraryStore.nowPlayingContent(for:)`). The library has every page
+  that has played (a page played without saving, or removed from the Library, is kept 7 days
+  after its last play), so it is there after a relaunch too.
 
 ### Engine adapters (`ListenEngine`)
 

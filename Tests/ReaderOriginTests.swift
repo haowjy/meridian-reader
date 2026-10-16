@@ -14,25 +14,25 @@ final class ReaderOriginTests: XCTestCase {
                                                   plainText: "Hello there.", excerpt: ""))
     }
 
-    func testOpenedOverTheBrowserGoesBackToIt() {
+    func testOpenedOverTheBrowserGoesBackToIt() throws {
         let shell = ShellState()
         shell.web.load(pageURL)
         shell.openReader(article())
         XCTAssertEqual(shell.reader?.origin, .browser)
         XCTAssertEqual(shell.reader?.origin.backTitle, "Browser")
-        shell.closeReader()
+        shell.readerDidClose(try XCTUnwrap(shell.reader?.presentation))
         XCTAssertNil(shell.reader)
         XCTAssertTrue(shell.isBrowsing)
         XCTAssertEqual(shell.web.currentURL, pageURL, "the page is still loaded")
     }
 
-    func testOpenedOverTheLibraryGoesBackToIt() {
+    func testOpenedOverTheLibraryGoesBackToIt() throws {
         let shell = ShellState()
         shell.openLibrary()
         shell.openReader(article())
         XCTAssertEqual(shell.reader?.origin, .library)
         XCTAssertEqual(shell.reader?.origin.backTitle, "Library")
-        shell.closeReader()
+        shell.readerDidClose(try XCTUnwrap(shell.reader?.presentation))
         XCTAssertTrue(shell.isInLibrary, "still the library")
     }
 

@@ -21,7 +21,7 @@ final class UIHierarchySnapshotTests: XCTestCase {
         try shot.write(to: dir.appendingPathComponent("ui-article-listening.png"))
 
         // Browser start page behind the library sheet.
-        app.buttons["readerClose"].tap()
+        app.buttons["nowPlayingClose"].tap()
         RunLoop.current.run(until: Date().addingTimeInterval(0.5))
         app.swipeDown(velocity: .fast)
         RunLoop.current.run(until: Date().addingTimeInterval(0.8))

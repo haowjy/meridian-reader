@@ -106,7 +106,7 @@ final class DeveloperOptionsUITests: XCTestCase {
         play.tap()
         XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 5), "Now Playing")
 
-        app.buttons["readerMore"].tap()
+        app.buttons["nowPlayingMore"].tap()
         tapMenuRow(app, "moreDebug")
         XCTAssertTrue(panel.waitForExistence(timeout: 5), "the panel over Now Playing")
         panel.buttons["Done"].tap()
@@ -117,7 +117,7 @@ final class DeveloperOptionsUITests: XCTestCase {
         panel.buttons["Done"].tap()
         XCTAssertTrue(eventually(5) { !panel.exists })
 
-        app.buttons["readerMore"].tap()
+        app.buttons["nowPlayingMore"].tap()
         tapMenuRow(app, "moreVoice")
         XCTAssertTrue(app.navigationBars["Voice Settings"].waitForExistence(timeout: 5), "Voice settings")
         let open = find(app, "listenDebugSettings")

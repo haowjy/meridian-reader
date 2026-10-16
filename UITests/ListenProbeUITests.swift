@@ -81,7 +81,7 @@ final class ListenProbeUITests: XCTestCase {
         XCTAssertNotEqual(before, speed.label, "Speed popover should change rate")
 
         // The listen bar's rightmost slot is the reader ⋯ menu (voice settings live there).
-        XCTAssertTrue(app.buttons["readerMore"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["nowPlayingMore"].waitForExistence(timeout: 3))
 
         // Jump mode: off by default; the button shows the hint, Cancel hides it.
         let jump = app.buttons["listenJump"]

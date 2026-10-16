@@ -79,7 +79,7 @@ final class SwipeBackUITests: XCTestCase {
         // The row of the page you hear opens Now Playing; ⌄ closes it the same way.
         row.tap()
         XCTAssertTrue(from.waitForExistence(timeout: 5))
-        close.tap()
+        app.buttons["nowPlayingClose"].tap()
         XCTAssertTrue(waitFor(5) { row.isHittable }, "⌄ closes it too")
     }
 
@@ -156,7 +156,7 @@ final class SwipeBackUITests: XCTestCase {
         let from = app.descendants(matching: .any)["nowPlayingHeader"]
         XCTAssertTrue(from.waitForExistence(timeout: 5))
         XCTAssertFalse(barPlay.exists, "no bar on Now Playing")
-        app.buttons["readerClose"].tap()
+        app.buttons["nowPlayingClose"].tap()
         XCTAssertTrue(barPlay.waitForExistence(timeout: 5))
         barPlay.tap()
         XCTAssertTrue(waitFor(5) { barPlay.label == "Resume" }, "the bar pauses")

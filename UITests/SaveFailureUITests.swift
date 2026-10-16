@@ -70,7 +70,7 @@ final class SaveFailureUITests: XCTestCase {
 
         app.buttons["listenPlayPause"].tap()
         XCTAssertTrue(find(app, "nowPlayingHeader").waitForExistence(timeout: 10), "Now Playing")
-        let playing = app.buttons["readerBookmark"]
+        let playing = app.buttons["nowPlayingBookmark"]
         XCTAssertTrue(eventually(5) { playing.isEnabled }, "🔖 once the page's content is found")
         XCTAssertEqual(playing.value as? String, "Not saved")
         playing.tap()

@@ -10,6 +10,7 @@ struct ListenControllerView: View {
     var trailing: AnyView? = nil
 
     @Bindable var speech: SpeechController
+    @Environment(ShellState.self) private var shell
 
     private var state: PlayState {
         speech.activeSessionID.map { speech.playState(of: .page($0)) } ?? .idle
@@ -23,7 +24,7 @@ struct ListenControllerView: View {
             onSkipBack: speech.skipToPreviousParagraph,
             onSkipForward: speech.skipToNextParagraph,
             onPlayPause: speech.pressNowPlaying,
-            onPlayLongPress: speech.developerOptionsEnabled ? { speech.showListenDebug = true } : nil
+            onPlayLongPress: speech.developerOptionsEnabled ? { shell.present(.listenDebug) } : nil
         ) {
             slot(leading)
         } more: {

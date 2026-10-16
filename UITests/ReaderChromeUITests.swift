@@ -141,7 +141,7 @@ final class ReaderChromeUITests: XCTestCase {
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(waitFor(8) { play.label == "Pause" }, "jump tap started playback")
         touch(play)
-        touch(app.buttons["readerClose"])
+        touch(app.buttons["nowPlayingClose"])
         XCTAssertTrue(waitFor(3) { !el(app, "nowPlayingHeader").exists }, "the close pill closes Now Playing")
         XCTAssertFalse(app.buttons["Back to Browser"].exists, "the Reader turned into Now Playing; none is left")
     }

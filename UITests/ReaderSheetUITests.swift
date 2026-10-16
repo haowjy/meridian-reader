@@ -35,7 +35,7 @@ final class ReaderSheetUITests: XCTestCase {
         XCTAssertFalse(find(app, "nowPlayingBar").exists)
 
         // 📄 on the playing page opens Now Playing, not a Reader.
-        app.buttons["readerClose"].tap()
+        app.buttons["nowPlayingClose"].tap()
         XCTAssertTrue(eventually(5) { !self.find(app, "nowPlayingHeader").exists })
         XCTAssertTrue(find(app, "nowPlayingBarOpen").label.contains("Second page"))
         find(app, "addressReader").tap()

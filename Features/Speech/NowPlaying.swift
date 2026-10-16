@@ -56,17 +56,6 @@ struct ListenPreparation: Equatable {
     let target: ListenTarget
 }
 
-/// Where Now Playing's text comes from. `SpeechSession` carries the paragraphs, not the reading
-/// HTML, and some starts never had a `ReaderArticle` (a Saved row's ▶, crash resume), so the
-/// content is resolved by key when Now Playing shows: the playing page in the library, which has
-/// every page that has played (`ListeningProgressRecorder` keeps one played without saving).
-/// Injected at the composition root, so the speech stack never touches the library store.
-@MainActor
-protocol NowPlayingContentResolving: AnyObject {
-    /// The reading content for `pageKey`, or nil when it can't be found.
-    func content(for pageKey: UUID) async -> ReaderArticle?
-}
-
 /// The library as playback through a folder sees it (`SpeechController+Advance`): a book's or
 /// series' chapters, or the pages of any other folder. Injected at the composition root, so the
 /// speech stack never touches SwiftData.

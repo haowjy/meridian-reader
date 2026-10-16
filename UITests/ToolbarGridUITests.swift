@@ -72,8 +72,8 @@ final class ToolbarGridUITests: XCTestCase {
         XCTAssertTrue(el(app, "nowPlayingHeader").waitForExistence(timeout: 5))
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(waitFor(8) { play.label == "Pause" }, "playing")
-        let transport = [app.buttons["readerBookmark"], app.buttons["Previous paragraph"], play,
-                         app.buttons["Next paragraph"], app.buttons["readerMore"]].map(\.frame)
+        let transport = [app.buttons["nowPlayingBookmark"], app.buttons["Previous paragraph"], play,
+                         app.buttons["Next paragraph"], app.buttons["nowPlayingMore"]].map(\.frame)
         for (i, frame) in transport.enumerated() {
             XCTAssertEqual(frame.midX, expected[i], accuracy: 1, "Now Playing slot \(i + 1)")
             XCTAssertEqual(frame.midY, transport[4].midY, accuracy: 1, "one row")
@@ -82,10 +82,10 @@ final class ToolbarGridUITests: XCTestCase {
             XCTAssertEqual(transport[i].midX - transport[i - 1].midX, slot, accuracy: 1, "evenly spaced")
         }
         XCTAssertEqual(transport[4].midY, browse[4].midY, accuracy: 1, "⋯ same y")
-        assertMenuFocus(app, more: transport[4], button: "readerMore")
+        assertMenuFocus(app, more: transport[4], button: "nowPlayingMore")
 
         // The bar: play/pause over the ⋯ slot.
-        app.buttons["readerClose"].tap()
+        app.buttons["nowPlayingClose"].tap()
         let barPlay = app.buttons["nowPlayingBarPlayPause"]
         XCTAssertTrue(barPlay.waitForExistence(timeout: 5))
         XCTAssertEqual(barPlay.frame.midX, expected[4], accuracy: 1, "bar play over ⋯")

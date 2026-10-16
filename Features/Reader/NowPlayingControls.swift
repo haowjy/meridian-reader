@@ -9,6 +9,7 @@ import SwiftUI
 /// redraw the band.
 struct NowPlayingControls: View {
     @Bindable var speech: SpeechController
+    @Environment(ShellState.self) private var shell
     let scrubMap: ReaderScrubMap?
     let detectedLanguage: String?
     /// 🔖, transport slot 1.
@@ -71,7 +72,7 @@ struct NowPlayingControls: View {
         let languageNote = speech.languageResolution(detected: detectedLanguage).note
         if speech.showsListenDebugUI, speech.showBakeDebugOverlay {
             BakeDebugOverlay(speech: speech) {
-                speech.showListenDebug = true
+                shell.present(.listenDebug)
             }
         }
         if speech.showsListenDebugUI {

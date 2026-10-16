@@ -13,6 +13,7 @@ import AVFoundation
 ///    options — `DeveloperOptions`).
 struct SpeechSettingsView: View {
     @Bindable var speech: SpeechController
+    @Environment(ShellState.self) private var shell
     @State private var preview = VoicePreviewPlayer()
     /// Confirmation after the version row's long-press toggles developer options.
     @State private var developerToggleNotice: String?
@@ -44,8 +45,6 @@ struct SpeechSettingsView: View {
                  : "Debug tools are hidden.")
         }
         .onDisappear { preview.stop() }
-        // On the List, not the debug Section: a sheet on a List section doesn't present.
-        .listenDebugSheet(speech)
     }
 
     // MARK: - Engine
@@ -405,7 +404,7 @@ struct SpeechSettingsView: View {
             .accessibilityIdentifier("listenDebugEnabledToggle")
             if speech.listenDebugEnabled {
                 Button {
-                    speech.showListenDebug = true
+                    shell.present(.listenDebug)
                 } label: {
                     Text("Open full panel")
                 }

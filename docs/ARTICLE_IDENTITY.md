@@ -9,6 +9,7 @@ Unsave only flip the bookmark. (The reader screen itself: `NAVIGATION.md` → "T
 | Concern | Rule |
 |---------|------|
 | Canonical URL | Lowercased scheme and host, no fragment, default port dropped, tracking parameters removed (`utm_*`, `fbclid`, `gclid`, `mc_*`, `igshid`, `si`, …), trailing slash trimmed except at the root (`ArticleIdentity.canonicalURLString`, `ArticleIdentityTests`). |
+| Same page | Two addresses are the same page when their canonical URLs are equal (`URL.isSamePage`): ⋯ → Website shows the browser's page as it is, without a reload, when it is the article's page; History keeps one visit per page; the browser's live favicon counts for a page only while the browser shows it. |
 | Article key | `ArticleIdentity.articleKey(canonicalURL:)` = SHA-256(namespace v2, canonical URL) → UUID. No content in the key. |
 | Library page | `Page.canonicalURL`, one page per canonical URL app-wide, whatever its state (link, saved, or played without saving). `Page.key` is the audio cache key: pages made since identity v2 use the article key; pages copied from saves made before it keep that save's random id, copied verbatim at migration and never recomputed, and are found by canonical URL. |
 | Open from a page | `LibraryStore.readerArticle`: the page for the canonical URL → its key, position and filled bookmark (if saved); else the URL key. A page holding text is refreshed when the listen text changed; a link stays a link. |
