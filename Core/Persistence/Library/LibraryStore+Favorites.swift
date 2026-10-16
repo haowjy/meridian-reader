@@ -140,8 +140,8 @@ extension LibraryStore {
         guard !pending.isEmpty else { return }
         await withTaskGroup(of: (UUID, Data?).self) { group in
             for page in pending {
-                guard let key = page.key else { continue }
-                let host = page.byline
+                // A chapter (no web address) has no site to ask.
+                guard let key = page.key, let host = page.url?.host else { continue }
                 group.addTask { (key, await FaviconFetcher.fetch(forHost: host)) }
             }
             for await (key, icon) in group {
