@@ -61,11 +61,13 @@ enum FractionalOrder {
 /// saves at once; a save that fails is rolled back and throws
 /// `LibraryStoreError.saveFailed`.
 extension LibraryStore {
-    /// A new plain folder at the end of `parent` (the top level if nil).
+    /// A new plain folder named `name` ("New Folder" when it is nil or blank) at the end of
+    /// `parent` (the top level if nil).
     @discardableResult
-    func makeFolder(name: String, in parent: Folder?) throws -> Folder {
-        try edit("make folder") {
-            let folder = Folder(name: name.trimmingCharacters(in: .whitespacesAndNewlines), kind: .plain,
+    func makeFolder(name: String?, in parent: Folder?) throws -> Folder {
+        let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return try edit("make folder") {
+            let folder = Folder(name: trimmed.isEmpty ? String(localized: "New Folder") : trimmed, kind: .plain,
                                 sortKey: nextFolderSortKey(in: parent), createdAt: now())
             context.insert(folder)
             folder.parent = parent

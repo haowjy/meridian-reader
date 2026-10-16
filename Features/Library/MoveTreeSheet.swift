@@ -75,7 +75,7 @@ struct MoveTreeList: View {
                 [(folder, depth)] + walk(folder.children ?? [], depth: depth + 1)
             }
         }
-        return walk(folders.filter { $0.parent == nil }, depth: 0)
+        return walk(LibraryQueries.topLevel(folders), depth: 0)
     }
 
     var body: some View {
@@ -108,15 +108,10 @@ struct MoveTreeList: View {
             .listRowBackground(Palette.chrome)
         }
         .libraryListStyle()
-        .alert("New Folder", isPresented: $naming) {
-            TextField("Name", text: $newName)
-                .accessibilityIdentifier("newFolderField")
-            Button("Cancel", role: .cancel) { newName = "" }
-            Button("Create") { createAndPick() }
-                .accessibilityIdentifier("newFolderCreate")
-        } message: {
-            Text(newParent.map { "It goes inside “\($0.displayName)”, and this goes into it." }
-                 ?? "It goes at the top level, and this goes into it.")
+        .newFolderAlert(isPresented: $naming, name: $newName,
+                        message: newParent.map { "It goes inside “\($0.displayName)”, and this goes into it." }
+                            ?? "It goes at the top level, and this goes into it.") {
+            pickNewFolder(newName, newParent)
         }
     }
 
@@ -157,23 +152,16 @@ struct MoveTreeList: View {
 
     private func name(in parent: Folder?) {
         newParent = parent
-        naming = true
-    }
-
-    private func createAndPick() {
-        let name = newName
         newName = ""
-        pickNewFolder(name, newParent)
+        naming = true
     }
 
     /// *New Folder* / *New Folder Inside*: a folder named `name` ("New Folder" when blank) in
     /// `parent`, or nil when it can't be saved, once the toast has said so.
     @MainActor
+    @discardableResult
     static func makeFolder(named name: String, in parent: Folder?, library: LibraryStore, shell: ShellState) -> Folder? {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return shell.attempt(String(localized: "Couldn’t make the folder")) {
-            try library.makeFolder(name: trimmed.isEmpty ? String(localized: "New Folder") : trimmed, in: parent)
-        }
+        shell.attempt(String(localized: "Couldn’t make the folder")) { try library.makeFolder(name: name, in: parent) }
     }
 }
 
