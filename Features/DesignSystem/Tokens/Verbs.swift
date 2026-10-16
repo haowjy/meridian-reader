@@ -16,7 +16,7 @@ import Foundation
 /// | Download, Download Folder, Download Book | `Icons.download` |
 /// | Delete Downloads | `Icons.deleteDownloads` |
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
-/// | Voice Settings | `Icons.voice` |
+/// | Settings | `Icons.settings` |
 /// | Downloads | `Icons.downloads` |
 enum Verbs {
     static let moveTo = String(localized: "Move to…")
@@ -35,7 +35,8 @@ enum Verbs {
     static let remove = String(localized: "Remove")
     static let download = String(localized: "Download")
     static let deleteDownloads = String(localized: "Delete Downloads")
-    static let voiceSettings = String(localized: "Voice Settings")
+    /// The ⋯ panel's last row and the screen it opens.
+    static let settings = String(localized: "Settings")
     static let downloads = String(localized: "Downloads")
     static let done = String(localized: "Done")
     static let cancel = String(localized: "Cancel")

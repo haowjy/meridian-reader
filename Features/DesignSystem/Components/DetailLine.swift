@@ -16,7 +16,7 @@ import SwiftUI
 struct DetailLine: View {
     let parts: [String]
 
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
     /// `Spacing.s` at the default text size, growing with the caption it separates.
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var spacing = Spacing.s
 
@@ -29,7 +29,7 @@ struct DetailLine: View {
         DetailLineLayout(spacing: spacing) {
             ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
                 Text(part)
-                    .foregroundStyle(index == 0 ? DetailLine.leadInk(onPlayer) : DetailLine.restInk(onPlayer))
+                    .foregroundStyle(index == 0 ? DetailLine.leadInk(reading) : DetailLine.restInk(reading))
                     .lineLimit(index == 0 ? 1 : nil)
             }
         }
@@ -38,9 +38,9 @@ struct DetailLine: View {
     }
 
     /// The lead part's ink.
-    static func leadInk(_ onPlayer: Bool) -> Color { onPlayer ? Palette.playerSecondaryInk : Palette.secondaryInk }
+    static func leadInk(_ reading: ReadingPalette?) -> Color { reading?.secondaryInk ?? Palette.secondaryInk }
     /// The ink of the parts after the lead.
-    static func restInk(_ onPlayer: Bool) -> Color { onPlayer ? Palette.playerTertiaryInk : Palette.tertiaryInk }
+    static func restInk(_ reading: ReadingPalette?) -> Color { reading?.tertiaryInk ?? Palette.tertiaryInk }
 
     /// The parts as VoiceOver reads them: "investing.example.com, 9 min left".
     static func accessibilityLabel(_ parts: [String?]) -> String {
@@ -146,9 +146,9 @@ struct DetailLineGallery: View {
                     .typeStyle(.caption)
                     .frame(width: 240, alignment: .leading)
             }
-            PreviewState("on the player") {
+            PreviewState("on a dark reading page") {
                 DetailLine(["example.com", "12 min left"]).typeStyle(.caption)
-                    .onPlayerPreview(Palette.playerCard)
+                    .onReadingPreview()
             }
         }
     }

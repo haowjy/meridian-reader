@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// What is playing, at the top of Now Playing's text (it scrolls with the text): the artwork, the
-/// title, and the site and time left as separate parts (`DetailLine`). Drawn on the player
-/// palette.
+/// title, and the site and time left as separate parts (`DetailLine`). Drawn in the reading
+/// page's colours (`palette`: it is hosted inside the page's web view, out of the sheet's
+/// environment, so it is handed them).
 ///
 /// ```
 /// ┌──────────────────────────────────────────┐
@@ -18,6 +19,7 @@ struct TitleCard: View {
     var artwork: Image?
     /// On the tile when there is no artwork.
     let artworkLetter: String
+    let palette: ReadingPalette
 
     /// The artwork tile's side. Fixed, like the other artwork sizes.
     static let artworkSize: CGFloat = 56
@@ -34,7 +36,7 @@ struct TitleCard: View {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)
                     .typeStyle(.row, weight: .bold)
-                    .foregroundStyle(Palette.playerInk)
+                    .foregroundStyle(palette.ink)
                     .lineLimit(large ? nil : 3)
                 DetailLine(detail)
                     .typeStyle(.caption)
@@ -42,8 +44,8 @@ struct TitleCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(Spacing.s)
-        .background(Palette.playerCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .environment(\.onPlayerPalette, true)
+        .background(palette.card, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .readingSurface(palette)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("nowPlayingTitleCard")
     }
@@ -51,22 +53,24 @@ struct TitleCard: View {
 
 #if DEBUG
 struct TitleCardGallery: View {
+    private static func palette(_ theme: ReadingTheme) -> ReadingPalette { theme.palette(accent: .jade) }
+
     var body: some View {
         PreviewGallery {
             PreviewState("a page, letter tile") {
                 TitleCard(title: "Seven-Day Yield: Definition, Calculation", detail: ["example.com", "12 min left"],
-                          artworkLetter: "example.com")
-                    .onPlayerPreview(Palette.playerBackground)
+                          artworkLetter: "example.com", palette: Self.palette(.matchApp))
+                    .onReadingPreview(.matchApp)
             }
             PreviewState("a chapter, artwork") {
                 TitleCard(title: "Chapter 12", detail: ["Pride and Prejudice", "15 min left"],
-                          artwork: Image(systemName: Icons.book), artworkLetter: "P")
-                    .onPlayerPreview(Palette.playerBackground)
+                          artwork: Image(systemName: Icons.book), artworkLetter: "P", palette: Self.palette(.sepia))
+                    .onReadingPreview(.sepia)
             }
             PreviewState("finished, long title") {
                 TitleCard(title: "Notes on the Tides of the Northern Coast, and the Tables Fishermen Keep",
-                          detail: ["✓ Finished"], artworkLetter: "N")
-                    .onPlayerPreview(Palette.playerBackground)
+                          detail: ["✓ Finished"], artworkLetter: "N", palette: Self.palette(.black))
+                    .onReadingPreview(.black)
             }
         }
     }

@@ -1,10 +1,10 @@
 import Foundation
 
-/// Developer options: the ⋯ menu's Debug rows, Settings → Listen → Listen debug, the
-/// listen bar's Debug chip / bake overlay and long-press-play → Listen debug panel.
+/// Developer options: Settings › Developer (Listen debug, Fake extraction failure, the Listen debug
+/// panel), Now Playing's Debug chip / bake overlay and long-press-play → Listen debug panel.
 ///
 /// Off by default in Release (hidden from normal use), on by default in Debug builds. In any build
-/// a 2-second long-press on the version row at the bottom of Voice settings toggles it (haptic +
+/// a 2-second long-press on the version row at the bottom of Settings toggles it (haptic +
 /// confirmation). UI tests force it with the launch argument `-reader.developerOptions NO|YES`
 /// (the argument domain overrides the stored value).
 ///

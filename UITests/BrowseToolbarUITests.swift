@@ -111,7 +111,7 @@ final class BrowseToolbarUITests: XCTestCase {
         app.buttons["browseMore"].tap()
         assertMenuAligned(app, more: browseMoreFrame, button: "moreReaderToggle")
         for id in ["moreNewSearch", "moreSave", "moreFavorite", "moreShare", "moreReload",
-                   "moreVoice", "moreDebug", "moreFavorites", "moreHistory", "moreReaderToggle"] {
+                   "moreDownloads", "moreSettings", "moreFavorites", "moreHistory", "moreReaderToggle"] {
             XCTAssertTrue(element(app, id).waitForExistence(timeout: 3), "⋯ has \(id)")
         }
         XCTAssertFalse(element(app, "moreLibrary").exists, "the Library is the band's swap, not a big button")
@@ -224,18 +224,18 @@ final class BrowseToolbarUITests: XCTestCase {
         XCTAssertTrue(website.isEnabled)
         XCTAssertFalse(toggle.exists, "no Reader toggle inside the reader")
         assertMenuAligned(app, more: rf, button: "moreWebsite")
-        for id in ["moreVoice", "moreSave", "moreFavorite", "moreShare", "moreDebug",
+        for id in ["moreSettings", "moreSave", "moreFavorite", "moreShare",
                    "moreFavorites", "moreHistory"] {
             XCTAssertTrue(element(app, id).exists, "reader ⋯ has \(id)")
         }
         XCTAssertFalse(element(app, "moreNewSearch").exists, "browser-only rows stay out of the reader menu")
         XCTAssertFalse(element(app, "moreReload").exists)
 
-        // Voice settings (what the gear held) opens as a sheet.
-        element(app, "moreVoice").tap()
-        XCTAssertTrue(app.navigationBars["Voice Settings"].waitForExistence(timeout: 5), "voice settings sheet")
-        app.navigationBars["Voice Settings"].buttons["Done"].tap()
-        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Voice Settings"]))
+        // Settings opens as a sheet.
+        element(app, "moreSettings").tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5), "Settings sheet")
+        app.navigationBars["Settings"].buttons["Done"].tap()
+        XCTAssertTrue(waitFor("exists == false", app.navigationBars["Settings"]))
 
         // Add the page to Favorites from the reader (wait for the morph to finish growing before tapping
         // a row: mid-animation the rows are still scaled toward the ⋯ button).
@@ -294,7 +294,7 @@ final class BrowseToolbarUITests: XCTestCase {
         let moreFrame = libraryMore.frame
         libraryMore.tap()
         assertMenuAligned(app, more: moreFrame, button: "moreBrowser")
-        for id in ["moreVoice", "moreNewFolder", "moreFavorites", "moreHistory", "moreBrowser"] {
+        for id in ["moreSettings", "moreNewFolder", "moreFavorites", "moreHistory", "moreBrowser"] {
             XCTAssertTrue(element(app, id).exists, "library ⋯ has \(id)")
         }
         for id in ["moreNewSearch", "moreReload", "moreSave", "moreFavorite", "moreShare", "moreReaderToggle", "moreLibrary"] {

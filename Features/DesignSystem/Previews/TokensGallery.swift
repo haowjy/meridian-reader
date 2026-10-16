@@ -1,19 +1,17 @@
 #if DEBUG
 import SwiftUI
 
-/// The tokens on one page: colours (the player's too), the type scale, spacing and radii.
+/// The tokens on one page: colours (the app's accents and the reading themes too), the type scale,
+/// spacing and radii.
 struct TokensGallery: View {
-    private let colours: [(String, Color)] = [
-        ("paper", Palette.paper), ("chrome", Palette.chrome), ("ink", Palette.ink),
-        ("secondaryInk", Palette.secondaryInk), ("tertiaryInk", Palette.tertiaryInk),
-        ("accent", Palette.accent), ("onAccent", Palette.onAccent),
-        ("playingTint", Palette.playingTint), ("destructive", Palette.destructive),
-        ("playerBackground", Palette.playerBackground), ("playerChrome", Palette.playerChrome),
-        ("playerCard", Palette.playerCard), ("playerTrack", Palette.playerTrack), ("playerInk", Palette.playerInk),
-        ("playerDimInk", Palette.playerDimInk), ("playerSecondaryInk", Palette.playerSecondaryInk),
-        ("playerTertiaryInk", Palette.playerTertiaryInk),
-        ("playerAccent", Palette.playerAccent), ("onPlayerAccent", Palette.onPlayerAccent),
-    ]
+    private var colours: [(String, Color)] {
+        [
+            ("paper", Palette.paper), ("chrome", Palette.chrome), ("ink", Palette.ink),
+            ("secondaryInk", Palette.secondaryInk), ("tertiaryInk", Palette.tertiaryInk),
+            ("accent", Palette.accent), ("onAccent", Palette.onAccent),
+            ("playingTint", Palette.playingTint), ("destructive", Palette.destructive), ("caution", Palette.caution),
+        ]
+    }
     private let spacing: [(String, CGFloat)] = [
         ("xxs", Spacing.xxs), ("xs", Spacing.xs), ("s", Spacing.s), ("m", Spacing.m), ("l", Spacing.l),
         ("xl", Spacing.xl),
@@ -31,6 +29,27 @@ struct TokensGallery: View {
                             .frame(width: Spacing.xl * 2, height: Spacing.xl)
                         Text(name).typeStyle(.row).foregroundStyle(Palette.ink)
                     }
+                }
+            }
+            PreviewState("app colours") {
+                HStack(spacing: Spacing.s) {
+                    ForEach(AccentTheme.allCases) { theme in
+                        Circle().fill(theme.accent).frame(width: Spacing.xl, height: Spacing.xl)
+                    }
+                }
+            }
+            PreviewState("reading themes: background, ink, dimmed, highlight, underline") {
+                ForEach(ReadingTheme.allCases) { theme in
+                    let p = theme.palette(accent: AppAppearance.shared.accent)
+                    HStack(spacing: Spacing.xs) {
+                        Text("Spoken").foregroundStyle(p.ink).background(p.highlight)
+                            .underline(color: p.underline)
+                        Text("dimmed").foregroundStyle(p.dimInk)
+                        Text(theme.title).foregroundStyle(p.secondaryInk)
+                    }
+                    .typeStyle(.row)
+                    .padding(Spacing.xs)
+                    .background(p.background, in: RoundedRectangle(cornerRadius: Radius.card))
                 }
             }
             PreviewState("type") {

@@ -1,6 +1,6 @@
 import XCTest
 
-/// Voice Settings: swipe → *Delete* on an on-device engine deletes its download, and its row
+/// Settings › Listening: swipe → *Delete* on an on-device engine deletes its download, and its row
 /// stays (to download it again); the list goes on taking changes. Offline: the Debug test voice.
 final class VoiceSettingsDeleteUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
@@ -12,13 +12,15 @@ final class VoiceSettingsDeleteUITests: XCTestCase {
         let more = app.buttons["libraryMore"]
         XCTAssertTrue(more.waitForExistence(timeout: 10))
         more.tap()
-        let voice = app.descendants(matching: .any).matching(identifier: "moreVoice").firstMatch
-        XCTAssertTrue(voice.waitForExistence(timeout: 3))
+        let settings = app.descendants(matching: .any).matching(identifier: "moreSettings").firstMatch
+        XCTAssertTrue(settings.waitForExistence(timeout: 3))
         idle(0.6)
-        voice.tap()
+        settings.tap()
 
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5), "Settings")
         let row = app.buttons["engineRow-test.voice"]
-        XCTAssertTrue(row.waitForExistence(timeout: 10), "the test voice's row")
+        for _ in 0..<10 where !(row.exists && row.isHittable) { find(app, "settingsList").swipeUp(velocity: .slow) }
+        XCTAssertTrue(row.isHittable, "the test voice's row")
         row.swipeLeft()
         let delete = app.buttons["Delete"].firstMatch
         XCTAssertTrue(delete.waitForExistence(timeout: 3), "the swipe action")

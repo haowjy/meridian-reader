@@ -28,7 +28,7 @@ struct ReaderSheetState: Equatable {
 /// The shell's sheets. One at a time, shown by the shell's single `.sheet(item:)`.
 enum ShellSheet: Identifiable, Equatable {
     case history
-    case voiceSettings
+    case settings
     case share(URL)
     /// The Move tree: Move, *Save to Library…*, 🔖's *Save to Folder…*.
     case moveTo(MoveRequest)
@@ -38,14 +38,14 @@ enum ShellSheet: Identifiable, Equatable {
     case downloads
     /// *Edit Details* for a folder, book or series: its name, author and cover.
     case folderDetails(UUID)
-    /// Developer options: the listen debug panel (⋯ → Debug, a long-press on ▶ / ⏸, Voice
-    /// settings' *Open full panel*). The one sheet that shows over another (`showsOverASheet`).
+    /// Developer options: the listen debug panel (Settings › Developer › Listen Debug Panel, a
+    /// long-press on ▶ / ⏸). The one sheet that shows over another (`showsOverASheet`).
     case listenDebug
 
     var id: String {
         switch self {
         case .history: "history"
-        case .voiceSettings: "voiceSettings"
+        case .settings: "settings"
         case .share(let url): "share-\(url.absoluteString)"
         case .moveTo(let request): "moveTo-\(request.id)"
         case .importBook(let flow): "importBook-\(flow.id)"
@@ -56,7 +56,7 @@ enum ShellSheet: Identifiable, Equatable {
     }
 
     /// Presented while another sheet is up, it shows over that one and closes back to it: the
-    /// listen debug panel opened from Voice settings.
+    /// listen debug panel opened from Settings.
     var showsOverASheet: Bool { self == .listenDebug }
 
     /// History lists browser destinations, so it belongs to the browser: presenting it from the
@@ -64,7 +64,7 @@ enum ShellSheet: Identifiable, Equatable {
     var belongsToBrowser: Bool {
         switch self {
         case .history: true
-        case .voiceSettings, .share, .moveTo, .importBook, .downloads, .folderDetails, .listenDebug: false
+        case .settings, .share, .moveTo, .importBook, .downloads, .folderDetails, .listenDebug: false
         }
     }
 }

@@ -23,10 +23,10 @@ struct ProgressLine: View {
     /// The downloads line along the top edge of the bottom chrome.
     static let edgeHeight: CGFloat = 2
 
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
 
     var body: some View {
-        let accent = onPlayer ? Palette.playerAccent : Palette.accent
+        let accent = reading?.accent ?? Palette.accent
         GeometryReader { g in
             let fill = g.size.width * min(max(0, fraction), 1)
             ZStack(alignment: .leading) {

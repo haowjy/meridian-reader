@@ -7,9 +7,9 @@ import SwiftUI
 /// a little and the dim behind it lifts. Top corners `Radius.card`. Used by the Reader sheet and
 /// Now Playing.
 ///
-/// Its `look` is paper, or the player (Now Playing): deep jade in light and dark, a heavier dim
-/// behind it so the strip above reads dark, light status bar content, and the dark colour scheme
-/// plus `onPlayerPalette` for what it holds.
+/// It is drawn in the reading theme's colours (`palette`, the same for both sheets), which it
+/// sets on what it holds (`readingSurface`). A dark theme over a light app gets a heavier dim
+/// behind it, so the strip above reads dark, and light status bar content.
 ///
 /// Present it by inserting it (`if … { Sheet(…) }`); it animates its own rise and, once closed,
 /// calls `onDismiss` for the owner to remove it. Under Reduce Motion it fades instead of moving.
@@ -17,7 +17,7 @@ import SwiftUI
 /// render).
 struct Sheet<Header: View, Content: View>: View {
     let onDismiss: () -> Void
-    var look: SheetLook = .paper
+    var palette: ReadingPalette = .app
     @ViewBuilder var header: Header
     @ViewBuilder var content: Content
 
@@ -35,17 +35,17 @@ struct Sheet<Header: View, Content: View>: View {
     @State private var pullHandoff = SheetPullHandoff()
 
     var body: some View {
-        let pullLook = PullDownLook(offset: pull, screenHeight: height, maxDim: look.maxDim)
+        let pullLook = PullDownLook(offset: pull, screenHeight: height, maxDim: maxDim)
         let isUp = risesOnAppear ? risen : !closed
         let _ = wire(pullHandoff)
         ZStack(alignment: .bottom) {
-            Color.black.opacity(isUp ? pullLook.dim : 0)
+            Palette.scrim.opacity(isUp ? pullLook.dim : 0)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
-            if look == .player, isUp {
+            if palette.isDark, isUp {
                 // The status bar stays light until the sheet has gone, so the strip under it stays
                 // as dark as at rest however far a finger holds the sheet down.
-                Color.black.opacity(pullLook.statusBarScrim)
+                Palette.scrim.opacity(pullLook.statusBarScrim)
                     .frame(height: statusBarHeight)
                     .frame(maxHeight: .infinity, alignment: .top)
                     .ignoresSafeArea()
@@ -67,10 +67,10 @@ struct Sheet<Header: View, Content: View>: View {
                 .background {
                     UnevenRoundedRectangle(topLeadingRadius: Radius.card, topTrailingRadius: Radius.card,
                                            style: .continuous)
-                        .fill(look.background)
+                        .fill(palette.background)
                         .ignoresSafeArea(edges: .bottom)
                 }
-                .modifier(SheetPalette(look: look))
+                .readingSurface(palette)
                 .padding(.top, Spacing.xs)
                 .scaleEffect(pullLook.scale, anchor: .top)
                 .offset(y: pull)
@@ -81,7 +81,7 @@ struct Sheet<Header: View, Content: View>: View {
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusBarHeight = $0 }
-        .lightStatusBar(look == .player && isUp)
+        .lightStatusBar(palette.isDark && isUp)
         .onAppear {
             if risesOnAppear { withAnimation(Motion.standard) { risen = true } }
         }
@@ -163,45 +163,28 @@ struct Sheet<Header: View, Content: View>: View {
 }
 
 extension Sheet where Header == EmptyView {
-    init(onDismiss: @escaping () -> Void, look: SheetLook = .paper, @ViewBuilder content: () -> Content) {
-        self.init(onDismiss: onDismiss, look: look, header: { EmptyView() }, content: content)
+    init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, @ViewBuilder content: () -> Content) {
+        self.init(onDismiss: onDismiss, palette: palette, header: { EmptyView() }, content: content)
     }
 }
 
-/// A sheet's palette.
-enum SheetLook: Equatable {
-    /// Paper, following the appearance: the Reader, Move to…, Import.
-    case paper
-    /// Now Playing: deep jade in both appearances.
-    case player
-
-    var background: Color { self == .player ? Palette.playerBackground : Palette.paper }
-
-    /// The dim behind the sheet at rest. The player's is heavier: the strip above it carries light
-    /// status bar content, so it has to read dark over a light surface.
-    var maxDim: Double { self == .player ? 0.7 : PullDownLook.maxDim }
-}
-
-/// What a player sheet holds draws on the player palette: the dark colour scheme for system
-/// controls and materials, `onPlayerPalette` for the components that sit on both.
-private struct SheetPalette: ViewModifier {
-    let look: SheetLook
-    @Environment(\.colorScheme) private var colorScheme
-
-    func body(content: Content) -> some View {
-        content
-            .environment(\.colorScheme, look == .player ? .dark : colorScheme)
-            .environment(\.onPlayerPalette, look == .player)
+extension Sheet {
+    /// The dim behind the sheet at rest. A dark theme's is heavier: the strip above it carries
+    /// light status bar content, so it has to read dark over a light surface.
+    static func maxDim(_ palette: ReadingPalette) -> Double {
+        palette.isDark ? 0.7 : PullDownLook.maxDim
     }
+
+    private var maxDim: Double { Self.maxDim(palette) }
 }
 
 /// The bar at the top of a sheet that says it can be pulled down.
 struct SheetGrabber: View {
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
 
     var body: some View {
         Capsule()
-            .fill((onPlayer ? Palette.playerSecondaryInk : Palette.secondaryInk).opacity(0.35))
+            .fill((reading?.secondaryInk ?? Palette.secondaryInk).opacity(0.35))
             .frame(width: 36, height: 5)
             .padding(.top, Spacing.xs)
             .padding(.bottom, Spacing.xxs)
@@ -286,7 +269,7 @@ private struct SheetPreviewFrame: View {
         let look = PullDownLook(offset: pull, screenHeight: height)
         ZStack(alignment: .top) {
             Palette.chrome
-            Color.black.opacity(look.dim)
+            Palette.scrim.opacity(look.dim)
             VStack(spacing: 0) {
                 SheetGrabber()
                 Text("Notes on Tides")

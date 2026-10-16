@@ -1,12 +1,11 @@
 import XCTest
 
-/// Settings → Listen: switching voices (and engine state changes) must not change row heights
-/// or move rows. Records every engine/voice row frame before and after switching the Kokoro
-/// voice (including the download-in-progress state) and saves screenshots to /tmp.
+/// Settings › Listening › Voice: switching voices (and the download in progress) must not change
+/// row heights or move rows. Records every voice row frame before and after switching the Kokoro
+/// voice and saves screenshots to /tmp.
 final class ListenSettingsLayoutUITests: XCTestCase {
     private let shotDir = URL(fileURLWithPath: "/tmp/reader-voiceui")
-    private let rowIDs = ["engineRow-apple", "engineRow-local.kokoro",
-                          "voiceRow-af_heart", "voiceRow-af_bella", "voiceRow-bf_emma",
+    private let rowIDs = ["voiceRow-af_heart", "voiceRow-af_bella", "voiceRow-bf_emma",
                           "voiceRow-am_puck", "voiceRow-bm_fable"]
 
     private func frames(_ app: XCUIApplication) -> [String: CGRect] {
@@ -54,18 +53,20 @@ final class ListenSettingsLayoutUITests: XCTestCase {
             reset.terminate()
         }
 
-        // The Library's ⋯ → Voice Settings (the Library home has no voice button of its own).
+        // The Library's ⋯ › Settings › Voice.
         let more = app.buttons["libraryMore"]
         XCTAssertTrue(more.waitForExistence(timeout: 10))
         more.tap()
-        let voice = app.descendants(matching: .any).matching(identifier: "moreVoice").firstMatch
-        XCTAssertTrue(voice.waitForExistence(timeout: 3))
+        let settings = app.descendants(matching: .any).matching(identifier: "moreSettings").firstMatch
+        XCTAssertTrue(settings.waitForExistence(timeout: 3))
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
-        voice.tap()
+        settings.tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        openSettingsRow(app, "settingsVoice")
 
         let heart = app.buttons["voiceRow-af_heart"]
         let bella = app.buttons["voiceRow-af_bella"]
-        XCTAssertTrue(heart.waitForExistence(timeout: 10), "Kokoro voices listed in the Voice section")
+        XCTAssertTrue(heart.waitForExistence(timeout: 10), "Kokoro voices listed on the Voice page")
         XCTAssertTrue(app.buttons["voicePreview-af_bella"].exists, "preview button per voice")
 
         // Normalize to Heart first (the simulator may remember another voice).
@@ -99,16 +100,17 @@ final class ListenSettingsLayoutUITests: XCTestCase {
         XCTAssertTrue(waitSelected(heart, timeout: 30))
         assertSameLayout(before, frames(app), "after switching back")
 
-        // Language section (Automatic + manual list) for the record.
-        app.swipeUp()
-        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        // The Language page (Automatic + manual list) for the record.
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        openSettingsRow(app, "settingsLanguage")
         XCTAssertTrue(app.buttons["languageRow-automatic"].waitForExistence(timeout: 3))
         try shot("settings-language.png")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
 
-        // Apple engine → Voice section lists system voices instead.
-        app.swipeDown()
+        // Apple engine → the Voice page lists system voices instead.
+        openSettingsRow(app, "engineRow-apple")
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
-        app.buttons["engineRow-apple"].tap()
+        openSettingsRow(app, "settingsVoice")
         XCTAssertTrue(app.buttons["voiceRow-system"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["voiceRow-af_heart"].exists)
         try shot("settings-apple-voices.png")

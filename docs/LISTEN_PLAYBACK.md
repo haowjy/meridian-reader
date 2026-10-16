@@ -587,23 +587,24 @@ Logs `coreml_cache_prune`.
   best Apple voice for the language, without changing settings, and the listen bar and the
   Language footer say so ("Apple voice for French (Kokoro is English-only)").
 
-## Voice Settings
+## Settings › Listening
 
-`SpeechSettingsView` (⋯ → *Voice Settings*, titled the same), on the Library's list style: chrome
-cards on paper, `SectionHeader`s, notes in secondary ink. Every row is one `SettingsRow` (title,
-optional one-line subtitle, fixed accessory and check slots, min height 48), so state changes
-never move rows (`ListenSettingsLayoutUITests`).
+`ListeningSettingsSection` in Settings (⋯ → *Settings*, `NAVIGATION.md` → "Settings"), on the
+Library's list style: chrome cards on paper, `SectionHeader`s, notes in secondary ink. Every
+choice row is one `SettingsChoiceRow` (title, optional one-line subtitle, fixed accessory and
+check slots, min height 48), so state changes never move rows (`ListenSettingsLayoutUITests`).
 
-1. **Engine**: Apple and the registry's on-device engines. State lives in the subtitle
+1. **Engines**: Apple and the registry's on-device engines. State lives in the subtitle
    ("Downloading… 42%", "Preparing voice…", "Ready (recommended)") and the accessory (a progress
    ring with a stop square cancels). Swipe to delete a downloaded engine; crash and failure
    notices in the footer.
-2. **Voice**: the selected engine's voices (the engine ticked above; Kokoro: curated rows with
-   preview, the default one marked "(default)"; Apple: "System default" and good-quality system
-   voices for the language).
-3. **Language**, 4. **Speed**.
-5. The version row (a 2 s long-press toggles developer options, `NAVIGATION.md`), then **Listen
-   debug** while developer options are on.
+2. **Voice ›** (`VoicePage`): the selected engine's voices (the engine ticked; Kokoro: curated
+   rows with preview, the default one marked "(default)"; Apple: "System default" and
+   good-quality system voices for the language).
+3. **Language ›** (`LanguagePage`), 4. **Speed**, the six speeds in one line.
+
+The version row at the bottom of Settings toggles developer options (a 2 s long-press); Settings
+› Developer then holds **Listen debug**.
 
 ## Background listening
 
@@ -688,12 +689,12 @@ fallbacks above still apply: a paragraph that would starve playback plays with A
 
 Developer options on (`NAVIGATION.md` → "Developer options"):
 
-- **Listen debug** (Voice Settings): a **Debug** chip on the listen bar opens a live overlay
+- **Listen debug** (Settings › Developer): a **Debug** chip on the listen bar opens a live overlay
   above the controls: article identity (`eph:` / `svd:` + short id), queue #1 and demoted count,
   active / next unit, worker busy or idle, warming model, article render % (ready / total),
   phase, last render event, render mode ("foreground · …", "inactive · …", "background · …"),
   paragraphs ready ahead, what the last background stretch played, and recent log lines.
-- **Listen debug panel** (Open full panel, or long-press ▶︎): the same plus buffer / starve /
+- **Listen debug panel** (Settings › Developer › Listen Debug Panel, or long-press ▶︎): the same plus buffer / starve /
   handoff numbers, the audio-session state, the Kokoro route toggle, and the last lines of
   `ListenDebugLog`; Debug builds add the engine probe and the CPU route benchmark.
 

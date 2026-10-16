@@ -175,7 +175,7 @@ final class ReadingHandOverTests: XCTestCase {
                             opensAt: ReadingHandOver?, waits: Bool = false) async throws -> ReadingPageHarness {
         let page = ReadingPageHarness(size: Self.screen, viewportTop: dynamicType.isAccessibilitySize ? 190 : 120)
         pages.append(page)
-        page.coordinator.look = .player
+        page.coordinator.look = ReadingStyle.Look(colors: .init(ReadingTheme.dark.palette(accent: .jade), scheme: .light))
         page.coordinator.sizes = ReadingStyle.Sizes(traits: UITraitCollection(preferredContentSizeCategory: category))
         page.coordinator.setTextInsets(ReaderTextInsets(top: 0, bottom: 260))
         page.coordinator.setTopView(card(title, dynamicType: dynamicType))
@@ -193,7 +193,8 @@ final class ReadingHandOverTests: XCTestCase {
     private func card(_ title: String, detail: [String] = ["example.com", "9 min left"], dynamicType: DynamicTypeSize,
                       id: Int = 1) -> ReadingTopView {
         ReadingTopView(id: [AnyHashable(id), AnyHashable(dynamicType)], view: AnyView(
-            TitleCard(title: title, detail: detail, artworkLetter: "e").environment(\.dynamicTypeSize, dynamicType)))
+            TitleCard(title: title, detail: detail, artworkLetter: "e", palette: ReadingTheme.dark.palette(accent: .jade))
+                .environment(\.dynamicTypeSize, dynamicType)))
     }
 
     /// What a Dynamic Type change does to Now Playing: the text's sizes and the title card.

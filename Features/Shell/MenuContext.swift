@@ -13,9 +13,9 @@ enum MenuContext {
     case reader(ReaderMenu, perform: (ReaderMenu.Action) -> Void)
     case library(LibraryMenu, perform: (LibraryMenu.Action) -> Void)
 
-    /// Opened from Now Playing: the panel takes the player's palette.
-    var isOnPlayer: Bool {
-        if case .reader(let menu, _) = self { return menu.isOnPlayer }
+    /// Opened on a reading page (the Reader or Now Playing): the panel takes its colours.
+    var isOnReadingPage: Bool {
+        if case .reader = self { return true }
         return false
     }
 }
@@ -23,7 +23,7 @@ enum MenuContext {
 /// The web page / start page menu.
 struct BrowseMenu {
     enum Action {
-        case newSearch, saveToLibrary, removeFromLibrary, toggleFavorite, share, reload, voiceSettings, downloads
+        case newSearch, saveToLibrary, removeFromLibrary, toggleFavorite, share, reload, downloads, settings
         case favorites, history, openReader
     }
 
@@ -35,8 +35,6 @@ struct BrowseMenu {
     var isFavorite: Bool
     var canFavorite: Bool
     var canShare: Bool
-    /// Developer options: the Debug › submenu with this toggle. nil hides it.
-    var fakeExtractionFailure: Binding<Bool>?
 }
 
 /// The page's menu, the same in the Reader sheet and Now Playing (decision D24): what it holds
@@ -44,7 +42,7 @@ struct BrowseMenu {
 /// Library at the top.
 struct ReaderMenu {
     enum Action {
-        case goTo, voiceSettings, toggleSave, moveTo, toggleFavorite, share, download, downloads, listenDebug
+        case goTo, toggleSave, moveTo, toggleFavorite, share, download, downloads, settings
         case favorites, history, openWebsite
     }
 
@@ -57,8 +55,6 @@ struct ReaderMenu {
     /// Now Playing: *Go to* the folder or the Library it plays from. nil (the Reader, or a page
     /// that plays from its site, which Website opens): no row.
     var goTo: Place?
-    /// Opened from Now Playing (drawn on the player's palette).
-    var isOnPlayer = false
 
     var isSaved: Bool
     var canSave: Bool
@@ -67,8 +63,6 @@ struct ReaderMenu {
     var canShare: Bool
     /// The article has a web page to go to.
     var canOpenWebsite: Bool
-    /// Developer options: the Debug row (listen debug panel).
-    var showsDebug: Bool
     /// *Download*: a saved page not downloading already.
     var canDownload = false
 }
@@ -82,8 +76,8 @@ struct LibraryMenu {
     }
 
     enum Action {
-        case voiceSettings, newFolder, importBook, sort(PageSort), rename, editDetails, move, deleteFolder, deleteDownloads
-        case download, downloads, listenDebug
+        case newFolder, importBook, sort(PageSort), rename, editDetails, move, deleteFolder, deleteDownloads
+        case download, downloads, settings
         case favorites, history, browser
     }
 
@@ -95,6 +89,4 @@ struct LibraryMenu {
     var downloadTitle: String?
     /// The folder on screen is a book or series: *Delete Book…*.
     var isBook = false
-    /// Developer options: the Debug row (listen debug panel), last on every screen.
-    var showsDebug = false
 }

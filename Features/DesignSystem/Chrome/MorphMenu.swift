@@ -28,12 +28,12 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     var overhang: CGFloat = 0
     /// Focus icon offset from the ⋯ center: positive width = left, positive height = up.
     var focusOffset: CGSize = MorphMenu.focusOffsetFromAnchor
-    /// The item was opened on the player (Now Playing): the panel is drawn on its palette.
-    var isOnPlayer: (Item) -> Bool = { _ in false }
+    /// The reading page's colours when the item was opened on it (the Reader, Now Playing): the
+    /// panel is drawn in them. nil: the app's.
+    var readingPalette: (Item) -> ReadingPalette? = { _ in nil }
     @ViewBuilder var panel: (Item, MorphMenuClose) -> Panel
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorScheme) private var colorScheme
     /// The item on screen: set while open and kept while collapsing back into the button
     /// (non-nil = in the hierarchy).
     @State private var shown: Item?
@@ -66,7 +66,7 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
                     let bottom = edges.height
 
                     ZStack(alignment: .bottomTrailing) {
-                        Color.black.opacity(expanded ? 0.16 : 0)
+                        Palette.scrim.opacity(expanded ? 0.16 : 0)
                             .contentShape(Rectangle())
                             .onTapGesture(perform: dismiss)
                             .accessibilityElement()
@@ -117,7 +117,7 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     private func panelView(_ shown: Item, buttonSize: CGSize) -> some View {
         let anchor = focus.map { UnitPoint(x: $0.x / max(1, panelSize.width), y: $0.y / max(1, panelSize.height)) }
             ?? .bottomTrailing
-        let onPlayer = isOnPlayer(shown)
+        let reading = readingPalette(shown)
         return panel(shown, MorphMenuClose { next in
             afterClose = next
             item = nil
@@ -162,8 +162,7 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
             .onAppear {
                 withAnimation(MorphMenu.animation) { expanded = true }
             }
-            .environment(\.onPlayerPalette, onPlayer)
-            .environment(\.colorScheme, onPlayer ? .dark : colorScheme)
+            .readingSurface(reading)
     }
 
     private func present() {
@@ -282,7 +281,7 @@ private struct MorphPanelEffect: ViewModifier, Animatable {
             .blur(radius: blurs ? (1 - p) * 6 : 0)
             .background { MorphMenuPanelBackground(shape: shape) }
             .clipShape(shape)
-            .shadow(color: .black.opacity(0.18 * Double(p)), radius: 28, y: 10)
+            .shadow(color: Palette.scrim.opacity(0.18 * Double(p)), radius: 28, y: 10)
             .opacity(Double(min(1, p * 5)))
     }
 }
@@ -326,23 +325,23 @@ extension MorphMenu {
     }
 }
 
-/// Light glass like Safari's menu panel (iOS 26); a thick material before that. On the player
-/// it is a `playerCard` panel, as the player's other cards. A hairline (`Palette.hairline`) keeps
-/// its edge visible over dark paper.
+/// Light glass like Safari's menu panel (iOS 26); a thick material before that. On a reading page
+/// in a theme of its own it is a panel in the theme's card colour, as its other cards. A hairline
+/// keeps its edge visible over dark paper.
 private struct MorphMenuPanelBackground: View {
     let shape: MorphPanelShape
 
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
 
     var body: some View {
         glass
-            .overlay { shape.stroke(onPlayer ? Palette.playerTrack : Palette.hairline, lineWidth: 1) }
+            .overlay { shape.stroke(reading?.hairline ?? Palette.hairline, lineWidth: 1) }
     }
 
     @ViewBuilder
     private var glass: some View {
-        if onPlayer {
-            shape.fill(Palette.playerCard)
+        if let reading, reading.theme != .matchApp {
+            shape.fill(reading.card)
         } else if #available(iOS 26.0, *) {
             shape
                 .fill(Palette.paper.opacity(0.55))
@@ -412,7 +411,7 @@ struct MorphMenuGallery: View {
 private struct MorphMenuSamplePanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ForEach([("Voice Settings", Icons.voice), ("Share", Icons.share),
+            ForEach([("Settings", Icons.settings), ("Share", Icons.share),
                      ("Reload", Icons.reload)], id: \.0) { title, icon in
                 Label(title, systemImage: icon)
                     .typeStyle(.row)

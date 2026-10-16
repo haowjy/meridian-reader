@@ -35,15 +35,8 @@ struct ShellSheetView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-        case .voiceSettings:
-            NavigationStack {
-                SpeechSettingsView(speech: speech)
-                    .toolbar {
-                        SheetBarButton(Verbs.done, placement: .confirmationAction, identifier: "voiceSettingsDone") {
-                            shell.sheet = nil
-                        }
-                    }
-            }
+        case .settings:
+            SettingsView(speech: speech) { shell.sheet = nil }
         case .share(let url):
             ActivityShareSheet(items: [url])
                 .presentationDetents([.medium, .large])

@@ -30,7 +30,6 @@ struct LibraryScreenMenu {
 
     var menu: LibraryMenu {
         var menu = screenMenu
-        menu.showsDebug = speech.developerOptionsEnabled
         if let folder = topFolder {
             menu.isBook = folder.kind == .book
             if !downloads.isQueued(.folder(folder.id)) {
@@ -51,7 +50,7 @@ struct LibraryScreenMenu {
     func perform(_ action: LibraryMenu.Action) {
         let folder = topFolder
         switch action {
-        case .voiceSettings: shell.present(.voiceSettings)
+        case .settings: shell.present(.settings)
         case .newFolder: screen.makeFolder(in: folder)
         case .importBook: BookImportActions(library: library, shell: shell).pickBook(into: folder)
         case .sort(let sort):
@@ -69,7 +68,6 @@ struct LibraryScreenMenu {
         case .deleteDownloads: if let folder { downloads.deleteDownloads(of: folder) }
         case .download: if let folder { DownloadActions(downloads: downloads, shell: shell).download(folder) }
         case .downloads: shell.present(.downloads)
-        case .listenDebug: shell.present(.listenDebug)
         case .favorites, .history, .browser: tile(action)
         }
     }

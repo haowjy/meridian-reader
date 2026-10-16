@@ -126,20 +126,20 @@ struct PlayStateButton: View {
     }
 }
 
-/// The `disc` look: the accent of the palette it sits on (on the player, `playerAccent`), a glyph
+/// The `disc` look: the accent of the palette it sits on (the reading page's on Now Playing), a glyph
 /// in the colour that reads on it. Fixed size, like the toolbar glyphs; the large content viewer
 /// names it at large text sizes.
 private struct PlayStateDisc: View {
     let state: PlayState
     let action: () -> Void
 
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
 
     var body: some View {
-        let glyph = onPlayer ? Palette.onPlayerAccent : Palette.onAccent
+        let glyph = reading?.onAccent ?? Palette.onAccent
         Button(action: action) {
             ZStack {
-                Circle().fill(onPlayer ? Palette.playerAccent : Palette.accent)
+                Circle().fill(reading?.accent ?? Palette.accent)
                 if state == .preparing {
                     ProgressView().tint(glyph)
                 } else {
@@ -215,7 +215,7 @@ struct PlayStateButtonGallery: View {
                         PlayStateButton(state: state, look: .pill(title: Self.title(state), detail: "Ch 24")) {}
                     }
                     PlayStateButton(state: state, look: .disc) {}
-                        .onPlayerPreview()
+                        .onReadingPreview()
                 }
             }
         }

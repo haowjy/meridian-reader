@@ -1,14 +1,14 @@
 import SwiftUI
 
 /// What you hear, opened up: a `Sheet` over everything that shrinks back into the Now Playing
-/// bar. A player, not a page: deep jade in light and dark (`SheetLook.player`), the text in the
-/// Reader's serif but lyrics style (`ReadingStyle.Look.player`), under a title card.
+/// bar, in the Reader's colours and type (the reading theme, `palette`): the spoken paragraph
+/// highlighted in full ink, the others dimmed, under a title card.
 ///
 /// ```
 /// ┌──────────────────────────────────────┐
 /// │                 ───                  │ ← grabber
-/// │ ( ⌄ Pride and Prejudice )      (☝︎)  │ ← `SheetTopBar`, as in the Reader: the pill names
-/// │ `text`: [▣ title, site  N min left]  │   where it plays from and shrinks it; `accessory`
+/// │ ( ⌄ Pride and Prejudice ) (Aa) (☝︎)  │ ← `SheetTopBar`, as in the Reader: the pill names
+/// │ `text`: [▣ title, site  N min left]  │   where it plays from and shrinks it; Aa, `accessory`
 /// │  dimmed, SPOKEN in full ink, dimmed  │ ← follows the audio; the title card scrolls with it
 /// │            ( Jump to Audio )         │ ← after you scroll away, floating over the text
 /// │ `controls`: status notes,            │
@@ -19,13 +19,17 @@ import SwiftUI
 ///
 /// The pill, the grabber and a pull down shrink it (`onCollapse`, after it has gone). `floating`
 /// floats just above the bottom band (a toast), as in the Reader.
-struct NowPlayingSheet<Reading: View, Accessory: View, Controls: View, Floating: View>: View {
+struct NowPlayingSheet<Reading: View, TextAppearance: View, Accessory: View, Controls: View, Floating: View>: View {
     /// The book, series or folder the page lives in, else the Library or its site.
     let playingFrom: String
     /// The text scrolled away from the audio: offer to jump back to the spoken sentence.
     var showsJumpToAudio = false
     let onCollapse: () -> Void
     var onJumpToAudio: () -> Void = {}
+    /// The reading theme's colours, as the Reader's.
+    var palette: ReadingPalette = .app
+    /// Aa (`TextAppearanceButton` and its panel), just before `accessory`, as in the Reader.
+    @ViewBuilder var textAppearance: TextAppearance
     /// The control at the trailing end of the top bar (☝︎, `JumpModeButton`).
     @ViewBuilder var accessory: Accessory
     @ViewBuilder var text: Reading
@@ -35,8 +39,11 @@ struct NowPlayingSheet<Reading: View, Accessory: View, Controls: View, Floating:
     @ViewBuilder var floating: Floating
 
     var body: some View {
-        Sheet(onDismiss: onCollapse, look: .player) {
-            SheetTopBar { SheetClosePill(kind: .collapse(playingFrom)) } trailing: { accessory }
+        Sheet(onDismiss: onCollapse, palette: palette) {
+            SheetTopBar { SheetClosePill(kind: .collapse(playingFrom)) } trailing: {
+                textAppearance
+                accessory
+            }
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("nowPlayingHeader")
         } content: {
@@ -52,7 +59,7 @@ struct NowPlayingSheet<Reading: View, Accessory: View, Controls: View, Floating:
     }
 
     /// Floats over the text, so the text keeps running under it. No arrow: the spoken sentence
-    /// may be above or below. Inverted on the player's dark scheme: a light pill, dark text.
+    /// may be above or below. Inverted: an ink pill with the page's colour for its text.
     private var jumpToAudio: some View {
         ZStack {
             if showsJumpToAudio {
@@ -86,7 +93,7 @@ struct NowPlayingTransport<Leading: View, More: View>: View {
     /// Slot 5: ⋯.
     @ViewBuilder var more: More
 
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
     @State private var bottomInset: CGFloat = 0
 
     private static var discOverhang: CGFloat {
@@ -118,7 +125,7 @@ struct NowPlayingTransport<Leading: View, More: View>: View {
         .padding(.top, Self.discOverhang)
         .padding(.bottom, max(0, Self.discOverhang - bottomInset))
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomInset = $0 }
-        .tint(onPlayer ? Palette.playerInk : Palette.ink)
+        .tint(reading?.ink ?? Palette.ink)
     }
 }
 
@@ -136,16 +143,18 @@ struct NowPlayingSheetGallery: View {
     }
 
     private func frame(_ state: PlayState, note: String?, back: Bool, saved: Bool = false) -> some View {
-        NowPlayingSheet(playingFrom: "Pride and Prejudice", showsJumpToAudio: back, onCollapse: {}) {
+        NowPlayingSheet(playingFrom: "Pride and Prejudice", showsJumpToAudio: back, onCollapse: {},
+                        palette: ReadingTheme.sepia.palette(accent: .jade)) {
+            TextAppearanceButton(isOpen: false) {}
+        } accessory: {
             JumpModeButton(isOn: false) {}
         } text: {
-            SampleReading(title: "Chapter 12", detail: ["Pride and Prejudice", "9 min left"], spoken: true,
-                          look: .player)
+            SampleReading(title: "Chapter 12", detail: ["Pride and Prejudice", "9 min left"], spoken: true, card: true)
         } controls: {
             if let note {
                 Text(note)
                     .typeStyle(.caption)
-                    .foregroundStyle(Palette.playerSecondaryInk)
+                    .foregroundStyle(ReadingTheme.sepia.palette(accent: .jade).secondaryInk)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, Spacing.xs)
             }

@@ -1,23 +1,25 @@
 import SwiftUI
 
-/// Now Playing: what you hear, opened up from the bar (`NowPlayingSheet`). A player on deep jade
-/// (light and dark alike), the Reader's serif text in lyrics style under a title card. Presented
-/// over everything by the shell; it holds no article of its own: it shows `speech.nowPlaying` and
-/// the playing page's content, looked up in the library by its key.
+/// Now Playing: what you hear, opened up from the bar (`NowPlayingSheet`). The Reader's page in
+/// the same reading theme and type, under a title card: the spoken paragraph highlighted in full
+/// ink, the others dimmed. Presented over everything by the shell; it holds no article of its
+/// own: it shows `speech.nowPlaying` and the playing page's content, looked up in the library by
+/// its key.
 ///
 /// - The title card (artwork, title, the site and time left) scrolls with the text.
 /// - The text follows the audio: it opens with the spoken sentence near the middle and keeps it
 ///   there (each new paragraph, a long paragraph's sentence leaving the screen); the spoken
-///   paragraph is in full ink and the others dimmed, its sentence underlined. A drag stops
+///   paragraph is highlighted in full ink and the others dimmed, its sentence underlined. A drag stops
 ///   following; Jump to Audio resumes it, back to the sentence. Scrubbing scrolls to the
 ///   paragraph under the thumb.
 /// - The close pill names where the page plays from: a page in a folder plays from that folder (a
 ///   book, a series, Favorites, a folder you made), a saved page in no folder from the Library,
 ///   a page you haven't saved from its site. ⋯ → *Go to <name>* opens the Library at the folder
 ///   or the Library; for a site, ⋯ → Website opens the page in the browser.
-/// - The top bar, 🔖 and ⋯ are the Reader's (decision D24): ☝︎ then a tap on a paragraph plays
-///   from there; 🔖 saves / unsaves (tap) or files the page (long-press, *Save to Folder…*); ⋯ is
-///   the Reader's menu. Both act through `PageActions`, as in the Reader.
+/// - The top bar, 🔖 and ⋯ are the Reader's (decision D24): Aa changes how the page reads; ☝︎
+///   then a tap on a paragraph plays from there; 🔖 saves / unsaves (tap) or files the page
+///   (long-press, *Save to Folder…*); ⋯ is the Reader's menu. Both act through `PageActions`, as
+///   in the Reader.
 /// - At the end it stays: the text stays, all in full ink, the title card says "✓ Finished"
 ///   (the one place it shows, where the Reader shows the page's length), ▶ plays it again.
 /// - The pill or a pull down shrinks it back into the bar.
@@ -27,6 +29,7 @@ struct NowPlayingScreen: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
     @Environment(DownloadCenter.self) private var downloads
+    @Environment(\.readingAppearance) private var appearance
 
     /// The playing page's reading content, looked up by key when the page changes.
     @State private var content: NowPlayingContent?
@@ -60,8 +63,11 @@ struct NowPlayingScreen: View {
             onCollapse: { [shell, presentation = shell.nowPlayingPresentation] in
                 if let presentation { shell.nowPlayingDidClose(presentation) }
             },
-            onJumpToAudio: { following = true }
+            onJumpToAudio: { following = true },
+            palette: appearance.palette(accent: AppAppearance.shared.accent)
         ) {
+            TextAppearanceControl()
+        } accessory: {
             JumpModeButton(isOn: jumpMode) { jumpMode.toggle() }
                 .disabled(speech.document.isEmpty)
         } text: {
@@ -75,10 +81,9 @@ struct NowPlayingScreen: View {
                                                onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
                     .disabled(actions.article == nil)),
                 more: AnyView(MoreMenuButton(id: "nowPlayingMore") {
-                    .reader(actions.readerMenu(goTo: goToPlace(now, saved: actions.isSaved), isOnPlayer: true),
+                    .reader(actions.readerMenu(goTo: goToPlace(now, saved: actions.isSaved)),
                             perform: { actions.perform($0) { goTo(now) } })
-                }
-                .foregroundStyle(Palette.playerInk)),
+                }),
                 onScrubPreview: { p in
                     scrubPreview = p
                     if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
@@ -106,7 +111,7 @@ struct NowPlayingScreen: View {
                        opensAt: shell.nowPlayingOpensAt,
                        onUserScroll: { following = false }, onTap: jump(to:))
         } else {
-            Palette.playerBackground
+            appearance.palette(accent: AppAppearance.shared.accent).background
         }
     }
 
@@ -212,11 +217,12 @@ private struct SpokenText: View {
     let onUserScroll: () -> Void
     let onTap: (Int) -> Void
 
+    @Environment(\.readingPalette) private var reading
+
     var body: some View {
         let paragraph = speech.currentParagraphIndex
         HTMLReadingView(
             html: html,
-            look: .player,
             topView: titleCard,
             activeParagraphIndex: speech.spokenParagraph(scrubPreview: scrubPreview),
             sentence: finished || scrubPreview != nil ? nil : sentence(paragraph),
@@ -238,9 +244,12 @@ private struct SpokenText: View {
         let detail = finished ? [ListeningTime.finishedLabel]
             : [card.source, doc.isEmpty ? "" : ListeningTime.leftLabel(minutes: left)].filter { !$0.isEmpty }
         let letter = card.source.isEmpty ? card.title : card.source
+        let palette = reading ?? .app
         return ReadingTopView(
-            id: [card.title, detail.joined(separator: "\n"), letter, card.artwork == nil ? "" : "artwork"],
-            view: AnyView(TitleCard(title: card.title, detail: detail, artwork: card.artwork, artworkLetter: letter))
+            id: [card.title, detail.joined(separator: "\n"), letter, card.artwork == nil ? "" : "artwork",
+                 palette.theme.rawValue, AppAppearance.shared.accent.rawValue],
+            view: AnyView(TitleCard(title: card.title, detail: detail, artwork: card.artwork, artworkLetter: letter,
+                                    palette: palette))
         )
     }
 
@@ -254,13 +263,12 @@ private struct SpokenText: View {
 }
 
 /// "Tap a paragraph to play from there", docked above the text while ☝︎ is on (`jumpHint`), its
-/// capsule at the page margin like the text under it. On the player it sits on a `playerCard`
-/// capsule instead of the material.
+/// capsule at the page margin like the text under it, on the reading page's card colour.
 struct JumpHint: View {
     let onCancel: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
 
     var body: some View {
         HStack(spacing: Spacing.xs) {
@@ -275,22 +283,13 @@ struct JumpHint: View {
                 .accessibilityIdentifier("listenJumpCancel")
         }
         .typeStyle(.caption)
-        .foregroundStyle(onPlayer ? Palette.playerAccent : Palette.accent)
+        .foregroundStyle(reading?.accent ?? Palette.accent)
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.xs)
-        .background { background }
+        .background(reading?.card ?? Palette.chrome, in: Capsule())
         .padding(.horizontal, Spacing.pageMargin)
         .padding(.vertical, Spacing.xs)
         .transition(.slideAndFade(from: .top, reduceMotion: reduceMotion))
-    }
-
-    @ViewBuilder
-    private var background: some View {
-        if onPlayer {
-            Capsule().fill(Palette.playerCard)
-        } else {
-            Capsule().fill(.thinMaterial)
-        }
     }
 }
 

@@ -26,8 +26,8 @@ enum BottomChrome {
     static let fieldVerticalPadding = Spacing.xxs
     /// Field capsule / toolbar row height.
     static let rowHeight: CGFloat = 44
-    /// The field capsule's fill, on paper chrome or on the player.
-    static func fieldFill(onPlayer: Bool) -> Color { onPlayer ? Palette.playerCard : Palette.chrome }
+    /// The field capsule's fill: `chrome`, or the reading page's card.
+    static func fieldFill(_ reading: ReadingPalette?) -> Color { reading?.card ?? Palette.chrome }
     /// Toolbar glyph size.
     static let iconSize: CGFloat = 19
     /// Text standing in for a field control (the speed). Like the glyphs it keeps its size at
@@ -56,7 +56,7 @@ enum BottomChrome {
 
 extension View {
     /// The bottom band: content inset by the standard margins on the system bar material (on the
-    /// player, `playerChrome`), which runs down through the home indicator. `bottomInset` = extra
+    /// reading page, tinted with its background), which runs down through the home indicator. `bottomInset` = extra
     /// bottom padding when the caller is laid out edge to edge (the reader); 0 when it already
     /// sits in the safe area (Browse).
     func bottomChromeBand(bottomInset: CGFloat = 0, bottomPadding: CGFloat = 0) -> some View {
@@ -109,11 +109,17 @@ extension View {
 }
 
 private struct BottomChromeBandBackground: ViewModifier {
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
 
     func body(content: Content) -> some View {
-        if onPlayer {
-            content.background(Palette.playerChrome)
+        if let reading, reading.theme != .matchApp {
+            // The bar material, tinted with the reading theme's page so the band reads as part of it.
+            content.background {
+                ZStack {
+                    Rectangle().fill(.bar)
+                    reading.background.opacity(0.85)
+                }
+            }
         } else {
             content.background(.bar)
         }
@@ -126,7 +132,7 @@ private struct BottomChromeField: ViewModifier {
     let leading: CGFloat
     let trailing: CGFloat
     @ScaledMetric(relativeTo: .body) private var height = BottomChrome.rowHeight
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
 
     func body(content: Content) -> some View {
         content
@@ -134,7 +140,7 @@ private struct BottomChromeField: ViewModifier {
             .padding(.trailing, trailing)
             .padding(.vertical, BottomChrome.fieldVerticalPadding)
             .frame(height: BottomChrome.grown(height, from: BottomChrome.rowHeight))
-            .background(BottomChrome.fieldFill(onPlayer: onPlayer), in: Capsule())
+            .background(BottomChrome.fieldFill(reading), in: Capsule())
     }
 }
 

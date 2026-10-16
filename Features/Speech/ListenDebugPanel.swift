@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Developer overlay for local-engine listen gaps / bake queue: the shell's
-/// `ShellSheet.listenDebug`. Open: the ⋯ Debug row (Reader, Now Playing, Library), Voice settings'
-/// *Open full panel* (over that sheet), the bake overlay, or long-press play/pause.
+/// `ShellSheet.listenDebug`. Open: Settings › Developer › Listen Debug Panel (over Settings), the
+/// bake overlay, or long-press play/pause.
 struct ListenDebugPanel: View {
     @Bindable var speech: SpeechController
     @Environment(\.dismiss) private var dismiss
@@ -62,7 +62,7 @@ struct ListenDebugPanel: View {
                         row("Starve events", "\(snapshot.starveEventCount)")
                     }
                 } else {
-                    Text("No snapshot yet").foregroundStyle(.secondary)
+                    Text("No snapshot yet").foregroundStyle(Palette.secondaryInk)
                 }
 
                 #if DEBUG
@@ -85,7 +85,7 @@ struct ListenDebugPanel: View {
 
                 Section("Log (last \(ListenDebugLog.shared.lines.count))") {
                     if ListenDebugLog.shared.lines.isEmpty {
-                        Text("Empty").foregroundStyle(.secondary)
+                        Text("Empty").foregroundStyle(Palette.secondaryInk)
                     } else {
                         ForEach(Array(ListenDebugLog.shared.lines.enumerated().reversed()), id: \.offset) { _, line in
                             Text(line)
@@ -123,7 +123,7 @@ struct ListenDebugPanel: View {
             Spacer()
             Text(value)
                 .font(.body.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Palette.secondaryInk)
                 .multilineTextAlignment(.trailing)
         }
         .accessibilityElement(children: .combine)
@@ -152,7 +152,7 @@ struct BakeDebugOverlay: View {
                 } label: {
                     Image(systemName: Icons.close)
                         .font(.body)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Palette.secondaryInk)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Dismiss bake debug")
@@ -162,7 +162,7 @@ struct BakeDebugOverlay: View {
             ScrollView {
                 Text(overlayText)
                     .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Palette.ink)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)
             }
@@ -172,7 +172,7 @@ struct BakeDebugOverlay: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Color.secondary.opacity(0.25), lineWidth: 1)
+                .strokeBorder(Palette.hairline, lineWidth: 1)
         )
         .padding(.horizontal, 8)
         .accessibilityIdentifier("bakeDebugOverlay")

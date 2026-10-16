@@ -24,6 +24,26 @@ import SwiftUI
 /// A row opens what was downloaded (the Reader for a page, the Library at a folder). Swipe left
 /// removes a download, its audio with it; the long-press menu has the row's other choices.
 struct DownloadsSheet: View {
+    @Environment(ShellState.self) private var shell
+
+    var body: some View {
+        NavigationStack {
+            DownloadsList()
+                .toolbar {
+                    SheetBarButton(Verbs.done, placement: .confirmationAction, identifier: "downloadsDone") {
+                        shell.sheet = nil
+                    }
+                }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .sheetToastLayer()
+        .accessibilityIdentifier("downloadsSheet")
+    }
+}
+
+/// The Downloads list itself: the sheet's, and Settings › Downloads & Storage › Downloads.
+struct DownloadsList: View {
     @Environment(DownloadCenter.self) private var downloads
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
@@ -33,32 +53,21 @@ struct DownloadsSheet: View {
 
     var body: some View {
         let overview = downloads.overview
-        NavigationStack {
-            List {
-                if overview.isEmpty {
-                    Section { emptyCard }
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                }
-                if !overview.queued.isEmpty { queued(overview.queued) }
-                if !overview.done.isEmpty { done(overview.done) }
-                if !overview.differentVoice.isEmpty { differentVoice(overview.differentVoice) }
+        List {
+            if overview.isEmpty {
+                Section { emptyCard }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
             }
-            .libraryListStyle()
-            .animation(Motion.standard, value: overview)
-            .navigationTitle("Downloads")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                SheetBarButton(Verbs.done, placement: .confirmationAction, identifier: "downloadsDone") {
-                    shell.sheet = nil
-                }
-            }
+            if !overview.queued.isEmpty { queued(overview.queued) }
+            if !overview.done.isEmpty { done(overview.done) }
+            if !overview.differentVoice.isEmpty { differentVoice(overview.differentVoice) }
         }
+        .libraryListStyle()
+        .animation(Motion.standard, value: overview)
+        .navigationTitle(Verbs.downloads)
+        .navigationBarTitleDisplayMode(.inline)
         .task(id: SizeKey(overview)) { sizes = await measure(overview.done + overview.differentVoice) }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-        .sheetToastLayer()
-        .accessibilityIdentifier("downloadsSheet")
     }
 
     // MARK: - Sections
@@ -150,11 +159,11 @@ struct DownloadsSheet: View {
 
     private var waitingNote: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            footnote(String(localized: "Downloads render with an on-device voice. Choose one in Voice Settings to go on."))
-            PillButton(Verbs.voiceSettings, systemImage: Icons.voice, style: .neutral, size: .compact) {
-                shell.present(.voiceSettings)
+            footnote(String(localized: "Downloads render with an on-device voice. Choose one in Settings to go on."))
+            PillButton(Verbs.settings, systemImage: Icons.settings, style: .neutral, size: .compact) {
+                shell.present(.settings)
             }
-                .accessibilityIdentifier("downloadsVoiceSettings")
+                .accessibilityIdentifier("downloadsSettings")
         }
         .padding(.top, Spacing.xs)
     }

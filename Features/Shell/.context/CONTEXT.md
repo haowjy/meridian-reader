@@ -28,15 +28,21 @@ changing the shell code.
   `nowPlayingDidClose`) with the presentation id it was shown with, so a close that lands late
   can't remove a sheet shown since; each layer is `.id`'d by its presentation, so a replacement
   starts fresh. Programmatic closes (Website, navigating) just remove it.
-- **Now Playing is the player sheet** (`Sheet(look: .player)`): deep jade in both appearances,
-  the dark colour scheme plus `onPlayerPalette` for what it holds. Its light status bar comes from
-  a clear window that takes no touches, shown just above the app's while the sheet is up
+- **The Reader and Now Playing draw in the reading theme** (`Sheet(palette:)`, a `ReadingPalette`
+  from `ReadingAppearance`), the same for both; `readingSurface` sets `readingPalette` and the
+  theme's colour scheme on what they hold, and components that sit on both read it. A dark theme
+  (Dark, Black) over a light app gets light status bar content from a clear window that takes no
+  touches, shown just above the app's while the sheet is up
   (`DesignSystem/Chrome/StatusBarStyle.swift`); SwiftUI's own route, a colour scheme for the
-  window, would flip the surface underneath. Nothing of the app's covers Now Playing (the Reader
-  sits under it); a system sheet over it (Voice settings, Share) leaves the strip above dark, so
-  light stays right there. During a pull the dim lifts, and `Sheet` lays a scrim under the
-  status bar (`PullDownLook.statusBarScrim`) that keeps the strip at the resting dim until the
-  sheet is removed: no switch of style mid-gesture, so nothing flickers.
+  window, would flip the surface underneath. Nothing of the app's covers the sheets; a system
+  sheet over them (Settings, Share) leaves the strip above dark, so light stays right there.
+  During a pull the dim lifts, and `Sheet` lays a scrim under the status bar
+  (`PullDownLook.statusBarScrim`) that keeps the strip at the resting dim until the sheet is
+  removed: no switch of style mid-gesture, so nothing flickers. The ⋯ panel opened from either
+  sheet takes the theme too (`MenuContext.isOnReadingPage`).
+- **The app's colour is global**: `Palette.accent` and its kin read `AppAppearance.shared`, so a
+  view drawing them redraws when Settings › Appearance changes the colour (Observation tracks the
+  read). Don't cache a `Palette` accent token in a `static let`.
   `NowPlayingUITests.testTheStatusBarFollowsTheSurfaceOnTop` measures the clock's contrast
   (`UITests/StatusBarContrast.swift`, ≥ 4.5:1) in screenshots, including after leaving the app
   and coming back, and while a finger holds the sheet part way down.

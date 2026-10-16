@@ -59,10 +59,20 @@ extension XCTestCase {
         app.buttons["nowPlayingClose"].value as? String
     }
 
-    /// Pulls a sheet down by its header (the element `id` sits in it).
+    /// Settings is open: scrolls its list until the row `id` can be tapped, and taps it.
+    func openSettingsRow(_ app: XCUIApplication, _ id: String) {
+        let row = find(app, id)
+        let list = find(app, "settingsList")
+        for _ in 0..<10 where !(row.exists && row.isHittable) { list.swipeUp(velocity: .slow) }
+        XCTAssertTrue(row.isHittable, "Settings row \(id)")
+        row.tap()
+    }
+
+    /// Pulls a sheet down by its header (the element `id` sits in it), between the close pill and
+    /// Aa.
     func pullDown(_ app: XCUIApplication, from id: String) {
         let start = find(app, id).coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .withOffset(CGVector(dx: 120, dy: 0))
+            .withOffset(CGVector(dx: 60, dy: 0))
         start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 420)),
                     withVelocity: .default, thenHoldForDuration: 0)
     }

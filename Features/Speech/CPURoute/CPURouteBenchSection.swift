@@ -19,18 +19,18 @@ struct CPURouteBenchSection: View {
             .accessibilityIdentifier("cpuBenchRun")
             Text(bench.status)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Palette.secondaryInk)
             ForEach(bench.rows) { row in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(row.label).font(.caption.weight(.semibold))
                     if let err = row.error {
-                        Text(err).font(.caption2).foregroundStyle(.red)
+                        Text(err).font(.caption2).foregroundStyle(Palette.destructive)
                     } else {
                         Text(String(format: "501: %.2f×  190: %.2f×  load %d ms  cold %d ms", row.x501, row.x190, row.loadMs, row.coldMs))
                             .font(.system(.caption2, design: .monospaced))
                         Text(String(format: "CPU %.2f s/audio-s  peak %.0f MB  %@", row.cpuPerAudio501, row.peakMB, row.thermal))
                             .font(.system(.caption2, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Palette.secondaryInk)
                     }
                 }
             }
@@ -50,7 +50,7 @@ struct CPURouteBenchSection: View {
                 .disabled(bench.soakRunning)
             Text(bench.soakStatus)
                 .font(.system(.caption2, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Palette.secondaryInk)
         } header: {
             Text("CPU route benchmark")
         } footer: {
@@ -69,19 +69,19 @@ struct CPURouteBenchSection: View {
                 ProgressView(value: fraction)
                 Text("\(FileSizes.label(written)) / \(FileSizes.label(total))")
                     .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Palette.secondaryInk)
             }
             Button("Cancel download", role: .destructive) { store.cancel() }
                 .accessibilityIdentifier("cpuBenchCancelDownload")
         case .verifying:
-            HStack { ProgressView(); Text("Verifying SHA-256…").foregroundStyle(.secondary) }
+            HStack { ProgressView(); Text("Verifying SHA-256…").foregroundStyle(Palette.secondaryInk) }
         case let .installed(bytes):
-            LabeledContent("CPU model", value: "installed · \(FileSizes.label(bytes))")
+            LabeledContent("CPU model", value: "installed, \(FileSizes.label(bytes))")
             Button("Delete CPU model", role: .destructive) { store.delete() }
                 .disabled(bench.isRunning || bench.soakRunning)
                 .accessibilityIdentifier("cpuBenchDeleteModel")
         case let .failed(message):
-            Text(message).font(.caption).foregroundStyle(.red)
+            Text(message).font(.caption).foregroundStyle(Palette.destructive)
             Button("Retry download (163 MB)") { store.download() }
                 .accessibilityIdentifier("cpuBenchDownload")
         }

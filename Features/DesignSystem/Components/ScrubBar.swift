@@ -2,18 +2,18 @@ import SwiftUI
 
 /// The scrubber's look: track, buffered spans, fill and thumb, at `value` (0…1). Grows a little
 /// while dragged. Draws only; the owner handles the drag (`ScrubBar`, the Reader's scrub row).
-/// On the player the fill and thumb are `playerInk` on a `playerTrack` track.
+/// On the reading page the fill and thumb are its accent on its track.
 struct ScrubTrack: View {
     let value: Double
     /// Spans that already have audio, as fractions of the track.
     var buffered: [ClosedRange<Double>] = []
     var isDragging = false
 
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
 
     var body: some View {
-        let fill = onPlayer ? Palette.playerInk : Palette.accent
-        let empty = onPlayer ? Palette.playerTrack : Palette.secondaryInk.opacity(0.22)
+        let fill = reading?.accent ?? Palette.accent
+        let empty = reading?.track ?? Palette.secondaryInk.opacity(0.22)
         GeometryReader { g in
             let w = max(1, g.size.width)
             let shown = min(max(0, value), 1)
@@ -32,7 +32,7 @@ struct ScrubTrack: View {
                 Circle()
                     .fill(fill)
                     .frame(width: thumb, height: thumb)
-                    .shadow(color: .black.opacity(isDragging ? 0.18 : 0), radius: 3, y: 1)
+                    .shadow(color: Palette.scrim.opacity(isDragging ? 0.18 : 0), radius: 3, y: 1)
                     .offset(x: w * shown - thumb / 2)
             }
             .frame(width: w, height: g.size.height)
@@ -129,9 +129,9 @@ struct ScrubBarGallery: View {
             PreviewState("finished") {
                 ScrubBar(value: 1, elapsed: "15:02", remaining: "0 min left") { _ in }
             }
-            PreviewState("on the player, buffered ahead") {
+            PreviewState("on a dark reading page, buffered ahead") {
                 ScrubBar(value: 0.42, buffered: [0.42...0.7], elapsed: "6:10", remaining: "9 min left") { _ in }
-                    .onPlayerPreview()
+                    .onReadingPreview()
             }
         }
     }

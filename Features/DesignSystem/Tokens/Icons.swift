@@ -113,6 +113,21 @@ enum Icons {
     /// Keep a download made with another voice.
     static let keep = checkmark
 
+    // MARK: Settings and reading
+
+    /// Settings (the last row of every ⋯ panel).
+    static let settings = "gearshape"
+    /// Aa: how the page reads (the reading theme, font, size and spacing panel).
+    static let textAppearance = "textformat.size"
+    static let textSmaller = "textformat.size.smaller"
+    static let textLarger = "textformat.size.larger"
+    /// The app's appearance (Settings › Appearance).
+    static let appearance = "circle.lefthalf.filled"
+    /// Downloads and storage (Settings).
+    static let storage = "internaldrive"
+    /// Developer options (Settings › Developer).
+    static let developer = "hammer"
+
     // MARK: Notices
 
     static let warning = "exclamationmark.triangle"

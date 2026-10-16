@@ -30,9 +30,10 @@ final class ReadingScrollHandle {
     var handOver: ReadingHandOver? { coordinator?.handOver }
 }
 
-/// Renders an article's reading HTML in the serif reading style (`look`: paper for the Reader,
-/// the player's lyrics style for Now Playing), with tap-to-start and, in Now Playing, following
-/// the audio:
+/// Renders an article's reading HTML in the reading style (`ReadingStyle`: the reading theme's
+/// colours from `readingPalette`, the typeface, text size and line spacing from the
+/// `readingAppearance` store, all changed live), the same for the Reader and Now Playing, with
+/// tap-to-start and, in Now Playing, following the audio:
 /// - `follows`: the text keeps the spoken sentence near the middle (the paragraph, before its
 ///   sentence is known): it opens there, goes there on each new `activeParagraphIndex`, and,
 ///   in a paragraph too long to stay in view, again when the spoken sentence leaves the visible
@@ -40,7 +41,7 @@ final class ReadingScrollHandle {
 ///   turns it off (`onUserScroll`); the owner turns it back on (Jump to Audio), which goes to the
 ///   sentence.
 /// - `sentence`: the spoken sentence is underlined (CSS Custom Highlight, iOS 17.2+; earlier
-///   systems show the paragraph tint or full ink alone).
+///   systems show the paragraph's highlight alone).
 /// - `opensAtSentence` (the Reader, at a saved listening spot): the text opens with `sentence`
 ///   in the middle, and keeps it there through layout changes until the text is dragged.
 /// Without `follows` (the Reader) the text never scrolls by itself after that, except to follow
@@ -48,8 +49,7 @@ final class ReadingScrollHandle {
 /// Indices follow `ListenHTMLBlocks` leaf elements (same as speech).
 struct HTMLReadingView: View {
     let html: String
-    var look: ReadingStyle.Look = .paper
-    /// The title and source line on top of the text (paper).
+    /// The title and source line on top of the text (the Reader).
     var heading: ReaderHeading? = nil
     /// A native view on top of the text instead (the player's title card).
     var topView: ReadingTopView? = nil
@@ -73,11 +73,17 @@ struct HTMLReadingView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.readingPalette) private var reading
+    @Environment(\.readingAppearance) private var appearance
+
+    private var palette: ReadingPalette { reading ?? .app }
 
     var body: some View {
         HTMLReadingWebView(
             html: html,
-            look: look,
+            look: ReadingStyle.Look(colors: ReadingStyle.Colors(palette, scheme: colorScheme), font: appearance.font,
+                                    lineSpacing: appearance.lineSpacing, textScale: appearance.textScale),
             heading: heading,
             topView: topView,
             activeParagraphIndex: activeParagraphIndex,
@@ -95,7 +101,7 @@ struct HTMLReadingView: View {
             onUserScroll: onUserScroll,
             onTapParagraph: onTapParagraph
         )
-        .background(look == .player ? Palette.playerBackground : Palette.paper)
+        .background(palette.background)
     }
 }
 
@@ -121,7 +127,7 @@ private extension UIContentSizeCategory {
 
 struct HTMLReadingWebView: UIViewRepresentable {
     let html: String
-    var look: ReadingStyle.Look = .paper
+    var look = ReadingStyle.Look.standard
     var heading: ReaderHeading?
     var topView: ReadingTopView?
     let activeParagraphIndex: Int?
@@ -201,6 +207,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
             c.load(html: html, heading: heading)
         }
         c.setSizes(sizes)
+        c.setLook(look)
         // The sentence first: a new paragraph goes straight to its sentence.
         c.setSentence(sentence)
         c.setActiveParagraph(activeParagraphIndex)
@@ -217,8 +224,10 @@ struct HTMLReadingWebView: UIViewRepresentable {
         var lastHeading: ReaderHeading?
         var sizes = ReadingStyle.Sizes()
         private var sentSizes: ReadingStyle.Sizes?
-        /// Set before the first load by `makeUIView`.
-        var look: ReadingStyle.Look = .paper
+        /// The colours, typeface, text size and spacing. Set before the first load by `makeUIView`,
+        /// then through `setLook`.
+        var look = ReadingStyle.Look.standard
+        private var sentLook: ReadingStyle.Look?
         var animates = true
         /// Following the audio (Now Playing). Set before the first load by `makeUIView`.
         var follows = false
@@ -256,6 +265,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
             sentActive = nil
             sentSentence = nil
             sentSizes = sizes
+            sentLook = look
             loadGeneration += 1
             cancelRestore()
             pendingScrollIndex = nil
@@ -554,7 +564,22 @@ struct HTMLReadingWebView: UIViewRepresentable {
             self.sizes = sizes
             guard loaded, sizes != sentSizes else { return }
             sentSizes = sizes
-            reflow(ReadingStyle.sizesScript(sizes))
+            reflow(ReadingStyle.variablesScript(sizes, look))
+        }
+
+        /// A new reading appearance, live: colours alone repaint; a typeface, size or spacing
+        /// change reflows the text, keeping the line on screen where it was.
+        func setLook(_ look: ReadingStyle.Look) {
+            let old = sentLook
+            self.look = look
+            guard loaded, look != old else { return }
+            sentLook = look
+            let script = ReadingStyle.variablesScript(sizes, look)
+            if let old, old.font == look.font, old.lineSpacing == look.lineSpacing, old.textScale == look.textScale {
+                webView?.evaluateJavaScript(script, completionHandler: nil)
+            } else {
+                reflow(script)
+            }
         }
 
         /// Hands a pull at the top of the text to the sheet around it (`SheetPullHandoff`).
@@ -682,7 +707,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
             }
         }
 
-        /// The one reading page (the Reader and Now Playing alike): the serif body in `look`, with
+        /// The one reading page (the Reader and Now Playing alike): the text in `look`, with
         /// the title and source line on top, or a slot `top` points tall for the native top view.
         /// The article text is wrapped (`.reader-text`) so where it starts can be measured. The
         /// spoken paragraph's tint pads with a box-shadow, so it never reflows.
@@ -706,7 +731,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
             <style>
-            \(ReadingStyle.css(sizes: sizes, blockTags: ListenHTMLBlocks.tags, look: look))
+            \(ReadingStyle.css(sizes: sizes, look: look, blockTags: ListenHTMLBlocks.tags))
             </style>
             </head>
             <body>
@@ -784,8 +809,9 @@ struct HTMLReadingWebView: UIViewRepresentable {
             // Sizes or the top view that changed while the page loaded: a fresh page, nothing to
             // keep in place yet. First, so the page is measured as it will be.
             sentSizes = sizes
+            sentLook = look
             pageTopHeight = sentTopHeight.flatMap { topHost == nil ? nil : $0 }
-            webView.evaluateJavaScript(ReadingStyle.sizesScript(sizes)
+            webView.evaluateJavaScript(ReadingStyle.variablesScript(sizes, look)
                 + (pageTopHeight.map(Self.topHeightScript) ?? ""), completionHandler: nil)
             sentInsets = nil
             setTextInsets(textInsets)

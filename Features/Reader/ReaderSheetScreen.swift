@@ -15,8 +15,9 @@ import SwiftUI
 ///   after that the text never scrolls by itself.
 /// - 🔖 saves / unsaves (tap) or files the page (long-press, *Save to Folder…*: the Move tree);
 ///   ⋯ is the page's menu (Save / Remove from Library, Move to…, Add to Favorites, Share,
-///   Download, Voice Settings, Downloads, Debug; Favorites / History / Website). Both act through
+///   Download, Downloads, Settings; Favorites / History / Website). Both act through
 ///   `PageActions`, as in Now Playing.
+/// - Aa, left of ☝︎, changes how the page reads (`TextAppearanceControl`), live.
 ///
 /// Save / Unsave only flips 🔖: the article key is already the saved id (identity v2), so the
 /// view and any playing audio are untouched.
@@ -27,6 +28,7 @@ struct ReaderSheetScreen: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
     @Environment(DownloadCenter.self) private var downloads
+    @Environment(\.readingAppearance) private var appearance
     @State private var jumpMode = false
     @State private var scroll = ReadingScrollHandle()
 
@@ -54,8 +56,11 @@ struct ReaderSheetScreen: View {
             onClose: { [shell, presentation = state.presentation] in shell.readerDidClose(presentation) },
             onListen: { self.listen(from: nil, start: start) },
             onToggleSave: actions.toggleSaved,
-            onSaveToFolder: actions.saveToFolder
+            onSaveToFolder: actions.saveToFolder,
+            palette: appearance.palette(accent: AppAppearance.shared.accent)
         ) {
+            TextAppearanceControl()
+        } accessory: {
             JumpModeButton(isOn: jumpMode) { jumpMode.toggle() }
                 .disabled(!sessionReady)
         } text: {
@@ -66,7 +71,6 @@ struct ReaderSheetScreen: View {
             NowPlayingBarView(speech: speech)
         } more: {
             MoreMenuButton(id: "readerMore") { .reader(actions.readerMenu(), perform: { actions.perform($0) }) }
-                .foregroundStyle(Palette.ink)
         } floating: {
             // The line at the band's top edge; the toast floats above it.
             ZStack(alignment: .top) {

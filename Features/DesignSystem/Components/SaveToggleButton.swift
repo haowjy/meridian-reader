@@ -17,7 +17,7 @@ struct SaveToggleButton: View {
     var onSaveToFolder: (() -> Void)?
 
     @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.onPlayerPalette) private var onPlayer
+    @Environment(\.readingPalette) private var reading
 
     var body: some View {
         Button(action: onToggle) {
@@ -26,10 +26,10 @@ struct SaveToggleButton: View {
                     ProgressView()
                 } else if isSaved {
                     Image(systemName: Icons.saved)
-                        .foregroundStyle(onPlayer ? Palette.playerAccent : Palette.accent)
+                        .foregroundStyle(reading?.accent ?? Palette.accent)
                 } else {
                     Image(systemName: Icons.save)
-                        .foregroundStyle(onPlayer ? Palette.playerInk : Palette.ink)
+                        .foregroundStyle(reading?.ink ?? Palette.ink)
                 }
             }
             // Disabled (no page), it dims like ‹ and ›; the spinner shows in full.
@@ -69,8 +69,8 @@ struct SaveToggleButtonGallery: View {
             PreviewState("saved") { button(saved: true) }
             PreviewState("saving") { button(saved: false, busy: true) }
             PreviewState("disabled") { button(saved: false).disabled(true) }
-            PreviewState("on the player, not saved") { button(saved: false).onPlayerPreview() }
-            PreviewState("on the player, saved") { button(saved: true).onPlayerPreview() }
+            PreviewState("on the reading page, not saved") { button(saved: false).onReadingPreview() }
+            PreviewState("on the reading page, saved") { button(saved: true).onReadingPreview() }
         }
     }
 

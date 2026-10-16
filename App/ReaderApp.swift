@@ -32,8 +32,13 @@ struct ReaderApp: App {
     @State private var shell = AppComposition.shell
     @State private var library: LibraryStore
     @State private var downloads: DownloadCenter
+    /// How pages read (Settings › Reading, the Aa panel): one store for both editors.
+    @State private var readingAppearance: ReadingAppearance
+    @State private var developer = DeveloperSettings()
 
     init() {
+        // Before anything reads `AppAppearance.shared`: a UI-test launch clears stored themes first.
+        _readingAppearance = State(initialValue: AppComposition.makeReadingAppearance())
         do {
             container = try LibraryStoreConfiguration.makeContainer()
         } catch {
@@ -56,6 +61,8 @@ struct ReaderApp: App {
                 .environment(shell)
                 .environment(library)
                 .environment(downloads)
+                .environment(\.readingAppearance, readingAppearance)
+                .environment(\.developerSettings, developer)
                 .task {
                     await AppLaunch.run(library: library, speech: speechController, shell: shell, downloads: downloads)
                 }
