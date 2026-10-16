@@ -66,6 +66,11 @@ final class EngineRegistry {
     func descriptor(_ id: SpeechEngineID) -> EngineDescriptor? { byID[id]?.0 }
     func contains(_ id: SpeechEngineID) -> Bool { byID[id] != nil }
 
+    /// The registered provider of type `P` (a library's own debug tools reach their provider so).
+    func provider<P: SpeechEngineProvider>(_ type: P.Type) -> P? {
+        providers.lazy.compactMap { $0 as? P }.first
+    }
+
     var systemDescriptor: EngineDescriptor? { descriptors.first { $0.onDevice == nil } }
     var localDescriptors: [EngineDescriptor] { descriptors.filter { $0.onDevice != nil } }
 

@@ -107,16 +107,22 @@ enum AppComposition {
         return providers
     }
 
-    /// One-time launch steps, in order: retired engines' cleanup, then each voice library's own.
+    /// Launch steps, in order: retired engines' cleanup, then each voice library's own.
     static func launchMigrations(for engines: EngineRegistry) -> [LaunchMigration] {
-        engines.retiredEngines.map(RetiredEngineCleanup.init) + FluidAudioProvider.launchMigrations
+        #if DEBUG
+        let keepsCoreMLStages = KokoroStressRun.usesCoreML
+        #else
+        let keepsCoreMLStages = false
+        #endif
+        return engines.retiredEngines.map(RetiredEngineCleanup.init)
+            + FluidAudioProvider.launchMigrations(keepingCoreMLStages: keepsCoreMLStages)
     }
 
     /// Launch housekeeping, in `ReaderApp.init`, before the first frame and before anything
-    /// renders or plays: the audio cache's launch steps (`prepareAudioCache`), the engines'
-    /// downloads and the timing log kept out of backups, the background-GPU probe, and pruning
-    /// Core ML's compiled-model cache of bundles from previous installs (once per install,
-    /// background).
+    /// renders or plays: the audio cache's launch steps (`prepareAudioCache`, the voice
+    /// libraries' included), the engines' downloads and the timing log kept out of backups, the
+    /// background-GPU probe, and pruning Core ML's compiled-model cache of bundles from previous
+    /// installs (once per install, background).
     static func runLaunchMaintenance(library: LibraryStore) {
         let tts = library.tts
         prepareAudioCache(library: library, migrations: launchMigrations(for: engineRegistry))
@@ -128,19 +134,6 @@ enum AppComposition {
         // Debug probe: can this device get GPU time in background continued-processing tasks?
         CPURouteProbes.logAtLaunch()
         #endif
-        // Kokoro runs on the ONNX CPU route: drop the unused Core ML stages (≈82 MB) unless the
-        // debug fast GPU route is on. Vocab, voice packs, G2P and lexicon stay.
-        DispatchQueue.global(qos: .utility).async {
-            #if DEBUG
-            if KokoroStressRun.usesCoreML { return } // it loads the stages itself
-            #endif
-            let freed = FluidAudioProvider.cleanUpUnusedCoreMLStages()
-            guard freed > 0 else { return }
-            ListenTimingLog.log("kokoro_coreml_cleanup", ["bytes": freed])
-            DispatchQueue.main.async {
-                ListenDebugLog.shared.append("Kokoro Core ML stages removed (ONNX route): freed \(FileSizes.label(freed))")
-            }
-        }
         CoreMLCompileCacheJanitor.runOncePerInstall { report in
             guard let r = report else { return }
             ListenTimingLog.log("coreml_cache_prune", [

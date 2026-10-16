@@ -143,15 +143,20 @@ it is logged as `coreml_stage` in `engine_crash_detected`. A process that dies w
 mid-call (no notice, no time to clear) can't be told from a crash, but the render queue holds a
 background task while a call is in flight as the app leaves the front, so the call ends first.
 
-### One-time launch steps
+### Launch steps
 
 `FluidAudioProvider.launchMigrations`, run by `AppComposition.prepareAudioCache` before
 anything plays (after the library's unfinished audio work): `KokoroAudioCachePurge` (drops Kokoro
 audio rendered before the NaN patch and the boundary-trimmed joins;
 `reader.tts.kokoro.audioCacheVersion`; audio held for library work that couldn't finish is left
-for a later launch's purge) and `KokoroONNXMainMigration`
+for a later launch's purge), `KokoroONNXMainMigration`
 (a user that a Core ML crash left on Apple goes back to Kokoro on the ONNX route, at that crash's
-article and paragraph, paused).
+article and paragraph, paused), and `KokoroCoreMLStageCleanup` (with the Core ML route off, the
+stages are deleted off the main thread whenever they are found; skipped for a Core ML stress run).
+
+The route settings (`KokoroRouteSettings`) belong to `FluidAudioProvider`; the Listen debug
+panel changes them through it (`setFastGPURoute`, `setCPUThreads`), then asks the coordinator to
+rebuild the live host (`LocalTTSCoordinator.reloadEngine`, which knows no engine).
 
 ## Engine registry
 

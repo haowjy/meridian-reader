@@ -233,36 +233,12 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return try await work()
     }
 
-    // MARK: - Kokoro route (ONNX CPU default; Core ML in front as a debug opt-in)
-
-    var kokoroRouteSettings: KokoroRouteSettings { KokoroRouteSettings(defaults: defaults) }
-
-    /// Route the live Kokoro host actually uses (nil = no Kokoro host loaded).
-    var liveKokoroRoute: KokoroRoute? {
-        guard let tag = synth.liveRenderer(for: .kokoro)?.host.routeTag else { return nil }
-        return KokoroRoute(rawValue: tag)
-    }
-
-    /// Debug: flip the fast GPU (Core ML) route, then rebuild the Kokoro host. Cached audio stays.
-    func setKokoroFastGPURoute(_ on: Bool) async {
-        guard kokoroRouteSettings.fastGPURouteEnabled != on else { return }
-        kokoroRouteSettings.fastGPURouteEnabled = on
-        ListenTimingLog.log("kokoro_route_change", ["route": kokoroRouteSettings.route.rawValue])
-        await reloadKokoroHost()
-    }
-
-    /// Debug: ONNX thread override (rebuilds the host).
-    func setKokoroCPUThreads(_ threads: Int) async {
-        guard kokoroRouteSettings.cpuThreads != threads else { return }
-        kokoroRouteSettings.cpuThreads = threads
-        ListenTimingLog.log("kokoro_threads_change", ["threads": kokoroRouteSettings.cpuThreads])
-        await reloadKokoroHost()
-    }
-
-    private func reloadKokoroHost() async {
+    /// `id`'s provider changed how it renders (a route or thread setting): rebuild its live host
+    /// when it is the engine in use. Cached audio stays; the render pace starts over.
+    func reloadEngine(_ id: SpeechEngineID) async {
         RenderPace.shared.reset()
-        guard activeLocalEngineID == .kokoro else { return }
-        await synth.reload(.kokoro, voice: engineVoices[.kokoro]).value
+        guard activeLocalEngineID == id else { return }
+        await synth.reload(id, voice: engineVoices[id]).value
     }
 
     // MARK: - SynthQueueContext (route-aware background)

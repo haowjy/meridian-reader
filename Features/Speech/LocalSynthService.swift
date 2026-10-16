@@ -33,15 +33,10 @@ final class LocalSynthService: SynthChunkRendering {
     var engineShortName: String { engines.shortName(engineID) }
     /// Routing label of the live host (debug).
     var hostRoutingLabel: String? { renderer?.host.routingLabel }
+    /// Route tag of the live host ("onnx", "coreml"; nil when none is built).
+    var hostRouteTag: String? { renderer?.host.routeTag }
     /// The live host keeps rendering in the background (Kokoro ONNX CPU route).
     var rendersInBackground: Bool { renderer?.host.rendersInBackground ?? false }
-
-    /// The live renderer if it is already built for `id`. The latency probe and the CPU bench
-    /// reuse it: two loaded Kokoro Core ML instances make predictions fail on device.
-    func liveRenderer(for id: SpeechEngineID) -> LocalChunkRenderer? {
-        guard let renderer, renderer.engineID == id else { return nil }
-        return renderer
-    }
 
     // MARK: - Lifecycle
 

@@ -36,7 +36,7 @@ struct KokoroONNXMainMigration: LaunchMigration {
         defaults.set(true, forKey: Self.doneKey)
         guard tts.launchCrash?.engine != .kokoro, tts.selectedEngineID == .apple, tts.engines.supports(.kokoro),
               let last = tts.crashGuard.lastCrash, last.engine == .kokoro else { return }
-        let route = tts.kokoroRouteSettings
+        let route = KokoroRouteSettings(defaults: tts.defaults)
         route.fastGPURouteEnabled = false
         route.onnxCrashCount = 0
         var target = ListenResumeTarget.forCrash(article: last.articleKey, paragraph: last.paragraph,
@@ -46,5 +46,23 @@ struct KokoroONNXMainMigration: LaunchMigration {
         ListenTimingLog.log("kokoro_onnx_migration", [
             "from": "apple", "resume_key": target?.articleKey.prefix(8) ?? "", "resume_p": target?.paragraph ?? -1,
         ])
+    }
+}
+
+/// With the Core ML route off, its 7 stages (≈82 MB) are dead weight: the ONNX route needs only
+/// the vocab, voice packs and G2P / lexicon files beside them. Deleted at every launch they are
+/// found, off the main thread; the Core ML route downloads them again when turned on.
+struct KokoroCoreMLStageCleanup: LaunchMigration {
+    func runIfNeeded(_ tts: LocalTTSCoordinator) {
+        let route = KokoroRouteSettings(defaults: tts.defaults)
+        guard !route.fastGPURouteEnabled else { return }
+        DispatchQueue.global(qos: .utility).async {
+            let freed = KokoroAssets.deleteCoreMLStages()
+            guard freed > 0 else { return }
+            ListenTimingLog.log("kokoro_coreml_cleanup", ["bytes": freed])
+            DispatchQueue.main.async {
+                ListenDebugLog.shared.append("Kokoro Core ML stages removed (ONNX route): freed \(FileSizes.label(freed))")
+            }
+        }
     }
 }
