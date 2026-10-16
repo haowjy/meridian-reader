@@ -45,8 +45,7 @@ final class PlayStateTests: XCTestCase {
         let legacy = try library.save(TestSpeech.article(pageA, id: UUID()))
         XCTAssertNotEqual(legacy.listenKey, ArticleIdentity.articleKey(canonicalURL: canonical(pageA)))
         speech.press(.page(legacy.listenKey)) {
-            speech.toggle(.page(legacy), resumeParagraph: legacy.positionParagraph,
-                          resumeUTF16Offset: legacy.positionUTF16)
+            speech.start(.page(legacy), at: legacy.listenStart)
         }
         XCTAssertEqual(speech.playState(of: .webPage(canonicalURL: canonical(pageA))), .playing)
         XCTAssertEqual(speech.playState(of: .page(legacy.listenKey)), .playing)
@@ -152,7 +151,7 @@ final class PlayStateTests: XCTestCase {
         let other = FakeChapterLibrary(chapters: 1)
         speech.nextChapters = book
         XCTAssertEqual(speech.playState(of: .folder(book.folder.id)), .idle)
-        speech.start(book.sessions[0], fromParagraph: 0)
+        speech.start(book.sessions[0])
         XCTAssertEqual(speech.playState(of: .folder(book.folder.id)), .playing)
         XCTAssertEqual(speech.playState(of: .folder(other.folder.id)), .idle, "another book")
         XCTAssertEqual(speech.playState(of: .page(book.key(0))), .playing)

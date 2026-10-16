@@ -26,6 +26,8 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
     }
 
     private var queue: [Item] = []
+    /// Builds a unit's player (tests pass one whose `play()` fails).
+    private let makePlayer: (URL) throws -> AVAudioPlayer
     private var player: AVAudioPlayer?
     private var current: Item?
     /// Prefetched next player (prepared while current plays).
@@ -71,8 +73,9 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
 
     /// Local synth can take longer than a short paragraph plays, so keep several Ready CAFs
     /// ahead of the playhead to avoid audible gaps.
-    init(maxBuffered: Int = 8) {
+    init(maxBuffered: Int = 8, makePlayer: @escaping (URL) throws -> AVAudioPlayer = { try AVAudioPlayer(contentsOf: $0) }) {
         self.maxBuffered = maxBuffered
+        self.makePlayer = makePlayer
     }
 
     var bufferedCount: Int { queue.count + (current == nil ? 0 : 1) }
@@ -119,11 +122,11 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         return ids
     }
 
-    /// Change speed in place: the playing unit continues mid-sentence at `rate`; the primed and
-    /// later units start at it. Survives `clear()` (speed is a setting, not queue state).
+    /// Change speed in place (a `ListenRate` option): the playing unit continues mid-sentence at
+    /// `rate`; the primed and later units start at it. Survives `clear()` (speed is a setting, not
+    /// queue state).
     func setRate(_ rate: Float) {
-        let clamped = min(2, max(0.5, rate))
-        playbackRate = clamped
+        playbackRate = rate
         if let player { applyRate(player) }
         if let primedPlayer { applyRate(primedPlayer) }
     }
@@ -149,8 +152,11 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
 
     func resume() {
         softPaused = false
-        if let player, current != nil {
-            player.play()
+        if let player, let current {
+            if !player.play() {
+                player.stop()
+                dropFailed(current, Self.failure("Couldn't resume paragraph \(current.paragraphIndex)"))
+            }
         } else if current == nil {
             playNext()
         }
@@ -192,7 +198,7 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
     private func primeUpcomingIfNeeded() {
         guard primedPlayer == nil, let peek = queue.first else { return }
         do {
-            let p = try AVAudioPlayer(contentsOf: peek.fileURL)
+            let p = try makePlayer(peek.fileURL)
             guard p.duration > 0.05 else { return }
             p.delegate = self
             applyRate(p)
@@ -242,32 +248,18 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
             discardPrime()
             item = queue.removeFirst()
             do {
-                p = try AVAudioPlayer(contentsOf: item.fileURL)
+                p = try makePlayer(item.fileURL)
                 applyRate(p)
                 if item.startTime > 0 { p.currentTime = min(item.startTime, max(0, p.duration - 0.05)) }
             } catch {
-                onError?(error)
-                current = nil
-                player = nil
-                onItemDone?(item)
-                onUnitEnded?()
-                playNext()
+                dropFailed(item, error)
                 return
             }
             usedPrime = false
         }
 
         guard p.duration > 0.05 else {
-            onError?(NSError(
-                domain: "ChunkPlaybackQueue",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Empty or corrupt CAF at paragraph \(item.paragraphIndex)"]
-            ))
-            current = nil
-            player = nil
-            onItemDone?(item)
-            onUnitEnded?()
-            playNext()
+            dropFailed(item, Self.failure("Empty or corrupt CAF at paragraph \(item.paragraphIndex)"))
             return
         }
 
@@ -284,10 +276,28 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         p.delegate = self
         applyRate(p) // speed may have changed since the prime
         player = p
+        guard p.play() else {
+            dropFailed(item, Self.failure("Couldn't play paragraph \(item.paragraphIndex)"))
+            return
+        }
         onUnitStarted?(item)
-        if softPaused { return }
-        p.play()
         primeUpcomingIfNeeded()
+    }
+
+    /// `item` can't sound (no file, an empty one, `play()` refused, a decode error): it leaves the
+    /// player as done and the next unit plays (or the player starves or finishes as usual), so
+    /// playback moves on instead of sitting on a unit that never sounds.
+    private func dropFailed(_ item: Item, _ error: Error) {
+        onError?(error)
+        current = nil
+        player = nil
+        onItemDone?(item)
+        onUnitEnded?()
+        playNext()
+    }
+
+    private static func failure(_ message: String) -> NSError {
+        NSError(domain: "ChunkPlaybackQueue", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
     }
 
     /// Finish path — prefer sync MainActor handoff so we do not yield a runloop tick of silence.
@@ -300,6 +310,27 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
         playNext()
         // After the next unit started: nothing between two units but the handoff.
         if let finished { onItemDone?(finished) }
+    }
+
+    /// The playing unit's audio can't be decoded: it is dropped like any unit that can't sound. A
+    /// primed player that fails is just discarded (the unit is opened again when it plays).
+    private func handleDecodeError(of id: ObjectIdentifier, _ error: Error?) {
+        if let primedPlayer, ObjectIdentifier(primedPlayer) == id {
+            discardPrime()
+            return
+        }
+        guard let player, ObjectIdentifier(player) == id, let current else { return }
+        player.stop()
+        dropFailed(current, error ?? Self.failure("Couldn't decode paragraph \(current.paragraphIndex)"))
+    }
+
+    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        let id = ObjectIdentifier(player)
+        if Thread.isMainThread {
+            MainActor.assumeIsolated { self.handleDecodeError(of: id, error) }
+        } else {
+            Task { @MainActor in self.handleDecodeError(of: id, error) }
+        }
     }
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {

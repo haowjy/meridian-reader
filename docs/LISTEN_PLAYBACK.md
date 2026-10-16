@@ -39,7 +39,7 @@ writes it to `ListenResumePointStore` whenever it changes.
 Phase and position change only through:
 
 - **intents** from the UI and remote commands: `play`, `pause`, `resume`, `toggle`, `stop`,
-  `skip`, `seek`, `seekOffset`;
+  `skip`, `seekOffset`;
 - **engine events**: `becameAudible`, `becamePaused`, `position(paragraph, utf16)`, `finished`
   (`statusChanged` only tells the controller to re-read the listen-bar status);
 - **page inputs** inside a folder (`PlaybackPageInput`, "Books, series and folders" below):
@@ -47,14 +47,19 @@ Phase and position change only through:
 
 Rules:
 
+- The session settles the position before it asks an engine to play or seek; the commands carry
+  none, and the controller speaks from `utf16Offset`. A start spot (`ListenSpot`: a paragraph,
+  and an offset that counts only while it lies in that paragraph) goes in through `bind`.
 - Pause sends `.pause` to the engine; the phase turns paused on `becamePaused`, or at once when
   the engine snapshot already shows it paused.
 - Engines never clear the session. They emit `finished`; the controller decides whether a book
   carries on, and otherwise the session finishes.
 - At the end of a page (or of a book or series) the engines stop, the audio session deactivates
   and the lock screen clears, but the page stays bound in `finished`: the Now Playing bar keeps it
-  with ▶ and "✓ Finished", and ▶ plays it again from the start. Only *Stop Listening* (the bar's
-  long-press) unbinds it.
+  with ▶ and "✓ Finished". Only *Stop Listening* (the bar's long-press) unbinds it.
+- On a finished page, `resume`, `toggle` and `play` from the playhead play it again from its top
+  (paragraph 0, offset 0), whatever spot the voice finished at: the on-screen ▶, headphones, the
+  lock screen and CarPlay all replay it, and the lock screen shows it again.
 - `toggle`: playing **or** the engine audible → pause; paused → resume; else play.
 - Seek (scrubber release) moves the playhead and offset; playing keeps playing from there, paused
   stays paused (the engine re-queues without sounding), prepared / finished just move where Play
@@ -65,7 +70,7 @@ Rules:
 `SpeechController` derives everything the screens show about what you hear from the session:
 
 - **`nowPlaying`** (`NowPlaying`): the bound page's key, canonical URL, title, source (its host,
-  or the book's or series' name for a chapter), artwork, where it plays from
+  or the book's or series' name for a chapter), byline (the lock screen's subtitle), artwork, where it plays from
   (`PlayingFrom.folder(id:name:)` for a page in a folder, else `.site(host:)`) and phase. nil only before anything has played and after Stop
   Listening.
 - **`playState(of:)`** for a `ListenTarget` (`.page(key)`, `.webPage(canonicalURL:)`, compared
@@ -76,9 +81,18 @@ Rules:
   request that `isStillPreparing` may start),
   `playing`, or `paused` (`.prepared` and `.finished` show as paused). Every ▶ / ⏸ / 🎧 comes from
   it.
-- **`press(_:start:)`**: playing → pause; paused → resume (from `.finished`, the session's `.replay`: both the paragraph and the
-  offset go back to the start); anything
+- **`press(_:start:)`**: playing → pause; paused → resume (a finished page from its top); anything
   else runs `start`, which replaces what is playing. Pressing never navigates.
+- **`userPerform(_:)`**: every intent the user asks for (▶ / ⏸, ⏮ / ⏭, a swipe, the scrubber,
+  ☝︎, headphones and the lock screen, its speed change included) first forgets an auto-resume
+  after an interruption and ends a preparation, then goes to the session. What the app does on
+  its own (the next chapter, an interruption) goes straight to the session.
+- **`start(_:at:)`** is the one way a page starts: a `SpeechSession` from a `ListenSpot`, replacing
+  what plays. `listen(to:at:)` wraps it for a `ReaderArticle` (the Reader's Listen, 🎧), handing the
+  article to `onListen` first; `playPage` (Contents, *Play from Here*) loads a library page and
+  starts it at its top. A library page starts at `Page.listenStart`: its saved spot, or its top
+  once it is finished; the Reader's Listen label, its underlined sentence, a row's ▶ and 🎧 all use
+  it. Continue on a folder starts at `LibraryStore.continueStart`'s spot.
 - **`nowPlayingContent()`**: Now Playing's reading content, asked of the injected
   `NowPlayingContentResolving`: the library, which has every page that has played (a page played
   without saving, or removed from the Library, is kept 7 days after its last play), so it is
@@ -90,7 +104,9 @@ Rules:
 `play(ListenPlayRequest)`, `pause`, `resume`, `stop` and `setRate`, reports `PlaybackEngineEvent`s
 through `onEvent`, and answers `snapshot` (audible / paused). The controller drops events from an
 engine that isn't bound (a cancelled utterance, a cleared player). Speed is a setting every
-adapter keeps, bound or not. Adapters report facts; they own no bake policy and no UI phase.
+adapter keeps, bound or not, and always one of `ListenRate.options` (0.75× to 2×): the setter, the
+lock screen's speed command and a stored value from an older build all snap to the nearest one,
+so the players, the Apple voice and the lock screen agree. Adapters report facts; they own no bake policy and no UI phase.
 
 - **`AppleListenEngine`**: one `AVSpeechUtterance` holding the rest of the article from the
   start offset; `pauseSpeaking(at: .word)` / `continueSpeaking`. The delegate reports
@@ -105,7 +121,9 @@ adapter keeps, bound or not. Adapters report facts; they own no bake policy and 
   without starting. Pause keeps `AVAudioPlayer.currentTime` and is confirmed at once; resume plays
   on with no re-queue. The end of the article is decided only by the player
   (`ChunkPlaybackQueue`): the producer calls `endOfInput()` once it has enqueued every paragraph,
-  and the player finishes when its queue drains. Position inside a paragraph is player time, which
+  and the player finishes when its queue drains. A unit that can't sound (its file won't open or
+  is empty, `play()` refuses, a decode error) leaves the player as done and the next one plays;
+  only a unit that sounds is reported as started. Position inside a paragraph is player time, which
   has no callbacks, so while audio is wanted and the app is in front (active or inactive) the
   engine samples it 5×/s: it reports `position` once the spot moved a few characters
   (`ListenPositionMapper`: chunk boundaries plus time into the chunk, never before the offset the
@@ -578,7 +596,10 @@ keeps it playing too; the Now Playing bar shows it.
 `.playback`, mode `.spokenAudio`, no options: a mixable (ducking) session never becomes the Now
 Playing app, so other apps' audio pauses while Meridian Reader speaks, like a podcast app. Only the
 category is set at launch; the session activates when playback starts or resumes and deactivates
-with `.notifyOthersOnDeactivation` on stop or finish.
+with `.notifyOthersOnDeactivation` on stop or finish. Address-bar dictation borrows it through
+`ListenAudioSession` (`lendForRecording`, `.record` while the mic is open, then `reclaim`): Listen
+pauses first, gets its category back after, and resumes if it was playing; a session Listen
+wasn't holding is released, so other apps' audio can resume.
 
 **Lock screen / Control Center** (`NowPlayingController`):
 
@@ -586,14 +607,16 @@ with `.notifyOthersOnDeactivation` on stop or finish.
   en dash joins the parts), album = site,
   chapter number and count (paragraphs), progress N/M, favicon artwork, rate 0 while paused. For
   a chapter of a book or series: title = the chapter, artist = "<the book's byline> – Paragraph N
-  of M", album = the book or series, artwork = the chapter's, else the book's cover. Shown while
-  playing or paused, and kept across a chapter boundary; cleared on stop or at the end.
+  of M", album = the book or series, artwork = the chapter's, else the book's cover. Built from
+  `nowPlaying`, as the bar is (one title fallback, "Untitled"; the subtitle's byline is
+  `NowPlaying.byline`), with the artwork made once per picture rather than every paragraph. Shown
+  while playing or paused, and kept across a chapter boundary; cleared on stop or at the end.
 - `MPRemoteCommandCenter` (decision D4: headphone and lock-screen skips are paragraph skips, like
   the on-screen ⏮ ⏭): play, pause, togglePlayPause, nextTrack (next paragraph),
-  previousTrack (previous paragraph, or restart paragraph 1) and changePlaybackRate (snapped to
+  previousTrack (previous paragraph; off at the first, as ⏮ is) and changePlaybackRate (snapped to
   the listen-bar rates). Skip, seek and position commands are off.
 - Every command goes through `SpeechController.handleRemoteCommand` → `RemoteCommand.intent` →
-  `PlaybackSessionState.handle`, the same path as the on-screen buttons. Now Playing is
+  `userPerform` → `PlaybackSessionState.handle`, the same path as the on-screen buttons. Now Playing is
   re-derived from `playback` on every change; identical updates are skipped.
 
 **Interruptions and route changes** (`ListenInterruptionPolicy`, pure and unit-tested; every pause
@@ -605,9 +628,9 @@ and resume goes through session intents):
 | Interruption ends with `.shouldResume`, and it was playing | Reactivate the session and resume |
 | Interruption ends without `.shouldResume` | Stay paused |
 | `appWasSuspended` notice | Not a real interruption; never auto-resume |
-| User pauses, stops or plays during an interruption | Forget the auto-resume |
+| User does anything during an interruption (play, pause, skip, seek, stop, a speed change on the lock screen) | Forget the auto-resume |
 | Route change `oldDeviceUnavailable` (headphones out, Bluetooth lost) | Pause |
-| Media services reset | Reconfigure the category and pause |
+| Media services reset | Reconfigure the category; the engines drop their dead audio objects (Apple builds a new synthesizer), and a page playing or paused is bound again paused at its spot, so Play speaks through new ones |
 
 **Rendering in the background.** `AppRunState` mirrors `UIApplication` (active / inactive /
 background), thread-safe; admission follows the table in "Render queue". On a host that can't render in the background a

@@ -37,7 +37,7 @@ final class FolderDeleteTests: XCTestCase {
     /// A row's ▶, as `LibraryActions.play` does it: the page plays, carrying on through its folder.
     private func play(_ page: Page) {
         speech.press(.page(page.listenKey)) {
-            speech.toggle(.page(page), resumeParagraph: 0, resumeUTF16Offset: 0)
+            speech.start(.page(page))
         }
     }
 

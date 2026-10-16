@@ -85,11 +85,31 @@ final class PlaybackRateAndChromeTests: XCTestCase {
 
         let session = SpeechSession(id: UUID(), document: ParagraphDocument(parts: ["One two three.", "Four five."]),
                                     title: "Rate")
-        speech.start(session, fromParagraph: 0)
+        speech.start(session)
         speech.pause()
         speech.setRateMultiplier(1.75)
         XCTAssertEqual(nowPlaying.lastInfo?.rate, 1.75, "lock screen reports the new rate")
         XCTAssertEqual(speech.localEngine.player.playbackRate, 1.75)
+    }
+
+    /// A speed stored outside the list (an older build allowed up to 4×) loads as the nearest
+    /// allowed one, and the player, the Apple voice and the lock screen all get that one.
+    func testAStoredSpeedOutsideTheListLoadsAsTheNearestEverywhere() {
+        let saved = UserDefaults.standard.object(forKey: "reader.rateMultiplier")
+        UserDefaults.standard.set(3.0, forKey: "reader.rateMultiplier")
+        defer {
+            if let saved { UserDefaults.standard.set(saved, forKey: "reader.rateMultiplier") }
+            else { UserDefaults.standard.removeObject(forKey: "reader.rateMultiplier") }
+        }
+        let fixture = TestSpeech()
+        defer { fixture.tearDown() }
+        let speech = fixture.speech
+        XCTAssertEqual(speech.rateMultiplier, 2)
+
+        speech.start(SpeechSession(id: UUID(), document: ParagraphDocument(parts: ["One two three."]), title: "Rate"))
+        XCTAssertEqual(speech.localEngine.player.playbackRate, 2, "the on-device player")
+        XCTAssertEqual(fixture.apple.rate, 2, "the Apple voice")
+        XCTAssertEqual(speech.lockScreen.lastInfo?.rate, 2, "the lock screen")
     }
 
     func testDeveloperOptionsDefaultPerBuild() {

@@ -125,7 +125,7 @@ final class LockedFetchProbe {
         // The hold, not the background wait limit, decides: the limit is raised past it.
         speech.chapterFlow.waitLimits.background = Self.silentHold + 5
         observeAppState()
-        speech.start(series.sessions[0], fromParagraph: 0)
+        speech.start(series.sessions[0])
         log("probe_start", state().merging([
             "bundle_id": Self.bundleID, "engine": speech.activeEngine?.name ?? "—", "rate": speech.rateMultiplier,
             "build": LocalTTSCoordinator.buildConfiguration, "fetch_delay_s": Self.fetchDelay,

@@ -65,12 +65,12 @@ final class ListenPositionTests: XCTestCase {
         var s = PlaybackSessionState()
         let id = UUID()
         let doc = ParagraphDocument(parts: ["a.", "b.", "c."])
-        s.bind(articleID: id, document: doc, startingAt: 1)
+        s.bind(articleID: id, document: doc, at: ListenSpot(paragraph: 1))
         let silent = PlaybackEngineSnapshot(isAudible: false, isPaused: false)
         let audible = PlaybackEngineSnapshot(isAudible: true, isPaused: false)
         XCTAssertNil(s.resumePoint, "prepared: nothing to auto-play after a crash")
 
-        XCTAssertEqual(s.handle(.play(from: 1), engine: silent), [.enginePlay(from: 1)])
+        XCTAssertEqual(s.handle(.play(from: 1), engine: silent), [.enginePlay])
         XCTAssertEqual(s.resumePoint, .init(article: id, paragraph: 1,
                                             text: ArticleIdentity.contentFingerprint(paragraphs: doc.paragraphs)))
         s.handle(.position(paragraph: 2, utf16: doc.startUTF16Offset(forParagraph: 2) + 1))
@@ -130,7 +130,7 @@ final class ListenPositionTests: XCTestCase {
         let (speech, _, apple) = makeSpeech(resumeFile: file)
         let s = session(["One.", "Two.", "Three."])
 
-        speech.start(s, fromParagraph: 0)
+        speech.start(s)
         XCTAssertEqual(store.load()?.paragraph, 0)
         XCTAssertTrue(store.load()?.matches(s.id) == true)
         XCTAssertEqual(store.load()?.text, ArticleIdentity.contentFingerprint(paragraphs: s.document.paragraphs),
@@ -156,12 +156,10 @@ final class ListenPositionTests: XCTestCase {
                 + "here and keeps going for a while so the tone is long enough to move the thumb.",
         ])
         let target = s.document.startUTF16Offset(forParagraph: 1) + 58
-        speech.prepare(s)
-        speech.seek(s, toUTF16Offset: target)
-        speech.toggle(s)
+        speech.start(s, at: ListenSpot(paragraph: 1, utf16Offset: target))
         XCTAssertEqual(speech.diagnostics.snapshot().engine, "Fake")
 
-        await waitUntil({ speech.localEngine.player.isSpeaking && speech.localEngine.player.isAudible },
+        await waitUntil({ speech.localEngine.player.state == .playing && speech.localEngine.player.isAudible },
                         "the first unit plays")
         XCTAssertEqual(speech.currentParagraphIndex, 1)
         XCTAssertGreaterThanOrEqual(speech.spokenUTF16Offset, target, "never before where the play began")

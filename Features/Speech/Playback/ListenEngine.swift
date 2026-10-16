@@ -32,6 +32,9 @@ protocol ListenEngine: AnyObject {
     var sourceNote: String? { get }
     /// Back in the foreground (the on-device engine re-renders audio it had to defer).
     func appDidBecomeActive()
+    /// iOS restarted its media services: stop, and build new audio objects for the next `play`
+    /// (the old ones are dead and fail silently).
+    func mediaServicesWereReset()
     /// Engine-side numbers for the Listen debug panel.
     var debug: ListenEngineDebug { get }
 }

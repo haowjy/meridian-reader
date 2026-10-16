@@ -62,7 +62,6 @@ final class PlaybackObservationTests: XCTestCase {
             _ = speech.document
             _ = speech.isPlaying
             _ = speech.currentParagraphIndex
-            _ = speech.isPrepared(sessionID: s.id)
             _ = speech.canSkipToNextParagraph
             _ = speech.playState(of: .page(s.id))
             _ = speech.isBufferingNext
@@ -71,7 +70,7 @@ final class PlaybackObservationTests: XCTestCase {
         let offset = tracks { _ = speech.spokenUTF16Offset }
 
         // Scrub to the second sentence of paragraph 0 while prepared: only the offset moves.
-        speech.seek(s, toUTF16Offset: 21)
+        speech.seek(toUTF16Offset: 21)
 
         XCTAssertEqual(speech.currentParagraphIndex, 0)
         XCTAssertEqual(speech.spokenUTF16Offset, 21)
@@ -87,7 +86,7 @@ final class PlaybackObservationTests: XCTestCase {
         let session = tracks { _ = speech.activeSessionID; _ = speech.isPlaying }
         let paragraph = tracks { _ = speech.currentParagraphIndex }
 
-        speech.seek(s, toParagraph: 1)
+        speech.seek(toUTF16Offset: s.document.startUTF16Offset(forParagraph: 1))
 
         XCTAssertEqual(speech.currentParagraphIndex, 1)
         XCTAssertTrue(paragraph())

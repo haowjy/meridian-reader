@@ -173,41 +173,6 @@ final class SpeechController {
     /// Detected language of the prepared session's article (nil = unknown / none prepared).
     private(set) var sessionDetectedLanguage: String?
 
-    /// Engine the language picker would use: the active local engine (selected or pending),
-    /// else the selected one.
-    var languageEngineDescriptor: EngineDescriptor? {
-        localTTS.engines.descriptor(localTTS.activeLocalEngineID ?? localTTS.selectedEngineID)
-    }
-
-    /// Language + engine for an article with `detected` language under the current settings.
-    func languageResolution(detected: String?) -> ListenLanguageResolution {
-        ListenLanguageResolution.resolve(
-            automatic: languageAutomatic,
-            manualCode: selectedLanguageCode,
-            detectedCode: detected,
-            selectedEngine: languageEngineDescriptor
-        )
-    }
-
-    /// Resolution for the prepared session (Settings / listen bar).
-    var languageResolution: ListenLanguageResolution { languageResolution(detected: sessionDetectedLanguage) }
-
-    /// Language the current session speaks in.
-    var effectiveLanguageCode: String { languageResolution.languageCode }
-
-    /// Apple voice for the current session (`appleVoice(forLanguage:)` of its language).
-    var effectiveAppleVoice: AVSpeechSynthesisVoice? { appleVoice(forLanguage: effectiveLanguageCode) }
-
-    /// The Apple voice that speaks `code`: the user's pick when it speaks that language, else the
-    /// best installed voice for it. Apple speech and every Apple fallback of the on-device engine
-    /// (live and in the render queue, `LocalTTSCoordinator.appleVoiceForArticle`) use it.
-    func appleVoice(forLanguage code: String) -> AVSpeechSynthesisVoice? {
-        if let voice = selectedVoice, ListenLanguage.baseCode(voice.language) == ListenLanguage.baseCode(code) {
-            return voice
-        }
-        return VoiceCatalog.bestVoice(forLanguage: code)
-    }
-
     var isPlaying: Bool { playbackPhase == .playing }
 
     /// Copies `playback` into the published properties (only the ones that changed), then
@@ -252,14 +217,20 @@ final class SpeechController {
     /// Stop Listening; a finished page stays bound (`.finished`), so the bar keeps it with ▶.
     var nowPlaying: NowPlaying? {
         guard let id = activeSessionID, !document.isEmpty else { return nil }
-        let meta = sessionMeta?.id == id ? sessionMeta : nil
+        let meta = boundMeta
         let raw = meta?.sourceLabel ?? meta?.site ?? ""
         let host = raw.hasPrefix("www.") ? String(raw.dropFirst(4)) : raw
         let folder = meta?.folder
         let playingFrom: PlayingFrom = folder.map { .folder(id: $0.id, name: $0.name) } ?? .site(host: host)
         return NowPlaying(pageKey: id, canonicalURL: meta?.canonicalURL, title: meta?.title ?? "Untitled",
-                          source: folder?.isBookOrSeries == true ? folder?.name ?? host : host, artwork: meta?.artwork,
-                          playingFrom: playingFrom, phase: playbackPhase)
+                          source: folder?.isBookOrSeries == true ? folder?.name ?? host : host, byline: meta?.site,
+                          artwork: meta?.artwork, playingFrom: playingFrom, phase: playbackPhase)
+    }
+
+    /// What the bound page is (nil while the metadata adopted last belongs to another page).
+    private var boundMeta: SessionMeta? {
+        guard let id = activeSessionID, sessionMeta?.id == id else { return nil }
+        return sessionMeta
     }
 
     /// The one place a ▶ / ⏸ comes from. Reads only session fields, so it is cheap on every
@@ -279,30 +250,30 @@ final class SpeechController {
         case .page(let key):
             return key == id
         case .webPage(let url):
-            return sessionMeta?.id == id && sessionMeta?.canonicalURL == url
+            return boundMeta?.canonicalURL == url
         case .folder(let folderID):
             return activeFolderID == folderID
         }
     }
 
-    /// A play button was pressed: pause what you hear, resume it (replay from the start once
-    /// finished), or run `start` for something that isn't it (replacing what's playing). Never
-    /// navigates.
+    /// A play button was pressed: pause what you hear, resume it (a finished page from its top,
+    /// `PlaybackIntent`), or run `start` for something that isn't it (replacing what's playing).
+    /// Never navigates.
     func press(_ target: ListenTarget, start: () -> Void) {
         switch playState(of: target) {
         case .playing:
-            pause()
+            userPerform(.pause)
         case .paused:
-            noteUserIntent()
-            if playback.phase == .finished {
-                perform(.replay)
-            } else {
-                playback.reconcile(with: engineSnapshot())
-                perform(playback.phase == .prepared ? .play(from: playback.playhead) : .resume)
-            }
+            userPerform(.resume)
         case .idle, .preparing:
             start()
         }
+    }
+
+    /// ▶ / ⏸ on what you hear (the Now Playing bar, Now Playing's transport).
+    func pressNowPlaying() {
+        guard let id = activeSessionID else { return }
+        press(.page(id)) {}
     }
 
     /// `target` is being made ready (its page extracting): its button shows `.preparing`, and
@@ -337,23 +308,35 @@ final class SpeechController {
         supersedePreparation()
     }
 
-    /// Plays `article` from `paragraph` (at `utf16Offset` inside it, when given), replacing what's
-    /// playing. The article goes to `onListen` first, so a page the library doesn't have is kept
-    /// once it plays.
-    func listen(to article: ReaderArticle, fromParagraph paragraph: Int = 0, utf16Offset: Int? = nil) {
+    /// Every intent the user asks for (a button, a gesture, the scrubber, headphones, the lock
+    /// screen) goes through here. What the app does on its own (carrying on to the next chapter,
+    /// an interruption) calls `perform`.
+    func userPerform(_ intent: PlaybackIntent) {
+        noteUserIntent()
+        perform(intent)
+    }
+
+    /// Plays `article` from `spot` (`start`). The article goes to `onListen` first, so a page the
+    /// library doesn't have is kept once it plays.
+    func listen(to article: ReaderArticle, at spot: ListenSpot = .top) {
         guard !article.document.isEmpty else { return }
         onListen?(article)
-        noteUserIntent()
         var session = SpeechSession(article: article)
         session.folder = nextChapters?.folder(containing: article.id)
-        prepare(session, startingParagraph: paragraph)
-        placeResumeOffset(utf16Offset, paragraph: paragraph)
-        perform(.play(from: paragraph))
+        start(session, at: spot)
+    }
+
+    /// The one way a page starts playing: `session` from `spot`, replacing what plays (a page
+    /// already bound plays from `spot`'s paragraph). A page in a folder carries on through it.
+    func start(_ session: SpeechSession, at spot: ListenSpot = .top) {
+        guard !session.document.isEmpty else { return }
+        prepare(session, at: spot)
+        userPerform(.play(from: spot.paragraph))
     }
 
     /// The page's icon arrived after it started playing (🎧 starts before fetching it).
     func setArtwork(_ data: Data, for pageKey: UUID) {
-        guard sessionMeta?.id == pageKey, sessionMeta?.artwork == nil else { return }
+        guard boundMeta?.id == pageKey, boundMeta?.artwork == nil else { return }
         sessionMeta?.artwork = data
         refreshNowPlaying()
     }
@@ -361,16 +344,14 @@ final class SpeechController {
     /// Plays the bound page from `paragraph` (☝︎ in Now Playing).
     func play(fromParagraph paragraph: Int) {
         guard isPrepared else { return }
-        noteUserIntent()
-        perform(.play(from: paragraph))
+        userPerform(.play(from: paragraph))
     }
 
     /// Scrubber release in Now Playing: the bound page's playhead to document offset `utf16`
     /// (a sentence start), keeping play / pause as it is.
     func seek(toUTF16Offset utf16: Int) {
         guard isPrepared else { return }
-        noteUserIntent()
-        perform(.seekOffset(utf16: utf16))
+        userPerform(.seekOffset(utf16: utf16))
     }
 
     /// The reading content of what you hear, for Now Playing.
@@ -419,25 +400,23 @@ final class SpeechController {
         }
     }
 
-    static let rateOptions: [Double] = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
-
     var selectedLanguageCode: String {
         didSet { UserDefaults.standard.set(selectedLanguageCode, forKey: languageDefaultsKey) }
     }
 
-    var rateMultiplier: Double {
+    /// The listen speed, always one of `ListenRate.options` (`setRateMultiplier`).
+    private(set) var rateMultiplier: Double {
         didSet {
-            let clamped = min(2.0, max(0.75, rateMultiplier))
-            if clamped != rateMultiplier {
-                rateMultiplier = clamped
-                return
-            }
             UserDefaults.standard.set(rateMultiplier, forKey: rateDefaultsKey)
             // Every engine keeps the speed; the bound one applies it to what is playing.
             for engine in listenEngines { engine.setRate(rateMultiplier) }
             refreshNowPlaying()
         }
     }
+
+    /// The speed nearest `value` among `ListenRate.options` (the pickers pass one; the lock screen
+    /// any rate).
+    func setRateMultiplier(_ value: Double) { rateMultiplier = ListenRate.nearest(to: value) }
 
     var selectedVoiceIdentifier: String? {
         didSet { UserDefaults.standard.set(selectedVoiceIdentifier, forKey: voiceDefaultsKey) }
@@ -454,7 +433,7 @@ final class SpeechController {
          resumePoints: ListenResumePointStore? = .shared) {
         let coordinator = localTTS ?? LocalTTSCoordinator(engines: engines)
         self.localTTS = coordinator
-        self.appleEngine = appleEngine ?? AppleListenEngine()
+        self.appleEngine = appleEngine ?? AppleListenEngine(runState: coordinator.synthQueue.runState)
         self.localEngine = LocalListenEngine(coordinator: coordinator)
         self.audioSession = audioSession ?? ListenAudioSession()
         self.lockScreen = nowPlaying ?? NowPlayingController()
@@ -474,7 +453,7 @@ final class SpeechController {
         #endif
         let storedRate = !ignoreStoredRate && UserDefaults.standard.object(forKey: rateDefaultsKey) != nil
             ? UserDefaults.standard.double(forKey: rateDefaultsKey) : 1.0
-        self.rateMultiplier = (0.25...4).contains(storedRate) ? storedRate : 1.0
+        self.rateMultiplier = storedRate > 0 ? ListenRate.nearest(to: storedRate) : 1.0
         self.selectedVoiceIdentifier = UserDefaults.standard.string(forKey: voiceDefaultsKey)
         self.listenDebugEnabled = UserDefaults.standard.bool(forKey: Self.listenDebugEnabledKey)
         self.developerOptionsEnabled = DeveloperOptions.load()
@@ -505,7 +484,7 @@ final class SpeechController {
         self.audioSession.configure()
         self.audioSession.onEvent = { [weak self] event in self?.handleAudioSessionEvent(event) }
         self.audioSession.startObserving()
-        self.lockScreen.attach(rateOptions: Self.rateOptions) { [weak self] command in
+        self.lockScreen.attach { [weak self] command in
             self?.handleRemoteCommand(command) ?? .noActionableNowPlayingItem
         }
         runStateObserver = NotificationCenter.default.addObserver(
@@ -517,40 +496,22 @@ final class SpeechController {
 
     // MARK: - Display
 
-    var selectedVoice: AVSpeechSynthesisVoice? {
-        guard let id = selectedVoiceIdentifier else { return nil }
-        return AVSpeechSynthesisVoice(identifier: id)
-    }
-
-    var rateDisplayLabel: String {
-        let rounded = (rateMultiplier * 100).rounded() / 100
-        if abs(rounded - 1.0) < 0.01 { return "1×" }
-        return String(format: "%g×", rounded)
-    }
-
     var isPrepared: Bool { activeSessionID != nil && !document.isEmpty }
     var isActive: Bool { activeSessionID != nil && (playbackPhase == .playing || playbackPhase == .paused) }
 
     var canSkipToPreviousParagraph: Bool { isPrepared && currentParagraphIndex > 0 }
     var canSkipToNextParagraph: Bool { isPrepared && currentParagraphIndex + 1 < document.count }
 
-    func isPrepared(sessionID: UUID) -> Bool {
-        activeSessionID == sessionID && isPrepared
-    }
-
-
     // MARK: - Session API (intents)
 
-    /// Binds `session` paused at `startingParagraph`: at its start, or at document offset `utf16`
-    /// when that lies in it. A session already bound to it stays as it is.
-    func prepare(_ session: SpeechSession, startingParagraph: Int = 0, utf16: Int? = nil) {
+    /// Binds `session` paused at `spot`. A session already bound to it stays as it is.
+    func prepare(_ session: SpeechSession, at spot: ListenSpot = .top) {
         supersedePreparation()
         adoptMeta(of: session)
         if playback.articleID == session.id, !playback.document.isEmpty { return }
         execute(playback.handle(.stop, engine: engineSnapshot()))
         endChapterFlow()
-        playback.bind(articleID: session.id, document: session.document, startingAt: startingParagraph,
-                      utf16: utf16, folderID: session.folderID)
+        playback.bind(articleID: session.id, document: session.document, at: spot, folderID: session.folderID)
     }
 
     /// What the lock screen, the bar and the language rules show for `session`, before it binds.
@@ -570,94 +531,23 @@ final class SpeechController {
         playback.handle(input)
     }
 
-    func toggle(_ session: SpeechSession, resumeParagraph: Int? = nil, resumeUTF16Offset: Int? = nil) {
-        noteUserIntent()
-        if playback.articleID != session.id {
-            prepare(session, startingParagraph: resumeParagraph ?? 0)
-            placeResumeOffset(resumeUTF16Offset, paragraph: resumeParagraph ?? 0)
-            perform(.play(from: resumeParagraph ?? 0))
-            return
-        }
-        if !playback.isPrepared {
-            prepare(session, startingParagraph: resumeParagraph ?? playback.playhead)
-            placeResumeOffset(resumeUTF16Offset, paragraph: resumeParagraph ?? playback.playhead)
-        }
-        // Reconcile before toggle so stale .paused cannot block Pause while audible.
-        playback.reconcile(with: engineSnapshot())
-        if playback.phase == .prepared || playback.phase == .idle || playback.phase == .finished {
-            let index = resumeParagraph ?? playback.playhead
-            perform(.play(from: index))
-        } else {
-            perform(.toggle)
-        }
-    }
-
-    /// Prepared (not playing): put the playhead on the stored / scrubbed sentence so Play starts
-    /// there instead of at the paragraph start.
-    private func placeResumeOffset(_ offset: Int?, paragraph: Int) {
-        guard let offset, playback.phase == .prepared, !document.isEmpty,
-              document.index(containingUTF16Offset: offset) == paragraph else { return }
-        perform(.seekOffset(utf16: offset))
-    }
-
-    func start(_ session: SpeechSession, fromParagraph index: Int) {
-        prepare(session, startingParagraph: index)
-        guard !document.isEmpty else { return }
-        perform(.play(from: index))
-    }
-
     func skipToPreviousParagraph() {
-        guard isPrepared else { return }
-        supersedePreparation()
-        perform(.skip(delta: -1))
+        guard canSkipToPreviousParagraph else { return }
+        userPerform(.skip(delta: -1))
     }
 
     func skipToNextParagraph() {
-        guard isPrepared else { return }
-        supersedePreparation()
-        perform(.skip(delta: 1))
+        guard canSkipToNextParagraph else { return }
+        userPerform(.skip(delta: 1))
     }
 
-    /// Scrubber: move `session`'s playhead to `paragraph` without changing play/pause state
-    /// (a proper paused seek, not stop-and-reload). No-op unless `session` is the prepared one.
-    func seek(_ session: SpeechSession, toParagraph paragraph: Int) {
-        guard isPrepared(sessionID: session.id) else { return }
-        noteUserIntent()
-        perform(.seek(paragraph: paragraph))
-    }
+    func pause() { userPerform(.pause) }
 
-    /// Scrubber inside a paragraph: move to document offset `utf16` (a sentence start)
-    /// without changing play/pause state. Local engine: starts at the synth chunk holding that
-    /// sentence, offset into its audio; Apple: speaks from that character.
-    func seek(_ session: SpeechSession, toUTF16Offset utf16: Int) {
-        guard isPrepared(sessionID: session.id) else { return }
-        noteUserIntent()
-        perform(.seekOffset(utf16: utf16))
-    }
-
-    /// Where a play / seek of `paragraph` starts: the session's sub-paragraph offset when it lies
-    /// in that paragraph (scrubbed to a sentence), else the paragraph start.
-    private func startOffset(forParagraph paragraph: Int) -> Int {
-        guard !document.isEmpty else { return 0 }
-        let offset = playback.utf16Offset
-        return document.index(containingUTF16Offset: offset) == paragraph
-            ? offset : document.startUTF16Offset(forParagraph: paragraph)
-    }
-
-    func pause() {
-        noteUserIntent()
-        perform(.pause)
-    }
-
-    func resume() {
-        supersedePreparation()
-        perform(.resume)
-    }
+    func resume() { userPerform(.resume) }
 
     /// Stop Listening: unbinds the page, so the bar goes away.
     func stop() {
-        noteUserIntent()
-        perform(.stop)
+        userPerform(.stop)
         endChapterFlow()
         // Listen preempts bake; on stop, resume gap-fill so save-time work still lands on disk.
         finishSession(restartBake: true)
@@ -710,67 +600,6 @@ final class SpeechController {
         speak(fromUTF16Offset: document.startUTF16Offset(forParagraph: paragraph), startPaused: false)
     }
 
-    // MARK: - Voice / rate
-
-    /// Settings → Language → Automatic (match article).
-    func selectAutomaticLanguage() {
-        guard !languageAutomatic else { return }
-        languageAutomatic = true
-        languageSettingChanged()
-    }
-
-    /// Settings → Language → a specific language (turns Automatic off).
-    func selectLanguage(_ code: String) {
-        guard languageAutomatic || selectedLanguageCode != code else { return }
-        let codeChanged = selectedLanguageCode != code
-        languageAutomatic = false
-        selectedLanguageCode = code
-        if codeChanged { selectedVoiceIdentifier = nil }
-        languageSettingChanged()
-    }
-
-    /// Language change can move the article between the local engine and Apple: restart the
-    /// utterance and let the bake queue / marks follow.
-    private func languageSettingChanged() {
-        localTTS.noteBakeMarksChanged()
-        restartUtteranceIfNeeded()
-    }
-
-    func selectVoice(identifier: String?) {
-        let changed = selectedVoiceIdentifier != identifier
-        selectedVoiceIdentifier = identifier
-        if !languageAutomatic, let identifier, let voice = AVSpeechSynthesisVoice(identifier: identifier) {
-            selectedLanguageCode = voice.language
-        }
-        guard changed else { return }
-        restartUtteranceIfNeeded()
-    }
-
-    func setRateMultiplier(_ value: Double) { rateMultiplier = value }
-
-    // MARK: - Remote commands (lock screen / Control Center / headphones)
-
-    /// Every remote command becomes a Session intent — the same path as the on-screen buttons.
-    @discardableResult
-    func handleRemoteCommand(_ command: RemoteCommand) -> RemoteCommandOutcome {
-        guard playback.isPrepared else { return .noActionableNowPlayingItem }
-        interruptionPolicy.noteUserIntent()
-        ListenTimingLog.log("remote_command", [
-            "cmd": String(describing: command), "phase": String(describing: playback.phase), "p": playback.playhead,
-        ])
-        if case .changePlaybackRate(let rate) = command {
-            let nearest = Self.rateOptions.min { abs($0 - rate) < abs($1 - rate) } ?? 1.0
-            setRateMultiplier(nearest)
-            return .success
-        }
-        supersedePreparation()
-        if command == .nextTrack, !canSkipToNextParagraph { return .commandFailed }
-        if command == .togglePlayPause { playback.reconcile(with: engineSnapshot()) }
-        guard let intent = command.intent else { return .commandFailed }
-        perform(intent)
-        return .success
-    }
-
     // MARK: - Interruptions / route changes
 
     /// Calls / Siri pause (and resume if iOS says `shouldResume`); losing the headphones pauses.
@@ -787,25 +616,13 @@ final class SpeechController {
         case .resume:
             audioSession.activate()
             perform(.resume)
+        case .rebuildEngines:
+            stopEngines()
+            for engine in listenEngines { engine.mediaServicesWereReset() }
+            execute(playback.holdForRebuiltEngines())
         case .none:
             break
         }
-    }
-
-    // MARK: - Now Playing
-
-    private func refreshNowPlaying() {
-        guard let id = playback.articleID, playback.isPrepared,
-              playback.phase == .playing || playback.phase == .paused else {
-            lockScreen.update(nil)
-            return
-        }
-        let meta = sessionMeta?.id == id ? sessionMeta : nil
-        let info = NowPlayingInfo(
-            title: meta?.title ?? "Meridian Reader", site: meta?.site, album: meta?.folder?.name,
-            paragraph: playback.playhead + 1, paragraphCount: playback.paragraphCount,
-            isPlaying: playback.phase == .playing, rate: rateMultiplier, artwork: meta?.artwork)
-        lockScreen.update(info, canNext: playback.playhead + 1 < playback.paragraphCount, canPrevious: true)
     }
 
     // MARK: - Foreground / background
@@ -834,18 +651,16 @@ final class SpeechController {
     func execute(_ commands: [PlaybackCommand]) {
         for command in commands {
             switch command {
-            case .enginePlay(let from):
-                speak(fromUTF16Offset: startOffset(forParagraph: from), startPaused: false)
+            case .enginePlay:
+                speak(fromUTF16Offset: playback.utf16Offset, startPaused: false)
             case .enginePause:
                 pauseEngines()
             case .engineResume:
                 resumeEngines()
             case .engineStop:
                 stopEngines()
-            case .engineSeek(let paragraph):
-                let offset = startOffset(forParagraph: paragraph)
-                let startPaused = playback.phase == .paused
-                speak(fromUTF16Offset: offset, startPaused: startPaused)
+            case .engineSeek:
+                speak(fromUTF16Offset: playback.utf16Offset, startPaused: playback.phase == .paused)
             }
         }
     }
@@ -863,7 +678,7 @@ final class SpeechController {
         audioSession.activate()
         guard let engine = activeEngine, engine.snapshot.isPaused || engine.snapshot.isAudible else {
             // Nothing held: play from the playhead (the scrubbed sentence, if any).
-            speak(fromUTF16Offset: startOffset(forParagraph: playback.playhead), startPaused: false)
+            speak(fromUTF16Offset: playback.utf16Offset, startPaused: false)
             return
         }
         engine.resume()
@@ -897,7 +712,7 @@ final class SpeechController {
         }
     }
 
-    private func restartUtteranceIfNeeded() {
+    func restartUtteranceIfNeeded() {
         guard playback.isPrepared else { return }
         guard playback.phase == .playing || playback.phase == .paused else { return }
         speak(fromUTF16Offset: playback.utf16Offset, startPaused: playback.phase == .paused)
@@ -938,7 +753,7 @@ final class SpeechController {
     private func finishSession(restartBake: Bool) {
         let articleID = playback.articleID
         let paragraphs = playback.document.paragraphs
-        let isChapter = sessionMeta?.id == articleID && sessionMeta?.folder?.isBookOrSeries == true
+        let isChapter = boundMeta?.folder?.isBookOrSeries == true
         stopEngines()
         // Let other apps' audio resume (Stop Listening / the end of an article or a book).
         audioSession.deactivate()

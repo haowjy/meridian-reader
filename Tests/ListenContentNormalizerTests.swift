@@ -23,7 +23,7 @@ final class ListenContentNormalizerTests: XCTestCase {
 
         let fixture = TestSpeech()
         defer { fixture.tearDown() }
-        fixture.speech.start(SpeechSession(id: UUID(), document: document), fromParagraph: 1)
+        fixture.speech.start(SpeechSession(id: UUID(), document: document), at: ListenSpot(paragraph: 1))
         let play = try XCTUnwrap(fixture.apple.plays.last, "the engine was asked to speak")
         XCTAssertEqual(play.document.paragraphs, document.paragraphs)
         XCTAssertEqual(play.utf16Offset, document.startUTF16Offset(forParagraph: 1), "from the loose text")

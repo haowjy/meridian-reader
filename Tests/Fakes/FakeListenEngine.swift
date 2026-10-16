@@ -12,6 +12,7 @@ final class FakeListenEngine: ListenEngine {
     private(set) var pauseCount = 0
     private(set) var resumeCount = 0
     private(set) var stopCount = 0
+    private(set) var resetCount = 0
     private(set) var rate = 1.0
     private var speaking = false
     private var paused = false
@@ -50,6 +51,10 @@ final class FakeListenEngine: ListenEngine {
     var isWaitingForAudio: Bool { false }
     var sourceNote: String? { nil }
     func appDidBecomeActive() {}
+    func mediaServicesWereReset() {
+        resetCount += 1
+        stop()
+    }
     var debug: ListenEngineDebug { ListenEngineDebug(isSpeaking: speaking, isPaused: paused) }
 
     func emit(_ event: PlaybackEngineEvent) {

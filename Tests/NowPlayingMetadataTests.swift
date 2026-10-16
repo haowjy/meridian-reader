@@ -20,18 +20,32 @@ final class NowPlayingMetadataTests: XCTestCase {
         let session = SpeechSession(id: UUID(), document: ParagraphDocument(parts: ["One.", "Two.", "Three."]),
                                     detectedLanguage: "en", title: "Chapter 12: Hunsford", site: "Jane Austen",
                                     artwork: Self.cover, folder: PlaybackFolder(id: UUID(), name: "Pride and Prejudice", isBookOrSeries: true))
-        speech.start(session, fromParagraph: 1)
+        speech.start(session, at: ListenSpot(paragraph: 1))
         let info = try XCTUnwrap(speech.lockScreen.lastInfo)
         XCTAssertEqual(info.title, "Chapter 12: Hunsford")
         XCTAssertEqual(info.subtitle, "Jane Austen – Paragraph 2 of 3")
         XCTAssertEqual(info.albumTitle, "Pride and Prejudice")
         XCTAssertEqual(info.artwork, Self.cover)
 
-        let fields = info.dictionary
+        let fields = speech.lockScreen.fields(for: info)
         XCTAssertEqual(fields[MPMediaItemPropertyTitle] as? String, "Chapter 12: Hunsford")
         XCTAssertEqual(fields[MPMediaItemPropertyArtist] as? String, "Jane Austen – Paragraph 2 of 3")
         XCTAssertEqual(fields[MPMediaItemPropertyAlbumTitle] as? String, "Pride and Prejudice")
-        XCTAssertNotNil(fields[MPMediaItemPropertyArtwork])
+        let artwork = try XCTUnwrap(fields[MPMediaItemPropertyArtwork] as? MPMediaItemArtwork)
+
+        speech.skipToNextParagraph()
+        let next = try XCTUnwrap(speech.lockScreen.lastInfo)
+        XCTAssertEqual(next.subtitle, "Jane Austen – Paragraph 3 of 3")
+        XCTAssertTrue(speech.lockScreen.fields(for: next)[MPMediaItemPropertyArtwork] as? MPMediaItemArtwork === artwork,
+                      "the artwork is made once per picture, not per paragraph")
+    }
+
+    /// The lock screen and the bar show the same title, so a page without one reads "Untitled" on
+    /// both.
+    func testAPageWithoutATitleReadsTheSameOnTheLockScreenAndTheBar() throws {
+        speech.start(SpeechSession(id: UUID(), document: ParagraphDocument(parts: ["One.", "Two."])))
+        XCTAssertEqual(speech.nowPlaying?.title, "Untitled")
+        XCTAssertEqual(try XCTUnwrap(speech.lockScreen.lastInfo).title, "Untitled")
     }
 
     func testAPageInNoBookShowsItsSite() throws {
@@ -53,7 +67,7 @@ final class NowPlayingMetadataTests: XCTestCase {
         book.coverData = Self.cover
         pages[1].byline = "chapter byline"
 
-        speech.start(.page(pages[1]), fromParagraph: 0)
+        speech.start(.page(pages[1]))
         let info = try XCTUnwrap(speech.lockScreen.lastInfo)
         XCTAssertEqual(info.title, "Chapter 2")
         XCTAssertEqual(info.subtitle, "Book Author – Paragraph 1 of 3")
@@ -63,7 +77,7 @@ final class NowPlayingMetadataTests: XCTestCase {
 
         let own = UIImage(systemName: "star")!.pngData()!
         pages[0].artworkData = own
-        speech.start(.page(pages[0]), fromParagraph: 0)
+        speech.start(.page(pages[0]))
         XCTAssertEqual(speech.lockScreen.lastInfo?.artwork, own, "a chapter's own artwork first")
     }
 }

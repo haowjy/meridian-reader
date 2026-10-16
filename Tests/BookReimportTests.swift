@@ -403,8 +403,8 @@ final class BookReimportTests: XCTestCase {
         XCTAssertNil(page(two)?.finishedAt, "what was heard isn't what it says now")
         let start = try XCTUnwrap(library.continueStart(of: book))
         XCTAssertEqual(start.page.key, two, "Continue plays the revision")
-        XCTAssertEqual(start.paragraph, 0, "from its top")
-        XCTAssertEqual(start.utf16Offset, 0)
+        XCTAssertEqual(start.spot.paragraph, 0, "from its top")
+        XCTAssertEqual(start.spot.utf16Offset, 0)
     }
 
     func testAFinishedBookWhoseLastChapterIsRevisedIsNoLongerFinished() throws {
@@ -420,7 +420,7 @@ final class BookReimportTests: XCTestCase {
         XCTAssertNil(book.finishedAt)
         let start = try XCTUnwrap(library.continueStart(of: book))
         XCTAssertEqual(start.page.key, three, "Continue plays the revised last chapter, not the book from its start")
-        XCTAssertEqual(start.paragraph, 0)
+        XCTAssertEqual(start.spot.paragraph, 0)
     }
 
     func testAFinishedBookStaysFinishedWhileItsPlaceIsFinishedAndLast() throws {

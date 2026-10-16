@@ -5,7 +5,9 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
 
 ## Where to start reading
 
-`SpeechController` (intents, engine binding) → `Playback/PlaybackSession.swift` (the state machine)
+`SpeechController` (intents, engine binding; `+Advance` carries on through folders, `+NowPlaying`
+is the lock screen and remote commands, `+Settings` the language, voice and `ListenRate`) →
+`Playback/PlaybackSession.swift` (the state machine)
 → `Playback/` adapters (`AppleListenEngine`, `LocalListenEngine` → `LocalListenPlayer`) →
 `LocalTTSCoordinator` (engine selection, `LocalSynthService`, launch recovery) →
 `Core/TTS/GlobalSynthQueue.swift` (render queue) and `Core/TTS/ArticleAudioCache.swift`.
@@ -13,7 +15,7 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
 ## Contracts that break quietly
 
 - **What you hear.** Play buttons ask `playState(of:)` and press through `press(_:start:)`; never
-  compare session ids in a view. A finished page stays bound (`.finished`); only `stop()` (Stop
+  compare session ids in a view. Every start goes through `start(_:at:)` (`listen(to:)` wraps it). A finished page stays bound (`.finished`); only `stop()` (Stop
   Listening) unbinds. `onProgress` fires synchronously from `publishPlayback`, so the recorder sees
   a replaced page's last spot (the `.stop` before the next `bind`). `listen(to:)` hands its article
   to `onListen` before it binds, so the recorder can keep a page the library doesn't have on its
@@ -45,7 +47,9 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
   page holding it. Anything new that writes a position, start or end onto a page, or moves the
   session to another key, goes through the same check.
 - **Position.** Only `PlaybackSessionState` holds it, and a seek publishes it synchronously in
-  the same transaction as the UI change; the scrubber relies on that to avoid a snap back. An
+  the same transaction as the UI change; the scrubber relies on that to avoid a snap back. The
+  session settles it before any engine play or seek (the commands carry no position), so the
+  controller never works out a start offset itself. An
   engine never reports a spot before the offset its play started at.
 - **Per-tick cost.** The live offset changes several times a second. Read it only in leaf views
   (`PlayheadReader`, the Now Playing bar's progress, Now Playing's sentence underline); reading it

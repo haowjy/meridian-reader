@@ -82,7 +82,7 @@ final class ProgressFollowsTextTests: XCTestCase {
     /// A row's ▶ on `page`, as `LibraryActions.play` does it: pauses, resumes or starts it.
     private func play(_ page: Page) {
         speech.press(.page(page.listenKey)) {
-            speech.toggle(.page(page), resumeParagraph: page.positionParagraph, resumeUTF16Offset: page.positionUTF16)
+            speech.start(.page(page), at: page.listenStart)
         }
     }
 
@@ -249,7 +249,7 @@ final class ProgressFollowsTextTests: XCTestCase {
         listen(to: 2)
         notifications.post(name: UIApplication.willResignActiveNotification, object: nil)
         speech.pause()
-        speech.listen(to: refreshed, fromParagraph: 3)
+        speech.listen(to: refreshed, at: ListenSpot(paragraph: 3))
         XCTAssertEqual(speech.document.paragraphs, firstText, "Listen plays the session bound, in its own text")
         finish()
         XCTAssertEqual(spot(page), heard, "nothing in the older text is written on the refreshed page")

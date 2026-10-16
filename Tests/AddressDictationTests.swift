@@ -163,6 +163,22 @@ final class AddressDictationTests: XCTestCase {
         XCTAssertEqual(audio.log, ["begin", "end"], "session handed back even if the mic failed")
     }
 
+    /// Listen playing: dictation pauses it and borrows its audio session for the mic; when the mic
+    /// closes the session comes back, still active, and Listen plays on.
+    func testListenPausesForDictationAndPlaysOnAfter() throws {
+        let fixture = TestSpeech()
+        defer { fixture.tearDown() }
+        let speech = fixture.speech
+        speech.listen(to: TestSpeech.article("https://example.com/a"))
+        let handoff = ListenDictationHandoff(speech: speech)
+
+        try handoff.willStartDictation()
+        XCTAssertEqual(speech.playbackPhase, .paused)
+        handoff.didEndDictation()
+        XCTAssertEqual(speech.playbackPhase, .playing)
+        XCTAssertTrue(speech.audioSession.isActive)
+    }
+
     func testRecognizerErrorAfterWordsIsNotShown() async {
         let (d, rec, _, _) = make()
         d.start()

@@ -32,9 +32,7 @@ struct LibraryActions {
     /// it.
     func play(_ page: Page) {
         speech.press(.page(page.listenKey)) {
-            let fromTop = page.finishedAt != nil
-            speech.toggle(.page(page), resumeParagraph: fromTop ? 0 : page.positionParagraph,
-                          resumeUTF16Offset: fromTop ? 0 : page.positionUTF16)
+            speech.start(.page(page), at: page.listenStart)
         }
     }
 
@@ -72,7 +70,7 @@ struct LibraryActions {
     func playFolder(_ folder: Folder) {
         speech.press(.folder(folder.id)) {
             guard let start = library.continueStart(of: folder) else { return }
-            speech.toggle(.page(start.page), resumeParagraph: start.paragraph, resumeUTF16Offset: start.utf16Offset)
+            speech.start(.page(start.page), at: start.spot)
         }
     }
 

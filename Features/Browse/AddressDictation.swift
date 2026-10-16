@@ -31,7 +31,7 @@ protocol DictationRecognizing: AnyObject {
 /// session (and playback, if it was playing) back after the mic closes.
 @MainActor
 protocol DictationAudioHandoff: AnyObject {
-    func willStartDictation()
+    func willStartDictation() throws
     func didEndDictation()
 }
 
@@ -107,9 +107,9 @@ final class AddressDictation {
             finish(error: message)
             return
         }
-        audio?.willStartDictation()
         audioHandedOff = true
         do {
+            try audio?.willStartDictation()
             try recognizer.start { [weak self] event in self?.handle(event, gen: gen) }
             state = .listening
             armSilenceTimer(noSpeechTimeout, gen: gen)
@@ -165,9 +165,8 @@ final class AddressDictation {
 
 // MARK: - Listen hand-off
 
-/// Pauses Listen while the mic is open, then restores its `.playback`/`.spokenAudio` session and
-/// resumes it if it was playing. If Listen wasn't holding the session, the session is released
-/// (notifying others, so music can resume).
+/// Pauses Listen while the mic is open and lends it the audio session (`ListenAudioSession`), then
+/// takes the session back and resumes Listen if it was playing.
 @MainActor
 final class ListenDictationHandoff: DictationAudioHandoff {
     private weak var speech: SpeechController?
@@ -175,21 +174,17 @@ final class ListenDictationHandoff: DictationAudioHandoff {
 
     init(speech: SpeechController) { self.speech = speech }
 
-    func willStartDictation() {
+    func willStartDictation() throws {
         guard let speech else { return }
         resumeListenAfterDictation = speech.isPlaying
         if resumeListenAfterDictation { speech.pause() }
+        try speech.audioSession.lendForRecording()
     }
 
     func didEndDictation() {
         guard let speech else { return }
-        let session = speech.audioSession
-        session.configure() // back to Listen's category after the recorder's
-        if resumeListenAfterDictation {
-            speech.resume()
-        } else if !session.isActive, session.managesSystemSession {
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        }
+        speech.audioSession.reclaim()
+        if resumeListenAfterDictation { speech.resume() }
         resumeListenAfterDictation = false
     }
 }
@@ -224,9 +219,6 @@ final class SystemDictationRecognizer: DictationRecognizing {
 
     func start(onEvent: @escaping @MainActor (DictationEvent) -> Void) throws {
         guard let recognizer else { throw DictationError.unavailable }
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .measurement, options: [])
-        try session.setActive(true)
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true

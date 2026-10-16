@@ -11,8 +11,11 @@ import Foundation
 final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelegate {
     let name = "Apple"
     var onEvent: ((PlaybackEngineEvent) -> Void)?
+    /// The render queue's run state (the debug panel's app phase).
+    private let runState: AppRunState
 
-    nonisolated(unsafe) private let synthesizer = AVSpeechSynthesizer()
+    /// Replaced after a media-services reset (`mediaServicesWereReset`).
+    nonisolated(unsafe) private var synthesizer = AVSpeechSynthesizer()
     private var request: ListenPlayRequest?
     /// The utterance speaking or paused now (nil: stopped, or a paused `play` holding nothing).
     private(set) var utterance: AVSpeechUtterance?
@@ -22,7 +25,8 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
     private var spokenOffset = 0
     private var rate = 1.0
 
-    override init() {
+    init(runState: AppRunState = .shared) {
+        self.runState = runState
         super.init()
         synthesizer.delegate = self
     }
@@ -81,9 +85,15 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
     var sourceNote: String? { nil }
     func appDidBecomeActive() {}
 
+    func mediaServicesWereReset() {
+        stop()
+        synthesizer = AVSpeechSynthesizer()
+        synthesizer.delegate = self
+    }
+
     var debug: ListenEngineDebug {
         ListenEngineDebug(isSpeaking: synthesizer.isSpeaking, isPaused: synthesizer.isPaused,
-                          renderMode: "Apple TTS (AVSpeechSynthesizer) · \(AppRunState.shared.phase.rawValue)")
+                          renderMode: "Apple TTS (AVSpeechSynthesizer) · \(runState.phase.rawValue)")
     }
 
     // MARK: - AVSpeechSynthesizerDelegate

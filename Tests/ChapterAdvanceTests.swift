@@ -90,20 +90,20 @@ final class ChapterAdvanceTests: XCTestCase {
 
         var start = try XCTUnwrap(library.continueStart(of: book))
         XCTAssertTrue(start.page === pages[1], "no place yet: the first chapter after the title page")
-        XCTAssertEqual(start.paragraph, 0)
+        XCTAssertEqual(start.spot.paragraph, 0)
 
         book.currentPageKey = pages[2].key
         pages[2].positionParagraph = 1
         pages[2].positionUTF16 = 40
         start = try XCTUnwrap(library.continueStart(of: book))
         XCTAssertTrue(start.page === pages[2], "the place")
-        XCTAssertEqual(start.paragraph, 1, "at its spot")
-        XCTAssertEqual(start.utf16Offset, 40)
+        XCTAssertEqual(start.spot.paragraph, 1, "at its spot")
+        XCTAssertEqual(start.spot.utf16Offset, 40)
 
         pages[2].finishedAt = env.now
         start = try XCTUnwrap(library.continueStart(of: book))
         XCTAssertTrue(start.page === pages[3], "past a finished place")
-        XCTAssertEqual(start.paragraph, 0, "from its start")
+        XCTAssertEqual(start.spot.paragraph, 0, "from its start")
 
         book.currentPageKey = pages[3].key
         pages[3].finishedAt = env.now

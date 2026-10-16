@@ -93,7 +93,7 @@ final class SubParagraphSeekTests: XCTestCase {
 
     private func state(_ phase: PlaybackPhase) -> PlaybackSessionState {
         var s = PlaybackSessionState()
-        s.bind(articleID: UUID(), document: ParagraphDocument(parts: ["One. Uno.", "Two two. Dos dos.", "Three."]), startingAt: 0)
+        s.bind(articleID: UUID(), document: ParagraphDocument(parts: ["One. Uno.", "Two two. Dos dos.", "Three."]))
         s.phase = phase
         return s
     }
@@ -102,7 +102,7 @@ final class SubParagraphSeekTests: XCTestCase {
         var s = state(.playing)
         let target = s.document.startUTF16Offset(forParagraph: 1) + 9 // "Dos dos."
         let cmds = s.handle(.seekOffset(utf16: target), engine: .init(isAudible: true, isPaused: false))
-        XCTAssertEqual(cmds, [.engineSeek(paragraph: 1)])
+        XCTAssertEqual(cmds, [.engineSeek])
         XCTAssertEqual(s.playhead, 1)
         XCTAssertEqual(s.utf16Offset, target, "mid-paragraph, not the paragraph start")
         XCTAssertEqual(s.phase, .playing)
@@ -112,7 +112,7 @@ final class SubParagraphSeekTests: XCTestCase {
         var s = state(.paused)
         let target = s.document.startUTF16Offset(forParagraph: 0) + 5
         XCTAssertEqual(s.handle(.seekOffset(utf16: target), engine: .init(isAudible: false, isPaused: true)),
-                       [.engineSeek(paragraph: 0)])
+                       [.engineSeek])
         XCTAssertEqual(s.phase, .paused)
         XCTAssertEqual(s.utf16Offset, target)
     }
@@ -121,7 +121,7 @@ final class SubParagraphSeekTests: XCTestCase {
         var s = state(.prepared)
         let target = s.document.startUTF16Offset(forParagraph: 1) + 9
         XCTAssertEqual(s.handle(.seekOffset(utf16: target), engine: .init(isAudible: false, isPaused: false)), [])
-        XCTAssertEqual(s.handle(.play(from: 1), engine: .init(isAudible: false, isPaused: false)), [.enginePlay(from: 1)])
+        XCTAssertEqual(s.handle(.play(from: 1), engine: .init(isAudible: false, isPaused: false)), [.enginePlay])
         XCTAssertEqual(s.utf16Offset, target, "Play from the playhead keeps the scrubbed sentence")
         // Playing another paragraph starts at its beginning.
         var t = state(.prepared)

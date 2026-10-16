@@ -202,14 +202,14 @@ enum LaunchHooks {
             return
         }
         ListenTimingLog.log("debug_chain_demo_chapters", [
-            "started": true, "key": ListenTimingLog.shortKey(start.page.listenKey), "p": start.paragraph,
+            "started": true, "key": ListenTimingLog.shortKey(start.page.listenKey), "p": start.spot.paragraph,
             "engine": speech.activeEngine?.name ?? "—", "build": LocalTTSCoordinator.buildConfiguration,
         ], console: true)
     }
 
     /// Plays `book` from where Continue would, unless something already plays, after waiting
     /// (≤ 20 s) for the on-device engine so it doesn't start on Apple. Returns where it started.
-    private static func play(_ book: Folder, library: LibraryStore, speech: SpeechController) async -> (page: Page, paragraph: Int)? {
+    private static func play(_ book: Folder, library: LibraryStore, speech: SpeechController) async -> (page: Page, spot: ListenSpot)? {
         guard speech.activeSessionID == nil, let start = library.continueStart(of: book) else { return nil }
         let tts = speech.localTTS
         var waited = 0
@@ -217,8 +217,8 @@ enum LaunchHooks {
             try? await Task.sleep(for: .milliseconds(200))
             waited += 1
         }
-        speech.toggle(.page(start.page), resumeParagraph: start.paragraph, resumeUTF16Offset: start.utf16Offset)
-        return (start.page, start.paragraph)
+        speech.start(.page(start.page), at: start.spot)
+        return start
     }
 
     /// `-seedDemoArticle`: replace the saved and played pages, and every folder but Favorites, with

@@ -62,11 +62,11 @@ final class BackgroundListeningTests: XCTestCase {
 
         // The Session decides (single source of truth) — deterministic engine snapshots.
         var s = PlaybackSessionState()
-        s.bind(articleID: UUID(), document: ParagraphDocument(parts: ["a.", "b.", "c."]), startingAt: 0)
+        s.bind(articleID: UUID(), document: ParagraphDocument(parts: ["a.", "b.", "c."]))
         let silent = PlaybackEngineSnapshot(isAudible: false, isPaused: false)
         let audible = PlaybackEngineSnapshot(isAudible: true, isPaused: false)
         let paused = PlaybackEngineSnapshot(isAudible: false, isPaused: true)
-        XCTAssertEqual(s.handle(RemoteCommand.play.intent!, engine: silent), [.enginePlay(from: 0)])
+        XCTAssertEqual(s.handle(RemoteCommand.play.intent!, engine: silent), [.enginePlay])
         XCTAssertEqual(s.phase, .playing)
         XCTAssertEqual(s.handle(RemoteCommand.togglePlayPause.intent!, engine: audible), [.enginePause])
         XCTAssertEqual(s.phase, .playing, "paused only once the engine confirms")
@@ -74,9 +74,9 @@ final class BackgroundListeningTests: XCTestCase {
         XCTAssertEqual(s.phase, .paused)
         XCTAssertEqual(s.handle(RemoteCommand.play.intent!, engine: paused), [.engineResume])
         XCTAssertEqual(s.phase, .playing)
-        XCTAssertEqual(s.handle(RemoteCommand.nextTrack.intent!, engine: audible), [.engineSeek(paragraph: 1)])
+        XCTAssertEqual(s.handle(RemoteCommand.nextTrack.intent!, engine: audible), [.engineSeek])
         XCTAssertEqual(s.playhead, 1)
-        XCTAssertEqual(s.handle(RemoteCommand.previousTrack.intent!, engine: audible), [.engineSeek(paragraph: 0)])
+        XCTAssertEqual(s.handle(RemoteCommand.previousTrack.intent!, engine: audible), [.engineSeek])
         XCTAssertEqual(s.playhead, 0)
         XCTAssertEqual(s.handle(RemoteCommand.pause.intent!, engine: audible), [.enginePause])
         XCTAssertEqual(s.phase, .playing)
@@ -84,6 +84,52 @@ final class BackgroundListeningTests: XCTestCase {
         XCTAssertEqual(s.phase, .paused)
         XCTAssertEqual(s.handle(RemoteCommand.togglePlayPause.intent!, engine: paused), [.engineResume])
         XCTAssertEqual(s.phase, .playing)
+    }
+
+    /// A finished page plays again from its top whatever asks: Play (the lock screen, headphones,
+    /// CarPlay), Play/Pause, and ▶ at the playhead. ☝︎ on another paragraph plays from there.
+    func testEveryPlayOfAFinishedPageStartsAtItsTop() {
+        let document = ParagraphDocument(parts: ["First.", "Second.", "Third one."])
+        let silent = PlaybackEngineSnapshot(isAudible: false, isPaused: false)
+        func finished() -> PlaybackSessionState {
+            var s = PlaybackSessionState()
+            s.bind(articleID: UUID(), document: document, at: ListenSpot(paragraph: 2))
+            s.handle(.position(paragraph: 2, utf16: document.startUTF16Offset(forParagraph: 2) + 5))
+            s.handle(.finished)
+            return s
+        }
+        for intent in [RemoteCommand.play.intent!, RemoteCommand.togglePlayPause.intent!, .play(from: 2)] {
+            var s = finished()
+            XCTAssertEqual(s.handle(intent, engine: silent), [.enginePlay], "\(intent)")
+            XCTAssertEqual(s.playhead, 0, "\(intent)")
+            XCTAssertEqual(s.utf16Offset, 0, "\(intent): not where the voice finished")
+            XCTAssertEqual(s.phase, .playing, "\(intent)")
+        }
+        var s = finished()
+        XCTAssertEqual(s.handle(.play(from: 1), engine: silent), [.enginePlay])
+        XCTAssertEqual(s.utf16Offset, document.startUTF16Offset(forParagraph: 1))
+    }
+
+    /// Headphones or the lock screen after a page finished: Play and Play/Pause speak it again
+    /// from its top, not its last word, and the lock screen (cleared at the finish) shows it again.
+    func testRemotePlayAfterAFinishReplaysFromTheTop() {
+        let fixture = TestSpeech()
+        defer { fixture.tearDown() }
+        let speech = fixture.speech
+        let s = session()
+        speech.start(s)
+        for command in [RemoteCommand.play, .togglePlayPause] {
+            fixture.apple.emit(.position(paragraph: 2, utf16: s.document.startUTF16Offset(forParagraph: 2) + 6))
+            fixture.apple.emit(.finished)
+            XCTAssertEqual(speech.playbackPhase, .finished)
+            XCTAssertNil(speech.lockScreen.lastInfo, "a finished page leaves the lock screen")
+
+            XCTAssertEqual(speech.handleRemoteCommand(command), .success)
+            XCTAssertEqual(fixture.apple.plays.last?.utf16Offset, 0, "\(command): from the top")
+            XCTAssertEqual(speech.playbackPhase, .playing)
+            XCTAssertEqual(speech.lockScreen.lastInfo?.progressLabel, "Paragraph 1 of 3")
+            XCTAssertEqual(speech.lockScreen.lastInfo?.isPlaying, true)
+        }
     }
 
     func testRemoteCommandsDriveSpeechControllerSessionAndNowPlaying() {
@@ -98,6 +144,7 @@ final class BackgroundListeningTests: XCTestCase {
         XCTAssertEqual(speech.handleRemoteCommand(.play), .success)
         XCTAssertEqual(speech.playback.phase, .playing)
         XCTAssertTrue(audio.isActive, "audio session activated when playback starts")
+        XCTAssertEqual(speech.handleRemoteCommand(.previousTrack), .commandFailed, "nothing before the first paragraph, as ⏮")
         XCTAssertEqual(nowPlaying.lastInfo?.title, "Remote Test")
         XCTAssertEqual(nowPlaying.lastInfo?.site, "example.com")
         XCTAssertEqual(nowPlaying.lastInfo?.progressLabel, "Paragraph 1 of 3")
@@ -116,8 +163,10 @@ final class BackgroundListeningTests: XCTestCase {
         XCTAssertEqual(speech.handleRemoteCommand(.previousTrack), .success)
         XCTAssertEqual(speech.currentParagraphIndex, 1)
 
+        let preparing = speech.beginPreparing(.page(UUID()))
         XCTAssertEqual(speech.handleRemoteCommand(.changePlaybackRate(1.4)), .success)
         XCTAssertEqual(speech.rateMultiplier, 1.5, "snapped to the nearest listen-bar rate")
+        XCTAssertFalse(speech.isStillPreparing(preparing), "a lock-screen speed change is the user's too")
         XCTAssertEqual(nowPlaying.lastInfo?.rate, 1.5)
 
         speech.stop() // Browse ✕
@@ -145,6 +194,11 @@ final class BackgroundListeningTests: XCTestCase {
 
         XCTAssertEqual(p.handle(.oldDeviceUnavailable, isPlaying: true), .pause, "headphones unplugged")
         XCTAssertEqual(p.handle(.oldDeviceUnavailable, isPlaying: false), .none)
+
+        XCTAssertEqual(p.handle(.interruptionBegan, isPlaying: true), .pause)
+        XCTAssertEqual(p.handle(.mediaServicesReset, isPlaying: false), .rebuildEngines)
+        XCTAssertEqual(p.handle(.interruptionEnded(shouldResume: true), isPlaying: false), .none,
+                       "a reset ends the auto-resume")
     }
 
     func testAudioSessionNotificationParsing() {
@@ -165,7 +219,7 @@ final class BackgroundListeningTests: XCTestCase {
 
     func testInterruptionsPauseAndResumeTheSession() {
         let (speech, audio, _) = makeSpeech()
-        speech.start(session(), fromParagraph: 0)
+        speech.start(session())
         XCTAssertEqual(speech.playback.phase, .playing)
 
         speech.handleAudioSessionEvent(.interruptionBegan) // call / Siri
@@ -182,6 +236,43 @@ final class BackgroundListeningTests: XCTestCase {
         XCTAssertEqual(speech.playback.phase, .playing)
         speech.handleAudioSessionEvent(.oldDeviceUnavailable) // headphones out
         XCTAssertEqual(speech.playback.phase, .paused)
+    }
+
+    /// iOS reset its media services: the engines' audio objects are dead. A page playing is held
+    /// paused at its spot on rebuilt engines, and Play speaks from there through new ones.
+    func testAMediaServicesResetHoldsThePagePausedOnRebuiltEngines() {
+        let fixture = TestSpeech()
+        defer { fixture.tearDown() }
+        let speech = fixture.speech
+        let s = session()
+        speech.start(s)
+        let spot = s.document.startUTF16Offset(forParagraph: 1) + 7
+        fixture.apple.emit(.position(paragraph: 1, utf16: spot))
+
+        speech.handleAudioSessionEvent(.mediaServicesReset)
+        XCTAssertEqual(speech.playbackPhase, .paused)
+        XCTAssertEqual(fixture.apple.resetCount, 1, "the engine builds new audio objects")
+        XCTAssertEqual(fixture.apple.plays.last?.startPaused, true, "bound again without sounding")
+        XCTAssertEqual(fixture.apple.plays.last?.utf16Offset, spot)
+
+        speech.press(.page(s.id)) { XCTFail("▶ plays what you hear") }
+        XCTAssertEqual(speech.playbackPhase, .playing)
+        XCTAssertEqual(fixture.apple.plays.last?.startPaused, false)
+        XCTAssertEqual(fixture.apple.plays.last?.utf16Offset, spot, "Play speaks from the held spot")
+    }
+
+    /// A skip during a call is the user's choice: the call ending with `shouldResume` doesn't
+    /// start playback again.
+    func testASkipDuringAnInterruptionCancelsTheAutoResume() {
+        let (speech, _, _) = makeSpeech()
+        speech.start(session())
+        speech.handleAudioSessionEvent(.interruptionBegan)
+        XCTAssertEqual(speech.playback.phase, .paused)
+
+        speech.skipToNextParagraph()
+        XCTAssertEqual(speech.currentParagraphIndex, 1)
+        speech.handleAudioSessionEvent(.interruptionEnded(shouldResume: true))
+        XCTAssertEqual(speech.playback.phase, .paused, "no auto-resume after the user's skip")
     }
 
     // MARK: - Background compute switch (fake engine)

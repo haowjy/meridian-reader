@@ -94,9 +94,9 @@ enum AppLaunch {
                 try? await Task.sleep(for: .milliseconds(200))
                 waited += 1
             }
-            speech.start(session, fromParagraph: p)
+            speech.start(session, at: ListenSpot(paragraph: p))
         } else {
-            speech.prepare(session, startingParagraph: p, utf16: page.positionUTF16)
+            speech.prepare(session, at: ListenSpot(paragraph: p, utf16Offset: page.positionUTF16))
         }
         shell.showNowPlaying()
         ListenTimingLog.log("kokoro_resume", [

@@ -28,7 +28,7 @@ final class PlaybackAdvanceTests: XCTestCase {
     private func play(_ book: FakeChapterLibrary, chapter index: Int, on speech: SpeechController? = nil) {
         let speech = speech ?? self.speech
         speech.nextChapters = book
-        speech.start(book.sessions[index], fromParagraph: 0)
+        speech.start(book.sessions[index])
     }
 
     /// Apple reaches the last paragraph and finishes it.
@@ -182,7 +182,7 @@ final class PlaybackAdvanceTests: XCTestCase {
         speech.nextChapters = library
 
         let start = try XCTUnwrap(library.continueStart(of: book))
-        speech.toggle(.page(start.page), resumeParagraph: start.paragraph)
+        speech.start(.page(start.page), at: start.spot)
         XCTAssertEqual(speech.activeFolderID, book.id)
         XCTAssertEqual(speech.lockScreen.lastInfo?.albumTitle, "The Book")
         XCTAssertEqual(book.currentPageKey, pages[1].key, "the chapter playing is the book's place")
@@ -215,7 +215,7 @@ final class PlaybackAdvanceTests: XCTestCase {
         let recorder = ListeningProgressRecorder(speech: speech, library: library, notificationCenter: NotificationCenter())
         cleanups.append { _ = recorder }
         speech.nextChapters = library
-        speech.toggle(.page(pages[3]), resumeParagraph: 0)
+        speech.start(.page(pages[3]))
         finishChapter()
         XCTAssertEqual(book.currentPageKey, pages[4].key)
         XCTAssertFalse(env.cache.hasCache(for: pages[0].listenKey), "three behind: audio deleted")
@@ -295,7 +295,7 @@ final class PlaybackAdvanceTests: XCTestCase {
         cleanups.append { _ = recorder }
         speech.nextChapters = FetchingLibrary(library, text: ["Chapter two, fetched."], delay: 0.3)
 
-        speech.toggle(.page(one), resumeParagraph: 0)
+        speech.start(.page(one))
         let plays = apple.plays.count
         finishChapter()
         XCTAssertTrue(speech.isBufferingNext, "fetching chapter two")
@@ -387,7 +387,7 @@ final class PlaybackAdvanceTests: XCTestCase {
         bakeKeys += [page.id, book.key(0)]
         speech.nextChapters = book
         // Apple speaks while the on-device engine loads, and finishes before it hands over.
-        speech.start(page, fromParagraph: 0)
+        speech.start(page)
         await speech.localTTS.selectEngine(FakeEngineProvider.fakeID)
         XCTAssertTrue(speech.localTTS.usesLocalEngine)
         apple.emit(.finished)
@@ -397,7 +397,7 @@ final class PlaybackAdvanceTests: XCTestCase {
 
         speech.stop()
         await speech.localTTS.selectEngine(.apple)
-        speech.start(book.sessions[0], fromParagraph: 0)
+        speech.start(book.sessions[0])
         await speech.localTTS.selectEngine(FakeEngineProvider.fakeID)
         apple.emit(.finished)
         XCTAssertEqual(speech.playbackPhase, .finished, "the book's end")
