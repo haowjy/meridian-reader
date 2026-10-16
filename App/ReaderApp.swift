@@ -35,12 +35,10 @@ struct ReaderApp: App {
     @State private var library: LibraryStore
     @State private var downloads: DownloadCenter
     /// How pages read (Settings › Reading, the Aa panel): one store for both editors.
-    @State private var readingAppearance: ReadingAppearance
+    @State private var readingAppearance = ReadingAppearance(defaults: .standard)
     @State private var developer = DeveloperSettings()
 
     init() {
-        // Before anything reads `AppAppearance.shared`: a UI-test launch clears stored themes first.
-        _readingAppearance = State(initialValue: AppComposition.makeReadingAppearance())
         do {
             container = try LibraryStoreConfiguration.makeContainer()
         } catch {

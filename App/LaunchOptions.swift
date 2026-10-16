@@ -28,8 +28,8 @@ struct LaunchOptions: Equatable {
     var uiTesting = false
     /// `-resetLibrary`: start as a fresh install does. Before anything reads them, the stored
     /// settings go: the engine, every engine's voice, the Apple voice, language and speed, the
-    /// remembered surface and the Library's tab and top-level sort, Recent Searches and the
-    /// download list (`LaunchHooks.resetStoredSettings`). Before the seeds, the library's every
+    /// app's and the reading page's appearance, the remembered surface and the Library's tab and
+    /// top-level sort, Recent Searches and the download list (`LaunchHooks.resetStoredSettings`). Before the seeds, the library's every
     /// page (link pages too) and folder go, with their audio, and the browsing history
     /// (`LaunchHooks.resetLibrary`). The seeds then add to an empty library. Every UI test
     /// launches with it.

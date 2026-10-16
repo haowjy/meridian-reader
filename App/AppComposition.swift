@@ -63,21 +63,6 @@ enum AppComposition {
         progressRecorder = ListeningProgressRecorder(speech: speechController, library: library)
     }
 
-    /// The reading appearance store (Settings › Reading and the Aa panel). A UI-test launch
-    /// (`-uiTesting`) first clears what an earlier run stored for both appearance stores, so each
-    /// test starts at the defaults; launch arguments (`-reading.theme sepia`) still apply over that.
-    static func makeReadingAppearance() -> ReadingAppearance {
-        #if DEBUG
-        if LaunchOptions.current.uiTesting {
-            for key in [AppAppearance.modeKey, AppAppearance.accentKey, ReadingAppearance.themeKey,
-                        ReadingAppearance.fontKey, ReadingAppearance.textSizeKey, ReadingAppearance.lineSpacingKey] {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-        #endif
-        return ReadingAppearance(defaults: .standard)
-    }
-
     /// Downloads (decision D16) over the app's library: a link page's text is fetched out of
     /// sight (`URLPageFetcher`) and saved through the one save path, which also queues its bake.
     /// It starts once the launch's library maintenance is done (`AppLaunch`).

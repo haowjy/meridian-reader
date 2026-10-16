@@ -31,6 +31,10 @@ final class LaunchResetTests: XCTestCase {
         XCTAssertFalse(env.cache.hasCache(for: saved.listenKey), "a deleted page's audio goes with it")
     }
 
+    private static let appearanceKeys = [AppAppearance.modeKey, AppAppearance.accentKey, ReadingAppearance.themeKey,
+                                         ReadingAppearance.fontKey, ReadingAppearance.textSizeKey,
+                                         ReadingAppearance.lineSpacingKey]
+
     func testTheStoredSettingsGoBeforeAnythingReadsThem() throws {
         let defaults = env.defaults
         let engines = env.speech.engines
@@ -42,6 +46,7 @@ final class LaunchResetTests: XCTestCase {
         defaults.set("fr-FR", forKey: SpeechController.languageDefaultsKey)
         defaults.set(false, forKey: SpeechController.languageAutomaticKey)
         defaults.set(2.0, forKey: SpeechController.rateDefaultsKey)
+        for key in Self.appearanceKeys { defaults.set("stored", forKey: key) }
         defaults.set("title", forKey: LibraryTopLevel.sortKey)
         defaults.set("one\ntwo", forKey: RecentSearches.storageKey)
         surface.save(SurfaceMemory(base: .library, libraryPath: [], browserURL: nil))
@@ -52,7 +57,7 @@ final class LaunchResetTests: XCTestCase {
 
         let keys = [LocalTTSCoordinator.engineIDKey, SpeechController.voiceDefaultsKey, SpeechController.languageDefaultsKey,
                     SpeechController.languageAutomaticKey, SpeechController.rateDefaultsKey, LibraryTopLevel.sortKey,
-                    RecentSearches.storageKey] + engines.descriptors.map(\.resolvedVoiceDefaultsKey)
+                    RecentSearches.storageKey] + Self.appearanceKeys + engines.descriptors.map(\.resolvedVoiceDefaultsKey)
         for key in keys { XCTAssertNil(defaults.object(forKey: key), key) }
         XCTAssertNil(surface.load(), "the remembered surface")
         XCTAssertFalse(surface.loadFavoritesTab(), "the Library's tab")
