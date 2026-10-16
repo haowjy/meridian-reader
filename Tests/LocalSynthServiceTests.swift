@@ -27,7 +27,7 @@ final class LocalSynthServiceTests: XCTestCase {
         let render = Task {
             try await synth.renderChunkToFile(text: "A sentence for the worker to render.",
                                               destination: root.appendingPathComponent("c.caf"),
-                                              context: [:], priority: .listener)
+                                              request: ChunkRenderRequest(chunk: 0))
         }
         while firstHost.startedCalls == 0 { try await Task.sleep(for: .milliseconds(10)) }
         await synth.reload(FakeEngineProvider.fakeID, voice: nil).value

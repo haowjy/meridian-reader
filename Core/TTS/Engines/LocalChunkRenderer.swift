@@ -1,5 +1,27 @@
 import Foundation
 
+/// One chunk for `LocalChunkRenderer`: where it sits, for the join trim, the crash marker and the
+/// timing log.
+struct ChunkRenderRequest: Sendable {
+    /// The article and paragraph the chunk is part of; nil for the engine probe's text.
+    var article: UUID? = nil
+    var paragraph: Int? = nil
+    var chunk: Int
+    var isLastInParagraph = true
+    /// The next chunk's first word: a cut before "and/but/which…" is a clause join (`ChunkEdgeTrim`).
+    var nextWord: String? = nil
+    var priority: RenderPriority = .listener
+    /// The render queue's front job.
+    var isPrimary = false
+
+    /// What every timing-log line about this chunk carries.
+    var logFields: [String: Any] {
+        guard let article else { return ["probe": true, "c": chunk] }
+        return ["key": ListenTimingLog.shortKey(article), "p": paragraph ?? -1, "c": chunk,
+                "primary": isPrimary, "bake_ahead": priority == .bakeAhead]
+    }
+}
+
 /// Engine-agnostic render pipeline around one `LocalSynthHost`:
 /// normalize → prepare → `SynthRenderGate` → call (with `EngineCrashGuard` if the engine is
 /// crash-guarded) → on `LocalSynthError.inputTooLong` re-split (≈halves, down to the engine's
@@ -42,19 +64,18 @@ final class LocalChunkRenderer: Sendable {
     }
 
     /// Synthesize ONE chunk (already sized by `TextChunker` with the engine's limits) → CAF.
-    func renderChunk(text: String, to destination: URL, context: [String: Any],
-                     priority: RenderPriority = .listener) async throws -> TimeInterval {
+    func renderChunk(text: String, to destination: URL, request: ChunkRenderRequest) async throws -> TimeInterval {
         let trimmed = TextChunker.normalize(text)
         guard !trimmed.isEmpty else { throw LocalSynthError.emptyText }
         try await prepare()
         await gate.acquire()
         do {
             try Task.checkCancellation()
-            var pcm = try await synthesizeResilient(trimmed, depth: 0, context: context, priority: priority)
+            var pcm = try await synthesizeResilient(trimmed, depth: 0, request: request)
             if host.trimsEdgeSilence {
                 // Join pauses sized to the cut (sentence / clause / word / paragraph end).
-                let boundary = ChunkEdgeTrim.boundary(after: trimmed, nextWord: context["nextWord"] as? String,
-                                                      isLastInParagraph: context["last"] as? Bool ?? true)
+                let boundary = ChunkEdgeTrim.boundary(after: trimmed, nextWord: request.nextWord,
+                                                      isLastInParagraph: request.isLastInParagraph)
                 pcm.samples = ChunkEdgeTrim.trim(pcm.samples, sampleRate: pcm.sampleRate,
                                                  trailMs: ChunkEdgeTrim.trailMs(boundary))
             }
@@ -68,8 +89,7 @@ final class LocalChunkRenderer: Sendable {
     }
 
     /// One call; on overflow split and recurse. Caller holds the gate.
-    func synthesizeResilient(_ text: String, depth: Int, context: [String: Any],
-                             priority: RenderPriority) async throws -> SynthesizedPCM {
+    func synthesizeResilient(_ text: String, depth: Int, request: ChunkRenderRequest) async throws -> SynthesizedPCM {
         try Task.checkCancellation()
         // Last line of defense (the queue decides first): the hard rule of `RenderAdmission`.
         guard RenderAdmission.modelCallsAllowed(phase: runState.phase, rendersInBackground: host.rendersInBackground) else {
@@ -77,17 +97,16 @@ final class LocalChunkRenderer: Sendable {
             throw LocalSynthError.deferredInBackground
         }
         let t0 = ListenTimingLog.now()
-        var fields = context
+        let phase = runState.phase
+        var fields = request.logFields
         fields["engine"] = descriptor.shortName.lowercased()
         fields["chars"] = text.count
         fields["depth"] = depth
         if let route = host.routeTag { fields["route"] = route }
-        fields["phase"] = runState.phase.rawValue
-        let article = fields.removeValue(forKey: "article") as? String
-        crashGuard?.beginCall(engine: descriptor.id, chars: text.count,
-                              context: "\(context["key"] ?? "")/p\(context["p"] ?? -1)",
-                              route: host.routeTag, article: article, paragraph: context["p"] as? Int,
-                              phase: runState.phase.rawValue)
+        fields["phase"] = phase.rawValue
+        crashGuard?.beginCall(engine: descriptor.id, chars: text.count, route: host.routeTag,
+                              article: request.article, paragraph: request.paragraph, phase: phase)
+        let priority = request.priority
         do {
             let pcm = try await host.synthesizeOnce(text: text, priority: priority)
             crashGuard?.endCall()
@@ -113,7 +132,7 @@ final class LocalChunkRenderer: Sendable {
             guard pieces.count > 1, depth < Self.maxResplitDepth else { throw error }
             var merged = SynthesizedPCM(samples: [], sampleRate: 24_000)
             for piece in pieces {
-                let part = try await synthesizeResilient(piece, depth: depth + 1, context: context, priority: priority)
+                let part = try await synthesizeResilient(piece, depth: depth + 1, request: request)
                 merged.sampleRate = part.sampleRate
                 merged.samples.append(contentsOf: part.samples)
             }

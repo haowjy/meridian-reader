@@ -314,7 +314,7 @@ final class BackgroundListeningTests: XCTestCase {
         cleanups.append { ctx.cleanUp() }
         do {
             _ = try await ctx.chunkRenderer.renderChunk(text: "Hello there.", to: ctx.root.appendingPathComponent("x.caf"),
-                                                        context: [:])
+                                                        request: ChunkRenderRequest(chunk: 0))
             XCTFail("expected deferredInBackground")
         } catch LocalSynthError.deferredInBackground {
         } catch {

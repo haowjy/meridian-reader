@@ -25,7 +25,7 @@ struct EngineCrashGuard: Sendable {
         var engine: SpeechEngineID?
         /// "onnx" / "coreml"; nil for markers written before routes existed (Core ML only).
         var route: String?
-        /// Full article key (newer markers) or the 8-char prefix from `ctx` ("BA7D7639/p14").
+        /// Full article key, or the 8-char prefix an older marker's `ctx` ("BA7D7639/p14") holds.
         var articleKey: String?
         var paragraph: Int?
         var phase: String?
@@ -35,16 +35,15 @@ struct EngineCrashGuard: Sendable {
         var coreMLStage: String? = nil
     }
 
-    func beginCall(engine: SpeechEngineID, chars: Int, context: String,
-                   route: String? = nil, article: String? = nil, paragraph: Int? = nil, phase: String? = nil) {
+    func beginCall(engine: SpeechEngineID, chars: Int, route: String? = nil, article: UUID? = nil,
+                   paragraph: Int? = nil, phase: AppRunState.Phase = .active) {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         var obj: [String: Any] = [
-            "t": Date().timeIntervalSince1970, "engine": engine.rawValue, "chars": chars, "ctx": context,
+            "t": Date().timeIntervalSince1970, "engine": engine.rawValue, "chars": chars, "phase": phase.rawValue,
         ]
         if let route { obj["route"] = route }
-        if let article { obj["article"] = article }
+        if let article { obj["article"] = article.uuidString }
         if let paragraph { obj["p"] = paragraph }
-        if let phase { obj["phase"] = phase }
         if let data = try? JSONSerialization.data(withJSONObject: obj) {
             try? data.write(to: inflightURL, options: .atomic)
         }
@@ -70,7 +69,8 @@ struct EngineCrashGuard: Sendable {
         var result = Self.crashInfo(from: info ?? [:], engine: engine)
         var fields: [String: Any] = [
             "engine": engine?.rawValue ?? "?", "count": count, "last_chars": info?["chars"] ?? -1,
-            "route": info?["route"] ?? "legacy", "ctx": info?["ctx"] ?? "",
+            "route": info?["route"] ?? "legacy", "key": result.articleKey.map { String($0.prefix(8)) } ?? "",
+            "p": result.paragraph ?? -1,
         ]
         let crumbs = CoreMLBreadcrumbFile(url: directory.appendingPathComponent("coreml_breadcrumb.json"))
         if let crumb = crumbs.read(), let markerT = info?["t"] as? Double,
@@ -97,7 +97,7 @@ struct EngineCrashGuard: Sendable {
         var key = info["article"] as? String
         var paragraph = info["p"] as? Int
         if let ctx = info["ctx"] as? String {
-            // "BA7D7639/p14"
+            // An older marker's "BA7D7639/p14".
             let parts = ctx.split(separator: "/")
             if key == nil, let k = parts.first, k.count >= 8, k != "?" { key = String(k) }
             if paragraph == nil, parts.count > 1, parts[1].hasPrefix("p") { paragraph = Int(parts[1].dropFirst()) }

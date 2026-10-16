@@ -195,10 +195,9 @@ final class LocalSynthService: SynthChunkRendering {
     }
 
     /// One synth chunk → CAF (render queue worker). Re-splits internally on overflow.
-    func renderChunkToFile(text: String, destination: URL, context: [String: Any],
-                           priority: RenderPriority) async throws -> TimeInterval {
+    func renderChunkToFile(text: String, destination: URL, request: ChunkRenderRequest) async throws -> TimeInterval {
         try await prepare()
-        return try await currentRenderer().renderChunk(text: text, to: destination, context: context, priority: priority)
+        return try await currentRenderer().renderChunk(text: text, to: destination, request: request)
     }
 
     /// Apple TTS render of `text` (the engine couldn't produce it): `voiceID`, else the system

@@ -73,10 +73,10 @@ final class EngineRegistryTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         let guardian = EngineCrashGuard(directory: dir)
         XCTAssertNil(guardian.consumeCrashInfo())
-        guardian.beginCall(engine: .kokoro, chars: 42, context: "t")
+        guardian.beginCall(engine: .kokoro, chars: 42)
         guardian.endCall()
         XCTAssertNil(guardian.consumeCrashInfo(), "clean call leaves no marker")
-        guardian.beginCall(engine: .kokoro, chars: 42, context: "t") // process "dies" here
+        guardian.beginCall(engine: .kokoro, chars: 42) // process "dies" here
         XCTAssertEqual(guardian.consumeCrashInfo()?.engine, .kokoro)
         XCTAssertEqual(guardian.crashCount, 1)
     }

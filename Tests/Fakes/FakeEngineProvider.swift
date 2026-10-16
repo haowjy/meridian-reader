@@ -243,14 +243,9 @@ final class FakeQueueContext: SynthQueueContext, SynthChunkRendering {
     func noteBakeMarksChanged() {}
     func bakeCompleted(cacheKey: UUID) { completed.append(cacheKey) }
 
-    func renderChunkToFile(text: String, destination: URL, context: [String: Any],
-                           priority: RenderPriority) async throws -> TimeInterval {
-        // Context "key" is only a short prefix; recover the article UUID from the destination
-        // path (<root>/<article uuid>/chunks/…) — the last UUID component (the Simulator's
-        // device / app container ids come earlier in the path).
-        let key = destination.pathComponents.compactMap(UUID.init(uuidString:)).last ?? UUID()
-        renders.append((key, context["p"] as? Int ?? -1, context["c"] as? Int ?? -1, priority))
-        return try await chunkRenderer.renderChunk(text: text, to: destination, context: context, priority: priority)
+    func renderChunkToFile(text: String, destination: URL, request: ChunkRenderRequest) async throws -> TimeInterval {
+        renders.append((request.article ?? UUID(), request.paragraph ?? -1, request.chunk, request.priority))
+        return try await chunkRenderer.renderChunk(text: text, to: destination, request: request)
     }
 
     /// Stand-in for Apple TTS (AVSpeechSynthesizer.write is unreliable in unit tests).

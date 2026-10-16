@@ -124,8 +124,7 @@ final class KokoroRouteTests: XCTestCase {
         let guardian = EngineCrashGuard(directory: dir)
         let crumbs = CoreMLBreadcrumbFile(url: dir.appendingPathComponent("coreml_breadcrumb.json"))
         crumbs.write(model: "kokoro", stage: "albert.done", detail: nil, now: Date().addingTimeInterval(-60)) // stale
-        guardian.beginCall(engine: .kokoro, chars: 174, context: "BA7D7639/p14", route: "coreml",
-                           article: UUID().uuidString, paragraph: 14, phase: "foreground")
+        guardian.beginCall(engine: .kokoro, chars: 174, route: "coreml", article: UUID(), paragraph: 14)
         crumbs.write(model: "g2p.bart", stage: "decoder", detail: "Adric")
         let info = guardian.consumeCrashInfo()
         XCTAssertEqual(info?.coreMLStage, "g2p.bart/decoder")
@@ -134,7 +133,7 @@ final class KokoroRouteTests: XCTestCase {
 
         // ONNX route: no Core ML breadcrumb newer than the marker → nil.
         crumbs.write(model: "kokoro", stage: "vocoder", detail: nil, now: Date().addingTimeInterval(-60))
-        guardian.beginCall(engine: .kokoro, chars: 80, context: "x/p1", route: "onnx")
+        guardian.beginCall(engine: .kokoro, chars: 80, route: "onnx")
         XCTAssertNil(guardian.consumeCrashInfo()?.coreMLStage)
     }
 
@@ -158,8 +157,8 @@ final class KokoroRouteTests: XCTestCase {
         let article = UUID()
 
         // Core ML crash → Kokoro kept, fast route off, resume at the marker's paragraph.
-        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 174, context: "BA7D7639/p14",
-                                                       route: "coreml", article: article.uuidString, paragraph: 14)
+        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 174, route: "coreml",
+                                                       article: article, paragraph: 14)
         let c1 = makeCoordinator(defaults: d, guardDir: guardDir)
         XCTAssertEqual(c1.selectedEngineID, .kokoro)
         XCTAssertEqual(c1.engineCrashNotice, KokoroCrashRecovery.resumedNotice)
@@ -170,14 +169,14 @@ final class KokoroRouteTests: XCTestCase {
 
         // First ONNX crash → still Kokoro. A crash on the Core ML route's ONNX half turns the route off too.
         s.fastGPURouteEnabled = true
-        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, context: "x/p2", route: "onnx")
+        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, route: "onnx")
         let c2 = makeCoordinator(defaults: d, guardDir: guardDir)
         XCTAssertEqual(c2.selectedEngineID, .kokoro)
         XCTAssertEqual(KokoroRouteSettings(defaults: d).onnxCrashCount, 1)
         XCTAssertFalse(KokoroRouteSettings(defaults: d).fastGPURouteEnabled)
 
         // Second ONNX crash → Apple, with the explicit notice.
-        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, context: "x/p3", route: "onnx")
+        EngineCrashGuard(directory: guardDir).beginCall(engine: .kokoro, chars: 90, route: "onnx")
         let c3 = makeCoordinator(defaults: d, guardDir: guardDir)
         XCTAssertEqual(c3.selectedEngineID, .apple)
         XCTAssertEqual(c3.engineCrashNotice, KokoroCrashRecovery.appleNotice)
@@ -192,7 +191,7 @@ final class KokoroRouteTests: XCTestCase {
                                 crashGuard: EngineCrashGuard(directory: guardDir))
         }
         d.set(FakeEngineProvider.fakeID.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
-        EngineCrashGuard(directory: guardDir).beginCall(engine: FakeEngineProvider.fakeID, chars: 10, context: "x/p1")
+        EngineCrashGuard(directory: guardDir).beginCall(engine: FakeEngineProvider.fakeID, chars: 10)
         let c = coordinator()
         XCTAssertEqual(c.selectedEngineID, .apple)
         XCTAssertEqual(c.engineCrashNotice?.hasPrefix("Fake crashed last session"), true)
@@ -202,19 +201,23 @@ final class KokoroRouteTests: XCTestCase {
 
         // A crash inside an engine that wasn't the selection changes nothing.
         d.set(SpeechEngineID.apple.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
-        EngineCrashGuard(directory: guardDir).beginCall(engine: FakeEngineProvider.fakeID, chars: 10, context: "x/p1")
+        EngineCrashGuard(directory: guardDir).beginCall(engine: FakeEngineProvider.fakeID, chars: 10)
         let quiet = coordinator()
         XCTAssertEqual(quiet.selectedEngineID, .apple)
         XCTAssertNil(quiet.engineCrashNotice)
     }
 
-    func testOneTimeMigrationBringsAppleUserBackToKokoroPaused() {
+    func testOneTimeMigrationBringsAppleUserBackToKokoroPaused() throws {
         ListenResumePointStore.shared.clear()
         let d = suiteDefaults()
         let guardDir = tempDir()
         // Old build: Core ML crash already consumed → Apple selected, engine_crashes.json remains.
+        // Its marker named the article and paragraph in one "ctx" string, and no route.
         let g = EngineCrashGuard(directory: guardDir)
-        g.beginCall(engine: .kokoro, chars: 174, context: "BA7D7639/p14")
+        try FileManager.default.createDirectory(at: guardDir, withIntermediateDirectories: true)
+        try JSONSerialization.data(withJSONObject: [
+            "t": Date().timeIntervalSince1970, "engine": "local.kokoro", "chars": 174, "ctx": "BA7D7639/p14",
+        ]).write(to: guardDir.appendingPathComponent("engine_inflight.json"))
         _ = g.consumeCrashInfo()
         d.set(SpeechEngineID.apple.rawValue, forKey: LocalTTSCoordinator.engineIDKey)
 

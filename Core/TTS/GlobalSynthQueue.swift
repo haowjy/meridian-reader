@@ -767,19 +767,13 @@ final class GlobalSynthQueue {
         guard let coordinator else { throw CancellationError() }
         let engine = coordinator.synthRenderer
         let t0 = ListenTimingLog.now()
-        let ctx: [String: Any] = [
-            "key": ListenTimingLog.shortKey(job.cacheKey), "p": index, "c": chunk,
-            "primary": stack.first == job.cacheKey, "bake_ahead": priority == .bakeAhead,
-        ]
-        // Full key rides along for the crash marker only (auto-resume); not logged per chunk.
-        var callCtx = ctx
-        callCtx["article"] = job.cacheKey.uuidString
-        callCtx["last"] = chunk == count - 1
-        // Join pause: a cut before "and/but/which…" is a clause join (ChunkEdgeTrim).
-        if let word = next?.split(separator: " ").first { callCtx["nextWord"] = String(word) }
+        let request = ChunkRenderRequest(
+            article: job.cacheKey, paragraph: index, chunk: chunk, isLastInParagraph: chunk == count - 1,
+            nextWord: next?.split(separator: " ").first.map(String.init), priority: priority,
+            isPrimary: stack.first == job.cacheKey)
+        let ctx = request.logFields
         do {
-            let duration = try await engine.renderChunkToFile(text: text, destination: url, context: callCtx,
-                                                              priority: priority)
+            let duration = try await engine.renderChunkToFile(text: text, destination: url, request: request)
             ListenTimingLog.log("chunk_ready", ctx.merging([
                 "n": count, "chars": text.count, "ms": ListenTimingLog.ms(since: t0),
                 "audio_s": (duration * 100).rounded() / 100, "engine": engine.engineShortName,
