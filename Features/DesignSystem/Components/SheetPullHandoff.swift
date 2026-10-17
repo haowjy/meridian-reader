@@ -98,8 +98,18 @@ final class ScrollPullHandoff: NSObject {
     /// The sheet is pulled by the drag in progress.
     var isPulling: Bool { (tracking?.pull ?? 0) > 0 }
 
+    private weak var scrollView: UIScrollView?
+
     func attach(to scrollView: UIScrollView) {
+        detach()
+        self.scrollView = scrollView
         scrollView.panGestureRecognizer.addTarget(self, action: #selector(panned(_:)))
+    }
+
+    func detach() {
+        scrollView?.panGestureRecognizer.removeTarget(self, action: #selector(panned(_:)))
+        scrollView = nil
+        tracking = nil
     }
 
     @objc private func panned(_ pan: UIPanGestureRecognizer) {
@@ -159,5 +169,59 @@ final class ScrollPullHandoff: NSObject {
 
     private func scrolledIn(_ sv: UIScrollView) -> CGFloat {
         sv.contentOffset.y + sv.adjustedContentInset.top
+    }
+}
+
+extension View {
+    /// On the content of a SwiftUI `ScrollView` that is a `Sheet`'s body: a pull down that begins
+    /// with the content at its top moves the sheet (`SheetPullHandoff`), one that begins
+    /// mid-content only scrolls, as in the Reader and Now Playing. Outside a sheet it does nothing.
+    func handsPullToSheet() -> some View {
+        background(SheetPullScrollHook())
+    }
+}
+
+/// Finds the scroll view around it and drives a `ScrollPullHandoff` from its pan.
+private struct SheetPullScrollHook: UIViewRepresentable {
+    func makeCoordinator() -> ScrollPullHandoff { ScrollPullHandoff() }
+
+    func makeUIView(context: Context) -> EnclosingScrollViewFinder {
+        let view = EnclosingScrollViewFinder()
+        let handoff = context.coordinator
+        view.found = { [weak handoff] scrollView in handoff?.attach(to: scrollView) }
+        return view
+    }
+
+    func updateUIView(_ view: EnclosingScrollViewFinder, context: Context) {
+        context.coordinator.handoff = context.environment.sheetPullHandoff
+    }
+
+    static func dismantleUIView(_ view: EnclosingScrollViewFinder, coordinator: ScrollPullHandoff) {
+        coordinator.detach()
+    }
+}
+
+/// An empty view that reports the nearest scroll view above it once it is in a window (SwiftUI's
+/// `ScrollView` is a `UIScrollView` underneath).
+private final class EnclosingScrollViewFinder: UIView {
+    var found: (UIScrollView) -> Void = { _ in }
+    private weak var scrollView: UIScrollView?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        isAccessibilityElement = false
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard window != nil else { return }
+        var view = superview
+        while let current = view, !(current is UIScrollView) { view = current.superview }
+        guard let enclosing = view as? UIScrollView, enclosing !== scrollView else { return }
+        scrollView = enclosing
+        found(enclosing)
     }
 }

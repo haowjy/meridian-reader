@@ -3,9 +3,10 @@ import SwiftUI
 /// The shared sheet: it rises over the surface underneath, carries a grabber, and closes with a
 /// pull down on its header, a pull down on its scrolling body that begins with the body at its top
 /// (`SheetPullHandoff`; one that begins mid-content only scrolls), or through `dismissSheet` from
-/// inside (a back pill, ⌄). While pulled it looks like a system sheet (`PullDownLook`): it shrinks
-/// a little and the dim behind it lifts. Top corners `Radius.card`. Used by the Reader sheet and
-/// Now Playing.
+/// inside (a back pill, ⌄). The body hands its pulls over itself: the reading web view does, and a
+/// SwiftUI `ScrollView` does through `handsPullToSheet()` on its content. While pulled it looks
+/// like a system sheet (`PullDownLook`): it shrinks a little and the dim behind it lifts. Top
+/// corners `Radius.card`. Used by the Reader sheet, Now Playing and Follow's chapter preview.
 ///
 /// It is drawn in the reading theme's colours (`palette`, the same for both sheets), which it
 /// sets on what it holds (`readingSurface`). A dark theme over a light app gets a heavier dim

@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The browser's field capsule: 📄 at the leading end opens the Reader, 🎧 at the trailing end
+/// The browser's field capsule: 📄 at the leading end opens the Reader (in Follow's chapter
+/// preview, which is read already, it goes the other way, to the page), 🎧 at the trailing end
 /// listens to the page. 🎧 shows only on a readable page (`listen` non-nil) and is a
 /// `PlayStateButton`: grey when the page isn't what you hear, accent with bars when it is.
 ///
@@ -27,6 +28,8 @@ struct AddressField<Field: View, Accessory: View>: View {
     var listen: PlayState?
     var onOpenReader: () -> Void = {}
     var onListen: () -> Void = {}
+    /// What 📄 says to VoiceOver: where it goes.
+    var readerLabel = String(localized: "Open in Reader")
     @ViewBuilder var field: Field
     @ViewBuilder var accessory: Accessory
 
@@ -75,7 +78,7 @@ struct AddressField<Field: View, Accessory: View>: View {
                     .tapTarget(Self.readerSize)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Open in Reader")
+            .accessibilityLabel(readerLabel)
             .accessibilityIdentifier("addressReader")
             .transition(.opacity)
         }
@@ -84,9 +87,10 @@ struct AddressField<Field: View, Accessory: View>: View {
 
 extension AddressField where Accessory == EmptyView {
     init(reader: ReaderButton = .hidden, listen: PlayState? = nil, onOpenReader: @escaping () -> Void = {},
-         onListen: @escaping () -> Void = {}, @ViewBuilder field: () -> Field) {
+         onListen: @escaping () -> Void = {}, readerLabel: String = String(localized: "Open in Reader"),
+         @ViewBuilder field: () -> Field) {
         self.init(reader: reader, listen: listen, onOpenReader: onOpenReader, onListen: onListen,
-                  field: field, accessory: { EmptyView() })
+                  readerLabel: readerLabel, field: field, accessory: { EmptyView() })
     }
 }
 

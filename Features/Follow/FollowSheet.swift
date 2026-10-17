@@ -40,13 +40,14 @@ struct FollowSheet: View {
             if let chapter = flow.previewed, let preview = flow.preview {
                 FollowPreviewSheet(chapter: chapter, preview: preview, isKept: flow.isKept(chapter),
                                    onToggle: { flow.toggle(chapter) },
-                                   onOpenInBrowser: { openInBrowser(chapter.url) },
+                                   onOpenInBrowser: { shell.navigate(to: chapter.url) },
                                    onClose: { flow.closePreview() })
                     .id(chapter.canonicalURL)
             }
         }
         .sheetToastLayer()
         .onDisappear { flow.cancel() }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("followSheet")
     }
 
@@ -104,11 +105,6 @@ struct FollowSheet: View {
         guard let folder = library.folder(id: id) else { return }
         shell.sheet = nil
         shell.showLibrary(at: library.path(to: folder))
-    }
-
-    private func openInBrowser(_ url: URL) {
-        shell.sheet = nil
-        shell.navigate(to: url)
     }
 }
 

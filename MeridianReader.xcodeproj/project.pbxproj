@@ -273,6 +273,7 @@
 		D5E98B393C8F847AE06FA57D /* Themes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E0B8802C2A1E4603984B20E /* Themes.swift */; };
 		D6EC0FD07816BA92255EF89D /* ReaderSheetScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D34C7C40ACB9A435DD26C9E /* ReaderSheetScreen.swift */; };
 		D6F7EAC89FF3AD12E0798CC8 /* EngineCrashGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF68D2D7BB100C810FECE952 /* EngineCrashGuardTests.swift */; };
+		DA72AD19FB33B9CE5F3C59CC /* BandFieldRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07A758E5648CD4CDAFB5A38 /* BandFieldRow.swift */; };
 		DB97742451A94746233BF8FA /* BookImportActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEED72F038103FDD7C6E3093 /* BookImportActions.swift */; };
 		DC39EFC2AA17509B77261C21 /* ArticleTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859903B603EB0EF86A841E5B /* ArticleTitle.swift */; };
 		DD5C41FAC9EB889577BFAD5E /* ListenEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD13DD8AE82088E1E9D231E /* ListenEngine.swift */; };
@@ -621,6 +622,7 @@
 		DF649183841240A7A78E6E55 /* SubParagraphPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubParagraphPosition.swift; sourceTree = "<group>"; };
 		DF9FB60A8054F73CCF99C94C /* KokoroHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroHost.swift; sourceTree = "<group>"; };
 		E0252370C6D870C0912E4F34 /* ActivityShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityShareSheet.swift; sourceTree = "<group>"; };
+		E07A758E5648CD4CDAFB5A38 /* BandFieldRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BandFieldRow.swift; sourceTree = "<group>"; };
 		E08E3E8F23704EE56A50F10E /* ReaderScrubRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderScrubRow.swift; sourceTree = "<group>"; };
 		E08F7C45ECB0043D3D3F5E02 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
 		E106CE193D53C1C3A4B78ED5 /* voice-preview-kokoro-bm_fable.m4a */ = {isa = PBXFileReference; path = "voice-preview-kokoro-bm_fable.m4a"; sourceTree = "<group>"; };
@@ -969,6 +971,7 @@
 		707F13C6F5B6EBD314C6F7AE /* Chrome */ = {
 			isa = PBXGroup;
 			children = (
+				E07A758E5648CD4CDAFB5A38 /* BandFieldRow.swift */,
 				73E94E5E93EE460FD354D960 /* BottomChrome.swift */,
 				935F458969E94244662AB111 /* MorphMenu.swift */,
 				57B6EF92DEBDA60BAC9310AC /* StatusBarStyle.swift */,
@@ -1541,6 +1544,7 @@
 				E3F5BF101ED8764252458C56 /* BackgroundRenderBursts.swift in Sources */,
 				96A5789EB67A4699AFD5C754 /* BackupExclusion.swift in Sources */,
 				44EE514230EB8B3E62C1F199 /* BakeConditions.swift in Sources */,
+				DA72AD19FB33B9CE5F3C59CC /* BandFieldRow.swift in Sources */,
 				B79B6816338F110088157F2B /* BookChapterFinalizer.swift in Sources */,
 				BB6DD8EA504A7CA4DF5074A5 /* BookIdentity.swift in Sources */,
 				DB97742451A94746233BF8FA /* BookImportActions.swift in Sources */,
