@@ -304,6 +304,7 @@ final class DownloadCenter {
     private func forget(_ keys: [UUID]) {
         let keys = Set(keys)
         if let active, keys.contains(active.key) { stopActive() }
+        for key in keys { requeued[key] = nil }
         updateRecords { records in
             for index in records.indices { records[index].entries.removeAll { keys.contains($0.key) } }
             records.removeAll { $0.entries.isEmpty }
@@ -378,10 +379,18 @@ final class DownloadCenter {
             var pageKey = key
             if page.isLink {
                 active = Active(recordID: recordID, key: key, phase: .fetching)
-                let saved = await fetchAndSave(page)
-                // Paused or removed while it loaded: what it fetched isn't saved.
+                let fetched = await fetchText(page)
+                // Paused, removed or its downloads deleted while it loaded: what it fetched isn't
+                // saved (a save would queue its render, and put a removed page back in the Library).
                 guard active == Active(recordID: recordID, key: key, phase: .fetching) else { continue }
                 active = nil
+                guard library.page(key: key)?.isInLibrary == true else {
+                    finish(recordID, key, .failed, String(localized: "It’s no longer in the Library"))
+                    continue
+                }
+                let saved = fetched.flatMap { article in
+                    Result { try save(article) }.mapError { _ in FetchFailure(message: String(localized: "Couldn’t save it")) }
+                }
                 switch saved {
                 case .failure(let failure):
                     finish(recordID, key, .failed, failure.message)
@@ -420,9 +429,9 @@ final class DownloadCenter {
         var message: String
     }
 
-    /// A link page's text, fetched and saved in place (the one save path, which also queues its
-    /// bake). Returns the saved page's key.
-    private func fetchAndSave(_ page: Page) async -> Result<UUID, FetchFailure> {
+    /// A link page's text, fetched (or the text it was played from), for the caller to save in
+    /// place through the one save path, which also queues its bake.
+    private func fetchText(_ page: Page) async -> Result<ReaderArticle, FetchFailure> {
         guard let url = page.url else { return .failure(FetchFailure(message: String(localized: "It has no address"))) }
         // Read before the fetch: the page may be deleted while it loads.
         let title = page.title
@@ -449,11 +458,7 @@ final class DownloadCenter {
         guard !article.document.paragraphs.isEmpty else {
             return .failure(FetchFailure(message: String(localized: "Nothing to listen to")))
         }
-        do {
-            return .success(try save(article))
-        } catch {
-            return .failure(FetchFailure(message: String(localized: "Couldn’t save it")))
-        }
+        return .success(article)
     }
 
     private func finish(_ recordID: UUID, _ key: UUID, _ state: DownloadRecord.PageState, _ failure: String? = nil) {
