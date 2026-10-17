@@ -14,7 +14,7 @@ enum LibraryAudioWorkKind: String, Codable {
     /// chapter a book's *Replace* dropped): its audio, its pending render and its queued renders
     /// go, unless a page with its key is back by the time it runs.
     case delete
-    /// A page left the Library (*Remove from Library*, unsave): its audio goes back on the
+    /// A page left the Library (*Remove from Library*): its audio goes back on the
     /// ephemeral TTL, kept for playback until the audio cache's age prune, unless the page is
     /// saved in the Library again by the time it runs.
     case ephemeral

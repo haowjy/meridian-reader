@@ -13,13 +13,13 @@ import SwiftUI
 ///   ☝︎ in the top bar, then a tap on a paragraph, listens from that paragraph.
 /// - A page part-way through opens with its saved spot's sentence in the middle, underlined;
 ///   after that the text never scrolls by itself.
-/// - 🔖 saves / unsaves (tap) or files the page (long-press, *Save to Folder…*: the Move tree);
+/// - 🔖 saves / removes from the Library (tap) or files the page (long-press, *Save to Folder…*: the Move tree);
 ///   ⋯ is the page's menu (Save / Remove from Library, Move to…, Add to Favorites, Share,
 ///   Download, Downloads, Settings; Favorites / History / Website). Both act through
 ///   `PageActions`, as in Now Playing.
 /// - Aa, left of ☝︎, changes how the page reads (`TextAppearanceControl`), live.
 ///
-/// Save / Unsave only flips 🔖: the article key is already the saved id (identity v2), so the
+/// Save / Remove only flips 🔖: the article key is already the saved id (identity v2), so the
 /// view and any playing audio are untouched.
 struct ReaderSheetScreen: View {
     let state: ReaderSheetState
@@ -113,23 +113,24 @@ struct ReaderSheetScreen: View {
         sessionReady ? article.document.utf16Length : article.plainText.utf16.count
     }
 
-    /// The source and the length, as separate parts: ["example.org", "9 min"].
+    /// The source and the length at the current speed, as separate parts: ["example.org", "9 min"].
     private var detail: [String] {
-        let minutes = ListeningTime.minutes(utf16Length: totalLength, rate: 1)
+        let minutes = ListeningTime.minutes(utf16Length: totalLength, rate: speech.rateMultiplier)
         return [article.sourceLabel, minutes > 0 ? ListeningTime.label(minutes: minutes) : ""].filter { !$0.isEmpty }
     }
 
-    /// Listen's title and the lighter time after it: "Listen" "9 min", "Resume" "6 min left",
-    /// "Listen Again".
+    /// Listen's title and the lighter time after it, at the current speed: "Listen" "9 min",
+    /// "Resume" "6 min left", "Listen Again".
     private func listenLabel(_ start: ListenSpot, finished: Bool) -> (title: String, detail: String?) {
         if finished { return (String(localized: "Listen Again"), nil) }
         let doc = article.document
         if start.isPartWay, doc.paragraphs.indices.contains(start.paragraph) {
             let at = start.resolved(in: doc).utf16Offset
-            let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at, rate: 1)
+            let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at, rate: speech.rateMultiplier)
             return (String(localized: "Resume"), ListeningTime.leftLabel(minutes: left))
         }
-        return (String(localized: "Listen"), ListeningTime.label(minutes: ListeningTime.minutes(utf16Length: totalLength, rate: 1)))
+        return (String(localized: "Listen"),
+                ListeningTime.label(minutes: ListeningTime.minutes(utf16Length: totalLength, rate: speech.rateMultiplier)))
     }
 
     // MARK: - Actions

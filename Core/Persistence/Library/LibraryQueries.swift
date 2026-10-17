@@ -9,7 +9,8 @@ import SwiftData
 ///   search (`searchPages`), address suggestions (`savedInLibrary`).
 /// - **Played without saving** (`playedNotSaved`): out of the Library, played, not removed since
 ///   you last listened to it. The top of the home's pages, "Not saved", and the home's search.
-/// - **Removed** (out of the Library with `removedAt` set): in no list. *Remove from Library*
+/// - **Removed** (out of the Library with `removedAt` set): in no list, Favorites included even
+///   while starred (it keeps its star for when it is back). *Remove from Library*
 ///   takes a page out of every list it was in, at once, and playing on doesn't bring it back;
 ///   saving it does, and so does listening to it again (🎧, the Reader's Listen).
 ///

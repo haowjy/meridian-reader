@@ -231,7 +231,7 @@ struct BrowseStartView: View {
         case .newSearch: shell.showStartPage()
         case .openReader: run { try await $0.openInReader() }
         case .saveToLibrary: saveToLibrary()
-        case .removeFromLibrary: actions.unsave()
+        case .removeFromLibrary: actions.remove()
         case .toggleFavorite: page.toggleFavorite()
         case .favorites: shell.showFavorites()
         case .reload: webStore.refresh()
@@ -348,7 +348,7 @@ struct BrowseStartView: View {
     /// is saved. Held, it is ⋯ → Save to Library… (`saveToLibrary`).
     private func toggleSaved(_ actions: PageActions) {
         if actions.isSaved {
-            actions.unsave()
+            actions.remove()
         } else {
             run { try await $0.save(in: nil) }
         }

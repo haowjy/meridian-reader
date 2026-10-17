@@ -22,7 +22,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   to the session, in any phase, and the chapter staged after it). `purgeAudio` is the one way
   *Remove* and both *Delete Downloads* delete audio, and it skips those keys; `stopActive` leaves
   their job in the queue (`removeBakeJob` takes any other out: removing a job fails its chunk
-  waiters). *Delete Downloads* on the playing page still takes its download off the list; its
+  waiters). *Delete Downloads* on the playing page still takes it out of every download; its
   audio stays for the session, saved or ephemeral as the library keeps the page.
 - **The list keeps downloads of what is in the Library** (`isInLibrary`, the line
   `LibraryQueries` draws): at `start`, and after each stored library edit
@@ -37,9 +37,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   `DownloadOverview.isDownloaded` → `DownloadRecord.hasDownloaded`): an entry `.done` and its
   audio there, in a voice its download accepts (`DownloadRecord.accepts`: the download voice now,
   or the one *Keep* stored). So after *Keep* the rows are marked and a folder's Download button is
-  done. *Delete Downloads* keeps the two in step (`forgetDone`): a download of just a page whose
-  audio it deleted goes, and a folder's download puts the page back in its queue while it covers
-  it (so it leaves *Downloaded* and renders it again), else takes it off its list.
+  done. *Delete Downloads* keeps the two in step (`forget`): the page leaves every download, a
+  download of just that page goes and a folder's drops it from its list, never queuing it again.
+  The folder's button then shows ⬇ (not all its pages are downloaded); tapping it lists the
+  folder's pages afresh (`request` → `requeue`), and only then, or a play, renders the page.
   While queued, a Download control's ring shows `DownloadOverview.fraction(of:active:)`, the
   list's own figure (`DownloadCenter.state(of:isDownloaded:)`). A
   folder row passes the pages it already holds (`covers`, the same filter a folder download

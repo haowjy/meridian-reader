@@ -69,7 +69,7 @@ extension LibraryStore {
     /// recorded before it. `.delete`: the deleted page's audio, pending render and queued renders
     /// go; audio that earlier work still needs (a merge from this page, a layout pass on it) is
     /// never deleted first, and while that work waits the page stays held with it. `.ephemeral`
-    /// (the page left the Library: *Remove from Library*, unsave) and `.saved` (the page was
+    /// (the page left the Library: *Remove from Library*) and `.saved` (the page was
     /// saved): its audio settles as the page is when the work runs (`settleAudio`). Align and
     /// merge carry paragraphs: `planAlign`, `planMerge`.
     func plan(_ kind: LibraryAudioWorkKind, key: UUID) {

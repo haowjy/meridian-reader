@@ -142,8 +142,8 @@ models are CloudKit-shaped: every property optional or defaulted, no `.unique`, 
 optional with `.nullify`; one page per canonical URL is kept by `LibraryStore` and the launch
 dedupe pass. Every library read and write goes through `LibraryStore`; lists use
 `LibraryQueries`. An edit someone asks for (a save, including one into a folder; a move; a
-folder made, renamed, sorted or reordered; a mark; a remove of one or several pages, an unsave or
-a delete; a favorite added, renamed or removed; a book imported or replaced) is one save, made at
+folder made, renamed, sorted or reordered; a mark; a remove of one or several pages or a
+delete; a favorite added, renamed or removed; a book imported or replaced) is one save, made at
 once (`LibraryStore.edit`): a save SwiftData refuses is rolled back (`rollBack`, which fetches the
 models it touched again, so the screens' models read the stored values, relationships included)
 and throws `LibraryStoreError.saveFailed`. So a failed edit never shows as done, and never waits
@@ -185,8 +185,10 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 the Library (`addedAt` set: its folder or the home's top level, Favorites while starred,
 search, address suggestions); played without saving (out of the Library, played, `removedAt`
 nil: the top of the home's pages as "Not saved", and search); removed (out of the Library, `removedAt`
-set: no list). *Remove from Library* (`LibraryStore.remove`) takes a page out of every list it was
-in at once, playing or not, and playing on, pausing or resuming doesn't list it again; a save
+set: no list). *Remove from Library* (`LibraryStore.remove`, the one remove for every path: a
+row, Edit, 🔖 and the ⋯ of the browser, the Reader and Now Playing) takes a page out of its
+folder and every list it was in at once, playing or not, keeps its star (Favorites lists it again
+once it is back in the Library) and deletes nothing (the launch prune does), and playing on, pausing or resuming doesn't list it again; a save
 puts it back, and so does listening to it again from its article (🎧, the Reader's Listen, which
 clears `removedAt`, through a rollback too: `PendingListening`). The Downloads list keeps downloads of what
 is in the Library (`DownloadCenter`, after each stored edit, `LibraryStore.editStored`). The bar's
@@ -210,10 +212,12 @@ reaches them, a book's or series' pages show as chapters and name it as their so
 Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their audio (D7), and
   launch dedupe merges two copies of one source. Favorites are independent flags on pages and
   folders; a favorite page is one in the Library (`LibraryStore.isFavorite`,
-  `LibraryQueries.favoritePages`): starring a page that isn't sets its `addedAt`, and *Remove
-  from Library* clears its flag. A legacy Favorites folder an older build left in the store is
-  migrated on launch (`migrateFavoritesFolder`): its pages and nested folders are starred, direct
-  pages return to the root, and the container is removed.
+  `LibraryQueries.favoritePages`): starring a page that isn't sets its `addedAt`; *Remove from
+  Library* keeps its flag (only unstarring clears it), so a removed favorite is listed again once
+  it is saved. A legacy Favorites folder an older build left in the store is migrated on launch
+  (`migrateFavoritesFolder`): its direct children are starred (its pages return to the root, its
+  subfolders move to the top level with their contents as they were, nothing deeper starred), and
+  the container is removed.
 
 **Book import** (`BookImporter`, run for the import sheet by `BookImportFlow`):
 0. The file is the import's own copy in `Application Support/Imports/<uuid>/<name>.epub`
@@ -290,7 +294,7 @@ again.
 **Audio work waits for the save.** Deleting pages (a row's *Delete*, *Delete Folder and
 Contents*: the page's audio directory, pending render and queued renders go,
 unless a page with its key exists again by then), pages leaving the Library (*Remove from
-Library*, unsave: the audio is kept, back on the ephemeral TTL), Save (the audio marked saved and
+Library*: the audio is kept, back on the ephemeral TTL), Save (the audio marked saved and
 its queued render non-ephemeral), the layout pass (audio aligned to the new
 paragraphs, the crash-resume point and pending renders remapped), dedupe (the merged page's audio filling the
 kept page's paragraphs it has none for, by text, then its directory and pending render dropped;

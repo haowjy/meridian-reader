@@ -123,9 +123,6 @@ final class Page {
     /// Holds reading text: a saved page, or a link page carrying a text cache.
     var hasText: Bool { bodyHTML != nil || plainTextData != nil || listenBlocksData != nil }
 
-    /// Listening time at 1× from the stored word count (`ListeningTime`'s rate).
-    var estimatedMinutes: Int { ListeningTime.minutes(words: wordCount, rate: 1) }
-
     /// Points `folder` and `folderID` at `newFolder` together. Every move goes through here.
     func setFolder(_ newFolder: Folder?) {
         folder = newFolder

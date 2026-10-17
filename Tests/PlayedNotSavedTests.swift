@@ -5,7 +5,7 @@ import XCTest
 /// Pages played without saving (decision D5): the top of the Library's *Pages*, marked "Not
 /// saved", most recently played first (`LibraryQueries.playedNotSaved`), and *Save* puts one in
 /// the Library. A page removed from the Library is in no list, not even this one, as it plays on,
-/// until it is saved or listened to again (`Page.removedAt`).
+/// until it is saved or listened to again (`Page.removedAt`), and keeps its star.
 @MainActor
 final class PlayedNotSavedTests: XCTestCase {
     private var env: LibraryTestEnvironment!
@@ -91,21 +91,22 @@ final class PlayedNotSavedTests: XCTestCase {
 
         env.now += 60
         try library.remove([page])
-        XCTAssertEqual(try lists(holding: page), [], "in no list, Not saved included")
+        XCTAssertEqual(try lists(holding: page), [], "in no list, Not saved and Favorites included")
         XCTAssertEqual(page.removedAt, env.now)
+        XCTAssertTrue(page.isFavorite, "the star stays")
         XCTAssertIdentical(library.page(url: url), page, "kept for what plays")
         XCTAssertTrue(page.hasText)
         XCTAssertEqual(page.positionParagraph, 1)
         XCTAssertIdentical(try env.context.fetch(LibraryQueries.lastPlayed).first, page, "the bar still resumes it")
     }
 
-    /// The page you hear, removed (🔖 in Now Playing unsaves a page in no folder): it plays on, is
-    /// paused and resumed, and played to the end, and stays out of every list throughout.
+    /// The page you hear, removed (🔖 in Now Playing): it plays on, is paused and resumed, and
+    /// played to the end, and stays out of every list throughout.
     func testARemovedPageStaysOutOfEveryListAsItPlaysOn() throws {
         let article = env.article("https://example.com/playing")
         let page = try library.save(article)
         library.recordPlayback(article)
-        try library.unsave(page)
+        try library.remove([page])
         XCTAssertEqual(try lists(holding: page), [])
 
         env.now += 60
@@ -182,12 +183,29 @@ final class PlayedNotSavedTests: XCTestCase {
         XCTAssertNotNil(page.addedAt)
     }
 
-    /// 🔖 can't unsave a page that isn't saved in the Library: one played without saving stays
-    /// "Not saved".
-    func testUnsavingAPagePlayedWithoutSavingLeavesIt() throws {
-        let page = library.recordPlayback(env.article("https://example.com/unsaved"))
-        try library.unsave(page)
-        XCTAssertEqual(try lists(holding: page), ["Search", "Not saved"])
-        XCTAssertNil(page.removedAt)
+    /// Remove is one operation from every path, and never clears the star: a starred page in a
+    /// folder and a starred link (no text, ☆ made it) leave their folder and every list, Favorites
+    /// included, and stay in the store; saved or starred again, each is back in Favorites.
+    func testRemovingAFavoriteKeepsItsStarForWhenItIsBack() throws {
+        let folder = try library.makeFolder(name: "Essays", in: nil)
+        let page = try library.save(env.article("https://example.com/starred"), placement: .folder(folder))
+        try library.addFavorite(page)
+        let link = try library.addFavorite(url: URL(string: "https://example.com/link")!, title: "Link", artwork: nil)
+        XCTAssertEqual(try lists(holding: page), ["Search", "Favorites", "Suggestions"])
+
+        try library.remove([page, link])
+        XCTAssertNil(page.folder, "out of its folder")
+        for removed in [page, link] {
+            XCTAssertEqual(try lists(holding: removed), [], "in no list, Favorites included")
+            XCTAssertTrue(removed.isFavorite, "the star stays")
+            XCTAssertFalse(LibraryStore.isFavorite(removed), "☆ empty while out of the Library")
+        }
+        XCTAssertIdentical(library.page(url: URL(string: "https://example.com/link")!), link, "a link is kept too")
+        XCTAssertTrue(link.isLink)
+
+        try library.save(ReaderArticle(page: page))
+        XCTAssertEqual(try lists(holding: page), ["Pages", "Search", "Favorites", "Suggestions"], "saved: back in Favorites")
+        try library.addFavorite(url: URL(string: "https://example.com/link")!, title: nil, artwork: nil)
+        XCTAssertEqual(try lists(holding: link), ["Pages", "Search", "Favorites"], "starred: back in Favorites")
     }
 }

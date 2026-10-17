@@ -7,8 +7,8 @@ import SwiftUI
 /// Playing adds *Go to*.
 ///
 /// `page` is the page's Library page by the one rule, address first, then key
-/// (`LibraryStore.page(key:canonicalURL:)`; on screen, live, `PageLookup`). Unsave removes that
-/// page and Save saves into it, so 🔖's look and what tapping it does always agree.
+/// (`LibraryStore.page(key:canonicalURL:)`; on screen, live, `PageLookup`). *Remove from Library*
+/// removes that page and Save saves into it, so 🔖's look and what tapping it does always agree.
 @MainActor
 struct PageActions {
     /// The page as text (the Reader's article, Now Playing's content). nil in the browser, which
@@ -105,16 +105,17 @@ struct PageActions {
     /// was, and a toast says so.
     func toggleSaved() {
         if isSaved {
-            unsave()
+            remove()
         } else if let article, canSave {
             store { try ArticleSaveCoordinator(library: library, speech: speech).save(article) }
         }
     }
 
-    /// Out of the Library (a favorite stays a favorite, as a link); its audio and spot stay.
-    func unsave() {
+    /// *Remove from Library* (🔖 on a saved page, ⋯): the Library rows' own remove
+    /// (`LibraryActions.remove`). Its star, audio and spot stay; playback goes on.
+    func remove() {
         guard let savedPage else { return }
-        shell.attempt(String(localized: "Couldn’t remove from Library")) { try library.unsave(savedPage) }
+        LibraryActions(library: library, speech: speech, shell: shell).remove([savedPage])
     }
 
     /// 🔖's long-press (*Save to Folder…*) and ⋯ → Move to…: the Move tree. The page is saved into
@@ -172,7 +173,7 @@ extension LibraryStore {
 
 /// The Library page a screen's page is, live: its address first, then its key, the rule
 /// `LibraryStore.page(key:canonicalURL:)` follows. Two one-row queries, so the screen follows a
-/// save, an unsave or a ☆ made anywhere, and reads nothing else.
+/// save, a remove or a ☆ made anywhere, and reads nothing else.
 struct PageLookup<Content: View>: View {
     @Query private var byAddress: [Page]
     @Query private var byKey: [Page]

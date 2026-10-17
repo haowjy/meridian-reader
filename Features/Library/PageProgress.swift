@@ -1,15 +1,18 @@
 import Foundation
 
 /// How far through a page or chapter is, as its row shows it: its length unplayed, the fraction
-/// and time left part-way, finished, or skipped.
+/// and time left part-way, finished, or skipped. Minutes count at `rate`, the playback speed
+/// (`LibraryActions` passes the current one).
 enum PageProgress {
     /// The row's progress. Only a part-way page reads its stored paragraphs, so long folders
     /// stay cheap to draw.
-    static func of(_ page: Page) -> ListRow.Progress {
+    static func of(_ page: Page, rate: Double) -> ListRow.Progress {
         if page.finishedAt != nil { return .finished }
         if page.skipsInPlayback { return .skipped }
-        if let spot = spot(of: page) { return .partWay(fraction: spot.fraction, minutesLeft: spot.minutesLeft) }
-        return .unplayed(minutes: page.hasText ? page.estimatedMinutes : nil)
+        if let spot = spot(of: page) {
+            return .partWay(fraction: spot.fraction, minutesLeft: ListeningTime.minutes(words: spot.wordsLeft, rate: rate))
+        }
+        return .unplayed(minutes: page.hasText ? ListeningTime.minutes(words: page.wordCount, rate: rate) : nil)
     }
 
     /// Started and not finished.
@@ -17,16 +20,17 @@ enum PageProgress {
         page.finishedAt == nil && (page.positionParagraph > 0 || page.positionUTF16 > 0)
     }
 
-    /// A part-way page's place, measured on its stored listen text at 1×: how far through, the
-    /// minutes left, and the minutes the whole text takes on the same measure, so what is left
-    /// never exceeds the whole. Nil unless part-way with stored paragraphs.
-    static func spot(of page: Page) -> (fraction: Double, minutesLeft: Int, minutes: Int)? {
+    /// A part-way page's place, measured on its stored listen text: how far through, the words
+    /// left, and the words in the whole text on the same measure (`ListeningTime.words`), so what
+    /// is left never exceeds the whole. Words, not minutes: they don't depend on the speed, and a
+    /// folder rounds their sum once. Nil unless part-way with stored paragraphs.
+    static func spot(of page: Page) -> (fraction: Double, wordsLeft: Double, words: Double)? {
         guard isPartWay(page), let paragraphs = page.cachedListenParagraphs, !paragraphs.isEmpty else { return nil }
         let document = ParagraphDocument(parts: paragraphs)
         let offset = utf16Offset(in: document, paragraph: page.positionParagraph, utf16Offset: page.positionUTF16)
         return (document.progress(atUTF16Offset: offset),
-                ListeningTime.minutesLeft(in: document, fromUTF16Offset: offset, rate: 1),
-                ListeningTime.minutes(utf16Length: document.utf16Length, rate: 1))
+                ListeningTime.words(utf16Length: max(0, document.utf16Length - offset)),
+                ListeningTime.words(utf16Length: document.utf16Length))
     }
 
     /// The stored spot as an offset into the listen text: the offset when it lies in the stored
@@ -64,9 +68,9 @@ struct FolderProgress {
     let isPlaying: Bool
 
     /// `pages` in play order (`LibraryStore.pages(in:)`); `playingKey`: the page playing, when one
-    /// of this folder's is what you hear.
+    /// of this folder's is what you hear; `rate`: the playback speed the minutes count at.
     @MainActor
-    init(folder: Folder, pages: [Page], playingKey: UUID?, library: LibraryStore) {
+    init(folder: Folder, pages: [Page], playingKey: UUID?, rate: Double, library: LibraryStore) {
         let snapshot = library.chapterSnapshot(of: folder, pages: pages)
         isPlaying = playingKey != nil
         if let playingKey {
@@ -84,23 +88,25 @@ struct FolderProgress {
         let timed = plays.filter { !$0.isLink }
         hasPagesToPlay = !timed.isEmpty
         isFinished = hasPagesToPlay && timed.allSatisfy { $0.finishedAt != nil }
-        // Each page's whole and what is left on one measure: a part-way page's both come from its
-        // listen text, the rest from its word count.
-        var total = 0, left = 0
+        // Each page's whole and what is left in words, on one measure: a part-way page's both come
+        // from its listen text, the rest from its word count. Summed before rounding, so the
+        // fraction doesn't move with the speed and the time left is rounded once.
+        var total = 0.0, left = 0.0
         for page in timed {
+            let words = Double(page.wordCount)
             if page.finishedAt != nil {
-                total += page.estimatedMinutes
+                total += words
             } else if let spot = PageProgress.spot(of: page) {
-                total += spot.minutes
-                left += spot.minutesLeft
+                total += spot.words
+                left += spot.wordsLeft
             } else {
-                total += page.estimatedMinutes
-                left += page.estimatedMinutes
+                total += words
+                left += words
             }
         }
-        minutesLeft = left
+        minutesLeft = ListeningTime.minutes(words: left, rate: rate)
         let started = timed.contains { $0.finishedAt != nil || PageProgress.isPartWay($0) }
-        fraction = total > 0 && started ? 1 - Double(left) / Double(total) : nil
+        fraction = total > 0 && started ? 1 - left / total : nil
         hasStarted = folder.currentPageKey != nil || fraction != nil
     }
 
