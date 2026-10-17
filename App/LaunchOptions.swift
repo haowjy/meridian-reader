@@ -70,9 +70,6 @@ struct LaunchOptions: Equatable {
     /// `-failLibrarySaves`: once the launch work is done (seeds, maintenance, bookmarks), every
     /// library save fails, so UI tests see the edits that can't be saved.
     var failsLibrarySaves = false
-    /// `-probeLockedFetch`: once launched, the locked-phone device check of a hidden fetch and a
-    /// silent wait between chapters (`LockedFetchProbe`). It runs only in the probe's own install.
-    var probesLockedFetch = false
     /// `-testVoice`: register an offline on-device test voice (`TestVoiceProvider`, "Test Voice"
     /// with voices One and Two); `-selectEngine test.voice` picks it. Downloads render with it.
     var usesTestVoice = false
@@ -118,7 +115,6 @@ struct LaunchOptions: Equatable {
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")
         failsLibrarySaves = flags.contains("-failLibrarySaves")
-        probesLockedFetch = flags.contains("-probeLockedFetch")
         usesTestVoice = flags.contains("-testVoice")
         selectsEngine = value(after: "-selectEngine").map(SpeechEngineID.init(rawValue:))
         kokoroUnits = value(after: "-kokoroUnits")

@@ -51,7 +51,7 @@ struct PageActions {
     /// The page when it is saved in the Library (🔖 filled).
     var savedPage: Page? { page.flatMap { $0.isSavedToLibrary ? $0 : nil } }
     var isSaved: Bool { savedPage != nil }
-    var isFavorite: Bool { page.map(LibraryStore.isFavorite) == true }
+    var isFavorite: Bool { page?.isFavorite == true }
     /// ☆ as the Library offers it: a web page, or a page in the Library (a chapter too).
     var canFavorite: Bool { url.map(LibraryStore.canFavorite) == true || page.map(LibraryStore.canFavorite) == true }
     var shareURL: URL? { url.flatMap { $0.isWeb ? $0 : nil } }

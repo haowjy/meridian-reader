@@ -46,7 +46,7 @@ struct LibraryPageRow: View {
                 playState: page.isLink ? .idle : actions.playState(of: page),
                 onPlay: page.isLink || page.skipsInPlayback || isEditing ? nil : { actions.play(page) },
                 insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil,
-                download: download, isFavorite: marksFavorite && LibraryStore.isFavorite(page))
+                download: download, isFavorite: marksFavorite && page.isFavorite)
             .opensOnTap(isEditing ? nil : { actions.open(page) })
             .libraryDropRow(.page(page.listenKey), in: screen)
             .libraryDrag(dragID, in: screen)
@@ -120,7 +120,7 @@ struct LibraryPageRow: View {
                role: inLibrary ? .destructive : nil) {
             if inLibrary { actions.remove([page]) } else { actions.save(page) }
         }
-        let isFavorite = LibraryStore.isFavorite(page)
+        let isFavorite = page.isFavorite
         Button(isFavorite ? "Remove from Favorites" : "Add to Favorites",
                systemImage: isFavorite ? Icons.unfavorite : Icons.favorite) {
             FavoriteFlow(library: library, shell: shell).toggle(page)

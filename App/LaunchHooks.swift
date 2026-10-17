@@ -96,15 +96,13 @@ enum LaunchHooks {
     /// `-failLibrarySaves`' refusal.
     private struct InjectedSaveFailure: Error {}
 
-    /// Last, after crash resume (which wins): `-playTestEPUB`, `-chainDemoChapters`,
-    /// `-probeLockedFetch`.
+    /// Last, after crash resume (which wins): `-playTestEPUB`, `-chainDemoChapters`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController) async {
         if options.playsTestEPUB {
             await importTestEPUB(in: library)
             await playTestEPUB(library: library, speech: speech)
         }
         if options.chainsDemoChapters { await chainDemoChapters(library: library, speech: speech) }
-        if options.probesLockedFetch { await LockedFetchProbe.run(speech: speech) }
     }
 
     /// `-playTestEPUB`: the synthetic EPUB, written to a temporary file and imported into the top

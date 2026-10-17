@@ -67,8 +67,6 @@ protocol NextChapterProviding: AnyObject {
     func chapters(of folderID: UUID) -> [ChapterAdvance.Chapter]
     /// A chapter's listening session (paragraphs and what the lock screen shows).
     func load(_ pageKey: UUID) -> SpeechSession?
-    /// Fetches a link chapter's text, so it can play; false when it couldn't be had.
-    func fetch(_ pageKey: UUID) async -> Bool
     /// The chapter played to its end, playing `text` (`PlaybackSessionState.textFingerprint`), and
     /// playback carried on past it. Marked finished only while its page holds that text.
     func pageFinished(key: UUID, text: String?)

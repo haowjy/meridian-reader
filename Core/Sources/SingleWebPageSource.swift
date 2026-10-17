@@ -23,8 +23,6 @@ struct SingleWebPageSource: PageSource {
 
     func knownPages() async throws -> [PageRef] { [page] }
 
-    func page(after ref: PageRef) async throws -> PageRef? { nil }
-
     func content(of ref: PageRef) async throws -> PageContent {
         guard ref == page else { throw PageSourceError.unknownPage }
         let extracted = try await extractor.extract(from: context)

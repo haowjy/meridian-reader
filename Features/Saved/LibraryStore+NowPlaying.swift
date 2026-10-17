@@ -29,13 +29,6 @@ extension LibraryStore: NextChapterProviding {
         return .page(page)
     }
 
-    /// No page fetcher is connected: a link chapter can't be fetched, so playback ends there
-    /// with "Couldn't get the next chapter".
-    func fetch(_ pageKey: UUID) async -> Bool {
-        log("no fetcher for link chapter \(Self.short(pageKey))")
-        return false
-    }
-
     func pageFinished(key: UUID, text: String?) {
         guard let page = page(key: key), holds(page, text: text) else { return }
         recordFinished(page)

@@ -25,7 +25,7 @@ struct FavoriteFlow {
     /// (`LibraryStore.canFavorite(_:)`). A web page without a tile-sized icon gets its site's.
     func toggle(_ page: Page) {
         guard LibraryStore.canFavorite(page) else { return }
-        if LibraryStore.isFavorite(page) {
+        if page.isFavorite {
             remove(page)
             return
         }

@@ -5,7 +5,8 @@ import XCTest
 /// Pages played without saving (decision D5): the top of the Library's *Pages*, marked "Not
 /// saved", most recently played first (`LibraryQueries.playedNotSaved`), and *Save* puts one in
 /// the Library. A page removed from the Library is in no list, not even this one, as it plays on,
-/// until it is saved or listened to again (`Page.removedAt`), and keeps its star.
+/// until it is saved or listened to again (`Page.removedAt`), and keeps its star, which keeps it
+/// in Favorites.
 @MainActor
 final class PlayedNotSavedTests: XCTestCase {
     private var env: LibraryTestEnvironment!
@@ -91,7 +92,7 @@ final class PlayedNotSavedTests: XCTestCase {
 
         env.now += 60
         try library.remove([page])
-        XCTAssertEqual(try lists(holding: page), [], "in no list, Not saved and Favorites included")
+        XCTAssertEqual(try lists(holding: page), ["Favorites"], "in no Library list, Not saved included; starred, in Favorites")
         XCTAssertEqual(page.removedAt, env.now)
         XCTAssertTrue(page.isFavorite, "the star stays")
         XCTAssertIdentical(library.page(url: url), page, "kept for what plays")
@@ -183,10 +184,11 @@ final class PlayedNotSavedTests: XCTestCase {
         XCTAssertNotNil(page.addedAt)
     }
 
-    /// Remove is one operation from every path, and never clears the star: a starred page in a
-    /// folder and a starred link (no text, ☆ made it) leave their folder and every list, Favorites
-    /// included, and stay in the store; saved or starred again, each is back in Favorites.
-    func testRemovingAFavoriteKeepsItsStarForWhenItIsBack() throws {
+    /// Remove is one operation from every path, and never clears the star, and the star is
+    /// independent of the Library: a starred page in a folder and a starred link (☆ made it) leave
+    /// their folder and every Library list but stay in Favorites, and the prune keeps them.
+    /// Unstarred, a removed page is in no list, and the prune deletes it.
+    func testARemovedFavoriteStaysInFavoritesUntilUnstarred() throws {
         let folder = try library.makeFolder(name: "Essays", in: nil)
         let page = try library.save(env.article("https://example.com/starred"), placement: .folder(folder))
         try library.addFavorite(page)
@@ -195,17 +197,17 @@ final class PlayedNotSavedTests: XCTestCase {
 
         try library.remove([page, link])
         XCTAssertNil(page.folder, "out of its folder")
+        env.now += 30 * 24 * 3600
+        library.pruneUnsaved()
         for removed in [page, link] {
-            XCTAssertEqual(try lists(holding: removed), [], "in no list, Favorites included")
+            XCTAssertFalse(removed.isDeleted, "the prune keeps a starred page")
+            XCTAssertEqual(try lists(holding: removed), ["Favorites"], "out of the Library, still in Favorites")
             XCTAssertTrue(removed.isFavorite, "the star stays")
-            XCTAssertFalse(LibraryStore.isFavorite(removed), "☆ empty while out of the Library")
         }
-        XCTAssertIdentical(library.page(url: URL(string: "https://example.com/link")!), link, "a link is kept too")
-        XCTAssertTrue(link.isLink)
 
-        try library.save(ReaderArticle(page: page))
-        XCTAssertEqual(try lists(holding: page), ["Pages", "Search", "Favorites", "Suggestions"], "saved: back in Favorites")
-        try library.addFavorite(url: URL(string: "https://example.com/link")!, title: nil, artwork: nil)
-        XCTAssertEqual(try lists(holding: link), ["Pages", "Search", "Favorites"], "starred: back in Favorites")
+        try library.removeFavorite(page)
+        XCTAssertEqual(try lists(holding: page), [], "unstarred: in no list")
+        library.pruneUnsaved()
+        XCTAssertNil(library.page(url: URL(string: "https://example.com/starred")!), "and pruned")
     }
 }

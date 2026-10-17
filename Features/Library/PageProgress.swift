@@ -51,15 +51,17 @@ struct FolderProgress {
     let currentKey: UUID?
     /// `currentKey`'s number among the pages that play ("3 of 7").
     let number: Int?
-    /// How many pages play (link pages and skipped chapters don't; a series' link chapters do).
+    /// How many pages play (link pages and skipped chapters don't; a followed story's chapters
+    /// waiting for their text do).
     let playingCount: Int
     /// 0…1 by length; nil before any page that plays is finished or part-way.
     let fraction: Double?
     /// The playable pages' length left (all of it before anything has played).
     let minutesLeft: Int
-    /// A page with text plays: the folder's row gets its ▶ and its header its play buttons.
+    /// A page plays (one with text, or a chapter waiting for it): the folder's row gets its ▶ and
+    /// its header its play buttons.
     let hasPagesToPlay: Bool
-    /// Every page with text that plays is finished.
+    /// Every page that plays is finished (a chapter waiting for its text isn't).
     let isFinished: Bool
     /// Something in it has played, or is finished or part-way: the row names its place and the
     /// header's button says *Continue*; before that, its byline and *Play*.
@@ -76,18 +78,15 @@ struct FolderProgress {
         if let playingKey {
             currentKey = playingKey
         } else {
-            switch ChapterAdvance.start(snapshot, place: folder.currentPageKey) {
-            case .ready(let key), .pending(let key): currentKey = key
-            case .unavailable, .none: currentKey = nil
-            }
+            currentKey = ChapterAdvance.start(snapshot, place: folder.currentPageKey).key
         }
         let plays = zip(pages, snapshot).filter { !$0.1.skipsInPlayback }.map(\.0)
         playingCount = plays.count
         number = currentKey.flatMap { key in plays.firstIndex { $0.listenKey == key } }.map { $0 + 1 }
 
         let timed = plays.filter { !$0.isLink }
-        hasPagesToPlay = !timed.isEmpty
-        isFinished = hasPagesToPlay && timed.allSatisfy { $0.finishedAt != nil }
+        hasPagesToPlay = !plays.isEmpty
+        isFinished = hasPagesToPlay && plays.allSatisfy { !$0.isLink && $0.finishedAt != nil }
         // Each page's whole and what is left in words, on one measure: a part-way page's both come
         // from its listen text, the rest from its word count. Summed before rounding, so the
         // fraction doesn't move with the speed and the time left is rounded once.

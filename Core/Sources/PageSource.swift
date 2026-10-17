@@ -1,7 +1,7 @@
 import Foundation
 
 /// Where pages come from: the web page the browser shows (`SingleWebPageSource`), an imported book
-/// (`EPUBSource`), later a web serial. Every source hands out the same thing, normalized page
+/// (`EPUBSource`). Every source hands out the same thing, normalized page
 /// content whose listen blocks are its reading blocks, so the reader, the render queue and the
 /// audio cache treat every page alike. A source never decides playback.
 @MainActor
@@ -11,8 +11,6 @@ protocol PageSource {
     var details: FolderDetails? { get }
     /// The pages known now: a book's chapters, all of them; a single web page, one.
     func knownPages() async throws -> [PageRef]
-    /// The page after `ref`; nil when the source has ended.
-    func page(after ref: PageRef) async throws -> PageRef?
     /// The page's text, normalized.
     func content(of ref: PageRef) async throws -> PageContent
 }
@@ -77,9 +75,9 @@ struct FolderDetails: Equatable, Sendable {
     var byline: String?
     /// A thumbnail of the cover.
     var cover: Data?
-    /// Series: the contents page, or the first chapter.
+    /// A followed story's table of contents.
     var sourceURL: URL?
-    /// One folder per identifier: a book's key, a series' canonical contents URL.
+    /// One folder per identifier: a book's key, a followed story's canonical contents URL.
     var sourceIdentifier: String
     /// Per kind (`Folder.sourceStateData`): a book's file fingerprint.
     var sourceState: Data?

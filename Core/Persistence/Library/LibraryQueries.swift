@@ -2,30 +2,32 @@ import Foundation
 import SwiftData
 
 /// Every library list's fetch, in one place: which lists a page is in is decided here and nowhere
-/// else. A page is in exactly one of three standings, and a list shows pages of one:
+/// else. A page is in exactly one of three standings, and the star is a flag beside them:
 ///
 /// - **In the Library** (`addedAt` set): its folder's list (`pages(inFolder:)`) or the top level's
-///   pages on the home (`loosePages`), Favorites while starred (`favoritePages`), the home's
-///   search (`searchPages`), address suggestions (`savedInLibrary`).
+///   pages on the home (`loosePages`), the home's search (`searchPages`), address suggestions
+///   (`savedInLibrary`).
 /// - **Played without saving** (`playedNotSaved`): out of the Library, played, not removed since
 ///   you last listened to it. The top of the home's pages, "Not saved", and the home's search.
-/// - **Removed** (out of the Library with `removedAt` set): in no list, Favorites included even
-///   while starred (it keeps its star for when it is back). *Remove from Library*
-///   takes a page out of every list it was in, at once, and playing on doesn't bring it back;
-///   saving it does, and so does listening to it again (🎧, the Reader's Listen).
+/// - **Removed** (out of the Library with `removedAt` set): in none of those. *Remove from
+///   Library* takes a page out of every one of them at once, and playing on doesn't bring it
+///   back; saving it does, and so does listening to it again (🎧, the Reader's Listen).
+/// - **Starred** (`isFavorite`), whatever its standing: Favorites (`favoritePages`, and the
+///   Favorites tab's search). Remove leaves the star, so a removed favorite stays in Favorites,
+///   and the prune keeps a starred page (`prunable`); only unstarring takes it out.
 ///
-/// Downloads go by the same line: the Downloads list keeps what is in the Library
-/// (`DownloadCenter`). The bar's resume (`lastPlayed`) and the prune (`prunable`) aren't lists: they read every
-/// page by when it was played. Predicates never go through the optional `folder` relationship
+/// Downloads go by the Library's line: the Downloads list keeps what is in the Library
+/// (`DownloadCenter`). The bar's resume (`lastPlayed`) and the prune (`prunable`) aren't lists:
+/// they read every page by when it was played. Predicates never go through the optional `folder` relationship
 /// (iOS 17 can't always translate it); they use `Page.folderID`. Optional dates are compared
 /// through `?? distantPast`.
 enum LibraryQueries {
     // MARK: Pages
 
-    /// Starred pages in the Library, anywhere in the tree, by title: the home's Favorites tab and
-    /// the start page's grid.
+    /// Starred pages, in the Library or not, anywhere in the tree, by title: the home's Favorites
+    /// tab and the start page's grid.
     static var favoritePages: FetchDescriptor<Page> {
-        FetchDescriptor(predicate: #Predicate<Page> { $0.addedAt != nil && $0.isFavorite },
+        FetchDescriptor(predicate: #Predicate<Page> { $0.isFavorite },
                         sortBy: [SortDescriptor(\.title)])
     }
 
@@ -73,10 +75,13 @@ enum LibraryQueries {
         return descriptor
     }
 
-    /// Pages not in the Library, not played since `cutoff`: deleted by the prune.
+    /// Pages in no list, not played since `cutoff`: out of the Library and not starred (Favorites
+    /// keeps a starred one). Deleted by the prune.
     static func prunable(before cutoff: Date) -> FetchDescriptor<Page> {
         let past = Date.distantPast
-        return FetchDescriptor(predicate: #Predicate<Page> { $0.addedAt == nil && ($0.lastPlayedAt ?? past) < cutoff })
+        return FetchDescriptor(predicate: #Predicate<Page> {
+            $0.addedAt == nil && !$0.isFavorite && ($0.lastPlayedAt ?? past) < cutoff
+        })
     }
 
     /// Link pages whose text cache (and position) wasn't played since `cutoff`: the prune clears
@@ -134,13 +139,14 @@ enum LibraryQueries {
     // MARK: The home
 
     /// The home's search, across the tree: pages in the Library or played without saving whose
-    /// title, site or author, or excerpt holds `text`; on Favorites, starred pages only. By title,
+    /// title, site or author, or excerpt holds `text`; on Favorites, starred pages (in the Library
+    /// or not), as the tab lists them. By title,
     /// then newest first, so the results keep one order.
     static func searchPages(_ text: String, favoritesOnly: Bool) -> FetchDescriptor<Page> {
         let sort = [SortDescriptor(\Page.title), SortDescriptor(\Page.addedAt, order: .reverse), SortDescriptor(\Page.key)]
         if favoritesOnly {
             return FetchDescriptor(predicate: #Predicate<Page> { page in
-                page.addedAt != nil && page.isFavorite
+                page.isFavorite
                     && (page.title.localizedStandardContains(text) || page.byline.localizedStandardContains(text)
                         || page.excerpt.localizedStandardContains(text))
             }, sortBy: sort)
