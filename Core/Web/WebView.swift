@@ -110,6 +110,11 @@ struct WebView: UIViewRepresentable {
             }
         }
 
+        /// Handled here, WebKit doesn't reload the page itself (`WebViewStore.contentProcessEnded`).
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            Task { @MainActor in store.contentProcessEnded() }
+        }
+
         func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
             Task { @MainActor in store.syncNavigationState() }
         }

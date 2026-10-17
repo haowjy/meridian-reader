@@ -128,6 +128,10 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   Move tree (*Save to Folder…*). Dimmed on the start page. **🕘** (slot 4) opens History.
 - ‹ / › are web history (disabled when WebKit can't go back / forward; KVO on the web view, so
   same-document history counts too). The web view's own edge swipes still work.
+- A page whose web content process ends (WebKit crashed, or iOS took its memory) shows blank
+  until it loads again, so it reloads by itself: at once, then after 2 s and 5 s when the new
+  process ends too. A fourth end within a minute leaves it blank until ⋯ → *Reload* or another
+  page (`ContentProcessRecovery`). Follow's chapter preview (also a `WebView`) does the same.
 - No Reader button in the toolbar. The **reader icon** (📄, like Safari's page-format icon) sits
   at the leading edge of the address field only when the page is readable (the same Mozilla
   `isProbablyReaderable` check extraction uses, run after each load / same-document URL change);
@@ -378,8 +382,8 @@ goes in), where you type or paste the story's address. Follow covers the screen:
    down on the header, or on the page while it is at its top, closes the preview; one that
    starts further down only scrolls, as in the Reader.
 3. **OK · Follow 107 Chapters** makes the folder at once (named for the story, its author as the
-   byline) with the chapters kept, as links, and opens it. Their text is fetched in the
-   background one at a time, each waiting for the one before and a pause; slow replies lengthen
+   byline) with the chapters kept, as links, and opens it. Their text is fetched one at a time
+   while the app is open, each waiting for the one before and a pause; slow replies lengthen
    the pause, and a site that asks to slow down (429), fails (5xx) or doesn't answer is backed off
    from a minute up to 30 minutes (TECHNICAL_SPEC.md, "Fetching a page out of sight"). Nothing is
    fetched while the app is in the background.

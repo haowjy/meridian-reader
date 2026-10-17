@@ -86,6 +86,10 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
 1. The browser keeps a live `WKWebView` (`WebViewStore`). Reader mode and Save take a snapshot of
    the page's visible DOM (`PageSnapshot`: `ReaderVisibleSnapshot.js` drops short invisible text
    such as anti-copy lines).
+   When WebKit ends the view's content process (a crash, or memory taken), the view's delegate
+   handles it (`WebViewStore.contentProcessEnded`), so WebKit doesn't reload once and stop: the
+   page reloads at once, then after 2 s and 5 s, and is left blank after a fourth end within a
+   minute (`ContentProcessRecovery`).
 2. `ReadabilityArticleExtractor` loads that HTML into an **off-screen** `WKWebView`
    (`OffscreenWebView`; the page URL as base for web pages) with the page's JavaScript off (its
    load gives up after 30 s, when WebKit's content process ends, or when the caller is

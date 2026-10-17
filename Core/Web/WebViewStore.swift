@@ -21,6 +21,8 @@ final class WebViewStore {
     var isReaderable = false
     /// A load asked for before the web view was made: it starts once the view attaches.
     @ObservationIgnored private var pendingURL: URL?
+    /// Paces the reloads after the view's content process ends.
+    @ObservationIgnored private var recovery = ContentProcessRecovery()
 
     /// A book (`.epub`) the page linked to, downloading into `BookImportFiles` instead of showing.
     enum BookDownload {
@@ -76,6 +78,19 @@ final class WebViewStore {
         }
     }
 
+    /// WebKit ended the view's content process (it crashed, or the system took its memory): the
+    /// page shows blank until it loads again, so it reloads, paced by `ContentProcessRecovery`.
+    /// The start page has nothing to reload; a page the user moved on to before the wait ended
+    /// loads by itself.
+    func contentProcessEnded() {
+        guard hasPage, let delay = recovery.delayAfterEnd(at: Date()) else { return }
+        Task { [weak self] in
+            if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
+            guard let webView = self?.webView, !webView.isLoading else { return }
+            webView.reload()
+        }
+    }
+
     func goBack() { webView?.goBack() }
     func goForward() { webView?.goForward() }
     func refresh() { webView?.reload() }
@@ -94,5 +109,27 @@ final class WebViewStore {
             throw ExtractionError.engineFailed(message: "WebView isn’t ready yet.")
         }
         return try await PageSnapshot.html(of: webView)
+    }
+}
+
+/// How a web view comes back after WebKit ends its content process. Left to itself WebKit reloads
+/// once and leaves the page blank when the new process ends too, which a device short of memory
+/// does several times in a row (a new process can die as it launches). This reloads at once, then
+/// after a pause that grows, and gives up (the page stays blank until a reload or a navigation)
+/// once the process has ended `delays.count` times within `window`, so a page that crashes its
+/// process every time doesn't reload forever.
+struct ContentProcessRecovery {
+    static let delays: [TimeInterval] = [0, 2, 5]
+    static let window: TimeInterval = 60
+
+    private var ends: [Date] = []
+
+    /// The process ended at `now`: how long to wait before reloading, or nil to leave the page.
+    mutating func delayAfterEnd(at now: Date) -> TimeInterval? {
+        ends = ends.filter { now.timeIntervalSince($0) < Self.window }
+        guard ends.count < Self.delays.count else { return nil }
+        let delay = Self.delays[ends.count]
+        ends.append(now)
+        return delay
     }
 }
