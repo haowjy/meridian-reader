@@ -174,7 +174,9 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   Library where it is, with its played text, so it shows in Favorites and the 7-day prune of
   unsaved pages leaves it. A starred page in the Library is a favorite: ☆ then reads *Remove
   from Favorites*, which clears the star and leaves the page where it is (a link ☆ made stays).
-  *Remove from Library* clears the star too. A Library row's menu (a page's or a folder's) stars
+  *Remove from Library* never clears the star: a removed page is in no list, Favorites included,
+  and ☆ shows empty while it is out of the Library; saving it again (or ☆) puts it back, starred,
+  in Favorites. A Library row's menu (a page's or a folder's) stars
   the same way, with the same toasts. ☆ is offered for a web page or a page in the Library, a
   book's chapter too, in the Library's rows and in the Reader's and Now Playing's ⋯ alike.
 - **One saved state**: the browser's 🔖 and ⋯, the Reader and Now Playing all read "is this page
@@ -184,12 +186,13 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
 - **One library**: everything is a page in a folder (or in none). A page is a *link* (an address
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
   without saving (kept 7 days, shown at the top of the Library's *Pages* as "Not saved", and in
-  the bar). *Remove from Library* takes a page out of every list it was in, "Not saved" too,
-  even while it plays; it is kept 7 days after its last play for what plays and the bar (a page
-  never played goes at the next launch), and comes back only when
-  you save it or listen to it again (🎧, the Reader's Listen). There is one page per
-  address: saving a favorite saves it in place; unsaving a page in a folder leaves it there as a
-  link. 🔖 = saved, ☆ = favorite.
+  the bar). *Remove from Library* is one action wherever it is asked (a row's swipe or menu,
+  Edit, 🔖, the ⋯ of the browser, the Reader and Now Playing): the page leaves its folder and
+  every list it was in, Favorites and "Not saved" too, even while it plays, and keeps its star;
+  it is kept 7 days after its last play for what plays and the bar (a page never played goes at
+  the next launch), and comes back only when you save it or listen to it again (🎧, the Reader's
+  Listen). There is one page per address: saving a favorite saves it in place. 🔖 = saved, ☆ =
+  favorite.
 - **The Now Playing bar** (`BandNowPlayingBar` / `NowPlayingBarView` → `NowPlayingBar`) is the
   one thing that shows what you hear: a floating card 8 pt above the field capsule with the page's
   artwork (favicon or a letter tile), its title, the site and the time left (two parts set apart
@@ -258,7 +261,8 @@ commas.
   and pages wherever they live. Search filters folders and pages across the tree in either tab,
   folders by name, then pages by title (the newest first among equal titles); a result keeps its location and shows the path (one at the top level keeps its own second
   line). Favorites' rows carry no ★, since every one is a favorite. The old Favorites folder is migrated into star
-  flags; direct pages become loose and nested folders stay nested. Rows are the compact two-line
+  flags on its direct children only: its pages become loose, its subfolders move to the top level
+  starred, and what is inside them stays as it was, unstarred. Rows are the compact two-line
   rows, with a Download state and Play (pages: the two-line row below). The bar's ▶ resumes what you last heard, and a folder row's ▶
   resumes its own pages without opening it (D14). A first-run empty Library shows *Find something
   to listen to*, naming the band's 🌐 and ＋ by their symbols, with *Browse the web* and *Import a
@@ -350,7 +354,7 @@ place and time left there instead. Every row's separator starts at its title. Ev
 downloaded has a Download control (⬇, a ring filling while it downloads, ✓ once downloaded) and
 ▶ side by side at its trailing edge, centred on the row's height. A page row (a chapter too) is
 exactly two lines (decision D21): its title on one line, truncated, then one short line of what
-it is and where it stands ("5 min", "6 min left", "✓ Finished" with a ✓ symbol, "Skipped", "Playing"), with a
+it is and where it stands ("5 min", "6 min left", both at the playback speed, "✓ Finished" with a ✓ symbol, "Skipped", "Playing"), with a
 small thumbnail as tall as the two lines. In a folder that line is the status alone (the header
 already names the author or site); on the home and in search the site or path comes first. A
 tap opens the row; its menu is a long-press (decision D11), and a
@@ -445,9 +449,11 @@ its download off the list too (a removed page's audio stays, ephemeral); its lon
 *Pause / Resume*, *Re-download*, *Keep* and *Remove* as they apply. While Apple's voice is
 selected nothing renders: queued downloads say *Waiting for an on-device voice*, with
 *Settings*. *Delete Downloads* on a page or a folder deletes its audio and its download; the audio
-of the page you hear and of the chapter staged after it stays for listening. A folder's download
-that covered the page no longer counts it as done: it renders the page again while the folder
-still covers it (the folder is back under *Queued*), else drops it. A page
+of the page you hear and of the chapter staged after it stays for listening. It stays deleted: a
+folder's download that listed the page drops it (the folder stays under *Downloaded* if the rest
+is done, and its Download control shows ⬇ again, since not everything in it is downloaded), and
+nothing renders the page again until it is played or Download is tapped (the page's, or the
+folder's, which lists the folder's pages afresh). A page
 that couldn't be fetched or rendered is counted ("2 couldn’t download"), and *Re-download* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch. With
 nothing in it, a card says *Nothing downloaded*: tap ⬇ on a page, a folder or a book in the
@@ -549,7 +555,7 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   the browser (📄, ⋯ → Reader, a Favorites tile) the pill reads *‹ Browser*; from the Library
   *‹ Library*. The pill, the grabber and a pull down all close it to exactly where you were.
 - **Listen** reads *▶ **Listen** 9 min*, *▶ **Resume** 6 min left* for a page part-way through
-  (at 1×, written as rows write it, "1 h 5 min left" past the hour; the time in regular weight after the semibold title, left out when the pill is short of room
+  (at the playback speed, written as rows write it, "1 h 5 min left" past the hour; the time in regular weight after the semibold title, left out when the pill is short of room
   at large text sizes), or *▶ Listen Again* for a finished one. It starts at the page's saved spot, makes the page what you
   hear (replacing what plays) and turns the Reader into Now Playing in place, where the Reader was
   (decision D2):

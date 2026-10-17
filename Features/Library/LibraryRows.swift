@@ -42,7 +42,7 @@ struct LibraryPageRow: View {
     private var liveBody: some View {
         ListRow(kind: kind, title: page.title, subtitle: subtitle,
                 note: page.isLink || page.isInLibrary ? nil : String(localized: "Not saved"),
-                progress: page.isLink ? .unplayed(minutes: nil) : PageProgress.of(page),
+                progress: page.isLink ? .unplayed(minutes: nil) : actions.progress(of: page),
                 playState: page.isLink ? .idle : actions.playState(of: page),
                 onPlay: page.isLink || page.skipsInPlayback || isEditing ? nil : { actions.play(page) },
                 insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil,

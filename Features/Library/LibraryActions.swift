@@ -27,6 +27,11 @@ struct LibraryActions {
         speech.playState(of: .page(page.listenKey))
     }
 
+    /// What `page`'s row shows: its length or time left at the current speed, finished, skipped.
+    func progress(of page: Page) -> ListRow.Progress {
+        PageProgress.of(page, rate: speech.rateMultiplier)
+    }
+
     /// The row's ▶: pause or resume it when it is what you hear; otherwise play it from its spot
     /// (a finished page from the top), replacing what plays. A page in a folder carries on through
     /// it.
@@ -65,10 +70,11 @@ struct LibraryActions {
     }
 
     /// What `folder`'s row and its header show, `pages` being its pages in play order: with the
-    /// page playing when one of them is what you hear.
+    /// page playing when one of them is what you hear, and its time left at the current speed.
     func progress(of folder: Folder, pages: [Page]) -> FolderProgress {
         FolderProgress(folder: folder, pages: pages,
-                       playingKey: playState(of: folder).isCurrent ? speech.activeSessionID : nil, library: library)
+                       playingKey: playState(of: folder).isCurrent ? speech.activeSessionID : nil,
+                       rate: speech.rateMultiplier, library: library)
     }
 
     /// A folder's ▶ and its screen's round button (a book, a series, a folder you
@@ -110,8 +116,10 @@ struct LibraryActions {
         }
     }
 
-    /// *Remove from Library* (a row's menu and swipe, Edit's *Remove*), all of `pages` in one
-    /// save. False when it couldn't be saved: none removed, and a toast says so.
+    /// *Remove from Library* from every path (a row's menu and swipe, Edit's *Remove*, and through
+    /// `PageActions` 🔖 and the browser's, the Reader's and Now Playing's ⋯), all of `pages` in one
+    /// save (`LibraryStore.remove`: the star stays). False when it couldn't be saved: none
+    /// removed, and a toast says so.
     @discardableResult
     func remove(_ pages: [Page]) -> Bool {
         shell.attempt(String(localized: "Couldn’t remove")) { try library.remove(pages) } != nil

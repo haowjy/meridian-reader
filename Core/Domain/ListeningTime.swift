@@ -4,8 +4,10 @@ import Foundation
 /// "6 h 10 min left". Spoken English runs at about 180 words a minute at 1×, and a word plus its
 /// space is about 6 UTF-16 units.
 ///
-/// Every estimate names its playback `rate`: which surfaces divide by the speed is decided at the
-/// call (Now Playing and its bar count at the speed you hear; everything else at 1×).
+/// Every estimate names its playback `rate`, and every surface passes the current speed
+/// (`SpeechController.rateMultiplier`): rows, folder headers, the Reader's length and Listen,
+/// the Now Playing bar and Now Playing all count at the speed you hear, lengths and time left
+/// alike, so a length and the time left after it agree.
 enum ListeningTime {
     static let wordsPerMinute = 180.0
     static let unitsPerWord = 6.0
@@ -17,10 +19,17 @@ enum ListeningTime {
 
     /// Minutes to hear `utf16Length` units of text at `rate` (at least 1 while any text is left).
     static func minutes(utf16Length: Int, rate: Double) -> Int {
-        minutes(words: Double(utf16Length) / unitsPerWord, rate: rate)
+        minutes(words: words(utf16Length: utf16Length), rate: rate)
     }
 
-    private static func minutes(words: Double, rate: Double) -> Int {
+    /// The words in `utf16Length` units of listen text, on the one measure: a length that doesn't
+    /// depend on the speed, for sums rounded to minutes once (a folder's time left and fraction).
+    static func words(utf16Length: Int) -> Double {
+        Double(utf16Length) / unitsPerWord
+    }
+
+    /// Minutes to hear `words` words (on the one measure, possibly a fraction) at `rate`.
+    static func minutes(words: Double, rate: Double) -> Int {
         guard words > 0 else { return 0 }
         return max(1, Int((words / (wordsPerMinute * max(0.25, rate))).rounded(.up)))
     }

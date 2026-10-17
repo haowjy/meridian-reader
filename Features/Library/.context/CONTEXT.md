@@ -33,8 +33,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   search (`searchPages`, `searchFolders`). The home picks the descriptors in its `init` from the
   tab and the search text; it filters nothing itself but `isLive`.
 - **Which lists a page is in is `LibraryQueries`' alone** (in the Library, played without saving,
-  or removed: in none). *Remove* stamps `removedAt`, so a played page doesn't come back as "Not
-  saved" as it plays on (a listen from its article clears it, `recordPlayback`); a view never re-derives a list from `addedAt` or `lastPlayedAt` itself. The Downloads
+  or removed: in none). *Remove* is one `LibraryStore.remove` from every path (rows, Edit, and
+  `PageActions`' 🔖 and ⋯ through `LibraryActions.remove`); it never clears the star or deletes.
+  It stamps `removedAt`, so a played page doesn't come back as "Not saved" as it plays on (a listen from its article clears it, `recordPlayback`); a view never re-derives a list from `addedAt` or `lastPlayedAt` itself. The Downloads
   list follows the same line (`DownloadCenter` drops what left the Library after each stored
   edit, `LibraryStore.editStored`).
 - **A saved delete reaches views one redraw early.** Rows, a folder's screen and a relationship's

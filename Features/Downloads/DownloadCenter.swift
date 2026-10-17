@@ -275,44 +275,38 @@ final class DownloadCenter {
         withRecord(id) { $0.keptVoice = voice }
     }
 
-    /// *Delete Downloads* on a page's row: its audio goes (unless listening needs it,
-    /// `purgeAudio`), and so does a download of just that page; a folder's download covering it
-    /// no longer counts it as done (`forgetDone`).
+    /// *Delete Downloads* on a page's row: the page leaves every download (`forget`) and its audio
+    /// goes (unless listening needs it, `purgeAudio`). It stays deleted: a folder's download no
+    /// longer lists it, so the folder shows as not all downloaded, and nothing renders it again
+    /// until it is played or Download is tapped (the page's, or the folder's, which lists the
+    /// folder's pages again).
     func deleteDownloads(of page: Page) {
-        records.removeAll { $0.target == .page(page.listenKey) }
-        if active?.key == page.listenKey { stopActive() }
-        forgetDone(purgeAudio([page.listenKey]))
+        forget([page.listenKey])
+        purgeAudio([page.listenKey])
         advance()
     }
 
-    /// *Delete Downloads* on a folder: its pages' audio (unless listening needs it, `purgeAudio`),
-    /// and its download; downloads of one of those pages no longer count it as done.
+    /// *Delete Downloads* on a folder: its download goes, its pages leave every other download
+    /// (`forget`), and their audio goes (unless listening needs it, `purgeAudio`).
     func deleteDownloads(of folder: Folder) {
         if let record = record(for: .folder(folder.id)), active?.recordID == record.id { stopActive() }
         records.removeAll { $0.target == .folder(folder.id) }
-        forgetDone(purgeAudio(library.pages(in: folder).map(\.listenKey)))
+        let keys = library.pages(in: folder).map(\.listenKey)
+        forget(keys)
+        purgeAudio(keys)
         advance()
     }
 
-    /// After *Delete Downloads* took `purged`'s audio, no download counts those pages as done: a
-    /// download of just one of them goes, and a folder's download puts one back in its queue
-    /// while it still covers the page (`covers`), else takes it off its list. So the Downloads
-    /// list and the rows agree that the folder isn't downloaded.
-    private func forgetDone(_ purged: [UUID]) {
-        let purged = Set(purged)
-        guard !purged.isEmpty else { return }
+    /// `keys`' pages leave every download, whatever their turn (queued, done or failed): a download
+    /// of just one of them goes, and a folder's download drops them from its list. One of them
+    /// rendering for a download stops. So the Downloads list and the rows agree, and no download
+    /// renders a page whose downloads were deleted.
+    private func forget(_ keys: [UUID]) {
+        let keys = Set(keys)
+        if let active, keys.contains(active.key) { stopActive() }
+        for key in keys { requeued[key] = nil }
         updateRecords { records in
-            records.removeAll { if case .page(let key) = $0.target { purged.contains(key) } else { false } }
-            for index in records.indices {
-                guard case .folder(let id) = records[index].target else { continue }
-                let folder = library.folder(id: id)
-                records[index].entries = records[index].entries.compactMap { entry in
-                    guard entry.state == .done, purged.contains(entry.key) else { return entry }
-                    guard let folder, let page = library.page(key: entry.key), page.folder === folder,
-                          Self.covers(page, in: folder) else { return nil }
-                    return DownloadRecord.Entry(key: entry.key)
-                }
-            }
+            for index in records.indices { records[index].entries.removeAll { keys.contains($0.key) } }
             records.removeAll { $0.entries.isEmpty }
         }
     }
@@ -348,16 +342,11 @@ final class DownloadCenter {
 
     /// Deletes the audio, pending render and queued renders of `keys`' pages, except what
     /// listening needs (`needsAudio`): that audio stays for the session, saved or ephemeral as
-    /// the library keeps its page. Returns the keys whose audio went.
-    @discardableResult
-    private func purgeAudio(_ keys: [UUID]) -> [UUID] {
-        var purged: [UUID] = []
+    /// the library keeps its page.
+    private func purgeAudio(_ keys: [UUID]) {
         for key in keys where !needsAudio(key) {
-            guard let page = library.page(key: key) else { continue }
-            library.deleteDownloads(page)
-            purged.append(key)
+            if let page = library.page(key: key) { library.deleteDownloads(page) }
         }
-        return purged
     }
 
     // MARK: - Working through the list
@@ -390,10 +379,18 @@ final class DownloadCenter {
             var pageKey = key
             if page.isLink {
                 active = Active(recordID: recordID, key: key, phase: .fetching)
-                let saved = await fetchAndSave(page)
-                // Paused or removed while it loaded: what it fetched isn't saved.
+                let fetched = await fetchText(page)
+                // Paused, removed or its downloads deleted while it loaded: what it fetched isn't
+                // saved (a save would queue its render, and put a removed page back in the Library).
                 guard active == Active(recordID: recordID, key: key, phase: .fetching) else { continue }
                 active = nil
+                guard library.page(key: key)?.isInLibrary == true else {
+                    finish(recordID, key, .failed, String(localized: "It’s no longer in the Library"))
+                    continue
+                }
+                let saved = fetched.flatMap { article in
+                    Result { try save(article) }.mapError { _ in FetchFailure(message: String(localized: "Couldn’t save it")) }
+                }
                 switch saved {
                 case .failure(let failure):
                     finish(recordID, key, .failed, failure.message)
@@ -432,9 +429,9 @@ final class DownloadCenter {
         var message: String
     }
 
-    /// A link page's text, fetched and saved in place (the one save path, which also queues its
-    /// bake). Returns the saved page's key.
-    private func fetchAndSave(_ page: Page) async -> Result<UUID, FetchFailure> {
+    /// A link page's text, fetched (or the text it was played from), for the caller to save in
+    /// place through the one save path, which also queues its bake.
+    private func fetchText(_ page: Page) async -> Result<ReaderArticle, FetchFailure> {
         guard let url = page.url else { return .failure(FetchFailure(message: String(localized: "It has no address"))) }
         // Read before the fetch: the page may be deleted while it loads.
         let title = page.title
@@ -461,11 +458,7 @@ final class DownloadCenter {
         guard !article.document.paragraphs.isEmpty else {
             return .failure(FetchFailure(message: String(localized: "Nothing to listen to")))
         }
-        do {
-            return .success(try save(article))
-        } catch {
-            return .failure(FetchFailure(message: String(localized: "Couldn’t save it")))
-        }
+        return .success(article)
     }
 
     private func finish(_ recordID: UUID, _ key: UUID, _ state: DownloadRecord.PageState, _ failure: String? = nil) {

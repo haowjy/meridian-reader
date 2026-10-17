@@ -75,8 +75,10 @@ Rules:
   Listening. `isFinished` (phase `.finished`) is what the bar and Now Playing read for "✓ Finished".
 - **Time left** is `ListeningTime`'s: one reading rate (180 words a minute, a word being 6 UTF-16
   units of the listen text; a page not yet played by its stored word count), one way to write it
-  ("9 min left", "6 h 10 min left"), and an explicit playback rate at every call. The bar and Now
-  Playing count at the speed you hear; rows, folder headers, the resume bar and the Reader at 1×.
+  ("9 min left", "6 h 10 min left"), and an explicit playback rate at every call. Every surface
+  passes the current speed (`SpeechController.rateMultiplier`): rows, folder headers, the resume
+  bar, the Reader's length and Listen, the bar and Now Playing all count at the speed you hear,
+  lengths and time left alike, and follow a speed change at once.
 - **`playState(of:)`** for a `ListenTarget` (`.page(key)`, `.webPage(canonicalURL:)`, compared
   as strings so a saved article with a pre-v2 random id still matches its page, or `.folder(id)`,
   current while any page of that folder is bound): `idle`,
@@ -362,9 +364,9 @@ the background (a fetch needs a window), and nothing renders for downloads while
 selected (`wantsLocalBake`). Pause and *Remove* take the page's job out of the queue
 (`removeBakeJob`), and *Remove* and *Delete Downloads* delete audio (`DownloadCenter.purgeAudio`),
 never for what listening needs (`needsAudio`: the page bound to the session, playing, paused or
-finished, and the chapter staged after it): its job and its audio stay. *Delete Downloads* on the
-page playing takes its download off the list, and its audio stays for the session, saved or
-ephemeral as the library keeps the page. The voice a download is shown in is read
+finished, and the chapter staged after it): its job and its audio stay. *Delete Downloads* takes
+the page out of every download (a folder's download drops it, never queues it again), the page
+playing too, whose audio stays for the session, saved or ephemeral as the library keeps the page. The voice a download is shown in is read
 from its audio (`ArticleAudioCache.renderedVoice`: the voice most of its paragraphs are in), so a
 voice change shows at once; finished downloads aren't re-rendered by it (*Re-download* does that).
 
@@ -530,7 +532,7 @@ highlight and the paragraph picker stay fine-grained.
 - **Keys** (`ARTICLE_IDENTITY.md`): one per canonical URL, saved or not. Leaving an unsaved
   reader keeps its audio; ephemeral caches are pruned after 7 days or past 500 MB, except audio
   held for unfinished library work (`TECHNICAL_SPEC.md`, Audio work waits for the save). Save
-  marks the cache saved once the save is stored, and unsave and *Remove from Library* mark it
+  marks the cache saved once the save is stored, and *Remove from Library* marks it
   ephemeral again, both through the library's audio work; deleting a saved row deletes its audio.
   Saving the page that is playing, under its own key, moves no audio. When a page holds the
   address under an older key, the reader's audio moves under the page's key and the live session

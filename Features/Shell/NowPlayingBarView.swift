@@ -109,7 +109,7 @@ private struct ResumeBar: View {
     }
 
     @ViewBuilder private var bar: some View {
-        let progress = PageProgress.of(page)
+        let progress = actions.progress(of: page)
         NowPlayingBar(
             title: page.title,
             detail: detail(progress),

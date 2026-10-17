@@ -3,7 +3,8 @@ import SwiftData
 
 /// Favorites are flags on pages and folders, independent of their location. A favorite page is
 /// in the Library (`isFavorite(_:)`, `LibraryQueries.favoritePages`): starring a page that isn't
-/// puts it there, and removing one from the Library clears its flag. Adding, removing and
+/// puts it there. Removing one from the Library keeps its flag (out of Favorites while it is out
+/// of the Library; a save puts it back); only unstarring clears it. Adding, removing and
 /// renaming a favorite save at once; a save that fails is rolled back and throws
 /// `LibraryStoreError.saveFailed`.
 extension LibraryStore {
@@ -84,8 +85,9 @@ extension LibraryStore {
     }
 
     /// Converts the legacy Favorites folder an older build left in the store (any number of
-    /// copies, wherever they are) into stars, at launch: its pages are starred and become loose at
-    /// the top level; its subfolders move to the top level, starred with everything in them. The
+    /// copies, wherever they are) into stars, at launch: its direct children are starred, its
+    /// pages loose at the top level and its subfolders moved to the top level with their contents
+    /// as they were. What sits deeper isn't starred: a book's chapters would flood Favorites. The
     /// folder is deleted in the same saved edit.
     func migrateFavoritesFolder() {
         let legacyFolders = (try? context.fetch(LibraryQueries.favorites)) ?? []
@@ -100,7 +102,7 @@ extension LibraryStore {
                     }
                     for folder in legacy.children ?? [] {
                         folder.parent = nil
-                        markFavorite(folder)
+                        folder.isFavorite = true
                     }
                     context.delete(legacy)
                 }
@@ -108,12 +110,6 @@ extension LibraryStore {
         } catch {
             log("favorites migration failed; original folder remains: \(error)")
         }
-    }
-
-    private func markFavorite(_ folder: Folder) {
-        folder.isFavorite = true
-        for page in folder.pages ?? [] { page.isFavorite = true }
-        for child in folder.children ?? [] { markFavorite(child) }
     }
 
     func renameFavorite(_ page: Page, to title: String) throws {

@@ -2,8 +2,8 @@ import Foundation
 
 /// Saving an article, with its listen audio, in one place. Pages go through `LibraryStore` (one
 /// page per canonical URL); the audio cache follows once the library change is stored: saved
-/// audio is kept and baked ahead. (Unsaving is `LibraryStore.unsave`, which puts the audio back
-/// on the ephemeral TTL.) Used by the browser's ⋯ → Save to Library…, and through `PageActions`
+/// audio is kept and baked ahead. (*Remove from Library* is `LibraryStore.remove`, which puts the
+/// audio back on the ephemeral TTL.) Used by the browser's ⋯ → Save to Library…, and through `PageActions`
 /// by the Reader's and Now Playing's 🔖, ⋯ → Save and *Save to Folder…*.
 @MainActor
 struct ArticleSaveCoordinator {

@@ -17,7 +17,7 @@ import SwiftUI
 ///   a page you haven't saved from its site. ⋯ → *Go to <name>* opens the Library at the folder
 ///   or the Library; for a site, ⋯ → Website opens the page in the browser.
 /// - The top bar, 🔖 and ⋯ are the Reader's (decision D24): Aa changes how the page reads; ☝︎
-///   then a tap on a paragraph plays from there; 🔖 saves / unsaves (tap) or files the page
+///   then a tap on a paragraph plays from there; 🔖 saves / removes (tap) or files the page
 ///   (long-press, *Save to Folder…*); ⋯ is the Reader's menu. Both act through `PageActions`, as
 ///   in the Reader.
 /// - At the end it stays: the text stays, all in full ink, the title card says "✓ Finished"
