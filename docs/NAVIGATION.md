@@ -143,9 +143,10 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   navigates.
 - **⋯** opens a Safari-style menu panel that grows out of the button (covers the ⋯, no arrow):
   rows *New Search, Save to Folder… / Remove from Library (🔖), Add to Favorites / Remove from
-  Favorites (☆), Share, Reload, Downloads, Settings*, then a row of big buttons **Favorites**, **History**, and
+  Favorites (☆), Follow…, Share, Reload, Downloads, Settings*, then a row of big buttons **Favorites**, **History**, and
   **Reader** (rightmost, nearest the thumb, like Safari's All Tabs). *Save to Folder…* opens the
-  Move tree and saves the page into the folder picked. On the start page *Save to Folder…*, ☆,
+  Move tree and saves the page into the folder picked. *Follow…* reads the story the page belongs
+  to ("Follow a story", below). On the start page *Save to Folder…*, ☆, *Follow…*,
   *Share*, *Reload* and the Reader toggle show dimmed; the Reader toggle is dimmed on pages that
   aren't readable too, and on a readable page tapping it switches into reader mode. Actions that present something (Share, Settings, Favorites, History, the Move tree)
   run after the panel has closed.
@@ -169,14 +170,13 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   so a horizontal drag leaves the panel in place and a drag that drifts sideways doesn't make it
   jump. The sheets' pull-down follows the same rules. Light glass on iOS 26 (thick material
   before). Debug › is a native `Menu`.
-- **☆ Add to Favorites**: one tap stars the page where it is (a flag, D20; it never moves). A
-  page that is nowhere yet becomes a link in no folder; a page played without saving joins the
-  Library where it is, with its played text, so it shows in Favorites and the 7-day prune of
-  unsaved pages leaves it. A starred page in the Library is a favorite: ☆ then reads *Remove
-  from Favorites*, which clears the star and leaves the page where it is (a link ☆ made stays).
-  *Remove from Library* never clears the star: a removed page is in no list, Favorites included,
-  and ☆ shows empty while it is out of the Library; saving it again (or ☆) puts it back, starred,
-  in Favorites. A Library row's menu (a page's or a folder's) stars
+- **☆ Add to Favorites**: one tap stars the page where it is (a flag, D20; it never moves, and it
+  doesn't file the page). A page that is nowhere yet becomes a link in no folder; a page played
+  without saving stays *Not saved* and joins Favorites. A starred page is a favorite, in the
+  Library or not: ☆ then reads *Remove from Favorites*, which clears the star and leaves the page
+  where it is (a link ☆ made stays). *Remove from Library* never clears the star: a removed
+  favorite leaves every Library list but stays in Favorites, starred, and the prune keeps it;
+  unstarred, it is in no list and the prune deletes it on its schedule. A Library row's menu (a page's or a folder's) stars
   the same way, with the same toasts. ☆ is offered for a web page or a page in the Library, a
   book's chapter too, in the Library's rows and in the Reader's and Now Playing's ⋯ alike.
 - **One saved state**: the browser's 🔖 and ⋯, the Reader and Now Playing all read "is this page
@@ -188,7 +188,8 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   without saving (kept 7 days, shown at the top of the Library's *Pages* as "Not saved", and in
   the bar). *Remove from Library* is one action wherever it is asked (a row's swipe or menu,
   Edit, 🔖, the ⋯ of the browser, the Reader and Now Playing): the page leaves its folder and
-  every list it was in, Favorites and "Not saved" too, even while it plays, and keeps its star;
+  every Library list it was in, "Not saved" too, even while it plays, and keeps its star (a
+  starred page stays in Favorites);
   it is kept 7 days after its last play for what plays and the bar (a page never played goes at
   the next launch), and comes back only when you save it or listen to it again (🎧, the Reader's
   Listen). There is one page per address: saving a favorite saves it in place. 🔖 = saved, ☆ =
@@ -269,18 +270,22 @@ commas.
   book* on one action row. The home has no navigation bar; rows scrolled up pass under a paper
   band behind the status bar, not under the clock. The home is the
   top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
-  default, or *Title*), *Import Book…, New Folder, Downloads, Settings*.
+  default, or *Title*), *Import Book…, Follow…, New Folder, Downloads, Settings*.
 - **A folder** (`FolderScreen`, books and series included): its title and counts,
   subfolders first (by their order), then pages by the folder's sort. A folder with pages that
   play has the play header (decision D15): how far through (a bar across the content width, with
   "38%" and "6 h 10 min left" on one line under it), the round play button (*▶ Play* before
   anything in it has played, *▶ **Continue** 3 of 7*, or jade bars *Playing 3 of 7*: tap pauses),
-  stretched so it, *⏮ From Start* and a round icon-only Download (⬇, a ring while it downloads,
-  ✓ once downloaded, the same glyph as the rows' Download) span the width on one row. The row
-  never wraps (decision D21): short of room it drops the place ("3 of 7"), then shows the
-  symbols alone (VoiceOver and the large content viewer keep the names); *From Start* never
-  changes its name. It plays its own pages
-  (not its subfolders') in the order shown, page to page, link pages skipped.
+  stretched so it and *⏮ From Start* span the width on one row. The row never wraps (decision
+  D21): short of room it drops the place ("3 of 7"), then shows the symbols alone (VoiceOver and
+  the large content viewer keep the names); *From Start* never changes its name. Under it, the
+  folder's **Download** switch (Spotify-style): *Off · downloads when played or tapped*; on, every
+  page in it downloads and so does every page added to it later (Follow's new chapters, a page
+  filed in): *On · 12 of 107 downloaded*, then *On · new pages download too*. Turned off, nothing
+  new downloads and what is downloaded stays. A page whose downloads you delete stays out of the
+  folder's download until the switch is turned on again (or its own Download is tapped). It plays
+  its own pages (not its subfolders') in the order shown, page to page, link pages skipped (a
+  followed story's stop playback, below).
   Every block sits on the page margin, so the bar, the buttons and the cards share both edges.
   **Edit** (top right), or *Select* in a row's
   long-press menu (Edit with that row selected), puts check circles on the rows, and drag handles
@@ -289,8 +294,9 @@ commas.
   symbols for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
   their delete is saved (*Cancel* keeps them selected). ⋯: *Sort ›, New Folder Inside, Import
-  Book…, Rename, Edit Details, Move to…, Delete Folder…, Download Folder, Delete Downloads,
-  Downloads, Settings* (a book's say *Delete Book…* and *Download Book*). Every ⋯ ends
+  Book…, Follow…, Rename, Edit Details, Move to…, Delete Folder…, Download Folder, Delete
+  Downloads, Downloads, Settings* (a book's say *Delete Book…* and *Download Book*; *Download
+  Folder* turns the Download switch on, and is dimmed while it is on). Every ⋯ ends
   with the same rows in the same order: *Download, Downloads, Settings*; *Settings* is always the
   last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
@@ -342,11 +348,48 @@ commas.
   *Manual*); after that the order is yours: Edit, drags and *Sort* change it, chapters move out,
   and pages and subfolders move in. Its cover and author are folder details (the detailed
   header). Its chapters use the ordinary page row, as pages inside any folder; front matter still
-  shows dimmed with "Skipped" and no ▶ (it still opens for reading). A series' unfetched pages
-  use the same link row as elsewhere. What sets it apart is only where it
-  came from: *Replace* finds it by its file (above), a series' link chapters are fetched when
-  playback reaches them, the Now Playing bar names it as the source of its chapters, and its
-  finished chapters lose their audio (D7).
+  shows dimmed with "Skipped" and no ▶ (it still opens for reading). A followed story's chapters
+  waiting for their text use the link row, with ▶ and where the text stands ("Follow a story",
+  below). What sets it apart is only where it came from: *Replace* finds a book by its file
+  (above), Follow reads a story's contents again and fetches its chapters, the Now Playing bar
+  names it as the source of its chapters, and its finished chapters lose their audio (D7).
+
+**Follow a story**: the browser's ⋯ → *Follow…* on a story's page (a Royal Road chapter leads to
+its story page), or the Library's ⋯ → *Follow…* (the home, or a folder, which the story's folder
+goes in), where you type or paste the story's address. Follow covers the screen:
+
+1. *Reading table of contents…* with a spinner and the address: one request, signed in as in the
+   browser. A page with no list of chapters, or a site that refuses, says so, with *Try Again*
+   and *Edit Address*; a story followed already offers *Open Its Folder*.
+2. **Review**: "Found 109 chapters   107 selected", *Select All*, then every chapter (its title,
+   and its address shortened) with a box: tap the box to keep or leave it out (an author's note,
+   a Q&A). Tapping the rest of the row opens its **preview**, the app's own sheet rising over the
+   list: the chapter's title and box, its address, the opening of its text and how long it is,
+   *Open in Browser* and *Include* / *Leave Out* (which sets the box and closes it). A pull down
+   closes it.
+3. **OK · Follow 107 Chapters** makes the folder at once (named for the story, its author as the
+   byline) with the chapters kept, as links, and opens it. Their text is fetched in the
+   background one at a time, each waiting for the one before and a pause; slow replies lengthen
+   the pause, and a site that asks to slow down (429), fails (5xx) or doesn't answer is backed off
+   from a minute up to 30 minutes (TECHNICAL_SPEC.md, "Fetching a page out of sight"). Nothing is
+   fetched while the app is in the background.
+
+The story's folder header has one line in the accent, *📡 Following · fetching chapter text 4 of
+107*, *· fetched 41 of 107*, or *· checked today 8:02 AM · 2 new*, and, while its site is backed
+off, a notice in the caution colour: *Royal Road asked to slow down (429). Chapter 42 in 1:52,
+then slower.* A chapter waiting for its text says *Fetching text…*, *Retrying in 1:52*, *Waiting*,
+or why it couldn't be had (it is tried again at the next launch); its ▶ fetches it next and then
+plays it. Playing through the story stops before a chapter still waiting for its text, and the
+chapter after the one playing is always fetched first. *Skip in Playback* on a chapter that can't
+be had lets playback go past it.
+
+Tapping the line opens **Following**: where it is read from, *Last checked*, *Next check*,
+*Chapter text* ("109 of 109 fetched"), *Last new chapters*, **Check Now** (↻, a spinner while it
+reads; a failed check says why) and **Unfollow** (or *Follow Again*). About once a day while the
+app is in front, the story's whole table of contents is read again and chapters it didn't list
+before go at the end of the folder; chapters left out in Review, and ones you deleted, stay out.
+No feeds and no notifications. Unfollowing stops the checks; every chapter added stays, and their
+text is still fetched.
 
 **Rows** are `ListRow`s, compact and two lines for every kind. A folder row's second line is
 what is in it ("2 folders   3 pages", "Empty"), in Edit too; one whose pages play shows its
@@ -372,8 +415,8 @@ just before its ›. On a folder screen every row's menu starts with
 **Folders play like books** (decision D15). Playing a page that is in a folder (its row's ▶, the
 Reader's Listen, 🎧 on its page, the folder's own ▶) carries on through the folder, page to
 page, then stops; a page in no folder plays to its end and stops. Every folder plays in its sort,
-which is yours (a book's starts as the book's order). Link pages are passed over (a series'
-are fetched), and so are pages marked *Skip in Playback*. The page that last played is the folder's place: its
+which is yours (a book's starts as the book's order). Link pages are passed over (a followed
+story's stop playback until their text is in), and so are pages marked *Skip in Playback*. The page that last played is the folder's place: its
 row shows the place and the time left and its ▶ resumes there, as a book's does; before
 anything in it has played, the first page starts where it was left. Now Playing's "Playing
 from" names the folder.
@@ -395,19 +438,21 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 | Folder, book or series | opens it (push) | Download state; ▶ when its pages play, otherwise › | *Continue, Play from Start* (dimmed while none of its pages play)*, Download* (dimmed while it has no pages)*, Add to / Remove from Favorites, Move to…, Rename, Edit Details, Delete…* | Delete… |
 | Saved page (including a chapter) | the Reader (Now Playing if it's what you hear) | Download state; ▶ (not on pages skipped in playback) | *Play from Here* (in a folder)*, Move to…, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback* (in a folder)*, Share* (with a web address)*, Download, Delete Downloads* (dimmed without audio)*, Remove from Library, Add to / Remove from Favorites* | Remove |
 | Page played without saving ("Not saved") | the Reader (Now Playing if it's what you hear) | ▶ | the saved page's rows, with *Save* for *Remove from Library*; *Move to…*, the marks, *Download* and *Delete Downloads* dimmed until it is saved | — |
-| Link page | the page, in the browser | — | the saved page's rows; the marks and *Delete Downloads* dimmed (a link has no text yet) | Remove |
+| Link page | the page, in the browser | — (a followed story's chapter: ▶, which fetches it, then plays it) | the saved page's rows; the marks and *Delete Downloads* dimmed (a link has no text yet; a story's chapter also has *Play from Here* and *Skip in Playback*) | Remove |
 
 A row that applies but can't run now is dimmed, not left out (decision DR-09): *Download* while
 that page or folder is downloading already (decision D16, below), *Delete Downloads* with nothing
 downloaded. Only what never applies to the row's kind is left out: the folder-only rows on a page
 in no folder, *Share* on a chapter (no web address), *Select* where the screen has no Edit.
 
-**Downloads** (decision D16): *Download* on a page, a folder, a book or a series (its row's
-long-press, its Download control, a folder's ⋯ as *Download Folder* or *Download Book*, beside its *Delete Downloads*, both dimmed when there is nothing to do; the Reader's ⋯) makes it
-ready to play offline: a link page's text is fetched out of sight and the page saved where it is,
-then its whole audio is rendered ahead in the on-device voice selected (Kokoro). A folder covers
-its own pages in its order (not its subfolders'), a book or series its chapters that play and
-aren't finished, one page at a time. A toast says *Downloading “…”* with *Show*, floating just above the
+**Downloads** (decision D16): *Download* on a page, a folder, a book or a followed story (its
+row's long-press, its Download control, a folder's Download switch or ⋯ *Download Folder* /
+*Download Book*, beside its *Delete Downloads*, dimmed when there is nothing to do; the Reader's
+⋯) makes it ready to play offline: a link page's text is fetched out of sight (in Follow's one
+queue) and kept where it is, then its whole audio is rendered ahead in the on-device voice
+selected (Kokoro). A folder covers its own pages in its order (not its subfolders'), a book or
+story its chapters that play and aren't finished, one page at a time, and while its switch is on,
+pages added later too. A toast says *Downloading “…”* with *Show*, floating just above the
 bottom chrome (above the Now Playing bar, never over it), as every toast does. Nothing is modal:
 while downloads run, a 2 pt jade line along the top edge of the bottom chrome (the browser's, the
 Library's, the Reader's) fills as they get on, and fades when nothing is queued, everything queued
@@ -784,6 +829,8 @@ Debug builds (`App/LaunchOptions.swift`).
 | Import Book… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
 | Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
+| Follow (`FollowSheet`): ⋯ → *Follow…* | Cancel; OK opens the story's folder | `.fullScreenCover` (a card's own pull would take the preview's); a chapter's preview is a `Sheet` over it, pulled down to close |
+| Following (`FollowingSheet`): a story's status line | Done | `.sheet`, medium and large |
 | Reader sheet (`ReaderSheetScreen`): 📄, ⋯ → Reader, a Favorites tile, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface; pull the header down |
 | Now Playing (`NowPlayingScreen`): the bar, the Reader of the playing page, Listen, crash resume | *⌄ <playing from>* pill, top left | `Sheet` over everything; pull the header down |
 | Listen debug panel | Done | `.sheet` (over Settings when opened from it) |

@@ -45,8 +45,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   screens and search keep only live models.
 - **One ☆ for pages: `FavoriteFlow`** (the browser's, the Reader's and Now Playing's ⋯ by
   address, a row's menu by page): the same toasts, failure text and icon fetch everywhere, and
-  every label reads `LibraryStore.isFavorite(_:)`. A row offers ☆ when the page is in the Library
-  or has a web address (`LibraryStore.canFavorite(_:)`), so a chapter can be starred.
+  every label reads `Page.isFavorite`, the one flag Favorites lists (`LibraryQueries.favoritePages`,
+  in the Library or not). A row offers ☆ when the page is in the Library, has a web address, or is
+  starred already (`LibraryStore.canFavorite(_:)`), so a chapter can be starred and unstarred.
 - **Edit and the dialogs live in `LibraryScreenState`**, on the Library surface, shared through
   the environment: the bottom bar acts on the selection, and
   `libraryDialogs` shows delete / rename / new folder once. The delete question is
@@ -101,7 +102,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   Library, which has no place in the tree (`LibraryTreeError`).
   `kind` is a hint of where a folder came from
   (`FolderKind.isBookOrSeries`): the row appearance comes from details; kind still supplies
-  symbol, *Replace*'s lookup, a series' fetchable links, D7's trim, the bar's source. *Replace*
+  symbol, *Replace*'s lookup, a followed story's (`series`) waiting chapters, D7's trim, the bar's source. *Replace*
   finds a book's chapters through its record (`BookSourceState.chapterKeys`), written at import
   and *Replace*, and recorded once at launch for books stored before (`recordBookChapters`).
 - **Details are not a kind** (decision D17): *Edit Details* (`FolderDetailsSheet`, a shell sheet)

@@ -30,9 +30,17 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   or folder was deleted, leaves the list without touching audio (the library already made it
   ephemeral or deleted it). A folder download's page that left the Library fails as "no longer in
   the Library" when its turn comes.
-- **Folder downloads list their pages when asked**: a book's or series' chapters that play and
-  aren't finished (D7 trims finished ones' audio anyway), any other folder's own pages. Pages added
-  later need *Re-download*.
+- **A folder's download is its Download switch** (`DownloadRecord.followsFolder`). It lists the
+  folder's pages when turned on: a book's or story's chapters that play and
+  aren't finished (D7 trims finished ones' audio anyway), any other folder's own pages. While it
+  is on, pages added later join it after each stored library edit (`takeInNewPages`, the same
+  pass that drops what left the Library), except the ones in `deleted` (P8: *Delete Downloads* on
+  a page records it there; turning the switch on again empties it). Turned off (`turnOff`), its
+  queued pages leave it and done ones stay, so the rows keep their ✓. A list written before the
+  switch decodes as on (`DownloadRecord.init(from:)`).
+- **Link pages are fetched through Follow** (`fill`, `FollowCenter.fill`): one queue for every
+  out-of-sight fetch, so a story's chapter Follow is already fetching is waited for, not fetched
+  twice. The text is stored in place (`storeFetchedText`); the download then queues the render.
 - **A row's Downloaded ✓ is the *Downloaded* section's rule (`done`), per page** (`DownloadCenter.isDownloaded`,
   `DownloadOverview.isDownloaded` → `DownloadRecord.hasDownloaded`): an entry `.done` and its
   audio there, in a voice its download accepts (`DownloadRecord.accepts`: the download voice now,

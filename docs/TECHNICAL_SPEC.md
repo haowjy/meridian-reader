@@ -76,7 +76,7 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
   Features never name a concrete extractor. The Debug test fixtures (the demo book, the
   synthetic EPUB, the offline test pages' `TestPageSchemeHandler`) live in
   `App/Fixtures/`; App hands Core and the design system what a launch asks for: the test pages'
-  handler to the browser's web view (`webViewSchemeHandlers`) and to `URLPageFetcher`, the ⋯
+  handler to the browser's web view (`webViewSchemeHandlers`) and to Follow's `FetchQueue`, the ⋯
   panel's test marker and slowed morph (`morphMenuMarksFocus`, `morphMenuAnimation`). Some
   feature screens still read `LaunchOptions` for their Debug hooks (the test EPUB picker,
   the scrub-bubble screenshot, Google suggestions off under `-uiTesting`).
@@ -98,13 +98,39 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
 3. The address bar's reader icon and the ⋯ Reader toggle use the same
    `isProbablyReaderable` check, run after each load and same-document URL change.
 
-**Fetching a page out of sight** (`URLPageFetcher`; nothing reaches it yet but the Debug hook
-`-probeLockedFetch`): a fresh `WKWebView` the size of the app's window, placed off its left edge
-(the page lays out at the browser's width, in a view WebKit counts as on screen), with the
-browser's cookies (the default website data store) and page scripts off. It
-loads the page, takes the same snapshot and extracts it through `SingleWebPageSource`, so a page
-reads the same as from the browser. Loading, the snapshot and extraction
-each give up after a time limit, since WebKit's processes can be suspended in the background.
+**Fetching a page out of sight** (`URLPageFetcher`, for Follow and Downloads): a fresh `WKWebView`
+the size of the app's window, placed off its left edge (the page lays out at the browser's width,
+in a view WebKit counts as on screen), with the browser's cookies (the default website data
+store, so a site you are signed in to in the browser serves the same pages) and page scripts off.
+It loads the page, takes the same snapshot and extracts it through `SingleWebPageSource`, so a page
+reads the same as from the browser; or it reads the page's links with the app's own script
+(`links(of:)`, a `LinkPage`: each link's text and the list it sits in), for a story's table of
+contents. A reply with an HTTP error (`NavigationWait` reads the main document's response) throws
+`FetchError.status` with its `Retry-After` instead of being extracted. Loading, the snapshot and
+extraction each give up after a time limit, since WebKit's processes can be suspended in the
+background.
+
+Every such fetch goes through one `FetchQueue`, strictly one at a time: each request waits for
+the one before it and then for its site's pause (`FetchPacing`: 4 s, 12 s after a reply that took
+6 s or more; a 429, a 5xx or no answer doubles the wait from 1 min up to 30 min, never under the
+reply's `Retry-After`; each answer halves it back down). A request a tap asked for (Review's
+read and previews, ▶ on a waiting chapter, a download) goes before background work waiting its
+turn. Nothing fetches in the background: the view needs the app's window.
+
+**Follow** (`FollowCenter`, `LibraryStore+Follow`): a story's table of contents
+(`TableOfContents.read`: Royal Road's story page by its chapters table, any other site by the
+list with the most chapter-like links on its own site; a Royal Road chapter's address leads to its
+story page) becomes a `series` folder of link pages, one per chapter kept in Review, in the
+story's order, with its state in `sourceStateData` (`FollowState`: following or not, the last
+check, the last chapters added, and every chapter address the contents have listed, kept or not).
+The chapters' text is fetched one at a time while the app is in front (the chapter ▶ asked for,
+else the one after the page playing, else the oldest story's first waiting chapter) and stored in
+place (`storeFetchedText`; nothing renders: the folder's Download switch decides that). A chapter
+whose site refuses or doesn't answer is tried again after the back-off, four times, then waits for
+the next launch or ▶. About once a day while the app is in front (a check is due 24 h after the
+last; the app looks every 15 min and when it comes to the front), each followed story's contents
+are read again and chapters not listed before go at the end of its folder; *Check Now* does the
+same at once. Unfollow stops the checks; the chapters stay and their text is still fetched.
 
 Snapshot plus off-screen, rather than injecting into the visible page: the user's page is never
 mutated, injected scripts don't fight the page's CSP, and content rendered by JavaScript is
@@ -168,7 +194,7 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `key` | Audio cache / listen key (`ARTICLE_IDENTITY.md`); copied verbatim from `SavedArticle.id` at migration, never recomputed |
 | `urlString`, `canonicalURL` | The page; one page per canonical URL |
 | `title`, `byline`, `excerpt`, `artworkData` | Rows, Now Playing (`byline` = site domain for web pages) |
-| `contentStateRaw` | `link` (a favorite; any text is a cache) or `saved` |
+| `contentStateRaw` | `link` (a favorite, a followed story's chapter waiting for its text; any text is a cache) or `saved` |
 | `addedAt` | When it joined the Library; nil = played without saving or removed (kept 7 days after its last play; a removed page never played, until the next launch) |
 | `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, a page is in no list, not even "Not saved"; read only while `addedAt` is nil |
 | `folder`, `folderID`, `sortKey` | Its folder (none = the pages in no folder) and order there; `folderID` mirrors the relationship for predicates |
@@ -178,17 +204,18 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `lastPlayedAt`, `finishedAt` | the "Not saved" pages' order, the prune and the bar's resume, and a row's "✓ Finished" |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
-| `skipsInPlayback`, `fetchStateRaw` | Pages in folders (book front matter, *Skip in Playback*) and series links: what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
+| `skipsInPlayback` | Pages in folders (book front matter, *Skip in Playback*): what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
+| `fetchStateRaw` | Kept as older builds stored it; nothing writes or reads it |
 | `locator` | Book chapters: where the chapter starts in the book, `href#fragment` |
 
-**Which lists a page is in** is decided in one place, `LibraryQueries`, from three standings: in
-the Library (`addedAt` set: its folder or the home's top level, Favorites while starred,
-search, address suggestions); played without saving (out of the Library, played, `removedAt`
-nil: the top of the home's pages as "Not saved", and search); removed (out of the Library, `removedAt`
-set: no list). *Remove from Library* (`LibraryStore.remove`, the one remove for every path: a
+**Which lists a page is in** is decided in one place, `LibraryQueries`, from three standings and
+the star: in the Library (`addedAt` set: its folder or the home's top level, search, address
+suggestions); played without saving (out of the Library, played, `removedAt` nil: the top of the
+home's pages as "Not saved", and search); removed (out of the Library, `removedAt` set: none of
+those). A starred page is in Favorites whatever its standing, and the prune keeps it. *Remove from Library* (`LibraryStore.remove`, the one remove for every path: a
 row, Edit, 🔖 and the ⋯ of the browser, the Reader and Now Playing) takes a page out of its
-folder and every list it was in at once, playing or not, keeps its star (Favorites lists it again
-once it is back in the Library) and deletes nothing (the launch prune does), and playing on, pausing or resuming doesn't list it again; a save
+folder and every Library list it was in at once, playing or not, keeps its star (and with it its
+place in Favorites) and deletes nothing (the launch prune does), and playing on, pausing or resuming doesn't list it again; a save
 puts it back, and so does listening to it again from its article (🎧, the Reader's Listen, which
 clears `removedAt`, through a rollback too: `PendingListening`). The Downloads list keeps downloads of what
 is in the Library (`DownloadCenter`, after each stored edit, `LibraryStore.editStored`). The bar's
@@ -207,14 +234,14 @@ Whether a folder is finished isn't stored: `FolderProgress.isFinished` works it 
 writes or reads them. **Every folder follows the same rules (decision D19)**: books and
 series take pages and subfolders, their chapters move out and reorder, their sort is the user's
 (*Manual*, in the source's order, until changed). `kind` says only where a folder came from:
-*Replace* finds a book by its key (`book(key:)`), a series' link pages are fetched when playback
-reaches them, a book's or series' pages show as chapters and name it as their source in the Now
+*Replace* finds a book by its key (`book(key:)`), a followed story (`series`) is read again and
+its link chapters fetched by Follow, and playback stops before one still waiting for its text, a
+book's or story's pages show as chapters and name it as their source in the Now
 Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their audio (D7), and
   launch dedupe merges two copies of one source. Favorites are independent flags on pages and
-  folders; a favorite page is one in the Library (`LibraryStore.isFavorite`,
-  `LibraryQueries.favoritePages`): starring a page that isn't sets its `addedAt`; *Remove from
-  Library* keeps its flag (only unstarring clears it), so a removed favorite is listed again once
-  it is saved. A legacy Favorites folder an older build left in the store is migrated on launch
+  folders, independent of the Library too: Favorites lists every starred page
+  (`LibraryQueries.favoritePages`), starring never files a page, *Remove from Library* keeps the
+  flag (only unstarring clears it), and the prune keeps a starred page. A legacy Favorites folder an older build left in the store is migrated on launch
   (`migrateFavoritesFolder`): its direct children are starred (its pages return to the root, its
   subfolders move to the top level with their contents as they were, nothing deeper starred), and
   the container is removed.

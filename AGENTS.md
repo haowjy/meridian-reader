@@ -28,7 +28,8 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   UI tests). Unit tests cover only the riskiest pure logic: time left (`ListeningTimeTests`),
   list membership and the removed state (`PlayedNotSavedTests`), the download accept rule
   (`DownloadOverviewTests`), the engine crash guard (`EngineCrashGuardTests`), text splitting and
-  chunking (`TextChunkerTests`, `ParagraphSplitTests`). `CoreFlowsUITests` holds the three
+  chunking (`TextChunkerTests`, `ParagraphSplitTests`), Follow's contents readers and back-off
+  (`FollowTests`). `CoreFlowsUITests` holds the three
   end-to-end flows: save and play a browsed page, swipe-Remove takes a played page out of every
   list, open a folder and play it. A new test must fit the budget: replace one rather than add
   one.
@@ -46,7 +47,8 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedBookmarks`. Other options:
   `-importTestEPUB` (*Import Book…* takes a synthetic EPUB instead of the Files picker;
   `-playTestEPUB` imports it at launch and plays it), `-browseTestPages` (offline `reader-test://`
-  pages), `-openLibrary`, `-openDemoInBrowseReader`, `-restoreSurface` (a relaunch reopens where
+  pages; page one links to a story to follow, `-testStoryChapters N` lengthens its contents and
+  `-testStoryThrottles` makes its chapter 6 fail once, for Follow's back-off), `-openLibrary`, `-openDemoInBrowseReader`, `-restoreSurface` (a relaunch reopens where
   the last launch left), `-failLibrarySaves` (every library save fails), `-testVoice` (an offline
   on-device test voice for downloads; `-selectEngine test.voice`). Keep probes and tests offline;
   use the test pages, not live sites. `LaunchOptions` parses every launch argument, the
@@ -64,8 +66,8 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 | Path | What lives there |
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks and test fixtures (`App/Fixtures/`) |
-| `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `Extraction` (Readability, the listen normalizer), `Sources` (`PageSource`s, the book import), `Persistence` (SwiftData; `Library/`: `Folder`, `Page`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web`, `Device` |
-| `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Library` (the Library's screens, rows, the Move tree, Favorites), `Downloads` (`DownloadCenter`, the Downloads list, the progress line), `Browse`, `Reader`, `Saved` (the save path), `Speech` (playback, engines, settings) |
+| `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `Extraction` (Readability, the listen normalizer), `Sources` (`PageSource`s, the book import), `Persistence` (SwiftData; `Library/`: `Folder`, `Page`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
+| `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Library` (the Library's screens, rows, the Move tree, Favorites), `Downloads` (`DownloadCenter`, the Downloads list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Speech` (playback, engines, settings) |
 | `Tests/`, `UITests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) and UI flows |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
 | `Resources/` | Readability scripts, voice previews, assets |
@@ -142,4 +144,4 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 Directory-scoped working notes live next to the code in `<dir>/.context/CONTEXT.md` (deferred
 items in `<dir>/.context/FUTURE.md`); read them before changing that directory:
 `Features/Speech/.context/`, `Features/Shell/.context/`, `Features/Library/.context/`,
-`Features/Downloads/.context/`, and `Core/Persistence/.context/` (deferred items only).
+`Features/Downloads/.context/`, `Features/Follow/.context/`, and `Core/Persistence/.context/` (deferred items only).
