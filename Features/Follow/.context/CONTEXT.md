@@ -3,7 +3,7 @@
 What the user sees is in `../../../docs/NAVIGATION.md` → "Follow a story"; how fetching is paced
 is `../../../docs/TECHNICAL_SPEC.md` → "Fetching a page out of sight" and "Follow".
 
-- **One queue for every out-of-sight fetch** (`Core/Web/FetchQueue`): Review's read and previews,
+- **One queue for every out-of-sight fetch** (`Core/Web/FetchQueue`): Review's read,
   the chapter loop, the daily checks, and Downloads' link pages (`FollowCenter.fill`). Strictly
   one load at a time; a site's pause or back-off lets another site's request go meanwhile. Don't
   make a `URLPageFetcher` of your own: it would go around the pace.
@@ -21,11 +21,13 @@ is `../../../docs/TECHNICAL_SPEC.md` → "Fetching a page out of sight" and "Fol
   property, `Page.isWaitingChapter`; playback stops before such a chapter (`ChapterAdvance`).
 - **Follow covers the screen** (`ShellSheet.coversTheScreen`): inside a card sheet the system's
   pan takes the preview `Sheet`'s pull down.
-- **The preview's text is a SwiftUI `ScrollView`** with `handsPullToSheet()` on its content: that
-  is what lets a pull from the text's top close the preview. Its bottom row is the browser's
-  `BandFieldRow`, so it stays where the browser's is.
-- **Open in Browser is `shell.navigate(to:)`** and nothing else: `showBrowser` closes the sheet
-  (Follow's cover), and the flow's `cancel()` runs as it disappears. Review's choices are dropped.
+- **The preview is the chapter's page in Browse's `WebView`** with its own
+  `WebViewStore(staysOnPage: true)`: user navigations (links, forms, back / forward, new windows)
+  are cancelled, the page's own load, redirects and script navigations run (a challenge page
+  reloads itself). It loads like a browser tab, not through `FetchQueue`: one page a tap asked
+  for, in sight. 📄 extracts the loaded page (no second request) into `HTMLReadingView`. The pull
+  to close is `handsPullToSheet(from:)` on the web view's scroll view; `HTMLReadingView` wires
+  its own. Review's state stays: the preview never leaves Follow.
 - **Probes**: `-browseTestPages` page one links to `reader-test://story/toc`; `-testStoryChapters N`
   lengthens it (a check then finds new chapters); `-testStoryThrottles` makes chapter 6 fail once.
   A custom scheme's reply carries no HTTP status, so a real 429 is checked against a live site.

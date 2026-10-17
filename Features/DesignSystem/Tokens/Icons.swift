@@ -31,6 +31,8 @@ enum Icons {
     static let library = "books.vertical"
     /// The Reader (open a page in it).
     static let reader = "doc.plaintext"
+    /// The Reader text is showing in the page's place (Follow's chapter preview).
+    static let readerShowing = "doc.plaintext.fill"
     /// History: pages visited, searches made.
     static let history = "clock"
     static let search = "magnifyingglass"

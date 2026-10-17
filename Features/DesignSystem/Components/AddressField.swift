@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The browser's field capsule: 📄 at the leading end opens the Reader (in Follow's chapter
-/// preview, which is read already, it goes the other way, to the page), 🎧 at the trailing end
-/// listens to the page. 🎧 shows only on a readable page (`listen` non-nil) and is a
+/// preview it swaps the page for its Reader text and back), 🎧 at the trailing end listens to the
+/// page. 🎧 shows only on a readable page (`listen` non-nil) and is a
 /// `PlayStateButton`: grey when the page isn't what you hear, accent with bars when it is.
 ///
 /// ```
@@ -21,6 +21,9 @@ struct AddressField<Field: View, Accessory: View>: View {
         case extracting
         /// The page is readable: 📄.
         case available
+        /// The Reader text shows in the page's place (Follow's chapter preview): 📄 filled, which
+        /// goes back to the page.
+        case showing
     }
 
     var reader: ReaderButton = .hidden
@@ -28,8 +31,6 @@ struct AddressField<Field: View, Accessory: View>: View {
     var listen: PlayState?
     var onOpenReader: () -> Void = {}
     var onListen: () -> Void = {}
-    /// What 📄 says to VoiceOver: where it goes.
-    var readerLabel = String(localized: "Open in Reader")
     @ViewBuilder var field: Field
     @ViewBuilder var accessory: Accessory
 
@@ -69,16 +70,16 @@ struct AddressField<Field: View, Accessory: View>: View {
             ProgressView()
                 .controlSize(.small)
                 .frame(width: Self.readerSize, height: Self.readerSize)
-        case .available:
+        case .available, .showing:
             Button(action: onOpenReader) {
-                Image(systemName: Icons.reader)
+                Image(systemName: reader == .showing ? Icons.readerShowing : Icons.reader)
                     .font(.body)
                     .foregroundStyle(Palette.accent)
                     .frame(width: Self.readerSize, height: Self.readerSize)
                     .tapTarget(Self.readerSize)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(readerLabel)
+            .accessibilityLabel(reader == .showing ? "Show Web Page" : "Open in Reader")
             .accessibilityIdentifier("addressReader")
             .transition(.opacity)
         }
@@ -87,10 +88,9 @@ struct AddressField<Field: View, Accessory: View>: View {
 
 extension AddressField where Accessory == EmptyView {
     init(reader: ReaderButton = .hidden, listen: PlayState? = nil, onOpenReader: @escaping () -> Void = {},
-         onListen: @escaping () -> Void = {}, readerLabel: String = String(localized: "Open in Reader"),
-         @ViewBuilder field: () -> Field) {
+         onListen: @escaping () -> Void = {}, @ViewBuilder field: () -> Field) {
         self.init(reader: reader, listen: listen, onOpenReader: onOpenReader, onListen: onListen,
-                  readerLabel: readerLabel, field: field, accessory: { EmptyView() })
+                  field: field, accessory: { EmptyView() })
     }
 }
 
@@ -117,6 +117,9 @@ struct AddressFieldGallery: View {
             }
             PreviewState("this page paused") {
                 AddressField(reader: .available, listen: .paused) { Text("investopedia.com") }
+            }
+            PreviewState("the Reader text showing (Follow's preview)") {
+                AddressField(reader: .showing) { Text("royalroad.com/fiction/1/chapter/2") }
             }
             PreviewState("extracting for the Reader") {
                 AddressField(reader: .extracting, listen: .idle) { Text("news.example.org") }

@@ -98,7 +98,8 @@ final class ScrollPullHandoff: NSObject {
     /// The sheet is pulled by the drag in progress.
     var isPulling: Bool { (tracking?.pull ?? 0) > 0 }
 
-    private weak var scrollView: UIScrollView?
+    /// The scroll view whose pan drives it.
+    private(set) weak var scrollView: UIScrollView?
 
     func attach(to scrollView: UIScrollView) {
         detach()
@@ -106,9 +107,11 @@ final class ScrollPullHandoff: NSObject {
         scrollView.panGestureRecognizer.addTarget(self, action: #selector(panned(_:)))
     }
 
+    /// Stops listening; a pull in progress springs back, as a cancelled touch's does.
     func detach() {
         scrollView?.panGestureRecognizer.removeTarget(self, action: #selector(panned(_:)))
         scrollView = nil
+        if isPulling { handoff?.ended(0, 0) }
         tracking = nil
     }
 
@@ -173,55 +176,36 @@ final class ScrollPullHandoff: NSObject {
 }
 
 extension View {
-    /// On the content of a SwiftUI `ScrollView` that is a `Sheet`'s body: a pull down that begins
-    /// with the content at its top moves the sheet (`SheetPullHandoff`), one that begins
-    /// mid-content only scrolls, as in the Reader and Now Playing. Outside a sheet it does nothing.
-    func handsPullToSheet() -> some View {
-        background(SheetPullScrollHook())
+    /// Hands `scrollView`'s pulls to the `Sheet` this view is in: a pull down that begins with
+    /// the content at its top moves the sheet (`SheetPullHandoff`), one that begins mid-content
+    /// only scrolls, as in the Reader and Now Playing. For a scroll view the sheet's body doesn't
+    /// wire itself (Browse's web view, in Follow's chapter preview). Outside a sheet it does
+    /// nothing.
+    func handsPullToSheet(from scrollView: UIScrollView?) -> some View {
+        background(SheetPullScrollHook(scrollView: scrollView))
     }
 }
 
-/// Finds the scroll view around it and drives a `ScrollPullHandoff` from its pan.
+/// Drives a `ScrollPullHandoff` from `scrollView`'s pan while it is on screen.
 private struct SheetPullScrollHook: UIViewRepresentable {
+    weak var scrollView: UIScrollView?
+
     func makeCoordinator() -> ScrollPullHandoff { ScrollPullHandoff() }
 
-    func makeUIView(context: Context) -> EnclosingScrollViewFinder {
-        let view = EnclosingScrollViewFinder()
-        let handoff = context.coordinator
-        view.found = { [weak handoff] scrollView in handoff?.attach(to: scrollView) }
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        view.isAccessibilityElement = false
         return view
     }
 
-    func updateUIView(_ view: EnclosingScrollViewFinder, context: Context) {
-        context.coordinator.handoff = context.environment.sheetPullHandoff
+    func updateUIView(_ view: UIView, context: Context) {
+        let pull = context.coordinator
+        pull.handoff = context.environment.sheetPullHandoff
+        if let scrollView, pull.scrollView !== scrollView { pull.attach(to: scrollView) }
     }
 
-    static func dismantleUIView(_ view: EnclosingScrollViewFinder, coordinator: ScrollPullHandoff) {
+    static func dismantleUIView(_ view: UIView, coordinator: ScrollPullHandoff) {
         coordinator.detach()
-    }
-}
-
-/// An empty view that reports the nearest scroll view above it once it is in a window (SwiftUI's
-/// `ScrollView` is a `UIScrollView` underneath).
-private final class EnclosingScrollViewFinder: UIView {
-    var found: (UIScrollView) -> Void = { _ in }
-    private weak var scrollView: UIScrollView?
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        isUserInteractionEnabled = false
-        isAccessibilityElement = false
-    }
-
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        guard window != nil else { return }
-        var view = superview
-        while let current = view, !(current is UIScrollView) { view = current.superview }
-        guard let enclosing = view as? UIScrollView, enclosing !== scrollView else { return }
-        scrollView = enclosing
-        found(enclosing)
     }
 }

@@ -1,146 +1,152 @@
 import SwiftUI
 
-/// A chapter's preview in Follow's Review: the app's own sheet (`Sheet`, as the Reader rises),
-/// over the list, with the chapter's title and box, how long it reads, and its text, which
-/// scrolls. A pull down on the header, or on the text when it is at its top, closes it. At the
-/// bottom, the browser's field row (`BandFieldRow`) at the browser's place: 🌐, the field's 📄 (the
-/// Reader swap, here from the text to the page) and the chapter's address all leave Follow for the
-/// chapter's page in the browser; under it *Include* / *Leave Out* sets the box and closes the
-/// preview.
+/// A chapter's preview in Follow's Review: the app's own sheet (`Sheet`, as the Reader rises) over
+/// the list, holding the chapter's real page in Browse's web view (`WebView`, the browser's
+/// website data, so signed in as there). It is a preview and nothing more: the page stays put
+/// (`WebViewStore.staysOnPage`: links, forms and back / forward go nowhere), there is no Save
+/// and no ⋯. At the bottom, the browser's field at the browser's place (`BandFieldRow`, the
+/// swap's room left empty): the chapter's address, and 📄, which swaps the page for its Reader
+/// text and back, as on the browser. The header's box keeps or leaves out the chapter.
+///
+/// The page and the Reader text scroll; a pull down closes the sheet when it begins on the header
+/// or with the text at its top (`SheetPullHandoff`), as in the Reader.
 ///
 /// ```
 ///                    ───
-/// Author's Note: Hiatus                        ☐
-/// Preview   1 min
-/// Hi everyone. Just a short note to say that the next chapter will be a little late…  ← scrolls
-/// [🌐] ( 📄 royalroad.com/…/chapter/309114/authors-note )   ← where the browser's [📚] ( 📄 … ) is
-///              ( ☑ Include )
+/// Author's Note: Hiatus                        ☐   ← the box: keep / leave out
+/// ┌ the chapter's page (or its Reader text) ┐       ← scrolls
+/// [   ] ( 📄 royalroad.com/…/chapter/309114/authors-note )   ← where the browser's field is
 /// ```
 struct FollowPreviewSheet: View {
     let chapter: TableOfContents.Chapter
-    let preview: FollowFlow.Preview
     let isKept: Bool
     let onToggle: () -> Void
-    let onOpenInBrowser: () -> Void
     let onClose: () -> Void
+
+    @Environment(\.articleExtractor) private var extractor
+    @Environment(ShellState.self) private var shell
+    /// The preview's own web view, which stays on the chapter.
+    @State private var page = WebViewStore(staysOnPage: true)
+    /// The Reader text, in the page's place.
+    @State private var reader: ReaderArticle?
+    @State private var extracting: Task<Void, Never>?
 
     var body: some View {
         Sheet(onDismiss: onClose) {
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
-                    Text(chapter.title)
-                        .typeStyle(.heading)
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Image(systemName: isKept ? Icons.included : Icons.excluded)
-                        .font(.title3)
-                        .foregroundStyle(isKept ? Palette.accent : Palette.tertiaryInk)
-                        .accessibilityLabel(isKept ? "Selected" : "Not selected")
-                }
-                if case .loaded(let content) = preview {
-                    DetailLine([String(localized: "Preview"),
-                                String(localized: "\(ListeningTime.minutes(words: WordCount.count(content.plainText), rate: 1)) min")])
-                        .typeStyle(.caption)
+            header
+        } content: {
+            ZStack {
+                WebView(store: page)
+                    .handsPullToSheet(from: page.webView?.scrollView)
+                    .opacity(reader == nil ? 1 : 0)
+                if let reader {
+                    HTMLReadingView(html: Self.readingHTML(of: reader),
+                                    heading: ReaderHeading(title: reader.title, detail: Self.detail(of: reader)),
+                                    activeParagraphIndex: nil) { _ in }
+                        .accessibilityIdentifier("followPreviewReader")
+                        .transition(.opacity)
                 }
             }
-            .padding(.horizontal, Spacing.pageMargin)
-            .padding(.bottom, Spacing.xs)
-        } content: {
-            FollowPreviewBody(preview: preview)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    FollowPreviewBand(url: chapter.url, isKept: isKept, onToggle: onToggle,
-                                      onOpenInBrowser: onOpenInBrowser)
-                }
+            .animation(Motion.snappy, value: reader?.id)
+            .safeAreaInset(edge: .bottom, spacing: 0) { band }
         }
+        .onAppear { page.load(chapter.url) }
+        .onDisappear { extracting?.cancel() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("followPreview")
     }
-}
 
-/// The chapter's text, scrolling; a pull down from its top goes to the sheet.
-private struct FollowPreviewBody: View {
-    let preview: FollowFlow.Preview
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+            Text(chapter.title)
+                .typeStyle(.heading)
+                .foregroundStyle(Palette.ink)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(action: onToggle) {
+                Image(systemName: isKept ? Icons.included : Icons.excluded)
+                    .font(.title3)
+                    .foregroundStyle(isKept ? Palette.accent : Palette.tertiaryInk)
+                    .tapTarget(BottomChrome.minTapTarget)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(chapter.title)
+            .accessibilityValue(isKept ? "Selected" : "Not selected")
+            .accessibilityHint("Keeps or leaves out the chapter")
+            .accessibilityIdentifier("followPreviewToggle")
+        }
+        .padding(.horizontal, Spacing.pageMargin)
+        .padding(.bottom, Spacing.xs)
+    }
 
-    var body: some View {
-        ScrollView {
-            Group {
-                switch preview {
-                case .loading:
-                    ProgressView()
-                        .tint(Palette.accent)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, Spacing.xl)
-                        .accessibilityLabel("Loading the chapter")
-                case .failed(let message):
-                    Label(message, systemImage: Icons.warning)
-                        .typeStyle(.row)
-                        .foregroundStyle(Palette.secondaryInk)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                case .loaded(let content):
-                    LazyVStack(alignment: .leading, spacing: Spacing.m) {
-                        ForEach(Array(content.document.paragraphs.enumerated()), id: \.offset) { _, paragraph in
-                            if !paragraph.isEmpty {
-                                Text(paragraph)
-                                    .typeStyle(.body)
-                                    .foregroundStyle(Palette.ink)
-                                    .lineSpacing(Spacing.xxs)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                    }
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("followPreviewText")
+    // MARK: - The band
+
+    /// The browser's field row at the browser's place, its swap's room empty, and the toolbar's
+    /// row under it empty too, so the field sits exactly where the browser's does.
+    private var band: some View {
+        VStack(spacing: BottomChrome.rowSpacing) {
+            BandFieldRow(keepsSwapRoom: true) {
+                AddressField(reader: readerButton, onOpenReader: toggleReader) {
+                    ChapterAddress(url: chapter.url)
                 }
             }
-            .padding(.horizontal, Spacing.pageMargin)
-            .padding(.vertical, Spacing.xs)
-            .handsPullToSheet()
+            Color.clear.frame(height: BottomChrome.rowHeight)
         }
+        .bottomChromeBand()
+        .overlay(alignment: .top) { LoadProgressLine(web: page) }
+    }
+
+    /// 📄 as on the browser: on a readable page, a spinner while the text is read, filled while the
+    /// Reader text shows.
+    private var readerButton: AddressField<ChapterAddress, EmptyView>.ReaderButton {
+        if reader != nil { return .showing }
+        if extracting != nil { return .extracting }
+        return page.hasPage && page.isReaderable ? .available : .hidden
+    }
+
+    // MARK: - The Reader swap
+
+    /// 📄: the page's Reader text in its place, read from the page as it is (as the browser's
+    /// Reader is: no second request), or back to the page.
+    private func toggleReader() {
+        guard reader == nil else { return reader = nil }
+        guard extracting == nil, let url = page.currentURL else { return }
+        extracting = Task {
+            defer { extracting = nil }
+            do {
+                let source = SingleWebPageSource(url: url, pageTitle: page.pageTitle,
+                                                 htmlSnapshot: try await page.snapshotHTML(), extractor: extractor)
+                let content = try await source.content(of: source.page)
+                guard !Task.isCancelled else { return }
+                reader = ReaderArticle(id: UUID(), url: url, extracted: content.extracted, document: content.document)
+            } catch is CancellationError {
+                return
+            } catch {
+                shell.showToast(ShellToast(message: String(localized: "Couldn’t show the Reader text"),
+                                           systemImage: Icons.warning))
+            }
+        }
+    }
+
+    /// As the Reader shows it: a plain-text article reads as its paragraphs.
+    private static func readingHTML(of article: ReaderArticle) -> String {
+        article.displayHTML.contains(where: { !$0.isWhitespace }) ? article.displayHTML : article.document.paragraphsHTML
+    }
+
+    /// The source and the length, as the Reader's heading has them.
+    private static func detail(of article: ReaderArticle) -> [String] {
+        let minutes = ListeningTime.minutes(utf16Length: article.document.utf16Length, rate: 1)
+        return [article.sourceLabel, minutes > 0 ? ListeningTime.label(minutes: minutes) : ""].filter { !$0.isEmpty }
     }
 }
 
-/// The browser's field row at the browser's place: the swap is 🌐 (to the chapter's page in the
-/// browser), the field the chapter's address with 📄, which go there too. Under it, in the toolbar's
-/// row, *Include* / *Leave Out*, which also closes the preview.
-private struct FollowPreviewBand: View {
+/// The chapter's address in the field, as the browser's idle field shows its page's.
+private struct ChapterAddress: View {
     let url: URL
-    let isKept: Bool
-    let onToggle: () -> Void
-    let onOpenInBrowser: () -> Void
-
-    @Environment(\.dismissSheet) private var dismissSheet
 
     var body: some View {
-        VStack(spacing: BottomChrome.rowSpacing) {
-            BandFieldRow(swap: BandSwap(systemImage: Icons.browser, label: String(localized: "Browser"),
-                                        hint: String(localized: "Opens the chapter in the browser"),
-                                        identifier: "followPreviewBrowser", action: onOpenInBrowser)) {
-                Button(action: onOpenInBrowser) {
-                    AddressField(reader: .available, onOpenReader: onOpenInBrowser,
-                                 readerLabel: String(localized: "Open in Browser")) {
-                        Text(ShellState.addressText(for: url))
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(ShellState.addressText(for: url))
-                .accessibilityHint("Opens the chapter in the browser")
-                .accessibilityIdentifier("followPreviewAddress")
-            }
-            BottomToolbarSpanLayout {
-                Color.clear
-                PillButton(isKept ? String(localized: "Leave Out") : String(localized: "Include"),
-                           systemImage: isKept ? Icons.excluded : Icons.included, size: .compact, expands: true) {
-                    onToggle()
-                    dismissSheet()
-                }
-                .accessibilityIdentifier("followPreviewToggle")
-                Color.clear
-            }
-        }
-        .bottomChromeBand()
+        Text(ShellState.addressText(for: url))
+            .lineLimit(1)
+            .truncationMode(.middle)
     }
 }

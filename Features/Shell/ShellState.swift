@@ -373,10 +373,8 @@ final class ShellState {
         }
     }
 
-    /// The browser, with nothing over it: closes the sheet (Follow's cover too), the Reader and
-    /// Now Playing, leaves the library.
+    /// The browser, with nothing over it: closes the Reader and Now Playing, leaves the library.
     func showBrowser() {
-        sheet = nil
         reader = nil
         hideNowPlaying()
         leaveLibrary()
@@ -384,9 +382,8 @@ final class ShellState {
 
     // MARK: - Pages
 
-    /// Shows `url` in the browser: ends the address search, closes what is over the browser
-    /// (`showBrowser`), loads. Every way of going to a page (submitted address, bookmark, history,
-    /// Website, a Follow chapter's preview) ends here.
+    /// Shows `url` in the browser: ends the address search, leaves the reader or library, loads.
+    /// Every way of going to a page (submitted address, bookmark, history, Website) ends here.
     func navigate(to url: URL) {
         addressSearch.end(showing: Self.addressText(for: url))
         showBrowser()
