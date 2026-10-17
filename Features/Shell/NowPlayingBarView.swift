@@ -37,6 +37,7 @@ struct BandNowPlayingBar: View {
     var isCovered = false
 
     @Environment(ShellState.self) private var shell
+    @Environment(FollowCenter.self) private var follow
     @Environment(LibraryStore.self) private var library
     @Query(LibraryQueries.lastPlayed) private var lastPlayed: [Page]
 
@@ -53,7 +54,7 @@ struct BandNowPlayingBar: View {
             } else if let now = speech.nowPlaying {
                 BarProgress(speech: speech, now: now)
             } else if let page = lastPlayed.first(where: \.isLive) {
-                ResumeBar(page: page, actions: LibraryActions(library: library, speech: speech, shell: shell))
+                ResumeBar(page: page, actions: LibraryActions(library: library, speech: speech, shell: shell, follow: follow))
             } else {
                 NowPlayingBar.placeholder()
             }

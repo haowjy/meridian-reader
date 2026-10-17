@@ -12,6 +12,7 @@ struct BrowseStartView: View {
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
     @Environment(DownloadCenter.self) private var downloads
+    @Environment(FollowCenter.self) private var follow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
 
@@ -140,7 +141,7 @@ struct BrowseStartView: View {
         let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
         return PageLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
             let actions = PageActions(url: webPage, page: page, library: library, shell: shell, speech: speech,
-                                      downloads: downloads)
+                                      downloads: downloads, follow: follow)
             BrowserBottomChrome(
                 speech: speech,
                 dictation: dictation,
@@ -220,6 +221,7 @@ struct BrowseStartView: View {
             isFavorite: actions.isFavorite,
             save: MenuAvailability(when: hasPage && shell.busy == nil),
             favorite: MenuAvailability(when: actions.canFavorite),
+            follow: MenuAvailability(when: webStore.currentURL?.isWebOrTestPage == true),
             share: MenuAvailability(when: actions.shareURL != nil),
             reload: MenuAvailability(when: hasPage),
             reader: MenuAvailability(when: canOpenReader)
@@ -233,6 +235,9 @@ struct BrowseStartView: View {
         case .saveToLibrary: saveToLibrary()
         case .removeFromLibrary: actions.remove()
         case .toggleFavorite: page.toggleFavorite()
+        case .follow:
+            guard let url = webStore.currentURL else { return }
+            shell.present(.follow(FollowFlow(url: url, parentID: nil, center: follow)))
         case .favorites: shell.showFavorites()
         case .reload: webStore.refresh()
         case .share: actions.share()
@@ -252,7 +257,7 @@ struct BrowseStartView: View {
                 favorites: favorites,
                 favoriteFolders: folders,
                 recentSearches: recentSearches,
-                onOpenFavorite: { LibraryActions(library: library, speech: speech, shell: shell).open($0) },
+                onOpenFavorite: { LibraryActions(library: library, speech: speech, shell: shell, follow: follow).open($0) },
                 onOpenFavoriteFolder: { shell.showLibrary(at: library.path(to: $0)) },
                 onShowFavorites: shell.showFavorites,
                 onRemoveFavorite: { page in

@@ -22,9 +22,10 @@ struct PageActions {
     let shell: ShellState
     let speech: SpeechController
     let downloads: DownloadCenter
+    let follow: FollowCenter
 
     init(article: ReaderArticle?, page: Page?, library: LibraryStore, shell: ShellState, speech: SpeechController,
-         downloads: DownloadCenter) {
+         downloads: DownloadCenter, follow: FollowCenter) {
         self.article = article
         self.url = article?.origin.url
         self.page = page
@@ -32,11 +33,12 @@ struct PageActions {
         self.shell = shell
         self.speech = speech
         self.downloads = downloads
+        self.follow = follow
     }
 
     /// The browser's page, before it is extracted.
     init(url: URL?, page: Page?, library: LibraryStore, shell: ShellState, speech: SpeechController,
-         downloads: DownloadCenter) {
+         downloads: DownloadCenter, follow: FollowCenter) {
         self.article = nil
         self.url = url
         self.page = page
@@ -44,6 +46,7 @@ struct PageActions {
         self.shell = shell
         self.speech = speech
         self.downloads = downloads
+        self.follow = follow
     }
 
     // MARK: - State
@@ -115,7 +118,7 @@ struct PageActions {
     /// (`LibraryActions.remove`). Its star, audio and spot stay; playback goes on.
     func remove() {
         guard let savedPage else { return }
-        LibraryActions(library: library, speech: speech, shell: shell).remove([savedPage])
+        LibraryActions(library: library, speech: speech, shell: shell, follow: follow).remove([savedPage])
     }
 
     /// 🔖's long-press (*Save to Folder…*) and ⋯ → Move to…: the Move tree. The page is saved into

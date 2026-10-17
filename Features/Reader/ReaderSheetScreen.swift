@@ -27,6 +27,7 @@ struct ReaderSheetScreen: View {
 
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
+    @Environment(FollowCenter.self) private var follow
     @Environment(DownloadCenter.self) private var downloads
     @Environment(\.readingAppearance) private var appearance
     @State private var jumpMode = false
@@ -40,7 +41,7 @@ struct ReaderSheetScreen: View {
         // The article's library page, if it has one (saved, played, or a favorite).
         PageLookup(key: article.id, canonicalURL: article.origin.canonicalURL) { page in
             sheet(PageActions(article: article, page: page, library: library, shell: shell, speech: speech,
-                              downloads: downloads))
+                              downloads: downloads, follow: follow))
         }
     }
 

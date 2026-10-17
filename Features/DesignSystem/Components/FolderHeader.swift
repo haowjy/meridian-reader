@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// The top of a folder screen. A plain folder: its title and counts. A book, a series, or a
-/// folder given details (`detailed`): the cover, title, details, how far through, and its play
-/// buttons (`actions`: Continue, From Start and Download, in an `ActionButtonRow`, so one line
-/// at every width and text size). A plain folder whose pages play has the progress and buttons
-/// too, under its title.
+/// The top of a folder screen. A plain folder: its title and counts. A book, a followed story, or
+/// a folder given details (`detailed`): the cover, title, details, how far through, and what
+/// `actions` holds (a story's status line, Continue and From Start in an `ActionButtonRow`, so
+/// one line at every width and text size, and the Download switch). A plain folder whose pages
+/// play has the progress and actions too, under its title.
 ///
 /// ```
 /// Finance                        ╭──────╮  Pride and Prejudice
@@ -12,7 +12,8 @@ import SwiftUI
 ///                                ╰──────╯  Added 2 Oct
 ///                                ━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░░░
 ///                                38%   6 h 10 min left
-///                                ( ▶ Continue  Ch 24   ) ( ⏮ From Start )  ⬇
+///                                ( ▶ Continue  Ch 24      ) ( ⏮ From Start )
+///                                ⬇ Download                              ( ●)
 /// ```
 ///
 /// Every block spans the content width and nothing pads it: in a Library list the section
@@ -25,9 +26,9 @@ struct FolderHeader<Actions: View>: View {
     let title: String
     /// Counts (["2 folders", "7 pages"]) or the book's line (["Jane Austen", "Book", "61 chapters"]).
     let detail: [String]
-    /// Where it came from (["Added 2 Oct"], a series' contents page); empty: no line.
+    /// Where it came from (["Added 2 Oct"]); empty: no line.
     var source: [String] = []
-    /// 0…1 through a book or series; nil: no progress line.
+    /// 0…1 through a book or story; nil: no progress line.
     var progress: Double?
     /// Under the progress line, on one line (["38%", "6 h 10 min left"]).
     var progressLabel: [String] = []
@@ -140,29 +141,36 @@ struct FolderHeaderGallery: View {
                     PreviewActions(title: "Continue", detail: "3 of 4")
                 }
             }
-            PreviewState("series, a chapter playing") {
+            PreviewState("followed story, a chapter playing") {
                 FolderHeader(style: .detailed(cover: nil), title: "The Lantern Road",
-                             detail: ["serials.example.com", "Series", "108 chapters", "13 saved"],
+                             detail: ["A. Writer", "108 chapters"],
                              progress: 0.2, progressLabel: ["20%"]) {
-                    PreviewActions(title: "Playing", detail: "Ch 24", state: .playing, download: .downloading(fraction: 0.3))
+                    VStack(alignment: .leading, spacing: Spacing.s) {
+                        HeaderLink(symbol: Icons.follow, text: "Following · fetched 41 of 108") {}
+                        PreviewActions(title: "Playing", detail: "24 of 108", state: .playing, downloadOn: true)
+                    }
                 }
             }
         }
     }
 }
 
-/// The header's action row as `FolderPlayButtons` draws it.
+/// The header's actions as `FolderPlayButtons` and `FolderDownloadSwitch` draw them.
 private struct PreviewActions: View {
     let title: String
     let detail: String
     var state: PlayState = .idle
-    var download: DownloadState = .available
+    var downloadOn = false
 
     var body: some View {
-        ActionButtonRow { fit in
-            PlayStateButton(state: state, look: .pill(title: title, detail: detail, expands: true, fit: fit)) {}
-            PillButton("From Start", systemImage: Icons.previous, style: .neutral, fit: fit) {}
-            DownloadStateButton(state: download) {}
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            ActionButtonRow { fit in
+                PlayStateButton(state: state, look: .pill(title: title, detail: detail, expands: true, fit: fit)) {}
+                PillButton("From Start", systemImage: Icons.previous, style: .neutral, fit: fit) {}
+            }
+            SwitchCard(title: "Download", symbol: Icons.download,
+                       detail: downloadOn ? "On · 12 of 108 downloaded" : "Off · downloads when played or tapped",
+                       isOn: .constant(downloadOn))
         }
     }
 }

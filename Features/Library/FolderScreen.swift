@@ -1,10 +1,11 @@
 import SwiftData
 import SwiftUI
 
-/// One screen for every folder at every depth, books and series included (decision D19): the
-/// header, subfolders first (by their order), then pages by the folder's sort (`LibraryPageRow`
-/// everywhere, including imported chapters). A folder whose pages play
-/// has header actions: *Continue*, *From Start* and *Download*.
+/// One screen for every folder at every depth, books and followed stories included (decision
+/// D19): the header, subfolders first (by their order), then pages by the folder's sort
+/// (`LibraryPageRow` everywhere, including imported chapters). A folder whose pages play has
+/// header actions: *Continue* and *From Start*, and its Download switch; a followed story its
+/// status line (Follow).
 /// A folder with details (a book's from its file, or any folder's from *Edit Details*: a cover or
 /// an author) has the detailed header top: the cover beside the title, the author before the
 /// counts. *Edit*, or *Select* in a row's
@@ -22,7 +23,8 @@ import SwiftUI
 /// 2 folders   7 pages
 /// ━━━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░░░░
 /// 38%   52 min left
-/// ( ▶ Continue  3 of 7       ) ( ⏮ From Start )  ⬇   one line, always (`ActionButtonRow`)
+/// ( ▶ Continue  3 of 7             ) ( ⏮ From Start )   one line, always (`ActionButtonRow`)
+/// ⬇ Download                                    ( ●)   the folder's Download switch
 ///  📁 Bonds                                ›
 ///     4 pages
 ///  ▣ Coupon Basics                      ✓   ▶
@@ -99,6 +101,7 @@ private struct FolderContentsList: View {
 
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
+    @Environment(FollowCenter.self) private var follow
     @Environment(\.speechController) private var speech
     @Environment(LibraryScreenState.self) private var screen
     @Query private var queriedPages: [Page]
@@ -120,7 +123,7 @@ private struct FolderContentsList: View {
     private var pages: [Page] { queriedPages.filter(\.isLive) }
     private var subfolders: [Folder] { LibraryStore.ordered((folder.children ?? []).filter(\.isLive)) }
     private var isEditing: Bool { screen.isEditing(folderID: folder.id) }
-    private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
+    private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
 
     /// *Select* on a row: Edit, with that row selected.
     private func select(_ item: LibraryItemID) -> () -> Void {
@@ -188,20 +191,26 @@ private struct FolderContentsList: View {
     // MARK: - Header
 
     /// A folder with details (a cover or an author) has a book's header: the cover beside the
-    /// title, the author before the counts. Without them, the title and counts.
+    /// title, the author before the counts. Without them, the title and counts. Under them: a
+    /// followed story's status (`FollowStatus`), then, when its pages play, the play buttons and
+    /// the Download switch.
     @ViewBuilder
     private var header: some View {
         let title = folder.name
         let style: FolderHeaderStyle = folder.hasDetails ? .detailed(cover: folder.coverImage) : .folder
         let detail = [folder.byline].compactMap { $0 } + counts
-        Group {
-            if case let playback = actions.progress(of: folder, pages: pages), playback.hasPagesToPlay {
-                let bar = playback.header
-                FolderHeader(style: style, title: title, detail: detail, progress: bar.fraction, progressLabel: bar.label) {
-                    FolderPlayButtons(folder: folder, title: playback.buttonTitle, actions: actions)
+        let playback = actions.progress(of: folder, pages: pages)
+        let bar = playback.hasPagesToPlay ? playback.header : nil
+        FolderHeader(style: style, title: title, detail: detail, progress: bar?.fraction,
+                     progressLabel: bar?.label ?? []) {
+            if folder.followState != nil || playback.hasPagesToPlay {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    if folder.followState != nil { FollowStatus(folder: folder, pages: pages) }
+                    if playback.hasPagesToPlay {
+                        FolderPlayButtons(folder: folder, title: playback.buttonTitle, actions: actions)
+                        FolderDownloadSwitch(folder: folder)
+                    }
                 }
-            } else {
-                FolderHeader(style: style, title: title, detail: detail) { EmptyView() }
             }
         }
     }

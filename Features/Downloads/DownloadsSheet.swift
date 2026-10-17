@@ -47,6 +47,7 @@ struct DownloadsList: View {
     @Environment(DownloadCenter.self) private var downloads
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
+    @Environment(FollowCenter.self) private var follow
     @Environment(\.speechController) private var speech
     /// Bytes on disk of each finished download, by its id (measured off the main actor).
     @State private var sizes: [UUID: Int64] = [:]
@@ -255,7 +256,7 @@ struct DownloadsList: View {
         case .page(let key):
             guard let page = library.page(key: key) else { return }
             shell.sheet = nil
-            LibraryActions(library: library, speech: speech, shell: shell).open(page)
+            LibraryActions(library: library, speech: speech, shell: shell, follow: follow).open(page)
         case .folder(let id):
             guard let folder = library.folder(id: id) else { return }
             shell.sheet = nil

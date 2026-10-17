@@ -1,7 +1,9 @@
 import SwiftUI
 
 /// What the Library's rows, headers and Edit's bar do, in one place: open a page (the
-/// Reader, Now Playing when it is what you hear, the browser for a link), play a page or a book,
+/// Reader, Now Playing when it is what you hear, the browser for a link), play a page or a book
+/// (a followed story's chapter still waiting for its text is fetched first, then plays:
+/// `FollowCenter.play`),
 /// mark and remove pages, delete folders, file things with the Move tree. Opening never plays,
 /// and playing never navigates. Each edit is one save: one that can't be saved changes nothing
 /// and shows a toast, and what follows its success runs only after the save.
@@ -10,6 +12,7 @@ struct LibraryActions {
     let library: LibraryStore
     let speech: SpeechController
     let shell: ShellState
+    let follow: FollowCenter
 
     // MARK: - Pages
 
@@ -36,14 +39,17 @@ struct LibraryActions {
     /// (a finished page from the top), replacing what plays. A page in a folder carries on through
     /// it.
     func play(_ page: Page) {
-        speech.press(.page(page.listenKey)) {
-            speech.start(.page(page), at: page.listenStart)
-        }
+        speech.press(.page(page.listenKey)) { start(page, at: page.listenStart) }
     }
 
     /// *Play from Here* on a page in a folder: from its start, carrying on through the folder.
     func playFromStart(_ page: Page) {
-        speech.playPage(page.listenKey)
+        if page.isWaitingChapter { follow.play(page) } else { speech.playPage(page.listenKey) }
+    }
+
+    /// Plays `page` from `spot`, replacing what plays; a chapter waiting for its text once it is in.
+    private func start(_ page: Page, at spot: ListenSpot) {
+        if page.isWaitingChapter { follow.play(page) } else { speech.start(.page(page), at: spot) }
     }
 
     /// *Save* on a page played without saving (decision D5): into the Library's top level
@@ -82,15 +88,16 @@ struct LibraryActions {
     /// its place (`LibraryStore.continueStart`), carrying on page to page in its order.
     func playFolder(_ folder: Folder) {
         speech.press(.folder(folder.id)) {
-            guard let start = library.continueStart(of: folder) else { return }
-            speech.start(.page(start.page), at: start.spot)
+            guard let place = library.continueStart(of: folder) else { return }
+            start(place.page, at: place.spot)
         }
     }
 
     /// *Play from Start*: the first page that plays, from its top.
     func playFolderFromStart(_ folder: Folder) {
-        guard case .ready(let key) = ChapterAdvance.start(library.chapterSnapshot(of: folder), place: nil) else { return }
-        speech.playPage(key)
+        guard let key = ChapterAdvance.start(library.chapterSnapshot(of: folder), place: nil).key,
+              let page = library.page(key: key) else { return }
+        playFromStart(page)
     }
 
     // MARK: - Marks and removing

@@ -6,21 +6,25 @@ import Foundation
 /// source's order.
 /// Whether a folder is finished isn't stored: `FolderProgress.isFinished` works it out from its
 /// pages.
+extension Page {
+    /// A followed story's chapter whose text isn't fetched yet: playback stops before it, and ▶
+    /// fetches it first (`FollowCenter.play`).
+    var isWaitingChapter: Bool { isLink && folder?.kind == .series }
+}
+
 extension LibraryStore {
     /// The folder's pages in play order, skipped ones included. A link page in a followed story
     /// (`FolderKind.series`) is a chapter waiting for its text, which playback stops before; a link
     /// anywhere else is skipped (a favorite is an address, and nothing fetches it for playback).
     func chapterSnapshot(of folder: Folder) -> [ChapterAdvance.Chapter] {
-        chapterSnapshot(of: folder, pages: pages(in: folder))
+        chapterSnapshot(pages(in: folder))
     }
 
-    /// The snapshot of `pages`, the folder's pages in play order (before they are saved, for
-    /// *Replace*).
-    func chapterSnapshot(of folder: Folder, pages: [Page]) -> [ChapterAdvance.Chapter] {
-        let isStory = folder.kind == .series
-        return pages.map { page in
-            ChapterAdvance.Chapter(key: page.listenKey, isWaiting: page.isLink && isStory,
-                                   skipsInPlayback: page.skipsInPlayback || (page.isLink && !isStory),
+    /// The snapshot of `pages`, a folder's pages in play order.
+    func chapterSnapshot(_ pages: [Page]) -> [ChapterAdvance.Chapter] {
+        pages.map { page in
+            ChapterAdvance.Chapter(key: page.listenKey, isWaiting: page.isWaitingChapter,
+                                   skipsInPlayback: page.skipsInPlayback || (page.isLink && !page.isWaitingChapter),
                                    isFinished: page.finishedAt != nil)
         }
     }

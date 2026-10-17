@@ -40,6 +40,8 @@ struct MoreMenuPanel: View {
             .menuAvailability(menu.save)
         favoriteRow(isFavorite: menu.isFavorite) { run(.toggleFavorite) }
             .menuAvailability(menu.favorite)
+        followRow { run(.follow) }
+            .menuAvailability(menu.follow)
         shareRow { run(.share) }
             .menuAvailability(menu.share)
         row("Reload", Icons.reload, id: "moreReload") { run(.reload) }
@@ -93,11 +95,13 @@ struct MoreMenuPanel: View {
         case .home:
             sortMenu(menu.sort, run: run)
             importBookRow { run(.importBook) }
+            followRow { run(.follow) }
             row("New Folder", Icons.newFolder, id: "moreNewFolder") { run(.newFolder) }
         case .folder(let folder):
             sortMenu(menu.sort, run: run)
             row("New Folder Inside", Icons.newFolder, id: "moreNewFolder") { run(.newFolder) }
             importBookRow { run(.importBook) }
+            followRow { run(.follow) }
             row("Rename", Icons.rename, id: "moreRename") { run(.rename) }
             editDetailsRow { run(.editDetails) }
             row(Verbs.moveTo, Icons.move, id: "moreMove") { run(.move) }
@@ -153,6 +157,11 @@ struct MoreMenuPanel: View {
 
     private func importBookRow(action: @escaping () -> Void) -> some View {
         row("Import Book…", Icons.book, id: "moreImportBook", action: action)
+    }
+
+    /// *Follow…*: on the browser, the page's story; in the Library, a story whose address it asks.
+    private func followRow(action: @escaping () -> Void) -> some View {
+        row(Verbs.follow, Icons.follow, id: "moreFollow", action: action)
     }
 
     /// ⋯ › Settings: every setting in one place. Always the last row.

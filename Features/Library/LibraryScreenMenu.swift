@@ -2,13 +2,14 @@ import SwiftUI
 
 /// The ⋯ for the Library screen on top (the home or a folder): which rows the panel shows
 /// (`LibraryMenu`) and what each does there. The surface's ＋ (*New Folder*, *Import Book…*) acts
-/// on the same screen through `topFolder`.
+/// on the same screen through `topFolder`, and so does *Follow…*, whose story's folder goes there.
 @MainActor
 struct LibraryScreenMenu {
     let library: LibraryStore
     let speech: SpeechController
     let shell: ShellState
     let downloads: DownloadCenter
+    let follow: FollowCenter
     let screen: LibraryScreenState
     /// The pushed screen on top (nil: the home).
     let top: LibraryRoute?
@@ -36,7 +37,7 @@ struct LibraryScreenMenu {
         let pages = library.pages(in: folder)
         let rows = LibraryMenu.FolderRows(
             isBook: folder.kind == .book,
-            download: MenuAvailability(when: !pages.isEmpty && !isQueued),
+            download: MenuAvailability(when: !pages.isEmpty && !downloads.isOn(folder)),
             deleteDownloads: MenuAvailability(when: isQueued || pages.contains(where: library.hasDownloads))
         )
         return LibraryMenu(screen: .folder(rows), sort: folder.pageSort)
@@ -49,6 +50,7 @@ struct LibraryScreenMenu {
         case .settings: shell.present(.settings)
         case .newFolder: screen.makeFolder(in: folder)
         case .importBook: BookImportActions(library: library, shell: shell).pickBook(into: folder)
+        case .follow: shell.present(.follow(FollowFlow(url: nil, parentID: folder?.id, center: follow)))
         case .sort(let sort):
             if let folder {
                 shell.attempt(String(localized: "Couldn’t change the sort")) { try library.setSort(sort, for: folder) }
@@ -59,7 +61,7 @@ struct LibraryScreenMenu {
         case .editDetails: if let folder { shell.present(.folderDetails(folder.id)) }
         case .move:
             guard let folder else { return }
-            LibraryActions(library: library, speech: speech, shell: shell).move([.folder(folder)]) { showMoved(folder) }
+            LibraryActions(library: library, speech: speech, shell: shell, follow: follow).move([.folder(folder)]) { showMoved(folder) }
         case .deleteFolder: if let folder { screen.confirmDelete([folder]) }
         case .deleteDownloads: if let folder { downloads.deleteDownloads(of: folder) }
         case .download: if let folder { DownloadActions(downloads: downloads, shell: shell).download(folder) }

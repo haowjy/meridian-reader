@@ -18,6 +18,8 @@ import Foundation
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
 /// | Settings | `Icons.settings` |
 /// | Downloads | `Icons.downloads` |
+/// | Follow… / Unfollow / Follow Again | `Icons.follow` / `Icons.unfollow` / `Icons.follow` |
+/// | Check Now | `Icons.reload` |
 enum Verbs {
     static let moveTo = String(localized: "Move to…")
     static let saveToFolder = String(localized: "Save to Folder…")
@@ -38,6 +40,11 @@ enum Verbs {
     /// The ⋯ panel's last row and the screen it opens.
     static let settings = String(localized: "Settings")
     static let downloads = String(localized: "Downloads")
+    /// ⋯ → *Follow…*: a story's table of contents, read into a folder of chapters.
+    static let follow = String(localized: "Follow…")
+    static let unfollow = String(localized: "Unfollow")
+    static let followAgain = String(localized: "Follow Again")
+    static let checkNow = String(localized: "Check Now")
     static let done = String(localized: "Done")
     static let cancel = String(localized: "Cancel")
 

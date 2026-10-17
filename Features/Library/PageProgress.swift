@@ -73,7 +73,7 @@ struct FolderProgress {
     /// of this folder's is what you hear; `rate`: the playback speed the minutes count at.
     @MainActor
     init(folder: Folder, pages: [Page], playingKey: UUID?, rate: Double, library: LibraryStore) {
-        let snapshot = library.chapterSnapshot(of: folder, pages: pages)
+        let snapshot = library.chapterSnapshot(pages)
         isPlaying = playingKey != nil
         if let playingKey {
             currentKey = playingKey
