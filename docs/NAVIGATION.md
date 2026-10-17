@@ -129,9 +129,11 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
 - ‹ / › are web history (disabled when WebKit can't go back / forward; KVO on the web view, so
   same-document history counts too). The web view's own edge swipes still work.
 - A page whose web content process ends (WebKit crashed, or iOS took its memory) shows blank
-  until it loads again, so it reloads by itself: at once, then after 2 s and 5 s when the new
-  process ends too. A fourth end within a minute leaves it blank until ⋯ → *Reload* or another
-  page (`ContentProcessRecovery`). Follow's chapter preview (also a `WebView`) does the same.
+  until it loads again, so it reloads by itself: at once (in the background, once the app is in
+  front), then after 2 s and 5 s when the new process ends too. A fourth end within a minute
+  leaves it blank until ⋯ → *Reload* or another page (`ContentProcessRecovery`). Follow's
+  chapter preview (also a `WebView`) reloads the same way; once it gives up, closing and
+  reopening the preview loads the chapter again.
 - No Reader button in the toolbar. The **reader icon** (📄, like Safari's page-format icon) sits
   at the leading edge of the address field only when the page is readable (the same Mozilla
   `isProbablyReaderable` check extraction uses, run after each load / same-document URL change);

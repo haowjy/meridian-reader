@@ -88,8 +88,9 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
    such as anti-copy lines).
    When WebKit ends the view's content process (a crash, or memory taken), the view's delegate
    handles it (`WebViewStore.contentProcessEnded`), so WebKit doesn't reload once and stop: the
-   page reloads at once, then after 2 s and 5 s, and is left blank after a fourth end within a
-   minute (`ContentProcessRecovery`).
+   page reloads at once (in the background, once the app is in front), then after 2 s and 5 s,
+   and is left blank after a fourth end within a minute (`ContentProcessRecovery`). A reload
+   still waiting is dropped when the view has moved to another page or is loading one.
 2. `ReadabilityArticleExtractor` loads that HTML into an **off-screen** `WKWebView`
    (`OffscreenWebView`; the page URL as base for web pages) with the page's JavaScript off (its
    load gives up after 30 s, when WebKit's content process ends, or when the caller is

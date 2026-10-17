@@ -23,6 +23,8 @@ final class WebViewStore {
     @ObservationIgnored private var pendingURL: URL?
     /// Paces the reloads after the view's content process ends.
     @ObservationIgnored private var recovery = ContentProcessRecovery()
+    /// The reload waiting after the content process ended.
+    @ObservationIgnored private var recoveryReload: Task<Void, Never>?
 
     /// A book (`.epub`) the page linked to, downloading into `BookImportFiles` instead of showing.
     enum BookDownload {
@@ -80,13 +82,23 @@ final class WebViewStore {
 
     /// WebKit ended the view's content process (it crashed, or the system took its memory): the
     /// page shows blank until it loads again, so it reloads, paced by `ContentProcessRecovery`.
-    /// The start page has nothing to reload; a page the user moved on to before the wait ended
-    /// loads by itself.
+    /// In the background it waits for the front first (a process started there is the first the
+    /// system ends again; WebKit's own recovery waits too). The start page has nothing to reload,
+    /// and a reload still waiting is dropped when the view has moved to another page or is
+    /// loading one.
     func contentProcessEnded() {
-        guard hasPage, let delay = recovery.delayAfterEnd(at: Date()) else { return }
-        Task { [weak self] in
+        guard hasPage, let webView else { return }
+        let page = webView.backForwardList.currentItem
+        recoveryReload?.cancel()
+        recoveryReload = Task { [weak self, runState = AppRunState.shared] in
+            if runState.phase == .background {
+                for await _ in NotificationCenter.default.notifications(named: AppRunState.didChange, object: runState)
+                    where runState.phase != .background { break }
+            }
+            guard !Task.isCancelled, let delay = self?.recovery.delayAfterEnd(at: Date()) else { return }
             if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
-            guard let webView = self?.webView, !webView.isLoading else { return }
+            guard !Task.isCancelled, let webView = self?.webView, !webView.isLoading,
+                  webView.backForwardList.currentItem === page else { return }
             webView.reload()
         }
     }
