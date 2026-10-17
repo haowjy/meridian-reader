@@ -129,11 +129,6 @@ final class FollowCenter {
         return contents
     }
 
-    /// A chapter's text for Review's preview: one request, ahead of background work.
-    func preview(_ url: URL) async throws -> PageContent {
-        try await queue.content(of: url, priority: .user)
-    }
-
     /// Follows `contents` in `parent` (nil: the top level) with the chapters `kept`, and starts
     /// fetching them.
     func follow(_ contents: TableOfContents, keeping kept: [TableOfContents.Chapter], in parent: Folder?) throws -> Folder {

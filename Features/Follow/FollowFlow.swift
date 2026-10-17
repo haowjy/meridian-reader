@@ -20,13 +20,6 @@ final class FollowFlow: Identifiable {
         case review(TableOfContents)
     }
 
-    /// A chapter opened from Review: its text loading, or loaded, or why not.
-    enum Preview {
-        case loading
-        case loaded(PageContent)
-        case failed(String)
-    }
-
     let id = UUID()
     /// Where the story's folder goes (nil: the Library's top level).
     let parentID: UUID?
@@ -37,11 +30,9 @@ final class FollowFlow: Identifiable {
     private(set) var kept: Set<String> = []
     /// The chapter whose preview is up.
     private(set) var previewed: TableOfContents.Chapter?
-    private(set) var preview: Preview?
 
     @ObservationIgnored private let center: FollowCenter
     @ObservationIgnored private var reading: Task<Void, Never>?
-    @ObservationIgnored private var previewing: Task<Void, Never>?
 
     /// From the browser's page `url` (read at once), or from a folder (nil: its address is asked).
     init(url: URL?, parentID: UUID?, center: FollowCenter) {
@@ -95,7 +86,6 @@ final class FollowFlow: Identifiable {
     /// The sheet went away: nothing it started carries on.
     func cancel() {
         reading?.cancel()
-        previewing?.cancel()
     }
 
     // MARK: - Review
@@ -125,28 +115,14 @@ final class FollowFlow: Identifiable {
 
     // MARK: - Preview
 
-    /// A chapter row's tap: its text, fetched (one request, ahead of background work).
+    /// A chapter row's tap: its page, in the preview (`FollowPreviewSheet`).
     func showPreview(of chapter: TableOfContents.Chapter) {
-        previewing?.cancel()
         previewed = chapter
-        preview = .loading
-        previewing = Task {
-            do {
-                let content = try await center.preview(chapter.url)
-                guard !Task.isCancelled else { return }
-                preview = .loaded(content)
-            } catch {
-                guard !Task.isCancelled else { return }
-                preview = .failed(FollowCenter.message(for: error))
-            }
-        }
     }
 
-    /// The preview went down (pulled, or a button).
+    /// The preview went down.
     func closePreview() {
-        previewing?.cancel()
         previewed = nil
-        preview = nil
     }
 }
 

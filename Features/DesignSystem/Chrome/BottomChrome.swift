@@ -292,6 +292,14 @@ struct BottomToolbarGallery: View {
                     }
                 }
             }
+            PreviewState("Follow's chapter preview: the field alone, at the browser's place") {
+                band {
+                    BandFieldRow(keepsSwapRoom: true) {
+                        AddressField(reader: .showing) { Text("royalroad.com/fiction/1/chapter/2") }
+                    }
+                    Color.clear.frame(height: BottomChrome.rowHeight)
+                }
+            }
             PreviewState("reader") {
                 band {
                     BottomToolbarSpanLayout {
@@ -323,10 +331,8 @@ struct BottomToolbarGallery: View {
 
     /// The swap, a toolbar button tight to the leading edge, then the field.
     private func fieldRow<Field: View>(_ swap: String, @ViewBuilder field: () -> Field) -> some View {
-        HStack(spacing: Spacing.xxs) {
-            icon(swap).frame(width: BottomChrome.rowHeight, height: BottomChrome.rowHeight)
-            field()
-        }
+        BandFieldRow(swap: BandSwap(systemImage: swap, label: "Swap", hint: "", identifier: "preview", action: {}),
+                     field: field)
     }
 
     private func band<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {

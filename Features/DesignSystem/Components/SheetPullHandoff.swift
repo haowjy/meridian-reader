@@ -98,8 +98,21 @@ final class ScrollPullHandoff: NSObject {
     /// The sheet is pulled by the drag in progress.
     var isPulling: Bool { (tracking?.pull ?? 0) > 0 }
 
+    /// The scroll view whose pan drives it.
+    private(set) weak var scrollView: UIScrollView?
+
     func attach(to scrollView: UIScrollView) {
+        detach()
+        self.scrollView = scrollView
         scrollView.panGestureRecognizer.addTarget(self, action: #selector(panned(_:)))
+    }
+
+    /// Stops listening; a pull in progress springs back, as a cancelled touch's does.
+    func detach() {
+        scrollView?.panGestureRecognizer.removeTarget(self, action: #selector(panned(_:)))
+        scrollView = nil
+        if isPulling { handoff?.ended(0, 0) }
+        tracking = nil
     }
 
     @objc private func panned(_ pan: UIPanGestureRecognizer) {
@@ -159,5 +172,40 @@ final class ScrollPullHandoff: NSObject {
 
     private func scrolledIn(_ sv: UIScrollView) -> CGFloat {
         sv.contentOffset.y + sv.adjustedContentInset.top
+    }
+}
+
+extension View {
+    /// Hands `scrollView`'s pulls to the `Sheet` this view is in: a pull down that begins with
+    /// the content at its top moves the sheet (`SheetPullHandoff`), one that begins mid-content
+    /// only scrolls, as in the Reader and Now Playing. For a scroll view the sheet's body doesn't
+    /// wire itself (Browse's web view, in Follow's chapter preview). Outside a sheet it does
+    /// nothing.
+    func handsPullToSheet(from scrollView: UIScrollView?) -> some View {
+        background(SheetPullScrollHook(scrollView: scrollView))
+    }
+}
+
+/// Drives a `ScrollPullHandoff` from `scrollView`'s pan while it is on screen.
+private struct SheetPullScrollHook: UIViewRepresentable {
+    weak var scrollView: UIScrollView?
+
+    func makeCoordinator() -> ScrollPullHandoff { ScrollPullHandoff() }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        view.isAccessibilityElement = false
+        return view
+    }
+
+    func updateUIView(_ view: UIView, context: Context) {
+        let pull = context.coordinator
+        pull.handoff = context.environment.sheetPullHandoff
+        if let scrollView, pull.scrollView !== scrollView { pull.attach(to: scrollView) }
+    }
+
+    static func dismantleUIView(_ view: UIView, coordinator: ScrollPullHandoff) {
+        coordinator.detach()
     }
 }

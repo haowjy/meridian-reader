@@ -86,7 +86,8 @@ the same three rows at the same height, every control at the same frame, so swap
 changes what the controls say and nothing else. Row 1 is the Now Playing bar alone, across the
 band's full width. Row 2 is the swap (📚 / 🌐, its 44 pt tap target tight to the leading edge),
 then the field filling the rest: the address field on the browser, *Search Library* on the
-Library. While searching, the swap steps aside with the bar and the toolbar. Row 3 is the
+Library (one component, `BandFieldRow`, whose field Follow's chapter preview draws at this place).
+While searching, the swap steps aside with the bar and the toolbar. Row 3 is the
 toolbar, each slot one role on both:
 
 | Slot | Browser | Library |
@@ -366,9 +367,15 @@ goes in), where you type or paste the story's address. Follow covers the screen:
 2. **Review**: "Found 109 chapters   107 selected", *Select All*, then every chapter (its title,
    and its address shortened) with a box: tap the box to keep or leave it out (an author's note,
    a Q&A). Tapping the rest of the row opens its **preview**, the app's own sheet rising over the
-   list: the chapter's title and box, its address, the opening of its text and how long it is,
-   *Open in Browser* and *Include* / *Leave Out* (which sets the box and closes it). A pull down
-   closes it.
+   list with the chapter's real page in the browser's web view (signed in as in the browser), under
+   the chapter's title and its box (tap to keep or leave it out). It is a preview and nothing
+   more: links, forms and back / forward to another page go nowhere (a page's gate or challenge
+   posting back to its own address still works), and there is no Save and no ⋯.
+   At the bottom is the browser's address field, at exactly the browser's place (the swap's room
+   left empty): the chapter's address and 📄, which swaps the page for its Reader text and back
+   (filled while the Reader text shows). The page scrolls; a pull down on the header, or on the
+   page while it is at its top, closes the preview; one that starts further down only scrolls,
+   as in the Reader.
 3. **OK · Follow 107 Chapters** makes the folder at once (named for the story, its author as the
    byline) with the chapters kept, as links, and opens it. Their text is fetched in the
    background one at a time, each waiting for the one before and a pause; slow replies lengthen
@@ -831,7 +838,7 @@ Debug builds (`App/LaunchOptions.swift`).
 | Import Book… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
 | Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
-| Follow (`FollowSheet`): ⋯ → *Follow…* | Cancel; OK opens the story's folder | `.fullScreenCover` (a card's own pull would take the preview's); a chapter's preview is a `Sheet` over it, pulled down to close |
+| Follow (`FollowSheet`): ⋯ → *Follow…* | Cancel; OK opens the story's folder | `.fullScreenCover` (a card's own pull would take the preview's); a chapter's preview is a `Sheet` over it holding the chapter's page, pulled down to close (from its top) |
 | Following (`FollowingSheet`): a story's status line | Done | `.sheet`, medium and large |
 | Reader sheet (`ReaderSheetScreen`): 📄, ⋯ → Reader, a Favorites tile, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface; pull the header down |
 | Now Playing (`NowPlayingScreen`): the bar, the Reader of the playing page, Listen, crash resume | *⌄ <playing from>* pill, top left | `Sheet` over everything; pull the header down |

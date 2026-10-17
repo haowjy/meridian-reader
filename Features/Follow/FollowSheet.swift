@@ -18,7 +18,8 @@ import SwiftUI
 /// A folder's ⋯ asks for the address first; the browser's ⋯ reads its page's story at once.
 /// While the table of contents is read: a spinner and the address. A chapter row's box keeps or
 /// leaves out the chapter; the rest of the row opens its preview, the app's sheet rising over the
-/// list (`FollowPreviewSheet`), which a pull down closes. OK makes the folder and opens it.
+/// list with the chapter's page (`FollowPreviewSheet`), which a pull down closes. OK makes the
+/// folder and opens it.
 struct FollowSheet: View {
     let flow: FollowFlow
 
@@ -37,16 +38,16 @@ struct FollowSheet: View {
                 }
         }
         .overlay {
-            if let chapter = flow.previewed, let preview = flow.preview {
-                FollowPreviewSheet(chapter: chapter, preview: preview, isKept: flow.isKept(chapter),
+            if let chapter = flow.previewed {
+                FollowPreviewSheet(chapter: chapter, isKept: flow.isKept(chapter),
                                    onToggle: { flow.toggle(chapter) },
-                                   onOpenInBrowser: { openInBrowser(chapter.url) },
                                    onClose: { flow.closePreview() })
                     .id(chapter.canonicalURL)
             }
         }
         .sheetToastLayer()
         .onDisappear { flow.cancel() }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("followSheet")
     }
 
@@ -104,11 +105,6 @@ struct FollowSheet: View {
         guard let folder = library.folder(id: id) else { return }
         shell.sheet = nil
         shell.showLibrary(at: library.path(to: folder))
-    }
-
-    private func openInBrowser(_ url: URL) {
-        shell.sheet = nil
-        shell.navigate(to: url)
     }
 }
 
@@ -277,8 +273,8 @@ private struct FollowChapterRow: View {
     }
 }
 
-/// Review's box: kept, left out, or (Select All) some.
-private struct FollowCheckbox: View {
+/// Review's box: kept, left out, or (Select All) some. The preview's header has it too.
+struct FollowCheckbox: View {
     let symbol: String
 
     var body: some View {

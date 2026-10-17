@@ -24,7 +24,7 @@ struct WebView: UIViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
-        webView.allowsBackForwardNavigationGestures = true
+        webView.allowsBackForwardNavigationGestures = !store.staysOnPage
         webView.scrollView.contentInsetAdjustmentBehavior = .automatic
         webView.isOpaque = true
         webView.backgroundColor = .systemBackground
@@ -42,8 +42,13 @@ struct WebView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         var store: WebViewStore
+        /// `WebViewStore.staysOnPage`, read where WebKit asks.
+        private let staysOnPage: Bool
         private var observations: [NSKeyValueObservation] = []
-        init(store: WebViewStore) { self.store = store }
+        @MainActor init(store: WebViewStore) {
+            self.store = store
+            staysOnPage = store.staysOnPage
+        }
 
         @MainActor
         func attach(_ webView: WKWebView) {
@@ -136,6 +141,33 @@ struct WebView: UIViewRepresentable {
             }
         }
 
+        // MARK: - Staying on the page
+
+        /// A view that stays on its page (`WebViewStore.staysOnPage`) cancels a link, a form, or
+        /// back / forward that would take it to another page. One that stays on the page's own
+        /// address (`#notes`, `?page=2`, a site's gate or challenge form posting back to it) goes:
+        /// WebKit can't tell a script's form submit from a tap's.
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationAction: WKNavigationAction,
+            decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+        ) {
+            guard staysOnPage, navigationAction.targetFrame?.isMainFrame ?? true else { return decisionHandler(.allow) }
+            switch navigationAction.navigationType {
+            case .linkActivated, .formSubmitted, .formResubmitted, .backForward:
+                let stays = navigationAction.request.url.flatMap { url in webView.url.map { Self.sameAddress(url, $0) } }
+                decisionHandler(stays == true ? .allow : .cancel)
+            default:
+                decisionHandler(.allow)
+            }
+        }
+
+        /// The same scheme, host and path: the query and the fragment may differ.
+        static func sameAddress(_ a: URL, _ b: URL) -> Bool {
+            a.scheme?.lowercased() == b.scheme?.lowercased() && a.host?.lowercased() == b.host?.lowercased()
+                && a.path == b.path
+        }
+
         // MARK: - Books
 
         /// A book (an EPUB) the page links to is downloaded, not shown.
@@ -169,14 +201,14 @@ struct WebView: UIViewRepresentable {
         // MARK: - New windows
 
         /// A link that opens a new window (`target=_blank`, `window.open`): there are no tabs, so it
-        /// loads here.
+        /// loads here (nowhere in a view that stays on its page).
         func webView(
             _ webView: WKWebView,
             createWebViewWith configuration: WKWebViewConfiguration,
             for navigationAction: WKNavigationAction,
             windowFeatures: WKWindowFeatures
         ) -> WKWebView? {
-            if let url = navigationAction.request.url {
+            if !staysOnPage, let url = navigationAction.request.url {
                 webView.load(URLRequest(url: url))
             }
             return nil

@@ -114,7 +114,7 @@ Every such fetch goes through one `FetchQueue`, strictly one at a time: each req
 the one before it and then for its site's pause (`FetchPacing`: 4 s, 12 s after a reply that took
 6 s or more; a 429, a 5xx or no answer doubles the wait from 1 min up to 30 min, never under the
 reply's `Retry-After`; each answer halves it back down). Of the requests whose site is ready, one a
-tap asked for (Review's read and previews, ▶ on a waiting chapter) goes first, then the oldest
+tap asked for (Review's read, ▶ on a waiting chapter) goes first, then the oldest
 (the chapter loop, the daily checks, downloads). Nothing loads in the background (the view needs
 the app's window): requests wait for the app to come to the front, and a load the background cut
 short is tried again then without counting against its site.
@@ -125,6 +125,10 @@ list with the most chapter-like links on its own site; a Royal Road chapter's ad
 story page) becomes a `series` folder of link pages, one per chapter kept in Review, in the
 story's order, with its state in `sourceStateData` (`FollowState`: following or not, the last
 check, the last chapters added, and every chapter address the contents have listed, kept or not).
+Review's preview of a chapter is not an out-of-sight fetch: it loads the chapter in sight, in the
+browser's `WebView` with a `WebViewStore(staysOnPage: true)` (links, forms and back / forward to
+another address cancelled), and its
+📄 extracts that loaded page for the Reader text, as the browser's Reader does.
 The chapters' text is fetched one at a time while the app is in front (the chapter ▶ asked for,
 else the one after the page playing, else the oldest story's first waiting chapter) and stored in
 place (`storeFetchedText`; nothing renders: the folder's Download switch decides that). A

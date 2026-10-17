@@ -15,8 +15,9 @@ import WebKit
 ///   Debug build always serves (`AppComposition.makeFollow`):
 ///   - `toc` ("The Tide Keeper"): the table of contents, a site menu and then the chapter list,
 ///     `-testStoryChapters` chapters long (8 by default), an author's note third;
-///   - `chapter-N`, `note`: the chapters. With `-testStoryThrottles`, `chapter-6` doesn't load
-///     the first time in a launch (a site not answering), so Follow backs off.
+///   - `chapter-N`, `note`: the chapters (a chapter links to the next). With
+///     `-testStoryThrottles`, `chapter-6` doesn't load the first time in a launch (a site not
+///     answering), so Follow backs off.
 ///
 /// An unknown name is page one.
 final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
@@ -105,7 +106,8 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
         guard name.hasPrefix("chapter-"), let number = Int(name.dropFirst("chapter-".count)) else { return page(name) }
         let sentence = "On the \(number)th night the keeper climbed the stair and trimmed the wick while the tide turned below the rocks. "
         let body = (1...5).map { "<p>Part \($0). " + String(repeating: sentence, count: 3) + "</p>" }.joined()
-        return document(title: "Chapter \(number)", body: body)
+        let next = "<nav><a href=\"reader-test://story/chapter-\(number + 1)\">Next chapter</a></nav>"
+        return document(title: "Chapter \(number)", body: next + body)
     }
 
     /// Points page one's "Download a book" at the synthetic EPUB (`TestEPUB`) as a `blob:` URL

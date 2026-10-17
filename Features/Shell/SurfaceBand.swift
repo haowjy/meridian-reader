@@ -17,15 +17,7 @@ import UIKit
 /// `session.isFocused`.
 struct SurfaceBand<Field: View, Toolbar: View>: View {
     /// The swap to the other surface, at the leading edge of the field's row (row 2).
-    struct Swap {
-        let systemImage: String
-        let label: String
-        let hint: String
-        let identifier: String
-        let action: () -> Void
-    }
-
-    let swap: Swap
+    let swap: BandSwap
     let session: SearchSession
     let cancelID: String
     let onCancel: () -> Void
@@ -53,14 +45,7 @@ struct SurfaceBand<Field: View, Toolbar: View>: View {
             // the field filling the rest. While searching the swap steps aside with the toolbar,
             // and ✕ ends the search (it stays after a swipe-down lowered the keyboard).
             HStack(spacing: Spacing.xs) {
-                HStack(spacing: Spacing.xxs) {
-                    if !session.isActive {
-                        BandToolbarButton(systemImage: swap.systemImage, label: swap.label,
-                                          identifier: swap.identifier, weight: .light, action: swap.action)
-                            .accessibilityHint(swap.hint)
-                            .frame(width: BottomChrome.rowHeight, height: BottomChrome.rowHeight)
-                            .tint(Palette.ink)
-                    }
+                BandFieldRow(swap: session.isActive ? nil : swap) {
                     field($focused)
                         .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("bandField")
@@ -102,24 +87,6 @@ struct SurfaceBand<Field: View, Toolbar: View>: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             UIApplication.shared.sendAction(#selector(UIResponder.selectAll(_:)), to: nil, from: nil, for: nil)
         }
-    }
-}
-
-/// A plain icon in a band toolbar slot.
-struct BandToolbarButton: View {
-    let systemImage: String
-    let label: String
-    let identifier: String
-    /// Optical weight for line-dense glyphs (the swap); the toolbar slots keep the default.
-    var weight: Font.Weight = .regular
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: systemImage).toolbarIconFrame().fontWeight(weight)
-        }
-        .accessibilityLabel(label)
-        .accessibilityIdentifier(identifier)
     }
 }
 
