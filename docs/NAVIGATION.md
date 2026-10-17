@@ -86,7 +86,7 @@ the same three rows at the same height, every control at the same frame, so swap
 changes what the controls say and nothing else. Row 1 is the Now Playing bar alone, across the
 band's full width. Row 2 is the swap (📚 / 🌐, its 44 pt tap target tight to the leading edge),
 then the field filling the rest: the address field on the browser, *Search Library* on the
-Library (one component, `BandFieldRow`, whose field Follow's chapter preview draws at this place).
+Library (one component, `BandFieldRow`).
 While searching, the swap steps aside with the bar and the toolbar. Row 3 is the
 toolbar, each slot one role on both:
 
@@ -367,15 +367,16 @@ goes in), where you type or paste the story's address. Follow covers the screen:
 2. **Review**: "Found 109 chapters   107 selected", *Select All*, then every chapter (its title,
    and its address shortened) with a box: tap the box to keep or leave it out (an author's note,
    a Q&A). Tapping the rest of the row opens its **preview**, the app's own sheet rising over the
-   list with the chapter's real page in the browser's web view (signed in as in the browser), under
-   the chapter's title and its box (tap to keep or leave it out). It is a preview and nothing
-   more: links, forms and back / forward to another page go nowhere (a page's gate or challenge
-   posting back to its own address still works), and there is no Save and no ⋯.
-   At the bottom is the browser's address field, at exactly the browser's place (the swap's room
-   left empty): the chapter's address and 📄, which swaps the page for its Reader text and back
-   (filled while the Reader text shows). The page scrolls; a pull down on the header, or on the
-   page while it is at its top, closes the preview; one that starts further down only scrolls,
-   as in the Reader.
+   list with the chapter's real page in the browser's web view (signed in as in the browser). Its
+   header says it is a passing look: the chapter's title and its box (tap to keep or leave it
+   out), then the chapter's address in a small capsule, a label you can't edit or tap, with 📄 at
+   its end, which swaps the page for its Reader text and back (filled while the Reader text
+   shows; dimmed until the page can be read). The page's load runs along the header's foot. It
+   is a preview and nothing more: links, forms and back / forward to another page go nowhere (a
+   page's gate or challenge posting back to its own address still works), and there is no Save,
+   no ⋯ and no bar at the bottom: the page runs to the screen's foot. The page scrolls; a pull
+   down on the header, or on the page while it is at its top, closes the preview; one that
+   starts further down only scrolls, as in the Reader.
 3. **OK · Follow 107 Chapters** makes the folder at once (named for the story, its author as the
    byline) with the chapters kept, as links, and opens it. Their text is fetched in the
    background one at a time, each waiting for the one before and a pause; slow replies lengthen

@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// The browser's field capsule: 📄 at the leading end opens the Reader (in Follow's chapter
-/// preview it swaps the page for its Reader text and back), 🎧 at the trailing end listens to the
-/// page. 🎧 shows only on a readable page (`listen` non-nil) and is a
+/// The browser's field capsule: 📄 at the leading end opens the Reader, 🎧 at the trailing end
+/// listens to the page. 🎧 shows only on a readable page (`listen` non-nil) and is a
 /// `PlayStateButton`: grey when the page isn't what you hear, accent with bars when it is.
 ///
 /// ```
@@ -21,9 +20,6 @@ struct AddressField<Field: View, Accessory: View>: View {
         case extracting
         /// The page is readable: 📄.
         case available
-        /// The Reader text shows in the page's place (Follow's chapter preview): 📄 filled, which
-        /// goes back to the page.
-        case showing
     }
 
     var reader: ReaderButton = .hidden
@@ -70,16 +66,16 @@ struct AddressField<Field: View, Accessory: View>: View {
             ProgressView()
                 .controlSize(.small)
                 .frame(width: Self.readerSize, height: Self.readerSize)
-        case .available, .showing:
+        case .available:
             Button(action: onOpenReader) {
-                Image(systemName: reader == .showing ? Icons.readerShowing : Icons.reader)
+                Image(systemName: Icons.reader)
                     .font(.body)
                     .foregroundStyle(Palette.accent)
                     .frame(width: Self.readerSize, height: Self.readerSize)
                     .tapTarget(Self.readerSize)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(reader == .showing ? "Show Web Page" : "Open in Reader")
+            .accessibilityLabel("Open in Reader")
             .accessibilityIdentifier("addressReader")
             .transition(.opacity)
         }
@@ -117,9 +113,6 @@ struct AddressFieldGallery: View {
             }
             PreviewState("this page paused") {
                 AddressField(reader: .available, listen: .paused) { Text("investopedia.com") }
-            }
-            PreviewState("the Reader text showing (Follow's preview)") {
-                AddressField(reader: .showing) { Text("royalroad.com/fiction/1/chapter/2") }
             }
             PreviewState("extracting for the Reader") {
                 AddressField(reader: .extracting, listen: .idle) { Text("news.example.org") }
