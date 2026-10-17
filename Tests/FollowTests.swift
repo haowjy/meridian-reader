@@ -1,0 +1,101 @@
+import XCTest
+@testable import MeridianReader
+
+/// Follow's pure rules: reading a story's chapters off its table of contents (Royal Road's rule,
+/// the generic one) and the fetch queue's pace and back-off.
+final class FollowTests: XCTestCase {
+    private func link(_ url: String, _ text: String, list: Int) -> LinkPage.Link {
+        LinkPage.Link(url: URL(string: url)!, text: text, list: list)
+    }
+
+    // MARK: - Royal Road
+
+    /// The chapters table wins over the *Start Reading* button and each row's date link: one
+    /// chapter per address, named by its row's first link, in the story's order; links to other
+    /// stories and the site's menus are left out. The title loses the site's name.
+    func testRoyalRoadReadsTheChaptersTable() throws {
+        let story = "https://www.royalroad.com/fiction/21220/mother-of-learning"
+        let page = LinkPage(url: URL(string: story)!, title: "Mother of Learning | Royal Road", heading: nil,
+                            author: " nobody103 ", links: [
+            link("https://www.royalroad.com/fictions/best-rated", "Best Rated", list: 0),
+            link("\(story)/chapter/301778/1-good-morning-brother", "Start Reading", list: 1),
+            link("\(story)/chapter/301778/1-good-morning-brother", "1. Good Morning Brother", list: 2),
+            link("\(story)/chapter/301778/1-good-morning-brother", "8 years ago", list: 2),
+            link("\(story)/chapter/309114/authors-note", "Author's Note: Hiatus", list: 2),
+            link("\(story)/chapter/309114/authors-note", "7 years ago", list: 2),
+            link("\(story)/chapter/301780/2-lifes-little-problems", "2. Life's Little Problems", list: 2),
+            link("\(story)/chapter/301780/2-lifes-little-problems", "8 years ago", list: 2),
+            link("https://www.royalroad.com/fiction/99999/other/chapter/1/one", "Another story", list: 3),
+        ])
+        let contents = try XCTUnwrap(TableOfContents.read(page))
+        XCTAssertEqual(contents.title, "Mother of Learning")
+        XCTAssertEqual(contents.byline, "nobody103")
+        XCTAssertEqual(contents.chapters.map(\.title), ["1. Good Morning Brother", "Author's Note: Hiatus", "2. Life's Little Problems"])
+    }
+
+    /// A Royal Road chapter's address follows to its story's page.
+    func testAChapterAddressLeadsToItsStoryPage() {
+        let chapter = URL(string: "https://www.royalroad.com/fiction/21220/mother-of-learning/chapter/301778/1-good?x=1")!
+        XCTAssertEqual(TableOfContents.contentsURL(for: chapter).absoluteString, "https://www.royalroad.com/fiction/21220")
+        let other = URL(string: "https://serials.example.com/story/contents")!
+        XCTAssertEqual(TableOfContents.contentsURL(for: other), other)
+    }
+
+    // MARK: - Any other site
+
+    /// The list with the most chapter-like links on the page's own site wins over a longer menu;
+    /// a link back to the page itself and other sites' links are left out.
+    func testGenericReadsTheLongestChapterList() throws {
+        let site = "https://serials.example.com"
+        let menu = ["Home", "Rankings", "Forums", "Sign In", "About", "Contact", "Help"].map {
+            link("\(site)/\($0.lowercased())", $0, list: 0)
+        }
+        let page = LinkPage(url: URL(string: "\(site)/tide-keeper")!, title: "The Tide Keeper", heading: "The Tide Keeper",
+                            author: nil, links: menu + [
+            link("\(site)/tide-keeper", "The Tide Keeper", list: 1),
+            link("\(site)/tide-keeper/1", "Chapter 1: The Lamp", list: 1),
+            link("\(site)/tide-keeper/note", "Author's Note", list: 1),
+            link("\(site)/tide-keeper/2", "Chapter 2: Low Water", list: 1),
+            link("https://elsewhere.example.org/ad", "Chapter 9 of something else", list: 1),
+        ])
+        let contents = try XCTUnwrap(TableOfContents.read(page))
+        XCTAssertEqual(contents.chapters.map(\.title), ["Chapter 1: The Lamp", "Author's Note", "Chapter 2: Low Water"])
+        XCTAssertNil(TableOfContents.read(LinkPage(url: URL(string: site)!, title: nil, heading: nil, author: nil, links: menu)),
+                     "a menu alone is no story")
+    }
+
+    // MARK: - Pace and back-off
+
+    /// The pause is 4 s, 12 s after a slow reply; a refusal or no answer doubles the wait from a
+    /// minute up to 30 minutes (never under a refusal's Retry-After); answers halve it back down.
+    func testPacingBacksOffAndEasesBack() {
+        var pacing = FetchPacing()
+        XCTAssertEqual(pacing.delay, 4)
+        pacing.record(.answered(seconds: 1))
+        XCTAssertEqual(pacing.delay, 4)
+        pacing.record(.answered(seconds: 8))
+        XCTAssertEqual(pacing.delay, 12, "slow reply")
+        pacing.record(.refused(retryAfter: nil))
+        XCTAssertEqual(pacing.delay, 60)
+        XCTAssertTrue(pacing.isBackingOff)
+        pacing.record(.noAnswer)
+        XCTAssertEqual(pacing.delay, 120)
+        pacing.record(.refused(retryAfter: 600))
+        XCTAssertEqual(pacing.delay, 600, "the site's Retry-After")
+        for _ in 0..<5 { pacing.record(.refused(retryAfter: nil)) }
+        XCTAssertEqual(pacing.delay, 30 * 60, "capped")
+        pacing.record(.answered(seconds: 1))
+        XCTAssertEqual(pacing.delay, 15 * 60, "then slower")
+        XCTAssertFalse(pacing.isBackingOff)
+        for _ in 0..<12 { pacing.record(.answered(seconds: 1)) }
+        XCTAssertEqual(pacing.delay, 4, "back to its pace")
+    }
+
+    /// Retry-After as seconds or as an HTTP date.
+    func testRetryAfterReadsSecondsAndDates() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        XCTAssertEqual(FetchPacing.retryAfter("120", now: now), 120)
+        XCTAssertEqual(FetchPacing.retryAfter("Fri, 15 Jan 2027 08:00:30 GMT", now: now), 30)
+        XCTAssertNil(FetchPacing.retryAfter("soon", now: now))
+    }
+}

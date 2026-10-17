@@ -31,6 +31,12 @@ struct LaunchOptions: Equatable {
     var opensLibrary = false
     /// `-browseTestPages`: serve and open the offline `reader-test://` pages.
     var servesTestPages = false
+    /// `-testStoryChapters N`: the offline story's table of contents (`reader-test://story/toc`)
+    /// lists N chapters (8 without it), so a check finds new ones on a later launch.
+    var testStoryChapters = 8
+    /// `-testStoryThrottles`: the offline story's chapter 6 answers 429 the first time it is
+    /// asked for in a launch, for Follow's back-off.
+    var testStoryThrottles = false
     /// `-seedBookmarks`: a few starred `example.com` links whose icons stay letter tiles (no
     /// fetch).
     var seedsBookmarks = false
@@ -102,6 +108,8 @@ struct LaunchOptions: Equatable {
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")
         opensLibrary = flags.contains("-openLibrary")
         servesTestPages = flags.contains("-browseTestPages")
+        testStoryChapters = value(after: "-testStoryChapters").flatMap(Int.init) ?? testStoryChapters
+        testStoryThrottles = flags.contains("-testStoryThrottles")
         seedsBookmarks = flags.contains("-seedBookmarks")
         bakeArticlePrefix = value(after: "-bakeArticle")?.uppercased()
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")
