@@ -21,6 +21,11 @@ is `../../../docs/TECHNICAL_SPEC.md` → "Fetching a page out of sight" and "Fol
   property, `Page.isWaitingChapter`; playback stops before such a chapter (`ChapterAdvance`).
 - **Follow covers the screen** (`ShellSheet.coversTheScreen`): inside a card sheet the system's
   pan takes the preview `Sheet`'s pull down.
+- **The preview's text is a SwiftUI `ScrollView`** with `handsPullToSheet()` on its content: that
+  is what lets a pull from the text's top close the preview. Its bottom row is the browser's
+  `BandFieldRow`, so it stays where the browser's is.
+- **Open in Browser is `shell.navigate(to:)`** and nothing else: `showBrowser` closes the sheet
+  (Follow's cover), and the flow's `cancel()` runs as it disappears. Review's choices are dropped.
 - **Probes**: `-browseTestPages` page one links to `reader-test://story/toc`; `-testStoryChapters N`
   lengthens it (a check then finds new chapters); `-testStoryThrottles` makes chapter 6 fail once.
   A custom scheme's reply carries no HTTP status, so a real 429 is checked against a live site.
