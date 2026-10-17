@@ -75,6 +75,16 @@ enum Icons {
     static let photos = "photo.on.rectangle"
     /// A web address standing in for a page with no title.
     static let link = "link"
+    /// Follow a story (⋯ → *Follow…*), a followed story's status line; Unfollow.
+    static let follow = "antenna.radiowaves.left.and.right"
+    static let unfollow = "antenna.radiowaves.left.and.right.slash"
+    /// A chapter kept (checked) or left out in Follow's Review.
+    static let included = "checkmark.square.fill"
+    static let excluded = "square"
+    /// Some of a list kept: Review's *Select All* between all and none.
+    static let partlyIncluded = "minus.square.fill"
+    /// Waiting on a site that asked to slow down.
+    static let waiting = "hourglass"
 
     // MARK: Listening
 

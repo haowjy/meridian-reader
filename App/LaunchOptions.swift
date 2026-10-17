@@ -31,6 +31,12 @@ struct LaunchOptions: Equatable {
     var opensLibrary = false
     /// `-browseTestPages`: serve and open the offline `reader-test://` pages.
     var servesTestPages = false
+    /// `-testStoryChapters N`: the offline story's table of contents (`reader-test://story/toc`)
+    /// lists N chapters (8 without it), so a check finds new ones on a later launch.
+    var testStoryChapters = 8
+    /// `-testStoryThrottles`: the offline story's chapter 6 doesn't load the first time it is
+    /// asked for in a launch (a site not answering), for Follow's back-off.
+    var testStoryThrottles = false
     /// `-seedBookmarks`: a few starred `example.com` links whose icons stay letter tiles (no
     /// fetch).
     var seedsBookmarks = false
@@ -70,9 +76,6 @@ struct LaunchOptions: Equatable {
     /// `-failLibrarySaves`: once the launch work is done (seeds, maintenance, bookmarks), every
     /// library save fails, so UI tests see the edits that can't be saved.
     var failsLibrarySaves = false
-    /// `-probeLockedFetch`: once launched, the locked-phone device check of a hidden fetch and a
-    /// silent wait between chapters (`LockedFetchProbe`). It runs only in the probe's own install.
-    var probesLockedFetch = false
     /// `-testVoice`: register an offline on-device test voice (`TestVoiceProvider`, "Test Voice"
     /// with voices One and Two); `-selectEngine test.voice` picks it. Downloads render with it.
     var usesTestVoice = false
@@ -105,6 +108,8 @@ struct LaunchOptions: Equatable {
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")
         opensLibrary = flags.contains("-openLibrary")
         servesTestPages = flags.contains("-browseTestPages")
+        testStoryChapters = value(after: "-testStoryChapters").flatMap(Int.init) ?? testStoryChapters
+        testStoryThrottles = flags.contains("-testStoryThrottles")
         seedsBookmarks = flags.contains("-seedBookmarks")
         bakeArticlePrefix = value(after: "-bakeArticle")?.uppercased()
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")
@@ -118,7 +123,6 @@ struct LaunchOptions: Equatable {
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")
         failsLibrarySaves = flags.contains("-failLibrarySaves")
-        probesLockedFetch = flags.contains("-probeLockedFetch")
         usesTestVoice = flags.contains("-testVoice")
         selectsEngine = value(after: "-selectEngine").map(SpeechEngineID.init(rawValue:))
         kokoroUnits = value(after: "-kokoroUnits")

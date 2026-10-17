@@ -61,8 +61,8 @@ targets:
             UTTypeConformsTo:
               - public.data
     settings:
-      # The locked-fetch probe's install overrides these two on the xcodebuild command line
-      # (`BUNDLE_ID_SUFFIX=.probe APP_DISPLAY_NAME="Meridian Reader Probe"`, see `App/LockedFetchProbe.swift`):
+      # A probe install overrides these two on the xcodebuild command line
+      # (`BUNDLE_ID_SUFFIX=.probe APP_DISPLAY_NAME="Meridian Reader Probe"`):
       # a second app, with its own data container and its own name on the home screen. They are
       # variables, not overrides of PRODUCT_BUNDLE_IDENTIFIER, so they reach only this target and
       # not the packages' resource bundles. A normal build leaves them as they are here.

@@ -1,0 +1,26 @@
+# Follow: working notes
+
+What the user sees is in `../../../docs/NAVIGATION.md` → "Follow a story"; how fetching is paced
+is `../../../docs/TECHNICAL_SPEC.md` → "Fetching a page out of sight" and "Follow".
+
+- **One queue for every out-of-sight fetch** (`Core/Web/FetchQueue`): Review's read and previews,
+  the chapter loop, the daily checks, and Downloads' link pages (`FollowCenter.fill`). Strictly
+  one load at a time; a site's pause or back-off lets another site's request go meanwhile. Don't
+  make a `URLPageFetcher` of your own: it would go around the pace.
+- **Nothing in the background.** The loop and the checks run only with the app in front (a load
+  needs the window; WebKit is suspended behind). `start()` resumes both when the app comes back.
+- **Which chapter next is derived, not stored** (`nextWaiting`): ▶'s chapter, the one after the
+  page playing, then the oldest story's first waiting chapter. Failures (`failures`) and the
+  check retry time are in memory only, so a launch tries again.
+- **`fill` dedupes by page key**: a second caller waits for the fetch in flight. A transient
+  failure (429, 5xx, no answer: `FetchQueue.outcome`) is retried after the site's back-off, four
+  times; anything else (404, a page with nothing to read) fails at once.
+- **Text lands in place, nothing renders** (`LibraryStore.storeFetchedText`): the folder's Download
+  switch decides audio. The chapter keeps its key, title and place.
+- **A story is `FolderKind.series` with a `FollowState`.** The waiting-chapter rule is one
+  property, `Page.isWaitingChapter`; playback stops before such a chapter (`ChapterAdvance`).
+- **Follow covers the screen** (`ShellSheet.coversTheScreen`): inside a card sheet the system's
+  pan takes the preview `Sheet`'s pull down.
+- **Probes**: `-browseTestPages` page one links to `reader-test://story/toc`; `-testStoryChapters N`
+  lengthens it (a check then finds new chapters); `-testStoryThrottles` makes chapter 6 fail once.
+  A custom scheme's reply carries no HTTP status, so a real 429 is checked against a live site.

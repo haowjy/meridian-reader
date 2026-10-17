@@ -202,11 +202,12 @@ extension LibraryStore {
 
     /// *Remove from Library*, whichever path asks (a row's menu and swipe, Edit's *Remove*, 🔖 and
     /// the ⋯ of the browser, the Reader and Now Playing), all of `pages` in one save: each leaves
-    /// its folder and every list it was in (`addedAt = nil`, `removedAt` now), *Not saved* and
-    /// Favorites included (`LibraryQueries`), and once that is saved its audio turns ephemeral
-    /// (`plan(.ephemeral, key:)`). The star stays: a save or a ☆ puts the page back in the Library,
-    /// and a starred one back in Favorites. Nothing is deleted here: the launch prune deletes a
-    /// removed page 7 days after its last play (one never played, at the next launch). A link
+    /// its folder and every Library list it was in (`addedAt = nil`, `removedAt` now), *Not saved*
+    /// included (`LibraryQueries`), and once that is saved its audio turns ephemeral
+    /// (`plan(.ephemeral, key:)`). The star stays, and with it the page's place in Favorites. A
+    /// save puts it back in the Library. Nothing is deleted here: the launch prune deletes a
+    /// removed page that isn't starred 7 days after its last play (one never played, at the next
+    /// launch). A link
     /// holding the text of a play keeps it as a played page's; a link without text stays a link.
     /// A chapter leaves its book as any page leaves its folder. Never touches playback. A save
     /// that fails is rolled back and throws `LibraryStoreError.saveFailed`: every page stays where

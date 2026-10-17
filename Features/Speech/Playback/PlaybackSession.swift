@@ -35,17 +35,6 @@ enum PlaybackEngineEvent: Equatable {
     case finished
 }
 
-/// The page itself changing inside a folder. The controller decides before the session
-/// sees the engine's `finished` (`SpeechController+Advance`); only the end of the book reaches
-/// `.finished`.
-enum PlaybackPageInput: Equatable {
-    /// Carrying on: the next chapter replaces the page in place, at its start. Playing stays
-    /// playing (the engine is told to play it); paused stays paused there. No stop in between.
-    case advance(pageKey: UUID, document: ParagraphDocument, folderID: UUID)
-    /// The next chapter is being fetched: still playing, nothing audible (`awaitingPage`).
-    case awaitPage
-}
-
 /// Live snapshot of the active adapter — used to decide toggle/pause without trusting phase alone.
 struct PlaybackEngineSnapshot: Equatable {
     var isAudible: Bool
@@ -81,8 +70,6 @@ struct PlaybackSessionState: Equatable {
     var playhead: Int = 0
     var utf16Offset: Int = 0
     var phase: PlaybackPhase = .idle
-    /// Playing, between chapters: the next one is being fetched.
-    private(set) var awaitingPage = false
 
     var isPrepared: Bool { articleID != nil && !document.isEmpty }
     var paragraphCount: Int { document.count }
@@ -117,7 +104,6 @@ struct PlaybackSessionState: Equatable {
         self.folderID = folderID
         self.document = document
         textFingerprint = ArticleIdentity.contentFingerprint(paragraphs: document.paragraphs)
-        awaitingPage = false
         (playhead, utf16Offset) = spot.resolved(in: document)
         phase = document.isEmpty ? .idle : .prepared
     }
@@ -136,32 +122,26 @@ struct PlaybackSessionState: Equatable {
         playhead = 0
         utf16Offset = 0
         phase = .idle
-        awaitingPage = false
     }
 
-    /// The page changing inside a folder.
-    mutating func handle(_ input: PlaybackPageInput) -> [PlaybackCommand] {
-        switch input {
-        case .advance(let key, let next, let folder):
-            articleID = key
-            folderID = folder
-            document = next
-            textFingerprint = ArticleIdentity.contentFingerprint(paragraphs: next.paragraphs)
-            playhead = 0
-            utf16Offset = 0
-            awaitingPage = false
-            guard !next.isEmpty else {
-                phase = .idle
-                return []
-            }
-            if phase == .paused { return [] }
-            phase = .playing
-            return [.enginePlay]
-        case .awaitPage:
-            awaitingPage = true
-            phase = .playing
+    /// Carrying on through a folder: the next chapter replaces the page in place, at its start.
+    /// Playing stays playing (the engine is told to play it); paused stays paused there. No stop
+    /// in between. The controller decides before the session sees the engine's `finished`
+    /// (`SpeechController+Advance`); only the end of the folder reaches `.finished`.
+    mutating func advance(to key: UUID, document next: ParagraphDocument, folderID folder: UUID) -> [PlaybackCommand] {
+        articleID = key
+        folderID = folder
+        document = next
+        textFingerprint = ArticleIdentity.contentFingerprint(paragraphs: next.paragraphs)
+        playhead = 0
+        utf16Offset = 0
+        guard !next.isEmpty else {
+            phase = .idle
             return []
         }
+        if phase == .paused { return [] }
+        phase = .playing
+        return [.enginePlay]
     }
 
     /// Intent → commands. Phase updates that need engine confirmation stay tentative only where noted.
@@ -169,23 +149,6 @@ struct PlaybackSessionState: Equatable {
         _ intent: PlaybackIntent,
         engine: PlaybackEngineSnapshot
     ) -> [PlaybackCommand] {
-        if awaitingPage {
-            // Between chapters nothing is bound: play / pause only say what happens when the next
-            // chapter arrives. Anything else acts on the page as it is, and the wait is over.
-            switch intent {
-            case .pause:
-                phase = .paused
-                return []
-            case .resume:
-                phase = .playing
-                return []
-            case .toggle:
-                phase = phase == .paused ? .playing : .paused
-                return []
-            default:
-                awaitingPage = false
-            }
-        }
         switch intent {
         case .play(let from):
             if phase == .finished, from == playhead { return replay() }
@@ -296,11 +259,11 @@ struct PlaybackSessionState: Equatable {
 
     /// The engines lost their audio objects (a media-services reset): a page playing or paused is
     /// held paused at its spot, bound to the engine again without sounding, so Play speaks from
-    /// there through new ones. Between chapters only the phase changes (the next one binds paused).
+    /// there through new ones.
     mutating func holdForRebuiltEngines() -> [PlaybackCommand] {
         guard isPrepared, phase == .playing || phase == .paused else { return [] }
         phase = .paused
-        return awaitingPage ? [] : [.engineSeek]
+        return [.engineSeek]
     }
 
     mutating func handle(_ event: PlaybackEngineEvent) {
@@ -320,7 +283,6 @@ struct PlaybackSessionState: Equatable {
 
         case .finished:
             phase = .finished
-            awaitingPage = false
         }
     }
 
@@ -330,7 +292,7 @@ struct PlaybackSessionState: Equatable {
             phase = .playing
         } else if engine.isPaused {
             phase = .paused
-        } else if (phase == .playing || phase == .paused) && !awaitingPage {
+        } else if phase == .playing || phase == .paused {
             phase = articleID == nil ? .idle : .prepared
         }
     }

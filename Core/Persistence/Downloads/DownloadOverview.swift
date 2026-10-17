@@ -73,6 +73,9 @@ struct DownloadOverview: Equatable {
         var runningDone = 0.0
         var runningTotal = 0
         for record in records {
+            // A folder's switch turned on with nothing in it yet (a story you're caught up on):
+            // not a download to list until a page joins it.
+            guard !record.entries.isEmpty else { continue }
             if record.hasQueuedPages {
                 let activeFraction = Self.activeFraction(of: record, active: active)
                 let total = max(record.entries.count, 1)

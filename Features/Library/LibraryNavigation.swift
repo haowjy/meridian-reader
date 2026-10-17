@@ -44,9 +44,10 @@ struct LibraryEditBar: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
+    @Environment(FollowCenter.self) private var follow
     @Environment(LibraryScreenState.self) private var screen
 
-    private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
+    private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
 
     var body: some View {
         let nothing = screen.selection.isEmpty

@@ -1,12 +1,11 @@
 import Foundation
 import SwiftData
 
-/// Favorites are flags on pages and folders, independent of their location. A favorite page is
-/// in the Library (`isFavorite(_:)`, `LibraryQueries.favoritePages`): starring a page that isn't
-/// puts it there. Removing one from the Library keeps its flag (out of Favorites while it is out
-/// of the Library; a save puts it back); only unstarring clears it. Adding, removing and
-/// renaming a favorite save at once; a save that fails is rolled back and throws
-/// `LibraryStoreError.saveFailed`.
+/// Favorites are flags on pages and folders, independent of their location and of the Library: a
+/// starred page is in Favorites whether it is in the Library or not (`LibraryQueries.favoritePages`),
+/// and the prune keeps it. Removing one from the Library keeps its flag and its place in
+/// Favorites; only unstarring clears it. Adding, removing and renaming a favorite save at once; a
+/// save that fails is rolled back and throws `LibraryStoreError.saveFailed`.
 extension LibraryStore {
     /// Favorite pages anywhere in the tree (a predicate fetch: only they are read).
     func favoritePages() -> [Page] {
@@ -15,13 +14,8 @@ extension LibraryStore {
 
     /// The page for `url` when it is a favorite.
     func favorite(for url: URL?) -> Page? {
-        guard let url, Self.canFavorite(url), let page = page(url: url), Self.isFavorite(page) else { return nil }
+        guard let url, Self.canFavorite(url), let page = page(url: url), page.isFavorite else { return nil }
         return page
-    }
-
-    /// Starred and in the Library: what the Favorites tab lists and ☆ shows filled.
-    static func isFavorite(_ page: Page) -> Bool {
-        page.isFavorite && page.isInLibrary
     }
 
     /// A web page's address can be starred, whether a page for it exists yet or not.
@@ -29,10 +23,10 @@ extension LibraryStore {
         url.isWebOrTestPage
     }
 
-    /// A page can be starred when it is in the Library (a book's chapter too, which has no web
-    /// address) or has a web address, which puts it there.
+    /// A page's ☆ applies when it is in the Library (a book's chapter too, which has no web
+    /// address), has a web address, or is starred already (a removed chapter can be unstarred).
     static func canFavorite(_ page: Page) -> Bool {
-        page.isInLibrary || page.url.map(canFavorite) == true
+        page.isFavorite || page.isInLibrary || page.url.map(canFavorite) == true
     }
 
     /// Makes the page for `url` a favorite without moving it: the existing page as
@@ -57,24 +51,19 @@ extension LibraryStore {
         }
     }
 
-    /// Stars `page` where it is, taking `artwork` as its icon when it has none. A page that isn't
-    /// in the Library (played without saving) joins it where it is, at the end, with its played
-    /// text: the Favorites tab lists it and the 7-day prune of unsaved pages leaves it alone. Its
-    /// audio is marked saved once that is stored, as a Save does.
+    /// Stars `page` where it is, in the Library or not, taking `artwork` as its icon when it has
+    /// none. Starring never files it: a page played without saving stays *Not saved* and joins
+    /// Favorites, which keeps it from the prune.
     func addFavorite(_ page: Page, artwork: Data? = nil) throws {
         try edit("favorite") {
             page.isFavorite = true
             if page.artworkData == nil { page.artworkData = artwork }
-            if page.addedAt == nil {
-                page.sortKey = nextSortKey(in: page.folder)
-                page.addedAt = now()
-                if page.isSaved, let key = page.key { plan(.saved, key: key) }
-            }
         }
     }
 
     /// Removes only the favorite flag; location and content stay intact (a link ☆ made stays in
-    /// the Library).
+    /// the Library). A page out of the Library is then in no list, and the prune deletes it on
+    /// its schedule.
     func removeFavorite(_ page: Page) throws {
         guard page.isFavorite else { return }
         try edit("unfavorite page") { page.isFavorite = false }

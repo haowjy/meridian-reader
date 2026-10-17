@@ -46,11 +46,6 @@ final class EPUBSource: PageSource {
         chapters.indices.map(ref(at:))
     }
 
-    func page(after ref: PageRef) async throws -> PageRef? {
-        guard let index = chapters.firstIndex(where: { $0.key == ref.key }) else { throw PageSourceError.unknownPage }
-        return index + 1 < chapters.count ? self.ref(at: index + 1) : nil
-    }
-
     func content(of ref: PageRef) async throws -> PageContent {
         guard let chapter = chapters.first(where: { $0.key == ref.key }) else { throw PageSourceError.unknownPage }
         let text = chapter.document.paragraphs.joined(separator: "\n\n")

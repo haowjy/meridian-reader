@@ -12,6 +12,7 @@ struct BrowseStartView: View {
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
     @Environment(DownloadCenter.self) private var downloads
+    @Environment(FollowCenter.self) private var follow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
 
@@ -56,7 +57,11 @@ struct BrowseStartView: View {
             // Every surface's ⋯ menu: grows out of its button and covers it (Safari iOS 26), over
             // everything else (the library's navigation bar too).
             .overlay { menuOverlay }
-            .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { ShellSheetView(sheet: $0) }
+            .sheet(item: Binding(get: { shell.sheet.flatMap { $0.coversTheScreen ? nil : $0 } }, set: { shell.sheet = $0 })) {
+                ShellSheetView(sheet: $0)
+            }
+            .fullScreenCover(item: Binding(get: { shell.sheet.flatMap { $0.coversTheScreen ? $0 : nil } },
+                                           set: { shell.sheet = $0 })) { ShellSheetView(sheet: $0) }
             // *Import Book…*: the picked book is copied in and imported (the import sheet).
             .fileImporter(isPresented: Binding(get: { shell.isPickingBook }, set: { shell.isPickingBook = $0 }),
                           allowedContentTypes: [.epub]) { result in
@@ -140,7 +145,7 @@ struct BrowseStartView: View {
         let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
         return PageLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
             let actions = PageActions(url: webPage, page: page, library: library, shell: shell, speech: speech,
-                                      downloads: downloads)
+                                      downloads: downloads, follow: follow)
             BrowserBottomChrome(
                 speech: speech,
                 dictation: dictation,
@@ -220,6 +225,7 @@ struct BrowseStartView: View {
             isFavorite: actions.isFavorite,
             save: MenuAvailability(when: hasPage && shell.busy == nil),
             favorite: MenuAvailability(when: actions.canFavorite),
+            follow: MenuAvailability(when: webStore.currentURL?.isWebOrTestPage == true),
             share: MenuAvailability(when: actions.shareURL != nil),
             reload: MenuAvailability(when: hasPage),
             reader: MenuAvailability(when: canOpenReader)
@@ -233,6 +239,9 @@ struct BrowseStartView: View {
         case .saveToLibrary: saveToLibrary()
         case .removeFromLibrary: actions.remove()
         case .toggleFavorite: page.toggleFavorite()
+        case .follow:
+            guard let url = webStore.currentURL else { return }
+            shell.present(.follow(FollowFlow(url: url, parentID: nil, center: follow)))
         case .favorites: shell.showFavorites()
         case .reload: webStore.refresh()
         case .share: actions.share()
@@ -252,7 +261,7 @@ struct BrowseStartView: View {
                 favorites: favorites,
                 favoriteFolders: folders,
                 recentSearches: recentSearches,
-                onOpenFavorite: { LibraryActions(library: library, speech: speech, shell: shell).open($0) },
+                onOpenFavorite: { LibraryActions(library: library, speech: speech, shell: shell, follow: follow).open($0) },
                 onOpenFavoriteFolder: { shell.showLibrary(at: library.path(to: $0)) },
                 onShowFavorites: shell.showFavorites,
                 onRemoveFavorite: { page in

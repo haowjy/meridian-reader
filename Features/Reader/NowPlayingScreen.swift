@@ -28,6 +28,7 @@ struct NowPlayingScreen: View {
 
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
+    @Environment(FollowCenter.self) private var follow
     @Environment(DownloadCenter.self) private var downloads
     @Environment(\.readingAppearance) private var appearance
 
@@ -45,7 +46,7 @@ struct NowPlayingScreen: View {
             let article = content?.key == now.pageKey ? content?.article : nil
             PageLookup(key: now.pageKey, canonicalURL: article?.origin.canonicalURL) { page in
                 player(now, PageActions(article: article, page: page, library: library, shell: shell, speech: speech,
-                                        downloads: downloads))
+                                        downloads: downloads, follow: follow))
             }
             .environment(\.sheetRisesOnAppear, shell.nowPlayingOpensAt == nil)
             .onChange(of: now.pageKey, initial: true) { _, key in load(key) }

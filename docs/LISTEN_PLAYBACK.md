@@ -29,7 +29,6 @@ into ArticleAudioCache, admitted by RenderAdmission.
 | `document` | Ordered paragraphs (one page: paragraph indices stay page-local in a book) |
 | `playhead` + `utf16Offset` | The position: paragraph and document UTF-16 offset of the spot being spoken |
 | `phase` | `idle → prepared → playing ↔ paused → finished` |
-| `awaitingPage` | Playing, between chapters, while the next one is fetched |
 
 The scrubber, the paragraph highlight, Now Playing and crash resume all read the position from
 here, and every change is published synchronously. `resumePoint` (article + paragraph while
@@ -42,8 +41,8 @@ Phase and position change only through:
   `skip`, `seekOffset`;
 - **engine events**: `becameAudible`, `becamePaused`, `position(paragraph, utf16)`, `finished`
   (`statusChanged` only tells the controller to re-read the listen-bar status);
-- **page inputs** inside a folder (`PlaybackPageInput`, "Books, series and folders" below):
-  `advance` (the next chapter replaces the page in place) and `awaitPage`.
+- **advancing** inside a folder (`PlaybackSessionState.advance`, "Books, series and folders"
+  below): the next chapter replaces the page in place.
 
 Rules:
 
@@ -184,8 +183,7 @@ listen bar shows a spinner and "Preparing next…". That is not paused.
 The listening position is saved from the session, whatever is on screen, by
 `ListeningProgressRecorder` (built at the composition root, over `LibraryStore`):
 `SpeechController.onProgress` reports each new paragraph and every phase change (pause, finish,
-stop, and the stop that comes before a page is replaced) synchronously, except while the next
-chapter of a book or series is fetched (the page still bound has ended), and the recorder also
+stop, and the stop that comes before a page is replaced) synchronously, and the recorder also
 writes the live offset when the app leaves the foreground. Never per tick. It writes the page's
 position, dates each start (`lastPlayedAt`, unfinished again) and marks the end (`finishedAt`),
 holding the page it writes to rather than fetching it per paragraph. A page started from a
@@ -246,32 +244,28 @@ asks the library for a page started from an article (the Reader's Listen, 🎧).
 the bar's source; any other folder's pages keep their site there, and Now Playing's "Playing
 from" names the folder either way. The rule is `ChapterAdvance`, pure, on a snapshot of the
 folder's pages in their full play order (`LibraryStore.chapterSnapshot`, skipped ones included
-and flagged): after a page, the next one that isn't skipped: a saved page plays, a series
-chapter not fetched yet (a link) is fetched first, a locked one or one that needs the browser
-ends playback with its notice. A link page outside a series has nothing to fetch it, so it is
-skipped. Continue on a folder (`ChapterAdvance.start`, `LibraryStore.continueStart`) starts at its
+and flagged): after a page, the next one that isn't skipped: a page with text plays; a followed
+story's chapter still waiting for its text (a link, `Page.isWaitingChapter`) ends playback there,
+so a story is never heard out of order (Follow fetches the chapter after the page playing ahead
+of the others, `FollowCenter`, and ▶ on a waiting chapter fetches it, then plays it). A link page
+anywhere else (a favorite) is skipped. Continue on a folder (`ChapterAdvance.start`, `LibraryStore.continueStart`) starts at its
 place (the page that last played, which the recorder keeps), at the saved spot while
 unfinished, else at the next page; with no place yet, at the first page's own saved spot; a
 finished folder starts again from its first page. Catch-up baking at the end of a page, and the
 D7 trim of finished chapters' audio, stay with books and series. The controller reaches the library through `NextChapterProviding`
-(`chapters(of:)`, `load`, `fetch`, `pageFinished`), injected by `AppComposition`, so the speech
+(`chapters(of:)`, `load`, `pageFinished`), injected by `AppComposition`, so the speech
 stack never touches SwiftData.
 
 When the engine reports `finished`, the controller decides before the session sees it
 (`SpeechController+Advance`):
 
-- **Next chapter**: the library marks the chapter finished, and the session's `advance` input
-  binds the next one in place at its start, phase still playing. `speak` stops the engines as for
+- **Next chapter**: the library marks the chapter finished, and the session's `advance` binds the
+  next one in place at its start, phase still playing. `speak` stops the engines as for
   any play, but nothing deactivates the audio session, clears the session or clears the lock
   screen (it only changes title), so locked listening goes on. The engine is picked again for it.
-- **A link chapter**: `awaitPage` keeps the session playing and silent ("Preparing next…") while
-  `fetch` runs, at most 30 s in the foreground and 5 s in the background (iOS may suspend an app
-  holding a silent audio session; leaving the foreground during the wait shortens it to 5 s from
-  then), then it plays; if the fetch fails or runs out of time, playback ends at the chapter that
-  finished. Play and pause while waiting say what happens when it arrives (paused: bound at its
-  start, silent); they don't restart the chapter that ended, which stays finished. No page
-  fetcher is connected, so a link chapter in the library ends playback there.
-- **No next chapter** (the end, or a locked one): the session finishes as for any page.
+- **No next chapter** (the end, or a chapter still waiting for its text): the session finishes as
+  for any page. Nothing waits silently for a fetch: a fetch needs the app in front, and iOS may
+  suspend an app holding a silent audio session.
 
 `playPage(key)` (Contents) plays a chapter from its start, and the book carries on from it.
 Headphone and lock-screen skips stay paragraph skips (D4).
@@ -351,7 +345,8 @@ saved (`.back` keeps a queued job where it is).
 
 **Downloads** (decision D16, `DownloadCenter`) add no render path of their own. The download list
 (`Downloads.json`, `DownloadListStore`) is worked through one page at a time: a link page's text is
-fetched (`URLPageFetcher`) and saved through `ArticleSaveCoordinator`, then the page's paragraphs go
+fetched through Follow's one fetch queue (`FollowCenter.fill` → `FetchQueue`, one fetch at a time,
+paced per site) and stored in place, then the page's paragraphs go
 to the queue as an ordinary bake job (`LocalTTSCoordinator.queueDownload` → `startBakeIfNeeded`, a
 plan from paragraph 0, queued at the back (#1 when nothing else is), kept in the pending jobs while the
 engine loads). When the job leaves the queue (`bakeCompleted`, through
@@ -369,6 +364,10 @@ the page out of every download (a folder's download drops it, never queues it ag
 playing too, whose audio stays for the session, saved or ephemeral as the library keeps the page. The voice a download is shown in is read
 from its audio (`ArticleAudioCache.renderedVoice`: the voice most of its paragraphs are in), so a
 voice change shows at once; finished downloads aren't re-rendered by it (*Re-download* does that).
+A folder's download is its Download switch: while it is on, pages added to the folder later join
+it after each stored library edit (`DownloadCenter.takeInNewPages`), except pages whose downloads
+were deleted (`DownloadRecord.deleted`); turned off, its waiting pages leave it and its done ones
+stay.
 
 **Priority and admission.** Chunks of an article someone is listening to (a producer waits on
 one, or its audio is playing) render at `RenderPriority.listener` (`.userInitiated`); bake-ahead
@@ -743,21 +742,6 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   level (no sheet; an earlier import of it is deleted first, with its audio), then play it from
   where Continue would (chapter 1, not the title page). The offline test pages' page one links to
   the same book as a `blob:` URL, for the `.epub` link path.
-- `-probeLockedFetch`: the locked-phone check web serials need (`LockedFetchProbe`). It runs only
-  in its own install, a second app built with `BUNDLE_ID_SUFFIX=.probe
-  APP_DISPLAY_NAME="Meridian Reader Probe"` (bundle id `com.jimmyyao.Reader.probe`, its own container);
-  in Meridian Reader itself it logs `probe_refused` and does nothing. There it picks Apple's voice at 1× and
-  plays a two-chapter series held in memory, made of the demo book's text: chapter 1 saved,
-  chapter 2 a link chapter. 60 s after the app goes to the background, `URLPageFetcher` loads and
-  extracts the offline page `reader-test://fetch/hidden-span` (each stage gives up after 15 s).
-  When chapter 1 ends, chapter 2's fetch holds playback silent for 5 s, then answers; the
-  background wait limit is raised to 10 s for that launch, so the hold decides. Each check ends in
-  a `probe_verdict` line, `pass`, `fail` or `inconclusive` (the run didn't stay in the background
-  with the phone locked, chapter 1 wasn't playing through the fetch, or the app came to the
-  front). Log: `Application Support/LockedFetchProbe/probe.jsonl` in the probe's container, this
-  run only (`did_finish`, the snapshot, saved whole as `snapshot.html`, the hold's real length,
-  whether chapter 2 became audible, and app, lock and audio state on each line), and the unified
-  log, category `LockedFetchProbe`.
 - `-selectEngine local.kokoro|apple`, `-kokoroUnits <label>` (Core ML route routing).
 - `-KokoroStress coreml|onnx` (`KokoroStressRun`): with the app in front, renders a fixed corpus
   of 320 Kokoro calls (paragraphs of 1 to 10 sentences from the demo book, cut by the ONNX

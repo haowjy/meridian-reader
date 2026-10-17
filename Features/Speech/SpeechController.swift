@@ -184,7 +184,7 @@ final class SpeechController {
         if nowPlayingChanged { refreshNowPlaying() }
         sampleListenStatus()
         let after = ListenProgressKey(id: activeSessionID, paragraph: currentParagraphIndex, phase: playbackPhase)
-        if after != before, let id = playback.articleID, !playback.awaitingPage {
+        if after != before, let id = playback.articleID {
             onProgress?(ListenProgress(pageKey: id, text: playback.textFingerprint, paragraph: playback.playhead,
                                        utf16Offset: playback.utf16Offset, phase: playback.phase))
         }
@@ -369,7 +369,7 @@ final class SpeechController {
 
     private func engineIsBufferingNext() -> Bool {
         guard playback.articleID != nil, playback.phase == .playing else { return false }
-        return playback.awaitingPage || activeEngine?.isWaitingForAudio == true
+        return activeEngine?.isWaitingForAudio == true
     }
 
     private func currentRenderNote() -> String? {
@@ -503,8 +503,8 @@ final class SpeechController {
     }
 
     /// The page changing inside a folder (`SpeechController+Advance`).
-    func handlePageInput(_ input: PlaybackPageInput) -> [PlaybackCommand] {
-        playback.handle(input)
+    func advancePlayback(to key: UUID, document: ParagraphDocument, folderID: UUID) -> [PlaybackCommand] {
+        playback.advance(to: key, document: document, folderID: folderID)
     }
 
     func skipToPreviousParagraph() {
@@ -613,7 +613,6 @@ final class SpeechController {
                 localEngineChanged()
             }
         }
-        shortenChapterWaitInBackground()
         diagnostics.appPhaseChanged(phase)
     }
 

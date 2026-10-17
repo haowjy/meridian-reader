@@ -9,9 +9,6 @@
   in the background (library maintenance, the Kokoro load), which nothing has been measured for
   yet. Ties in with Speech's deferred overnight baking (`../../Speech/.context/FUTURE.md`). Needs a
   Release build and a locked, charging phone to verify (timing log).
-- A download's pages are fixed when asked for: chapters a series gains later, or pages filed into
-  a downloaded folder, need *Re-download*. Options: a folder record lists its pages again when its
-  folder changes, or offers the new ones.
 - A *Keep* is per download: after a second voice change the kept voice is still accepted.
 - Storage is measured per download from its pages' audio folders; pages shared by two downloads
   count in both.

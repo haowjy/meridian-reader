@@ -11,33 +11,31 @@ import WebKit
 ///   - `thin` ("Thin page"): readable by that check, but its article text is invisible, so the
 ///     saved copy (which drops short invisible text) has almost nothing to listen to;
 ///   - `book-N`: chapter N of the demo book (`DemoBook`, `-seedDemoBook`).
-/// - **`fetch`**: `URLPageFetcher`'s, which a Debug build always serves (`AppComposition`):
-///   - `hidden-span` ("Hidden span page"): an article whose paragraphs carry two short lines the
-///     page's stylesheet hides (`hiddenLines`), as anti-copy lines are hidden.
+/// - **`story`**: a story to follow, served to the browser and to Follow's fetch queue, which a
+///   Debug build always serves (`AppComposition.makeFollow`):
+///   - `toc` ("The Tide Keeper"): the table of contents, a site menu and then the chapter list,
+///     `-testStoryChapters` chapters long (8 by default), an author's note third;
+///   - `chapter-N`, `note`: the chapters. With `-testStoryThrottles`, `chapter-6` doesn't load
+///     the first time in a launch (a site not answering), so Follow backs off.
 ///
 /// An unknown name is page one.
 final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = URL.testPageScheme
     /// What a web view that serves the offline pages registers (`schemeHandlers`).
     static var handlers: [String: any WKURLSchemeHandler] { [scheme: TestPageSchemeHandler()] }
-    /// `reader-test://fetch/hidden-span`.
-    static let hiddenSpanPage = URL(string: "reader-test://fetch/hidden-span")!
-
-    /// The lines `hidden-span` hides with its stylesheet: one with `display: none`, one placed far
-    /// off the page's left edge (which only layout can tell).
-    static let hiddenLines = [
-        "This sentence is hidden by the page's stylesheet and should never be read aloud.",
-        "This sentence sits far off the left edge of the page and should never be read aloud.",
-    ]
+    /// `-testStoryThrottles`' failed load has happened this launch.
+    @MainActor private static var throttled = false
 
     func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
         guard let url = urlSchemeTask.request.url else { return }
-        let html: String
-        if url.host == "fetch" {
-            html = Self.fetchPage(url.lastPathComponent)
-        } else {
-            html = Self.page(url.lastPathComponent)
+        // WebKit hands a custom scheme's reply on without its HTTP status, so the offline
+        // stand-in for a site that won't answer is a failed load.
+        if url.host == "story", url.lastPathComponent == "chapter-6", LaunchOptions.current.testStoryThrottles, !Self.throttled {
+            Self.throttled = true
+            urlSchemeTask.didFailWithError(URLError(.timedOut))
+            return
         }
+        let html = url.host == "story" ? Self.storyPage(url.lastPathComponent) : Self.page(url.lastPathComponent)
         let data = Data(html.utf8)
         let response = URLResponse(url: url, mimeType: "text/html", expectedContentLength: data.count, textEncodingName: "utf-8")
         urlSchemeTask.didReceive(response)
@@ -75,6 +73,7 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
             let link = "style=\"display:block;padding:24px;background:#ddd;margin-bottom:8px\""
             body = "<p><a href=\"reader-test://pages/two\" \(link)>Next page</a></p>"
                 + "<p><a href=\"reader-test://pages/three\" \(link)>Third page</a></p>"
+                + "<p><a href=\"reader-test://story/toc\" \(link)>A story to follow</a></p>"
                 + "<p><a href=\"reader-test://pages/thin\" \(link)>Thin page</a></p>"
                 + "<p><a id=\"book\" href=\"#\" \(link)>Download a book</a></p>"
                 + bookLink
@@ -82,27 +81,31 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
         return document(title: title, body: body)
     }
 
-    /// The `fetch` page's HTML. An unknown name is page one.
-    static func fetchPage(_ name: String) -> String {
-        switch name {
-        case "hidden-span":
-            // The hiding rules sit in the stylesheet, by class (as anti-copy lines are hidden):
-            // Readability looks only at inline styles, so without the snapshot both lines would
-            // reach the saved text.
-            let style = ".k3v9q{display:none}.q8x2m{position:absolute;left:-9999px}"
-            let sentence = "The keeper of the lighthouse wrote the weather in the log every evening before the lamp was lit. "
-            let paragraphs = (1...5).map { i -> String in
-                let hidden = switch i {
-                case 2: " <span class=\"k3v9q\">\(hiddenLines[0])</span> "
-                case 4: " <span class=\"q8x2m\">\(hiddenLines[1])</span> "
-                default: " "
+    /// The `story` page's HTML: the table of contents, a chapter, the author's note. An unknown
+    /// name is page one.
+    static func storyPage(_ name: String) -> String {
+        let titles = ["The Lamp", "Low Water", "Author's Note", "The Keeper's Log", "Fog Bell", "Spring Tide",
+                      "The Wreck", "Night Watch", "Harbour Lights", "The Relief Boat", "Storm Glass", "Last Light"]
+        if name == "toc" {
+            let menu = ["Home", "Rankings", "Forums", "Sign In"].map { "<li><a href=\"reader-test://story/\($0.lowercased())\">\($0)</a></li>" }
+            var chapter = 0
+            let items = (0..<min(LaunchOptions.current.testStoryChapters, titles.count)).map { index -> String in
+                guard titles[index] != "Author's Note" else {
+                    return "<li><a href=\"reader-test://story/note\">Author's Note</a></li>"
                 }
-                return "<p>Paragraph \(i). " + String(repeating: sentence, count: 2) + hidden + sentence + "</p>"
+                chapter += 1
+                return "<li><a href=\"reader-test://story/chapter-\(chapter)\">Chapter \(chapter): \(titles[index])</a></li>"
             }
-            return document(title: "Hidden span page", body: paragraphs.joined(), style: style)
-        default:
-            return page(name)
+            let body = "<nav><ul>\(menu.joined())</ul></nav><p>by A. Keeper</p><ol>\(items.joined())</ol>"
+            return document(title: "The Tide Keeper", body: body, meta: "<meta name=\"author\" content=\"A. Keeper\">")
         }
+        if name == "note" {
+            return document(title: "Author's Note", body: "<p>" + String(repeating: "A short note from the keeper of this story about the next chapter, which will come a little late this week while the lamp is mended. ", count: 6) + "</p>")
+        }
+        guard name.hasPrefix("chapter-"), let number = Int(name.dropFirst("chapter-".count)) else { return page(name) }
+        let sentence = "On the \(number)th night the keeper climbed the stair and trimmed the wick while the tide turned below the rocks. "
+        let body = (1...5).map { "<p>Part \($0). " + String(repeating: sentence, count: 3) + "</p>" }.joined()
+        return document(title: "Chapter \(number)", body: body)
     }
 
     /// Points page one's "Download a book" at the synthetic EPUB (`TestEPUB`) as a `blob:` URL
@@ -118,9 +121,9 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
         """
     }
 
-    private static func document(title: String, body: String, style: String? = nil) -> String {
+    private static func document(title: String, body: String, meta: String = "") -> String {
         """
-        <html><head><meta name="viewport" content="width=device-width"><title>\(title)</title>\(style.map { "<style>\($0)</style>" } ?? "")</head>
+        <html><head><meta name="viewport" content="width=device-width"><title>\(title)</title>\(meta)</head>
         <body style="font: 20px -apple-system; padding: 24px"><h1>\(title)</h1>\(body)</body></html>
         """
     }

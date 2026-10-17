@@ -30,8 +30,9 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
   `NextChapterProviding`. A staged next chapter must never render at listener priority, and sits
   right behind the playing chapter's job (at the front once that is done), never behind a job that
   parks in the background, and its opening goes before the playing chapter's paragraphs above
-  the playhead; downloads come after all of it. While the next chapter is fetched, no progress is reported for the
-  page still bound: it has ended, and a resume there isn't a replay.
+  the playhead; downloads come after all of it. Playback never waits for a fetch: a followed
+  story's chapter still waiting for its text ends playback there (`ChapterAdvance.Next.waiting`);
+  a silent wait would need the app in front, and iOS may suspend an app holding a silent session.
 - **Listening progress outlives rollbacks through the store only.** The recorder writes through
   `LibraryStore`'s `recordPlayback` / `recordPlaybackStarted` / `recordPosition` /
   `recordFinished`, which keep what isn't stored (`PendingListening`) and write it again after a

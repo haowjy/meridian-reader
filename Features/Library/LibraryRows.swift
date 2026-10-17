@@ -1,7 +1,9 @@
 import SwiftUI
 
-/// A page row: a saved page (its ▶), a link (lighter, 🔗, no ▶), or a page played without saving
-/// ("Not saved", *Save* in its menu; decision D5). Every page uses this same row, including
+/// A page row: a saved page (its ▶), a link (lighter, 🔗, no ▶), a followed story's chapter
+/// waiting for its text (a link with ▶, which fetches it first, and its status: "Fetching text…",
+/// "Retrying in 1:52", "Waiting"), or a page played without saving ("Not saved", *Save* in its
+/// menu; decision D5). Every page uses this same row, including
 /// imported chapters: two lines, the title and then its status (decision D21). In a folder the
 /// second line is the status alone ("5 min", "skipped", "Playing"): the folder's header already
 /// names the author or site, so rows don't repeat it. Front matter is dimmed and "skipped" (any
@@ -21,12 +23,13 @@ struct LibraryPageRow: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
+    @Environment(FollowCenter.self) private var follow
     @Environment(DownloadCenter.self) private var downloads
     @Environment(LibraryScreenState.self) private var screen
     @Environment(\.editMode) private var editMode
     @Environment(\.libraryScreenKey) private var screenKey
 
-    private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
+    private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
     private var dragID: LibraryItemID? {
         guard screenKey != .filtered, !isEditing, page.isInLibrary else { return nil }
@@ -36,17 +39,43 @@ struct LibraryPageRow: View {
     private var marksFavorite: Bool { !(screenKey == .filtered && shell.favoritesOnly) }
 
     var body: some View {
-        if page.isLive { liveBody } else { DeletedRow() }
+        if !page.isLive {
+            DeletedRow()
+        } else if case .retrying? = chapterStatus {
+            // "Retrying in 1:52" counts down.
+            TimelineView(.periodic(from: .now, by: 1)) { context in liveBody(now: context.date) }
+        } else {
+            liveBody(now: .now)
+        }
     }
 
-    private var liveBody: some View {
-        ListRow(kind: kind, title: page.title, subtitle: subtitle,
-                note: page.isLink || page.isInLibrary ? nil : String(localized: "Not saved"),
+    /// A followed story's chapter waiting for its text: where it stands.
+    private var chapterStatus: FollowCenter.ChapterStatus? { follow.status(of: page) }
+
+    /// The row's note: a followed story's chapter says where its text stands ("Fetching text…",
+    /// "Waiting"); a page played without saving, "Not saved".
+    private func note(now: Date) -> String? {
+        if let status = chapterStatus { return FollowText.rowNote(status, now: now) }
+        return page.isLink || page.isInLibrary ? nil : String(localized: "Not saved")
+    }
+
+    /// A link plays only as a followed story's chapter (fetched first, `LibraryActions.play`).
+    private var plays: Bool {
+        (!page.isLink || page.isWaitingChapter) && !page.skipsInPlayback && !isEditing
+    }
+
+    private var playState: PlayState {
+        guard page.isLink else { return actions.playState(of: page) }
+        return follow.playWhenFetched == page.listenKey ? .preparing : .idle
+    }
+
+    private func liveBody(now: Date) -> some View {
+        ListRow(kind: kind, title: page.title, subtitle: subtitle, note: note(now: now),
                 progress: page.isLink ? .unplayed(minutes: nil) : actions.progress(of: page),
-                playState: page.isLink ? .idle : actions.playState(of: page),
-                onPlay: page.isLink || page.skipsInPlayback || isEditing ? nil : { actions.play(page) },
+                playState: playState,
+                onPlay: plays ? { actions.play(page) } : nil,
                 insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil,
-                download: download, isFavorite: marksFavorite && LibraryStore.isFavorite(page))
+                download: download, isFavorite: marksFavorite && page.isFavorite)
             .opensOnTap(isEditing ? nil : { actions.open(page) })
             .libraryDropRow(.page(page.listenKey), in: screen)
             .libraryDrag(dragID, in: screen)
@@ -95,7 +124,7 @@ struct LibraryPageRow: View {
         Button("Select", systemImage: Icons.select) { onSelect?() }
             .menuAvailability(MenuAvailability(applies: onSelect != nil))
         Button("Play from Here", systemImage: Icons.play) { actions.playFromStart(page) }
-            .menuAvailability(MenuAvailability(applies: inFolder, when: isSaved))
+            .menuAvailability(MenuAvailability(applies: inFolder, when: isSaved || page.isWaitingChapter))
         Button(Verbs.moveTo, systemImage: Icons.move) { actions.move([.page(page)]) }
             .menuAvailability(MenuAvailability(when: inLibrary))
         Button(page.finishedAt == nil ? Verbs.markFinished : Verbs.markUnfinished,
@@ -109,7 +138,8 @@ struct LibraryPageRow: View {
                systemImage: page.skipsInPlayback ? Icons.includeInPlayback : Icons.skipInPlayback) {
             actions.toggleSkipsInPlayback(page)
         }
-        .menuAvailability(MenuAvailability(applies: inFolder, when: isSaved))
+        // A waiting chapter too: one whose text can't be had is skipped so playback goes past it.
+        .menuAvailability(MenuAvailability(applies: inFolder, when: isSaved || page.isWaitingChapter))
         Button("Share", systemImage: Icons.share) { actions.share(page) }
             .menuAvailability(MenuAvailability(applies: page.url?.isWeb == true))
         Button("Download", systemImage: Icons.download) { DownloadActions(downloads: downloads, shell: shell).download(page) }
@@ -120,7 +150,7 @@ struct LibraryPageRow: View {
                role: inLibrary ? .destructive : nil) {
             if inLibrary { actions.remove([page]) } else { actions.save(page) }
         }
-        let isFavorite = LibraryStore.isFavorite(page)
+        let isFavorite = page.isFavorite
         Button(isFavorite ? "Remove from Favorites" : "Add to Favorites",
                systemImage: isFavorite ? Icons.unfavorite : Icons.favorite) {
             FavoriteFlow(library: library, shell: shell).toggle(page)
@@ -145,12 +175,13 @@ struct LibraryFolderRow: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
+    @Environment(FollowCenter.self) private var follow
     @Environment(DownloadCenter.self) private var downloads
     @Environment(LibraryScreenState.self) private var screen
     @Environment(\.editMode) private var editMode
     @Environment(\.libraryScreenKey) private var screenKey
 
-    private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell) }
+    private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
     private var isFiltered: Bool { screenKey == .filtered }
     /// Its parents' path on the filtered home (nil for a folder at the top level).

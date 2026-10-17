@@ -63,19 +63,28 @@ enum AppComposition {
         progressRecorder = ListeningProgressRecorder(speech: speechController, library: library)
     }
 
-    /// Downloads (decision D16) over the app's library: a link page's text is fetched out of
-    /// sight (`URLPageFetcher`) and saved through the one save path, which also queues its bake.
-    /// It starts once the launch's library maintenance is done (`AppLaunch`).
-    static func makeDownloads(library: LibraryStore) -> DownloadCenter {
+    /// Follow over the app's library: every page fetched out of sight goes through one
+    /// `FetchQueue` (a Debug build also serves the offline `reader-test://` pages there); a
+    /// chapter ▶ waited for plays from its spot once its text is in. It starts once the launch's
+    /// library maintenance is done (`AppLaunch`).
+    static func makeFollow(library: LibraryStore) -> FollowCenter {
         let speech = speechController
         #if DEBUG
-        let fetcher = URLPageFetcher(schemeHandlers: TestPageSchemeHandler.handlers)
+        let queue = FetchQueue(schemeHandlers: TestPageSchemeHandler.handlers)
         #else
-        let fetcher = URLPageFetcher()
+        let queue = FetchQueue()
         #endif
+        return FollowCenter(library: library, queue: queue, playingKey: { speech.activeSessionID },
+                            startPlayback: { speech.start(.page($0), at: $0.listenStart) })
+    }
+
+    /// Downloads (decision D16) over the app's library: a link page's text comes through Follow
+    /// (`FollowCenter.fill`), so it is fetched once and in the one queue. It starts once the
+    /// launch's library maintenance is done (`AppLaunch`).
+    static func makeDownloads(library: LibraryStore, follow: FollowCenter) -> DownloadCenter {
+        let speech = speechController
         return DownloadCenter(library: library, tts: speech.localTTS,
-                              fetch: { try await fetcher.content(of: $0) },
-                              save: { try ArticleSaveCoordinator(library: library, speech: speech).save($0) },
+                              fill: { await follow.fill($0, priority: .background) },
                               isListening: { speech.activeSessionID == $0 })
     }
 

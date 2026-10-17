@@ -140,6 +140,7 @@ private struct LibraryDialogs: ViewModifier {
 
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
+    @Environment(FollowCenter.self) private var follow
     @Environment(\.speechController) private var speech
 
     func body(content: Content) -> some View {
@@ -195,7 +196,7 @@ private struct LibraryDialogs: ViewModifier {
     private func delete() {
         let folders = state.pendingDelete
         state.pendingDelete = []
-        guard LibraryActions(library: library, speech: speech, shell: shell)
+        guard LibraryActions(library: library, speech: speech, shell: shell, follow: follow)
             .deleteFolders(folders, in: state) else { return }
         onDeleted()
     }

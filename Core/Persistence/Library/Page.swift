@@ -4,20 +4,12 @@ import SwiftData
 /// What a page holds. Stored as `Page.contentStateRaw`; raw values are persisted.
 /// "Audio ready" isn't a state: it depends on the voice, so `ArticleAudioCache` answers it.
 enum PageContentState: String, Codable {
-    /// A web address the user chose to keep (a favorite, a series chapter not fetched yet). Any
-    /// text it holds is a cache, refreshed when it is played again and cleared by the prune.
+    /// A web address the user chose to keep (a favorite, a followed story's chapter not fetched
+    /// yet). Any text it holds is a cache, refreshed when it is played again and cleared by the
+    /// prune.
     case link
     /// Text and listen blocks kept.
     case saved
-}
-
-/// Link pages: how fetching their text went. Raw values are persisted.
-enum PageFetchState: String, Codable {
-    case none
-    case fetching
-    case failed
-    case locked
-    case needsBrowser
 }
 
 /// A page in the library tree: a saved article, a link (favorite), a book chapter, a page you
@@ -79,7 +71,8 @@ final class Page {
     /// Front matter, licence pages, or the user's "Skip in Playback": never reached by carrying
     /// on from the chapter before.
     var skipsInPlayback: Bool = false
-    var fetchStateRaw: String = PageFetchState.none.rawValue
+    /// Not written or read (kept as stored by older builds; persisted fields don't change).
+    var fetchStateRaw: String = "none"
     var folder: Folder?
 
     init(key: UUID, title: String, byline: String, urlString: String?, contentState: PageContentState,
@@ -100,13 +93,11 @@ final class Page {
         set { contentStateRaw = newValue.rawValue }
     }
 
-    var fetchState: PageFetchState {
-        get { PageFetchState(rawValue: fetchStateRaw) ?? .none }
-        set { fetchStateRaw = newValue.rawValue }
-    }
-
     var isSaved: Bool { contentState == .saved }
     var isLink: Bool { contentState == .link }
+    /// A followed story's chapter whose text isn't fetched yet: playback stops before it, and ▶
+    /// fetches it first (`FollowCenter.play`).
+    var isWaitingChapter: Bool { isLink && folder?.kind == .series }
     var isInLibrary: Bool { addedAt != nil }
     var url: URL? { urlString.flatMap(URL.init(string:)) }
 

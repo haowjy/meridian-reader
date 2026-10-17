@@ -23,7 +23,7 @@ enum MenuContext {
 /// The web page / start page menu.
 struct BrowseMenu {
     enum Action {
-        case newSearch, saveToLibrary, removeFromLibrary, toggleFavorite, share, reload, downloads, settings
+        case newSearch, saveToLibrary, removeFromLibrary, toggleFavorite, follow, share, reload, downloads, settings
         case favorites, history, openReader
     }
 
@@ -32,6 +32,8 @@ struct BrowseMenu {
     var isFavorite: Bool
     var save: MenuAvailability
     var favorite: MenuAvailability
+    /// *Follow…*: a web page is up (it reads the story the page belongs to).
+    var follow: MenuAvailability
     var share: MenuAvailability
     var reload: MenuAvailability
     /// The *Reader* button: a readable page, and no extraction already running.
@@ -90,7 +92,7 @@ struct LibraryMenu {
     }
 
     enum Action {
-        case newFolder, importBook, sort(PageSort), rename, editDetails, move, deleteFolder, deleteDownloads
+        case newFolder, importBook, follow, sort(PageSort), rename, editDetails, move, deleteFolder, deleteDownloads
         case download, downloads, settings
         case favorites, history, browser
     }

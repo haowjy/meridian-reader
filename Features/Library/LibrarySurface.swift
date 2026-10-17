@@ -21,6 +21,7 @@ struct LibrarySurface: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
     @Environment(DownloadCenter.self) private var downloads
+    @Environment(FollowCenter.self) private var follow
     @State private var screen = LibraryScreenState()
     @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
 
@@ -62,7 +63,7 @@ struct LibrarySurface: View {
         }
         .background(Palette.paper.ignoresSafeArea())
         .libraryDropZone(screen, top: shell.libraryPath.last.map(LibraryScreenKey.route) ?? .home,
-                         actions: LibraryActions(library: library, speech: speech, shell: shell))
+                         actions: LibraryActions(library: library, speech: speech, shell: shell, follow: follow))
         .environment(screen)
         .libraryDialogs(screen) {
             shell.pruneLibraryPath { library.folder(id: $0) != nil }
@@ -113,7 +114,7 @@ struct LibrarySurface: View {
     // MARK: - The screen on top
 
     private var screenMenu: LibraryScreenMenu {
-        LibraryScreenMenu(library: library, speech: speech, shell: shell, downloads: downloads, screen: screen,
+        LibraryScreenMenu(library: library, speech: speech, shell: shell, downloads: downloads, follow: follow, screen: screen,
                           top: shell.libraryPath.last, topLevelSort: $topLevelSort,
                           showMoved: { shell.libraryPath = library.path(to: $0) }) { tile in
             switch tile {

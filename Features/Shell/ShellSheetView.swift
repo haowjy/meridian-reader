@@ -27,6 +27,10 @@ struct ShellSheetView: View {
             DownloadsSheet()
         case .folderDetails(let id):
             FolderDetailsSheet(folderID: id)
+        case .follow(let flow):
+            FollowSheet(flow: flow)
+        case .following(let id):
+            FollowingSheet(folderID: id)
         case .history:
             BrowseHistoryView(visits: Array(recentVisits.prefix(RecentVisit.maxEntries))) { visit in
                 open(visit.url)

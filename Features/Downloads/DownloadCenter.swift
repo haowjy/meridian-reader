@@ -1,10 +1,12 @@
 import Foundation
 import Observation
 
-/// Downloads (decision D16): a page, a folder, a book or a series made ready to play offline, its
-/// text fetched (a link page is saved in place) and its whole audio rendered ahead in the download
-/// voice. The list is kept on the device (`DownloadListStore`) and worked through in order, one
-/// page at a time.
+/// Downloads (decision D16): a page, a folder, a book or a followed story made ready to play
+/// offline, its text fetched (a link page gets its text in place, through Follow's one fetch
+/// queue: `FollowCenter.fill`) and its whole audio rendered ahead in the download voice. The list
+/// is kept on the device (`DownloadListStore`) and worked through in order, one page at a time. A
+/// folder's download is its Download toggle: on, the pages added to the folder later join it
+/// (`takeInNewPages`); off, nothing new joins and what is downloaded stays.
 ///
 /// It renders nothing itself: each page's audio is an ordinary bake job in the one render queue
 /// (`LocalTTSCoordinator.queueDownload`), so the article playing and the chapter staged after it
@@ -39,8 +41,11 @@ final class DownloadCenter {
         case resumed
         /// It is already downloading.
         case alreadyQueued
-        /// Nothing in it plays (an empty folder, a finished book).
+        /// Nothing in it plays (a finished book): a page's download isn't made.
         case nothingToDownload
+        /// A folder's switch is on, with nothing to download yet (a story you're caught up on):
+        /// the pages added later download.
+        case waitingForNew
     }
 
     private(set) var records: [DownloadRecord] {
@@ -52,10 +57,9 @@ final class DownloadCenter {
     @ObservationIgnored let tts: LocalTTSCoordinator
     @ObservationIgnored private let store: DownloadListStore
     @ObservationIgnored private let runState: AppRunState
-    /// A link page's text: loaded out of sight and extracted (`URLPageFetcher` in the app).
-    @ObservationIgnored private let fetch: (URL) async throws -> PageContent
-    /// The one save path (`ArticleSaveCoordinator`), returning the saved page's key.
-    @ObservationIgnored private let save: (ReaderArticle) throws -> UUID
+    /// A link page's text, fetched and stored in place (`FollowCenter.fill` in the app): why it
+    /// couldn't be had, nil once it is in.
+    @ObservationIgnored private let fill: (Page) async -> String?
     /// Whether a page is bound to the playback session (playing, paused or finished).
     @ObservationIgnored private let isListening: (UUID) -> Bool
     @ObservationIgnored private var isStarted = false
@@ -66,32 +70,31 @@ final class DownloadCenter {
     @ObservationIgnored private var runStateObserver: NSObjectProtocol?
 
     init(library: LibraryStore, tts: LocalTTSCoordinator, store: DownloadListStore = DownloadListStore(),
-         runState: AppRunState = .shared, fetch: @escaping (URL) async throws -> PageContent,
-         save: @escaping (ReaderArticle) throws -> UUID, isListening: @escaping (UUID) -> Bool = { _ in false }) {
+         runState: AppRunState = .shared, fill: @escaping (Page) async -> String?,
+         isListening: @escaping (UUID) -> Bool = { _ in false }) {
         self.library = library
         self.tts = tts
         self.store = store
         self.runState = runState
-        self.fetch = fetch
-        self.save = save
+        self.fill = fill
         self.isListening = isListening
         records = store.load()
     }
 
     /// Once the launch's library maintenance is done (pages it merges or rebuilds are settled):
-    /// downloads of things no longer in the Library go, and the list carries on where it was.
-    /// From then on, each stored library edit drops the downloads it took out of the Library.
+    /// downloads of things no longer in the Library go, folders with Download on take in their new
+    /// pages, and the list carries on where it was. From then on, each stored library edit does
+    /// the same (`followLibrary`).
     func start() {
         guard !isStarted else { return }
         isStarted = true
         tts.renderObserver = self
-        library.editStored = { [weak self] in self?.dropWhatLeftTheLibrary() }
+        library.editStored = { [weak self] in self?.followLibrary() }
         runStateObserver = NotificationCenter.default.addObserver(forName: AppRunState.didChange, object: runState,
                                                                   queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.scheduleCheck() }
         }
-        dropWhatLeftTheLibrary()
-        advance()
+        followLibrary()
     }
 
     // MARK: - What the list shows
@@ -157,14 +160,41 @@ final class DownloadCenter {
         }
     }
 
-    // MARK: - Asking for downloads
-
-    func download(_ page: Page) -> Request {
-        request(.page(page.listenKey))
+    /// The folder's Download toggle is on: its pages download, and so do the ones added later.
+    func isOn(_ folder: Folder) -> Bool {
+        record(for: .folder(folder.id))?.followsFolder == true
     }
 
+    // MARK: - Asking for downloads
+
+    /// A page's own Download. A page whose downloads were deleted from its folder's download
+    /// (P8) is taken back into it too.
+    func download(_ page: Page) -> Request {
+        if let folder = page.folder, let record = record(for: .folder(folder.id)), record.deleted.contains(page.listenKey) {
+            withRecord(record.id) { $0.deleted.removeAll { $0 == page.listenKey } }
+            takeInNewPages()
+        }
+        return request(.page(page.listenKey))
+    }
+
+    /// A folder's Download, its toggle turned on: every page it covers is queued (its deleted
+    /// ones too), and the pages added later join.
     func download(_ folder: Folder) -> Request {
         request(.folder(folder.id))
+    }
+
+    /// The folder's Download toggle turned off: nothing new joins and what waits stops; what is
+    /// downloaded stays, and the Downloads list keeps it.
+    func turnOff(_ folder: Folder) {
+        guard let record = record(for: .folder(folder.id)), record.followsFolder else { return }
+        if active?.recordID == record.id { stopActive() }
+        updateRecords { records in
+            guard let index = records.firstIndex(where: { $0.id == record.id }) else { return }
+            records[index].followsFolder = false
+            records[index].entries.removeAll { $0.state == .queued }
+            if records[index].entries.isEmpty { records.remove(at: index) }
+        }
+        advance()
     }
 
     private func request(_ target: DownloadRecord.Target) -> Request {
@@ -175,7 +205,9 @@ final class DownloadCenter {
             advance()
             return .resumed
         }
-        guard let (title, keys) = pages(of: target), !keys.isEmpty else { return .nothingToDownload }
+        guard let (title, keys) = pages(of: target) else { return .nothingToDownload }
+        // A folder's switch turns on with nothing in it yet; a page's download needs the page.
+        guard !keys.isEmpty || target.isFolder else { return .nothingToDownload }
         if let existing {
             withRecord(existing.id) {
                 $0.title = title
@@ -185,10 +217,10 @@ final class DownloadCenter {
             records.append(DownloadRecord(target: target, title: title, addedAt: Date(), entries: keys.map { .init(key: $0) }))
         }
         advance()
-        return .added
+        return keys.isEmpty ? .waitingForNew : .added
     }
 
-    /// The pages a download covers, in play order: a page itself; a book's or series' chapters
+    /// The pages a download covers, in play order: a page itself; a book's or story's chapters
     /// that play and aren't finished; any other folder's own pages in its sort.
     private func pages(of target: DownloadRecord.Target) -> (String, [UUID])? {
         switch target {
@@ -202,7 +234,7 @@ final class DownloadCenter {
         }
     }
 
-    /// A folder's download covers its pages that play; a book's or series' only while unfinished
+    /// A folder's download covers its pages that play; a book's or story's only while unfinished
     /// (D7 trims finished chapters' audio).
     static func covers(_ page: Page, in folder: Folder) -> Bool {
         !page.skipsInPlayback && !(folder.kind.isBookOrSeries && page.finishedAt != nil)
@@ -217,15 +249,33 @@ final class DownloadCenter {
         }
     }
 
-    /// Downloads of what left the Library (a page removed, a page or folder deleted) leave the
-    /// list, and the page rendering for one stops. Their audio is the library's to keep or
-    /// delete: a removed page's is ephemeral already, a deleted one's is gone.
-    private func dropWhatLeftTheLibrary() {
+    /// After a library edit: downloads of what left the Library (a page removed, a page or folder
+    /// deleted) leave the list, and the page rendering for one stops; their audio is the
+    /// library's to keep or delete (a removed page's is ephemeral already, a deleted one's is
+    /// gone). Folders with Download on take in the pages added to them (`takeInNewPages`).
+    private func followLibrary() {
         let gone = Set(records.filter { !isInLibrary($0.target) }.map(\.id))
-        guard !gone.isEmpty else { return }
         if let active, gone.contains(active.recordID) { stopActive() }
-        records.removeAll { gone.contains($0.id) }
+        updateRecords { records in records.removeAll { gone.contains($0.id) } }
+        takeInNewPages()
         advance()
+    }
+
+    /// Each folder with Download on: its pages not in its download yet, and not deleted from it,
+    /// join it at the end, queued.
+    private func takeInNewPages() {
+        let joining = records.compactMap { record -> (UUID, [UUID])? in
+            guard record.followsFolder, case .folder(let id) = record.target, let folder = library.folder(id: id) else { return nil }
+            let new = record.joining(library.pages(in: folder).filter { Self.covers($0, in: folder) }.map(\.listenKey))
+            return new.isEmpty ? nil : (record.id, new)
+        }
+        guard !joining.isEmpty else { return }
+        updateRecords { records in
+            for (id, keys) in joining {
+                guard let index = records.firstIndex(where: { $0.id == id }) else { continue }
+                records[index].entries += keys.map { DownloadRecord.Entry(key: $0) }
+            }
+        }
     }
 
     // MARK: - The list's actions
@@ -282,12 +332,15 @@ final class DownloadCenter {
     /// folder's pages again).
     func deleteDownloads(of page: Page) {
         forget([page.listenKey])
+        if let folder = page.folder, let record = record(for: .folder(folder.id)) {
+            withRecord(record.id) { $0.deleted.append(page.listenKey) }
+        }
         purgeAudio([page.listenKey])
         advance()
     }
 
-    /// *Delete Downloads* on a folder: its download goes, its pages leave every other download
-    /// (`forget`), and their audio goes (unless listening needs it, `purgeAudio`).
+    /// *Delete Downloads* on a folder: its download goes (its toggle off), its pages leave every
+    /// other download (`forget`), and their audio goes (unless listening needs it, `purgeAudio`).
     func deleteDownloads(of folder: Folder) {
         if let record = record(for: .folder(folder.id)), active?.recordID == record.id { stopActive() }
         records.removeAll { $0.target == .folder(folder.id) }
@@ -307,7 +360,8 @@ final class DownloadCenter {
         for key in keys { requeued[key] = nil }
         updateRecords { records in
             for index in records.indices { records[index].entries.removeAll { keys.contains($0.key) } }
-            records.removeAll { $0.entries.isEmpty }
+            // A folder's switch stays on with nothing left in it: later pages still join.
+            records.removeAll { $0.entries.isEmpty && !$0.followsFolder }
         }
     }
 
@@ -376,89 +430,40 @@ final class DownloadCenter {
                 finish(recordID, key, .failed, String(localized: "It’s no longer in the Library"))
                 continue
             }
-            var pageKey = key
             if page.isLink {
                 active = Active(recordID: recordID, key: key, phase: .fetching)
-                let fetched = await fetchText(page)
-                // Paused, removed or its downloads deleted while it loaded: what it fetched isn't
-                // saved (a save would queue its render, and put a removed page back in the Library).
+                let failure = await fill(page)
+                // Paused, removed or its downloads deleted while it loaded: it isn't rendered.
                 guard active == Active(recordID: recordID, key: key, phase: .fetching) else { continue }
                 active = nil
-                guard library.page(key: key)?.isInLibrary == true else {
-                    finish(recordID, key, .failed, String(localized: "It’s no longer in the Library"))
+                if let failure {
+                    finish(recordID, key, .failed, failure)
                     continue
-                }
-                let saved = fetched.flatMap { article in
-                    Result { try save(article) }.mapError { _ in FetchFailure(message: String(localized: "Couldn’t save it")) }
-                }
-                switch saved {
-                case .failure(let failure):
-                    finish(recordID, key, .failed, failure.message)
-                    continue
-                case .success(let newKey):
-                    pageKey = newKey
-                    if newKey != key { rekeyEntry(recordID, from: key, to: newKey) }
                 }
             }
-            guard let page = library.page(key: pageKey), page.hasText else {
-                finish(recordID, pageKey, .failed, String(localized: "Couldn’t get its text"))
+            guard let page = library.page(key: key), page.isInLibrary, page.hasText else {
+                finish(recordID, key, .failed, String(localized: "Couldn’t get its text"))
                 continue
             }
             let paragraphs = page.listenDocument().paragraphs
             guard !paragraphs.isEmpty else {
-                finish(recordID, pageKey, .failed, String(localized: "Nothing to listen to"))
+                finish(recordID, key, .failed, String(localized: "Nothing to listen to"))
                 continue
             }
-            switch tts.queueDownload(cacheKey: pageKey, paragraphs: paragraphs) {
+            switch tts.queueDownload(cacheKey: key, paragraphs: paragraphs) {
             case .ready:
-                finish(recordID, pageKey, .done)
+                finish(recordID, key, .done)
             case .speaksLive:
-                finish(recordID, pageKey, .speaksLive)
+                finish(recordID, key, .speaksLive)
             case .held:
-                finish(recordID, pageKey, .failed, String(localized: "Couldn’t render it now"))
+                finish(recordID, key, .failed, String(localized: "Couldn’t render it now"))
             case .notRendering:
                 return
             case .rendering:
-                active = Active(recordID: recordID, key: pageKey, phase: .rendering(paragraphs))
-                ListenTimingLog.log("download_page", ["key": ListenTimingLog.shortKey(pageKey), "paragraphs": paragraphs.count])
+                active = Active(recordID: recordID, key: key, phase: .rendering(paragraphs))
+                ListenTimingLog.log("download_page", ["key": ListenTimingLog.shortKey(key), "paragraphs": paragraphs.count])
             }
         }
-    }
-
-    private struct FetchFailure: Error {
-        var message: String
-    }
-
-    /// A link page's text, fetched (or the text it was played from), for the caller to save in
-    /// place through the one save path, which also queues its bake.
-    private func fetchText(_ page: Page) async -> Result<ReaderArticle, FetchFailure> {
-        guard let url = page.url else { return .failure(FetchFailure(message: String(localized: "It has no address"))) }
-        // Read before the fetch: the page may be deleted while it loads.
-        let title = page.title
-        let key = page.listenKey
-        let article: ReaderArticle
-        if page.hasText {
-            // Played before: the text it was played from.
-            var cached = ReaderArticle(page: page)
-            if cached.document.isEmpty { cached.document = page.listenDocument() }
-            article = cached
-        } else {
-            do {
-                let content = try await fetch(url)
-                let extracted = ExtractedArticle(title: content.title.isEmpty ? title : content.title,
-                                                 siteName: content.siteName, cleanedHTML: content.bodyHTML,
-                                                 plainText: content.plainText, excerpt: content.excerpt)
-                article = library.readerArticle(url: url, extracted: extracted, document: content.document)
-            } catch {
-                ListenTimingLog.log("download_fetch_failed", ["key": ListenTimingLog.shortKey(key),
-                                                              "err": error.localizedDescription])
-                return .failure(FetchFailure(message: String(localized: "Couldn’t get the page")))
-            }
-        }
-        guard !article.document.paragraphs.isEmpty else {
-            return .failure(FetchFailure(message: String(localized: "Nothing to listen to")))
-        }
-        return .success(article)
     }
 
     private func finish(_ recordID: UUID, _ key: UUID, _ state: DownloadRecord.PageState, _ failure: String? = nil) {
@@ -471,14 +476,6 @@ final class DownloadCenter {
         guard finished == true else { return }
         requeued[key] = nil
         if active?.recordID == recordID, active?.key == key { active = nil }
-    }
-
-    private func rekeyEntry(_ recordID: UUID, from old: UUID, to new: UUID) {
-        withRecord(recordID) { record in
-            guard let e = record.entries.firstIndex(where: { $0.key == old }) else { return }
-            record.entries[e].key = new
-            if case .page(old) = record.target { record.target = .page(new) }
-        }
     }
 
     /// The page rendering now stops (paused, removed): its job leaves the queue, unless listening

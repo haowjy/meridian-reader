@@ -25,7 +25,8 @@ struct ReaderSheetState: Equatable {
     let presentation = UUID()
 }
 
-/// The shell's sheets. One at a time, shown by the shell's single `.sheet(item:)`.
+/// The shell's sheets. One at a time, shown by the shell's single `.sheet(item:)`, or its
+/// `.fullScreenCover(item:)` for one that covers the screen (`coversTheScreen`).
 enum ShellSheet: Identifiable, Equatable {
     case history
     case settings
@@ -38,6 +39,10 @@ enum ShellSheet: Identifiable, Equatable {
     case downloads
     /// *Edit Details* for a folder, book or series: its name, author and cover.
     case folderDetails(UUID)
+    /// ⋯ → *Follow…*: a story's table of contents, reviewed, into a folder of chapters.
+    case follow(FollowFlow)
+    /// A followed story's status line: its checks, *Check Now*, *Unfollow*.
+    case following(UUID)
     /// Developer options: the listen debug panel (Settings › Developer › Listen Debug Panel, a
     /// long-press on ▶ / ⏸). The one sheet that shows over another (`showsOverASheet`).
     case listenDebug
@@ -51,8 +56,17 @@ enum ShellSheet: Identifiable, Equatable {
         case .importBook(let flow): "importBook-\(flow.id)"
         case .downloads: "downloads"
         case .folderDetails(let id): "folderDetails-\(id.uuidString)"
+        case .follow(let flow): "follow-\(flow.id)"
+        case .following(let id): "following-\(id.uuidString)"
         case .listenDebug: "listenDebug"
         }
+    }
+
+    /// Follow covers the screen rather than rising as a card: its chapter previews are the app's
+    /// own sheet (`Sheet`), whose pull down a card's own pull would take.
+    var coversTheScreen: Bool {
+        if case .follow = self { return true }
+        return false
     }
 
     /// Presented while another sheet is up, it shows over that one and closes back to it: the
@@ -64,7 +78,7 @@ enum ShellSheet: Identifiable, Equatable {
     var belongsToBrowser: Bool {
         switch self {
         case .history: true
-        case .settings, .share, .moveTo, .importBook, .downloads, .folderDetails, .listenDebug: false
+        case .settings, .share, .moveTo, .importBook, .downloads, .folderDetails, .follow, .following, .listenDebug: false
         }
     }
 }
