@@ -17,6 +17,8 @@ import SwiftUI
 /// ┌ the chapter's page (or its Reader text) ┐       ← scrolls
 /// [   ] ( 📄 royalroad.com/…/chapter/309114/authors-note )   ← where the browser's field is
 /// ```
+///
+/// A page that doesn't load stays blank, as in the browser.
 struct FollowPreviewSheet: View {
     let chapter: TableOfContents.Chapter
     let isKept: Bool
@@ -40,7 +42,7 @@ struct FollowPreviewSheet: View {
                     .handsPullToSheet(from: page.webView?.scrollView)
                     .opacity(reader == nil ? 1 : 0)
                 if let reader {
-                    HTMLReadingView(html: Self.readingHTML(of: reader),
+                    HTMLReadingView(html: reader.readingHTML,
                                     heading: ReaderHeading(title: reader.title, detail: Self.detail(of: reader)),
                                     activeParagraphIndex: nil) { _ in }
                         .accessibilityIdentifier("followPreviewReader")
@@ -51,6 +53,8 @@ struct FollowPreviewSheet: View {
             .safeAreaInset(edge: .bottom, spacing: 0) { band }
         }
         .onAppear { page.load(chapter.url) }
+        // A script took the page elsewhere: the Reader text was the page before.
+        .onChange(of: page.currentURL) { reader = nil }
         .onDisappear { extracting?.cancel() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("followPreview")
@@ -64,13 +68,11 @@ struct FollowPreviewSheet: View {
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button(action: onToggle) {
-                Image(systemName: isKept ? Icons.included : Icons.excluded)
-                    .font(.title3)
-                    .foregroundStyle(isKept ? Palette.accent : Palette.tertiaryInk)
+                FollowCheckbox(symbol: isKept ? Icons.included : Icons.excluded)
                     .tapTarget(BottomChrome.minTapTarget)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(chapter.title)
+            .accessibilityLabel("Include")
             .accessibilityValue(isKept ? "Selected" : "Not selected")
             .accessibilityHint("Keeps or leaves out the chapter")
             .accessibilityIdentifier("followPreviewToggle")
@@ -87,7 +89,7 @@ struct FollowPreviewSheet: View {
         VStack(spacing: BottomChrome.rowSpacing) {
             BandFieldRow(keepsSwapRoom: true) {
                 AddressField(reader: readerButton, onOpenReader: toggleReader) {
-                    ChapterAddress(url: chapter.url)
+                    ChapterAddress(url: page.currentURL ?? chapter.url)
                 }
             }
             Color.clear.frame(height: BottomChrome.rowHeight)
@@ -122,15 +124,11 @@ struct FollowPreviewSheet: View {
             } catch is CancellationError {
                 return
             } catch {
+                guard !Task.isCancelled else { return }
                 shell.showToast(ShellToast(message: String(localized: "Couldn’t show the Reader text"),
                                            systemImage: Icons.warning))
             }
         }
-    }
-
-    /// As the Reader shows it: a plain-text article reads as its paragraphs.
-    private static func readingHTML(of article: ReaderArticle) -> String {
-        article.displayHTML.contains(where: { !$0.isWhitespace }) ? article.displayHTML : article.document.paragraphsHTML
     }
 
     /// The source and the length, as the Reader's heading has them.

@@ -98,3 +98,10 @@ struct ReaderArticle: Equatable, Identifiable {
         self.storedDetectedLanguage = page.detectedLanguageCode
     }
 }
+
+extension ReaderArticle {
+    /// What the Reader shows: the reading HTML, or for a plain-text article its paragraphs.
+    var readingHTML: String {
+        displayHTML.contains(where: { !$0.isWhitespace }) ? displayHTML : document.paragraphsHTML
+    }
+}

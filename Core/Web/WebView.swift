@@ -143,9 +143,10 @@ struct WebView: UIViewRepresentable {
 
         // MARK: - Staying on the page
 
-        /// A view that stays on its page (`WebViewStore.staysOnPage`) cancels what a tap would
-        /// take it elsewhere with: a link, a form, back or forward. A link to a place on the same
-        /// page (`#notes`) still goes.
+        /// A view that stays on its page (`WebViewStore.staysOnPage`) cancels a link, a form, or
+        /// back / forward that would take it to another page. One that stays on the page's own
+        /// address (`#notes`, `?page=2`, a site's gate or challenge form posting back to it) goes:
+        /// WebKit can't tell a script's form submit from a tap's.
         func webView(
             _ webView: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction,
@@ -154,11 +155,17 @@ struct WebView: UIViewRepresentable {
             guard staysOnPage, navigationAction.targetFrame?.isMainFrame ?? true else { return decisionHandler(.allow) }
             switch navigationAction.navigationType {
             case .linkActivated, .formSubmitted, .formResubmitted, .backForward:
-                let samePage = navigationAction.request.url.flatMap { url in webView.url.map(url.isSamePage(as:)) } ?? false
-                decisionHandler(samePage ? .allow : .cancel)
+                let stays = navigationAction.request.url.flatMap { url in webView.url.map { Self.sameAddress(url, $0) } }
+                decisionHandler(stays == true ? .allow : .cancel)
             default:
                 decisionHandler(.allow)
             }
+        }
+
+        /// The same scheme, host and path: the query and the fragment may differ.
+        static func sameAddress(_ a: URL, _ b: URL) -> Bool {
+            a.scheme?.lowercased() == b.scheme?.lowercased() && a.host?.lowercased() == b.host?.lowercased()
+                && a.path == b.path
         }
 
         // MARK: - Books

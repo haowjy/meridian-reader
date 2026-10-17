@@ -22,12 +22,13 @@ is `../../../docs/TECHNICAL_SPEC.md` → "Fetching a page out of sight" and "Fol
 - **Follow covers the screen** (`ShellSheet.coversTheScreen`): inside a card sheet the system's
   pan takes the preview `Sheet`'s pull down.
 - **The preview is the chapter's page in Browse's `WebView`** with its own
-  `WebViewStore(staysOnPage: true)`: user navigations (links, forms, back / forward, new windows)
-  are cancelled, the page's own load, redirects and script navigations run (a challenge page
-  reloads itself). It loads like a browser tab, not through `FetchQueue`: one page a tap asked
+  `WebViewStore(staysOnPage: true)`: links, forms and back / forward to another address, and new
+  windows, are cancelled; the page's own load, redirects, script navigations and anything back to
+  its own address run (WebKit can't tell a challenge page's script form submit from a tap). It loads like a browser tab, not through `FetchQueue`: one page a tap asked
   for, in sight. 📄 extracts the loaded page (no second request) into `HTMLReadingView`. The pull
   to close is `handsPullToSheet(from:)` on the web view's scroll view; `HTMLReadingView` wires
-  its own. Review's state stays: the preview never leaves Follow.
+  its own. Review's state stays: the preview never leaves Follow. A page that fails to load stays
+  blank, as in the browser.
 - **Probes**: `-browseTestPages` page one links to `reader-test://story/toc`; `-testStoryChapters N`
   lengthens it (a check then finds new chapters); `-testStoryThrottles` makes chapter 6 fail once.
   A custom scheme's reply carries no HTTP status, so a real 429 is checked against a live site.

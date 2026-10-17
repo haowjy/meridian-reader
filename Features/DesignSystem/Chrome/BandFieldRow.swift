@@ -33,8 +33,7 @@ struct BandFieldRow<Field: View>: View {
     }
 }
 
-/// The swap at the leading edge of the field row: to the other surface (📚 / 🌐), or from a
-/// preview to the browser.
+/// The swap at the leading edge of the field row: to the other surface (📚 / 🌐).
 struct BandSwap {
     let systemImage: String
     let label: String

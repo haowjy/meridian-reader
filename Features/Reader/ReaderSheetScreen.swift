@@ -93,10 +93,7 @@ struct ReaderSheetScreen: View {
 
     @ViewBuilder
     private func text(_ start: ListenSpot) -> some View {
-        // A plain-text article reads as its paragraphs, on the same page.
-        let html = article.displayHTML.contains(where: { !$0.isWhitespace })
-            ? article.displayHTML : article.document.paragraphsHTML
-        HTMLReadingView(html: html, heading: ReaderHeading(title: article.title, detail: detail),
+        HTMLReadingView(html: article.readingHTML, heading: ReaderHeading(title: article.title, detail: detail),
                         activeParagraphIndex: nil, sentence: savedSentence(start), jumpMode: jumpMode,
                         opensAtSentence: true, scrollHandle: scroll) { index in
             if jumpMode { listen(from: index, start: start) }

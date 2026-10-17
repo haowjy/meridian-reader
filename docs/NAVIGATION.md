@@ -369,7 +369,8 @@ goes in), where you type or paste the story's address. Follow covers the screen:
    a Q&A). Tapping the rest of the row opens its **preview**, the app's own sheet rising over the
    list with the chapter's real page in the browser's web view (signed in as in the browser), under
    the chapter's title and its box (tap to keep or leave it out). It is a preview and nothing
-   more: links, forms and back / forward on the page go nowhere, and there is no Save and no ⋯.
+   more: links, forms and back / forward to another page go nowhere (a page's gate or challenge
+   posting back to its own address still works), and there is no Save and no ⋯.
    At the bottom is the browser's address field, at exactly the browser's place (the swap's room
    left empty): the chapter's address and 📄, which swaps the page for its Reader text and back
    (filled while the Reader text shows). The page scrolls; a pull down on the header, or on the

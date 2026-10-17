@@ -273,8 +273,8 @@ private struct FollowChapterRow: View {
     }
 }
 
-/// Review's box: kept, left out, or (Select All) some.
-private struct FollowCheckbox: View {
+/// Review's box: kept, left out, or (Select All) some. The preview's header has it too.
+struct FollowCheckbox: View {
     let symbol: String
 
     var body: some View {

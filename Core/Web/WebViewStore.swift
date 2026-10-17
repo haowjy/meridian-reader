@@ -35,10 +35,10 @@ final class WebViewStore {
 
     var hasPage: Bool { currentURL != nil }
 
-    /// The view stays on the page it loads (Follow's chapter preview): link taps, forms and
-    /// back / forward go nowhere, nothing opens a new window, and there are no swipes back. The
-    /// page's own load, its redirects and its scripts' navigations still run (a site's challenge
-    /// page reloads itself).
+    /// The view stays on the page it loads (Follow's chapter preview): links, forms and back /
+    /// forward to another address go nowhere, nothing opens a new window, and there are no swipes
+    /// back. The page's own load, its redirects, its scripts' navigations, and links and forms
+    /// back to its own address (a site's gate or challenge page) still run.
     let staysOnPage: Bool
 
     init(staysOnPage: Bool = false) {
