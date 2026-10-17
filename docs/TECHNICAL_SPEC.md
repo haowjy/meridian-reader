@@ -127,8 +127,8 @@ story's order, with its state in `sourceStateData` (`FollowState`: following or 
 check, the last chapters added, and every chapter address the contents have listed, kept or not).
 Review's preview of a chapter is not an out-of-sight fetch: it loads the chapter in sight, in the
 browser's `WebView` with a `WebViewStore(staysOnPage: true)` (links, forms and back / forward to
-another address cancelled), and its
-📄 extracts that loaded page for the Reader text, as the browser's Reader does.
+another address cancelled), and the 📄 at the end of its header's address label (`AddressLabel`)
+extracts that loaded page for the Reader text, as the browser's Reader does.
 The chapters' text is fetched one at a time while the app is in front (the chapter ▶ asked for,
 else the one after the page playing, else the oldest story's first waiting chapter) and stored in
 place (`storeFetchedText`; nothing renders: the folder's Download switch decides that). A

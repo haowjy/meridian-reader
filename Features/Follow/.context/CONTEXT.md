@@ -25,7 +25,9 @@ is `../../../docs/TECHNICAL_SPEC.md` → "Fetching a page out of sight" and "Fol
   `WebViewStore(staysOnPage: true)`: links, forms and back / forward to another address, and new
   windows, are cancelled; the page's own load, redirects, script navigations and anything back to
   its own address run (WebKit can't tell a challenge page's script form submit from a tap). It loads like a browser tab, not through `FetchQueue`: one page a tap asked
-  for, in sight. 📄 extracts the loaded page (no second request) into `HTMLReadingView`. The pull
+  for, in sight. Its address and 📄 sit in the header (`AddressLabel`, read only), not at the
+  bottom: no bar of its own, and the app's band is left as it is. 📄 extracts the loaded page (no
+  second request) into `HTMLReadingView`. The pull
   to close is `handsPullToSheet(from:)` on the web view's scroll view; `HTMLReadingView` wires
   its own. Review's state stays: the preview never leaves Follow. A page that fails to load stays
   blank, as in the browser.
