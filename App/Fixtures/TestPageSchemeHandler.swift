@@ -104,7 +104,7 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
             return document(title: "The Tide Keeper", body: body, meta: "<meta name=\"author\" content=\"A. Keeper\">")
         }
         if name == "note" {
-            return document(title: "Author's Note", body: "<p>" + String(repeating: "A short note from the keeper of this story about the next chapter, which will come a little late this week while the lamp is mended. ", count: 3) + "</p>")
+            return document(title: "Author's Note", body: "<p>" + String(repeating: "A short note from the keeper of this story about the next chapter, which will come a little late this week while the lamp is mended. ", count: 6) + "</p>")
         }
         guard name.hasPrefix("chapter-"), let number = Int(name.dropFirst("chapter-".count)) else { return page(name) }
         let sentence = "On the \(number)th night the keeper climbed the stair and trimmed the wick while the tide turned below the rocks. "

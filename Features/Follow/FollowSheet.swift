@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// ⋯ → *Follow…* (`ShellSheet.follow`): from a story's address to a folder of its chapters.
+/// ⋯ → *Follow…* (`ShellSheet.follow`, covering the screen): from a story's address to a folder
+/// of its chapters.
 ///
 /// ```
 /// ( Cancel )        Mother of Learning

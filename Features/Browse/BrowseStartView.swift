@@ -57,7 +57,11 @@ struct BrowseStartView: View {
             // Every surface's ⋯ menu: grows out of its button and covers it (Safari iOS 26), over
             // everything else (the library's navigation bar too).
             .overlay { menuOverlay }
-            .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { ShellSheetView(sheet: $0) }
+            .sheet(item: Binding(get: { shell.sheet.flatMap { $0.coversTheScreen ? nil : $0 } }, set: { shell.sheet = $0 })) {
+                ShellSheetView(sheet: $0)
+            }
+            .fullScreenCover(item: Binding(get: { shell.sheet.flatMap { $0.coversTheScreen ? $0 : nil } },
+                                           set: { shell.sheet = $0 })) { ShellSheetView(sheet: $0) }
             // *Import Book…*: the picked book is copied in and imported (the import sheet).
             .fileImporter(isPresented: Binding(get: { shell.isPickingBook }, set: { shell.isPickingBook = $0 }),
                           allowedContentTypes: [.epub]) { result in

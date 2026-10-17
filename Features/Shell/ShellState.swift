@@ -25,7 +25,8 @@ struct ReaderSheetState: Equatable {
     let presentation = UUID()
 }
 
-/// The shell's sheets. One at a time, shown by the shell's single `.sheet(item:)`.
+/// The shell's sheets. One at a time, shown by the shell's single `.sheet(item:)`, or its
+/// `.fullScreenCover(item:)` for one that covers the screen (`coversTheScreen`).
 enum ShellSheet: Identifiable, Equatable {
     case history
     case settings
@@ -59,6 +60,13 @@ enum ShellSheet: Identifiable, Equatable {
         case .following(let id): "following-\(id.uuidString)"
         case .listenDebug: "listenDebug"
         }
+    }
+
+    /// Follow covers the screen rather than rising as a card: its chapter previews are the app's
+    /// own sheet (`Sheet`), whose pull down a card's own pull would take.
+    var coversTheScreen: Bool {
+        if case .follow = self { return true }
+        return false
     }
 
     /// Presented while another sheet is up, it shows over that one and closes back to it: the

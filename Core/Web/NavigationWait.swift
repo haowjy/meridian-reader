@@ -39,10 +39,9 @@ final class NavigationWait: NSObject, WKNavigationDelegate {
     /// The navigation is no longer wanted: a wait still running ends with `CancellationError`.
     func cancel() { finish(CancellationError()) }
 
-    func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
-                 decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void) {
+    func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse) async -> WKNavigationResponsePolicy {
         if navigationResponse.isForMainFrame { response = navigationResponse.response as? HTTPURLResponse }
-        decisionHandler(.allow)
+        return .allow
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
