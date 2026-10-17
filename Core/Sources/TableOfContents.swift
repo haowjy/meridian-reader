@@ -44,7 +44,7 @@ struct TableOfContents: Equatable, Sendable {
     /// The page that lists a story's chapters, for an address on that story: a Royal Road
     /// chapter's story page (`/fiction/<id>`); any other address as it is.
     static func contentsURL(for url: URL) -> URL {
-        guard RoyalRoad.isRoyalRoad(url), let id = RoyalRoad.storyID(in: url),
+        guard isRoyalRoad(url), let id = RoyalRoad.storyID(in: url),
               var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
         parts.path = "/fiction/\(id)"
         parts.query = nil
@@ -54,12 +54,18 @@ struct TableOfContents: Equatable, Sendable {
 
     /// The story on `page`; nil when no list of chapters can be found on it.
     static func read(_ page: LinkPage) -> TableOfContents? {
-        let chapters = RoyalRoad.isRoyalRoad(page.url) ? RoyalRoad.chapters(on: page) : Generic.chapters(on: page)
+        let chapters = isRoyalRoad(page.url) ? RoyalRoad.chapters(on: page) : Generic.chapters(on: page)
         guard !chapters.isEmpty else { return nil }
         let title = [page.heading, page.title.map(Self.siteNameRemoved)].compactMap { $0 }.first { !$0.isEmpty }
         let byline = page.author.map(Self.squeezed).flatMap { $0.isEmpty ? nil : $0 }
         return TableOfContents(url: page.url, title: title ?? page.url.host ?? page.url.absoluteString,
                                byline: byline, chapters: chapters)
+    }
+
+    /// A Royal Road address, which its own rule reads.
+    static func isRoyalRoad(_ url: URL) -> Bool {
+        guard let host = url.host?.lowercased() else { return false }
+        return host == "royalroad.com" || host.hasSuffix(".royalroad.com")
     }
 
     /// "Mother of Learning | Royal Road" → "Mother of Learning".
@@ -95,11 +101,6 @@ struct TableOfContents: Equatable, Sendable {
     /// links from the row's date and the *Start Reading* button, so the list holding the most
     /// chapter links is the table, and the first link of each row names it.
     private enum RoyalRoad {
-        static func isRoyalRoad(_ url: URL) -> Bool {
-            guard let host = url.host?.lowercased() else { return false }
-            return host == "royalroad.com" || host.hasSuffix(".royalroad.com")
-        }
-
         /// The story's number: the path's `/fiction/<id>`.
         static func storyID(in url: URL) -> String? {
             let parts = url.pathComponents
@@ -109,7 +110,7 @@ struct TableOfContents: Equatable, Sendable {
         }
 
         static func isChapter(_ url: URL, of story: String) -> Bool {
-            guard isRoyalRoad(url) else { return false }
+            guard TableOfContents.isRoyalRoad(url) else { return false }
             let parts = url.pathComponents
             guard let index = parts.firstIndex(of: "fiction"), parts.count > index + 4,
                   parts[index + 1] == story, parts[index + 3] == "chapter" else { return false }

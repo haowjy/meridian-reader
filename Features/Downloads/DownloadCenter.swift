@@ -41,8 +41,11 @@ final class DownloadCenter {
         case resumed
         /// It is already downloading.
         case alreadyQueued
-        /// Nothing in it plays (an empty folder, a finished book).
+        /// Nothing in it plays (a finished book): a page's download isn't made.
         case nothingToDownload
+        /// A folder's switch is on, with nothing to download yet (a story you're caught up on):
+        /// the pages added later download.
+        case waitingForNew
     }
 
     private(set) var records: [DownloadRecord] {
@@ -164,8 +167,14 @@ final class DownloadCenter {
 
     // MARK: - Asking for downloads
 
+    /// A page's own Download. A page whose downloads were deleted from its folder's download
+    /// (P8) is taken back into it too.
     func download(_ page: Page) -> Request {
-        request(.page(page.listenKey))
+        if let folder = page.folder, let record = record(for: .folder(folder.id)), record.deleted.contains(page.listenKey) {
+            withRecord(record.id) { $0.deleted.removeAll { $0 == page.listenKey } }
+            takeInNewPages()
+        }
+        return request(.page(page.listenKey))
     }
 
     /// A folder's Download, its toggle turned on: every page it covers is queued (its deleted
@@ -196,7 +205,9 @@ final class DownloadCenter {
             advance()
             return .resumed
         }
-        guard let (title, keys) = pages(of: target), !keys.isEmpty else { return .nothingToDownload }
+        guard let (title, keys) = pages(of: target) else { return .nothingToDownload }
+        // A folder's switch turns on with nothing in it yet; a page's download needs the page.
+        guard !keys.isEmpty || target.isFolder else { return .nothingToDownload }
         if let existing {
             withRecord(existing.id) {
                 $0.title = title
@@ -206,7 +217,7 @@ final class DownloadCenter {
             records.append(DownloadRecord(target: target, title: title, addedAt: Date(), entries: keys.map { .init(key: $0) }))
         }
         advance()
-        return .added
+        return keys.isEmpty ? .waitingForNew : .added
     }
 
     /// The pages a download covers, in play order: a page itself; a book's or story's chapters
@@ -349,7 +360,8 @@ final class DownloadCenter {
         for key in keys { requeued[key] = nil }
         updateRecords { records in
             for index in records.indices { records[index].entries.removeAll { keys.contains($0.key) } }
-            records.removeAll { $0.entries.isEmpty }
+            // A folder's switch stays on with nothing left in it: later pages still join.
+            records.removeAll { $0.entries.isEmpty && !$0.followsFolder }
         }
     }
 

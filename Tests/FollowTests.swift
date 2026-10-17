@@ -2,7 +2,8 @@ import XCTest
 @testable import MeridianReader
 
 /// Follow's pure rules: reading a story's chapters off its table of contents (Royal Road's rule,
-/// the generic one) and the fetch queue's pace and back-off.
+/// the generic one), the fetch queue's pace and back-off, and which pages join a folder's
+/// download while its switch is on.
 final class FollowTests: XCTestCase {
     private func link(_ url: String, _ text: String, list: Int) -> LinkPage.Link {
         LinkPage.Link(url: URL(string: url)!, text: text, list: list)
@@ -10,10 +11,10 @@ final class FollowTests: XCTestCase {
 
     // MARK: - Royal Road
 
-    /// The chapters table wins over the *Start Reading* button and each row's date link: one
-    /// chapter per address, named by its row's first link, in the story's order; links to other
-    /// stories and the site's menus are left out. The title loses the site's name.
-    func testRoyalRoadReadsTheChaptersTable() throws {
+    /// Royal Road: the chapters table wins over the *Start Reading* button and each row's date
+    /// link: one chapter per address, named by its row's first link, in the story's order; links
+    /// to other stories and the site's menus are left out. The title loses the site's name.
+    func testContentsReaders() throws {
         let story = "https://www.royalroad.com/fiction/21220/mother-of-learning"
         let page = LinkPage(url: URL(string: story)!, title: "Mother of Learning | Royal Road", heading: nil,
                             author: " nobody103 ", links: [
@@ -31,26 +32,20 @@ final class FollowTests: XCTestCase {
         XCTAssertEqual(contents.title, "Mother of Learning")
         XCTAssertEqual(contents.byline, "nobody103")
         XCTAssertEqual(contents.chapters.map(\.title), ["1. Good Morning Brother", "Author's Note: Hiatus", "2. Life's Little Problems"])
-    }
 
-    /// A Royal Road chapter's address follows to its story's page.
-    func testAChapterAddressLeadsToItsStoryPage() {
+        // A chapter's address leads to its story's page.
         let chapter = URL(string: "https://www.royalroad.com/fiction/21220/mother-of-learning/chapter/301778/1-good?x=1")!
         XCTAssertEqual(TableOfContents.contentsURL(for: chapter).absoluteString, "https://www.royalroad.com/fiction/21220")
         let other = URL(string: "https://serials.example.com/story/contents")!
         XCTAssertEqual(TableOfContents.contentsURL(for: other), other)
-    }
 
-    // MARK: - Any other site
-
-    /// The list with the most chapter-like links on the page's own site wins over a longer menu;
-    /// a link back to the page itself and other sites' links are left out.
-    func testGenericReadsTheLongestChapterList() throws {
+        // Any other site: the list with the most chapter-like links on the page's own site wins
+        // over a longer menu; a link back to the page itself and other sites' links are left out.
         let site = "https://serials.example.com"
         let menu = ["Home", "Rankings", "Forums", "Sign In", "About", "Contact", "Help"].map {
             link("\(site)/\($0.lowercased())", $0, list: 0)
         }
-        let page = LinkPage(url: URL(string: "\(site)/tide-keeper")!, title: "The Tide Keeper", heading: "The Tide Keeper",
+        let tideKeeper = LinkPage(url: URL(string: "\(site)/tide-keeper")!, title: "The Tide Keeper", heading: "The Tide Keeper",
                             author: nil, links: menu + [
             link("\(site)/tide-keeper", "The Tide Keeper", list: 1),
             link("\(site)/tide-keeper/1", "Chapter 1: The Lamp", list: 1),
@@ -58,8 +53,8 @@ final class FollowTests: XCTestCase {
             link("\(site)/tide-keeper/2", "Chapter 2: Low Water", list: 1),
             link("https://elsewhere.example.org/ad", "Chapter 9 of something else", list: 1),
         ])
-        let contents = try XCTUnwrap(TableOfContents.read(page))
-        XCTAssertEqual(contents.chapters.map(\.title), ["Chapter 1: The Lamp", "Author's Note", "Chapter 2: Low Water"])
+        let generic = try XCTUnwrap(TableOfContents.read(tideKeeper))
+        XCTAssertEqual(generic.chapters.map(\.title), ["Chapter 1: The Lamp", "Author's Note", "Chapter 2: Low Water"])
         XCTAssertNil(TableOfContents.read(LinkPage(url: URL(string: site)!, title: nil, heading: nil, author: nil, links: menu)),
                      "a menu alone is no story")
     }
@@ -89,13 +84,32 @@ final class FollowTests: XCTestCase {
         XCTAssertFalse(pacing.isBackingOff)
         for _ in 0..<12 { pacing.record(.answered(seconds: 1)) }
         XCTAssertEqual(pacing.delay, 4, "back to its pace")
-    }
+        pacing.record(.refused(retryAfter: 3600))
+        XCTAssertEqual(pacing.delay, 3600, "a site's Retry-After past the cap")
 
-    /// Retry-After as seconds or as an HTTP date.
-    func testRetryAfterReadsSecondsAndDates() {
+        // Retry-After as seconds or as an HTTP date.
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         XCTAssertEqual(FetchPacing.retryAfter("120", now: now), 120)
         XCTAssertEqual(FetchPacing.retryAfter("Fri, 15 Jan 2027 08:00:30 GMT", now: now), 30)
         XCTAssertNil(FetchPacing.retryAfter("soon", now: now))
+    }
+
+    // MARK: - The Download switch
+
+    /// A list written before the switch reads with every folder's switch on and nothing deleted;
+    /// while on, a folder's new pages join it, its deleted ones don't; off, none do.
+    func testDownloadListBeforeTheSwitchAndPagesJoining() throws {
+        let key = UUID(), other = UUID(), new = UUID()
+        let old = """
+        [{"id":"\(UUID())","target":{"folder":{"_0":"\(UUID())"}},"title":"Story","addedAt":0,"isPaused":false,
+          "entries":[{"key":"\(key)","state":"done"}]}]
+        """
+        var record = try XCTUnwrap(JSONDecoder().decode([DownloadRecord].self, from: Data(old.utf8)).first)
+        XCTAssertTrue(record.followsFolder)
+        XCTAssertEqual(record.deleted, [])
+        record.deleted = [other]
+        XCTAssertEqual(record.joining([key, other, new]), [new])
+        record.followsFolder = false
+        XCTAssertEqual(record.joining([key, other, new]), [])
     }
 }

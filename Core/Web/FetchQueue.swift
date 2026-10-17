@@ -4,10 +4,14 @@ import WebKit
 
 /// Every page fetched out of sight goes through here, strictly one at a time: a story's table of
 /// contents, a chapter's text, a review's preview, a download's link page. Each request waits for
-/// the one before it and then for its site's pause (`FetchPacing`): a few seconds normally, longer
-/// after slow replies, backing off when the site refuses (429, 5xx) or doesn't answer. A request
-/// asked for by a tap (`Priority.user`) goes before background work waiting its turn, never
-/// before the pause. While a site's pause runs, another site's request may go.
+/// the one before it and for its site's pause (`FetchPacing`): a few seconds normally, longer
+/// after slow replies, backing off when the site refuses (429, 5xx) or doesn't answer. Of the
+/// requests whose site is ready, one asked for by a tap (`Priority.user`) goes first, then the
+/// oldest; while one site's pause runs, another site's request may go.
+///
+/// Nothing loads while the app is in the background (the hidden view needs the window, and
+/// WebKit is suspended there): requests wait for the app to come to the front. A load the
+/// background cut short is tried again then, and doesn't count against its site.
 ///
 /// The loads are `URLPageFetcher`'s: a hidden web view with the browser's cookies, so a site you
 /// are signed in to in the browser serves the same pages here.
@@ -16,7 +20,7 @@ import WebKit
 final class FetchQueue {
     enum Priority: Comparable {
         case background
-        /// Asked for by a tap: first in line.
+        /// Asked for by a tap: first among the requests that are ready.
         case user
     }
 
@@ -29,19 +33,38 @@ final class FetchQueue {
         var refusal: Int?
     }
 
+    /// A request waiting for its turn.
+    private struct Waiter {
+        let order: Int
+        let priority: Priority
+        let site: String
+        let turn: CheckedContinuation<Void, Never>
+    }
+
     /// By host (`site(of:)`).
     private(set) var sites: [String: SiteState] = [:]
-    /// The address loading now.
-    private(set) var loading: URL?
 
     @ObservationIgnored private let fetcher: URLPageFetcher
+    @ObservationIgnored private let runState: AppRunState
     @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private var waiting: [Waiter] = []
+    @ObservationIgnored private var nextOrder = 0
     @ObservationIgnored private var isBusy = false
-    @ObservationIgnored private var waiting: [(priority: Priority, turn: CheckedContinuation<Void, Never>)] = []
+    /// Wakes the queue when the earliest waiting site's pause is over.
+    @ObservationIgnored private var wake: Task<Void, Never>?
+    /// Times the app went to the background: a load that saw it change was cut short there.
+    @ObservationIgnored private var backgroundings = 0
+    @ObservationIgnored private var runStateObserver: NSObjectProtocol?
 
-    init(schemeHandlers: [String: any WKURLSchemeHandler] = [:], now: @escaping () -> Date = Date.init) {
+    init(schemeHandlers: [String: any WKURLSchemeHandler] = [:], runState: AppRunState = .shared,
+         now: @escaping () -> Date = Date.init) {
         fetcher = URLPageFetcher(schemeHandlers: schemeHandlers)
+        self.runState = runState
         self.now = now
+        runStateObserver = NotificationCenter.default.addObserver(forName: AppRunState.didChange, object: runState,
+                                                                  queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.runStateChanged() }
+        }
     }
 
     /// The page at `url`, extracted.
@@ -65,28 +88,25 @@ final class FetchQueue {
         return (state.readyAt, state.refusal)
     }
 
-    /// Waits for its turn and its site's pause, loads, and records how the site answered.
+    /// Waits for its turn (its site ready, the app in front), loads, and records how the site
+    /// answered.
     private func run<T>(_ url: URL, priority: Priority, _ load: @escaping (URLPageFetcher) async throws -> T) async throws -> T {
         let site = Self.site(of: url)
         while true {
-            await takeTurn(priority)
-            let wait = (sites[site]?.readyAt ?? .distantPast).timeIntervalSince(now())
-            guard wait <= 0 else {
-                // The site's pause: another site's request may go meanwhile.
-                passTurn()
-                try await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
-                continue
-            }
+            await takeTurn(priority, site: site)
             defer { passTurn() }
             try Task.checkCancellation()
-            loading = url
-            defer { loading = nil }
             let started = now()
+            let backgroundingsBefore = backgroundings
             do {
                 let result = try await load(fetcher)
                 record(.answered(seconds: now().timeIntervalSince(started)), refusal: nil, for: site)
                 return result
             } catch {
+                // Cut short by the background: tried again in front, its site none the worse.
+                if backgroundings != backgroundingsBefore || runState.phase == .background, !(error is CancellationError) {
+                    continue
+                }
                 if let outcome = Self.outcome(of: error, after: now().timeIntervalSince(started)) {
                     record(outcome, refusal: Self.status(of: error), for: site)
                 }
@@ -128,21 +148,48 @@ final class FetchQueue {
 
     // MARK: - One at a time
 
-    private func takeTurn(_ priority: Priority) async {
-        guard isBusy else {
-            isBusy = true
-            return
+    private func takeTurn(_ priority: Priority, site: String) async {
+        await withCheckedContinuation { turn in
+            waiting.append(Waiter(order: nextOrder, priority: priority, site: site, turn: turn))
+            nextOrder += 1
+            dispatch()
         }
-        await withCheckedContinuation { waiting.append((priority, $0)) }
     }
 
-    /// The next turn goes to the first waiting request of the highest priority.
     private func passTurn() {
-        guard let best = waiting.indices.max(by: { waiting[$0].priority < waiting[$1].priority || ($0 > $1 && waiting[$0].priority == waiting[$1].priority) })
-        else {
-            isBusy = false
+        isBusy = false
+        dispatch()
+    }
+
+    /// Gives the turn to the best waiting request whose site is ready (a tap's first, then the
+    /// oldest), with the app in front. When none is ready, wakes at the earliest site's ready time.
+    private func dispatch() {
+        guard !isBusy, runState.phase != .background, !waiting.isEmpty else { return }
+        let at = now()
+        let ready = waiting.indices.filter { readyAt(waiting[$0].site) <= at }
+        if let best = ready.max(by: { a, b in
+            waiting[a].priority != waiting[b].priority ? waiting[a].priority < waiting[b].priority
+                : waiting[a].order > waiting[b].order
+        }) {
+            isBusy = true
+            waiting.remove(at: best).turn.resume()
             return
         }
-        waiting.remove(at: best).turn.resume()
+        guard let earliest = waiting.map({ readyAt($0.site) }).min() else { return }
+        wake?.cancel()
+        wake = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(max(0, earliest.timeIntervalSinceNow) * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self?.dispatch()
+        }
+    }
+
+    private func readyAt(_ site: String) -> Date {
+        sites[site]?.readyAt ?? .distantPast
+    }
+
+    private func runStateChanged() {
+        if runState.phase == .background { backgroundings += 1 }
+        dispatch()
     }
 }

@@ -113,9 +113,11 @@ background.
 Every such fetch goes through one `FetchQueue`, strictly one at a time: each request waits for
 the one before it and then for its site's pause (`FetchPacing`: 4 s, 12 s after a reply that took
 6 s or more; a 429, a 5xx or no answer doubles the wait from 1 min up to 30 min, never under the
-reply's `Retry-After`; each answer halves it back down). A request a tap asked for (Review's
-read and previews, ▶ on a waiting chapter, a download) goes before background work waiting its
-turn. Nothing fetches in the background: the view needs the app's window.
+reply's `Retry-After`; each answer halves it back down). Of the requests whose site is ready, one a
+tap asked for (Review's read and previews, ▶ on a waiting chapter) goes first, then the oldest
+(the chapter loop, the daily checks, downloads). Nothing loads in the background (the view needs
+the app's window): requests wait for the app to come to the front, and a load the background cut
+short is tried again then without counting against its site.
 
 **Follow** (`FollowCenter`, `LibraryStore+Follow`): a story's table of contents
 (`TableOfContents.read`: Royal Road's story page by its chapters table, any other site by the
@@ -125,7 +127,9 @@ story's order, with its state in `sourceStateData` (`FollowState`: following or 
 check, the last chapters added, and every chapter address the contents have listed, kept or not).
 The chapters' text is fetched one at a time while the app is in front (the chapter ▶ asked for,
 else the one after the page playing, else the oldest story's first waiting chapter) and stored in
-place (`storeFetchedText`; nothing renders: the folder's Download switch decides that). A chapter
+place (`storeFetchedText`; nothing renders: the folder's Download switch decides that). A
+chapter's address the library already has stays one page: one filed in a folder stays there, one
+loose at the top level or out of the Library joins the story. A chapter
 whose site refuses or doesn't answer is tried again after the back-off, four times, then waits for
 the next launch or ▶. About once a day while the app is in front (a check is due 24 h after the
 last; the app looks every 15 min and when it comes to the front), each followed story's contents

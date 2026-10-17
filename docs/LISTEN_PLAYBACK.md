@@ -29,7 +29,6 @@ into ArticleAudioCache, admitted by RenderAdmission.
 | `document` | Ordered paragraphs (one page: paragraph indices stay page-local in a book) |
 | `playhead` + `utf16Offset` | The position: paragraph and document UTF-16 offset of the spot being spoken |
 | `phase` | `idle → prepared → playing ↔ paused → finished` |
-| `awaitingPage` | Playing, between chapters, while the next one is fetched |
 
 The scrubber, the paragraph highlight, Now Playing and crash resume all read the position from
 here, and every change is published synchronously. `resumePoint` (article + paragraph while

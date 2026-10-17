@@ -95,6 +95,9 @@ final class Page {
 
     var isSaved: Bool { contentState == .saved }
     var isLink: Bool { contentState == .link }
+    /// A followed story's chapter whose text isn't fetched yet: playback stops before it, and ▶
+    /// fetches it first (`FollowCenter.play`).
+    var isWaitingChapter: Bool { isLink && folder?.kind == .series }
     var isInLibrary: Bool { addedAt != nil }
     var url: URL? { urlString.flatMap(URL.init(string:)) }
 

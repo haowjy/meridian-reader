@@ -45,9 +45,10 @@ struct FetchPacing: Equatable {
         }
     }
 
+    /// Doubles the wait up to the cap; a site's own `Retry-After` is kept even past the cap.
     private mutating func backOff(atLeast floor: TimeInterval) {
         isBackingOff = true
-        delay = min(Self.maxBackOff, max(Self.firstBackOff, delay * 2, floor))
+        delay = max(min(Self.maxBackOff, max(Self.firstBackOff, delay * 2)), floor)
     }
 
     /// A `Retry-After` header's wait in seconds: a number of seconds, or an HTTP date (`now` is

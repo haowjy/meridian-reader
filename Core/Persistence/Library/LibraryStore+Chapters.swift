@@ -6,12 +6,6 @@ import Foundation
 /// source's order.
 /// Whether a folder is finished isn't stored: `FolderProgress.isFinished` works it out from its
 /// pages.
-extension Page {
-    /// A followed story's chapter whose text isn't fetched yet: playback stops before it, and ▶
-    /// fetches it first (`FollowCenter.play`).
-    var isWaitingChapter: Bool { isLink && folder?.kind == .series }
-}
-
 extension LibraryStore {
     /// The folder's pages in play order, skipped ones included. A link page in a followed story
     /// (`FolderKind.series`) is a chapter waiting for its text, which playback stops before; a link

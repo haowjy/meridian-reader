@@ -19,11 +19,12 @@ struct FollowStatus: View {
     @Environment(ShellState.self) private var shell
 
     var body: some View {
+        let progress = follow.progress(of: pages)
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            HeaderLink(symbol: Icons.follow, text: line, identifier: "followStatus") {
+            HeaderLink(symbol: Icons.follow, text: line(progress), identifier: "followStatus") {
                 shell.present(.following(folder.id))
             }
-            if let next = nextChapter, let url = folder.contentsURL,
+            if let next = progress.fetching, let url = folder.contentsURL,
                let backOff = follow.queue.backOff(of: FetchQueue.site(of: url)) {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     NoticeCard(symbol: Icons.waiting,
@@ -35,21 +36,13 @@ struct FollowStatus: View {
         }
     }
 
-    /// The number of the chapter fetched next: the one being fetched, else the first waiting.
-    private var nextChapter: Int? {
-        let index = pages.firstIndex { follow.fetching.contains($0.listenKey) }
-            ?? pages.firstIndex { $0.isLink && !$0.skipsInPlayback && follow.failures[$0.listenKey] == nil }
-        return index.map { $0 + 1 }
-    }
-
-    private var line: String {
+    private func line(_ progress: FollowCenter.Progress) -> String {
         let state = folder.followState
         var parts = [state?.isFollowing == false ? String(localized: "Not following") : String(localized: "Following")]
-        let fetched = pages.filter { !$0.isLink }.count
-        if let index = pages.firstIndex(where: { follow.fetching.contains($0.listenKey) }) {
-            parts.append(String(localized: "fetching chapter text \(index + 1) of \(pages.count)"))
-        } else if fetched < pages.count {
-            parts.append(String(localized: "fetched \(fetched) of \(pages.count)"))
+        if let number = progress.fetching {
+            parts.append(String(localized: "fetching chapter text \(number) of \(progress.chapters)"))
+        } else if progress.toFetch > 0 {
+            parts.append(String(localized: "fetched \(progress.withText) of \(progress.chapters)"))
         } else if follow.checking.contains(folder.id) {
             parts.append(String(localized: "checking for new chapters"))
         } else if state?.isFollowing == true, let checked = state?.lastCheckedAt {
@@ -76,8 +69,8 @@ enum FollowText {
 
     /// "Royal Road", else the host without "www.".
     static func siteName(of url: URL) -> String {
+        if TableOfContents.isRoyalRoad(url) { return "Royal Road" }
         let host = url.host?.lowercased() ?? url.absoluteString
-        if host == "royalroad.com" || host.hasSuffix(".royalroad.com") { return "Royal Road" }
         return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 
@@ -112,19 +105,14 @@ enum FollowText {
             : String(localized: "\(site) had a problem (\(status)). Chapter \(chapter) in \(after), then slower.")
     }
 
-    /// A followed story's chapter waiting for its text, as its row says it: being fetched (or
-    /// retried after its site's back-off), waiting, or why it couldn't be had. nil for a page
-    /// with text, a link anywhere else, or a skipped chapter.
-    static func rowNote(of page: Page, follow: FollowCenter, now: Date) -> String? {
-        guard page.isWaitingChapter, !page.skipsInPlayback else { return nil }
-        let key = page.listenKey
-        if follow.fetching.contains(key) {
-            if let url = page.url, let backOff = follow.queue.backOff(of: FetchQueue.site(of: url)) {
-                return String(localized: "Retrying in \(countdown(backOff.until.timeIntervalSince(now)))")
-            }
-            return String(localized: "Fetching text…")
+    /// A followed story's chapter waiting for its text, as its row says it (`FollowCenter.status`):
+    /// being fetched, retried after its site's back-off, waiting, or why it couldn't be had.
+    static func rowNote(_ status: FollowCenter.ChapterStatus, now: Date) -> String {
+        switch status {
+        case .fetching: String(localized: "Fetching text…")
+        case .retrying(let until): String(localized: "Retrying in \(countdown(until.timeIntervalSince(now)))")
+        case .waiting: String(localized: "Waiting")
+        case .failed(let message): message
         }
-        if let failure = follow.failures[key] { return failure }
-        return String(localized: "Waiting")
     }
 }

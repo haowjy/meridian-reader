@@ -75,7 +75,7 @@ enum AppComposition {
         let queue = FetchQueue()
         #endif
         return FollowCenter(library: library, queue: queue, playingKey: { speech.activeSessionID },
-                            play: { speech.start(.page($0), at: $0.listenStart) })
+                            startPlayback: { speech.start(.page($0), at: $0.listenStart) })
     }
 
     /// Downloads (decision D16) over the app's library: a link page's text comes through Follow
@@ -84,7 +84,7 @@ enum AppComposition {
     static func makeDownloads(library: LibraryStore, follow: FollowCenter) -> DownloadCenter {
         let speech = speechController
         return DownloadCenter(library: library, tts: speech.localTTS,
-                              fill: { await follow.fill($0, priority: .user) },
+                              fill: { await follow.fill($0, priority: .background) },
                               isListening: { speech.activeSessionID == $0 })
     }
 

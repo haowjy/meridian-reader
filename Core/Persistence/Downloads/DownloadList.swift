@@ -14,6 +14,11 @@ struct DownloadRecord: Codable, Equatable, Identifiable {
     enum Target: Codable, Hashable {
         case page(UUID)
         case folder(UUID)
+
+        var isFolder: Bool {
+            if case .folder = self { return true }
+            return false
+        }
     }
 
     /// Where one page is. Raw values are persisted.

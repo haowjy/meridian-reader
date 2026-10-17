@@ -119,15 +119,18 @@ extension LibraryStore {
     }
 
     /// One chapter at the end of `folder`. An address the library has already stays one page: one
-    /// in the Library stays where it is; one out of it (played without saving, removed) comes into
-    /// the story.
+    /// you filed in a folder stays there; one loose at the top level (saved to try the story) or
+    /// out of the Library (played without saving, removed) comes into the story, so the story has
+    /// every chapter.
     private func addChapter(_ chapter: TableOfContents.Chapter, to folder: Folder, byline: String?) {
         if let existing = page(canonicalURL: chapter.canonicalURL) {
-            guard !existing.isInLibrary else { return }
-            existing.addedAt = now()
+            guard existing.folder == nil else { return }
+            if existing.addedAt == nil {
+                existing.addedAt = now()
+                if existing.isSaved, let key = existing.key { plan(.saved, key: key) }
+            }
             existing.sortKey = nextSortKey(in: folder)
             existing.setFolder(folder)
-            if existing.isSaved, let key = existing.key { plan(.saved, key: key) }
             return
         }
         let page = Page(key: ArticleIdentity.articleKey(canonicalURL: chapter.canonicalURL), title: chapter.title,

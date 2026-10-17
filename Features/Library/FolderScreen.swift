@@ -203,9 +203,9 @@ private struct FolderContentsList: View {
         let bar = playback.hasPagesToPlay ? playback.header : nil
         FolderHeader(style: style, title: title, detail: detail, progress: bar?.fraction,
                      progressLabel: bar?.label ?? []) {
-            if folder.followState != nil || playback.hasPagesToPlay {
+            if folder.kind == .series || playback.hasPagesToPlay {
                 VStack(alignment: .leading, spacing: Spacing.s) {
-                    if folder.followState != nil { FollowStatus(folder: folder, pages: pages) }
+                    if folder.kind == .series { FollowStatus(folder: folder, pages: pages) }
                     if playback.hasPagesToPlay {
                         FolderPlayButtons(folder: folder, title: playback.buttonTitle, actions: actions)
                         FolderDownloadSwitch(folder: folder)

@@ -34,17 +34,42 @@ final class FollowCenter {
         var retryAt: Date
     }
 
+    /// Where a followed story's chapter waiting for its text stands (`status(of:)`).
+    enum ChapterStatus: Equatable {
+        /// Its turn hasn't come.
+        case waiting
+        /// In the queue now: loading, or waiting for its turn and its site's pause.
+        case fetching
+        /// Its last try was refused or got no answer; tried again once its site's back-off ends.
+        case retrying(until: Date)
+        /// Couldn't be had this launch, with why.
+        case failed(String)
+    }
+
+    /// A story's chapters as its header and the Following sheet count them: the ones that play
+    /// (not skipped), how many have their text, and the number of the one being fetched.
+    struct Progress: Equatable {
+        var chapters = 0
+        var withText = 0
+        var fetching: Int?
+        /// Chapters still to fetch this launch (waiting, or being fetched).
+        var toFetch = 0
+    }
+
     /// Pages being fetched now (loading, or waiting in the queue for their turn and their site's
-    /// pause): the loop's chapter, and a download's link page.
-    private(set) var fetching: Set<UUID> = []
+    /// pause): the loop's chapter, ▶'s, and a download's link page.
+    private var fetching: Set<UUID> = []
+    /// Pages whose last try was refused or got no answer, tried again after the back-off.
+    private var retrying: Set<UUID> = []
     /// Chapters whose text couldn't be had this launch, with why. Tried again at the next launch,
     /// or when ▶ asks for one.
-    private(set) var failures: [UUID: String] = [:]
+    private var failures: [UUID: String] = [:]
     /// Stories whose table of contents is being read now.
     private(set) var checking: Set<UUID> = []
     /// Stories whose last check this launch failed.
     private(set) var checkFailures: [UUID: CheckFailure] = [:]
-    /// ▶ on a waiting chapter: fetched next, then played (unless something else started since).
+    /// ▶ on a waiting chapter: being fetched first, then played (unless something else started
+    /// since). Its row shows ▶ preparing.
     private(set) var playWhenFetched: UUID?
 
     @ObservationIgnored let library: LibraryStore
@@ -53,22 +78,20 @@ final class FollowCenter {
     /// The page bound to the playback session (the waiting chapter after it goes first).
     @ObservationIgnored private let playingKey: () -> UUID?
     /// Plays a page with its text in, from its spot.
-    @ObservationIgnored private let play: (Page) -> Void
+    @ObservationIgnored private let startPlayback: (Page) -> Void
     @ObservationIgnored private let now: () -> Date
-    /// What was bound when ▶ asked for `playWhenFetched`: a start since cancels the play.
-    @ObservationIgnored private var playingWhenAsked: UUID?
     @ObservationIgnored private var inFlight: [UUID: Task<String?, Never>] = [:]
     @ObservationIgnored private var loop: Task<Void, Never>?
     @ObservationIgnored private var clock: Task<Void, Never>?
     @ObservationIgnored private var runStateObserver: NSObjectProtocol?
 
     init(library: LibraryStore, queue: FetchQueue, runState: AppRunState = .shared,
-         playingKey: @escaping () -> UUID?, play: @escaping (Page) -> Void, now: @escaping () -> Date = Date.init) {
+         playingKey: @escaping () -> UUID?, startPlayback: @escaping (Page) -> Void, now: @escaping () -> Date = Date.init) {
         self.library = library
         self.queue = queue
         self.runState = runState
         self.playingKey = playingKey
-        self.play = play
+        self.startPlayback = startPlayback
         self.now = now
     }
 
@@ -150,22 +173,31 @@ final class FollowCenter {
     /// Followed stories whose check is due, one at a time.
     private func checkDueStories() async {
         guard isInFront else { return }
-        for folder in library.stories() {
-            guard let due = nextCheck(of: folder), due <= now(), isInFront else { continue }
+        // By id: a story deleted during an earlier check is gone, not read after its delete.
+        for id in library.stories().map(\.id) {
+            guard isInFront, let folder = library.folder(id: id), let due = nextCheck(of: folder), due <= now() else { continue }
             await check(folder, priority: .background)
         }
     }
 
     // MARK: - Fetching chapters
 
-    /// ▶ on a chapter waiting for its text: it is fetched next (a failure this launch is
-    /// forgotten), then plays, unless something else has started by then.
+    /// ▶ on a chapter waiting for its text: it is fetched now, ahead of background work (a failure
+    /// this launch is forgotten), then plays, unless something else has started by then.
     func play(_ page: Page) {
         let key = page.listenKey
+        let playingWhenAsked = playingKey()
         failures[key] = nil
         playWhenFetched = key
-        playingWhenAsked = playingKey()
-        kick()
+        Task {
+            let failure = await fill(page, priority: .user)
+            if let failure { failures[key] = failure }
+            guard playWhenFetched == key else { return }
+            playWhenFetched = nil
+            if failure == nil, playingKey() == playingWhenAsked, let page = library.page(key: key), page.hasText {
+                startPlayback(page)
+            }
+        }
     }
 
     /// Fetches the link page's text and stores it in place (`LibraryStore.storeFetchedText`),
@@ -190,8 +222,13 @@ final class FollowCenter {
 
     private func fetchText(key: UUID, url: URL, priority: FetchQueue.Priority) async -> String? {
         fetching.insert(key)
-        defer { fetching.remove(key) }
-        for attempt in 1...Self.attemptsPerChapter {
+        defer {
+            fetching.remove(key)
+            retrying.remove(key)
+        }
+        var attempt = 0
+        while true {
+            attempt += 1
             do {
                 let content = try await queue.content(of: url, priority: priority)
                 guard !content.document.isEmpty else { return String(localized: "Nothing to listen to") }
@@ -202,12 +239,14 @@ final class FollowCenter {
             } catch LibraryStoreError.saveFailed {
                 return String(localized: "Couldn’t save it")
             } catch {
-                if Self.isTransient(error), attempt < Self.attemptsPerChapter, !Task.isCancelled { continue }
+                if Self.isTransient(error), attempt < Self.attemptsPerChapter {
+                    retrying.insert(key)
+                    continue
+                }
                 ListenTimingLog.log("follow_fetch_failed", ["key": ListenTimingLog.shortKey(key), "err": "\(error)"])
                 return Self.message(for: error)
             }
         }
-        return nil
     }
 
     /// Fetches the waiting chapters while the app is in front, one at a time, until none waits.
@@ -222,38 +261,62 @@ final class FollowCenter {
     private func runLoop() async {
         while isInFront, let page = nextWaiting() {
             let key = page.listenKey
-            let failure = await fill(page, priority: key == playWhenFetched ? .user : .background)
-            if let failure { failures[key] = failure }
-            guard playWhenFetched == key else { continue }
-            playWhenFetched = nil
-            if failure == nil, playingKey() == playingWhenAsked, let page = library.page(key: key), page.hasText {
-                play(page)
-            }
+            if let failure = await fill(page, priority: .background) { failures[key] = failure }
         }
     }
 
-    /// The chapter to fetch next: the one ▶ asked for, else the waiting chapter after the page
-    /// playing, else the first waiting chapter of the oldest story. Skipped chapters and ones
-    /// that failed this launch wait.
+    /// The chapter to fetch next: the waiting chapter after the page playing, else the first
+    /// waiting chapter of the oldest story (▶'s goes at once, `play`).
     private func nextWaiting() -> Page? {
-        if let key = playWhenFetched {
-            if let page = library.page(key: key), page.isLink { return page }
-            playWhenFetched = nil
-        }
         if let playing = playingKey(), let folder = library.page(key: playing)?.folder, folder.kind == .series,
            case .waiting(let key) = ChapterAdvance.after(playing, in: library.chapterSnapshot(of: folder)),
-           failures[key] == nil, let page = library.page(key: key) {
+           let page = library.page(key: key), isToFetch(page) {
             return page
         }
         for folder in library.stories() {
-            if let page = library.pages(in: folder).first(where: isWaiting) { return page }
+            if let page = library.pages(in: folder).first(where: isToFetch) { return page }
         }
         return nil
     }
 
-    /// A chapter in the Library still waiting for its text, not skipped and not failed this launch.
-    private func isWaiting(_ page: Page) -> Bool {
-        page.isLink && page.isInLibrary && !page.skipsInPlayback && failures[page.listenKey] == nil
+    // MARK: - Where a chapter stands
+
+    /// A story's chapter in the Library still to fetch this launch: waiting for its text, not
+    /// skipped, not failed.
+    private func isToFetch(_ page: Page) -> Bool {
+        page.isWaitingChapter && page.isInLibrary && !page.skipsInPlayback && failures[page.listenKey] == nil
+    }
+
+    /// Where `page` stands when it is a followed story's chapter waiting for its text, not skipped;
+    /// nil for any other page. The one rule rows, headers and the Following sheet read.
+    func status(of page: Page) -> ChapterStatus? {
+        guard page.isWaitingChapter, !page.skipsInPlayback else { return nil }
+        let key = page.listenKey
+        if fetching.contains(key) {
+            if retrying.contains(key), let url = page.url, let backOff = queue.backOff(of: FetchQueue.site(of: url)) {
+                return .retrying(until: backOff.until)
+            }
+            return .fetching
+        }
+        if let failure = failures[key] { return .failed(failure) }
+        return .waiting
+    }
+
+    /// `pages` (a story's, in its order) counted: skipped chapters left out.
+    func progress(of pages: [Page]) -> Progress {
+        var progress = Progress()
+        for page in pages where !page.skipsInPlayback {
+            progress.chapters += 1
+            switch status(of: page) {
+            case nil: progress.withText += 1
+            case .fetching?, .retrying?:
+                progress.toFetch += 1
+                if progress.fetching == nil { progress.fetching = progress.chapters }
+            case .waiting?: progress.toFetch += 1
+            case .failed?: break
+            }
+        }
+        return progress
     }
 
     // MARK: - Messages

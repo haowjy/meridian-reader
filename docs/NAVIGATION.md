@@ -283,7 +283,9 @@ commas.
   page in it downloads and so does every page added to it later (Follow's new chapters, a page
   filed in): *On · 12 of 107 downloaded*, then *On · new pages download too*. Turned off, nothing
   new downloads and what is downloaded stays. A page whose downloads you delete stays out of the
-  folder's download until the switch is turned on again (or its own Download is tapped). It plays
+  folder's download until the switch is turned on again (or its own Download is tapped, which
+  takes it back). The switch turns on for a story you're caught up on too: the next chapters
+  download as they come. It plays
   its own pages (not its subfolders') in the order shown, page to page, link pages skipped (a
   followed story's stop playback, below).
   Every block sits on the page margin, so the bar, the buttons and the cards share both edges.

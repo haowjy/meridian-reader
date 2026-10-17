@@ -44,14 +44,13 @@ struct FollowingSheet: View {
     }
 
     private func content(_ folder: Folder, _ state: FollowState) -> some View {
-        let pages = library.pages(in: folder)
-        let fetched = pages.filter { !$0.isLink }.count
+        let progress = follow.progress(of: library.pages(in: folder))
         let checking = follow.checking.contains(folder.id)
         return List {
             Section {
                 fact(String(localized: "Last checked"), state.lastCheckedAt.map { FollowText.when($0) } ?? "—")
                 fact(String(localized: "Next check"), nextCheck(folder))
-                fact(String(localized: "Chapter text"), String(localized: "\(fetched) of \(pages.count) fetched"))
+                fact(String(localized: "Chapter text"), String(localized: "\(progress.withText) of \(progress.chapters) fetched"))
                 fact(String(localized: "Last new chapters"), state.lastAddedAt.map {
                     String(localized: "\(FollowText.when($0)) · \(state.lastAddedCount) added")
                 } ?? String(localized: "None yet"))

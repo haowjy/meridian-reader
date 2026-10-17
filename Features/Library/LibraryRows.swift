@@ -41,7 +41,7 @@ struct LibraryPageRow: View {
     var body: some View {
         if !page.isLive {
             DeletedRow()
-        } else if isRetrying {
+        } else if case .retrying? = chapterStatus {
             // "Retrying in 1:52" counts down.
             TimelineView(.periodic(from: .now, by: 1)) { context in liveBody(now: context.date) }
         } else {
@@ -49,16 +49,13 @@ struct LibraryPageRow: View {
         }
     }
 
-    /// A followed story's chapter being fetched again after its site's back-off.
-    private var isRetrying: Bool {
-        guard page.isWaitingChapter, follow.fetching.contains(page.listenKey), let url = page.url else { return false }
-        return follow.queue.backOff(of: FetchQueue.site(of: url)) != nil
-    }
+    /// A followed story's chapter waiting for its text: where it stands.
+    private var chapterStatus: FollowCenter.ChapterStatus? { follow.status(of: page) }
 
     /// The row's note: a followed story's chapter says where its text stands ("Fetching text…",
     /// "Waiting"); a page played without saving, "Not saved".
     private func note(now: Date) -> String? {
-        if let follow = FollowText.rowNote(of: page, follow: follow, now: now) { return follow }
+        if let status = chapterStatus { return FollowText.rowNote(status, now: now) }
         return page.isLink || page.isInLibrary ? nil : String(localized: "Not saved")
     }
 
