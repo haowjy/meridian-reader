@@ -21,6 +21,10 @@ final class WebViewStore {
     var isReaderable = false
     /// A load asked for before the web view was made: it starts once the view attaches.
     @ObservationIgnored private var pendingURL: URL?
+    /// Paces the reloads after the view's content process ends.
+    @ObservationIgnored private var recovery = ContentProcessRecovery()
+    /// The reload waiting after the content process ended.
+    @ObservationIgnored private var recoveryReload: Task<Void, Never>?
 
     /// A book (`.epub`) the page linked to, downloading into `BookImportFiles` instead of showing.
     enum BookDownload {
@@ -76,6 +80,29 @@ final class WebViewStore {
         }
     }
 
+    /// WebKit ended the view's content process (it crashed, or the system took its memory): the
+    /// page shows blank until it loads again, so it reloads, paced by `ContentProcessRecovery`.
+    /// In the background it waits for the front first (a process started there is the first the
+    /// system ends again; WebKit's own recovery waits too). The start page has nothing to reload,
+    /// and a reload still waiting is dropped when the view has moved to another page or is
+    /// loading one.
+    func contentProcessEnded() {
+        guard hasPage, let webView else { return }
+        let page = webView.backForwardList.currentItem
+        recoveryReload?.cancel()
+        recoveryReload = Task { [weak self, runState = AppRunState.shared] in
+            if runState.phase == .background {
+                for await _ in NotificationCenter.default.notifications(named: AppRunState.didChange, object: runState)
+                    where runState.phase != .background { break }
+            }
+            guard !Task.isCancelled, let delay = self?.recovery.delayAfterEnd(at: Date()) else { return }
+            if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
+            guard !Task.isCancelled, let webView = self?.webView, !webView.isLoading,
+                  webView.backForwardList.currentItem === page else { return }
+            webView.reload()
+        }
+    }
+
     func goBack() { webView?.goBack() }
     func goForward() { webView?.goForward() }
     func refresh() { webView?.reload() }
@@ -94,5 +121,27 @@ final class WebViewStore {
             throw ExtractionError.engineFailed(message: "WebView isn’t ready yet.")
         }
         return try await PageSnapshot.html(of: webView)
+    }
+}
+
+/// How a web view comes back after WebKit ends its content process. Left to itself WebKit reloads
+/// once and leaves the page blank when the new process ends too, which a device short of memory
+/// does several times in a row (a new process can die as it launches). This reloads at once, then
+/// after a pause that grows, and gives up (the page stays blank until a reload or a navigation)
+/// once the process has ended `delays.count` times within `window`, so a page that crashes its
+/// process every time doesn't reload forever.
+struct ContentProcessRecovery {
+    static let delays: [TimeInterval] = [0, 2, 5]
+    static let window: TimeInterval = 60
+
+    private var ends: [Date] = []
+
+    /// The process ended at `now`: how long to wait before reloading, or nil to leave the page.
+    mutating func delayAfterEnd(at now: Date) -> TimeInterval? {
+        ends = ends.filter { now.timeIntervalSince($0) < Self.window }
+        guard ends.count < Self.delays.count else { return nil }
+        let delay = Self.delays[ends.count]
+        ends.append(now)
+        return delay
     }
 }

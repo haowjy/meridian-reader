@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// Follow: a story's table of contents read into a folder of chapter links (`LibraryStore.follow`),
-/// the chapters' text fetched one at a time in the background, and the table of contents read
+/// the chapters' text fetched one at a time while the app is in front, and the table of contents read
 /// again about once a day while the app is in use, new chapters going at the end of the folder.
 /// No feeds, no notifications, nothing in the background: every fetch needs the app in front
 /// (a hidden web view in its window), and every one goes through the one `FetchQueue`, strictly

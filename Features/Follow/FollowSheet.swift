@@ -185,7 +185,7 @@ private struct FollowReview: View {
         .libraryListStyle()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("A folder is made at once. The chapters’ text is fetched one at a time in the background.")
+                Text("A folder is made at once. The chapters’ text is fetched one at a time while the app is open.")
                     .typeStyle(.caption)
                     .foregroundStyle(Palette.secondaryInk)
                 PillButton(String(localized: "OK"), detail: String(localized: "Follow \(keptCount) Chapters"),
