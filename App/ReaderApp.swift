@@ -33,6 +33,7 @@ struct ReaderApp: App {
     @State private var speechController = AppComposition.speechController
     @State private var shell = AppComposition.shell
     @State private var library: LibraryStore
+    @State private var follow: FollowCenter
     @State private var downloads: DownloadCenter
     /// How pages read (Settings › Reading, the Aa panel): one store for both editors.
     @State private var readingAppearance = ReadingAppearance(defaults: .standard)
@@ -46,7 +47,9 @@ struct ReaderApp: App {
         }
         let library = AppComposition.makeLibrary(context: container.mainContext)
         _library = State(initialValue: library)
-        _downloads = State(initialValue: AppComposition.makeDownloads(library: library))
+        let follow = AppComposition.makeFollow(library: library)
+        _follow = State(initialValue: follow)
+        _downloads = State(initialValue: AppComposition.makeDownloads(library: library, follow: follow))
         // Foreground/background gate for Core ML synthesis (no model calls in the background).
         AppRunState.shared.observeApplication()
         AppComposition.runLaunchMaintenance(library: library)
@@ -61,10 +64,12 @@ struct ReaderApp: App {
                 .environment(shell)
                 .environment(library)
                 .environment(downloads)
+                .environment(follow)
                 .environment(\.readingAppearance, readingAppearance)
                 .environment(\.developerSettings, developer)
                 .task {
-                    await AppLaunch.run(library: library, speech: speechController, shell: shell, downloads: downloads)
+                    await AppLaunch.run(library: library, speech: speechController, shell: shell, downloads: downloads,
+                                        follow: follow)
                 }
         }
         .modelContainer(container)

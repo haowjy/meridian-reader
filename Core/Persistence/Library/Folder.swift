@@ -10,12 +10,13 @@ enum FolderKind: String, Codable, CaseIterable {
     case plain
     /// Made by importing an EPUB: one page per chapter, first in the book's order.
     case book
-    /// A web serial: one page per chapter, first in the order they were found.
+    /// A followed story (Follow): one page per chapter of its table of contents, in the story's
+    /// order; its state is `FollowState`.
     case series
     /// Legacy Favorites folder, migrated to independent star flags at launch.
     case favorites
 
-    /// Made from a book or a web serial: its pages are chapters.
+    /// Made from a book or a followed story: its pages are chapters.
     var isBookOrSeries: Bool { self == .book || self == .series }
 }
 
@@ -48,12 +49,13 @@ final class Folder {
     var byline: String?
     /// A thumbnail (`CoverThumbnail`), never the full-size image.
     @Attribute(.externalStorage) var coverData: Data?
-    /// Series: the contents page, or the first chapter.
+    /// A followed story: its table of contents.
     var sourceURLString: String?
-    /// Book: the book key. Series: the canonical contents URL. Dedupe merges folders sharing it.
+    /// Book: the book key. A followed story: its canonical contents URL. Dedupe merges folders
+    /// sharing it.
     var sourceIdentifier: String?
-    /// Codable per kind: series finder state; a book's file fingerprint and chapter keys
-    /// (`BookSourceState`).
+    /// Codable per kind: a followed story's `FollowState`; a book's file fingerprint and chapter
+    /// keys (`BookSourceState`).
     var sourceStateData: Data?
     /// Not written or read (kept as stored by older builds; persisted fields don't change).
     var languageCode: String?

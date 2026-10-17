@@ -82,9 +82,11 @@ struct EngineNoticeBanner: View {
 #Preview {
     let container = try! LibraryStoreConfiguration.makeInMemoryContainer()
     let library = AppComposition.makeLibrary(context: container.mainContext)
+    let follow = AppComposition.makeFollow(library: library)
     RootView()
         .environment(ShellState())
         .environment(library)
-        .environment(AppComposition.makeDownloads(library: library))
+        .environment(follow)
+        .environment(AppComposition.makeDownloads(library: library, follow: follow))
         .modelContainer(container)
 }

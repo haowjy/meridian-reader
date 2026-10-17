@@ -20,6 +20,8 @@ final class NavigationWait: NSObject, WKNavigationDelegate {
     }
 
     private var continuation: CheckedContinuation<Void, Error>?
+    /// The main document's reply, once it has come (its HTTP status and headers).
+    private(set) var response: HTTPURLResponse?
 
     /// Starts the navigation (`start`, such as `view.load(_:)`) and returns once it has ended.
     func run(_ start: () -> Void) async throws {
@@ -36,6 +38,12 @@ final class NavigationWait: NSObject, WKNavigationDelegate {
 
     /// The navigation is no longer wanted: a wait still running ends with `CancellationError`.
     func cancel() { finish(CancellationError()) }
+
+    func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
+                 decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void) {
+        if navigationResponse.isForMainFrame { response = navigationResponse.response as? HTTPURLResponse }
+        decisionHandler(.allow)
+    }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         finish(nil)
