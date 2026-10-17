@@ -15,33 +15,29 @@ import WebKit
 ///   Debug build always serves (`AppComposition.makeFollow`):
 ///   - `toc` ("The Tide Keeper"): the table of contents, a site menu and then the chapter list,
 ///     `-testStoryChapters` chapters long (8 by default), an author's note third;
-///   - `chapter-N`, `note`: the chapters. With `-testStoryThrottles`, `chapter-6` answers 429 the
-///     first time in a launch.
+///   - `chapter-N`, `note`: the chapters. With `-testStoryThrottles`, `chapter-6` doesn't load
+///     the first time in a launch (a site not answering), so Follow backs off.
 ///
 /// An unknown name is page one.
 final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = URL.testPageScheme
     /// What a web view that serves the offline pages registers (`schemeHandlers`).
     static var handlers: [String: any WKURLSchemeHandler] { [scheme: TestPageSchemeHandler()] }
-    /// `-testStoryThrottles`' 429 has been sent this launch.
+    /// `-testStoryThrottles`' failed load has happened this launch.
     @MainActor private static var throttled = false
 
     func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
         guard let url = urlSchemeTask.request.url else { return }
-        var status = 200
-        let html: String
-        if url.host == "story" {
-            if url.lastPathComponent == "chapter-6", LaunchOptions.current.testStoryThrottles, !Self.throttled {
-                Self.throttled = true
-                status = 429
-            }
-            html = status == 200 ? Self.storyPage(url.lastPathComponent) : Self.document(title: "Too many requests", body: "<p>Slow down.</p>")
-        } else {
-            html = Self.page(url.lastPathComponent)
+        // WebKit hands a custom scheme's reply on without its HTTP status, so the offline
+        // stand-in for a site that won't answer is a failed load.
+        if url.host == "story", url.lastPathComponent == "chapter-6", LaunchOptions.current.testStoryThrottles, !Self.throttled {
+            Self.throttled = true
+            urlSchemeTask.didFailWithError(URLError(.timedOut))
+            return
         }
+        let html = url.host == "story" ? Self.storyPage(url.lastPathComponent) : Self.page(url.lastPathComponent)
         let data = Data(html.utf8)
-        let headers = ["Content-Type": "text/html; charset=utf-8", "Retry-After": status == 429 ? "60" : nil].compactMapValues { $0 }
-        let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers)!
+        let response = URLResponse(url: url, mimeType: "text/html", expectedContentLength: data.count, textEncodingName: "utf-8")
         urlSchemeTask.didReceive(response)
         urlSchemeTask.didReceive(data)
         urlSchemeTask.didFinish()

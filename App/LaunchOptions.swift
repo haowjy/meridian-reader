@@ -34,8 +34,8 @@ struct LaunchOptions: Equatable {
     /// `-testStoryChapters N`: the offline story's table of contents (`reader-test://story/toc`)
     /// lists N chapters (8 without it), so a check finds new ones on a later launch.
     var testStoryChapters = 8
-    /// `-testStoryThrottles`: the offline story's chapter 6 answers 429 the first time it is
-    /// asked for in a launch, for Follow's back-off.
+    /// `-testStoryThrottles`: the offline story's chapter 6 doesn't load the first time it is
+    /// asked for in a launch (a site not answering), for Follow's back-off.
     var testStoryThrottles = false
     /// `-seedBookmarks`: a few starred `example.com` links whose icons stay letter tiles (no
     /// fetch).
