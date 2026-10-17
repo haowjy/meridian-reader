@@ -42,6 +42,10 @@ struct FollowPreviewSheet: View {
             ZStack {
                 WebView(store: page)
                     .handsPullToSheet(from: page.webView?.scrollView)
+                    // No bar below: the page runs to the screen's foot, its scroll view
+                    // insetting its end above the home indicator. (The Reader text keeps to the
+                    // safe area: its view sets its own insets.)
+                    .ignoresSafeArea(edges: .bottom)
                     .opacity(reader == nil ? 1 : 0)
                 if let reader {
                     HTMLReadingView(html: reader.readingHTML,
@@ -52,13 +56,14 @@ struct FollowPreviewSheet: View {
                 }
             }
             .animation(Motion.snappy, value: reader?.id)
-            // No bar below: the page runs to the screen's foot, its scroll view insetting
-            // its end above the home indicator.
-            .ignoresSafeArea(edges: .bottom)
         }
         .onAppear { page.load(chapter.url) }
-        // A script took the page elsewhere: the Reader text was the page before.
-        .onChange(of: page.currentURL) { reader = nil }
+        // A script took the page elsewhere: the Reader text, shown or on its way, was the page
+        // before. The cancelled read clears `extracting` itself when it ends.
+        .onChange(of: page.currentURL) {
+            extracting?.cancel()
+            reader = nil
+        }
         .onDisappear { extracting?.cancel() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("followPreview")
