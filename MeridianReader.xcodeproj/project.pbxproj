@@ -128,6 +128,7 @@
 		67DECF067380188AB9F2ADFD /* KokoroONNXSessionSlot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67CECE34E814BE0393381EBC /* KokoroONNXSessionSlot.swift */; };
 		6BD443897B0BB7D39E79569F /* LibraryStore+Marks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57FE553F262B6BA134259973 /* LibraryStore+Marks.swift */; };
 		6D1AB5708F41CD8BF293B6BE /* Page+Listening.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAC1F4958412BA2934E8C11C /* Page+Listening.swift */; };
+		6D30389C911208A736C086B8 /* AddressLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2032C2AD4815DE47AF7EE4B /* AddressLabel.swift */; };
 		6E79063C5E33144C1F4B29F7 /* Readability-readerable.js in Resources */ = {isa = PBXBuildFile; fileRef = 8D5A19B13E2E68C2C89A2CFC /* Readability-readerable.js */; };
 		6EBED1752A5ADC794F7B762A /* ListeningTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700F8C5B3C4BFA17CC29C300 /* ListeningTime.swift */; };
 		6ED561E49283C4527C50747E /* NowPlayingBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F30F44AE90070FA7751D970 /* NowPlayingBarView.swift */; };
@@ -529,6 +530,7 @@
 		9F840C768BD6761A0DF0BB92 /* SpeechController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechController.swift; sourceTree = "<group>"; };
 		A01D46399C5C7BC2604327A8 /* DeviceChipGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceChipGate.swift; sourceTree = "<group>"; };
 		A12E3F0ACBFDFAA60C4DDD53 /* HTMLReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLReadingView.swift; sourceTree = "<group>"; };
+		A2032C2AD4815DE47AF7EE4B /* AddressLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressLabel.swift; sourceTree = "<group>"; };
 		A263A5A1D4CA9DB9E427C532 /* KokoroONNXSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroONNXSession.swift; sourceTree = "<group>"; };
 		A29B7A49D7A1FC7D6A380D53 /* FavoritesGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesGrid.swift; sourceTree = "<group>"; };
 		A304014F640CE01AB1A8EE37 /* AddressSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressSuggestions.swift; sourceTree = "<group>"; };
@@ -743,6 +745,7 @@
 			children = (
 				01E5B85DA00F5782169B11B9 /* ActionButtonRow.swift */,
 				D0345CFD2DBF0433D5DFFDE5 /* AddressField.swift */,
+				A2032C2AD4815DE47AF7EE4B /* AddressLabel.swift */,
 				F7A594681F0B9CA492DB04B7 /* ArtworkTile.swift */,
 				E477CCA13F4D3340E6A6DC2D /* DetailLine.swift */,
 				1BDEC21FC51793A367E7B695 /* DownloadRow.swift */,
@@ -1523,6 +1526,7 @@
 				94AF8151FA7F3C37016818E0 /* ActivityShareSheet.swift in Sources */,
 				8FF27EC80D103734F3CBCE56 /* AddressDictation.swift in Sources */,
 				9ABD40C5DFE19D7C8D4A1FDA /* AddressField.swift in Sources */,
+				6D30389C911208A736C086B8 /* AddressLabel.swift in Sources */,
 				3D533CAA1A282919882A6B34 /* AddressSuggestions.swift in Sources */,
 				A47AB2900B1D41A8310416F9 /* AppAppearance.swift in Sources */,
 				60EA744033EF805F2078D52C /* AppComposition.swift in Sources */,

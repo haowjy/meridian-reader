@@ -158,7 +158,7 @@ private struct MicBox: View {
 
 /// Thin page-load progress on the chrome's top edge (no layout shift while loading). Reads the
 /// web view's progress itself, so its ticks don't re-run the chrome or the browser. Follow's
-/// chapter preview draws it on its band too.
+/// chapter preview draws it along its header's foot.
 struct LoadProgressLine: View {
     let web: WebViewStore
 

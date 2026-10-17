@@ -292,14 +292,6 @@ struct BottomToolbarGallery: View {
                     }
                 }
             }
-            PreviewState("Follow's chapter preview: the field alone, at the browser's place") {
-                band {
-                    BandFieldRow(keepsSwapRoom: true) {
-                        AddressField(reader: .showing) { Text("royalroad.com/fiction/1/chapter/2") }
-                    }
-                    Color.clear.frame(height: BottomChrome.rowHeight)
-                }
-            }
             PreviewState("reader") {
                 band {
                     BottomToolbarSpanLayout {
