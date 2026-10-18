@@ -5,9 +5,9 @@ import SwiftUI
 /// joined with a separator.
 ///
 /// ```
-/// ▣  Pride and Prejudice                  (◔⏸)   queued: a ring with pause, centred on the ⋯ slot
-///    Kokoro Heart   4 of 12 chapters   38%
-/// [i] Notes on Tides                      (◔↓)   paused: the ring with resume
+/// ▣  Pride and Prejudice                   (↓)   running: the arrow filling in the accent,
+///    Kokoro Heart   4 of 12 chapters   38%          centred on the ⋯ slot; a tap pauses
+/// [i] Notes on Tides                       (↓)   paused: the same in grey; a tap resumes
 ///    Kokoro Heart   Paused
 /// [i] Coupon Basics                               done
 ///    Kokoro Heart   12 MB
@@ -17,7 +17,7 @@ import SwiftUI
 /// ```
 ///
 /// Tapping the row is the caller's (it opens what was downloaded). The title is the row's
-/// VoiceOver element, the detail its value; the ring and the buttons are their own.
+/// VoiceOver element, the detail its value; the control and the buttons are their own.
 struct DownloadRow: View {
     enum Leading {
         /// A page: its site icon, or a letter tile.
@@ -29,7 +29,7 @@ struct DownloadRow: View {
     /// The trailing control of a download still running or waiting.
     struct Transfer {
         var fraction: Double
-        /// Paused: the ring offers to resume (↓); otherwise to pause.
+        /// Paused: the control is grey and resumes; otherwise it pauses.
         var isPaused: Bool
         var toggle: () -> Void
     }
@@ -118,24 +118,17 @@ struct DownloadRow: View {
     }
 }
 
-/// The ring a running download fills, with ⏸ inside to pause it, or ↓ to resume a paused one.
-/// 44 pt to tap, centred like the rows' ▶.
+/// A running download's `DownloadMark`, filling as it renders (a tap pauses it), or grey while it
+/// is paused (a tap resumes it). 44 pt to tap, centred on the ⋯ slot like the Library rows' ⋯.
 private struct TransferControl: View {
     let transfer: DownloadRow.Transfer
 
     var body: some View {
         Button(action: transfer.toggle) {
-            ZStack {
-                ProgressRing(fraction: transfer.fraction, size: Glyph.control)
-                    .animation(Motion.standard, value: transfer.fraction)
-                Image(systemName: transfer.isPaused ? Icons.downloadInRing : Icons.pause)
-                    .font(.system(size: Glyph.control * 0.4, weight: .bold))
-                    .foregroundStyle(Palette.accent)
-                    .contentTransition(.symbolEffect(.replace))
-            }
-            .frame(width: Glyph.control, height: Glyph.control)
-            .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
-            .contentShape(Rectangle())
+            DownloadMark(state: .downloading(fraction: transfer.fraction),
+                         tint: transfer.isPaused ? Palette.secondaryInk : Palette.accent)
+                .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
         .accessibilityLabel(transfer.isPaused ? "Resume Download" : "Pause Download")

@@ -6,9 +6,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **Screens read, `LibraryStore` writes.** Lists come from `@Query` with `LibraryQueries`; every
   change goes through `LibraryStore` (never `context.delete` here). What rows do is in
   `LibraryActions`, so a row and a header play and open the same way.
-- **Play buttons ask `playState(of:)` and press through `press(_:start:)`** (`.page(key)` for rows,
-  `.folder(id)` for a folder's button: a book's, or any folder whose pages play). Opening never
-  plays; playing never navigates. `FolderProgress` is what a folder's row and header show (its
+- **Rows and the header play through `LibraryActions`** (`play` → `press(_:start:)` with
+  `.page(key)` for a page row's tap, `playFolder` with `.folder(id)` for the header's ▶ and
+  *Continue*), and show `playState(of:)`. A page row's tap plays, except the page you hear, which
+  opens (`open`: Now Playing), so a tap never pauses it; *Read* in its menu opens it. `FolderProgress` is what a folder's row and header show (its
   place, how far, time left), for books and plain folders alike.
 - **Drops don't reach a SwiftUI List** (on this iOS, neither `onDrop`, `dropDestination` nor
   `onInsert` fire over one). So rows only lift (`libraryDrag`, SwiftUI's `onDrag`, which hands
@@ -88,18 +89,25 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   children, so a combined element would answer to a title twice; tests find rows by title.
 - **A folder row's link sits behind the row** (`LibraryFolderRow`): a `NavigationLink` as the
   row's content gets the List's own disclosure, at its own x. Behind the row the List draws
-  none, a tap still follows it (and Edit's selection still takes the tap), and the row's own ›
-  shares the ▶ column centred on the ⋯ slot (`ListRow.trailingColumnPadding`).
+  none, a tap still follows it (and Edit's selection still takes the tap), and the row's ⋯
+  (a `Menu`, which takes its own taps) stays centred on the toolbar's ⋯ slot
+  (`ListRow.trailingColumnPadding`).
+- **One menu builder per row kind** (`LibraryRowMenus.swift`): `PageMenu` and `FolderMenu` are
+  the rows' ⋯, their `.contextMenu`, and (`FolderMenu`) the folder header's *More*, so every way
+  in has the same rows in the same order. They take their collaborators as values from the row
+  (`LibraryActions`, `DownloadCenter`, `LibraryScreenState`), not from the environment, which a
+  menu's content may not get. In Edit a row passes no ⋯ (`ListRow.menu` nil).
 - **The home never changes size with playback** (decision D14): no section depends on what is
   playing or part-way. Pages played without saving (`LibraryQueries.playedNotSaved`) join
   *Pages* on their first play, which is the one insert playback causes, animated.
-- **Download and Delete Downloads go through `DownloadCenter`** (`DownloadActions` for the toast):
-  *Delete Downloads* also drops the page's or book's download, or the list would render it again.
-  Rows offer *Download* only when that page or folder isn't downloading already
-  (`DownloadCenter.isQueued`).
-- **Headers sit on the page margin with the cards** (`FolderHeader`, `FolderPlayButtons`): the
-  section header is already at the margin in a Library list, so the header adds no padding of its
-  own; the bar and the button row span the width, so all four edges line up.
+- **Download, Remove Download and Delete Downloads go through `DownloadCenter`**
+  (`DownloadActions` for the toast): *Remove Download* (a page) and *Delete Downloads* (a folder's
+  ⋯) also drop the download, or the list would render it again.
+- **The folder header is centred and sits on the page margin** (`FolderHeader`, a design-system
+  component of plain values; `FolderScreen` fills it): the section header is already at the
+  margin in a Library list, so the header adds no padding of its own. Its Download control's
+  taps (download, or ask *Turn Off Download* while the toggle is on) are `FolderScreen`'s
+  `headerActions`; the ▶ is `playFolder`; *More* is `FolderMenu`.
 - **Books and series are folders** (decision D19): one screen (`FolderScreen`), one page row
   (`LibraryPageRow`), one ⋯ (`LibraryMenu.Screen.folder`), one delete question. Nothing refuses
   a move, a drop, a sort or a subfolder because of `kind`: only cycles, and a page out of the
@@ -111,11 +119,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   and *Replace*, and recorded once at launch for books stored before (`recordBookChapters`).
 - **Details are not a kind** (decision D17): *Edit Details* (`FolderDetailsSheet`, a shell sheet)
   writes a folder's name, byline and cover in one `LibraryStore.setDetails`. `Folder.hasDetails`
-  picks the header's look (`FolderHeaderStyle.detailed`), a book's too. `FolderPlayButtons` is
-  the header's button row.
-- **Rows ask `DownloadCenter.isDownloaded`** (a page, or a folder with the pages its row already
-  sorted) and `state(of:isDownloaded:)` for their Download control; `ListRow` only draws the
-  `ListRow.Download` it is given.
+  picks the header's look (`FolderHeaderStyle.detailed`: the cover above the title), a book's too.
+- **Rows, the page menu and the header ask `DownloadCenter.state(of:)`** (a page; a folder with
+  the pages its row or screen already holds) for the one `DownloadState`; `ListRow` only draws
+  the mark it is given (dimmed tile and ↓ while downloading, ✓ badge once downloaded).
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way
   (`PageProgress.of`); counts come from relationships, not fetches.
 - **D20 home:** `LibraryHomeView` renders the Everything/Favorites tab (`ShellState.favoritesOnly`)
@@ -123,8 +130,8 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   D22). Star flags never change location. Filtered (Favorites or a search), the list sets
   `LibraryScreenKey.filtered` and the rows read it: none lifts or takes a drop, a row in a folder
   shows the folder's path, and a folder row pushes `LibraryStore.path(to:)`, so ‹ goes to its
-  parent as from anywhere else. Folder rows use large artwork; rows have Download and Play side by side. A folder
-  header has Continue, From Start and Download.
+  parent as from anywhere else. Rows have only ⋯ at their trailing edge. A folder
+  header has Download, the big ▶ (Continue) and More.
 - **D21: action rows never wrap; page rows are two lines.** A row of buttons is an
   `ActionButtonRow` (full labels → short titles → no details → symbols), never an HStack or a
   stack that can wrap; give every button a symbol. A page row is its title on one line and one

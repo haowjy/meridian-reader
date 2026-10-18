@@ -77,7 +77,7 @@ struct PageActions {
             moveTo: MenuAvailability(when: isSaved && canSave),
             favorite: MenuAvailability(when: canFavorite),
             share: MenuAvailability(when: shareURL != nil),
-            download: MenuAvailability(when: savedPage.map { !downloads.isQueued(.page($0.listenKey)) } == true),
+            download: MenuAvailability(when: savedPage.map { !downloads.state(of: $0).isDownloading } == true),
             website: MenuAvailability(when: websiteURL != nil)
         )
     }

@@ -1,29 +1,30 @@
 import SwiftUI
 
-/// Every row in the Library, a folder, a book's contents and the Move tree.
+/// Every row in the Library, a folder, a book's contents and the browser's history.
 ///
 /// ```
-/// 📁 Bonds                                       ›   folder: its count on the second line
+/// 📁 Bonds                                       ⋯   folder: its count on the second line
 ///    2 folders   3 pages
-/// ▣  Pride and Prejudice                    ⬇   ▶   book: its place, Download and its own ▶
+/// ▣  Pride and Prejudice                         ⋯   book: its place and time left
 ///    Ch 24   ◐ 6 h 10 min left
-/// ▣ Coupon Basics                           ✓   ▶   page: two lines, a thumbnail as tall
-/// ▣ ✓ Finished                                       as both
-/// ▣ Seven-Day Yield                         ◔   ⏸   page, playing: tinted, bars; downloading
-/// ▣ ▂▅▇ Playing
-/// ▣ Notes on Tides                              ▶   played, not saved: the note
-/// ▣ example.org   Not saved   ◐ 4 min left
-/// 🔗 serials.example.com                             link: lighter
+/// ▣ Coupon Basics                                ⋯   page, downloaded: the grey ✓ badge
+/// ▣ ✓ example.com   ✓ Finished
+/// ▣̲ Seven-Day Yield                              ⋯   page, playing and downloading: tinted,
+/// ▣ ▂▅▇ Playing                                       bars; the tile dimmed under a jade ↓
+/// 🔗 serials.example.com                              link: lighter
 /// ```
 ///
-/// The row draws; tapping it is the caller's (a `NavigationLink`, a button). A page's row is
-/// exactly two lines: its title on one line (truncated), then one line of what it is and where
-/// it stands; its thumbnail is as tall as the two lines. The second line's parts are spaced
-/// apart, never joined by a separator: the first in secondary ink, the rest in tertiary, the
-/// status in the accent while it is what you hear ("Playing", "Paused"). The leading parts give
-/// way first, and at accessibility sizes the status shows alone. Download (`download`) and ▶ / ⏸ (`onPlay`) sit side by side,
-/// centred on the row's height; ▶ / ⏸ and › (`opensScreen`) share the last column, centred on
-/// the toolbar's ⋯ slot like the Now Playing bar's ⏸. Every row's separator starts at its title,
+/// The row draws; tapping it is the caller's (a `NavigationLink` behind it, `opensOnTap`). A
+/// page's row is exactly two lines: its title on one line (truncated), then one line of what it
+/// is and where it stands; its thumbnail is as tall as the two lines. The second line's parts are
+/// spaced apart, never joined by a separator: the first in secondary ink, the rest in tertiary,
+/// the status in the accent while it is what you hear ("Playing", "Paused"). The leading parts
+/// give way first, and at accessibility sizes the status shows alone.
+///
+/// Its download (`download`) shows on the row itself, never as a button: downloading dims the
+/// thumbnail under a small jade ↓, downloaded puts a grey ✓ before the second line. The only
+/// control is the trailing ⋯ (`menu`, the same menu as the row's long press), centred on the
+/// toolbar's ⋯ slot like the Now Playing bar's ⏸. Every row's separator starts at its title,
 /// whatever leads it.
 ///
 /// A folder row under a dragged row that it takes (`isDropTarget`) is washed and outlined in the
@@ -36,7 +37,7 @@ struct ListRow: View {
         case folder(symbol: String = Icons.folder, count: [String], cover: Image? = nil)
         /// A saved page: its site icon (or a letter tile).
         case page(artwork: Image? = nil, letter: String)
-        /// A chapter of a book or series.
+        /// A chapter in a book's preview: its title alone, after an empty mark's width.
         case chapter
         /// A page that is only an address so far (a link ☆ made, a chapter not fetched).
         case link
@@ -56,27 +57,20 @@ struct ListRow: View {
     let title: String
     /// Under the title, before the status: the site, "Ch 24", "not fetched yet".
     var subtitle: String?
-    /// A short note between the subtitle and the status ("Not saved").
+    /// A short note between the subtitle and the status ("Fetching text…", "2 h ago").
     var note: String?
     var progress: Progress = .unplayed(minutes: nil)
     var playState: PlayState = .idle
-    /// Tapping the row opens a screen: › in the trailing column (unless the row has ▶).
-    var opensScreen = false
-    var onPlay: (() -> Void)?
     /// A dragged row is over this one, and it takes the drop (a folder it would be filed in).
     var isDropTarget = false
     /// A dragged row would be placed beside this one, on this side: a line marks the place.
     var insertionEdge: VerticalEdge?
-    /// Its Download button: where its download stands and what a tap does (nil: none).
-    var download: Download?
+    /// Where its download stands: the dimmed thumbnail while downloading, the ✓ badge once done.
+    var download: DownloadState = .notDownloaded
     var isFavorite = false
     var folderHasDetails = false
-
-    /// A row's Download button.
-    struct Download {
-        var state: DownloadState
-        var action: () -> Void
-    }
+    /// The rows of its ⋯ menu, the same as its long press (nil: no ⋯, as in Edit).
+    var menu: AnyView?
 
     /// 56 pt at the default text size; larger text grows the row through its content, and the
     /// minimum only up to `BottomChrome.maxTextGrowth`.
@@ -86,6 +80,8 @@ struct ListRow: View {
     /// The two text lines' heights, scaled like their text: a page's thumbnail matches them.
     @ScaledMetric(relativeTo: TypeStyle.row.relativeTo) private var titleLineHeight = TypeStyle.row.lineHeight
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var captionLineHeight = TypeStyle.caption.lineHeight
+    /// The ⋯, scaled like a toolbar glyph (`moreGlyphSize`).
+    @ScaledMetric(relativeTo: .title3) private var scaledGlyph: CGFloat = ListRow.moreGlyphSize
     @Environment(\.dynamicTypeSize) private var typeSize
     /// The row's width, for the trailing column's place (`trailingColumnPadding`).
     @State private var width: CGFloat = 0
@@ -93,9 +89,9 @@ struct ListRow: View {
     var body: some View {
         HStack(spacing: Spacing.s) {
             // The title is the row's one VoiceOver element, its status the value (the rest is
-            // hidden); ▶ stays its own so play and open are separate actions.
+            // hidden); the ⋯ stays its own.
             HStack(spacing: Spacing.s) {
-                leading
+                downloadLeading
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: Spacing.xs) {
@@ -118,19 +114,21 @@ struct ListRow: View {
                 // The separator under the row starts at the title, for every kind of row.
                 .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             }
-            if let download {
-                HStack(spacing: Spacing.xxs) {
-                    DownloadStateButton(state: download.state, action: download.action)
-                        .accessibilityIdentifier("libraryRowDownload")
-                    // Without ▶ (a skipped page) its column stays, so Download lines up.
-                    if hasTrailingColumn { trailingColumn } else { Color.clear.frame(width: BottomChrome.minTapTarget, height: 1) }
+            if let menu {
+                Menu { menu } label: {
+                    Image(systemName: Icons.more)
+                        .font(.system(size: BottomChrome.grown(scaledGlyph, from: Self.moreGlyphSize), weight: .semibold))
+                        .foregroundStyle(Palette.secondaryInk)
+                        .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                        .contentShape(Rectangle())
                 }
-            } else {
-                trailingColumn
+                .buttonStyle(.borderless)
+                .accessibilityLabel("More")
+                .accessibilityIdentifier("rowMore")
             }
         }
         .padding(.leading, Spacing.m)
-        .padding(.trailing, hasTrailingColumn || download != nil ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
+        .padding(.trailing, menu != nil ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
         .padding(.vertical, Spacing.xs)
         .frame(minHeight: BottomChrome.grown(scaledMinHeight, from: 56))
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
@@ -139,11 +137,15 @@ struct ListRow: View {
         .opacity(isDimmed ? 0.6 : 1)
         .animation(Motion.snappy, value: isDropTarget)
         .animation(Motion.snappy, value: insertionEdge)
+        .animation(Motion.standard, value: download)
         .sensoryFeedback(.selection, trigger: isDropTarget) { _, isTarget in isTarget }
         .sensoryFeedback(.selection, trigger: insertionEdge) { _, edge in edge != nil }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
         .accessibilityElement(children: .contain)
     }
+
+    /// The ⋯'s size at the default text size; it grows like a toolbar glyph.
+    static let moreGlyphSize: CGFloat = 20
 
     /// Trailing padding that centres the 44 pt trailing column on the toolbar's ⋯ slot, for a
     /// row `rowWidth` wide in a list at the page margin: the toolbar row is wider by the
@@ -192,28 +194,6 @@ struct ListRow: View {
         }
     }
 
-    // MARK: - Trailing column
-
-    private var hasTrailingColumn: Bool { onPlay != nil || opensScreen }
-
-    private var isFolder: Bool {
-        if case .folder = kind { return true }
-        return false
-    }
-
-    @ViewBuilder
-    private var trailingColumn: some View {
-        if let onPlay {
-            PlayStateButton(state: playState, action: onPlay)
-        } else if opensScreen {
-            Image(systemName: Icons.disclosure)
-                .typeStyle(.caption, weight: .semibold)
-                .foregroundStyle(Palette.secondaryInk)
-                .frame(width: BottomChrome.minTapTarget)
-                .accessibilityHidden(true)
-        }
-    }
-
     /// What is in a folder, on its second line in place of a status (a folder whose pages play
     /// gives none: its place and time left stand there, in Edit too).
     private var folderCount: [String]? {
@@ -223,18 +203,26 @@ struct ListRow: View {
 
     // MARK: - Second line
 
-    /// The subtitle, the note, then the status, spaced apart on one line: "example.org   Not
-    /// saved   ◐ 4 min left". The subtitle and note give way first; at accessibility sizes they
-    /// are left out and the status truncates if it must, so the line never wraps or widens the
-    /// row.
+    /// The ✓ badge once downloaded, the subtitle, the note, then the status, spaced apart on one
+    /// line: "✓ example.org   ◐ 4 min left". The subtitle and note give way first; at
+    /// accessibility sizes they are left out and the status truncates if it must, so the line
+    /// never wraps or widens the row.
     @ViewBuilder
     private var secondLine: some View {
         let status = statusText
         // At accessibility sizes there is no room for both: the status alone (VoiceOver reads all).
         let leads = typeSize.isAccessibilitySize && status != nil ? []
             : [subtitle, note].compactMap { $0 } + (folderCount ?? [])
-        if !leads.isEmpty || status != nil {
+        let badged = download == .downloaded
+        if !leads.isEmpty || status != nil || badged {
             HStack(spacing: partSpacing) {
+                if badged {
+                    // Downloaded: a grey ✓ before the line, as tall as its text.
+                    Image(systemName: Icons.downloaded)
+                        .foregroundStyle(Palette.secondaryInk)
+                        .padding(.trailing, -partSpacing / 2)
+                        .transition(.opacity)
+                }
                 ForEach(Array(leads.enumerated()), id: \.offset) { index, text in
                     Text(text)
                         .foregroundStyle(index == 0 ? Palette.secondaryInk : Palette.tertiaryInk)
@@ -276,10 +264,9 @@ struct ListRow: View {
         case check
     }
 
-    /// Bars while it is what you hear, a ring part-way, ✓ once finished; a chapter shows these in
-    /// its leading column instead.
+    /// Bars while it is what you hear, a ring part-way (rings mean listening, nothing else), ✓
+    /// once finished.
     private var statusMark: StatusMark? {
-        if case .chapter = kind { return nil }
         if playState.isCurrent { return .bars }
         if case .partWay(let fraction, _) = progress { return .ring(fraction) }
         if case .finished = progress { return .check }
@@ -321,7 +308,7 @@ struct ListRow: View {
             case .skipped: parts.append("Skipped in playback")
             }
         }
-        if download?.state == .downloaded { parts.append(String(localized: "Downloaded")) }
+        if download != .notDownloaded { parts.append(download.label) }
         return parts.joined(separator: ", ")
     }
 
@@ -335,6 +322,22 @@ struct ListRow: View {
         if playState.isCurrent { return Palette.accent }
         if case .finished = progress { return Palette.secondaryInk }
         return Palette.ink
+    }
+
+    /// The thumbnail, dimmed under a small jade ↓ while it downloads.
+    private var downloadLeading: some View {
+        let downloading = download.isDownloading
+        return leading
+            .opacity(downloading ? 0.45 : 1)
+            .overlay {
+                if downloading {
+                    Image(systemName: Icons.downloading)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(Palette.onAccent, Palette.accent)
+                        .font(.system(size: thumbnailSide * 0.5))
+                        .transition(.opacity)
+                }
+            }
     }
 
     @ViewBuilder
@@ -358,23 +361,8 @@ struct ListRow: View {
         case .page(let artwork, let letter):
             ArtworkTile(image: artwork, letter: letter, size: thumbnailSide, fill: Palette.paper)
         case .chapter:
-            Group {
-                if playState.isCurrent {
-                    PlayingBars(animating: playState == .playing)
-                        .foregroundStyle(Palette.accent)
-                        .padding(Spacing.xxs)
-                } else {
-                    switch progress {
-                    case .finished:
-                        Image(systemName: Icons.checkmark).foregroundStyle(Palette.secondaryInk)
-                    case .partWay(let fraction, _):
-                        ProgressRing(fraction: fraction)
-                    case .unplayed, .skipped:
-                        Color.clear
-                    }
-                }
-            }
-            .frame(width: Glyph.mark, height: Glyph.mark)
+            Color.clear
+                .frame(width: Glyph.mark, height: Glyph.mark)
         case .link:
             Image(systemName: Icons.link)
                 .foregroundStyle(Palette.secondaryInk)
@@ -417,80 +405,67 @@ struct ProgressRing: View {
 
 #if DEBUG
 struct ListRowGallery: View {
+    private let menu = AnyView(Button("Play", systemImage: Icons.play) {})
+
     var body: some View {
         PreviewGallery {
             PreviewState("folder") {
-                ListRow(kind: .folder(count: ["4 pages"]), title: "Bonds", opensScreen: true)
-                ListRow(kind: .folder(symbol: Icons.favorited, count: ["12 pages"]), title: "Favorites", opensScreen: true)
+                ListRow(kind: .folder(count: ["4 pages"]), title: "Bonds", menu: menu)
+                ListRow(kind: .folder(symbol: Icons.favorited, count: ["12 pages"]), title: "Favorites", menu: menu)
                 ListRow(kind: .folder(count: ["Empty"], cover: Image(systemName: Icons.photo)), title: "A book with a cover",
-                        opensScreen: true)
+                        menu: menu)
             }
             PreviewState("folder, a dragged row over it") {
-                ListRow(kind: .folder(count: ["4 pages"]), title: "Bonds", opensScreen: true, isDropTarget: true)
+                ListRow(kind: .folder(count: ["4 pages"]), title: "Bonds", isDropTarget: true, menu: menu)
             }
             PreviewState("a page with a dragged row about to be placed above it") {
                 ListRow(kind: .page(letter: "M"), title: "Money Market Funds", subtitle: "investing.example.com",
-                        progress: .unplayed(minutes: 12), onPlay: {}, insertionEdge: .top)
+                        progress: .unplayed(minutes: 12), insertionEdge: .top, menu: menu)
             }
-            PreviewState("folder of pages: its place and its ▶") {
-                ListRow(kind: .folder(count: []), title: "Finance", subtitle: "Seven-Day Yield",
-                        progress: .partWay(fraction: 0.3, minutesLeft: 52), opensScreen: true, onPlay: {})
-            }
-            PreviewState("book: unplayed, part-way, playing") {
+            PreviewState("book: unplayed, part-way and downloading, playing and downloaded") {
                 ListRow(kind: .folder(symbol: Icons.book, count: []), title: "Pride and Prejudice",
-                        subtitle: "Jane Austen", progress: .unplayed(minutes: 645), opensScreen: true, onPlay: {})
+                        subtitle: "Jane Austen", progress: .unplayed(minutes: 645), menu: menu)
                 ListRow(kind: .folder(symbol: Icons.book, count: []), title: "Pride and Prejudice",
-                        subtitle: "Ch 24", progress: .partWay(fraction: 0.38, minutesLeft: 370), opensScreen: true,
-                        onPlay: {})
+                        subtitle: "Ch 24", progress: .partWay(fraction: 0.38, minutesLeft: 370),
+                        download: .downloading(fraction: 0.2), folderHasDetails: true, menu: menu)
                 ListRow(kind: .folder(symbol: Icons.library, count: []), title: "The Lighthouse Keeper",
                         subtitle: "Ch 14", progress: .partWay(fraction: 0.12, minutesLeft: 1210), playState: .playing,
-                        opensScreen: true, onPlay: {})
+                        download: .downloaded, menu: menu)
             }
-            PreviewState("page, unplayed") {
-                ListRow(kind: .page(letter: "M"), title: "Money Market Funds", subtitle: "investing.example.com",
-                        progress: .unplayed(minutes: 12), onPlay: {})
+            PreviewState("page: not downloaded, downloading, downloaded") {
+                ListRow(kind: .page(letter: "N"), title: "Notes on Tides", subtitle: "example.org",
+                        progress: .unplayed(minutes: 18), menu: menu)
+                ListRow(kind: .page(letter: "N"), title: "Notes on Tides", subtitle: "example.org",
+                        progress: .unplayed(minutes: 18), download: .downloading(fraction: 0.4), menu: menu)
+                ListRow(kind: .page(letter: "N"), title: "Notes on Tides", subtitle: "example.org",
+                        progress: .unplayed(minutes: 18), download: .downloaded, menu: menu)
             }
-            PreviewState("page, part-way; played, not saved") {
-                ListRow(kind: .page(letter: "B"), title: "Bond Ladders", subtitle: "investing.example.com",
-                        progress: .partWay(fraction: 0.4, minutesLeft: 6), onPlay: {})
-                ListRow(kind: .page(letter: "N"), title: "Notes on Tides", subtitle: "example.org", note: "Not saved",
-                        progress: .partWay(fraction: 0.6, minutesLeft: 4), onPlay: {})
-            }
-            PreviewState("page, playing") {
+            PreviewState("page: part-way, playing, paused while downloading, finished") {
                 ListRow(kind: .page(letter: "S"), title: "Seven-Day Yield: Definition, Calculation, and Example",
-                        subtitle: "investing.example.com", progress: .partWay(fraction: 0.58, minutesLeft: 9),
-                        playState: .playing, onPlay: {})
+                        subtitle: "investing.example.com", progress: .partWay(fraction: 0.4, minutesLeft: 6),
+                        download: .downloaded, menu: menu)
+                ListRow(kind: .page(letter: "C"), title: "Coupon Basics", subtitle: "example.com",
+                        progress: .partWay(fraction: 0.58, minutesLeft: 9), playState: .playing, download: .downloaded,
+                        menu: menu)
+                ListRow(kind: .page(letter: "C"), title: "Coupon Basics", subtitle: "example.com",
+                        progress: .partWay(fraction: 0.58, minutesLeft: 9), playState: .paused,
+                        download: .downloading(fraction: 0.1), menu: menu)
+                ListRow(kind: .page(letter: "B"), title: "Bond Ladders", subtitle: "example.com", progress: .finished,
+                        menu: menu)
             }
-            PreviewState("in a folder: Download beside ▶ (available, downloading, downloaded)") {
-                ListRow(kind: .page(letter: "I"), title: "Index Funds", progress: .unplayed(minutes: 12), onPlay: {},
-                        download: .init(state: .available) {})
-                ListRow(kind: .page(letter: "B"), title: "Book Two, Chapter Three: The Road to the Coast",
-                        progress: .unplayed(minutes: 5), playState: .playing, onPlay: {},
-                        download: .init(state: .downloading(fraction: 0.4)) {})
-                ListRow(kind: .page(letter: "T"), title: "Title Page", progress: .skipped,
-                        download: .init(state: .downloaded) {})
-                ListRow(kind: .folder(symbol: Icons.book, count: []), title: "Pride and Prejudice",
-                        subtitle: "Ch 24", progress: .partWay(fraction: 0.38, minutesLeft: 370), opensScreen: true,
-                        onPlay: {}, download: .init(state: .downloaded) {}, folderHasDetails: true)
+            PreviewState("in a folder: skipped; in Edit (no ⋯)") {
+                ListRow(kind: .page(letter: "T"), title: "Title Page", progress: .skipped, menu: menu)
+                ListRow(kind: .page(letter: "I"), title: "Index Funds", progress: .unplayed(minutes: 12))
             }
-            PreviewState("page, finished") {
-                ListRow(kind: .page(letter: "C"), title: "Coupon Basics", subtitle: "investing.example.com",
-                        progress: .finished, onPlay: {})
-            }
-            PreviewState("chapter: finished, playing, part-way, unplayed, skipped") {
+            PreviewState("a book's chapters before import") {
                 VStack(spacing: 0) {
-                    ListRow(kind: .chapter, title: "Chapter 11", progress: .finished, onPlay: {})
-                    ListRow(kind: .chapter, title: "Chapter 12", progress: .partWay(fraction: 0.3, minutesLeft: 18),
-                            playState: .playing, onPlay: {})
-                    ListRow(kind: .chapter, title: "Chapter 24", progress: .partWay(fraction: 0.5, minutesLeft: 6),
-                            onPlay: {})
-                    ListRow(kind: .chapter, title: "Chapter 25", progress: .unplayed(minutes: 11), onPlay: {})
-                    ListRow(kind: .chapter, title: "Title page", progress: .skipped)
+                    ListRow(kind: .chapter, title: "Chapter 1")
+                    ListRow(kind: .chapter, title: "Chapter 2")
                 }
             }
-            PreviewState("link, and a link chapter that fetches then plays") {
-                ListRow(kind: .link, title: "investing.example.com")
-                ListRow(kind: .link, title: "Chapter 26", subtitle: "not fetched yet", onPlay: {})
+            PreviewState("link, and a link chapter waiting for its text") {
+                ListRow(kind: .link, title: "investing.example.com", menu: menu)
+                ListRow(kind: .link, title: "Chapter 26", subtitle: "not fetched yet", note: "Waiting", menu: menu)
             }
         }
     }

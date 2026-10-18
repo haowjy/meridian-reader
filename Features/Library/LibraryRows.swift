@@ -1,20 +1,23 @@
 import SwiftUI
 
-/// A page row: a saved page (its ▶), a link (lighter, 🔗, no ▶), a followed story's chapter
-/// waiting for its text (a link with ▶, which fetches it first, and its status: "Fetching text…",
-/// "Retrying in 1:52", "Waiting"), or a page played without saving ("Not saved", *Save* in its
-/// menu; decision D5). Every page uses this same row, including
-/// imported chapters: two lines, the title and then its status (decision D21). In a folder the
-/// second line is the status alone ("5 min", "skipped", "Playing"): the folder's header already
-/// names the author or site, so rows don't repeat it. Front matter is dimmed and "skipped" (any
-/// page skipped in playback is), with no ▶. Saved pages have Download beside ▶. Tap
-/// opens it (the Reader, Now Playing when it is what you hear, the browser for a link);
-/// long-press is its menu (decision D11); swipe left removes it from the Library, and from every
-/// list it shows in (`LibraryQueries`). A page in the
-/// Library lifts into a drag from the long press, to be filed in a folder or placed between rows
-/// (`LibraryDrag`), a chapter as any page (decision D19); not on the home's Favorites tab or in
-/// search results (`LibraryScreenKey.filtered`), where a page in a folder shows the folder's path
-/// instead of its site. While its screen is in Edit the List's selection takes the tap.
+/// A page row: a saved page, a link (lighter, 🔗), a followed story's chapter waiting for its
+/// text (a link with its status: "Fetching text…", "Retrying in 1:52", "Waiting"), or a page
+/// played without saving. Every page uses this same row, including imported chapters: two lines,
+/// the title and then its status (decision D21). In a folder the second line is the status alone
+/// ("5 min", "Skipped", "Playing"): the folder's header already names the author or site, so
+/// rows don't repeat it. Front matter is dimmed and "Skipped" (any page skipped in playback is).
+///
+/// Tapping the row plays it (`LibraryActions.play`; a waiting chapter is fetched first), except
+/// the page you hear, which opens Now Playing, so a stray tap never pauses it, and a link that
+/// can't play, which opens in the browser. Its only control is ⋯ (`PageMenu`), the same menu as
+/// its long press (decision D11), whose first row, *Read*, opens it. Its download shows on the
+/// row (`DownloadCenter.state(of:)`): dimmed under a jade ↓ while downloading, a grey ✓ once
+/// downloaded. Swipe left removes it from the Library, and from every list it shows in
+/// (`LibraryQueries`). A page in the Library lifts into a drag from the long press, to be filed in
+/// a folder or placed between rows (`LibraryDrag`), a chapter as any page (decision D19); not on
+/// the home's Favorites tab or in search results (`LibraryScreenKey.filtered`), where a page in a
+/// folder shows the folder's path instead of its site. While its screen is in Edit the List's
+/// selection takes the tap, and the row has no ⋯.
 struct LibraryPageRow: View {
     let page: Page
     /// *Select* in the menu: enters Edit with this row selected (folder screens only).
@@ -52,16 +55,23 @@ struct LibraryPageRow: View {
     /// A followed story's chapter waiting for its text: where it stands.
     private var chapterStatus: FollowCenter.ChapterStatus? { follow.status(of: page) }
 
-    /// The row's note: a followed story's chapter says where its text stands ("Fetching text…",
-    /// "Waiting"); a page played without saving, "Not saved".
+    /// A followed story's chapter says where its text stands ("Fetching text…", "Waiting").
     private func note(now: Date) -> String? {
-        if let status = chapterStatus { return FollowText.rowNote(status, now: now) }
-        return page.isLink || page.isInLibrary ? nil : String(localized: "Not saved")
+        chapterStatus.map { FollowText.rowNote($0, now: now) }
     }
 
-    /// A link plays only as a followed story's chapter (fetched first, `LibraryActions.play`).
-    private var plays: Bool {
-        (!page.isLink || page.isWaitingChapter) && !page.skipsInPlayback && !isEditing
+    /// A tap: the page you hear opens Now Playing, a link that can't play opens in the browser
+    /// (`LibraryActions.open`); anything else plays (a waiting chapter once fetched).
+    private func activate() {
+        if playState.isCurrent || (page.isLink && !page.isWaitingChapter) {
+            actions.open(page)
+        } else {
+            actions.play(page)
+        }
+    }
+
+    private var menu: PageMenu {
+        PageMenu(page: page, actions: actions, downloads: downloads, onSelect: onSelect)
     }
 
     private var playState: PlayState {
@@ -73,10 +83,10 @@ struct LibraryPageRow: View {
         ListRow(kind: kind, title: page.title, subtitle: subtitle, note: note(now: now),
                 progress: page.isLink ? .unplayed(minutes: nil) : actions.progress(of: page),
                 playState: playState,
-                onPlay: plays ? { actions.play(page) } : nil,
                 insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil,
-                download: download, isFavorite: marksFavorite && page.isFavorite)
-            .opensOnTap(isEditing ? nil : { actions.open(page) })
+                download: downloads.state(of: page), isFavorite: marksFavorite && page.isFavorite,
+                menu: isEditing ? nil : AnyView(menu))
+            .opensOnTap(isEditing ? nil : activate)
             .libraryDropRow(.page(page.listenKey), in: screen)
             .libraryDrag(dragID, in: screen)
             .contextMenu { menu }
@@ -102,69 +112,16 @@ struct LibraryPageRow: View {
         if let folder = page.folder { return screenKey == .filtered ? folder.pathName : nil }
         return page.byline.isEmpty ? nil : page.byline
     }
-
-    /// A saved page's Download, beside its ▶ (none out of the Library, or in Edit).
-    private var download: ListRow.Download? {
-        guard page.isInLibrary, !isEditing else { return nil }
-        let target = DownloadRecord.Target.page(page.listenKey)
-        return ListRow.Download(state: downloads.state(of: target, isDownloaded: downloads.isDownloaded(page))) {
-            DownloadActions(downloads: downloads, shell: shell).download(page)
-        }
-    }
-
-    /// Its long-press menu, row by row through `MenuAvailability` (DR-09): *Select* only where
-    /// the screen has Edit; *Play from Here* and the play-order rows only in a folder; *Share* only
-    /// with a web address. The rest shows for every page, dimmed until it can run (a page not in
-    /// the Library can't be moved, marked or downloaded until it is saved).
-    @ViewBuilder
-    private var menu: some View {
-        let inLibrary = page.isInLibrary
-        let inFolder = page.folder != nil
-        let isSaved = page.isSavedToLibrary
-        Button("Select", systemImage: Icons.select) { onSelect?() }
-            .menuAvailability(MenuAvailability(applies: onSelect != nil))
-        Button("Play from Here", systemImage: Icons.play) { actions.playFromStart(page) }
-            .menuAvailability(MenuAvailability(applies: inFolder, when: isSaved || page.isWaitingChapter))
-        Button(Verbs.moveTo, systemImage: Icons.move) { actions.move([.page(page)]) }
-            .menuAvailability(MenuAvailability(when: inLibrary))
-        Button(page.finishedAt == nil ? Verbs.markFinished : Verbs.markUnfinished,
-               systemImage: page.finishedAt == nil ? Icons.markFinished : Icons.markUnfinished) {
-            actions.setFinished([page], page.finishedAt == nil)
-        }
-        .menuAvailability(MenuAvailability(when: isSaved))
-        Button("Mark All Above as Finished", systemImage: Icons.markAllAboveFinished) { actions.markAllAbove(page) }
-            .menuAvailability(MenuAvailability(applies: inFolder, when: isSaved))
-        Button(page.skipsInPlayback ? "Play in Playback" : "Skip in Playback",
-               systemImage: page.skipsInPlayback ? Icons.includeInPlayback : Icons.skipInPlayback) {
-            actions.toggleSkipsInPlayback(page)
-        }
-        // A waiting chapter too: one whose text can't be had is skipped so playback goes past it.
-        .menuAvailability(MenuAvailability(applies: inFolder, when: isSaved || page.isWaitingChapter))
-        Button("Share", systemImage: Icons.share) { actions.share(page) }
-            .menuAvailability(MenuAvailability(applies: page.url?.isWeb == true))
-        Button("Download", systemImage: Icons.download) { DownloadActions(downloads: downloads, shell: shell).download(page) }
-            .menuAvailability(MenuAvailability(when: inLibrary && !downloads.isQueued(.page(page.listenKey))))
-        Button("Delete Downloads", systemImage: Icons.deleteDownloads) { downloads.deleteDownloads(of: page) }
-            .menuAvailability(MenuAvailability(when: isSaved && library.hasDownloads(page)))
-        Button(inLibrary ? Verbs.removeFromLibrary : "Save", systemImage: inLibrary ? Icons.unsave : Icons.save,
-               role: inLibrary ? .destructive : nil) {
-            if inLibrary { actions.remove([page]) } else { actions.save(page) }
-        }
-        let isFavorite = page.isFavorite
-        Button(isFavorite ? "Remove from Favorites" : "Add to Favorites",
-               systemImage: isFavorite ? Icons.unfavorite : Icons.favorite) {
-            FavoriteFlow(library: library, shell: shell).toggle(page)
-        }
-        .menuAvailability(MenuAvailability(when: LibraryStore.canFavorite(page)))
-    }
 }
 
-/// A folder row (a folder you made, a book or series, all alike: decision D19): pushes
+/// A folder row (a folder you made, a book or series, all alike: decision D19): a tap pushes
 /// its screen. Its cover, when it has one (a book's, or one given in *Edit Details*), stands in
-/// for the symbol. A folder whose pages play shows its place (the page it is at), the time left
-/// and its own ▶, which resumes it there and carries on page to page; any other folder shows its
-/// count and ›. Long-press is its menu, and lifts it into a drag; a dragged row let go on it is
-/// filed in it. Swipe left asks to delete it. On the home's Favorites tab or in search results
+/// for the symbol. A folder whose pages play shows its place (the page it is at) and the time
+/// left; any other folder shows its count. Its only control is ⋯ (`FolderMenu`, with *Continue*
+/// and *Play from Start*), the same menu as its long press, which also lifts it into a drag; a
+/// dragged row let go on it is filed in it. Its download shows as a page's does: dimmed under a
+/// jade ↓ while its download runs, a grey ✓ once every page it covers is downloaded; Download
+/// itself is in its screen's header. Swipe left asks to delete it. On the home's Favorites tab or in search results
 /// (`LibraryScreenKey.filtered`) a nested folder shows its parents' path, opens under them, so ‹
 /// goes to its parent, and doesn't lift.
 struct LibraryFolderRow: View {
@@ -196,11 +153,13 @@ struct LibraryFolderRow: View {
     @ViewBuilder private var liveBody: some View {
         let pages = playOrder
         let progress = actions.progress(of: folder, pages: pages)
-        opening(row(progress, isDownloaded: downloads.isDownloaded(folder, pages: pages)))
+        let menu = FolderMenu(folder: folder, progress: progress, hasPages: !pages.isEmpty, actions: actions,
+                              downloads: downloads, screen: screen, onSelect: onSelect)
+        opening(row(progress, download: downloads.state(of: folder, pages: pages), menu: isEditing ? nil : AnyView(menu)))
             .accessibilityIdentifier("folderRow")
             .libraryDropRow(.folder(folder.id), in: screen)
             .libraryDrag(isEditing || isFiltered ? nil : .folder(folder.id), in: screen)
-            .contextMenu { menu(progress) }
+            .contextMenu { menu }
             .swipeActions(edge: .trailing) {
                 Button("Delete") { screen.confirmDelete([folder]) }
                     .tint(Palette.destructive)
@@ -209,8 +168,8 @@ struct LibraryFolderRow: View {
 
     /// A tap opens its screen. On the filtered home it opens under its parents, as every other
     /// way to a folder does. Elsewhere the link sits behind the row, so the List draws no
-    /// disclosure of its own: the row's › shares the ▶ column. Selecting the cell (a tap) follows
-    /// it; in Edit the List's selection takes the tap instead.
+    /// disclosure of its own. Selecting the cell (a tap) follows it; in Edit the List's selection
+    /// takes the tap instead.
     @ViewBuilder
     private func opening(_ row: some View) -> some View {
         if isFiltered {
@@ -237,25 +196,17 @@ struct LibraryFolderRow: View {
         (folder.pages ?? []).filter(\.isLive)
     }
 
-    @ViewBuilder
-    private func row(_ progress: FolderProgress, isDownloaded: Bool) -> some View {
+    private func row(_ progress: FolderProgress, download: DownloadState, menu: AnyView?) -> some View {
         let plays = progress.hasPagesToPlay
         let kind = ListRow.Kind.folder(symbol: folder.rowSymbol, count: plays ? [] : contents,
                                        cover: folder.hasDetails ? folder.coverImage : nil)
-        let isDropTarget = screen.dropTarget == folder.id
-        let edge = screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil
-        let isFavorite = marksFavorite && folder.isFavorite
-        if plays {
-            ListRow(kind: kind, title: folder.name, subtitle: location ?? place(progress), progress: rowProgress(progress),
-                    playState: actions.playState(of: folder), opensScreen: true,
-                    onPlay: isEditing ? nil : { actions.playFolder(folder) }, isDropTarget: isDropTarget,
-                    insertionEdge: edge, download: download(isDownloaded: isDownloaded), isFavorite: isFavorite,
-                    folderHasDetails: folder.hasDetails)
-        } else {
-            ListRow(kind: kind, title: folder.name, subtitle: location ?? folder.byline, opensScreen: true,
-                    isDropTarget: isDropTarget, insertionEdge: edge, isFavorite: isFavorite,
-                    folderHasDetails: folder.hasDetails)
-        }
+        return ListRow(kind: kind, title: folder.name, subtitle: location ?? (plays ? place(progress) : folder.byline),
+                       progress: plays ? rowProgress(progress) : .unplayed(minutes: nil),
+                       playState: plays ? actions.playState(of: folder) : .idle,
+                       isDropTarget: screen.dropTarget == folder.id,
+                       insertionEdge: screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil,
+                       download: download, isFavorite: marksFavorite && folder.isFavorite,
+                       folderHasDetails: folder.hasDetails, menu: menu)
     }
 
     /// What is in it, as its screen's header counts it: ["2 folders", "3 pages"]; ["Empty"].
@@ -266,14 +217,6 @@ struct LibraryFolderRow: View {
         if folders > 0 { parts.append(String(localized: "\(folders) folder\(folders == 1 ? "" : "s")")) }
         if pages > 0 { parts.append(String(localized: "\(pages) page\(pages == 1 ? "" : "s")")) }
         return parts.isEmpty ? [String(localized: "Empty")] : parts
-    }
-
-    /// Its Download, beside its ▶ (none in Edit).
-    private func download(isDownloaded: Bool) -> ListRow.Download? {
-        guard !isEditing, !livePages.isEmpty else { return nil }
-        return ListRow.Download(state: downloads.state(of: .folder(folder.id), isDownloaded: isDownloaded)) {
-            DownloadActions(downloads: downloads, shell: shell).download(folder)
-        }
     }
 
     /// Once it has a place: the title of the page it is at. Before that (and once finished), its
@@ -289,28 +232,6 @@ struct LibraryFolderRow: View {
         if let fraction = progress.fraction { return .partWay(fraction: fraction, minutesLeft: progress.minutesLeft) }
         return .unplayed(minutes: progress.minutesLeft > 0 ? progress.minutesLeft : nil)
     }
-
-    /// Its long-press menu (`MenuAvailability`, DR-09): *Select* only where the screen has Edit;
-    /// *Continue*, *From Start* and *Download* dimmed while it has no pages to play or download.
-    @ViewBuilder
-    private func menu(_ progress: FolderProgress) -> some View {
-        Button("Select", systemImage: Icons.select) { onSelect?() }
-            .menuAvailability(MenuAvailability(applies: onSelect != nil))
-        Button("Continue", systemImage: Icons.play) { actions.playFolder(folder) }
-            .menuAvailability(MenuAvailability(when: progress.hasPagesToPlay))
-        Button(Verbs.playFromStart, systemImage: Icons.previous) { actions.playFolderFromStart(folder) }
-            .menuAvailability(MenuAvailability(when: progress.hasPagesToPlay))
-        Button("Download", systemImage: Icons.download) { DownloadActions(downloads: downloads, shell: shell).download(folder) }
-            .menuAvailability(MenuAvailability(when: !livePages.isEmpty && !downloads.isQueued(.folder(folder.id))))
-        Button(folder.isFavorite ? "Remove from Favorites" : "Add to Favorites",
-               systemImage: folder.isFavorite ? Icons.unfavorite : Icons.favorite) {
-            FavoriteFlow(library: library, shell: shell).toggle(folder)
-        }
-        Button(Verbs.moveTo, systemImage: Icons.move) { actions.move([.folder(folder)]) }
-        Button("Rename", systemImage: Icons.rename) { screen.rename(folder) }
-        Button("Edit Details", systemImage: Icons.editDetails) { shell.present(.folderDetails(folder.id)) }
-        Button("Delete…", systemImage: Icons.delete, role: .destructive) { screen.confirmDelete([folder]) }
-    }
 }
 
 /// A row whose page or folder a saved delete just took, for the one redraw before its list drops
@@ -322,8 +243,8 @@ private struct DeletedRow: View {
 }
 
 extension View {
-    /// A row that opens on a tap (and VoiceOver's activate). nil: no tap of its own, so a List in
-    /// Edit selects the row instead.
+    /// A row that acts on a tap (and VoiceOver's activate): opens, or plays. nil: no tap of its
+    /// own, so a List in Edit selects the row instead.
     @ViewBuilder
     func opensOnTap(_ open: (() -> Void)?) -> some View {
         if let open {

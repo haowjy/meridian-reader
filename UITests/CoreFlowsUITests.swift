@@ -44,7 +44,7 @@ final class CoreFlowsUITests: XCTestCase {
         let app = launchLibrary()
         let cell = libraryCell(app, "Demo Listen Article")
         XCTAssertTrue(appears(cell, timeout: 5), "Pages: the demo article")
-        cell.buttons["Play"].tap()
+        libraryRow(app, "Demo Listen Article").tap()
         let bar = app.buttons["nowPlayingBarPlayPause"]
         XCTAssertTrue(appears(bar, timeout: 10), "the bar shows what you hear")
         XCTAssertTrue(eventually(10) { bar.label == "Pause" }, "playing")
@@ -72,8 +72,8 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertFalse(libraryRow(app, "Demo Listen Article").exists, "search doesn't find it")
     }
 
-    /// A folder opened from the Library plays from its header: *Play from Start* plays its first
-    /// page, and the round button shows it playing.
+    /// A folder opened from the Library plays from its header: *More* › *Play from Start* plays its
+    /// first page, and the big ▶ shows it playing (⏸).
     func testOpenAFolderAndPlayIt() throws {
         let app = launchLibrary()
         let folder = libraryRow(app, "Demo Finance")
@@ -82,12 +82,15 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(appears(app.navigationBars["Demo Finance"], timeout: 5), "the folder's screen")
 
         let round = app.buttons["folderContinue"]
-        XCTAssertTrue(appears(round, timeout: 5), "the round button")
-        app.buttons["folderPlayFromStart"].tap()
+        XCTAssertTrue(appears(round, timeout: 5), "the big ▶")
+        app.buttons["folderMore"].tap()
+        let fromStart = app.buttons["Play from Start"]
+        XCTAssertTrue(appears(fromStart, timeout: 3), "More's menu")
+        fromStart.tap()
         let bar = find(app, "nowPlayingBarOpen")
         XCTAssertTrue(appears(bar, timeout: 10))
         XCTAssertTrue(eventually(10) { bar.label.contains("Seven-Day Yield") }, "its first page: \(bar.label)")
-        XCTAssertTrue(eventually(5) { round.label.hasPrefix("Playing") }, "the round button: \(round.label)")
+        XCTAssertTrue(eventually(5) { round.label == "Pause" }, "the big ▶: \(round.label)")
         find(app, "nowPlayingBarPlayPause").tap()
     }
 }

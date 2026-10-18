@@ -3,35 +3,33 @@ import SwiftUI
 
 /// One screen for every folder at every depth, books and followed stories included (decision
 /// D19): the header, subfolders first (by their order), then pages by the folder's sort
-/// (`LibraryPageRow` everywhere, including imported chapters). A folder whose pages play has
-/// header actions: *Continue* and *From Start*, and its Download switch; a followed story its
-/// status line (Follow).
-/// A folder with details (a book's from its file, or any folder's from *Edit Details*: a cover or
-/// an author) has the detailed header top: the cover beside the title, the author before the
-/// counts. *Edit*, or *Select* in a row's
-/// long-press menu, puts check circles on the rows (and drag handles when the sort is *Manual*);
-/// the surface's bottom bar then acts on the selection. Out of
-/// Edit, a long press lifts a row to drop on a folder or between rows (`LibraryDrag`); placing a
-/// page between pages makes the sort *Manual*.
+/// (`LibraryPageRow` everywhere, including imported chapters). The header is centred
+/// (`FolderHeader`): a folder with details (a book's from its file, or any folder's from *Edit
+/// Details*: a cover or an author) has its cover above the title, the author before the counts.
+/// A followed story has its status line (Follow). A folder whose pages play has the action row:
+/// its Download control (the folder's Download toggle, F7), the big ▶ (Continue) and *More* (the
+/// folder's menu, as its row's ⋯). *Edit*, or *Select* in a row's menu, puts check circles on the
+/// rows (and drag handles when the sort is *Manual*); the surface's bottom bar then acts on the
+/// selection. Out of Edit, a long press lifts a row to drop on a folder or between rows
+/// (`LibraryDrag`); placing a page between pages makes the sort *Manual*.
 ///
 /// The name shows once, in the header; the navigation bar's title stays blank until the
 /// header's title scrolls under it.
 ///
 /// ```
 /// ‹                                                   Edit
-/// Finance
-/// 2 folders   7 pages
-/// ━━━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░░░░
-/// 38%   52 min left
-/// ( ▶ Continue  3 of 7             ) ( ⏮ From Start )   one line, always (`ActionButtonRow`)
-/// ⬇ Download                                    ( ●)   the folder's Download switch
-///  📁 Bonds                                ›
+///                         Finance
+///                    2 folders   7 pages
+///                  3 of 7   38%   52 min left
+///                ◯↓         ( ▶ )         ⋯
+///             Download                   More
+///  📁 Bonds                                ⋯
 ///     4 pages
-///  ▣ Coupon Basics                      ✓   ▶
-///  ▣ ✓ Finished
-///  ▣ Seven-Day Yield                    ⬇   ⏸   ← playing: tinted, with bars
+///  ▣ Coupon Basics                         ⋯
+///  ▣ ✓ ✓ Finished                               ← downloaded, finished
+///  ▣ Seven-Day Yield                       ⋯   ← playing: tinted, with bars
 ///  ▣ ▂▅▇ Playing
-///  🔗  investing.example.com                     (link: lighter, no ▶)
+///  🔗  investing.example.com                ⋯   (link: lighter)
 /// ```
 struct FolderScreen: View {
     let folder: Folder
@@ -104,7 +102,10 @@ private struct FolderContentsList: View {
     @Environment(FollowCenter.self) private var follow
     @Environment(\.speechController) private var speech
     @Environment(LibraryScreenState.self) private var screen
+    @Environment(DownloadCenter.self) private var downloads
     @Query private var queriedPages: [Page]
+    /// The Download control asks before turning the toggle off.
+    @State private var confirmsTurnOff = false
 
     @Binding var headerTitleHidden: Bool
     /// Where the list's visible content starts (under the navigation bar), in global coordinates.
@@ -190,29 +191,44 @@ private struct FolderContentsList: View {
 
     // MARK: - Header
 
-    /// A folder with details (a cover or an author) has a book's header: the cover beside the
-    /// title, the author before the counts. Without them, the title and counts. Under them: a
-    /// followed story's status (`FollowStatus`), then, when its pages play, the play buttons and
-    /// the Download switch.
-    @ViewBuilder
+    /// The centred header (`FolderHeader`): the cover for a folder with details, the title,
+    /// details and where it is; a followed story's status (`FollowStatus`); then, when its pages
+    /// play, the Download control, the big ▶ and *More*.
     private var header: some View {
-        let title = folder.name
         let style: FolderHeaderStyle = folder.hasDetails ? .detailed(cover: folder.coverImage) : .folder
         let detail = [folder.byline].compactMap { $0 } + counts
         let playback = actions.progress(of: folder, pages: pages)
-        let bar = playback.hasPagesToPlay ? playback.header : nil
-        FolderHeader(style: style, title: title, detail: detail, progress: bar?.fraction,
-                     progressLabel: bar?.label ?? []) {
-            if folder.kind == .series || playback.hasPagesToPlay {
-                VStack(alignment: .leading, spacing: Spacing.s) {
-                    if folder.kind == .series { FollowStatus(folder: folder, pages: pages) }
-                    if playback.hasPagesToPlay {
-                        FolderPlayButtons(folder: folder, title: playback.buttonTitle, actions: actions)
-                        FolderDownloadSwitch(folder: folder)
-                    }
-                }
-            }
+        return FolderHeader(style: style, title: folder.name, detail: detail,
+                            progressLabel: playback.hasPagesToPlay ? playback.headerLine : [],
+                            actions: playback.hasPagesToPlay ? headerActions : nil) {
+            if folder.kind == .series { FollowStatus(folder: folder, pages: pages) }
+        } more: {
+            FolderMenu(folder: folder, progress: playback, hasPages: !pages.isEmpty, actions: actions,
+                       downloads: downloads, screen: screen)
         }
+        .confirmationDialog(Verbs.turnOffDownload, isPresented: $confirmsTurnOff, titleVisibility: .hidden) {
+            Button(Verbs.turnOffDownload, role: .destructive) { downloads.turnOff(folder) }
+            Button(Verbs.cancel, role: .cancel) {}
+        } message: {
+            Text("Downloaded audio stays. New pages won’t download.")
+        }
+    }
+
+    /// The Download control, the ▶ (`LibraryActions.playFolder`) and their states. The control
+    /// downloads when it shows ↓ (turning the toggle on, and listing again pages whose downloads
+    /// were deleted, P8); with the toggle on it asks to turn it off (`DownloadCenter.turnOff`:
+    /// what is downloaded stays); downloaded with the toggle off, it turns it on (new pages
+    /// download).
+    private var headerActions: FolderHeaderActions {
+        let state = downloads.state(of: folder, pages: pages)
+        let isOn = downloads.isOn(folder)
+        return FolderHeaderActions(download: state, downloadIsOn: isOn, onDownload: {
+            if isOn && state != .notDownloaded {
+                confirmsTurnOff = true
+            } else {
+                DownloadActions(downloads: downloads, shell: shell).download(folder)
+            }
+        }, play: actions.playState(of: folder), onPlay: { actions.playFolder(folder) })
     }
 
     /// ["2 folders", "7 pages"]; none for an empty folder, whose list says so.

@@ -158,7 +158,7 @@ another address cancelled), and the 📄 at the end of its header's address labe
 extracts that loaded page for the Reader text, as the browser's Reader does.
 The chapters' text is fetched one at a time while the app is in front (the chapter ▶ asked for,
 else the one after the page playing, else the oldest story's first waiting chapter) and stored in
-place (`storeFetchedText`; nothing renders: the folder's Download switch decides that). A
+place (`storeFetchedText`; nothing renders: the folder's Download toggle decides that). A
 chapter's address the library already has stays one page: one filed in a folder stays there, one
 loose at the top level or out of the Library joins the story. A chapter
 whose site refuses or doesn't answer is tried again after the back-off, four times, then waits for

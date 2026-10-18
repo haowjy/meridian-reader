@@ -10,11 +10,14 @@ import Foundation
 /// | Save to Folder… | `Icons.save` |
 /// | Save to Library / Remove from Library | `Icons.save` / `Icons.unsave` |
 /// | Add to Favorites / Remove from Favorites | `Icons.favorite` / `Icons.unfavorite` |
-/// | From Start (Play from Start in menus) | `Icons.previous` |
+/// | Play from Start | `Icons.previous` |
 /// | Mark as Finished / Mark as Unfinished | `Icons.markFinished` / `Icons.markUnfinished` |
 /// | Remove | `Icons.delete` |
 /// | Download, Download Folder, Download Book | `Icons.download` |
+/// | Remove Download (a page) | `Icons.removeDownload` |
+/// | Turn Off Download (a folder) | `Icons.turnOffDownload` |
 /// | Delete Downloads | `Icons.deleteDownloads` |
+/// | Read | `Icons.reader` |
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
 /// | Settings | `Icons.settings` |
 /// | Downloads | `Icons.downloads` |
@@ -27,15 +30,15 @@ enum Verbs {
     static let removeFromLibrary = String(localized: "Remove from Library")
     static let addToFavorites = String(localized: "Add to Favorites")
     static let removeFromFavorites = String(localized: "Remove from Favorites")
-    /// A folder header's secondary button; it keeps this name at every width (an icon alone
-    /// before a shorter word).
-    static let fromStart = String(localized: "From Start")
-    /// *From Start* where the menu has no folder to name it against.
     static let playFromStart = String(localized: "Play from Start")
+    /// A page row's menu: open it to read (the Reader; Now Playing for the page you hear).
+    static let read = String(localized: "Read")
     static let markFinished = String(localized: "Mark as Finished")
     static let markUnfinished = String(localized: "Mark as Unfinished")
     static let remove = String(localized: "Remove")
     static let download = String(localized: "Download")
+    static let removeDownload = String(localized: "Remove Download")
+    static let turnOffDownload = String(localized: "Turn Off Download")
     static let deleteDownloads = String(localized: "Delete Downloads")
     /// The ⋯ panel's last row and the screen it opens.
     static let settings = String(localized: "Settings")

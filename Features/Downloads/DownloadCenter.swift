@@ -43,7 +43,7 @@ final class DownloadCenter {
         case alreadyQueued
         /// Nothing in it plays (a finished book): a page's download isn't made.
         case nothingToDownload
-        /// A folder's switch is on, with nothing to download yet (a story you're caught up on):
+        /// A folder's toggle is on, with nothing to download yet (a story you're caught up on):
         /// the pages added later download.
         case waitingForNew
     }
@@ -126,30 +126,39 @@ final class DownloadCenter {
         records.first { $0.target == target }
     }
 
-    /// The download covering `target` is still to finish (row menus offer no second *Download*).
+    /// The download covering `target` is still to finish.
     func isQueued(_ target: DownloadRecord.Target) -> Bool {
         record(for: target)?.hasQueuedPages == true
     }
 
-    /// What a Download button for `target` shows: ready to ask, how far while queued, or
-    /// downloaded (`isDownloaded`, which the caller has from `isDownloaded(_:)`).
-    func state(of target: DownloadRecord.Target, isDownloaded: Bool) -> DownloadState {
-        if let record = record(for: target), record.hasQueuedPages {
+    /// Where `page`'s download stands, the one answer its row's mark and its menu's *Download* /
+    /// *Remove Download* read: downloading while any download (its own or its folder's) has it
+    /// queued, paused ones too, and that wins over downloaded (a re-download in flight);
+    /// downloaded by the Downloads list's own rule (`DownloadOverview.isDownloaded`), which audio
+    /// rendered only by listening never meets. A page out of the Library has no download.
+    func state(of page: Page) -> DownloadState {
+        guard page.isInLibrary else { return .notDownloaded }
+        let key = page.listenKey
+        if records.contains(where: { $0.entries.contains { $0.key == key && $0.state == .queued } }) {
+            let active = activeProgress
+            return .downloading(fraction: active?.key == key ? active?.fraction ?? 0 : 0)
+        }
+        return isDownloaded([key]) ? .downloaded : .notDownloaded
+    }
+
+    /// Where `folder`'s download stands, for its row and its header: downloading while its
+    /// download has pages queued (paused included), by the Downloads list's figure
+    /// (`DownloadOverview.fraction`); downloaded when every page it covers is (`covers`; with none
+    /// to cover, while its toggle is on). `pages`: its pages in play order (a row passes what it
+    /// already holds, so this fetches nothing; the cache's indexes are in memory).
+    func state(of folder: Folder, pages: [Page]) -> DownloadState {
+        let record = record(for: .folder(folder.id))
+        if let record, record.hasQueuedPages {
             return .downloading(fraction: DownloadOverview.fraction(of: record, active: activeProgress))
         }
-        return isDownloaded ? .downloaded : .available
-    }
-
-    /// The page's audio is downloaded (its rows' mark): `DownloadOverview.isDownloaded`, the
-    /// Downloads list's own rule.
-    func isDownloaded(_ page: Page) -> Bool {
-        isDownloaded([page.listenKey])
-    }
-
-    /// Every page a download of `folder` covers is downloaded; `pages`: its pages in play order
-    /// (a row passes what it already holds, so this fetches nothing).
-    func isDownloaded(_ folder: Folder, pages: [Page]) -> Bool {
-        isDownloaded(pages.filter { Self.covers($0, in: folder) }.map(\.listenKey))
+        let keys = pages.filter { Self.covers($0, in: folder) }.map(\.listenKey)
+        if keys.isEmpty { return record?.followsFolder == true ? .downloaded : .notDownloaded }
+        return isDownloaded(keys) ? .downloaded : .notDownloaded
     }
 
     private func isDownloaded(_ keys: [UUID]) -> Bool {
@@ -204,7 +213,7 @@ final class DownloadCenter {
             return .resumed
         }
         guard let (title, keys) = pages(of: target) else { return .nothingToDownload }
-        // A folder's switch turns on with nothing in it yet; a page's download needs the page.
+        // A folder's toggle turns on with nothing in it yet; a page's download needs the page.
         guard !keys.isEmpty || target.isFolder else { return .nothingToDownload }
         if let existing {
             withRecord(existing.id) {
@@ -325,7 +334,7 @@ final class DownloadCenter {
         withRecord(id) { $0.keptVoice = voice }
     }
 
-    /// *Delete Downloads* on a page's row: the page leaves every download (`forget`) and its audio
+    /// *Remove Download* in a page's menu: the page leaves every download (`forget`) and its audio
     /// goes (unless listening needs it, `purgeAudio`). It stays deleted: a folder's download no
     /// longer lists it, so the folder shows as not all downloaded, and nothing renders it again
     /// until it is played or Download is tapped (the page's, or the folder's, which lists the
@@ -360,7 +369,7 @@ final class DownloadCenter {
         for key in keys { requeued[key] = nil }
         updateRecords { records in
             for index in records.indices { records[index].entries.removeAll { keys.contains($0.key) } }
-            // A folder's switch stays on with nothing left in it: later pages still join.
+            // A folder's toggle stays on with nothing left in it: later pages still join.
             records.removeAll { $0.entries.isEmpty && !$0.followsFolder }
         }
     }

@@ -251,10 +251,10 @@ swap as 🌐.
 ```
 Library
 Everything  Favorites
-▣ Pride and Prejudice          ↓  ▶  cover, download state and play action
-▣ Tide Tables                  ↓  ▶
-▣ Finance ★                    ↓  ▶  location-independent favorite
-[i] Seven-Day Yield ★          ↓  ▶
+▣ Pride and Prejudice              ⋯   tap opens; the cover dimmed under a jade ↓ while it downloads
+▣ Tide Tables                      ⋯
+▣ Finance ★                        ⋯   location-independent favorite
+[i] Seven-Day Yield ★              ⋯   tap plays; ✓ before its second line once downloaded
 ```
 
 Secondary lines (a row's second line, the bar's, a header's details) never join their parts with
@@ -273,33 +273,47 @@ commas.
   line). Favorites' rows carry no ★, since every one is a favorite. The old Favorites folder is migrated into star
   flags on its direct children only: its pages become loose, its subfolders move to the top level
   starred, and what is inside them stays as it was, unstarred. Rows are the compact two-line
-  rows, with a Download state and Play (pages: the two-line row below). The bar's ▶ resumes what you last heard, and a folder row's ▶
-  resumes its own pages without opening it (D14). A first-run empty Library shows *Find something
+  rows (below): a page row plays on a tap, a folder row opens, and each has only ⋯. The bar's ▶
+  resumes what you last heard, and a folder row's ⋯ › *Continue* resumes its own pages without
+  opening it (D14). A first-run empty Library shows *Find something
   to listen to*, naming the band's 🌐 and ＋ by their symbols, with *Browse the web* and *Import a
   book* on one action row. The home has no navigation bar; rows scrolled up pass under a paper
   band behind the status bar, not under the clock. The home is the
   top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
   default, or *Title*), *Import Book…, Follow…, New Folder, Downloads, Settings*.
-- **A folder** (`FolderScreen`, books and series included): its title and counts,
-  subfolders first (by their order), then pages by the folder's sort. A folder with pages that
-  play has the play header (decision D15): how far through (a bar across the content width, with
-  "38%" and "6 h 10 min left" on one line under it), the round play button (*▶ Play* before
-  anything in it has played, *▶ **Continue** 3 of 7*, or jade bars *Playing 3 of 7*: tap pauses),
-  stretched so it and *⏮ From Start* span the width on one row. The row never wraps (decision
-  D21): short of room it drops the place ("3 of 7"), then shows the symbols alone (VoiceOver and
-  the large content viewer keep the names); *From Start* never changes its name. Under it, the
-  folder's **Download** switch (Spotify-style): *Off · downloads when played or tapped*; on, every
-  page in it downloads and so does every page added to it later (Follow's new chapters, a page
-  filed in): *On · 12 of 107 downloaded*, then *On · new pages download too*. Turned off, nothing
-  new downloads and what is downloaded stays. A page whose downloads you delete stays out of the
-  folder's download until the switch is turned on again (or its own Download is tapped, which
-  takes it back). The switch turns on for a story you're caught up on too: the next chapters
-  download as they come. It plays
+- **A folder** (`FolderScreen`, books and series included): a centred header (YouTube Music's
+  album header), then subfolders first (by their order), then pages by the folder's sort. The
+  header is the title and counts; a folder with details has its cover above them (below). Once
+  something in it has played, one more line says where it is, how far and what's left ("3 of 7
+  38%   6 h 10 min left", at the playback speed); before that, its length ("52 min"). A folder
+  with pages that play (decision D15) then has one row of three controls, the ▶ in the middle
+  and a caption under each side one:
+
+  ```
+              ◯↓            ( ▶ )            ⋯
+           Download                        More
+  ```
+
+  The big ▶ is the folder's *Continue* (its place, or the first page; ⏸ while one of its pages is
+  what you hear: tap pauses). *More* opens the folder's own menu, the same as its row's ⋯
+  (*Continue, Play from Start, Download, Add to Favorites, Move to…, Rename, Edit Details,
+  Delete…*). **Download** is the folder's Download toggle (F7): an outline ↓ while it isn't
+  downloaded; the circle filling with jade from the bottom as it downloads (the ↓ white where the
+  fill has reached it; never a ring: rings are listening); a grey filled ✓ once every page its
+  download covers is. Its caption says *Download*, *Downloading* or *Downloaded*, and VoiceOver
+  reads whether the toggle is on and the percent. Tapping ↓ turns the toggle on: every page in it
+  downloads and so does every page added to it later (Follow's new chapters, a page filed in).
+  Tapping it while it downloads or is downloaded, with the toggle on, asks *Turn Off Download*
+  ("Downloaded audio stays. New pages won’t download."): off, nothing new downloads and what is
+  downloaded stays. Downloaded with the toggle off, a tap turns it on again (a toast says new
+  pages will download). A page whose download you remove stays out of the folder's download until
+  ↓ is tapped again (or its own *Download*, which takes it back). The toggle turns on for a story
+  you're caught up on too, which then shows ✓: the next chapters download as they come.
+  A followed story's status line sits between the details and the row. It plays
   its own pages (not its subfolders') in the order shown, page to page, link pages skipped (a
   followed story's stop playback, below).
-  Every block sits on the page margin, so the bar, the buttons and the cards share both edges.
   **Edit** (top right), or *Select* in a row's
-  long-press menu (Edit with that row selected), puts check circles on the rows, and drag handles
+  menu (Edit with that row selected), puts check circles on the rows, and drag handles
   (pages only when the sort is *Manual*); the toolbar keeps its five slots and shows
   *Move to…* (📁, slot 1), *Mark as Finished* (✓, the middle) and *Remove* (🗑, ⋯'s slot) as
   symbols for the selection. *Remove* takes the selected pages out of the
@@ -307,7 +321,7 @@ commas.
   their delete is saved (*Cancel* keeps them selected). ⋯: *Sort ›, New Folder Inside, Import
   Book…, Follow…, Rename, Edit Details, Move to…, Delete Folder…, Download Folder, Delete
   Downloads, Downloads, Settings* (a book's say *Delete Book…* and *Download Book*; *Download
-  Folder* turns the Download switch on, and is dimmed while it is on). Every ⋯ ends
+  Folder* turns the Download toggle on, and is dimmed while it is on). Every ⋯ ends
   with the same rows in the same order: *Download, Downloads, Settings*; *Settings* is always the
   last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
@@ -319,9 +333,8 @@ commas.
   **Author**, and *Choose from Photos*, *Choose from Files* (images) and *Remove Cover*.
   *Cancel* changes nothing; *Save* stores all three at once. A picked picture is kept as a
   600 px JPEG thumbnail, as a book's cover is. A folder with a cover or an author (a book has its
-  file's) shows the detailed header: the cover beside the title, the author before the counts
-  ("A. Writer   2 folders   3 pages"), then the same bar, one-line progress and buttons, on the
-  same edges. Its row shows the cover in place of the folder symbol, and the author under the
+  file's) shows the detailed header: the cover above the title, the author before the counts
+  ("A. Writer   2 folders   3 pages"), then the same progress line and controls. Its row shows the cover in place of the folder symbol, and the author under the
   title until a page in it has played. Details change only the look: its sort, Edit, drags and
   drops are unchanged. Clearing the author and removing the cover brings back the plain header.
 - **Importing a book** (*Import Book…*: ＋, the home's and a folder's ⋯, the empty Library's
@@ -359,9 +372,9 @@ commas.
   *Manual*); after that the order is yours: Edit, drags and *Sort* change it, chapters move out,
   and pages and subfolders move in. Its cover and author are folder details (the detailed
   header). Its chapters use the ordinary page row, as pages inside any folder; front matter still
-  shows dimmed with "Skipped" and no ▶ (it still opens for reading). A followed story's chapters
-  waiting for their text use the link row, with ▶ and where the text stands ("Follow a story",
-  below). What sets it apart is only where it came from: *Replace* finds a book by its file
+  shows dimmed with "Skipped" (a tap still plays it, and its ⋯ › *Read* opens it). A followed
+  story's chapters waiting for their text use the link row, with where the text stands; a tap
+  fetches the text, then plays it ("Follow a story", below). What sets it apart is only where it came from: *Replace* finds a book by its file
   (above), Follow reads a story's contents again and fetches its chapters, the Now Playing bar
   names it as the source of its chapters, and its finished chapters lose their audio (D7).
 
@@ -400,7 +413,7 @@ is backed off, a notice in the caution colour names the chapter that waits by it
 42* when it has none): *Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52, then
 slower.*, or *Example.com isn’t answering. “Chapter 42: Low Tide” is tried again in 1:52.* A
 chapter waiting for its text says *Fetching text…*, *Retrying in 1:52*, *Waiting*, or why it
-couldn't be had (it is tried again at the next launch); its ▶ fetches it next and then plays it.
+couldn't be had (it is tried again at the next launch); tapping it fetches it next and then plays it.
 Playing through the story stops before a chapter still waiting for its text, and the chapter
 after the one playing is always fetched first. *Skip in Playback* on a chapter that can't be had
 lets playback go past it.
@@ -414,33 +427,43 @@ chapters left out in Review, and ones you deleted, stay out.
 No feeds and no notifications. Unfollowing stops the checks; every chapter added stays, and their
 text is still fetched.
 
-**Rows** are `ListRow`s, compact and two lines for every kind. A folder row's second line is
-what is in it ("2 folders   3 pages", "Empty"), in Edit too; one whose pages play shows its
-place and time left there instead. Every row's separator starts at its title. Every row that can be
-downloaded has a Download control (⬇, a ring filling while it downloads, ✓ once downloaded) and
-▶ side by side at its trailing edge, centred on the row's height. A page row (a chapter too) is
-exactly two lines (decision D21): its title on one line, truncated, then one short line of what
-it is and where it stands ("5 min", "6 min left", both at the playback speed, "✓ Finished" with a ✓ symbol, "Skipped", "Playing"), with a
-small thumbnail as tall as the two lines. In a folder that line is the status alone (the header
-already names the author or site); on the home and in search the site or path comes first. A
-tap opens the row; its menu is a long-press (decision D11), and a
-long press that moves lifts the row into a drag (below); swipe left removes (a page's *Remove*
-takes its row out of every list once it is saved, and leaves it, with a toast, when it can't be). Rows that can play keep their ▶ (`PlayStateButton`): it plays the row (replacing what
-plays) or pauses / resumes it when it is what you hear, and never navigates. The playing row is
-tinted, with still or moving bars and "Playing" (or "Paused") in the accent. A page or chapter
-whose audio is downloaded in the voice selected now shows ✓ in its Download control (VoiceOver:
-"Downloaded"); a folder, book or series row does when every page its download covers is
-(decision D16). ▶ / ⏸ and a folder's › share one trailing column, centred on the ⋯ slot as the
-bar's ⏸ is (a skipped page keeps the column empty, so Download lines up); a folder's count sits
-just before its ›. On a folder screen every row's menu starts with
-*Select*.
+**Rows** are `ListRow`s, compact and two lines for every kind (YouTube Music's rows). A folder
+row's second line is what is in it ("2 folders   3 pages", "Empty"), in Edit too; one whose pages
+play shows its place and time left there instead. Every row's separator starts at its title. A
+page row (a chapter too) is exactly two lines (decision D21): its title on one line, truncated,
+then one short line of what it is and where it stands, with a small thumbnail as tall as the two
+lines. In a folder that line is the status alone (the header already names the author or site);
+on the home and in search the site or path comes first. The listening mark stays before the
+time: nothing before a length not yet started ("18 min"), a small ring part-way ("◔ 6 min left";
+the only rings in the app are listening), the playing row tinted with still or moving bars and
+"Playing" (or "Paused") in the accent, "✓ Finished" plain; every time at the playback speed.
 
-**Folders play like books** (decision D15). Playing a page that is in a folder (its row's ▶, the
-Reader's Listen, 🎧 on its page, the folder's own ▶) carries on through the folder, page to
+The row's only control is **⋯** at its trailing edge, centred on the toolbar's ⋯ slot as the
+bar's ⏸ is; a long press opens the same menu (one builder for both, `PageMenu` / `FolderMenu`;
+decision D11), and a long press that moves lifts the row into a drag (below). **Tapping a page
+row plays it** (replacing what plays; in a folder it carries on through the folder), except the
+page you hear, which opens Now Playing (a stray tap never pauses), and a link that can't play,
+which opens in the browser; a skipped page plays when tapped. *Read*, the menu's first row, opens
+it (the Reader; Now Playing for the page you hear; the browser for a link). **Tapping a folder
+row opens it**; its ⋯ has *Continue* and *Play from Start*. Swipe left removes (a page's *Remove*
+takes its row out of every list once it is saved, and leaves it, with a toast, when it can't be).
+In Edit the row has no ⋯ and a tap selects it.
+
+A row's download shows on the row, never as a button: **downloading** (queued in any download,
+its own or its folder's, paused too) dims the thumbnail or folder symbol under a small jade disc
+with a white ↓; **downloaded** puts a small grey filled ✓ at the start of the second line, before
+the site. Downloaded means the page's whole audio was made ahead of time by a download (its ⋯ ›
+*Download*, or its folder's Download) and is there in the voice selected now (or one *Keep*
+stored); audio rendered only by listening never earns it. A folder, book or series row shows ✓
+when every page its download covers is downloaded (decision D16). VoiceOver reads
+"Downloading" / "Downloaded" with the status.
+
+**Folders play like books** (decision D15). Playing a page that is in a folder (a tap on its row, the
+Reader's Listen, 🎧 on its page, the folder header's ▶) carries on through the folder, page to
 page, then stops; a page in no folder plays to its end and stops. Every folder plays in its sort,
 which is yours (a book's starts as the book's order). Link pages are passed over (a followed
 story's stop playback until their text is in), and so are pages marked *Skip in Playback*. The page that last played is the folder's place: its
-row shows the place and the time left and its ▶ resumes there, as a book's does; before
+row shows the place and the time left and *Continue* resumes there, as a book's does; before
 anything in it has played, the first page starts where it was left. Now Playing's "Playing
 from" names the folder.
 
@@ -456,27 +479,32 @@ dragged over itself or a folder inside it is refused (the drag shows ⊘); rows 
 Favorites tab or in search results (gathered from across the tree), a page played without saving
 and rows in Edit don't lift. The list doesn't scroll by itself while a row is dragged.
 
-| Row | Tap | Trailing | Menu (long-press) | Swipe left |
-|---|---|---|---|---|
-| Folder, book or series | opens it (push) | Download state; ▶ when its pages play, otherwise › | *Continue, Play from Start* (dimmed while none of its pages play)*, Download* (dimmed while it has no pages)*, Add to / Remove from Favorites, Move to…, Rename, Edit Details, Delete…* | Delete… |
-| Saved page (including a chapter) | the Reader (Now Playing if it's what you hear) | Download state; ▶ (not on pages skipped in playback) | *Play from Here* (in a folder)*, Move to…, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback* (in a folder)*, Share* (with a web address)*, Download, Delete Downloads* (dimmed without audio)*, Remove from Library, Add to / Remove from Favorites* | Remove |
-| Page played without saving ("Not saved") | the Reader (Now Playing if it's what you hear) | ▶ | the saved page's rows, with *Save* for *Remove from Library*; *Move to…*, the marks, *Download* and *Delete Downloads* dimmed until it is saved | — |
-| Link page | the page, in the browser | — (a followed story's chapter: ▶, which fetches it, then plays it) | the saved page's rows; the marks and *Delete Downloads* dimmed (a link has no text yet; a story's chapter also has *Play from Here* and *Skip in Playback*) | Remove |
+| Row | Tap | Menu (⋯ and long-press: the same) | Swipe left |
+|---|---|---|---|
+| Folder, book or series | opens it (push) | *Continue, Play from Start* (dimmed while none of its pages play)*, Download* (turns its toggle on; dimmed while on or without pages)*, Add to / Remove from Favorites, Move to…, Rename, Edit Details, Delete…* | Delete… |
+| Saved page (including a chapter) | plays it (Now Playing if it's what you hear) | *Read, Play from Here* (in a folder)*, Download / Remove Download, Add to / Remove from Favorites, Move to…, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback* (in a folder)*, Share* (with a web address)*, Remove from Library* | Remove |
+| Page played without saving | plays it (Now Playing if it's what you hear) | the saved page's rows, with *Save to Library* for *Remove from Library*; *Download*, *Move to…* and the marks dimmed until it is saved | — |
+| Link page | opens it in the browser (a followed story's chapter: fetches it, then plays it) | the saved page's rows; the marks dimmed (a link has no text yet; a story's chapter also has *Play from Here* and *Skip in Playback*) | Remove |
 
-A row that applies but can't run now is dimmed, not left out (decision DR-09): *Download* while
-that page or folder is downloading already (decision D16, below), *Delete Downloads* with nothing
-downloaded. Only what never applies to the row's kind is left out: the folder-only rows on a page
-in no folder, *Share* on a chapter (no web address), *Select* where the screen has no Edit.
+On a folder screen every row's menu also has *Select*, just before *Remove from Library* (a
+page's) or first (a folder's). *Download / Remove Download* is one row showing the face for where
+the page's download stands: *Remove Download* while it downloads or is downloaded, which takes the
+page out of every download and deletes its audio (it stays out of its folder's download, P8). A
+row that applies but can't run now is dimmed, not left out (decision DR-09): *Download* on a page
+not in the Library, a folder's *Download* while its toggle is on. Only what never applies to the
+row's kind is left out: the folder-only rows on a page in no folder, *Share* on a chapter (no web
+address), *Select* where the screen has no Edit.
 
-**Downloads** (decision D16): *Download* on a page, a folder, a book or a followed story (its
-row's long-press, its Download control, a folder's Download switch or ⋯ *Download Folder* /
-*Download Book*, beside its *Delete Downloads*, dimmed when there is nothing to do; the Reader's
-⋯) makes it ready to play offline: a link page's text is fetched out of sight (in Follow's one
+**Downloads** (decision D16): *Download* on a page, a folder, a book or a followed story (a
+page row's ⋯ or long-press, a folder header's Download control, a folder row's menu or the
+folder's ⋯ *Download Folder* / *Download Book*, beside its *Delete Downloads*, dimmed when there
+is nothing to do; the Reader's ⋯) makes it ready to play offline: a link page's text is fetched out of sight (in Follow's one
 queue) and kept where it is, then its whole audio is rendered ahead in the on-device voice
 selected (Kokoro). A folder covers its own pages in its order (not its subfolders'), a book or
-story its chapters that play and aren't finished, one page at a time, and while its switch is on,
-pages added later too. A toast says *Downloading “…”* with *Show*, floating just above the
-bottom chrome (above the Now Playing bar, never over it), as every toast does. Nothing is modal:
+story its chapters that play and aren't finished, one page at a time, and while its toggle is on,
+pages added later too. When a download starts (or a paused one goes on) a toast says
+*Downloading…* with *View*, which opens the Downloads list; it floats just above the Now Playing
+bar (never over it), as every toast does, and goes after a few seconds. Nothing is modal:
 while downloads run, a 2 pt jade line along the top edge of the bottom chrome (the browser's, the
 Library's, the Reader's) fills as they get on, and fades when nothing is queued, everything queued
 is paused, or no on-device voice is selected (VoiceOver reads it as *Downloads, N percent*, a
@@ -487,7 +515,7 @@ downloads wait (only what plays renders there, in bursts; LISTEN_PLAYBACK.md).
 ```
 Downloads                                       ( Done )
 Queued  2                                  Pause All
-▣  Pride and Prejudice                       (◔⏸)   the ring: how far; ⏸ pauses, ↓ resumes
+▣  Pride and Prejudice                        (↓)   the arrow filling: how far; tap pauses
    Kokoro Heart   4 of 12 chapters   38%
 Downloaded  1
 [i] Coupon Basics
@@ -503,7 +531,7 @@ Different Voice  1
 the Reader's, Now Playing's; medium, grows to large; also Settings › Downloads & Storage ›
 Downloads, pushed) lists, in sections shown only when they have
 rows: **Queued** (the download rendering now and those waiting, *Pause All / Resume All*, each
-row's ring pausing or resuming it), **Downloaded** (each with the room it takes, the total under the
+row's filling arrow pausing it; grey while paused, a tap resumes it), **Downloaded** (each with the room it takes, the total under the
 section, on the cards' edge), and **Different Voice** (done, but rendered in another voice than the one selected
 now). Every row names its voice ("Kokoro Heart"); its parts are set apart by space, never a dot.
 After a voice change a finished download moves to *Different Voice*, with **Re-download** (renders
@@ -516,16 +544,18 @@ of what is in the Library: removing a page from the Library, or deleting a page 
 its download off the list too (a removed page's audio stays, ephemeral); its long-press menu has
 *Pause / Resume*, *Re-download*, *Keep* and *Remove* as they apply. While Apple's voice is
 selected nothing renders: queued downloads say *Waiting for an on-device voice*, with
-*Settings*. *Delete Downloads* on a page or a folder deletes its audio and its download; the audio
+*Settings*. *Remove Download* on a page and *Delete Downloads* on a folder delete its audio and
+its download (a page's listening audio alone, never downloaded, is cleared only by its folder's
+*Delete Downloads* or Settings); the audio
 of the page you hear and of the chapter staged after it stays for listening. It stays deleted: a
 folder's download that listed the page drops it (the folder stays under *Downloaded* if the rest
-is done, and its Download control shows ⬇ again, since not everything in it is downloaded), and
-nothing renders the page again until it is played or Download is tapped (the page's, or the
-folder's, which lists the folder's pages afresh). A page
+is done, and its header's Download control shows ↓ again, since not everything in it is
+downloaded), and nothing renders the page again until it is played or Download is tapped (the
+page's, or the folder's, which lists the folder's pages afresh). A page
 that couldn't be fetched or rendered is counted ("2 couldn’t download"), and *Re-download* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch. With
-nothing in it, a card says *Nothing downloaded*: tap ⬇ on a page, a folder or a book in the
-Library.
+nothing in it, a card says *Nothing downloaded*: download a page from its ⋯, or a folder or a
+book from its screen's ↓.
 
 **The Move tree** (`MoveTreeSheet`): one sheet for *Move to…*, the browser's ⋯ → *Save to
 Folder…* and 🔖's *Save to Folder…*; the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋

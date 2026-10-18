@@ -367,12 +367,12 @@ the background (a fetch needs a window), and nothing renders for downloads while
 selected (`wantsLocalBake`). Pause and *Remove* take the page's job out of the queue
 (`removeBakeJob`), and *Remove* and *Delete Downloads* delete audio (`DownloadCenter.purgeAudio`),
 never for what listening needs (`needsAudio`: the page bound to the session, playing, paused or
-finished, and the chapter staged after it): its job and its audio stay. *Delete Downloads* takes
+finished, and the chapter staged after it): its job and its audio stay. *Remove Download* (a page) or *Delete Downloads* (a folder) takes
 the page out of every download (a folder's download drops it, never queues it again), the page
 playing too, whose audio stays for the session, saved or ephemeral as the library keeps the page. The voice a download is shown in is read
 from its audio (`ArticleAudioCache.renderedVoice`: the voice most of its paragraphs are in), so a
 voice change shows at once; finished downloads aren't re-rendered by it (*Re-download* does that).
-A folder's download is its Download switch: while it is on, pages added to the folder later join
+A folder's download is its Download toggle (the header's Download control): while it is on, pages added to the folder later join
 it after each stored library edit (`DownloadCenter.takeInNewPages`), except pages whose downloads
 were deleted (`DownloadRecord.deleted`); turned off, its waiting pages leave it and its done ones
 stay.
@@ -601,8 +601,8 @@ choice row is one `SettingsChoiceRow` (title, optional one-line subtitle, fixed 
 check slots, min height 48), so state changes never move rows.
 
 1. **Engines**: Apple and the registry's on-device engines. State lives in the subtitle
-   ("Downloading… 42%", "Preparing voice…", "Ready (recommended)") and the accessory (a progress
-   ring with a stop square cancels). Swipe to delete a downloaded engine; crash and failure
+   ("Downloading… 42%", "Preparing voice…", "Ready (recommended)") and the accessory (the
+   download's filling arrow, `DownloadMark`, as every download shows; tapping it cancels). Swipe to delete a downloaded engine; crash and failure
    notices in the footer.
 2. **Voice ›** (`VoicePage`): the selected engine's voices (the engine ticked; Kokoro: curated
    rows with preview, the default one marked "(default)"; Apple: "System default" and
