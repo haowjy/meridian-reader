@@ -10,6 +10,7 @@ import UIKit
 final class AppAppearance {
     static let modeKey = "appearance.mode"
     static let accentKey = "appearance.accent"
+    static let storedKeys = [modeKey, accentKey]
 
     /// The app's store. Tests make their own with a scratch `UserDefaults`.
     static let shared = AppAppearance(defaults: .standard)

@@ -14,22 +14,15 @@ enum LaunchHooks {
         if options.rerunsLibraryMigration { library.resetForMigrationRerun() }
     }
 
-    /// `-resetLibrary`'s stored settings, before anything reads them (`AppMain`): the engine and
-    /// every registered engine's voice, the Apple voice, language and speed, the app's and the
-    /// reading page's appearance, the remembered surface and the Library's tab, the top level's
-    /// sort, Recent Searches, Block Ads and the download list. Launch arguments (`-reading.theme sepia`) still
-    /// apply over what is cleared.
+    /// `-resetLibrary`'s stored settings, before anything reads them (`AppMain`): every key the
+    /// settings' owners store (each names its own, `storedKeys`), and the download list. Launch
+    /// arguments (`-reading.theme sepia`) still apply over what is cleared.
     static func resetStoredSettings(engines: EngineRegistry, defaults: UserDefaults = .standard,
                                     downloads: DownloadListStore = DownloadListStore()) {
-        let keys = [LocalTTSCoordinator.engineIDKey, SpeechController.voiceDefaultsKey,
-                    SpeechController.languageDefaultsKey, SpeechController.languageAutomaticKey,
-                    SpeechController.rateDefaultsKey, AppAppearance.modeKey, AppAppearance.accentKey,
-                    ReadingAppearance.themeKey, ReadingAppearance.fontKey, ReadingAppearance.textSizeKey,
-                    ReadingAppearance.lineSpacingKey, LibraryTopLevel.sortKey, RecentSearches.storageKey,
-                    ContentBlocker.enabledKey]
-            + engines.descriptors.map(\.resolvedVoiceDefaultsKey)
+        let keys = SpeechController.storedKeys + LocalTTSCoordinator.storedKeys(for: engines)
+            + AppAppearance.storedKeys + ReadingAppearance.storedKeys + LibraryTopLevel.storedKeys
+            + RecentSearches.storedKeys + ContentBlocker.storedKeys + SurfaceMemoryStore.storedKeys
         for key in keys { defaults.removeObject(forKey: key) }
-        SurfaceMemoryStore(defaults: defaults).clear()
         downloads.save([])
     }
 

@@ -24,6 +24,7 @@ protocol ContentRuleListProvider {
 @Observable
 final class ContentBlocker {
     static let enabledKey = "browse.blockAds"
+    static let storedKeys = [enabledKey]
 
     var isEnabled: Bool {
         didSet {

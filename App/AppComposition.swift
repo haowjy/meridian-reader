@@ -11,9 +11,9 @@ enum AppComposition {
 
     static let speechController: SpeechController = {
         #if DEBUG
-        return SpeechController(localTTS: makeLocalTTS(selecting: LaunchOptions.current.selectsEngine))
+        return SpeechController(localTTS: makeLocalTTS(selecting: LaunchOptions.current.selectsEngine), defaults: .standard)
         #else
-        return SpeechController(localTTS: makeLocalTTS(selecting: nil))
+        return SpeechController(localTTS: makeLocalTTS(selecting: nil), defaults: .standard)
         #endif
     }()
 

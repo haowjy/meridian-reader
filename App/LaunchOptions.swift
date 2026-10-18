@@ -17,12 +17,12 @@ struct LaunchOptions: Equatable {
     /// (live Google suggestions), so results don't depend on the network.
     var uiTesting = false
     /// `-resetLibrary`: start as a fresh install does. Before anything reads them, the stored
-    /// settings go: the engine, every engine's voice, the Apple voice, language and speed, the
-    /// app's and the reading page's appearance, the remembered surface and the Library's tab and
-    /// top-level sort, Recent Searches, Block Ads and the download list (`LaunchHooks.resetStoredSettings`). Before the seeds, the library's every
-    /// page (link pages too) and folder go, with their audio, and the browsing history
-    /// (`LaunchHooks.resetLibrary`). The seeds then add to an empty library. Every UI test
-    /// launches with it.
+    /// settings go (every owner's `storedKeys`: the engine and voices, language and speed, both
+    /// appearances, the remembered surface and the Library's tab and sort, Recent Searches, Block
+    /// Ads) with the download list (`LaunchHooks.resetStoredSettings`). Before the seeds, the
+    /// library's every page (link pages too) and folder go, with their audio, and the browsing
+    /// history (`LaunchHooks.resetLibrary`). The seeds then add to an empty library. Every UI
+    /// test launches with it.
     var resetsLibrary = false
     var demoArticle: DemoArticle?
     /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): start in the reader overlay on it.

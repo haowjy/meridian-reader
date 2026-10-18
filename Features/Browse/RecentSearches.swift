@@ -4,6 +4,7 @@ import Foundation
 /// one newline-joined string (`@AppStorage("browse.recentSearches")`).
 enum RecentSearches {
     static let storageKey = "browse.recentSearches"
+    static let storedKeys = [storageKey]
     static let maxEntries = 8
 
     static func decode(_ raw: String) -> [String] {
