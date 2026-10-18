@@ -28,7 +28,7 @@ struct FollowStatus: View {
                let backOff = follow.queue.backOff(of: FetchQueue.site(of: url)) {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     NoticeCard(symbol: Icons.waiting,
-                               text: FollowText.backOffNotice(site: FollowText.siteName(of: url), status: backOff.status,
+                               text: FollowText.backOffNotice(site: TableOfContents.siteName(of: url), status: backOff.status,
                                                               chapter: next, wait: backOff.until.timeIntervalSince(context.date)),
                                identifier: "followBackOff")
                 }
@@ -55,23 +55,16 @@ struct FollowStatus: View {
     }
 }
 
-/// Follow's words, in one place: addresses shortened, sites named, times, and what a chapter
-/// waiting for its text says in its row.
+/// Follow's words, in one place: addresses shortened, times, and what a chapter waiting for its
+/// text says in its row (a site's name is its contents reader's, `TableOfContents.siteName`).
 @MainActor
 enum FollowText {
-    /// "…/chapter/301778/1-good-morning-brother": the address's last three parts, or its host and
+    /// "…/chapter/900001/1-first-frost": the address's last three parts, or its host and
     /// path when it is shorter.
     static func shortAddress(_ url: URL) -> String {
         let parts = url.pathComponents.filter { $0 != "/" }
         guard parts.count > 3 else { return ShellState.addressText(for: url) }
         return "…/" + parts.suffix(3).joined(separator: "/")
-    }
-
-    /// "Royal Road", else the host without "www.".
-    static func siteName(of url: URL) -> String {
-        if TableOfContents.isRoyalRoad(url) { return "Royal Road" }
-        let host = url.host?.lowercased() ?? url.absoluteString
-        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 
     /// "today 8:02 AM", "yesterday 9:15 PM", "tomorrow 8:02 AM", else "14 Oct 8:02 AM".

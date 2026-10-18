@@ -350,7 +350,7 @@ paced per site) and stored in place, then the page's paragraphs go
 to the queue as an ordinary bake job (`LocalTTSCoordinator.queueDownload` → `startBakeIfNeeded`, a
 plan from paragraph 0, queued at the back (#1 when nothing else is), kept in the pending jobs while the
 engine loads). When the job leaves the queue (`bakeCompleted`, through
-`LocalTTSCoordinator.renderObserver`) the page is done once no paragraph needs audio in the
+`LocalTTSCoordinator.onRenderStateChange`) the page is done once no paragraph needs audio in the
 download voice (the one rule, `ArticleAudioCache.missingParagraphs`); a job that left unfinished goes back once, then
 the page is marked failed. So the article playing and the staged chapter always go first, the
 thermal / Low Power hold applies, and in the background a download's job parks like any other

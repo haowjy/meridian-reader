@@ -15,6 +15,10 @@ is `../../../docs/TECHNICAL_SPEC.md` → "Fetching a page out of sight" and "Fol
 - **`fill` dedupes by page key**: a second caller waits for the fetch in flight. A transient
   failure (429, 5xx, no answer: `FetchQueue.outcome`) is retried after the site's back-off, four
   times; anything else (404, a page with nothing to read) fails at once.
+- **A site's rule for reading a story is one `ContentsReader`** in `TableOfContents.readers`
+  (Core/Sources): whether it reads an address, the contents page for it, the chapters on a page,
+  the site's name. The generic reader is last and matches any address. A new site is one reader
+  there; nothing in Features checks a host.
 - **Text lands in place, nothing renders** (`LibraryStore.storeFetchedText`): the folder's Download
   switch decides audio. The chapter keeps its key, title and place.
 - **A story is `FolderKind.series` with a `FollowState`.** The waiting-chapter rule is one

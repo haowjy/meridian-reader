@@ -90,13 +90,19 @@ enum AppComposition {
     }
 
     /// Downloads (decision D16) over the app's library: a link page's text comes through Follow
-    /// (`FollowCenter.fill`), so it is fetched once and in the one queue. It starts once the
-    /// launch's library maintenance is done (`AppLaunch`).
+    /// (`FollowCenter.fill`), so it is fetched once and in the one queue. Its pages render in the
+    /// speech stack's render queue (`DownloadRendering`); the queue's changes and the library's
+    /// stored edits are wired to it here, and it acts on them once started, after the launch's
+    /// library maintenance (`AppLaunch`).
     static func makeDownloads(library: LibraryStore, follow: FollowCenter) -> DownloadCenter {
         let speech = speechController
-        return DownloadCenter(library: library, tts: speech.localTTS,
-                              fill: { await follow.fill($0, priority: .background) },
-                              isListening: { speech.activeSessionID == $0 })
+        let tts = speech.localTTS
+        let downloads = DownloadCenter(library: library, rendering: tts,
+                                       fill: { await follow.fill($0, priority: .background) },
+                                       needsAudio: { speech.activeSessionID == $0 || tts.stagedChapterKey == $0 })
+        tts.onRenderStateChange = { [weak downloads] in downloads?.scheduleCheck() }
+        library.editStored = { [weak downloads] in downloads?.followLibrary() }
+        return downloads
     }
 
     /// The audio cache at launch, in order. First the render queue is held: it adopts no saved

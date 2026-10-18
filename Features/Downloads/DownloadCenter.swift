@@ -9,7 +9,7 @@ import Observation
 /// (`takeInNewPages`); off, nothing new joins and what is downloaded stays.
 ///
 /// It renders nothing itself: each page's audio is an ordinary bake job in the one render queue
-/// (`LocalTTSCoordinator.queueDownload`), so the article playing and the chapter staged after it
+/// (`DownloadRendering.queueDownload`), so the article playing and the chapter staged after it
 /// always go first, bake-ahead holds on a hot phone and in Low Power Mode apply, and in the
 /// background a download's job parks (only the playing article renders there, in bursts,
 /// `RenderAdmission`). The next page is handed over only while the app is in front: in the
@@ -25,7 +25,7 @@ final class DownloadCenter {
     struct Active: Equatable {
         enum Phase: Equatable {
             case fetching
-            /// Its bake job is queued, with the paragraphs it renders.
+            /// Its bake job is queued, with the paragraphs it renders (never none).
             case rendering([String])
         }
 
@@ -54,14 +54,16 @@ final class DownloadCenter {
     private(set) var active: Active?
 
     @ObservationIgnored let library: LibraryStore
-    @ObservationIgnored let tts: LocalTTSCoordinator
+    @ObservationIgnored private let rendering: any DownloadRendering
     @ObservationIgnored private let store: DownloadListStore
     @ObservationIgnored private let runState: AppRunState
     /// A link page's text, fetched and stored in place (`FollowCenter.fill` in the app): why it
     /// couldn't be had, nil once it is in.
     @ObservationIgnored private let fill: (Page) async -> String?
-    /// Whether a page is bound to the playback session (playing, paused or finished).
-    @ObservationIgnored private let isListening: (UUID) -> Bool
+    /// Listening needs a page's audio and its render job now: it is the page bound to the session
+    /// (playing, paused or finished), or the chapter staged to play after it. Nothing Downloads
+    /// does takes either away.
+    @ObservationIgnored private let needsAudio: (UUID) -> Bool
     @ObservationIgnored private var isStarted = false
     @ObservationIgnored private var runner: Task<Void, Never>?
     @ObservationIgnored private var checkScheduled = false
@@ -69,15 +71,17 @@ final class DownloadCenter {
     @ObservationIgnored private var requeued: [UUID: Int] = [:]
     @ObservationIgnored private var runStateObserver: NSObjectProtocol?
 
-    init(library: LibraryStore, tts: LocalTTSCoordinator, store: DownloadListStore = DownloadListStore(),
+    /// The composition tells it of each render-queue change (`scheduleCheck`) and each stored
+    /// library edit (`followLibrary`); it acts on them once started.
+    init(library: LibraryStore, rendering: any DownloadRendering, store: DownloadListStore = DownloadListStore(),
          runState: AppRunState = .shared, fill: @escaping (Page) async -> String?,
-         isListening: @escaping (UUID) -> Bool = { _ in false }) {
+         needsAudio: @escaping (UUID) -> Bool) {
         self.library = library
-        self.tts = tts
+        self.rendering = rendering
         self.store = store
         self.runState = runState
         self.fill = fill
-        self.isListening = isListening
+        self.needsAudio = needsAudio
         records = store.load()
     }
 
@@ -88,8 +92,6 @@ final class DownloadCenter {
     func start() {
         guard !isStarted else { return }
         isStarted = true
-        tts.renderObserver = self
-        library.editStored = { [weak self] in self?.followLibrary() }
         runStateObserver = NotificationCenter.default.addObserver(forName: AppRunState.didChange, object: runState,
                                                                   queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.scheduleCheck() }
@@ -100,27 +102,24 @@ final class DownloadCenter {
     // MARK: - What the list shows
 
     var overview: DownloadOverview {
-        let cache = tts.audioCache
-        return DownloadOverview(records: records, active: activeProgress, currentVoice: tts.downloadVoice,
-                                rendersDownloads: tts.wantsLocalBake) { cache.renderedVoice(articleID: $0) }
+        DownloadOverview(records: records, active: activeProgress, currentVoice: rendering.downloadVoice,
+                         rendersDownloads: rendering.wantsLocalBake) { rendering.renderedVoice(of: $0) }
     }
 
     /// The progress line's value: nil while nothing runs (`DownloadOverview.progress`).
     var progress: Double? {
-        DownloadOverview.progress(records: records, active: activeProgress, rendersDownloads: tts.wantsLocalBake)
+        DownloadOverview.progress(records: records, active: activeProgress, rendersDownloads: rendering.wantsLocalBake)
     }
 
     /// The page fetched or rendering now and how much of its audio is ready.
     private var activeProgress: DownloadOverview.Active? {
-        active.map { active in
-            switch active.phase {
-            case .fetching:
-                DownloadOverview.Active(recordID: active.recordID, key: active.key, fraction: 0, isFetching: true)
-            case .rendering(let paragraphs):
-                DownloadOverview.Active(recordID: active.recordID, key: active.key,
-                                        fraction: tts.downloadFraction(cacheKey: active.key, paragraphs: paragraphs))
-            }
+        guard let active else { return nil }
+        guard case .rendering(let paragraphs) = active.phase else {
+            return DownloadOverview.Active(recordID: active.recordID, key: active.key, fraction: 0, isFetching: true)
         }
+        let missing = rendering.missingDownloadParagraphs(cacheKey: active.key, paragraphs: paragraphs)
+        return DownloadOverview.Active(recordID: active.recordID, key: active.key,
+                                       fraction: Double(paragraphs.count - missing) / Double(paragraphs.count))
     }
 
     func record(for target: DownloadRecord.Target) -> DownloadRecord? {
@@ -154,9 +153,8 @@ final class DownloadCenter {
     }
 
     private func isDownloaded(_ keys: [UUID]) -> Bool {
-        let cache = tts.audioCache
-        return DownloadOverview.isDownloaded(keys, records: records, currentVoice: tts.downloadVoice) {
-            cache.renderedVoice(articleID: $0)
+        DownloadOverview.isDownloaded(keys, records: records, currentVoice: rendering.downloadVoice) {
+            rendering.renderedVoice(of: $0)
         }
     }
 
@@ -253,7 +251,8 @@ final class DownloadCenter {
     /// deleted) leave the list, and the page rendering for one stops; their audio is the
     /// library's to keep or delete (a removed page's is ephemeral already, a deleted one's is
     /// gone). Folders with Download on take in the pages added to them (`takeInNewPages`).
-    private func followLibrary() {
+    func followLibrary() {
+        guard isStarted else { return }
         let gone = Set(records.filter { !isInLibrary($0.target) }.map(\.id))
         if let active, gone.contains(active.recordID) { stopActive() }
         updateRecords { records in records.removeAll { gone.contains($0.id) } }
@@ -387,13 +386,6 @@ final class DownloadCenter {
 
     // MARK: - What listening needs
 
-    /// Listening needs `key`'s audio and its render job now: it is the page bound to the session
-    /// (playing, paused or finished), or the chapter staged to play after it. Nothing Downloads
-    /// does takes either away.
-    private func needsAudio(_ key: UUID) -> Bool {
-        isListening(key) || tts.synthQueue.stagedCacheKey == key
-    }
-
     /// Deletes the audio, pending render and queued renders of `keys`' pages, except what
     /// listening needs (`needsAudio`): that audio stays for the session, saved or ephemeral as
     /// the library keeps its page.
@@ -424,7 +416,7 @@ final class DownloadCenter {
     /// Hands pages to the render queue until one is rendering (its `bakeCompleted` brings the
     /// next), the list is done, or no voice renders downloads.
     private func runQueue() async {
-        while runState.phase != .background, tts.wantsLocalBake, active == nil, let next = nextQueued() {
+        while runState.phase != .background, rendering.wantsLocalBake, active == nil, let next = nextQueued() {
             let (recordID, key) = (next.recordID, next.key)
             guard let page = library.page(key: key), page.isInLibrary else {
                 finish(recordID, key, .failed, String(localized: "It’s no longer in the Library"))
@@ -450,7 +442,7 @@ final class DownloadCenter {
                 finish(recordID, key, .failed, String(localized: "Nothing to listen to"))
                 continue
             }
-            switch tts.queueDownload(cacheKey: key, paragraphs: paragraphs) {
+            switch rendering.queueDownload(cacheKey: key, paragraphs: paragraphs) {
             case .ready:
                 finish(recordID, key, .done)
             case .speaksLive:
@@ -481,7 +473,7 @@ final class DownloadCenter {
     /// The page rendering now stops (paused, removed): its job leaves the queue, unless listening
     /// needs it (`needsAudio`). It stays queued in its download.
     private func stopActive() {
-        if let active, case .rendering = active.phase, !needsAudio(active.key) { tts.removeBakeJob(cacheKey: active.key) }
+        if let active, case .rendering = active.phase, !needsAudio(active.key) { rendering.removeBakeJob(cacheKey: active.key) }
         active = nil
     }
 
@@ -490,19 +482,19 @@ final class DownloadCenter {
     /// failed on, or a job something else dropped) goes back once, then the page is marked failed.
     private func checkActive() {
         guard let active, case .rendering(let paragraphs) = active.phase else { return advance() }
-        guard tts.wantsLocalBake else {
+        guard rendering.wantsLocalBake else {
             stopActive()
             return
         }
-        let missing = tts.missingDownloadParagraphs(cacheKey: active.key, paragraphs: paragraphs)
+        let missing = rendering.missingDownloadParagraphs(cacheKey: active.key, paragraphs: paragraphs)
         if missing == 0 {
             finish(active.recordID, active.key, .done)
             return advance()
         }
-        guard tts.usesLocalEngine, !tts.isHeldForLaunch, !tts.hasDownloadJob(cacheKey: active.key) else { return }
+        guard rendering.bakeJobEnded(cacheKey: active.key) else { return }
         if requeued[active.key, default: 0] < 1 {
             requeued[active.key, default: 0] += 1
-            if tts.queueDownload(cacheKey: active.key, paragraphs: paragraphs) == .rendering { return }
+            if rendering.queueDownload(cacheKey: active.key, paragraphs: paragraphs) == .rendering { return }
         }
         let message = missing == 1 ? String(localized: "1 paragraph couldn’t be rendered")
             : String(localized: "\(missing) paragraphs couldn’t be rendered")
@@ -510,8 +502,9 @@ final class DownloadCenter {
         advance()
     }
 
-    /// Render queue events arrive inside the queue's work: look once it is done.
-    private func scheduleCheck() {
+    /// The render queue or the app's phase may have moved: look at the page rendering once the
+    /// caller's work is done (render-queue events arrive inside the queue's work).
+    func scheduleCheck() {
         guard isStarted, !checkScheduled else { return }
         checkScheduled = true
         Task { @MainActor [weak self] in
@@ -522,7 +515,35 @@ final class DownloadCenter {
     }
 }
 
-extension DownloadCenter: RenderQueueObserver {
-    func bakeCompleted(cacheKey: UUID) { scheduleCheck() }
-    func renderStateChanged() { scheduleCheck() }
+/// What downloads ask of the render queue (`LocalTTSCoordinator+Downloads` answers).
+@MainActor
+protocol DownloadRendering {
+    /// The voice downloads render in, as a cache voice key.
+    var downloadVoice: String? { get }
+    /// An on-device voice is selected, so downloads render.
+    var wantsLocalBake: Bool { get }
+    /// The voice most of `key`'s audio is in.
+    func renderedVoice(of key: UUID) -> String?
+    /// Queues `paragraphs` of `cacheKey` to render in full in the download voice.
+    func queueDownload(cacheKey: UUID, paragraphs: [String]) -> DownloadQueueing
+    /// Paragraphs that still need audio in the download voice; a view reading it follows the render.
+    func missingDownloadParagraphs(cacheKey: UUID, paragraphs: [String]) -> Int
+    /// `cacheKey`'s bake job has left the queue, done or not: it isn't queued, nor waiting for the
+    /// engine to load or the launch's hold to end.
+    func bakeJobEnded(cacheKey: UUID) -> Bool
+    /// Takes `cacheKey`'s bake job out of the queue and the pending jobs; its audio stays.
+    func removeBakeJob(cacheKey: UUID)
+}
+
+enum DownloadQueueing: Equatable {
+    /// Its bake job is queued (or waits for the engine to load); its end is a render-queue change.
+    case rendering
+    /// Every paragraph that has words is rendered in the download voice already.
+    case ready
+    /// The engine doesn't speak its language: Apple's voice speaks it, live.
+    case speaksLive
+    /// Its audio waits for library work an earlier launch couldn't finish (`ArticleAudioCache.held`).
+    case held
+    /// No on-device voice that renders downloads is selected.
+    case notRendering
 }

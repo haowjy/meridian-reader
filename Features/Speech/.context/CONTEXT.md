@@ -88,9 +88,9 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
   admission, and nothing holds a background task per chunk. Downloads (`../../Downloads/`) are
   ordinary bake jobs (`LocalTTSCoordinator+Downloads`): they park in the background and never
   count as playing.
-- **`renderObserver` is told inside the queue's work** (`noteBakeMarksChanged` runs mid drain,
-  `bakeCompleted` from the worker): an observer acts later, never re-entering the queue in the
-  call.
+- **`onRenderStateChange` is called inside the queue's work** (`noteBakeMarksChanged` runs mid
+  drain, `bakeCompleted` from the worker): its handler acts later, never re-entering the queue in
+  the call.
 - **Chunk plans are data.** Live playback and bake-ahead share one deterministic plan per text
   and engine, from one owner (`LocalTTSCoordinator.chunkPlans`);
   stitched paragraphs store `chunkDurations` by it. Changing `TextChunker` limits or rules changes

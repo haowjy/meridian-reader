@@ -7,7 +7,7 @@ import SwiftUI
 /// a page you are only looking at.
 ///
 /// ```
-/// ( royalroad.com/fiction/21220/…/chapter-1        📄 )
+/// ( royalroad.com/fiction/40512/…/chapter-1        📄 )
 /// ```
 ///
 /// 📄 keeps its place in every state, so the capsule never changes shape: dimmed while the page
@@ -71,12 +71,12 @@ struct AddressLabel: View {
 
 #if DEBUG
 struct AddressLabelGallery: View {
-    private let address = "royalroad.com/fiction/21220/mother-of-learning/chapter/301778/1-good-morning-brother"
+    private let address = "royalroad.com/fiction/40512/the-copper-orchard/chapter/900001/1-first-frost"
 
     var body: some View {
         PreviewGallery {
             PreviewState("loading") {
-                AddressLabel(address: "royalroad.com/fiction/21220", swap: .unavailable) {}
+                AddressLabel(address: "royalroad.com/fiction/40512", swap: .unavailable) {}
             }
             PreviewState("the page, readable") {
                 AddressLabel(address: address, swap: .page) {}

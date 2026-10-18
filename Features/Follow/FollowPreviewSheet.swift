@@ -16,7 +16,7 @@ import SwiftUI
 /// ```
 ///                    ───
 /// Author's Note: Hiatus                        ☐   ← the box: keep / leave out
-/// ( royalroad.com/…/chapter/309114/authors-note  📄 )   ← the address, read only; 📄 the swap
+/// ( royalroad.com/…/chapter/900002/authors-note  📄 )   ← the address, read only; 📄 the swap
 /// ┌ the chapter's page (or its Reader text) ┐       ← scrolls, to the screen's foot
 /// ```
 ///
