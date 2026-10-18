@@ -33,11 +33,14 @@ final class FollowTests: XCTestCase {
         XCTAssertEqual(contents.byline, "orchard_writer")
         XCTAssertEqual(contents.chapters.map(\.title), ["1. First Frost", "Author's Note: Hiatus", "2. Pruning Season"])
 
-        // A chapter's address leads to its story's page.
+        // A chapter's address leads to its story's page; the site goes by its reader's name, or
+        // by its host.
         let chapter = URL(string: "https://www.royalroad.com/fiction/40512/the-copper-orchard/chapter/900001/1-first?x=1")!
         XCTAssertEqual(TableOfContents.contentsURL(for: chapter).absoluteString, "https://www.royalroad.com/fiction/40512")
-        let other = URL(string: "https://serials.example.com/story/contents")!
+        XCTAssertEqual(TableOfContents.siteName(of: chapter), "Royal Road")
+        let other = URL(string: "https://www.serials.example.com/story/contents")!
         XCTAssertEqual(TableOfContents.contentsURL(for: other), other)
+        XCTAssertEqual(TableOfContents.siteName(of: other), "serials.example.com")
 
         // Any other site: the list with the most chapter-like links on the page's own site wins
         // over a longer menu; a link back to the page itself and other sites' links are left out.
