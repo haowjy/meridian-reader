@@ -52,8 +52,10 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
 ## Architecture
 
 - **Composition root.** `AppComposition` is the only place that lists voice libraries; it builds
-  the `EngineRegistry`, the one `SpeechController`, the `ShellState` and the `LibraryStore`, which
-  `ReaderApp` injects through the environment, and connects the speech stack to the library
+  the `EngineRegistry`, the one `SpeechController`, the `ShellState`, the `LibraryStore`, the one
+  extractor, `DeveloperSettings`, Block Ads, Follow and Downloads, which `ReaderApp` injects through
+  the environment; it wires Downloads to the render queue's changes and the library's edits
+  (`makeDownloads`) and connects the speech stack to the library
   (`attachLibrary`: the library resolves Now Playing's text, and the `ListeningProgressRecorder`
   writes listening progress to it).
   `AppLaunch.run` does the launch work once: the library's launch maintenance
@@ -75,11 +77,13 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
   imports a voice library (FluidAudio and ONNX Runtime live in `Features/Speech/Engines/`).
   Features never name a concrete extractor. The Debug test fixtures (the demo book, the
   synthetic EPUB, the offline test pages' `TestPageSchemeHandler`) live in
-  `App/Fixtures/`; App hands Core and the design system what a launch asks for: the test pages'
-  handler to the browser's web view (`webViewSchemeHandlers`) and to Follow's `FetchQueue`, the ⋯
-  panel's test marker and slowed morph (`morphMenuMarksFocus`, `morphMenuAnimation`). Some
-  feature screens still read `LaunchOptions` for their Debug hooks (the test EPUB picker,
-  the scrub-bubble screenshot, Google suggestions off under `-uiTesting`).
+  `App/Fixtures/`; App hands Core, the design system and Features what a launch asks for: the
+  test pages' handler to the browser's web view (`webViewSchemeHandlers`) and to the
+  `URLPageFetcher` behind Follow's `FetchQueue`, the ⋯ panel's test marker and slowed morph
+  (`morphMenuMarksFocus`, `morphMenuAnimation`), Google suggestions off under `-uiTesting` and the
+  scrub-bubble screenshot (environment values from `LaunchTestHooks`), the test EPUB in place of
+  the Files picker (`BookImportActions.importsTestBook`, set in `AppMain`). No Feature reads
+  `LaunchOptions`.
 
 ## Extraction
 
@@ -142,9 +146,10 @@ removed). A site's own ads (served from its own host, such as
 Royal Road's promotions of its fictions) are not blocked.
 
 **Follow** (`FollowCenter`, `LibraryStore+Follow`): a story's table of contents
-(`TableOfContents.read`: Royal Road's story page by its chapters table, any other site by the
-list with the most chapter-like links on its own site; a Royal Road chapter's address leads to its
-story page) becomes a `series` folder of link pages, one per chapter kept in Review, in the
+(`TableOfContents.read`, through an ordered list of readers, the first that matches an address
+reading it: Royal Road's story page by its chapters table, any other site by the list with the
+most chapter-like links on its own site; a Royal Road chapter's address leads to its story page;
+each reader also names its site) becomes a `series` folder of link pages, one per chapter kept in Review, in the
 story's order, with its state in `sourceStateData` (`FollowState`: following or not, the last
 check, the last chapters added, and every chapter address the contents have listed, kept or not).
 Review's preview of a chapter is not an out-of-sight fetch: it loads the chapter in sight, in the
@@ -179,9 +184,11 @@ takes out pictures, embedded media, footnote asides, note references and links b
 and unwraps links (parsed in an inert document, so nothing loads). A book's endnotes stay, on
 their own back-matter page. See "Book import" below.
 
-**Swapping the engine.** A new type conforming to `ArticleExtracting`, set in `ReaderApp`; the
-library and speech don't change. `FakeArticleExtractor` backs the Debug "Fake extraction failure"
-toggle.
+**Swapping the engine.** A new type conforming to `ArticleExtracting`, as the base of
+`AppComposition.extractor`, the app's one extractor: the browser (through the environment),
+Follow and Downloads (through `FetchQueue`'s `URLPageFetcher`) all use it; the library and speech
+don't change. `DeveloperSwitchedExtractor` wraps it so that every extraction fails while Settings ›
+Developer › Fake Extraction Failure is on.
 
 **Manual check.** A news article and a long blog post extract a clean title and body; a home
 page (e.g. `https://example.com`) fails with a reason and saves nothing.

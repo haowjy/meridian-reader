@@ -28,6 +28,9 @@ protocol SpeechEngineProvider: AnyObject {
     /// Where this provider keeps files it downloads or can make again (models, voices): kept out
     /// of backups at launch (`BackupExclusion`).
     var regenerableDirectories: [URL] { get }
+    /// The settings this library stores itself (each engine's voice key aside), for
+    /// `-resetLibrary` to clear (`EngineRegistry.storedKeys`).
+    var storedKeys: [String] { get }
     /// This library's launch steps, run after every retired engine's cleanup
     /// (`EngineRegistry.launchMigrations`).
     var launchMigrations: [LaunchMigration] { get }
@@ -41,6 +44,7 @@ extension SpeechEngineProvider {
     func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery? { nil }
     func crashRetried(_ id: SpeechEngineID) {}
     var regenerableDirectories: [URL] { [] }
+    var storedKeys: [String] { [] }
     var launchMigrations: [LaunchMigration] { [] }
     func debugSections(speech: SpeechController) -> AnyView { AnyView(EmptyView()) }
 }
@@ -82,6 +86,8 @@ final class EngineRegistry {
     func isOnDevice(_ id: SpeechEngineID) -> Bool { descriptor(id)?.onDevice != nil }
     var retiredEngines: [RetiredEngine] { providers.flatMap(\.retiredEngines) }
     var regenerableDirectories: [URL] { providers.flatMap(\.regenerableDirectories) }
+    /// Every setting the registered engines store: each engine's voice and each library's own.
+    var storedKeys: [String] { descriptors.map(\.resolvedVoiceDefaultsKey) + providers.flatMap(\.storedKeys) }
     /// Launch steps, in order: retired engines' cleanup, then each library's own
     /// (`AppComposition.prepareAudioCache`).
     var launchMigrations: [LaunchMigration] {

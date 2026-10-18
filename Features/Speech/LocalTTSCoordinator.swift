@@ -6,10 +6,10 @@ import Observation
 final class LocalTTSCoordinator: SynthQueueContext {
     static let engineIDKey = "reader.tts.engineID"
 
-    /// The settings it stores over `engines` (the engine and each engine's voice), for
+    /// The settings it stores over `engines` (the engine, and what the engines store), for
     /// `-resetLibrary` to clear before any coordinator is made.
     static func storedKeys(for engines: EngineRegistry) -> [String] {
-        [engineIDKey] + engines.descriptors.map(\.resolvedVoiceDefaultsKey)
+        [engineIDKey] + engines.storedKeys
     }
 
     /// Every engine + its capabilities. Injected from the composition root.

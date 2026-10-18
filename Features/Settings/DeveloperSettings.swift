@@ -17,6 +17,7 @@ final class DeveloperSettings {
     /// Set once Release has cleared a stored unlock. The value is a stored key; it can't change.
     static let releaseResetKey = "reader.developerOptions.releaseReset.navJ"
     static let listenDebugKey = "reader.listenDebugEnabled"
+    static let storedKeys = [enabledKey, listenDebugKey]
     /// Long-press on the version row that toggles developer options.
     static let unlockPressSeconds: Double = 2
 
