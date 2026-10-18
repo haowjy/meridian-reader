@@ -128,7 +128,7 @@ struct ReaderSheetGallery: View {
         } bar: {
             if bar {
                 NowPlayingBar(title: "Chapter 12: Hunsford", detail: ["Pride and Prejudice", "9 min left"],
-                              progress: 0.3, state: .playing, onOpen: {}, onPlayPause: {}, onStop: {})
+                              progress: 0.3, state: .playing, onOpen: {}, onPlayPause: {}, onStop: {}, onRemove: {})
             }
         } more: {
             Image(systemName: Icons.more).toolbarIconFrame()

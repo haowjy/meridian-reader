@@ -4,9 +4,9 @@ import XCTest
 
 /// Pages played without saving (decision D5): the top of the Library's *Pages*, marked "Not
 /// saved", most recently played first (`LibraryQueries.playedNotSaved`), and *Save* puts one in
-/// the Library. A page removed from the Library is in no list, not even this one, as it plays on,
-/// until it is saved or listened to again (`Page.removedAt`), and keeps its star, which keeps it
-/// in Favorites.
+/// the Library. A page removed from the Library is in no list, not even this one, nor the bar's
+/// resume, until it is saved or listened to again (`Page.removedAt`); if you hear it, it stops;
+/// and it keeps its star, which keeps it in Favorites.
 @MainActor
 final class PlayedNotSavedTests: XCTestCase {
     private var env: LibraryTestEnvironment!
@@ -79,8 +79,8 @@ final class PlayedNotSavedTests: XCTestCase {
     // MARK: - Removed
 
     /// *Remove from Library* on a page that was played (a saved page, starred, part-way): out of
-    /// every list it was in, and not back as "Not saved". It is still there for what plays: the
-    /// bar resumes it, Now Playing has its text, and its audio is ephemeral.
+    /// every list it was in, not back as "Not saved", and not the bar's to resume. It is kept, its
+    /// text and place with it, for a listen to it again.
     func testRemovingAPlayedPageTakesItOutOfEveryList() throws {
         let url = URL(string: "https://example.com/heard")!
         let page = try library.save(env.article(url.absoluteString))
@@ -95,27 +95,37 @@ final class PlayedNotSavedTests: XCTestCase {
         XCTAssertEqual(try lists(holding: page), ["Favorites"], "in no Library list, Not saved included; starred, in Favorites")
         XCTAssertEqual(page.removedAt, env.now)
         XCTAssertTrue(page.isFavorite, "the star stays")
-        XCTAssertIdentical(library.page(url: url), page, "kept for what plays")
+        XCTAssertIdentical(library.page(url: url), page, "kept")
         XCTAssertTrue(page.hasText)
         XCTAssertEqual(page.positionParagraph, 1)
-        XCTAssertIdentical(try env.context.fetch(LibraryQueries.lastPlayed).first, page, "the bar still resumes it")
+        XCTAssertFalse(try env.context.fetch(LibraryQueries.lastPlayed).contains { $0 === page }, "the bar doesn't resume it")
     }
 
-    /// The page you hear, removed (🔖 in Now Playing): it plays on, is paused and resumed, and
-    /// played to the end, and stays out of every list throughout.
-    func testARemovedPageStaysOutOfEveryListAsItPlaysOn() throws {
+    /// The page you hear, removed (🔖 or ⋯ in Now Playing, the bar's long-press): playback is told
+    /// to stop it, and a session a waiting merge would move onto it, once the remove is saved
+    /// (`stopPlaybackIfPlaying`); a remove that can't be saved leaves it playing.
+    func testRemovingThePageYouHearStopsItOnceTheRemoveIsSaved() throws {
         let article = env.article("https://example.com/playing")
         let page = try library.save(article)
         library.recordPlayback(article)
-        try library.remove([page])
-        XCTAssertEqual(try lists(holding: page), [])
+        let merged = UUID() // a page merged into it, its merge waiting: a session on it moves onto the page
+        env.context.insert(LibraryAudioWork(sequence: 0, kind: .merge, key: page.listenKey, fromKey: merged,
+                                            paragraphs: [], sourceParagraphs: []))
+        try env.context.save()
+        var stopped: [UUID] = []
+        library.stopPlaybackIfPlaying = { key in
+            XCTAssertFalse(page.hasChanges, "the remove is saved first")
+            XCTAssertNotNil(page.removedAt)
+            stopped.append(key)
+        }
 
-        env.now += 60
-        library.recordPosition(page, paragraph: 1, utf16Offset: 0)
-        library.recordPlaybackStarted(page)
-        library.recordFinished(page)
-        XCTAssertEqual(try lists(holding: page), [], "playing on never lists it again")
-        XCTAssertNotNil(page.lastPlayedAt)
+        library.saveContext = { _ in throw SaveFailed() }
+        XCTAssertThrowsError(try library.remove([page]))
+        XCTAssertEqual(stopped, [], "a remove that can't be saved plays on")
+
+        library.saveContext = { try $0.save() }
+        try library.remove([page])
+        XCTAssertEqual(stopped, [page.listenKey, merged], "with the session its waiting merge would move onto it")
     }
 
     /// Listened to again from its article (🎧, the Reader's Listen), a removed page is played

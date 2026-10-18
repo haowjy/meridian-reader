@@ -2,8 +2,8 @@ import XCTest
 @testable import MeridianReader
 
 /// Follow's pure rules: reading a story's chapters off its table of contents (Royal Road's rule,
-/// the generic one), the fetch queue's pace and back-off, and which pages join a folder's
-/// download while its switch is on.
+/// the generic one), the fetch queue's pace and back-off and the notice it shows, and which pages
+/// join a folder's download while its switch is on.
 final class FollowTests: XCTestCase {
     private func link(_ url: String, _ text: String, list: Int) -> LinkPage.Link {
         LinkPage.Link(url: URL(string: url)!, text: text, list: list)
@@ -66,7 +66,10 @@ final class FollowTests: XCTestCase {
 
     /// The pause is 4 s, 12 s after a slow reply; a refusal or no answer doubles the wait from a
     /// minute up to 30 minutes (never under a refusal's Retry-After); answers halve it back down.
-    func testPacingBacksOffAndEasesBack() {
+    /// The header's notice names the chapter waiting by its title (by its number when it has
+    /// none), as a sentence.
+    @MainActor
+    func testPacingBacksOffAndItsNotice() {
         var pacing = FetchPacing()
         XCTAssertEqual(pacing.delay, 4)
         pacing.record(.answered(seconds: 1))
@@ -95,6 +98,12 @@ final class FollowTests: XCTestCase {
         XCTAssertEqual(FetchPacing.retryAfter("120", now: now), 120)
         XCTAssertEqual(FetchPacing.retryAfter("Fri, 15 Jan 2027 08:00:30 GMT", now: now), 30)
         XCTAssertNil(FetchPacing.retryAfter("soon", now: now))
+
+        XCTAssertEqual(FollowText.backOffNotice(site: "story", status: nil, chapter: .init(number: 6, title: "Chapter 6: The Wreck"),
+                                                wait: 112),
+                       "Story isn’t answering. “Chapter 6: The Wreck” is tried again in 1:52.")
+        XCTAssertEqual(FollowText.backOffNotice(site: "story", status: 429, chapter: .init(number: 6, title: " "), wait: 112),
+                       "Story asked to slow down (429). “Chapter 6” in 1:52, then slower.", "a chapter without a title")
     }
 
     // MARK: - The Download switch

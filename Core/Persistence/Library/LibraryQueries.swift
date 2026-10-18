@@ -9,16 +9,17 @@ import SwiftData
 ///   (`savedInLibrary`).
 /// - **Played without saving** (`playedNotSaved`): out of the Library, played, not removed since
 ///   you last listened to it. The top of the home's pages, "Not saved", and the home's search.
-/// - **Removed** (out of the Library with `removedAt` set): in none of those. *Remove from
-///   Library* takes a page out of every one of them at once, and playing on doesn't bring it
-///   back; saving it does, and so does listening to it again (🎧, the Reader's Listen).
+/// - **Removed** (out of the Library with `removedAt` set): in none of those, nor the bar's
+///   resume (`lastPlayed`). *Remove from Library* takes a page out of every one of them at once
+///   (and stops it if you hear it); saving it brings it back, and so does listening to it again
+///   (🎧, the Reader's Listen).
 /// - **Starred** (`isFavorite`), whatever its standing: Favorites (`favoritePages`, and the
 ///   Favorites tab's search). Remove leaves the star, so a removed favorite stays in Favorites,
 ///   and the prune keeps a starred page (`prunable`); only unstarring takes it out.
 ///
 /// Downloads go by the Library's line: the Downloads list keeps what is in the Library
 /// (`DownloadCenter`). The bar's resume (`lastPlayed`) and the prune (`prunable`) aren't lists:
-/// they read every page by when it was played. Predicates never go through the optional `folder` relationship
+/// they read pages by when they were played. Predicates never go through the optional `folder` relationship
 /// (iOS 17 can't always translate it); they use `Page.folderID`. Optional dates are compared
 /// through `?? distantPast`.
 enum LibraryQueries {
@@ -51,9 +52,8 @@ enum LibraryQueries {
 
     /// Pages played without saving (decision D5), most recently played first: the top of the
     /// Library home's pages, marked "Not saved", until the 7-day prune
-    /// (`prunable`) deletes them. A page removed from the Library (`removedAt`) isn't one, even
-    /// as it plays on, until you listen to it again. Book chapters never qualify (they are always
-    /// in their folder).
+    /// (`prunable`) deletes them. A page removed from the Library (`removedAt`) isn't one until
+    /// you listen to it again. Book chapters never qualify (they are always in their folder).
     static var playedNotSaved: FetchDescriptor<Page> {
         let past = Date.distantPast
         let saved = PageContentState.saved.rawValue
@@ -63,14 +63,15 @@ enum LibraryQueries {
         }, sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse), SortDescriptor(\Page.key)])
     }
 
-    /// The pages played most recently, newest first, in the Library or not (removed ones too:
-    /// removing never touches what you hear): the band's Now Playing bar offers the first one
-    /// still there to resume once nothing is bound. A few, so a page
-    /// deleted before its query updates leaves another.
+    /// The pages played most recently, newest first, in the Library or played without saving
+    /// (not removed: removing the page you hear stops it, and the bar doesn't offer it back): the
+    /// band's Now Playing bar offers the first one still there to resume once nothing is bound,
+    /// and the prune keeps it. A few, so a page deleted before its query updates leaves another.
     static var lastPlayed: FetchDescriptor<Page> {
         let past = Date.distantPast
-        var descriptor = FetchDescriptor(predicate: #Predicate<Page> { ($0.lastPlayedAt ?? past) > past },
-                                         sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse)])
+        var descriptor = FetchDescriptor(predicate: #Predicate<Page> {
+            ($0.addedAt != nil || $0.removedAt == nil) && ($0.lastPlayedAt ?? past) > past
+        }, sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse)])
         descriptor.fetchLimit = 3
         return descriptor
     }

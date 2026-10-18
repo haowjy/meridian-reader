@@ -501,10 +501,25 @@ final class SpeechController {
 
     /// Stop Listening: unbinds the page, so the bar goes away.
     func stop() {
+        // Listen preempts bake; on stop, resume gap-fill so save-time work still lands on disk.
+        endSession(restartBake: true)
+    }
+
+    /// The page keyed `key` is leaving the Library (removed from it, deleted) or being revised
+    /// (`LibraryStore.stopPlaybackIfPlaying`). While it is what you hear, the session ends as Stop
+    /// Listening ends it, so the bar and Now Playing let it go; but nothing renders for the page
+    /// after: no gap fill, and the render its listen queued goes too (`removeBakeJob`, after the
+    /// engines stopped; its audio stays). Anything else plays on.
+    func stopIfPlaying(_ key: UUID) {
+        guard activeSessionID == key else { return }
+        endSession(restartBake: false)
+        localTTS.removeBakeJob(cacheKey: key)
+    }
+
+    private func endSession(restartBake: Bool) {
         userPerform(.stop)
         endChapterFlow()
-        // Listen preempts bake; on stop, resume gap-fill so save-time work still lands on disk.
-        finishSession(restartBake: true)
+        finishSession(restartBake: restartBake)
         playback.clear()
     }
 
@@ -512,16 +527,16 @@ final class SpeechController {
     /// fingerprint): Save landed on an older page holding the address under another key, or a
     /// merge moved a page's audio under the kept page's key (`LibraryStore.keyMerged`). A live
     /// session on `oldID` playing that text takes the new key without stopping audio. One playing
-    /// other text stops (Stop Listening), as playback of a page being revised does: a key can name
+    /// other text stops as playback of a page being revised does (`stopIfPlaying`): a key can name
     /// other text by the time a merge runs (a *Replace* revised the kept chapter, or brought
     /// another chapter back under it), and its positions would be stored on text it isn't
-    /// playing.
+    /// playing. No gap fill follows, since no page holds `oldID` any more.
     func rekeyActiveSession(from oldID: UUID, to newID: UUID, text: String?) {
         guard oldID != newID, playback.articleID == oldID else { return }
         guard let text, text == playback.textFingerprint else {
             ListenTimingLog.log("session_rekey", ["from": ListenTimingLog.shortKey(oldID),
                                                   "to": ListenTimingLog.shortKey(newID), "stopped": "other text"])
-            stop()
+            stopIfPlaying(oldID)
             return
         }
         if sessionMeta?.id == oldID { sessionMeta?.id = newID }

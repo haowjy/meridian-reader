@@ -123,10 +123,11 @@ struct LibraryActions {
         }
     }
 
-    /// *Remove from Library* from every path (a row's menu and swipe, Edit's *Remove*, and through
-    /// `PageActions` 🔖 and the browser's, the Reader's and Now Playing's ⋯), all of `pages` in one
-    /// save (`LibraryStore.remove`: the star stays). False when it couldn't be saved: none
-    /// removed, and a toast says so.
+    /// *Remove from Library* from every path (a row's menu and swipe, Edit's *Remove*, the Now
+    /// Playing bar's long-press, and through `PageActions` 🔖 and the browser's, the Reader's and
+    /// Now Playing's ⋯), all of `pages` in one save (`LibraryStore.remove`: the star stays, and
+    /// the page you hear stops). False when it couldn't be saved: none removed, playback as it
+    /// was, and a toast says so.
     @discardableResult
     func remove(_ pages: [Page]) -> Bool {
         shell.attempt(String(localized: "Couldn’t remove")) { try library.remove(pages) } != nil

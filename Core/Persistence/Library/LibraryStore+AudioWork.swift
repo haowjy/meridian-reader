@@ -316,8 +316,9 @@ extension LibraryStore {
 
     /// The page left the Library (`.ephemeral`) or was saved (`.saved`): either way its audio
     /// follows the page as it is when this runs (`settleAudio`), saved audio for a page saved in
-    /// the Library, else the ephemeral TTL (kept, so playback goes on; the cache's age prune
-    /// removes it). Both kinds stay readable: records an earlier launch left carry either.
+    /// the Library, else the ephemeral TTL (kept, so a listen to it again doesn't render it again;
+    /// the cache's age prune removes it). Both kinds stay readable: records an earlier launch left
+    /// carry either.
     private func settle(_ work: LibraryAudioWork) throws {
         guard let key = work.key else { return }
         try settleAudio(key, page: try context.fetch(LibraryQueries.page(key: key)).first)
@@ -389,11 +390,13 @@ extension LibraryStore {
     /// The keys a live session can be playing that a waiting merge would move onto one of `keys`'
     /// pages when it runs (`keyMerged`): the merged key of each stored merge into one of them,
     /// while no page holds that key and no record after the merge names it (the rule `merge`
-    /// moves a session by). *Replace* and deleting a page stop these sessions along with the pages
-    /// they revise, drop or delete. Otherwise the merge, which follows what the kept page holds
-    /// when it runs, would move the session onto a revised page whose text it isn't playing, and
-    /// positions in the old text would be recorded there; or, with the kept page gone, it would
-    /// leave the session playing a key no page holds. Records that can't be read name none.
+    /// moves a session by). *Replace*, deleting a page and removing it from the Library stop these
+    /// sessions along with the pages they revise, drop, delete or remove. Otherwise the merge,
+    /// which follows what the kept page holds when it runs, would move the session onto a revised
+    /// page whose text it isn't playing, and positions in the old text would be recorded there;
+    /// or, with the kept page gone, it would leave the session playing a key no page holds; or it
+    /// would carry it onto a removed page, playing on in no list. Records that can't be read name
+    /// none.
     func keysWaitingToMerge(into keys: Set<UUID>) -> [UUID] {
         guard !keys.isEmpty else { return [] }
         let rows: [LibraryAudioWork]

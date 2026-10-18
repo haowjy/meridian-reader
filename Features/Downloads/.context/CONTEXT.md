@@ -35,7 +35,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   (`LibraryStore.editStored`), a download whose page was removed from the Library, or whose page
   or folder was deleted, leaves the list without touching audio (the library already made it
   ephemeral or deleted it). A folder download's page that left the Library fails as "no longer in
-  the Library" when its turn comes.
+  the Library" when its turn comes; the one rendering stops at once (`followLibrary`).
 - **A folder's download is its Download switch** (`DownloadRecord.followsFolder`). It lists the
   folder's pages when turned on: a book's or story's chapters that play and
   aren't finished (D7 trims finished ones' audio anyway), any other folder's own pages. While it

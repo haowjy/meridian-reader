@@ -55,7 +55,12 @@ Rules:
   carries on, and otherwise the session finishes.
 - At the end of a page (or of a book or series) the engines stop, the audio session deactivates
   and the lock screen clears, but the page stays bound in `finished`: the Now Playing bar keeps it
-  with ▶ and "✓ Finished". Only *Stop Listening* (the bar's long-press) unbinds it.
+  with ▶ and "✓ Finished". Only *Stop Listening* (the bar's long-press) unbinds it, or the
+  library changing the page under it: removed from the Library (once that is saved), deleted,
+  its text revised by a *Replace*, or moved by a merge onto a page holding other text
+  (`LibraryStore.stopPlaybackIfPlaying`, `rekeyActiveSession` → `SpeechController.stopIfPlaying`,
+  which ends the session as Stop Listening does but renders nothing more for the page: no gap
+  fill, and its queued render goes).
 - On a finished page, `resume`, `toggle` and `play` from the playhead play it again from its top
   (paragraph 0, offset 0), whatever spot the voice finished at: the on-screen ▶, headphones, the
   lock screen and CarPlay all replay it, and the lock screen shows it again.
@@ -71,7 +76,7 @@ Rules:
 - **`nowPlaying`** (`NowPlaying`): the bound page's key, canonical URL, title, source (its host,
   or the book's or series' name for a chapter), byline (the lock screen's subtitle), artwork, where it plays from
   (`PlayingFrom.folder(id:name:)` for a page in a folder, else `.site(host:)`) and phase. nil only before anything has played and after Stop
-  Listening. `isFinished` (phase `.finished`) is what the bar and Now Playing read for "✓ Finished".
+  Listening or the page's removal or delete. `isFinished` (phase `.finished`) is what the bar and Now Playing read for "✓ Finished".
 - **Time left** is `ListeningTime`'s: one reading rate (180 words a minute, a word being 6 UTF-16
   units of the listen text; a page not yet played by its stored word count), one way to write it
   ("9 min left", "6 h 10 min left"), and an explicit playback rate at every call. Every surface
@@ -101,7 +106,8 @@ Rules:
 - Now Playing's reading content isn't the controller's: Now Playing looks the playing page up by
   its key when it changes (`LibraryStore.nowPlayingContent(for:)`). The library has every page
   that has played (a page played without saving, or removed from the Library, is kept 7 days
-  after its last play), so it is there after a relaunch too.
+  after its last play), so it is there after a relaunch too. When nothing is bound any more
+  (the page you heard removed or deleted) Now Playing closes itself.
 
 ### Engine adapters (`ListenEngine`)
 
@@ -214,7 +220,8 @@ and nothing it reaches is written; the page keeps its own listening. Kept progre
 too: a rollback writes it again only on a page holding the text it was made in, and a play of
 other text on the page starts it over. A session moves to another key only onto a page holding
 its text: a merge whose kept page holds other text when it runs, or a Save landing on an older
-page while the session plays older text, stops it instead (`rekeyActiveSession`).
+page while the session plays older text, stops it instead (`rekeyActiveSession`, through
+`stopIfPlaying`: no gap fill renders under the key left behind, which no page holds).
 
 Crash resume runs only after a death the engine caused (`TTS_ENGINES.md` → "Crashes"): a
 terminated process clears its in-flight marker, and a marker the process outlived, or one left by
@@ -339,6 +346,7 @@ missing paragraphs above it:
 | Article save | from 0: `0…end`, queued at the back |
 | Reader open, listen start / jump | from `p`: `p…end`, then missing `0..<p`, at the front |
 | Playback finished / stopped (outside books and series) | `startBakeIfNeeded` (from 0, at the back): fill leftover gaps |
+| The page you hear removed, deleted or revised, or merged onto a page holding other text | its job leaves the queue (`removeBakeJob`); no gap fill |
 
 Saving an article that is already queued, #1 included, keeps its place and plan; the job turns
 saved (`.back` keeps a queued job where it is).

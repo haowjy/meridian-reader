@@ -52,7 +52,8 @@ struct NowPlayingScreen: View {
             .onChange(of: now.pageKey, initial: true) { _, key in load(key) }
             .task(id: ScrubMapKey(key: now.pageKey, count: speech.document.count)) { await buildScrubMap() }
         } else {
-            // Nothing is bound (crash resume found nothing to play): nothing to show.
+            // Nothing is bound (the page you heard was removed from the Library or deleted, or
+            // crash resume found nothing to play): nothing to show.
             Color.clear.onAppear(perform: shell.hideNowPlaying)
         }
     }
