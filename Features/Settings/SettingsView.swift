@@ -8,6 +8,7 @@ import SwiftUI
 /// Appearance   [ System | Light | Dark ]  Color (●)(●)(●)(●)(●)
 /// Reading      themes (◐)(Aa)(Aa)(Aa)(Aa), font, size [A] 100% [A], spacing, a sample
 /// Listening    engines (download, ✓), Voice ›, Language ›, Speed [0.75× … 2×]
+/// Browsing     Block Ads (on)
 /// Downloads    Downloads ›, the audio kept on this iPhone
 /// Developer    (developer options only) listen debug, fake extraction failure, the panel
 /// Version 1.0 (1)                        (2 s long-press: developer options on / off)
@@ -29,6 +30,7 @@ struct SettingsView: View {
                 AppearanceSettingsSection(appearance: AppAppearance.shared)
                 ReadingSettingsSection(appearance: reading)
                 ListeningSettingsSection(speech: speech)
+                BrowsingSettingsSection(blocker: ContentBlocker.shared)
                 StorageSettingsSection(speech: speech)
                 if speech.developerOptionsEnabled {
                     DeveloperSettingsSection(speech: speech)
@@ -145,6 +147,24 @@ private struct ReadingSettingsSection: View {
             SettingsSectionHeader(title: String(localized: "Reading"))
         } footer: {
             Text("How the Reader and Now Playing show pages. Aa at the top of either changes the same settings.")
+                .settingsFooter()
+        }
+        .settingsCard()
+    }
+}
+
+/// Settings › Browsing: Block Ads (`ContentBlocker`).
+private struct BrowsingSettingsSection: View {
+    @Bindable var blocker: ContentBlocker
+
+    var body: some View {
+        Section {
+            SettingsToggleRow(title: String(localized: "Block Ads"), symbol: Icons.blockAds,
+                              isOn: $blocker.isEnabled, accessibilityID: "blockAdsToggle")
+        } header: {
+            SettingsSectionHeader(title: String(localized: "Browsing"))
+        } footer: {
+            Text("Stops common ad and tracker sites from loading in web pages, Follow's included. A change applies to pages loaded after it.")
                 .settingsFooter()
         }
         .settingsCard()

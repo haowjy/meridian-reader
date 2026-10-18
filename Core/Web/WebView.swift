@@ -15,11 +15,8 @@ struct WebView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.defaultWebpagePreferences.allowsContentJavaScript = true
-        for (scheme, handler) in context.environment.webViewSchemeHandlers {
-            config.setURLSchemeHandler(handler, forURLScheme: scheme)
-        }
+        let config = WKWebViewConfiguration.appWebView(pageScripts: true,
+                                                       schemeHandlers: context.environment.webViewSchemeHandlers)
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator

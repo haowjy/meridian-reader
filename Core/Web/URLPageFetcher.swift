@@ -179,10 +179,7 @@ final class URLPageFetcher {
     }
 
     private static func makeView(in window: UIWindow, schemeHandlers: [String: any WKURLSchemeHandler]) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.websiteDataStore = .default()
-        config.defaultWebpagePreferences.allowsContentJavaScript = false
-        for (scheme, handler) in schemeHandlers { config.setURLSchemeHandler(handler, forURLScheme: scheme) }
+        let config = WKWebViewConfiguration.appWebView(pageScripts: false, schemeHandlers: schemeHandlers)
         let size = window.bounds.size
         let frame = CGRect(x: -size.width - 100, y: 0, width: size.width, height: size.height)
         let view = WKWebView(frame: frame, configuration: config)

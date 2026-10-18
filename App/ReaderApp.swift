@@ -52,6 +52,9 @@ struct ReaderApp: App {
         _downloads = State(initialValue: AppComposition.makeDownloads(library: library, follow: follow))
         // Foreground/background gate for Core ML synthesis (no model calls in the background).
         AppRunState.shared.observeApplication()
+        // Before the first web view: the browser's restored page loads with Block Ads' list when
+        // its lookup has finished by then.
+        ContentBlocker.shared.prepare()
         AppComposition.runLaunchMaintenance(library: library)
         AppComposition.attachLibrary(library)
     }

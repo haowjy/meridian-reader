@@ -28,7 +28,8 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   UI tests). Unit tests cover only the riskiest pure logic: time left (`ListeningTimeTests`),
   list membership and the removed state (`PlayedNotSavedTests`), the download accept rule
   (`DownloadOverviewTests`), the engine crash guard (`EngineCrashGuardTests`), the web view's
-  reloads after its content process ends (`ContentProcessRecoveryTests`), text splitting and
+  reloads after its content process ends (`ContentProcessRecoveryTests`), the bundled Block Ads list compiling
+  (`ContentBlockerTests`), text splitting and
   chunking (`TextChunkerTests`, `ParagraphSplitTests`), Follow's contents readers and back-off
   (`FollowTests`). `CoreFlowsUITests` holds the three
   end-to-end flows: save and play a browsed page, swipe-Remove takes a played page out of every
