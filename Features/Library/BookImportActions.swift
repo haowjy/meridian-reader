@@ -14,12 +14,17 @@ struct BookImportActions {
     let shell: ShellState
     var files = BookImportFiles.standard
 
-    /// *Import Book…*: the book goes into `destination` (nil: the top level). With
-    /// `-importTestEPUB` (Debug) the synthetic EPUB stands in for the picker, which a UI test
-    /// can't drive.
+    #if DEBUG
+    /// `-importTestEPUB`: the synthetic EPUB stands in for the picker, which a UI test can't
+    /// drive. Set by the launch (`AppMain`).
+    static var importsTestBook = false
+    #endif
+
+    /// *Import Book…*: the book goes into `destination` (nil: the top level), or the test book
+    /// does (`importsTestBook`).
     func pickBook(into destination: Folder?) {
         #if DEBUG
-        if LaunchOptions.current.importsTestEPUB {
+        if Self.importsTestBook {
             importTestBook(into: destination?.id)
             return
         }

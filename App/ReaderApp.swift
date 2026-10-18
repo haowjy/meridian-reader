@@ -14,6 +14,7 @@ enum AppMain {
         }
         // Before the composition reads any of them.
         if LaunchOptions.current.resetsLibrary { LaunchHooks.resetStoredSettings(engines: AppComposition.engineRegistry) }
+        BookImportActions.importsTestBook = LaunchOptions.current.importsTestEPUB
         #endif
         ReaderApp.main()
     }

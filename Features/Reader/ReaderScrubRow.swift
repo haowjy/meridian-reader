@@ -113,6 +113,9 @@ struct ReaderScrubRow<Trailing: View>: View {
     @State private var haptics = UISelectionFeedbackGenerator()
     @State private var speedHaptics = UIImpactFeedbackGenerator(style: .light)
     @State private var endHaptics = UIImpactFeedbackGenerator(style: .rigid)
+    #if DEBUG
+    @Environment(\.showsScrubBubbleDemo) private var showsDemoBubble
+    #endif
 
     /// Grab radius around the thumb (points): a touch this close drags the thumb, no jump.
     static var grabRadius: CGFloat { 26 }
@@ -138,10 +141,10 @@ struct ReaderScrubRow<Trailing: View>: View {
     }
 
     #if DEBUG
-    /// Screenshot hook (`LaunchOptions.scrubBubbleDemo`): freeze a mid-drag frame (fine-scrubbing,
-    /// thumb 40% in) so the bubble can be captured.
+    /// Screenshot hook (`showsScrubBubbleDemo`): freeze a mid-drag frame (fine-scrubbing, thumb
+    /// 40% in) so the bubble can be captured.
     private func showDemoBubbleIfRequested() {
-        guard LaunchOptions.current.scrubBubbleDemo else { return }
+        guard showsDemoBubble else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             speed = .quarter
             fingerY = -120
@@ -358,3 +361,11 @@ private struct ReaderScrubBubbleView: View {
         }
     }
 }
+
+#if DEBUG
+extension EnvironmentValues {
+    /// The scrubber freezes a mid-drag frame for a screenshot (`-scrubBubbleDemo`, set by the
+    /// launch).
+    @Entry var showsScrubBubbleDemo = false
+}
+#endif

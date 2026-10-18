@@ -16,13 +16,8 @@ struct SearchSessionOverlay: View {
     /// The saved pages, for suggestions: read only while the layer is up.
     @Query(LibraryQueries.savedInLibrary) private var articles: [Page]
     @State private var google: [String] = []
+    @Environment(\.fetchesSearchSuggestions) private var fetchesGoogle
 
-    /// Live Google suggestions; off in UI tests so results don't depend on the network.
-    #if DEBUG
-    private static let fetchesGoogle = LaunchOptions.current.fetchesSuggestions
-    #else
-    private static let fetchesGoogle = true
-    #endif
     private static let googleDebounce: Duration = .milliseconds(280)
 
     private var showsRecentSearches: Bool {
@@ -65,14 +60,14 @@ struct SearchSessionOverlay: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("addressEditBackdrop")
         .task(id: session.text) {
-            let results = await Self.googleSuggestions(for: session.text)
+            let results = await Self.googleSuggestions(for: session.text, enabled: fetchesGoogle)
             if !Task.isCancelled { google = results }
         }
     }
 
     /// Google's suggestions for typed text, after a short pause in typing.
-    private static func googleSuggestions(for text: String) async -> [String] {
-        guard let q = GoogleSuggestClient.query(forTyped: text, enabled: fetchesGoogle) else { return [] }
+    private static func googleSuggestions(for text: String, enabled: Bool) async -> [String] {
+        guard let q = GoogleSuggestClient.query(forTyped: text, enabled: enabled) else { return [] }
         do { try await Task.sleep(for: googleDebounce) } catch { return [] }
         return await GoogleSuggestClient.suggestions(for: q)
     }
@@ -191,4 +186,10 @@ private struct SuggestionRow<Leading: View>: View {
         }
         .buttonStyle(.plain)
     }
+}
+
+extension EnvironmentValues {
+    /// Live Google suggestions in the address field; a launch turns them off for UI tests, so
+    /// results don't depend on the network.
+    @Entry var fetchesSearchSuggestions = true
 }
