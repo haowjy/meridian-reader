@@ -99,23 +99,25 @@ enum CPUBenchLog {
     }
 }
 
-/// Launch-time capability probes (debug panel + timing log).
+/// Launch-time capability probes (debug panel + timing log), every launch: one of FluidAudio's
+/// launch steps.
 @MainActor
-enum CPURouteProbes {
+struct CPURouteProbes: LaunchMigration {
     /// `BGTaskScheduler.supportedResources.contains(.gpu)`; nil below iOS 26.
     private(set) static var backgroundGPUSupported: Bool?
     private(set) static var backgroundGPULabel = "not checked"
 
-    static func logAtLaunch() {
+    /// Can this device get GPU time in background continued-processing tasks?
+    func runIfNeeded(_ tts: LocalTTSCoordinator) {
         if #available(iOS 26.0, *) {
-            backgroundGPUSupported = BGTaskScheduler.supportedResources.contains(.gpu)
+            Self.backgroundGPUSupported = BGTaskScheduler.supportedResources.contains(.gpu)
         }
-        backgroundGPULabel = backgroundGPUSupported.map { $0 ? "yes" : "no" } ?? "n/a (iOS < 26)"
+        Self.backgroundGPULabel = Self.backgroundGPUSupported.map { $0 ? "yes" : "no" } ?? "n/a (iOS < 26)"
         ListenTimingLog.log("probe_bg_gpu", [
-            "supported": backgroundGPUSupported.map { $0 as Any } ?? NSNull(),
+            "supported": Self.backgroundGPUSupported.map { $0 as Any } ?? NSNull(),
             "device": CPURouteMetrics.device, "os": CPURouteMetrics.os,
         ])
-        ListenDebugLog.shared.append("Probe: BGTaskScheduler.supportedResources.contains(.gpu) = \(backgroundGPULabel)")
+        ListenDebugLog.shared.append("Probe: BGTaskScheduler.supportedResources.contains(.gpu) = \(Self.backgroundGPULabel)")
     }
 }
 #endif

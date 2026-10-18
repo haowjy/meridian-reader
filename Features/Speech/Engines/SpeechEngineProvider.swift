@@ -1,7 +1,9 @@
-import Foundation
+import SwiftUI
 
 /// One adapter per voice library (Apple, FluidAudio). Registers the engines
 /// it provides and builds their synth hosts. Only provider files import the library.
+/// What a provider needs to decide its hooks (launch arguments, settings) comes in at its init,
+/// from `AppComposition.makeProviders()`.
 @MainActor
 protocol SpeechEngineProvider: AnyObject {
     var name: String { get }
@@ -26,6 +28,11 @@ protocol SpeechEngineProvider: AnyObject {
     /// Where this provider keeps files it downloads or can make again (models, voices): kept out
     /// of backups at launch (`BackupExclusion`).
     var regenerableDirectories: [URL] { get }
+    /// This library's launch steps, run after every retired engine's cleanup
+    /// (`EngineRegistry.launchMigrations`).
+    var launchMigrations: [LaunchMigration] { get }
+    /// This library's sections of the Listen debug panel (its own settings and diagnostics).
+    func debugSections(speech: SpeechController) -> AnyView
 }
 
 extension SpeechEngineProvider {
@@ -34,6 +41,8 @@ extension SpeechEngineProvider {
     func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery? { nil }
     func crashRetried(_ id: SpeechEngineID) {}
     var regenerableDirectories: [URL] { [] }
+    var launchMigrations: [LaunchMigration] { [] }
+    func debugSections(speech: SpeechController) -> AnyView { AnyView(EmptyView()) }
 }
 
 /// Composition-root registry of every engine. Built once at launch (`AppComposition`) and
@@ -66,11 +75,6 @@ final class EngineRegistry {
     func descriptor(_ id: SpeechEngineID) -> EngineDescriptor? { byID[id]?.0 }
     func contains(_ id: SpeechEngineID) -> Bool { byID[id] != nil }
 
-    /// The registered provider of type `P` (a library's own debug tools reach their provider so).
-    func provider<P: SpeechEngineProvider>(_ type: P.Type) -> P? {
-        providers.lazy.compactMap { $0 as? P }.first
-    }
-
     var systemDescriptor: EngineDescriptor? { descriptors.first { $0.onDevice == nil } }
     var localDescriptors: [EngineDescriptor] { descriptors.filter { $0.onDevice != nil } }
 
@@ -78,6 +82,11 @@ final class EngineRegistry {
     func isOnDevice(_ id: SpeechEngineID) -> Bool { descriptor(id)?.onDevice != nil }
     var retiredEngines: [RetiredEngine] { providers.flatMap(\.retiredEngines) }
     var regenerableDirectories: [URL] { providers.flatMap(\.regenerableDirectories) }
+    /// Launch steps, in order: retired engines' cleanup, then each library's own
+    /// (`AppComposition.prepareAudioCache`).
+    var launchMigrations: [LaunchMigration] {
+        retiredEngines.map(RetiredEngineCleanup.init) + providers.flatMap(\.launchMigrations)
+    }
 
     /// Engine that sizes chunks / keys the cache when no local engine is active yet:
     /// the recommended on-device engine (Kokoro today), else the first one.

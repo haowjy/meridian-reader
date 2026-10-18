@@ -1,23 +1,33 @@
 import SwiftUI
 
+extension FluidAudioProvider {
+    /// The Kokoro route knobs; a Debug build adds the CPU route benchmark.
+    func debugSections(speech: SpeechController) -> AnyView {
+        AnyView(Group {
+            KokoroRouteDebugSection(kokoro: self, tts: speech.localTTS)
+            #if DEBUG
+            CPURouteBenchSection(speech: speech)
+            #endif
+        })
+    }
+}
+
 /// Listen debug panel: Kokoro route knobs. The ONNX CPU route is the default; the Core ML route is
 /// an opt-in that can crash in libBNNS on iOS 26.4+ and hands over to ONNX once the app is in the
 /// background. The settings belong to `FluidAudioProvider`.
 struct KokoroRouteDebugSection: View {
-    @Bindable var speech: SpeechController
+    let kokoro: FluidAudioProvider
+    let tts: LocalTTSCoordinator
     @State private var fastGPU: Bool
     @State private var threads: Int
     @State private var busy = false
 
-    init(speech: SpeechController) {
-        self.speech = speech
-        let settings = speech.localTTS.engines.provider(FluidAudioProvider.self)?.routeSettings
-        _fastGPU = State(initialValue: settings?.fastGPURouteEnabled ?? false)
-        _threads = State(initialValue: settings?.cpuThreads ?? KokoroRouteSettings.defaultThreads)
+    init(kokoro: FluidAudioProvider, tts: LocalTTSCoordinator) {
+        self.kokoro = kokoro
+        self.tts = tts
+        _fastGPU = State(initialValue: kokoro.routeSettings.fastGPURouteEnabled)
+        _threads = State(initialValue: kokoro.routeSettings.cpuThreads)
     }
-
-    private var tts: LocalTTSCoordinator { speech.localTTS }
-    private var kokoro: FluidAudioProvider? { tts.engines.provider(FluidAudioProvider.self) }
 
     var body: some View {
         Section {
@@ -26,7 +36,7 @@ struct KokoroRouteDebugSection: View {
                 .onChange(of: fastGPU) { _, on in
                     busy = true
                     Task {
-                        if kokoro?.setFastGPURoute(on) == true { await tts.reloadEngine(.kokoro) }
+                        if kokoro.setFastGPURoute(on) { await tts.reloadEngine(.kokoro) }
                         busy = false
                     }
                 }
@@ -37,13 +47,13 @@ struct KokoroRouteDebugSection: View {
                 .onChange(of: threads) { _, n in
                     busy = true
                     Task {
-                        if kokoro?.setCPUThreads(n) == true { await tts.reloadEngine(.kokoro) }
+                        if kokoro.setCPUThreads(n) { await tts.reloadEngine(.kokoro) }
                         busy = false
                     }
                 }
             LabeledContent("Live route", value: liveRoute)
             LabeledContent("Render speed", value: paceLabel)
-            LabeledContent("ONNX crashes (→ Apple at 2)", value: "\(kokoro?.routeSettings.onnxCrashCount ?? 0)")
+            LabeledContent("ONNX crashes (→ Apple at 2)", value: "\(kokoro.routeSettings.onnxCrashCount)")
         } header: {
             Text("Kokoro route")
         } footer: {
@@ -54,7 +64,7 @@ struct KokoroRouteDebugSection: View {
 
     private var liveRoute: String {
         guard tts.activeLocalEngineID == .kokoro, let r = tts.synth.hostRouteTag.flatMap(KokoroRoute.init(rawValue:)) else {
-            return "not loaded (\(kokoro?.routeSettings.route.label ?? "—") next)"
+            return "not loaded (\(kokoro.routeSettings.route.label) next)"
         }
         return "\(r.label), \(tts.synth.hostRoutingLabel ?? "")"
     }

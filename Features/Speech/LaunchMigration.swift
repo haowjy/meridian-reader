@@ -2,8 +2,10 @@ import Foundation
 
 /// A launch step. Each checks whether it has work: most set their own done flag, so they run once
 /// per install and can be deleted once every install has run them; a cleanup checks the state it
-/// cleans. `AppComposition.prepareAudioCache` runs the list before the first frame, after the
-/// library's unfinished audio work and before anything renders or plays.
+/// cleans; a probe runs every launch. `AppComposition.prepareAudioCache` runs the list
+/// (`EngineRegistry.launchMigrations`: retired engines' cleanup, then each voice library's own)
+/// before the first frame, after the library's unfinished audio work and before anything renders
+/// or plays.
 @MainActor
 protocol LaunchMigration {
     func runIfNeeded(_ tts: LocalTTSCoordinator)

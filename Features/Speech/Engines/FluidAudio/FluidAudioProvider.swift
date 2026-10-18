@@ -25,10 +25,15 @@ final class FluidAudioProvider: SpeechEngineProvider {
     let routeSettings: KokoroRouteSettings
     /// Compute units of the Core ML route's host (`KokoroHost.unitsLabel`); nil: its default.
     let coreMLUnits: String?
+    /// Launch leaves the Core ML stages on disk with the route off: a Core ML stress run
+    /// (`-KokoroStress coreml`) loads them itself.
+    let keepsCoreMLStages: Bool
 
-    init(routeSettings: KokoroRouteSettings = KokoroRouteSettings(), coreMLUnits: String? = nil) {
+    init(routeSettings: KokoroRouteSettings = KokoroRouteSettings(), coreMLUnits: String? = nil,
+         keepsCoreMLStages: Bool = false) {
         self.routeSettings = routeSettings
         self.coreMLUnits = coreMLUnits
+        self.keepsCoreMLStages = keepsCoreMLStages
     }
 
     /// Curated voices live in `KokoroVoiceCatalog` (one-line swaps).
@@ -82,11 +87,16 @@ final class FluidAudioProvider: SpeechEngineProvider {
         [KokoroAssets.fluidAudioDirectory, KokoroONNXModelStore.directory.deletingLastPathComponent()]
     }
 
-    /// Kokoro's launch steps, run by `AppComposition.prepareAudioCache`. `keepingCoreMLStages`:
-    /// a Core ML stress run (`-KokoroStress coreml`) loads the stages itself.
-    static func launchMigrations(keepingCoreMLStages: Bool = false) -> [LaunchMigration] {
-        [KokoroAudioCachePurge(), KokoroONNXMainMigration()]
-            + (keepingCoreMLStages ? [] : [KokoroCoreMLStageCleanup()])
+    /// Kokoro's audio and model housekeeping, then pruning Core ML's compiled-model cache of
+    /// earlier installs' bundles; a Debug build also probes for background GPU time.
+    var launchMigrations: [LaunchMigration] {
+        var steps: [LaunchMigration] = [KokoroAudioCachePurge(), KokoroONNXMainMigration()]
+        if !keepsCoreMLStages { steps.append(KokoroCoreMLStageCleanup()) }
+        steps.append(CoreMLCompileCacheJanitor())
+        #if DEBUG
+        steps.append(CPURouteProbes())
+        #endif
+        return steps
     }
 
     // MARK: - Route knobs (Listen debug panel)

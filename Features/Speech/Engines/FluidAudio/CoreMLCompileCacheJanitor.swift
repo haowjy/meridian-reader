@@ -7,8 +7,8 @@ import Foundation
 ///
 /// Once per install, delete bundle dirs whose newest file predates this launch (the first launch of
 /// the install). Core ML recompiles anything it still needs — which it does after a binary change anyway (the one slow
-/// first Kokoro load after an install), so this costs nothing extra.
-enum CoreMLCompileCacheJanitor {
+/// first Kokoro load after an install), so this costs nothing extra. One of FluidAudio's launch steps.
+struct CoreMLCompileCacheJanitor {
     struct Report: Sendable {
         var bundlesRemoved = 0
         var bytesFreed: Int64 = 0
@@ -86,5 +86,21 @@ enum CoreMLCompileCacheJanitor {
             }
         }
         return newest
+    }
+}
+
+extension CoreMLCompileCacheJanitor: LaunchMigration {
+    /// Logs `coreml_cache_prune` when it removed anything.
+    func runIfNeeded(_ tts: LocalTTSCoordinator) {
+        Self.runOncePerInstall { report in
+            guard let r = report else { return }
+            ListenTimingLog.log("coreml_cache_prune", [
+                "removed": r.bundlesRemoved, "kept": r.bundlesKept, "bytes": r.bytesFreed,
+            ])
+            DispatchQueue.main.async {
+                ListenDebugLog.shared.append(
+                    "Core ML compile cache: removed \(r.bundlesRemoved) stale bundles, freed \(FileSizes.label(r.bytesFreed)) (kept \(r.bundlesKept))")
+            }
+        }
     }
 }

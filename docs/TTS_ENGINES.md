@@ -151,12 +151,16 @@ audio rendered before the NaN patch and the boundary-trimmed joins;
 `reader.tts.kokoro.audioCacheVersion`; audio held for library work that couldn't finish is left
 for a later launch's purge), `KokoroONNXMainMigration`
 (a user that a Core ML crash left on Apple goes back to Kokoro on the ONNX route, at that crash's
-article and paragraph, paused), and `KokoroCoreMLStageCleanup` (with the Core ML route off, the
-stages are deleted off the main thread whenever they are found; skipped for a Core ML stress run).
+article and paragraph, paused), `KokoroCoreMLStageCleanup` (with the Core ML route off, the
+stages are deleted off the main thread whenever they are found; skipped for a Core ML stress run,
+which the provider is told at init), `CoreMLCompileCacheJanitor` (Core ML's compiled-model cache,
+once per install, in the background; `LISTEN_PLAYBACK.md` → "Audio cache"), and in Debug builds
+`CPURouteProbes` (whether background tasks can get GPU time, `probe_bg_gpu`).
 
-The route settings (`KokoroRouteSettings`) belong to `FluidAudioProvider`; the Listen debug
-panel changes them through it (`setFastGPURoute`, `setCPUThreads`), then asks the coordinator to
-rebuild the live host (`LocalTTSCoordinator.reloadEngine`, which knows no engine).
+The route settings (`KokoroRouteSettings`) belong to `FluidAudioProvider`. Its Listen debug panel
+section (`KokoroRouteDebugSection`, from the provider's `debugSections`) changes them through it
+(`setFastGPURoute`, `setCPUThreads`), then asks the coordinator to rebuild the live host
+(`LocalTTSCoordinator.reloadEngine`, which knows no engine).
 
 ## Engine registry
 
@@ -169,8 +173,8 @@ SpeechEngineProvider (one per library)      EngineDescriptor (per engine)
   descriptors / retiredEngines                 id, names, subtitle, recommended, sort order
   makeHost(for:voice:) → LocalSynthHost        voices + default, voice defaults key
   isInstalled / deleteModels                   hardware gate, languages
-  recover(from:playing:) / launchMigrations    onDevice: OnDeviceTraits? (nil for Apple)
-                                                 cache voice prefix, chunk limits, crash notice
+  recover(from:playing:)                       onDevice: OnDeviceTraits? (nil for Apple)
+  launchMigrations / debugSections(speech:)      cache voice prefix, chunk limits, crash notice
 LocalSynthHost (thin: load + ONE call)
   → LocalChunkRenderer (shared: normalize, gate, crash guard, re-split on inputTooLong, log, CAF)
 ```
@@ -180,8 +184,10 @@ An engine is on-device exactly when its descriptor has `OnDeviceTraits`
 The shared core has no `import FluidAudio` and no switch on engine types: `GlobalSynthQueue`
 (`SynthQueueContext` and its `RenderTarget`, `RenderAdmission`), `ArticleAudioCache` keys, `TextChunker`,
 `LocalChunkRenderer`, `EngineCrashGuard`, `SynthRenderGate`, the Settings voice list, the engine
-probe. Library code lives only under `Features/Speech/Engines/<Library>/`, including its crash
-policy and its launch steps.
+probe, the Listen debug panel. Library code lives only under `Features/Speech/Engines/<Library>/`,
+including its crash policy, its launch steps and its debug-panel sections. The provider protocol
+and the registry sit beside them (`Features/Speech/Engines/SpeechEngineProvider.swift`): their
+hooks hand out launch steps and SwiftUI sections, which Core can't name.
 
 Persisted values never change: engine ids (`apple`, `local.kokoro`), cache voice keys
 (`kokoro.<voice>`), `reader.tts.engineID`, `reader.tts.kokoroVoice`.
@@ -209,7 +215,10 @@ engine that also owns index files written without an engine id.
    `limits` sized from the per-call cap (measure chars or phonemes per second of audio on a
    device), and a `crashNotice` if the library can die uncatchably.
 4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,
-   `deleteModels`; override `recover(from:playing:)` if a crash needs more than "switch away".
+   `deleteModels`; override `recover(from:playing:)` if a crash needs more than "switch away",
+   `launchMigrations` for the library's launch steps (`LaunchMigration`s, run after retired
+   engines' cleanup), and `debugSections(speech:)` for its own Listen debug panel sections.
+   Anything that decides them (a launch argument, a setting) comes in at the provider's init.
 5. **Register.** One line in `AppComposition.makeProviders()`.
 6. **Verify.** A Release device run of
    `-engineProbe -probeOnly <ShortName>` (init, first audio, wall vs audio); then pick it in Settings.

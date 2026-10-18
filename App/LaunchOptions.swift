@@ -135,7 +135,8 @@ struct LaunchOptions: Equatable {
             kokoroStress = KokoroStressRun.Request(
                 route: route,
                 calls: value(after: "-KokoroStressCalls").flatMap(Int.init).map { max(1, $0) } ?? KokoroStressCorpus.calls,
-                fresh: flags.contains("-KokoroStressFresh"))
+                fresh: flags.contains("-KokoroStressFresh"),
+                coreMLUnits: kokoroUnits)
         }
     }
 
