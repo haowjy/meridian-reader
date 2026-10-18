@@ -31,7 +31,7 @@ its last page (reloaded). A fresh install opens the Library.
 | B7 | Dictation fills the address field while searching, on-device where the language allows; nothing is submitted automatically, and listening pauses while the mic is open. |
 | B8 | Loading pages needs the network. |
 | B9 | A readable page shows 🎧 at the end of the address field: grey when it isn't what you hear (tap: listen now, replacing what plays once this page is extracted; "Nothing to listen to on this page" when it has too little text), accent with bars when it is (tap: pause / resume). |
-| B10 | Video and audio on a page play only after a tap. *Block Ads* (Settings › Browsing, on by default) keeps requests to common ad and tracker hosts from loading, in the browser, Follow's preview and fetches; a change applies to pages loaded after it. |
+| B10 | Video and audio on a page play only after a tap. *Block Ads* (Settings › Browsing, on by default) keeps requests to common ad and tracker hosts from loading, in every web view the app makes; a link through an ad host (a sponsored search result) doesn't open; a change applies to pages loaded after it. |
 
 ## Reader
 

@@ -33,7 +33,7 @@ final class ContentBlocker {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var ruleList: WKContentRuleList?
     @ObservationIgnored private let controllers = NSHashTable<WKUserContentController>.weakObjects()
-    @ObservationIgnored private var preparing: Task<Void, Never>?
+    @ObservationIgnored private var prepared = false
 
     init(defaults: UserDefaults) {
         self.defaults = defaults
@@ -49,8 +49,9 @@ final class ContentBlocker {
     /// Looks up (or compiles) the list in WebKit's default store and applies it to the views made
     /// so far. Once per process, at launch.
     func prepare() {
-        guard preparing == nil else { return }
-        preparing = Task {
+        guard !prepared else { return }
+        prepared = true
+        Task {
             do {
                 ruleList = try await Self.compiledList(in: .default())
                 applyToControllers()

@@ -129,8 +129,8 @@ browser and Follow's preview, the hidden fetcher, extraction, the Reader's text)
 only whether the page's own JavaScript runs and the URL schemes it serves itself. The rest is shared: the
 default website data store (the browser's cookies), media that waits for a tap (no autoplay), and
 **Block Ads** (`ContentBlocker`): a bundled WebKit content-blocker list
-(`Resources/ContentBlocking/BlockAds.json`, 55 rules, each blocking requests to one ad or tracker
-host and its subdomains). It is compiled once into WebKit's rule-list store under an identifier
+(`Resources/ContentBlocking/BlockAds.json`: rules each blocking requests to one ad or tracker
+host and its subdomains, the page itself too, so a link through an ad host doesn't open). It is compiled once into WebKit's rule-list store under an identifier
 carrying the JSON's hash: a launch looks it up (an edited list compiles anew and the older ones are
 removed). The list goes on every view's content controller once ready, and on and off with
 Settings › Browsing › *Block Ads* (UserDefaults `browse.blockAds`, on by default); WebKit applies
