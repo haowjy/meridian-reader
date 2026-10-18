@@ -102,12 +102,16 @@ final class PlayedNotSavedTests: XCTestCase {
     }
 
     /// The page you hear, removed (🔖 or ⋯ in Now Playing, the bar's long-press): playback is told
-    /// to stop it once the remove is saved (`stopPlaybackIfPlaying`); a remove that can't be saved
-    /// leaves it playing.
+    /// to stop it, and a session a waiting merge would move onto it, once the remove is saved
+    /// (`stopPlaybackIfPlaying`); a remove that can't be saved leaves it playing.
     func testRemovingThePageYouHearStopsItOnceTheRemoveIsSaved() throws {
         let article = env.article("https://example.com/playing")
         let page = try library.save(article)
         library.recordPlayback(article)
+        let merged = UUID() // a page merged into it, its merge waiting: a session on it moves onto the page
+        env.context.insert(LibraryAudioWork(sequence: 0, kind: .merge, key: page.listenKey, fromKey: merged,
+                                            paragraphs: [], sourceParagraphs: []))
+        try env.context.save()
         var stopped: [UUID] = []
         library.stopPlaybackIfPlaying = { key in
             XCTAssertFalse(page.hasChanges, "the remove is saved first")
@@ -121,7 +125,7 @@ final class PlayedNotSavedTests: XCTestCase {
 
         library.saveContext = { try $0.save() }
         try library.remove([page])
-        XCTAssertEqual(stopped, [page.listenKey])
+        XCTAssertEqual(stopped, [page.listenKey, merged], "with the session its waiting merge would move onto it")
     }
 
     /// Listened to again from its article (🎧, the Reader's Listen), a removed page is played

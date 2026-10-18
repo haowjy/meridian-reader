@@ -253,7 +253,8 @@ those). A starred page is in Favorites whatever its standing, and the prune keep
 row, Edit, 🔖 and the ⋯ of the browser, the Reader and Now Playing, the Now Playing bar) takes a
 page out of its folder and every Library list it was in at once, keeps its star (and with it its
 place in Favorites) and deletes nothing (the launch prune does). Once that is saved, the page you
-hear stops, through the hook a delete stops it by (`LibraryStore.stopPlaybackIfPlaying` →
+hear stops, and so does a session a waiting merge would move onto it (`keysWaitingToMerge`),
+through the hook a delete stops them by (`LibraryStore.stopPlaybackIfPlaying` →
 `SpeechController.stopIfPlaying`: no gap-fill render, and its queued render goes). A save puts it
 back, and so does listening to it again from its article (🎧, the Reader's Listen, which
 clears `removedAt`, through a rollback too: `PendingListening`). The Downloads list keeps downloads of what
@@ -399,16 +400,16 @@ book's *Replace* brought the chapter back): it moves and deletes nothing under t
 none of its renders, moves no resume point and rekeys no session, and the audio is saved or
 ephemeral as that page is; if that page is gone again by then, the later record that names the
 key (its delete or merge) decides instead. A session playing the merged key keeps it until the
-merge runs, so a *Replace* that revises or drops the kept page, or a delete of it, stops that
-session with the kept page's own (`keysWaitingToMerge`, which applies the merge's rule: no page
-holds the merged key and no later record names it). Otherwise the merge would move it onto
-revised text it isn't playing, or leave it on a key no page holds. Under those stops, which
-follow the sequences a *Replace* can make, sits the rule that holds for all of them: the merge
-moves the session only onto a kept page holding the text it plays and otherwise stops it
-(`SpeechController.rekeyActiveSession`, given the kept page's text by `keyMerged`), and
-listening is written only on a page holding the text playing, so no order of later *Replace*s (a
-key brought back with other text, a kept key that comes back after its text moved on) puts one
-text's positions on another.
+merge runs, so a *Replace* that revises or drops the kept page, a delete of it or its *Remove
+from Library*, stops that session with the kept page's own (`keysWaitingToMerge`, which applies
+the merge's rule: no page holds the merged key and no later record names it). Otherwise the
+merge would move it onto revised text it isn't playing or onto a page in no list, or leave it on
+a key no page holds. Under those stops, which follow the sequences a *Replace* can make, sits
+the rule that holds for all of them: the merge moves the session only onto a kept page holding
+the text it plays and otherwise stops it (`SpeechController.rekeyActiveSession`, given the kept
+page's text by `keyMerged`), and listening is written only on a page holding the text playing,
+so no order of later *Replace*s (a key brought back with other text, a kept key that comes back
+after its text moved on) puts one text's positions on another.
 
 **`SavedArticle`** (local, frozen): the saved articles as stored before the library (`id`,
 `urlString`, `canonicalURL`, `title`, `siteDomain`, `savedAt`, `cleanedHTML`, `plainText`,

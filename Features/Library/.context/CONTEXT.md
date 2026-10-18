@@ -36,8 +36,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   or removed: in none, nor the bar's resume, `lastPlayed`). *Remove* is one `LibraryStore.remove`
   from every path (rows, Edit, the Now Playing bar, and `PageActions`' 🔖 and ⋯ through
   `LibraryActions.remove`); it never clears the star or deletes. Once it is saved, the page you
-  hear stops through the store's one playback hook (`stopPlaybackIfPlaying`, as a delete), so
-  nothing shows a removed page playing. It stamps `removedAt`, so a played page doesn't come back
+  hear stops through the store's one playback hook (`stopPlaybackIfPlaying`, as a delete), and so
+  does a session a waiting merge would move onto it (`keysWaitingToMerge`), so nothing shows a
+  removed page playing. It stamps `removedAt`, so a played page doesn't come back
   as "Not saved" (a listen from its article clears it, `recordPlayback`); a view never re-derives a list from `addedAt` or `lastPlayedAt` itself. The Downloads
   list follows the same line (`DownloadCenter` drops what left the Library after each stored
   edit, `LibraryStore.editStored`).

@@ -66,9 +66,10 @@ final class FollowTests: XCTestCase {
 
     /// The pause is 4 s, 12 s after a slow reply; a refusal or no answer doubles the wait from a
     /// minute up to 30 minutes (never under a refusal's Retry-After); answers halve it back down.
-    /// The header's notice names the chapter waiting by its title, as a sentence.
+    /// The header's notice names the chapter waiting by its title (by its number when it has
+    /// none), as a sentence.
     @MainActor
-    func testPacingBacksOffAndEasesBack() {
+    func testPacingBacksOffAndItsNotice() {
         var pacing = FetchPacing()
         XCTAssertEqual(pacing.delay, 4)
         pacing.record(.answered(seconds: 1))
@@ -98,8 +99,11 @@ final class FollowTests: XCTestCase {
         XCTAssertEqual(FetchPacing.retryAfter("Fri, 15 Jan 2027 08:00:30 GMT", now: now), 30)
         XCTAssertNil(FetchPacing.retryAfter("soon", now: now))
 
-        XCTAssertEqual(FollowText.backOffNotice(site: "story", status: nil, chapter: "Chapter 6: The Wreck", wait: 112),
+        XCTAssertEqual(FollowText.backOffNotice(site: "story", status: nil, chapter: .init(number: 6, title: "Chapter 6: The Wreck"),
+                                                wait: 112),
                        "Story isn’t answering. “Chapter 6: The Wreck” is tried again in 1:52.")
+        XCTAssertEqual(FollowText.backOffNotice(site: "story", status: 429, chapter: .init(number: 6, title: " "), wait: 112),
+                       "Story asked to slow down (429). “Chapter 6” in 1:52, then slower.", "a chapter without a title")
     }
 
     // MARK: - The Download switch

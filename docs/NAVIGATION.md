@@ -393,15 +393,17 @@ goes in), where you type or paste the story's address. Follow covers the screen:
    fetched while the app is in the background.
 
 The story's folder header has one line in the accent, *📡 Following · fetching chapter text 4 of
-107*, *· fetched 41 of 107*, or *· checked today 8:02 AM · 2 new*, ending with *· 1 chapter
-couldn’t load* while chapters couldn't be had this launch, and, while its site is backed off, a
-notice in the caution colour naming the chapter that waits by its title: *Royal Road asked to
-slow down (429). “Chapter 42: Low Tide” in 1:52, then slower.*, or *Example.com isn’t answering.
-“Chapter 42: Low Tide” is tried again in 1:52.* A chapter waiting for its text says *Fetching
-text…*, *Retrying in 1:52*, *Waiting*, or why it couldn't be had (it is tried again at the next
-launch); its ▶ fetches it next and then plays it. Playing through the story stops before a
-chapter still waiting for its text, and the chapter after the one playing is always fetched
-first. *Skip in Playback* on a chapter that can't be had lets playback go past it.
+107*, *· fetched 41 of 107*, or *· checked today 8:02 AM · 2 new*. While chapters couldn't be had
+this launch, their count comes right after *Following*, where a line too long for the screen
+doesn't cut it off: *📡 Following · 1 chapter couldn’t load · fetched 41 of 107*. While its site
+is backed off, a notice in the caution colour names the chapter that waits by its title (*Chapter
+42* when it has none): *Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52, then
+slower.*, or *Example.com isn’t answering. “Chapter 42: Low Tide” is tried again in 1:52.* A
+chapter waiting for its text says *Fetching text…*, *Retrying in 1:52*, *Waiting*, or why it
+couldn't be had (it is tried again at the next launch); its ▶ fetches it next and then plays it.
+Playing through the story stops before a chapter still waiting for its text, and the chapter
+after the one playing is always fetched first. *Skip in Playback* on a chapter that can't be had
+lets playback go past it.
 
 Tapping the line opens **Following**: where it is read from, *Last checked*, *Next check*,
 *Chapter text* ("109 of 109 fetched", "107 of 109 fetched · 2 chapters couldn’t load"), *Last

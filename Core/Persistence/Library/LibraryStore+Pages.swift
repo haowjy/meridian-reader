@@ -210,12 +210,15 @@ extension LibraryStore {
     /// launch). A link
     /// holding the text of a play keeps it as a played page's; a link without text stays a link.
     /// A chapter leaves its book as any page leaves its folder. Once the remove is saved, the page
-    /// you hear among them stops (`stopPlaybackIfPlaying`), as a deleted one does: out of every
-    /// list, it would play on looking as if it had never gone. A save that fails is rolled back
-    /// and throws `LibraryStoreError.saveFailed`: every page stays where it was, none removed,
-    /// and playback goes on.
+    /// you hear among them stops (`stopPlaybackIfPlaying`), as a deleted one does, and so does a
+    /// session a waiting merge would move onto one (`keysWaitingToMerge`, read before the save,
+    /// whose audio work can run that merge): out of every list, it would play on looking as if it
+    /// had never gone. A save that fails is rolled back and throws `LibraryStoreError.saveFailed`:
+    /// every page stays where it was, none removed, and playback goes on.
     func remove(_ pages: [Page]) throws {
         guard !pages.isEmpty else { return }
+        let keys = pages.compactMap(\.key)
+        let playing = keys + keysWaitingToMerge(into: Set(keys))
         try edit("remove") {
             for page in pages {
                 if page.hasText { page.contentState = .saved }
@@ -227,7 +230,7 @@ extension LibraryStore {
             }
         }
         log("remove: \(pages.map { Self.short($0.key) }.joined(separator: ", ")) → not in Library")
-        for key in pages.compactMap(\.key) { stopPlaybackIfPlaying(key) }
+        for key in playing { stopPlaybackIfPlaying(key) }
     }
 
     /// Deletes the page, then its audio once that is saved. Playback of it stops first (its audio

@@ -390,11 +390,13 @@ extension LibraryStore {
     /// The keys a live session can be playing that a waiting merge would move onto one of `keys`'
     /// pages when it runs (`keyMerged`): the merged key of each stored merge into one of them,
     /// while no page holds that key and no record after the merge names it (the rule `merge`
-    /// moves a session by). *Replace* and deleting a page stop these sessions along with the pages
-    /// they revise, drop or delete. Otherwise the merge, which follows what the kept page holds
-    /// when it runs, would move the session onto a revised page whose text it isn't playing, and
-    /// positions in the old text would be recorded there; or, with the kept page gone, it would
-    /// leave the session playing a key no page holds. Records that can't be read name none.
+    /// moves a session by). *Replace*, deleting a page and removing it from the Library stop these
+    /// sessions along with the pages they revise, drop, delete or remove. Otherwise the merge,
+    /// which follows what the kept page holds when it runs, would move the session onto a revised
+    /// page whose text it isn't playing, and positions in the old text would be recorded there;
+    /// or, with the kept page gone, it would leave the session playing a key no page holds; or it
+    /// would carry it onto a removed page, playing on in no list. Records that can't be read name
+    /// none.
     func keysWaitingToMerge(into keys: Set<UUID>) -> [UUID] {
         guard !keys.isEmpty else { return [] }
         let rows: [LibraryAudioWork]

@@ -6,7 +6,7 @@ import SwiftUI
 ///
 /// ```
 /// 📡 Following · fetching chapter text 4 of 107 ›
-/// 📡 Following · fetched 41 of 107 · 1 chapter couldn’t load ›
+/// 📡 Following · 1 chapter couldn’t load · fetched 41 of 107 ›
 /// ⏳ Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52, then slower.
 /// 📡 Following · checked today 8:02 AM · 2 new ›
 /// ```
@@ -29,7 +29,7 @@ struct FollowStatus: View {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     NoticeCard(symbol: Icons.waiting,
                                text: FollowText.backOffNotice(site: TableOfContents.siteName(of: url), status: backOff.status,
-                                                              chapter: next.title, wait: backOff.until.timeIntervalSince(context.date)),
+                                                              chapter: next, wait: backOff.until.timeIntervalSince(context.date)),
                                identifier: "followBackOff")
                 }
             }
@@ -39,6 +39,8 @@ struct FollowStatus: View {
     private func line(_ progress: FollowCenter.Progress) -> String {
         let state = folder.followState
         var parts = [state?.isFollowing == false ? String(localized: "Not following") : String(localized: "Following")]
+        // Ahead of the progress: a line too long for the header loses its end, and the count matters more.
+        if progress.failed > 0 { parts.append(FollowText.couldNotLoad(progress.failed)) }
         if let fetching = progress.fetching {
             parts.append(String(localized: "fetching chapter text \(fetching.number) of \(progress.chapters)"))
         } else if progress.toFetch > 0 {
@@ -51,7 +53,6 @@ struct FollowStatus: View {
                 parts.append(String(localized: "\(count) new"))
             }
         }
-        if progress.failed > 0 { parts.append(FollowText.couldNotLoad(progress.failed)) }
         return parts.joined(separator: " · ")
     }
 }
@@ -89,18 +90,20 @@ enum FollowText {
     }
 
     /// The header's notice while a site backs off (`status` nil: it didn't answer), naming the
-    /// chapter waiting by its title. The site's name can be a lowercase host ("example.com"), so
-    /// the sentence's first letter is capitalized here.
-    static func backOffNotice(site: String, status: Int?, chapter: String, wait: TimeInterval) -> String {
+    /// chapter waiting by its title, or as "Chapter 6" when it has none. The site's name can be a
+    /// lowercase host ("example.com"); it is capitalized as the name it is.
+    static func backOffNotice(site: String, status: Int?, chapter: FollowCenter.Progress.Fetching,
+                              wait: TimeInterval) -> String {
+        let site = site.prefix(1).uppercased() + site.dropFirst()
+        let title = chapter.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = title.isEmpty ? String(localized: "Chapter \(chapter.number)") : title
         let after = countdown(wait)
-        let notice = if let status {
-            status == 429
-                ? String(localized: "\(site) asked to slow down (429). “\(chapter)” in \(after), then slower.")
-                : String(localized: "\(site) had a problem (\(status)). “\(chapter)” in \(after), then slower.")
-        } else {
-            String(localized: "\(site) isn’t answering. “\(chapter)” is tried again in \(after).")
+        guard let status else {
+            return String(localized: "\(site) isn’t answering. “\(name)” is tried again in \(after).")
         }
-        return notice.prefix(1).uppercased() + notice.dropFirst()
+        return status == 429
+            ? String(localized: "\(site) asked to slow down (429). “\(name)” in \(after), then slower.")
+            : String(localized: "\(site) had a problem (\(status)). “\(name)” in \(after), then slower.")
     }
 
     /// "1 chapter couldn’t load", "3 chapters couldn’t load": the status line's part, and the

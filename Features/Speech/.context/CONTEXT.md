@@ -15,8 +15,10 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
 ## Contracts that break quietly
 
 - **What you hear.** Play buttons ask `playState(of:)` and press through `press(_:start:)`; never
-  compare session ids in a view. Every start goes through `start(_:at:)` (`listen(to:)` wraps it). A finished page stays bound (`.finished`); only `stop()` (Stop
-  Listening) unbinds. `onProgress` fires synchronously from `publishPlayback`, so the recorder sees
+  compare session ids in a view. Every start goes through `start(_:at:)` (`listen(to:)` wraps
+  it). A finished page stays bound (`.finished`); only `stop()` (Stop Listening) and
+  `stopIfPlaying` (the page you hear removed, deleted, revised, or merged onto other text; no gap
+  fill) unbind. `onProgress` fires synchronously from `publishPlayback`, so the recorder sees
   a replaced page's last spot (the `.stop` before the next `bind`). `listen(to:)` hands its article
   to `onListen` before it binds, so the recorder can keep a page the library doesn't have on its
   first start.
@@ -42,7 +44,8 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
 - **Progress follows the text.** `PlaybackSessionState.textFingerprint` is set with the document
   (`bind`, `advance`) and travels in every `ListenProgress`. The recorder, `pageFinished` and a
   rollback's rewrite store progress only on a page holding that text (`LibraryStore.holds`), and
-  `rekeyActiveSession` moves the session only onto a page holding it, else stops it. The crash
+  `rekeyActiveSession` moves the session only onto a page holding it, else stops it
+  (`stopIfPlaying`: a gap fill would render under a key no page holds). The crash
   resume file carries it too, and `AppLaunch.resumeAfterCrash` applies its paragraph only on a
   page holding it. Anything new that writes a position, start or end onto a page, or moves the
   session to another key, goes through the same check.
