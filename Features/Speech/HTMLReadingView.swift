@@ -169,8 +169,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
     /// off; the bootstrap `WKUserScript`, the listeners it installs and the coordinator's
     /// `evaluateJavaScript` calls still run.
     static func makeWebView(coordinator: Coordinator) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.defaultWebpagePreferences.allowsContentJavaScript = false
+        let config = WKWebViewConfiguration.appWebView(pageScripts: false)
         let userContent = config.userContentController
         userContent.add(coordinator, name: "readerBridge")
         userContent.addUserScript(WKUserScript(

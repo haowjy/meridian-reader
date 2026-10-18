@@ -135,6 +135,8 @@ enum Icons {
     static let textLarger = "textformat.size.larger"
     /// The app's appearance (Settings › Appearance).
     static let appearance = "circle.lefthalf.filled"
+    /// Block Ads (Settings › Browsing).
+    static let blockAds = "hand.raised"
     /// Downloads and storage (Settings).
     static let storage = "internaldrive"
     /// Developer options (Settings › Developer).

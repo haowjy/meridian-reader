@@ -9,9 +9,7 @@ import WebKit
 @MainActor
 enum OffscreenWebView {
     static func make() -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.defaultWebpagePreferences.allowsContentJavaScript = false
-        return WKWebView(frame: .zero, configuration: config)
+        WKWebView(frame: .zero, configuration: .appWebView(pageScripts: false))
     }
 
     /// Loads `html` and returns once it has finished loading. Throws when the load fails, its
