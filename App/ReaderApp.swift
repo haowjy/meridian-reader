@@ -35,11 +35,15 @@ struct ReaderApp: App {
     @State private var library: LibraryStore
     @State private var follow: FollowCenter
     @State private var downloads: DownloadCenter
+    /// Block Ads: every web view's rule lists, and Settings › Browsing's switch.
+    @State private var contentBlocker: ContentBlocker
     /// How pages read (Settings › Reading, the Aa panel): one store for both editors.
     @State private var readingAppearance = ReadingAppearance(defaults: .standard)
     @State private var developer = DeveloperSettings()
 
     init() {
+        // First: a web view made before it would load unblocked.
+        _contentBlocker = State(initialValue: AppComposition.makeContentBlocker())
         do {
             container = try LibraryStoreConfiguration.makeContainer()
         } catch {
@@ -52,9 +56,6 @@ struct ReaderApp: App {
         _downloads = State(initialValue: AppComposition.makeDownloads(library: library, follow: follow))
         // Foreground/background gate for Core ML synthesis (no model calls in the background).
         AppRunState.shared.observeApplication()
-        // Before the first web view: the browser's restored page loads with Block Ads' list when
-        // its lookup has finished by then.
-        ContentBlocker.shared.prepare()
         AppComposition.runLaunchMaintenance(library: library)
         AppComposition.attachLibrary(library)
     }
@@ -68,6 +69,7 @@ struct ReaderApp: App {
                 .environment(library)
                 .environment(downloads)
                 .environment(follow)
+                .environment(contentBlocker)
                 .environment(\.readingAppearance, readingAppearance)
                 .environment(\.developerSettings, developer)
                 .task {
