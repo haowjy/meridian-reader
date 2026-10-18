@@ -29,9 +29,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// The listen player (set by `LocalListenEngine`): the render queue asks it which article is
     /// playing (listener priority, background bake scope).
     @ObservationIgnored weak var listenPlayer: LocalListenPlayer?
-    /// Told when a bake job finishes and when the render queue's state may have moved (audio
-    /// rendered, the engine or voice changed): the Downloads list (`DownloadCenter`).
-    @ObservationIgnored weak var renderObserver: RenderQueueObserver?
+    /// Called when a bake job leaves the queue and when the render queue's state may have moved
+    /// (audio rendered or deleted, the engine or voice changed). Often, and inside the queue's own
+    /// work: the handler acts later, never re-entering the queue in the call. Set by the
+    /// composition (Downloads, `AppComposition.makeDownloads`).
+    @ObservationIgnored var onRenderStateChange: (() -> Void)?
     /// Selected voice per multi-voice engine (e.g. Kokoro `af_heart`). Part of the cache voice key.
     private(set) var engineVoices: [SpeechEngineID: String] = [:]
     /// Set when the engine killed the last process inside a call (`CrashRecovery`; Kokoro:
@@ -292,7 +294,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     func bakeCompleted(cacheKey: UUID) {
         pendingBakes.removePending(articleID: cacheKey)
-        renderObserver?.bakeCompleted(cacheKey: cacheKey)
+        onRenderStateChange?()
     }
 
     /// True when a local model for `id` has been initialized (or its files are on disk).
@@ -389,7 +391,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
             noteBakeMarksChanged()
             drainPendingIntoQueue()
         }
-        renderObserver?.renderStateChanged()
+        onRenderStateChange?()
     }
 
     /// Delete one local engine's downloaded models (default: the active local engine).
@@ -407,7 +409,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     func noteBakeMarksChanged() {
         bakeMarksRevision &+= 1
-        renderObserver?.renderStateChanged()
+        onRenderStateChange?()
     }
 
     func bakeTasksCount(for articleID: UUID) -> Int {
