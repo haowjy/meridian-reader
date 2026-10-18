@@ -49,7 +49,7 @@ final class EngineCrashGuard: @unchecked Sendable {
     /// What the previous process was doing when it died.
     struct CrashInfo: Equatable {
         var engine: SpeechEngineID?
-        /// "onnx" / "coreml"; nil for markers written before routes existed (Core ML only).
+        /// The host's `routeTag`; nil for markers written before routes existed.
         var route: String?
         /// Full article key, or the 8-char prefix an older marker's `ctx` ("BA7D7639/p14") holds.
         var articleKey: String?
@@ -57,9 +57,6 @@ final class EngineCrashGuard: @unchecked Sendable {
         /// `AppRunState.Phase` raw value when the call started.
         var phase: String?
         var at: Date
-        /// Last Core ML model/stage breadcrumb written during the fatal call ("kokoro/vocoder",
-        /// "g2p.bart/decoder"); nil on the ONNX route or when no breadcrumb postdates the marker.
-        var coreMLStage: String? = nil
         /// `phys_footprint` when the call started, MB; nil in older markers.
         var footprintMB: Int? = nil
 
@@ -122,9 +119,7 @@ final class EngineCrashGuard: @unchecked Sendable {
         let info = (try? Data(contentsOf: inflightURL)).flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any]
         try? fm.removeItem(at: inflightURL)
         let engine = (info?["engine"] as? String).map(SpeechEngineID.init(rawValue:))
-        var result = Self.crashInfo(from: info ?? [:], engine: engine)
-        let crumbs = CoreMLBreadcrumbFile(url: directory.appendingPathComponent("coreml_breadcrumb.json"))
-        defer { crumbs.clear() }
+        let result = Self.crashInfo(from: info ?? [:], engine: engine)
         var fields: [String: Any] = [
             "engine": engine?.rawValue ?? "?", "last_chars": info?["chars"] ?? -1,
             "route": info?["route"] ?? "legacy", "key": result.articleKey.map { String($0.prefix(8)) } ?? "",
@@ -139,15 +134,7 @@ final class EngineCrashGuard: @unchecked Sendable {
         }
         let count = crashCount + 1
         fields["count"] = count
-        var record: [String: Any] = ["count": count, "last": info ?? [:], "at": Date().timeIntervalSince1970]
-        if let crumb = crumbs.read(), crumb.at >= result.at.addingTimeInterval(-0.001) {
-            let stage = "\(crumb.model)/\(crumb.stage)"
-            result.coreMLStage = stage
-            record["coreml_stage"] = stage
-            fields["coreml_stage"] = stage
-            fields["coreml_detail"] = crumb.detail ?? ""
-            fields["coreml_ms_after_start"] = Int(crumb.at.timeIntervalSince(result.at) * 1000)
-        }
+        let record: [String: Any] = ["count": count, "last": info ?? [:], "at": Date().timeIntervalSince1970]
         if let data = try? JSONSerialization.data(withJSONObject: record) {
             try? data.write(to: crashesURL, options: .atomic)
         }
@@ -172,7 +159,7 @@ final class EngineCrashGuard: @unchecked Sendable {
                          footprintMB: info["mem_mb"] as? Int)
     }
 
-    /// Last recorded crash (from `engine_crashes.json`), e.g. for the one-time ONNX migration.
+    /// Last recorded crash (from `engine_crashes.json`), e.g. for a provider's launch step.
     var lastCrash: CrashInfo? {
         guard let data = try? Data(contentsOf: crashesURL),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],

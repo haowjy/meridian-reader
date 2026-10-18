@@ -77,11 +77,7 @@ struct ListenDebugPanel: View {
                 }
                 #endif
 
-                KokoroRouteDebugSection(speech: speech)
-
-                #if DEBUG
-                CPURouteBenchSection(speech: speech)
-                #endif
+                ForEach(speech.localTTS.engines.providers, id: \.name) { $0.debugSections(speech: speech) }
 
                 Section("Log (last \(ListenDebugLog.shared.lines.count))") {
                     if ListenDebugLog.shared.lines.isEmpty {

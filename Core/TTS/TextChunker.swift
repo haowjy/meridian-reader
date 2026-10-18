@@ -2,10 +2,10 @@ import Foundation
 
 /// Splits one listen paragraph into per-call synth chunks for an on-device engine.
 ///
-/// Why: every local engine has a per-call input/output cap (Kokoro: 510 IPA phonemes /
-/// 2000 frames). Oversized input fails (or wastes a whole decode) instead of truncating, so we
-/// keep every chunk under the engine's `hardMax` *estimated* units (chars, digits weighted ×3
-/// because "2240" is spoken as four words). Limits come from the engine's `EngineDescriptor`.
+/// Why: every local engine has a per-call input/output cap (phonemes, audio frames). Oversized
+/// input fails (or wastes a whole decode) instead of truncating, so we keep every chunk under the
+/// engine's `hardMax` *estimated* units (chars, digits weighted ×3 because "2240" is spoken as
+/// four words). Limits come from the engine's `EngineDescriptor`.
 ///
 /// Paragraphs stay the UI/listen unit; chunks are an internal synth detail.
 /// Invariants (tested, incl. 10k-char paragraphs): every chunk ≤ `hardMax`; the first chunk of
@@ -37,17 +37,6 @@ enum TextChunker {
         /// ≈ 28 ms/char → 80 units ≈ 2.2 s (worst 2.8 s) to first audio, 120 units ≈ 3.1 s (worst
         /// 4.1 s). +40 keeps first audio ≈ 3 s typical; beyond that the wait becomes noticeable.
         static let firstStretch = 40
-
-        /// Kokoro, on either route (sized for the ONNX CPU route, the default). ≈1.0–1.3 phonemes
-        /// per char. Chunks ramp so playback never waits after the first one: first ≤ 80 units
-        /// (≈5 s of audio, ≈1.5 s to render on iPhone 17 Pro at ≈2.7× real time), second ≤ 160
-        /// (renders in ≈3.5 s, inside the first chunk's 5 s), then whole sentences packed to 240,
-        /// never over 280 (≈300 tokens, ≈18 s of audio; ORT activation memory grows ≈1.3 MB/token,
-        /// ≈+380 MB at 300 tokens measured on the Mac). Longer chunks = fewer joins and Kokoro
-        /// keeps sentence prosody; sentences are only split when longer than 280 (at clauses).
-        /// Deterministic per text, so live chunks and bake-ahead share one plan.
-        static let kokoroCPU = Limits(target: 240, hardMax: 280, firstTarget: 80, minResplit: 24,
-                                      alwaysSplitFirst: true, secondTarget: 160)
     }
 
     static func chunks(for text: String, limits: Limits) -> [String] {

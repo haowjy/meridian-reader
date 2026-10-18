@@ -193,23 +193,17 @@ final class LocalListenEngine: ListenEngine {
             renderedParagraphsAhead: renderedParagraphsAhead)
     }
 
-    /// How audio is produced right now (route, app phase).
+    /// How audio is produced right now: the app phase, then the engine and its host's routing.
     private var renderMode: String {
         let phase = coordinator.synthQueue.runState.phase
         let synth = coordinator.synth
+        let route = "\(name) (\(synth.hostRoutingLabel ?? "default"))"
         let pace = RenderPace.shared.snapshot.speed.map { String(format: " · %.1f× real time", $0) } ?? ""
-        if synth.rendersInBackground {
-            switch phase {
-            case .active, .inactive:
-                return "\(phase.rawValue) · \(name) ONNX CPU (\(synth.hostRoutingLabel ?? "cpu"))\(pace)"
-            case .background:
-                return "background · \(name) ONNX CPU (\(synth.hostRoutingLabel ?? "cpu")), playing article in bursts\(pace)"
-            }
-        }
-        switch phase {
-        case .active: return "foreground · \(name) Core ML (\(synth.hostRoutingLabel ?? "default"))"
-        case .inactive: return "inactive · \(name) for playhead only, bake-ahead held"
-        case .background: return "background · no Core ML — baked audio + Apple fallback"
+        switch (phase, synth.rendersInBackground) {
+        case (.active, _), (.inactive, true): return "\(phase.rawValue) · \(route)\(pace)"
+        case (.inactive, false): return "inactive · \(name) for playhead only, bake-ahead held"
+        case (.background, true): return "background · \(route), playing article in bursts\(pace)"
+        case (.background, false): return "background · no model calls — baked audio + Apple fallback"
         }
     }
 

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Single global Core ML synth work queue for all Listen audio.
+/// Single global synth work queue for all Listen audio.
 ///
 /// Actions **reorganize** this queue — they do not spawn separate bake systems.
 ///
@@ -185,7 +185,7 @@ final class GlobalSynthQueue {
 
     private func noteBackgroundDeferral(_ cacheKey: UUID, _ index: Int, chunk: Int?) {
         backgroundDeferrals += 1
-        lastBakeEvent = "background: \(cacheKey.uuidString.prefix(8)) p\(index) → Apple (no Core ML in background)"
+        lastBakeEvent = "background: \(cacheKey.uuidString.prefix(8)) p\(index) → Apple (this route makes no model calls in background)"
         ListenTimingLog.log("bg_deferred", [
             "key": ListenTimingLog.shortKey(cacheKey), "p": index, "c": chunk ?? -1,
         ])

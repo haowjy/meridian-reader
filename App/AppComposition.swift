@@ -107,15 +107,15 @@ enum AppComposition {
     /// audio before it is where the library says; work that still can't finish holds the audio
     /// of the pages it touches, and work that can't be read holds all of it
     /// (`ArticleAudioCache.held`), for a later launch. Then the
-    /// one-time launch migrations (which can purge an engine's audio and orphan files, held audio
-    /// excepted), the chunk scratch (nothing plays at launch) and the prune of unsaved audio
-    /// (7 days, 500 MB; held audio excepted). First of all the cache is kept out of backups: it
-    /// is audio the app can render again (`BackupExclusion`).
-    static func prepareAudioCache(library: LibraryStore, tts: LocalTTSCoordinator, migrations: [LaunchMigration]) {
+    /// launch steps (`EngineRegistry.launchMigrations`, which can purge an engine's audio and
+    /// orphan files, held audio excepted), the chunk scratch (nothing plays at launch) and the
+    /// prune of unsaved audio (7 days, 500 MB; held audio excepted). First of all the cache is kept
+    /// out of backups: it is audio the app can render again (`BackupExclusion`).
+    static func prepareAudioCache(library: LibraryStore, tts: LocalTTSCoordinator) {
         tts.audioCache.excludeFromBackup()
         tts.holdRenderingForLaunch()
         library.finishAudioWork()
-        for migration in migrations { migration.runIfNeeded(tts) }
+        for migration in tts.engines.launchMigrations { migration.runIfNeeded(tts) }
         tts.audioCache.removeAllChunkScratch()
         let pruned = tts.audioCache.pruneEphemeral()
         if pruned.removed > 0 {
@@ -128,7 +128,8 @@ enum AppComposition {
         let options = LaunchOptions.current
         var providers: [SpeechEngineProvider] = [
             AppleSpeechProvider(),
-            FluidAudioProvider(coreMLUnits: options.kokoroUnits),
+            FluidAudioProvider(coreMLUnits: options.kokoroUnits,
+                               keepsCoreMLStages: options.kokoroStress?.route == .coreml),
         ]
         if options.usesTestVoice { providers.append(TestVoiceProvider()) }
         return providers
@@ -137,42 +138,15 @@ enum AppComposition {
         #endif
     }
 
-    /// Launch steps, in order: retired engines' cleanup, then each voice library's own.
-    static func launchMigrations(for engines: EngineRegistry) -> [LaunchMigration] {
-        #if DEBUG
-        let keepsCoreMLStages = LaunchOptions.current.kokoroStress?.route == .coreml
-        #else
-        let keepsCoreMLStages = false
-        #endif
-        return engines.retiredEngines.map(RetiredEngineCleanup.init)
-            + FluidAudioProvider.launchMigrations(keepingCoreMLStages: keepsCoreMLStages)
-    }
-
     /// Launch housekeeping, in `ReaderApp.init`, before the first frame and before anything
     /// renders or plays: the audio cache's launch steps (`prepareAudioCache`, the voice
-    /// libraries' included), the engines' downloads and the timing log kept out of backups, the
-    /// background-GPU probe, and pruning Core ML's compiled-model cache of bundles from previous
-    /// installs (once per install, background).
+    /// libraries' included), then the engines' downloads and the timing log kept out of backups.
     static func runLaunchMaintenance(library: LibraryStore) {
         let tts = speechController.localTTS
-        prepareAudioCache(library: library, tts: tts, migrations: launchMigrations(for: engineRegistry))
+        prepareAudioCache(library: library, tts: tts)
         for directory in engineRegistry.regenerableDirectories + [AppDirectories.listenTiming] {
             BackupExclusion.exclude(directory)
         }
         ListenTimingLog.log("app_launch", ["engine": tts.selectedEngineID.rawValue, "build": LocalTTSCoordinator.buildConfiguration])
-        #if DEBUG
-        // Debug probe: can this device get GPU time in background continued-processing tasks?
-        CPURouteProbes.logAtLaunch()
-        #endif
-        CoreMLCompileCacheJanitor.runOncePerInstall { report in
-            guard let r = report else { return }
-            ListenTimingLog.log("coreml_cache_prune", [
-                "removed": r.bundlesRemoved, "kept": r.bundlesKept, "bytes": r.bytesFreed,
-            ])
-            DispatchQueue.main.async {
-                ListenDebugLog.shared.append(
-                    "Core ML compile cache: removed \(r.bundlesRemoved) stale bundles, freed \(FileSizes.label(r.bytesFreed)) (kept \(r.bundlesKept))")
-            }
-        }
     }
 }

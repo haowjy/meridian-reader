@@ -567,8 +567,8 @@ background task, and full-article rendering in the background is not promised.
 
 **Core ML compile cache.** Core ML adds compiled bundles under
 `Library/Caches/<bundle>/com.apple.e5rt.e5bundlecache/<os build>/` after every install and never
-evicts the stale ones (a development phone reached 16.7 GB). `CoreMLCompileCacheJanitor` runs once
-per install (`reader.coreml.e5janitor.installID` = the install's container UUID; bundle file
+evicts the stale ones (a development phone reached 16.7 GB). `CoreMLCompileCacheJanitor`, one of
+FluidAudio's launch steps, runs once per install (`reader.coreml.e5janitor.installID` = the install's container UUID; bundle file
 dates read as the epoch on device) and deletes bundle dirs whose newest file predates this launch.
 Logs `coreml_cache_prune`.
 
@@ -690,11 +690,12 @@ Developer options on (`NAVIGATION.md` → "Developer options"):
 - **Listen debug** (Settings › Developer): a **Debug** chip on the listen bar opens a live overlay
   above the controls: article identity (`eph:` / `svd:` + short id), queue #1 and demoted count,
   active / next unit, worker busy or idle, warming model, article render % (ready / total),
-  phase, last render event, render mode ("foreground · …", "inactive · …", "background · …"),
-  paragraphs ready ahead, what the last background stretch played, and recent log lines.
+  phase, last render event, render mode ("active · …", "inactive · …", "background · …": the
+  app phase, the engine and its host's routing), paragraphs ready ahead, what the last background stretch played, and recent log lines.
 - **Listen debug panel** (Settings › Developer › Listen Debug Panel, or long-press ▶︎): the same plus buffer / starve /
-  handoff numbers, the audio-session state, the Kokoro route toggle, and the last lines of
-  `ListenDebugLog`; Debug builds add the engine probe and the CPU route benchmark.
+  handoff numbers, the audio-session state, each voice library's own sections
+  (`SpeechEngineProvider.debugSections`; Kokoro's route toggle and ONNX threads), and the last
+  lines of `ListenDebugLog`; Debug builds add the engine probe and Kokoro's CPU route benchmark.
 
 **Timing log.** `Application Support/ListenTiming/timing.jsonl` (rotates at 2 MB to
 `timing.1.jsonl`): launch, open, play, model load, every `synth` call (chars, wall ms, audio s,
