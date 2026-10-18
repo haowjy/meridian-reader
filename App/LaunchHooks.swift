@@ -36,7 +36,9 @@ enum LaunchHooks {
     }
 
     /// `-resetLibrary`: every page (link pages too) and every folder goes, each page's audio,
-    /// queued renders and bake job with it (as a delete does), and the browsing history.
+    /// queued renders and bake job with it (as a delete does), and the browsing history, in one
+    /// save. The folders are empty by the time they go, and nothing in the app clears the
+    /// history, so those two are deleted directly.
     static func resetLibrary(_ library: LibraryStore) {
         let context = library.context
         _ = try? library.edit("reset library") {
@@ -48,29 +50,24 @@ enum LaunchHooks {
 
     /// `-seedDemoFolders`: "Demo Finance" with the subfolders "Bonds" (holding "Coupon Basics") and
     /// "Taxes", and three saved pages of its own, one part-way and one finished. Synthetic text,
-    /// `example.com` addresses.
+    /// `example.com` addresses. Made, saved and marked as the app does; the part-way page's play
+    /// is then dated an hour back, which no store write does (a play is dated as it starts, and
+    /// makes the page its folder's place).
     static func seedDemoFolders(in library: LibraryStore) {
         guard let finance = try? library.makeFolder(name: "Demo Finance", in: nil),
               let bonds = try? library.makeFolder(name: "Bonds", in: finance),
               (try? library.makeFolder(name: "Taxes", in: finance)) != nil else { return }
-        func page(_ title: String, slug: String, in folder: Folder, sortKey: Double) -> Page {
+        func save(_ title: String, slug: String, in folder: Folder, playhead: Int? = nil) -> Page? {
             let paragraphs = (1...6).map { "\(title), paragraph \($0). A synthetic note about saving, yields and the plain arithmetic of interest over a few years." }
-            let page = Page(key: UUID(), title: title, byline: "investing.example.com",
-                            urlString: "https://investing.example.com/\(slug)-\(UUID().uuidString.prefix(6))",
-                            contentState: .saved, addedAt: .now, sortKey: sortKey)
-            page.setText(html: paragraphs.map { "<p>\($0)</p>" }.joined(), plain: paragraphs.joined(separator: "\n\n"),
-                         excerpt: paragraphs[0], paragraphs: paragraphs)
-            library.context.insert(page)
-            page.setFolder(folder)
-            return page
+            let article = webPage(title, at: "https://investing.example.com/\(slug)-\(UUID().uuidString.prefix(6))",
+                                  paragraphs: paragraphs)
+            return try? library.save(article, placement: .folder(folder), playhead: playhead)
         }
-        _ = page("Coupon Basics", slug: "coupons", in: bonds, sortKey: 0)
-        let yield = page("Seven-Day Yield", slug: "yield", in: finance, sortKey: 0)
-        yield.positionParagraph = 3
-        yield.lastPlayedAt = .now.addingTimeInterval(-3600)
-        let funds = page("Money Market Funds", slug: "funds", in: finance, sortKey: 1)
-        funds.finishedAt = .now.addingTimeInterval(-7200)
-        _ = page("Index Funds", slug: "index", in: finance, sortKey: 2)
+        _ = save("Coupon Basics", slug: "coupons", in: bonds)
+        let yield = save("Seven-Day Yield", slug: "yield", in: finance, playhead: 3)
+        if let funds = save("Money Market Funds", slug: "funds", in: finance) { try? library.setFinished([funds], true) }
+        _ = save("Index Funds", slug: "index", in: finance)
+        yield?.lastPlayedAt = .now.addingTimeInterval(-3600)
         library.commit("demo folders seed")
     }
 
@@ -137,7 +134,12 @@ enum LaunchHooks {
     /// in no folder by `DemoBook.loosePageMarker`. An address another page already has isn't given
     /// to a seeded page, since the launch's dedupe would merge the two: that chapter goes without
     /// it, and the page in no folder isn't added.
-    /// `place`: the book is part-way, at that chapter's third paragraph (`-seedDemoBookPlace`).
+    /// The book is imported and the page saved as the app does them; then each chapter gets its
+    /// offline test page's address (an imported chapter has none) and the page its marker,
+    /// directly, as no store write gives either.
+    /// `place`: the book is part-way, at that chapter's third paragraph (`-seedDemoBookPlace`),
+    /// played ten minutes before (a play through the store is dated as it starts), with the
+    /// chapters before it that play finished.
     static func seedDemoBook(in library: LibraryStore, place: Int? = nil) {
         for folder in demoBooks(in: library) {
             for page in (folder.bookState?.chapterKeys ?? []).compactMap(library.page(key:)) { library.delete(page) }
@@ -146,33 +148,34 @@ enum LaunchHooks {
             try? library.deleteFolder(folder)
         }
         for page in seededLoosePages(in: library) { library.delete(page) }
-        let book = Folder(name: DemoBook.title, kind: .book, sortKey: library.nextFolderSortKey(in: nil))
-        book.byline = DemoBook.author
-        book.sourceIdentifier = DemoBook.sourceIdentifier
-        library.context.insert(book)
-        var chapterKeys: [UUID] = []
-        for (index, chapter) in DemoBook.chapters.enumerated() {
-            let url = DemoBook.url(ofChapter: index)
-            let page = demoPage(chapter, url: library.page(url: url) == nil ? url : nil, sortKey: Double(index))
-            page.locator = "chapter-\(index).xhtml"
-            page.skipsInPlayback = chapter.skipsInPlayback
-            library.context.insert(page)
-            page.setFolder(book)
-            chapterKeys.append(page.listenKey)
-            if let place, DemoBook.chapters.indices.contains(place) {
-                if index > 0 && index < place { page.finishedAt = .now.addingTimeInterval(-3600) }
-                if index == place {
-                    page.positionParagraph = 2
-                    page.lastPlayedAt = .now.addingTimeInterval(-600)
-                    book.currentPageKey = page.key
-                }
-            }
+        let details = FolderDetails(kind: .book, title: DemoBook.title, byline: DemoBook.author,
+                                    sourceIdentifier: DemoBook.sourceIdentifier)
+        let chapters = DemoBook.chapters.enumerated().map { index, chapter in
+            let locator = EPUBLocator(href: "chapter-\(index).xhtml", anchor: .fileStart)
+            return PageContent(ref: PageRef(key: UUID(), locator: .book(locator), ordinal: index, title: chapter.title,
+                                            skipsInPlayback: chapter.skipsInPlayback),
+                               title: chapter.title, bodyHTML: chapter.html, plainText: chapter.plainText,
+                               excerpt: String(chapter.plainText.prefix(140)))
         }
-        book.sourceStateData = try? JSONEncoder().encode(BookSourceState(chapterKeys: chapterKeys))
+        guard let book = try? library.addBook(details, chapters: chapters, in: nil) else { return }
+        let pages = library.pages(in: book, sort: .manual)
+        for (index, page) in pages.enumerated() {
+            let url = DemoBook.url(ofChapter: index)
+            guard library.page(url: url) == nil else { continue }
+            page.urlString = url.absoluteString
+            page.canonicalURL = ArticleIdentity.canonicalURLString(from: url)
+        }
+        if let place, pages.indices.contains(place) {
+            try? library.setFinished(pages[..<place].filter { !$0.skipsInPlayback }, true)
+            pages[place].positionParagraph = 2
+            pages[place].lastPlayedAt = .now.addingTimeInterval(-600)
+            book.currentPageKey = pages[place].key
+        }
         if library.page(url: DemoBook.loosePageURL) == nil {
-            let loose = demoPage(DemoBook.loosePage, url: DemoBook.loosePageURL, sortKey: library.nextSortKey(in: nil))
-            loose.locator = DemoBook.loosePageMarker
-            library.context.insert(loose)
+            var loose = webPage(DemoBook.loosePage.title, at: DemoBook.loosePageURL.absoluteString,
+                                paragraphs: DemoBook.loosePage.paragraphs)
+            loose.sourceLabel = DemoBook.author
+            (try? library.save(loose))?.locator = DemoBook.loosePageMarker
         } else {
             library.log("demo seed: \(DemoBook.loosePageURL.absoluteString) is another page's; no page in no folder added")
         }
@@ -191,11 +194,13 @@ enum LaunchHooks {
         return (try? library.context.fetch(FetchDescriptor<Page>(predicate: #Predicate { $0.locator == marker }))) ?? []
     }
 
-    private static func demoPage(_ chapter: DemoBook.Chapter, url: URL?, sortKey: Double) -> Page {
-        let page = Page(key: UUID(), title: chapter.title, byline: DemoBook.author, urlString: url?.absoluteString,
-                        contentState: .saved, addedAt: .now, sortKey: sortKey)
-        seedText(page, html: chapter.html, plain: chapter.plainText)
-        return page
+    /// A web page as its extraction gives it, under a fresh key, so no audio rendered before
+    /// carries over. `html: false`: the page has only its plain text.
+    private static func webPage(_ title: String, at address: String, paragraphs: [String], html: Bool = true) -> ReaderArticle {
+        let plain = paragraphs.joined(separator: "\n\n")
+        let text = ExtractedArticle(title: title, cleanedHTML: html ? paragraphs.map { "<p>\($0)</p>" }.joined(separator: "\n") : "",
+                                    plainText: plain, excerpt: String(plain.prefix(140)))
+        return ReaderArticle(id: UUID(), url: URL(string: address)!, extracted: text)
     }
 
     /// `-chainDemoChapters`: plays the demo book from where Continue would (chapter 1 the first
@@ -221,44 +226,25 @@ enum LaunchHooks {
         return start
     }
 
-    /// `-seedDemoArticle`: one deterministic article in no folder (and, with `-seedPlayedPages N`,
-    /// N pages played without saving).
+    /// `-seedDemoArticle`: one deterministic article saved in no folder (and, with
+    /// `-seedPlayedPages N`, N pages played without saving). Saved and played as the app does;
+    /// each play is then dated a minute further back than the one before ("Played Page 1" most
+    /// recently), which no store write does (a play is dated as it starts).
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in library: LibraryStore) {
-        let context = library.context
-        let plain = """
-        First paragraph for listen probe. This one is intentionally longer so Simulator UI tests can press next and previous before speech finishes the whole article on its own.
-
-        Second paragraph so next and previous skip have somewhere to go. Extra sentences keep the synthesizer busy while the probe checks speed and paragraph controls.
-
-        Third paragraph finishes the demo article used by Simulator UI tests. One more cushion of text so stop can be exercised while playback is still active.
-        """
-        let html = """
-        <p>First paragraph for listen probe. This one is intentionally longer so Simulator UI tests can press next and previous before speech finishes the whole article on its own.</p>
-        <p>Second paragraph so next and previous skip have somewhere to go. Extra sentences keep the synthesizer busy while the probe checks speed and paragraph controls.</p>
-        <p>Third paragraph finishes the demo article used by Simulator UI tests. One more cushion of text so stop can be exercised while playback is still active.</p>
-        """
-        // A fresh key each launch, so no audio rendered by an earlier test carries over.
-        let page = Page(key: UUID(), title: "Demo Listen Article", byline: "example.com",
-                        urlString: "https://example.com/demo", contentState: .saved, addedAt: .now,
-                        sortKey: library.nextSortKey(in: nil))
-        seedText(page, html: demo.plainTextOnly ? "" : html, plain: plain)
-        context.insert(page)
+        let paragraphs = [
+            "First paragraph for listen probe. This one is intentionally longer so Simulator UI tests can press next and previous before speech finishes the whole article on its own.",
+            "Second paragraph so next and previous skip have somewhere to go. Extra sentences keep the synthesizer busy while the probe checks speed and paragraph controls.",
+            "Third paragraph finishes the demo article used by Simulator UI tests. One more cushion of text so stop can be exercised while playback is still active.",
+        ]
+        _ = try? library.save(webPage("Demo Listen Article", at: "https://example.com/demo", paragraphs: paragraphs,
+                                      html: !demo.plainTextOnly))
         for i in 0..<demo.playedPages {
-            let text = ["Played page \(i + 1), first paragraph.", "Played page \(i + 1), second paragraph."]
-            let played = Page(key: UUID(), title: "Played Page \(i + 1)", byline: "example.com",
-                              urlString: "https://example.com/played-\(i + 1)", contentState: .saved, addedAt: nil)
-            seedText(played, html: text.map { "<p>\($0)</p>" }.joined(), plain: text.joined(separator: "\n\n"))
-            played.lastPlayedAt = Date.now.addingTimeInterval(-60 * Double(i + 1))
-            context.insert(played)
+            let played = library.recordPlayback(webPage("Played Page \(i + 1)", at: "https://example.com/played-\(i + 1)",
+                                                        paragraphs: ["Played page \(i + 1), first paragraph.",
+                                                                     "Played page \(i + 1), second paragraph."]))
+            played.lastPlayedAt = .now.addingTimeInterval(-60 * Double(i + 1))
         }
         library.commit("demo seed")
-    }
-
-    /// A seeded page's text, as saving the page would store it: its listen paragraphs built from
-    /// `html` and `plain` by the reader's rules (`Page.buildListenDocument`), and a real word count.
-    private static func seedText(_ page: Page, html: String, plain: String) {
-        let paragraphs = Page.buildListenDocument(plainText: plain, cleanedHTML: html, title: page.title).paragraphs
-        page.setText(html: html, plain: plain, excerpt: String(plain.prefix(140)), paragraphs: paragraphs)
     }
 
     /// `-bakeArticle <id prefix>` (e.g. `xcrun devicectl device process launch …
