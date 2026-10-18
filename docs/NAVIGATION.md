@@ -810,8 +810,9 @@ bottom:
   in any of the app's web views; a change applies to pages loaded after it.
 - **Downloads & Storage**: *Downloads ›* (the Downloads list) and the listening audio kept on
   the iPhone.
-- **Developer** (developer options only): *Listen Debug*, *Fake Extraction Failure* (the
-  browser's Reader fails until the app quits) and *Listen Debug Panel ›*.
+- **Developer** (developer options only): *Listen Debug*, *Fake Extraction Failure* (every
+  extraction fails until the app quits: the browser's Reader and Save, Follow's preview and
+  chapters, downloads) and *Listen Debug Panel ›*.
 - The **version row** last.
 
 ## Developer options
@@ -821,8 +822,9 @@ failure, Listen Debug Panel), the listen bar's Debug pill / bake overlay, and lo
 Listen debug panel. No ⋯ panel has a Debug row. The entry points that open the full panel
 present the shell's `ShellSheet.listenDebug` (the Debug pill toggles the bake overlay): the one
 sheet, or over Settings when it is up (`ShellState.overSheet`), which stays when it closes.
-They show only with **developer options** on (`DeveloperOptions`, UserDefaults `reader.developerOptions`): off by
-default in Release builds, on by default in Debug builds. To toggle in any build, long-press the
+They show only with **developer options** on (`DeveloperSettings`, UserDefaults `reader.developerOptions`): off by
+default in Release builds, on by default in Debug builds; turning them off turns off Fake
+Extraction Failure and closes the bake overlay. To toggle in any build, long-press the
 **version row** at the bottom of Settings for 2 s (haptic + "Developer options on/off"
 confirmation). A Release build clears a stored "on" once, so a Debug pill left from an older build
 can't stick; long-press the version row to turn it back on. A launch forces it with

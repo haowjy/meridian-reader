@@ -23,7 +23,6 @@ struct BrowseStartView: View {
     @State private var dictation: AddressDictation?
     @AppStorage(RecentSearches.storageKey) private var recentSearchesRaw = ""
     @State private var alertMessage: String?
-    @Environment(\.developerSettings) private var developer
     @Environment(\.readingAppearance) private var readingAppearance
 
     private var webStore: WebViewStore { shell.web }
@@ -312,13 +311,10 @@ struct BrowseStartView: View {
 
     // MARK: - Page actions
 
-    /// The loaded page as an article. Developer options can force extraction to fail
-    /// (Settings › Developer).
+    /// The loaded page as an article.
     private var page: PageArticleService {
-        let fails = speech.developerOptionsEnabled && developer.fakeExtractionFailure
-        return PageArticleService(shell: shell,
-                                  extractor: fails ? FakeArticleExtractor(mode: .failure) : extractor,
-                                  library: library, speech: speech, recentVisits: recentVisits)
+        PageArticleService(shell: shell, extractor: extractor, library: library, speech: speech,
+                           recentVisits: recentVisits)
     }
 
     /// Runs a page action; a failed extraction shows the alert.

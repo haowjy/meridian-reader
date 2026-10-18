@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import WebKit
 
 /// Every page fetched out of sight goes through here, strictly one at a time: a story's table of
 /// contents, a chapter's text, a download's link page. Each request waits for the one before it
@@ -13,8 +12,9 @@ import WebKit
 /// WebKit is suspended there): requests wait for the app to come to the front. A load the
 /// background cut short is tried again then, and doesn't count against its site.
 ///
-/// The loads are `URLPageFetcher`'s: a hidden web view with the browser's cookies, so a site you
-/// are signed in to in the browser serves the same pages here.
+/// The loads are `fetcher`'s (the app's one, made with the app's extractor): a hidden web view
+/// with the browser's cookies, so a site you are signed in to in the browser serves the same pages
+/// here.
 @MainActor
 @Observable
 final class FetchQueue {
@@ -56,9 +56,8 @@ final class FetchQueue {
     @ObservationIgnored private var backgroundings = 0
     @ObservationIgnored private var runStateObserver: NSObjectProtocol?
 
-    init(schemeHandlers: [String: any WKURLSchemeHandler] = [:], runState: AppRunState = .shared,
-         now: @escaping () -> Date = Date.init) {
-        fetcher = URLPageFetcher(schemeHandlers: schemeHandlers)
+    init(fetcher: URLPageFetcher, runState: AppRunState = .shared, now: @escaping () -> Date = Date.init) {
+        self.fetcher = fetcher
         self.runState = runState
         self.now = now
         runStateObserver = NotificationCenter.default.addObserver(forName: AppRunState.didChange, object: runState,

@@ -27,7 +27,6 @@ private struct UnitTestHostApp: App {
 #endif
 
 struct ReaderApp: App {
-    private let extractor: any ArticleExtracting = ReadabilityArticleExtractor()
     private let container: ModelContainer
     /// Composition root output (engine registry → SpeechController). See `AppComposition`.
     @State private var speechController = AppComposition.speechController
@@ -39,7 +38,7 @@ struct ReaderApp: App {
     @State private var contentBlocker: ContentBlocker
     /// How pages read (Settings › Reading, the Aa panel): one store for both editors.
     @State private var readingAppearance = ReadingAppearance(defaults: .standard)
-    @State private var developer = DeveloperSettings()
+    @State private var developer = AppComposition.developer
 
     init() {
         // First: a web view made before it would load unblocked.
@@ -63,7 +62,7 @@ struct ReaderApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environment(\.articleExtractor, extractor)
+                .environment(\.articleExtractor, AppComposition.extractor)
                 .environment(\.speechController, speechController)
                 .environment(shell)
                 .environment(library)
@@ -71,7 +70,7 @@ struct ReaderApp: App {
                 .environment(follow)
                 .environment(contentBlocker)
                 .environment(\.readingAppearance, readingAppearance)
-                .environment(\.developerSettings, developer)
+                .environment(developer)
                 .task {
                     await AppLaunch.run(library: library, speech: speechController, shell: shell, downloads: downloads,
                                         follow: follow)

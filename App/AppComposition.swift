@@ -64,18 +64,28 @@ enum AppComposition {
         progressRecorder = ListeningProgressRecorder(speech: speechController, library: library)
     }
 
+    /// Settings › Developer: developer options and their switches, over the stored settings.
+    static let developer = DeveloperSettings(defaults: .standard)
+
+    /// The app's one extractor: Readability, failing while Fake Extraction Failure is on. The
+    /// browser's comes from the environment (`ReaderApp`), Follow's and Downloads' fetches from
+    /// `makeFollow`.
+    static let extractor: any ArticleExtracting = DeveloperSwitchedExtractor(base: ReadabilityArticleExtractor(),
+                                                                             developer: developer)
+
     /// Follow over the app's library: every page fetched out of sight goes through one
-    /// `FetchQueue` (a Debug build also serves the offline `reader-test://` pages there); a
-    /// chapter ▶ waited for plays from its spot once its text is in. It starts once the launch's
-    /// library maintenance is done (`AppLaunch`).
+    /// `FetchQueue`, extracted with the app's extractor (a Debug build also serves the offline
+    /// `reader-test://` pages there); a chapter ▶ waited for plays from its spot once its text is
+    /// in. It starts once the launch's library maintenance is done (`AppLaunch`).
     static func makeFollow(library: LibraryStore) -> FollowCenter {
         let speech = speechController
         #if DEBUG
-        let queue = FetchQueue(schemeHandlers: TestPageSchemeHandler.handlers)
+        let fetcher = URLPageFetcher(extractor: extractor, schemeHandlers: TestPageSchemeHandler.handlers)
         #else
-        let queue = FetchQueue()
+        let fetcher = URLPageFetcher(extractor: extractor)
         #endif
-        return FollowCenter(library: library, queue: queue, playingKey: { speech.activeSessionID },
+        return FollowCenter(library: library, queue: FetchQueue(fetcher: fetcher),
+                            playingKey: { speech.activeSessionID },
                             startPlayback: { speech.start(.page($0), at: $0.listenStart) })
     }
 

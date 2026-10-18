@@ -1,10 +1,5 @@
 import Foundation
 
-enum ArticleAvailability: Sendable, Equatable {
-    case available
-    case unavailable(reason: String)
-}
-
 enum ExtractionError: Error, LocalizedError, Equatable {
     case unavailable(reason: String)
     case emptyContent
@@ -20,6 +15,5 @@ enum ExtractionError: Error, LocalizedError, Equatable {
 }
 
 protocol ArticleExtracting: Sendable {
-    func availability(for context: ExtractionContext) async -> ArticleAvailability
     func extract(from context: ExtractionContext) async throws -> ExtractedArticle
 }

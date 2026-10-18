@@ -2,14 +2,6 @@ import Foundation
 
 /// Live-page extraction via HTML snapshot + Mozilla Readability (off-screen WKWebView).
 struct ReadabilityArticleExtractor: ArticleExtracting {
-    func availability(for context: ExtractionContext) async -> ArticleAvailability {
-        guard context.origin.url != nil else { return .unavailable(reason: Self.webOnly) }
-        guard let html = context.htmlSnapshot, !html.isEmpty else {
-            return .unavailable(reason: "Page HTML isn’t available yet.")
-        }
-        return .available
-    }
-
     func extract(from context: ExtractionContext) async throws -> ExtractedArticle {
         guard let url = context.origin.url else { throw ExtractionError.unavailable(reason: Self.webOnly) }
         guard let html = context.htmlSnapshot, !html.isEmpty else {
