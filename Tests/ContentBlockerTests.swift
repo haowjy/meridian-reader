@@ -15,6 +15,7 @@ final class ContentBlockerTests: XCTestCase {
         let compiled = try await ContentBlocker.compiledList(in: store)
         let lookedUp = try await ContentBlocker.compiledList(in: store)
         XCTAssertEqual(compiled.identifier, lookedUp.identifier)
-        XCTAssertEqual(await store.availableIdentifiers(), [compiled.identifier])
+        let identifiers = await store.availableIdentifiers()
+        XCTAssertEqual(identifiers, [compiled.identifier])
     }
 }
