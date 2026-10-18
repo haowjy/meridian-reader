@@ -50,7 +50,7 @@ struct FollowingSheet: View {
             Section {
                 fact(String(localized: "Last checked"), state.lastCheckedAt.map { FollowText.when($0) } ?? "—")
                 fact(String(localized: "Next check"), nextCheck(folder))
-                fact(String(localized: "Chapter text"), String(localized: "\(progress.withText) of \(progress.chapters) fetched"))
+                fact(String(localized: "Chapter text"), chapterText(progress))
                 fact(String(localized: "Last new chapters"), state.lastAddedAt.map {
                     String(localized: "\(FollowText.when($0)) · \(state.lastAddedCount) added")
                 } ?? String(localized: "None yet"))
@@ -102,6 +102,13 @@ struct FollowingSheet: View {
     private func nextCheck(_ folder: Folder) -> String {
         guard let next = follow.nextCheck(of: folder) else { return String(localized: "Off") }
         return next <= .now ? String(localized: "When the app is next open") : FollowText.when(next)
+    }
+
+    /// "41 of 107 fetched", then "· 1 chapter couldn’t load" when one couldn't.
+    private func chapterText(_ progress: FollowCenter.Progress) -> String {
+        let fetched = String(localized: "\(progress.withText) of \(progress.chapters) fetched")
+        guard progress.failed > 0 else { return fetched }
+        return fetched + " · " + FollowText.couldNotLoad(progress.failed)
     }
 
     private func fact(_ title: String, _ value: String) -> some View {

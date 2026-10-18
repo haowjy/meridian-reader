@@ -47,13 +47,23 @@ final class FollowCenter {
     }
 
     /// A story's chapters as its header and the Following sheet count them: the ones that play
-    /// (not skipped), how many have their text, and the number of the one being fetched.
+    /// (not skipped), how many have their text, the one being fetched, and how many couldn't be
+    /// had.
     struct Progress: Equatable {
         var chapters = 0
         var withText = 0
-        var fetching: Int?
+        var fetching: Fetching?
         /// Chapters still to fetch this launch (waiting, or being fetched).
         var toFetch = 0
+        /// Chapters whose text couldn't be had this launch (`ChapterStatus.failed`).
+        var failed = 0
+
+        /// The first chapter being fetched (or retried): its number among the pages that play,
+        /// which counts an author's note too, and its title, which names it.
+        struct Fetching: Equatable {
+            var number: Int
+            var title: String
+        }
     }
 
     /// Pages being fetched now (loading, or waiting in the queue for their turn and their site's
@@ -306,9 +316,11 @@ final class FollowCenter {
             case nil: progress.withText += 1
             case .fetching?, .retrying?:
                 progress.toFetch += 1
-                if progress.fetching == nil { progress.fetching = progress.chapters }
+                if progress.fetching == nil {
+                    progress.fetching = Progress.Fetching(number: progress.chapters, title: page.title)
+                }
             case .waiting?: progress.toFetch += 1
-            case .failed?: break
+            case .failed?: progress.failed += 1
             }
         }
         return progress

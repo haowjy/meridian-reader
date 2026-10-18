@@ -38,7 +38,8 @@ struct SwitchCard: View {
 }
 
 /// A short notice in a header, in the caution colour on its wash: something is held up and will
-/// carry on by itself ("Royal Road asked to slow down. Chapter 42 in 2 min, then slower.").
+/// carry on by itself ("Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52,
+/// then slower.").
 struct NoticeCard: View {
     let symbol: String
     let text: String
@@ -103,7 +104,7 @@ struct HeaderCardsGallery: View {
             }
             PreviewState("notice") {
                 NoticeCard(symbol: Icons.waiting,
-                           text: "Royal Road asked to slow down (429). Chapter 42 in 2 min, then slower.")
+                           text: "Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52, then slower.")
             }
             PreviewState("switch, off") {
                 SwitchCard(title: "Download", symbol: Icons.download, detail: "Off · downloads when played or tapped", isOn: $off)

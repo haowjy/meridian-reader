@@ -2,12 +2,12 @@ import SwiftUI
 
 /// A followed story's lines in its folder header: one status line, which opens the Following
 /// sheet, and, while its site has asked to slow down or isn't answering, one notice saying how
-/// long the next chapter waits.
+/// long the next chapter waits, by its title.
 ///
 /// ```
 /// 📡 Following · fetching chapter text 4 of 107 ›
-/// 📡 Following · fetched 41 of 107 ›
-/// ⏳ Royal Road asked to slow down (429). Chapter 42 in 1:52, then slower.
+/// 📡 Following · fetched 41 of 107 · 1 chapter couldn’t load ›
+/// ⏳ Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52, then slower.
 /// 📡 Following · checked today 8:02 AM · 2 new ›
 /// ```
 struct FollowStatus: View {
@@ -29,7 +29,7 @@ struct FollowStatus: View {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     NoticeCard(symbol: Icons.waiting,
                                text: FollowText.backOffNotice(site: TableOfContents.siteName(of: url), status: backOff.status,
-                                                              chapter: next, wait: backOff.until.timeIntervalSince(context.date)),
+                                                              chapter: next.title, wait: backOff.until.timeIntervalSince(context.date)),
                                identifier: "followBackOff")
                 }
             }
@@ -39,8 +39,8 @@ struct FollowStatus: View {
     private func line(_ progress: FollowCenter.Progress) -> String {
         let state = folder.followState
         var parts = [state?.isFollowing == false ? String(localized: "Not following") : String(localized: "Following")]
-        if let number = progress.fetching {
-            parts.append(String(localized: "fetching chapter text \(number) of \(progress.chapters)"))
+        if let fetching = progress.fetching {
+            parts.append(String(localized: "fetching chapter text \(fetching.number) of \(progress.chapters)"))
         } else if progress.toFetch > 0 {
             parts.append(String(localized: "fetched \(progress.withText) of \(progress.chapters)"))
         } else if follow.checking.contains(folder.id) {
@@ -51,6 +51,7 @@ struct FollowStatus: View {
                 parts.append(String(localized: "\(count) new"))
             }
         }
+        if progress.failed > 0 { parts.append(FollowText.couldNotLoad(progress.failed)) }
         return parts.joined(separator: " · ")
     }
 }
@@ -87,15 +88,25 @@ enum FollowText {
         return String(format: "%d:%02d", whole / 60, whole % 60)
     }
 
-    /// The header's notice while a site backs off (`status` nil: it didn't answer).
-    static func backOffNotice(site: String, status: Int?, chapter: Int, wait: TimeInterval) -> String {
+    /// The header's notice while a site backs off (`status` nil: it didn't answer), naming the
+    /// chapter waiting by its title. The site's name can be a lowercase host ("example.com"), so
+    /// the sentence's first letter is capitalized here.
+    static func backOffNotice(site: String, status: Int?, chapter: String, wait: TimeInterval) -> String {
         let after = countdown(wait)
-        guard let status else {
-            return String(localized: "\(site) isn’t answering. Chapter \(chapter) is tried again in \(after).")
+        let notice = if let status {
+            status == 429
+                ? String(localized: "\(site) asked to slow down (429). “\(chapter)” in \(after), then slower.")
+                : String(localized: "\(site) had a problem (\(status)). “\(chapter)” in \(after), then slower.")
+        } else {
+            String(localized: "\(site) isn’t answering. “\(chapter)” is tried again in \(after).")
         }
-        return status == 429
-            ? String(localized: "\(site) asked to slow down (429). Chapter \(chapter) in \(after), then slower.")
-            : String(localized: "\(site) had a problem (\(status)). Chapter \(chapter) in \(after), then slower.")
+        return notice.prefix(1).uppercased() + notice.dropFirst()
+    }
+
+    /// "1 chapter couldn’t load", "3 chapters couldn’t load": the status line's part, and the
+    /// Following sheet's.
+    static func couldNotLoad(_ count: Int) -> String {
+        count == 1 ? String(localized: "1 chapter couldn’t load") : String(localized: "\(count) chapters couldn’t load")
     }
 
     /// A followed story's chapter waiting for its text, as its row says it (`FollowCenter.status`):
