@@ -12,7 +12,7 @@ the screens look and move: `NAVIGATION.md`. How it is built: `TECHNICAL_SPEC.md`
 | **Browser** | A start page (Favorites, Recent Searches) or a web page, with one bottom bar (address field + toolbar). |
 | **Reader** | A sheet for reading any page, over the browser or the Library, with its own Listen. |
 | **Now Playing** | A sheet over everything for what you hear, in the Reader's reading theme and type: a title card, the text following the audio (the spoken paragraph highlighted, the others dimmed), and the player's controls. |
-| **Settings** | ⋯ › Settings, the last row of every ⋯ panel: Appearance (System / Light / Dark, five app colours), Reading (theme, font, size, spacing; the same as Aa), Listening (engine, voice, language, speed), Downloads & Storage, and Developer (developer options only). |
+| **Settings** | ⋯ › Settings, the last row of every ⋯ panel: Appearance (System / Light / Dark, five app colours), Reading (theme, font, size, spacing; the same as Aa), Listening (engine, voice, language, speed), Browsing (Block Ads), Downloads & Storage, and Developer (developer options only). |
 | **Now Playing bar** | What you hear, on the browser, the start page, every Library screen and the Reader sheet, from the first play until *Stop Listening* (long-press); it keeps a finished page with ▶. Tap or swipe up → Now Playing. |
 
 The app reopens on the surface you left: the Library at the folder you were in, or the browser on
@@ -31,6 +31,7 @@ its last page (reloaded). A fresh install opens the Library.
 | B7 | Dictation fills the address field while searching, on-device where the language allows; nothing is submitted automatically, and listening pauses while the mic is open. |
 | B8 | Loading pages needs the network. |
 | B9 | A readable page shows 🎧 at the end of the address field: grey when it isn't what you hear (tap: listen now, replacing what plays once this page is extracted; "Nothing to listen to on this page" when it has too little text), accent with bars when it is (tap: pause / resume). |
+| B10 | Video and audio on a page play only after a tap. *Block Ads* (Settings › Browsing, on by default) keeps requests to common ad and tracker hosts from loading, in the browser, Follow's preview and fetches; a change applies to pages loaded after it. |
 
 ## Reader
 

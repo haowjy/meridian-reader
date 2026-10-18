@@ -806,6 +806,8 @@ bottom:
 - **Reading**: the reading appearance above, with a sample of what is chosen.
 - **Listening**: the engines (Apple and the on-device ones: download, cancel, ✓, swipe to delete
   a download), *Voice ›* and *Language ›* (pages of their own), and *Speed* in one line.
+- **Browsing**: *Block Ads* (on by default): requests to common ad and tracker hosts don't load
+  in any of the app's web views; a change applies to pages loaded after it.
 - **Downloads & Storage**: *Downloads ›* (the Downloads list) and the listening audio kept on
   the iPhone.
 - **Developer** (developer options only): *Listen Debug*, *Fake Extraction Failure* (the
