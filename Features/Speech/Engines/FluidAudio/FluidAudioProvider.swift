@@ -11,6 +11,19 @@ extension SpeechEngineID {
     static let retiredChatterboxNano = SpeechEngineID("local.chatterbox-nano")
 }
 
+extension TextChunker.Limits {
+    /// Kokoro, on either route (sized for the ONNX CPU route, the default). ≈1.0–1.3 phonemes
+    /// per char; a call holds at most 510 phonemes. Chunks ramp so playback never waits after the
+    /// first one: first ≤ 80 units (≈5 s of audio, ≈1.5 s to render on iPhone 17 Pro at ≈2.7× real
+    /// time), second ≤ 160 (renders in ≈3.5 s, inside the first chunk's 5 s), then whole sentences
+    /// packed to 240, never over 280 (≈300 tokens, ≈18 s of audio; ORT activation memory grows
+    /// ≈1.3 MB/token, ≈+380 MB at 300 tokens measured on the Mac). Longer chunks = fewer joins and
+    /// Kokoro keeps sentence prosody; sentences are only split when longer than 280 (at clauses).
+    /// Deterministic per text, so live chunks and bake-ahead share one plan.
+    static let kokoroCPU = TextChunker.Limits(target: 240, hardMax: 280, firstTarget: 80, minResplit: 24,
+                                              alwaysSplitFirst: true, secondTarget: 160)
+}
+
 /// FluidAudio adapter (vendored `Vendor/FluidAudio`, v0.16.1): registers Kokoro.
 /// PocketTTS / Supertonic (also in FluidAudio) would be one more descriptor + host each here.
 ///
@@ -131,9 +144,10 @@ final class FluidAudioProvider: SpeechEngineProvider {
     }
 
     /// Kokoro crashed last session: `KokoroCrashRecovery` (resume on the ONNX route; Apple after
-    /// two ONNX crashes close together).
+    /// two ONNX crashes close together). The Core ML stage it died in is logged first.
     func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery? {
         guard crash.engine == .kokoro else { return nil }
+        CoreMLBreadcrumbFile.shared.logStage(of: crash)
         return KokoroCrashRecovery.recover(from: crash, playing: playing, settings: routeSettings)
     }
 

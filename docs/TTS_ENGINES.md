@@ -139,7 +139,8 @@ a hook switch to Apple). Kokoro answers with `KokoroCrashRecovery`:
   the page opens paused at its own spot (`AppLaunch.resumeAfterCrash`, `LISTEN_PLAYBACK.md`).
 
 On the Core ML route `coreml_breadcrumb.json` names the model and stage that was about to run;
-it is logged as `coreml_stage` in `engine_crash_detected`. A process that dies while suspended
+after a Kokoro crash, `FluidAudioProvider.recover` logs it as `coreml_stage` in
+`engine_crash_coreml_stage`, right after `engine_crash_detected`, and clears it. A process that dies while suspended
 mid-call (no notice, no time to clear) can't be told from a crash, but the render queue holds a
 background task while a call is in flight as the app leaves the front, so the call ends first.
 

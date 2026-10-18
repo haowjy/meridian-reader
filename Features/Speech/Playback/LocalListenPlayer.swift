@@ -61,7 +61,7 @@ final class LocalListenPlayer {
 
     /// The render ran behind playback: this paragraph plays with Apple (see `HeadStart`).
     struct RenderFellBehind: LocalizedError {
-        var errorDescription: String? { "Kokoro rendering fell behind playback" }
+        var errorDescription: String? { "Rendering fell behind playback" }
     }
 
     /// Article whose audio is playing right now (nil when paused / stopped).

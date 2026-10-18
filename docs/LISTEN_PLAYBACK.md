@@ -690,8 +690,8 @@ Developer options on (`NAVIGATION.md` → "Developer options"):
 - **Listen debug** (Settings › Developer): a **Debug** chip on the listen bar opens a live overlay
   above the controls: article identity (`eph:` / `svd:` + short id), queue #1 and demoted count,
   active / next unit, worker busy or idle, warming model, article render % (ready / total),
-  phase, last render event, render mode ("foreground · …", "inactive · …", "background · …"),
-  paragraphs ready ahead, what the last background stretch played, and recent log lines.
+  phase, last render event, render mode ("active · …", "inactive · …", "background · …": the
+  app phase, the engine and its host's routing), paragraphs ready ahead, what the last background stretch played, and recent log lines.
 - **Listen debug panel** (Settings › Developer › Listen Debug Panel, or long-press ▶︎): the same plus buffer / starve /
   handoff numbers, the audio-session state, each voice library's own sections
   (`SpeechEngineProvider.debugSections`; Kokoro's route toggle and ONNX threads), and the last
