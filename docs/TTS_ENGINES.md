@@ -168,7 +168,8 @@ section (`KokoroRouteDebugSection`, from the provider's `debugSections`) changes
 ```
 AppComposition (composition root: the only file that lists libraries)
   └─ EngineRegistry(providers: [AppleSpeechProvider, FluidAudioProvider])
-       └─ injected → SpeechController(engines:) → LocalTTSCoordinator(engines:) → LocalSynthService(engines:)
+       └─ injected → LocalTTSCoordinator(engines:defaults:…) → LocalSynthService(engines:)
+            └─ SpeechController(localTTS:defaults:) over the coordinator
 
 SpeechEngineProvider (one per library)      EngineDescriptor (per engine)
   descriptors / retiredEngines                 id, names, subtitle, recommended, sort order

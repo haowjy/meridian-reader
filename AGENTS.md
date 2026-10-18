@@ -55,8 +55,8 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   on-device test voice for downloads; `-selectEngine test.voice`). Keep probes and tests offline;
   use the test pages, not live sites. `LaunchOptions` parses every launch argument, the
   diagnostics' too (`-engineProbe`, `-KokoroStress`, `-kokoroUnits`; `docs/LISTEN_PLAYBACK.md` →
-  "Diagnostics"); the speech stack gets the values from `AppComposition`, never from the process
-  arguments. The exceptions are stored settings a launch overrides through UserDefaults' argument
+  "Diagnostics"); Features and the speech stack get the values from App (`AppComposition`,
+  `LaunchTestHooks`), never from `LaunchOptions` or the process arguments. The exceptions are stored settings a launch overrides through UserDefaults' argument
   domain (`-reader.developerOptions YES`, `-reader.listenDebugEnabled YES`,
   `-reader.rateMultiplier 2`).
 - Release must keep building: test hooks live behind `#if DEBUG`.
@@ -69,7 +69,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks and test fixtures (`App/Fixtures/`) |
 | `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `Extraction` (Readability, the listen normalizer), `Sources` (`PageSource`s, the book import), `Persistence` (SwiftData; `Library/`: `Folder`, `Page`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
-| `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Library` (the Library's screens, rows, the Move tree, Favorites), `Downloads` (`DownloadCenter`, the Downloads list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Speech` (playback, engines, settings) |
+| `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Library` (the Library's screens, rows, the Move tree, Favorites), `Downloads` (`DownloadCenter`, the Downloads list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
 | `Tests/`, `UITests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) and UI flows |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
 | `Resources/` | Readability scripts, voice previews, assets |
@@ -119,9 +119,12 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   (`BottomToolbarLayout`, `BottomToolbarSpanLayout`) so sizing, Dynamic Type and 44 pt taps stay
   consistent.
 - **Voice libraries stay in `Features/Speech/Engines/<Library>/`**, registered in
-  `AppComposition`. Shared code never imports one or switches on engine types.
+  `AppComposition`. Shared code never imports or names one, or switches on engine types: a
+  library's launch steps and Listen debug panel sections come from its provider's hooks
+  (`launchMigrations`, `debugSections`).
 - Persisted ids and keys (engine ids, cache voice keys, UserDefaults keys, SwiftData fields) never
-  change; a rename needs a migration.
+  change; a rename needs a migration. A stored setting's key goes in its owner's `storedKeys`,
+  whose union `-resetLibrary` clears.
 - No real people's content in the repo: fixtures are synthetic or public domain, URLs use
   `example.com`.
 
