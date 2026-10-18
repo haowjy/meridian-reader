@@ -219,7 +219,9 @@ engine that also owns index files written without an engine id.
 4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,
    `deleteModels`; override `recover(from:playing:)` if a crash needs more than "switch away",
    `launchMigrations` for the library's launch steps (`LaunchMigration`s, run after retired
-   engines' cleanup), and `debugSections(speech:)` for its own Listen debug panel sections.
+   engines' cleanup), `debugSections(speech:)` for its own Listen debug panel sections, and
+   `storedKeys` for settings it stores itself (beyond each engine's voice key), which
+   `-resetLibrary` clears.
    Anything that decides them (a launch argument, a setting) comes in at the provider's init.
 5. **Register.** One line in `AppComposition.makeProviders()`.
 6. **Verify.** A Release device run of
@@ -232,7 +234,9 @@ come from the registry.
 
 `reader.tts.engineID` (the engine on `ready`, Apple on `off` / `failed`), per-engine voice keys
 (`reader.tts.kokoroVoice`), `reader.rateMultiplier`, `reader.languageAutomatic` and
-`reader.selectedLanguageCode`. Rate and language apply to every engine.
+`reader.selectedLanguageCode`. Rate and language apply to every engine. Kokoro's route knobs and
+ONNX crash count (`reader.tts.kokoro.fastGPURoute`, `.cpuThreads`, `.onnxCrashCount`) are
+`FluidAudioProvider`'s `storedKeys`. `-resetLibrary` clears all of these.
 
 ## Cloud voices
 

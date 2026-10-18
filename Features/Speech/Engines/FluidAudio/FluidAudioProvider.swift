@@ -94,6 +94,9 @@ final class FluidAudioProvider: SpeechEngineProvider {
         )]
     }
 
+    /// Kokoro's route knobs and ONNX crash count.
+    var storedKeys: [String] { KokoroRouteSettings.storedKeys }
+
     /// FluidAudio's model cache (vocab, voice packs, G2P and lexicon; the Core ML stages on the
     /// debug route) and the ONNX model's folder: all downloaded again when missing.
     var regenerableDirectories: [URL] {

@@ -28,6 +28,7 @@ struct KokoroRouteSettings {
     static let fastGPURouteKey = "reader.tts.kokoro.fastGPURoute"
     static let cpuThreadsKey = "reader.tts.kokoro.cpuThreads"
     static let onnxCrashCountKey = "reader.tts.kokoro.onnxCrashCount"
+    static let storedKeys = [fastGPURouteKey, cpuThreadsKey, onnxCrashCountKey]
     /// ONNX intra-op threads in front by default: every core but one (the UI, audio and the render
     /// queue's own work keep that one), at least 3, at most 6. 5 on an iPhone 17 Pro (2
     /// performance + 4 efficiency cores). ORT splits a matrix multiply into one piece per thread,

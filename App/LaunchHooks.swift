@@ -15,13 +15,15 @@ enum LaunchHooks {
     }
 
     /// `-resetLibrary`'s stored settings, before anything reads them (`AppMain`): every key the
-    /// settings' owners store (each names its own, `storedKeys`), and the download list. Launch
-    /// arguments (`-reading.theme sepia`) still apply over what is cleared.
+    /// settings' owners store (each names its own, `storedKeys`; a new owner joins the union
+    /// here, a voice library's through its provider), and the download list. Launch-step done
+    /// flags stay. Launch arguments (`-reading.theme sepia`) still apply over what is cleared.
     static func resetStoredSettings(engines: EngineRegistry, defaults: UserDefaults = .standard,
                                     downloads: DownloadListStore = DownloadListStore()) {
         let keys = SpeechController.storedKeys + LocalTTSCoordinator.storedKeys(for: engines)
             + AppAppearance.storedKeys + ReadingAppearance.storedKeys + LibraryTopLevel.storedKeys
             + RecentSearches.storedKeys + ContentBlocker.storedKeys + SurfaceMemoryStore.storedKeys
+            + DeveloperSettings.storedKeys
         for key in keys { defaults.removeObject(forKey: key) }
         downloads.save([])
     }

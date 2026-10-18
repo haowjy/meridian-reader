@@ -123,8 +123,9 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   library's launch steps and Listen debug panel sections come from its provider's hooks
   (`launchMigrations`, `debugSections`).
 - Persisted ids and keys (engine ids, cache voice keys, UserDefaults keys, SwiftData fields) never
-  change; a rename needs a migration. A stored setting's key goes in its owner's `storedKeys`,
-  whose union `-resetLibrary` clears.
+  change; a rename needs a migration. A stored setting's key goes in its owner's `storedKeys`
+  (a voice library's in its provider's); `-resetLibrary` clears their union
+  (`LaunchHooks.resetStoredSettings`).
 - No real people's content in the repo: fixtures are synthetic or public domain, URLs use
   `example.com`.
 
