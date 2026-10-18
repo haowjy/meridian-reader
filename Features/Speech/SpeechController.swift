@@ -105,27 +105,6 @@ final class SpeechController {
     @ObservationIgnored let localEngine: LocalListenEngine
     private var listenEngines: [ListenEngine] { [appleEngine, localEngine] }
 
-    /// When true, the listen bar shows a Debug chip that toggles the bake overlay.
-    /// Persisted; Settings → Listen → Listen debug.
-    var listenDebugEnabled: Bool {
-        didSet { UserDefaults.standard.set(listenDebugEnabled, forKey: Self.listenDebugEnabledKey) }
-    }
-    /// Developer options (Debug rows, Listen debug, long-press-play panel). Off by default in
-    /// Release; see `DeveloperOptions`.
-    var developerOptionsEnabled: Bool {
-        didSet {
-            UserDefaults.standard.set(developerOptionsEnabled, forKey: DeveloperOptions.defaultsKey)
-            if !developerOptionsEnabled {
-                showBakeDebugOverlay = false
-            }
-        }
-    }
-    /// The listen bar's Debug chip / bake overlay: Listen debug on AND developer options on.
-    var showsListenDebugUI: Bool { developerOptionsEnabled && listenDebugEnabled }
-    /// Inline bake debug strip above the listen controls (chip toggle).
-    var showBakeDebugOverlay = false
-    private static let listenDebugEnabledKey = "reader.listenDebugEnabled"
-
     /// The engine the live utterance is bound to (nil: nothing speaking or held). Set in `speak`,
     /// cleared when the engines stop.
     private struct EngineBinding {
@@ -431,13 +410,7 @@ final class SpeechController {
             ? UserDefaults.standard.double(forKey: Self.rateDefaultsKey) : 1.0
         self.rateMultiplier = storedRate > 0 ? ListenRate.nearest(to: storedRate) : 1.0
         self.selectedVoiceIdentifier = UserDefaults.standard.string(forKey: Self.voiceDefaultsKey)
-        self.listenDebugEnabled = UserDefaults.standard.bool(forKey: Self.listenDebugEnabledKey)
-        self.developerOptionsEnabled = DeveloperOptions.load()
         self.languageAutomatic = (UserDefaults.standard.object(forKey: Self.languageAutomaticKey) as? Bool) ?? true
-        // Init skips didSet — keep overlays off when Release reset / default leaves options off.
-        if !developerOptionsEnabled {
-            showBakeDebugOverlay = false
-        }
         // Bake / warm only articles the local engine can speak (others speak with Apple).
         self.localTTS.localLanguageGate = { [weak self] paragraphs in
             guard let self else { return true }

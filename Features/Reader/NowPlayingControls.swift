@@ -10,6 +10,7 @@ import SwiftUI
 struct NowPlayingControls: View {
     @Bindable var speech: SpeechController
     @Environment(ShellState.self) private var shell
+    @Environment(DeveloperSettings.self) private var developer
     let scrubMap: ReaderScrubMap?
     let detectedLanguage: String?
     /// 🔖, transport slot 1.
@@ -67,29 +68,29 @@ struct NowPlayingControls: View {
     @ViewBuilder
     private var notes: some View {
         let languageNote = speech.languageResolution(detected: detectedLanguage).note
-        if speech.showsListenDebugUI, speech.showBakeDebugOverlay {
+        if developer.showsListenDebugUI, developer.showBakeDebugOverlay {
             BakeDebugOverlay(speech: speech) {
                 shell.present(.listenDebug)
             }
         }
-        if speech.showsListenDebugUI {
+        if developer.showsListenDebugUI {
             HStack {
                 Spacer(minLength: 0)
                 Button {
-                    speech.showBakeDebugOverlay.toggle()
+                    developer.showBakeDebugOverlay.toggle()
                 } label: {
-                    Text(speech.showBakeDebugOverlay ? "Debug ▾" : "Debug")
+                    Text(developer.showBakeDebugOverlay ? "Debug ▾" : "Debug")
                         .typeStyle(.caption, weight: .semibold)
                         .foregroundStyle(palette.ink)
                         .padding(.horizontal, Spacing.xs)
                         .padding(.vertical, Spacing.xxs)
                         .background(
-                            Capsule().fill(speech.showBakeDebugOverlay ? palette.highlight : palette.card)
+                            Capsule().fill(developer.showBakeDebugOverlay ? palette.highlight : palette.card)
                         )
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("listenBakeDebugChip")
-                .accessibilityLabel(speech.showBakeDebugOverlay ? "Hide bake debug" : "Show bake debug")
+                .accessibilityLabel(developer.showBakeDebugOverlay ? "Hide bake debug" : "Show bake debug")
             }
             .padding(.horizontal, Spacing.xs)
         }

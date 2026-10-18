@@ -22,6 +22,7 @@ struct SettingsView: View {
 
     @Environment(\.readingAppearance) private var reading
     @Environment(ContentBlocker.self) private var contentBlocker
+    @Environment(DeveloperSettings.self) private var developer
     /// Confirmation after the version row's long-press toggles developer options.
     @State private var developerToggleNotice: String?
 
@@ -33,8 +34,8 @@ struct SettingsView: View {
                 ListeningSettingsSection(speech: speech)
                 BrowsingSettingsSection(blocker: contentBlocker)
                 StorageSettingsSection(speech: speech)
-                if speech.developerOptionsEnabled {
-                    DeveloperSettingsSection(speech: speech)
+                if developer.isEnabled {
+                    DeveloperSettingsSection()
                 }
                 versionSection
             }
@@ -52,7 +53,7 @@ struct SettingsView: View {
         )) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(speech.developerOptionsEnabled
+            Text(developer.isEnabled
                  ? "Debug tools are shown in Settings › Developer. Long-press the version again to hide them."
                  : "Debug tools are hidden.")
         }
@@ -63,10 +64,10 @@ struct SettingsView: View {
     private var versionSection: some View {
         Section {
             HStack {
-                Text(DeveloperOptions.versionLabel)
+                Text(DeveloperSettings.versionLabel)
                     .typeStyle(.row)
                 Spacer()
-                if speech.developerOptionsEnabled {
+                if developer.isEnabled {
                     Text("Developer options")
                         .typeStyle(.caption)
                 }
@@ -74,12 +75,12 @@ struct SettingsView: View {
             .foregroundStyle(Palette.secondaryInk)
             .frame(minHeight: SettingsMetrics.rowHeight)
             .contentShape(Rectangle())
-            .onLongPressGesture(minimumDuration: DeveloperOptions.unlockPressSeconds) {
+            .onLongPressGesture(minimumDuration: DeveloperSettings.unlockPressSeconds) {
                 toggleDeveloperOptions()
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("settingsVersionRow")
-            .accessibilityAction(named: speech.developerOptionsEnabled
+            .accessibilityAction(named: developer.isEnabled
                                  ? "Turn off developer options" : "Turn on developer options") {
                 toggleDeveloperOptions()
             }
@@ -88,9 +89,9 @@ struct SettingsView: View {
     }
 
     private func toggleDeveloperOptions() {
-        speech.developerOptionsEnabled.toggle()
+        developer.isEnabled.toggle()
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        developerToggleNotice = speech.developerOptionsEnabled ? "Developer options on" : "Developer options off"
+        developerToggleNotice = developer.isEnabled ? "Developer options on" : "Developer options off"
     }
 }
 
@@ -210,18 +211,16 @@ private struct StorageSettingsSection: View {
 }
 
 /// Settings › Developer (developer options only, at the bottom): the listen debug chip on Now
-/// Playing, a fake extraction failure for the browser's Reader, and the listen debug panel.
+/// Playing, a fake failure for every extraction, and the listen debug panel.
 private struct DeveloperSettingsSection: View {
-    @Bindable var speech: SpeechController
-
-    @Environment(\.developerSettings) private var developer
+    @Environment(DeveloperSettings.self) private var developer
     @Environment(ShellState.self) private var shell
 
     var body: some View {
         @Bindable var developer = developer
         Section {
             SettingsToggleRow(title: String(localized: "Listen Debug"), symbol: Icons.debug,
-                              isOn: $speech.listenDebugEnabled, accessibilityID: "listenDebugEnabledToggle")
+                              isOn: $developer.listenDebugEnabled, accessibilityID: "listenDebugEnabledToggle")
             SettingsToggleRow(title: String(localized: "Fake Extraction Failure"), symbol: Icons.warning,
                               isOn: $developer.fakeExtractionFailure, accessibilityID: "fakeExtractionFailureToggle")
             Button {
@@ -239,7 +238,7 @@ private struct DeveloperSettingsSection: View {
         } header: {
             SettingsSectionHeader(title: String(localized: "Developer"))
         } footer: {
-            Text("Listen Debug shows a Debug chip on Now Playing for a live render queue overlay; a long-press on ▶ there opens the panel. Fake Extraction Failure makes the browser's Reader fail until the app quits.")
+            Text("Listen Debug shows a Debug chip on Now Playing for a live render queue overlay; a long-press on ▶ there opens the panel. Fake Extraction Failure makes every extraction fail (Reader, Save, Follow, Downloads) until the app quits.")
                 .settingsFooter()
         }
         .settingsCard()

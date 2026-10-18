@@ -57,7 +57,7 @@ final class URLPageFetcher {
     let timeout: TimeInterval
     private let schemeHandlers: [String: any WKURLSchemeHandler]
 
-    init(extractor: any ArticleExtracting = ReadabilityArticleExtractor(), timeout: TimeInterval = 30,
+    init(extractor: any ArticleExtracting, timeout: TimeInterval = 30,
          schemeHandlers: [String: any WKURLSchemeHandler] = [:]) {
         self.extractor = extractor
         self.timeout = timeout

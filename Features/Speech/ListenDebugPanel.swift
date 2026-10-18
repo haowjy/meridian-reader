@@ -130,6 +130,7 @@ struct ListenDebugPanel: View {
 struct BakeDebugOverlay: View {
     @Bindable var speech: SpeechController
     var onOpenFull: () -> Void = {}
+    @Environment(DeveloperSettings.self) private var developer
 
     private let timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
     @State private var snapshot: ListenDebugSnapshot?
@@ -144,7 +145,7 @@ struct BakeDebugOverlay: View {
                     .font(.caption2.weight(.semibold))
                     .accessibilityIdentifier("bakeDebugOpenFull")
                 Button {
-                    speech.showBakeDebugOverlay = false
+                    developer.showBakeDebugOverlay = false
                 } label: {
                     Image(systemName: Icons.close)
                         .font(.body)

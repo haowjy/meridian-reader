@@ -11,6 +11,7 @@ struct ListenControllerView: View {
 
     @Bindable var speech: SpeechController
     @Environment(ShellState.self) private var shell
+    @Environment(DeveloperSettings.self) private var developer
 
     private var state: PlayState {
         speech.activeSessionID.map { speech.playState(of: .page($0)) } ?? .idle
@@ -24,16 +25,13 @@ struct ListenControllerView: View {
             onSkipBack: speech.skipToPreviousParagraph,
             onSkipForward: speech.skipToNextParagraph,
             onPlayPause: speech.pressNowPlaying,
-            onPlayLongPress: speech.developerOptionsEnabled ? { shell.present(.listenDebug) } : nil
+            onPlayLongPress: developer.isEnabled ? { shell.present(.listenDebug) } : nil
         ) {
             slot(leading)
         } more: {
             slot(trailing)
         }
         .simultaneousGesture(paragraphSwipe)
-        .onChange(of: speech.listenDebugEnabled) { _, enabled in
-            if !enabled { speech.showBakeDebugOverlay = false }
-        }
     }
 
     @ViewBuilder
