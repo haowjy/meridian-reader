@@ -5,7 +5,7 @@ import XCTest
 /// Block Ads' bundled list is valid WebKit content-blocker JSON: a rule WebKit rejects fails the
 /// whole compile, and the app would then block nothing.
 @MainActor
-final class ContentBlockerTests: XCTestCase {
+final class BundledRuleListTests: XCTestCase {
     func testTheBundledListCompilesAndIsLookedUpTheSecondTime() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
