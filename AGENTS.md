@@ -78,7 +78,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 ## Rules that cut across directories
 
 - **`ShellState` owns navigation** (what you see): which surface shows (browser or library) and
-  the Library's path and its home's tab (Everything or Favorites), the Reader sheet and what it
+  the Library's path and its home's tab (Everything, Favorites or History), the Reader sheet and what it
   sits over, whether Now Playing is up, the one other sheet (and the debug panel over it), the toast. It remembers the surface for the next launch. Views ask it;
   they don't keep their own presentation flags.
 - **`PlaybackSessionState` owns what you hear**: the playing page, its position (paragraph +

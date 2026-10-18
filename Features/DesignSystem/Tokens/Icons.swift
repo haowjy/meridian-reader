@@ -49,6 +49,8 @@ enum Icons {
     static let save = "bookmark"
     static let saved = "bookmark.fill"
     static let unsave = "bookmark.slash"
+    /// Remove from History: a page played without saving leaves the Library's History tab.
+    static let removeFromHistory = "clock.badge.xmark"
     /// ＋ in the Library's toolbar.
     static let add = "plus"
     static let folder = "folder"

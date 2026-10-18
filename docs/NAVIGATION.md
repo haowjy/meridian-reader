@@ -179,7 +179,7 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   before). Debug › is a native `Menu`.
 - **☆ Add to Favorites**: one tap stars the page where it is (a flag, D20; it never moves, and it
   doesn't file the page). A page that is nowhere yet becomes a link in no folder; a page played
-  without saving stays *Not saved* and joins Favorites. A starred page is a favorite, in the
+  without saving stays in History and joins Favorites. A starred page is a favorite, in the
   Library or not: ☆ then reads *Remove from Favorites*, which clears the star and leaves the page
   where it is (a link ☆ made stays). *Remove from Library* never clears the star: a removed
   favorite leaves every Library list but stays in Favorites, starred, and the prune keeps it;
@@ -192,10 +192,9 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   once.
 - **One library**: everything is a page in a folder (or in none). A page is a *link* (an address
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
-  without saving (kept 7 days, shown at the top of the Library's *Pages* as "Not saved", and in
-  the bar). *Remove from Library* is one action wherever it is asked (a row's swipe or menu,
+  without saving (kept 7 days, listed in the Library's History tab, and in the bar). *Remove from Library* is one action wherever it is asked (a row's swipe or menu,
   Edit, 🔖, the ⋯ of the browser, the Reader and Now Playing, the Now Playing bar's long-press):
-  the page leaves its folder and every Library list it was in, "Not saved" too, and keeps its
+  the page leaves its folder and every Library list it was in, History too, and keeps its
   star (a starred page stays in Favorites); if it is what you hear, playback stops, as for
   *Stop Listening*, and Now Playing closes. It is kept 7 days after its last play (a page never
   played goes at the next launch) but the bar doesn't offer it, and it comes back only when you
@@ -232,10 +231,11 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
 
 The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
-back up, as does the band's ‹ (dimmed at the home). The home has **Everything / Favorites** tabs
-at the top; *Search Library* is the band's field. Each tab filters
-the same mixed list: folders and pages share a single list, with no section headings. Favorites
-are independent stars. On Favorites and in search results a row in a folder shows that folder's
+back up, as does the band's ‹ (dimmed at the home). The home has **Everything / Favorites / History**
+tabs at the top; *Search Library* is the band's field, and searches the tab on screen. Each tab
+is one mixed list: folders and pages share a single list, with no section headings. Favorites
+are independent stars. (The browser's ⋯ also has a *History*: the pages visited.) On Favorites,
+History and in search results a row in a folder shows that folder's
 path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
 parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on Favorites;
 going to a place in the Library (Now Playing's ⋯ → *Go to …*, a favorite folder's tile, an
@@ -266,10 +266,19 @@ when it is short of room, and at accessibility text sizes the row shows its stat
 own lighter label after the title (*Pages* then *48*). VoiceOver reads the parts joined with
 commas.
 
-- **The home** (`LibraryHomeView`): Everything shows top-level folders and pages in no folder;
-  played-but-unsaved pages remain visible as *Not saved*. Favorites shows all starred folders
-  and pages wherever they live. Search filters folders and pages across the tree in either tab,
-  folders by name, then pages by title (the newest first among equal titles); a result keeps its location and shows the path (one at the top level keeps its own second
+- **The home** (`LibraryHomeView`): Everything shows what is saved: top-level folders and pages
+  in no folder. Favorites shows all starred folders and pages wherever they live, saved or not.
+  History shows the pages you started listening to without saving (no folders), most recent
+  first, in the same rows (no "Not saved" note, no download mark); a tap plays one. Their ⋯ (and
+  long-press) has *Save to Library*, which moves the page into the Library (out of History, into
+  Everything), and *Remove from History* (the same remove as *Remove from Library*: in no list
+  after, its star kept, pruned later), with the rest dimmed until it is saved (*Download*, *Move
+  to…*, the marks); swipe left is *Remove*. *Remove from History* never shows on a page in the
+  Library, and is dimmed on one out of it that isn't in History (a starred page removed earlier,
+  on Favorites). Empty, History says *No History Yet*. Search filters the tab on screen: on
+  Everything the Library's folders and pages across the tree, on Favorites starred ones, on
+  History History's pages; folders by name, then pages by title (the newest first among equal
+  titles); a result keeps its location and shows the path (one at the top level keeps its own second
   line). Favorites' rows carry no ★, since every one is a favorite. The old Favorites folder is migrated into star
   flags on its direct children only: its pages become loose, its subfolders move to the top level
   starred, and what is inside them stays as it was, unstarred. Rows are the compact two-line
@@ -483,7 +492,7 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 |---|---|---|---|
 | Folder, book or series | opens it (push) | *Continue, Play from Start* (dimmed while none of its pages play)*, Download* (turns its toggle on; dimmed while on or without pages)*, Add to / Remove from Favorites, Move to…, Rename, Edit Details, Delete…* | Delete… |
 | Saved page (including a chapter) | plays it (Now Playing if it's what you hear) | *Read, Play from Here* (in a folder)*, Download / Remove Download, Add to / Remove from Favorites, Move to…, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback* (in a folder)*, Share* (with a web address)*, Remove from Library* | Remove |
-| Page played without saving | plays it (Now Playing if it's what you hear) | the saved page's rows, with *Save to Library* for *Remove from Library*; *Download*, *Move to…* and the marks dimmed until it is saved | — |
+| History page (played without saving) | plays it (Now Playing if it's what you hear) | the saved page's rows, with *Save to Library* for *Remove from Library*, then *Remove from History*; *Download*, *Move to…* and the marks dimmed until it is saved | Remove (from History) |
 | Link page | opens it in the browser (a followed story's chapter: fetches it, then plays it) | the saved page's rows; the marks dimmed (a link has no text yet; a story's chapter also has *Play from Here* and *Skip in Playback*) | Remove |
 
 On a folder screen every row's menu also has *Select*, just before *Remove from Library* (a

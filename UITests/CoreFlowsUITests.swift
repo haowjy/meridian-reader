@@ -37,7 +37,7 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertEqual(rows.count, 1, "one row per page")
     }
 
-    /// Swipe → *Remove* on the page you hear: its row leaves every list (not back as "Not saved",
+    /// Swipe → *Remove* on the page you hear: its row leaves every list (not back in History,
     /// not in search), playback stops, the bar offers the page played before it (the demo
     /// folders' part-way page) instead, and the app stays up.
     func testSwipeRemovingAPlayedPageTakesItOutOfEveryList() throws {
@@ -62,7 +62,7 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(appears(resume, timeout: 3), "the bar resumes another page")
         XCTAssertTrue(resume.label.contains("Seven-Day Yield"), "the one played before, not the removed one")
         idle(1)
-        XCTAssertFalse(row.exists, "not back as Not saved")
+        XCTAssertFalse(row.exists, "not back in the list")
 
         let search = app.textFields["librarySearchField"]
         XCTAssertTrue(appears(search, timeout: 3))

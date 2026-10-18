@@ -39,7 +39,7 @@ struct LibraryPageRow: View {
         return .page(page.listenKey)
     }
     /// ★ after a favorite's title, except in the Favorites list, where every row is one.
-    private var marksFavorite: Bool { !(screenKey == .filtered && shell.favoritesOnly) }
+    private var marksFavorite: Bool { !(screenKey == .filtered && shell.homeTab == .favorites) }
 
     var body: some View {
         if !page.isLive {
@@ -91,7 +91,8 @@ struct LibraryPageRow: View {
             .libraryDrag(dragID, in: screen)
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                if page.isInLibrary {
+                // In the Library: *Remove* from it; in History: from History. The same remove.
+                if page.isInLibrary || LibraryQueries.isInHistory(page) {
                     // The row leaves every list once the remove is stored; a save that fails keeps
                     // it, with a toast. So not `.destructive`, which takes the row out first
                     // (`Palette.destructive`).
@@ -144,7 +145,7 @@ struct LibraryFolderRow: View {
     /// Its parents' path on the filtered home (nil for a folder at the top level).
     private var location: String? { isFiltered ? folder.parent?.pathName : nil }
     /// ★ after a favorite's title, except in the Favorites list, where every row is one.
-    private var marksFavorite: Bool { !(isFiltered && shell.favoritesOnly) }
+    private var marksFavorite: Bool { !(isFiltered && shell.homeTab == .favorites) }
 
     var body: some View {
         if folder.isLive { liveBody } else { DeletedRow() }
