@@ -59,7 +59,7 @@ struct FollowStatus: View {
 /// waiting for its text says in its row.
 @MainActor
 enum FollowText {
-    /// "…/chapter/301778/1-good-morning-brother": the address's last three parts, or its host and
+    /// "…/chapter/900001/1-first-frost": the address's last three parts, or its host and
     /// path when it is shorter.
     static func shortAddress(_ url: URL) -> String {
         let parts = url.pathComponents.filter { $0 != "/" }

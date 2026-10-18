@@ -4,13 +4,13 @@ import SwiftUI
 /// of its chapters.
 ///
 /// ```
-/// ( Cancel )        Mother of Learning
+/// ( Cancel )        The Copper Orchard
 /// Found 109 chapters   107 selected
 /// ☑ Select All
-/// ☑ 1. Good Morning Brother                         ›
-///   …/chapter/301778/1-good-morning-brother
+/// ☑ 1. First Frost                                  ›
+///   …/chapter/900001/1-first-frost
 /// ☐ Author's Note: Hiatus                           ›   (left out: lighter)
-///   …/chapter/309114/authors-note
+///   …/chapter/900002/authors-note
 /// A folder is made at once; the chapters' text is fetched one at a time.
 /// (            OK   Follow 107 Chapters            )
 /// ```

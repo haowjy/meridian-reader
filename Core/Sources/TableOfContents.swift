@@ -68,7 +68,7 @@ struct TableOfContents: Equatable, Sendable {
         return host == "royalroad.com" || host.hasSuffix(".royalroad.com")
     }
 
-    /// "Mother of Learning | Royal Road" → "Mother of Learning".
+    /// "The Copper Orchard | Royal Road" → "The Copper Orchard".
     private static func siteNameRemoved(_ title: String) -> String {
         let parts = title.components(separatedBy: " | ")
         return squeezed(parts.count > 1 ? parts.dropLast().joined(separator: " | ") : title)

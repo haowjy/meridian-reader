@@ -15,27 +15,27 @@ final class FollowTests: XCTestCase {
     /// link: one chapter per address, named by its row's first link, in the story's order; links
     /// to other stories and the site's menus are left out. The title loses the site's name.
     func testContentsReaders() throws {
-        let story = "https://www.royalroad.com/fiction/21220/mother-of-learning"
-        let page = LinkPage(url: URL(string: story)!, title: "Mother of Learning | Royal Road", heading: nil,
-                            author: " nobody103 ", links: [
+        let story = "https://www.royalroad.com/fiction/40512/the-copper-orchard"
+        let page = LinkPage(url: URL(string: story)!, title: "The Copper Orchard | Royal Road", heading: nil,
+                            author: " orchard_writer ", links: [
             link("https://www.royalroad.com/fictions/best-rated", "Best Rated", list: 0),
-            link("\(story)/chapter/301778/1-good-morning-brother", "Start Reading", list: 1),
-            link("\(story)/chapter/301778/1-good-morning-brother", "1. Good Morning Brother", list: 2),
-            link("\(story)/chapter/301778/1-good-morning-brother", "8 years ago", list: 2),
-            link("\(story)/chapter/309114/authors-note", "Author's Note: Hiatus", list: 2),
-            link("\(story)/chapter/309114/authors-note", "7 years ago", list: 2),
-            link("\(story)/chapter/301780/2-lifes-little-problems", "2. Life's Little Problems", list: 2),
-            link("\(story)/chapter/301780/2-lifes-little-problems", "8 years ago", list: 2),
+            link("\(story)/chapter/900001/1-first-frost", "Start Reading", list: 1),
+            link("\(story)/chapter/900001/1-first-frost", "1. First Frost", list: 2),
+            link("\(story)/chapter/900001/1-first-frost", "8 years ago", list: 2),
+            link("\(story)/chapter/900002/authors-note", "Author's Note: Hiatus", list: 2),
+            link("\(story)/chapter/900002/authors-note", "7 years ago", list: 2),
+            link("\(story)/chapter/900003/2-pruning-season", "2. Pruning Season", list: 2),
+            link("\(story)/chapter/900003/2-pruning-season", "8 years ago", list: 2),
             link("https://www.royalroad.com/fiction/99999/other/chapter/1/one", "Another story", list: 3),
         ])
         let contents = try XCTUnwrap(TableOfContents.read(page))
-        XCTAssertEqual(contents.title, "Mother of Learning")
-        XCTAssertEqual(contents.byline, "nobody103")
-        XCTAssertEqual(contents.chapters.map(\.title), ["1. Good Morning Brother", "Author's Note: Hiatus", "2. Life's Little Problems"])
+        XCTAssertEqual(contents.title, "The Copper Orchard")
+        XCTAssertEqual(contents.byline, "orchard_writer")
+        XCTAssertEqual(contents.chapters.map(\.title), ["1. First Frost", "Author's Note: Hiatus", "2. Pruning Season"])
 
         // A chapter's address leads to its story's page.
-        let chapter = URL(string: "https://www.royalroad.com/fiction/21220/mother-of-learning/chapter/301778/1-good?x=1")!
-        XCTAssertEqual(TableOfContents.contentsURL(for: chapter).absoluteString, "https://www.royalroad.com/fiction/21220")
+        let chapter = URL(string: "https://www.royalroad.com/fiction/40512/the-copper-orchard/chapter/900001/1-first?x=1")!
+        XCTAssertEqual(TableOfContents.contentsURL(for: chapter).absoluteString, "https://www.royalroad.com/fiction/40512")
         let other = URL(string: "https://serials.example.com/story/contents")!
         XCTAssertEqual(TableOfContents.contentsURL(for: other), other)
 
