@@ -10,6 +10,7 @@ final class ReadingAppearance {
     static let fontKey = "reading.font"
     static let textSizeKey = "reading.textSize"
     static let lineSpacingKey = "reading.lineSpacing"
+    static let storedKeys = [themeKey, fontKey, textSizeKey, lineSpacingKey]
 
     @ObservationIgnored private let defaults: UserDefaults
 

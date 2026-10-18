@@ -17,6 +17,8 @@ final class SpeechController {
     static let languageDefaultsKey = "reader.selectedLanguageCode"
     static let rateDefaultsKey = "reader.rateMultiplier"
     static let languageAutomaticKey = "reader.languageAutomatic"
+    /// The settings it stores, for `-resetLibrary` to clear.
+    static let storedKeys = [voiceDefaultsKey, languageDefaultsKey, rateDefaultsKey, languageAutomaticKey]
 
     /// Single source of truth for Listen phase + position. Not observed directly: every change is
     /// copied into the published properties below, each assigned only when its value changes.
@@ -101,6 +103,7 @@ final class SpeechController {
     @ObservationIgnored private(set) lazy var diagnostics = ListenDiagnostics(speech: self)
 
     let localTTS: LocalTTSCoordinator
+    @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let appleEngine: ListenEngine
     @ObservationIgnored let localEngine: LocalListenEngine
     private var listenEngines: [ListenEngine] { [appleEngine, localEngine] }
@@ -139,7 +142,7 @@ final class SpeechController {
 
     /// Settings → Language → "Automatic (match article)" (default). Off = `selectedLanguageCode`.
     var languageAutomatic: Bool {
-        didSet { UserDefaults.standard.set(languageAutomatic, forKey: Self.languageAutomaticKey) }
+        didSet { defaults.set(languageAutomatic, forKey: Self.languageAutomaticKey) }
     }
 
     /// Detected language of the prepared session's article (nil = unknown / none prepared).
@@ -367,13 +370,13 @@ final class SpeechController {
     }
 
     var selectedLanguageCode: String {
-        didSet { UserDefaults.standard.set(selectedLanguageCode, forKey: Self.languageDefaultsKey) }
+        didSet { defaults.set(selectedLanguageCode, forKey: Self.languageDefaultsKey) }
     }
 
     /// The listen speed, always one of `ListenRate.options` (`setRateMultiplier`).
     private(set) var rateMultiplier: Double {
         didSet {
-            UserDefaults.standard.set(rateMultiplier, forKey: Self.rateDefaultsKey)
+            defaults.set(rateMultiplier, forKey: Self.rateDefaultsKey)
             // Every engine keeps the speed; the bound one applies it to what is playing.
             for engine in listenEngines { engine.setRate(rateMultiplier) }
             refreshNowPlaying()
@@ -385,32 +388,34 @@ final class SpeechController {
     func setRateMultiplier(_ value: Double) { rateMultiplier = ListenRate.nearest(to: value) }
 
     var selectedVoiceIdentifier: String? {
-        didSet { UserDefaults.standard.set(selectedVoiceIdentifier, forKey: Self.voiceDefaultsKey) }
+        didSet { defaults.set(selectedVoiceIdentifier, forKey: Self.voiceDefaultsKey) }
     }
 
     /// Over `localTTS`, which also holds the crash-resume file this writes as playback moves.
     /// `audioSession` / `nowPlaying` / `appleEngine` are injectable for unit tests (no
     /// process-wide audio session or remote command registration, a scripted Apple engine).
     init(localTTS: LocalTTSCoordinator,
+         defaults: UserDefaults,
          audioSession: ListenAudioSession? = nil,
          nowPlaying: NowPlayingController? = nil,
          appleEngine: ListenEngine? = nil) {
         self.localTTS = localTTS
+        self.defaults = defaults
         self.appleEngine = appleEngine ?? AppleListenEngine(runState: localTTS.synthQueue.runState)
         self.localEngine = LocalListenEngine(coordinator: localTTS)
         self.audioSession = audioSession ?? ListenAudioSession()
         self.lockScreen = nowPlaying ?? NowPlayingController()
-        let storedLanguage = UserDefaults.standard.string(forKey: Self.languageDefaultsKey)
+        let storedLanguage = defaults.string(forKey: Self.languageDefaultsKey)
         let fallback = Locale.current.language.languageCode.map {
             "\($0.identifier)-\(Locale.current.region?.identifier ?? "US")"
         } ?? "en-US"
         self.selectedLanguageCode = storedLanguage ?? Locale.preferredLanguages.first ?? fallback
         // `double(forKey:)` also parses a launch-argument string ("-reader.rateMultiplier 2", UI tests).
-        let storedRate = UserDefaults.standard.object(forKey: Self.rateDefaultsKey) != nil
-            ? UserDefaults.standard.double(forKey: Self.rateDefaultsKey) : 1.0
+        let storedRate = defaults.object(forKey: Self.rateDefaultsKey) != nil
+            ? defaults.double(forKey: Self.rateDefaultsKey) : 1.0
         self.rateMultiplier = storedRate > 0 ? ListenRate.nearest(to: storedRate) : 1.0
-        self.selectedVoiceIdentifier = UserDefaults.standard.string(forKey: Self.voiceDefaultsKey)
-        self.languageAutomatic = (UserDefaults.standard.object(forKey: Self.languageAutomaticKey) as? Bool) ?? true
+        self.selectedVoiceIdentifier = defaults.string(forKey: Self.voiceDefaultsKey)
+        self.languageAutomatic = (defaults.object(forKey: Self.languageAutomaticKey) as? Bool) ?? true
         // Bake / warm only articles the local engine can speak (others speak with Apple).
         self.localTTS.localLanguageGate = { [weak self] paragraphs in
             guard let self else { return true }

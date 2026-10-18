@@ -50,6 +50,7 @@ struct SurfaceMemory: Codable, Equatable {
 struct SurfaceMemoryStore {
     static let key = "shell.lastSurface"
     static let favoritesTabKey = "library.favoritesTab"
+    static let storedKeys = [key, favoritesTabKey]
 
     var defaults: UserDefaults
 
@@ -71,10 +72,5 @@ struct SurfaceMemoryStore {
 
     func saveFavoritesTab(_ favoritesOnly: Bool) {
         defaults.set(favoritesOnly, forKey: Self.favoritesTabKey)
-    }
-
-    func clear() {
-        defaults.removeObject(forKey: Self.key)
-        defaults.removeObject(forKey: Self.favoritesTabKey)
     }
 }

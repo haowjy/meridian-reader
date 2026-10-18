@@ -150,6 +150,7 @@ struct LibraryHomeView: View {
 /// page among them by a drag makes it *Manual*.
 enum LibraryTopLevel {
     static let sortKey = "library.topLevel.sort"
+    static let storedKeys = [sortKey]
     static let defaultSort = PageSort.newest
 
     /// The sort, outside a view (views read it through `@AppStorage(sortKey)`).
