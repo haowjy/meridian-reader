@@ -43,15 +43,13 @@ enum AppComposition {
     /// The listening position recorder (lives as long as the app).
     private static var progressRecorder: ListeningProgressRecorder?
 
-    /// The library over `context`, connected to playback: deleting the playing page stops it
-    /// first, and a merged page takes the live session's key with it while the kept page holds
-    /// the text it plays (otherwise the session stops).
+    /// The library over `context`, connected to playback: removing the playing page from the
+    /// Library or deleting it stops it, and a merged page takes the live session's key with it
+    /// while the kept page holds the text it plays (otherwise the session stops).
     static func makeLibrary(context: ModelContext) -> LibraryStore {
         let speech = speechController
         let library = LibraryStore(context: context, audio: speech.localTTS)
-        library.stopPlaybackIfPlaying = { key in
-            if speech.activeSessionID == key { speech.stop() }
-        }
+        library.stopPlaybackIfPlaying = { speech.stopIfPlaying($0) }
         library.keyMerged = { from, to, text in speech.rekeyActiveSession(from: from, to: to, text: text) }
         return library
     }

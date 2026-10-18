@@ -10,11 +10,12 @@ import SwiftUI
 /// ╰━━━━━━━━━━━━━━━━━━━━━━━━──────────────────╯   progress along the bottom edge
 /// ```
 ///
-/// Tap or swipe up opens (`onOpen`); long-press offers Stop Listening, dimmed with no `onStop`
-/// (the page played last, which nothing has loaded); the placeholder has no menu.
+/// Tap or swipe up opens (`onOpen`); long-press offers Stop Listening and Remove from Library,
+/// each dimmed without its closure (Stop Listening on the page played last, which nothing has
+/// loaded; Remove on a page not in the Library); the placeholder has no menu.
 /// While the next chapter loads the state is `.preparing` and `detail` says so.
 /// `NowPlayingBar.placeholder` is the same card, greyed, with nothing to open or play: the band
-/// shows it before anything has played, so the band keeps its height.
+/// shows it when it has nothing to resume (nothing played yet), so the band keeps its height.
 struct NowPlayingBar: View {
     let title: String
     /// Second line, as separate parts (`DetailLine`): the source, then the time left
@@ -34,6 +35,8 @@ struct NowPlayingBar: View {
     let onPlayPause: () -> Void
     /// Long-press → Stop Listening (nil: dimmed).
     let onStop: (() -> Void)?
+    /// Long-press → Remove from Library (nil: dimmed).
+    let onRemove: (() -> Void)?
     /// The greyed stand-in (`placeholder`).
     private var isPlaceholder = false
 
@@ -44,7 +47,7 @@ struct NowPlayingBar: View {
 
     init(title: String, detail: [String], artwork: Image? = nil, artworkLetter: String = "", progress: Double,
          state: PlayState, sleepTimerSet: Bool = false, identifier: String = "nowPlayingBar", onOpen: @escaping () -> Void, onPlayPause: @escaping () -> Void,
-         onStop: (() -> Void)?) {
+         onStop: (() -> Void)?, onRemove: (() -> Void)?) {
         self.title = title
         self.detail = detail
         self.artwork = artwork
@@ -56,15 +59,17 @@ struct NowPlayingBar: View {
         self.onOpen = onOpen
         self.onPlayPause = onPlayPause
         self.onStop = onStop
+        self.onRemove = onRemove
     }
 
-    /// Nothing has played: the bar's shape, greyed, with ▶ dimmed. Same height as the bar at
+    /// Nothing to resume: the bar's shape, greyed, with ▶ dimmed. Same height as the bar at
     /// every text size (same rows, same controls).
     static func placeholder() -> NowPlayingBar {
         var bar = NowPlayingBar(title: String(localized: "Nothing playing"),
                                 detail: [String(localized: "Pick something to play")],
                                 artworkLetter: " ", progress: 0, state: .idle,
-                                identifier: "nowPlayingBarPlaceholder", onOpen: {}, onPlayPause: {}, onStop: nil)
+                                identifier: "nowPlayingBarPlaceholder", onOpen: {}, onPlayPause: {}, onStop: nil,
+                                onRemove: nil)
         bar.isPlaceholder = true
         return bar
     }
@@ -136,6 +141,8 @@ struct NowPlayingBar: View {
         .contextMenu {
             Button("Stop Listening", systemImage: Icons.stop) { onStop?() }
                 .menuAvailability(MenuAvailability(applies: !isPlaceholder, when: onStop != nil))
+            Button(Verbs.removeFromLibrary, systemImage: Icons.unsave, role: .destructive) { onRemove?() }
+                .menuAvailability(MenuAvailability(applies: !isPlaceholder, when: onRemove != nil))
         }
         .accessibilityElement(children: .contain)
         .accessibilityValue(isPlaceholder ? "" : "\(Int((progress * 100).rounded())) percent")
@@ -187,7 +194,7 @@ struct NowPlayingBarGallery: View {
     private func bar(_ title: String, _ detail: [String], _ progress: Double, _ state: PlayState,
                      sleep: Bool = false) -> some View {
         NowPlayingBar(title: title, detail: detail, progress: progress, state: state, sleepTimerSet: sleep,
-                      onOpen: {}, onPlayPause: {}, onStop: {})
+                      onOpen: {}, onPlayPause: {}, onStop: {}, onRemove: {})
     }
 }
 

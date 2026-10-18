@@ -3,11 +3,12 @@ import SwiftUI
 import UIKit
 
 /// The Now Playing bar in the Reader sheet: what you hear (`SpeechController.nowPlaying`), drawn
-/// by the design system's `NowPlayingBar`. It hides before anything has played and after Stop
-/// Listening, on Now Playing, and under other sheets.
+/// by the design system's `NowPlayingBar`. It hides while nothing is bound (before anything has
+/// played, after Stop Listening, once the page you hear is removed or deleted), on Now Playing,
+/// and under other sheets.
 ///
-/// Tap or swipe up opens Now Playing; long-press offers Stop Listening (decision D3). At the end of
-/// a page it stays, with ▶ and "✓ Finished".
+/// Tap or swipe up opens Now Playing; long-press offers Stop Listening (decision D3) and Remove from
+/// Library, which stops it too. At the end of a page it stays, with ▶ and "✓ Finished".
 struct NowPlayingBarView: View {
     @Bindable var speech: SpeechController
 
@@ -25,9 +26,12 @@ struct NowPlayingBarView: View {
 /// width of its first row. It is always there, at one height, so the band never changes size:
 ///
 /// - what you hear, as in the Reader (`speech.nowPlaying`);
-/// - nothing bound (before anything plays this launch, after Stop Listening): the page played
-///   last, paused, with ▶ to resume it from its place and a tap to open it;
-/// - nothing ever played: the greyed placeholder, "Nothing playing".
+/// - nothing bound (before anything plays this launch, after Stop Listening, or once the page you
+///   heard is removed or deleted): the page played last that is still in the Library or played
+///   without saving (`LibraryQueries.lastPlayed`), paused, with ▶ to resume it from its place and
+///   a tap to open it;
+/// - no such page (nothing played yet, or every page played since removed or deleted): the
+///   greyed placeholder, "Nothing playing".
 ///
 /// Under the Reader sheet (which shows its own bar), Now Playing and other sheets it keeps its
 /// space but shows nothing, so there is only ever one bar.
@@ -64,13 +68,24 @@ struct BandNowPlayingBar: View {
 }
 
 /// The bar itself. Its own view because it reads the live offset (progress, time left), which
-/// moves several times a second while playing: only the bar redraws for it.
+/// moves several times a second while playing: only the bar redraws for it. Its page, queried
+/// once by the session's key (not fetched on each redraw), offers Remove from Library while it is
+/// in the Library.
 private struct BarProgress: View {
     let speech: SpeechController
     let now: NowPlaying
 
     @Environment(ShellState.self) private var shell
+    @Environment(LibraryStore.self) private var library
+    @Environment(FollowCenter.self) private var follow
+    @Query private var pages: [Page]
     @State private var cover = BarCover()
+
+    init(speech: SpeechController, now: NowPlaying) {
+        self.speech = speech
+        self.now = now
+        _pages = Query(LibraryQueries.page(key: now.pageKey))
+    }
 
     var body: some View {
         let doc = speech.document
@@ -85,14 +100,23 @@ private struct BarProgress: View {
             state: speech.playState(of: .page(now.pageKey)),
             onOpen: shell.showNowPlaying,
             onPlayPause: speech.pressNowPlaying,
-            onStop: speech.stop
+            onStop: speech.stop,
+            onRemove: removal
         )
+    }
+
+    /// Remove from Library, for the page you hear while it is in the Library.
+    private var removal: (() -> Void)? {
+        guard let page = pages.first, page.isLive, page.isInLibrary else { return nil }
+        let actions = LibraryActions(library: library, speech: speech, shell: shell, follow: follow)
+        return { actions.remove([page]) }
     }
 }
 
 /// The page played last, while nothing is bound: ▶ plays it from its place (the row's ▶,
-/// `LibraryActions.play`), a tap opens it (`LibraryActions.open`). Its state still comes from the
-/// session, so ▶ turns into a spinner while it starts.
+/// `LibraryActions.play`), a tap opens it (`LibraryActions.open`), and a page in the Library can be
+/// removed from it (long-press). Its state still comes from the session, so ▶ turns into a
+/// spinner while it starts.
 private struct ResumeBar: View {
     let page: Page
     let actions: LibraryActions
@@ -121,7 +145,8 @@ private struct ResumeBar: View {
             identifier: "nowPlayingBarResume",
             onOpen: { actions.open(page) },
             onPlayPause: { actions.play(page) },
-            onStop: nil
+            onStop: nil,
+            onRemove: page.isInLibrary ? { actions.remove([page]) } : nil
         )
     }
 

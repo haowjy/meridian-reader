@@ -501,10 +501,25 @@ final class SpeechController {
 
     /// Stop Listening: unbinds the page, so the bar goes away.
     func stop() {
+        // Listen preempts bake; on stop, resume gap-fill so save-time work still lands on disk.
+        endSession(restartBake: true)
+    }
+
+    /// The page keyed `key` is leaving the Library (removed from it, deleted) or being revised
+    /// (`LibraryStore.stopPlaybackIfPlaying`). While it is what you hear, the session ends as Stop
+    /// Listening ends it, so the bar and Now Playing let it go; but nothing renders for the page
+    /// after: no gap fill, and the render its listen queued goes too (`removeBakeJob`, after the
+    /// engines stopped; its audio stays). Anything else plays on.
+    func stopIfPlaying(_ key: UUID) {
+        guard activeSessionID == key else { return }
+        endSession(restartBake: false)
+        localTTS.removeBakeJob(cacheKey: key)
+    }
+
+    private func endSession(restartBake: Bool) {
         userPerform(.stop)
         endChapterFlow()
-        // Listen preempts bake; on stop, resume gap-fill so save-time work still lands on disk.
-        finishSession(restartBake: true)
+        finishSession(restartBake: restartBake)
         playback.clear()
     }
 

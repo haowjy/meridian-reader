@@ -17,9 +17,11 @@ final class LibraryStore {
 
     @ObservationIgnored let context: ModelContext
     @ObservationIgnored let audio: LibraryAudioEffects
-    /// Stops playback when the session is playing this key: a page about to be deleted or
-    /// revised (before its audio is deleted or aligned), or a key a waiting merge would move onto
-    /// such a page (`keysWaitingToMerge`).
+    /// Stops playback when the session is playing this key: a page removed from the Library (once
+    /// the remove is saved), a page about to be deleted or revised (before its audio is deleted
+    /// or aligned), or a key a waiting merge would move onto such a page (`keysWaitingToMerge`).
+    /// The one place the library tells playback a page is leaving; nothing renders for it after
+    /// (`SpeechController.stopIfPlaying`).
     @ObservationIgnored var stopPlaybackIfPlaying: (UUID) -> Void = { _ in }
     /// A merge (dedupe, a *Replace* finding a chapter's text under a new key) moved the page with
     /// the first key into the page with the second, which holds the text the third names

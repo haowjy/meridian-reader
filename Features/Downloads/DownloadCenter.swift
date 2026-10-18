@@ -248,13 +248,14 @@ final class DownloadCenter {
     }
 
     /// After a library edit: downloads of what left the Library (a page removed, a page or folder
-    /// deleted) leave the list, and the page rendering for one stops; their audio is the
+    /// deleted) leave the list, and the page rendering for one stops; so does a folder download's
+    /// page that left the Library, whose entry then fails as no longer in it. Their audio is the
     /// library's to keep or delete (a removed page's is ephemeral already, a deleted one's is
     /// gone). Folders with Download on take in the pages added to them (`takeInNewPages`).
     func followLibrary() {
         guard isStarted else { return }
         let gone = Set(records.filter { !isInLibrary($0.target) }.map(\.id))
-        if let active, gone.contains(active.recordID) { stopActive() }
+        if let active, gone.contains(active.recordID) || !isInLibrary(.page(active.key)) { stopActive() }
         updateRecords { records in records.removeAll { gone.contains($0.id) } }
         takeInNewPages()
         advance()

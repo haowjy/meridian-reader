@@ -38,7 +38,8 @@ final class CoreFlowsUITests: XCTestCase {
     }
 
     /// Swipe → *Remove* on the page you hear: its row leaves every list (not back as "Not saved",
-    /// not after a pause and a resume, not in search), it plays on, and the app stays up.
+    /// not in search), playback stops, the bar offers the page played before it (the demo
+    /// folders' part-way page) instead, and the app stays up.
     func testSwipeRemovingAPlayedPageTakesItOutOfEveryList() throws {
         let app = launchLibrary()
         let cell = libraryCell(app, "Demo Listen Article")
@@ -56,15 +57,12 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(eventually(5) { !row.exists }, "its row leaves the list")
         XCTAssertEqual(app.state, .runningForeground, "the app is still up")
         XCTAssertTrue(libraryRow(app, "Demo Finance").exists, "the rest of the list is there")
-        XCTAssertEqual(bar.label, "Pause", "Remove never touches playback")
-
-        bar.tap()
-        XCTAssertTrue(eventually(5) { bar.label == "Resume" }, "paused")
-        bar.tap()
-        XCTAssertTrue(eventually(10) { bar.label == "Pause" }, "playing again")
+        XCTAssertTrue(eventually(5) { !bar.exists }, "Remove stops what you hear")
+        let resume = find(app, "nowPlayingBarResumeOpen")
+        XCTAssertTrue(appears(resume, timeout: 3), "the bar resumes another page")
+        XCTAssertTrue(resume.label.contains("Seven-Day Yield"), "the one played before, not the removed one")
         idle(1)
         XCTAssertFalse(row.exists, "not back as Not saved")
-        bar.tap()
 
         let search = app.textFields["librarySearchField"]
         XCTAssertTrue(appears(search, timeout: 3))

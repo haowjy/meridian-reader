@@ -104,8 +104,8 @@ struct PageActions {
     // MARK: - Actions
 
     /// 🔖 / ⋯ → Save: saves the article into the Library's top level, or removes the page from
-    /// it. Neither touches the screen or playback; a change that can't be stored leaves 🔖 as it
-    /// was, and a toast says so.
+    /// it. Neither touches the screen; Save never touches playback, and Remove stops the page only
+    /// if you hear it. A change that can't be stored leaves 🔖 as it was, and a toast says so.
     func toggleSaved() {
         if isSaved {
             remove()
@@ -115,7 +115,8 @@ struct PageActions {
     }
 
     /// *Remove from Library* (🔖 on a saved page, ⋯): the Library rows' own remove
-    /// (`LibraryActions.remove`). Its star, audio and spot stay; playback goes on.
+    /// (`LibraryActions.remove`). Its star, audio and spot stay; if it is the page you hear,
+    /// playback stops, and Now Playing closes.
     func remove() {
         guard let savedPage else { return }
         LibraryActions(library: library, speech: speech, shell: shell, follow: follow).remove([savedPage])

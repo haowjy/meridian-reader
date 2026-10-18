@@ -209,9 +209,11 @@ extension LibraryStore {
     /// removed page that isn't starred 7 days after its last play (one never played, at the next
     /// launch). A link
     /// holding the text of a play keeps it as a played page's; a link without text stays a link.
-    /// A chapter leaves its book as any page leaves its folder. Never touches playback. A save
-    /// that fails is rolled back and throws `LibraryStoreError.saveFailed`: every page stays where
-    /// it was, none removed.
+    /// A chapter leaves its book as any page leaves its folder. Once the remove is saved, the page
+    /// you hear among them stops (`stopPlaybackIfPlaying`), as a deleted one does: out of every
+    /// list, it would play on looking as if it had never gone. A save that fails is rolled back
+    /// and throws `LibraryStoreError.saveFailed`: every page stays where it was, none removed,
+    /// and playback goes on.
     func remove(_ pages: [Page]) throws {
         guard !pages.isEmpty else { return }
         try edit("remove") {
@@ -225,6 +227,7 @@ extension LibraryStore {
             }
         }
         log("remove: \(pages.map { Self.short($0.key) }.joined(separator: ", ")) → not in Library")
+        for key in pages.compactMap(\.key) { stopPlaybackIfPlaying(key) }
     }
 
     /// Deletes the page, then its audio once that is saved. Playback of it stops first (its audio

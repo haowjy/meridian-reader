@@ -316,8 +316,9 @@ extension LibraryStore {
 
     /// The page left the Library (`.ephemeral`) or was saved (`.saved`): either way its audio
     /// follows the page as it is when this runs (`settleAudio`), saved audio for a page saved in
-    /// the Library, else the ephemeral TTL (kept, so playback goes on; the cache's age prune
-    /// removes it). Both kinds stay readable: records an earlier launch left carry either.
+    /// the Library, else the ephemeral TTL (kept, so a listen to it again doesn't render it again;
+    /// the cache's age prune removes it). Both kinds stay readable: records an earlier launch left
+    /// carry either.
     private func settle(_ work: LibraryAudioWork) throws {
         guard let key = work.key else { return }
         try settleAudio(key, page: try context.fetch(LibraryQueries.page(key: key)).first)

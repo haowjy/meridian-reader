@@ -76,17 +76,15 @@ extension LibraryStore {
     }
 
     /// Pages not in the Library and not played for 7 days are deleted (a removed page never
-    /// played counts as played long ago: it goes at the next launch), except the page played
-    /// most recently (what the Now Playing bar restores). Their audio is already ephemeral; the
+    /// played counts as played long ago: it goes at the next launch), except the page the Now
+    /// Playing bar resumes (`LibraryQueries.lastPlayed`). Their audio is already ephemeral; the
     /// audio cache's own age and size prune removes it. Link pages' text caches unplayed for 7
     /// days are cleared; the links stay. A failed save is rolled back (the next launch prunes).
     @discardableResult
     func pruneUnsaved() -> PruneReport {
         var report = PruneReport()
         let cutoff = now().addingTimeInterval(-Self.unsavedKeepInterval)
-        var latest = FetchDescriptor<Page>(sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse)])
-        latest.fetchLimit = 1
-        let lastPlayed = (try? context.fetch(latest))?.first.flatMap { $0.lastPlayedAt == nil ? nil : $0 }
+        let lastPlayed = (try? context.fetch(LibraryQueries.lastPlayed))?.first
         for page in (try? context.fetch(LibraryQueries.prunable(before: cutoff))) ?? [] where page !== lastPlayed {
             log("prune \(Self.short(page.key)) (not in Library, last played \(page.lastPlayedAt.map { "\($0)" } ?? "never"))")
             context.delete(page)

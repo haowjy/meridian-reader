@@ -194,13 +194,13 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
   without saving (kept 7 days, shown at the top of the Library's *Pages* as "Not saved", and in
   the bar). *Remove from Library* is one action wherever it is asked (a row's swipe or menu,
-  Edit, 🔖, the ⋯ of the browser, the Reader and Now Playing): the page leaves its folder and
-  every Library list it was in, "Not saved" too, even while it plays, and keeps its star (a
-  starred page stays in Favorites);
-  it is kept 7 days after its last play for what plays and the bar (a page never played goes at
-  the next launch), and comes back only when you save it or listen to it again (🎧, the Reader's
-  Listen). There is one page per address: saving a favorite saves it in place. 🔖 = saved, ☆ =
-  favorite.
+  Edit, 🔖, the ⋯ of the browser, the Reader and Now Playing, the Now Playing bar's long-press):
+  the page leaves its folder and every Library list it was in, "Not saved" too, and keeps its
+  star (a starred page stays in Favorites); if it is what you hear, playback stops, as for
+  *Stop Listening*, and Now Playing closes. It is kept 7 days after its last play (a page never
+  played goes at the next launch) but the bar doesn't offer it, and it comes back only when you
+  save it or listen to it again (🎧, the Reader's Listen). There is one page per address: saving
+  a favorite saves it in place. 🔖 = saved, ☆ = favorite.
 - **The Now Playing bar** (`BandNowPlayingBar` / `NowPlayingBarView` → `NowPlayingBar`) is the
   one thing that shows what you hear: a floating card 8 pt above the field capsule with the page's
   artwork (favicon or a letter tile), its title, the site and the time left (two parts set apart
@@ -208,15 +208,17 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   "6 h 10 min left"), a thin progress line along its bottom edge, and
   play/pause centered over the ⋯ slot. It looks the same on the browser, the start page, the
   Library and the Reader sheet. At the end of a page it stays, reading "✓ Finished", and ▶ plays
-  the page again. Tap or swipe up → Now Playing; long-press → *Stop Listening* (unloads the page; dimmed on the page played last, which nothing
-  has loaded).
+  the page again. Tap or swipe up → Now Playing; long-press → *Stop Listening* (unloads the page;
+  dimmed on the page played last, which nothing has loaded) and *Remove from Library* (as
+  anywhere else, so the page you hear stops; dimmed on a page not in the Library).
   **In the band it is always there, at one height:** with nothing loaded (before the first play
-  of a launch, after *Stop Listening*) it shows the page played last, paused (▶ resumes it from
-  its place, a tap opens it), and before anything has ever played a greyed *Nothing playing*
-  card. On Now Playing, under the Reader sheet (which shows its own bar) and under other sheets
-  the band keeps the bar's space empty; while you type in a field the row steps aside with the
-  toolbar. The Reader's bar shows only what you hear, and hides on Now Playing, under other
-  sheets and after *Stop Listening*.
+  of a launch, after *Stop Listening*, once the page you heard is removed or deleted) it shows
+  the page played last that is in the Library or played without saving, paused (▶ resumes it
+  from its place, a tap opens it), and when there is none (nothing played yet, or every page
+  played since removed or deleted) a greyed *Nothing playing* card. On Now Playing, under the
+  Reader sheet (which shows its own bar) and under other sheets the band keeps the bar's space
+  empty; while you type in a field the row steps aside with the toolbar. The Reader's bar shows
+  only what you hear, and hides on Now Playing, under other sheets and once nothing is loaded.
 
 **Start page** (no page loaded), Safari-style:
 1. **Favorites**: starred pages and folders (favicon, or a
@@ -643,8 +645,8 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   area where it is, to the character; a page at its top stays at its top. Now Playing does the
   same, or, while it follows the audio, centres the spoken sentence again.
 - 🔖 saves / unsaves (tap; filled = saved), or files the page (long-press → *Save to Folder…*,
-  the Move tree: saved there, or moved there when already saved); it keeps the screen and
-  playback as they are.
+  the Move tree: saved there, or moved there when already saved); it keeps the screen as it is,
+  and playback too, except that unsaving the page you hear stops it.
 - **⋯** (slot 5, the browser's ⋯ spot; Now Playing's is the same): rows *Save / Remove from Library, Move to…* (dimmed until
   the page is saved)*, Add to Favorites, Share, Download* (dimmed until the page is saved, and
   while it downloads)*, Downloads, Settings*; big buttons
@@ -700,7 +702,8 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
 - **Aa** and **☝︎** (top right, as in the Reader): Aa changes how the page reads; ☝︎, then a
   tap on a paragraph, plays from that paragraph.
 - **🔖** (slot 1, as in the Reader) saves / unsaves (tap) or files the page (long-press →
-  *Save to Folder…*, the Move tree); saving never touches playback.
+  *Save to Folder…*, the Move tree); saving never touches playback, and unsaving (*Remove from
+  Library*, here or in ⋯) stops the page, so Now Playing closes.
 - **The text follows the audio.** It opens with the spoken sentence near the middle (the
   paragraph, until the sentence is worked out a moment later), from the bar, from opening the
   page that is playing and from crash resume; Listen in the Reader opens where the Reader was
