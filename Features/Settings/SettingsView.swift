@@ -21,6 +21,7 @@ struct SettingsView: View {
     let onDone: () -> Void
 
     @Environment(\.readingAppearance) private var reading
+    @Environment(ContentBlocker.self) private var contentBlocker
     /// Confirmation after the version row's long-press toggles developer options.
     @State private var developerToggleNotice: String?
 
@@ -30,7 +31,7 @@ struct SettingsView: View {
                 AppearanceSettingsSection(appearance: AppAppearance.shared)
                 ReadingSettingsSection(appearance: reading)
                 ListeningSettingsSection(speech: speech)
-                BrowsingSettingsSection(blocker: ContentBlocker.shared)
+                BrowsingSettingsSection(blocker: contentBlocker)
                 StorageSettingsSection(speech: speech)
                 if speech.developerOptionsEnabled {
                     DeveloperSettingsSection(speech: speech)

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import WebKit
 
 /// Composition root. The ONLY place that knows which voice libraries exist: build the engine
 /// registry from providers, then inject it (initializer injection) into the speech stack.
@@ -76,6 +77,16 @@ enum AppComposition {
         #endif
         return FollowCenter(library: library, queue: queue, playingKey: { speech.activeSessionID },
                             startPlayback: { speech.start(.page($0), at: $0.listenStart) })
+    }
+
+    /// Block Ads over the bundled list (`BundledRuleList`), in WebKit's default rule-list store: every
+    /// web view the app makes from here on gets it (`WKWebViewConfiguration.appWebView`). Once, at
+    /// launch, before the first web view: the browser's restored page loads with the list when its
+    /// lookup has finished by then.
+    static func makeContentBlocker() -> ContentBlocker {
+        let blocker = ContentBlocker(provider: BundledRuleList(store: .default()), defaults: .standard)
+        WKWebViewConfiguration.appContentBlocker = blocker
+        return blocker
     }
 
     /// Downloads (decision D16) over the app's library: a link page's text comes through Follow
