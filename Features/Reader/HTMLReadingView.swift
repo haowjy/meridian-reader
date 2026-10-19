@@ -65,6 +65,9 @@ struct HTMLReadingView: View {
     var topView: ReadingTopView? = nil
     let activeParagraphIndex: Int?
     var sentence: ReaderSentence? = nil
+    /// The word being spoken (its first character): following in Pages, the page turns when it
+    /// reaches the next one.
+    var spokenWord: ReadingPages.Spot? = nil
     /// Taps only jump playback while this is on (scrolling / casual taps never skip).
     var jumpMode: Bool = false
     /// Scroll a paragraph into view: following a scrub.
@@ -80,7 +83,8 @@ struct HTMLReadingView: View {
     /// A link on the page was tapped (the reading view never follows one).
     var onOpenLink: (URL) -> Void = { _ in }
     /// Pages mode's footer: the time left from a page's first character (its listen paragraph and
-    /// the UTF-16 offset in it), "2 min left in chapter"; nil shows the page alone.
+    /// the UTF-16 offset in it), "2 min left" ("2 min left in chapter" for a chapter); nil shows the
+    /// page alone.
     var pageTimeLeft: (_ paragraph: Int, _ offset: Int) -> String? = { _, _ in nil }
     let onTapParagraph: (Int) -> Void
 
@@ -97,14 +101,18 @@ struct HTMLReadingView: View {
     var body: some View {
         // Pages only in a reading sheet: Follow's preview has no bars to page under.
         let paged = chrome != nil && appearance.layout == .pages
+        let look = ReadingStyle.Look(colors: ReadingStyle.Colors(palette, scheme: colorScheme), font: appearance.font,
+                                     lineSpacing: appearance.lineSpacing, textScale: appearance.textScale)
+        let sizes = ReadingStyle.Sizes(traits: UITraitCollection(preferredContentSizeCategory:
+            UIContentSizeCategory(dynamicTypeSize)))
         HTMLReadingWebView(
             html: html,
-            look: ReadingStyle.Look(colors: ReadingStyle.Colors(palette, scheme: colorScheme), font: appearance.font,
-                                    lineSpacing: appearance.lineSpacing, textScale: appearance.textScale),
+            look: look,
             heading: heading,
             topView: topView,
             activeParagraphIndex: activeParagraphIndex,
             sentence: sentence,
+            spokenWord: spokenWord,
             jumpMode: jumpMode,
             scrollRequest: scrollRequest,
             follows: follows,
@@ -116,8 +124,7 @@ struct HTMLReadingView: View {
             textInsets: chrome?.insets ?? ReaderTextInsets(),
             pages: paged ? pages : nil,
             pageFooter: paged ? (chrome?.homeIndicator ?? 0) + (chrome?.pageFooter ?? 0) : 0,
-            sizes: ReadingStyle.Sizes(traits: UITraitCollection(preferredContentSizeCategory:
-                UIContentSizeCategory(dynamicTypeSize))),
+            sizes: sizes,
             animates: !reduceMotion,
             onUserScroll: onUserScroll,
             onOpenLink: onOpenLink,
@@ -126,6 +133,19 @@ struct HTMLReadingView: View {
         .background(palette.background)
         .overlay {
             if paged { ReadingPageFrame(pages: pages, palette: palette, timeLeft: pageTimeLeft) }
+        }
+        .overlay(alignment: .top) {
+            // Scroll's full screen: the text's top edge fades into the page over a line's height,
+            // so a line scrolled part-way past it never shows cut (Pages shows whole lines). The
+            // bars cover it when they show.
+            if chrome != nil, !paged {
+                LinearGradient(colors: [palette.background, palette.background.opacity(0)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: look.lineHeight(sizes))
+                    .opacity(chrome?.hidden == true ? 1 : 0)
+                    .animation(Motion.standard, value: chrome?.hidden == true)
+                    .allowsHitTesting(false)
+            }
         }
     }
 }
@@ -157,6 +177,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
     var topView: ReadingTopView?
     let activeParagraphIndex: Int?
     var sentence: ReaderSentence?
+    var spokenWord: ReadingPages.Spot?
     let jumpMode: Bool
     var scrollRequest: ReaderScrollRequest? = nil
     var follows = false
@@ -251,6 +272,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
         // The sentence first: a new paragraph goes straight to its sentence.
         c.setSentence(sentence)
         c.setActiveParagraph(activeParagraphIndex)
+        c.setSpokenWord(spokenWord)
         c.setJumpMode(jumpMode)
         c.setFollows(follows)
         c.scroll(scrollRequest)
@@ -721,6 +743,17 @@ struct HTMLReadingWebView: UIViewRepresentable {
             goToSpoken(shown.hadSentence ? .intoView : .animate)
         }
 
+        /// The word being spoken (`HTMLReadingView.spokenWord`).
+        private(set) var spokenWord: ReadingPages.Spot?
+
+        /// Following, the layout keeps the spoken word on screen as it moves (Pages turns to the
+        /// next page when it gets there; Scroll moves by the sentence).
+        func setSpokenWord(_ word: ReadingPages.Spot?) {
+            guard word != spokenWord else { return }
+            spokenWord = word
+            if loaded, follows, !pullHandoff.isPulling, let word { layout.follow(word: word) }
+        }
+
         func setJumpMode(_ on: Bool) {
             jumpMode = on
             guard lastSentJumpMode != on, let webView, loaded else { return }
@@ -827,6 +860,8 @@ protocol ReadingTextLayout: AnyObject {
     func viewportLaidOut()
     /// A drag on the text let go without pulling the sheet (`velocity` down positive).
     func dragEnded(velocity: CGFloat)
+    /// Following the audio, the spoken word moved on.
+    func follow(word: ReadingPages.Spot)
     /// An offset still being put on screen (a hand-over, the spoken sentence while the page lays
     /// out).
     var isSettling: Bool { get }
@@ -839,6 +874,7 @@ extension ReadingTextLayout {
     func contentChanged() {}
     func viewportLaidOut() {}
     func dragEnded(velocity: CGFloat) {}
+    func follow(word: ReadingPages.Spot) {}
     var isSettling: Bool { false }
     func cancelSettling() {}
 }

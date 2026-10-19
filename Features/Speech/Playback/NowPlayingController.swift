@@ -43,8 +43,9 @@ enum RemoteCommandOutcome: Equatable {
 /// the chapter's, `site` the book's byline and `album` the book's or series' name.
 struct NowPlayingInfo: Equatable {
     var title: String
+    /// The subtitle's byline (nil: none, as for an untitled web page, whose title is its site).
     var site: String?
-    /// The folder the page is in (nil: a page in none, whose album is its site).
+    /// The folder the page is in, else its site.
     var album: String? = nil
     var paragraph: Int
     var paragraphCount: Int
@@ -57,7 +58,7 @@ struct NowPlayingInfo: Equatable {
     /// text, so its parts are joined with an en dash ("example.com – Paragraph 2 of 9").
     var subtitle: String { [site, progressLabel].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " – ") }
     /// MPMediaItemPropertyAlbumTitle: the folder, else the site.
-    var albumTitle: String { album ?? site ?? "Meridian Reader" }
+    var albumTitle: String { album ?? "Meridian Reader" }
 
     var dictionary: [String: Any] {
         var d: [String: Any] = [

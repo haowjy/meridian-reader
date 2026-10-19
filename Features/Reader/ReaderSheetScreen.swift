@@ -69,7 +69,7 @@ struct ReaderSheetScreen: View {
         } banner: {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
-            text(start)
+            text(start, chapter: actions.page?.folder?.kind.isBookOrSeries == true)
         } bar: {
             NowPlayingBarView(speech: speech)
         } more: {
@@ -94,12 +94,13 @@ struct ReaderSheetScreen: View {
     // MARK: - Text
 
     @ViewBuilder
-    private func text(_ start: ListenSpot) -> some View {
+    private func text(_ start: ListenSpot, chapter: Bool) -> some View {
         HTMLReadingView(html: article.readingHTML, heading: ReaderHeading(title: article.title, detail: detail),
                         activeParagraphIndex: nil, sentence: savedSentence(start), jumpMode: jumpMode,
                         opensAtSentence: true, scrollHandle: scroll, onOpenLink: shell.navigate(to:),
                         pageTimeLeft: { [document = article.document, rate = speech.rateMultiplier] in
-                            ListeningTime.leftInChapterLabel(in: document, paragraph: $0, offset: $1, rate: rate)
+                            ListeningTime.leftLabel(in: document, paragraph: $0, offset: $1, rate: rate,
+                                                    chapter: chapter)
                         }) { index in
             if jumpMode { listen(from: index, start: start) }
         }
