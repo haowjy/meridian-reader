@@ -14,7 +14,7 @@ extension ReaderArticle {
 
         let plain = page.plainText
         let html = page.cleanedHTML
-        let title = page.title
+        let title = page.givenTitle
         let doc = await Task.detached(priority: .userInitiated) {
             Page.buildListenDocument(plainText: plain, cleanedHTML: html, title: title)
         }.value

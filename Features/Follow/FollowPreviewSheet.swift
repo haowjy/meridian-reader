@@ -113,8 +113,7 @@ struct FollowPreviewSheet: View {
         extracting = Task {
             defer { extracting = nil }
             do {
-                let source = SingleWebPageSource(url: url, pageTitle: page.pageTitle,
-                                                 htmlSnapshot: try await page.snapshotHTML(), extractor: extractor)
+                let source = SingleWebPageSource(url: url, htmlSnapshot: try await page.snapshotHTML(), extractor: extractor)
                 let content = try await source.content(of: source.page)
                 guard !Task.isCancelled else { return }
                 reader = ReaderArticle(id: UUID(), url: url, extracted: content.extracted, document: content.document)

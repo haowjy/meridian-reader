@@ -206,7 +206,7 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   a favorite saves it in place. 🔖 = saved, ☆ = favorite.
 - **The Now Playing bar** (`BandNowPlayingBar` / `NowPlayingBarView` → `NowPlayingBar`) is the
   one thing that shows what you hear: a floating card 8 pt above the field capsule with the page's
-  artwork (favicon or a letter tile), its title, the site and the time left (two parts set apart
+  artwork (favicon or a letter tile), its title (its site, or its book, when it has none), the site and the time left (two parts set apart
   by space, the time in lighter ink; at the playback speed, written as rows write it: "9 min left",
   "6 h 10 min left"), a thin progress line along its bottom edge, and
   play/pause centered over the ⋯ slot. It looks the same on the browser, the start page, the
@@ -225,7 +225,7 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
 
 **Start page** (no page loaded), Safari-style:
 1. **Favorites**: starred pages and folders (favicon, or a
-   coloured letter tile when there is no usable favicon, with the title below), then its
+   coloured letter tile when there is no usable favicon, with the title, else the site, below), then its
    folders as folder tiles; 4 per row, up to 8. Show All → the Library's Favorites tab. A page tile
    opens the page (a link in the browser, a saved page in the Reader); a folder tile opens it in
    the Library. Long-press a page tile → Rename… / Remove from Favorites.
@@ -399,8 +399,8 @@ The story's folder header has one line in the accent, *📡 Following · fetchin
 107*, *· fetched 41 of 107*, or *· checked today 8:02 AM · 2 new*. While chapters couldn't be had
 this launch, their count comes right after *Following*, where a line too long for the screen
 doesn't cut it off: *📡 Following · 1 chapter couldn’t load · fetched 41 of 107*. While its site
-is backed off, a notice in the caution colour names the chapter that waits by its title (*Chapter
-42* when it has none): *Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52, then
+is backed off, a notice in the caution colour names the chapter that waits by its title (*The
+next chapter* when it has none): *Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52, then
 slower.*, or *Example.com isn’t answering. “Chapter 42: Low Tide” is tried again in 1:52.* A
 chapter waiting for its text says *Fetching text…*, *Retrying in 1:52*, *Waiting*, or why it
 couldn't be had (it is tried again at the next launch); its ▶ fetches it next and then plays it.
@@ -422,7 +422,7 @@ what is in it ("2 folders   3 pages", "Empty"), in Edit too; one whose pages pla
 place and time left there instead. Every row's separator starts at its title. Every row that can be
 downloaded has a Download control (⬇, a ring filling while it downloads, ✓ once downloaded) and
 ▶ side by side at its trailing edge, centred on the row's height. A page row (a chapter too) is
-exactly two lines (decision D21): its title on one line, truncated, then one short line of what
+exactly two lines (decision D21): its title (its site, or its book, when it has none) on one line, truncated, then one short line of what
 it is and where it stands ("5 min", "6 min left", both at the playback speed, "✓ Finished" with a ✓ symbol, "Skipped", "Playing"), with a
 small thumbnail as tall as the two lines. In a folder that line is the status alone (the header
 already names the author or site); on the home and in search the site or path comes first. A
@@ -616,7 +616,8 @@ Reader shows the Now Playing bar of another page above its row.
 └──────────────────────────────────────┘
 ```
 
-The heading is always the serif title, then the site and length under it. When the article's own
+The heading is the serif title, then the site and length under it; a page with no title of its own
+shows the site and length alone (nothing stands in for a title). When the article's own
 first heading repeats the title, that heading takes the title's look and the source line moves
 under it. The reading style always wins over a page's own styles (an extracted page's
 stylesheets are left out), and an extracted title drops a trailing site name ("Speech synthesis
@@ -698,7 +699,7 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   content and a heavier dim on the strip above it; while a finger pulls it down the dim lifts, but
   the strip under the status bar stays as dark as at rest until the sheet has gone, so the clock
   stays readable. A **title card** at the top of the text (it scrolls with the text) shows the
-  artwork, the title, and the site and time left as two parts (*✓ Finished* at the end). The
+  artwork, the title (none for a page without one), and the site and time left as two parts (*✓ Finished* at the end). The
   spoken paragraph is in full ink on the theme's highlight, the others dimmed (a paragraph
   pressed while ☝︎ is on is in full ink too). The *Jump to Audio* pill is ink with the page's
   colour for its text; the scrub capsule, the bubble, the jump hint, the ⋯ panel and the speed

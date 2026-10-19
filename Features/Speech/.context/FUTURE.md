@@ -22,9 +22,9 @@
   `prepare` rebinds when the document differs; `advance` loads the chapter again when the staged
   session's text is no longer its page's; *Replace* stops a session on any key it gives other
   text, not only revised, dropped and merge-target keys.
-- A web page's title is its first listen block. `ReadabilityRunner` wraps the extracted article
-  in a whole HTML document with the title as an `<h1>` (`Core/Extraction/ReadabilityRunner.swift`,
-  the `wrapped` document), but `ParagraphDocument.stripLeadingTitleHeading`
+- A web page's title, when it has one, is its first listen block. `ReadabilityRunner` wraps the
+  extracted article in a whole HTML document with the title as an `<h1>`
+  (`Core/Extraction/ReadabilityRunner.swift`, the `wrapped` document), but `ParagraphDocument.stripLeadingTitleHeading`
   (`Core/Domain/ParagraphDocument.swift`), which is meant to drop that duplicate title, matches
   only an `<h1>` at the very start of the HTML, and the wrapped document starts with
   `<!DOCTYPE html>`. Pages from the browser and from `URLPageFetcher` get the same block, so the

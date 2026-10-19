@@ -11,7 +11,8 @@ import WebKit
 @MainActor
 enum ReadabilityRunner {
     struct ParseResult: Sendable {
-        var title: String
+        /// nil: the page has none (Readability found no `<title>`, heading or title metadata).
+        var title: String?
         var byline: String?
         var contentHTML: String
         var textContent: String
@@ -65,19 +66,17 @@ enum ReadabilityRunner {
             let reason = (obj["reason"] as? String) ?? "Extraction failed."
             throw ExtractionError.unavailable(reason: reason)
         }
+        let site = (obj["siteName"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         // Without the site's name after a separator: the heading below and the page's title say
-        // the same, and the source line names the site.
-        let title = ArticleTitle.withoutSiteSuffix(
-            (obj["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
-            siteName: (obj["siteName"] as? String).flatMap { $0.isEmpty ? nil : $0 },
-            host: baseURL.host)
+        // the same, and the source line names the site. A page without one has none.
+        let title = ((obj["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines))
+            .flatMap { $0.isEmpty ? nil : ArticleTitle.withoutSiteSuffix($0, siteName: site, host: baseURL.host) }
         let text = (obj["textContent"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let content = try await ListenContentNormalizer.normalize((obj["content"] as? String) ?? "", in: webView)
-        if title.isEmpty || text.isEmpty || content.isEmpty {
+        if text.isEmpty || content.isEmpty {
             throw ExtractionError.emptyContent
         }
         let excerpt = (obj["excerpt"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? String(text.prefix(140))
-        let site = (obj["siteName"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         let byline = (obj["byline"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         let wrapped = """
         <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -86,7 +85,7 @@ enum ReadabilityRunner {
         h1{font:-apple-system-title1;margin-bottom:8px}
         img{max-width:100%;height:auto}
         </style></head><body>
-        <h1>\(htmlEscape(title))</h1>
+        \(title.map { "<h1>\(htmlEscape($0))</h1>" } ?? "")
         \(byline.map { "<p><em>\(htmlEscape($0))</em></p>" } ?? "")
         \(content)
         </body></html>

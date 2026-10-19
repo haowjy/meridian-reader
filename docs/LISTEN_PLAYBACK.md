@@ -73,8 +73,9 @@ Rules:
 
 `SpeechController` derives everything the screens show about what you hear from the session:
 
-- **`nowPlaying`** (`NowPlaying`): the bound page's key, canonical URL, title, source (its host,
-  or the book's or series' name for a chapter), byline (the lock screen's subtitle), artwork, where it plays from
+- **`nowPlaying`** (`NowPlaying`): the bound page's key, canonical URL, title (nil when the page
+  has none), source (its host, or the book's or series' name for a chapter), its line one (`lineOne`:
+  the title, else the source, else the address; what the bar and the lock screen name it by), byline (the lock screen's subtitle), artwork, where it plays from
   (`PlayingFrom.folder(id:name:)` for a page in a folder, else `.site(host:)`) and phase. nil only before anything has played and after Stop
   Listening or the page's removal or delete. `isFinished` (phase `.finished`) is what the bar and Now Playing read for "✓ Finished".
 - **Time left** is `ListeningTime`'s: one reading rate (180 words a minute, a word being 6 UTF-16
@@ -628,13 +629,13 @@ wasn't holding is released, so other apps' audio can resume.
 
 **Lock screen / Control Center** (`NowPlayingController`):
 
-- `MPNowPlayingInfoCenter`: title = article, artist = "site – Paragraph N of M" (plain text, so an
+- `MPNowPlayingInfoCenter`: title = the page's title, else its site, artist = "site – Paragraph N of M" (plain text, so an
   en dash joins the parts), album = site,
   chapter number and count (paragraphs), progress N/M, favicon artwork, rate 0 while paused. For
-  a chapter of a book or series: title = the chapter, artist = "<the book's byline> – Paragraph N
-  of M", album = the book or series, artwork = the chapter's, else the book's cover. Built from
-  `nowPlaying`, as the bar is (one title fallback, "Untitled"; the subtitle's byline is
-  `NowPlaying.byline`), with the artwork made once per picture rather than every paragraph. Shown
+  a chapter of a book or series: title = the chapter's, else the book's or series' name, artist =
+  "<the book's byline> – Paragraph N of M", album = the book or series, artwork = the chapter's,
+  else the book's cover. Built from `nowPlaying`, as the bar is (the title is `NowPlaying.lineOne`,
+  never a made-up one; the subtitle's byline is `NowPlaying.byline`), with the artwork made once per picture rather than every paragraph. Shown
   while playing or paused, and kept across a chapter boundary; cleared on stop or at the end.
 - `MPRemoteCommandCenter` (decision D4: headphone and lock-screen skips are paragraph skips, like
   the on-screen ⏮ ⏭): play, pause, togglePlayPause, nextTrack (next paragraph),

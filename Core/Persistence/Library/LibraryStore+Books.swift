@@ -297,7 +297,7 @@ extension LibraryStore {
     }
 
     private func fillChapter(_ page: Page, from chapter: PageContent) {
-        page.title = chapter.title
+        page.givenTitle = chapter.title
         page.locator = Self.locator(of: chapter.ref)
         page.skipsInPlayback = chapter.ref.skipsInPlayback
         page.setText(html: chapter.bodyHTML, plain: chapter.plainText, excerpt: chapter.excerpt,

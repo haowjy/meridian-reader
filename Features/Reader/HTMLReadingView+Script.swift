@@ -217,7 +217,8 @@ extension HTMLReadingWebView.Coordinator {
             header = "<div class=\"reader-top\" aria-hidden=\"true\" style=\"height: \(Int(top))px\"></div>"
         } else {
             header = heading.map {
-                "<header class=\"reader-heading\"><div class=\"reader-title\">\(escape($0.title))</div>"
+                "<header class=\"reader-heading\">"
+                    + ($0.title.map { "<div class=\"reader-title\">\(escape($0))</div>" } ?? "")
                     + "<div class=\"reader-detail\">"
                     + $0.detail.filter { !$0.isEmpty }.map { "<span>\(escape($0))</span>" }.joined()
                     + "</div></header>"

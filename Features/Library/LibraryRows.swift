@@ -70,7 +70,7 @@ struct LibraryPageRow: View {
     }
 
     private func liveBody(now: Date) -> some View {
-        ListRow(kind: kind, title: page.title, subtitle: subtitle, note: note(now: now),
+        ListRow(kind: kind, title: page.lineOne, subtitle: subtitle, note: note(now: now),
                 progress: page.isLink ? .unplayed(minutes: nil) : actions.progress(of: page),
                 playState: playState,
                 onPlay: plays ? { actions.play(page) } : nil,
@@ -280,7 +280,7 @@ struct LibraryFolderRow: View {
     /// byline: a book's author, a series' site, the author given in its details.
     private func place(_ progress: FolderProgress) -> String? {
         guard progress.hasStarted, !progress.isFinished, let key = progress.currentKey else { return folder.byline }
-        return livePages.first { $0.listenKey == key }?.title ?? folder.byline
+        return livePages.first { $0.listenKey == key }?.givenTitle ?? folder.byline
     }
 
     /// Finished when every page that plays is (pages added later play on from it).

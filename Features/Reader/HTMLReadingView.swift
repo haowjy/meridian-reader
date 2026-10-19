@@ -5,7 +5,8 @@ import WebKit
 /// The page's title and source line, drawn at the top of the text (part of the page, so it
 /// scrolls with it; not a listen block, so it never shifts paragraph indices).
 struct ReaderHeading: Equatable {
-    var title: String
+    /// nil: the page has none, and the heading is its source line alone.
+    var title: String?
     /// The source and the length, as separate parts (["example.org", "9 min"]): spans set apart
     /// by space, the first in secondary ink, the rest in tertiary (like `DetailLine`).
     var detail: [String]

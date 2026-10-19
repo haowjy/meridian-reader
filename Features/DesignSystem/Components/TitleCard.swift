@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// What is playing, at the top of Now Playing's text (it scrolls with the text): the artwork, the
-/// title, and the site and time left as separate parts (`DetailLine`). Drawn in the reading
-/// page's colours (`palette`: it is hosted inside the page's web view, out of the sheet's
-/// environment, so it is handed them).
+/// title (none for a page without one), and the site and time left as separate parts
+/// (`DetailLine`). Drawn in the reading page's colours (`palette`: it is hosted inside the page's
+/// web view, out of the sheet's environment, so it is handed them).
 ///
 /// ```
 /// ┌──────────────────────────────────────────┐
@@ -13,7 +13,7 @@ import SwiftUI
 /// └──────────────────────────────────────────┘
 /// ```
 struct TitleCard: View {
-    let title: String
+    let title: String?
     /// ["example.com", "12 min left"], or ["✓ Finished"].
     let detail: [String]
     var artwork: Image?
@@ -34,10 +34,12 @@ struct TitleCard: View {
         layout {
             ArtworkTile(image: artwork, letter: artworkLetter, size: Self.artworkSize)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(title)
-                    .typeStyle(.row, weight: .bold)
-                    .foregroundStyle(palette.ink)
-                    .lineLimit(large ? nil : 3)
+                if let title {
+                    Text(title)
+                        .typeStyle(.row, weight: .bold)
+                        .foregroundStyle(palette.ink)
+                        .lineLimit(large ? nil : 3)
+                }
                 DetailLine(detail)
                     .typeStyle(.caption)
             }
@@ -66,6 +68,11 @@ struct TitleCardGallery: View {
                 TitleCard(title: "Chapter 12", detail: ["Pride and Prejudice", "15 min left"],
                           artwork: Image(systemName: Icons.book), artworkLetter: "P", palette: Self.palette(.sepia))
                     .onReadingPreview(.sepia)
+            }
+            PreviewState("a page with no title") {
+                TitleCard(title: nil, detail: ["example.com", "12 min left"], artworkLetter: "example.com",
+                          palette: Self.palette(.dark))
+                    .onReadingPreview(.dark)
             }
             PreviewState("finished, long title") {
                 TitleCard(title: "Notes on the Tides of the Northern Coast, and the Tables Fishermen Keep",

@@ -154,7 +154,7 @@ enum LaunchHooks {
                                     sourceIdentifier: DemoBook.sourceIdentifier)
         let chapters = DemoBook.chapters.enumerated().map { index, chapter in
             let locator = EPUBLocator(href: "chapter-\(index).xhtml", anchor: .fileStart)
-            return PageContent(ref: PageRef(key: UUID(), locator: .book(locator), ordinal: index, title: chapter.title,
+            return PageContent(ref: PageRef(key: UUID(), locator: .book(locator), ordinal: index,
                                             skipsInPlayback: chapter.skipsInPlayback),
                                title: chapter.title, bodyHTML: chapter.html, plainText: chapter.plainText,
                                excerpt: String(chapter.plainText.prefix(140)))
@@ -293,7 +293,7 @@ enum LaunchHooks {
         var article = ReaderArticle(page: page)
         if article.document.isEmpty {
             let document = Page.buildListenDocument(plainText: page.plainText, cleanedHTML: page.cleanedHTML,
-                                                    title: page.title)
+                                                    title: page.givenTitle)
             article.document = document
             article.trustedParagraphs = document.paragraphs
         }

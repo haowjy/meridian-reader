@@ -110,7 +110,8 @@ struct NowPlayingScreen: View {
     private func text(_ now: NowPlaying, article: ReaderArticle?) -> some View {
         if let html = readingHTML(now, article: article) {
             SpokenText(speech: speech, html: html,
-                       card: TitleCardContent(title: article?.title ?? now.title, source: now.source,
+                       card: TitleCardContent(title: article.map(\.title) ?? now.title, source: now.source,
+                                              letter: now.source.isEmpty ? now.lineOne : now.source,
                                               artwork: now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))),
                        finished: now.isFinished, scrubMap: scrubMap, scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,
@@ -195,9 +196,12 @@ private struct NowPlayingContent {
 
 /// What the title card shows that doesn't move with the playhead.
 private struct TitleCardContent {
-    let title: String
+    /// nil: the page has none.
+    let title: String?
     /// "example.com".
     let source: String
+    /// On the artwork tile when there is no artwork.
+    let letter: String
     let artwork: Image?
 }
 
@@ -257,12 +261,11 @@ private struct SpokenText: View {
                                              rate: speech.rateMultiplier)
         let detail = finished ? [ListeningTime.finishedLabel]
             : [card.source, doc.isEmpty ? "" : ListeningTime.leftLabel(minutes: left)].filter { !$0.isEmpty }
-        let letter = card.source.isEmpty ? card.title : card.source
         let palette = reading ?? .app
         return ReadingTopView(
-            id: [card.title, detail.joined(separator: "\n"), letter, card.artwork == nil ? "" : "artwork",
+            id: [card.title ?? "", detail.joined(separator: "\n"), card.letter, card.artwork == nil ? "" : "artwork",
                  palette.theme.rawValue, AppAppearance.shared.accent.rawValue],
-            view: AnyView(TitleCard(title: card.title, detail: detail, artwork: card.artwork, artworkLetter: letter,
+            view: AnyView(TitleCard(title: card.title, detail: detail, artwork: card.artwork, artworkLetter: card.letter,
                                     palette: palette))
         )
     }
