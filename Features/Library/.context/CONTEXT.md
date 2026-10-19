@@ -40,7 +40,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   hear stops through the store's one playback hook (`stopPlaybackIfPlaying`, as a delete), and so
   does a session a waiting merge would move onto it (`keysWaitingToMerge`), so nothing shows a
   removed page playing. It stamps `removedAt`, so a played page doesn't come back
-  in History (a listen from its article clears it, `recordPlayback`); a view never re-derives a list from `addedAt` or `lastPlayedAt` itself. The Downloads
+  in Recent (a listen from its article clears it, `recordPlayback`); a view never re-derives a list from `addedAt` or `lastPlayedAt` itself. The Downloads
   list follows the same line (`DownloadCenter` drops what left the Library after each stored
   edit, `LibraryStore.editStored`).
 - **A saved delete reaches views one redraw early.** Rows, a folder's screen and a relationship's
@@ -98,12 +98,14 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   (`LibraryActions`, `DownloadCenter`, `LibraryScreenState`), not from the environment, which a
   menu's content may not get. In Edit a row passes no ⋯ (`ListRow.menu` nil).
 - **The home never changes size with playback** (decision D14): no section depends on what is
-  playing or part-way. A page played without saving joins History (`LibraryQueries.history`) on
+  playing or part-way. A page played without saving joins Recent (`LibraryQueries.recent`) on
   its first play, the one insert playback causes, animated; Everything never changes with it.
-- **History's menu rows ask `LibraryQueries.isInHistory`** (the `history` predicate itself,
-  evaluated on a page in hand; History's search writes the rule again, as a predicate can't call
-  another on iOS 17): *Remove from History* dims on a page out of the Library that isn't in it, and a row's
-  swipe offers *Remove* in the Library or in History.
+- **Recent's menu rows ask `LibraryQueries.isInRecent`** (the `recent` predicate itself,
+  evaluated on a page in hand; Recent's search writes the rule again, as a predicate can't call
+  another on iOS 17): *Remove from Recent* dims on a page out of the Library that isn't in it, and a row's
+  swipe offers *Remove* in the Library or in Recent. The tab's stored raw value stays `"history"`
+  (`LibraryHomeTab.recent`, `library.homeTab`), so a remembered tab survives the rename.
+  The browser's History (pages visited, 🕘 in the band) is another concept and keeps its name.
 - **Download, Remove Download and Delete Downloads go through `DownloadCenter`**
   (`DownloadActions` for the toast): *Remove Download* (a page) and *Delete Downloads* (a folder's
   ⋯) also drop the download, or the list would render it again.
@@ -132,10 +134,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   the mark it is given (dimmed tile and ↓ while downloading, ✓ badge once downloaded).
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way
   (`PageProgress.of`); counts come from relationships, not fetches.
-- **D20 home:** `LibraryHomeView` renders the Everything / Favorites / History tab
+- **D20 home:** `LibraryHomeView` renders the Everything / Favorites / Recent tab
   (`ShellState.homeTab`, a `LibraryHomeTab`) over one folder/page collection, filtered by the
   band's search within that tab (`ShellState.librarySearch`, D22; `LibraryQueries.searchPages(_:in:)`).
-  Star flags never change location. Filtered (Favorites, History or a search), the list sets
+  Star flags never change location. Filtered (Favorites, Recent or a search), the list sets
   `LibraryScreenKey.filtered` and the rows read it: none lifts or takes a drop, a row in a folder
   shows the folder's path, and a folder row pushes `LibraryStore.path(to:)`, so ‹ goes to its
   parent as from anywhere else. Rows have only ⋯ at their trailing edge. A folder

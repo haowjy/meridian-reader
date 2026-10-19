@@ -17,7 +17,7 @@ struct LibraryScreenMenu {
     let topLevelSort: Binding<String>
     /// A folder moved from its own screen: show it where it went.
     let showMoved: (Folder) -> Void
-    /// The big buttons: *Favorites*, *History*, *Browser*.
+    /// The big buttons: *Favorites*, *History* (the browser's, pages visited), *Browser*.
     let tile: (LibraryMenu.Action) -> Void
 
     /// The folder whose screen is on top (nil: the home). New folders and imported books go in

@@ -91,8 +91,8 @@ struct LibraryPageRow: View {
             .libraryDrag(dragID, in: screen)
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                // In the Library: *Remove* from it; in History: from History. The same remove.
-                if page.isInLibrary || LibraryQueries.isInHistory(page) {
+                // In the Library: *Remove* from it; in Recent: from Recent. The same remove.
+                if page.isInLibrary || LibraryQueries.isInRecent(page) {
                     // The row leaves every list once the remove is stored; a save that fails keeps
                     // it, with a toast. So not `.destructive`, which takes the row out first
                     // (`Palette.destructive`).

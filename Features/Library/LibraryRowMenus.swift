@@ -5,8 +5,8 @@ import SwiftUI
 /// apply to this page (*Play from Here*, *Mark All Above* and the play-order row out of a folder,
 /// *Share* without a web address, *Select* where the screen has no Edit), dimmed when it applies
 /// but can't run now (a page not in the Library can't be moved, marked or downloaded until it is
-/// saved; *Remove from History* out of the Library while the page isn't in History, a starred page
-/// removed earlier). *Save to Library* / *Remove from Library* is one row, and *Remove from History*
+/// saved; *Remove from Recent* out of the Library while the page isn't in Recent, a starred page
+/// removed earlier). *Save to Library* / *Remove from Library* is one row, and *Remove from Recent*
 /// never shows on a page in the Library. *Download* / *Remove Download* is one row showing the face for where the page's download
 /// stands (`DownloadCenter.state(of:)`); *Remove Download* takes the page out of every download
 /// and keeps it out (P8).
@@ -64,8 +64,8 @@ struct PageMenu: View {
             if inLibrary { actions.remove([page]) } else { actions.save(page) }
         }
         // The same remove as the Library's (`LibraryStore.remove`): in no list after, the star kept.
-        Button(Verbs.removeFromHistory, systemImage: Icons.removeFromHistory, role: .destructive) { actions.remove([page]) }
-            .menuAvailability(MenuAvailability(applies: !inLibrary, when: LibraryQueries.isInHistory(page)))
+        Button(Verbs.removeFromRecent, systemImage: Icons.removeFromRecent, role: .destructive) { actions.remove([page]) }
+            .menuAvailability(MenuAvailability(applies: !inLibrary, when: LibraryQueries.isInRecent(page)))
     }
 }
 

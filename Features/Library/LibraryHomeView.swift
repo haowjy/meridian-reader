@@ -1,10 +1,10 @@
 import SwiftData
 import SwiftUI
 
-/// The Library home: the Everything / Favorites / History tab (`ShellState.homeTab`) above one
+/// The Library home: the Everything / Favorites / Recent tab (`ShellState.homeTab`) above one
 /// mixed list of folders and pages. Everything is the top level of the Library: its folders, then
 /// the pages in no folder in the top level's sort. Favorites is the starred folders and pages from
-/// anywhere in the tree, in the Library or not. History is the pages played without saving, most
+/// anywhere in the tree, in the Library or not. Recent is the pages played without saving, most
 /// recent first (no folders). The band's search (`ShellState.librarySearch`) searches the selected
 /// tab, folders then pages, each by title. Which items each shows is `LibraryQueries`'. A favorite
 /// keeps its location; filtered (a tab other than Everything, or a search) a row shows where it
@@ -36,9 +36,9 @@ struct LibraryHomeView: View {
         case .favorites:
             _queriedFolders = Query(LibraryQueries.favoriteFolders)
             _queriedPages = Query(LibraryQueries.favoritePages)
-        case .history:
+        case .recent:
             _queriedFolders = Query(LibraryQueries.noFolders)
-            _queriedPages = Query(LibraryQueries.history)
+            _queriedPages = Query(LibraryQueries.recent)
         }
     }
 
@@ -73,7 +73,7 @@ struct LibraryHomeView: View {
                 Picker("Library view", selection: $shell.homeTab) {
                     Text("Everything").tag(LibraryHomeTab.everything)
                     Text("Favorites").tag(LibraryHomeTab.favorites)
-                    Text("History").tag(LibraryHomeTab.history)
+                    Text("Recent").tag(LibraryHomeTab.recent)
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("libraryTabs")
@@ -116,9 +116,9 @@ struct LibraryHomeView: View {
             ContentUnavailableView("No Favorites Yet", systemImage: Icons.favorite,
                                   description: Text("Star a folder or page to find it here."))
                 .listRowBackground(Color.clear)
-        } else if tab == .history {
-            ContentUnavailableView("No History Yet", systemImage: Icons.history,
-                                  description: Text("Pages you listen to without saving show up here."))
+        } else if tab == .recent {
+            ContentUnavailableView("No Recent Pages Yet", systemImage: Icons.history,
+                                  description: Text("Listen to a page without saving it to find it here."))
                 .listRowBackground(Color.clear)
         } else {
             emptyCard
