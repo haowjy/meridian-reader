@@ -369,7 +369,7 @@ the background (a fetch needs a window), and nothing renders for downloads while
 selected (`wantsLocalBake`). Pause and *Remove* take the page's job out of the queue
 (`removeBakeJob`), and *Remove Download* and *Remove Downloads* delete audio (`DownloadCenter.purgeAudio`),
 never for what listening needs (`needsAudio`: the page bound to the session, playing, paused or
-finished, and the chapter staged after it): its job and its audio stay. *Remove Download* (a page, a download in the list) or *Remove Downloads* (a folder) takes
+finished, and the chapter staged after it): its job and its audio stay. *Remove Download* (a page, in its menu or the Downloads list) or *Remove Downloads* (a folder, the same) takes
 the page out of every download (a folder's download drops it, never queues it again), the page
 playing too, whose audio stays for the session, saved or ephemeral as the library keeps the page. The voice a download is shown in is read
 from its audio (`ArticleAudioCache.renderedVoice`: the voice most of its paragraphs are in), so a
@@ -605,9 +605,10 @@ choice row is one `SettingsChoiceRow` (title, optional one-line subtitle, fixed 
 check slots, min height 48), so state changes never move rows.
 
 1. **Engines**: Apple and the registry's on-device engines. State lives in the subtitle
-   ("Downloading… 42%", "Preparing voice…", "Ready (recommended)") and the accessory (the
-   download's filling arrow, `DownloadMark`, as every download shows; tapping it cancels). Swipe to delete a downloaded engine; crash and failure
-   notices in the footer.
+   ("Downloading… 42%", "Preparing voice…", "Ready (recommended)"; a downloaded engine's starts
+   with the grey ✓, `DetailPart.downloaded`) and the accessory (the download's filling arrow,
+   `DownloadMark`, as every download shows; tapping it cancels). Swipe left on a downloaded
+   engine for *Remove Download*; crash and failure notices in the footer.
 2. **Voice ›** (`VoicePage`): the selected engine's voices (the engine ticked; Kokoro: curated
    rows with preview, the default one marked "(default)"; Apple: "System default" and
    good-quality system voices for the language).

@@ -222,6 +222,6 @@ enum LibraryHomeTab: String, CaseIterable {
     /// Starred folders and pages, wherever they are, in the Library or not.
     case favorites
     /// Pages played without saving, most recent first. Its raw value is what `library.homeTab`
-    /// stores, so it keeps the tab's first name.
+    /// stores, and stored values predate the tab's name, so it stays `"history"`.
     case recent = "history"
 }

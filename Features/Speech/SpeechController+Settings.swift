@@ -19,13 +19,10 @@ enum ListenRate {
     }
 }
 
-/// What Settings chooses: the language, the Apple voice and the speed's options. The stored
+/// What Settings chooses: the language and the Apple voice (the speeds are `ListenRate`). The stored
 /// settings themselves live on `SpeechController` (`languageAutomatic`, `selectedLanguageCode`,
 /// `selectedVoiceIdentifier`, `rateMultiplier`).
 extension SpeechController {
-    /// Settings → Speed lists these (`ListenRate.options`).
-    static var rateOptions: [Double] { ListenRate.options }
-
     // MARK: - Language
 
     /// Engine the language picker would use: the active local engine (selected or pending),

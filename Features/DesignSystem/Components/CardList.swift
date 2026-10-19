@@ -27,16 +27,22 @@ extension View {
         listRowBackground(Palette.chrome)
     }
 
+    /// A note's look: caption, secondary ink. A card's footer (`listFooter()`) and a note outside
+    /// a list (Follow's under its chapters).
+    func footnote() -> some View {
+        typeStyle(.caption)
+            .foregroundStyle(Palette.secondaryInk)
+    }
+
     /// A section header (a `SectionHeader`) in line with the cards: no extra header inset.
     func listHeader() -> some View {
         textCase(nil)
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: Spacing.xs, trailing: 0))
     }
 
-    /// A note under a card: caption, secondary ink, in line with the card.
+    /// A note under a card: a footnote in line with the card.
     func listFooter() -> some View {
-        typeStyle(.caption)
-            .foregroundStyle(Palette.secondaryInk)
+        footnote()
             .textCase(nil)
             .listRowInsets(EdgeInsets(top: Spacing.xs, leading: 0, bottom: 0, trailing: 0))
     }

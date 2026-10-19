@@ -117,7 +117,7 @@ extension View {
     /// `LibraryStore.makeFolder`), *Cancel* and *Create*, which runs `create` and closes it.
     func newFolderAlert(isPresented: Binding<Bool>, name: Binding<String>, message: String? = nil,
                         create: @escaping () -> Void) -> some View {
-        alert("New Folder", isPresented: isPresented) {
+        alert(Verbs.title(Verbs.newFolder), isPresented: isPresented) {
             TextField("Name", text: name)
                 .accessibilityIdentifier("newFolderField")
             Button(Verbs.cancel, role: .cancel) {}
@@ -176,7 +176,7 @@ private struct LibraryDialogs: ViewModifier {
             } message: {
                 Text(prompt.message)
             }
-            .alert("Rename Folder", isPresented: Binding(get: { state.renaming != nil },
+            .alert(Verbs.title(Verbs.rename), isPresented: Binding(get: { state.renaming != nil },
                                                         set: { if !$0 { state.renaming = nil } })) {
                 TextField("Name", text: $state.renameText)
                     .accessibilityIdentifier("renameFolderField")

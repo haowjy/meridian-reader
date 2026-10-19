@@ -35,7 +35,7 @@ struct BrowserBottomChrome: View {
 
     var body: some View {
         SurfaceBand(
-            swap: .init(systemImage: Icons.library, label: String(localized: "Library"),
+            swap: .init(systemImage: Icons.library, label: Verbs.library,
                         hint: String(localized: "Show the Library"), identifier: "browseLibrary",
                         action: shell.openLibrary),
             session: search,
@@ -94,11 +94,11 @@ struct BrowserBottomChrome: View {
     /// the address field and the ⋯ panel's focus button; a new search is a tap on the field.
     private var toolbar: some View {
         BottomToolbarLayout {
-            BandToolbarButton(systemImage: Icons.back, label: String(localized: "Back"),
+            BandToolbarButton(systemImage: Icons.back, label: Verbs.back,
                               identifier: "browseBack", action: web.goBack)
                 .disabled(!web.canGoBack)
                 .toolbarSlot(0)
-            BandToolbarButton(systemImage: Icons.forward, label: String(localized: "Forward"),
+            BandToolbarButton(systemImage: Icons.forward, label: Verbs.forward,
                               identifier: "browseForward", action: web.goForward)
                 .disabled(!web.canGoForward)
                 .toolbarSlot(1)
@@ -106,7 +106,7 @@ struct BrowserBottomChrome: View {
                              onToggle: onToggleSave, onSaveToFolder: onSaveToFolder)
                 .disabled(!web.hasPage || shell.busy != nil)
                 .toolbarSlot(2)
-            BandToolbarButton(systemImage: Icons.history, label: String(localized: "History"),
+            BandToolbarButton(systemImage: Icons.history, label: Verbs.history,
                               identifier: "browseHistory") { shell.present(.history) }
                 .toolbarSlot(3)
             MoreMenuButton(id: "browseMore", menu: menu)

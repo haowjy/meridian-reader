@@ -52,10 +52,12 @@ struct CPURouteBenchSection: View {
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(Palette.secondaryInk)
         } header: {
-            Text("CPU route benchmark")
+            SectionHeader(title: "CPU Route Benchmark").listHeader()
         } footer: {
             Text("ONNX Runtime on CPU (Kokoro fp16) with FluidAudio's phonemes + af_heart. Benchmark ≈2–3 min; pauses the bake queue. Soak: start it, lock the phone, come back. Results: Application Support/ListenTiming/cpubench.jsonl.")
+                .listFooter()
         }
+        .listCard()
     }
 
     @ViewBuilder
@@ -77,7 +79,7 @@ struct CPURouteBenchSection: View {
             HStack { ProgressView(); Text("Verifying SHA-256…").foregroundStyle(Palette.secondaryInk) }
         case let .installed(bytes):
             LabeledContent("CPU model", value: "installed, \(FileSizes.label(bytes))")
-            Button("Delete CPU model", role: .destructive) { store.delete() }
+            Button(Verbs.removeDownload, role: .destructive) { store.delete() }
                 .disabled(bench.isRunning || bench.soakRunning)
                 .accessibilityIdentifier("cpuBenchDeleteModel")
         case let .failed(message):

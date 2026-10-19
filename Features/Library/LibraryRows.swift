@@ -3,9 +3,9 @@ import SwiftUI
 /// A page row: a saved page, a link (lighter, 🔗), a followed story's chapter waiting for its
 /// text (a link with its status: "Fetching text…", "Retrying in 1:52", "Waiting"), or a page
 /// played without saving. Every page uses this same row, including imported chapters: two lines,
-/// the title and then its status (decision D21). In a folder the second line is the status alone
-/// ("5 min", "Skipped", "Playing"): the folder's header already names the author or site, so
-/// rows don't repeat it. Front matter is dimmed and "Skipped" (any page skipped in playback is).
+/// the title and then its site and status (decision D21). In a book or series the second line is
+/// the status alone ("5 min", "Skipped", "Playing"): its header already names the author or site,
+/// so rows don't repeat it. Front matter is dimmed and "Skipped" (any page skipped in playback is).
 ///
 /// Tapping the row plays it (`LibraryActions.play`; a waiting chapter is fetched first), except
 /// the page you hear, which opens Now Playing, so a stray tap never pauses it, and a link that
@@ -35,11 +35,11 @@ struct LibraryPageRow: View {
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
     private var dragID: LibraryItemID? {
-        guard screenKey != .filtered, !isEditing, page.isInLibrary else { return nil }
+        guard !screenKey.isFiltered, !isEditing, page.isInLibrary else { return nil }
         return .page(page.listenKey)
     }
     /// ★ after a favorite's title, except in the Favorites list, where every row is one.
-    private var marksFavorite: Bool { !(screenKey == .filtered && shell.homeTab == .favorites) }
+    private var marksFavorite: Bool { !(screenKey == .filtered(under: nil) && shell.homeTab == .favorites) }
 
     var body: some View {
         if !page.isLive {
@@ -99,7 +99,8 @@ struct LibraryPageRow: View {
                     // The row leaves every list once the remove is stored; a save that fails keeps
                     // it, with a toast. So not `.destructive`, which takes the row out first
                     // (`Palette.destructive`).
-                    Button(page.isInLibrary ? Verbs.removeFromLibrary : Verbs.removeFromRecent) { actions.remove([page]) }
+                    Button(page.isInLibrary ? Verbs.removeFromLibrary : Verbs.removeFromRecent,
+                           systemImage: page.isInLibrary ? Icons.unsave : Icons.removeFromRecent) { actions.remove([page]) }
                         .tint(Palette.destructive)
                 }
             }
@@ -110,14 +111,13 @@ struct LibraryPageRow: View {
         return .page(artwork: page.artworkImage, letter: page.artworkLetter)
     }
 
-    /// Its folder's path on the filtered home, which gathers rows from every folder; elsewhere
-    /// its site, as everywhere else, but nothing in a book or series, whose header names the
-    /// source once (a folder you made mixes sites). Untitled, its title line is already its site.
+    /// Where it is on a filtered list, which gathers rows from many folders (its folder's path, on
+    /// a folder's search from below it); elsewhere its site, as everywhere else, but nothing in a
+    /// book or series, whose header names the source once (a folder you made mixes sites).
+    /// Untitled, its title line is already its site.
     private var subtitle: String? {
-        if let folder = page.folder {
-            if screenKey == .filtered { return folder.pathName }
-            if folder.kind.isBookOrSeries { return nil }
-        }
+        if let place = screenKey.place(of: page.folder) { return place }
+        if page.isChapter { return nil }
         return page.byline.isEmpty || page.givenTitle == nil ? nil : page.byline
     }
 }
@@ -150,11 +150,11 @@ struct LibraryFolderRow: View {
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
-    private var isFiltered: Bool { screenKey == .filtered }
-    /// Its parents' path on the filtered home (nil for a folder at the top level).
-    private var location: String? { isFiltered ? folder.parent?.pathName : nil }
+    private var isFiltered: Bool { screenKey.isFiltered }
+    /// Where it is on a filtered list (`LibraryScreenKey.place(of:)`; nil at the top level).
+    private var location: String? { screenKey.place(of: folder.parent) }
     /// ★ after a favorite's title, except in the Favorites list, where every row is one.
-    private var marksFavorite: Bool { !(isFiltered && shell.homeTab == .favorites) }
+    private var marksFavorite: Bool { !(screenKey == .filtered(under: nil) && shell.homeTab == .favorites) }
 
     var body: some View {
         if folder.isLive { liveBody } else { DeletedRow() }
@@ -171,7 +171,9 @@ struct LibraryFolderRow: View {
             .libraryDrag(isEditing || isFiltered ? nil : .folder(folder.id), in: screen)
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                Button(Verbs.deleteFolder(isBook: folder.kind == .book)) { screen.confirmDelete([folder]) }
+                Button(Verbs.deleteFolder(isBook: folder.kind == .book), systemImage: Icons.delete) {
+                    screen.confirmDelete([folder])
+                }
                     .tint(Palette.destructive)
             }
     }
@@ -288,11 +290,6 @@ extension Folder {
             return count == 1 ? String(localized: "1 chapter") : String(localized: "\(count) chapters")
         }
         return count == 1 ? String(localized: "1 page") : String(localized: "\(count) pages")
-    }
-
-    /// "Finance › Bonds": the folders from the top level down to this one.
-    var pathName: String {
-        (ancestors.reversed() + [self]).map(\.name).joined(separator: " › ")
     }
 
     var coverImage: Image? {

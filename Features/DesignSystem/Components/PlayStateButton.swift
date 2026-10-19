@@ -16,9 +16,9 @@ enum PlayState: CaseIterable {
 
     var accessibilityLabel: String {
         switch self {
-        case .idle: "Play"
-        case .preparing: "Preparing"
-        case .playing: "Pause"
+        case .idle: Verbs.play
+        case .preparing: String(localized: "Preparing")
+        case .playing: Verbs.pause
         case .paused: Verbs.continue
         }
     }

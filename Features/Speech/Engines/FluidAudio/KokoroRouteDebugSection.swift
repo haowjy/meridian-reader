@@ -55,11 +55,13 @@ struct KokoroRouteDebugSection: View {
             LabeledContent("Render speed", value: paceLabel)
             LabeledContent("ONNX crashes (→ Apple at 2)", value: "\(kokoro.routeSettings.onnxCrashCount)")
         } header: {
-            Text("Kokoro route")
+            SectionHeader(title: "Kokoro Route").listHeader()
         } footer: {
             Text("Default: ONNX Runtime on the CPU (no Core ML, keeps rendering in the background). "
                  + "The fast GPU route uses Core ML in the foreground only; from the first render in the background until the app quits it uses ONNX. Any Kokoro crash turns it off.")
+                .listFooter()
         }
+        .listCard()
     }
 
     private var liveRoute: String {

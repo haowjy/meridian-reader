@@ -74,10 +74,11 @@ struct DownloadMark: View {
                 arrow.foregroundStyle(tint)
                 arrow.foregroundStyle(Palette.onAccent).mask(alignment: .bottom) { Rectangle().frame(height: filled) }
             case .downloaded:
-                Circle().fill(Palette.secondaryInk)
-                Image(systemName: Icons.checkmark)
-                    .font(.system(size: size * 0.45, weight: .bold))
-                    .foregroundStyle(Palette.paper)
+                Image(systemName: Icons.downloaded)
+                    .resizable()
+                    .scaledToFit()
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Palette.secondaryInk)
             }
         }
         .frame(width: size, height: size)

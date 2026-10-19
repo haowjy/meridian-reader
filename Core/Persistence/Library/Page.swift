@@ -109,9 +109,13 @@ final class Page {
         set { title = newValue ?? "" }
     }
 
+    /// A chapter: a page of a book or series. Its source is the book, and its time left is "in
+    /// chapter" (the Reader, Now Playing through `PlaybackFolder`).
+    var isChapter: Bool { folder?.kind.isBookOrSeries == true }
+
     /// What it is from: the book or series it is in, else its site (a chapter's author).
     var source: String {
-        if let folder, folder.kind.isBookOrSeries { return folder.name }
+        if isChapter, let folder { return folder.name }
         return byline
     }
 

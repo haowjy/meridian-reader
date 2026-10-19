@@ -12,24 +12,28 @@ import SwiftUI
 ///     example.org
 /// ```
 ///
-/// The column is `Glyph.rowLeading` wide and the row at least `RowHeight.compact` tall; both
-/// grow with the text up to `BottomChrome.maxTextGrowth`. Without a leading view (`symbol` nil)
+/// The column is `Glyph.rowLeading` wide and the row at least `RowHeight.compact` tall
+/// (`RowHeight.menu` in the ⋯ panel); both grow with the text up to `BottomChrome.maxTextGrowth`. Without a leading view (`symbol` nil)
 /// the text starts at the row's edge: a card's rows either all lead with a symbol or none does.
 /// The row adds no horizontal padding (its list or panel has its own) and no tap: the caller
 /// wraps it in a `Button`, `NavigationLink` or `Toggle`. On the reading page it takes the
 /// theme's ink.
 struct SymbolRow<Leading: View, Trailing: View>: View {
     let title: String
-    var subtitle: String?
+    /// Line two (a `DetailLine` part, so a downloaded model's starts with the grey ✓).
+    var subtitle: DetailPart?
     /// The title's and the symbol's colour (nil: ink): the accent for *New Folder*, red for
     /// *Unfollow*.
     var ink: Color?
     let leading: Leading?
     @ViewBuilder let trailing: Trailing
+    /// The row's height at the default text size: `RowHeight.compact`, or `.menu` in the ⋯ panel.
+    var height: CGFloat = RowHeight.compact
 
     @Environment(\.readingPalette) private var reading
     @ScaledMetric(relativeTo: .body) private var scaledColumn = Glyph.rowLeading
-    @ScaledMetric(relativeTo: TypeStyle.row.relativeTo) private var scaledHeight = RowHeight.compact
+    /// How much the row type has grown (1 at the default size).
+    @ScaledMetric(relativeTo: TypeStyle.row.relativeTo) private var growth: CGFloat = 1
 
     var body: some View {
         HStack(spacing: Spacing.s) {
@@ -45,10 +49,8 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
                         .typeStyle(.row)
                         .lineLimit(1)
                     if let subtitle {
-                        Text(subtitle)
+                        DetailLine(parts: [subtitle])
                             .typeStyle(.caption)
-                            .foregroundStyle(reading?.secondaryInk ?? Palette.secondaryInk)
-                            .lineLimit(1)
                     }
                 }
                 .layoutPriority(1)
@@ -60,14 +62,23 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
             .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         }
         .foregroundStyle(ink ?? reading?.ink ?? Palette.ink)
-        .frame(minHeight: BottomChrome.grown(scaledHeight, from: RowHeight.compact))
+        .frame(minHeight: BottomChrome.grown(height * growth, from: height))
         .contentShape(Rectangle())
+    }
+}
+
+extension SymbolRow {
+    /// The row `height` tall at the default text size (`RowHeight.menu` in the ⋯ panel).
+    func rowHeight(_ height: CGFloat) -> Self {
+        var row = self
+        row.height = height
+        return row
     }
 }
 
 extension SymbolRow where Leading == Image {
     /// A row led by an SF Symbol (nil: no leading column).
-    init(_ title: String, subtitle: String? = nil, symbol: String?, ink: Color? = nil,
+    init(_ title: String, subtitle: DetailPart? = nil, symbol: String?, ink: Color? = nil,
          @ViewBuilder trailing: () -> Trailing) {
         self.init(title: title, subtitle: subtitle, ink: ink, leading: symbol.map { Image(systemName: $0) },
                   trailing: trailing)
@@ -75,14 +86,14 @@ extension SymbolRow where Leading == Image {
 }
 
 extension SymbolRow where Leading == Image, Trailing == EmptyView {
-    init(_ title: String, subtitle: String? = nil, symbol: String?, ink: Color? = nil) {
+    init(_ title: String, subtitle: DetailPart? = nil, symbol: String?, ink: Color? = nil) {
         self.init(title, subtitle: subtitle, symbol: symbol, ink: ink) { EmptyView() }
     }
 }
 
 extension SymbolRow {
     /// A row led by any view of the column's size (a site tile).
-    init(_ title: String, subtitle: String? = nil, ink: Color? = nil, @ViewBuilder leading: () -> Leading,
+    init(_ title: String, subtitle: DetailPart? = nil, ink: Color? = nil, @ViewBuilder leading: () -> Leading,
          @ViewBuilder trailing: () -> Trailing) {
         self.init(title: title, subtitle: subtitle, ink: ink, leading: leading(), trailing: trailing)
     }

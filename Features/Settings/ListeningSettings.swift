@@ -8,7 +8,7 @@ import AVFoundation
 ///    text and the fixed-size trailing accessory, so rows never change height.
 /// 2. **Voice ›**: the selected engine's voices (`VoicePage`).
 /// 3. **Language ›**: Automatic (match article) or a manual language (`LanguagePage`).
-/// 4. **Speed**: the playback speeds in one line.
+/// 4. **Speed ›**: the playback speeds, the list Now Playing's speed opens (`SpeedPage`).
 struct ListeningSettingsSection: View {
     @Bindable var speech: SpeechController
 
@@ -19,7 +19,7 @@ struct ListeningSettingsSection: View {
             if let system = localTTS.engines.systemDescriptor {
                 SettingsChoiceRow(
                     title: system.displayName,
-                    subtitle: system.subtitle,
+                    subtitle: DetailPart(system.subtitle),
                     selected: localTTS.selectedEngineID == system.id,
                     accessibilityID: "engineRow-\(system.id.rawValue)"
                 ) {
@@ -31,23 +31,17 @@ struct ListeningSettingsSection: View {
             }
             // No symbols in this card: the engines above are choices without one (a card's rows
             // all lead with a symbol, or none does).
-            SettingsLinkRow(title: String(localized: "Voice"), symbol: nil, value: voiceName,
+            SettingsLinkRow(title: Verbs.voice, symbol: nil, value: voiceName,
                             accessibilityID: "settingsVoice") {
                 VoicePage(speech: speech)
             }
-            SettingsLinkRow(title: String(localized: "Language"), symbol: nil, value: languageName,
+            SettingsLinkRow(title: Verbs.language, symbol: nil, value: languageName,
                             accessibilityID: "settingsLanguage") {
                 LanguagePage(speech: speech)
             }
-            SettingsControlRow(title: String(localized: "Speed")) {
-                ChoicePicker(options: ListenRate.options.map(RateOption.init), selection: Binding(
-                    get: { RateOption(speech.rateMultiplier) },
-                    set: { speech.setRateMultiplier($0.rate) }
-                ), identifier: "settingsSpeed") { option in
-                    Text(ListenRate.label(option.rate))
-                        .typeStyle(.row)
-                        .monospacedDigit()
-                }
+            SettingsLinkRow(title: Verbs.speed, symbol: nil, value: ListenRate.label(speech.rateMultiplier),
+                            accessibilityID: "settingsSpeed") {
+                SpeedPage(speech: speech)
             }
         } header: {
             SectionHeader(title: String(localized: "Listening")).listHeader()
@@ -58,7 +52,7 @@ struct ListeningSettingsSection: View {
                 } else if case .failed(_, let message) = localTTS.synth.state {
                     Text(message).foregroundStyle(Palette.destructive)
                 }
-                Text("On-device voices download once, then work offline. Swipe left on a downloaded engine to delete it.")
+                Text("On-device voices download once, then work offline. Swipe left on a downloaded engine to remove its download.")
             }
             .listFooter()
         }
@@ -93,17 +87,13 @@ struct ListeningSettingsSection: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Cancel \(descriptor.shortName) download")
                 .accessibilityIdentifier("engineCancel-\(id.rawValue)")
-            } else if gateOK, localTTS.isModelInstalled(id) {
-                // Downloaded: the grey ✓ every download shows once done (`DownloadMark`).
-                DownloadMark(state: .downloaded, size: Glyph.modelDownload)
-                    .accessibilityLabel("Downloaded")
             }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if gateOK, localTTS.isModelInstalled(id), !pending {
-                // The model itself, not a page's audio: *Delete*, not *Remove Download*. The row
-                // stays (to download again), so not `.destructive` (`Palette.destructive`).
-                Button(Verbs.delete) {
+                // What was downloaded goes: *Remove Download*, as for a page's or a folder's. The
+                // row stays (to download again), so not `.destructive` (`Palette.destructive`).
+                Button(Verbs.removeDownload, systemImage: Icons.removeDownload) {
                     try? localTTS.deleteModel(id)
                 }
                 .tint(Palette.destructive)
@@ -111,7 +101,17 @@ struct ListeningSettingsSection: View {
         }
     }
 
-    private func localSubtitle(_ descriptor: EngineDescriptor, gateOK: Bool) -> String {
+    /// Line two: the model's state, after the grey ✓ once it is downloaded (as a downloaded row's
+    /// line two starts), so the trailing slots hold only its download's progress and the
+    /// selection ✓.
+    private func localSubtitle(_ descriptor: EngineDescriptor, gateOK: Bool) -> DetailPart {
+        let text = localState(descriptor, gateOK: gateOK)
+        let downloaded = gateOK && localTTS.isModelInstalled(descriptor.id)
+            && localTTS.synth.state.warmingEngineID != descriptor.id
+        return downloaded ? .downloaded(text) : DetailPart(text)
+    }
+
+    private func localState(_ descriptor: EngineDescriptor, gateOK: Bool) -> String {
         let id = descriptor.id
         if !gateOK {
             return localTTS.engines.blockReason(id) ?? String(localized: "Not supported on this device")
@@ -154,14 +154,27 @@ struct ListeningSettingsSection: View {
     }
 }
 
-/// A speed as a choice (`ChoicePicker` needs identifiable options).
-private struct RateOption: Identifiable, Hashable {
-    let rate: Double
-    var id: String { ListenRate.label(rate) }
+/// Settings › Listening › Speed: `ListenRate`'s speeds, slowest first, with Now Playing's speed
+/// list's labels and ids (`listenSpeedOption-1×`); the chosen one ✓.
+private struct SpeedPage: View {
+    @Bindable var speech: SpeechController
 
-    init(_ rate: Double) {
-        // The stored rate matched to the nearest option, so the picker always shows one.
-        self.rate = ListenRate.options.min { abs($0 - rate) < abs($1 - rate) } ?? rate
+    var body: some View {
+        List {
+            Section {
+                ForEach(ListenRate.options, id: \.self) { rate in
+                    SettingsChoiceRow(title: ListenRate.label(rate), subtitle: nil,
+                                      selected: speech.rateMultiplier == rate,
+                                      accessibilityID: "listenSpeedOption-\(ListenRate.label(rate))") {
+                        speech.setRateMultiplier(rate)
+                    }
+                }
+            }
+            .listCard()
+        }
+        .cardListStyle()
+        .navigationTitle(Verbs.speed)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -184,7 +197,7 @@ struct VoicePage: View {
             }
         }
         .cardListStyle()
-        .navigationTitle(String(localized: "Voice"))
+        .navigationTitle(Verbs.voice)
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear { preview.stop() }
     }
@@ -197,7 +210,7 @@ struct VoicePage: View {
                 let downloading = localTTS.voiceDownloadID == voice.id
                 SettingsChoiceRow(
                     title: voice.label,
-                    subtitle: voice.id == descriptor.defaultVoiceID ? Self.defaultVoiceSubtitle(voice.detail) : voice.detail,
+                    subtitle: DetailPart(voice.id == descriptor.defaultVoiceID ? Self.defaultVoiceSubtitle(voice.detail) : voice.detail),
                     selected: current == voice.id && localTTS.voiceDownloadID == nil,
                     accessibilityID: "voiceRow-\(voice.id)"
                 ) {
@@ -252,7 +265,7 @@ struct VoicePage: View {
         Section {
             SettingsChoiceRow(
                 title: String(localized: "System default"),
-                subtitle: VoiceCatalog.languageName(for: speech.effectiveLanguageCode),
+                subtitle: DetailPart(VoiceCatalog.languageName(for: speech.effectiveLanguageCode)),
                 selected: appleSelectedID == nil,
                 accessibilityID: "voiceRow-system"
             ) {
@@ -261,7 +274,7 @@ struct VoicePage: View {
             ForEach(VoiceCatalog.voices(forLanguage: speech.effectiveLanguageCode)) { entry in
                 SettingsChoiceRow(
                     title: entry.voice.name,
-                    subtitle: "\(entry.qualityLabel), \(entry.languageDisplayName)",
+                    subtitle: DetailPart("\(entry.qualityLabel), \(entry.languageDisplayName)"),
                     selected: appleSelectedID == entry.id,
                     accessibilityID: "voiceRow-\(entry.id)"
                 ) {
@@ -294,7 +307,7 @@ struct LanguagePage: View {
             Section {
                 SettingsChoiceRow(
                     title: String(localized: "Automatic (match article)"),
-                    subtitle: automaticSubtitle,
+                    subtitle: DetailPart(automaticSubtitle),
                     selected: speech.languageAutomatic,
                     accessibilityID: "languageRow-automatic"
                 ) {
@@ -323,7 +336,7 @@ struct LanguagePage: View {
             .listCard()
         }
         .cardListStyle()
-        .navigationTitle(String(localized: "Language"))
+        .navigationTitle(Verbs.language)
         .navigationBarTitleDisplayMode(.inline)
     }
 

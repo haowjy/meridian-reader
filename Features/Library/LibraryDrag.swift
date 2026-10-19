@@ -47,10 +47,25 @@ extension LibraryItemID {
 enum LibraryScreenKey: Hashable {
     case home
     case route(LibraryRoute)
-    /// The home filtered, on its Favorites tab or by a search: rows from anywhere in the tree,
-    /// each showing where it is. None lifts or takes a drop (the zone looks for `.home`), and a
-    /// folder row opens under its parents (`LibraryStore.path(to:)`).
-    case filtered
+    /// The home filtered, on its Favorites tab or by a search (`under` nil), or a folder's search
+    /// (`under` its id): rows from anywhere in the tree or below the folder, each showing where it
+    /// is (`place(of:)`). None lifts or takes a drop (the zone looks for `.home`), and a folder row
+    /// opens under its parents (`LibraryStore.path(to:)`).
+    case filtered(under: UUID?)
+
+    var isFiltered: Bool {
+        if case .filtered = self { true } else { false }
+    }
+
+    /// Where a row in `folder` is, on a filtered list: the folder's path from the top, or on a
+    /// folder's search from below it ("Bonds"); nil where the row is no further down than the
+    /// list's own screen (the top level, the searched folder), which shows it as that screen does.
+    func place(of folder: Folder?) -> String? {
+        guard case .filtered(let under) = self, let folder, folder.id != under else { return nil }
+        let path = folder.ancestors.reversed() + [folder]
+        let below = under.flatMap { id in path.firstIndex { $0.id == id } }.map { path.index(after: $0) } ?? path.startIndex
+        return path[below...].map(\.name).joined(separator: " › ")
+    }
 }
 
 /// Where the rows on screen are, for the drop zone: frames in global coordinates, kept as they

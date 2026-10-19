@@ -26,7 +26,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   the observer.
 - **Downloads never take away what listening needs** (`DownloadCenter.needsAudio`: the page bound
   to the session, in any phase, and the chapter staged after it). `purgeAudio` is the one way
-  the list's *Remove Download*, a page's *Remove Download* and a folder's *Remove Downloads* delete audio, and it skips those keys; `stopActive` leaves
+  a page's *Remove Download* and a folder's *Remove Downloads* (in their menus and the Downloads list) delete audio, and it skips those keys; `stopActive` leaves
   their job in the queue (`removeBakeJob` takes any other out: removing a job fails its chunk
   waiters). *Remove Download* on the playing page still takes it out of every download; its
   audio stays for the session, saved or ephemeral as the library keeps the page.
@@ -42,7 +42,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   folder's pages when turned on: a book's or story's chapters that play and
   aren't finished (D7 trims finished ones' audio anyway), any other folder's own pages. While it
   is on, pages added later join it after each stored library edit (`takeInNewPages`, the same
-  pass that drops what left the Library), except the ones in `deleted` (P8: *Remove Downloads* on
+  pass that drops what left the Library), except the ones in `deleted` (P8: *Remove Download* on
   a page records it there; turning the toggle on again empties it). Turned off (`turnOff`), its
   queued pages leave it and done ones stay, so the rows keep their ✓. *Download* with the toggle
   off over a folder all downloaded (the header's ✓) only turns it back on (`turnOn`): done
@@ -84,4 +84,6 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   header's control, the list's control), captioned *Paused*.
 - **The list's rows are `ListRow`s** with the download's one menu (`DownloadMenu`, the same rows
   in every section, from the ⋯ and the long press) and the pause control in `ListRow.accessory`,
-  before the ⋯. Its swipe is the menu's *Remove Download*.
+  before the ⋯. Its remove row and swipe are the item's own action (`DownloadCenter.remove` runs
+  `deleteDownloads(of:)` on the page or folder, *Remove Download* / *Remove Downloads*); only a
+  download whose page or folder has left the library is dropped alone.

@@ -18,7 +18,8 @@ final class CoreFlowsUITests: XCTestCase {
 
         let play = app.buttons["listenPlayPause"]
         XCTAssertTrue(appears(play, timeout: 10), "the Reader")
-        play.tap()
+        // The pill is in the tree while the Reader sheet still rises from below the screen.
+        tapWhenHittable(play)
         XCTAssertTrue(eventually(8) { play.exists && play.label == "Pause" }, "playing")
         let bookmark = app.buttons["nowPlayingBookmark"]
         XCTAssertEqual(bookmark.value as? String, "Not saved")

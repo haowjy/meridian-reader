@@ -7,7 +7,7 @@ import SwiftUI
 ///
 /// - The Reader never shows what you hear (the shell opens Now Playing for that page), so the
 ///   Now Playing bar above its toolbar is always another page.
-/// - Listen reads "▶ Listen  9 min", "▶ Resume  6 min left" (the time lighter, after the title)
+/// - Listen reads "▶ Listen  9 min", "▶ Continue  6 min left" (the time lighter, after the title)
 ///   or "▶ Listen Again", starts at
 ///   the page's saved spot, and turns the Reader into Now Playing where it was (decision D2).
 ///   ☝︎ in the top bar, then a tap on a paragraph, listens from that paragraph.
@@ -69,7 +69,7 @@ struct ReaderSheetScreen: View {
         } banner: {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
-            text(start, status: listen.detail, chapter: actions.page?.folder?.kind.isBookOrSeries == true)
+            text(start, status: listen.detail, chapter: actions.page?.isChapter == true)
         } bar: {
             NowPlayingBarView(speech: speech)
         } more: {

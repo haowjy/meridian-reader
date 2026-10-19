@@ -14,7 +14,7 @@ struct ListenDebugPanel: View {
         NavigationStack {
             List {
                 if let snapshot {
-                    Section("Article / queue") {
+                    Section {
                         row("Article", snapshot.articleIdentity)
                         row("Queue #1", snapshot.queuePrimary)
                         row("Demoted", "\(snapshot.demotedCount)")
@@ -27,21 +27,27 @@ struct ListenDebugPanel: View {
                         row("Bake %", bakePercentLabel(snapshot))
                         row("Pending units", "\(snapshot.bakePendingJobs)")
                         row("Last bake", snapshot.lastBakeEvent)
+                    } header: {
+                        SectionHeader(title: "Article / Queue").listHeader()
                     }
-                    Section("Session") {
+                    .listCard()
+                    Section {
                         row("Phase", snapshot.phaseLabel)
                         row("Engine", snapshot.engine)
                         row("Render mode", snapshot.renderMode)
                         row("Ready ahead", "\(snapshot.renderedParagraphsAhead) paragraphs")
                         row("Background", snapshot.background)
                         row("Audio session", snapshot.audioSession)
-                        row("Language", snapshot.language)
+                        row(Verbs.language, snapshot.language)
                         row("Audible", snapshot.isAudible ? "yes" : "no")
                         row("isSpeaking", snapshot.isSpeaking ? "yes" : "no")
                         row("isPaused", snapshot.isPaused ? "yes" : "no")
                         row("Playhead", "\(snapshot.playhead + 1) / \(max(snapshot.paragraphCount, 0))")
+                    } header: {
+                        SectionHeader(title: "Session").listHeader()
                     }
-                    Section("Local synth queue") {
+                    .listCard()
+                    Section {
                         row("Buffered", "\(snapshot.bufferedCount)")
                         row("awaitingMore", snapshot.awaitingMore ? "yes" : "no")
                         row("producerActive", snapshot.producerActive ? "yes" : "no")
@@ -60,7 +66,10 @@ struct ListenDebugPanel: View {
                             )
                         )
                         row("Starve events", "\(snapshot.starveEventCount)")
+                    } header: {
+                        SectionHeader(title: "Local Synth Queue").listHeader()
                     }
+                    .listCard()
                 } else {
                     Text("No snapshot yet").foregroundStyle(Palette.secondaryInk)
                 }
@@ -73,13 +82,14 @@ struct ListenDebugPanel: View {
                     .disabled(EngineLatencyProbe.isRunning)
                     .accessibilityIdentifier("runEngineProbe")
                 } footer: {
-                    Text("Writes Documents/engine_probe.txt. Takes ~1–2 min; don't listen meanwhile.")
+                    Text("Writes Documents/engine_probe.txt. Takes ~1–2 min; don't listen meanwhile.").listFooter()
                 }
+                .listCard()
                 #endif
 
                 ForEach(speech.localTTS.engines.providers, id: \.name) { $0.debugSections(speech: speech) }
 
-                Section("Log (last \(ListenDebugLog.shared.lines.count))") {
+                Section {
                     if ListenDebugLog.shared.lines.isEmpty {
                         Text("Empty").foregroundStyle(Palette.secondaryInk)
                     } else {
@@ -89,13 +99,17 @@ struct ListenDebugPanel: View {
                                 .textSelection(.enabled)
                         }
                     }
+                } header: {
+                    SectionHeader(title: "Log", count: ListenDebugLog.shared.lines.count).listHeader()
                 }
+                .listCard()
             }
-            .navigationTitle("Listen Debug")
+            .cardListStyle()
+            .navigationTitle(Verbs.listenDebug)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Clear log") { ListenDebugLog.shared.clear() }
+                    Button(String(localized: "Clear Log")) { ListenDebugLog.shared.clear() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(Verbs.done) { dismiss() }

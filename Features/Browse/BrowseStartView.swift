@@ -243,7 +243,7 @@ struct BrowseStartView: View {
             MenuRow(id: "moreReload", title: Verbs.reload, icon: Icons.reload,
                     availability: MenuAvailability(when: hasPage), action: webStore.refresh),
         ] + MenuContext.tail(shell)
-        let reader = MenuRow(id: "moreReaderToggle", title: String(localized: "Reader"), icon: Icons.reader,
+        let reader = MenuRow(id: "moreReaderToggle", title: Verbs.reader, icon: Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
                              accessibilityHint: String(localized: "Open in Reader")) { run { try await $0.openInReader() } }
         return MenuContext(item: webPage == nil ? [] : PageMenu(actions: actions, place: .open).rows, screen: screen,

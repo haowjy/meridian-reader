@@ -42,7 +42,7 @@ struct DetailLine: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(DetailLine.accessibilityLabel(parts.map(\.text)))
+        .accessibilityLabel(DetailLine.accessibilityLabel(parts.map { $0.spoken ?? $0.text }))
     }
 
     /// The lead part's ink.
@@ -60,10 +60,13 @@ struct DetailLine: View {
 struct DetailPart: Hashable, ExpressibleByStringLiteral {
     let text: String
     var symbol: String?
+    /// What VoiceOver reads for it, when the symbol says something the text doesn't.
+    var spoken: String?
 
-    init(_ text: String, symbol: String? = nil) {
+    init(_ text: String, symbol: String? = nil, spoken: String? = nil) {
         self.text = text
         self.symbol = symbol
+        self.spoken = spoken
     }
 
     init(stringLiteral text: String) {
@@ -72,6 +75,12 @@ struct DetailPart: Hashable, ExpressibleByStringLiteral {
 
     /// A page heard to its end: ✓ and "Finished", as a row's status draws it.
     static var finished: DetailPart { DetailPart(ListeningTime.finishedLabel, symbol: Icons.checkmark) }
+
+    /// `text` after the grey ✓ a downloaded row starts its second line with (a page's, a
+    /// download's, a voice model's in Settings).
+    static func downloaded(_ text: String) -> DetailPart {
+        DetailPart(text, symbol: Icons.downloaded, spoken: String(localized: "Downloaded, \(text)"))
+    }
 }
 
 /// The parts of a `DetailLine` (or a row's second line), side by side `spacing` apart on their

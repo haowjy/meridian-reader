@@ -331,10 +331,18 @@ final class DownloadCenter {
         advance()
     }
 
-    /// Takes the download off the list, and its pages' audio off the phone (*Remove*), except the
-    /// audio listening needs (`purgeAudio`) and that of pages another download covers.
+    /// The Downloads list's *Remove Download* / *Remove Downloads*: the page's or folder's own
+    /// action, the one its menu runs (`deleteDownloads(of:)`). When what was downloaded has left
+    /// the library, only the download goes, with the audio no other download holds (except what
+    /// listening needs, `purgeAudio`).
     func remove(_ id: UUID) {
         guard let index = records.firstIndex(where: { $0.id == id }) else { return }
+        switch records[index].target {
+        case .page(let key):
+            if let page = library.page(key: key) { return deleteDownloads(of: page) }
+        case .folder(let folderID):
+            if let folder = library.folder(id: folderID) { return deleteDownloads(of: folder) }
+        }
         if active?.recordID == id { stopActive() }
         let record = records.remove(at: index)
         let kept = Set(records.flatMap { $0.entries.map(\.key) })
@@ -396,7 +404,7 @@ final class DownloadCenter {
         updateRecords { records in
             for index in records.indices { records[index].entries.removeAll { keys.contains($0.key) } }
             // A folder's toggle stays on with nothing left in it: later pages still join.
-            records.removeAll { $0.entries.isEmpty && !$0.followsFolder }
+            records.removeAll { $0.entries.isEmpty && !($0.target.isFolder && $0.followsFolder) }
         }
     }
 

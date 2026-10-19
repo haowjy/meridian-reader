@@ -20,19 +20,20 @@ import Foundation
 /// | Read | `Icons.reader` |
 /// | Continue | `Icons.play` |
 /// | Play from Here, Play from Start | `Icons.play`, `Icons.previous` |
-/// | Download / Remove Download (a page, a download) | `Icons.download` / `Icons.removeDownload` |
+/// | Download / Remove Download (a page, its menu and its download in the list) | `Icons.download` / `Icons.removeDownload` |
 /// | Download / Turn Off Download (a folder) | `Icons.download` / `Icons.turnOffDownload` |
-/// | Remove Downloads (a folder's pages) | `Icons.removeDownload` |
+/// | Remove Downloads (a folder, its menu and its download in the list) | `Icons.removeDownload` |
 /// | Add to Favorites / Remove from Favorites | `Icons.favorite` / `Icons.unfavorite` |
 /// | Move to… / Save to Folder… | `Icons.move` |
 /// | Mark as Finished / Mark as Unfinished | `Icons.markFinished` / `Icons.markUnfinished` |
+/// | Mark All Above as Finished | `Icons.markAllAboveFinished` |
 /// | Share | `Icons.share` |
 /// | Select | `Icons.select` |
 /// | Save to Library / Remove from Library | `Icons.save` / `Icons.unsave` |
 /// | Remove from Recent | `Icons.removeFromRecent` |
 /// | Rename…, Edit Details… | `Icons.rename`, `Icons.editDetails` |
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
-/// | Pause / Resume (a download), Re-download, Keep | `Icons.pause` / `Icons.download`, `Icons.redownload`, `Icons.keep` |
+/// | Pause / Resume (a download), Re-download, Keep | `Icons.pause` / `Icons.resume`, `Icons.redownload`, `Icons.keep` |
 /// | New Folder…, Import Book…, Follow… | `Icons.newFolder`, `Icons.book`, `Icons.follow` |
 /// | Downloads, Settings | `Icons.downloads`, `Icons.settings` |
 enum Verbs {
@@ -46,9 +47,12 @@ enum Verbs {
     static let playFromHere = String(localized: "Play from Here")
     static let playFromStart = String(localized: "Play from Start")
     static let download = String(localized: "Download")
-    /// A page's or a download's: its audio deleted, and it stays out of every download (P8).
+    /// A page's, in its menu and in the Downloads list: its audio deleted, and it stays out of
+    /// every download (P8). A voice model's in Settings (its swipe): the model deleted, to be
+    /// downloaded again before the engine speaks.
     static let removeDownload = String(localized: "Remove Download")
-    /// A folder's: *Remove Download* for each of its pages.
+    /// A folder's, in its menu and in the Downloads list: its download off and gone, and
+    /// *Remove Download* for each of its pages.
     static let removeDownloads = String(localized: "Remove Downloads")
     static let turnOffDownload = String(localized: "Turn Off Download")
     static let addToFavorites = String(localized: "Add to Favorites")
@@ -83,17 +87,21 @@ enum Verbs {
         isBook ? String(localized: "Delete Book…") : String(localized: "Delete Folder…")
     }
 
+    // MARK: Playing
+
+    /// ▶ from the start or a page not begun (VoiceOver on a ▶; a paused page says *Continue*).
+    static let play = String(localized: "Play")
+    /// ⏸, what you hear; a download's too.
+    static let pause = String(localized: "Pause")
+
     // MARK: A download
 
-    static let pause = String(localized: "Pause")
     static let resume = String(localized: "Resume")
     static let pauseAll = String(localized: "Pause All")
     static let resumeAll = String(localized: "Resume All")
     static let redownload = String(localized: "Re-download")
     /// Keep a download made in another voice.
     static let keep = String(localized: "Keep")
-    /// A voice model's (Settings): the model itself, not a page's audio.
-    static let delete = String(localized: "Delete")
 
     // MARK: Screens
 
@@ -115,6 +123,28 @@ enum Verbs {
     /// The browser's: pages visited.
     static let history = String(localized: "History")
     static let removeFromHistory = String(localized: "Remove from History")
+    /// The start page's and the search layer's section of searches made, and its action.
+    static let recentSearches = String(localized: "Recent Searches")
+    static let clearAll = String(localized: "Clear All")
+    /// The two surfaces, as the swap, the back pill and the ⋯'s big button name them; *Library*
+    /// is also the home's title and Now Playing's *Go to*.
+    static let library = String(localized: "Library")
+    static let browser = String(localized: "Browser")
+    /// The browser's Reader toggle and big button.
+    static let reader = String(localized: "Reader")
+    /// The band's ‹ and ›.
+    static let back = String(localized: "Back")
+    static let forward = String(localized: "Forward")
+    /// ⋯ (a row's, a folder header's, the toolbar's) and the folder header's caption.
+    static let more = String(localized: "More")
+    /// A section header's action that opens the whole list.
+    static let showAll = String(localized: "Show All")
+    /// Settings rows and the pages or panels they open.
+    static let speed = String(localized: "Speed")
+    static let voice = String(localized: "Voice")
+    static let language = String(localized: "Language")
+    static let textSize = String(localized: "Text Size")
+    static let listenDebug = String(localized: "Listen Debug")
 
     // MARK: Sheets
 

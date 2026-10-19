@@ -8,10 +8,10 @@ import SwiftUI
 /// | Pause / Resume | dimmed once done |
 /// | Re-download | dimmed while queued |
 /// | Keep | dimmed unless its audio is in another voice than downloads now use |
-/// | Remove Download (red) | always |
+/// | Remove Download / Remove Downloads (red) | always |
 ///
-/// *Remove Download* is the page menu's own: the audio goes, and the page or folder stays out of
-/// downloads until asked again.
+/// The remove row (and the row's swipe) is the item's own: a page's *Remove Download*, a folder's
+/// *Remove Downloads*, the same action as in the page's or folder's menu (`DownloadCenter.remove`).
 struct DownloadMenu: View {
     let item: DownloadOverview.Item
     let downloads: DownloadCenter
@@ -27,7 +27,7 @@ struct DownloadMenu: View {
         let otherVoice: String? = if case .differentVoice(let voice) = item.status { voice } else { nil }
         return [
             MenuRow(id: "menuPause", title: isPaused ? Verbs.resume : Verbs.pause,
-                    icon: isPaused ? Icons.download : Icons.pause,
+                    icon: isPaused ? Icons.resume : Icons.pause,
                     availability: MenuAvailability(when: isQueued)) { downloads.setPaused(id, !isPaused) },
             MenuRow(id: "menuRedownload", title: Verbs.redownload, icon: Icons.redownload,
                     availability: MenuAvailability(when: !isQueued)) { downloads.redownload(id) },
@@ -35,8 +35,13 @@ struct DownloadMenu: View {
                     availability: MenuAvailability(when: otherVoice != nil)) {
                 if let otherVoice { downloads.keep(id, voice: otherVoice) }
             },
-            MenuRow(id: "menuRemoveDownload", title: Verbs.removeDownload, icon: Icons.removeDownload,
+            MenuRow(id: "menuRemoveDownload", title: Self.removeTitle(item), icon: Icons.removeDownload,
                     isDestructive: true) { downloads.remove(id) },
         ]
+    }
+
+    /// *Remove Download* for a page, *Remove Downloads* for a folder: the name its own menu gives it.
+    static func removeTitle(_ item: DownloadOverview.Item) -> String {
+        item.record.target.isFolder ? Verbs.removeDownloads : Verbs.removeDownload
     }
 }

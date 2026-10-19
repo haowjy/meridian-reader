@@ -74,7 +74,7 @@ struct SearchSessionOverlay: View {
 
     private var recentSearchesList: some View {
         VStack(spacing: 0) {
-            SectionHeader(title: String(localized: "Recent Searches"), size: .page, actionTitle: String(localized: "Clear All"),
+            SectionHeader(title: Verbs.recentSearches, size: .page, actionTitle: Verbs.clearAll,
                           actionIdentifier: "recentSearchesClear", action: onClearRecentSearches)
                 .padding(.horizontal, Spacing.m)
                 .padding(.top, Spacing.s)
@@ -147,7 +147,7 @@ private struct SuggestionRow<Leading: View>: View {
 
     private var openButton: some View {
         Button(action: onOpen) {
-            SymbolRow(title, subtitle: subtitle, leading: leading) { EmptyView() }
+            SymbolRow(title, subtitle: subtitle.map { DetailPart($0) }, leading: leading) { EmptyView() }
                 .padding(.leading, Spacing.m)
         }
         .buttonStyle(.plain)

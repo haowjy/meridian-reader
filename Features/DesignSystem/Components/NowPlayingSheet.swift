@@ -124,7 +124,7 @@ struct NowPlayingTransport<Leading: View, More: View>: View {
                 .accessibilityLabel("Previous paragraph")
                 .toolbarSlot(1)
             PlayStateButton(state: state, look: .disc, action: onPlayPause)
-                .accessibilityLabel(state == .playing ? "Pause" : "Play")
+                .accessibilityLabel(state == .playing ? Verbs.pause : Verbs.play)
                 .accessibilityIdentifier("listenPlayPause")
                 .simultaneousGesture(LongPressGesture(minimumDuration: 0.6).onEnded { _ in onPlayLongPress?() },
                                      including: onPlayLongPress == nil ? .subviews : .all)

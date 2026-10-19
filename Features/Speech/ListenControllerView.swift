@@ -77,7 +77,7 @@ struct SpeedButton: View {
                 .fieldTextFrame()
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Speed \(ListenRate.label(speech.rateMultiplier))")
+        .accessibilityLabel("\(Verbs.speed) \(ListenRate.label(speech.rateMultiplier))")
         .accessibilityIdentifier("listenSpeed")
         .popover(isPresented: $showsPicker, arrowEdge: .bottom) {
             SpeedPickerPopover(speech: speech) { showsPicker = false }
@@ -100,7 +100,7 @@ private struct SpeedPickerPopover: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            Text("Speed")
+            Text(Verbs.speed)
                 .typeStyle(.row, weight: .semibold)
                 .foregroundStyle(palette.ink)
                 .padding(.horizontal, Spacing.xxs)

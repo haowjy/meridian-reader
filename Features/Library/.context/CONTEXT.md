@@ -24,9 +24,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   together; `.draggable` does the same): every UI action while the menu is up waits ~60 s, so
   a UI test or probe that opens a draggable row's menu takes minutes.
   The Library surface owns the zone and screen key.
-- **Swipe actions follow AGENTS.md's rule.** A folder's *Delete* only asks, so it takes
+- **Swipe actions follow AGENTS.md's rule.** A folder's *Delete Folder…* only asks, so it takes
   `Palette.destructive`: with the role, *Cancel* would leave the row missing and the delete abort
-  in UIKit. A page's *Remove* takes the tint too: its row goes once the remove is stored, and a
+  in UIKit. A page's *Remove from Library* takes the tint too: its row goes once the remove is stored, and a
   save that fails keeps it (a toast says so); with the role, the List would have taken the row
   out first and aborted on the update. `CoreFlowsUITests` swipe-removes a playing page, which stops.
 - **The home's lists are `LibraryQueries`' too**: the starred folders (`favoriteFolders`), the
@@ -150,9 +150,12 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   (`ShellState.homeTab`, a `LibraryHomeTab`) over one folder/page collection, filtered by the
   band's search within that tab (`ShellState.librarySearch`, D22; `LibraryQueries.searchPages(_:in:)`).
   Star flags never change location. Filtered (Favorites, Recent or a search), the list sets
-  `LibraryScreenKey.filtered` and the rows read it: none lifts or takes a drop, a row in a folder
-  shows the folder's path, and a folder row pushes `LibraryStore.path(to:)`, so ‹ goes to its
-  parent as from anywhere else. Rows have only ⋯ at their trailing edge. A folder
+  `LibraryScreenKey.filtered(under: nil)` and the rows read it: none lifts or takes a drop, a row
+  in a folder shows the folder's path (`place(of:)`), and a folder row pushes
+  `LibraryStore.path(to:)`, so ‹ goes to its parent as from anywhere else. A search begun on a
+  folder's screen searches under that folder (`ShellState.librarySearchFolder`,
+  `FolderSearchResults`, `.filtered(under: id)`: paths from below it) and ends when the folder
+  leaves the path. Rows have only ⋯ at their trailing edge. A folder
   header has Download, the big ▶ (Continue) and More.
 - **D21: action rows never wrap; page rows are two lines.** A row of buttons is an
   `ActionButtonRow` (full labels → short titles → no details → symbols), never an HStack or a

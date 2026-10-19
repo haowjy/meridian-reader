@@ -88,7 +88,7 @@ start on the browser unless `-restoreSurface`.
 the same three rows at the same height, every control at the same frame, so swapping surfaces
 changes what the controls say and nothing else. Row 1 is the Now Playing bar alone, across the
 band's full width. Row 2 is the swap (📚 / 🌐, its 44 pt tap target tight to the leading edge),
-then the field filling the rest: the address field on the browser, *Search Library* on the
+then the field filling the rest: the address field on the browser, *Search Library* (or the tab or folder it searches) on the
 Library (one component, `BandFieldRow`).
 While searching, the swap steps aside with the bar and the toolbar. Row 3 is the
 toolbar, each slot one role on both:
@@ -173,9 +173,10 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   that applies to what the menu is for but can't run now shows dimmed, and only a row that can
   never apply to that kind of item is left out (`MenuAvailability`). A toggle is one row showing
   the face for the item's state (*Save* / *Remove from Library*, *Mark as Finished* /
-  *Unfinished*). A row that deletes something is red in it as in a long-press menu. A panel taller
-  than the room above its ⋯ (a folder's screen, larger text) stops below the status bar and its
-  rows scroll; the big buttons stay at the bottom. It covers
+  *Unfinished*). A row that deletes something is red in it as in a long-press menu. Its rows are
+  44 pt (`RowHeight.menu`, a system menu's row), so at the default text size every panel fits on
+  an iPhone 17 Pro, a folder's screen's too. A panel taller than the room above its ⋯ (larger
+  text) stops below the status bar and its rows scroll; the big buttons stay at the bottom. It covers
   the button and the toolbar around it, so the bottom row lands under the thumb, and grows out of
   that point (the glass grows from the button's circle to the panel's frame and corners, never
   stretched; the rows fade / un-blur in) while the ⋯ glyph
@@ -234,7 +235,7 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
    folders as folder tiles; 4 per row, up to 8. Show All → the Library's Favorites tab. A page tile
    opens the page (a link in the browser, a saved page in the Reader); a folder tile opens it in
    the Library. A tile's long press is its page's or folder's menu ("Menus", below).
-2. **Recent Searches** (local, newest first, Clear).
+2. **Recent Searches** (local, newest first, *Clear All*; each a 🔍 row, as in the search layer).
 
 ## The Library
 
@@ -242,7 +243,10 @@ The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the 
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
 back up, as does the band's ‹ (dimmed at the home). The home has **Everything / Favorites / Recent**
 tabs at the top; the band's field searches the tab on screen and says so (*Search Library* on
-Everything, *Search Favorites*, *Search Recent*). Each tab
+Everything, *Search Favorites*, *Search Recent*). On a folder's screen it searches that folder,
+everything under it, and says so (*Search Demo Finance*): the results stand under the folder's
+name, each row showing where it is below the folder (its site when it is in the folder itself);
+the search ends when you leave the folder. Each tab
 is one mixed list: folders and pages share a single list, with no section headings. Favorites
 are independent stars. Recent is what you listened to without saving; *History* (🕘 in the band,
 a big button in the ⋯) is the browser's pages visited: one name per concept. On Favorites,
@@ -252,8 +256,8 @@ parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on 
 going to a place in the Library (Now Playing's ⋯ → *Go to …*, a favorite folder's tile, an
 imported book) opens it on Everything, where every place shows; 📚 comes back to the tab you
 left. The tab is remembered with the surface. The band is the browser's (above): the Now Playing bar, 🌐 then the search
-field, `[‹][›][＋][🕘][⋯]`. ＋ is *New Folder…* and *Import
-Book…*, both made in the folder on screen (a book's too). 🌐 shows the browser as
+field, `[‹][›][＋][🕘][⋯]`. ＋ is the ⋯ panel's two creating rows, *New Folder…*
+(*New Folder Inside…* in a folder) and *Import Book…*, both made in the folder on screen (a book's too). 🌐 shows the browser as
 it was; 📚 there comes back to the same folder. The
 ⋯ panel follows the screen on top (below): a folder's screen starts with the folder's own menu,
 then every screen has *Sort ›, New Folder…* (*New Folder Inside…* in a folder)*, Import Book…,
@@ -352,8 +356,9 @@ commas.
   New Folder Inside…, Import Book…, Follow…, Downloads, Settings*. Every ⋯ ends with *Downloads,
   Settings*; *Settings* is always the last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
-  has scrolled under the bar. An empty folder's header has no counts; the list says
-  *Move pages here, or save them here from the Reader's 🔖* (the toolbar's symbol).
+  has scrolled under the bar. An empty folder's header has no counts; under it the empty view
+  every empty list has (`EmptyState`): *This Folder Is Empty*, *Move pages here, or save them
+  here from the Reader's 🔖* (the toolbar's symbol).
   A favorite is still an ordinary page or folder and keeps the same actions and location.
 - **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
   opens a sheet (`FolderDetailsSheet`): the cover (a letter tile without one), **Name**,
@@ -412,7 +417,8 @@ goes in), where you type or paste the story's address. Follow covers the screen:
 1. *Reading table of contents…* with a spinner and the address: one request, signed in as in the
    browser. A page with no list of chapters, or a site that refuses, says so, with *Try Again*
    and *Edit Address*; a story followed already offers *Open Its Folder*.
-2. **Review**: "Found 109 chapters   107 selected", *Select All*, then every chapter (its title,
+2. **Review**: a *Chapters 109* section header (how many are kept is on the button, *Follow 107
+   Chapters*), *Select All*, then every chapter (its title,
    and its address shortened) with a box: tap the box to keep or leave it out (an author's note,
    a Q&A). Tapping the rest of the row opens its **preview**, the app's own sheet rising over the
    list with the chapter's real page in the browser's web view (signed in as in the browser). Its
@@ -609,10 +615,11 @@ now). Every row is a Library row (`ListRow`: one title line, one detail line) an
 the same in every section (`DownloadMenu`): *Pause / Resume* (dimmed once done), *Re-download*
 (renders it again in the voice selected, the old voice playing until each paragraph is replaced;
 dimmed while queued), *Keep* (stays as it is, counted as done and marked downloaded on its rows,
-still named by its own voice; dimmed unless its voice differs) and *Remove Download* (red). After
-a voice change a finished download moves to *Different Voice*, whose note says the menu has
-*Re-download* and *Keep*. Swipe left is *Remove Download*: the download off the list and its
-audio off the phone (not the audio of what you hear). The list holds downloads of what is in the
+still named by its own voice; dimmed unless its voice differs) and *Remove Download* on a page,
+*Remove Downloads* on a folder (red: the same action as in the page's or folder's own menu,
+below). After a voice change a finished download moves to *Different Voice*, whose note says the
+menu has *Re-download* and *Keep*. Swipe left is the same *Remove Download* / *Remove Downloads*.
+The list holds downloads of what is in the
 Library: removing a page from the Library, or deleting a page or folder, takes its download off
 the list too (a removed page's audio stays, ephemeral). While Apple's voice is selected nothing
 renders: queued downloads say *Waiting for an on-device voice*, with *Settings*. *Remove
@@ -848,9 +855,9 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   headphone / lock-screen skips are paragraph skips (D4). A sideways swipe on the row skips too.
 - **Status notes** ("Preparing next…", Apple-fallback / language notes, the
   developer-only Debug chip) sit **above** the scrubber so appearing text never pushes it.
-- **⋯**: the Reader's menu for the page you hear, after *Go to <name>* (when it plays from a
-  folder or the Library): *Save / Remove from Library, Move to…, Add to Favorites, Share,
-  Download / Remove Download, Downloads, Settings*; big buttons **Favorites / History / Website**.
+- **⋯**: the page's menu ("Menus", above) for the page you hear, with *Go to <name>* first (when
+  it plays from a folder or the Library), then *Downloads, Settings*; big buttons
+  **Favorites / History / Website**.
 - A **download progress line** runs along the top edge of the bottom band while downloads run,
   as on the other surfaces, in the theme's accent.
 - **Scrubber** (sentence-precise): fill = progress (weighted by text length; with a local
@@ -880,8 +887,8 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
     chunk durations), with a 0.25 s lead-in so the first word isn't clipped. Not rendered yet: the
     render queue does that chunk first (then the rest of the paragraph). Apple voice: speaks from
     the sentence's first character.
-- **Speed** (*1×*, at the end of the scrub capsule; a tap opens the list; also Settings ›
-  Listening › Speed): applied in place — the current sentence keeps going at the new speed.
+- **Speed** (*1×*, at the end of the scrub capsule; a tap opens the list, 0.75× to 2×; Settings ›
+  Listening has it as a row, *Speed 1× ›*, opening the same list): applied in place — the current sentence keeps going at the new speed.
   Local voices: a pitch-preserving time-stretch on the player (`AVAudioPlayer.enableRate` /
   `rate`; all audio, including Apple-fallback units, is rendered at 1×), so nothing is re-queued,
   re-rendered or restarted. The Apple voice (AVSpeechSynthesizer can't change a running
@@ -980,7 +987,10 @@ spacing change reflows the text and keeps the line on screen where it was).
   ink, secondary and tertiary ink, dimmed ink, highlight, accent) for the Reader and Now Playing
   alike. The spoken paragraph sits on the highlight in full ink, the others dimmed; the spoken
   sentence is underlined in the theme's accent (one underline colour per theme). Light, Dark and
-  Black take the app's colour as their accent; Sepia has its own.
+  Black take the app's colour as their accent; Sepia has its own. Each is a swatch named under
+  it; a name wraps between words, and at the accessibility sizes, where a name's longest word
+  is wider than its swatch's share of the row, the swatches stand alone (VoiceOver still reads
+  the names). Settings' *Color* swatches do the same.
 - **Font**: *Serif* (New York; the default), *Sans Serif*, *Rounded*.
 - **Text size**: smaller / larger in steps from 85% to 165% of the Dynamic Type size (100%
   default), so the system's text size still applies under it.
@@ -1003,10 +1013,10 @@ bottom:
   playing tint, letter tiles) on every screen (`AppAppearance`, UserDefaults `appearance.mode`,
   `appearance.accent`).
 - **Reading**: the reading appearance above, with a sample of what is chosen.
-- **Listening**: the engines (Apple and the on-device ones: download, cancel, ✓, swipe to delete
-  a download), *Voice ›* and *Language ›* (pages of their own; no symbols in this card, as the
-  engines have none), and *Speed*: one line of speeds while each fits whole in the row type, else
-  two or three to a line, as every choice row in Settings and Aa does.
+- **Listening**: the engines (Apple and the on-device ones: download, cancel, the selection ✓, a
+  downloaded one's grey ✓ before its second line, *Remove Download* on a swipe), *Voice ›* and *Language ›* (pages of their own; no symbols in this card, as the
+  engines have none), and *Speed* (*Speed 1× ›*, as *Voice* and *Language*): a page of the speeds
+  Now Playing's speed lists, 0.75× to 2×, the chosen one ✓.
 - **Browsing**: *Block Ads* (on by default): requests to common ad and tracker hosts don't load
   in any of the app's web views; a change applies to pages loaded after it.
 - **Downloads & Storage**: *Downloads ›* (the Downloads list) and the listening audio kept on
