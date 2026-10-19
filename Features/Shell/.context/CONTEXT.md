@@ -48,8 +48,10 @@ changing the shell code.
   them into the web view's insets (unchanged when they hide, so the text never moves) and puts the
   chrome in its content's environment. The reading web view feeds it finger drags and taps
   (`HTMLReadingView+Taps.swift`); programmatic scrolls never reach it. While hidden, the web view
-  hands no pull to the sheet (`pullHandoff.handoff = nil`); a drag's `canPull` is fixed when it
-  begins, so the pull that brings the bars back never closes the sheet. Pages mode reports its
+  hands no pull to the sheet (`pullHandoff.handoff = nil`); a drag's `canPull` and hand-off are
+  fixed when it begins, so the pull that brings the bars back never closes the sheet and a pull
+  that began with the bars showing always finishes. Movement that pulls the sheet never shows or
+  hides the bars. Pages mode reports its
   footer's height back to the chrome (`pageFooter`, with `homeIndicator` from `Sheet`) so what
   floats over the text sits above the footer.
 - **The app's colour is global**: `Palette.accent` and its kin read `AppAppearance.shared`, so a
