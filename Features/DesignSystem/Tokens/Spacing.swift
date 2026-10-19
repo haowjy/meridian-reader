@@ -26,6 +26,6 @@ enum Spacing {
 enum Radius {
     /// Cards, grouped lists, sheets, the Now Playing bar.
     static let card: CGFloat = 12
-    /// Labelled pill buttons (48 pt tall at the default text size).
+    /// Labelled pill buttons (48 pt tall at the default text size); a toast that wraps.
     static let pill: CGFloat = 24
 }

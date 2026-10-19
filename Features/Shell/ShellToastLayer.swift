@@ -10,7 +10,8 @@ struct ShellToastLayer: View {
     @Environment(ShellState.self) private var shell
 
     /// A line with no height at the chrome's top edge; the toast hangs above it, its bottom a gap
-    /// over the chrome (over the Now Playing bar's top, never on it).
+    /// over the chrome (over the Now Playing bar's top, never on it). The overlay offers the toast
+    /// that zero height, which would cut its message to one line: it takes its own height.
     var body: some View {
         Color.clear
             .frame(maxWidth: .infinity)
@@ -25,6 +26,7 @@ struct ShellToastLayer: View {
                 shell.dismissToast(toast.id)
                 toast.action?()
             }
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, Spacing.pageMargin)
             .padding(.bottom, Spacing.xs)
             .transition(.opacity)
