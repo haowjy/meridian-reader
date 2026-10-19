@@ -20,9 +20,9 @@ import Foundation
 /// | Read | `Icons.reader` |
 /// | Continue | `Icons.play` |
 /// | Play from Here, Play from Start | `Icons.play`, `Icons.previous` |
-/// | Download / Remove Download (a page, a download) | `Icons.download` / `Icons.removeDownload` |
+/// | Download / Remove Download (a page, its menu and its download in the list) | `Icons.download` / `Icons.removeDownload` |
 /// | Download / Turn Off Download (a folder) | `Icons.download` / `Icons.turnOffDownload` |
-/// | Remove Downloads (a folder's pages) | `Icons.removeDownload` |
+/// | Remove Downloads (a folder, its menu and its download in the list) | `Icons.removeDownload` |
 /// | Add to Favorites / Remove from Favorites | `Icons.favorite` / `Icons.unfavorite` |
 /// | Move to… / Save to Folder… | `Icons.move` |
 /// | Mark as Finished / Mark as Unfinished | `Icons.markFinished` / `Icons.markUnfinished` |

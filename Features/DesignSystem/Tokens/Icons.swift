@@ -132,8 +132,8 @@ enum Icons {
     static let downloaded = "checkmark.circle.fill"
     /// The Downloads list.
     static let downloads = "tray.and.arrow.down"
-    /// *Remove Download* (a page, a download in the list) and *Remove Downloads* (a folder's
-    /// pages): the audio deleted.
+    /// *Remove Download* (a page) and *Remove Downloads* (a folder), in their menus and the
+    /// Downloads list: the audio deleted.
     static let removeDownload = "trash.circle"
     /// Turning a folder's Download off (its audio stays).
     static let turnOffDownload = "arrow.down.circle.dotted"
