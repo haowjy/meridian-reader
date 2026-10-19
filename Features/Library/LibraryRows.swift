@@ -139,6 +139,8 @@ struct LibraryFolderRow: View {
     @Environment(LibraryScreenState.self) private var screen
     @Environment(\.editMode) private var editMode
     @Environment(\.libraryScreenKey) private var screenKey
+    /// Its menu's *Turn Off Download* asked: the question shows by its ⋯.
+    @State private var turningOff: Folder?
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
@@ -156,7 +158,8 @@ struct LibraryFolderRow: View {
         let pages = playOrder
         let progress = actions.progress(of: folder, pages: pages)
         let menu = FolderMenu(folder: folder, progress: progress, hasPages: !pages.isEmpty, actions: actions,
-                              downloads: downloads, screen: screen, onSelect: onSelect)
+                              downloads: downloads, screen: screen, onTurnOffDownload: { turningOff = folder },
+                              onSelect: onSelect)
         opening(row(progress, download: downloads.state(of: folder, pages: pages), menu: isEditing ? nil : AnyView(menu)))
             .accessibilityIdentifier("folderRow")
             .libraryDropRow(.folder(folder.id), in: screen)
@@ -208,7 +211,8 @@ struct LibraryFolderRow: View {
                        isDropTarget: screen.dropTarget == folder.id,
                        insertionEdge: screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil,
                        download: download, isFavorite: marksFavorite && folder.isFavorite,
-                       folderHasDetails: folder.hasDetails, menu: menu)
+                       folderHasDetails: folder.hasDetails, menu: menu,
+                       menuAnchor: AnyView(Color.clear.turnOffDownloadQuestion($turningOff)))
     }
 
     /// What is in it, as its screen's header counts it: ["2 folders", "3 pages"]; ["Empty"].

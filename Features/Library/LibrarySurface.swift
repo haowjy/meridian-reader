@@ -23,6 +23,8 @@ struct LibrarySurface: View {
     @Environment(DownloadCenter.self) private var downloads
     @Environment(FollowCenter.self) private var follow
     @State private var screen = LibraryScreenState()
+    /// The ⋯'s *Turn Off Download* asked: the question shows by the ⋯.
+    @State private var turningOff: Folder?
     @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
 
     private var search: SearchSession { shell.librarySearch }
@@ -107,6 +109,7 @@ struct LibrarySurface: View {
                 let screenMenu = screenMenu
                 return .library(screenMenu.menu, perform: screenMenu.perform)
             }
+            .turnOffDownloadQuestion($turningOff)
             .toolbarSlot(BottomToolbarLayout.moreSlot)
         }
     }
@@ -116,7 +119,8 @@ struct LibrarySurface: View {
     private var screenMenu: LibraryScreenMenu {
         LibraryScreenMenu(library: library, speech: speech, shell: shell, downloads: downloads, follow: follow, screen: screen,
                           top: shell.libraryPath.last, topLevelSort: $topLevelSort,
-                          showMoved: { shell.libraryPath = library.path(to: $0) }) { tile in
+                          showMoved: { shell.libraryPath = library.path(to: $0) },
+                          onTurnOffDownload: { turningOff = $0 }) { tile in
             switch tile {
             case .favorites: shell.showFavorites()
             case .history: shell.present(.history)

@@ -74,8 +74,8 @@ struct PageMenu: View {
 /// *Continue* and *Play from Start* dimmed while none of its pages play. *Download* / *Turn Off
 /// Download* is one row, its face the folder's Download toggle (`DownloadCenter.isOn`), whatever
 /// its header's control shows: *Download* turns it on (`DownloadCenter.download`), dimmed while
-/// the folder has no pages; *Turn Off Download* asks, as the header's control does, then turns it
-/// off and keeps what is downloaded.
+/// the folder has no pages; *Turn Off Download* asks (`onTurnOffDownload`), as the header's
+/// control does, then turns it off and keeps what is downloaded.
 struct FolderMenu: View {
     let folder: Folder
     let progress: FolderProgress
@@ -83,6 +83,9 @@ struct FolderMenu: View {
     let actions: LibraryActions
     let downloads: DownloadCenter
     let screen: LibraryScreenState
+    /// *Turn Off Download*: its host asks `turnOffDownloadQuestion` by the control the menu
+    /// opened from (the row's ⋯, the header's *More*).
+    let onTurnOffDownload: () -> Void
     /// *Select*: enters Edit with this row selected (folder screens only).
     var onSelect: (() -> Void)?
 
@@ -96,7 +99,7 @@ struct FolderMenu: View {
         let isOn = downloads.isOn(folder)
         Button(isOn ? Verbs.turnOffDownload : Verbs.download, systemImage: isOn ? Icons.turnOffDownload : Icons.download) {
             if isOn {
-                screen.confirmTurnOffDownload(folder)
+                onTurnOffDownload()
             } else {
                 DownloadActions(downloads: downloads, shell: actions.shell).download(folder)
             }

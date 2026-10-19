@@ -114,9 +114,12 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   margin in a Library list, so the header adds no padding of its own. Its Download control's
   taps (download, or ask *Turn Off Download* while the toggle is on) are `FolderScreen`'s
   `headerActions`; the ▶ is `playFolder`; *More* is `FolderMenu`. The *Turn Off Download*
-  question is the surface's (`LibraryScreenState.confirmTurnOffDownload`, shown by
-  `libraryDialogs`), so the header's control, `FolderMenu` (a row's ⋯ and long press, *More*)
-  and the screen's ⋯ ask the same one.
+  question is one modifier, `turnOffDownloadQuestion`, attached by each control that asks it
+  (a confirmation dialog points its iOS 26 popover at the view it is attached to): the header's
+  Download control and *More* (`FolderHeader`'s `anchor` slot, behind each side control), a
+  folder row's ⋯ (`ListRow.menuAnchor`; its long press asks there too) and the band's ⋯
+  (`LibrarySurface`). Each host keeps the folder being asked about in its own `@State`, so only
+  that one presents; `FolderMenu` reports the tap through `onTurnOffDownload`.
 - **Books and series are folders** (decision D19): one screen (`FolderScreen`), one page row
   (`LibraryPageRow`), one ⋯ (`LibraryMenu.Screen.folder`), one delete question. Nothing refuses
   a move, a drop, a sort or a subfolder because of `kind`: only cycles, and a page out of the

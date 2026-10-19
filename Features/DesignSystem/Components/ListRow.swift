@@ -71,6 +71,9 @@ struct ListRow: View {
     var folderHasDetails = false
     /// The rows of its ⋯ menu, the same as its long press (nil: no ⋯, as in Edit).
     var menu: AnyView?
+    /// A view laid behind the ⋯ at its size (behind the row when it has none): a question its menu
+    /// asks attaches there, so on iOS 26 its popover points at the ⋯.
+    var menuAnchor: AnyView?
 
     /// 56 pt at the default text size; larger text grows the row through its content, and the
     /// minimum only up to `BottomChrome.maxTextGrowth`.
@@ -125,8 +128,10 @@ struct ListRow: View {
                 .buttonStyle(.borderless)
                 .accessibilityLabel("More")
                 .accessibilityIdentifier("rowMore")
+                .background { menuAnchor }
             }
         }
+        .background { if menu == nil { menuAnchor } }
         .padding(.leading, Spacing.m)
         .padding(.trailing, menu != nil ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
         .padding(.vertical, Spacing.xs)

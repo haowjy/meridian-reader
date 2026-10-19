@@ -318,7 +318,9 @@ commas.
   reads whether the toggle is on and the percent. Tapping ↓ turns the toggle on (or keeps it on):
   every page in it downloads and so does every page added to it later (Follow's new chapters, a
   page filed in). Tapping it while it downloads or is downloaded, with the toggle on, asks *Turn
-  Off Download* ("Downloaded audio stays. New pages won’t download."): off, nothing new downloads
+  Off Download* ("Downloaded audio stays. New pages won’t download."), shown by the control (a
+  popover pointing at it); asked from a menu (*More*, a folder row's ⋯ or long press, the screen's
+  ⋯), the same question points at the button that opened the menu. Off, nothing new downloads
   and what is downloaded stays. Downloaded with the toggle off, a tap turns it on again and
   nothing is downloaded again: it stays ✓ and a toast says new pages will download. *More*'s
   *Download / Turn Off Download* row is the same toggle, its face whether the toggle is on, so
