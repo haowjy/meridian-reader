@@ -8,7 +8,7 @@ import AVFoundation
 ///    text and the fixed-size trailing accessory, so rows never change height.
 /// 2. **Voice ›**: the selected engine's voices (`VoicePage`).
 /// 3. **Language ›**: Automatic (match article) or a manual language (`LanguagePage`).
-/// 4. **Speed**: the playback speeds in one line.
+/// 4. **Speed ›**: the playback speeds, the list Now Playing's speed opens (`SpeedPage`).
 struct ListeningSettingsSection: View {
     @Bindable var speech: SpeechController
 
@@ -39,15 +39,9 @@ struct ListeningSettingsSection: View {
                             accessibilityID: "settingsLanguage") {
                 LanguagePage(speech: speech)
             }
-            SettingsControlRow(title: String(localized: "Speed")) {
-                ChoicePicker(options: ListenRate.options.map(RateOption.init), selection: Binding(
-                    get: { RateOption(speech.rateMultiplier) },
-                    set: { speech.setRateMultiplier($0.rate) }
-                ), identifier: "settingsSpeed") { option in
-                    Text(ListenRate.label(option.rate))
-                        .typeStyle(.row)
-                        .monospacedDigit()
-                }
+            SettingsLinkRow(title: String(localized: "Speed"), symbol: nil, value: ListenRate.label(speech.rateMultiplier),
+                            accessibilityID: "settingsSpeed") {
+                SpeedPage(speech: speech)
             }
         } header: {
             SectionHeader(title: String(localized: "Listening")).listHeader()
@@ -154,14 +148,27 @@ struct ListeningSettingsSection: View {
     }
 }
 
-/// A speed as a choice (`ChoicePicker` needs identifiable options).
-private struct RateOption: Identifiable, Hashable {
-    let rate: Double
-    var id: String { ListenRate.label(rate) }
+/// Settings › Listening › Speed: `ListenRate`'s speeds, slowest first, with Now Playing's speed
+/// list's labels and ids (`listenSpeedOption-1×`); the chosen one ✓.
+private struct SpeedPage: View {
+    @Bindable var speech: SpeechController
 
-    init(_ rate: Double) {
-        // The stored rate matched to the nearest option, so the picker always shows one.
-        self.rate = ListenRate.options.min { abs($0 - rate) < abs($1 - rate) } ?? rate
+    var body: some View {
+        List {
+            Section {
+                ForEach(ListenRate.options, id: \.self) { rate in
+                    SettingsChoiceRow(title: ListenRate.label(rate), subtitle: nil,
+                                      selected: speech.rateMultiplier == rate,
+                                      accessibilityID: "listenSpeedOption-\(ListenRate.label(rate))") {
+                        speech.setRateMultiplier(rate)
+                    }
+                }
+            }
+            .listCard()
+        }
+        .cardListStyle()
+        .navigationTitle(String(localized: "Speed"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

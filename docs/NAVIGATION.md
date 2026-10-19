@@ -881,8 +881,8 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
     chunk durations), with a 0.25 s lead-in so the first word isn't clipped. Not rendered yet: the
     render queue does that chunk first (then the rest of the paragraph). Apple voice: speaks from
     the sentence's first character.
-- **Speed** (*1×*, at the end of the scrub capsule; a tap opens the list; also Settings ›
-  Listening › Speed): applied in place — the current sentence keeps going at the new speed.
+- **Speed** (*1×*, at the end of the scrub capsule; a tap opens the list, 0.75× to 2×; Settings ›
+  Listening has it as a row, *Speed 1× ›*, opening the same list): applied in place — the current sentence keeps going at the new speed.
   Local voices: a pitch-preserving time-stretch on the player (`AVAudioPlayer.enableRate` /
   `rate`; all audio, including Apple-fallback units, is rendered at 1×), so nothing is re-queued,
   re-rendered or restarted. The Apple voice (AVSpeechSynthesizer can't change a running
@@ -1006,8 +1006,8 @@ bottom:
 - **Reading**: the reading appearance above, with a sample of what is chosen.
 - **Listening**: the engines (Apple and the on-device ones: download, cancel, ✓, swipe to delete
   a download), *Voice ›* and *Language ›* (pages of their own; no symbols in this card, as the
-  engines have none), and *Speed*: one line of speeds while each fits whole in the row type, else
-  two or three to a line, as every choice row in Settings and Aa does.
+  engines have none), and *Speed* (*Speed 1× ›*, as *Voice* and *Language*): a page of the speeds
+  Now Playing's speed lists, 0.75× to 2×, the chosen one ✓.
 - **Browsing**: *Block Ads* (on by default): requests to common ad and tracker hosts don't load
   in any of the app's web views; a change applies to pages loaded after it.
 - **Downloads & Storage**: *Downloads ›* (the Downloads list) and the listening audio kept on
