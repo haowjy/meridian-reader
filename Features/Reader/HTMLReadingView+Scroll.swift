@@ -52,7 +52,9 @@ final class ScrollTextLayout: ReadingTextLayout {
     }
 
     func dragEnded(velocity: CGFloat) {
-        guard host.chrome?.hidden == true, let sv = scrollView, let webView = host.webView, host.loaded else { return }
+        // Following places the text itself; a drag that scrolled has already ended following.
+        guard host.chrome?.hidden == true, !host.follows, let sv = scrollView, let webView = host.webView,
+              host.loaded else { return }
         let layout = sv.readingLayout
         guard layout.isLaidOut else { return }
         // Where UIKit's glide would stop (its normal deceleration), as the line to settle on.

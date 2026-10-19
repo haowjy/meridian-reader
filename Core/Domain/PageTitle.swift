@@ -16,6 +16,13 @@ enum PageTitle {
         [title, source, address].lazy.compactMap { $0 }.first { !$0.isEmpty } ?? ""
     }
 
+    /// The source as line two's first part, after `lineOne`: nil when there is no title, since
+    /// line one already is the source then (or when there is no source).
+    static func lineTwoSource(title: String?, source: String?) -> String? {
+        guard let title, !title.isEmpty, let source, !source.isEmpty else { return nil }
+        return source
+    }
+
     /// What a page's artwork shows the first letter of when it has no picture: its source, else
     /// its title, else its address.
     static func artworkLetter(title: String?, source: String?, address: String?) -> String {

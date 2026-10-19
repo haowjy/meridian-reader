@@ -112,7 +112,7 @@ struct LibraryPageRow: View {
     private var subtitle: String? {
         if let place = screenKey.place(of: page.folder) { return place }
         if page.isChapter { return nil }
-        return page.byline.isEmpty || page.givenTitle == nil ? nil : page.byline
+        return PageTitle.lineTwoSource(title: page.givenTitle, source: page.byline)
     }
 }
 

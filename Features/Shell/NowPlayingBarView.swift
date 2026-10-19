@@ -95,10 +95,9 @@ private struct BarProgress: View {
         let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: offset, rate: speech.rateMultiplier)
         NowPlayingBar(
             title: now.lineOne,
-            // Untitled, line one is already its source.
             detail: now.isFinished ? [.finished]
-                : [now.title == nil ? nil : now.source, ListeningTime.leftLabel(minutes: left)].compactMap { $0 }
-                    .map { DetailPart($0) },
+                : [PageTitle.lineTwoSource(title: now.title, source: now.source), ListeningTime.leftLabel(minutes: left)]
+                    .compactMap { $0 }.map { DetailPart($0) },
             artwork: cover.image(for: now.pageKey, data: now.artwork),
             artworkLetter: now.artworkLetter,
             progress: doc.progress(atUTF16Offset: offset),
@@ -151,7 +150,7 @@ private struct ResumeBar: View {
 
     /// Its source (untitled, line one is already that), then the time left or ✓ Finished.
     private func detail(_ progress: ListRow.Progress) -> [DetailPart] {
-        let source = page.givenTitle == nil ? [] : [DetailPart(page.source)]
+        let source = PageTitle.lineTwoSource(title: page.givenTitle, source: page.source).map { [DetailPart($0)] } ?? []
         switch progress {
         case .partWay(_, let minutesLeft): return source + [DetailPart(ListeningTime.leftLabel(minutes: minutesLeft))]
         case .finished: return [.finished]
