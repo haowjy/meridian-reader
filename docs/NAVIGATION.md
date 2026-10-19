@@ -908,8 +908,9 @@ Both sheets read full screen the same way (`ReadingChrome`); Follow's chapter pr
   grabber, the top bar and the bottom band together: they slide off their edges and fade (fade
   only under Reduce Motion). The status bar fades out with them (and back in with them, in every
   theme), the home indicator dims, and the strip above the sheet takes the page's colour, so only
-  the text shows. In Scroll the text's top edge fades into the page over a line's height, so a
-  line scrolled part-way past it never shows cut. **Scrolling up a little**
+  the text shows. In Scroll the text's top edge fades into the page over a line's height, and a
+  drag let go comes to rest as an edge tap lands, with a whole line under the fade (where its
+  glide would stop, moved to the nearest line), so no line rests cut by the screen's edge. **Scrolling up a little**
   (about 8 pt) or **a tap in the middle of the text** brings them back over the text; the text
   doesn't move either way. The next scroll down or middle tap hides them again. Scrolls the app
   makes (following the audio, a scrub, opening at a spot) never do. The bars stay while VoiceOver
