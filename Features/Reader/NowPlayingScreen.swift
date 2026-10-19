@@ -48,7 +48,7 @@ struct NowPlayingScreen: View {
             // Only the playing page's content: never the page before's, for a frame, on advance.
             let article = content?.key == now.pageKey ? content?.article : nil
             PageLookup(key: now.pageKey, canonicalURL: article?.origin.canonicalURL) { page in
-                player(now, PageActions(article: article, page: page, library: library, shell: shell, speech: speech,
+                player(now, PageActions(page: page, article: article, library: library, shell: shell, speech: speech,
                                         downloads: downloads, follow: follow))
             }
             .environment(\.sheetRisesOnAppear, shell.nowPlayingOpensAt == nil)
@@ -87,9 +87,7 @@ struct NowPlayingScreen: View {
                 save: AnyView(SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
                                                onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
                     .disabled(actions.article == nil)),
-                more: AnyView(MoreMenuButton(id: "nowPlayingMore") {
-                    .reader(menu(now, actions), perform: { actions.perform($0) { goTo(now) } })
-                }),
+                more: AnyView(MoreMenuButton(id: "nowPlayingMore") { actions.readingPageMenu(.nowPlaying(goTo(now, actions))) }),
                 onScrubPreview: { p in
                     scrubPreview = p
                     if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
@@ -139,26 +137,17 @@ struct NowPlayingScreen: View {
         return saved ? String(localized: "Library") : now.playingFrom.name
     }
 
-    /// The page's ⋯ with *Go to*: the folder the page plays from, or the Library for a saved page
-    /// in none; dimmed *Go to Library* for a page that plays from its site (⋯ → Website opens it).
-    private func menu(_ now: NowPlaying, _ actions: PageActions) -> ReaderMenu {
-        var menu = actions.readerMenu
-        if case .folder = now.playingFrom {
-            menu.place = ReaderMenu.Place(name: now.playingFrom.name, symbol: Icons.folder)
-            menu.goTo = .enabled
-        } else {
-            menu.goTo = MenuAvailability(when: actions.isSaved)
+    /// ⋯ → *Go to*: the folder the page plays from, or the Library's home for a saved page in
+    /// none; dimmed *Go to Library* for a page that plays from its site (⋯ → Website opens it).
+    /// Playback keeps going.
+    private func goTo(_ now: NowPlaying, _ actions: PageActions) -> PageMenu.GoTo {
+        if case .folder(let id, _) = now.playingFrom {
+            return PageMenu.GoTo(name: now.playingFrom.name, symbol: Icons.folder, availability: .enabled) { [shell, library] in
+                if let folder = library.folder(id: id) { shell.showLibrary(at: library.path(to: folder)) }
+            }
         }
-        return menu
-    }
-
-    /// ⋯ → *Go to*: the Library at the folder, or the Library's home. Playback keeps going.
-    private func goTo(_ now: NowPlaying) {
-        if case .folder(let id, _) = now.playingFrom, let folder = library.folder(id: id) {
-            shell.showLibrary(at: library.path(to: folder))
-        } else {
-            shell.showLibrary(at: [])
-        }
+        return PageMenu.GoTo(name: String(localized: "Library"), symbol: Icons.library,
+                             availability: MenuAvailability(when: actions.isSaved)) { [shell] in shell.showLibrary(at: []) }
     }
 
     /// The playing page changed: its content, and the text following the audio again.
@@ -260,7 +249,7 @@ private struct SpokenText: View {
         )
     }
 
-    /// The title card: the site and time left (or "✓ Finished"). Replaced in the page only when its
+    /// The title card: the site and time left (or ✓ Finished). Replaced in the page only when its
     /// text changes, so once a minute at most while playing.
     private var titleCard: ReadingTopView {
         let doc = speech.document
@@ -313,7 +302,7 @@ struct JumpHint: View {
                 .minimumScaleFactor(0.85)
                 .accessibilityIdentifier("listenJumpHint")
             Spacer(minLength: Spacing.xxs)
-            Button("Cancel", action: onCancel)
+            Button(Verbs.cancel, action: onCancel)
                 .typeStyle(.caption, weight: .semibold)
                 .accessibilityIdentifier("listenJumpCancel")
         }

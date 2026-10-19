@@ -1,66 +1,130 @@
 import Foundation
 
-/// One label per action, app-wide: the ⋯ panel, long-press menus, header buttons, Edit's bar and
-/// sheet titles say the same thing for the same action, next to the same symbol (`Icons`). An
-/// ellipsis ends a label only when a picker or a question follows (the Move tree, *Delete…*).
+/// One label per action, app-wide: menus, the ⋯ panel, swipes, header buttons, Edit's bar and
+/// sheet titles say the same thing for the same action, next to the same symbol (`Icons`). A
+/// label used in more than one place lives here; a literal repeating one is a bug.
+///
+/// **Case.** Title Case (iOS's: words of four letters or fewer that join, like *to*, *from*,
+/// *in*, *as*, stay lower case) for what names a control or a place: buttons, menu rows, swipe
+/// actions, sheet and screen titles, section headers, setting and fact labels ("Last Checked"),
+/// tab names, empty-state titles. Sentence case for what reads as a sentence or a value: notes,
+/// footers, empty-state descriptions, toasts, a row's status, a setting's or fact's value
+/// ("today 8:02 AM").
+///
+/// **Ellipsis.** A label ends in "…" only when more input follows before anything happens: a
+/// picker, a question or a name to type (*Move to…*, *Rename…*, *Delete Folder…*). A sheet's title
+/// is its label without it ("Save to Folder").
 ///
 /// | Verb | Symbol |
 /// |---|---|
-/// | Move to… | `Icons.move` |
-/// | Save to Folder… | `Icons.save` |
+/// | Read | `Icons.reader` |
+/// | Continue | `Icons.play` |
+/// | Play from Here, Play from Start | `Icons.play`, `Icons.previous` |
+/// | Download / Remove Download (a page, a download) | `Icons.download` / `Icons.removeDownload` |
+/// | Download / Turn Off Download (a folder) | `Icons.download` / `Icons.turnOffDownload` |
+/// | Remove Downloads (a folder's pages) | `Icons.removeDownload` |
+/// | Add to Favorites / Remove from Favorites | `Icons.favorite` / `Icons.unfavorite` |
+/// | Move to… / Save to Folder… | `Icons.move` |
+/// | Mark as Finished / Mark as Unfinished | `Icons.markFinished` / `Icons.markUnfinished` |
+/// | Share | `Icons.share` |
+/// | Select | `Icons.select` |
 /// | Save to Library / Remove from Library | `Icons.save` / `Icons.unsave` |
 /// | Remove from Recent | `Icons.removeFromRecent` |
-/// | Add to Favorites / Remove from Favorites | `Icons.favorite` / `Icons.unfavorite` |
-/// | Play from Start | `Icons.previous` |
-/// | Mark as Finished / Mark as Unfinished | `Icons.markFinished` / `Icons.markUnfinished` |
-/// | Remove | `Icons.delete` |
-/// | Download, Download Folder, Download Book | `Icons.download` |
-/// | Remove Download (a page) | `Icons.removeDownload` |
-/// | Turn Off Download (a folder) | `Icons.turnOffDownload` |
-/// | Delete Downloads | `Icons.deleteDownloads` |
-/// | Read | `Icons.reader` |
+/// | Rename…, Edit Details… | `Icons.rename`, `Icons.editDetails` |
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
-/// | Settings | `Icons.settings` |
-/// | Downloads | `Icons.downloads` |
-/// | Follow… / Unfollow / Follow Again | `Icons.follow` / `Icons.unfollow` / `Icons.follow` |
-/// | Check Now | `Icons.reload` |
+/// | Pause / Resume (a download), Re-download, Keep | `Icons.pause` / `Icons.download`, `Icons.redownload`, `Icons.keep` |
+/// | New Folder…, Import Book…, Follow… | `Icons.newFolder`, `Icons.book`, `Icons.follow` |
+/// | Downloads, Settings | `Icons.downloads`, `Icons.settings` |
 enum Verbs {
-    static let moveTo = String(localized: "Move to…")
-    static let saveToFolder = String(localized: "Save to Folder…")
-    static let saveToLibrary = String(localized: "Save to Library")
-    static let removeFromLibrary = String(localized: "Remove from Library")
-    /// A Recent row's: the same remove as *Remove from Library* (in no list after, star kept).
-    static let removeFromRecent = String(localized: "Remove from Recent")
+    // MARK: A page
+
+    /// Open it to read (the Reader; Now Playing for the page you hear; a link in the browser).
+    static let read = String(localized: "Read")
+    /// A folder's ▶ and the Reader's Listen for a page part-way: on from where it was left.
+    static let `continue` = String(localized: "Continue")
+    /// A page in a folder: play from its start, on through the folder.
+    static let playFromHere = String(localized: "Play from Here")
+    static let playFromStart = String(localized: "Play from Start")
+    static let download = String(localized: "Download")
+    /// A page's or a download's: its audio deleted, and it stays out of every download (P8).
+    static let removeDownload = String(localized: "Remove Download")
+    /// A folder's: *Remove Download* for each of its pages.
+    static let removeDownloads = String(localized: "Remove Downloads")
+    static let turnOffDownload = String(localized: "Turn Off Download")
     static let addToFavorites = String(localized: "Add to Favorites")
     static let removeFromFavorites = String(localized: "Remove from Favorites")
-    static let playFromStart = String(localized: "Play from Start")
-    /// A page row's menu: open it to read (the Reader; Now Playing for the page you hear).
-    static let read = String(localized: "Read")
+    static let moveTo = String(localized: "Move to…")
+    /// The Move tree when it saves a page into the folder picked (🔖 held, a menu's row).
+    static let saveToFolder = String(localized: "Save to Folder…")
     static let markFinished = String(localized: "Mark as Finished")
     static let markUnfinished = String(localized: "Mark as Unfinished")
+    static let markAllAboveFinished = String(localized: "Mark All Above as Finished")
+    static let skipInPlayback = String(localized: "Skip in Playback")
+    static let playInPlayback = String(localized: "Play in Playback")
+    static let share = String(localized: "Share")
+    static let select = String(localized: "Select")
+    static let saveToLibrary = String(localized: "Save to Library")
+    static let removeFromLibrary = String(localized: "Remove from Library")
+    /// A page out of the Library: the same remove as *Remove from Library* (in no list after,
+    /// the star kept).
+    static let removeFromRecent = String(localized: "Remove from Recent")
+    static let stopListening = String(localized: "Stop Listening")
+    /// Edit's bar: the selected pages removed from the Library, the selected folders deleted
+    /// after asking.
     static let remove = String(localized: "Remove")
-    static let download = String(localized: "Download")
-    static let removeDownload = String(localized: "Remove Download")
-    static let turnOffDownload = String(localized: "Turn Off Download")
-    static let deleteDownloads = String(localized: "Delete Downloads")
-    /// The ⋯ panel's last row and the screen it opens.
-    static let settings = String(localized: "Settings")
-    static let downloads = String(localized: "Downloads")
-    /// ⋯ → *Follow…*: a story's table of contents, read into a folder of chapters.
+
+    // MARK: A folder
+
+    static let rename = String(localized: "Rename…")
+    static let editDetails = String(localized: "Edit Details…")
+
+    /// *Delete Folder…* / *Delete Book…*: a book is named as one.
+    static func deleteFolder(isBook: Bool) -> String {
+        isBook ? String(localized: "Delete Book…") : String(localized: "Delete Folder…")
+    }
+
+    // MARK: A download
+
+    static let pause = String(localized: "Pause")
+    static let resume = String(localized: "Resume")
+    static let pauseAll = String(localized: "Pause All")
+    static let resumeAll = String(localized: "Resume All")
+    static let redownload = String(localized: "Re-download")
+    /// Keep a download made in another voice.
+    static let keep = String(localized: "Keep")
+    /// A voice model's (Settings): the model itself, not a page's audio.
+    static let delete = String(localized: "Delete")
+
+    // MARK: Screens
+
+    static let newFolder = String(localized: "New Folder…")
+    static let newFolderInside = String(localized: "New Folder Inside…")
+    static let importBook = String(localized: "Import Book…")
+    /// A story's table of contents, read into a folder of chapters.
     static let follow = String(localized: "Follow…")
     static let unfollow = String(localized: "Unfollow")
     static let followAgain = String(localized: "Follow Again")
     static let checkNow = String(localized: "Check Now")
+    static let sort = String(localized: "Sort")
+    static let newSearch = String(localized: "New Search")
+    static let reload = String(localized: "Reload")
+    /// The ⋯ panel's last rows and the screens they open.
+    static let downloads = String(localized: "Downloads")
+    static let settings = String(localized: "Settings")
+    static let favorites = String(localized: "Favorites")
+    /// The browser's: pages visited.
+    static let history = String(localized: "History")
+    static let removeFromHistory = String(localized: "Remove from History")
+
+    // MARK: Sheets
+
     static let done = String(localized: "Done")
     static let cancel = String(localized: "Cancel")
+    static let save = String(localized: "Save")
+    static let edit = String(localized: "Edit")
 
-    /// *Download Folder* / *Download Book*: a book or series is named as one.
-    static func downloadFolder(isBook: Bool) -> String {
-        isBook ? String(localized: "Download Book") : String(localized: "Download Folder")
-    }
-
-    /// *Delete Folder…* / *Delete Book…*.
-    static func deleteFolder(isBook: Bool) -> String {
-        isBook ? String(localized: "Delete Book…") : String(localized: "Delete Folder…")
+    /// A sheet's title for the picker a label opens: the label without its ellipsis.
+    static func title(_ label: String) -> String {
+        label.hasSuffix("…") ? String(label.dropLast()) : label
     }
 }

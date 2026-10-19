@@ -55,7 +55,7 @@ Rules:
   carries on, and otherwise the session finishes.
 - At the end of a page (or of a book or series) the engines stop, the audio session deactivates
   and the lock screen clears, but the page stays bound in `finished`: the Now Playing bar keeps it
-  with ▶ and "✓ Finished". Only *Stop Listening* (the bar's long-press) unbinds it, or the
+  with ▶ and ✓ Finished. Only *Stop Listening* (the bar's long-press) unbinds it, or the
   library changing the page under it: removed from the Library (once that is saved), deleted,
   its text revised by a *Replace*, or moved by a merge onto a page holding other text
   (`LibraryStore.stopPlaybackIfPlaying`, `rekeyActiveSession` → `SpeechController.stopIfPlaying`,
@@ -367,9 +367,9 @@ thermal / Low Power hold applies, and in the background a download's job parks l
 article that isn't playing (admission, below). No page is handed to the queue while the app is in
 the background (a fetch needs a window), and nothing renders for downloads while Apple's voice is
 selected (`wantsLocalBake`). Pause and *Remove* take the page's job out of the queue
-(`removeBakeJob`), and *Remove* and *Delete Downloads* delete audio (`DownloadCenter.purgeAudio`),
+(`removeBakeJob`), and *Remove Download* and *Remove Downloads* delete audio (`DownloadCenter.purgeAudio`),
 never for what listening needs (`needsAudio`: the page bound to the session, playing, paused or
-finished, and the chapter staged after it): its job and its audio stay. *Remove Download* (a page) or *Delete Downloads* (a folder) takes
+finished, and the chapter staged after it): its job and its audio stay. *Remove Download* (a page, a download in the list) or *Remove Downloads* (a folder) takes
 the page out of every download (a folder's download drops it, never queues it again), the page
 playing too, whose audio stays for the session, saved or ephemeral as the library keeps the page. The voice a download is shown in is read
 from its audio (`ArticleAudioCache.renderedVoice`: the voice most of its paragraphs are in), so a

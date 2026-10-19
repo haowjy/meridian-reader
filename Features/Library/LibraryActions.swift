@@ -52,23 +52,6 @@ struct LibraryActions {
         if page.isWaitingChapter { follow.play(page) } else { speech.start(.page(page), at: spot) }
     }
 
-    /// *Save* on a page played without saving (decision D5): into the Library's top level
-    /// through the one save path, its audio kept and playback untouched. False when it couldn't
-    /// be saved (a toast says so).
-    @discardableResult
-    func save(_ page: Page) -> Bool {
-        var article = ReaderArticle(page: page)
-        if article.document.isEmpty { article.document = page.listenDocument() }
-        return shell.attempt(String(localized: "Couldn’t save")) {
-            try ArticleSaveCoordinator(library: library, speech: speech).save(article)
-        } != nil
-    }
-
-    func share(_ page: Page) {
-        guard let url = page.url, url.isWeb else { return }
-        shell.present(.share(url))
-    }
-
     // MARK: - Folders
 
     func playState(of folder: Folder) -> PlayState {
@@ -190,7 +173,7 @@ struct LibraryActions {
         })
         let library = library
         let shell = shell
-        shell.present(.moveTo(MoveRequest(title: String(localized: "Move to…"), current: items.count == 1 ? current : nil,
+        shell.present(.moveTo(MoveRequest(title: Verbs.title(Verbs.moveTo), current: items.count == 1 ? current : nil,
                                           moving: moving) { destination in
             guard shell.attempt(String(localized: "Couldn’t move"), { try library.move(items, to: destination) }) != nil
             else { return false }

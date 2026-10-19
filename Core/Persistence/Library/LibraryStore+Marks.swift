@@ -30,7 +30,7 @@ extension LibraryStore {
         try edit(skips ? "skip in playback" : "play in playback") { page.skipsInPlayback = skips }
     }
 
-    /// Whether `page` has audio on disk for any voice (*Delete Downloads* is offered).
+    /// Whether `page` has audio on disk for any voice (*Remove Downloads* is offered).
     func hasDownloads(_ page: Page) -> Bool {
         guard let key = page.key else { return false }
         return audio.audioCache.hasCache(for: key)

@@ -7,9 +7,9 @@ import SwiftUI
 /// ```
 /// ┌ bar ────────────────────────────────────┐
 /// │ [🌐] ╭ Now Playing bar ──────────────╮ │  ← 🌐 the browser; the bar always there
-/// │ ( 🔍 Search Library                  ) │  ← filters the home's selected tab
-/// │  [‹]  [›]  [＋]  [🕘]  [⋯]             │  ← ‹ up a level; › dimmed; ＋ Import Book…,
-/// └──────────────────────────── home indicator ┘   New Folder; 🕘 History; ⋯ for the screen
+/// │ ( 🔍 Search Library                  ) │  ← filters the home's tab, and names it
+/// │  [‹]  [›]  [＋]  [🕘]  [⋯]             │  ← ‹ up a level; › dimmed; ＋ New Folder…,
+/// └──────────────────────────── home indicator ┘   Import Book…; 🕘 History; ⋯ for the screen
 /// ```
 ///
 /// The search filters the home list in place; starting one on a folder screen goes back to the
@@ -49,7 +49,7 @@ struct LibrarySurface: View {
                 onCancel: shell.endLibrarySearch,
                 isBarCovered: shell.reader != nil
             ) { focus in
-                SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: String(localized: "Search Library"), focus: focus,
+                SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: shell.homeTab.searchPrompt, focus: focus,
                             fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard)
             } toolbar: {
                 if screen.isEditing {
@@ -90,25 +90,22 @@ struct LibrarySurface: View {
                 .disabled(true)
                 .toolbarSlot(1)
             Menu {
-                Button("Import Book…", systemImage: Icons.book) {
+                Button(Verbs.newFolder, systemImage: Icons.newFolder) { screen.makeFolder(in: screenMenu.topFolder) }
+                    .accessibilityIdentifier("libraryNewFolder")
+                Button(Verbs.importBook, systemImage: Icons.book) {
                     BookImportActions(library: library, shell: shell).pickBook(into: screenMenu.topFolder)
                 }
                 .accessibilityIdentifier("libraryImportBook")
-                Button("New Folder", systemImage: Icons.newFolder) { screen.makeFolder(in: screenMenu.topFolder) }
-                    .accessibilityIdentifier("libraryNewFolder")
             } label: {
                 Image(systemName: Icons.add).toolbarIconFrame()
             }
             .accessibilityLabel("Add")
             .accessibilityIdentifier("libraryAdd")
             .toolbarSlot(2)
-            BandToolbarButton(systemImage: Icons.history, label: String(localized: "History"),
+            BandToolbarButton(systemImage: Icons.history, label: Verbs.history,
                               identifier: "libraryHistory") { shell.present(.history) }
                 .toolbarSlot(3)
-            MoreMenuButton(id: "libraryMore") {
-                let screenMenu = screenMenu
-                return .library(screenMenu.menu, perform: screenMenu.perform)
-            }
+            MoreMenuButton(id: "libraryMore") { screenMenu.menu }
             .turnOffDownloadQuestion($turningOff)
             .toolbarSlot(BottomToolbarLayout.moreSlot)
         }
@@ -120,12 +117,6 @@ struct LibrarySurface: View {
         LibraryScreenMenu(library: library, speech: speech, shell: shell, downloads: downloads, follow: follow, screen: screen,
                           top: shell.libraryPath.last, topLevelSort: $topLevelSort,
                           showMoved: { shell.libraryPath = library.path(to: $0) },
-                          onTurnOffDownload: { turningOff = $0 }) { tile in
-            switch tile {
-            case .favorites: shell.showFavorites()
-            case .history: shell.present(.history)
-            default: shell.leaveLibrary()
-            }
-        }
+                          onTurnOffDownload: { turningOff = $0 })
     }
 }

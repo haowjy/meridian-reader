@@ -1,14 +1,13 @@
 import SwiftUI
 
 /// One fixed-layout choice row: title, optional one-line subtitle, a fixed-size trailing
-/// accessory slot, and a fixed-size checkmark slot (checkmark / spinner / empty). State changes
-/// swap contents inside the slots, so the row's size never changes.
+/// accessory slot (a download's mark, a voice's preview), and a fixed-size checkmark slot. State
+/// changes swap contents inside the slots, so the row's size never changes.
 struct SettingsChoiceRow<Accessory: View>: View {
     let title: String
     let subtitle: String?
     let selected: Bool
     var enabled: Bool = true
-    var busy: Bool = false
     let accessibilityID: String
     let action: () -> Void
     @ViewBuilder let accessory: () -> Accessory
@@ -18,7 +17,6 @@ struct SettingsChoiceRow<Accessory: View>: View {
         subtitle: String?,
         selected: Bool,
         enabled: Bool = true,
-        busy: Bool = false,
         accessibilityID: String,
         action: @escaping () -> Void,
         @ViewBuilder accessory: @escaping () -> Accessory
@@ -27,7 +25,6 @@ struct SettingsChoiceRow<Accessory: View>: View {
         self.subtitle = subtitle
         self.selected = selected
         self.enabled = enabled
-        self.busy = busy
         self.accessibilityID = accessibilityID
         self.action = action
         self.accessory = accessory
@@ -47,9 +44,7 @@ struct SettingsChoiceRow<Accessory: View>: View {
                 .frame(width: Glyph.control, height: Glyph.control)
 
             ZStack {
-                if busy {
-                    ProgressView().controlSize(.small)
-                } else if selected {
+                if selected {
                     Image(systemName: Icons.checkmark)
                         .foregroundStyle(Palette.accent)
                         .fontWeight(.semibold)

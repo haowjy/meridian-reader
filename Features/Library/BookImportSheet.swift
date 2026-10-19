@@ -72,7 +72,7 @@ struct BookImportSheet: View {
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(flow.isWorking)
         .alert(alreadyInLibraryTitle, isPresented: isAsking) {
-            Button("Cancel", role: .cancel) { flow.cancel() }
+            Button(Verbs.cancel, role: .cancel) { flow.cancel() }
                 .accessibilityIdentifier("importReplaceCancel")
             Button("Replace") { flow.replace() }
                 .accessibilityIdentifier("importReplace")

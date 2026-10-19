@@ -65,7 +65,9 @@ enum AddressSuggestions {
             "\(page.lineOne) \(page.suggestionHost) \(page.urlString)".lowercased().contains(q)
         }
         func row(_ page: some AddressSuggestionSource, prefix: String, kind: AddressSuggestion.Kind) -> AddressSuggestion {
-            AddressSuggestion(id: "\(prefix)-\(page.id.uuidString)", title: page.lineOne, subtitle: page.suggestionHost,
+            // Untitled, line one is already its site (NT1): not again under it.
+            AddressSuggestion(id: "\(prefix)-\(page.id.uuidString)", title: page.lineOne,
+                              subtitle: page.lineOne == page.suggestionHost ? nil : page.suggestionHost,
                               faviconData: page.faviconData, host: page.suggestionHost, query: page.urlString, kind: kind)
         }
 

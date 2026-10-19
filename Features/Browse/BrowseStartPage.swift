@@ -10,8 +10,11 @@ struct BrowseStartPage: View {
     var onOpenFavorite: (Page) -> Void
     var onOpenFavoriteFolder: (Folder) -> Void
     var onShowFavorites: () -> Void
-    var onRemoveFavorite: (Page) -> Void
-    var onRenameFavorite: (Page, String) -> Void
+    /// A page tile's long press: the page's menu (`PageMenu`).
+    var pageMenu: (Page) -> AnyView
+    /// A folder tile's long press: the folder's menu (`FolderMenu`); its closure asks *Turn Off
+    /// Download* by the tile.
+    var folderMenu: (Folder, _ onTurnOffDownload: @escaping () -> Void) -> AnyView
     var onSearch: (String) -> Void
     var onClearSearches: () -> Void
 
@@ -27,14 +30,14 @@ struct BrowseStartPage: View {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 if hasFavorites {
                     VStack(alignment: .leading, spacing: Spacing.s) {
-                        SectionHeader(title: String(localized: "Favorites"), size: .page,
+                        SectionHeader(title: Verbs.favorites, size: .page,
                                       actionTitle: String(localized: "Show All"),
                                       actionNavigates: true, actionIdentifier: "startFavoritesShowAll",
                                       action: onShowFavorites)
                         FavoritesGrid(pages: Array(favorites.prefix(Self.favoriteLimit)),
                                       folders: Array(favoriteFolders.prefix(max(0, Self.favoriteLimit - favorites.count))),
                                       onOpen: onOpenFavorite, onOpenFolder: onOpenFavoriteFolder,
-                                      onRemove: onRemoveFavorite, onRename: onRenameFavorite)
+                                      pageMenu: pageMenu, folderMenu: folderMenu)
                     }
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("startFavorites")

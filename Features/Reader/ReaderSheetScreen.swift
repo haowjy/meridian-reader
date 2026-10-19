@@ -42,7 +42,7 @@ struct ReaderSheetScreen: View {
     var body: some View {
         // The article's library page, if it has one (saved, played, or a favorite).
         PageLookup(key: article.id, canonicalURL: article.origin.canonicalURL) { page in
-            sheet(PageActions(article: article, page: page, library: library, shell: shell, speech: speech,
+            sheet(PageActions(page: page, article: article, library: library, shell: shell, speech: speech,
                               downloads: downloads, follow: follow))
         }
     }
@@ -73,7 +73,7 @@ struct ReaderSheetScreen: View {
         } bar: {
             NowPlayingBarView(speech: speech)
         } more: {
-            MoreMenuButton(id: "readerMore") { .reader(actions.readerMenu, perform: { actions.perform($0) }) }
+            MoreMenuButton(id: "readerMore") { actions.readingPageMenu(.open) }
         } floating: {
             // The line at the band's top edge; the toast floats above it.
             ZStack(alignment: .top) {
@@ -107,7 +107,7 @@ struct ReaderSheetScreen: View {
     }
 
     /// The sentence at the page's saved listening spot, while it is part-way through: the text
-    /// opens with it in the middle, underlined, where Resume starts.
+    /// opens with it in the middle, underlined, where Continue starts.
     private func savedSentence(_ start: ListenSpot) -> ReaderSentence? {
         guard start.isPartWay else { return nil }
         return ReaderSentence(in: article.document, paragraph: start.paragraph, utf16Offset: start.utf16Offset)
@@ -127,14 +127,14 @@ struct ReaderSheetScreen: View {
     }
 
     /// Listen's title and the lighter time after it, at the current speed: "Listen" "9 min",
-    /// "Resume" "6 min left", "Listen Again".
+    /// "Continue" "6 min left", "Listen Again".
     private func listenLabel(_ start: ListenSpot, finished: Bool) -> (title: String, detail: String?) {
         if finished { return (String(localized: "Listen Again"), nil) }
         let doc = article.document
         if start.isPartWay, doc.paragraphs.indices.contains(start.paragraph) {
             let at = start.resolved(in: doc).utf16Offset
             let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at, rate: speech.rateMultiplier)
-            return (String(localized: "Resume"), ListeningTime.leftLabel(minutes: left))
+            return (Verbs.continue, ListeningTime.leftLabel(minutes: left))
         }
         return (String(localized: "Listen"),
                 ListeningTime.label(minutes: ListeningTime.minutes(utf16Length: totalLength, rate: speech.rateMultiplier)))

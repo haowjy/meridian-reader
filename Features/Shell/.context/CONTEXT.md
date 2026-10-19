@@ -65,8 +65,10 @@ changing the shell code.
   down.
 - **Shared look lives in `../DesignSystem/`**: tokens, `Motion`, `BottomChrome`, the morph
   overlay (`MorphMenu.swift`) and the components. This folder keeps what knows about the app:
-  `ShellState`, the ⋯ panel's rows (`MoreMenuPanel`), the Now Playing bar on a surface
-  (`NowPlayingBarView`).
+  `ShellState`, the ⋯ panel (`MenuContext`, drawn by `MoreMenuPanel`: the item's rows from its
+  one menu definition, `PageMenu` / `FolderMenu`, then the screen's rows ending in `tail`, then
+  the big buttons; the panel draws `MenuRow`s and knows no surface), the Now Playing bar on a
+  surface (`NowPlayingBarView`, whose long press is the page's menu then *Stop Listening*).
 - **The ⋯ morph menu measures its focus point** through a preference and places the panel from it.
   Ignore focus changes under 0.5 pt (`MorphMenu.isNewFocus`): pixel rounding of the placement
   nudges the measurement each pass, and without the threshold the panel re-places itself forever

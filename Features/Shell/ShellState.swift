@@ -94,7 +94,7 @@ struct MoveRequest: Identifiable, Equatable {
     }
 
     let id = UUID()
-    /// "Move to…", "Save to…".
+    /// The sheet's title: "Move to", "Save to Folder" (the row that opened it, `Verbs.title`).
     var title: String
     /// Marked ✓.
     var current: Place?

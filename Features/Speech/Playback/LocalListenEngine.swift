@@ -198,12 +198,12 @@ final class LocalListenEngine: ListenEngine {
         let phase = coordinator.synthQueue.runState.phase
         let synth = coordinator.synth
         let route = "\(name) (\(synth.hostRoutingLabel ?? "default"))"
-        let pace = RenderPace.shared.snapshot.speed.map { String(format: " · %.1f× real time", $0) } ?? ""
+        let pace = RenderPace.shared.snapshot.speed.map { String(format: ", %.1f× real time", $0) } ?? ""
         switch (phase, synth.rendersInBackground) {
-        case (.active, _), (.inactive, true): return "\(phase.rawValue) · \(route)\(pace)"
-        case (.inactive, false): return "inactive · \(name) for playhead only, bake-ahead held"
-        case (.background, true): return "background · \(route), playing article in bursts\(pace)"
-        case (.background, false): return "background · no model calls — baked audio + Apple fallback"
+        case (.active, _), (.inactive, true): return "\(phase.rawValue), \(route)\(pace)"
+        case (.inactive, false): return "inactive, \(name) for playhead only, bake-ahead held"
+        case (.background, true): return "background, \(route), playing article in bursts\(pace)"
+        case (.background, false): return "background, no model calls — baked audio + Apple fallback"
         }
     }
 

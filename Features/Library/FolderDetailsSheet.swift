@@ -75,7 +75,7 @@ struct FolderDetailsSheet: View {
                 SheetBarButton(Verbs.cancel, placement: .cancellationAction, identifier: "detailsCancel") {
                     shell.sheet = nil
                 }
-                SheetBarButton(String(localized: "Save"), placement: .confirmationAction, identifier: "detailsSave",
+                SheetBarButton(Verbs.save, placement: .confirmationAction, identifier: "detailsSave",
                                isDisabled: isPreparingCover) { save() }
             }
         }

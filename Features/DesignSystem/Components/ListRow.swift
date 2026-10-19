@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Every row in the Library, a folder, a book's contents and the browser's history.
+/// Every row in the Library, a folder, a book's contents, the browser's history and Downloads.
 ///
 /// ```
 /// 📁 Bonds                                       ⋯   folder: its count on the second line
@@ -22,9 +22,10 @@ import SwiftUI
 /// give way first, and at accessibility sizes the status shows alone.
 ///
 /// Its download (`download`) shows on the row itself, never as a button: downloading dims the
-/// thumbnail under a small jade ↓, downloaded puts a grey ✓ before the second line. The only
-/// control is the trailing ⋯ (`menu`, the same menu as the row's long press), centred on the
-/// toolbar's ⋯ slot like the Now Playing bar's ⏸. Every row's separator starts at its title,
+/// thumbnail under a small jade ↓ (grey while paused), downloaded puts a grey ✓ before the second
+/// line. The trailing ⋯ (`menu`, the same menu as the row's long press) is centred on the
+/// toolbar's ⋯ slot like the Now Playing bar's ⏸; a row with a control of its own (a download's
+/// pause, `accessory`) has it just before the ⋯. Every row's separator starts at its title,
 /// whatever leads it.
 ///
 /// A folder row under a dragged row that it takes (`isDropTarget`) is washed and outlined in the
@@ -59,6 +60,8 @@ struct ListRow: View {
     var subtitle: String?
     /// A short note between the subtitle and the status ("Fetching text…", "2 h ago").
     var note: String?
+    /// More parts after the note, in the same tertiary ink (a download's count and size).
+    var details: [String] = []
     var progress: Progress = .unplayed(minutes: nil)
     var playState: PlayState = .idle
     /// A dragged row is over this one, and it takes the drop (a folder it would be filed in).
@@ -74,6 +77,8 @@ struct ListRow: View {
     /// A view laid behind the ⋯ at its size (behind the row when it has none): a question its menu
     /// asks attaches there, so on iOS 26 its popover points at the ⋯.
     var menuAnchor: AnyView?
+    /// A control of the row's own, 44 pt, just before the ⋯ (a download's pause / resume).
+    var accessory: AnyView?
 
     /// `RowHeight.content` at the default text size; larger text grows the row through its
     /// content, and the minimum only up to `BottomChrome.maxTextGrowth`.
@@ -116,6 +121,10 @@ struct ListRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 // The separator under the row starts at the title, for every kind of row.
                 .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+            }
+            if let accessory {
+                accessory
+                    .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
             }
             if let menu {
                 Menu { menu } label: {
@@ -215,7 +224,7 @@ struct ListRow: View {
         let status = statusText
         // At accessibility sizes there is no room for both: the status alone (VoiceOver reads all).
         let leads = typeSize.isAccessibilitySize && status != nil ? []
-            : [subtitle, note].compactMap { $0 } + (folderCount ?? [])
+            : [subtitle, note].compactMap { $0 } + details + (folderCount ?? [])
         let badged = download == .downloaded
         if !leads.isEmpty || status != nil || badged {
             HStack(spacing: partSpacing) {
@@ -297,6 +306,7 @@ struct ListRow: View {
         var parts: [String] = []
         if let subtitle { parts.append(subtitle) }
         if let note { parts.append(note) }
+        parts.append(contentsOf: details)
         if playState.isCurrent { parts.append(playState == .playing ? "Playing" : "Paused") }
         if isDropTarget { parts.append("Drop to move here") }
         if insertionEdge != nil { parts.append("Drop to place here") }
@@ -336,7 +346,7 @@ struct ListRow: View {
                 if downloading {
                     Image(systemName: Icons.downloading)
                         .symbolRenderingMode(.palette)
-                        .foregroundStyle(Palette.onAccent, Palette.accent)
+                        .foregroundStyle(Palette.onAccent, download.isPaused ? Palette.secondaryInk : Palette.accent)
                         .font(.system(size: thumbnailSide * 0.5))
                         .transition(.opacity)
                 }

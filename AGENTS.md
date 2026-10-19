@@ -47,7 +47,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   empty library and the stored settings cleared, as on a fresh install), `-selectEngine apple` (or
   `test.voice`, `local.kokoro`). The seeds add to that: `-seedDemoArticle` (`-seedDemoPlainText`,
   `-seedPlayedPages N`), `-seedDemoBook` (a demo book; `-seedDemoBookPlace N` puts it part-way,
-  `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedBookmarks`. Other options:
+  `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedBookmarks`, `-seedHistory` (visits in the browser's History). Other options:
   `-importTestEPUB` (*Import Book…* takes a synthetic EPUB instead of the Files picker;
   `-playTestEPUB` imports it at launch and plays it), `-browseTestPages` (offline `reader-test://`
   pages; page one links to an article with no title and to a story to follow, `-testStoryChapters N` lengthens its contents and
@@ -107,9 +107,13 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   disagree, and UIKit aborts on the next change ("attempt to delete item … before the update").
   Which lists a page is in is decided only in `LibraryQueries`; an action that takes a row out
   must take it out of every list there.
-- **Menus keep their shape** (decision DR-09): every ⋯ panel and long-press row goes through
-  `MenuAvailability` (`.menuAvailability(_:)`). Hidden only when the action can never apply to that
-  kind of item; dimmed when it applies but can't run now. No bare `if` around a menu row.
+- **One menu per item kind** (decisions C4, DR-09): a page's (`PageMenu`), a folder's
+  (`FolderMenu`) and a download's (`DownloadMenu`) are each one ordered `[MenuRow]`, drawn by every
+  entry point (`MenuRows` in a ⋯ or long press, `MoreMenuPanel` in the ⋯ panel). Add or change a
+  row there, never at an entry point; a place's own rows go in a block after the item's. A row
+  is hidden only when it can never apply to that kind of item there, dimmed when it can't run now
+  (`MenuAvailability`); no bare `if` around a menu row. Labels from `Verbs` (its case and ellipsis
+  rules), symbols from `Icons`.
 - **Button rows never wrap** (decision D21): two or more buttons side by side go in an
   `ActionButtonRow`, which falls back from full labels to short titles, then no details, then
   symbols alone. Give every button in one a symbol.

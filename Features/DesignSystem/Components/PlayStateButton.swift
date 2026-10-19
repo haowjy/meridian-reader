@@ -8,7 +8,7 @@ enum PlayState: CaseIterable {
     case preparing
     /// What you hear, playing. Tapping pauses.
     case playing
-    /// What you hear, paused. Tapping resumes.
+    /// What you hear, paused. Tapping continues it.
     case paused
 
     /// Whether this is what you hear.
@@ -19,7 +19,7 @@ enum PlayState: CaseIterable {
         case .idle: "Play"
         case .preparing: "Preparing"
         case .playing: "Pause"
-        case .paused: "Resume"
+        case .paused: Verbs.continue
         }
     }
 }
@@ -238,7 +238,7 @@ struct PlayStateButtonGallery: View {
     }
 
     private static func title(_ state: PlayState) -> String {
-        state.isCurrent ? "Playing" : "Continue"
+        state.isCurrent ? "Playing" : Verbs.continue
     }
 }
 

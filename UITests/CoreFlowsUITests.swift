@@ -37,7 +37,7 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertEqual(rows.count, 1, "one row per page")
     }
 
-    /// Swipe → *Remove* on the page you hear: its row leaves every list (not back in Recent,
+    /// Swipe → *Remove from Library* on the page you hear: its row leaves every list (not back in Recent,
     /// not in search), playback stops, the bar offers the page played before it (the demo
     /// folders' part-way page) instead, and the app stays up.
     func testSwipeRemovingAPlayedPageTakesItOutOfEveryList() throws {
@@ -50,7 +50,7 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(eventually(10) { bar.label == "Pause" }, "playing")
 
         cell.swipeLeft()
-        let remove = app.buttons["Remove"].firstMatch
+        let remove = app.buttons["Remove from Library"].firstMatch
         XCTAssertTrue(appears(remove, timeout: 3), "the row's swipe action")
         remove.tap()
         let row = libraryRow(app, "Demo Listen Article")
@@ -84,7 +84,7 @@ final class CoreFlowsUITests: XCTestCase {
         let round = app.buttons["folderContinue"]
         XCTAssertTrue(appears(round, timeout: 5), "the big ▶")
         app.buttons["folderMore"].tap()
-        let fromStart = app.buttons["Play from Start"]
+        let fromStart = app.buttons["menuPlayFromStart"]
         XCTAssertTrue(appears(fromStart, timeout: 3), "More's menu")
         fromStart.tap()
         let bar = find(app, "nowPlayingBarOpen")

@@ -7,8 +7,8 @@ import UIKit
 /// played, after Stop Listening, once the page you hear is removed or deleted), on Now Playing,
 /// and under other sheets.
 ///
-/// Tap or swipe up opens Now Playing; long-press offers Stop Listening (decision D3) and Remove from
-/// Library, which stops it too. At the end of a page it stays, with ▶ and "✓ Finished".
+/// Tap or swipe up opens Now Playing; long-press shows the page's menu (`PageMenu`), then Stop
+/// Listening (decision D3). At the end of a page it stays, with ▶ and Finished.
 struct NowPlayingBarView: View {
     @Bindable var speech: SpeechController
 
@@ -43,6 +43,7 @@ struct BandNowPlayingBar: View {
     @Environment(ShellState.self) private var shell
     @Environment(FollowCenter.self) private var follow
     @Environment(LibraryStore.self) private var library
+    @Environment(DownloadCenter.self) private var downloads
     @Query(LibraryQueries.lastPlayed) private var lastPlayed: [Page]
 
     private var isHidden: Bool {
@@ -58,7 +59,8 @@ struct BandNowPlayingBar: View {
             } else if let now = speech.nowPlaying {
                 BarProgress(speech: speech, now: now)
             } else if let page = lastPlayed.first(where: \.isLive) {
-                ResumeBar(page: page, actions: LibraryActions(library: library, speech: speech, shell: shell, follow: follow))
+                ResumeBar(page: page, actions: PageActions(page: page, library: library, shell: shell, speech: speech,
+                                                           downloads: downloads, follow: follow))
             } else {
                 NowPlayingBar.placeholder()
             }
@@ -69,8 +71,7 @@ struct BandNowPlayingBar: View {
 
 /// The bar itself. Its own view because it reads the live offset (progress, time left), which
 /// moves several times a second while playing: only the bar redraws for it. Its page, queried
-/// once by the session's key (not fetched on each redraw), offers Remove from Library while it is
-/// in the Library.
+/// once by the session's key (not fetched on each redraw), is what its menu acts on.
 private struct BarProgress: View {
     let speech: SpeechController
     let now: NowPlaying
@@ -78,6 +79,7 @@ private struct BarProgress: View {
     @Environment(ShellState.self) private var shell
     @Environment(LibraryStore.self) private var library
     @Environment(FollowCenter.self) private var follow
+    @Environment(DownloadCenter.self) private var downloads
     @Query private var pages: [Page]
     @State private var cover = BarCover()
 
@@ -103,26 +105,20 @@ private struct BarProgress: View {
             state: speech.playState(of: .page(now.pageKey)),
             onOpen: shell.showNowPlaying,
             onPlayPause: speech.pressNowPlaying,
-            onStop: speech.stop,
-            onRemove: removal
+            menu: AnyView(BarMenu(actions: PageActions(page: pages.first.flatMap { $0.isLive ? $0 : nil }, library: library,
+                                                       shell: shell, speech: speech, downloads: downloads, follow: follow),
+                                  onStop: speech.stop))
         )
-    }
-
-    /// Remove from Library, for the page you hear while it is in the Library.
-    private var removal: (() -> Void)? {
-        guard let page = pages.first, page.isLive, page.isInLibrary else { return nil }
-        let actions = LibraryActions(library: library, speech: speech, shell: shell, follow: follow)
-        return { actions.remove([page]) }
     }
 }
 
 /// The page played last, while nothing is bound: ▶ plays it from its place (the row's ▶,
-/// `LibraryActions.play`), a tap opens it (`LibraryActions.open`), and a page in the Library can be
-/// removed from it (long-press). Its state still comes from the session, so ▶ turns into a
-/// spinner while it starts.
+/// `LibraryActions.play`), a tap opens it (`LibraryActions.open`), and its long press is its
+/// menu (Stop Listening dimmed: nothing is loaded). Its state still comes from the session, so ▶
+/// turns into a spinner while it starts.
 private struct ResumeBar: View {
     let page: Page
-    let actions: LibraryActions
+    let actions: PageActions
 
     @State private var cover = BarCover()
 
@@ -137,19 +133,19 @@ private struct ResumeBar: View {
     }
 
     @ViewBuilder private var bar: some View {
-        let progress = actions.progress(of: page)
+        let library = actions.libraryActions
+        let progress = library.progress(of: page)
         NowPlayingBar(
             title: page.lineOne,
             detail: detail(progress),
             artwork: cover.image(for: page.listenKey, data: page.artworkData),
             artworkLetter: page.artworkLetter,
             progress: fraction(progress),
-            state: actions.playState(of: page),
+            state: library.playState(of: page),
             identifier: "nowPlayingBarResume",
-            onOpen: { actions.open(page) },
-            onPlayPause: { actions.play(page) },
-            onStop: nil,
-            onRemove: page.isInLibrary ? { actions.remove([page]) } : nil
+            onOpen: { library.open(page) },
+            onPlayPause: { library.play(page) },
+            menu: AnyView(BarMenu(actions: actions, onStop: nil))
         )
     }
 
@@ -169,6 +165,22 @@ private struct ResumeBar: View {
         case .finished: 1
         default: 0
         }
+    }
+}
+
+/// The bar's long press: the page's menu (`PageMenu`), then *Stop Listening* (dimmed with
+/// nothing loaded). A view of its own, so the rows are built only when the menu shows, not on
+/// each of the bar's redraws.
+private struct BarMenu: View {
+    let actions: PageActions
+    let onStop: (() -> Void)?
+
+    var body: some View {
+        MenuRows(blocks: [
+            PageMenu(actions: actions, place: .elsewhere).rows,
+            [MenuRow(id: "menuStopListening", title: Verbs.stopListening, icon: Icons.stop,
+                     availability: MenuAvailability(when: onStop != nil)) { onStop?() }],
+        ])
     }
 }
 

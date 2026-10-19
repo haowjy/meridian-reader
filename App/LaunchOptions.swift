@@ -40,6 +40,8 @@ struct LaunchOptions: Equatable {
     /// `-seedBookmarks`: a few starred `example.com` links whose icons stay letter tiles (no
     /// fetch).
     var seedsBookmarks = false
+    /// `-seedHistory`: a few visited `example.com` pages in the browser's History (one untitled).
+    var seedsHistory = false
     /// `-bakeArticle <id prefix>`: render that saved article's audio top-down without playing.
     var bakeArticlePrefix: String?
     /// `-scrubBubbleDemo` (with `-uiTesting`): freeze a mid-drag scrubber frame for a screenshot.
@@ -111,6 +113,7 @@ struct LaunchOptions: Equatable {
         testStoryChapters = value(after: "-testStoryChapters").flatMap(Int.init) ?? testStoryChapters
         testStoryThrottles = flags.contains("-testStoryThrottles")
         seedsBookmarks = flags.contains("-seedBookmarks")
+        seedsHistory = flags.contains("-seedHistory")
         bakeArticlePrefix = value(after: "-bakeArticle")?.uppercased()
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")
         slowMenuAnimation = flags.contains("-slowMenuAnimation")

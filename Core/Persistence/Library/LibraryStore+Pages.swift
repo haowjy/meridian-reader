@@ -254,7 +254,7 @@ extension LibraryStore {
         context.delete(page)
     }
 
-    /// *Delete Downloads*: the page's audio only; the page stays saved.
+    /// *Remove Downloads*: the page's audio only; the page stays saved.
     func deleteDownloads(_ page: Page) {
         guard let key = page.key else { return }
         try? audio.clearListenAudio(for: key)

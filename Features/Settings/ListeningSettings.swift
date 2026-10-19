@@ -93,12 +93,17 @@ struct ListeningSettingsSection: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Cancel \(descriptor.shortName) download")
                 .accessibilityIdentifier("engineCancel-\(id.rawValue)")
+            } else if gateOK, localTTS.isModelInstalled(id) {
+                // Downloaded: the grey ✓ every download shows once done (`DownloadMark`).
+                DownloadMark(state: .downloaded, size: Glyph.modelDownload)
+                    .accessibilityLabel("Downloaded")
             }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if gateOK, localTTS.isModelInstalled(id), !pending {
-                // The row stays (to download again), so not `.destructive` (`Palette.destructive`).
-                Button("Delete") {
+                // The model itself, not a page's audio: *Delete*, not *Remove Download*. The row
+                // stays (to download again), so not `.destructive` (`Palette.destructive`).
+                Button(Verbs.delete) {
                     try? localTTS.deleteModel(id)
                 }
                 .tint(Palette.destructive)
@@ -109,22 +114,22 @@ struct ListeningSettingsSection: View {
     private func localSubtitle(_ descriptor: EngineDescriptor, gateOK: Bool) -> String {
         let id = descriptor.id
         if !gateOK {
-            return localTTS.engines.blockReason(id) ?? "Not supported on this device"
+            return localTTS.engines.blockReason(id) ?? String(localized: "Not supported on this device")
         }
         if localTTS.synth.state.warmingEngineID == id {
             if let fraction = localTTS.synth.state.warmingProgress, fraction < 1 {
-                return "Downloading… \(Int(fraction * 100))%"
+                return String(localized: "Downloading… \(Int(fraction * 100))%")
             }
-            return "Preparing…"
+            return String(localized: "Preparing…")
         }
         if localTTS.engineCrashNotice != nil, localTTS.selectedEngineID != id {
-            return "Crashed last session – tap to try again"
+            return String(localized: "Crashed last session. Tap to try again.")
         }
         if localTTS.synth.state.readyEngineID == id {
-            return descriptor.isRecommended ? "Ready (recommended)" : "Ready"
+            return descriptor.isRecommended ? String(localized: "Ready (recommended)") : String(localized: "Ready")
         }
         if localTTS.isModelInstalled(id) {
-            return "Downloaded – tap to use"
+            return String(localized: "Downloaded. Tap to use.")
         }
         return descriptor.subtitle
     }
@@ -194,12 +199,16 @@ struct VoicePage: View {
                     title: voice.label,
                     subtitle: voice.id == descriptor.defaultVoiceID ? Self.defaultVoiceSubtitle(voice.detail) : voice.detail,
                     selected: current == voice.id && localTTS.voiceDownloadID == nil,
-                    busy: downloading,
                     accessibilityID: "voiceRow-\(voice.id)"
                 ) {
                     Task { await localTTS.chooseVoice(voice.id, for: descriptor.id) }
                 } accessory: {
-                    if VoicePreviewPlayer.hasPreview(voice) {
+                    if downloading {
+                        // A voice downloading shows as every download does (its size is unknown, so
+                        // the mark's spinner), in the slot the preview leaves while it downloads.
+                        ModelDownloadMark(fraction: nil)
+                            .accessibilityLabel("Downloading \(voice.label)")
+                    } else if VoicePreviewPlayer.hasPreview(voice) {
                         Button {
                             if speech.isPlaying { speech.pause() }
                             preview.toggle(voice)

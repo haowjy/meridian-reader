@@ -78,7 +78,7 @@ struct MoveTreeList: View {
         List {
             Section {
                 Button { name(in: nil) } label: {
-                    SymbolRow(String(localized: "New Folder"), symbol: Icons.newFolder, ink: Palette.accent)
+                    SymbolRow(Verbs.newFolder, symbol: Icons.newFolder, ink: Palette.accent)
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("moveNewFolder")
@@ -90,7 +90,7 @@ struct MoveTreeList: View {
                           isCurrent: current == .folder(folder.id),
                           isEnabled: !isMoving(folder), id: "moveFolder") { pick(folder) }
                         .contextMenu {
-                            Button("New Folder Inside", systemImage: Icons.newFolder) { name(in: folder) }
+                            Button(Verbs.newFolderInside, systemImage: Icons.newFolder) { name(in: folder) }
                                 .accessibilityIdentifier("moveNewFolderInside")
                                 .menuAvailability(MenuAvailability(when: !isMoving(folder)))
                         }

@@ -32,7 +32,7 @@ final class ListenDiagnostics {
             fields["rendered_paragraphs_ahead"] = speech.activeEngine?.debug.renderedParagraphsAhead ?? 0
         case .active:
             if player.backgroundStats != .init() || deferrals > deferralsAtBackground {
-                lastBackgroundSummary = player.backgroundStats.label + " · deferred \(deferrals - deferralsAtBackground)"
+                lastBackgroundSummary = player.backgroundStats.label + ", deferred \(deferrals - deferralsAtBackground)"
                 fields["bg_summary"] = lastBackgroundSummary
             }
         case .inactive:
@@ -137,12 +137,12 @@ final class ListenDiagnostics {
             warmingLocal: warmingLocal,
             lastBakeEvent: queue.lastBakeEvent,
             language: languageLabel,
-            renderMode: speech.activeEngine == nil ? "idle · \(queue.runState.phase.rawValue)" : engine.renderMode,
+            renderMode: speech.activeEngine == nil ? "idle, \(queue.runState.phase.rawValue)" : engine.renderMode,
             renderedParagraphsAhead: engine.renderedParagraphsAhead,
             background: queue.runState.phase == .background
                 ? "now: " + speech.localEngine.player.backgroundStats.label
                 : lastBackgroundSummary,
-            audioSession: "\(speech.audioSession.isActive ? "active" : "inactive") · activations \(speech.audioSession.activationCount)"
+            audioSession: "\(speech.audioSession.isActive ? "active" : "inactive"), activations \(speech.audioSession.activationCount)"
         )
     }
 

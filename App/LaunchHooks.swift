@@ -78,6 +78,7 @@ enum LaunchHooks {
                                    shell: ShellState) {
         if let prefix = options.bakeArticlePrefix { bakeArticle(prefix: prefix, in: library, speech: speech) }
         if options.seedsBookmarks { seedBookmarks(in: library) }
+        if options.seedsHistory { seedHistory(in: library) }
         if options.servesTestPages, !options.restoresSurface, let url = URL(string: "reader-test://pages/one") {
             shell.navigate(to: url)
         }
@@ -283,6 +284,18 @@ enum LaunchHooks {
             guard let url = URL(string: address), let page = try? library.addFavorite(url: url, title: title, artwork: nil),
                   let key = page.key else { continue }
             library.iconTried.insert(key)
+        }
+    }
+
+    /// `-seedHistory`: three visits on `example.com` hosts, newest last, the last one untitled.
+    static func seedHistory(in library: LibraryStore) {
+        let visits: [(String, String?)] = [
+            ("https://wiki.example.com/Speech_synthesis", "Speech synthesis"),
+            ("https://example.com/", "Example"),
+            ("https://news.example.com/2026/10/19/tides", nil),
+        ]
+        for (address, title) in visits {
+            if let url = URL(string: address) { library.recordVisit(url: url, title: title, faviconData: nil) }
         }
     }
 
