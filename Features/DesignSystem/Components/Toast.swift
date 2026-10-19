@@ -5,8 +5,11 @@ import SwiftUI
 /// owner removes it after a few seconds (`Toast.duration`, longer with an action). Without an
 /// action it takes no taps, so it never blocks what is under it.
 ///
-/// A long message wraps (two lines at most text sizes) and the action stays beside it. One line
-/// draws as a capsule; taller, its corners stay at `Radius.pill`, as a pill button's do.
+/// A long message wraps at word boundaries (two lines at most text sizes), and the action stays
+/// beside it while every word of the message still fits there; when one wouldn't (the largest
+/// text sizes), the action goes under the message, and then the symbol goes, so no word is
+/// broken while one could fit the toast. One line draws as a capsule; taller, its corners stay at
+/// `Radius.pill`, as a pill button's do.
 struct Toast: View {
     let message: String
     var systemImage: String?
@@ -20,28 +23,25 @@ struct Toast: View {
     static let actionDuration: Duration = .seconds(5)
 
     var body: some View {
-        HStack(spacing: Spacing.xs) {
-            if let systemImage {
-                Image(systemName: systemImage)
-                    .foregroundStyle(Palette.secondaryInk)
-                    .accessibilityHidden(true)
-            }
-            Text(message)
-                .typeStyle(.row)
-                .foregroundStyle(Palette.ink)
-                .multilineTextAlignment(.center)
-                .padding(.vertical, Spacing.s)
-                .accessibilityIdentifier("toast")
+        // The first that fits: the message's ideal width is its widest word (`WholeWordsLayout`),
+        // so the action leaves the line, then the symbol goes, before a word would break.
+        ViewThatFits(in: .horizontal) {
             if let actionTitle {
-                Button(action: action) {
-                    Text(actionTitle)
-                        .typeStyle(.row, weight: .semibold)
-                        .foregroundStyle(Palette.accent)
-                        .frame(minHeight: BottomChrome.minTapTarget)
-                        .contentShape(Rectangle())
+                HStack(spacing: Spacing.xs) {
+                    messageLine(withSymbol: true)
+                    actionButton(actionTitle)
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("toastAction")
+                VStack(spacing: 0) {
+                    messageLine(withSymbol: true)
+                    actionButton(actionTitle)
+                }
+                VStack(spacing: 0) {
+                    messageLine(withSymbol: false)
+                    actionButton(actionTitle)
+                }
+            } else {
+                messageLine(withSymbol: true)
+                messageLine(withSymbol: false)
             }
         }
         .padding(.horizontal, Spacing.m)
@@ -49,6 +49,55 @@ struct Toast: View {
         .floatingShadow()
         .allowsHitTesting(actionTitle != nil)
         .accessibilityElement(children: .contain)
+    }
+
+    private func messageLine(withSymbol: Bool) -> some View {
+        HStack(spacing: Spacing.xs) {
+            if withSymbol, let systemImage {
+                Image(systemName: systemImage)
+                    .foregroundStyle(Palette.secondaryInk)
+                    .accessibilityHidden(true)
+            }
+            WholeWordsLayout {
+                Text(message)
+                    .accessibilityIdentifier("toast")
+                ForEach(Array(message.split(whereSeparator: \.isWhitespace).enumerated()), id: \.offset) { _, word in
+                    Text(word).hidden().accessibilityHidden(true)
+                }
+            }
+            .typeStyle(.row)
+            .foregroundStyle(Palette.ink)
+            .multilineTextAlignment(.center)
+            .padding(.vertical, Spacing.s)
+        }
+    }
+
+    private func actionButton(_ title: String) -> some View {
+        Button(action: action) {
+            Text(title)
+                .typeStyle(.row, weight: .semibold)
+                .foregroundStyle(Palette.accent)
+                .frame(minHeight: BottomChrome.minTapTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("toastAction")
+    }
+}
+
+/// A text (the first subview) whose ideal width is its widest word (the other subviews, hidden):
+/// given a width it wraps as a `Text` does, but asked for its ideal size it answers the narrowest
+/// it can go without breaking a word, which a `ViewThatFits` compares against the room it has.
+private struct WholeWordsLayout: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let text = subviews.first else { return .zero }
+        let width = proposal.width ?? subviews.dropFirst().map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
+        return text.sizeThatFits(ProposedViewSize(width: width, height: proposal.height))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(bounds.size))
+        for word in subviews.dropFirst() { word.place(at: bounds.origin, proposal: .zero) }
     }
 }
 

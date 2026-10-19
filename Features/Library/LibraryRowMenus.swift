@@ -5,8 +5,8 @@ import SwiftUI
 /// apply to this page (*Play from Here*, *Mark All Above* and the play-order row out of a folder,
 /// *Share* without a web address, *Select* where the screen has no Edit), dimmed when it applies
 /// but can't run now (a page not in the Library can't be moved, marked or downloaded until it is
-/// saved; *Remove from History* out of the Library while the page isn't in History, a starred page
-/// removed earlier). *Save to Library* / *Remove from Library* is one row, and *Remove from History*
+/// saved; *Remove from Recent* out of the Library while the page isn't in Recent, a starred page
+/// removed earlier). *Save to Library* / *Remove from Library* is one row, and *Remove from Recent*
 /// never shows on a page in the Library. *Download* / *Remove Download* is one row showing the face for where the page's download
 /// stands (`DownloadCenter.state(of:)`); *Remove Download* takes the page out of every download
 /// and keeps it out (P8).
@@ -64,8 +64,8 @@ struct PageMenu: View {
             if inLibrary { actions.remove([page]) } else { actions.save(page) }
         }
         // The same remove as the Library's (`LibraryStore.remove`): in no list after, the star kept.
-        Button(Verbs.removeFromHistory, systemImage: Icons.removeFromHistory, role: .destructive) { actions.remove([page]) }
-            .menuAvailability(MenuAvailability(applies: !inLibrary, when: LibraryQueries.isInHistory(page)))
+        Button(Verbs.removeFromRecent, systemImage: Icons.removeFromRecent, role: .destructive) { actions.remove([page]) }
+            .menuAvailability(MenuAvailability(applies: !inLibrary, when: LibraryQueries.isInRecent(page)))
     }
 }
 
@@ -74,8 +74,8 @@ struct PageMenu: View {
 /// *Continue* and *Play from Start* dimmed while none of its pages play. *Download* / *Turn Off
 /// Download* is one row, its face the folder's Download toggle (`DownloadCenter.isOn`), whatever
 /// its header's control shows: *Download* turns it on (`DownloadCenter.download`), dimmed while
-/// the folder has no pages; *Turn Off Download* asks, as the header's control does, then turns it
-/// off and keeps what is downloaded.
+/// the folder has no pages; *Turn Off Download* asks (`onTurnOffDownload`), as the header's
+/// control does, then turns it off and keeps what is downloaded.
 struct FolderMenu: View {
     let folder: Folder
     let progress: FolderProgress
@@ -83,6 +83,9 @@ struct FolderMenu: View {
     let actions: LibraryActions
     let downloads: DownloadCenter
     let screen: LibraryScreenState
+    /// *Turn Off Download*: its host asks `turnOffDownloadQuestion` by the control the menu
+    /// opened from (the row's ⋯, the header's *More*).
+    let onTurnOffDownload: () -> Void
     /// *Select*: enters Edit with this row selected (folder screens only).
     var onSelect: (() -> Void)?
 
@@ -96,7 +99,7 @@ struct FolderMenu: View {
         let isOn = downloads.isOn(folder)
         Button(isOn ? Verbs.turnOffDownload : Verbs.download, systemImage: isOn ? Icons.turnOffDownload : Icons.download) {
             if isOn {
-                screen.confirmTurnOffDownload(folder)
+                onTurnOffDownload()
             } else {
                 DownloadActions(downloads: downloads, shell: actions.shell).download(folder)
             }

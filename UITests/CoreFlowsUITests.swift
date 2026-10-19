@@ -37,7 +37,7 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertEqual(rows.count, 1, "one row per page")
     }
 
-    /// Swipe → *Remove* on the page you hear: its row leaves every list (not back in History,
+    /// Swipe → *Remove* on the page you hear: its row leaves every list (not back in Recent,
     /// not in search), playback stops, the bar offers the page played before it (the demo
     /// folders' part-way page) instead, and the app stays up.
     func testSwipeRemovingAPlayedPageTakesItOutOfEveryList() throws {

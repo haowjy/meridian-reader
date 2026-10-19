@@ -23,8 +23,9 @@ import SwiftUI
 /// folder's Continue (⏸ while one of its pages is what you hear). The side controls have a
 /// fixed width, so the ▶ stays centred whatever their captions say, and the captions shrink
 /// rather than wrap at the largest text sizes: the row never wraps (decision D21). Takes plain
-/// values and closures only.
-struct FolderHeader<Status: View, More: View>: View {
+/// values and closures only; `anchor` lays a view of the caller's behind a side control, where a
+/// question the control asks attaches, so on iOS 26 its popover points at that control.
+struct FolderHeader<Status: View, More: View, Anchor: View>: View {
     var style: FolderHeaderStyle = .folder
     let title: String
     /// Counts (["2 folders", "7 pages"]) or the book's line (["Jane Austen", "Book", "61 chapters"]).
@@ -37,6 +38,8 @@ struct FolderHeader<Status: View, More: View>: View {
     var actions: FolderHeaderActions?
     @ViewBuilder var status: Status
     @ViewBuilder var more: More
+    /// Laid behind the Download control and *More*, at their size.
+    @ViewBuilder var anchor: (FolderHeaderControl) -> Anchor
 
     @ScaledMetric(relativeTo: .title3) private var scaledCoverWidth: CGFloat = 80
     @ScaledMetric(relativeTo: .caption) private var scaledSideWidth: CGFloat = 76
@@ -88,6 +91,7 @@ struct FolderHeader<Status: View, More: View>: View {
             .accessibilityLabel(Verbs.download)
             .accessibilityValue(downloadValue(actions))
             .accessibilityIdentifier("folderDownload")
+            .background { anchor(.download) }
             PlayStateButton(state: actions.play, look: .disc, action: actions.onPlay)
                 .accessibilityIdentifier("folderContinue")
             Menu { more } label: {
@@ -100,6 +104,7 @@ struct FolderHeader<Status: View, More: View>: View {
             }
             .accessibilityLabel("More")
             .accessibilityIdentifier("folderMore")
+            .background { anchor(.more) }
         }
         .padding(.top, Spacing.xs)
     }
@@ -129,6 +134,20 @@ struct FolderHeader<Status: View, More: View>: View {
         }
         return parts.joined(separator: ", ")
     }
+}
+
+extension FolderHeader where Anchor == EmptyView {
+    init(style: FolderHeaderStyle = .folder, title: String, detail: [String], source: [String] = [],
+         progressLabel: [String] = [], actions: FolderHeaderActions? = nil,
+         @ViewBuilder status: () -> Status, @ViewBuilder more: () -> More) {
+        self.init(style: style, title: title, detail: detail, source: source, progressLabel: progressLabel,
+                  actions: actions, status: status, more: more, anchor: { _ in EmptyView() })
+    }
+}
+
+/// A `FolderHeader` side control, for its `anchor`.
+enum FolderHeaderControl {
+    case download, more
 }
 
 /// A `FolderHeader`'s action row: its values and what its controls do.

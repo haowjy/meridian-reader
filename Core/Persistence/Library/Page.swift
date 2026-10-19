@@ -40,7 +40,7 @@ final class Page {
     var addedAt: Date?
     /// When *Remove from Library* took it out of the Library, until you listen to it again from
     /// its article (🎧, the Reader's Listen: `LibraryStore.recordPlayback`). Out of the Library
-    /// with this set, it is in no list, not even History (`LibraryQueries`); it is kept only
+    /// with this set, it is in no list, not even Recent (`LibraryQueries`); it is kept only
     /// for what plays and the bar until the prune. Playing on, pausing and resuming leave it set.
     /// Read only with `addedAt == nil`: saving it again leaves the date, which the next remove
     /// replaces.

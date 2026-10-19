@@ -9,7 +9,7 @@ import Foundation
 /// | Move to… | `Icons.move` |
 /// | Save to Folder… | `Icons.save` |
 /// | Save to Library / Remove from Library | `Icons.save` / `Icons.unsave` |
-/// | Remove from History | `Icons.removeFromHistory` |
+/// | Remove from Recent | `Icons.removeFromRecent` |
 /// | Add to Favorites / Remove from Favorites | `Icons.favorite` / `Icons.unfavorite` |
 /// | Play from Start | `Icons.previous` |
 /// | Mark as Finished / Mark as Unfinished | `Icons.markFinished` / `Icons.markUnfinished` |
@@ -29,8 +29,8 @@ enum Verbs {
     static let saveToFolder = String(localized: "Save to Folder…")
     static let saveToLibrary = String(localized: "Save to Library")
     static let removeFromLibrary = String(localized: "Remove from Library")
-    /// A History row's: the same remove as *Remove from Library* (in no list after, star kept).
-    static let removeFromHistory = String(localized: "Remove from History")
+    /// A Recent row's: the same remove as *Remove from Library* (in no list after, star kept).
+    static let removeFromRecent = String(localized: "Remove from Recent")
     static let addToFavorites = String(localized: "Add to Favorites")
     static let removeFromFavorites = String(localized: "Remove from Favorites")
     static let playFromStart = String(localized: "Play from Start")

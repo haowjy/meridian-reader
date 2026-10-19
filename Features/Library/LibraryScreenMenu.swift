@@ -17,7 +17,9 @@ struct LibraryScreenMenu {
     let topLevelSort: Binding<String>
     /// A folder moved from its own screen: show it where it went.
     let showMoved: (Folder) -> Void
-    /// The big buttons: *Favorites*, *History*, *Browser*.
+    /// *Turn Off Download*: the surface asks `turnOffDownloadQuestion` by the ⋯.
+    let onTurnOffDownload: (Folder) -> Void
+    /// The big buttons: *Favorites*, *History* (the browser's, pages visited), *Browser*.
     let tile: (LibraryMenu.Action) -> Void
 
     /// The folder whose screen is on top (nil: the home). New folders and imported books go in
@@ -69,7 +71,7 @@ struct LibraryScreenMenu {
         case .download:
             guard let folder else { return }
             if downloads.isOn(folder) {
-                screen.confirmTurnOffDownload(folder)
+                onTurnOffDownload(folder)
             } else {
                 DownloadActions(downloads: downloads, shell: shell).download(folder)
             }

@@ -106,6 +106,10 @@ private struct FolderContentsList: View {
     @Query private var queriedPages: [Page]
 
     @Binding var headerTitleHidden: Bool
+    /// *Turn Off Download* asked from the header's Download control, or from *More*: the question
+    /// shows by the control that asked.
+    @State private var turningOffFromControl: Folder?
+    @State private var turningOffFromMore: Folder?
     /// Where the list's visible content starts (under the navigation bar), in global coordinates.
     @State private var contentTop: CGFloat = 0
     @ScaledMetric(relativeTo: TypeStyle.title.relativeTo) private var titleLineHeight = TypeStyle.title.lineHeight
@@ -202,7 +206,9 @@ private struct FolderContentsList: View {
             if folder.kind == .series { FollowStatus(folder: folder, pages: pages) }
         } more: {
             FolderMenu(folder: folder, progress: playback, hasPages: !pages.isEmpty, actions: actions,
-                       downloads: downloads, screen: screen)
+                       downloads: downloads, screen: screen, onTurnOffDownload: { turningOffFromMore = folder })
+        } anchor: { control in
+            Color.clear.turnOffDownloadQuestion(control == .download ? $turningOffFromControl : $turningOffFromMore)
         }
     }
 
@@ -217,7 +223,7 @@ private struct FolderContentsList: View {
         let isOn = downloads.isOn(folder)
         return FolderHeaderActions(download: state, downloadIsOn: isOn, onDownload: {
             if isOn && state != .notDownloaded {
-                screen.confirmTurnOffDownload(folder)
+                turningOffFromControl = folder
             } else {
                 DownloadActions(downloads: downloads, shell: shell).download(folder)
             }

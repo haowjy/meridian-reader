@@ -7,10 +7,10 @@ import SwiftData
 /// - **In the Library** (`addedAt` set): its folder's list (`pages(inFolder:)`) or the top level's
 ///   pages on the home's Everything (`loosePages`), Everything's search (`searchPages`), address
 ///   suggestions (`savedInLibrary`).
-/// - **In History** (`history`, `isInHistory`): played without saving, out of the Library, not
-///   removed since you last listened to it. The home's History tab and its search.
+/// - **In Recent** (`recent`, `isInRecent`): played without saving, out of the Library, not
+///   removed since you last listened to it. The home's Recent tab and its search.
 /// - **Removed** (out of the Library with `removedAt` set): in none of those, nor the bar's
-///   resume (`lastPlayed`). *Remove from Library* (and *Remove from History*, the same remove)
+///   resume (`lastPlayed`). *Remove from Library* (and *Remove from Recent*, the same remove)
 ///   takes a page out of every one of them at once (and stops it if you hear it); saving it brings
 ///   it back, and so does listening to it again (🎧, the Reader's Listen).
 /// - **Starred** (`isFavorite`), whatever its standing: Favorites (`favoritePages`, and the
@@ -50,11 +50,11 @@ enum LibraryQueries {
         FetchDescriptor(predicate: #Predicate<Page> { $0.folderID == id }, sortBy: sortDescriptors(sort))
     }
 
-    /// History: pages played without saving (decision D5), most recently played first: the
-    /// Library home's History tab, until the 7-day prune (`prunable`) deletes them. A page removed
-    /// (`removedAt`, *Remove from History* too) isn't in it until you listen to it again. Book
+    /// Recent: pages played without saving (decision D5), most recently played first: the
+    /// Library home's Recent tab, until the 7-day prune (`prunable`) deletes them. A page removed
+    /// (`removedAt`, *Remove from Recent* too) isn't in it until you listen to it again. Book
     /// chapters never qualify (they are always in their folder).
-    static var history: FetchDescriptor<Page> {
+    static var recent: FetchDescriptor<Page> {
         let past = Date.distantPast
         let saved = PageContentState.saved.rawValue
         return FetchDescriptor(predicate: #Predicate<Page> {
@@ -63,10 +63,10 @@ enum LibraryQueries {
         }, sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse), SortDescriptor(\Page.key)])
     }
 
-    /// Whether `page` is in History, for one page in hand (a row's menu): `history`'s own
+    /// Whether `page` is in Recent, for one page in hand (a row's menu): `recent`'s own
     /// predicate, evaluated on it.
-    static func isInHistory(_ page: Page) -> Bool {
-        (try? history.predicate?.evaluate(page)) == true
+    static func isInRecent(_ page: Page) -> Bool {
+        (try? recent.predicate?.evaluate(page)) == true
     }
 
     /// The pages played most recently, newest first, in the Library or played without saving
@@ -147,7 +147,7 @@ enum LibraryQueries {
 
     /// The home's search within its tab (`tab`), across the tree: pages whose title, site or
     /// author, or excerpt holds `text`. Everything: pages in the Library; Favorites: starred pages,
-    /// in the Library or not; History: History's pages. By title, then newest first, so the
+    /// in the Library or not; Recent: Recent's pages. By title, then newest first, so the
     /// results keep one order.
     static func searchPages(_ text: String, in tab: LibraryHomeTab) -> FetchDescriptor<Page> {
         let sort = [SortDescriptor(\Page.title), SortDescriptor(\Page.addedAt, order: .reverse), SortDescriptor(\Page.key)]
@@ -164,8 +164,8 @@ enum LibraryQueries {
                     && (page.title.localizedStandardContains(text) || page.byline.localizedStandardContains(text)
                         || page.excerpt.localizedStandardContains(text))
             }, sortBy: sort)
-        case .history:
-            // `history`'s rule, written again: a predicate can't call another on iOS 17.
+        case .recent:
+            // `recent`'s rule, written again: a predicate can't call another on iOS 17.
             let past = Date.distantPast
             let saved = PageContentState.saved.rawValue
             return FetchDescriptor(predicate: #Predicate<Page> { page in
@@ -178,7 +178,7 @@ enum LibraryQueries {
     }
 
     /// The home's search for folders within its tab: those whose name or author holds `text`,
-    /// across the tree; on Favorites, starred ones only; History has none. By name, then oldest
+    /// across the tree; on Favorites, starred ones only; Recent has none. By name, then oldest
     /// first.
     static func searchFolders(_ text: String, in tab: LibraryHomeTab) -> FetchDescriptor<Folder> {
         let sort = [SortDescriptor(\Folder.name), SortDescriptor(\Folder.createdAt)]
@@ -192,12 +192,12 @@ enum LibraryQueries {
                 folder.isFavorite
                     && (folder.name.localizedStandardContains(text) || folder.byline?.localizedStandardContains(text) == true)
             }, sortBy: sort)
-        case .history:
+        case .recent:
             return noFolders
         }
     }
 
-    /// No folder: History's.
+    /// No folder: Recent's.
     static var noFolders: FetchDescriptor<Folder> {
         FetchDescriptor(predicate: #Predicate<Folder> { _ in false })
     }
@@ -221,6 +221,7 @@ enum LibraryHomeTab: String, CaseIterable {
     case everything
     /// Starred folders and pages, wherever they are, in the Library or not.
     case favorites
-    /// Pages played without saving, most recent first.
-    case history
+    /// Pages played without saving, most recent first. Its raw value is what `library.homeTab`
+    /// stores, so it keeps the tab's first name.
+    case recent = "history"
 }

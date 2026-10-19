@@ -33,7 +33,8 @@ enum Icons {
     static let reader = "doc.plaintext"
     /// The Reader text is showing in the page's place (Follow's chapter preview).
     static let readerShowing = "doc.plaintext.fill"
-    /// History: pages visited, searches made.
+    /// History (the browser's: pages visited, searches made); the Library's empty Recent tab
+    /// shows it too.
     static let history = "clock"
     static let search = "magnifyingglass"
     /// Puts a suggestion into the field to keep typing.
@@ -49,8 +50,8 @@ enum Icons {
     static let save = "bookmark"
     static let saved = "bookmark.fill"
     static let unsave = "bookmark.slash"
-    /// Remove from History: a page played without saving leaves the Library's History tab.
-    static let removeFromHistory = "clock.badge.xmark"
+    /// Remove from Recent: a page played without saving leaves the Library's Recent tab.
+    static let removeFromRecent = "clock.badge.xmark"
     /// ＋ in the Library's toolbar.
     static let add = "plus"
     static let folder = "folder"
