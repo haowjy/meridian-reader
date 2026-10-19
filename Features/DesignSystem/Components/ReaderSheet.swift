@@ -131,7 +131,7 @@ struct ReaderSheetGallery: View {
         PreviewGallery {
             PreviewState("another page playing") { frame(.idle, "Listen", "9 min", bar: true) }
             PreviewState("nothing playing, part-way, saved") {
-                frame(.idle, "Resume", "6 min left", bar: false, saved: true)
+                frame(.idle, Verbs.continue, "6 min left", bar: false, saved: true)
             }
         }
     }
@@ -144,7 +144,7 @@ struct ReaderSheetGallery: View {
         } bar: {
             if bar {
                 NowPlayingBar(title: "Chapter 12: Hunsford", detail: ["Pride and Prejudice", "9 min left"],
-                              progress: 0.3, state: .playing, onOpen: {}, onPlayPause: {}, onStop: {}, onRemove: {})
+                              progress: 0.3, state: .playing, onOpen: {}, onPlayPause: {}, menu: nil)
             }
         } more: {
             Image(systemName: Icons.more).toolbarIconFrame()

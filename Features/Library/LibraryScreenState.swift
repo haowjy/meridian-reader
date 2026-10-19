@@ -120,7 +120,7 @@ extension View {
         alert("New Folder", isPresented: isPresented) {
             TextField("Name", text: name)
                 .accessibilityIdentifier("newFolderField")
-            Button("Cancel", role: .cancel) {}
+            Button(Verbs.cancel, role: .cancel) {}
             Button("Create", action: create)
                 .accessibilityIdentifier("newFolderCreate")
         } message: {
@@ -180,8 +180,8 @@ private struct LibraryDialogs: ViewModifier {
                                                         set: { if !$0 { state.renaming = nil } })) {
                 TextField("Name", text: $state.renameText)
                     .accessibilityIdentifier("renameFolderField")
-                Button("Cancel", role: .cancel) { state.renaming = nil }
-                Button("Rename") {
+                Button(Verbs.cancel, role: .cancel) { state.renaming = nil }
+                Button(Verbs.title(Verbs.rename)) {
                     if let folder = state.renaming {
                         shell.attempt(String(localized: "Couldn’t rename")) { try library.rename(folder, to: state.renameText) }
                     }
@@ -214,7 +214,7 @@ private struct LibraryDialogs: ViewModifier {
             Button(choice.title, role: choice.isDestructive ? .destructive : nil) { delete() }
             .accessibilityIdentifier(choice.id)
         }
-        Button("Cancel", role: .cancel) { state.cancelDelete() }
+        Button(Verbs.cancel, role: .cancel) { state.cancelDelete() }
     }
 
     /// Once the delete is saved, Edit ends and the surface leaves screens of folders that are gone.

@@ -66,7 +66,7 @@ struct FolderScreen: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     let editing = screen.isEditing(folderID: folder.id)
-                    Button(editing ? "Done" : "Edit") {
+                    Button(editing ? Verbs.done : Verbs.edit) {
                         withAnimation(Motion.snappy) {
                             if editing { screen.endEditing() } else { screen.beginEditing(folderID: folder.id) }
                         }
@@ -205,8 +205,8 @@ private struct FolderContentsList: View {
                             actions: playback.hasPagesToPlay ? headerActions : nil) {
             if folder.kind == .series { FollowStatus(folder: folder, pages: pages) }
         } more: {
-            FolderMenu(folder: folder, progress: playback, hasPages: !pages.isEmpty, actions: actions,
-                       downloads: downloads, screen: screen, onTurnOffDownload: { turningOffFromMore = folder })
+            FolderMenu(folder: folder, pages: pages, actions: actions, downloads: downloads, screen: screen,
+                       onTurnOffDownload: { turningOffFromMore = folder })
         } anchor: { control in
             Color.clear.turnOffDownloadQuestion(control == .download ? $turningOffFromControl : $turningOffFromMore)
         }
@@ -230,12 +230,13 @@ private struct FolderContentsList: View {
         }, play: actions.playState(of: folder), onPlay: { actions.playFolder(folder) })
     }
 
-    /// ["2 folders", "7 pages"]; none for an empty folder, whose list says so.
+    /// ["2 folders", "7 pages"] ("7 chapters" in a book or series); none for an empty folder,
+    /// whose list says so.
     private var counts: [String] {
         guard !subfolders.isEmpty || !pages.isEmpty else { return [] }
         var parts: [String] = []
         if !subfolders.isEmpty { parts.append("\(subfolders.count) folder\(subfolders.count == 1 ? "" : "s")") }
-        parts.append("\(pages.count) page\(pages.count == 1 ? "" : "s")")
+        parts.append(folder.itemCount(pages.count))
         return parts
     }
 

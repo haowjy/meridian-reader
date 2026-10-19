@@ -1,14 +1,13 @@
 import SwiftUI
 
-/// The ⋯ menu panel's content (shown by `MorphMenuOverlay`): action rows, a divider, then a row
-/// of big buttons whose rightmost one is the panel's focus point (`morphMenuFocus`). Every row
-/// closes the panel and runs its action once the panel has started collapsing.
-///
-/// Every context lists its own actions first, then the same tail in the same order: Download
-/// (on what can be downloaded), Downloads, Settings. Settings is always the last row,
-/// just above the divider, whichever surface opened the panel. Labels come from `Verbs`; whether a
-/// row shows, dimmed or not, comes from the menu's `MenuAvailability` (DR-09). On the Reader and
-/// Now Playing the panel takes the reading page's colours (`readingPalette`).
+/// The ⋯ menu panel's content (shown by `MorphMenuOverlay`), drawn from a `MenuContext`: the
+/// item's rows (a page's or a folder's own menu, the same rows its ⋯ and long press show), a
+/// divider, the screen's rows ending in *Downloads* and *Settings*, a divider, then the row of big
+/// buttons whose rightmost one is the panel's focus point (`morphMenuFocus`). It draws rows as
+/// they come (`MenuRow`): hidden ones left out, dimmed ones disabled, destructive ones red, a
+/// submenu (*Sort*) with its chevron. Every row closes the panel and runs its action once the
+/// panel has started collapsing. On the Reader and Now Playing the panel takes the reading page's
+/// colours (`readingPalette`).
 struct MoreMenuPanel: View {
     let context: MenuContext
     let close: MorphMenuClose
@@ -20,188 +19,54 @@ struct MoreMenuPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            switch context {
-            case .browse(let menu, let perform): browse(menu) { action in close { perform(action) } }
-            case .reader(let menu, let perform): reader(menu) { action in close { perform(action) } }
-            case .library(let menu, let perform): library(menu) { action in close { perform(action) } }
+            let item = context.item.filter(\.isShown)
+            if !item.isEmpty {
+                ForEach(item) { row($0) }
+                divider
             }
+            ForEach(context.screen.filter(\.isShown)) { row($0) }
+            divider
+            HStack(spacing: 0) {
+                ForEach(Array(context.tiles.enumerated()), id: \.element.id) { index, tile in
+                    self.tile(tile, focus: index == context.tiles.count - 1)
+                }
+            }
+            .padding(.horizontal, Spacing.xs)
         }
         .padding(.vertical, Spacing.xs)
         .frame(width: 300)
     }
 
-    // MARK: - Contexts
-
-    @ViewBuilder
-    private func browse(_ menu: BrowseMenu, run: @escaping (BrowseMenu.Action) -> Void) -> some View {
-        row("New Search", Icons.search, id: "moreNewSearch") { run(.newSearch) }
-        row(menu.isSaved ? Verbs.removeFromLibrary : Verbs.saveToFolder, menu.isSaved ? Icons.unsave : Icons.save,
-            id: "moreSave") { run(menu.isSaved ? .removeFromLibrary : .saveToLibrary) }
-            .menuAvailability(menu.save)
-        favoriteRow(isFavorite: menu.isFavorite) { run(.toggleFavorite) }
-            .menuAvailability(menu.favorite)
-        followRow { run(.follow) }
-            .menuAvailability(menu.follow)
-        shareRow { run(.share) }
-            .menuAvailability(menu.share)
-        row("Reload", Icons.reload, id: "moreReload") { run(.reload) }
-            .menuAvailability(menu.reload)
-        downloadsRow { run(.downloads) }
-        settingsRow { run(.settings) }
-        divider
-        tiles {
-            favoritesTile { run(.favorites) }
-            tile("History", Icons.history, id: "moreHistory") { run(.history) }
-            tile("Reader", Icons.reader, id: "moreReaderToggle", focus: true) { run(.openReader) }
-                .menuAvailability(menu.reader)
-                .accessibilityLabel("Reader")
-                .accessibilityHint("Open in Reader")
-        }
-    }
-
-    @ViewBuilder
-    private func reader(_ menu: ReaderMenu, run: @escaping (ReaderMenu.Action) -> Void) -> some View {
-        row(String(localized: "Go to \(menu.place.name)"), menu.place.symbol, id: "moreGoTo") { run(.goTo) }
-            .menuAvailability(menu.goTo)
-        row(menu.isSaved ? Verbs.removeFromLibrary : Verbs.saveToLibrary, menu.isSaved ? Icons.unsave : Icons.save,
-            id: "moreSave") { run(.toggleSave) }
-            .menuAvailability(menu.save)
-        row(Verbs.moveTo, Icons.move, id: "moreMove") { run(.moveTo) }
-            .menuAvailability(menu.moveTo)
-        favoriteRow(isFavorite: menu.isFavorite) { run(.toggleFavorite) }
-            .menuAvailability(menu.favorite)
-        shareRow { run(.share) }
-            .menuAvailability(menu.share)
-        downloadRow(menu.hasDownload ? Verbs.removeDownload : Verbs.download,
-                    menu.hasDownload ? Icons.removeDownload : Icons.download) { run(.download) }
-            .menuAvailability(menu.download)
-        downloadsRow { run(.downloads) }
-        settingsRow { run(.settings) }
-        divider
-        tiles {
-            favoritesTile { run(.favorites) }
-            tile("History", Icons.history, id: "moreHistory") { run(.history) }
-            // The page's own web page in the browser, wherever the sheet was opened from.
-            // Playback keeps going.
-            tile("Website", Icons.browser, id: "moreWebsite", focus: true) { run(.openWebsite) }
-                .menuAvailability(menu.website)
-                .accessibilityLabel("View Website")
-                .accessibilityHint("Opens the page in the browser")
-        }
-    }
-
-    @ViewBuilder
-    private func library(_ menu: LibraryMenu, run: @escaping (LibraryMenu.Action) -> Void) -> some View {
-        switch menu.screen {
-        case .home:
-            sortMenu(menu.sort, run: run)
-            importBookRow { run(.importBook) }
-            followRow { run(.follow) }
-            row("New Folder", Icons.newFolder, id: "moreNewFolder") { run(.newFolder) }
-        case .folder(let folder):
-            sortMenu(menu.sort, run: run)
-            row("New Folder Inside", Icons.newFolder, id: "moreNewFolder") { run(.newFolder) }
-            importBookRow { run(.importBook) }
-            followRow { run(.follow) }
-            row("Rename", Icons.rename, id: "moreRename") { run(.rename) }
-            editDetailsRow { run(.editDetails) }
-            row(Verbs.moveTo, Icons.move, id: "moreMove") { run(.move) }
-            row(Verbs.deleteFolder(isBook: folder.isBook), Icons.delete, id: "moreDeleteFolder") { run(.deleteFolder) }
-            downloadRow(folder.downloadIsOn ? Verbs.turnOffDownload : Verbs.downloadFolder(isBook: folder.isBook),
-                        folder.downloadIsOn ? Icons.turnOffDownload : Icons.download) { run(.download) }
-                .menuAvailability(folder.download)
-            row(Verbs.deleteDownloads, Icons.deleteDownloads, id: "moreDeleteDownloads") { run(.deleteDownloads) }
-                .menuAvailability(folder.deleteDownloads)
-        }
-        downloadsRow { run(.downloads) }
-        settingsRow { run(.settings) }
-        divider
-        tiles {
-            favoritesTile { run(.favorites) }
-            tile("History", Icons.history, id: "moreHistory") { run(.history) }
-            tile("Browser", Icons.browser, id: "moreBrowser", focus: true) { run(.browser) }
-                .accessibilityLabel("Browser")
-                .accessibilityHint("Return to the browser")
-        }
-    }
-
-    // MARK: - Shared rows
-
-    private func sortMenu(_ current: PageSort, run: @escaping (LibraryMenu.Action) -> Void) -> some View {
-        Menu {
-            ForEach(PageSort.allCases, id: \.self) { sort in
-                Button { run(.sort(sort)) } label: {
-                    if sort == current { Label(sort.title, systemImage: Icons.checkmark) } else { Text(sort.title) }
-                }
-            }
-        } label: {
-            rowLabel("Sort", Icons.sort, trailing: Icons.disclosure)
-        }
-        .accessibilityIdentifier("moreSort")
-    }
-
-    private func editDetailsRow(action: @escaping () -> Void) -> some View {
-        row("Edit Details", Icons.editDetails, id: "moreEditDetails", action: action)
-    }
-
-    private func favoriteRow(isFavorite: Bool, action: @escaping () -> Void) -> some View {
-        row(isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites, isFavorite ? Icons.unfavorite : Icons.favorite,
-            id: "moreFavorite", action: action)
-    }
-
-    private func favoritesTile(action: @escaping () -> Void) -> some View {
-        tile("Favorites", Icons.favorite, id: "moreFavorites", action: action)
-    }
-
-    private func shareRow(action: @escaping () -> Void) -> some View {
-        row("Share", Icons.share, id: "moreShare", action: action)
-    }
-
-    private func importBookRow(action: @escaping () -> Void) -> some View {
-        row("Import Book…", Icons.book, id: "moreImportBook", action: action)
-    }
-
-    /// *Follow…*: on the browser, the page's story; in the Library, a story whose address it asks.
-    private func followRow(action: @escaping () -> Void) -> some View {
-        row(Verbs.follow, Icons.follow, id: "moreFollow", action: action)
-    }
-
-    /// ⋯ › Settings: every setting in one place. Always the last row.
-    private func settingsRow(action: @escaping () -> Void) -> some View {
-        row(Verbs.settings, Icons.settings, id: "moreSettings", action: action)
-    }
-
-    /// ⋯ › Downloads: the list of what is downloading and downloaded.
-    private func downloadsRow(action: @escaping () -> Void) -> some View {
-        row(Verbs.downloads, Icons.downloads, id: "moreDownloads", action: action)
-    }
-
-    /// A download toggle row: *Download* / *Remove Download* (a page), *Download Folder* (or
-    /// *Book*) / *Turn Off Download*.
-    private func downloadRow(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
-        row(title, icon, id: "moreDownload", action: action)
-    }
-
-    private var divider: some View {
-        Divider()
-            .padding(.horizontal, Spacing.m)
-            .padding(.vertical, Spacing.xs)
-    }
-
     // MARK: - Building blocks
 
-    private func row(_ title: String, _ icon: String, id: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) { rowLabel(title, icon) }
-            .buttonStyle(MenuRowStyle())
-            .accessibilityIdentifier(id)
+    @ViewBuilder
+    private func row(_ row: MenuRow) -> some View {
+        if row.submenu.isEmpty {
+            Button { close(then: row.action) } label: { rowLabel(row) }
+                .buttonStyle(MenuRowStyle())
+                .disabled(row.availability == .disabled)
+                .accessibilityIdentifier(row.id)
+        } else {
+            Menu {
+                ForEach(row.submenu.filter(\.isShown)) { choice in
+                    Button { close(then: choice.action) } label: {
+                        if let icon = choice.icon { Label(choice.title, systemImage: icon) } else { Text(choice.title) }
+                    }
+                }
+            } label: {
+                rowLabel(row, trailing: Icons.disclosure)
+            }
+            .disabled(row.availability == .disabled)
+            .accessibilityIdentifier(row.id)
+        }
     }
 
-    private func rowLabel(_ title: String, _ icon: String, trailing: String? = nil) -> some View {
+    private func rowLabel(_ row: MenuRow, trailing: String? = nil) -> some View {
         HStack(spacing: Spacing.m) {
-            Image(systemName: icon)
+            Image(systemName: row.icon ?? Icons.more)
                 .font(.body)
                 .frame(width: 24)
-            Text(title)
+            Text(row.title)
                 .typeStyle(.row)
             Spacer(minLength: 0)
             if let trailing {
@@ -210,27 +75,27 @@ struct MoreMenuPanel: View {
                     .foregroundStyle(secondaryInk)
             }
         }
-        .foregroundStyle(ink)
+        .foregroundStyle(row.isDestructive ? Palette.destructive : ink)
         .padding(.horizontal, Spacing.l)
         .padding(.vertical, Spacing.s)
         .contentShape(Rectangle())
     }
 
-    private func tiles<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        HStack(spacing: 0) { content() }
-            .padding(.horizontal, Spacing.xs)
+    private var divider: some View {
+        Divider()
+            .padding(.horizontal, Spacing.m)
+            .padding(.vertical, Spacing.xs)
     }
 
     /// A big button. `focus`: its icon is the panel's focus point (placed by `MorphMenuOverlay`
     /// slightly up and left of the ⋯ glyph).
-    private func tile(_ title: String, _ icon: String, id: String, focus: Bool = false,
-                      action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+    private func tile(_ tile: MenuRow, focus: Bool) -> some View {
+        Button { close(then: tile.action) } label: {
             VStack(spacing: Spacing.xs) {
-                Image(systemName: icon)
+                Image(systemName: tile.icon ?? Icons.more)
                     .font(.title3)
                     .morphMenuFocus(focus)
-                Text(title)
+                Text(tile.title)
                     .typeStyle(.caption)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -241,7 +106,10 @@ struct MoreMenuPanel: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(MenuRowStyle(cornerRadius: Radius.card))
-        .accessibilityIdentifier(id)
+        .disabled(tile.availability == .disabled)
+        .accessibilityLabel(tile.accessibilityLabel ?? tile.title)
+        .accessibilityHint(tile.accessibilityHint ?? "")
+        .accessibilityIdentifier(tile.id)
     }
 }
 

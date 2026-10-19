@@ -161,7 +161,7 @@ final class CPURouteBench {
             CPUBenchLog.append("cpubench_end", ["run": runID, "thermal": CPURouteMetrics.thermal,
                                                 "best": best?.label ?? "—", "best_x501": best?.x501 ?? 0])
             ListenTimingLog.log("cpubench", ["op": "end", "run": runID])
-            status = "Done (\(runID)) · best \(best.map { String(format: "%@ %.2f×", $0.label, $0.x501) } ?? "—") · thermal \(CPURouteMetrics.thermal)"
+            status = "Done (\(runID)), best \(best.map { String(format: "%@ %.2f×", $0.label, $0.x501) } ?? "—"), thermal \(CPURouteMetrics.thermal)"
         }
     }
 
@@ -430,7 +430,7 @@ final class CPURouteBench {
                     "low_power": ProcessInfo.processInfo.isLowPowerModeEnabled,
                 ])
                 let remaining = max(0, Int(deadline - ListenTimingLog.now()))
-                soakStatus = String(format: "#%d %@ · %.2f× (rolling %.2f×) · %@ · %.0f MB · %d:%02d left",
+                soakStatus = String(format: "#%d %@, %.2f× (rolling %.2f×), %@, %.0f MB, %d:%02d left",
                                     chunks, phase, r.xRealtime, rolling, CPURouteMetrics.thermal,
                                     CPURouteMetrics.mb(fp.current), remaining / 60, remaining % 60)
             }

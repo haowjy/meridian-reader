@@ -128,7 +128,7 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
     private func downloadValue(_ actions: FolderHeaderActions) -> String {
         var parts = [actions.downloadIsOn ? String(localized: "On") : String(localized: "Off")]
         switch actions.download {
-        case .downloading: parts.append(actions.download.percentText)
+        case .downloading, .paused: parts.append(actions.download.percentText)
         case .downloaded: parts.append(actions.download.label)
         case .notDownloaded: break
         }
@@ -195,7 +195,7 @@ struct FolderHeaderGallery: View {
                              progressLabel: ["24 of 108", "20%", "41 h left"],
                              actions: .init(download: .downloaded, downloadIsOn: true, onDownload: {}, play: .playing,
                                             onPlay: {})) {
-                    HeaderLink(symbol: Icons.follow, parts: ["Following", "fetched 41 of 108"]) {}
+                    HeaderLink(symbol: Icons.follow, parts: ["Following", "41 of 108 fetched"]) {}
                 } more: {
                     Button(Verbs.playFromStart, systemImage: Icons.previous) {}
                 }

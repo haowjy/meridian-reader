@@ -100,12 +100,6 @@ extension LibraryStore {
         }
     }
 
-    func renameFavorite(_ page: Page, to title: String) throws {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        try edit("rename favorite") { page.title = trimmed }
-    }
-
     /// Takes `data` as the page's icon unless it would replace a usable icon with a smaller one
     /// (tiny 16 px favicons look smeared on a tile).
     func offerArtwork(_ data: Data, for page: Page) {

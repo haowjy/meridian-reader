@@ -319,7 +319,7 @@ struct BottomToolbarGallery: View {
 
     private var playing: NowPlayingBar {
         NowPlayingBar(title: "Notes on Tides", detail: ["example.com", "6 min left"], progress: 0.4, state: .paused,
-                      onOpen: {}, onPlayPause: {}, onStop: {}, onRemove: {})
+                      onOpen: {}, onPlayPause: {}, menu: nil)
     }
 
     private func barRow(_ bar: NowPlayingBar) -> some View {

@@ -91,14 +91,14 @@ struct ListenDebugPanel: View {
                     }
                 }
             }
-            .navigationTitle("Listen debug")
+            .navigationTitle("Listen Debug")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Clear log") { ListenDebugLog.shared.clear() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button(Verbs.done) { dismiss() }
                 }
             }
             .onAppear { snapshot = speech.diagnostics.snapshot() }

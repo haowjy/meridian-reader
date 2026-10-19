@@ -10,7 +10,7 @@ import SwiftUI
 /// royalroad.com/fiction/40512
 /// Last checked                       today 8:02 AM
 /// Next check                      tomorrow 8:02 AM
-/// Chapter text                    109 of 109 fetched
+/// Chapter Text                    109 of 109 fetched
 /// Last new chapters             today 8:02 AM, 2 added
 /// ↻ Check Now
 /// 📡̸ Unfollow
@@ -48,10 +48,10 @@ struct FollowingSheet: View {
         let checking = follow.checking.contains(folder.id)
         return List {
             Section {
-                fact(String(localized: "Last checked"), state.lastCheckedAt.map { FollowText.when($0) } ?? "—")
-                fact(String(localized: "Next check"), nextCheck(folder))
-                fact(String(localized: "Chapter text"), chapterText(progress))
-                fact(String(localized: "Last new chapters"), state.lastAddedAt.map {
+                fact(String(localized: "Last Checked"), state.lastCheckedAt.map { FollowText.when($0) } ?? "—")
+                fact(String(localized: "Next Check"), nextCheck(folder))
+                fact(String(localized: "Chapter Text"), chapterText(progress))
+                fact(String(localized: "Last New Chapters"), state.lastAddedAt.map {
                     String(localized: "\(FollowText.when($0)), \(state.lastAddedCount) added")
                 } ?? String(localized: "None yet"))
             } header: {

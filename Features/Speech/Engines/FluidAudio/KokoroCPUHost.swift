@@ -56,7 +56,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     private var healthyCalls = 0
     private var memoryWarning: NSObjectProtocol?
 
-    var routingLabel: String? { "onnxCPU·t\(lock.withLock { sessions }?.threads ?? threads)" }
+    var routingLabel: String? { "onnxCPU t\(lock.withLock { sessions }?.threads ?? threads)" }
     var rendersInBackground: Bool { true }
     var routeTag: String? { KokoroRoute.onnxCPU.rawValue }
 

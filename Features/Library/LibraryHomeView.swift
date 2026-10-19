@@ -71,9 +71,7 @@ struct LibraryHomeView: View {
             }
             Section {
                 Picker("Library view", selection: $shell.homeTab) {
-                    Text("Everything").tag(LibraryHomeTab.everything)
-                    Text("Favorites").tag(LibraryHomeTab.favorites)
-                    Text("Recent").tag(LibraryHomeTab.recent)
+                    ForEach(LibraryHomeTab.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("libraryTabs")
@@ -113,12 +111,12 @@ struct LibraryHomeView: View {
             ContentUnavailableView.search(text: searchText)
                 .listRowBackground(Color.clear)
         } else if tab == .favorites {
-            ContentUnavailableView("No Favorites Yet", systemImage: Icons.favorite,
-                                  description: Text("Star a folder or page to find it here."))
+            EmptyState(String(localized: "No Favorites Yet"), symbol: Icons.favorite,
+                       description: String(localized: "Star a folder or page to find it here."))
                 .listRowBackground(Color.clear)
         } else if tab == .recent {
-            ContentUnavailableView("No Recent Pages Yet", systemImage: Icons.history,
-                                  description: Text("Listen to a page without saving it to find it here."))
+            EmptyState(String(localized: "No Recent Pages Yet"), symbol: Icons.recent,
+                       description: String(localized: "Listen to a page without saving it to find it here."))
                 .listRowBackground(Color.clear)
         } else {
             emptyCard
@@ -129,27 +127,19 @@ struct LibraryHomeView: View {
 
     /// An empty Everything: what the toolbar does, with the two first-run actions.
     private var emptyCard: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            Text("Find something to listen to")
-                .typeStyle(.row, weight: .semibold)
-                .foregroundStyle(Palette.ink)
-            Text("Tap \(Text.symbol(Icons.browser)) to find a page, or \(Text.symbol(Icons.add)) to import a book. Pages you save, books you import and folders you make show up here.")
-                .typeStyle(.row)
-                .foregroundStyle(Palette.secondaryInk)
+        EmptyState(String(localized: "Find Something to Listen To"), symbol: Icons.library,
+                   description: Text("Tap \(Text.symbol(Icons.browser)) to find a page, or \(Text.symbol(Icons.add)) to import a book. Pages you save, books you import and folders you make show up here.")) {
             ActionButtonRow { fit in
-                PillButton(String(localized: "Browse the web"), shortTitle: String(localized: "Browse"),
+                PillButton(String(localized: "Browse the Web"), shortTitle: String(localized: "Browse"),
                            systemImage: Icons.browser, style: .filled, fit: fit) { shell.leaveLibrary() }
                     .accessibilityIdentifier("libraryEmptyBrowse")
-                PillButton(String(localized: "Import a book"), shortTitle: String(localized: "Import"),
+                PillButton(Verbs.importBook, shortTitle: String(localized: "Import"),
                            systemImage: Icons.book, style: .neutral, fit: fit) {
                     BookImportActions(library: library, shell: shell).pickBook(into: nil)
                 }
                 .accessibilityIdentifier("libraryEmptyImport")
             }
         }
-        .padding(Spacing.m)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("libraryEmpty")
     }
@@ -206,5 +196,25 @@ extension View {
             .contentMargins(.horizontal, Spacing.pageMargin, for: .scrollContent)
             .listSectionSpacing(Spacing.l)
             .environment(\.defaultMinListRowHeight, 0)
+    }
+}
+
+extension LibraryHomeTab {
+    /// Its name in the tabs.
+    var title: String {
+        switch self {
+        case .everything: String(localized: "Everything")
+        case .favorites: Verbs.favorites
+        case .recent: String(localized: "Recent")
+        }
+    }
+
+    /// The band's search field: it searches the tab on screen only (Y11), so it names it.
+    var searchPrompt: String {
+        switch self {
+        case .everything: String(localized: "Search Library")
+        case .favorites: String(localized: "Search Favorites")
+        case .recent: String(localized: "Search Recent")
+        }
     }
 }

@@ -14,8 +14,9 @@ import SwiftUI
 /// ```
 struct TitleCard: View {
     let title: String?
-    /// ["example.com", "12 min left"], or ["✓ Finished"].
+    /// ["example.com", "12 min left"], or ["Finished"] after `detailSymbol` ✓.
     let detail: [String]
+    var detailSymbol: String?
     var artwork: Image?
     /// On the tile when there is no artwork.
     let artworkLetter: String
@@ -40,7 +41,7 @@ struct TitleCard: View {
                         .foregroundStyle(palette.ink)
                         .lineLimit(large ? nil : 3)
                 }
-                DetailLine(detail)
+                DetailLine(detail, symbol: detailSymbol)
                     .typeStyle(.caption)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

@@ -1,14 +1,16 @@
 import SwiftUI
 
-/// One fixed-layout choice row: title, optional one-line subtitle, a fixed-size trailing
-/// accessory slot, and a fixed-size checkmark slot (checkmark / spinner / empty). State changes
-/// swap contents inside the slots, so the row's size never changes.
+/// One fixed-layout choice row: title, optional one-line subtitle (after the grey ✓ badge when
+/// what it names is downloaded, as a Library row's), a fixed-size trailing accessory slot (a
+/// download's mark, a preview), and a fixed-size checkmark slot. State changes swap contents
+/// inside the slots, so the row's size never changes.
 struct SettingsChoiceRow<Accessory: View>: View {
     let title: String
     let subtitle: String?
     let selected: Bool
     var enabled: Bool = true
-    var busy: Bool = false
+    /// Downloaded (a voice model): the grey ✓ badge before the subtitle.
+    var downloaded: Bool = false
     let accessibilityID: String
     let action: () -> Void
     @ViewBuilder let accessory: () -> Accessory
@@ -18,7 +20,7 @@ struct SettingsChoiceRow<Accessory: View>: View {
         subtitle: String?,
         selected: Bool,
         enabled: Bool = true,
-        busy: Bool = false,
+        downloaded: Bool = false,
         accessibilityID: String,
         action: @escaping () -> Void,
         @ViewBuilder accessory: @escaping () -> Accessory
@@ -27,7 +29,7 @@ struct SettingsChoiceRow<Accessory: View>: View {
         self.subtitle = subtitle
         self.selected = selected
         self.enabled = enabled
-        self.busy = busy
+        self.downloaded = downloaded
         self.accessibilityID = accessibilityID
         self.action = action
         self.accessory = accessory
@@ -43,11 +45,14 @@ struct SettingsChoiceRow<Accessory: View>: View {
                             .foregroundStyle(enabled ? Palette.ink : Palette.secondaryInk)
                             .lineLimit(1)
                         if let subtitle {
-                            Text(subtitle)
-                                .typeStyle(.caption)
-                                .foregroundStyle(Palette.secondaryInk)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
+                            HStack(spacing: Spacing.xxs) {
+                                if downloaded { Image(systemName: Icons.downloaded) }
+                                Text(subtitle)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                            }
+                            .typeStyle(.caption)
+                            .foregroundStyle(Palette.secondaryInk)
                         }
                     }
                     Spacer(minLength: Spacing.xs)
@@ -63,9 +68,7 @@ struct SettingsChoiceRow<Accessory: View>: View {
                 .frame(width: Glyph.control, height: Glyph.control)
 
             ZStack {
-                if busy {
-                    ProgressView().controlSize(.small)
-                } else if selected {
+                if selected {
                     Image(systemName: Icons.checkmark)
                         .foregroundStyle(Palette.accent)
                         .fontWeight(.semibold)

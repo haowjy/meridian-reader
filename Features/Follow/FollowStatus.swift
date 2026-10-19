@@ -5,8 +5,8 @@ import SwiftUI
 /// slow down or isn't answering, one notice saying how long the next chapter waits, by its title.
 ///
 /// ```
-/// 📡 Following   fetching chapter text 4 of 107 ›
-/// 📡 Following   1 chapter couldn’t load   fetched 41 of 107 ›
+/// 📡 Following   3 of 107 fetched ›
+/// 📡 Following   1 chapter couldn’t load   41 of 107 fetched ›
 /// ⏳ Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52, then slower.
 /// 📡 Following   checked today 8:02 AM   2 new ›
 /// ```
@@ -41,10 +41,9 @@ struct FollowStatus: View {
         var parts = [state?.isFollowing == false ? String(localized: "Not following") : String(localized: "Following")]
         // Ahead of the progress, which it matters more than: read first, and first on the line.
         if progress.failed > 0 { parts.append(FollowText.couldNotLoad(progress.failed)) }
-        if let fetching = progress.fetching {
-            parts.append(String(localized: "fetching chapter text \(fetching.number) of \(progress.chapters)"))
-        } else if progress.toFetch > 0 {
-            parts.append(String(localized: "fetched \(progress.withText) of \(progress.chapters)"))
+        // The Following sheet's words for the same count.
+        if progress.fetching != nil || progress.toFetch > 0 {
+            parts.append(String(localized: "\(progress.withText) of \(progress.chapters) fetched"))
         } else if follow.checking.contains(folder.id) {
             parts.append(String(localized: "checking for new chapters"))
         } else if state?.isFollowing == true, let checked = state?.lastCheckedAt {

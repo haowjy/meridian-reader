@@ -33,15 +33,16 @@ enum Icons {
     static let reader = "doc.plaintext"
     /// The Reader text is showing in the page's place (Follow's chapter preview).
     static let readerShowing = "doc.plaintext.fill"
-    /// History (the browser's: pages visited, searches made); the Library's empty Recent tab
-    /// shows it too.
+    /// History (the browser's: pages visited, searches made).
     static let history = "clock"
+    /// Recent (the Library's tab: pages listened to without saving).
+    static let recent = "clock.arrow.circlepath"
     static let search = "magnifyingglass"
     /// Puts a suggestion into the field to keep typing.
     static let fillField = "arrow.up.backward"
     static let dictate = "mic"
     /// Dictation under way (the mic's place while it listens).
-    static let dictating = "waveform"
+    static let dictating = "mic.fill"
     static let reload = "arrow.clockwise"
 
     // MARK: The Library
@@ -50,7 +51,8 @@ enum Icons {
     static let save = "bookmark"
     static let saved = "bookmark.fill"
     static let unsave = "bookmark.slash"
-    /// Remove from Recent: a page played without saving leaves the Library's Recent tab.
+    /// Remove from Recent: a page played without saving leaves the Library's Recent tab (the
+    /// system has no struck-out form of `recent`).
     static let removeFromRecent = "clock.badge.xmark"
     /// ＋ in the Library's toolbar.
     static let add = "plus"
@@ -68,14 +70,17 @@ enum Icons {
     static let share = "square.and.arrow.up"
     static let delete = "trash"
     static let sort = "arrow.up.arrow.down"
+    /// Select (Edit's check circles).
     static let select = "checkmark.circle"
-    /// The chosen option in a list.
+    /// The chosen option in a list; Finished, before a row's status.
     static let checkmark = "checkmark"
-    static let markFinished = "checkmark.circle"
+    /// Mark as Finished: the plain ✓ a finished row shows (not Select's circle, nor the filled
+    /// circle that means downloaded).
+    static let markFinished = checkmark
     static let markUnfinished = "circle"
     static let markAllAboveFinished = "checkmark.circle.badge.questionmark"
     static let skipInPlayback = "forward.end"
-    static let includeInPlayback = "play.circle"
+    static let includeInPlayback = "play.square"
     static let photo = "photo"
     static let photos = "photo.on.rectangle"
     /// A web address standing in for a page with no title.
@@ -111,7 +116,7 @@ enum Icons {
     /// A voice's sample: play, stop.
     static let previewPlay = "play.circle"
     static let previewStop = "stop.circle"
-    /// Developer options' listen debug.
+    /// Developer options' listen debug: its switch and its panel.
     static let debug = "ladybug"
 
     // MARK: Downloads
@@ -122,18 +127,19 @@ enum Icons {
     static let downloadArrow = "arrow.down"
     /// Downloading: the jade disc over a row's dimmed tile.
     static let downloading = "arrow.down.circle.fill"
-    /// Downloaded: the grey badge before a row's second line, a folder header's control.
+    /// Downloaded: the grey badge before a row's second line, a folder header's control, a voice
+    /// model in Settings.
     static let downloaded = "checkmark.circle.fill"
     /// The Downloads list.
     static let downloads = "tray.and.arrow.down"
-    static let deleteDownloads = "trash.circle"
-    /// A page's *Remove Download*: its downloads deleted, as *Delete Downloads* does a folder's.
-    static let removeDownload = deleteDownloads
+    /// *Remove Download* (a page, a download in the list) and *Remove Downloads* (a folder's
+    /// pages): the audio deleted.
+    static let removeDownload = "trash.circle"
     /// Turning a folder's Download off (its audio stays).
     static let turnOffDownload = "arrow.down.circle.dotted"
     static let redownload = reload
     /// Keep a download made with another voice.
-    static let keep = checkmark
+    static let keep = "pin"
 
     // MARK: Settings and reading
 

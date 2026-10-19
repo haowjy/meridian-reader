@@ -78,7 +78,7 @@ struct MoveTreeList: View {
         List {
             Section {
                 Button { name(in: nil) } label: {
-                    Label("New Folder", systemImage: Icons.newFolder)
+                    Label(Verbs.newFolder, systemImage: Icons.newFolder)
                         .typeStyle(.row)
                         .foregroundStyle(Palette.accent)
                         .frame(maxWidth: .infinity, minHeight: BottomChrome.minTapTarget, alignment: .leading)
@@ -94,7 +94,7 @@ struct MoveTreeList: View {
                           isCurrent: current == .folder(folder.id),
                           isEnabled: !isMoving(folder), id: "moveFolder") { pick(folder) }
                         .contextMenu {
-                            Button("New Folder Inside", systemImage: Icons.newFolder) { name(in: folder) }
+                            Button(Verbs.newFolderInside, systemImage: Icons.newFolder) { name(in: folder) }
                                 .accessibilityIdentifier("moveNewFolderInside")
                                 .menuAvailability(MenuAvailability(when: !isMoving(folder)))
                         }

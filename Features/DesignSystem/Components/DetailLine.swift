@@ -15,22 +15,28 @@ import SwiftUI
 /// the font (`typeStyle`). VoiceOver reads the parts as one label, joined with commas.
 struct DetailLine: View {
     let parts: [String]
+    /// A symbol before the first part, in its ink (✓ before "Finished", as a row's status has it).
+    var symbol: String?
 
     @Environment(\.readingPalette) private var reading
     /// `Spacing.s` at the default text size, growing with the caption it separates.
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var spacing = Spacing.s
 
     /// Empty and nil parts are left out.
-    init(_ parts: [String?]) {
+    init(_ parts: [String?], symbol: String? = nil) {
         self.parts = parts.compactMap { $0 }.filter { !$0.isEmpty }
+        self.symbol = symbol
     }
 
     var body: some View {
         DetailLineLayout(spacing: spacing) {
             ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
-                Text(part)
-                    .foregroundStyle(index == 0 ? DetailLine.leadInk(reading) : DetailLine.restInk(reading))
-                    .lineLimit(index == 0 ? 1 : nil)
+                HStack(spacing: Spacing.xxs) {
+                    if index == 0, let symbol { Image(systemName: symbol) }
+                    Text(part)
+                }
+                .foregroundStyle(index == 0 ? DetailLine.leadInk(reading) : DetailLine.restInk(reading))
+                .lineLimit(index == 0 ? 1 : nil)
             }
         }
         .accessibilityElement(children: .ignore)

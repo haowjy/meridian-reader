@@ -142,8 +142,9 @@ final class DownloadCenter {
     func state(of page: Page) -> DownloadState {
         guard page.isInLibrary else { return .notDownloaded }
         let key = page.listenKey
-        if records.contains(where: { $0.entries.contains { $0.key == key && $0.state == .queued } }) {
-            return .downloading(fraction: 0)
+        let holding = records.filter { $0.entries.contains { $0.key == key && $0.state == .queued } }
+        if !holding.isEmpty {
+            return holding.allSatisfy(\.isPaused) ? .paused(fraction: 0) : .downloading(fraction: 0)
         }
         return isDownloaded([key]) ? .downloaded : .notDownloaded
     }
@@ -156,7 +157,8 @@ final class DownloadCenter {
     func state(of folder: Folder, pages: [Page]) -> DownloadState {
         let record = record(for: .folder(folder.id))
         if let record, record.hasQueuedPages {
-            return .downloading(fraction: DownloadOverview.fraction(of: record, active: activeProgress))
+            let fraction = DownloadOverview.fraction(of: record, active: activeProgress)
+            return record.isPaused ? .paused(fraction: fraction) : .downloading(fraction: fraction)
         }
         let keys = pages.filter { Self.covers($0, in: folder) }.map(\.listenKey)
         if keys.isEmpty { return record?.followsFolder == true ? .downloaded : .notDownloaded }

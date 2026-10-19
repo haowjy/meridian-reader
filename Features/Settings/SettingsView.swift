@@ -233,7 +233,7 @@ private struct DeveloperSettingsSection: View {
                 // Over Settings, which stay when it closes (`ShellState.overSheet`).
                 shell.present(.listenDebug)
             } label: {
-                SettingsLabel(title: String(localized: "Listen Debug Panel"), symbol: Icons.developer) {
+                SettingsLabel(title: String(localized: "Listen Debug Panel"), symbol: Icons.debug) {
                     Image(systemName: Icons.disclosure)
                         .typeStyle(.caption, weight: .semibold)
                         .foregroundStyle(Palette.secondaryInk)

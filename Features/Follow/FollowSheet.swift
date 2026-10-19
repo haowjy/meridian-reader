@@ -129,7 +129,7 @@ private struct FollowAddressStep: View {
                     .frame(minHeight: BottomChrome.minTapTarget)
                     .accessibilityIdentifier("followAddress")
             } header: {
-                SectionHeader(title: String(localized: "Story address"))
+                SectionHeader(title: String(localized: "Story Address"))
                     .libraryHeader()
             } footer: {
                 Text("A page that lists the story’s chapters: a Royal Road story page, or another site’s table of contents.")
