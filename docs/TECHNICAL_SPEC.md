@@ -65,7 +65,16 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
   (`LibraryTestEnvironment`).
 - **Navigation.** `ShellState` owns what you see: the surface (browser or library), the Reader
   sheet and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
-  It asks the playback session what you hear (`isHearing`) and stores nothing about it. Browse and the library share
+  It asks the playback session what you hear (`isHearing`) and stores nothing about it. A reading
+  sheet's full screen is its own view state (`ReadingChrome`, held by `ReaderSheet` and
+  `NowPlayingSheet`, fed by the reading web view's drags and taps), not the shell's. The reading
+  web view's coordinator decides what the text shows (its hold: a fresh page's top, a handed-over
+  place, the saved spot, a scrub; the spoken sentence while following) and one of two layouts
+  (`ReadingTextLayout`) puts it on screen and keeps the reader's place through new layouts:
+  Scroll (`HTMLReadingView+Scroll.swift`) or Pages (`HTMLReadingView+Pages.swift`), where the
+  page's script measures its line boxes, `ReadingPagination` breaks them into pages of whole
+  lines, and native views in the page's colour cover what of the pages around the one shown
+  would show. Browse and the library share
   one `SearchSession` model.
 - **Listening.** `SpeechController` binds an engine per utterance and derives what every screen
   shows of what you hear (`nowPlaying`, `playState(of:)`); `PlaybackSessionState` owns what you
@@ -174,9 +183,11 @@ already in the snapshot. That is also why the off-screen view keeps page scripts
 a second time, fetch, and change the DOM before Readability reads it. The app's own
 `evaluateJavaScript` calls still run.
 
-**Success and failure.** Save and the reader need a non-empty title and body. Otherwise
-extraction fails with a reason the user sees, and nothing is stored (no bookmark-only save, no
-raw snapshot).
+**Success and failure.** Save and the reader need a non-empty body. Otherwise extraction fails
+with a reason the user sees, and nothing is stored (no bookmark-only save, no raw snapshot). A
+page without a title of its own (no `<title>`, heading or title metadata) is read and saved with
+none (`PageTitle`): the Reader shows its source line alone, and rows, the bar and the lock screen
+name it by its site.
 
 **Book chapters** skip Readability: each chapter's XHTML goes through the normalizer alone, in
 one reused off-screen web view holding a blank standards-mode page, after `ReaderBookChapter.js`
@@ -230,7 +241,7 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 |-------|---------|
 | `key` | Audio cache / listen key (`ARTICLE_IDENTITY.md`); copied verbatim from `SavedArticle.id` at migration, never recomputed |
 | `urlString`, `canonicalURL` | The page; one page per canonical URL |
-| `title`, `byline`, `excerpt`, `artworkData` | Rows, Now Playing (`byline` = site domain for web pages) |
+| `title`, `byline`, `excerpt`, `artworkData` | Rows, Now Playing (`byline` = site domain for web pages; `title` "" = the page has none, read as `givenTitle`, and a row names it by `lineOne`) |
 | `contentStateRaw` | `link` (a favorite, a followed story's chapter waiting for its text; any text is a cache) or `saved` |
 | `addedAt` | When it joined the Library; nil = played without saving or removed (kept 7 days after its last play; a removed page never played, until the next launch) |
 | `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, a page is in no list, not even History, nor the bar's resume; read only while `addedAt` is nil |
@@ -303,7 +314,8 @@ Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their 
    kept: a chapter with nothing to read is dropped; a book with no body chapter left plays every
    chapter; a body chapter under 100 words joins the body chapter after it, else the one before,
    within 30,000 words; a body chapter still over 30,000 words makes the book be cut again with a
-   lower cap, at most three cuts. An untitled chapter is named by its first words.
+   lower cap, at most three cuts. A chapter neither its contents entry nor a heading names has
+   no title: rows and the bar name it by its book.
 4. Before anything is stored, the chapters are held to the size policy on the listen blocks that
    will be stored (`BookChapterFinalizer.check`): a book with nothing left to read is refused as
    unreadable; a body chapter still over 30,000 words after the last cut, or one under 100 that a
@@ -454,6 +466,9 @@ Extracted HTML is shown as Readability returns it; there is no separate sanitize
 drops `<script>` elements but keeps inline handlers (`onerror`, `onclick`) and `javascript:`
 links, so the reader's web view runs with the article's JavaScript off
 (`allowsContentJavaScript = false`). Only the app's own code runs there: the bootstrap user
-script and the listeners it installs (tap-to-seek through the `readerBridge` message handler),
-and `evaluateJavaScript` calls for highlight and scroll. The visible
+script and the listeners it installs (tap-to-seek, taps for page turns and full screen, and
+Pages mode's layout changes, through the `readerBridge` message handler), and `evaluateJavaScript` calls for highlight and
+scroll. The reader's web view never navigates: a tapped link is cancelled and handed to the app,
+which opens it in the browser; a fragment link only scrolls, and `javascript:` links do nothing.
+The visible
 browser keeps JavaScript on; sites need it.

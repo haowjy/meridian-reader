@@ -106,7 +106,7 @@ enum ReadingStyle {
         return """
         :root { \(sizes.cssVariables) \(look.cssVariables) }
         html { -webkit-tap-highlight-color: transparent; background: var(--paper); }
-        body { margin: 0; padding: \(pad)px \(margin)px \(Int(Spacing.xl))px;
+        body { margin: 0; padding: \(pad)px \(margin)px calc(\(Int(Spacing.xl))px + var(--page-room, 0px));
                font-family: var(--font); font-size: calc(var(--body) * var(--scale)); line-height: var(--leading);
                -webkit-text-size-adjust: 100%; background: var(--paper); color: var(--ink); }
         a { color: var(--accent); }

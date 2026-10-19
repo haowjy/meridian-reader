@@ -22,6 +22,9 @@ import SwiftUI
 ///   in the Reader.
 /// - At the end it stays: the text stays, all in full ink, the title card says "✓ Finished"
 ///   (the one place it shows, where the Reader shows the page's length), ▶ plays it again.
+/// - Scrolling down reads full screen, as in the Reader (`NowPlayingSheet`, `ReadingChrome`): the
+///   text still follows the audio, a page turn by a tap stops following as a drag does, and a link
+///   in the text opens in the browser.
 /// - The pill or a pull down shrinks it back into the bar.
 struct NowPlayingScreen: View {
     @Bindable var speech: SpeechController
@@ -61,21 +64,23 @@ struct NowPlayingScreen: View {
     private func player(_ now: NowPlaying, _ actions: PageActions) -> some View {
         NowPlayingSheet(
             playingFrom: playingFromName(now, saved: actions.isSaved),
+            playState: speech.playState(of: .page(now.pageKey)),
             showsJumpToAudio: !following && !now.isFinished,
             onCollapse: { [shell, presentation = shell.nowPlayingPresentation] in
                 if let presentation { shell.nowPlayingDidClose(presentation) }
             },
+            onPlayPause: speech.pressNowPlaying,
             onJumpToAudio: { following = true },
             palette: appearance.palette(accent: AppAppearance.shared.accent)
         ) {
             TextAppearanceControl()
         } accessory: {
-            JumpModeButton(isOn: jumpMode) { jumpMode.toggle() }
+            JumpModeButton(isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
                 .disabled(speech.document.isEmpty)
+        } banner: {
+            if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
             text(now, article: actions.article)
-                .jumpHint(jumpMode) { jumpMode = false }
-                .animation(Motion.snappy, value: jumpMode)
         } controls: {
             NowPlayingControls(
                 speech: speech, scrubMap: scrubMap, detectedLanguage: speech.sessionDetectedLanguage,
@@ -105,12 +110,13 @@ struct NowPlayingScreen: View {
     private func text(_ now: NowPlaying, article: ReaderArticle?) -> some View {
         if let html = readingHTML(now, article: article) {
             SpokenText(speech: speech, html: html,
-                       card: TitleCardContent(title: article?.title ?? now.title, source: now.source,
+                       card: TitleCardContent(title: article.map(\.title) ?? now.title, source: now.source,
+                                              letter: now.artworkLetter,
                                               artwork: now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))),
                        finished: now.isFinished, scrubMap: scrubMap, scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,
                        opensAt: shell.nowPlayingOpensAt,
-                       onUserScroll: { following = false }, onTap: jump(to:))
+                       onUserScroll: { following = false }, onTap: jump(to:), onOpenLink: shell.navigate(to:))
         } else {
             appearance.palette(accent: AppAppearance.shared.accent).background
         }
@@ -190,9 +196,12 @@ private struct NowPlayingContent {
 
 /// What the title card shows that doesn't move with the playhead.
 private struct TitleCardContent {
-    let title: String
+    /// nil: the page has none.
+    let title: String?
     /// "example.com".
     let source: String
+    /// On the artwork tile when there is no artwork.
+    let letter: String
     let artwork: Image?
 }
 
@@ -223,6 +232,7 @@ private struct SpokenText: View {
     let opensAt: ReadingHandOver?
     let onUserScroll: () -> Void
     let onTap: (Int) -> Void
+    let onOpenLink: (URL) -> Void
 
     @Environment(\.readingPalette) private var reading
 
@@ -238,6 +248,10 @@ private struct SpokenText: View {
             follows: follows && !finished,
             opensAt: opensAt,
             onUserScroll: onUserScroll,
+            onOpenLink: onOpenLink,
+            pageTimeLeft: { [document = speech.document, rate = speech.rateMultiplier] in
+                ListeningTime.leftInChapterLabel(in: document, paragraph: $0, offset: $1, rate: rate)
+            },
             onTapParagraph: onTap
         )
     }
@@ -250,12 +264,11 @@ private struct SpokenText: View {
                                              rate: speech.rateMultiplier)
         let detail = finished ? [ListeningTime.finishedLabel]
             : [card.source, doc.isEmpty ? "" : ListeningTime.leftLabel(minutes: left)].filter { !$0.isEmpty }
-        let letter = card.source.isEmpty ? card.title : card.source
         let palette = reading ?? .app
         return ReadingTopView(
-            id: [card.title, detail.joined(separator: "\n"), letter, card.artwork == nil ? "" : "artwork",
+            id: [card.title ?? "", detail.joined(separator: "\n"), card.letter, card.artwork == nil ? "" : "artwork",
                  palette.theme.rawValue, AppAppearance.shared.accent.rawValue],
-            view: AnyView(TitleCard(title: card.title, detail: detail, artwork: card.artwork, artworkLetter: letter,
+            view: AnyView(TitleCard(title: card.title, detail: detail, artwork: card.artwork, artworkLetter: card.letter,
                                     palette: palette))
         )
     }
@@ -269,8 +282,10 @@ private struct SpokenText: View {
     }
 }
 
-/// "Tap a paragraph to play from there", docked above the text while ☝︎ is on (`jumpHint`), its
-/// capsule at the page margin like the text under it, on the reading page's card colour.
+/// "Tap a paragraph to play from there", under the top bar while ☝︎ is on (the reading sheets'
+/// `banner`), its capsule at the page margin like the text under it, on the reading page's card
+/// colour. It is part of the header drawn over the text, so the text's top inset grows with it and
+/// it never covers the first line.
 struct JumpHint: View {
     let onCancel: () -> Void
 
@@ -297,16 +312,5 @@ struct JumpHint: View {
         .padding(.horizontal, Spacing.pageMargin)
         .padding(.vertical, Spacing.xs)
         .transition(.slideAndFade(from: .top, reduceMotion: reduceMotion))
-    }
-}
-
-extension View {
-    /// The Jump hint above the reading text while ☝︎ is on: the text moves down by the hint's
-    /// height, so the hint never covers the title or the first line.
-    func jumpHint(_ isOn: Bool, onCancel: @escaping () -> Void) -> some View {
-        VStack(spacing: 0) {
-            if isOn { JumpHint(onCancel: onCancel) }
-            self
-        }
     }
 }

@@ -92,10 +92,12 @@ private struct BarProgress: View {
         let offset = now.isFinished ? doc.utf16Length : speech.spokenUTF16Offset
         let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: offset, rate: speech.rateMultiplier)
         NowPlayingBar(
-            title: now.title,
-            detail: now.isFinished ? [ListeningTime.finishedLabel] : [now.source, ListeningTime.leftLabel(minutes: left)],
+            title: now.lineOne,
+            // Untitled, line one is already its source.
+            detail: now.isFinished ? [ListeningTime.finishedLabel]
+                : [now.title == nil ? nil : now.source, ListeningTime.leftLabel(minutes: left)].compactMap { $0 },
             artwork: cover.image(for: now.pageKey, data: now.artwork),
-            artworkLetter: now.source.isEmpty ? now.title : now.source,
+            artworkLetter: now.artworkLetter,
             progress: doc.progress(atUTF16Offset: offset),
             state: speech.playState(of: .page(now.pageKey)),
             onOpen: shell.showNowPlaying,
@@ -136,10 +138,10 @@ private struct ResumeBar: View {
     @ViewBuilder private var bar: some View {
         let progress = actions.progress(of: page)
         NowPlayingBar(
-            title: page.title,
+            title: page.lineOne,
             detail: detail(progress),
             artwork: cover.image(for: page.listenKey, data: page.artworkData),
-            artworkLetter: source.isEmpty ? page.title : source,
+            artworkLetter: page.artworkLetter,
             progress: fraction(progress),
             state: actions.playState(of: page),
             identifier: "nowPlayingBarResume",
@@ -150,17 +152,13 @@ private struct ResumeBar: View {
         )
     }
 
-    /// The book or series it belongs to, else its site.
-    private var source: String {
-        if let folder = page.folder, folder.kind.isBookOrSeries { return folder.name }
-        return page.byline
-    }
-
+    /// Its source (untitled, line one is already that), then the time left or ✓ Finished.
     private func detail(_ progress: ListRow.Progress) -> [String] {
+        let source = page.givenTitle == nil ? [] : [page.source]
         switch progress {
-        case .partWay(_, let minutesLeft): [source, ListeningTime.leftLabel(minutes: minutesLeft)]
-        case .finished: [ListeningTime.finishedLabel]
-        default: [source]
+        case .partWay(_, let minutesLeft): return source + [ListeningTime.leftLabel(minutes: minutesLeft)]
+        case .finished: return [ListeningTime.finishedLabel]
+        default: return source
         }
     }
 

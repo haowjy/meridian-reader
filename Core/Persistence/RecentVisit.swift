@@ -9,6 +9,7 @@ final class RecentVisit {
     @Attribute(.unique) var id: UUID
     /// The page's canonical URL (`ArticleIdentity`): one visit per page.
     var urlString: String
+    /// The page's title, "" when it has none (`PageTitle`).
     var title: String
     var host: String
     var visitedAt: Date
@@ -32,24 +33,26 @@ final class RecentVisit {
     }
 
     var url: URL? { URL(string: urlString) }
+
+    /// What names it in its row and a suggestion: `PageTitle.lineOne`.
+    var lineOne: String { PageTitle.lineOne(title: title, source: host, address: urlString) }
 }
 
 extension LibraryStore {
     /// A web page finished loading: History lists it first, once per page (its canonical URL,
-    /// `ArticleIdentity`), with its title and icon; the oldest visits past `maxEntries` go. Stored
-    /// with `commit`, as every other library change, so the audio work and listening progress
-    /// waiting in the context are stored with it, and a failed save is logged.
+    /// `ArticleIdentity`), with its title, if it has one, and its icon; the oldest visits past
+    /// `maxEntries` go. Stored with `commit`, as every other library change, so the audio work and
+    /// listening progress waiting in the context are stored with it, and a failed save is logged.
     func recordVisit(url: URL, title: String?, faviconData: Data?) {
         guard url.isWeb else { return }
         let key = ArticleIdentity.canonicalURLString(from: url)
         let host = url.host ?? key
         let trimmed = (title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let displayTitle = trimmed.isEmpty ? host : trimmed
 
         var same = FetchDescriptor<RecentVisit>(predicate: #Predicate { $0.urlString == key })
         same.fetchLimit = 1
         if let hit = try? context.fetch(same).first {
-            hit.title = displayTitle
+            hit.title = trimmed
             hit.host = host
             hit.visitedAt = now()
             if let faviconData, !faviconData.isEmpty { hit.faviconData = faviconData }
@@ -59,7 +62,7 @@ extension LibraryStore {
             var stale = FetchDescriptor<RecentVisit>(sortBy: [SortDescriptor(\.visitedAt, order: .reverse)])
             stale.fetchOffset = RecentVisit.maxEntries - 1
             for visit in (try? context.fetch(stale)) ?? [] { context.delete(visit) }
-            context.insert(RecentVisit(urlString: key, title: displayTitle, host: host, visitedAt: now(),
+            context.insert(RecentVisit(urlString: key, title: trimmed, host: host, visitedAt: now(),
                                        faviconData: faviconData))
         }
         commit("visit")

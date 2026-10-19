@@ -39,7 +39,7 @@ extension SpeechController {
         var album: String?
         if case .folder(_, let name) = now.playingFrom { album = name }
         let info = NowPlayingInfo(
-            title: now.title, site: now.byline, album: album,
+            title: now.lineOne, site: now.byline, album: album,
             paragraph: currentParagraphIndex + 1, paragraphCount: document.count,
             isPlaying: now.phase == .playing, rate: rateMultiplier, artwork: now.artwork)
         lockScreen.update(info, canNext: canSkipToNextParagraph, canPrevious: canSkipToPreviousParagraph)

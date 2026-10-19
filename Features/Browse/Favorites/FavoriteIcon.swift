@@ -38,7 +38,7 @@ struct FavoriteIcon: View {
     }
 
     private var letter: String {
-        let source = page.title.first(where: { $0.isLetter || $0.isNumber })
+        let source = page.givenTitle?.first(where: { $0.isLetter || $0.isNumber })
             ?? page.byline.replacingOccurrences(of: "www.", with: "").first
         return source.map { String($0).uppercased() } ?? "?"
     }

@@ -1,8 +1,9 @@
 import Foundation
 
-/// The script every reading page runs at document end (`HTMLReadingWebView.makeWebView`): it
-/// numbers the listen blocks and gives Swift the page's side of tapping, highlighting, the
-/// sentence underline and measuring.
+/// The reading page: its HTML (`wrap`), and the script it runs at document end
+/// (`HTMLReadingWebView.makeWebView`), which numbers the listen blocks and gives Swift the page's
+/// side of tapping (a paragraph in jump mode, anywhere else for page turns and the bars),
+/// highlighting, the sentence underline and measuring.
 extension HTMLReadingWebView {
     /// A paragraph's accessibility label in jump mode ("Paragraph 3") and its hint.
     static let jumpLabel = "Paragraph"
@@ -167,6 +168,61 @@ extension HTMLReadingWebView {
             }
             return [docTop({ top: top }), bottom - top, window.__readerTextTop()];
           };
+          // Where the element a same-page link points to (its id, else its name) sits, as
+          // __readerSpokenRect answers.
+          window.__readerAnchorRect = function(fragment) {
+            var id = fragment;
+            try { id = decodeURIComponent(fragment); } catch (e) {}
+            var el = document.getElementById(id) || document.getElementsByName(id)[0];
+            if (!el) return null;
+            var box = el.getBoundingClientRect();
+            return [docTop(box), box.height, window.__readerTextTop()];
+          };
+          // Pages mode: the page's lines as [top, bottom, top, bottom, …] in document y, sorted and
+          // merged where they overlap. A text line is its line box (the glyphs' rect grown to the
+          // line height around its middle, so lines in a paragraph touch); images, embeds, the
+          // title card's slot and the heading are single boxes.
+          var ATOMIC = 'img, svg, video, canvas, iframe, object, embed, .reader-top, .reader-heading';
+          window.__readerLines = function() {
+            var origin = document.documentElement.getBoundingClientRect().top, boxes = [];
+            document.querySelectorAll(ATOMIC).forEach(function(el) {
+              if (el.parentElement && el.parentElement.closest(ATOMIC)) return;
+              var r = el.getBoundingClientRect();
+              if (r.height > 0) boxes.push([r.top - origin, r.bottom - origin]);
+            });
+            var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+            var range = document.createRange(), heights = new Map(), node;
+            while ((node = walker.nextNode())) {
+              var parent = node.parentElement;
+              if (!parent || !/\\S/.test(node.nodeValue) || parent.closest(ATOMIC + ', script, style')) continue;
+              var lh = heights.get(parent);
+              if (lh === undefined) { lh = parseFloat(getComputedStyle(parent).lineHeight) || 0; heights.set(parent, lh); }
+              range.selectNodeContents(node);
+              var rects = range.getClientRects();
+              for (var i = 0; i < rects.length; i++) {
+                var r = rects[i], grow = Math.max(0, lh - r.height) / 2;
+                if (r.width > 0 && r.height > 0) boxes.push([r.top - grow - origin, r.bottom + grow - origin]);
+              }
+            }
+            boxes.sort(function(a, b) { return a[0] - b[0]; });
+            var lines = [];
+            boxes.forEach(function(b) {
+              var n = lines.length;
+              if (n && b[0] < lines[n - 1] - 0.5) lines[n - 1] = Math.max(lines[n - 1], b[1]);
+              else lines.push(b[0], b[1]);
+            });
+            return lines;
+          };
+          // The layout changed (loaded, reflowed, an image arrived): Pages mode breaks it again.
+          var layoutPosted = false;
+          new ResizeObserver(function() {
+            if (layoutPosted) return;
+            layoutPosted = true;
+            requestAnimationFrame(function() {
+              layoutPosted = false;
+              window.webkit.messageHandlers.readerBridge.postMessage({ layout: true });
+            });
+          }).observe(document.body);
           window.__readerSetSentence = function(index, start, end) {
             if (!window.CSS || !CSS.highlights || typeof Highlight === 'undefined') return;
             CSS.highlights.delete('reader-sentence');
@@ -176,6 +232,16 @@ extension HTMLReadingWebView {
             if (range) CSS.highlights.set('reader-sentence', new Highlight(range));
           };
           reindex();
+          // A tap on the text that isn't on a link (in jump mode the paragraphs take taps): Swift
+          // turns a screen or toggles the bars by where it landed. WebKit on iOS sends a click only
+          // to an element that looks clickable; the pointer cursor, inherited, makes the whole
+          // page one (the tap highlight is transparent).
+          document.body.style.cursor = 'pointer';
+          document.addEventListener('click', function(ev) {
+            if (window.__readerJump) return;
+            if (ev.target && ev.target.closest && ev.target.closest('a[href]')) return;
+            window.webkit.messageHandlers.readerBridge.postMessage({ tapX: ev.clientX, width: window.innerWidth });
+          });
           // The article's own leading heading already says the title: it takes the title's look,
           // and the source line moves under it (the heading stays a listen block, so numbering
           // doesn't change; the header isn't one wherever it sits).
@@ -191,5 +257,50 @@ extension HTMLReadingWebView {
           })();
         })();
         """
+    }
+}
+
+extension HTMLReadingWebView.Coordinator {
+    /// The one reading page (the Reader and Now Playing alike): the text in `look`, with
+    /// the title and source line on top, or a slot `top` points tall for the native top view.
+    /// The article text is wrapped (`.reader-text`) so where it starts can be measured. The
+    /// spoken paragraph's tint pads with a box-shadow, so it never reflows.
+    static func wrap(_ html: String, heading: ReaderHeading?, top: CGFloat?, sizes: ReadingStyle.Sizes,
+                     look: ReadingStyle.Look) -> String {
+        let header: String
+        if let top {
+            header = "<div class=\"reader-top\" aria-hidden=\"true\" style=\"height: \(Int(top))px\"></div>"
+        } else {
+            header = heading.map {
+                "<header class=\"reader-heading\">"
+                    + ($0.title.map { "<div class=\"reader-title\">\(escape($0))</div>" } ?? "")
+                    + "<div class=\"reader-detail\">"
+                    + $0.detail.filter { !$0.isEmpty }.map { "<span>\(escape($0))</span>" }.joined()
+                    + "</div></header>"
+            } ?? ""
+        }
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+        <style>
+        \(ReadingStyle.css(sizes: sizes, look: look, blockTags: ListenHTMLBlocks.tags))
+        </style>
+        </head>
+        <body>
+        \(header)
+        <main class="reader-text">
+        \(ReadingStyle.withoutPageStyles(html))
+        </main>
+        </body>
+        </html>
+        """
+    }
+
+    private static func escape(_ s: String) -> String {
+        s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
     }
 }

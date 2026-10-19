@@ -24,6 +24,8 @@ final class Page {
     /// and never recomputed: rows saved before identity v2 have random ids, and their audio,
     /// crash resume and pending bakes are keyed by them.
     var key: UUID?
+    /// The title its source gave it, "" when it has none (`PageTitle`): read it as `givenTitle`,
+    /// and name the page in a row or a bar by `lineOne`.
     var title: String = ""
     /// The site domain for web pages; the author for book chapters.
     var byline: String = ""
@@ -75,10 +77,10 @@ final class Page {
     var fetchStateRaw: String = "none"
     var folder: Folder?
 
-    init(key: UUID, title: String, byline: String, urlString: String?, contentState: PageContentState,
+    init(key: UUID, title: String?, byline: String, urlString: String?, contentState: PageContentState,
          addedAt: Date?, sortKey: Double = 0, artworkData: Data? = nil) {
         self.key = key
-        self.title = title
+        self.title = title ?? ""
         self.byline = byline
         self.urlString = urlString
         self.canonicalURL = urlString.map(ArticleIdentity.canonicalURLString(from:))
@@ -100,6 +102,23 @@ final class Page {
     var isWaitingChapter: Bool { isLink && folder?.kind == .series }
     var isInLibrary: Bool { addedAt != nil }
     var url: URL? { urlString.flatMap(URL.init(string:)) }
+
+    /// Its title, nil when it has none (stored as "").
+    var givenTitle: String? {
+        get { title.isEmpty ? nil : title }
+        set { title = newValue ?? "" }
+    }
+
+    /// What it is from: the book or series it is in, else its site (a chapter's author).
+    var source: String {
+        if let folder, folder.kind.isBookOrSeries { return folder.name }
+        return byline
+    }
+
+    /// What names it in one line (a row, a tile, the bar, a download): `PageTitle.lineOne`.
+    var lineOne: String { PageTitle.lineOne(title: givenTitle, source: source, address: urlString) }
+    /// What its artwork's letter stands for: `PageTitle.artworkLetter`.
+    var artworkLetter: String { PageTitle.artworkLetter(title: givenTitle, source: source, address: urlString) }
 
     var cleanedHTML: String {
         get { bodyHTML.flatMap { String(data: $0, encoding: .utf8) } ?? "" }
@@ -206,7 +225,7 @@ extension Page {
         if let cached = cachedListenParagraphs {
             return ParagraphDocument(parts: cached)
         }
-        let doc = Self.buildListenDocument(plainText: plainText, cleanedHTML: cleanedHTML, title: title)
+        let doc = Self.buildListenDocument(plainText: plainText, cleanedHTML: cleanedHTML, title: givenTitle)
         storeListenParagraphs(doc.paragraphs)
         return doc
     }
@@ -222,7 +241,7 @@ extension Page {
         return try? JSONDecoder().decode([String].self, from: data)
     }
 
-    nonisolated static func buildListenDocument(plainText: String, cleanedHTML: String, title: String) -> ParagraphDocument {
+    nonisolated static func buildListenDocument(plainText: String, cleanedHTML: String, title: String?) -> ParagraphDocument {
         ParagraphDocument.forListening(plainText: plainText, cleanedHTML: cleanedHTML, matchingTitle: title)
     }
 }

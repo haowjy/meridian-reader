@@ -8,8 +8,9 @@ import SwiftUI
 /// ┌──────────────────────────────────────┐
 /// │                 ───                  │ ← grabber
 /// │ ( ⌄ Pride and Prejudice ) (Aa) (☝︎)  │ ← `SheetTopBar`, as in the Reader: the pill names
-/// │ `text`: [▣ title, site  N min left]  │   where it plays from and shrinks it; Aa, `accessory`
-/// │  dimmed, SPOKEN in full ink, dimmed  │ ← follows the audio; the title card scrolls with it
+/// │ `banner` (the ☝︎ hint, while on)     │   where it plays from and shrinks it; Aa, `accessory`
+/// │ `text`: [▣ title, site  N min left]  │ ← fills the sheet, under the header and the band;
+/// │  dimmed, SPOKEN in full ink, dimmed  │   follows the audio; the title card scrolls with it
 /// │            ( Jump to Audio )         │ ← after you scroll away, floating over the text
 /// │ `controls`: status notes,            │
 /// │ ( scrubber ─────────────●───   1× )  │ ← the scrub capsule, speed at its end
@@ -17,14 +18,20 @@ import SwiftUI
 /// └──────────────────────────────────────┘
 /// ```
 ///
-/// The pill, the grabber and a pull down shrink it (`onCollapse`, after it has gone). `floating`
-/// floats just above the bottom band (a toast), as in the Reader.
-struct NowPlayingSheet<Reading: View, TextAppearance: View, Accessory: View, Controls: View, Floating: View>: View {
+/// It goes full screen as the Reader does (`ReadingChrome`): the floating play / pause is
+/// `playState` / `onPlayPause`, and Jump to Audio drops to the screen's foot. The pill, the
+/// grabber and a pull down shrink it (`onCollapse`, after it has gone). `floating` floats just
+/// above the bottom band (a toast), as in the Reader.
+struct NowPlayingSheet<Reading: View, TextAppearance: View, Accessory: View, Banner: View, Controls: View,
+                       Floating: View>: View {
     /// The book, series or folder the page lives in, else the Library or its site.
     let playingFrom: String
+    /// What you hear, for the play / pause floating in full screen.
+    let playState: PlayState
     /// The text scrolled away from the audio: offer to jump back to the spoken sentence.
     var showsJumpToAudio = false
     let onCollapse: () -> Void
+    let onPlayPause: () -> Void
     var onJumpToAudio: () -> Void = {}
     /// The reading theme's colours, as the Reader's.
     var palette: ReadingPalette = .app
@@ -32,29 +39,38 @@ struct NowPlayingSheet<Reading: View, TextAppearance: View, Accessory: View, Con
     @ViewBuilder var textAppearance: TextAppearance
     /// The control at the trailing end of the top bar (☝︎, `JumpModeButton`).
     @ViewBuilder var accessory: Accessory
+    /// Under the top bar, in the header (the ☝︎ hint), as in the Reader.
+    @ViewBuilder var banner: Banner
     @ViewBuilder var text: Reading
     /// Status notes, the scrub row and the transport row, stacked in the bottom band.
     @ViewBuilder var controls: Controls
     /// Floats just above the bottom band, as in the Reader (a toast).
     @ViewBuilder var floating: Floating
 
+    @State private var chrome = ReadingChrome()
+
     var body: some View {
-        Sheet(onDismiss: onCollapse, palette: palette) {
-            SheetTopBar { SheetClosePill(kind: .collapse(playingFrom)) } trailing: {
-                textAppearance
-                accessory
+        Sheet(onDismiss: onCollapse, palette: palette, chrome: chrome) {
+            VStack(spacing: 0) {
+                SheetTopBar { SheetClosePill(kind: .collapse(playingFrom)) } trailing: {
+                    textAppearance
+                    accessory
+                }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("nowPlayingHeader")
+                banner
             }
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("nowPlayingHeader")
         } content: {
             text
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .overlay(alignment: .bottom) { jumpToAudio }
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    VStack(spacing: BottomChrome.rowSpacing) { controls }
-                        .bottomChromeBand()
-                        .overlay(alignment: .top) { floating }
-                }
+        } band: {
+            VStack(spacing: BottomChrome.rowSpacing) { controls }
+                .bottomChromeBand()
+                .overlay(alignment: .top) { floating }
+        } overText: {
+            ZStack(alignment: .bottom) {
+                jumpToAudio
+                FloatingPlayButton(state: playState, action: onPlayPause)
+            }
         }
     }
 
@@ -64,12 +80,11 @@ struct NowPlayingSheet<Reading: View, TextAppearance: View, Accessory: View, Con
         ZStack {
             if showsJumpToAudio {
                 PillButton("Jump to Audio", style: .inverted, size: .compact, action: onJumpToAudio)
-                    .floatingShadow(opacity: 0.2)
+                    .overTextShadow()
                     .accessibilityIdentifier("nowPlayingJumpToAudio")
                     .transition(.opacity)
             }
         }
-        .padding(.bottom, Spacing.s)
         .animation(Motion.snappy, value: showsJumpToAudio)
     }
 }
@@ -143,11 +158,13 @@ struct NowPlayingSheetGallery: View {
     }
 
     private func frame(_ state: PlayState, note: String?, back: Bool, saved: Bool = false) -> some View {
-        NowPlayingSheet(playingFrom: "Pride and Prejudice", showsJumpToAudio: back, onCollapse: {},
-                        palette: ReadingTheme.sepia.palette(accent: .jade)) {
+        NowPlayingSheet(playingFrom: "Pride and Prejudice", playState: state, showsJumpToAudio: back, onCollapse: {},
+                        onPlayPause: {}, palette: ReadingTheme.sepia.palette(accent: .jade)) {
             TextAppearanceButton(isOpen: false) {}
         } accessory: {
             JumpModeButton(isOn: false) {}
+        } banner: {
+            EmptyView()
         } text: {
             SampleReading(title: "Chapter 12", detail: ["Pride and Prejudice", "9 min left"], spoken: true, card: true)
         } controls: {

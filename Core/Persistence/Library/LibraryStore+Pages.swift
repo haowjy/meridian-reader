@@ -281,7 +281,7 @@ extension LibraryStore {
             page.urlString = url.absoluteString
             page.canonicalURL = article.origin.canonicalURL
         }
-        page.title = article.title
+        page.givenTitle = article.title
         page.byline = article.sourceLabel
         let paragraphs = article.document.isEmpty
             ? Page.buildListenDocument(plainText: article.plainText, cleanedHTML: article.cleanedHTML,

@@ -45,7 +45,7 @@ struct BrowseHistoryView: View {
     private func row(_ visit: RecentVisit) -> some View {
         ListRow(kind: .page(artwork: visit.faviconData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
                             letter: visit.host.siteLetter),
-                title: visit.title.isEmpty ? visit.host : visit.title, subtitle: visit.host,
+                title: visit.lineOne, subtitle: visit.host,
                 note: visit.visitedAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
             .opensOnTap { onOpen(visit) }
             .accessibilityAddTraits(.isButton)

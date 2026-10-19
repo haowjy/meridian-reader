@@ -9,7 +9,8 @@ struct ReaderArticle: Equatable, Identifiable {
     var id: UUID
     /// The web address, or the chapter's place in its book.
     var origin: PageOrigin
-    var title: String
+    /// nil: the page has none, and the heading shows only its source line (`PageTitle`).
+    var title: String?
     /// The site ("investopedia.com"), or a chapter's author.
     var sourceLabel: String
     /// Web pages: the site's own name, from Readability.
@@ -82,7 +83,7 @@ struct ReaderArticle: Equatable, Identifiable {
     init(page: Page) {
         self.id = page.listenKey
         self.origin = page.origin
-        self.title = page.title
+        self.title = page.givenTitle
         self.sourceLabel = page.byline
         self.siteName = nil
         let html = page.cleanedHTML
@@ -93,7 +94,7 @@ struct ReaderArticle: Equatable, Identifiable {
         let cached = page.cachedListenParagraphs
         self.document = cached.map { ParagraphDocument(parts: $0) } ?? .empty
         self.trustedParagraphs = cached
-        self.displayHTML = ParagraphDocument.readingHTML(html, matchingTitle: page.title)
+        self.displayHTML = ParagraphDocument.readingHTML(html, matchingTitle: page.givenTitle)
         self.resumeParagraph = page.positionParagraph
         self.storedDetectedLanguage = page.detectedLanguageCode
     }

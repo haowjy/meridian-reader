@@ -257,7 +257,7 @@ final class DownloadCenter {
         switch target {
         case .page(let key):
             guard let page = library.page(key: key) else { return nil }
-            return (page.title, [page.listenKey])
+            return (page.lineOne, [page.listenKey])
         case .folder(let id):
             guard let folder = library.folder(id: id) else { return nil }
             let pages = library.pages(in: folder).filter { Self.covers($0, in: folder) }

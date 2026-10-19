@@ -30,7 +30,8 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   (`DownloadOverviewTests`), the engine crash guard (`EngineCrashGuardTests`), the web view's
   reloads after its content process ends (`ContentProcessRecoveryTests`), the bundled Block Ads list compiling
   (`BundledRuleListTests`), text splitting and
-  chunking (`TextChunkerTests`, `ParagraphSplitTests`), Follow's contents readers and back-off
+  chunking (`TextChunkerTests`, `ParagraphSplitTests`), Pages mode's page breaks
+  (`ReadingPaginationTests`), Follow's contents readers and back-off
   (`FollowTests`). `CoreFlowsUITests` holds the three
   end-to-end flows: save and play a browsed page, swipe-Remove takes a played page out of every
   list, open a folder and play it. A new test must fit the budget: replace one rather than add
@@ -49,7 +50,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedBookmarks`. Other options:
   `-importTestEPUB` (*Import Book…* takes a synthetic EPUB instead of the Files picker;
   `-playTestEPUB` imports it at launch and plays it), `-browseTestPages` (offline `reader-test://`
-  pages; page one links to a story to follow, `-testStoryChapters N` lengthens its contents and
+  pages; page one links to an article with no title and to a story to follow, `-testStoryChapters N` lengthens its contents and
   `-testStoryThrottles` makes its chapter 6 fail once, for Follow's back-off), `-openLibrary`, `-openDemoInBrowseReader`, `-restoreSurface` (a relaunch reopens where
   the last launch left), `-failLibrarySaves` (every library save fails), `-testVoice` (an offline
   on-device test voice for downloads; `-selectEngine test.voice`). Keep probes and tests offline;

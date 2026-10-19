@@ -102,8 +102,7 @@ struct PageArticleService {
         guard let url = web.currentURL else {
             throw ExtractionError.unavailable(reason: "Open a page first.")
         }
-        let source = SingleWebPageSource(url: url, pageTitle: web.pageTitle, htmlSnapshot: try await web.snapshotHTML(),
-                                         extractor: extractor)
+        let source = SingleWebPageSource(url: url, htmlSnapshot: try await web.snapshotHTML(), extractor: extractor)
         let content = try await source.content(of: source.page)
         var article = library.readerArticle(url: url, extracted: content.extracted, document: content.document)
         if article.artwork == nil {

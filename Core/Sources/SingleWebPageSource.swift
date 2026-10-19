@@ -9,16 +9,16 @@ struct SingleWebPageSource: PageSource {
     let context: ExtractionContext
     let extractor: any ArticleExtracting
 
-    init(url: URL, pageTitle: String?, htmlSnapshot: String?, extractor: any ArticleExtracting) {
+    init(url: URL, htmlSnapshot: String?, extractor: any ArticleExtracting) {
         self.url = url
-        self.context = ExtractionContext(origin: .web(url), pageTitle: pageTitle, htmlSnapshot: htmlSnapshot)
+        self.context = ExtractionContext(origin: .web(url), htmlSnapshot: htmlSnapshot)
         self.extractor = extractor
     }
 
     var details: FolderDetails? { nil }
 
     var page: PageRef {
-        PageRef(key: ArticleIdentity.articleKey(url: url), locator: .web(url), ordinal: 0, title: context.pageTitle)
+        PageRef(key: ArticleIdentity.articleKey(url: url), locator: .web(url), ordinal: 0)
     }
 
     func knownPages() async throws -> [PageRef] { [page] }

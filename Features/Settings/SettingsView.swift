@@ -6,7 +6,7 @@ import SwiftUI
 /// ```
 /// Settings                                              Done
 /// Appearance   [ System | Light | Dark ]  Color (●)(●)(●)(●)(●)
-/// Reading      themes (◐)(Aa)(Aa)(Aa)(Aa), font, size [A] 100% [A], spacing, a sample
+/// Reading      themes (◐)(Aa)(Aa)(Aa)(Aa), font, size [A] 100% [A], spacing, Scroll / Pages, a sample
 /// Listening    engines (download, ✓), Voice ›, Language ›, Speed [0.75× … 2×]
 /// Browsing     Block Ads (on)
 /// Downloads    Downloads ›, the audio kept on this iPhone
@@ -117,8 +117,8 @@ private struct AppearanceSettingsSection: View {
     }
 }
 
-/// Settings › Reading: the reading theme, typeface, text size and line spacing, the same store and
-/// controls as the Aa panel, with a sample in what is chosen.
+/// Settings › Reading: the reading theme, typeface, text size, line spacing and Scroll or Pages, the
+/// same store and controls as the Aa panel, with a sample in what is chosen.
 private struct ReadingSettingsSection: View {
     @Bindable var appearance: ReadingAppearance
 
@@ -140,6 +140,12 @@ private struct ReadingSettingsSection: View {
                 ChoicePicker(options: ReadingLineSpacing.allCases, selection: $appearance.lineSpacing,
                              identifier: "readingLineSpacing") { spacing in
                     Text(spacing.title).typeStyle(.row)
+                }
+            }
+            SettingsControlRow(title: String(localized: "Layout")) {
+                ChoicePicker(options: ReadingLayout.allCases, selection: $appearance.layout,
+                             identifier: "readingLayout") { layout in
+                    Text(layout.title).typeStyle(.row)
                 }
             }
             ReadingSample(palette: appearance.palette(accent: accent), font: appearance.font,

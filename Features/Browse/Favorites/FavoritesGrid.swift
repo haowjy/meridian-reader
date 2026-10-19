@@ -23,14 +23,14 @@ struct FavoritesGrid: View {
                   spacing: Spacing.m) {
             ForEach(pages, id: \.listenKey) { page in
                 Button { onOpen(page) } label: {
-                    tile(title: page.title) { FavoriteIcon(page: page, size: Self.tileSize) }
+                    tile(title: page.lineOne) { FavoriteIcon(page: page, size: Self.tileSize) }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(page.title)
+                .accessibilityLabel(page.lineOne)
                 .accessibilityIdentifier("favoriteTile")
                 .contextMenu {
                     Button("Rename…", systemImage: Icons.rename) {
-                        renameText = page.title
+                        renameText = page.givenTitle ?? ""
                         renaming = page
                     }
                     Button("Remove from Favorites", systemImage: Icons.unfavorite, role: .destructive) { onRemove(page) }

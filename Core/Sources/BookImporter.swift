@@ -176,13 +176,14 @@ struct BookImporter {
     private func checkSizes(_ chapters: [PageContent], title: String, cuts: Int) throws {
         guard let rejection = BookChapterFinalizer.check(chapters.map(BookChapterFinalizer.Measure.init), bar: bar) else { return }
         library.log("import \(title) refused after \(cuts) cut(s): \(rejection)")
+        func chapter(_ title: String?) -> String { title.map { "chapter “\($0)”" } ?? "a chapter with no title" }
         switch rejection {
         case .noText: throw BookImportError.unreadable("no text to read after normalizing")
-        case .emptyChapter(let chapter): throw BookImportError.couldNotPrepare("\(chapter) has no text")
-        case .overBar(let chapter, let words):
-            throw BookImportError.couldNotPrepare("\(chapter) has \(words) words after \(cuts) cut(s)")
-        case .short(let chapter, let words):
-            throw BookImportError.couldNotPrepare("\(chapter) has \(words) words beside a chapter that could take them")
+        case .emptyChapter(let title): throw BookImportError.couldNotPrepare("\(chapter(title)) has no text")
+        case .overBar(let title, let words):
+            throw BookImportError.couldNotPrepare("\(chapter(title)) has \(words) words after \(cuts) cut(s)")
+        case .short(let title, let words):
+            throw BookImportError.couldNotPrepare("\(chapter(title)) has \(words) words beside a chapter that could take them")
         }
     }
 

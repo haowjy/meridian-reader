@@ -85,7 +85,9 @@ struct DetailLineLayout: Layout {
 
         // Rows of (index, width): one row when everything fits or the lead can give way enough.
         var rows: [[(index: Int, width: CGFloat)]]
-        if let width, total > width {
+        // Half a point of slack: placed in exactly the width it asked for (centred), the bounds
+        // can come back a rounding error narrower.
+        if let width, total > width + 0.5 {
             let rest = total - ideal[0]
             let leadRoom = width - rest
             if subviews.count > 1, leadRoom >= min(ideal[0], width / 3) {

@@ -33,13 +33,27 @@ changing the shell code.
   theme's colour scheme on what they hold, and components that sit on both read it. A dark theme
   (Dark, Black) over a light app gets light status bar content from a clear window that takes no
   touches, shown just above the app's while the sheet is up
-  (`DesignSystem/Chrome/StatusBarStyle.swift`); SwiftUI's own route, a colour scheme for the
-  window, would flip the surface underneath. Nothing of the app's covers the sheets; a system
+  (`DesignSystem/Chrome/SystemBars.swift`); SwiftUI's own route, a colour scheme for the
+  window, would flip the surface underneath. The same window hides the status bar (and asks for a
+  dimmed home indicator) in full screen, in every theme: while it is up it is the window the
+  system asks, so a second mechanism on the app's window would be ignored. Nothing of the app's covers the sheets; a system
   sheet over them (Settings, Share) leaves the strip above dark, so light stays right there.
   During a pull the dim lifts, and `Sheet` lays a scrim under the status bar
   (`PullDownLook.statusBarScrim`) that keeps the strip at the resting dim until the sheet is
   removed: no switch of style mid-gesture, so nothing flickers. The ⋯ panel opened from either
   sheet takes the theme too (`MenuContext.isOnReadingPage`).
+- **Full screen is the reading sheet's own state** (`ReadingChrome`, in
+  `DesignSystem/Components/`), not the shell's: `ReaderSheet` and `NowPlayingSheet` each hold one
+  and hand it to `Sheet(chrome:)`, which draws the header and the band over the text, measures
+  them into the web view's insets (unchanged when they hide, so the text never moves) and puts the
+  chrome in its content's environment. The reading web view feeds it finger drags and taps
+  (`HTMLReadingView+Taps.swift`); programmatic scrolls never reach it. While hidden, the web view
+  hands no pull to the sheet (`pullHandoff.handoff = nil`); a drag's `canPull` and hand-off are
+  fixed when it begins, so the pull that brings the bars back never closes the sheet and a pull
+  that began with the bars showing always finishes. Movement that pulls the sheet never shows or
+  hides the bars. Pages mode reports its
+  footer's height back to the chrome (`pageFooter`, with `homeIndicator` from `Sheet`) so what
+  floats over the text sits above the footer.
 - **The app's colour is global**: `Palette.accent` and its kin read `AppAppearance.shared`, so a
   view drawing them redraws when Settings › Appearance changes the colour (Observation tracks the
   read). Don't cache a `Palette` accent token in a `static let`.

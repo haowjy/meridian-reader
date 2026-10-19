@@ -90,20 +90,19 @@ enum FollowText {
     }
 
     /// The header's notice while a site backs off (`status` nil: it didn't answer), naming the
-    /// chapter waiting by its title, or as "Chapter 6" when it has none. The site's name can be a
-    /// lowercase host ("example.com"); it is capitalized as the name it is.
+    /// chapter waiting by its title, or as the next chapter when it has none. The site's name can
+    /// be a lowercase host ("example.com"); it is capitalized as the name it is.
     static func backOffNotice(site: String, status: Int?, chapter: FollowCenter.Progress.Fetching,
                               wait: TimeInterval) -> String {
         let site = site.prefix(1).uppercased() + site.dropFirst()
-        let title = chapter.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let name = title.isEmpty ? String(localized: "Chapter \(chapter.number)") : title
+        let name = chapter.title.map { "“\($0)”" } ?? String(localized: "The next chapter")
         let after = countdown(wait)
         guard let status else {
-            return String(localized: "\(site) isn’t answering. “\(name)” is tried again in \(after).")
+            return String(localized: "\(site) isn’t answering. \(name) is tried again in \(after).")
         }
         return status == 429
-            ? String(localized: "\(site) asked to slow down (429). “\(name)” in \(after), then slower.")
-            : String(localized: "\(site) had a problem (\(status)). “\(name)” in \(after), then slower.")
+            ? String(localized: "\(site) asked to slow down (429). \(name) in \(after), then slower.")
+            : String(localized: "\(site) had a problem (\(status)). \(name) in \(after), then slower.")
     }
 
     /// "1 chapter couldn’t load", "3 chapters couldn’t load": the status line's part, and the

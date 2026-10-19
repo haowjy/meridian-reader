@@ -26,4 +26,10 @@ extension View {
     func floatingShadow(opacity: Double = 0.14) -> some View {
         shadow(color: Palette.scrim.opacity(opacity), radius: 12, y: 4)
     }
+
+    /// The floating shadow, darker, for controls over the reading text (Jump to Audio, the
+    /// floating ▶ / ⏸): the text runs under them.
+    func overTextShadow() -> some View {
+        floatingShadow(opacity: 0.2)
+    }
 }

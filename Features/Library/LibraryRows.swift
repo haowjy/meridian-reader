@@ -80,7 +80,7 @@ struct LibraryPageRow: View {
     }
 
     private func liveBody(now: Date) -> some View {
-        ListRow(kind: kind, title: page.title, subtitle: subtitle, note: note(now: now),
+        ListRow(kind: kind, title: page.lineOne, subtitle: subtitle, note: note(now: now),
                 progress: page.isLink ? .unplayed(minutes: nil) : actions.progress(of: page),
                 playState: playState,
                 insertionEdge: screen.insertion?.id == .page(page.listenKey) ? screen.insertion?.edge : nil,
@@ -108,10 +108,11 @@ struct LibraryPageRow: View {
     }
 
     /// Its folder's path on the filtered home, which gathers rows from every folder; elsewhere
-    /// its site, and nothing in a folder, whose header names it.
+    /// its site, and nothing in a folder, whose header names it. Untitled, its title line is
+    /// already its site.
     private var subtitle: String? {
         if let folder = page.folder { return screenKey == .filtered ? folder.pathName : nil }
-        return page.byline.isEmpty ? nil : page.byline
+        return page.byline.isEmpty || page.givenTitle == nil ? nil : page.byline
     }
 }
 
@@ -224,7 +225,7 @@ struct LibraryFolderRow: View {
     /// byline: a book's author, a series' site, the author given in its details.
     private func place(_ progress: FolderProgress) -> String? {
         guard progress.hasStarted, !progress.isFinished, let key = progress.currentKey else { return folder.byline }
-        return livePages.first { $0.listenKey == key }?.title ?? folder.byline
+        return livePages.first { $0.listenKey == key }?.givenTitle ?? folder.byline
     }
 
     /// Finished when every page that plays is (pages added later play on from it).

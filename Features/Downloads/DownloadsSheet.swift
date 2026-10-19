@@ -303,7 +303,7 @@ private struct DownloadShown {
         switch record.target {
         case .page(let key):
             let page = library.page(key: key)
-            title = page?.title ?? record.title
+            title = page?.lineOne ?? record.title
             leading = .page(artwork: page?.artworkImage, letter: (page?.byline.isEmpty == false ? page?.byline : nil)?.siteLetter
                             ?? String(title.prefix(1)))
             unit = nil

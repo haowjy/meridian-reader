@@ -42,7 +42,8 @@ struct DownloadRecord: Codable, Equatable, Identifiable {
 
     var id = UUID()
     var target: Target
-    /// The title when it was asked for; screens show the page's or folder's current one.
+    /// What named it when it was asked for (a page's `lineOne`, a folder's name); screens show
+    /// the page's or folder's current one.
     var title: String
     var addedAt: Date
     var isPaused = false

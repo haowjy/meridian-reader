@@ -18,6 +18,8 @@ import SwiftUI
 ///   Download, Downloads, Settings; Favorites / History / Website). Both act through
 ///   `PageActions`, as in Now Playing.
 /// - Aa, left of ☝︎, changes how the page reads (`TextAppearanceControl`), live.
+/// - Scrolling down reads full screen, as in Now Playing (`ReaderSheet`, `ReadingChrome`); a link
+///   in the text opens in the browser.
 ///
 /// Save / Remove only flips 🔖: the article key is already the saved id (identity v2), so the
 /// view and any playing audio are untouched.
@@ -62,12 +64,12 @@ struct ReaderSheetScreen: View {
         ) {
             TextAppearanceControl()
         } accessory: {
-            JumpModeButton(isOn: jumpMode) { jumpMode.toggle() }
+            JumpModeButton(isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
                 .disabled(!sessionReady)
+        } banner: {
+            if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
             text(start)
-                .jumpHint(jumpMode) { jumpMode = false }
-                .animation(Motion.snappy, value: jumpMode)
         } bar: {
             NowPlayingBarView(speech: speech)
         } more: {
@@ -95,7 +97,10 @@ struct ReaderSheetScreen: View {
     private func text(_ start: ListenSpot) -> some View {
         HTMLReadingView(html: article.readingHTML, heading: ReaderHeading(title: article.title, detail: detail),
                         activeParagraphIndex: nil, sentence: savedSentence(start), jumpMode: jumpMode,
-                        opensAtSentence: true, scrollHandle: scroll) { index in
+                        opensAtSentence: true, scrollHandle: scroll, onOpenLink: shell.navigate(to:),
+                        pageTimeLeft: { [document = article.document, rate = speech.rateMultiplier] in
+                            ListeningTime.leftInChapterLabel(in: document, paragraph: $0, offset: $1, rate: rate)
+                        }) { index in
             if jumpMode { listen(from: index, start: start) }
         }
     }

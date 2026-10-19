@@ -59,10 +59,10 @@ final class FollowCenter {
         var failed = 0
 
         /// The first chapter being fetched (or retried): its number among the pages that play,
-        /// which counts an author's note too, and its title, which names it.
+        /// which counts an author's note too, and its title (nil: it has none).
         struct Fetching: Equatable {
             var number: Int
-            var title: String
+            var title: String?
         }
     }
 
@@ -317,7 +317,7 @@ final class FollowCenter {
             case .fetching?, .retrying?:
                 progress.toFetch += 1
                 if progress.fetching == nil {
-                    progress.fetching = Progress.Fetching(number: progress.chapters, title: page.title)
+                    progress.fetching = Progress.Fetching(number: progress.chapters, title: page.givenTitle)
                 }
             case .waiting?: progress.toFetch += 1
             case .failed?: progress.failed += 1

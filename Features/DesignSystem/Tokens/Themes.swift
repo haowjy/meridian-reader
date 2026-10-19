@@ -296,6 +296,21 @@ enum ReadingLineSpacing: String, CaseIterable, Identifiable {
     }
 }
 
+/// How the reading page moves: one long column you scroll, or one page of whole lines at a time
+/// that turns (the Reader and Now Playing; `HTMLReadingView+Pages.swift`).
+enum ReadingLayout: String, CaseIterable, Identifiable {
+    case scroll, pages
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .scroll: String(localized: "Scroll")
+        case .pages: String(localized: "Pages")
+        }
+    }
+}
+
 /// The reading page's text size: a step of the Dynamic Type size (`defaultStep` is 100%), so the
 /// system's text size still applies under it.
 enum ReadingTextSize {

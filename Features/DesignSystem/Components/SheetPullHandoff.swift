@@ -90,13 +90,22 @@ final class ScrollPullHandoff: NSObject {
     var onDragBegan: () -> Void = {}
     /// The drag moved the content, once per drag: a pull of the sheet alone doesn't call it.
     var onScroll: () -> Void = {}
+    /// The finger moved this far down (negative: up) since the last movement, while it doesn't
+    /// pull the sheet.
+    var onMove: (CGFloat) -> Void = { _ in }
+    /// The drag ended without pulling the sheet, the finger's speed at release (points per
+    /// second, down positive; 0 for a cancelled touch). Called after the scroll view has begun
+    /// its own deceleration.
+    var onRelease: (CGFloat) -> Void = { _ in }
 
-    private var tracking: SheetPullTracking?
+    /// The drag in progress, and the sheet it may pull: taken when the drag begins, so a change
+    /// of `handoff` meanwhile (full screen coming on) never strands a pull half-way.
+    private var drag: (tracking: SheetPullTracking, handoff: SheetPullHandoff?)?
     private var lastY: CGFloat = 0
     private var reportedScroll = false
 
     /// The sheet is pulled by the drag in progress.
-    var isPulling: Bool { (tracking?.pull ?? 0) > 0 }
+    var isPulling: Bool { (drag?.tracking.pull ?? 0) > 0 }
 
     /// The scroll view whose pan drives it.
     private(set) weak var scrollView: UIScrollView?
@@ -111,8 +120,8 @@ final class ScrollPullHandoff: NSObject {
     func detach() {
         scrollView?.panGestureRecognizer.removeTarget(self, action: #selector(panned(_:)))
         scrollView = nil
-        if isPulling { handoff?.ended(0, 0) }
-        tracking = nil
+        if isPulling { drag?.handoff?.ended(0, 0) }
+        drag = nil
     }
 
     @objc private func panned(_ pan: UIPanGestureRecognizer) {
@@ -120,8 +129,8 @@ final class ScrollPullHandoff: NSObject {
         let translation = pan.translation(in: nil)
         switch pan.state {
         case .began:
-            tracking = SheetPullTracking(scrolledIn: scrolledIn(sv), translation: CGSize(
-                width: translation.x, height: translation.y), isInSheet: handoff != nil)
+            drag = (SheetPullTracking(scrolledIn: scrolledIn(sv), translation: CGSize(
+                width: translation.x, height: translation.y), isInSheet: handoff != nil), handoff)
             lastY = 0
             reportedScroll = false
             onDragBegan()
@@ -136,24 +145,28 @@ final class ScrollPullHandoff: NSObject {
     }
 
     private func move(_ sv: UIScrollView, to y: CGFloat) {
-        guard var t = tracking else { return }
+        guard case (var t, let handoff)? = drag else { return }
         let before = t.pull
-        let holds = t.move(by: y - lastY, scrolledIn: scrolledIn(sv))
+        let delta = y - lastY
+        let holds = t.move(by: delta, scrolledIn: scrolledIn(sv))
         lastY = y
-        tracking = t
+        drag = (t, handoff)
         if holds { hold(sv) }
         if t.pull != before { handoff?.changed(t.pull) }
         if t.scrolled, !reportedScroll {
             reportedScroll = true
             onScroll()
         }
+        // Movement that pulls the sheet (or lets it back) isn't the reader's: it never shows or
+        // hides anything over the text.
+        if before == 0, t.pull == 0 { onMove(delta) }
     }
 
     /// `lifted`: the finger lifted (else the touch was cancelled, and the sheet springs back).
     private func release(_ sv: UIScrollView, lifted: Bool, velocity: CGFloat) {
-        guard let t = tracking else { return }
-        tracking = nil
-        guard t.pull > 0 else { return }
+        guard case let (t, handoff)? = drag else { return }
+        drag = nil
+        guard t.pull > 0 else { return onRelease(lifted ? velocity : 0) }
         // Stops the bounce the scroll view starts from a downward release at its top: the sheet
         // carries the movement on, the content stays put.
         hold(sv)

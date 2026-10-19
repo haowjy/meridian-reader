@@ -6,7 +6,8 @@ import Foundation
 /// indices.
 struct PreparedChapter: Equatable, Sendable {
     var key: UUID
-    var title: String
+    /// Its contents entry or heading; nil when the book names it neither way (`PageTitle`).
+    var title: String?
     var locator: EPUBLocator
     var skipsInPlayback: Bool
     var html: String
@@ -14,14 +15,12 @@ struct PreparedChapter: Equatable, Sendable {
     /// `WordCount` of the listen blocks.
     private(set) var words: Int
 
-    /// `title` nil: the chapter's first words (a chapter no contents entry names).
     init(key: UUID, title: String?, locator: EPUBLocator, skipsInPlayback: Bool, html: String) {
         self.key = key
         self.locator = locator
         self.skipsInPlayback = skipsInPlayback
         self.html = html
         self.title = title.flatMap { $0.isEmpty ? nil : $0 }
-            ?? Self.firstWords(of: ParagraphDocument.forListening(plainText: "", cleanedHTML: html))
         document = .empty
         words = 0
         rebuild()
@@ -42,13 +41,6 @@ struct PreparedChapter: Equatable, Sendable {
     private mutating func rebuild() {
         document = ParagraphDocument.forListening(plainText: "", cleanedHTML: html, matchingTitle: title)
         words = WordCount.count(document.joinedText)
-    }
-
-    /// The first listen block, cut after `wordLimit` words.
-    static func firstWords(of document: ParagraphDocument, wordLimit: Int = 8) -> String {
-        guard let first = document.paragraphs.first else { return String(localized: "Untitled") }
-        let words = first.split(whereSeparator: \.isWhitespace)
-        return words.count <= wordLimit ? first : words.prefix(wordLimit).joined(separator: " ") + "…"
     }
 }
 
@@ -107,12 +99,12 @@ enum BookChapterFinalizer {
 
     /// A chapter as the size policy sees it: whether it has listen blocks, and their words.
     struct Measure: Equatable {
-        var title: String
+        var title: String?
         var hasBlocks: Bool
         var words: Int
         var skipsInPlayback: Bool
 
-        init(title: String, hasBlocks: Bool = true, words: Int, skipsInPlayback: Bool = false) {
+        init(title: String?, hasBlocks: Bool = true, words: Int, skipsInPlayback: Bool = false) {
             self.title = title
             self.hasBlocks = hasBlocks
             self.words = words
@@ -131,11 +123,11 @@ enum BookChapterFinalizer {
         /// Nothing left to read: every chapter normalized to no listen blocks.
         case noText
         /// A chapter with no listen blocks.
-        case emptyChapter(title: String)
+        case emptyChapter(title: String?)
         /// A body chapter over the maximum: cutting again didn't bring it under.
-        case overBar(title: String, words: Int)
+        case overBar(title: String?, words: Int)
         /// A body chapter under the minimum that a neighbouring body chapter could have taken.
-        case short(title: String, words: Int)
+        case short(title: String?, words: Int)
     }
 
     /// The size policy, held on the listen blocks the library will store, before it stores any:
