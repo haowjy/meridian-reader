@@ -69,7 +69,7 @@ struct ReaderSheetScreen: View {
         } banner: {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
-            text(start, chapter: actions.page?.folder?.kind.isBookOrSeries == true)
+            text(start, status: listen.detail, chapter: actions.page?.folder?.kind.isBookOrSeries == true)
         } bar: {
             NowPlayingBarView(speech: speech)
         } more: {
@@ -94,8 +94,8 @@ struct ReaderSheetScreen: View {
     // MARK: - Text
 
     @ViewBuilder
-    private func text(_ start: ListenSpot, chapter: Bool) -> some View {
-        HTMLReadingView(html: article.readingHTML, heading: ReaderHeading(title: article.title, detail: detail),
+    private func text(_ start: ListenSpot, status: String?, chapter: Bool) -> some View {
+        HTMLReadingView(html: article.readingHTML, heading: ReaderHeading(title: article.title, detail: detail(status)),
                         activeParagraphIndex: nil, sentence: savedSentence(start), jumpMode: jumpMode,
                         opensAtSentence: true, scrollHandle: scroll, onOpenLink: shell.navigate(to:),
                         pageTimeLeft: { [document = article.document, rate = speech.rateMultiplier] in
@@ -117,10 +117,13 @@ struct ReaderSheetScreen: View {
         sessionReady ? article.document.utf16Length : article.plainText.utf16.count
     }
 
-    /// The source and the length at the current speed, as separate parts: ["example.org", "9 min"].
-    private var detail: [String] {
+    /// The source, then what Listen's detail says, as a row's second line does: the length
+    /// before a start ("9 min"), the time left part-way ("6 min left"); a finished page (Listen
+    /// Again, no detail) its length. ["example.org", "6 min left"].
+    private func detail(_ status: String?) -> [String] {
         let minutes = ListeningTime.minutes(utf16Length: totalLength, rate: speech.rateMultiplier)
-        return [article.sourceLabel, minutes > 0 ? ListeningTime.label(minutes: minutes) : ""].filter { !$0.isEmpty }
+        let length = minutes > 0 ? ListeningTime.label(minutes: minutes) : ""
+        return [article.sourceLabel, status ?? length].filter { !$0.isEmpty }
     }
 
     /// Listen's title and the lighter time after it, at the current speed: "Listen" "9 min",

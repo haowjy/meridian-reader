@@ -20,9 +20,10 @@ import SwiftUI
 ///
 /// The Download control is a `DownloadMark` (an outline ↓, the circle filling as it downloads, a
 /// grey ✓ once downloaded) with what it shows written under it; *More* opens a menu; the ▶ is the
-/// folder's Continue (⏸ while one of its pages is what you hear). The side controls have a
-/// fixed width, so the ▶ stays centred whatever their captions say, and the captions shrink
-/// rather than wrap at the largest text sizes: the row never wraps (decision D21). Takes plain
+/// folder's Continue (⏸ while one of its pages is what you hear). The side controls share one
+/// width, so the ▶ stays centred whatever their captions say. The row is an `ActionButtonRow`
+/// (decision D21): with its captions while they fit whole, else the symbols alone (VoiceOver and
+/// the large content viewer keep the names), so it never wraps or cuts a word. Takes plain
 /// values and closures only; `anchor` lays a view of the caller's behind a side control, where a
 /// question the control asks attaches, so on iOS 26 its popover points at that control.
 struct FolderHeader<Status: View, More: View, Anchor: View>: View {
@@ -81,9 +82,16 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
     }
 
     private func actionRow(_ actions: FolderHeaderActions) -> some View {
-        HStack(spacing: Spacing.l) {
+        ActionButtonRow { fit in
+            actionControls(actions, captions: fit != .icon)
+        }
+        .padding(.top, Spacing.xs)
+    }
+
+    private func actionControls(_ actions: FolderHeaderActions, captions: Bool) -> some View {
+        CentredSidesLayout(spacing: Spacing.l, minSide: sideWidth) {
             Button(action: actions.onDownload) {
-                sideLabel(actions.download.label) {
+                sideLabel(actions.download.label, shown: captions) {
                     DownloadMark(state: actions.download)
                 }
             }
@@ -95,7 +103,7 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
             PlayStateButton(state: actions.play, look: .disc, action: actions.onPlay)
                 .accessibilityIdentifier("folderContinue")
             Menu { more } label: {
-                sideLabel(String(localized: "More")) {
+                sideLabel(String(localized: "More"), shown: captions) {
                     Image(systemName: Icons.more)
                         .font(.system(size: Glyph.control * 0.8, weight: .semibold))
                         .foregroundStyle(Palette.secondaryInk)
@@ -106,22 +114,24 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
             .accessibilityIdentifier("folderMore")
             .background { anchor(.more) }
         }
-        .padding(.top, Spacing.xs)
     }
 
-    /// A side control: its glyph in a 44 pt square, its caption under it.
-    private func sideLabel(_ caption: String, @ViewBuilder glyph: () -> some View) -> some View {
+    /// A side control: its glyph in a 44 pt square, its caption under it (`shown`), whole: a
+    /// caption that doesn't fit makes the row drop them all.
+    private func sideLabel(_ caption: String, shown: Bool, @ViewBuilder glyph: () -> some View) -> some View {
         VStack(spacing: 0) {
             glyph()
                 .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
-            Text(caption)
-                .typeStyle(.caption)
-                .foregroundStyle(Palette.secondaryInk)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+            if shown {
+                Text(caption)
+                    .typeStyle(.caption)
+                    .foregroundStyle(Palette.secondaryInk)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
         }
-        .frame(width: sideWidth)
         .contentShape(Rectangle())
+        .accessibilityShowsLargeContentViewer { Text(caption) }
     }
 
     /// "On, 40 percent", "On, downloaded", "Off".
@@ -142,6 +152,35 @@ extension FolderHeader where Anchor == EmptyView {
          @ViewBuilder status: () -> Status, @ViewBuilder more: () -> More) {
         self.init(style: style, title: title, detail: detail, source: source, progressLabel: progressLabel,
                   actions: actions, status: status, more: more, anchor: { _ in EmptyView() })
+    }
+}
+
+/// Three views in a row, the middle one centred: both sides take the wider side's width (at least
+/// `minSide`), so the row's ideal width is honest about its captions and an `ActionButtonRow` can
+/// tell when they don't fit.
+private struct CentredSidesLayout: Layout {
+    let spacing: CGFloat
+    let minSide: CGFloat
+
+    private func side(_ subviews: Subviews) -> CGFloat {
+        [subviews.first, subviews.last].compactMap { $0?.sizeThatFits(.unspecified).width }.reduce(minSide, max)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard subviews.count == 3 else { return .zero }
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        return CGSize(width: 2 * side(subviews) + sizes[1].width + 2 * spacing,
+                      height: sizes.map(\.height).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 3 else { return }
+        let side = side(subviews)
+        let centre = subviews[1].sizeThatFits(.unspecified)
+        let xs = [bounds.midX - centre.width / 2 - spacing - side / 2, bounds.midX, bounds.midX + centre.width / 2 + spacing + side / 2]
+        for (subview, x) in zip(subviews, xs) {
+            subview.place(at: CGPoint(x: x, y: bounds.midY), anchor: .center, proposal: .unspecified)
+        }
     }
 }
 

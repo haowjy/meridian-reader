@@ -61,6 +61,9 @@ enum Palette {
     static let destructive = Color(uiColor: .systemRed)
     /// A warning glyph (the engine notice's ⚠︎): amber, 3:1 on paper and on the bar material.
     static let caution = Color(light: 0x9A5B00, dark: 0xF2A93B)
+    /// The empty part of a ring, a scrubber or a progress line (the reading page's is
+    /// `ReadingPalette.track`).
+    static let track = secondaryInk.opacity(0.22)
     /// Dims and shadows: the dim behind a sheet or the ⋯ panel, a floating control's shadow.
     static let scrim = Color.black
 

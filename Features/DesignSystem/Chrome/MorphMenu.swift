@@ -436,7 +436,7 @@ private struct MorphMenuSamplePanel: View {
             HStack {
                 ForEach([("Favorites", Icons.favorite), ("History", Icons.history), ("Reader", Icons.reader)], id: \.0) { t, i in
                     VStack(spacing: Spacing.xs) {
-                        Image(systemName: i).font(.title3)
+                        Image(systemName: i).tileSymbol()
                         Text(t).typeStyle(.caption)
                     }
                     .foregroundStyle(Palette.ink)

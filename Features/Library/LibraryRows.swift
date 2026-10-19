@@ -107,14 +107,17 @@ struct LibraryPageRow: View {
 
     private var kind: ListRow.Kind {
         if page.isLink { return .link }
-        return .page(artwork: page.artworkImage, letter: page.byline.siteLetter)
+        return .page(artwork: page.artworkImage, letter: page.artworkLetter)
     }
 
     /// Its folder's path on the filtered home, which gathers rows from every folder; elsewhere
-    /// its site, and nothing in a folder, whose header names it. Untitled, its title line is
-    /// already its site.
+    /// its site, as everywhere else, but nothing in a book or series, whose header names the
+    /// source once (a folder you made mixes sites). Untitled, its title line is already its site.
     private var subtitle: String? {
-        if let folder = page.folder { return screenKey == .filtered ? folder.pathName : nil }
+        if let folder = page.folder {
+            if screenKey == .filtered { return folder.pathName }
+            if folder.kind.isBookOrSeries { return nil }
+        }
         return page.byline.isEmpty || page.givenTitle == nil ? nil : page.byline
     }
 }
@@ -294,13 +297,5 @@ extension Folder {
 
     var coverImage: Image? {
         coverData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))
-    }
-}
-
-extension String {
-    /// The letter a site's tile shows without an icon: "investopedia.com" → "I".
-    var siteLetter: String {
-        let host = hasPrefix("www.") ? String(dropFirst(4)) : self
-        return host.first(where: { $0.isLetter || $0.isNumber }).map { String($0).uppercased() } ?? "?"
     }
 }

@@ -14,9 +14,8 @@ import SwiftUI
 /// ```
 struct TitleCard: View {
     let title: String?
-    /// ["example.com", "12 min left"], or ["Finished"] after `detailSymbol` ✓.
-    let detail: [String]
-    var detailSymbol: String?
+    /// ["example.com", "12 min left"], or [.finished].
+    let detail: [DetailPart]
     var artwork: Image?
     /// On the tile when there is no artwork.
     let artworkLetter: String
@@ -41,7 +40,7 @@ struct TitleCard: View {
                         .foregroundStyle(palette.ink)
                         .lineLimit(large ? nil : 3)
                 }
-                DetailLine(detail, symbol: detailSymbol)
+                DetailLine(parts: detail)
                     .typeStyle(.caption)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -77,7 +76,7 @@ struct TitleCardGallery: View {
             }
             PreviewState("finished, long title") {
                 TitleCard(title: "Notes on the Tides of the Northern Coast, and the Tables Fishermen Keep",
-                          detail: ["✓ Finished"], artworkLetter: "N", palette: Self.palette(.black))
+                          detail: [.finished], artworkLetter: "N", palette: Self.palette(.black))
                     .onReadingPreview(.black)
             }
         }

@@ -82,7 +82,7 @@ enum ListeningTime {
         return chapter ? String(localized: "\(leftLabel(minutes: minutes)) in chapter") : leftLabel(minutes: minutes)
     }
 
-    /// "Finished", where a time left would be; drawn after ✓ (`Icons.checkmark`), as a row's
-    /// status is.
+    /// "Finished", where a time left would be (after a ✓ symbol: `DetailPart.finished`, a row's
+    /// status).
     static var finishedLabel: String { String(localized: "Finished") }
 }

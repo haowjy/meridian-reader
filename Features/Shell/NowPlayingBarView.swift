@@ -96,9 +96,9 @@ private struct BarProgress: View {
         NowPlayingBar(
             title: now.lineOne,
             // Untitled, line one is already its source.
-            detail: now.isFinished ? [ListeningTime.finishedLabel]
-                : [now.title == nil ? nil : now.source, ListeningTime.leftLabel(minutes: left)].compactMap { $0 },
-            detailSymbol: now.isFinished ? Icons.checkmark : nil,
+            detail: now.isFinished ? [.finished]
+                : [now.title == nil ? nil : now.source, ListeningTime.leftLabel(minutes: left)].compactMap { $0 }
+                    .map { DetailPart($0) },
             artwork: cover.image(for: now.pageKey, data: now.artwork),
             artworkLetter: now.artworkLetter,
             progress: doc.progress(atUTF16Offset: offset),
@@ -138,7 +138,6 @@ private struct ResumeBar: View {
         NowPlayingBar(
             title: page.lineOne,
             detail: detail(progress),
-            detailSymbol: isFinished(progress) ? Icons.checkmark : nil,
             artwork: cover.image(for: page.listenKey, data: page.artworkData),
             artworkLetter: page.artworkLetter,
             progress: fraction(progress),
@@ -150,19 +149,14 @@ private struct ResumeBar: View {
         )
     }
 
-    /// Its source (untitled, line one is already that), then the time left or Finished.
-    private func detail(_ progress: ListRow.Progress) -> [String] {
-        let source = page.givenTitle == nil ? [] : [page.source]
+    /// Its source (untitled, line one is already that), then the time left or ✓ Finished.
+    private func detail(_ progress: ListRow.Progress) -> [DetailPart] {
+        let source = page.givenTitle == nil ? [] : [DetailPart(page.source)]
         switch progress {
-        case .partWay(_, let minutesLeft): return source + [ListeningTime.leftLabel(minutes: minutesLeft)]
-        case .finished: return [ListeningTime.finishedLabel]
+        case .partWay(_, let minutesLeft): return source + [DetailPart(ListeningTime.leftLabel(minutes: minutesLeft))]
+        case .finished: return [.finished]
         default: return source
         }
-    }
-
-    private func isFinished(_ progress: ListRow.Progress) -> Bool {
-        if case .finished = progress { return true }
-        return false
     }
 
     private func fraction(_ progress: ListRow.Progress) -> Double {

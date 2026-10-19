@@ -35,7 +35,7 @@ struct MoreMenuPanel: View {
             .padding(.horizontal, Spacing.xs)
         }
         .padding(.vertical, Spacing.xs)
-        .frame(width: 300)
+        .frame(width: Panel.width)
     }
 
     /// The item's rows, a divider, the screen's rows.
@@ -75,23 +75,14 @@ struct MoreMenuPanel: View {
     }
 
     private func rowLabel(_ row: MenuRow, trailing: String? = nil) -> some View {
-        HStack(spacing: Spacing.m) {
-            Image(systemName: row.icon ?? Icons.more)
-                .font(.body)
-                .frame(width: 24)
-            Text(row.title)
-                .typeStyle(.row)
-            Spacer(minLength: 0)
+        SymbolRow(row.title, symbol: row.icon, ink: row.isDestructive ? Palette.destructive : nil) {
             if let trailing {
                 Image(systemName: trailing)
-                    .font(.footnote.weight(.semibold))
+                    .disclosureSymbol()
                     .foregroundStyle(secondaryInk)
             }
         }
-        .foregroundStyle(row.isDestructive ? Palette.destructive : ink)
         .padding(.horizontal, Spacing.l)
-        .padding(.vertical, Spacing.s)
-        .contentShape(Rectangle())
     }
 
     private var divider: some View {
@@ -106,7 +97,7 @@ struct MoreMenuPanel: View {
         Button { close(then: tile.action) } label: {
             VStack(spacing: Spacing.xs) {
                 Image(systemName: tile.icon ?? Icons.more)
-                    .font(.title3)
+                    .tileSymbol()
                     .morphMenuFocus(focus)
                 Text(tile.title)
                     .typeStyle(.caption)
@@ -134,7 +125,7 @@ private struct MenuRowStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .opacity(isEnabled ? 1 : 0.35)
+            .opacity(isEnabled ? 1 : Palette.disabledOpacity)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .fill((reading?.ink ?? Palette.ink).opacity(configuration.isPressed ? 0.08 : 0))

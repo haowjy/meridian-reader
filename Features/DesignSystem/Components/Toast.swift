@@ -9,7 +9,8 @@ import SwiftUI
 /// beside it while every word of the message still fits there; when one wouldn't (the largest
 /// text sizes), the action goes under the message, and then the symbol goes, so no word is
 /// broken while one could fit the toast. One line draws as a capsule; taller, its corners stay at
-/// `Radius.pill`, as a pill button's do.
+/// `Radius.pill`, as a pill button's do. Over the Reader and Now Playing it takes the reading
+/// theme's card and inks, as everything floating on the reading page does.
 struct Toast: View {
     let message: String
     var systemImage: String?
@@ -21,6 +22,8 @@ struct Toast: View {
     static let duration: Duration = .seconds(2.5)
     /// How long a toast with an action stays up: long enough to reach for it.
     static let actionDuration: Duration = .seconds(5)
+
+    @Environment(\.readingPalette) private var reading
 
     var body: some View {
         // The first that fits: the message's ideal width is its widest word (`WholeWordsLayout`),
@@ -45,17 +48,27 @@ struct Toast: View {
             }
         }
         .padding(.horizontal, Spacing.m)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.pill, style: .continuous))
+        .background { background }
         .floatingShadow()
         .allowsHitTesting(actionTitle != nil)
         .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private var background: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.pill, style: .continuous)
+        if let reading {
+            shape.fill(reading.card)
+        } else {
+            shape.fill(.regularMaterial)
+        }
     }
 
     private func messageLine(withSymbol: Bool) -> some View {
         HStack(spacing: Spacing.xs) {
             if withSymbol, let systemImage {
                 Image(systemName: systemImage)
-                    .foregroundStyle(Palette.secondaryInk)
+                    .foregroundStyle(reading?.secondaryInk ?? Palette.secondaryInk)
                     .accessibilityHidden(true)
             }
             WholeWordsLayout {
@@ -66,7 +79,7 @@ struct Toast: View {
                 }
             }
             .typeStyle(.row)
-            .foregroundStyle(Palette.ink)
+            .foregroundStyle(reading?.ink ?? Palette.ink)
             .multilineTextAlignment(.center)
             .padding(.vertical, Spacing.s)
         }
@@ -76,7 +89,7 @@ struct Toast: View {
         Button(action: action) {
             Text(title)
                 .typeStyle(.row, weight: .semibold)
-                .foregroundStyle(Palette.accent)
+                .foregroundStyle(reading?.accent ?? Palette.accent)
                 .frame(minHeight: BottomChrome.minTapTarget)
                 .contentShape(Rectangle())
         }
@@ -117,6 +130,10 @@ struct ToastGallery: View {
             PreviewState("a long message with an action") {
                 Toast(message: "“A Folder With a Longer Name” is already downloading",
                       systemImage: Icons.download, actionTitle: "View")
+            }
+            PreviewState("on a reading page") {
+                Toast(message: "Downloading…", systemImage: Icons.download, actionTitle: "View")
+                    .onReadingPreview()
             }
         }
     }

@@ -21,7 +21,9 @@ struct FavoritesGrid: View {
                   spacing: Spacing.m) {
             ForEach(pages, id: \.listenKey) { page in
                 Button { onOpen(page) } label: {
-                    tile(title: page.lineOne) { FavoriteIcon(page: page, size: Self.tileSize) }
+                    tile(title: page.lineOne) {
+                        ArtworkTile(image: page.favoriteIcon, letter: page.artworkLetter, size: Self.tileSize)
+                    }
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(page.lineOne)
@@ -87,5 +89,15 @@ private struct FolderTile<Tile: View>: View {
         .accessibilityIdentifier("favoriteFolderTile")
         .contextMenu { menu(folder) { turningOff = folder } }
         .turnOffDownloadQuestion($turningOff)
+    }
+}
+
+private extension Page {
+    /// Its site icon for a Favorites tile, unless it is too small to fill one (a 16 px favicon
+    /// looks smeared there; the letter tile reads better).
+    var favoriteIcon: Image? {
+        guard FaviconFetcher.isTileSized(artworkData), let data = artworkData,
+              let image = UIImage(data: data) else { return nil }
+        return Image(uiImage: image)
     }
 }

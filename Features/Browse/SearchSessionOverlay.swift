@@ -74,27 +74,17 @@ struct SearchSessionOverlay: View {
 
     private var recentSearchesList: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("Recent Searches")
-                    .typeStyle(.heading, weight: .semibold)
-                    .foregroundStyle(Palette.ink)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-                Button("Clear All", action: onClearRecentSearches)
-                    .typeStyle(.row)
-                    .accessibilityIdentifier("recentSearchesClear")
-            }
-            .padding(.horizontal, Spacing.m)
-            .padding(.top, Spacing.s)
-            .padding(.bottom, Spacing.xs)
+            SectionHeader(title: String(localized: "Recent Searches"), size: .page, actionTitle: String(localized: "Clear All"),
+                          actionIdentifier: "recentSearchesClear", action: onClearRecentSearches)
+                .padding(.horizontal, Spacing.m)
+                .padding(.top, Spacing.s)
+                .padding(.bottom, Spacing.xs)
 
             ForEach(recentSearches, id: \.self) { term in
-                Divider().padding(.leading, SuggestionRow<EmptyView>.textInset)
+                SymbolRowSeparator(leadingInset: Spacing.m)
                 SuggestionRow(title: term, subtitle: nil, openLabel: term, onOpen: { onSubmit(term) },
                               onFill: { session.fill(term) }) {
-                    Image(systemName: Icons.search)
-                        .foregroundStyle(Palette.secondaryInk)
-                        .frame(width: SuggestionRow<EmptyView>.leadingWidth)
+                    Image(systemName: Icons.search).foregroundStyle(Palette.secondaryInk)
                 }
             }
         }
@@ -107,26 +97,23 @@ struct SearchSessionOverlay: View {
                               onFill: { session.fill(row.query) }) {
                     switch row.kind {
                     case .recent, .saved:
-                        FaviconImage(data: row.faviconData, host: row.host,
-                                     size: SuggestionRow<EmptyView>.leadingWidth)
+                        ArtworkTile(image: row.faviconData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
+                                    letter: PageTitle.artworkLetter(title: row.title, source: row.host, address: row.query),
+                                    size: Glyph.rowLeading)
                     case .google:
-                        Image(systemName: Icons.search)
-                            .font(.body)
-                            .foregroundStyle(Palette.secondaryInk)
-                            .frame(width: SuggestionRow<EmptyView>.leadingWidth,
-                                   height: SuggestionRow<EmptyView>.leadingWidth)
+                        Image(systemName: Icons.search).foregroundStyle(Palette.secondaryInk)
                     }
                 }
                 if row.id != rows.last?.id {
-                    Divider().padding(.leading, SuggestionRow<EmptyView>.textInset)
+                    SymbolRowSeparator(leadingInset: Spacing.m)
                 }
             }
         }
     }
 }
 
-/// One row of the search layer: tap opens it; the ↖︎ arrow (Safari's fill control) puts it in
-/// the field without opening.
+/// One row of the search layer (a `SymbolRow`): tap opens it; the ↖︎ arrow (Safari's fill
+/// control) puts it in the field without opening.
 private struct SuggestionRow<Leading: View>: View {
     let title: String
     let subtitle: String?
@@ -135,11 +122,6 @@ private struct SuggestionRow<Leading: View>: View {
     let onOpen: () -> Void
     let onFill: () -> Void
     @ViewBuilder let leading: () -> Leading
-
-    /// Width of the leading icon.
-    static var leadingWidth: CGFloat { 28 }
-    /// Where the title starts: dividers line up with it.
-    static var textInset: CGFloat { Spacing.m + leadingWidth + Spacing.s }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -151,7 +133,8 @@ private struct SuggestionRow<Leading: View>: View {
 
             Button(action: onFill) {
                 Image(systemName: Icons.fillField)
-                    .font(.body.weight(.medium))
+                    .rowSymbol()
+                    .fontWeight(.medium)
                     .foregroundStyle(Palette.secondaryInk)
                     .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
                     .contentShape(Rectangle())
@@ -164,25 +147,8 @@ private struct SuggestionRow<Leading: View>: View {
 
     private var openButton: some View {
         Button(action: onOpen) {
-            HStack(spacing: Spacing.s) {
-                leading()
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(title)
-                        .typeStyle(.row)
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(1)
-                    if let subtitle {
-                        Text(subtitle)
-                            .typeStyle(.caption)
-                            .foregroundStyle(Palette.secondaryInk)
-                            .lineLimit(1)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.leading, Spacing.m)
-            .padding(.vertical, Spacing.s)
-            .contentShape(Rectangle())
+            SymbolRow(title, subtitle: subtitle, leading: leading) { EmptyView() }
+                .padding(.leading, Spacing.m)
         }
         .buttonStyle(.plain)
     }

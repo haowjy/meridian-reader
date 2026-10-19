@@ -67,7 +67,7 @@ struct LibraryHomeView: View {
                     .foregroundStyle(Palette.ink)
                     .accessibilityAddTraits(.isHeader)
                     .accessibilityIdentifier("libraryTitle")
-                    .libraryHeader()
+                    .listHeader()
             }
             Section {
                 Picker("Library view", selection: $shell.homeTab) {
@@ -83,12 +83,12 @@ struct LibraryHomeView: View {
                     LibraryFolderRow(folder: folder)
                 }
                 .listRowInsets(EdgeInsets())
-                .listRowBackground(Palette.chrome)
+                .listCard()
                 ForEach(pages, id: \.listenKey) { page in
                     LibraryPageRow(page: page)
                 }
                 .listRowInsets(EdgeInsets())
-                .listRowBackground(Palette.chrome)
+                .listCard()
             }
             if folders.isEmpty && pages.isEmpty {
                 Section { emptyState }
@@ -96,7 +96,7 @@ struct LibraryHomeView: View {
                     .listRowBackground(Color.clear)
             }
         }
-        .libraryListStyle()
+        .cardListStyle()
         .statusBarBacking()
         .environment(\.libraryScreenKey, isFiltered ? .filtered : .home)
         .animation(Motion.standard, value: pages.map(\.listenKey))
@@ -161,18 +161,6 @@ enum LibraryTopLevel {
 }
 
 extension View {
-    /// A section header in the Library's lists: in line with the cards (no extra header inset).
-    func libraryHeader() -> some View {
-        textCase(nil)
-            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: Spacing.xs, trailing: 0))
-    }
-
-    /// A section footer in the Library's lists (a note under a card): in line with the cards.
-    func libraryFooter() -> some View {
-        textCase(nil)
-            .listRowInsets(EdgeInsets(top: Spacing.xs, leading: 0, bottom: 0, trailing: 0))
-    }
-
     /// A screen with no navigation bar (the Library home): paper behind the status bar, so rows
     /// scrolled up pass under it rather than under the clock.
     func statusBarBacking() -> some View {
@@ -185,17 +173,6 @@ extension View {
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
-    }
-
-    /// The Library's lists: grouped cards on paper, at the page margin, `Spacing.l` between
-    /// sections.
-    func libraryListStyle() -> some View {
-        listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(Palette.paper)
-            .contentMargins(.horizontal, Spacing.pageMargin, for: .scrollContent)
-            .listSectionSpacing(Spacing.l)
-            .environment(\.defaultMinListRowHeight, 0)
     }
 }
 

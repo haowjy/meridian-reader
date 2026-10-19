@@ -231,6 +231,7 @@ private struct SpokenText: View {
         let paragraph = speech.currentParagraphIndex
         HTMLReadingView(
             html: html,
+            heading: ReaderHeading(title: card.title, detail: []),
             topView: titleCard,
             activeParagraphIndex: speech.spokenParagraph(scrubPreview: scrubPreview),
             sentence: finished || scrubPreview != nil ? nil : sentence(paragraph),
@@ -254,14 +255,15 @@ private struct SpokenText: View {
         let doc = speech.document
         let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: speech.spokenUTF16Offset,
                                              rate: speech.rateMultiplier)
-        let detail = finished ? [ListeningTime.finishedLabel]
+        let detail: [DetailPart] = finished ? [.finished]
             : [card.source, doc.isEmpty ? "" : ListeningTime.leftLabel(minutes: left)].filter { !$0.isEmpty }
+                .map { DetailPart($0) }
         let palette = reading ?? .app
         return ReadingTopView(
-            id: [card.title ?? "", detail.joined(separator: "\n"), card.letter, card.artwork == nil ? "" : "artwork",
+            id: [card.title ?? "", detail.map(\.text).joined(separator: "\n"), card.letter, card.artwork == nil ? "" : "artwork",
                  palette.theme.rawValue, AppAppearance.shared.accent.rawValue],
-            view: AnyView(TitleCard(title: card.title, detail: detail, detailSymbol: finished ? Icons.checkmark : nil,
-                                    artwork: card.artwork, artworkLetter: card.letter, palette: palette))
+            view: AnyView(TitleCard(title: card.title, detail: detail, artwork: card.artwork, artworkLetter: card.letter,
+                                    palette: palette))
         )
     }
 

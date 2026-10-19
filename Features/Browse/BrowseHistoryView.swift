@@ -30,10 +30,10 @@ struct BrowseHistoryView: View {
                                 HistoryRow(visit: visit, onOpen: onOpen)
                             }
                             .listRowInsets(EdgeInsets())
-                            .listRowBackground(Palette.chrome)
+                            .listCard()
                         }
                     }
-                    .libraryListStyle()
+                    .cardListStyle()
                 }
             }
             .navigationTitle(Verbs.history)
@@ -65,7 +65,8 @@ private struct HistoryRow: View {
                                                               speech: speech, downloads: downloads, follow: follow),
                                          library: library))
             ListRow(kind: .page(artwork: visit.faviconData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
-                                letter: visit.host.siteLetter),
+                                letter: PageTitle.artworkLetter(title: visit.title, source: visit.host,
+                                                              address: visit.urlString)),
                     title: visit.lineOne, subtitle: visit.title.isEmpty ? nil : visit.host,
                     note: visit.visitedAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)),
                     menu: menu)

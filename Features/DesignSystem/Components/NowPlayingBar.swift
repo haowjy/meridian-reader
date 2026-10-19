@@ -15,13 +15,12 @@ import SwiftUI
 /// While the next chapter loads the state is `.preparing` and `detail` says so.
 /// `NowPlayingBar.placeholder` is the same card, greyed, with nothing to open or play: the band
 /// shows it when it has nothing to resume (nothing played yet), so the band keeps its height.
+/// In the Reader (another page playing) it takes the reading theme's card, inks and accent.
 struct NowPlayingBar: View {
     let title: String
     /// Second line, as separate parts (`DetailLine`): the source, then the time left
-    /// (["investopedia.com", "12 min left"]); or one part, "Getting next chapter…", "Finished"
-    /// (after `detailSymbol`, ✓).
-    let detail: [String]
-    var detailSymbol: String?
+    /// (["investopedia.com", "12 min left"]); or one part, "Getting next chapter…", `.finished`.
+    let detail: [DetailPart]
     var artwork: Image?
     /// Letter for the artwork tile when there is no image.
     var artworkLetter: String = ""
@@ -41,15 +40,15 @@ struct NowPlayingBar: View {
 
     /// The bar's width: it spans a full toolbar row, so ⏸ sits over ⋯'s slot.
     @State private var width: CGFloat = 0
+    @Environment(\.readingPalette) private var reading
 
     static let artworkSize: CGFloat = 36
 
-    init(title: String, detail: [String], detailSymbol: String? = nil, artwork: Image? = nil, artworkLetter: String = "", progress: Double,
+    init(title: String, detail: [DetailPart], artwork: Image? = nil, artworkLetter: String = "", progress: Double,
          state: PlayState, sleepTimerSet: Bool = false, identifier: String = "nowPlayingBar", onOpen: @escaping () -> Void, onPlayPause: @escaping () -> Void,
          menu: AnyView?) {
         self.title = title
         self.detail = detail
-        self.detailSymbol = detailSymbol
         self.artwork = artwork
         self.artworkLetter = artworkLetter
         self.progress = progress
@@ -65,7 +64,7 @@ struct NowPlayingBar: View {
     /// every text size (same rows, same controls).
     static func placeholder() -> NowPlayingBar {
         var bar = NowPlayingBar(title: String(localized: "Nothing playing"),
-                                detail: [String(localized: "Pick something to play")],
+                                detail: [DetailPart(String(localized: "Pick something to play"))],
                                 artworkLetter: " ", progress: 0, state: .idle,
                                 identifier: "nowPlayingBarPlaceholder", onOpen: {}, onPlayPause: {}, menu: nil)
         bar.isPlaceholder = true
@@ -86,17 +85,17 @@ struct NowPlayingBar: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(title)
                         .typeStyle(.row, weight: .semibold)
-                        .foregroundStyle(isPlaceholder ? Palette.tertiaryInk : Palette.ink)
+                        .foregroundStyle(isPlaceholder ? quietInk : reading?.ink ?? Palette.ink)
                         .lineLimit(1)
                     HStack(spacing: Spacing.xxs) {
                         if sleepTimerSet {
                             Image(systemName: Icons.sleepTimer)
                                 .accessibilityLabel("Sleep timer set")
                         }
-                        DetailLine(detail, symbol: detailSymbol)
+                        DetailLine(parts: detail)
                     }
                     .typeStyle(.caption)
-                    .foregroundStyle(isPlaceholder ? Palette.tertiaryInk : Palette.secondaryInk)
+                    .foregroundStyle(isPlaceholder ? quietInk : reading?.secondaryInk ?? Palette.secondaryInk)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -121,11 +120,11 @@ struct NowPlayingBar: View {
         .padding(.leading, Spacing.xs)
         .padding(.trailing, Self.trailingPadding(rowWidth: width))
         .padding(.vertical, Spacing.xs)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .background { background }
         .overlay(alignment: .bottom) {
             if !isPlaceholder {
                 GeometryReader { g in
-                    Palette.accent
+                    (reading?.accent ?? Palette.accent)
                         .frame(width: g.size.width * min(max(0, progress), 1), height: 3)
                         .frame(maxHeight: .infinity, alignment: .bottom)
                 }
@@ -142,6 +141,19 @@ struct NowPlayingBar: View {
         .accessibilityIdentifier(identifier)
     }
 
+    private var quietInk: Color { reading?.tertiaryInk ?? Palette.tertiaryInk }
+
+    /// The bar material; on the reading page, its card.
+    @ViewBuilder
+    private var background: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+        if let reading {
+            shape.fill(reading.card)
+        } else {
+            shape.fill(.regularMaterial)
+        }
+    }
+
     /// The placeholder sits flatter than a live card.
     private static let placeholderShadowOpacity = 0.05
 
@@ -152,7 +164,7 @@ struct NowPlayingBar: View {
                 .overlay {
                     Image(systemName: Icons.playing)
                         .font(.caption)
-                        .foregroundStyle(Palette.tertiaryInk)
+                        .foregroundStyle(quietInk)
                         .accessibilityHidden(true)
                 }
         } else {
@@ -176,8 +188,7 @@ struct NowPlayingBarGallery: View {
                 bar("Chapter 13", ["Getting next chapter…"], 0, .preparing)
             }
             PreviewState("finished") {
-                NowPlayingBar(title: "Notes on Tides", detail: [ListeningTime.finishedLabel], detailSymbol: Icons.checkmark,
-                              progress: 1, state: .idle, onOpen: {}, onPlayPause: {}, menu: nil)
+                bar("Notes on Tides", [.finished], 1, .idle)
             }
             PreviewState("nothing playing") {
                 NowPlayingBar.placeholder()
@@ -185,7 +196,7 @@ struct NowPlayingBarGallery: View {
         }
     }
 
-    private func bar(_ title: String, _ detail: [String], _ progress: Double, _ state: PlayState,
+    private func bar(_ title: String, _ detail: [DetailPart], _ progress: Double, _ state: PlayState,
                      sleep: Bool = false) -> some View {
         NowPlayingBar(title: title, detail: detail, progress: progress, state: state, sleepTimerSet: sleep,
                       onOpen: {}, onPlayPause: {}, menu: nil)

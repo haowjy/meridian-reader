@@ -97,10 +97,10 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 - **Screens are built from `Features/DesignSystem/`**: no ad-hoc padding, colour, radius or font
   size in feature code. Spacing and margins come from `Spacing`, corners from `Radius`, text from
   `typeStyle(_:)` (`TypeStyle`, Dynamic Type scaled), colour from `Palette` (light and dark), SF
-  Symbols from `Icons` (one per concept). Shared
-  pieces (`PlayStateButton`, `PillButton`, `ListRow`, `NowPlayingBar`, `Sheet`, …) take plain values
-  and closures, never `SpeechController`, SwiftData or `ShellState`, and carry previews in light,
-  dark and the largest text size. A value the scale lacks is a token change, made there.
+  Symbols from `Icons` (one per concept). Shared pieces (`PlayStateButton`, `PillButton`,
+  `ListRow`, `SymbolRow`, `ArtworkTile`, `NowPlayingBar`, `Sheet`, …) take plain values and
+  closures, never `SpeechController`, SwiftData or `ShellState`, and carry previews in light, dark
+  and the largest text size. A value the scale lacks is a token change, made there.
 - **Swipe actions**: one whose row can stay in the list (it asks first, deletes what the row
   only shows, or saves a change that can fail) takes `.tint(Palette.destructive)`, never
   `role: .destructive`. The role has the List remove the row at once; the List and its data then

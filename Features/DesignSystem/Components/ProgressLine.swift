@@ -32,7 +32,7 @@ struct ProgressLine: View {
             ZStack(alignment: .leading) {
                 switch track {
                 case .groove:
-                    Capsule().fill(Palette.secondaryInk.opacity(0.22))
+                    Capsule().fill(reading?.track ?? Palette.track)
                     Capsule().fill(accent).frame(width: fill)
                 case .edge:
                     Rectangle().fill(accent.opacity(Palette.washOpacity))

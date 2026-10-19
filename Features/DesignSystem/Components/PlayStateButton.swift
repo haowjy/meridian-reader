@@ -58,6 +58,9 @@ struct PlayStateButton: View {
     /// The `glyph` look's symbol: `.title3`'s size, growing with the text only up to
     /// `BottomChrome.maxTextGrowth` so it stays inside its 44 pt column.
     @ScaledMetric(relativeTo: .title3) private var scaledGlyph: CGFloat = PlayStateButton.glyphSize
+    /// On the reading page every look takes the theme's colours (the Reader's Now Playing bar,
+    /// Listen).
+    @Environment(\.readingPalette) private var reading
 
     static let glyphSize: CGFloat = 20
 
@@ -79,11 +82,11 @@ struct PlayStateButton: View {
         Button(action: action) {
             Group {
                 if state == .preparing {
-                    ProgressView()
+                    ProgressView().tint(reading?.accent ?? Palette.accent)
                 } else {
                     Image(systemName: state == .playing ? Icons.pause : Icons.play)
                         .font(.system(size: BottomChrome.grown(scaledGlyph, from: Self.glyphSize)))
-                        .foregroundStyle(state.isCurrent ? Palette.accent : Palette.ink)
+                        .foregroundStyle(state.isCurrent ? reading?.accent ?? Palette.accent : reading?.ink ?? Palette.ink)
                         .contentTransition(.symbolEffect(.replace))
                 }
             }
@@ -100,14 +103,13 @@ struct PlayStateButton: View {
                 switch state {
                 case .idle:
                     Image(systemName: idleSymbol)
-                        .font(.body)
-                        .foregroundStyle(Palette.secondaryInk)
+                        .foregroundStyle(reading?.secondaryInk ?? Palette.secondaryInk)
                 case .preparing:
                     ProgressView().controlSize(.small)
                 case .playing, .paused:
-                    Circle().fill(Palette.accent)
+                    Circle().fill(reading?.accent ?? Palette.accent)
                     PlayingBars(animating: state == .playing)
-                        .foregroundStyle(Palette.onAccent)
+                        .foregroundStyle(reading?.onAccent ?? Palette.onAccent)
                         .padding(Spacing.xs)
                 }
             }
@@ -124,7 +126,7 @@ struct PlayStateButton: View {
             case .idle:
                 PillSymbol(name: Icons.play)
             case .preparing:
-                ProgressView().controlSize(.small).tint(Palette.onAccent)
+                ProgressView().controlSize(.small).tint(reading?.onAccent ?? Palette.onAccent)
             case .playing, .paused:
                 PlayingBars(animating: state == .playing)
                     .frame(width: Glyph.mark, height: Glyph.mark)

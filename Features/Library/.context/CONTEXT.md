@@ -157,6 +157,6 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **D21: action rows never wrap; page rows are two lines.** A row of buttons is an
   `ActionButtonRow` (full labels → short titles → no details → symbols), never an HStack or a
   stack that can wrap; give every button a symbol. A page row is its title on one line and one
-  status line; in a folder (`page.folder != nil`) it leaves out the byline the header shows. Imported pages are standard page rows; folder sort remains
+  status line, the second its site everywhere except in a book or series (`kind.isBookOrSeries`), whose header names the source; a folder you made mixes sites, so its rows keep theirs. Imported pages are standard page rows; folder sort remains
   the source chapter order until the user changes it. The old Favorites folder is converted by
   `LibraryStore.migrateFavoritesFolder` before the first screen.
