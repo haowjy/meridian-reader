@@ -19,8 +19,9 @@ struct MoreMenuPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // A folder's screen at large text sizes has more rows than the screen is tall: they
-            // scroll, and the big buttons stay at the bottom, under the thumb.
+            // At the default text size every panel fits (`RowHeight.menu`); at large sizes a
+            // folder's screen has more rows than the screen is tall: they scroll, and the big
+            // buttons stay at the bottom, under the thumb.
             ViewThatFits(in: .vertical) {
                 rows
                 ScrollView { rows }
@@ -82,6 +83,7 @@ struct MoreMenuPanel: View {
                     .foregroundStyle(secondaryInk)
             }
         }
+        .rowHeight(RowHeight.menu)
         .padding(.horizontal, Spacing.l)
     }
 

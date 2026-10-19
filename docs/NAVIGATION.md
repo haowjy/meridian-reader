@@ -173,9 +173,10 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   that applies to what the menu is for but can't run now shows dimmed, and only a row that can
   never apply to that kind of item is left out (`MenuAvailability`). A toggle is one row showing
   the face for the item's state (*Save* / *Remove from Library*, *Mark as Finished* /
-  *Unfinished*). A row that deletes something is red in it as in a long-press menu. A panel taller
-  than the room above its ⋯ (a folder's screen, larger text) stops below the status bar and its
-  rows scroll; the big buttons stay at the bottom. It covers
+  *Unfinished*). A row that deletes something is red in it as in a long-press menu. Its rows are
+  44 pt (`RowHeight.menu`, a system menu's row), so at the default text size every panel fits on
+  an iPhone 17 Pro, a folder's screen's too. A panel taller than the room above its ⋯ (larger
+  text) stops below the status bar and its rows scroll; the big buttons stay at the bottom. It covers
   the button and the toolbar around it, so the bottom row lands under the thumb, and grows out of
   that point (the glass grows from the button's circle to the panel's frame and corners, never
   stretched; the rows fade / un-blur in) while the ⋯ glyph

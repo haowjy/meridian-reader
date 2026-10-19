@@ -35,8 +35,12 @@ enum Glyph {
 enum RowHeight {
     /// A content row: a page, folder or book with its thumbnail and two lines (`ListRow`).
     static let content: CGFloat = 56
-    /// A compact row: a symbol and a label, a setting, an action, a menu row (`SymbolRow`).
+    /// A compact row: a symbol and a label, a setting, an action (`SymbolRow`).
     static let compact: CGFloat = 48
+    /// A menu row in the ⋯ panel (a `SymbolRow`): the tap minimum, the height of a system menu's
+    /// row, so an item's rows read alike in the panel and in its long press, and the longest
+    /// panel (a folder's screen) fits an iPhone 17 Pro at the default text size.
+    static let menu: CGFloat = BottomChrome.minTapTarget
 }
 
 /// The floating panels: the ⋯ panel and Aa.
