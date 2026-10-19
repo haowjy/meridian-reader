@@ -7,7 +7,7 @@ import WebKit
 /// - **`pages`**: the browser's, with `-browseTestPages` (`RootView` gives the browser's web view
 ///   the handler; real navigations, so they get real back/forward history):
 ///   - `one`: not an article (no 📄 / 🎧), with links to the others and to a book (`bookLink`);
-///   - `two` ("Second page") and `three` ("Third page"): articles (pass `isProbablyReaderable`);
+///   - `two` ("Second page", with a link to `three` in its text) and `three` ("Third page"): articles (pass `isProbablyReaderable`);
 ///   - `thin` ("Thin page"): readable by that check, but its article text is invisible, so the
 ///     saved copy (which drops short invisible text) has almost nothing to listen to;
 ///   - `book-N`: chapter N of the demo book (`DemoBook`, `-seedDemoBook`).
@@ -57,7 +57,11 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
         switch name {
         case "two":
             title = "Second page"
-            body = (1...5).map { _ in "<p>" + String(repeating: sentence, count: 4) + "</p>" }.joined()
+            // One link in the text, to check that a link opens in the browser.
+            body = (1...5).map { i in
+                "<p>" + String(repeating: sentence, count: 4)
+                    + (i == 3 ? "Read <a href=\"reader-test://pages/three\">the third page</a> next.</p>" : "</p>")
+            }.joined()
         case "three":
             title = "Third page"
             let other = "A different offline article, about harbors and the boats that come and go with the tide. "

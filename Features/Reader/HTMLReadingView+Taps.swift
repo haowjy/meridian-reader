@@ -10,7 +10,7 @@ import WebKit
 ///   Motion). A page turn is the user moving the text, like a drag: following the audio stops.
 ///   In ☝︎ jump mode taps play from a paragraph instead and nothing here runs; outside a reading
 ///   sheet (no chrome: Follow's preview) taps do nothing.
-/// - A link opens through the owner (`onOpenLink`, the browser); the reading view itself never
+/// - A link opens through the owner (`onOpenLink`: the browser); the reading view itself never
 ///   leaves its page, except to scroll to a fragment on it.
 extension HTMLReadingWebView.Coordinator {
     /// The page's script reported a tap at `x` across a page `width` wide.
@@ -64,17 +64,15 @@ extension HTMLReadingWebView.Coordinator {
     // MARK: Links
 
     /// The page itself loads (the reading HTML, a reload) and embeds in it load; a link on it opens
-    /// through the owner, except a fragment link on the page, which scrolls there. Nothing else
-    /// takes the reading view anywhere. Only web links open; `javascript:` and the rest do nothing.
+    /// through the owner, except a fragment link on the page, which scrolls there, and a
+    /// `javascript:` link, which does nothing. Nothing else takes the reading view anywhere.
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
                  decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
         guard let url = action.request.url else { return decisionHandler(.cancel) }
         if action.navigationType == .linkActivated || action.targetFrame == nil {
             if Self.isFragment(url, of: webView.url) { return decisionHandler(.allow) }
             decisionHandler(.cancel)
-            if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
-                onOpenLink(url)
-            }
+            if url.scheme?.lowercased() != "javascript" { onOpenLink(url) }
             return
         }
         // A frame inside the page (an embed) loads as it would; the page's own frame only loads

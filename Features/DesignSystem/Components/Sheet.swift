@@ -26,7 +26,7 @@ import SwiftUI
 /// render).
 struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     let onDismiss: () -> Void
-    var palette: ReadingPalette = .app
+    let palette: ReadingPalette
     /// The reading sheets' bars and full screen; nil: the header above the content, no band.
     private let chrome: ReadingChrome?
     private let header: Header

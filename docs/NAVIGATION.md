@@ -38,8 +38,9 @@ their text when it is at its top, which does exactly what that button does.
   pill, the neutral one the Reader's close pill is (`SheetBarButton`).
 - The Reader and Now Playing are the design system's `Sheet` (in place, not a `.sheet` or
   `fullScreenCover`): pulling the header (grabber or the top bar with its close pill) down calls the same close
-  action as its button. Closing never stops audio: the Now Playing bar shows what is playing. The
-  header and the bottom row never hide, so the header is always there to pull.
+  action as its button. Closing never stops audio: the Now Playing bar shows what is playing. In
+  full screen (below) the header is hidden; the first pull down brings it back, the next one
+  closes.
 - **The text pulls the sheet too, from its top**, so a sheet closes one-handed from the lower half
   of the screen (`SheetPullHandoff`). A drag on the text that begins with the text at its top and
   goes down moves the sheet instead of bouncing the text, which stays put; moving back up lowers
@@ -47,7 +48,9 @@ their text when it is at its top, which does exactly what that button does.
   scrolls, even once the text reaches its top: reading back up never closes the sheet. Sideways
   drags, text selection and ☝︎ taps are untouched, and the scrubber and the bottom row aren't
   text, so they never pull. In Now Playing a pull alone keeps following the audio (it moves
-  nothing); once the drag moves the text, following stops as for any drag.
+  nothing); once the drag moves the text, following stops as for any drag. In full screen the
+  text hands no pull to the sheet: a pull down at its top only rubber-bands and brings the bars
+  back, and a pull that begins with them showing closes the sheet as above.
 - It moves like a system sheet: it rises from the bottom and leaves the same way. The surface
   stays as it is underneath (the page or start page, the Library's screen), so the pull reveals
   where you're going back to: the sheet follows the finger (up only with rubber-band resistance;
@@ -638,8 +641,8 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   Now Playing sets that position once its page is laid out and holds it while the layout
   settles (the title card measured, the header, a text size change: each keeps the same line).
   It drops it if you drag, scrub, Jump to Audio, the audio moves on or the page reloads first. ☝︎ in the top bar, then a tap on a paragraph, listens from that
-  paragraph (a hint banner with Cancel sits above the text meanwhile, at the page margin; the text
-  moves down under it rather than being covered). While ☝︎ is on, each
+  paragraph (a hint banner with Cancel sits under the top bar meanwhile, at the page margin, as part
+  of the header: the text's first line at the top starts below it). While ☝︎ is on, each
   paragraph is a button to VoiceOver, *Paragraph N*, hint *Plays from this paragraph*.
 - **A page part-way through opens at its saved spot**: the sentence where listening stopped
   (where *Resume* starts) is in the middle of the text and underlined, without a scroll of your
@@ -658,8 +661,12 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   **Favorites / History / Website** — *Website* (the Reader off) shows the page in the browser,
   wherever the Reader was opened from; from the library, the library closes first. Playback
   never stops.
-- The text sits between the header and the bottom row, so its first line starts below the close
-  pill and its last line scrolls clear of the bottom row.
+- The text fills the sheet down to the screen's foot and runs under the header and the bottom
+  band, which are drawn over it (the header on the page's colour, the band on its tinted bar
+  material); its first line starts below the header and its last line scrolls clear of the band.
+  Scrolling down goes full screen (below).
+- **Links** in the text open in the browser (as ⋯ → Website does: the sheet closes, Now Playing
+  too); a link to a place on the same page scrolls there. The text never leaves its page.
 
 ### Now Playing
 
@@ -776,6 +783,34 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
 - A page played without saving is kept for 7 days after its last play, with its text and its
   spot: after a relaunch it is at the top of the Library's *Pages*, opens in the Reader where it was, and
   Now Playing shows its text.
+
+### Full screen (the Reader and Now Playing)
+
+Both sheets read full screen the same way (`ReadingChrome`); Follow's chapter preview doesn't.
+
+- **Scrolling the text down** (the finger moving up about 16 pt without turning back) hides the
+  grabber, the top bar and the bottom band together: they slide off their edges and fade (fade
+  only under Reduce Motion). The status bar goes too, the home indicator dims, and the strip
+  above the sheet takes the page's colour, so only the text shows. **Scrolling up a little**
+  (about 8 pt) or **a tap in the middle of the text** brings them back over the text; the text
+  doesn't move either way. The next scroll down or middle tap hides them again. Scrolls the app
+  makes (following the audio, a scrub, opening at a spot) never do. The bars stay while VoiceOver
+  runs, while ☝︎ is on, and while Aa or ⋯ is open.
+- **Taps on the text** (not on a link; ☝︎ keeps its paragraph taps): the right 30% of the width
+  goes forward a screen, the left 30% back one (the visible text less one line, on the
+  `Motion.standard` spring, a jump under Reduce Motion, never past either end), the middle shows or
+  hides the bars. The first 48 pt from the left edge do nothing, so an edge swipe never turns a
+  page. Edge taps leave the bars as they are. In Now Playing a page turn stops following the audio
+  as a drag does, and *Jump to Audio* appears.
+- **A small ▶ / ⏸ floats at the bottom right** in full screen (a 44 pt accent disc with the
+  floating shadow, above the home indicator, at the page margin): Now Playing's plays and pauses
+  what you hear; the Reader's is its Listen (and turns it into Now Playing). It fades out 3 s after
+  full screen begins; a page turn, or a tap on it, brings it back for another 3 s. It isn't there
+  while the bars show.
+- **At the top**, a pull down in full screen rubber-bands and brings the bars back, never closing
+  the sheet; a pull that begins with the bars showing closes it as usual.
+- *Jump to Audio* sits just above the bottom band while the bars show, and near the screen's foot
+  in full screen, clear of the home indicator and the floating ▶.
 
 ### Reading appearance (Aa, Settings › Reading)
 

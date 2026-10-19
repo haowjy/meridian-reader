@@ -123,6 +123,7 @@ private struct BottomChromeBandBackground: ViewModifier {
                     Rectangle().fill(.bar)
                     reading.background.opacity(0.85)
                 }
+                .ignoresSafeArea(edges: .bottom)
             }
         } else {
             content.background(.bar)

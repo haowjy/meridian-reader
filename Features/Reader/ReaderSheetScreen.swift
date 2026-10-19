@@ -18,6 +18,8 @@ import SwiftUI
 ///   Download, Downloads, Settings; Favorites / History / Website). Both act through
 ///   `PageActions`, as in Now Playing.
 /// - Aa, left of ☝︎, changes how the page reads (`TextAppearanceControl`), live.
+/// - Scrolling down reads full screen, as in Now Playing (`ReaderSheet`, `ReadingChrome`); a link
+///   in the text opens in the browser.
 ///
 /// Save / Remove only flips 🔖: the article key is already the saved id (identity v2), so the
 /// view and any playing audio are untouched.
@@ -62,10 +64,10 @@ struct ReaderSheetScreen: View {
         ) {
             TextAppearanceControl()
         } accessory: {
-            JumpModeButton(isOn: jumpMode) { jumpMode.toggle() }
+            JumpModeButton(isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
                 .disabled(!sessionReady)
         } banner: {
-            if jumpMode { JumpHint { jumpMode = false } }
+            if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
             text(start)
         } bar: {

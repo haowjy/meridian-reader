@@ -22,6 +22,9 @@ import SwiftUI
 ///   in the Reader.
 /// - At the end it stays: the text stays, all in full ink, the title card says "✓ Finished"
 ///   (the one place it shows, where the Reader shows the page's length), ▶ plays it again.
+/// - Scrolling down reads full screen, as in the Reader (`NowPlayingSheet`, `ReadingChrome`): the
+///   text still follows the audio, a page turn by a tap stops following as a drag does, and a link
+///   in the text opens in the browser.
 /// - The pill or a pull down shrinks it back into the bar.
 struct NowPlayingScreen: View {
     @Bindable var speech: SpeechController
@@ -72,10 +75,10 @@ struct NowPlayingScreen: View {
         ) {
             TextAppearanceControl()
         } accessory: {
-            JumpModeButton(isOn: jumpMode) { jumpMode.toggle() }
+            JumpModeButton(isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
                 .disabled(speech.document.isEmpty)
         } banner: {
-            if jumpMode { JumpHint { jumpMode = false } }
+            if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
             text(now, article: actions.article)
         } controls: {

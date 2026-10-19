@@ -279,6 +279,7 @@
 		D5E98B393C8F847AE06FA57D /* Themes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E0B8802C2A1E4603984B20E /* Themes.swift */; };
 		D6EC0FD07816BA92255EF89D /* ReaderSheetScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D34C7C40ACB9A435DD26C9E /* ReaderSheetScreen.swift */; };
 		D6F7EAC89FF3AD12E0798CC8 /* EngineCrashGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF68D2D7BB100C810FECE952 /* EngineCrashGuardTests.swift */; };
+		D9DD77AF091F9EB7F751E5EC /* SystemBars.swift in Sources */ = {isa = PBXBuildFile; fileRef = 526BBFF20A689960CBD8A475 /* SystemBars.swift */; };
 		DA72AD19FB33B9CE5F3C59CC /* BandFieldRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07A758E5648CD4CDAFB5A38 /* BandFieldRow.swift */; };
 		DB97742451A94746233BF8FA /* BookImportActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEED72F038103FDD7C6E3093 /* BookImportActions.swift */; };
 		DC39EFC2AA17509B77261C21 /* ArticleTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859903B603EB0EF86A841E5B /* ArticleTitle.swift */; };
@@ -330,7 +331,6 @@
 		FC211CD88FD7D096AC10747F /* ListenDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D2014C2F21A9EE4D1229891 /* ListenDiagnostics.swift */; };
 		FC69E32D3F227BC99AB14642 /* FaviconImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B1AA8D02D827D50F1E6B000 /* FaviconImage.swift */; };
 		FD752217B44C49D52808AAC8 /* voice-preview-kokoro-af_bella.m4a in Resources */ = {isa = PBXBuildFile; fileRef = F20A93A7756A7FD6FF392321 /* voice-preview-kokoro-af_bella.m4a */; };
-		FEF6DB87F1A2F8230F1083F0 /* StatusBarStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57B6EF92DEBDA60BAC9310AC /* StatusBarStyle.swift */; };
 		FF057B00C04803CEBB801A57 /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEAD6AB0708A4686A84B4657 /* Palette.swift */; };
 		FF247080E079F8BA32B49489 /* FolderDeletePrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71838CE3E335D181BC4FD7F3 /* FolderDeletePrompt.swift */; };
 		FF3FC05AA671F74AC7DDBC6F /* ListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 314EDF2D242E06532C574191 /* ListRow.swift */; };
@@ -447,9 +447,9 @@
 		5034608E93346E0D0FE990F2 /* ReadingSample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingSample.swift; sourceTree = "<group>"; };
 		51359D1B2CFD88D62E224163 /* LibraryQueries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryQueries.swift; sourceTree = "<group>"; };
 		51911BCFC20EA3EB4428499B /* SpeechController+NowPlaying.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SpeechController+NowPlaying.swift"; sourceTree = "<group>"; };
+		526BBFF20A689960CBD8A475 /* SystemBars.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemBars.swift; sourceTree = "<group>"; };
 		52855C3FAA1F254E9AA301BF /* GlobalSynthQueue+Jobs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GlobalSynthQueue+Jobs.swift"; sourceTree = "<group>"; };
 		53B8B971800F9C1A2D8256AD /* NowPlayingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingController.swift; sourceTree = "<group>"; };
-		57B6EF92DEBDA60BAC9310AC /* StatusBarStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarStyle.swift; sourceTree = "<group>"; };
 		57FE553F262B6BA134259973 /* LibraryStore+Marks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryStore+Marks.swift"; sourceTree = "<group>"; };
 		58A64466059BA1017F1DE3DC /* Sheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sheet.swift; sourceTree = "<group>"; };
 		58B2655D5BD82571E46C3FC5 /* FolderPlayButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderPlayButtons.swift; sourceTree = "<group>"; };
@@ -1015,7 +1015,7 @@
 				E07A758E5648CD4CDAFB5A38 /* BandFieldRow.swift */,
 				73E94E5E93EE460FD354D960 /* BottomChrome.swift */,
 				935F458969E94244662AB111 /* MorphMenu.swift */,
-				57B6EF92DEBDA60BAC9310AC /* StatusBarStyle.swift */,
+				526BBFF20A689960CBD8A475 /* SystemBars.swift */,
 			);
 			path = Chrome;
 			sourceTree = "<group>";
@@ -1817,13 +1817,13 @@
 				64D2E152289C4060F3D122AD /* SpeechEngineProvider.swift in Sources */,
 				87AA13ACFD82041DA6C0861B /* SpeechEnvironment.swift in Sources */,
 				0CC6E846651264424A4FA433 /* SpeechSession.swift in Sources */,
-				FEF6DB87F1A2F8230F1083F0 /* StatusBarStyle.swift in Sources */,
 				7B9B80FAB0F0F4BA1F8A5112 /* SubParagraphPosition.swift in Sources */,
 				88705CC24891B719C5E99C7C /* SurfaceBand.swift in Sources */,
 				C7331E441D113B4D28BC4673 /* SurfaceMemory.swift in Sources */,
 				BD92B68586E92D7509B26B01 /* SwipeGesturePolicy.swift in Sources */,
 				5C76BE82C9E71DE64EE80863 /* SynthQueueContext.swift in Sources */,
 				DEBDDAFA0A4BABE647BB99BC /* SynthRenderGate.swift in Sources */,
+				D9DD77AF091F9EB7F751E5EC /* SystemBars.swift in Sources */,
 				96902AA40A397449F3D7D74C /* TableOfContents.swift in Sources */,
 				C1FA3E739C84015302D72B5A /* TestEPUB.swift in Sources */,
 				B2CB4F0F54A0F94AD9BBEC41 /* TestPageSchemeHandler.swift in Sources */,

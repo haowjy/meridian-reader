@@ -70,7 +70,7 @@ struct HTMLReadingView: View {
     var opensAt: ReadingHandOver? = nil
     var scrollHandle: ReadingScrollHandle? = nil
     var onUserScroll: () -> Void = {}
-    /// A link on the page was tapped (a web link; the reading view never follows it).
+    /// A link on the page was tapped (the reading view never follows one).
     var onOpenLink: (URL) -> Void = { _ in }
     let onTapParagraph: (Int) -> Void
 
