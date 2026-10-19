@@ -20,20 +20,23 @@ struct TextAppearanceButton: View {
     }
 }
 
-/// How the page reads, changed live under it: the reading theme, the typeface, the text size and
-/// the line spacing. Shown by Aa on the Reader and Now Playing; Settings › Reading holds the same
-/// controls (`ReadingThemePicker`, `ChoicePicker`, `TextSizeStepper`), bound to the same store.
+/// How the page reads, changed live under it: the reading theme, the typeface, the text size, the
+/// line spacing and Scroll or Pages. Shown by Aa on the Reader and Now Playing; Settings › Reading
+/// holds the same controls (`ReadingThemePicker`, `ChoicePicker`, `TextSizeStepper`), bound to the
+/// same store.
 ///
 /// ```
 /// (◐)  (Aa)  (Aa)  (Aa)  (Aa)       themes: Match App, Light, Sepia, Dark, Black
 /// [ Serif | Sans Serif | Rounded ]
 /// [ A ]        100%        [ A ]
 /// [ Compact | Normal | Relaxed ]
+/// [ Scroll | Pages ]
 /// ```
 struct TextAppearancePanel: View {
     @Binding var theme: ReadingTheme
     @Binding var font: ReadingFont
     @Binding var lineSpacing: ReadingLineSpacing
+    @Binding var layout: ReadingLayout
     let textSize: TextSizeStepper.Model
     /// The app's colour, for the swatches that take it.
     let accent: AccentTheme
@@ -49,6 +52,9 @@ struct TextAppearancePanel: View {
             TextSizeStepper(model: textSize)
             ChoicePicker(options: ReadingLineSpacing.allCases, selection: $lineSpacing,
                          identifier: "readingLineSpacing") { option in
+                Text(option.title).typeStyle(.row)
+            }
+            ChoicePicker(options: ReadingLayout.allCases, selection: $layout, identifier: "readingLayout") { option in
                 Text(option.title).typeStyle(.row)
             }
         }
@@ -246,15 +252,16 @@ struct TextAppearancePanelGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("the Aa panel on the app's colours") { panel(.matchApp) }
-            PreviewState("on Sepia") { panel(.sepia).onReadingPreview(.sepia) }
+            PreviewState("on Sepia, in Pages") { panel(.sepia, layout: .pages).onReadingPreview(.sepia) }
             PreviewState("on Black, larger text at its largest") {
                 panel(.black, canGrow: false).onReadingPreview(.black)
             }
         }
     }
 
-    private func panel(_ theme: ReadingTheme, canGrow: Bool = true) -> some View {
+    private func panel(_ theme: ReadingTheme, layout: ReadingLayout = .scroll, canGrow: Bool = true) -> some View {
         TextAppearancePanel(theme: .constant(theme), font: .constant(.serif), lineSpacing: .constant(.normal),
+                            layout: .constant(layout),
                             textSize: .init(label: canGrow ? "100%" : "165%", canShrink: true, canGrow: canGrow,
                                             shrink: {}, grow: {}),
                             accent: .jade)

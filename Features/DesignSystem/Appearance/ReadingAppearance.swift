@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// How pages read (Settings › Reading and the Aa panel on the Reader and Now Playing): the reading
-/// theme, the typeface, the text size step and the line spacing, stored in UserDefaults
-/// (`reading.theme`, `reading.font`, `reading.textSize`, `reading.lineSpacing`). Both editors bind
+/// theme, the typeface, the text size step, the line spacing and Scroll or Pages, stored in
+/// UserDefaults (`reading.theme`, `reading.font`, `reading.textSize`, `reading.lineSpacing`,
+/// `reading.layout`). Both editors bind
 /// to the one store in the environment, so they never disagree, and the page follows it live.
 @Observable
 final class ReadingAppearance {
@@ -10,7 +11,8 @@ final class ReadingAppearance {
     static let fontKey = "reading.font"
     static let textSizeKey = "reading.textSize"
     static let lineSpacingKey = "reading.lineSpacing"
-    static let storedKeys = [themeKey, fontKey, textSizeKey, lineSpacingKey]
+    static let layoutKey = "reading.layout"
+    static let storedKeys = [themeKey, fontKey, textSizeKey, lineSpacingKey, layoutKey]
 
     @ObservationIgnored private let defaults: UserDefaults
 
@@ -36,6 +38,10 @@ final class ReadingAppearance {
         didSet { defaults.set(lineSpacing.rawValue, forKey: Self.lineSpacingKey) }
     }
 
+    var layout: ReadingLayout {
+        didSet { defaults.set(layout.rawValue, forKey: Self.layoutKey) }
+    }
+
     init(defaults: UserDefaults) {
         self.defaults = defaults
         theme = defaults.string(forKey: Self.themeKey).flatMap(ReadingTheme.init(rawValue:)) ?? .matchApp
@@ -44,6 +50,7 @@ final class ReadingAppearance {
             ? ReadingTextSize.defaultStep
             : ReadingTextSize.steps.clamped(defaults.integer(forKey: Self.textSizeKey))
         lineSpacing = defaults.string(forKey: Self.lineSpacingKey).flatMap(ReadingLineSpacing.init(rawValue:)) ?? .normal
+        layout = defaults.string(forKey: Self.layoutKey).flatMap(ReadingLayout.init(rawValue:)) ?? .scroll
     }
 
     var textScale: Double { ReadingTextSize.scale(step: textSizeStep) }
@@ -62,6 +69,7 @@ final class ReadingAppearance {
         font = .serif
         textSizeStep = ReadingTextSize.defaultStep
         lineSpacing = .normal
+        layout = .scroll
     }
 }
 

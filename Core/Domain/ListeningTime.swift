@@ -72,6 +72,20 @@ enum ListeningTime {
         return rest == 0 ? String(localized: "\(hours) h left") : String(localized: "\(hours) h \(rest) min left")
     }
 
+    /// What is left of `document` from `offset` UTF-16 units into paragraph `paragraph`, at `rate`
+    /// (Pages mode's footer, from a page's first character): "2 min left in chapter", "1 h 5 min
+    /// left in chapter"; nil for an empty document.
+    static func leftInChapterLabel(in document: ParagraphDocument, paragraph: Int, offset: Int,
+                                   rate: Double) -> String? {
+        guard !document.isEmpty else { return nil }
+        let minutes = minutesLeft(in: document, fromUTF16Offset: document.startUTF16Offset(forParagraph: paragraph) + offset,
+                                  rate: rate)
+        let (hours, rest) = (minutes / 60, minutes % 60)
+        if hours == 0 { return String(localized: "\(minutes) min left in chapter") }
+        return rest == 0 ? String(localized: "\(hours) h left in chapter")
+            : String(localized: "\(hours) h \(rest) min left in chapter")
+    }
+
     /// "✓ Finished", where a time left would be.
     static var finishedLabel: String { String(localized: "✓ Finished") }
 }

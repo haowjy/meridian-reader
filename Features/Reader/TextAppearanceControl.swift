@@ -26,7 +26,7 @@ private struct ReadingAppearancePanel: View {
         let accent = AppAppearance.shared.accent
         TextAppearancePanel(
             theme: $appearance.theme, font: $appearance.font, lineSpacing: $appearance.lineSpacing,
-            textSize: appearance.textSizeModel, accent: accent
+            layout: $appearance.layout, textSize: appearance.textSizeModel, accent: accent
         )
         .readingSurface(appearance.palette(accent: accent))
     }

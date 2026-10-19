@@ -30,6 +30,12 @@ final class ReadingChrome {
     /// The header's and the band's heights (the band's includes the home indicator's inset):
     /// the room the text leaves for them. Measured by `Sheet`; unchanged by `hidden`.
     var insets = ReaderTextInsets()
+    /// The home indicator's inset (the bottom safe area), measured by `Sheet`: Pages mode's footer
+    /// sits on it.
+    var homeIndicator: CGFloat = 0
+    /// Pages mode's footer, above the home indicator (0 in Scroll mode), measured by the reading
+    /// view: in full screen what floats over the text sits above it.
+    var pageFooter: CGFloat = 0
     /// The floating play / pause shows (only in full screen).
     private(set) var floatingControl = false
 

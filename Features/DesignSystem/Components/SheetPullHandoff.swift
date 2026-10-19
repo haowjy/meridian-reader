@@ -92,6 +92,10 @@ final class ScrollPullHandoff: NSObject {
     var onScroll: () -> Void = {}
     /// The finger moved this far down (negative: up) since the last movement, scrolling or pulling.
     var onMove: (CGFloat) -> Void = { _ in }
+    /// The drag ended without pulling the sheet, the finger's speed at release (points per
+    /// second, down positive; 0 for a cancelled touch). Called after the scroll view has begun
+    /// its own deceleration.
+    var onRelease: (CGFloat) -> Void = { _ in }
 
     private var tracking: SheetPullTracking?
     private var lastY: CGFloat = 0
@@ -157,7 +161,7 @@ final class ScrollPullHandoff: NSObject {
     private func release(_ sv: UIScrollView, lifted: Bool, velocity: CGFloat) {
         guard let t = tracking else { return }
         tracking = nil
-        guard t.pull > 0 else { return }
+        guard t.pull > 0 else { return onRelease(lifted ? velocity : 0) }
         // Stops the bounce the scroll view starts from a downward release at its top: the sheet
         // carries the movement on, the content stays put.
         hold(sv)

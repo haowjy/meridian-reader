@@ -249,6 +249,9 @@ private struct SpokenText: View {
             opensAt: opensAt,
             onUserScroll: onUserScroll,
             onOpenLink: onOpenLink,
+            pageTimeLeft: { [document = speech.document, rate = speech.rateMultiplier] in
+                ListeningTime.leftInChapterLabel(in: document, paragraph: $0, offset: $1, rate: rate)
+            },
             onTapParagraph: onTap
         )
     }

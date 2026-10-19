@@ -15,7 +15,7 @@ import SwiftUI
 /// With a `ReadingChrome` (the Reader and Now Playing) the text fills the sheet down to the
 /// screen's foot and the header (grabber and top bar) and the bottom `band` are drawn over it,
 /// measured into the chrome's `insets`; `overText` floats over the text just above the band (Jump
-/// to Audio, the floating play / pause), near the foot in full screen. Full screen slides the
+/// to Audio, the floating play / pause), near the foot in full screen (above Pages mode's footer). Full screen slides the
 /// header and the band off their edges (fades them under Reduce Motion), hides the status bar,
 /// dims the home indicator and paints the strip above the sheet in the page's colour. Without
 /// one (Follow's preview) the header sits above the content and nothing hides.
@@ -128,6 +128,7 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
         .systemBars(lightStatusBar: palette.isDark && isUp, hidden: fullScreen)
         .onChange(of: voiceOver) { _, on in if on { chrome?.show() } }
         .onChange(of: bandHeight + bottomInset, initial: true) { _, bottom in chrome?.insets.bottom = bottom }
+        .onChange(of: bottomInset, initial: true) { _, inset in chrome?.homeIndicator = inset }
         .onAppear {
             if risesOnAppear { withAnimation(Motion.standard) { risen = true } }
         }
@@ -155,7 +156,7 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
                 .ignoresSafeArea(.container, edges: .bottom)
             overText
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                .padding(.bottom, (hidden ? 0 : bandHeight) + Spacing.s)
+                .padding(.bottom, (hidden ? chrome.pageFooter : bandHeight) + Spacing.s)
             headerBlock
                 .background {
                     UnevenRoundedRectangle(topLeadingRadius: Radius.card, topTrailingRadius: Radius.card,

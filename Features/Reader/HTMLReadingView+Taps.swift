@@ -7,7 +7,7 @@ import WebKit
 /// - A tap on the text that isn't on a link (the page's script posts where it landed, see
 ///   `bootstrapJS`): the middle toggles the bars, the right edge goes forward a screen and the
 ///   left back one (`ReadingChrome.TapZone`), on the `Motion.standard` spring (a jump under Reduce
-///   Motion). A page turn is the user moving the text, like a drag: following the audio stops.
+///   Motion); in Pages mode a whole page, at once (`turnPage`). A page turn is the user moving the text, like a drag: following the audio stops.
 ///   In ☝︎ jump mode taps play from a paragraph instead and nothing here runs; outside a reading
 ///   sheet (no chrome: Follow's preview) taps do nothing.
 /// - A link opens through the owner (`onOpenLink`: the browser); the reading view itself never
@@ -22,10 +22,10 @@ extension HTMLReadingWebView.Coordinator {
         case .centre:
             chrome.tappedCentre()
         case .previous:
-            turnScreen(forward: false)
+            pages == nil ? turnScreen(forward: false) : turnPage(forward: false)
             chrome.revealFloatingControl()
         case .next:
-            turnScreen(forward: true)
+            pages == nil ? turnScreen(forward: true) : turnPage(forward: true)
             chrome.revealFloatingControl()
         }
     }

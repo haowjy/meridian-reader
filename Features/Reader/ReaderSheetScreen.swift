@@ -97,7 +97,10 @@ struct ReaderSheetScreen: View {
     private func text(_ start: ListenSpot) -> some View {
         HTMLReadingView(html: article.readingHTML, heading: ReaderHeading(title: article.title, detail: detail),
                         activeParagraphIndex: nil, sentence: savedSentence(start), jumpMode: jumpMode,
-                        opensAtSentence: true, scrollHandle: scroll, onOpenLink: shell.navigate(to:)) { index in
+                        opensAtSentence: true, scrollHandle: scroll, onOpenLink: shell.navigate(to:),
+                        pageTimeLeft: { [document = article.document, rate = speech.rateMultiplier] in
+                            ListeningTime.leftInChapterLabel(in: document, paragraph: $0, offset: $1, rate: rate)
+                        }) { index in
             if jumpMode { listen(from: index, start: start) }
         }
     }

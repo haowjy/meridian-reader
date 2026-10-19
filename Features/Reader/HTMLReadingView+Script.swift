@@ -168,6 +168,51 @@ extension HTMLReadingWebView {
             }
             return [docTop({ top: top }), bottom - top, window.__readerTextTop()];
           };
+          // Pages mode: the page's lines as [top, bottom, top, bottom, …] in document y, sorted and
+          // merged where they overlap. A text line is its line box (the glyphs' rect grown to the
+          // line height around its middle, so lines in a paragraph touch); images, embeds, the
+          // title card's slot and the heading are single boxes.
+          var ATOMIC = 'img, svg, video, canvas, iframe, object, embed, .reader-top, .reader-heading';
+          window.__readerLines = function() {
+            var origin = document.documentElement.getBoundingClientRect().top, boxes = [];
+            document.querySelectorAll(ATOMIC).forEach(function(el) {
+              if (el.parentElement && el.parentElement.closest(ATOMIC)) return;
+              var r = el.getBoundingClientRect();
+              if (r.height > 0) boxes.push([r.top - origin, r.bottom - origin]);
+            });
+            var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+            var range = document.createRange(), heights = new Map(), node;
+            while ((node = walker.nextNode())) {
+              var parent = node.parentElement;
+              if (!parent || !/\\S/.test(node.nodeValue) || parent.closest(ATOMIC + ', script, style')) continue;
+              var lh = heights.get(parent);
+              if (lh === undefined) { lh = parseFloat(getComputedStyle(parent).lineHeight) || 0; heights.set(parent, lh); }
+              range.selectNodeContents(node);
+              var rects = range.getClientRects();
+              for (var i = 0; i < rects.length; i++) {
+                var r = rects[i], grow = Math.max(0, lh - r.height) / 2;
+                if (r.width > 0 && r.height > 0) boxes.push([r.top - grow - origin, r.bottom + grow - origin]);
+              }
+            }
+            boxes.sort(function(a, b) { return a[0] - b[0]; });
+            var lines = [];
+            boxes.forEach(function(b) {
+              var n = lines.length;
+              if (n && b[0] < lines[n - 1] - 0.5) lines[n - 1] = Math.max(lines[n - 1], b[1]);
+              else lines.push(b[0], b[1]);
+            });
+            return lines;
+          };
+          // The layout changed (loaded, reflowed, an image arrived): Pages mode breaks it again.
+          var layoutPosted = false;
+          new ResizeObserver(function() {
+            if (layoutPosted) return;
+            layoutPosted = true;
+            requestAnimationFrame(function() {
+              layoutPosted = false;
+              window.webkit.messageHandlers.readerBridge.postMessage({ layout: true });
+            });
+          }).observe(document.body);
           window.__readerSetSentence = function(index, start, end) {
             if (!window.CSS || !CSS.highlights || typeof Highlight === 'undefined') return;
             CSS.highlights.delete('reader-sentence');
