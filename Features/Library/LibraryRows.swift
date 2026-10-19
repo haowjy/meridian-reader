@@ -99,7 +99,8 @@ struct LibraryPageRow: View {
                     // The row leaves every list once the remove is stored; a save that fails keeps
                     // it, with a toast. So not `.destructive`, which takes the row out first
                     // (`Palette.destructive`).
-                    Button(page.isInLibrary ? Verbs.removeFromLibrary : Verbs.removeFromRecent) { actions.remove([page]) }
+                    Button(page.isInLibrary ? Verbs.removeFromLibrary : Verbs.removeFromRecent,
+                           systemImage: page.isInLibrary ? Icons.unsave : Icons.removeFromRecent) { actions.remove([page]) }
                         .tint(Palette.destructive)
                 }
             }
@@ -170,7 +171,9 @@ struct LibraryFolderRow: View {
             .libraryDrag(isEditing || isFiltered ? nil : .folder(folder.id), in: screen)
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                Button(Verbs.deleteFolder(isBook: folder.kind == .book)) { screen.confirmDelete([folder]) }
+                Button(Verbs.deleteFolder(isBook: folder.kind == .book), systemImage: Icons.delete) {
+                    screen.confirmDelete([folder])
+                }
                     .tint(Palette.destructive)
             }
     }

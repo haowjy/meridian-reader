@@ -48,7 +48,8 @@ enum Verbs {
     static let playFromStart = String(localized: "Play from Start")
     static let download = String(localized: "Download")
     /// A page's, in its menu and in the Downloads list: its audio deleted, and it stays out of
-    /// every download (P8).
+    /// every download (P8). A voice model's in Settings (its swipe): the model deleted, to be
+    /// downloaded again before the engine speaks.
     static let removeDownload = String(localized: "Remove Download")
     /// A folder's, in its menu and in the Downloads list: its download off and gone, and
     /// *Remove Download* for each of its pages.
@@ -101,8 +102,6 @@ enum Verbs {
     static let redownload = String(localized: "Re-download")
     /// Keep a download made in another voice.
     static let keep = String(localized: "Keep")
-    /// A voice model's (Settings): the model itself, not a page's audio.
-    static let delete = String(localized: "Delete")
 
     // MARK: Screens
 

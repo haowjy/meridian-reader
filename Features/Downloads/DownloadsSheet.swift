@@ -167,7 +167,9 @@ struct DownloadsList: View {
             .swipeActions(edge: .trailing) {
                 // The record goes at once (`remove` is synchronous), so the role's early row removal
                 // agrees with the list; the tint makes it red under the list's accent.
-                Button(DownloadMenu.removeTitle(item), role: .destructive) { downloads.remove(item.id) }
+                Button(DownloadMenu.removeTitle(item), systemImage: Icons.removeDownload, role: .destructive) {
+                    downloads.remove(item.id)
+                }
                     .tint(Palette.destructive)
             }
             .accessibilityIdentifier("downloadRow")

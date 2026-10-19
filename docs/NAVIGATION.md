@@ -1011,8 +1011,8 @@ bottom:
   playing tint, letter tiles) on every screen (`AppAppearance`, UserDefaults `appearance.mode`,
   `appearance.accent`).
 - **Reading**: the reading appearance above, with a sample of what is chosen.
-- **Listening**: the engines (Apple and the on-device ones: download, cancel, ✓, swipe to delete
-  a download), *Voice ›* and *Language ›* (pages of their own; no symbols in this card, as the
+- **Listening**: the engines (Apple and the on-device ones: download, cancel, the selection ✓, a
+  downloaded one's grey ✓ before its second line, *Remove Download* on a swipe), *Voice ›* and *Language ›* (pages of their own; no symbols in this card, as the
   engines have none), and *Speed* (*Speed 1× ›*, as *Voice* and *Language*): a page of the speeds
   Now Playing's speed lists, 0.75× to 2×, the chosen one ✓.
 - **Browsing**: *Block Ads* (on by default): requests to common ad and tracker hosts don't load

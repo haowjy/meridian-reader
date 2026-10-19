@@ -371,7 +371,7 @@ have changed since, and the next launch plans it again (dedupe waits for a layou
 couldn't save). Debug: `-rerunLibraryMigration` empties the library and its receipts and copies
 again.
 
-**Audio work waits for the save.** Deleting pages (a row's *Delete*, *Delete Folder and
+**Audio work waits for the save.** Deleting pages (*Delete Folder and
 Contents*: the page's audio directory, pending render and queued renders go,
 unless a page with its key exists again by then), pages leaving the Library (*Remove from
 Library*: the audio is kept, back on the ephemeral TTL), Save (the audio marked saved and

@@ -24,9 +24,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   together; `.draggable` does the same): every UI action while the menu is up waits ~60 s, so
   a UI test or probe that opens a draggable row's menu takes minutes.
   The Library surface owns the zone and screen key.
-- **Swipe actions follow AGENTS.md's rule.** A folder's *Delete* only asks, so it takes
+- **Swipe actions follow AGENTS.md's rule.** A folder's *Delete Folder…* only asks, so it takes
   `Palette.destructive`: with the role, *Cancel* would leave the row missing and the delete abort
-  in UIKit. A page's *Remove* takes the tint too: its row goes once the remove is stored, and a
+  in UIKit. A page's *Remove from Library* takes the tint too: its row goes once the remove is stored, and a
   save that fails keeps it (a toast says so); with the role, the List would have taken the row
   out first and aborted on the update. `CoreFlowsUITests` swipe-removes a playing page, which stops.
 - **The home's lists are `LibraryQueries`' too**: the starred folders (`favoriteFolders`), the

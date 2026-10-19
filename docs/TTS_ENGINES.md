@@ -91,7 +91,7 @@ chunk with Apple, and `LocalPCMWriter` writes non-finite samples as 0.
 
 - Shared assets (`KokoroAssets`, `Application Support/fluidaudio/Models/kokoro-82m-coreml/ANE/`):
   vocab, BART G2P, the US lexicon, voice packs (`<voice>.bin`, 0.5 MB each) and, for the Core ML
-  route, the `.mlmodelc` stages. Settings shows download progress; swipe to delete.
+  route, the `.mlmodelc` stages. Settings shows download progress; swipe left for *Remove Download*.
 - Voices (`KokoroVoiceCatalog`): `af_heart` (default), `af_bella`, `bf_emma`, `am_puck`,
   `bm_fable`. A stored voice that isn't curated resolves to the default. A voice pack downloads
   when the voice is chosen (`LocalTTSCoordinator.chooseVoice` → `EngineRegistry.prepareVoice`);

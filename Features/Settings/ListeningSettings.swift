@@ -52,7 +52,7 @@ struct ListeningSettingsSection: View {
                 } else if case .failed(_, let message) = localTTS.synth.state {
                     Text(message).foregroundStyle(Palette.destructive)
                 }
-                Text("On-device voices download once, then work offline. Swipe left on a downloaded engine to delete it.")
+                Text("On-device voices download once, then work offline. Swipe left on a downloaded engine to remove its download.")
             }
             .listFooter()
         }
@@ -95,9 +95,9 @@ struct ListeningSettingsSection: View {
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if gateOK, localTTS.isModelInstalled(id), !pending {
-                // The model itself, not a page's audio: *Delete*, not *Remove Download*. The row
-                // stays (to download again), so not `.destructive` (`Palette.destructive`).
-                Button(Verbs.delete) {
+                // What was downloaded goes: *Remove Download*, as for a page's or a folder's. The
+                // row stays (to download again), so not `.destructive` (`Palette.destructive`).
+                Button(Verbs.removeDownload, systemImage: Icons.removeDownload) {
                     try? localTTS.deleteModel(id)
                 }
                 .tint(Palette.destructive)
