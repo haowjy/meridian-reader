@@ -810,7 +810,9 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   content and a heavier dim on the strip above it; while a finger pulls it down the dim lifts, but
   the strip under the status bar stays as dark as at rest until the sheet has gone, so the clock
   stays readable. A **title card** at the top of the text (it scrolls with the text) shows the
-  artwork, the title (none for a page without one), and the site and time left as two parts (*✓ Finished* at the end). The
+  artwork, line one as the Now Playing bar has it (the title; for a page without one its site,
+  `PageTitle.lineOne`), and the site and time left as two parts, the site left out when line one
+  is already it (*✓ Finished* at the end). The
   spoken paragraph is in full ink on the theme's highlight, the others dimmed (a paragraph
   pressed while ☝︎ is on is in full ink too). The *Jump to Audio* pill is ink with the page's
   colour for its text; the scrub capsule, the bubble, the jump hint, the ⋯ panel and the speed

@@ -108,8 +108,8 @@ struct NowPlayingScreen: View {
     private func text(_ now: NowPlaying, article: ReaderArticle?) -> some View {
         if let html = readingHTML(now, article: article) {
             SpokenText(speech: speech, html: html,
-                       card: TitleCardContent(title: article.map(\.title) ?? now.title, source: now.source,
-                                              letter: now.artworkLetter,
+                       card: TitleCardContent(title: article?.title ?? now.title, source: now.source,
+                                              address: now.canonicalURL, letter: now.artworkLetter,
                                               artwork: now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))),
                        finished: now.isFinished, isChapter: now.isChapter, scrubMap: scrubMap,
                        scrubPreview: scrubPreview,
@@ -190,6 +190,8 @@ private struct TitleCardContent {
     let title: String?
     /// "example.com".
     let source: String
+    /// The page's address, for line one of a page with neither title nor site.
+    let address: String?
     /// On the artwork tile when there is no artwork.
     let letter: String
     let artwork: Image?
@@ -255,14 +257,16 @@ private struct SpokenText: View {
         let doc = speech.document
         let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: speech.spokenUTF16Offset,
                                              rate: speech.rateMultiplier)
+        // As the bar: line one is `lineOne`; untitled, it is already the site, so line two leaves it out.
+        let lineOne = PageTitle.lineOne(title: card.title, source: card.source, address: card.address)
         let detail: [DetailPart] = finished ? [.finished]
-            : [card.source, doc.isEmpty ? "" : ListeningTime.leftLabel(minutes: left)].filter { !$0.isEmpty }
-                .map { DetailPart($0) }
+            : [(card.title ?? "").isEmpty ? "" : card.source, doc.isEmpty ? "" : ListeningTime.leftLabel(minutes: left)]
+                .filter { !$0.isEmpty }.map { DetailPart($0) }
         let palette = reading ?? .app
         return ReadingTopView(
-            id: [card.title ?? "", detail.map(\.text).joined(separator: "\n"), card.letter, card.artwork == nil ? "" : "artwork",
+            id: [lineOne, detail.map(\.text).joined(separator: "\n"), card.letter, card.artwork == nil ? "" : "artwork",
                  palette.theme.rawValue, AppAppearance.shared.accent.rawValue],
-            view: AnyView(TitleCard(title: card.title, detail: detail, artwork: card.artwork, artworkLetter: card.letter,
+            view: AnyView(TitleCard(title: lineOne, detail: detail, artwork: card.artwork, artworkLetter: card.letter,
                                     palette: palette))
         )
     }

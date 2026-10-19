@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// What is playing, at the top of Now Playing's text (it scrolls with the text): the artwork, the
-/// title (none for a page without one), and the site and time left as separate parts
-/// (`DetailLine`). Drawn in the reading page's colours (`palette`: it is hosted inside the page's
+/// What is playing, at the top of Now Playing's text (it scrolls with the text): the artwork,
+/// line one (`PageTitle.lineOne`: the title, or for a page without one its site), and the site
+/// and time left as separate parts (`DetailLine`; the site left out when line one is already it),
+/// as the Now Playing bar shows them. Drawn in the reading page's colours (`palette`: it is hosted inside the page's
 /// web view, out of the sheet's environment, so it is handed them).
 ///
 /// ```
@@ -13,7 +14,8 @@ import SwiftUI
 /// └──────────────────────────────────────────┘
 /// ```
 struct TitleCard: View {
-    let title: String?
+    /// Line one: the title, else what stands for it (`PageTitle.lineOne`).
+    let title: String
     /// ["example.com", "12 min left"], or [.finished].
     let detail: [DetailPart]
     var artwork: Image?
@@ -34,12 +36,10 @@ struct TitleCard: View {
         layout {
             ArtworkTile(image: artwork, letter: artworkLetter, size: Self.artworkSize)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
-                if let title {
-                    Text(title)
-                        .typeStyle(.row, weight: .bold)
-                        .foregroundStyle(palette.ink)
-                        .lineLimit(large ? nil : 3)
-                }
+                Text(title)
+                    .typeStyle(.row, weight: .bold)
+                    .foregroundStyle(palette.ink)
+                    .lineLimit(large ? nil : 3)
                 DetailLine(parts: detail)
                     .typeStyle(.caption)
             }
@@ -70,7 +70,7 @@ struct TitleCardGallery: View {
                     .onReadingPreview(.sepia)
             }
             PreviewState("a page with no title") {
-                TitleCard(title: nil, detail: ["example.com", "12 min left"], artworkLetter: "example.com",
+                TitleCard(title: "example.com", detail: ["12 min left"], artworkLetter: "example.com",
                           palette: Self.palette(.dark))
                     .onReadingPreview(.dark)
             }
