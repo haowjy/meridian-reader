@@ -103,14 +103,14 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
             PlayStateButton(state: actions.play, look: .disc, action: actions.onPlay)
                 .accessibilityIdentifier("folderContinue")
             Menu { more } label: {
-                sideLabel(String(localized: "More"), shown: captions) {
+                sideLabel(Verbs.more, shown: captions) {
                     Image(systemName: Icons.more)
                         .font(.system(size: Glyph.control * 0.8, weight: .semibold))
                         .foregroundStyle(Palette.secondaryInk)
                         .frame(width: Glyph.control, height: Glyph.control)
                 }
             }
-            .accessibilityLabel("More")
+            .accessibilityLabel(Verbs.more)
             .accessibilityIdentifier("folderMore")
             .background { anchor(.more) }
         }

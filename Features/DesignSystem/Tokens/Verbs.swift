@@ -86,9 +86,15 @@ enum Verbs {
         isBook ? String(localized: "Delete Book…") : String(localized: "Delete Folder…")
     }
 
+    // MARK: Playing
+
+    /// ▶ from the start or a page not begun (VoiceOver on a ▶; a paused page says *Continue*).
+    static let play = String(localized: "Play")
+    /// ⏸, what you hear; a download's too.
+    static let pause = String(localized: "Pause")
+
     // MARK: A download
 
-    static let pause = String(localized: "Pause")
     static let resume = String(localized: "Resume")
     static let pauseAll = String(localized: "Pause All")
     static let resumeAll = String(localized: "Resume All")
@@ -121,6 +127,25 @@ enum Verbs {
     /// The start page's and the search layer's section of searches made, and its action.
     static let recentSearches = String(localized: "Recent Searches")
     static let clearAll = String(localized: "Clear All")
+    /// The two surfaces, as the swap, the back pill and the ⋯'s big button name them; *Library*
+    /// is also the home's title and Now Playing's *Go to*.
+    static let library = String(localized: "Library")
+    static let browser = String(localized: "Browser")
+    /// The browser's Reader toggle and big button.
+    static let reader = String(localized: "Reader")
+    /// The band's ‹ and ›.
+    static let back = String(localized: "Back")
+    static let forward = String(localized: "Forward")
+    /// ⋯ (a row's, a folder header's, the toolbar's) and the folder header's caption.
+    static let more = String(localized: "More")
+    /// A section header's action that opens the whole list.
+    static let showAll = String(localized: "Show All")
+    /// Settings rows and the pages or panels they open.
+    static let speed = String(localized: "Speed")
+    static let voice = String(localized: "Voice")
+    static let language = String(localized: "Language")
+    static let textSize = String(localized: "Text Size")
+    static let listenDebug = String(localized: "Listen Debug")
 
     // MARK: Sheets
 

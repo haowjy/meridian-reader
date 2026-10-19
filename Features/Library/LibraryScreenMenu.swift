@@ -45,7 +45,7 @@ struct LibraryScreenMenu {
                 shell.present(.follow(FollowFlow(url: nil, parentID: folder?.id, center: follow)))
             },
         ] + MenuContext.tail(shell)
-        let browser = MenuRow(id: "moreBrowser", title: String(localized: "Browser"), icon: Icons.browser,
+        let browser = MenuRow(id: "moreBrowser", title: Verbs.browser, icon: Icons.browser,
                               accessibilityHint: String(localized: "Return to the browser"), action: shell.leaveLibrary)
         return MenuContext(item: item, screen: screenRows, tiles: MenuContext.tiles(shell, last: browser))
     }

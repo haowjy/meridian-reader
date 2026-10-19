@@ -134,7 +134,7 @@ struct NowPlayingScreen: View {
 
     private func playingFromName(_ now: NowPlaying, saved: Bool) -> String {
         if case .folder = now.playingFrom { return now.playingFrom.name }
-        return saved ? String(localized: "Library") : now.playingFrom.name
+        return saved ? Verbs.library : now.playingFrom.name
     }
 
     /// ⋯ → *Go to*: the folder the page plays from, or the Library's home for a saved page in
@@ -146,7 +146,7 @@ struct NowPlayingScreen: View {
                 if let folder = library.folder(id: id) { shell.showLibrary(at: library.path(to: folder)) }
             }
         }
-        return PageMenu.GoTo(name: String(localized: "Library"), symbol: Icons.library,
+        return PageMenu.GoTo(name: Verbs.library, symbol: Icons.library,
                              availability: MenuAvailability(when: actions.isSaved)) { [shell] in shell.showLibrary(at: []) }
     }
 

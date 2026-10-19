@@ -31,15 +31,15 @@ struct ListeningSettingsSection: View {
             }
             // No symbols in this card: the engines above are choices without one (a card's rows
             // all lead with a symbol, or none does).
-            SettingsLinkRow(title: String(localized: "Voice"), symbol: nil, value: voiceName,
+            SettingsLinkRow(title: Verbs.voice, symbol: nil, value: voiceName,
                             accessibilityID: "settingsVoice") {
                 VoicePage(speech: speech)
             }
-            SettingsLinkRow(title: String(localized: "Language"), symbol: nil, value: languageName,
+            SettingsLinkRow(title: Verbs.language, symbol: nil, value: languageName,
                             accessibilityID: "settingsLanguage") {
                 LanguagePage(speech: speech)
             }
-            SettingsLinkRow(title: String(localized: "Speed"), symbol: nil, value: ListenRate.label(speech.rateMultiplier),
+            SettingsLinkRow(title: Verbs.speed, symbol: nil, value: ListenRate.label(speech.rateMultiplier),
                             accessibilityID: "settingsSpeed") {
                 SpeedPage(speech: speech)
             }
@@ -167,7 +167,7 @@ private struct SpeedPage: View {
             .listCard()
         }
         .cardListStyle()
-        .navigationTitle(String(localized: "Speed"))
+        .navigationTitle(Verbs.speed)
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -191,7 +191,7 @@ struct VoicePage: View {
             }
         }
         .cardListStyle()
-        .navigationTitle(String(localized: "Voice"))
+        .navigationTitle(Verbs.voice)
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear { preview.stop() }
     }
@@ -330,7 +330,7 @@ struct LanguagePage: View {
             .listCard()
         }
         .cardListStyle()
-        .navigationTitle(String(localized: "Language"))
+        .navigationTitle(Verbs.language)
         .navigationBarTitleDisplayMode(.inline)
     }
 

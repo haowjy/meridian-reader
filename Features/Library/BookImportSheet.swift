@@ -139,7 +139,7 @@ struct BookImportSheet: View {
 
     private var destinationName: String {
         if flow.isDestinationGone { return String(localized: "Deleted folder") }
-        return flow.destination?.name ?? String(localized: "Library")
+        return flow.destination?.name ?? Verbs.library
     }
 
     private var destinationRow: some View {

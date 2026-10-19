@@ -18,9 +18,9 @@ struct DownloadProgressEdge: View {
                     .animation(Motion.standard, value: progress)
                     .transition(.opacity)
                     .accessibilityElement()
-                    .accessibilityLabel("Downloads")
+                    .accessibilityLabel(Verbs.downloads)
                     .accessibilityValue("\(Int((progress * 100).rounded())) percent")
-                    .accessibilityHint("Opens Downloads")
+                    .accessibilityHint(String(localized: "Opens \(Verbs.downloads)"))
                     .accessibilityAddTraits(.isButton)
                     .accessibilityAction { shell.present(.downloads) }
                     .accessibilityIdentifier("downloadProgress")

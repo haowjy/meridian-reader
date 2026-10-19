@@ -62,7 +62,7 @@ struct LibraryHomeView: View {
             Section {
                 EmptyView()
             } header: {
-                Text("Library")
+                Text(Verbs.library)
                     .typeStyle(.title, design: .default)
                     .foregroundStyle(Palette.ink)
                     .accessibilityAddTraits(.isHeader)
@@ -100,7 +100,7 @@ struct LibraryHomeView: View {
         .statusBarBacking()
         .environment(\.libraryScreenKey, isFiltered ? .filtered(under: nil) : .home)
         .animation(Motion.standard, value: pages.map(\.listenKey))
-        .navigationTitle("Library")
+        .navigationTitle(Verbs.library)
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityIdentifier("libraryHome")
     }
@@ -188,7 +188,7 @@ extension LibraryHomeTab {
 
     /// The band's search field: it searches the tab on screen only (Y11), so it names it.
     var searchPrompt: String {
-        Self.searchPrompt(naming: self == .everything ? String(localized: "Library") : title)
+        Self.searchPrompt(naming: self == .everything ? Verbs.library : title)
     }
 
     /// "Search Favorites", "Search Demo Finance": the band's field names what it searches, the

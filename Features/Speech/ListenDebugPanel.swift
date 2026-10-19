@@ -35,7 +35,7 @@ struct ListenDebugPanel: View {
                         row("Ready ahead", "\(snapshot.renderedParagraphsAhead) paragraphs")
                         row("Background", snapshot.background)
                         row("Audio session", snapshot.audioSession)
-                        row("Language", snapshot.language)
+                        row(Verbs.language, snapshot.language)
                         row("Audible", snapshot.isAudible ? "yes" : "no")
                         row("isSpeaking", snapshot.isSpeaking ? "yes" : "no")
                         row("isPaused", snapshot.isPaused ? "yes" : "no")
@@ -95,7 +95,7 @@ struct ListenDebugPanel: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Clear log") { ListenDebugLog.shared.clear() }
+                    Button(String(localized: "Clear Log")) { ListenDebugLog.shared.clear() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(Verbs.done) { dismiss() }

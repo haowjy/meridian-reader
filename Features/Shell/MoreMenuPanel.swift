@@ -166,7 +166,7 @@ struct MoreMenuButton: View {
             Image(systemName: Icons.more)
                 .toolbarIconFrame()
         }
-        .accessibilityLabel("More")
+        .accessibilityLabel(Verbs.more)
         .accessibilityIdentifier(id)
         .morphMenuButtonHidden(isOpen)
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }

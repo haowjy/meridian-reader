@@ -43,7 +43,7 @@ struct LibrarySurface: View {
             .scrollDismissesKeyboard(.interactively)
 
             SurfaceBand(
-                swap: .init(systemImage: Icons.browser, label: String(localized: "Browser"),
+                swap: .init(systemImage: Icons.browser, label: Verbs.browser,
                             hint: String(localized: "Return to the browser"), identifier: "libraryBrowser",
                             action: shell.leaveLibrary),
                 session: search,
@@ -90,11 +90,11 @@ struct LibrarySurface: View {
     /// forward, so › stays dimmed in its place.
     private var toolbar: some View {
         BottomToolbarLayout {
-            BandToolbarButton(systemImage: Icons.back, label: String(localized: "Back"),
+            BandToolbarButton(systemImage: Icons.back, label: Verbs.back,
                               identifier: "libraryBack", action: shell.libraryBack)
                 .disabled(shell.libraryPath.isEmpty)
                 .toolbarSlot(0)
-            BandToolbarButton(systemImage: Icons.forward, label: String(localized: "Forward"),
+            BandToolbarButton(systemImage: Icons.forward, label: Verbs.forward,
                               identifier: "libraryForward") {}
                 .disabled(true)
                 .toolbarSlot(1)

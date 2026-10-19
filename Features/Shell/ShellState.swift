@@ -10,8 +10,8 @@ enum ReaderOrigin: Equatable {
     /// The back pill's title.
     var backTitle: String {
         switch self {
-        case .browser: "Browser"
-        case .library: "Library"
+        case .browser: Verbs.browser
+        case .library: Verbs.library
         }
     }
 }

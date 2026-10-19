@@ -127,7 +127,7 @@ private struct ReadingSettingsSection: View {
                     Text(font.title).typeStyle(.row, weight: .medium, design: font.design)
                 }
             }
-            SettingsControlRow(title: String(localized: "Text Size")) {
+            SettingsControlRow(title: Verbs.textSize) {
                 TextSizeStepper(model: appearance.textSizeModel)
             }
             SettingsControlRow(title: String(localized: "Line Spacing")) {
@@ -219,7 +219,7 @@ private struct DeveloperSettingsSection: View {
     var body: some View {
         @Bindable var developer = developer
         Section {
-            SettingsToggleRow(title: String(localized: "Listen Debug"), symbol: Icons.debug,
+            SettingsToggleRow(title: Verbs.listenDebug, symbol: Icons.debug,
                               isOn: $developer.listenDebugEnabled, accessibilityID: "listenDebugEnabledToggle")
             SettingsToggleRow(title: String(localized: "Fake Extraction Failure"), symbol: Icons.warning,
                               isOn: $developer.fakeExtractionFailure, accessibilityID: "fakeExtractionFailureToggle")

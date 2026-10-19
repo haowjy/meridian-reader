@@ -303,7 +303,7 @@ struct TextSizeStepper: View {
         .frame(minHeight: min(height, RowHeight.content) + Spacing.xs)
         .background(ChoicePickerTrack.fill(reading), in: Capsule())
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Text Size")
+        .accessibilityLabel(Verbs.textSize)
     }
 
     private func step(_ symbol: String, _ label: String, enabled: Bool, id: String,

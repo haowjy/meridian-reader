@@ -57,7 +57,7 @@ struct SurfaceBand<Field: View, Toolbar: View>: View {
                             .roundFieldControl(fill: Palette.chrome)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Cancel")
+                    .accessibilityLabel(Verbs.cancel)
                     .accessibilityIdentifier(cancelID)
                 }
             }

@@ -135,7 +135,7 @@ struct ListRow: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
-                .accessibilityLabel("More")
+                .accessibilityLabel(Verbs.more)
                 .accessibilityIdentifier("rowMore")
                 .background { menuAnchor }
             }
