@@ -7,13 +7,13 @@ import SwiftUI
 /// ```
 /// ┌ bar ────────────────────────────────────┐
 /// │ [🌐] ╭ Now Playing bar ──────────────╮ │  ← 🌐 the browser; the bar always there
-/// │ ( 🔍 Search Library                  ) │  ← filters the home's tab, and names it
+/// │ ( 🔍 Search Library                  ) │  ← filters the home's tab or the folder, and names it
 /// │  [‹]  [›]  [＋]  [🕘]  [⋯]             │  ← ‹ up a level; › dimmed; ＋ New Folder…,
 /// └──────────────────────────── home indicator ┘   Import Book…; 🕘 History; ⋯ for the screen
 /// ```
 ///
-/// The search filters the home list in place; starting one on a folder screen goes back to the
-/// home. While a folder is in Edit, the toolbar's slots are *Move to…*, *Mark as Finished*, *Remove*. Pages
+/// The search filters the screen it began on in place: the home's tab, or a folder (everything
+/// under it, `FolderSearchResults`); it ends when that folder is left. While a folder is in Edit, the toolbar's slots are *Move to…*, *Mark as Finished*, *Remove*. Pages
 /// open in the Reader sheet over the Library; 🌐 shows the browser as it was, and the Library
 /// keeps its place.
 struct LibrarySurface: View {
@@ -34,7 +34,8 @@ struct LibrarySurface: View {
         VStack(spacing: 0) {
             NavigationStack(path: $shell.libraryPath) {
                 LibraryHomeView(pageSort: PageSort(rawValue: topLevelSort) ?? LibraryTopLevel.defaultSort,
-                                tab: shell.homeTab, searchText: search.isActive ? search.text : "")
+                                tab: shell.homeTab,
+                                searchText: search.isActive && shell.librarySearchFolder == nil ? search.text : "")
                     .navigationDestination(for: LibraryRoute.self) { LibraryRouteView(route: $0) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -49,7 +50,7 @@ struct LibrarySurface: View {
                 onCancel: shell.endLibrarySearch,
                 isBarCovered: shell.reader != nil
             ) { focus in
-                SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: shell.homeTab.searchPrompt, focus: focus,
+                SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt, focus: focus,
                             fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard)
             } toolbar: {
                 if screen.isEditing {
@@ -73,6 +74,13 @@ struct LibrarySurface: View {
         .onChange(of: search.isActive) { _, active in
             if active { shell.librarySearchBegan() }
         }
+    }
+
+    /// The field names what it searches, or would: the folder its search began on, else the
+    /// folder screen on top, else the home's tab.
+    private var searchPrompt: String {
+        let folder = search.isActive ? shell.librarySearchFolder.flatMap(library.folder(id:)) : screenMenu.topFolder
+        return folder.map { LibraryHomeTab.searchPrompt(naming: $0.name) } ?? shell.homeTab.searchPrompt
     }
 
     // MARK: - Toolbar

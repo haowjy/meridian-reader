@@ -35,11 +35,11 @@ struct LibraryPageRow: View {
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
     private var dragID: LibraryItemID? {
-        guard screenKey != .filtered, !isEditing, page.isInLibrary else { return nil }
+        guard !screenKey.isFiltered, !isEditing, page.isInLibrary else { return nil }
         return .page(page.listenKey)
     }
     /// ★ after a favorite's title, except in the Favorites list, where every row is one.
-    private var marksFavorite: Bool { !(screenKey == .filtered && shell.homeTab == .favorites) }
+    private var marksFavorite: Bool { !(screenKey == .filtered(under: nil) && shell.homeTab == .favorites) }
 
     var body: some View {
         if !page.isLive {
@@ -110,14 +110,13 @@ struct LibraryPageRow: View {
         return .page(artwork: page.artworkImage, letter: page.artworkLetter)
     }
 
-    /// Its folder's path on the filtered home, which gathers rows from every folder; elsewhere
-    /// its site, as everywhere else, but nothing in a book or series, whose header names the
-    /// source once (a folder you made mixes sites). Untitled, its title line is already its site.
+    /// Where it is on a filtered list, which gathers rows from many folders (its folder's path, on
+    /// a folder's search from below it); elsewhere its site, as everywhere else, but nothing in a
+    /// book or series, whose header names the source once (a folder you made mixes sites).
+    /// Untitled, its title line is already its site.
     private var subtitle: String? {
-        if let folder = page.folder {
-            if screenKey == .filtered { return folder.pathName }
-            if folder.kind.isBookOrSeries { return nil }
-        }
+        if let place = screenKey.place(of: page.folder) { return place }
+        if page.isChapter { return nil }
         return page.byline.isEmpty || page.givenTitle == nil ? nil : page.byline
     }
 }
@@ -150,11 +149,11 @@ struct LibraryFolderRow: View {
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
-    private var isFiltered: Bool { screenKey == .filtered }
-    /// Its parents' path on the filtered home (nil for a folder at the top level).
-    private var location: String? { isFiltered ? folder.parent?.pathName : nil }
+    private var isFiltered: Bool { screenKey.isFiltered }
+    /// Where it is on a filtered list (`LibraryScreenKey.place(of:)`; nil at the top level).
+    private var location: String? { screenKey.place(of: folder.parent) }
     /// ★ after a favorite's title, except in the Favorites list, where every row is one.
-    private var marksFavorite: Bool { !(isFiltered && shell.homeTab == .favorites) }
+    private var marksFavorite: Bool { !(screenKey == .filtered(under: nil) && shell.homeTab == .favorites) }
 
     var body: some View {
         if folder.isLive { liveBody } else { DeletedRow() }
@@ -288,11 +287,6 @@ extension Folder {
             return count == 1 ? String(localized: "1 chapter") : String(localized: "\(count) chapters")
         }
         return count == 1 ? String(localized: "1 page") : String(localized: "\(count) pages")
-    }
-
-    /// "Finance › Bonds": the folders from the top level down to this one.
-    var pathName: String {
-        (ancestors.reversed() + [self]).map(\.name).joined(separator: " › ")
     }
 
     var coverImage: Image? {

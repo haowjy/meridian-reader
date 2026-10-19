@@ -5,8 +5,8 @@ import SwiftUI
 /// mixed list of folders and pages. Everything is the top level of the Library: its folders, then
 /// the pages in no folder in the top level's sort. Favorites is the starred folders and pages from
 /// anywhere in the tree, in the Library or not. Recent is the pages played without saving, most
-/// recent first (no folders). The band's search (`ShellState.librarySearch`) searches the selected
-/// tab, folders then pages, each by title. Which items each shows is `LibraryQueries`'. A favorite
+/// recent first (no folders). The band's search (`ShellState.librarySearch`), begun on the home,
+/// searches the selected tab, folders then pages, each by title. Which items each shows is `LibraryQueries`'. A favorite
 /// keeps its location; filtered (a tab other than Everything, or a search) a row shows where it
 /// is (`LibraryScreenKey.filtered`).
 struct LibraryHomeView: View {
@@ -98,7 +98,7 @@ struct LibraryHomeView: View {
         }
         .cardListStyle()
         .statusBarBacking()
-        .environment(\.libraryScreenKey, isFiltered ? .filtered : .home)
+        .environment(\.libraryScreenKey, isFiltered ? .filtered(under: nil) : .home)
         .animation(Motion.standard, value: pages.map(\.listenKey))
         .navigationTitle("Library")
         .toolbar(.hidden, for: .navigationBar)
@@ -188,10 +188,12 @@ extension LibraryHomeTab {
 
     /// The band's search field: it searches the tab on screen only (Y11), so it names it.
     var searchPrompt: String {
-        switch self {
-        case .everything: String(localized: "Search Library")
-        case .favorites: String(localized: "Search Favorites")
-        case .recent: String(localized: "Search Recent")
-        }
+        Self.searchPrompt(naming: self == .everything ? String(localized: "Library") : title)
+    }
+
+    /// "Search Favorites", "Search Demo Finance": the band's field names what it searches, the
+    /// home's tab or a folder.
+    static func searchPrompt(naming place: String) -> String {
+        String(localized: "Search \(place)")
     }
 }

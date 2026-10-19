@@ -150,9 +150,12 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   (`ShellState.homeTab`, a `LibraryHomeTab`) over one folder/page collection, filtered by the
   band's search within that tab (`ShellState.librarySearch`, D22; `LibraryQueries.searchPages(_:in:)`).
   Star flags never change location. Filtered (Favorites, Recent or a search), the list sets
-  `LibraryScreenKey.filtered` and the rows read it: none lifts or takes a drop, a row in a folder
-  shows the folder's path, and a folder row pushes `LibraryStore.path(to:)`, so ‹ goes to its
-  parent as from anywhere else. Rows have only ⋯ at their trailing edge. A folder
+  `LibraryScreenKey.filtered(under: nil)` and the rows read it: none lifts or takes a drop, a row
+  in a folder shows the folder's path (`place(of:)`), and a folder row pushes
+  `LibraryStore.path(to:)`, so ‹ goes to its parent as from anywhere else. A search begun on a
+  folder's screen searches under that folder (`ShellState.librarySearchFolder`,
+  `FolderSearchResults`, `.filtered(under: id)`: paths from below it) and ends when the folder
+  leaves the path. Rows have only ⋯ at their trailing edge. A folder
   header has Download, the big ▶ (Continue) and More.
 - **D21: action rows never wrap; page rows are two lines.** A row of buttons is an
   `ActionButtonRow` (full labels → short titles → no details → symbols), never an HStack or a

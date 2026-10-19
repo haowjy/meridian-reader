@@ -88,7 +88,7 @@ start on the browser unless `-restoreSurface`.
 the same three rows at the same height, every control at the same frame, so swapping surfaces
 changes what the controls say and nothing else. Row 1 is the Now Playing bar alone, across the
 band's full width. Row 2 is the swap (📚 / 🌐, its 44 pt tap target tight to the leading edge),
-then the field filling the rest: the address field on the browser, *Search Library* on the
+then the field filling the rest: the address field on the browser, *Search Library* (or the tab or folder it searches) on the
 Library (one component, `BandFieldRow`).
 While searching, the swap steps aside with the bar and the toolbar. Row 3 is the
 toolbar, each slot one role on both:
@@ -243,7 +243,10 @@ The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the 
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
 back up, as does the band's ‹ (dimmed at the home). The home has **Everything / Favorites / Recent**
 tabs at the top; the band's field searches the tab on screen and says so (*Search Library* on
-Everything, *Search Favorites*, *Search Recent*). Each tab
+Everything, *Search Favorites*, *Search Recent*). On a folder's screen it searches that folder,
+everything under it, and says so (*Search Demo Finance*): the results stand under the folder's
+name, each row showing where it is below the folder (its site when it is in the folder itself);
+the search ends when you leave the folder. Each tab
 is one mixed list: folders and pages share a single list, with no section headings. Favorites
 are independent stars. Recent is what you listened to without saving; *History* (🕘 in the band,
 a big button in the ⋯) is the browser's pages visited: one name per concept. On Favorites,

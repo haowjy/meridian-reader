@@ -146,8 +146,14 @@ final class ShellState {
     /// The Library's pushed screens, nearest the home first (`[.folder(Fiction), .folder(Short
     /// stories)]`). Kept while the browser is up, so 🌐 and back return to the same folder.
     var libraryPath: [LibraryRoute] = [] {
-        didSet { remember() }
+        didSet {
+            remember()
+            if let folder = librarySearchFolder, !libraryPath.contains(.folder(folder)) { endLibrarySearch() }
+        }
     }
+    /// The folder the Library's search searches: the folder screen on top when it began (nil:
+    /// the home, which searches its tab). It ends once that folder leaves the path.
+    private(set) var librarySearchFolder: UUID?
     /// The Library home's tab (`LibraryHomeTab`). Its picker sets it; going to a place in the
     /// Library shows Everything (`showLibrary(at:)`), ⋯ → Favorites shows Favorites
     /// (`showFavorites`), and 📚 keeps it. Remembered with the surface.
@@ -411,11 +417,12 @@ final class ShellState {
     /// The Library's ✕: ends its search and clears the filter.
     func endLibrarySearch() {
         librarySearch.end(showing: "")
+        librarySearchFolder = nil
     }
 
-    /// The Library's search began: it filters the home, so a folder screen gives way to it.
+    /// The Library's search began: it searches the screen on top, the home's tab or a folder.
     func librarySearchBegan() {
-        if !libraryPath.isEmpty { libraryPath = [] }
+        if case .folder(let id) = libraryPath.last { librarySearchFolder = id } else { librarySearchFolder = nil }
     }
 
     /// The Library's ‹: up one level (nothing at the home).
