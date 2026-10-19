@@ -981,7 +981,10 @@ spacing change reflows the text and keeps the line on screen where it was).
   ink, secondary and tertiary ink, dimmed ink, highlight, accent) for the Reader and Now Playing
   alike. The spoken paragraph sits on the highlight in full ink, the others dimmed; the spoken
   sentence is underlined in the theme's accent (one underline colour per theme). Light, Dark and
-  Black take the app's colour as their accent; Sepia has its own.
+  Black take the app's colour as their accent; Sepia has its own. Each is a swatch named under
+  it; a name wraps between words, and at the accessibility sizes, where a name's longest word
+  is wider than its swatch's share of the row, the swatches stand alone (VoiceOver still reads
+  the names). Settings' *Color* swatches do the same.
 - **Font**: *Serif* (New York; the default), *Sans Serif*, *Rounded*.
 - **Text size**: smaller / larger in steps from 85% to 165% of the Dynamic Type size (100%
   default), so the system's text size still applies under it.

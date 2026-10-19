@@ -26,7 +26,7 @@ struct Toast: View {
     @Environment(\.readingPalette) private var reading
 
     var body: some View {
-        // The first that fits: the message's ideal width is its widest word (`WholeWordsLayout`),
+        // The first that fits: the message's ideal width is its widest word (`WholeWordsText`),
         // so the action leaves the line, then the symbol goes, before a word would break.
         ViewThatFits(in: .horizontal) {
             if let actionTitle {
@@ -71,17 +71,12 @@ struct Toast: View {
                     .foregroundStyle(reading?.secondaryInk ?? Palette.secondaryInk)
                     .accessibilityHidden(true)
             }
-            WholeWordsLayout {
-                Text(message)
-                    .accessibilityIdentifier("toast")
-                ForEach(Array(message.split(whereSeparator: \.isWhitespace).enumerated()), id: \.offset) { _, word in
-                    Text(word).hidden().accessibilityHidden(true)
-                }
-            }
-            .typeStyle(.row)
-            .foregroundStyle(reading?.ink ?? Palette.ink)
-            .multilineTextAlignment(.center)
-            .padding(.vertical, Spacing.s)
+            WholeWordsText(message)
+                .accessibilityIdentifier("toast")
+                .typeStyle(.row)
+                .foregroundStyle(reading?.ink ?? Palette.ink)
+                .multilineTextAlignment(.center)
+                .padding(.vertical, Spacing.s)
         }
     }
 
@@ -95,22 +90,6 @@ struct Toast: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("toastAction")
-    }
-}
-
-/// A text (the first subview) whose ideal width is its widest word (the other subviews, hidden):
-/// given a width it wraps as a `Text` does, but asked for its ideal size it answers the narrowest
-/// it can go without breaking a word, which a `ViewThatFits` compares against the room it has.
-private struct WholeWordsLayout: Layout {
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        guard let text = subviews.first else { return .zero }
-        let width = proposal.width ?? subviews.dropFirst().map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
-        return text.sizeThatFits(ProposedViewSize(width: width, height: proposal.height))
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(bounds.size))
-        for word in subviews.dropFirst() { word.place(at: bounds.origin, proposal: .zero) }
     }
 }
 

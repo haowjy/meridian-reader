@@ -103,7 +103,9 @@ struct AccentThemePicker: View {
 }
 
 /// A row of round swatches with their names under them; the chosen one ringed in the accent and
-/// named in ink. Names never wrap; they shrink a little.
+/// named in ink. A name wraps between words, never inside one; when a name's widest word is wider
+/// than its swatch's share of the row (the accessibility sizes), the row shows the swatches alone
+/// (D21), and VoiceOver still reads each name.
 struct SwatchPicker<Option: Identifiable & Hashable, Face: View>: View {
     let options: [Option]
     @Binding var selection: Option
@@ -117,34 +119,50 @@ struct SwatchPicker<Option: Identifiable & Hashable, Face: View>: View {
     @ScaledMetric(relativeTo: .caption) private var swatch: CGFloat = 44
 
     var body: some View {
-        let side = min(swatch, 56)
-        HStack(alignment: .top, spacing: 0) {
+        // Each option's share of the row is equal (`EqualSegmentsLayout`), and its ideal width is
+        // its swatch or its name's widest word, so the names drop before one would break.
+        ViewThatFits(in: .horizontal) {
+            row(named: true)
+            row(named: false)
+        }
+    }
+
+    private func row(named: Bool) -> some View {
+        EqualSegmentsLayout(spacing: 0) {
             ForEach(options) { option in
-                let chosen = option == selection
-                Button { selection = option } label: {
-                    VStack(spacing: Spacing.xxs) {
-                        face(option, side)
-                            .frame(width: side, height: side)
-                            .overlay(Circle().strokeBorder(reading?.hairline ?? Palette.hairline, lineWidth: 1))
-                            .padding(Spacing.xxs)
-                            .overlay {
-                                if chosen { Circle().strokeBorder(reading?.accent ?? Palette.accent, lineWidth: Glyph.stroke) }
-                            }
-                        Text(title(option))
-                            .typeStyle(.caption, weight: chosen ? .semibold : nil)
-                            .foregroundStyle(chosen ? reading?.ink ?? Palette.ink : reading?.secondaryInk ?? Palette.secondaryInk)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(title(option))
-                .accessibilityAddTraits(chosen ? .isSelected : [])
-                .accessibilityIdentifier("\(identifier)-\(String(describing: option.id))")
+                swatchButton(option, named: named)
             }
         }
+    }
+
+    private func swatchButton(_ option: Option, named: Bool) -> some View {
+        // Five swatches and their rings fit the panel's width at the largest sizes.
+        let side = min(swatch, 48)
+        let chosen = option == selection
+        return Button { selection = option } label: {
+            VStack(spacing: Spacing.xxs) {
+                face(option, side)
+                    .frame(width: side, height: side)
+                    .overlay(Circle().strokeBorder(reading?.hairline ?? Palette.hairline, lineWidth: 1))
+                    .padding(Spacing.xxs)
+                    .overlay {
+                        if chosen { Circle().strokeBorder(reading?.accent ?? Palette.accent, lineWidth: Glyph.stroke) }
+                    }
+                if named {
+                    WholeWordsText(title(option))
+                        .typeStyle(.caption, weight: chosen ? .semibold : nil)
+                        .foregroundStyle(chosen ? reading?.ink ?? Palette.ink : reading?.secondaryInk ?? Palette.secondaryInk)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            // Top-aligned in the row's height, so a name on two lines doesn't move its swatch.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title(option))
+        .accessibilityAddTraits(chosen ? .isSelected : [])
+        .accessibilityIdentifier("\(identifier)-\(String(describing: option.id))")
     }
 }
 
@@ -204,7 +222,9 @@ struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
                 .foregroundStyle(chosen ? reading?.ink ?? Palette.ink : reading?.secondaryInk ?? Palette.secondaryInk)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
-                .padding(.horizontal, Spacing.xs)
+                // The least room a label needs beside it, so Serif, Sans Serif and Rounded stand
+                // on one line in the Aa panel; the label is centred, so a roomier row keeps more.
+                .padding(.horizontal, Spacing.xxs)
                 .frame(maxWidth: .infinity, minHeight: min(height, RowHeight.content))
                 .background {
                     if chosen {
