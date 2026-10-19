@@ -12,13 +12,13 @@ import SwiftUI
 /// | Play from Here | a page in a folder, in a list |
 /// | Download / Remove Download (red) | dimmed out of the Library |
 /// | Add to / Remove from Favorites | dimmed when it can't be starred |
-/// | Move to… / Save to Folder… | *Save to Folder…* out of the Library, *Move to…* in it |
+/// | Move to… / Save to Folder… | *Save to Folder…* while the Library hasn't its text (`offersSave`), *Move to…* after |
 /// | Mark as Finished / Unfinished | dimmed until saved |
 /// | Mark All Above as Finished | a page in a folder, in a list |
 /// | Skip in / Play in Playback | a page in a folder |
 /// | Share | a page with a web address |
 /// | Select | a list with Edit |
-/// | Save to Library / Remove from Library (red) | dimmed with no text to save |
+/// | Save to Library / Remove from Library (red) | the same face; *Save to Library* dimmed with no text to save |
 /// | Remove from Recent (red) | out of the Library; dimmed while it isn't in Recent |
 ///
 /// A place only hides or dims rows (DR-09: hidden where the row can never apply there, dimmed
@@ -57,6 +57,7 @@ struct PageMenu: View {
         let page = actions.page
         let inLibrary = actions.isInLibrary
         let isSaved = actions.isSaved
+        let offersSave = actions.offersSave
         let inFolder = page?.folder != nil
         let canPlay = isSaved || page?.isWaitingChapter == true
         let hasDownload = actions.hasDownload
@@ -76,8 +77,8 @@ struct PageMenu: View {
             MenuRow(id: "menuFavorite", title: isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites,
                     icon: isFavorite ? Icons.unfavorite : Icons.favorite,
                     availability: MenuAvailability(when: actions.canFavorite), action: actions.toggleFavorite),
-            MenuRow(id: "menuMove", title: inLibrary ? Verbs.moveTo : Verbs.saveToFolder, icon: Icons.move,
-                    availability: MenuAvailability(when: inLibrary || actions.canSave), action: actions.saveToFolder),
+            MenuRow(id: "menuMove", title: offersSave ? Verbs.saveToFolder : Verbs.moveTo, icon: Icons.move,
+                    availability: MenuAvailability(when: !offersSave || actions.canSave), action: actions.saveToFolder),
             MenuRow(id: "menuFinished", title: isFinished ? Verbs.markUnfinished : Verbs.markFinished,
                     icon: isFinished ? Icons.markUnfinished : Icons.markFinished,
                     availability: MenuAvailability(when: isSaved)) {
@@ -97,9 +98,9 @@ struct PageMenu: View {
                     availability: MenuAvailability(applies: actions.shareURL != nil), action: actions.share),
             MenuRow(id: "menuSelect", title: Verbs.select, icon: Icons.select,
                     availability: MenuAvailability(applies: onSelect != nil)) { onSelect?() },
-            MenuRow(id: "menuSave", title: inLibrary ? Verbs.removeFromLibrary : Verbs.saveToLibrary,
-                    icon: inLibrary ? Icons.unsave : Icons.save, isDestructive: inLibrary,
-                    availability: MenuAvailability(when: inLibrary || actions.canSave), action: actions.toggleSaved),
+            MenuRow(id: "menuSave", title: offersSave ? Verbs.saveToLibrary : Verbs.removeFromLibrary,
+                    icon: offersSave ? Icons.save : Icons.unsave, isDestructive: !offersSave,
+                    availability: MenuAvailability(when: !offersSave || actions.canSave), action: actions.toggleSaved),
             // The same remove as the Library's (`LibraryStore.remove`): in no list after, the star kept.
             MenuRow(id: "menuRemoveFromRecent", title: Verbs.removeFromRecent, icon: Icons.removeFromRecent,
                     isDestructive: true,

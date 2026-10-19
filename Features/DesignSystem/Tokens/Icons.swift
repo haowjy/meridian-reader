@@ -155,8 +155,6 @@ enum Icons {
     static let blockAds = "hand.raised"
     /// Downloads and storage (Settings).
     static let storage = "internaldrive"
-    /// Developer options (Settings › Developer).
-    static let developer = "hammer"
 
     // MARK: Notices
 

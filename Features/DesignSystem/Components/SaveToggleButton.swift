@@ -41,7 +41,7 @@ struct SaveToggleButton: View {
             LongPressGesture().onEnded { _ in onSaveToFolder?() },
             including: onSaveToFolder == nil ? .subviews : .all
         )
-        .accessibilityLabel(isSaved ? "Remove from Library" : "Save")
+        .accessibilityLabel(isSaved ? Verbs.removeFromLibrary : Verbs.saveToLibrary)
         .accessibilityValue(isBusy ? "Saving" : isSaved ? "Saved" : "Not saved")
         .accessibilityIdentifier(identifier)
         .accessibilityActions {

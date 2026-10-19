@@ -19,12 +19,13 @@ struct MoreMenuPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            let item = context.item.filter(\.isShown)
-            if !item.isEmpty {
-                ForEach(item) { row($0) }
-                divider
+            // A folder's screen at large text sizes has more rows than the screen is tall: they
+            // scroll, and the big buttons stay at the bottom, under the thumb.
+            ViewThatFits(in: .vertical) {
+                rows
+                ScrollView { rows }
+                    .scrollBounceBehavior(.basedOnSize)
             }
-            ForEach(context.screen.filter(\.isShown)) { row($0) }
             divider
             HStack(spacing: 0) {
                 ForEach(Array(context.tiles.enumerated()), id: \.element.id) { index, tile in
@@ -35,6 +36,18 @@ struct MoreMenuPanel: View {
         }
         .padding(.vertical, Spacing.xs)
         .frame(width: 300)
+    }
+
+    /// The item's rows, a divider, the screen's rows.
+    private var rows: some View {
+        VStack(spacing: 0) {
+            let item = context.item.filter(\.isShown)
+            if !item.isEmpty {
+                ForEach(item) { row($0) }
+                divider
+            }
+            ForEach(context.screen.filter(\.isShown)) { row($0) }
+        }
     }
 
     // MARK: - Building blocks

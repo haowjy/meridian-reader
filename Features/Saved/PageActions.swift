@@ -79,6 +79,10 @@ struct PageActions {
         if let article { return !article.document.isEmpty }
         return page.map { !$0.isLink } == true
     }
+    /// The save rows' face: *Save to Library* / *Save to Folder…* while the Library hasn't the
+    /// page's text (out of it, or a link in it shown where its text is: the browser, the Reader),
+    /// else *Remove from Library* / *Move to…*. 🔖 reads the same (`isSaved`) and does the same.
+    var offersSave: Bool { !isSaved && (loaded != nil || canSave || !isInLibrary) }
 
     // MARK: - Actions
 
@@ -99,10 +103,10 @@ struct PageActions {
     /// stops the page only if you hear it. A change that can't be stored leaves it as it was, and
     /// a toast says so.
     func toggleSaved() {
-        if isInLibrary {
-            remove()
-        } else {
+        if offersSave {
             save(.keep)
+        } else {
+            remove()
         }
     }
 
@@ -114,11 +118,11 @@ struct PageActions {
         libraryActions.remove([page])
     }
 
-    /// 🔖 held (*Save to Folder…*), and the menu row that reads *Save to Folder…* before the page
-    /// is in the Library and *Move to…* after: the Move tree. The page is saved into the folder
+    /// 🔖 held (*Save to Folder…*), and the menu row that reads *Save to Folder…* while the page's
+    /// text isn't kept (`offersSave`) and *Move to…* after: the Move tree. The page is saved into the folder
     /// picked, or moves there; one that can't be stored keeps the tree up, with a toast saying so.
     func saveToFolder() {
-        if isInLibrary, let page {
+        if !offersSave, let page {
             libraryActions.move([.page(page)])
             return
         }
