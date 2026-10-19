@@ -42,7 +42,7 @@ struct BrowserBottomChrome: View {
             cancelID: "addressCancel",
             onCancel: shell.endAddressSearch,
             // Like Safari: the session starts with the page's full address, selected.
-            beginText: { web.currentURL?.absoluteString ?? "" },
+            begin: { search.begin(with: web.currentURL?.absoluteString ?? "") },
             isBarCovered: shell.reader != nil
         ) { focus in
             addressField(focus)
