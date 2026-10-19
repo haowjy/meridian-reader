@@ -52,10 +52,12 @@ struct CPURouteBenchSection: View {
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(Palette.secondaryInk)
         } header: {
-            Text("CPU route benchmark")
+            SectionHeader(title: "CPU Route Benchmark").listHeader()
         } footer: {
             Text("ONNX Runtime on CPU (Kokoro fp16) with FluidAudio's phonemes + af_heart. Benchmark ≈2–3 min; pauses the bake queue. Soak: start it, lock the phone, come back. Results: Application Support/ListenTiming/cpubench.jsonl.")
+                .listFooter()
         }
+        .listCard()
     }
 
     @ViewBuilder

@@ -356,8 +356,9 @@ commas.
   New Folder Inside…, Import Book…, Follow…, Downloads, Settings*. Every ⋯ ends with *Downloads,
   Settings*; *Settings* is always the last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
-  has scrolled under the bar. An empty folder's header has no counts; the list says
-  *Move pages here, or save them here from the Reader's 🔖* (the toolbar's symbol).
+  has scrolled under the bar. An empty folder's header has no counts; under it the empty view
+  every empty list has (`EmptyState`): *This Folder Is Empty*, *Move pages here, or save them
+  here from the Reader's 🔖* (the toolbar's symbol).
   A favorite is still an ordinary page or folder and keeps the same actions and location.
 - **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
   opens a sheet (`FolderDetailsSheet`): the cover (a letter tile without one), **Name**,
@@ -416,7 +417,8 @@ goes in), where you type or paste the story's address. Follow covers the screen:
 1. *Reading table of contents…* with a spinner and the address: one request, signed in as in the
    browser. A page with no list of chapters, or a site that refuses, says so, with *Try Again*
    and *Edit Address*; a story followed already offers *Open Its Folder*.
-2. **Review**: "Found 109 chapters   107 selected", *Select All*, then every chapter (its title,
+2. **Review**: a *Chapters 109* section header (how many are kept is on the button, *Follow 107
+   Chapters*), *Select All*, then every chapter (its title,
    and its address shortened) with a box: tap the box to keep or leave it out (an author's note,
    a Q&A). Tapping the rest of the row opens its **preview**, the app's own sheet rising over the
    list with the chapter's real page in the browser's web view (signed in as in the browser). Its

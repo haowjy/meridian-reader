@@ -186,16 +186,14 @@ private struct FolderContentsList: View {
                 }
             }
             if subfolders.isEmpty && pages.isEmpty {
-                // A header, like the folder's own: on the page margin, unclipped by a cell.
+                // Every empty list says so the same way (`EmptyState`), under the folder's header.
                 Section {
-                    EmptyView()
-                } header: {
-                    Text("Move pages here, or save them here from the Reader’s \(Text.symbol(Icons.save)).")
-                        .typeStyle(.row)
-                        .foregroundStyle(Palette.secondaryInk)
+                    EmptyState(String(localized: "This Folder Is Empty"), symbol: Icons.folder,
+                               description: Text("Move pages here, or save them here from the Reader’s \(Text.symbol(Icons.save))."))
                         .accessibilityIdentifier("folderEmpty")
-                        .listHeader()
                 }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
         }
         .cardListStyle()

@@ -45,7 +45,7 @@ struct BookImportSheet: View {
                     SectionHeader(title: String(localized: "Add to"))
                         .listHeader()
                 } footer: {
-                    caption(destinationNote)
+                    Text(destinationNote).listFooter()
                 }
                 .listCard()
                 if let preview = flow.preview, !preview.chapterTitles.isEmpty {
@@ -196,7 +196,8 @@ struct BookImportSheet: View {
                 .listHeader()
         } footer: {
             if !preview.skippedTitles.isEmpty {
-                caption(String(localized: "Skipped for listening: \(Self.list(preview.skippedTitles)). Still there to read."))
+                Text(String(localized: "Skipped for listening: \(Self.list(preview.skippedTitles)). Still there to read."))
+                    .listFooter()
             }
         }
         .listRowInsets(EdgeInsets())
@@ -207,12 +208,6 @@ struct BookImportSheet: View {
     private static func list(_ titles: [String]) -> String {
         let shown = titles.prefix(3).joined(separator: ", ")
         return titles.count > 3 ? String(localized: "\(shown) and \(titles.count - 3) more") : shown
-    }
-
-    private func caption(_ text: String) -> some View {
-        Text(text)
-            .typeStyle(.caption)
-            .foregroundStyle(Palette.secondaryInk)
     }
 
     // MARK: - Toolbar and questions
