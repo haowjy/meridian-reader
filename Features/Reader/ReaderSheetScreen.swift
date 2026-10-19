@@ -7,7 +7,7 @@ import SwiftUI
 ///
 /// - The Reader never shows what you hear (the shell opens Now Playing for that page), so the
 ///   Now Playing bar above its toolbar is always another page.
-/// - Listen reads "▶ Listen  9 min", "▶ Resume  6 min left" (the time lighter, after the title)
+/// - Listen reads "▶ Listen  9 min", "▶ Continue  6 min left" (the time lighter, after the title)
 ///   or "▶ Listen Again", starts at
 ///   the page's saved spot, and turns the Reader into Now Playing where it was (decision D2).
 ///   ☝︎ in the top bar, then a tap on a paragraph, listens from that paragraph.
@@ -42,7 +42,7 @@ struct ReaderSheetScreen: View {
     var body: some View {
         // The article's library page, if it has one (saved, played, or a favorite).
         PageLookup(key: article.id, canonicalURL: article.origin.canonicalURL) { page in
-            sheet(PageActions(article: article, page: page, library: library, shell: shell, speech: speech,
+            sheet(PageActions(page: page, article: article, library: library, shell: shell, speech: speech,
                               downloads: downloads, follow: follow))
         }
     }
@@ -69,11 +69,11 @@ struct ReaderSheetScreen: View {
         } banner: {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
-            text(start)
+            text(start, status: listen.detail, chapter: actions.page?.isChapter == true)
         } bar: {
             NowPlayingBarView(speech: speech)
         } more: {
-            MoreMenuButton(id: "readerMore") { .reader(actions.readerMenu, perform: { actions.perform($0) }) }
+            MoreMenuButton(id: "readerMore") { actions.readingPageMenu(.open) }
         } floating: {
             // The line at the band's top edge; the toast floats above it.
             ZStack(alignment: .top) {
@@ -94,19 +94,20 @@ struct ReaderSheetScreen: View {
     // MARK: - Text
 
     @ViewBuilder
-    private func text(_ start: ListenSpot) -> some View {
-        HTMLReadingView(html: article.readingHTML, heading: ReaderHeading(title: article.title, detail: detail),
+    private func text(_ start: ListenSpot, status: String?, chapter: Bool) -> some View {
+        HTMLReadingView(html: article.readingHTML, heading: ReaderHeading(title: article.title, detail: detail(status)),
                         activeParagraphIndex: nil, sentence: savedSentence(start), jumpMode: jumpMode,
                         opensAtSentence: true, scrollHandle: scroll, onOpenLink: shell.navigate(to:),
                         pageTimeLeft: { [document = article.document, rate = speech.rateMultiplier] in
-                            ListeningTime.leftInChapterLabel(in: document, paragraph: $0, offset: $1, rate: rate)
+                            ListeningTime.leftLabel(in: document, paragraph: $0, offset: $1, rate: rate,
+                                                    chapter: chapter)
                         }) { index in
             if jumpMode { listen(from: index, start: start) }
         }
     }
 
     /// The sentence at the page's saved listening spot, while it is part-way through: the text
-    /// opens with it in the middle, underlined, where Resume starts.
+    /// opens with it in the middle, underlined, where Continue starts.
     private func savedSentence(_ start: ListenSpot) -> ReaderSentence? {
         guard start.isPartWay else { return nil }
         return ReaderSentence(in: article.document, paragraph: start.paragraph, utf16Offset: start.utf16Offset)
@@ -116,23 +117,26 @@ struct ReaderSheetScreen: View {
         sessionReady ? article.document.utf16Length : article.plainText.utf16.count
     }
 
-    /// The source and the length at the current speed, as separate parts: ["example.org", "9 min"].
-    private var detail: [String] {
+    /// The source, then what Listen's detail says, as a row's second line does: the length
+    /// before a start ("9 min"), the time left part-way ("6 min left"); a finished page (Listen
+    /// Again, no detail) its length. ["example.org", "6 min left"].
+    private func detail(_ status: String?) -> [String] {
         let minutes = ListeningTime.minutes(utf16Length: totalLength, rate: speech.rateMultiplier)
-        return [article.sourceLabel, minutes > 0 ? ListeningTime.label(minutes: minutes) : ""].filter { !$0.isEmpty }
+        let length = minutes > 0 ? ListeningTime.label(minutes: minutes) : ""
+        return [article.sourceLabel, status ?? length].filter { !$0.isEmpty }
     }
 
     /// Listen's title and the lighter time after it, at the current speed: "Listen" "9 min",
-    /// "Resume" "6 min left", "Listen Again".
+    /// "Continue" "6 min left", "Listen Again".
     private func listenLabel(_ start: ListenSpot, finished: Bool) -> (title: String, detail: String?) {
         if finished { return (String(localized: "Listen Again"), nil) }
         let doc = article.document
         if start.isPartWay, doc.paragraphs.indices.contains(start.paragraph) {
             let at = start.resolved(in: doc).utf16Offset
             let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at, rate: speech.rateMultiplier)
-            return (String(localized: "Resume"), ListeningTime.leftLabel(minutes: left))
+            return (Verbs.continue, ListeningTime.leftLabel(minutes: left))
         }
-        return (String(localized: "Listen"),
+        return (Verbs.listen,
                 ListeningTime.label(minutes: ListeningTime.minutes(utf16Length: totalLength, rate: speech.rateMultiplier)))
     }
 

@@ -14,7 +14,7 @@ import SwiftUI
 /// (large text), the parts wrap onto further lines instead (`DetailLineLayout`). The caller sets
 /// the font (`typeStyle`). VoiceOver reads the parts as one label, joined with commas.
 struct DetailLine: View {
-    let parts: [String]
+    let parts: [DetailPart]
 
     @Environment(\.readingPalette) private var reading
     /// `Spacing.s` at the default text size, growing with the caption it separates.
@@ -22,19 +22,27 @@ struct DetailLine: View {
 
     /// Empty and nil parts are left out.
     init(_ parts: [String?]) {
-        self.parts = parts.compactMap { $0 }.filter { !$0.isEmpty }
+        self.init(parts: parts.compactMap { $0 }.map { DetailPart($0) })
+    }
+
+    /// Parts that may carry a symbol (`DetailPart.finished`); empty ones are left out.
+    init(parts: [DetailPart]) {
+        self.parts = parts.filter { !$0.text.isEmpty }
     }
 
     var body: some View {
         DetailLineLayout(spacing: spacing) {
             ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
-                Text(part)
-                    .foregroundStyle(index == 0 ? DetailLine.leadInk(reading) : DetailLine.restInk(reading))
-                    .lineLimit(index == 0 ? 1 : nil)
+                HStack(spacing: Spacing.xxs) {
+                    if let symbol = part.symbol { Image(systemName: symbol) }
+                    Text(part.text)
+                }
+                .foregroundStyle(index == 0 ? DetailLine.leadInk(reading) : DetailLine.restInk(reading))
+                .lineLimit(index == 0 ? 1 : nil)
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(DetailLine.accessibilityLabel(parts))
+        .accessibilityLabel(DetailLine.accessibilityLabel(parts.map { $0.spoken ?? $0.text }))
     }
 
     /// The lead part's ink.
@@ -45,6 +53,33 @@ struct DetailLine: View {
     /// The parts as VoiceOver reads them: "investing.example.com, 9 min left".
     static func accessibilityLabel(_ parts: [String?]) -> String {
         parts.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
+    }
+}
+
+/// One part of a `DetailLine`: its text, after a symbol when it has one.
+struct DetailPart: Hashable, ExpressibleByStringLiteral {
+    let text: String
+    var symbol: String?
+    /// What VoiceOver reads for it, when the symbol says something the text doesn't.
+    var spoken: String?
+
+    init(_ text: String, symbol: String? = nil, spoken: String? = nil) {
+        self.text = text
+        self.symbol = symbol
+        self.spoken = spoken
+    }
+
+    init(stringLiteral text: String) {
+        self.init(text)
+    }
+
+    /// A page heard to its end: ✓ and "Finished", as a row's status draws it.
+    static var finished: DetailPart { DetailPart(ListeningTime.finishedLabel, symbol: Icons.checkmark) }
+
+    /// `text` after the grey ✓ a downloaded row starts its second line with (a page's, a
+    /// download's, a voice model's in Settings).
+    static func downloaded(_ text: String) -> DetailPart {
+        DetailPart(text, symbol: Icons.downloaded, spoken: "\(Verbs.downloaded), \(text)")
     }
 }
 
@@ -139,6 +174,9 @@ struct DetailLineGallery: View {
         PreviewGallery {
             PreviewState("site and time left") {
                 DetailLine(["investing.example.com", "9 min left"]).typeStyle(.caption)
+            }
+            PreviewState("finished") {
+                DetailLine(parts: [.finished]).typeStyle(.caption)
             }
             PreviewState("three parts") {
                 DetailLine(["Jane Austen", "Book", "61 chapters"]).typeStyle(.caption)

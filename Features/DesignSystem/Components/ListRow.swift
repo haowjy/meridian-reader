@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Every row in the Library, a folder, a book's contents and the browser's history.
+/// Every row in the Library, a folder, a book's contents, the browser's history and Downloads.
 ///
 /// ```
 /// 📁 Bonds                                       ⋯   folder: its count on the second line
@@ -22,9 +22,10 @@ import SwiftUI
 /// give way first, and at accessibility sizes the status shows alone.
 ///
 /// Its download (`download`) shows on the row itself, never as a button: downloading dims the
-/// thumbnail under a small jade ↓, downloaded puts a grey ✓ before the second line. The only
-/// control is the trailing ⋯ (`menu`, the same menu as the row's long press), centred on the
-/// toolbar's ⋯ slot like the Now Playing bar's ⏸. Every row's separator starts at its title,
+/// thumbnail under a small jade ↓ (grey while paused), downloaded puts a grey ✓ before the second
+/// line. The trailing ⋯ (`menu`, the same menu as the row's long press) is centred on the
+/// toolbar's ⋯ slot like the Now Playing bar's ⏸; a row with a control of its own (a download's
+/// pause, `accessory`) has it just before the ⋯. Every row's separator starts at its title,
 /// whatever leads it.
 ///
 /// A folder row under a dragged row that it takes (`isDropTarget`) is washed and outlined in the
@@ -59,6 +60,8 @@ struct ListRow: View {
     var subtitle: String?
     /// A short note between the subtitle and the status ("Fetching text…", "2 h ago").
     var note: String?
+    /// More parts after the note, in the same tertiary ink (a download's count and size).
+    var details: [String] = []
     var progress: Progress = .unplayed(minutes: nil)
     var playState: PlayState = .idle
     /// A dragged row is over this one, and it takes the drop (a folder it would be filed in).
@@ -71,10 +74,15 @@ struct ListRow: View {
     var folderHasDetails = false
     /// The rows of its ⋯ menu, the same as its long press (nil: no ⋯, as in Edit).
     var menu: AnyView?
+    /// A view laid behind the ⋯ at its size (behind the row when it has none): a question its menu
+    /// asks attaches there, so on iOS 26 its popover points at the ⋯.
+    var menuAnchor: AnyView?
+    /// A control of the row's own, 44 pt, just before the ⋯ (a download's pause / resume).
+    var accessory: AnyView?
 
-    /// 56 pt at the default text size; larger text grows the row through its content, and the
-    /// minimum only up to `BottomChrome.maxTextGrowth`.
-    @ScaledMetric(relativeTo: .callout) private var scaledMinHeight: CGFloat = 56
+    /// `RowHeight.content` at the default text size; larger text grows the row through its
+    /// content, and the minimum only up to `BottomChrome.maxTextGrowth`.
+    @ScaledMetric(relativeTo: .callout) private var scaledMinHeight = RowHeight.content
     /// Space between the second line's parts: `Spacing.s`, growing with the caption.
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var partSpacing = Spacing.s
     /// The two text lines' heights, scaled like their text: a page's thumbnail matches them.
@@ -114,6 +122,10 @@ struct ListRow: View {
                 // The separator under the row starts at the title, for every kind of row.
                 .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             }
+            if let accessory {
+                accessory
+                    .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+            }
             if let menu {
                 Menu { menu } label: {
                     Image(systemName: Icons.more)
@@ -123,14 +135,16 @@ struct ListRow: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
-                .accessibilityLabel("More")
+                .accessibilityLabel(Verbs.more)
                 .accessibilityIdentifier("rowMore")
+                .background { menuAnchor }
             }
         }
+        .background { if menu == nil { menuAnchor } }
         .padding(.leading, Spacing.m)
         .padding(.trailing, menu != nil ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
         .padding(.vertical, Spacing.xs)
-        .frame(minHeight: BottomChrome.grown(scaledMinHeight, from: 56))
+        .frame(minHeight: BottomChrome.grown(scaledMinHeight, from: RowHeight.content))
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
         .overlay { dropHighlight }
         .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) { insertionLine }
@@ -161,14 +175,12 @@ struct ListRow: View {
     private var dropHighlight: some View {
         RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
             .fill(Palette.accent.opacity(Palette.washOpacity))
-            .strokeBorder(Palette.accent, lineWidth: Self.dropOutlineWidth)
+            .strokeBorder(Palette.accent, lineWidth: Glyph.stroke)
             .padding(Spacing.xxs)
             .opacity(isDropTarget ? 1 : 0)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
-
-    static let dropOutlineWidth: CGFloat = 2
 
     /// Where a dragged row would go: an accent line along the row's edge, from the title's
     /// leading edge, with a ring at its start (as iOS marks a drop between rows).
@@ -177,11 +189,11 @@ struct ListRow: View {
         if insertionEdge != nil {
             HStack(spacing: 0) {
                 Circle()
-                    .strokeBorder(Palette.accent, lineWidth: Self.dropOutlineWidth)
+                    .strokeBorder(Palette.accent, lineWidth: Glyph.stroke)
                     .frame(width: Spacing.xs, height: Spacing.xs)
                 Capsule()
                     .fill(Palette.accent)
-                    .frame(height: Self.dropOutlineWidth)
+                    .frame(height: Glyph.stroke)
             }
             // The ring just before the title, the line from the title's leading edge on.
             .padding(.leading, Spacing.m + thumbnailSide + Spacing.s - Spacing.xs)
@@ -212,7 +224,7 @@ struct ListRow: View {
         let status = statusText
         // At accessibility sizes there is no room for both: the status alone (VoiceOver reads all).
         let leads = typeSize.isAccessibilitySize && status != nil ? []
-            : [subtitle, note].compactMap { $0 } + (folderCount ?? [])
+            : [subtitle, note].compactMap { $0 } + details + (folderCount ?? [])
         let badged = download == .downloaded
         if !leads.isEmpty || status != nil || badged {
             HStack(spacing: partSpacing) {
@@ -284,7 +296,7 @@ struct ListRow: View {
         case (_, .unplayed(let minutes?)): return ListeningTime.label(minutes: minutes)
         case (_, .unplayed(nil)): return nil
         case (_, .partWay(_, let left)): return ListeningTime.leftLabel(minutes: left)
-        case (_, .finished): return String(localized: "Finished")
+        case (_, .finished): return ListeningTime.finishedLabel
         case (_, .skipped): return String(localized: "Skipped")
         }
     }
@@ -294,6 +306,7 @@ struct ListRow: View {
         var parts: [String] = []
         if let subtitle { parts.append(subtitle) }
         if let note { parts.append(note) }
+        parts.append(contentsOf: details)
         if playState.isCurrent { parts.append(playState == .playing ? "Playing" : "Paused") }
         if isDropTarget { parts.append("Drop to move here") }
         if insertionEdge != nil { parts.append("Drop to place here") }
@@ -304,7 +317,7 @@ struct ListRow: View {
             case .unplayed(let minutes?): parts.append(ListeningTime.label(minutes: minutes))
             case .unplayed(nil): break
             case .partWay(_, let left): parts.append(ListeningTime.leftLabel(minutes: left))
-            case .finished: parts.append("Finished")
+            case .finished: parts.append(ListeningTime.finishedLabel)
             case .skipped: parts.append("Skipped in playback")
             }
         }
@@ -333,7 +346,7 @@ struct ListRow: View {
                 if downloading {
                     Image(systemName: Icons.downloading)
                         .symbolRenderingMode(.palette)
-                        .foregroundStyle(Palette.onAccent, Palette.accent)
+                        .foregroundStyle(Palette.onAccent, download.isPaused ? Palette.secondaryInk : Palette.accent)
                         .font(.system(size: thumbnailSide * 0.5))
                         .transition(.opacity)
                 }
@@ -355,7 +368,7 @@ struct ListRow: View {
                             isCover: true, fill: Palette.chrome)
                     .frame(width: thumbnailSide, height: thumbnailSide)
             } else {
-                Image(systemName: symbol).font(.title3).foregroundStyle(Palette.accent)
+                Image(systemName: symbol).tileSymbol().foregroundStyle(Palette.accent)
                     .frame(width: thumbnailSide, height: thumbnailSide)
             }
         case .page(let artwork, let letter):
@@ -376,13 +389,6 @@ struct ListRow: View {
         let base = TypeStyle.row.lineHeight + TypeStyle.caption.lineHeight
         return BottomChrome.grown(titleLineHeight + captionLineHeight, from: base)
     }
-
-    /// Width of a leading symbol in the rows built like these (Downloads, the Move tree, the
-    /// import sheet, Edit Details' choices).
-    static let leadingWidth: CGFloat = 32
-    /// A book cover in a folder row: narrower than the slot, so its height (1.45×) stays inside
-    /// the row's 56 pt.
-    static let coverWidth: CGFloat = 26
 }
 
 /// A small progress ring: how far through a part-way page or chapter.
@@ -390,12 +396,14 @@ struct ProgressRing: View {
     let fraction: Double
     var size: CGFloat = Glyph.ring
 
+    @Environment(\.readingPalette) private var reading
+
     var body: some View {
         ZStack {
-            Circle().stroke(Palette.secondaryInk.opacity(0.25), lineWidth: 2)
+            Circle().stroke(reading?.track ?? Palette.track, lineWidth: Glyph.stroke)
             Circle()
                 .trim(from: 0, to: min(max(0, fraction), 1))
-                .stroke(Palette.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .stroke(reading?.accent ?? Palette.accent, style: StrokeStyle(lineWidth: Glyph.stroke, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
         .frame(width: size, height: size)

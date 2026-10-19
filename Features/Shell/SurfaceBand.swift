@@ -21,8 +21,9 @@ struct SurfaceBand<Field: View, Toolbar: View>: View {
     let session: SearchSession
     let cancelID: String
     let onCancel: () -> Void
-    /// Text a session starts with when the idle field is tapped.
-    var beginText: () -> String = { "" }
+    /// Starts the session when the idle field is tapped (the surface's own start: the browser's
+    /// with the page address, the Library's with the screen it searches).
+    let begin: () -> Void
     /// The surface is under the Reader sheet, which shows the bar itself.
     var isBarCovered = false
     @ViewBuilder var field: (FocusState<Bool>.Binding) -> Field
@@ -57,7 +58,7 @@ struct SurfaceBand<Field: View, Toolbar: View>: View {
                             .roundFieldControl(fill: Palette.chrome)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Cancel")
+                    .accessibilityLabel(Verbs.cancel)
                     .accessibilityIdentifier(cancelID)
                 }
             }
@@ -71,7 +72,7 @@ struct SurfaceBand<Field: View, Toolbar: View>: View {
         .bottomChromeBand(bottomPadding: session.isActive ? Spacing.xs : 0)
         .onChange(of: focused) { _, isFocused in
             let wasIdle = !session.isActive
-            session.focusChanged(isFocused, beginText: beginText)
+            session.focusChanged(isFocused, begin: begin)
             // Like Safari: a session started by tapping the field selects its text.
             if isFocused, wasIdle, !session.text.isEmpty { Self.selectAllInFocusedField() }
         }

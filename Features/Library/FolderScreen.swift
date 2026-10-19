@@ -14,7 +14,8 @@ import SwiftUI
 /// (`LibraryDrag`); placing a page between pages makes the sort *Manual*.
 ///
 /// The name shows once, in the header; the navigation bar's title stays blank until the
-/// header's title scrolls under it.
+/// header's title scrolls under it. The band's search, begun here, searches everything under the
+/// folder (`FolderSearchResults`) in the list's place.
 ///
 /// ```
 /// ‹                                                   Edit
@@ -35,8 +36,14 @@ struct FolderScreen: View {
     let folder: Folder
 
     @Environment(LibraryScreenState.self) private var screen
+    @Environment(ShellState.self) private var shell
     /// The header's title has scrolled under the navigation bar: the bar shows the name.
     @State private var headerTitleHidden = false
+
+    /// The band's search text while it searches this folder ("" otherwise).
+    private var searchText: String {
+        shell.librarySearch.isActive && shell.librarySearchFolder == folder.id ? shell.librarySearch.text : ""
+    }
 
     var body: some View {
         if !folder.isLive {
@@ -48,9 +55,17 @@ struct FolderScreen: View {
     }
 
     private var contents: some View {
-        FolderContentsList(folder: folder, sort: folder.pageSort, headerTitleHidden: $headerTitleHidden)
+        let searching = !searchText.isEmpty
+        return Group {
+            if searching {
+                FolderSearchResults(folder: folder, text: searchText)
+            } else {
+                FolderContentsList(folder: folder, sort: folder.pageSort, headerTitleHidden: $headerTitleHidden)
+            }
+        }
             // The title names the screen for VoiceOver, the back button and tests; drawn only
-            // once the header's own title has scrolled away.
+            // once the header's own title has scrolled away, and never over search results, which
+            // carry the name themselves.
             .navigationTitle(folder.name)
             .navigationBarTitleDisplayMode(.inline)
             .modifier(BarTitleRemoved())
@@ -60,18 +75,19 @@ struct FolderScreen: View {
                         .typeStyle(.row, weight: .semibold)
                         .foregroundStyle(Palette.ink)
                         .lineLimit(1)
-                        .opacity(headerTitleHidden ? 1 : 0)
-                        .animation(Motion.snappy, value: headerTitleHidden)
-                        .accessibilityHidden(!headerTitleHidden)
+                        .opacity(headerTitleHidden && !searching ? 1 : 0)
+                        .animation(Motion.snappy, value: headerTitleHidden && !searching)
+                        .accessibilityHidden(!headerTitleHidden || searching)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     let editing = screen.isEditing(folderID: folder.id)
-                    Button(editing ? "Done" : "Edit") {
+                    Button(editing ? Verbs.done : Verbs.edit) {
                         withAnimation(Motion.snappy) {
                             if editing { screen.endEditing() } else { screen.beginEditing(folderID: folder.id) }
                         }
                     }
                     .fontWeight(editing ? .semibold : .regular)
+                    .disabled(searching)
                     .accessibilityIdentifier("folderEdit")
                 }
             }
@@ -106,6 +122,10 @@ private struct FolderContentsList: View {
     @Query private var queriedPages: [Page]
 
     @Binding var headerTitleHidden: Bool
+    /// *Turn Off Download* asked from the header's Download control, or from *More*: the question
+    /// shows by the control that asked.
+    @State private var turningOffFromControl: Folder?
+    @State private var turningOffFromMore: Folder?
     /// Where the list's visible content starts (under the navigation bar), in global coordinates.
     @State private var contentTop: CGFloat = 0
     @ScaledMetric(relativeTo: TypeStyle.title.relativeTo) private var titleLineHeight = TypeStyle.title.lineHeight
@@ -145,7 +165,7 @@ private struct FolderContentsList: View {
                         let hidden = top + titleLineHeight < contentTop
                         if hidden != headerTitleHidden { headerTitleHidden = hidden }
                     }
-                    .libraryHeader()
+                    .listHeader()
             }
             // One mixed list of compact rows (D23): subfolders, then pages, in one card.
             if !subfolders.isEmpty || !pages.isEmpty {
@@ -156,30 +176,28 @@ private struct FolderContentsList: View {
                     }
                     .onMove(perform: isEditing ? moveFolders : nil)
                     .listRowInsets(EdgeInsets())
-                    .listRowBackground(Palette.chrome)
+                    .listCard()
                     ForEach(pages, id: \.listenKey) { page in
                         LibraryPageRow(page: page, onSelect: select(.page(page.listenKey)))
                             .tag(LibraryItemID.page(page.listenKey))
                     }
                     .onMove(perform: isEditing && sort == .manual ? movePages : nil)
                     .listRowInsets(EdgeInsets())
-                    .listRowBackground(Palette.chrome)
+                    .listCard()
                 }
             }
             if subfolders.isEmpty && pages.isEmpty {
-                // A header, like the folder's own: on the page margin, unclipped by a cell.
+                // Every empty list says so the same way (`EmptyState`), under the folder's header.
                 Section {
-                    EmptyView()
-                } header: {
-                    Text("Move pages here, or save them here from the Reader’s \(Text.symbol(Icons.save)).")
-                        .typeStyle(.row)
-                        .foregroundStyle(Palette.secondaryInk)
+                    EmptyState(String(localized: "This Folder Is Empty"), symbol: Icons.folder,
+                               description: Text("Move pages here, or save them here from the Reader’s \(Text.symbol(Icons.save))."))
                         .accessibilityIdentifier("folderEmpty")
-                        .libraryHeader()
                 }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
         }
-        .libraryListStyle()
+        .cardListStyle()
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY + $0.safeAreaInsets.top } action: {
             contentTop = $0
         }
@@ -201,8 +219,10 @@ private struct FolderContentsList: View {
                             actions: playback.hasPagesToPlay ? headerActions : nil) {
             if folder.kind == .series { FollowStatus(folder: folder, pages: pages) }
         } more: {
-            FolderMenu(folder: folder, progress: playback, hasPages: !pages.isEmpty, actions: actions,
-                       downloads: downloads, screen: screen)
+            FolderMenu(folder: folder, pages: pages, actions: actions, downloads: downloads, screen: screen,
+                       onTurnOffDownload: { turningOffFromMore = folder })
+        } anchor: { control in
+            Color.clear.turnOffDownloadQuestion(control == .download ? $turningOffFromControl : $turningOffFromMore)
         }
     }
 
@@ -217,19 +237,20 @@ private struct FolderContentsList: View {
         let isOn = downloads.isOn(folder)
         return FolderHeaderActions(download: state, downloadIsOn: isOn, onDownload: {
             if isOn && state != .notDownloaded {
-                screen.confirmTurnOffDownload(folder)
+                turningOffFromControl = folder
             } else {
                 DownloadActions(downloads: downloads, shell: shell).download(folder)
             }
         }, play: actions.playState(of: folder), onPlay: { actions.playFolder(folder) })
     }
 
-    /// ["2 folders", "7 pages"]; none for an empty folder, whose list says so.
+    /// ["2 folders", "7 pages"] ("7 chapters" in a book or series); none for an empty folder,
+    /// whose list says so.
     private var counts: [String] {
         guard !subfolders.isEmpty || !pages.isEmpty else { return [] }
         var parts: [String] = []
         if !subfolders.isEmpty { parts.append("\(subfolders.count) folder\(subfolders.count == 1 ? "" : "s")") }
-        parts.append("\(pages.count) page\(pages.count == 1 ? "" : "s")")
+        parts.append(folder.itemCount(pages.count))
         return parts
     }
 
@@ -246,5 +267,59 @@ private struct FolderContentsList: View {
         shell.attempt(String(localized: "Couldn’t change the order")) {
             try library.arrange(moving, in: folder, before: destination < all.count ? all[destination] : nil)
         }
+    }
+}
+
+/// A search begun on a folder's screen: under the folder's name (as the home keeps its title over
+/// its results), the folders and pages under it, at any depth, that the home's search on
+/// Everything finds (`LibraryQueries.searchFolders` / `searchPages`), folders first, each row
+/// showing where it is below the folder (`LibraryScreenKey.filtered(under:)`).
+private struct FolderSearchResults: View {
+    let folder: Folder
+    let text: String
+
+    @Query private var queriedFolders: [Folder]
+    @Query private var queriedPages: [Page]
+
+    init(folder: Folder, text: String) {
+        self.folder = folder
+        self.text = text
+        _queriedFolders = Query(LibraryQueries.searchFolders(text, in: .everything))
+        _queriedPages = Query(LibraryQueries.searchPages(text, in: .everything))
+    }
+
+    private func isUnder(_ other: Folder?) -> Bool {
+        guard let other else { return false }
+        return other === folder || other.ancestors.contains { $0 === folder }
+    }
+
+    var body: some View {
+        let folders = queriedFolders.filter { $0.isLive && isUnder($0.parent) }
+        let pages = queriedPages.filter { $0.isLive && isUnder($0.folder) }
+        List {
+            Section {
+                EmptyView()
+            } header: {
+                ScreenTitle(folder.name)
+                    .lineLimit(2)
+                    .listHeader()
+            }
+            if folders.isEmpty && pages.isEmpty {
+                ContentUnavailableView.search(text: text)
+                    .listRowBackground(Color.clear)
+            } else {
+                Section {
+                    ForEach(folders, id: \.id) { LibraryFolderRow(folder: $0) }
+                        .listRowInsets(EdgeInsets())
+                        .listCard()
+                    ForEach(pages, id: \.listenKey) { LibraryPageRow(page: $0) }
+                        .listRowInsets(EdgeInsets())
+                        .listCard()
+                }
+            }
+        }
+        .cardListStyle()
+        .environment(\.libraryScreenKey, .filtered(under: folder.id))
+        .accessibilityIdentifier("folderSearchResults")
     }
 }

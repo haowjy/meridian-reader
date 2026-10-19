@@ -48,7 +48,7 @@ struct NowPlayingScreen: View {
             // Only the playing page's content: never the page before's, for a frame, on advance.
             let article = content?.key == now.pageKey ? content?.article : nil
             PageLookup(key: now.pageKey, canonicalURL: article?.origin.canonicalURL) { page in
-                player(now, PageActions(article: article, page: page, library: library, shell: shell, speech: speech,
+                player(now, PageActions(page: page, article: article, library: library, shell: shell, speech: speech,
                                         downloads: downloads, follow: follow))
             }
             .environment(\.sheetRisesOnAppear, shell.nowPlayingOpensAt == nil)
@@ -87,9 +87,7 @@ struct NowPlayingScreen: View {
                 save: AnyView(SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
                                                onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
                     .disabled(actions.article == nil)),
-                more: AnyView(MoreMenuButton(id: "nowPlayingMore") {
-                    .reader(menu(now, actions), perform: { actions.perform($0) { goTo(now) } })
-                }),
+                more: AnyView(MoreMenuButton(id: "nowPlayingMore") { actions.readingPageMenu(.nowPlaying(goTo(now, actions))) }),
                 onScrubPreview: { p in
                     scrubPreview = p
                     if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
@@ -110,10 +108,11 @@ struct NowPlayingScreen: View {
     private func text(_ now: NowPlaying, article: ReaderArticle?) -> some View {
         if let html = readingHTML(now, article: article) {
             SpokenText(speech: speech, html: html,
-                       card: TitleCardContent(title: article.map(\.title) ?? now.title, source: now.source,
-                                              letter: now.artworkLetter,
+                       card: TitleCardContent(title: article?.title ?? now.title, source: now.source,
+                                              address: now.canonicalURL, letter: now.artworkLetter,
                                               artwork: now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))),
-                       finished: now.isFinished, scrubMap: scrubMap, scrubPreview: scrubPreview,
+                       finished: now.isFinished, isChapter: now.isChapter, scrubMap: scrubMap,
+                       scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,
                        opensAt: shell.nowPlayingOpensAt,
                        onUserScroll: { following = false }, onTap: jump(to:), onOpenLink: shell.navigate(to:))
@@ -135,29 +134,20 @@ struct NowPlayingScreen: View {
 
     private func playingFromName(_ now: NowPlaying, saved: Bool) -> String {
         if case .folder = now.playingFrom { return now.playingFrom.name }
-        return saved ? String(localized: "Library") : now.playingFrom.name
+        return saved ? Verbs.library : now.playingFrom.name
     }
 
-    /// The page's ⋯ with *Go to*: the folder the page plays from, or the Library for a saved page
-    /// in none; dimmed *Go to Library* for a page that plays from its site (⋯ → Website opens it).
-    private func menu(_ now: NowPlaying, _ actions: PageActions) -> ReaderMenu {
-        var menu = actions.readerMenu
-        if case .folder = now.playingFrom {
-            menu.place = ReaderMenu.Place(name: now.playingFrom.name, symbol: Icons.folder)
-            menu.goTo = .enabled
-        } else {
-            menu.goTo = MenuAvailability(when: actions.isSaved)
+    /// ⋯ → *Go to*: the folder the page plays from, or the Library's home for a saved page in
+    /// none; dimmed *Go to Library* for a page that plays from its site (⋯ → Website opens it).
+    /// Playback keeps going.
+    private func goTo(_ now: NowPlaying, _ actions: PageActions) -> PageMenu.GoTo {
+        if case .folder(let id, _) = now.playingFrom {
+            return PageMenu.GoTo(name: now.playingFrom.name, symbol: Icons.folder, availability: .enabled) { [shell, library] in
+                if let folder = library.folder(id: id) { shell.showLibrary(at: library.path(to: folder)) }
+            }
         }
-        return menu
-    }
-
-    /// ⋯ → *Go to*: the Library at the folder, or the Library's home. Playback keeps going.
-    private func goTo(_ now: NowPlaying) {
-        if case .folder(let id, _) = now.playingFrom, let folder = library.folder(id: id) {
-            shell.showLibrary(at: library.path(to: folder))
-        } else {
-            shell.showLibrary(at: [])
-        }
+        return PageMenu.GoTo(name: Verbs.library, symbol: Icons.library,
+                             availability: MenuAvailability(when: actions.isSaved)) { [shell] in shell.showLibrary(at: []) }
     }
 
     /// The playing page changed: its content, and the text following the audio again.
@@ -200,6 +190,8 @@ private struct TitleCardContent {
     let title: String?
     /// "example.com".
     let source: String
+    /// The page's address, for line one of a page with neither title nor site.
+    let address: String?
     /// On the artwork tile when there is no artwork.
     let letter: String
     let artwork: Image?
@@ -224,6 +216,7 @@ private struct SpokenText: View {
     let html: String
     let card: TitleCardContent
     let finished: Bool
+    let isChapter: Bool
     let scrubMap: ReaderScrubMap?
     let scrubPreview: Int?
     let jumpMode: Bool
@@ -240,37 +233,51 @@ private struct SpokenText: View {
         let paragraph = speech.currentParagraphIndex
         HTMLReadingView(
             html: html,
+            heading: ReaderHeading(title: card.title, detail: []),
             topView: titleCard,
             activeParagraphIndex: speech.spokenParagraph(scrubPreview: scrubPreview),
             sentence: finished || scrubPreview != nil ? nil : sentence(paragraph),
+            spokenWord: finished || scrubPreview != nil ? nil : spokenWord(paragraph),
             jumpMode: jumpMode,
             scrollRequest: scrollRequest,
             follows: follows && !finished,
             opensAt: opensAt,
             onUserScroll: onUserScroll,
             onOpenLink: onOpenLink,
-            pageTimeLeft: { [document = speech.document, rate = speech.rateMultiplier] in
-                ListeningTime.leftInChapterLabel(in: document, paragraph: $0, offset: $1, rate: rate)
+            pageTimeLeft: { [document = speech.document, rate = speech.rateMultiplier, isChapter] in
+                ListeningTime.leftLabel(in: document, paragraph: $0, offset: $1, rate: rate, chapter: isChapter)
             },
             onTapParagraph: onTap
         )
     }
 
-    /// The title card: the site and time left (or "✓ Finished"). Replaced in the page only when its
+    /// The title card: the site and time left (or ✓ Finished). Replaced in the page only when its
     /// text changes, so once a minute at most while playing.
     private var titleCard: ReadingTopView {
         let doc = speech.document
         let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: speech.spokenUTF16Offset,
                                              rate: speech.rateMultiplier)
-        let detail = finished ? [ListeningTime.finishedLabel]
-            : [card.source, doc.isEmpty ? "" : ListeningTime.leftLabel(minutes: left)].filter { !$0.isEmpty }
+        // As the bar: line one is `lineOne`, line two starts with `lineTwoSource`.
+        let lineOne = PageTitle.lineOne(title: card.title, source: card.source, address: card.address)
+        let detail: [DetailPart] = finished ? [.finished]
+            : [PageTitle.lineTwoSource(title: card.title, source: card.source),
+               doc.isEmpty ? nil : ListeningTime.leftLabel(minutes: left)]
+                .compactMap { $0 }.map { DetailPart($0) }
         let palette = reading ?? .app
         return ReadingTopView(
-            id: [card.title ?? "", detail.joined(separator: "\n"), card.letter, card.artwork == nil ? "" : "artwork",
+            id: [lineOne, detail.map(\.text).joined(separator: "\n"), card.letter, card.artwork == nil ? "" : "artwork",
                  palette.theme.rawValue, AppAppearance.shared.accent.rawValue],
-            view: AnyView(TitleCard(title: card.title, detail: detail, artwork: card.artwork, artworkLetter: card.letter,
+            view: AnyView(TitleCard(title: lineOne, detail: detail, artwork: card.artwork, artworkLetter: card.letter,
                                     palette: palette))
         )
+    }
+
+    /// The word being spoken: its paragraph and the UTF-16 offset in it.
+    private func spokenWord(_ paragraph: Int) -> ReadingPages.Spot? {
+        let doc = speech.document
+        guard doc.paragraphs.indices.contains(paragraph) else { return nil }
+        return ReadingPages.Spot(paragraph: paragraph,
+                                 offset: speech.spokenUTF16Offset - doc.startUTF16Offset(forParagraph: paragraph))
     }
 
     private func sentence(_ paragraph: Int) -> ReaderSentence? {
@@ -300,7 +307,7 @@ struct JumpHint: View {
                 .minimumScaleFactor(0.85)
                 .accessibilityIdentifier("listenJumpHint")
             Spacer(minLength: Spacing.xxs)
-            Button("Cancel", action: onCancel)
+            Button(Verbs.cancel, action: onCancel)
                 .typeStyle(.caption, weight: .semibold)
                 .accessibilityIdentifier("listenJumpCancel")
         }

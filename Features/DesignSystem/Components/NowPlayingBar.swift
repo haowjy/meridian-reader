@@ -10,17 +10,17 @@ import SwiftUI
 /// ╰━━━━━━━━━━━━━━━━━━━━━━━━──────────────────╯   progress along the bottom edge
 /// ```
 ///
-/// Tap or swipe up opens (`onOpen`); long-press offers Stop Listening and Remove from Library,
-/// each dimmed without its closure (Stop Listening on the page played last, which nothing has
-/// loaded; Remove on a page not in the Library); the placeholder has no menu.
+/// Tap or swipe up opens (`onOpen`); long-press shows `menu` (the page's own menu, then Stop
+/// Listening); the placeholder has none.
 /// While the next chapter loads the state is `.preparing` and `detail` says so.
 /// `NowPlayingBar.placeholder` is the same card, greyed, with nothing to open or play: the band
 /// shows it when it has nothing to resume (nothing played yet), so the band keeps its height.
+/// In the Reader (another page playing) it takes the reading theme's card, inks and accent.
 struct NowPlayingBar: View {
     let title: String
     /// Second line, as separate parts (`DetailLine`): the source, then the time left
-    /// (["investopedia.com", "12 min left"]); or one part, "Getting next chapter…", "✓ Finished".
-    let detail: [String]
+    /// (["investopedia.com", "12 min left"]); or one part, "Getting next chapter…", `.finished`.
+    let detail: [DetailPart]
     var artwork: Image?
     /// Letter for the artwork tile when there is no image.
     var artworkLetter: String = ""
@@ -33,21 +33,20 @@ struct NowPlayingBar: View {
     var identifier = "nowPlayingBar"
     let onOpen: () -> Void
     let onPlayPause: () -> Void
-    /// Long-press → Stop Listening (nil: dimmed).
-    let onStop: (() -> Void)?
-    /// Long-press → Remove from Library (nil: dimmed).
-    let onRemove: (() -> Void)?
+    /// The long press's rows (nil: none, the placeholder).
+    let menu: AnyView?
     /// The greyed stand-in (`placeholder`).
     private var isPlaceholder = false
 
     /// The bar's width: it spans a full toolbar row, so ⏸ sits over ⋯'s slot.
     @State private var width: CGFloat = 0
+    @Environment(\.readingPalette) private var reading
 
     static let artworkSize: CGFloat = 36
 
-    init(title: String, detail: [String], artwork: Image? = nil, artworkLetter: String = "", progress: Double,
+    init(title: String, detail: [DetailPart], artwork: Image? = nil, artworkLetter: String = "", progress: Double,
          state: PlayState, sleepTimerSet: Bool = false, identifier: String = "nowPlayingBar", onOpen: @escaping () -> Void, onPlayPause: @escaping () -> Void,
-         onStop: (() -> Void)?, onRemove: (() -> Void)?) {
+         menu: AnyView?) {
         self.title = title
         self.detail = detail
         self.artwork = artwork
@@ -58,18 +57,16 @@ struct NowPlayingBar: View {
         self.identifier = identifier
         self.onOpen = onOpen
         self.onPlayPause = onPlayPause
-        self.onStop = onStop
-        self.onRemove = onRemove
+        self.menu = menu
     }
 
     /// Nothing to resume: the bar's shape, greyed, with ▶ dimmed. Same height as the bar at
     /// every text size (same rows, same controls).
     static func placeholder() -> NowPlayingBar {
         var bar = NowPlayingBar(title: String(localized: "Nothing playing"),
-                                detail: [String(localized: "Pick something to play")],
+                                detail: [DetailPart(String(localized: "Pick something to play"))],
                                 artworkLetter: " ", progress: 0, state: .idle,
-                                identifier: "nowPlayingBarPlaceholder", onOpen: {}, onPlayPause: {}, onStop: nil,
-                                onRemove: nil)
+                                identifier: "nowPlayingBarPlaceholder", onOpen: {}, onPlayPause: {}, menu: nil)
         bar.isPlaceholder = true
         return bar
     }
@@ -88,17 +85,17 @@ struct NowPlayingBar: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(title)
                         .typeStyle(.row, weight: .semibold)
-                        .foregroundStyle(isPlaceholder ? Palette.tertiaryInk : Palette.ink)
+                        .foregroundStyle(isPlaceholder ? quietInk : reading?.ink ?? Palette.ink)
                         .lineLimit(1)
                     HStack(spacing: Spacing.xxs) {
                         if sleepTimerSet {
                             Image(systemName: Icons.sleepTimer)
                                 .accessibilityLabel("Sleep timer set")
                         }
-                        DetailLine(detail)
+                        DetailLine(parts: detail)
                     }
                     .typeStyle(.caption)
-                    .foregroundStyle(isPlaceholder ? Palette.tertiaryInk : Palette.secondaryInk)
+                    .foregroundStyle(isPlaceholder ? quietInk : reading?.secondaryInk ?? Palette.secondaryInk)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -123,11 +120,11 @@ struct NowPlayingBar: View {
         .padding(.leading, Spacing.xs)
         .padding(.trailing, Self.trailingPadding(rowWidth: width))
         .padding(.vertical, Spacing.xs)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .background { background }
         .overlay(alignment: .bottom) {
             if !isPlaceholder {
                 GeometryReader { g in
-                    Palette.accent
+                    (reading?.accent ?? Palette.accent)
                         .frame(width: g.size.width * min(max(0, progress), 1), height: 3)
                         .frame(maxHeight: .infinity, alignment: .bottom)
                 }
@@ -138,15 +135,23 @@ struct NowPlayingBar: View {
         }
         .floatingShadow(opacity: isPlaceholder ? Self.placeholderShadowOpacity : 0.14)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
-        .contextMenu {
-            Button("Stop Listening", systemImage: Icons.stop) { onStop?() }
-                .menuAvailability(MenuAvailability(applies: !isPlaceholder, when: onStop != nil))
-            Button(Verbs.removeFromLibrary, systemImage: Icons.unsave, role: .destructive) { onRemove?() }
-                .menuAvailability(MenuAvailability(applies: !isPlaceholder, when: onRemove != nil))
-        }
+        .contextMenu { if let menu { menu } }
         .accessibilityElement(children: .contain)
         .accessibilityValue(isPlaceholder ? "" : "\(Int((progress * 100).rounded())) percent")
         .accessibilityIdentifier(identifier)
+    }
+
+    private var quietInk: Color { reading?.tertiaryInk ?? Palette.tertiaryInk }
+
+    /// The bar material; on the reading page, its card.
+    @ViewBuilder
+    private var background: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+        if let reading {
+            shape.fill(reading.card)
+        } else {
+            shape.fill(.regularMaterial)
+        }
     }
 
     /// The placeholder sits flatter than a live card.
@@ -159,7 +164,7 @@ struct NowPlayingBar: View {
                 .overlay {
                     Image(systemName: Icons.playing)
                         .font(.caption)
-                        .foregroundStyle(Palette.tertiaryInk)
+                        .foregroundStyle(quietInk)
                         .accessibilityHidden(true)
                 }
         } else {
@@ -183,7 +188,7 @@ struct NowPlayingBarGallery: View {
                 bar("Chapter 13", ["Getting next chapter…"], 0, .preparing)
             }
             PreviewState("finished") {
-                bar("Notes on Tides", ["✓ Finished"], 1, .idle)
+                bar("Notes on Tides", [.finished], 1, .idle)
             }
             PreviewState("nothing playing") {
                 NowPlayingBar.placeholder()
@@ -191,10 +196,10 @@ struct NowPlayingBarGallery: View {
         }
     }
 
-    private func bar(_ title: String, _ detail: [String], _ progress: Double, _ state: PlayState,
+    private func bar(_ title: String, _ detail: [DetailPart], _ progress: Double, _ state: PlayState,
                      sleep: Bool = false) -> some View {
         NowPlayingBar(title: title, detail: detail, progress: progress, state: state, sleepTimerSet: sleep,
-                      onOpen: {}, onPlayPause: {}, onStop: {}, onRemove: {})
+                      onOpen: {}, onPlayPause: {}, menu: nil)
     }
 }
 

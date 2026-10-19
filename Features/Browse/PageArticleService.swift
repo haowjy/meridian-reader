@@ -63,9 +63,10 @@ struct PageArticleService {
         return .started(article)
     }
 
-    /// ⋯ → Save to Library…, once a place is picked in the Move tree: the folder, or no folder
-    /// (nil, out of the folder it was in). ⋯ spins meanwhile. A page that can't be extracted
-    /// throws; a save that can't be stored says so in a toast.
+    /// The browser's page saved (`PageActions.LoadedPage.save`: *Save to Library*, or *Save to
+    /// Folder…* once a place is picked in the Move tree): the folder, or no folder (nil, out of the
+    /// folder it was in). ⋯ spins meanwhile. A page that can't be extracted throws; a save that
+    /// can't be stored says so in a toast.
     func save(in folder: Folder?) async throws {
         shell.busy = .save
         defer { shell.busy = nil }

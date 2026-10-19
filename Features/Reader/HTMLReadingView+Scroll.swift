@@ -11,7 +11,10 @@ import WebKit
 /// - A reflow keeps the line at the top of the reading area where it is on screen; a page at its
 ///   top stays at its top.
 /// - An edge tap turns a screen: the visible text less one line, so the line at one edge stays in
-///   view at the other.
+///   view at the other, landing with a whole line at the top. In full screen the visible text
+///   starts below the fade at the top (`HTMLReadingView`).
+/// - In full screen a drag let go comes to rest the same way: where its glide would stop, moved to
+///   the nearest line, so no line rests cut by the screen's top edge.
 @MainActor
 final class ScrollTextLayout: ReadingTextLayout {
     private unowned let host: HTMLReadingWebView.Coordinator
@@ -48,17 +51,54 @@ final class ScrollTextLayout: ReadingTextLayout {
         return true
     }
 
+    func dragEnded(velocity: CGFloat) {
+        // Following places the text itself; a drag that scrolled has already ended following.
+        guard host.chrome?.hidden == true, !host.follows, let sv = scrollView, let webView = host.webView,
+              host.loaded else { return }
+        let layout = sv.readingLayout
+        guard layout.isLaidOut else { return }
+        // Where UIKit's glide would stop (its normal deceleration), as the line to settle on.
+        let rate = UIScrollView.DecelerationRate.normal.rawValue
+        let glide = velocity / 1000 * rate / (1 - rate)
+        let projected = layout.clamped(sv.contentOffset.y - glide)
+        // At either end of the text the page rests as it is.
+        guard projected > layout.range.lowerBound + 1, projected < layout.range.upperBound - 1 else { return }
+        let line = host.look.lineHeight(host.sizes)
+        let generation = host.loadGeneration
+        webView.evaluateJavaScript("window.__readerAnchor(\(Double(projected + line)))") { [weak self] result, _ in
+            guard let self, generation == host.loadGeneration, host.layout === self, !sv.isTracking else { return }
+            guard let lineTop = ((result as? [String: Any])?["top"] as? Double).map({ CGFloat($0) }),
+                  abs(lineTop - (projected + line)) <= line else { return }
+            // The line under the fade's foot comes to rest there, whole; the glide stops for it.
+            sv.setContentOffset(sv.contentOffset, animated: false)
+            scroll(to: sv.readingLayout.clamped(lineTop - line))
+        }
+    }
+
     func turn(forward: Bool) -> Bool {
-        guard let sv = scrollView, host.loaded else { return false }
+        guard let sv = scrollView, let webView = host.webView, host.loaded else { return false }
+        let line = host.look.lineHeight(host.sizes)
+        // Where the visible text starts: below the top bar, or in full screen below the top's
+        // fade (`HTMLReadingView`).
         let fullScreen = host.chrome?.hidden == true
-        let visible = sv.bounds.height - (fullScreen ? 0 : sv.contentInset.top + sv.contentInset.bottom)
-        let line = host.sizes.body * CGFloat(host.look.textScale) * CGFloat(host.look.lineSpacing.multiple)
+        let top = fullScreen ? line : sv.contentInset.top
+        let visible = sv.bounds.height - top - (fullScreen ? 0 : sv.contentInset.bottom)
         let step = max(visible - line, line)
         let layout = sv.readingLayout
         guard layout.isLaidOut else { return false }
-        let target = layout.clamped(sv.contentOffset.y + (forward ? step : -step))
-        guard abs(target - sv.contentOffset.y) > 0.5 else { return false }
-        scroll(to: target)
+        let rough = layout.clamped(sv.contentOffset.y + (forward ? step : -step))
+        guard abs(rough - sv.contentOffset.y) > 0.5 else { return false }
+        // A whole line at the top: forward, the line the rough top cuts (the one cut at the foot
+        // before, shown whole); back, the first line wholly below it (so the old top line stays
+        // whole at the foot). Away from text (a picture), the rough step.
+        let generation = host.loadGeneration
+        let y = rough + top + (forward ? 0 : line - 1)
+        webView.evaluateJavaScript("window.__readerAnchor(\(Double(y)))") { [weak self] result, _ in
+            guard let self, generation == host.loadGeneration, host.layout === self else { return }
+            let lineTop = ((result as? [String: Any])?["top"] as? Double).map { CGFloat($0) }
+            let aligned = lineTop.flatMap { abs($0 - (rough + top)) <= line ? $0 - top : nil } ?? rough
+            scroll(to: sv.readingLayout.clamped(aligned))
+        }
         return true
     }
 

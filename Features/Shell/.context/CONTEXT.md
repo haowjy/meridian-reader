@@ -30,13 +30,16 @@ changing the shell code.
   starts fresh. Programmatic closes (Website, navigating) just remove it.
 - **The Reader and Now Playing draw in the reading theme** (`Sheet(palette:)`, a `ReadingPalette`
   from `ReadingAppearance`), the same for both; `readingSurface` sets `readingPalette` and the
-  theme's colour scheme on what they hold, and components that sit on both read it. A dark theme
+  theme's colour scheme on what they hold, and components that sit on both read it (`reading?.x ?? Palette.x`): everything that can float over the text does, the toast, the Now Playing bar and `PlayStateButton` included, so no app colour shows on a reading theme. A dark theme
   (Dark, Black) over a light app gets light status bar content from a clear window that takes no
   touches, shown just above the app's while the sheet is up
   (`DesignSystem/Chrome/SystemBars.swift`); SwiftUI's own route, a colour scheme for the
   window, would flip the surface underneath. The same window hides the status bar (and asks for a
   dimmed home indicator) in full screen, in every theme: while it is up it is the window the
-  system asks, so a second mechanism on the app's window would be ignored. Nothing of the app's covers the sheets; a system
+  system asks, so a second mechanism on the app's window would be ignored. When neither is wanted
+  any more it answers as the app's window for the length of the fade, then goes: removed at once,
+  the status bar would pop back. Kept for the sheet's whole life it made the UI tests run about
+  35 s longer, so it lingers only that long. Nothing of the app's covers the sheets; a system
   sheet over them (Settings, Share) leaves the strip above dark, so light stays right there.
   During a pull the dim lifts, and `Sheet` lays a scrim under the status bar
   (`PullDownLook.statusBarScrim`) that keeps the strip at the resting dim until the sheet is
@@ -62,8 +65,10 @@ changing the shell code.
   down.
 - **Shared look lives in `../DesignSystem/`**: tokens, `Motion`, `BottomChrome`, the morph
   overlay (`MorphMenu.swift`) and the components. This folder keeps what knows about the app:
-  `ShellState`, the ⋯ panel's rows (`MoreMenuPanel`), the Now Playing bar on a surface
-  (`NowPlayingBarView`).
+  `ShellState`, the ⋯ panel (`MenuContext`, drawn by `MoreMenuPanel`: the item's rows from its
+  one menu definition, `PageMenu` / `FolderMenu`, then the screen's rows ending in `tail`, then
+  the big buttons; the panel draws `MenuRow`s and knows no surface), the Now Playing bar on a
+  surface (`NowPlayingBarView`, whose long press is the page's menu then *Stop Listening*).
 - **The ⋯ morph menu measures its focus point** through a preference and places the panel from it.
   Ignore focus changes under 0.5 pt (`MorphMenu.isNewFocus`): pixel rounding of the placement
   nudges the measurement each pass, and without the threshold the panel re-places itself forever

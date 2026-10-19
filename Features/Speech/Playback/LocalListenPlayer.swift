@@ -40,7 +40,7 @@ final class LocalListenPlayer {
         var bakedParagraphs = 0
         var engineChunks = 0
         var appleFallbacks = 0
-        var label: String { "baked \(bakedParagraphs) · chunks \(engineChunks) · Apple \(appleFallbacks)" }
+        var label: String { "baked \(bakedParagraphs), chunks \(engineChunks), Apple \(appleFallbacks)" }
     }
     var backgroundStats = BackgroundPlayStats()
     /// Why the unit now playing is Apple TTS (nil = the engine's own audio).

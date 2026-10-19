@@ -8,7 +8,8 @@ enum LibraryItemID: Hashable {
 
 /// What the Library's screens share with their surface:
 /// Edit's selection, which the bottom bar acts on, and the dialogs a row or a menu asks for
-/// (delete, turn a folder's download off, rename, new folder), shown once by `libraryDialogs`.
+/// (delete, rename, new folder), shown once by `libraryDialogs`. *Turn Off Download* is asked
+/// where it was tapped instead (`turnOffDownloadQuestion`).
 @MainActor
 @Observable
 final class LibraryScreenState {
@@ -26,8 +27,6 @@ final class LibraryScreenState {
     var selection = Set<LibraryItemID>()
     /// Folders waiting for the delete question (`FolderDeletePrompt`).
     var pendingDelete: [Folder] = []
-    /// The folder waiting for the *Turn Off Download* question.
-    var pendingTurnOff: Folder?
     var renaming: Folder?
     var renameText = ""
     var newFolder: NewFolder?
@@ -102,12 +101,6 @@ final class LibraryScreenState {
         pendingDelete = []
     }
 
-    /// *Turn Off Download* (a folder's header control, its menus): asked first, since what
-    /// downloads next stops.
-    func confirmTurnOffDownload(_ folder: Folder) {
-        pendingTurnOff = folder
-    }
-
     func rename(_ folder: Folder) {
         renameText = folder.name
         renaming = folder
@@ -124,10 +117,10 @@ extension View {
     /// `LibraryStore.makeFolder`), *Cancel* and *Create*, which runs `create` and closes it.
     func newFolderAlert(isPresented: Binding<Bool>, name: Binding<String>, message: String? = nil,
                         create: @escaping () -> Void) -> some View {
-        alert("New Folder", isPresented: isPresented) {
-            TextField("Name", text: name)
+        alert(Verbs.title(Verbs.newFolder), isPresented: isPresented) {
+            TextField(Verbs.name, text: name)
                 .accessibilityIdentifier("newFolderField")
-            Button("Cancel", role: .cancel) {}
+            Button(Verbs.cancel, role: .cancel) {}
             Button("Create", action: create)
                 .accessibilityIdentifier("newFolderCreate")
         } message: {
@@ -135,10 +128,35 @@ extension View {
         }
     }
 
-    /// The Library's dialogs for `state`: delete confirmations, *Turn Off Download*, rename, new
-    /// folder. Attached once per surface.
+    /// The Library's dialogs for `state`: delete confirmations, rename, new folder. Attached once
+    /// per surface.
     func libraryDialogs(_ state: LibraryScreenState, onDeleted: @escaping () -> Void) -> some View {
         modifier(LibraryDialogs(state: state, onDeleted: onDeleted))
+    }
+
+    /// *Turn Off Download*'s question for `folder` (nil: not asked), asked first since what
+    /// downloads next stops: *Turn Off Download* (`DownloadCenter.turnOff`, what is downloaded
+    /// stays) or *Cancel*. One question for every way in, each attaching it to the control that
+    /// asks (on iOS 26 it shows as a popover pointing there): the folder header's Download control
+    /// and *More*, a folder row's ⋯ (its long press too), the screen's ⋯.
+    func turnOffDownloadQuestion(_ folder: Binding<Folder?>) -> some View {
+        modifier(TurnOffDownloadQuestion(folder: folder))
+    }
+}
+
+private struct TurnOffDownloadQuestion: ViewModifier {
+    @Binding var folder: Folder?
+    @Environment(DownloadCenter.self) private var downloads
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(Verbs.turnOffDownload, isPresented: Binding(get: { folder != nil },
+                                                                                set: { if !$0 { folder = nil } }),
+                                   titleVisibility: .hidden, presenting: folder) { folder in
+            Button(Verbs.turnOffDownload, role: .destructive) { downloads.turnOff(folder) }
+            Button(Verbs.cancel, role: .cancel) {}
+        } message: { _ in
+            Text("Downloaded audio stays. New pages won’t download.")
+        }
     }
 }
 
@@ -150,7 +168,6 @@ private struct LibraryDialogs: ViewModifier {
     @Environment(ShellState.self) private var shell
     @Environment(FollowCenter.self) private var follow
     @Environment(\.speechController) private var speech
-    @Environment(DownloadCenter.self) private var downloads
 
     func body(content: Content) -> some View {
         content
@@ -159,24 +176,12 @@ private struct LibraryDialogs: ViewModifier {
             } message: {
                 Text(prompt.message)
             }
-            // `DownloadCenter.turnOff`: what is downloaded stays.
-            .confirmationDialog(Verbs.turnOffDownload, isPresented: Binding(get: { state.pendingTurnOff != nil },
-                                                                           set: { if !$0 { state.pendingTurnOff = nil } }),
-                                titleVisibility: .hidden) {
-                Button(Verbs.turnOffDownload, role: .destructive) {
-                    if let folder = state.pendingTurnOff { downloads.turnOff(folder) }
-                    state.pendingTurnOff = nil
-                }
-                Button(Verbs.cancel, role: .cancel) { state.pendingTurnOff = nil }
-            } message: {
-                Text("Downloaded audio stays. New pages won’t download.")
-            }
-            .alert("Rename Folder", isPresented: Binding(get: { state.renaming != nil },
+            .alert(Verbs.title(Verbs.rename), isPresented: Binding(get: { state.renaming != nil },
                                                         set: { if !$0 { state.renaming = nil } })) {
-                TextField("Name", text: $state.renameText)
+                TextField(Verbs.name, text: $state.renameText)
                     .accessibilityIdentifier("renameFolderField")
-                Button("Cancel", role: .cancel) { state.renaming = nil }
-                Button("Rename") {
+                Button(Verbs.cancel, role: .cancel) { state.renaming = nil }
+                Button(Verbs.title(Verbs.rename)) {
                     if let folder = state.renaming {
                         shell.attempt(String(localized: "Couldn’t rename")) { try library.rename(folder, to: state.renameText) }
                     }
@@ -209,7 +214,7 @@ private struct LibraryDialogs: ViewModifier {
             Button(choice.title, role: choice.isDestructive ? .destructive : nil) { delete() }
             .accessibilityIdentifier(choice.id)
         }
-        Button("Cancel", role: .cancel) { state.cancelDelete() }
+        Button(Verbs.cancel, role: .cancel) { state.cancelDelete() }
     }
 
     /// Once the delete is saved, Edit ends and the surface leaves screens of folders that are gone.

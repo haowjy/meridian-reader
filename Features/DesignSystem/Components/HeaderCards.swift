@@ -34,7 +34,7 @@ struct NoticeCard: View {
 /// them as one label, joined with commas.
 ///
 /// ```
-/// 📡 Following   1 chapter couldn’t load   fetched 41 of 107 ›
+/// 📡 Following   1 chapter couldn’t load   41 of 107 fetched ›
 /// ```
 struct HeaderLink: View {
     let symbol: String
@@ -80,10 +80,10 @@ struct HeaderCardsGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("header link") {
-                HeaderLink(symbol: Icons.follow, parts: ["Following", "fetching chapter text 4 of 107"]) {}
+                HeaderLink(symbol: Icons.follow, parts: ["Following", "3 of 107 fetched"]) {}
             }
             PreviewState("header link, a chapter failed") {
-                HeaderLink(symbol: Icons.follow, parts: ["Following", "1 chapter couldn’t load", "fetched 41 of 107"]) {}
+                HeaderLink(symbol: Icons.follow, parts: ["Following", "1 chapter couldn’t load", "41 of 107 fetched"]) {}
             }
             PreviewState("notice") {
                 NoticeCard(symbol: Icons.waiting,

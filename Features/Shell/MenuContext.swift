@@ -1,107 +1,37 @@
 import SwiftUI
 
-/// What the ⋯ panel shows, by the surface that opened it. Each case carries only the state its
-/// rows need and the handler for its own actions, so no surface sees (or has to ignore) another
-/// surface's buttons.
+/// What the ⋯ panel shows, in three blocks: the item's own menu (a page's `PageMenu` or a
+/// folder's `FolderMenu`, the same rows as everywhere that item's menu shows; none on a screen
+/// with no item, the Library's home and the start page), then the screen's own rows, ending in
+/// *Downloads* and *Settings* (`tail`), then the big buttons, the rightmost (nearest the thumb,
+/// the panel's focus point) last:
 ///
-/// Bottom row of big buttons, rightmost (nearest the thumb, the panel's focus point) last:
-/// - browse:  `[Favorites][History][Reader]`
-/// - reader (the Reader and Now Playing):  `[Favorites][History][Website]`
-/// - library: `[Favorites][History][Browser]`
-enum MenuContext {
-    case browse(BrowseMenu, perform: (BrowseMenu.Action) -> Void)
-    case reader(ReaderMenu, perform: (ReaderMenu.Action) -> Void)
-    case library(LibraryMenu, perform: (LibraryMenu.Action) -> Void)
-
+/// - browser:  `[Favorites][History][Reader]`
+/// - the Reader and Now Playing:  `[Favorites][History][Website]`
+/// - Library: `[Favorites][History][Browser]`
+struct MenuContext {
+    var item: [MenuRow] = []
+    var screen: [MenuRow]
+    var tiles: [MenuRow]
     /// Opened on a reading page (the Reader or Now Playing): the panel takes its colours.
-    var isOnReadingPage: Bool {
-        if case .reader = self { return true }
-        return false
-    }
-}
+    var isOnReadingPage = false
 
-/// The web page / start page menu.
-struct BrowseMenu {
-    enum Action {
-        case newSearch, saveToLibrary, removeFromLibrary, toggleFavorite, follow, share, reload, downloads, settings
-        case favorites, history, openReader
+    /// The rows every screen's block ends with: *Downloads*, then *Settings*, always last.
+    @MainActor
+    static func tail(_ shell: ShellState) -> [MenuRow] {
+        [
+            MenuRow(id: "moreDownloads", title: Verbs.downloads, icon: Icons.downloads) { shell.present(.downloads) },
+            MenuRow(id: "moreSettings", title: Verbs.settings, icon: Icons.settings) { shell.present(.settings) },
+        ]
     }
 
-    /// The faces of the *Save* / *Remove from Library* and ☆ toggles.
-    var isSaved: Bool
-    var isFavorite: Bool
-    var save: MenuAvailability
-    var favorite: MenuAvailability
-    /// *Follow…*: a web page is up (it reads the story the page belongs to).
-    var follow: MenuAvailability
-    var share: MenuAvailability
-    var reload: MenuAvailability
-    /// The *Reader* button: a readable page, and no extraction already running.
-    var reader: MenuAvailability
-}
-
-/// The page's menu, the same in the Reader sheet and Now Playing (decision D24): what it holds
-/// is about the page, whichever sheet shows it. Now Playing adds *Go to* its folder or the
-/// Library at the top.
-struct ReaderMenu {
-    enum Action {
-        case goTo, toggleSave, moveTo, toggleFavorite, share, download, downloads, settings
-        case favorites, history, openWebsite
+    /// The first two big buttons, the same on every surface; `last` is the surface's own.
+    @MainActor
+    static func tiles(_ shell: ShellState, last: MenuRow) -> [MenuRow] {
+        [
+            MenuRow(id: "moreFavorites", title: Verbs.favorites, icon: Icons.favorite, action: shell.showFavorites),
+            MenuRow(id: "moreHistory", title: Verbs.history, icon: Icons.history) { shell.present(.history) },
+            last,
+        ]
     }
-
-    /// Where Now Playing's page plays from, for *Go to <name>*: a folder or the Library.
-    struct Place {
-        let name: String
-        let symbol: String
-    }
-
-    /// *Go to <place>*: Now Playing's only (hidden in the Reader), dimmed for a page that plays
-    /// from its site, which Website opens.
-    var goTo: MenuAvailability = .hidden
-    var place = Place(name: String(localized: "Library"), symbol: Icons.library)
-
-    /// The faces of the *Save* / *Remove from Library*, ☆ and *Download* / *Remove Download*
-    /// toggles (`hasDownload`: downloading or downloaded, as a Library row's menu shows it).
-    var isSaved: Bool
-    var isFavorite: Bool
-    var hasDownload: Bool
-    var save: MenuAvailability
-    /// *Move to…*: a saved page.
-    var moveTo: MenuAvailability
-    var favorite: MenuAvailability
-    var share: MenuAvailability
-    /// *Download* / *Remove Download*: a saved page.
-    var download: MenuAvailability
-    /// The *Website* button: the article has a web page to go to.
-    var website: MenuAvailability
-}
-
-/// The Library's menu, for the screen on top: the home (the top level) or a folder (a book or
-/// series as any other). Nothing in it acts on the browser's page.
-struct LibraryMenu {
-    enum Screen: Equatable {
-        case home
-        case folder(FolderRows)
-    }
-
-    /// A folder screen's own rows. A book reads *Delete Book…* and *Download Book*. *Download
-    /// Folder* / *Turn Off Download* is one row, its face the folder's Download toggle
-    /// (`downloadIsOn`), as in the folder's own menu; *Download Folder* needs pages. *Delete
-    /// Downloads*: some of it is downloaded or downloading.
-    struct FolderRows: Equatable {
-        var isBook: Bool
-        var downloadIsOn: Bool
-        var download: MenuAvailability
-        var deleteDownloads: MenuAvailability
-    }
-
-    enum Action {
-        case newFolder, importBook, follow, sort(PageSort), rename, editDetails, move, deleteFolder, deleteDownloads
-        case download, downloads, settings
-        case favorites, history, browser
-    }
-
-    var screen: Screen
-    /// The screen's page sort: the folder's, or on the home the top level's.
-    var sort: PageSort
 }

@@ -22,7 +22,8 @@ struct NowPlaying: Equatable {
     var pageKey: UUID
     /// Web pages: what 🎧 compares against.
     var canonicalURL: String?
-    /// nil: the page has none (`PageTitle`); Now Playing's title card then shows no title.
+    /// nil: the page has none (`PageTitle`); the bar's and the title card's line one is then its
+    /// site (`lineOne`).
     var title: String?
     /// The book or series for a chapter ("Pride and Prejudice"), else the site
     /// ("investopedia.com").
@@ -32,6 +33,9 @@ struct NowPlaying: Equatable {
     var byline: String?
     var artwork: Data?
     var playingFrom: PlayingFrom
+    /// A chapter: a page of a book or series (`PlaybackFolder.isBookOrSeries`, from `Page.isChapter`,
+    /// the rule the Reader reads too).
+    var isChapter: Bool
     /// `.prepared` and `.finished` included: the bar stays for both.
     var phase: PlaybackPhase
 

@@ -5,14 +5,25 @@ import SwiftUI
 enum DownloadState: Equatable {
     /// Not downloaded and not queued.
     case notDownloaded
-    /// Queued (paused too) or rendering: how much of it is ready, 0…1 (a folder's; a page's
-    /// row shows only that it downloads, and its fraction stays 0).
+    /// Queued or rendering: how much of it is ready, 0…1 (a folder's; a page's row shows only
+    /// that it downloads, and its fraction stays 0).
     case downloading(fraction: Double)
+    /// Queued, and its download paused: drawn as downloading, in grey, everywhere it shows (a
+    /// row's tile, a folder header's control, the Downloads list).
+    case paused(fraction: Double)
     /// Every page it covers is downloaded (in the download voice, or one its download kept).
     case downloaded
 
+    /// Downloading or paused: it has pages still to download.
     var isDownloading: Bool {
-        if case .downloading = self { return true }
+        switch self {
+        case .downloading, .paused: true
+        default: false
+        }
+    }
+
+    var isPaused: Bool {
+        if case .paused = self { return true }
         return false
     }
 
@@ -21,22 +32,26 @@ enum DownloadState: Equatable {
         switch self {
         case .notDownloaded: Verbs.download
         case .downloading: String(localized: "Downloading")
-        case .downloaded: String(localized: "Downloaded")
+        case .paused: String(localized: "Paused")
+        case .downloaded: Verbs.downloaded
         }
     }
 
     /// "40 percent" while downloading; "" otherwise.
     var percentText: String {
-        guard case .downloading(let fraction) = self else { return "" }
-        return String(localized: "\(Int((fraction * 100).rounded())) percent")
+        switch self {
+        case .downloading(let fraction), .paused(let fraction):
+            String(localized: "\(Int((fraction * 100).rounded())) percent")
+        default: ""
+        }
     }
 }
 
 /// Download progress, drawn one way app-wide (rings mean listening only): an outline ↓ before it
-/// downloads, the circle filling with `tint` from the bottom as it downloads (the ↓ turning
-/// white where the fill has reached it), a grey filled ✓ once downloaded. A folder header's
-/// Download control, a download in the Downloads list (grey while paused), a voice model in
-/// Settings. Only draws; the caller makes it a button.
+/// downloads, the circle filling with the accent from the bottom as it downloads (the ↓ turning
+/// white where the fill has reached it), the same in grey while paused, a grey filled ✓ once
+/// downloaded. A folder header's Download control, a download in the Downloads list, a voice
+/// model in Settings. Only draws; the caller makes it a button.
 ///
 /// | notDownloaded | downloading(0.4) | downloaded |
 /// |---|---|---|
@@ -44,8 +59,6 @@ enum DownloadState: Equatable {
 struct DownloadMark: View {
     let state: DownloadState
     var size: CGFloat = Glyph.control
-    /// The fill and outline while downloading (`Palette.secondaryInk` for a paused download).
-    var tint: Color = Palette.accent
 
     var body: some View {
         ZStack {
@@ -53,17 +66,19 @@ struct DownloadMark: View {
             case .notDownloaded:
                 Circle().strokeBorder(Palette.secondaryInk, lineWidth: lineWidth)
                 arrow.foregroundStyle(Palette.secondaryInk)
-            case .downloading(let fraction):
+            case .downloading(let fraction), .paused(let fraction):
                 let filled = size * min(max(fraction, 0), 1)
+                let tint = state.isPaused ? Palette.secondaryInk : Palette.accent
                 Circle().strokeBorder(tint, lineWidth: lineWidth)
                 Circle().fill(tint).mask(alignment: .bottom) { Rectangle().frame(height: filled) }
                 arrow.foregroundStyle(tint)
                 arrow.foregroundStyle(Palette.onAccent).mask(alignment: .bottom) { Rectangle().frame(height: filled) }
             case .downloaded:
-                Circle().fill(Palette.secondaryInk)
-                Image(systemName: Icons.checkmark)
-                    .font(.system(size: size * 0.45, weight: .bold))
-                    .foregroundStyle(Palette.paper)
+                Image(systemName: Icons.downloaded)
+                    .resizable()
+                    .scaledToFit()
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Palette.secondaryInk)
             }
         }
         .frame(width: size, height: size)
@@ -92,8 +107,8 @@ struct DownloadMarkGallery: View {
                     DownloadMark(state: .downloaded)
                 }
             }
-            PreviewState("paused at 60% (Downloads list)") {
-                DownloadMark(state: .downloading(fraction: 0.6), tint: Palette.secondaryInk)
+            PreviewState("paused at 60%") {
+                DownloadMark(state: .paused(fraction: 0.6))
             }
             PreviewState("small (a voice model in Settings)") {
                 DownloadMark(state: .downloading(fraction: 0.3), size: 24)

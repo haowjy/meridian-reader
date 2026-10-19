@@ -47,15 +47,15 @@ struct FolderDetailsSheet: View {
                     EmptyView()
                 } header: {
                     coverPreview
-                        .libraryHeader()
+                        .listHeader()
                 }
-                field(String(localized: "Name"), text: $name, prompt: String(localized: "Name"), id: "detailsName")
+                field(Verbs.name, text: $name, prompt: Verbs.name, id: "detailsName")
                 field(String(localized: "Author"), text: $byline, prompt: String(localized: "Optional"), id: "detailsAuthor")
                 Section {
                     choice(String(localized: "Choose from Photos"), Icons.photos, id: "detailsCoverPhotos") {
                         isPickingPhoto = true
                     }
-                    choice(String(localized: "Choose from Files"), Icons.folder, id: "detailsCoverFiles") { pickFile() }
+                    choice(String(localized: "Choose from Files"), Icons.files, id: "detailsCoverFiles") { pickFile() }
                     if cover != nil {
                         choice(String(localized: "Remove Cover"), Icons.delete, id: "detailsRemoveCover") {
                             withAnimation(Motion.snappy) { cover = nil }
@@ -63,19 +63,19 @@ struct FolderDetailsSheet: View {
                     }
                 } header: {
                     SectionHeader(title: String(localized: "Cover"))
-                        .libraryHeader()
+                        .listHeader()
                 }
                 .listRowInsets(EdgeInsets())
-                .listRowBackground(Palette.chrome)
+                .listCard()
             }
-            .libraryListStyle()
-            .navigationTitle(String(localized: "Edit Details"))
+            .cardListStyle()
+            .navigationTitle(Verbs.title(Verbs.editDetails))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 SheetBarButton(Verbs.cancel, placement: .cancellationAction, identifier: "detailsCancel") {
                     shell.sheet = nil
                 }
-                SheetBarButton(String(localized: "Save"), placement: .confirmationAction, identifier: "detailsSave",
+                SheetBarButton(Verbs.save, placement: .confirmationAction, identifier: "detailsSave",
                                isDisabled: isPreparingCover) { save() }
             }
         }
@@ -125,26 +125,16 @@ struct FolderDetailsSheet: View {
                 .accessibilityIdentifier(id)
         } header: {
             SectionHeader(title: title)
-                .libraryHeader()
+                .listHeader()
         }
         .listRowInsets(EdgeInsets())
-        .listRowBackground(Palette.chrome)
+        .listCard()
     }
 
     private func choice(_ title: String, _ symbol: String, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: Spacing.s) {
-                Image(systemName: symbol)
-                    .foregroundStyle(Palette.ink)
-                    .frame(width: ListRow.leadingWidth)
-                Text(title)
-                    .typeStyle(.row)
-                    .foregroundStyle(Palette.ink)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, Spacing.m)
-            .frame(minHeight: BottomChrome.minTapTarget)
-            .contentShape(Rectangle())
+            SymbolRow(title, symbol: symbol)
+                .padding(.horizontal, Spacing.m)
         }
         .buttonStyle(.plain)
         .disabled(isPreparingCover)

@@ -67,4 +67,11 @@ extension LibraryStore {
         }
         commit("visit")
     }
+
+    /// History's *Remove from History*: the visit goes from History (and the address field's
+    /// suggestions); nothing else about the page changes.
+    func removeVisit(_ visit: RecentVisit) {
+        context.delete(visit)
+        commit("remove visit")
+    }
 }

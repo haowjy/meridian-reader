@@ -50,6 +50,11 @@ enum ReadingStyle {
         /// *Match App* in Jade, light, at the default type: what a page shows before it is told.
         static let standard = Look(colors: Colors(ReadingTheme.matchApp.palette(accent: .jade), scheme: .light))
 
+        /// A body text line's height on the page at `sizes`.
+        func lineHeight(_ sizes: Sizes) -> CGFloat {
+            sizes.body.rounded() * textScale * lineSpacing.multiple
+        }
+
         var cssVariables: String {
             colors.cssVariables + " --font: \(font.cssFamily); --leading: \(lineSpacing.multiple);"
                 + " --scale: \(String(format: "%.2f", textScale));"

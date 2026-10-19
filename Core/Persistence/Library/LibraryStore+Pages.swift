@@ -56,7 +56,7 @@ extension LibraryStore {
     /// and unfinished, and a page in a folder becomes its folder's place. The first play of a page
     /// the library doesn't have keeps it as a page not in the Library (`addedAt == nil`), so it
     /// survives a relaunch for 7 days; a link page in the Library keeps the text as a cache. A
-    /// page removed from the Library is played without saving again: History lists it
+    /// page removed from the Library is played without saving again: Recent lists it
     /// (`removedAt` cleared), as for any page you listen to. This and the writes below are kept
     /// until a save stores them (`PendingListening`): a rollback doesn't lose them.
     @discardableResult
@@ -92,7 +92,7 @@ extension LibraryStore {
                 textNotStored = true
             }
             // Out of the Library, a page holding a play's text is a played page, never a link (a
-            // link removed before it held text gets it here), so History can list it.
+            // link removed before it held text gets it here), so Recent can list it.
             if !page.isInLibrary, page.hasText { page.contentState = .saved }
         } else {
             page = Page(key: article.id, title: article.title, byline: article.sourceLabel,
@@ -200,9 +200,9 @@ extension LibraryStore {
 
     // MARK: - Removing and deleting
 
-    /// *Remove from Library*, whichever path asks (a row's menu and swipe, *Remove from History*, Edit's *Remove*, 🔖 and
+    /// *Remove from Library*, whichever path asks (a row's menu and swipe, *Remove from Recent*, Edit's *Remove*, 🔖 and
     /// the ⋯ of the browser, the Reader and Now Playing), all of `pages` in one save: each leaves
-    /// its folder and every Library list it was in (`addedAt = nil`, `removedAt` now), History
+    /// its folder and every Library list it was in (`addedAt = nil`, `removedAt` now), Recent
     /// included (`LibraryQueries`), and once that is saved its audio turns ephemeral
     /// (`plan(.ephemeral, key:)`). The star stays, and with it the page's place in Favorites. A
     /// save puts it back in the Library. Nothing is deleted here: the launch prune deletes a
@@ -254,7 +254,7 @@ extension LibraryStore {
         context.delete(page)
     }
 
-    /// *Delete Downloads*: the page's audio only; the page stays saved.
+    /// *Remove Downloads*: the page's audio only; the page stays saved.
     func deleteDownloads(_ page: Page) {
         guard let key = page.key else { return }
         try? audio.clearListenAudio(for: key)

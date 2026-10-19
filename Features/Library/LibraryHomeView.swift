@@ -1,12 +1,12 @@
 import SwiftData
 import SwiftUI
 
-/// The Library home: the Everything / Favorites / History tab (`ShellState.homeTab`) above one
+/// The Library home: the Everything / Favorites / Recent tab (`ShellState.homeTab`) above one
 /// mixed list of folders and pages. Everything is the top level of the Library: its folders, then
 /// the pages in no folder in the top level's sort. Favorites is the starred folders and pages from
-/// anywhere in the tree, in the Library or not. History is the pages played without saving, most
-/// recent first (no folders). The band's search (`ShellState.librarySearch`) searches the selected
-/// tab, folders then pages, each by title. Which items each shows is `LibraryQueries`'. A favorite
+/// anywhere in the tree, in the Library or not. Recent is the pages played without saving, most
+/// recent first (no folders). The band's search (`ShellState.librarySearch`), begun on the home,
+/// searches the selected tab, folders then pages, each by title. Which items each shows is `LibraryQueries`'. A favorite
 /// keeps its location; filtered (a tab other than Everything, or a search) a row shows where it
 /// is (`LibraryScreenKey.filtered`).
 struct LibraryHomeView: View {
@@ -36,9 +36,9 @@ struct LibraryHomeView: View {
         case .favorites:
             _queriedFolders = Query(LibraryQueries.favoriteFolders)
             _queriedPages = Query(LibraryQueries.favoritePages)
-        case .history:
+        case .recent:
             _queriedFolders = Query(LibraryQueries.noFolders)
-            _queriedPages = Query(LibraryQueries.history)
+            _queriedPages = Query(LibraryQueries.recent)
         }
     }
 
@@ -62,18 +62,13 @@ struct LibraryHomeView: View {
             Section {
                 EmptyView()
             } header: {
-                Text("Library")
-                    .typeStyle(.title, design: .default)
-                    .foregroundStyle(Palette.ink)
-                    .accessibilityAddTraits(.isHeader)
+                ScreenTitle(Verbs.library)
                     .accessibilityIdentifier("libraryTitle")
-                    .libraryHeader()
+                    .listHeader()
             }
             Section {
                 Picker("Library view", selection: $shell.homeTab) {
-                    Text("Everything").tag(LibraryHomeTab.everything)
-                    Text("Favorites").tag(LibraryHomeTab.favorites)
-                    Text("History").tag(LibraryHomeTab.history)
+                    ForEach(LibraryHomeTab.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("libraryTabs")
@@ -85,12 +80,12 @@ struct LibraryHomeView: View {
                     LibraryFolderRow(folder: folder)
                 }
                 .listRowInsets(EdgeInsets())
-                .listRowBackground(Palette.chrome)
+                .listCard()
                 ForEach(pages, id: \.listenKey) { page in
                     LibraryPageRow(page: page)
                 }
                 .listRowInsets(EdgeInsets())
-                .listRowBackground(Palette.chrome)
+                .listCard()
             }
             if folders.isEmpty && pages.isEmpty {
                 Section { emptyState }
@@ -98,11 +93,11 @@ struct LibraryHomeView: View {
                     .listRowBackground(Color.clear)
             }
         }
-        .libraryListStyle()
+        .cardListStyle()
         .statusBarBacking()
-        .environment(\.libraryScreenKey, isFiltered ? .filtered : .home)
+        .environment(\.libraryScreenKey, isFiltered ? .filtered(under: nil) : .home)
         .animation(Motion.standard, value: pages.map(\.listenKey))
-        .navigationTitle("Library")
+        .navigationTitle(Verbs.library)
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityIdentifier("libraryHome")
     }
@@ -113,12 +108,12 @@ struct LibraryHomeView: View {
             ContentUnavailableView.search(text: searchText)
                 .listRowBackground(Color.clear)
         } else if tab == .favorites {
-            ContentUnavailableView("No Favorites Yet", systemImage: Icons.favorite,
-                                  description: Text("Star a folder or page to find it here."))
+            EmptyState(String(localized: "No Favorites Yet"), symbol: Icons.favorite,
+                       description: String(localized: "Star a folder or page to find it here."))
                 .listRowBackground(Color.clear)
-        } else if tab == .history {
-            ContentUnavailableView("No History Yet", systemImage: Icons.history,
-                                  description: Text("Pages you listen to without saving show up here."))
+        } else if tab == .recent {
+            EmptyState(String(localized: "No Recent Pages Yet"), symbol: Icons.recent,
+                       description: String(localized: "Listen to a page without saving it to find it here."))
                 .listRowBackground(Color.clear)
         } else {
             emptyCard
@@ -129,27 +124,19 @@ struct LibraryHomeView: View {
 
     /// An empty Everything: what the toolbar does, with the two first-run actions.
     private var emptyCard: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            Text("Find something to listen to")
-                .typeStyle(.row, weight: .semibold)
-                .foregroundStyle(Palette.ink)
-            Text("Tap \(Text.symbol(Icons.browser)) to find a page, or \(Text.symbol(Icons.add)) to import a book. Pages you save, books you import and folders you make show up here.")
-                .typeStyle(.row)
-                .foregroundStyle(Palette.secondaryInk)
+        EmptyState(String(localized: "Find Something to Listen To"), symbol: Icons.library,
+                   description: Text("Tap \(Text.symbol(Icons.browser)) to find a page, or \(Text.symbol(Icons.add)) to import a book. Pages you save, books you import and folders you make show up here.")) {
             ActionButtonRow { fit in
-                PillButton(String(localized: "Browse the web"), shortTitle: String(localized: "Browse"),
+                PillButton(String(localized: "Browse the Web"), shortTitle: String(localized: "Browse"),
                            systemImage: Icons.browser, style: .filled, fit: fit) { shell.leaveLibrary() }
                     .accessibilityIdentifier("libraryEmptyBrowse")
-                PillButton(String(localized: "Import a book"), shortTitle: String(localized: "Import"),
+                PillButton(Verbs.importBook, shortTitle: Verbs.import,
                            systemImage: Icons.book, style: .neutral, fit: fit) {
                     BookImportActions(library: library, shell: shell).pickBook(into: nil)
                 }
                 .accessibilityIdentifier("libraryEmptyImport")
             }
         }
-        .padding(Spacing.m)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("libraryEmpty")
     }
@@ -171,18 +158,6 @@ enum LibraryTopLevel {
 }
 
 extension View {
-    /// A section header in the Library's lists: in line with the cards (no extra header inset).
-    func libraryHeader() -> some View {
-        textCase(nil)
-            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: Spacing.xs, trailing: 0))
-    }
-
-    /// A section footer in the Library's lists (a note under a card): in line with the cards.
-    func libraryFooter() -> some View {
-        textCase(nil)
-            .listRowInsets(EdgeInsets(top: Spacing.xs, leading: 0, bottom: 0, trailing: 0))
-    }
-
     /// A screen with no navigation bar (the Library home): paper behind the status bar, so rows
     /// scrolled up pass under it rather than under the clock.
     func statusBarBacking() -> some View {
@@ -196,15 +171,26 @@ extension View {
                 .accessibilityHidden(true)
         }
     }
+}
 
-    /// The Library's lists: grouped cards on paper, at the page margin, `Spacing.l` between
-    /// sections.
-    func libraryListStyle() -> some View {
-        listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(Palette.paper)
-            .contentMargins(.horizontal, Spacing.pageMargin, for: .scrollContent)
-            .listSectionSpacing(Spacing.l)
-            .environment(\.defaultMinListRowHeight, 0)
+extension LibraryHomeTab {
+    /// Its name in the tabs.
+    var title: String {
+        switch self {
+        case .everything: String(localized: "Everything")
+        case .favorites: Verbs.favorites
+        case .recent: String(localized: "Recent")
+        }
+    }
+
+    /// The band's search field: it searches the tab on screen only (Y11), so it names it.
+    var searchPrompt: String {
+        Self.searchPrompt(naming: self == .everything ? Verbs.library : title)
+    }
+
+    /// "Search Favorites", "Search Demo Finance": the band's field names what it searches, the
+    /// home's tab or a folder.
+    static func searchPrompt(naming place: String) -> String {
+        String(localized: "Search \(place)")
     }
 }

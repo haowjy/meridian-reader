@@ -3,9 +3,9 @@ import SwiftUI
 /// A page row: a saved page, a link (lighter, 🔗), a followed story's chapter waiting for its
 /// text (a link with its status: "Fetching text…", "Retrying in 1:52", "Waiting"), or a page
 /// played without saving. Every page uses this same row, including imported chapters: two lines,
-/// the title and then its status (decision D21). In a folder the second line is the status alone
-/// ("5 min", "Skipped", "Playing"): the folder's header already names the author or site, so
-/// rows don't repeat it. Front matter is dimmed and "Skipped" (any page skipped in playback is).
+/// the title and then its site and status (decision D21). In a book or series the second line is
+/// the status alone ("5 min", "Skipped", "Playing"): its header already names the author or site,
+/// so rows don't repeat it. Front matter is dimmed and "Skipped" (any page skipped in playback is).
 ///
 /// Tapping the row plays it (`LibraryActions.play`; a waiting chapter is fetched first), except
 /// the page you hear, which opens Now Playing, so a stray tap never pauses it, and a link that
@@ -35,11 +35,11 @@ struct LibraryPageRow: View {
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
     private var dragID: LibraryItemID? {
-        guard screenKey != .filtered, !isEditing, page.isInLibrary else { return nil }
+        guard !screenKey.isFiltered, !isEditing, page.isInLibrary else { return nil }
         return .page(page.listenKey)
     }
     /// ★ after a favorite's title, except in the Favorites list, where every row is one.
-    private var marksFavorite: Bool { !(screenKey == .filtered && shell.homeTab == .favorites) }
+    private var marksFavorite: Bool { !(screenKey == .filtered(under: nil) && shell.homeTab == .favorites) }
 
     var body: some View {
         if !page.isLive {
@@ -71,7 +71,9 @@ struct LibraryPageRow: View {
     }
 
     private var menu: PageMenu {
-        PageMenu(page: page, actions: actions, downloads: downloads, onSelect: onSelect)
+        PageMenu(actions: PageActions(page: page, library: library, shell: shell, speech: speech, downloads: downloads,
+                                      follow: follow),
+                 place: .list(onSelect: onSelect))
     }
 
     private var playState: PlayState {
@@ -91,28 +93,26 @@ struct LibraryPageRow: View {
             .libraryDrag(dragID, in: screen)
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                // In the Library: *Remove* from it; in History: from History. The same remove.
-                if page.isInLibrary || LibraryQueries.isInHistory(page) {
-                    // The row leaves every list once the remove is stored; a save that fails keeps
-                    // it, with a toast. So not `.destructive`, which takes the row out first
-                    // (`Palette.destructive`).
-                    Button("Remove") { actions.remove([page]) }
-                        .tint(Palette.destructive)
-                }
+                // The menu's remove: *Remove from Library* in the Library, *Remove from Recent* in
+                // Recent. The row leaves every list once the remove is stored; a save that fails
+                // keeps it, with a toast. So no role, which would take the row out first.
+                menu.rows.swipeRow("menuSave", "menuRemoveFromRecent")?.swipeButton()
             }
     }
 
     private var kind: ListRow.Kind {
         if page.isLink { return .link }
-        return .page(artwork: page.artworkImage, letter: page.byline.siteLetter)
+        return .page(artwork: page.artworkImage, letter: page.artworkLetter)
     }
 
-    /// Its folder's path on the filtered home, which gathers rows from every folder; elsewhere
-    /// its site, and nothing in a folder, whose header names it. Untitled, its title line is
-    /// already its site.
+    /// Where it is on a filtered list, which gathers rows from many folders (its folder's path, on
+    /// a folder's search from below it); elsewhere its site, as everywhere else, but nothing in a
+    /// book or series, whose header names the source once (a folder you made mixes sites).
+    /// Untitled, its title line is already its site.
     private var subtitle: String? {
-        if let folder = page.folder { return screenKey == .filtered ? folder.pathName : nil }
-        return page.byline.isEmpty || page.givenTitle == nil ? nil : page.byline
+        if let place = screenKey.place(of: page.folder) { return place }
+        if page.isChapter { return nil }
+        return PageTitle.lineTwoSource(title: page.givenTitle, source: page.byline)
     }
 }
 
@@ -139,32 +139,34 @@ struct LibraryFolderRow: View {
     @Environment(LibraryScreenState.self) private var screen
     @Environment(\.editMode) private var editMode
     @Environment(\.libraryScreenKey) private var screenKey
+    /// Its menu's *Turn Off Download* asked: the question shows by its ⋯.
+    @State private var turningOff: Folder?
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
     private var isEditing: Bool { editMode?.wrappedValue.isEditing == true }
-    private var isFiltered: Bool { screenKey == .filtered }
-    /// Its parents' path on the filtered home (nil for a folder at the top level).
-    private var location: String? { isFiltered ? folder.parent?.pathName : nil }
+    private var isFiltered: Bool { screenKey.isFiltered }
+    /// Where it is on a filtered list (`LibraryScreenKey.place(of:)`; nil at the top level).
+    private var location: String? { screenKey.place(of: folder.parent) }
     /// ★ after a favorite's title, except in the Favorites list, where every row is one.
-    private var marksFavorite: Bool { !(isFiltered && shell.homeTab == .favorites) }
+    private var marksFavorite: Bool { !(screenKey == .filtered(under: nil) && shell.homeTab == .favorites) }
 
     var body: some View {
         if folder.isLive { liveBody } else { DeletedRow() }
     }
 
     @ViewBuilder private var liveBody: some View {
-        let pages = playOrder
+        let pages = folder.playOrder
         let progress = actions.progress(of: folder, pages: pages)
-        let menu = FolderMenu(folder: folder, progress: progress, hasPages: !pages.isEmpty, actions: actions,
-                              downloads: downloads, screen: screen, onSelect: onSelect)
+        let menu = FolderMenu(folder: folder, pages: pages, actions: actions, downloads: downloads, screen: screen,
+                              onTurnOffDownload: { turningOff = folder }, onSelect: onSelect)
         opening(row(progress, download: downloads.state(of: folder, pages: pages), menu: isEditing ? nil : AnyView(menu)))
             .accessibilityIdentifier("folderRow")
             .libraryDropRow(.folder(folder.id), in: screen)
             .libraryDrag(isEditing || isFiltered ? nil : .folder(folder.id), in: screen)
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                Button("Delete") { screen.confirmDelete([folder]) }
-                    .tint(Palette.destructive)
+                // The menu's *Delete Folder…*: it asks first, so the row can stay (no role).
+                menu.rows.swipeRow("menuDeleteFolder")?.swipeButton()
             }
     }
 
@@ -185,19 +187,6 @@ struct LibraryFolderRow: View {
         }
     }
 
-    /// Its pages in play order, from the relationship (sorted here as `LibraryStore.pages(in:)`
-    /// sorts, so a home with a long series doesn't fetch on every redraw).
-    private var playOrder: [Page] {
-        livePages.sorted(using: LibraryQueries.sortDescriptors(folder.pageSort))
-    }
-
-    /// Its pages still in the store: a delete being saved (a book with its chapters) redraws the
-    /// row once more while the relationship still holds pages whose data is gone, and reading
-    /// one then traps (`isLive`).
-    private var livePages: [Page] {
-        (folder.pages ?? []).filter(\.isLive)
-    }
-
     private func row(_ progress: FolderProgress, download: DownloadState, menu: AnyView?) -> some View {
         let plays = progress.hasPagesToPlay
         let kind = ListRow.Kind.folder(symbol: folder.rowSymbol, count: plays ? [] : contents,
@@ -208,16 +197,17 @@ struct LibraryFolderRow: View {
                        isDropTarget: screen.dropTarget == folder.id,
                        insertionEdge: screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil,
                        download: download, isFavorite: marksFavorite && folder.isFavorite,
-                       folderHasDetails: folder.hasDetails, menu: menu)
+                       folderHasDetails: folder.hasDetails, menu: menu,
+                       menuAnchor: AnyView(Color.clear.turnOffDownloadQuestion($turningOff)))
     }
 
     /// What is in it, as its screen's header counts it: ["2 folders", "3 pages"]; ["Empty"].
     private var contents: [String] {
         let folders = (folder.children ?? []).filter(\.isLive).count
-        let pages = livePages.count
+        let pages = folder.livePages.count
         var parts: [String] = []
         if folders > 0 { parts.append(String(localized: "\(folders) folder\(folders == 1 ? "" : "s")")) }
-        if pages > 0 { parts.append(String(localized: "\(pages) page\(pages == 1 ? "" : "s")")) }
+        if pages > 0 { parts.append(folder.itemCount(pages)) }
         return parts.isEmpty ? [String(localized: "Empty")] : parts
     }
 
@@ -225,7 +215,7 @@ struct LibraryFolderRow: View {
     /// byline: a book's author, a series' site, the author given in its details.
     private func place(_ progress: FolderProgress) -> String? {
         guard progress.hasStarted, !progress.isFinished, let key = progress.currentKey else { return folder.byline }
-        return livePages.first { $0.listenKey == key }?.givenTitle ?? folder.byline
+        return folder.livePages.first { $0.listenKey == key }?.givenTitle ?? folder.byline
     }
 
     /// Finished when every page that plays is (pages added later play on from it).
@@ -267,20 +257,34 @@ extension Page {
 }
 
 extension Folder {
-    /// "Finance › Bonds": the folders from the top level down to this one.
-    var pathName: String {
-        (ancestors.reversed() + [self]).map(\.name).joined(separator: " › ")
+    /// Its pages in play order, from the relationship (sorted here as `LibraryStore.pages(in:)`
+    /// sorts, so a home with a long series doesn't fetch on every redraw).
+    var playOrder: [Page] {
+        livePages.sorted(using: LibraryQueries.sortDescriptors(pageSort))
+    }
+
+    /// Its pages still in the store: a delete being saved (a book with its chapters) redraws a
+    /// row once more while the relationship still holds pages whose data is gone, and reading
+    /// one then traps (`isLive`).
+    var livePages: [Page] {
+        (pages ?? []).filter(\.isLive)
+    }
+
+    /// What its pages are called in a count: "chapters" in a book or series, "pages" in any
+    /// other folder (its row, its header, Downloads).
+    var itemNoun: String {
+        kind.isBookOrSeries ? String(localized: "chapters") : String(localized: "pages")
+    }
+
+    /// "3 pages", "1 chapter": `count` of its pages, by `itemNoun`.
+    func itemCount(_ count: Int) -> String {
+        if kind.isBookOrSeries {
+            return count == 1 ? String(localized: "1 chapter") : String(localized: "\(count) chapters")
+        }
+        return count == 1 ? String(localized: "1 page") : String(localized: "\(count) pages")
     }
 
     var coverImage: Image? {
         coverData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))
-    }
-}
-
-extension String {
-    /// The letter a site's tile shows without an icon: "investopedia.com" → "I".
-    var siteLetter: String {
-        let host = hasPrefix("www.") ? String(dropFirst(4)) : self
-        return host.first(where: { $0.isLetter || $0.isNumber }).map { String($0).uppercased() } ?? "?"
     }
 }

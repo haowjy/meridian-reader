@@ -93,7 +93,7 @@ final class AppleListenEngine: NSObject, ListenEngine, AVSpeechSynthesizerDelega
 
     var debug: ListenEngineDebug {
         ListenEngineDebug(isSpeaking: synthesizer.isSpeaking, isPaused: synthesizer.isPaused,
-                          renderMode: "Apple TTS (AVSpeechSynthesizer) · \(runState.phase.rawValue)")
+                          renderMode: "Apple TTS (AVSpeechSynthesizer), \(runState.phase.rawValue)")
     }
 
     // MARK: - AVSpeechSynthesizerDelegate

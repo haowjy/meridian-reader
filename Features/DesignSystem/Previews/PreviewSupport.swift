@@ -89,7 +89,7 @@ struct SampleReading: View {
         let other = spoken ? palette.dimInk : palette.ink
         VStack(alignment: .leading, spacing: Spacing.m) {
             if card {
-                TitleCard(title: title, detail: detail, artworkLetter: title, palette: palette)
+                TitleCard(title: title, detail: detail.map { DetailPart($0) }, artworkLetter: title, palette: palette)
                     .padding(.horizontal, Spacing.m - Spacing.pageMargin)
                     .padding(.bottom, Spacing.l - Spacing.m)
             } else {

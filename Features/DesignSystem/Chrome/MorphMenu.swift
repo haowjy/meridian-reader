@@ -52,6 +52,9 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
     @State private var flingCollapse: Animation?
     /// The focus icon's center in panel coordinates (unscaled).
     @State private var focus: CGPoint?
+    /// The status bar's height, read where the safe area still applies (the panel's layer
+    /// ignores it).
+    @State private var statusBarHeight: CGFloat = 0
 
     private var isPresented: Bool { item != nil }
 
@@ -80,6 +83,9 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
                         panelView(shown, buttonSize: local.size)
                             .padding(.trailing, trailing)
                             .padding(.bottom, bottom)
+                            // A panel taller than the room above the ⋯ stops below the status
+                            // bar; its rows scroll (`MoreMenuPanel`).
+                            .padding(.top, statusBarHeight + Spacing.xs)
                     }
                     .frame(width: geo.size.width, height: geo.size.height, alignment: .bottomTrailing)
                     .accessibilityElement(children: .contain)
@@ -101,6 +107,7 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
             }
         }
         .onAppear { if isPresented { present() } }
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusBarHeight = $0 }
     }
 
     /// Trailing / bottom distance from the container's edges to the panel.
@@ -436,7 +443,7 @@ private struct MorphMenuSamplePanel: View {
             HStack {
                 ForEach([("Favorites", Icons.favorite), ("History", Icons.history), ("Reader", Icons.reader)], id: \.0) { t, i in
                     VStack(spacing: Spacing.xs) {
-                        Image(systemName: i).font(.title3)
+                        Image(systemName: i).tileSymbol()
                         Text(t).typeStyle(.caption)
                     }
                     .foregroundStyle(Palette.ink)

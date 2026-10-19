@@ -14,6 +14,9 @@ import WebKit
 ///   posts `layout`): the page holding the first character of the page shown (`start`) is shown
 ///   again, or the one holding what the coordinator holds (`heldSpot`: the spoken sentence while
 ///   the text goes there, a scrubbed paragraph).
+/// - Following the audio, the page holding the spoken sentence shows, and the page turns when the
+///   spoken word reaches the next page's first character (`nextStart`), so a sentence running
+///   over a page break turns the page as the voice crosses it.
 /// - A tap at either edge turns one page at once; a vertical drag turns one page its way and
 ///   snaps there on release, on the `Motion.standard` spring. A pull down on the first page
 ///   behaves as at the top in Scroll mode (the scroll view's own pull hand-off).
@@ -47,7 +50,11 @@ final class ReadingPages {
     }
 }
 
-extension ReadingPages.Spot {
+extension ReadingPages.Spot: Comparable {
+    static func < (a: Self, b: Self) -> Bool {
+        (a.paragraph, a.offset) < (b.paragraph, b.offset)
+    }
+
     /// The spoken sentence's first character (its paragraph's, before the sentence is known).
     init(_ spoken: (paragraph: Int, sentence: ReaderSentence?)) {
         self.init(paragraph: spoken.paragraph, offset: spoken.sentence?.start ?? 0)
@@ -72,6 +79,9 @@ final class PagesTextLayout: ReadingTextLayout {
     private var viewportHeight: CGFloat = 0
     /// The room the page has below its text for the last page to reach the top.
     private var room: CGFloat = 0
+    /// The first character of the page after the one shown; nil on the last page, or until
+    /// looked up.
+    private var nextStart: ReadingPages.Spot?
 
     init(host: HTMLReadingWebView.Coordinator, model: ReadingPages, footer: CGFloat) {
         self.host = host
@@ -100,6 +110,7 @@ final class PagesTextLayout: ReadingTextLayout {
     func reset() {
         model.reset()
         pagination = nil
+        nextStart = nil
         remeasure = false
         placesHold = false
         room = 0
@@ -109,6 +120,7 @@ final class PagesTextLayout: ReadingTextLayout {
         guard let sv = scrollView else { return }
         model.reset()
         pagination = nil
+        nextStart = nil
         sv.contentOffset = CGPoint(x: 0, y: -sv.contentInset.top)
         measure(placesHold: true)
     }
@@ -132,6 +144,11 @@ final class PagesTextLayout: ReadingTextLayout {
         let index = pagination.index(holding: top)
         if index != model.shown?.index { show(page: index) }
         return true
+    }
+
+    func follow(word: ReadingPages.Spot) {
+        guard let shown = model.shown, let nextStart, word >= nextStart else { return }
+        show(page: shown.index + 1)
     }
 
     func turn(forward: Bool) -> Bool {
@@ -286,12 +303,19 @@ final class PagesTextLayout: ReadingTextLayout {
         } else {
             sv.contentOffset = offset
         }
-        // Unless something else (a hand-over, the mode switch) sets the line to keep meanwhile.
+        // The page's first character, unless something else (a hand-over, the mode switch) sets
+        // the line to keep meanwhile, and the next page's.
         let generation = host.loadGeneration, before = model.start
-        webView.evaluateJavaScript("window.__readerAnchor(\(Double(page.top)))") { [weak self] result, _ in
+        let next = pagination.pages.indices.contains(i + 1)
+            ? "window.__readerAnchor(\(Double(pagination.pages[i + 1].top)))" : "null"
+        nextStart = nil
+        webView.evaluateJavaScript("[window.__readerAnchor(\(Double(page.top))), \(next)]") { [weak self] result, _ in
             guard let self, generation == host.loadGeneration, host.layout === self, model.shown?.index == i,
-                  model.start == before, let spot = Self.spot(result) else { return }
-            model.start = spot
+                  let parts = result as? [Any], parts.count == 2 else { return }
+            if model.start == before, let spot = Self.spot(parts[0]) { model.start = spot }
+            nextStart = Self.spot(parts[1])
+            // The voice may be there already.
+            if host.follows, let word = host.spokenWord { follow(word: word) }
         }
     }
 
@@ -302,8 +326,9 @@ final class PagesTextLayout: ReadingTextLayout {
 }
 
 /// What Pages mode draws over the text: the page's colour above and below the page shown, and
-/// the footer at the foot, above the home indicator: "Page 3 of 9   2 min left in chapter", the
-/// parts set apart by space (`DetailLine`). It takes no touches: taps reach the text under it.
+/// the footer at the foot, above the home indicator: "Page 3 of 9   2 min left" (a chapter's says
+/// "2 min left in chapter"), the parts set apart by space (`DetailLine`). It takes no touches:
+/// taps reach the text under it.
 /// Its height goes to the chrome (`pageFooter`), so what floats over the text sits above it.
 struct ReadingPageFrame: View {
     let pages: ReadingPages

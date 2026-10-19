@@ -15,6 +15,8 @@ struct BrowseStartView: View {
     @Environment(FollowCenter.self) private var follow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
+    /// The Favorites tiles' folder menus: their Rename and Delete questions.
+    @State private var favoritesScreen = LibraryScreenState()
 
     /// Once true, the browse WKWebView stays in the tree (history / back-forward). Starts false so
     /// cold launch on the start page never creates WebKit GPU/WebContent processes.
@@ -143,8 +145,7 @@ struct BrowseStartView: View {
     private var bottomChrome: some View {
         let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
         return PageLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
-            let actions = PageActions(url: webPage, page: page, library: library, shell: shell, speech: speech,
-                                      downloads: downloads, follow: follow)
+            let actions = pageActions(page)
             BrowserBottomChrome(
                 speech: speech,
                 dictation: dictation,
@@ -153,9 +154,9 @@ struct BrowseStartView: View {
                 onListen: listen,
                 onSubmit: { submit(search.text) },
                 onMic: toggleDictation,
-                onToggleSave: { toggleSaved(actions) },
-                onSaveToFolder: saveToLibrary,
-                menu: { .browse(browseMenu(actions), perform: { perform($0, actions) }) }
+                onToggleSave: actions.toggleSaved,
+                onSaveToFolder: actions.saveToFolder,
+                menu: { menu(actions) }
             )
         }
         .overlay(alignment: .top) { DownloadProgressEdge() }
@@ -218,36 +219,35 @@ struct BrowseStartView: View {
 
     // MARK: - ⋯ menu
 
-    private func browseMenu(_ actions: PageActions) -> BrowseMenu {
-        BrowseMenu(
-            isSaved: actions.isSaved,
-            isFavorite: actions.isFavorite,
-            save: MenuAvailability(when: hasPage && shell.busy == nil),
-            favorite: MenuAvailability(when: actions.canFavorite),
-            follow: MenuAvailability(when: webStore.currentURL?.isWebOrTestPage == true),
-            share: MenuAvailability(when: actions.shareURL != nil),
-            reload: MenuAvailability(when: hasPage),
-            reader: MenuAvailability(when: canOpenReader)
-        )
+    /// The page the browser shows, as every menu sees a page (`PageActions`): saved by extracting
+    /// it first (⋯ spins), starred with the web view's title and icon.
+    private func pageActions(_ libraryPage: Page?) -> PageActions {
+        let service = page
+        let loaded = PageActions.LoadedPage(canSave: hasPage && shell.busy == nil,
+                                            save: { folder in run { try await $0.save(in: folder) } },
+                                            toggleFavorite: service.toggleFavorite)
+        return PageActions(page: libraryPage, url: webPage, loaded: webPage == nil ? nil : loaded, library: library,
+                           shell: shell, speech: speech, downloads: downloads, follow: follow)
     }
 
-    private func perform(_ action: BrowseMenu.Action, _ actions: PageActions) {
-        switch action {
-        case .newSearch: shell.showStartPage()
-        case .openReader: run { try await $0.openInReader() }
-        case .saveToLibrary: saveToLibrary()
-        case .removeFromLibrary: actions.remove()
-        case .toggleFavorite: page.toggleFavorite()
-        case .follow:
-            guard let url = webStore.currentURL else { return }
-            shell.present(.follow(FollowFlow(url: url, parentID: nil, center: follow)))
-        case .favorites: shell.showFavorites()
-        case .reload: webStore.refresh()
-        case .share: actions.share()
-        case .settings: shell.present(.settings)
-        case .downloads: shell.present(.downloads)
-        case .history: shell.present(.history)
-        }
+    /// The browser's ⋯: the page's menu (`PageMenu`) while a page is up, then *New Search*,
+    /// *Follow…*, *Reload*, *Downloads*, *Settings*, then `[Favorites][History][Reader]`.
+    private func menu(_ actions: PageActions) -> MenuContext {
+        let screen = [
+            MenuRow(id: "moreNewSearch", title: Verbs.newSearch, icon: Icons.search, action: shell.showStartPage),
+            MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow,
+                    availability: MenuAvailability(when: webStore.currentURL?.isWebOrTestPage == true)) {
+                guard let url = webStore.currentURL else { return }
+                shell.present(.follow(FollowFlow(url: url, parentID: nil, center: follow)))
+            },
+            MenuRow(id: "moreReload", title: Verbs.reload, icon: Icons.reload,
+                    availability: MenuAvailability(when: hasPage), action: webStore.refresh),
+        ] + MenuContext.tail(shell)
+        let reader = MenuRow(id: "moreReaderToggle", title: Verbs.reader, icon: Icons.reader,
+                             availability: MenuAvailability(when: canOpenReader),
+                             accessibilityHint: Verbs.openInReader) { run { try await $0.openInReader() } }
+        return MenuContext(item: webPage == nil ? [] : PageMenu(actions: actions, place: .open).rows, screen: screen,
+                           tiles: MenuContext.tiles(shell, last: reader))
     }
 
     private var canOpenReader: Bool { hasPage && webStore.isReaderable && shell.busy == nil }
@@ -263,16 +263,22 @@ struct BrowseStartView: View {
                 onOpenFavorite: { LibraryActions(library: library, speech: speech, shell: shell, follow: follow).open($0) },
                 onOpenFavoriteFolder: { shell.showLibrary(at: library.path(to: $0)) },
                 onShowFavorites: shell.showFavorites,
-                onRemoveFavorite: { page in
-                    shell.attempt(String(localized: "Couldn’t remove from Favorites")) { try library.removeFavorite(page) }
+                pageMenu: { page in
+                    AnyView(PageMenu(actions: PageActions(page: page, library: library, shell: shell, speech: speech,
+                                                          downloads: downloads, follow: follow),
+                                     place: .elsewhere))
                 },
-                onRenameFavorite: { page, title in
-                    shell.attempt(String(localized: "Couldn’t rename")) { try library.renameFavorite(page, to: title) }
+                folderMenu: { folder, onTurnOffDownload in
+                    AnyView(FolderMenu(folder: folder, pages: folder.playOrder,
+                                       actions: LibraryActions(library: library, speech: speech, shell: shell, follow: follow),
+                                       downloads: downloads, screen: favoritesScreen, onTurnOffDownload: onTurnOffDownload))
                 },
                 onSearch: submit,
                 onClearSearches: { recentSearchesRaw = "" }
             )
             .task(id: favorites.count) { await library.backfillFavoriteIcons() }
+            // A folder tile's Rename… and Delete Folder… ask here, as the Library's do there.
+            .libraryDialogs(favoritesScreen) {}
         }
     }
 
@@ -339,25 +345,6 @@ struct BrowseStartView: View {
         }
     }
 
-    /// ⋯ → Save to Library… and 🔖 held: the Move tree, then the page is saved into the folder
-    /// picked. The tree closes on the pick, as the page is extracted first; 🔖 spins, and a save
-    /// that can't be stored says so in a toast over the browser.
-    private func saveToLibrary() {
-        shell.present(.moveTo(MoveRequest(title: String(localized: "Save to…"), current: nil) { folder in
-            run { try await $0.save(in: folder) }
-            return true
-        }))
-    }
-
-    /// 🔖: the page into the Library's top level (extracted first; 🔖 spins), or out of it when it
-    /// is saved. Held, it is ⋯ → Save to Library… (`saveToLibrary`).
-    private func toggleSaved(_ actions: PageActions) {
-        if actions.isSaved {
-            actions.remove()
-        } else {
-            run { try await $0.save(in: nil) }
-        }
-    }
 }
 
 private extension View {

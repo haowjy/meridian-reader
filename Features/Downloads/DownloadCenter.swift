@@ -142,8 +142,9 @@ final class DownloadCenter {
     func state(of page: Page) -> DownloadState {
         guard page.isInLibrary else { return .notDownloaded }
         let key = page.listenKey
-        if records.contains(where: { $0.entries.contains { $0.key == key && $0.state == .queued } }) {
-            return .downloading(fraction: 0)
+        let holding = records.filter { $0.entries.contains { $0.key == key && $0.state == .queued } }
+        if !holding.isEmpty {
+            return holding.allSatisfy(\.isPaused) ? .paused(fraction: 0) : .downloading(fraction: 0)
         }
         return isDownloaded([key]) ? .downloaded : .notDownloaded
     }
@@ -156,7 +157,8 @@ final class DownloadCenter {
     func state(of folder: Folder, pages: [Page]) -> DownloadState {
         let record = record(for: .folder(folder.id))
         if let record, record.hasQueuedPages {
-            return .downloading(fraction: DownloadOverview.fraction(of: record, active: activeProgress))
+            let fraction = DownloadOverview.fraction(of: record, active: activeProgress)
+            return record.isPaused ? .paused(fraction: fraction) : .downloading(fraction: fraction)
         }
         let keys = pages.filter { Self.covers($0, in: folder) }.map(\.listenKey)
         if keys.isEmpty { return record?.followsFolder == true ? .downloaded : .notDownloaded }
@@ -329,10 +331,18 @@ final class DownloadCenter {
         advance()
     }
 
-    /// Takes the download off the list, and its pages' audio off the phone (*Remove*), except the
-    /// audio listening needs (`purgeAudio`) and that of pages another download covers.
+    /// The Downloads list's *Remove Download* / *Remove Downloads*: the page's or folder's own
+    /// action, the one its menu runs (`deleteDownloads(of:)`). When what was downloaded has left
+    /// the library, only the download goes, with the audio no other download holds (except what
+    /// listening needs, `purgeAudio`).
     func remove(_ id: UUID) {
         guard let index = records.firstIndex(where: { $0.id == id }) else { return }
+        switch records[index].target {
+        case .page(let key):
+            if let page = library.page(key: key) { return deleteDownloads(of: page) }
+        case .folder(let folderID):
+            if let folder = library.folder(id: folderID) { return deleteDownloads(of: folder) }
+        }
         if active?.recordID == id { stopActive() }
         let record = records.remove(at: index)
         let kept = Set(records.flatMap { $0.entries.map(\.key) })
@@ -372,7 +382,7 @@ final class DownloadCenter {
         advance()
     }
 
-    /// *Delete Downloads* on a folder: its download goes (its toggle off), its pages leave every
+    /// *Remove Downloads* on a folder: its download goes (its toggle off), its pages leave every
     /// other download (`forget`), and their audio goes (unless listening needs it, `purgeAudio`).
     func deleteDownloads(of folder: Folder) {
         if let record = record(for: .folder(folder.id)), active?.recordID == record.id { stopActive() }

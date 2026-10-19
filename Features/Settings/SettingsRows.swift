@@ -1,24 +1,24 @@
 import SwiftUI
 
-/// One fixed-layout choice row: title, optional one-line subtitle, a fixed-size trailing
-/// accessory slot, and a fixed-size checkmark slot (checkmark / spinner / empty). State changes
-/// swap contents inside the slots, so the row's size never changes.
+/// One fixed-layout choice row: title, optional one-line subtitle (a downloaded model's starts
+/// with the grey ✓, as every downloaded row's line two does), a fixed-size trailing accessory slot
+/// (a download's progress, a voice's preview), and a fixed-size slot for the selection ✓. State
+/// changes swap contents inside the slots, so the row's size never changes.
 struct SettingsChoiceRow<Accessory: View>: View {
     let title: String
-    let subtitle: String?
+    /// Line two: a model's state, a voice's detail (`DetailPart.downloaded` once downloaded).
+    let subtitle: DetailPart?
     let selected: Bool
     var enabled: Bool = true
-    var busy: Bool = false
     let accessibilityID: String
     let action: () -> Void
     @ViewBuilder let accessory: () -> Accessory
 
     init(
         title: String,
-        subtitle: String?,
+        subtitle: DetailPart?,
         selected: Bool,
         enabled: Bool = true,
-        busy: Bool = false,
         accessibilityID: String,
         action: @escaping () -> Void,
         @ViewBuilder accessory: @escaping () -> Accessory
@@ -27,7 +27,6 @@ struct SettingsChoiceRow<Accessory: View>: View {
         self.subtitle = subtitle
         self.selected = selected
         self.enabled = enabled
-        self.busy = busy
         self.accessibilityID = accessibilityID
         self.action = action
         self.accessory = accessory
@@ -36,23 +35,7 @@ struct SettingsChoiceRow<Accessory: View>: View {
     var body: some View {
         HStack(spacing: Spacing.s) {
             Button(action: action) {
-                HStack(spacing: 0) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(title)
-                            .typeStyle(.row)
-                            .foregroundStyle(enabled ? Palette.ink : Palette.secondaryInk)
-                            .lineLimit(1)
-                        if let subtitle {
-                            Text(subtitle)
-                                .typeStyle(.caption)
-                                .foregroundStyle(Palette.secondaryInk)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-                    }
-                    Spacer(minLength: Spacing.xs)
-                }
-                .contentShape(Rectangle())
+                SymbolRow(title, subtitle: subtitle, symbol: nil, ink: enabled ? nil : Palette.secondaryInk)
             }
             .buttonStyle(.plain)
             .disabled(!enabled)
@@ -63,9 +46,7 @@ struct SettingsChoiceRow<Accessory: View>: View {
                 .frame(width: Glyph.control, height: Glyph.control)
 
             ZStack {
-                if busy {
-                    ProgressView().controlSize(.small)
-                } else if selected {
+                if selected {
                     Image(systemName: Icons.checkmark)
                         .foregroundStyle(Palette.accent)
                         .fontWeight(.semibold)
@@ -74,30 +55,29 @@ struct SettingsChoiceRow<Accessory: View>: View {
             .frame(width: Glyph.mark, height: Glyph.mark)
             .accessibilityHidden(true)
         }
-        .frame(minHeight: SettingsMetrics.rowHeight)
     }
 }
 
 extension SettingsChoiceRow where Accessory == EmptyView {
-    init(title: String, subtitle: String?, selected: Bool, enabled: Bool = true, accessibilityID: String,
+    init(title: String, subtitle: DetailPart?, selected: Bool, enabled: Bool = true, accessibilityID: String,
          action: @escaping () -> Void) {
         self.init(title: title, subtitle: subtitle, selected: selected, enabled: enabled,
                   accessibilityID: accessibilityID, action: action) { EmptyView() }
     }
 }
 
-/// A row that opens a page of choices: its symbol, its name, the current choice in secondary
-/// ink, then ›. One line; the value truncates first.
+/// A row that opens a page of choices: its symbol (nil: none, as the rest of its card), its name,
+/// the current choice in secondary ink, then ›. One line; the value truncates first.
 struct SettingsLinkRow<Destination: View>: View {
     let title: String
-    let symbol: String
+    let symbol: String?
     let value: String
     let accessibilityID: String
     @ViewBuilder let destination: () -> Destination
 
     var body: some View {
         NavigationLink(destination: destination) {
-            SettingsLabel(title: title, symbol: symbol) {
+            SymbolRow(title, symbol: symbol) {
                 Text(value)
                     .typeStyle(.row)
                     .foregroundStyle(Palette.secondaryInk)
@@ -105,36 +85,6 @@ struct SettingsLinkRow<Destination: View>: View {
             }
         }
         .accessibilityIdentifier(accessibilityID)
-    }
-}
-
-/// A row's symbol and name, then `trailing`; at least a tap target tall.
-struct SettingsLabel<Trailing: View>: View {
-    let title: String
-    let symbol: String
-    @ViewBuilder var trailing: () -> Trailing
-
-    var body: some View {
-        HStack(spacing: Spacing.s) {
-            Image(systemName: symbol)
-                .foregroundStyle(Palette.ink)
-                .frame(width: Glyph.mark)
-            Text(title)
-                .typeStyle(.row)
-                .foregroundStyle(Palette.ink)
-                .lineLimit(1)
-                .layoutPriority(1)
-            Spacer(minLength: Spacing.xs)
-            trailing()
-        }
-        .frame(minHeight: SettingsMetrics.rowHeight)
-        .contentShape(Rectangle())
-    }
-}
-
-extension SettingsLabel where Trailing == EmptyView {
-    init(title: String, symbol: String) {
-        self.init(title: title, symbol: symbol) { EmptyView() }
     }
 }
 
@@ -147,7 +97,7 @@ struct SettingsToggleRow: View {
 
     var body: some View {
         Toggle(isOn: $isOn) {
-            SettingsLabel(title: title, symbol: symbol)
+            SymbolRow(title, symbol: symbol)
         }
         .tint(Palette.accent)
         .accessibilityIdentifier(accessibilityID)
@@ -168,25 +118,6 @@ struct SettingsControlRow<Control: View>: View {
             control()
         }
         .padding(.vertical, Spacing.xs)
-    }
-}
-
-enum SettingsMetrics {
-    /// A settings row: a tap target and a little air, at the default text size.
-    static let rowHeight = BottomChrome.minTapTarget + Spacing.xxs
-}
-
-extension View {
-    /// A note under a settings card: caption, secondary ink, in line with the card.
-    func settingsFooter() -> some View {
-        typeStyle(.caption)
-            .foregroundStyle(Palette.secondaryInk)
-            .libraryFooter()
-    }
-
-    /// A settings card's section header.
-    func settingsCard() -> some View {
-        listRowBackground(Palette.chrome)
     }
 }
 

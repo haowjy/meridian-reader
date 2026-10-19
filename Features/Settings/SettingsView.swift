@@ -39,7 +39,7 @@ struct SettingsView: View {
                 }
                 versionSection
             }
-            .libraryListStyle()
+            .cardListStyle()
             .navigationTitle(Verbs.settings)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -51,7 +51,7 @@ struct SettingsView: View {
             get: { developerToggleNotice != nil },
             set: { if !$0 { developerToggleNotice = nil } }
         )) {
-            Button("OK", role: .cancel) {}
+            Button(Verbs.ok, role: .cancel) {}
         } message: {
             Text(developer.isEnabled
                  ? "Debug tools are shown in Settings › Developer. Long-press the version again to hide them."
@@ -63,18 +63,12 @@ struct SettingsView: View {
 
     private var versionSection: some View {
         Section {
-            HStack {
-                Text(DeveloperSettings.versionLabel)
-                    .typeStyle(.row)
-                Spacer()
+            SymbolRow(DeveloperSettings.versionLabel, symbol: nil, ink: Palette.secondaryInk) {
                 if developer.isEnabled {
                     Text("Developer options")
                         .typeStyle(.caption)
                 }
             }
-            .foregroundStyle(Palette.secondaryInk)
-            .frame(minHeight: SettingsMetrics.rowHeight)
-            .contentShape(Rectangle())
             .onLongPressGesture(minimumDuration: DeveloperSettings.unlockPressSeconds) {
                 toggleDeveloperOptions()
             }
@@ -85,7 +79,7 @@ struct SettingsView: View {
                 toggleDeveloperOptions()
             }
         }
-        .settingsCard()
+        .listCard()
     }
 
     private func toggleDeveloperOptions() {
@@ -101,7 +95,7 @@ private struct AppearanceSettingsSection: View {
 
     var body: some View {
         Section {
-            SettingsControlRow(title: String(localized: "Theme")) {
+            SettingsControlRow(title: Verbs.theme) {
                 ChoicePicker(options: AppearanceMode.allCases, selection: $appearance.mode,
                              identifier: "appearanceMode") { mode in
                     Text(mode.title).typeStyle(.row)
@@ -111,9 +105,9 @@ private struct AppearanceSettingsSection: View {
                 AccentThemePicker(selection: $appearance.accent)
             }
         } header: {
-            SettingsSectionHeader(title: String(localized: "Appearance"))
+            SectionHeader(title: String(localized: "Appearance")).listHeader()
         }
-        .settingsCard()
+        .listCard()
     }
 }
 
@@ -125,15 +119,15 @@ private struct ReadingSettingsSection: View {
     var body: some View {
         let accent = AppAppearance.shared.accent
         Section {
-            SettingsControlRow(title: String(localized: "Theme")) {
+            SettingsControlRow(title: Verbs.theme) {
                 ReadingThemePicker(selection: $appearance.theme, accent: accent)
             }
             SettingsControlRow(title: String(localized: "Font")) {
                 ChoicePicker(options: ReadingFont.allCases, selection: $appearance.font, identifier: "readingFont") { font in
-                    Text(font.title).font(.system(size: TypeStyle.row.size, weight: .medium, design: font.design))
+                    Text(font.title).typeStyle(.row, weight: .medium, design: font.design)
                 }
             }
-            SettingsControlRow(title: String(localized: "Text Size")) {
+            SettingsControlRow(title: Verbs.textSize) {
                 TextSizeStepper(model: appearance.textSizeModel)
             }
             SettingsControlRow(title: String(localized: "Line Spacing")) {
@@ -152,12 +146,12 @@ private struct ReadingSettingsSection: View {
                           textScale: appearance.textScale, lineSpacing: appearance.lineSpacing)
                 .padding(.vertical, Spacing.xs)
         } header: {
-            SettingsSectionHeader(title: String(localized: "Reading"))
+            SectionHeader(title: String(localized: "Reading")).listHeader()
         } footer: {
             Text("How the Reader and Now Playing show pages. Aa at the top of either changes the same settings.")
-                .settingsFooter()
+                .listFooter()
         }
-        .settingsCard()
+        .listCard()
     }
 }
 
@@ -170,12 +164,12 @@ private struct BrowsingSettingsSection: View {
             SettingsToggleRow(title: String(localized: "Block Ads"), symbol: Icons.blockAds,
                               isOn: $blocker.isEnabled, accessibilityID: "blockAdsToggle")
         } header: {
-            SettingsSectionHeader(title: String(localized: "Browsing"))
+            SectionHeader(title: String(localized: "Browsing")).listHeader()
         } footer: {
             Text("Stops common ad and tracker sites from loading in web pages, Follow's included. A change applies to pages loaded after it.")
-                .settingsFooter()
+                .listFooter()
         }
-        .settingsCard()
+        .listCard()
     }
 }
 
@@ -194,7 +188,7 @@ private struct StorageSettingsSection: View {
                             accessibilityID: "settingsDownloads") {
                 DownloadsList()
             }
-            SettingsLabel(title: String(localized: "Listening Audio"), symbol: Icons.storage) {
+            SymbolRow(String(localized: "Listening Audio"), symbol: Icons.storage) {
                 Text(audioBytes.map(FileSizes.label) ?? "…")
                     .typeStyle(.row)
                     .monospacedDigit()
@@ -203,12 +197,12 @@ private struct StorageSettingsSection: View {
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("settingsAudioSize")
         } header: {
-            SettingsSectionHeader(title: String(localized: "Downloads & Storage"))
+            SectionHeader(title: String(localized: "Downloads & Storage")).listHeader()
         } footer: {
             Text("Listening audio is kept on this iPhone for pages you saved or downloaded; audio for pages you only opened is cleared after a while.")
-                .settingsFooter()
+                .listFooter()
         }
-        .settingsCard()
+        .listCard()
         .task {
             let root = speech.localTTS.audioCache.root
             audioBytes = await Task.detached(priority: .utility) { FileSizes.allocatedBytes(at: root) }.value
@@ -225,7 +219,7 @@ private struct DeveloperSettingsSection: View {
     var body: some View {
         @Bindable var developer = developer
         Section {
-            SettingsToggleRow(title: String(localized: "Listen Debug"), symbol: Icons.debug,
+            SettingsToggleRow(title: Verbs.listenDebug, symbol: Icons.debug,
                               isOn: $developer.listenDebugEnabled, accessibilityID: "listenDebugEnabledToggle")
             SettingsToggleRow(title: String(localized: "Fake Extraction Failure"), symbol: Icons.warning,
                               isOn: $developer.fakeExtractionFailure, accessibilityID: "fakeExtractionFailureToggle")
@@ -233,20 +227,20 @@ private struct DeveloperSettingsSection: View {
                 // Over Settings, which stay when it closes (`ShellState.overSheet`).
                 shell.present(.listenDebug)
             } label: {
-                SettingsLabel(title: String(localized: "Listen Debug Panel"), symbol: Icons.developer) {
+                SymbolRow(String(localized: "Listen Debug Panel"), symbol: Icons.debug) {
                     Image(systemName: Icons.disclosure)
-                        .typeStyle(.caption, weight: .semibold)
+                        .disclosureSymbol()
                         .foregroundStyle(Palette.secondaryInk)
                 }
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("listenDebugSettings")
         } header: {
-            SettingsSectionHeader(title: String(localized: "Developer"))
+            SectionHeader(title: String(localized: "Developer")).listHeader()
         } footer: {
             Text("Listen Debug shows a Debug chip on Now Playing for a live render queue overlay; a long-press on ▶ there opens the panel. Fake Extraction Failure makes every extraction fail (Reader, Save, Follow, Downloads) until the app quits.")
-                .settingsFooter()
+                .listFooter()
         }
-        .settingsCard()
+        .listCard()
     }
 }

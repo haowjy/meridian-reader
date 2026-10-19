@@ -36,10 +36,11 @@ final class SearchSession {
         isFocused = true
     }
 
-    /// The field got or lost focus. Focus while idle starts a session with `beginText()`.
-    func focusChanged(_ focused: Bool, beginText: () -> String) {
+    /// The field got or lost focus. Focus while idle starts a session through `begin`, the
+    /// surface's own start (which calls `begin(with:)`).
+    func focusChanged(_ focused: Bool, begin: () -> Void) {
         isFocused = focused
-        if focused, !isActive { begin(with: beginText()) }
+        if focused, !isActive { begin() }
     }
 
     /// Puts a recent search or suggestion in the field without submitting it.

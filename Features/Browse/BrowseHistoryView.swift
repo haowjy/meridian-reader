@@ -1,11 +1,14 @@
 import SwiftUI
 
 /// Recently visited pages (the bounded `RecentVisit` list), newest first, in the Library's rows:
-/// the site's icon (or its letter tile), the title, then the site and how long ago. Tap to open.
+/// the site's icon (or its letter tile), the title, then the site (not for an untitled visit,
+/// whose title line is already its site) and how long ago. Tap to open; ⋯ and the long press are
+/// the page's menu (`PageMenu`, on the Library's page for the address when it has one), then
+/// *Remove from History*.
 ///
 /// ```
 /// History                                           ( Done )
-/// ▣  Speech synthesis
+/// ▣  Speech synthesis                                   ⋯
 ///    en.wikipedia.org   2 hr ago
 /// ```
 struct BrowseHistoryView: View {
@@ -17,23 +20,23 @@ struct BrowseHistoryView: View {
         NavigationStack {
             Group {
                 if visits.isEmpty {
-                    ContentUnavailableView("No history yet", systemImage: Icons.history,
-                                           description: Text("Pages you open show up here."))
+                    EmptyState(String(localized: "No History Yet"), symbol: Icons.history,
+                               description: String(localized: "Pages you open show up here."))
                         .background(Palette.paper)
                 } else {
                     List {
                         Section {
                             ForEach(visits, id: \.id) { visit in
-                                row(visit)
+                                HistoryRow(visit: visit, onOpen: onOpen)
                             }
                             .listRowInsets(EdgeInsets())
-                            .listRowBackground(Palette.chrome)
+                            .listCard()
                         }
                     }
-                    .libraryListStyle()
+                    .cardListStyle()
                 }
             }
-            .navigationTitle("History")
+            .navigationTitle(Verbs.history)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 SheetBarButton(Verbs.done, placement: .confirmationAction, identifier: "historyDone", action: onDone)
@@ -41,14 +44,51 @@ struct BrowseHistoryView: View {
         }
         .accessibilityIdentifier("browseHistory")
     }
+}
 
-    private func row(_ visit: RecentVisit) -> some View {
-        ListRow(kind: .page(artwork: visit.faviconData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
-                            letter: visit.host.siteLetter),
-                title: visit.lineOne, subtitle: visit.host,
-                note: visit.visitedAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
-            .opensOnTap { onOpen(visit) }
-            .accessibilityAddTraits(.isButton)
-            .accessibilityIdentifier("historyRow")
+/// A visit's row, with its page's menu: the Library's page for its address when there is one
+/// (`PageLookup`), so its rows read as that page's do everywhere.
+private struct HistoryRow: View {
+    let visit: RecentVisit
+    let onOpen: (RecentVisit) -> Void
+
+    @Environment(LibraryStore.self) private var library
+    @Environment(ShellState.self) private var shell
+    @Environment(\.speechController) private var speech
+    @Environment(DownloadCenter.self) private var downloads
+    @Environment(FollowCenter.self) private var follow
+
+    var body: some View {
+        PageLookup(key: ArticleIdentity.articleKey(canonicalURL: visit.urlString), canonicalURL: visit.urlString) { page in
+            let menu = AnyView(VisitMenu(visit: visit,
+                                         actions: PageActions(page: page, url: visit.url, library: library, shell: shell,
+                                                              speech: speech, downloads: downloads, follow: follow),
+                                         library: library))
+            ListRow(kind: .page(artwork: visit.faviconData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
+                                letter: PageTitle.artworkLetter(title: visit.title, source: visit.host,
+                                                              address: visit.urlString)),
+                    title: visit.lineOne, subtitle: visit.title.isEmpty ? nil : visit.host,
+                    note: visit.visitedAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)),
+                    menu: menu)
+                .opensOnTap { onOpen(visit) }
+                .contextMenu { menu }
+                .accessibilityAddTraits(.isButton)
+                .accessibilityIdentifier("historyRow")
+        }
+    }
+}
+
+/// The page's menu, then History's own *Remove from History*.
+private struct VisitMenu: View {
+    let visit: RecentVisit
+    let actions: PageActions
+    let library: LibraryStore
+
+    var body: some View {
+        MenuRows(blocks: [
+            PageMenu(actions: actions, place: .elsewhere).rows,
+            [MenuRow(id: "menuRemoveFromHistory", title: Verbs.removeFromHistory, icon: Icons.delete,
+                     isDestructive: true) { library.removeVisit(visit) }],
+        ])
     }
 }

@@ -20,11 +20,13 @@ import SwiftUI
 ///
 /// The Download control is a `DownloadMark` (an outline ↓, the circle filling as it downloads, a
 /// grey ✓ once downloaded) with what it shows written under it; *More* opens a menu; the ▶ is the
-/// folder's Continue (⏸ while one of its pages is what you hear). The side controls have a
-/// fixed width, so the ▶ stays centred whatever their captions say, and the captions shrink
-/// rather than wrap at the largest text sizes: the row never wraps (decision D21). Takes plain
-/// values and closures only.
-struct FolderHeader<Status: View, More: View>: View {
+/// folder's Continue (⏸ while one of its pages is what you hear). The side controls share one
+/// width, so the ▶ stays centred whatever their captions say. The row is an `ActionButtonRow`
+/// (decision D21): with its captions while they fit whole, else the symbols alone (VoiceOver and
+/// the large content viewer keep the names), so it never wraps or cuts a word. Takes plain
+/// values and closures only; `anchor` lays a view of the caller's behind a side control, where a
+/// question the control asks attaches, so on iOS 26 its popover points at that control.
+struct FolderHeader<Status: View, More: View, Anchor: View>: View {
     var style: FolderHeaderStyle = .folder
     let title: String
     /// Counts (["2 folders", "7 pages"]) or the book's line (["Jane Austen", "Book", "61 chapters"]).
@@ -37,6 +39,8 @@ struct FolderHeader<Status: View, More: View>: View {
     var actions: FolderHeaderActions?
     @ViewBuilder var status: Status
     @ViewBuilder var more: More
+    /// Laid behind the Download control and *More*, at their size.
+    @ViewBuilder var anchor: (FolderHeaderControl) -> Anchor
 
     @ScaledMetric(relativeTo: .title3) private var scaledCoverWidth: CGFloat = 80
     @ScaledMetric(relativeTo: .caption) private var scaledSideWidth: CGFloat = 76
@@ -55,11 +59,8 @@ struct FolderHeader<Status: View, More: View>: View {
                     .padding(.bottom, Spacing.xxs)
             }
             VStack(spacing: Spacing.xxs) {
-                Text(title)
-                    .typeStyle(style.isDetailed ? .heading : .title, design: .default)
-                    .foregroundStyle(Palette.ink)
+                ScreenTitle(title, size: style.isDetailed ? .heading : .title)
                     .multilineTextAlignment(.center)
-                    .accessibilityAddTraits(.isHeader)
                 VStack(spacing: Spacing.xxs) {
                     DetailLine(detail)
                     if !source.isEmpty { DetailLine(source) }
@@ -78,9 +79,16 @@ struct FolderHeader<Status: View, More: View>: View {
     }
 
     private func actionRow(_ actions: FolderHeaderActions) -> some View {
-        HStack(spacing: Spacing.l) {
+        ActionButtonRow { fit in
+            actionControls(actions, captions: fit != .icon)
+        }
+        .padding(.top, Spacing.xs)
+    }
+
+    private func actionControls(_ actions: FolderHeaderActions, captions: Bool) -> some View {
+        CentredSidesLayout(spacing: Spacing.l, minSide: sideWidth) {
             Button(action: actions.onDownload) {
-                sideLabel(actions.download.label) {
+                sideLabel(actions.download.label, shown: captions) {
                     DownloadMark(state: actions.download)
                 }
             }
@@ -88,47 +96,94 @@ struct FolderHeader<Status: View, More: View>: View {
             .accessibilityLabel(Verbs.download)
             .accessibilityValue(downloadValue(actions))
             .accessibilityIdentifier("folderDownload")
+            .background { anchor(.download) }
             PlayStateButton(state: actions.play, look: .disc, action: actions.onPlay)
                 .accessibilityIdentifier("folderContinue")
             Menu { more } label: {
-                sideLabel(String(localized: "More")) {
+                sideLabel(Verbs.more, shown: captions) {
                     Image(systemName: Icons.more)
                         .font(.system(size: Glyph.control * 0.8, weight: .semibold))
                         .foregroundStyle(Palette.secondaryInk)
                         .frame(width: Glyph.control, height: Glyph.control)
                 }
             }
-            .accessibilityLabel("More")
+            .accessibilityLabel(Verbs.more)
             .accessibilityIdentifier("folderMore")
+            .background { anchor(.more) }
         }
-        .padding(.top, Spacing.xs)
     }
 
-    /// A side control: its glyph in a 44 pt square, its caption under it.
-    private func sideLabel(_ caption: String, @ViewBuilder glyph: () -> some View) -> some View {
+    /// A side control: its glyph in a 44 pt square, its caption under it (`shown`), whole: a
+    /// caption that doesn't fit makes the row drop them all.
+    private func sideLabel(_ caption: String, shown: Bool, @ViewBuilder glyph: () -> some View) -> some View {
         VStack(spacing: 0) {
             glyph()
                 .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
-            Text(caption)
-                .typeStyle(.caption)
-                .foregroundStyle(Palette.secondaryInk)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+            if shown {
+                Text(caption)
+                    .typeStyle(.caption)
+                    .foregroundStyle(Palette.secondaryInk)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
         }
-        .frame(width: sideWidth)
         .contentShape(Rectangle())
+        .accessibilityShowsLargeContentViewer { Text(caption) }
     }
 
     /// "On, 40 percent", "On, downloaded", "Off".
     private func downloadValue(_ actions: FolderHeaderActions) -> String {
         var parts = [actions.downloadIsOn ? String(localized: "On") : String(localized: "Off")]
         switch actions.download {
-        case .downloading: parts.append(actions.download.percentText)
+        case .downloading, .paused: parts.append(actions.download.percentText)
         case .downloaded: parts.append(actions.download.label)
         case .notDownloaded: break
         }
         return parts.joined(separator: ", ")
     }
+}
+
+extension FolderHeader where Anchor == EmptyView {
+    init(style: FolderHeaderStyle = .folder, title: String, detail: [String], source: [String] = [],
+         progressLabel: [String] = [], actions: FolderHeaderActions? = nil,
+         @ViewBuilder status: () -> Status, @ViewBuilder more: () -> More) {
+        self.init(style: style, title: title, detail: detail, source: source, progressLabel: progressLabel,
+                  actions: actions, status: status, more: more, anchor: { _ in EmptyView() })
+    }
+}
+
+/// Three views in a row, the middle one centred: both sides take the wider side's width (at least
+/// `minSide`), so the row's ideal width is honest about its captions and an `ActionButtonRow` can
+/// tell when they don't fit.
+private struct CentredSidesLayout: Layout {
+    let spacing: CGFloat
+    let minSide: CGFloat
+
+    private func side(_ subviews: Subviews) -> CGFloat {
+        [subviews.first, subviews.last].compactMap { $0?.sizeThatFits(.unspecified).width }.reduce(minSide, max)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard subviews.count == 3 else { return .zero }
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        return CGSize(width: 2 * side(subviews) + sizes[1].width + 2 * spacing,
+                      height: sizes.map(\.height).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 3 else { return }
+        let side = side(subviews)
+        let centre = subviews[1].sizeThatFits(.unspecified)
+        let xs = [bounds.midX - centre.width / 2 - spacing - side / 2, bounds.midX, bounds.midX + centre.width / 2 + spacing + side / 2]
+        for (subview, x) in zip(subviews, xs) {
+            subview.place(at: CGPoint(x: x, y: bounds.midY), anchor: .center, proposal: .unspecified)
+        }
+    }
+}
+
+/// A `FolderHeader` side control, for its `anchor`.
+enum FolderHeaderControl {
+    case download, more
 }
 
 /// A `FolderHeader`'s action row: its values and what its controls do.
@@ -176,7 +231,7 @@ struct FolderHeaderGallery: View {
                              progressLabel: ["24 of 108", "20%", "41 h left"],
                              actions: .init(download: .downloaded, downloadIsOn: true, onDownload: {}, play: .playing,
                                             onPlay: {})) {
-                    HeaderLink(symbol: Icons.follow, parts: ["Following", "fetched 41 of 108"]) {}
+                    HeaderLink(symbol: Icons.follow, parts: ["Following", "41 of 108 fetched"]) {}
                 } more: {
                     Button(Verbs.playFromStart, systemImage: Icons.previous) {}
                 }

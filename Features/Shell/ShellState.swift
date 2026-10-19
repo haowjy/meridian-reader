@@ -10,8 +10,8 @@ enum ReaderOrigin: Equatable {
     /// The back pill's title.
     var backTitle: String {
         switch self {
-        case .browser: "Browser"
-        case .library: "Library"
+        case .browser: Verbs.browser
+        case .library: Verbs.library
         }
     }
 }
@@ -31,7 +31,7 @@ enum ShellSheet: Identifiable, Equatable {
     case history
     case settings
     case share(URL)
-    /// The Move tree: Move, *Save to Library…*, 🔖's *Save to Folder…*.
+    /// The Move tree: *Move to…*, and *Save to Folder…* (a menu's row, 🔖 held).
     case moveTo(MoveRequest)
     /// A book being imported: its progress, *Add to*, and D13's question.
     case importBook(BookImportFlow)
@@ -94,7 +94,7 @@ struct MoveRequest: Identifiable, Equatable {
     }
 
     let id = UUID()
-    /// "Move to…", "Save to…".
+    /// The sheet's title: "Move to", "Save to Folder" (the row that opened it, `Verbs.title`).
     var title: String
     /// Marked ✓.
     var current: Place?
@@ -146,8 +146,14 @@ final class ShellState {
     /// The Library's pushed screens, nearest the home first (`[.folder(Fiction), .folder(Short
     /// stories)]`). Kept while the browser is up, so 🌐 and back return to the same folder.
     var libraryPath: [LibraryRoute] = [] {
-        didSet { remember() }
+        didSet {
+            remember()
+            if let folder = librarySearchFolder, !libraryPath.contains(.folder(folder)) { endLibrarySearch() }
+        }
     }
+    /// The folder the Library's search searches: the folder screen on top when it began (nil:
+    /// the home, which searches its tab). It ends once that folder leaves the path.
+    private(set) var librarySearchFolder: UUID?
     /// The Library home's tab (`LibraryHomeTab`). Its picker sets it; going to a place in the
     /// Library shows Everything (`showLibrary(at:)`), ⋯ → Favorites shows Favorites
     /// (`showFavorites`), and 📚 keeps it. Remembered with the surface.
@@ -362,7 +368,7 @@ final class ShellState {
     /// Reader opened from the library goes with it.
     func leaveLibrary() {
         guard isInLibrary else { return }
-        librarySearch.end(showing: "")
+        endLibrarySearch()
         if reader?.origin == .library { reader = nil }
         surface = .browse
         // Reopened on the Library: the browser's last page loads the first time you go there.
@@ -411,11 +417,14 @@ final class ShellState {
     /// The Library's ✕: ends its search and clears the filter.
     func endLibrarySearch() {
         librarySearch.end(showing: "")
+        librarySearchFolder = nil
     }
 
-    /// The Library's search began: it filters the home, so a folder screen gives way to it.
-    func librarySearchBegan() {
-        if !libraryPath.isEmpty { libraryPath = [] }
+    /// The Library's field tapped: a search of the screen on top, the home's tab or a folder,
+    /// which it keeps until it ends.
+    func beginLibrarySearch() {
+        if case .folder(let id) = libraryPath.last { librarySearchFolder = id } else { librarySearchFolder = nil }
+        librarySearch.begin()
     }
 
     /// The Library's ‹: up one level (nothing at the home).

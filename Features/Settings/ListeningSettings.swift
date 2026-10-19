@@ -8,7 +8,7 @@ import AVFoundation
 ///    text and the fixed-size trailing accessory, so rows never change height.
 /// 2. **Voice ›**: the selected engine's voices (`VoicePage`).
 /// 3. **Language ›**: Automatic (match article) or a manual language (`LanguagePage`).
-/// 4. **Speed**: the playback speeds in one line.
+/// 4. **Speed ›**: the playback speeds, the list Now Playing's speed opens (`SpeedPage`).
 struct ListeningSettingsSection: View {
     @Bindable var speech: SpeechController
 
@@ -19,7 +19,7 @@ struct ListeningSettingsSection: View {
             if let system = localTTS.engines.systemDescriptor {
                 SettingsChoiceRow(
                     title: system.displayName,
-                    subtitle: system.subtitle,
+                    subtitle: DetailPart(system.subtitle),
                     selected: localTTS.selectedEngineID == system.id,
                     accessibilityID: "engineRow-\(system.id.rawValue)"
                 ) {
@@ -29,27 +29,22 @@ struct ListeningSettingsSection: View {
             ForEach(localTTS.engines.localDescriptors) { descriptor in
                 localEngineRow(descriptor)
             }
-            SettingsLinkRow(title: String(localized: "Voice"), symbol: Icons.voice, value: voiceName,
+            // No symbols in this card: the engines above are choices without one (a card's rows
+            // all lead with a symbol, or none does).
+            SettingsLinkRow(title: Verbs.voice, symbol: nil, value: voiceName,
                             accessibilityID: "settingsVoice") {
                 VoicePage(speech: speech)
             }
-            SettingsLinkRow(title: String(localized: "Language"), symbol: Icons.browser, value: languageName,
+            SettingsLinkRow(title: Verbs.language, symbol: nil, value: languageName,
                             accessibilityID: "settingsLanguage") {
                 LanguagePage(speech: speech)
             }
-            SettingsControlRow(title: String(localized: "Speed")) {
-                ChoicePicker(options: ListenRate.options.map(RateOption.init), selection: Binding(
-                    get: { RateOption(speech.rateMultiplier) },
-                    set: { speech.setRateMultiplier($0.rate) }
-                ), identifier: "settingsSpeed") { option in
-                    // Six to a line: the caption size keeps "1.75×" whole, every label the same size.
-                    Text(ListenRate.label(option.rate))
-                        .typeStyle(.caption, weight: .semibold)
-                        .monospacedDigit()
-                }
+            SettingsLinkRow(title: Verbs.speed, symbol: nil, value: ListenRate.label(speech.rateMultiplier),
+                            accessibilityID: "settingsSpeed") {
+                SpeedPage(speech: speech)
             }
         } header: {
-            SettingsSectionHeader(title: String(localized: "Listening"))
+            SectionHeader(title: String(localized: "Listening")).listHeader()
         } footer: {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 if let notice = localTTS.engineCrashNotice {
@@ -57,11 +52,11 @@ struct ListeningSettingsSection: View {
                 } else if case .failed(_, let message) = localTTS.synth.state {
                     Text(message).foregroundStyle(Palette.destructive)
                 }
-                Text("On-device voices download once, then work offline. Swipe left on a downloaded engine to delete it.")
+                Text("On-device voices download once, then work offline. Swipe left on a downloaded engine to remove its download.")
             }
-            .settingsFooter()
+            .listFooter()
         }
-        .settingsCard()
+        .listCard()
     }
 
     // MARK: - Engine
@@ -96,34 +91,44 @@ struct ListeningSettingsSection: View {
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if gateOK, localTTS.isModelInstalled(id), !pending {
-                // The row stays (to download again), so not `.destructive` (`Palette.destructive`).
-                Button("Delete") {
-                    try? localTTS.deleteModel(id)
-                }
-                .tint(Palette.destructive)
+                // What was downloaded goes: *Remove Download*, as for a page's or a folder's. The
+                // row stays (to download again), so not `.destructive` (`Palette.destructive`).
+                MenuRow(id: "engineRemoveDownload", title: Verbs.removeDownload, icon: Icons.removeDownload,
+                        isDestructive: true) { try? localTTS.deleteModel(id) }
+                    .swipeButton()
             }
         }
     }
 
-    private func localSubtitle(_ descriptor: EngineDescriptor, gateOK: Bool) -> String {
+    /// Line two: the model's state, after the grey ✓ once it is downloaded (as a downloaded row's
+    /// line two starts), so the trailing slots hold only its download's progress and the
+    /// selection ✓.
+    private func localSubtitle(_ descriptor: EngineDescriptor, gateOK: Bool) -> DetailPart {
+        let text = localState(descriptor, gateOK: gateOK)
+        let downloaded = gateOK && localTTS.isModelInstalled(descriptor.id)
+            && localTTS.synth.state.warmingEngineID != descriptor.id
+        return downloaded ? .downloaded(text) : DetailPart(text)
+    }
+
+    private func localState(_ descriptor: EngineDescriptor, gateOK: Bool) -> String {
         let id = descriptor.id
         if !gateOK {
-            return localTTS.engines.blockReason(id) ?? "Not supported on this device"
+            return localTTS.engines.blockReason(id) ?? String(localized: "Not supported on this device")
         }
         if localTTS.synth.state.warmingEngineID == id {
             if let fraction = localTTS.synth.state.warmingProgress, fraction < 1 {
-                return "Downloading… \(Int(fraction * 100))%"
+                return String(localized: "Downloading… \(Int(fraction * 100))%")
             }
-            return "Preparing…"
+            return String(localized: "Preparing…")
         }
         if localTTS.engineCrashNotice != nil, localTTS.selectedEngineID != id {
-            return "Crashed last session – tap to try again"
+            return String(localized: "Crashed last session. Tap to try again.")
         }
         if localTTS.synth.state.readyEngineID == id {
-            return descriptor.isRecommended ? "Ready (recommended)" : "Ready"
+            return descriptor.isRecommended ? String(localized: "Ready (recommended)") : String(localized: "Ready")
         }
         if localTTS.isModelInstalled(id) {
-            return "Downloaded – tap to use"
+            return String(localized: "Downloaded. Tap to use.")
         }
         return descriptor.subtitle
     }
@@ -148,14 +153,27 @@ struct ListeningSettingsSection: View {
     }
 }
 
-/// A speed as a choice (`ChoicePicker` needs identifiable options).
-private struct RateOption: Identifiable, Hashable {
-    let rate: Double
-    var id: String { ListenRate.label(rate) }
+/// Settings › Listening › Speed: `ListenRate`'s speeds, slowest first, with Now Playing's speed
+/// list's labels and ids (`listenSpeedOption-1×`); the chosen one ✓.
+private struct SpeedPage: View {
+    @Bindable var speech: SpeechController
 
-    init(_ rate: Double) {
-        // The stored rate matched to the nearest option, so the picker always shows one.
-        self.rate = ListenRate.options.min { abs($0 - rate) < abs($1 - rate) } ?? rate
+    var body: some View {
+        List {
+            Section {
+                ForEach(ListenRate.options, id: \.self) { rate in
+                    SettingsChoiceRow(title: ListenRate.label(rate), subtitle: nil,
+                                      selected: speech.rateMultiplier == rate,
+                                      accessibilityID: "listenSpeedOption-\(ListenRate.label(rate))") {
+                        speech.setRateMultiplier(rate)
+                    }
+                }
+            }
+            .listCard()
+        }
+        .cardListStyle()
+        .navigationTitle(Verbs.speed)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -177,8 +195,8 @@ struct VoicePage: View {
                 appleVoices
             }
         }
-        .libraryListStyle()
-        .navigationTitle(String(localized: "Voice"))
+        .cardListStyle()
+        .navigationTitle(Verbs.voice)
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear { preview.stop() }
     }
@@ -191,20 +209,24 @@ struct VoicePage: View {
                 let downloading = localTTS.voiceDownloadID == voice.id
                 SettingsChoiceRow(
                     title: voice.label,
-                    subtitle: voice.id == descriptor.defaultVoiceID ? Self.defaultVoiceSubtitle(voice.detail) : voice.detail,
+                    subtitle: DetailPart(voice.id == descriptor.defaultVoiceID ? Self.defaultVoiceSubtitle(voice.detail) : voice.detail),
                     selected: current == voice.id && localTTS.voiceDownloadID == nil,
-                    busy: downloading,
                     accessibilityID: "voiceRow-\(voice.id)"
                 ) {
                     Task { await localTTS.chooseVoice(voice.id, for: descriptor.id) }
                 } accessory: {
-                    if VoicePreviewPlayer.hasPreview(voice) {
+                    if downloading {
+                        // A voice downloading shows as every download does (its size is unknown, so
+                        // the mark's spinner), in the slot the preview leaves while it downloads.
+                        ModelDownloadMark(fraction: nil)
+                            .accessibilityLabel("Downloading \(voice.label)")
+                    } else if VoicePreviewPlayer.hasPreview(voice) {
                         Button {
                             if speech.isPlaying { speech.pause() }
                             preview.toggle(voice)
                         } label: {
                             Image(systemName: preview.playingID == voice.id ? Icons.previewStop : Icons.previewPlay)
-                                .font(.title3)
+                                .tileSymbol()
                                 .foregroundStyle(Palette.accent)
                         }
                         .buttonStyle(.plain)
@@ -214,7 +236,7 @@ struct VoicePage: View {
                 }
             }
         } header: {
-            SettingsSectionHeader(title: descriptor.displayName)
+            SectionHeader(title: descriptor.displayName).listHeader()
         } footer: {
             Group {
                 if let error = localTTS.voiceDownloadError {
@@ -223,9 +245,9 @@ struct VoicePage: View {
                     Text("Switching voice re-renders listened articles in the new voice; the old voice keeps playing until each paragraph is ready.")
                 }
             }
-            .settingsFooter()
+            .listFooter()
         }
-        .settingsCard()
+        .listCard()
     }
 
     /// The Apple voice actually used for the effective language (checkmark).
@@ -242,7 +264,7 @@ struct VoicePage: View {
         Section {
             SettingsChoiceRow(
                 title: String(localized: "System default"),
-                subtitle: VoiceCatalog.languageName(for: speech.effectiveLanguageCode),
+                subtitle: DetailPart(VoiceCatalog.languageName(for: speech.effectiveLanguageCode)),
                 selected: appleSelectedID == nil,
                 accessibilityID: "voiceRow-system"
             ) {
@@ -251,7 +273,7 @@ struct VoicePage: View {
             ForEach(VoiceCatalog.voices(forLanguage: speech.effectiveLanguageCode)) { entry in
                 SettingsChoiceRow(
                     title: entry.voice.name,
-                    subtitle: "\(entry.qualityLabel), \(entry.languageDisplayName)",
+                    subtitle: DetailPart("\(entry.qualityLabel), \(entry.languageDisplayName)"),
                     selected: appleSelectedID == entry.id,
                     accessibilityID: "voiceRow-\(entry.id)"
                 ) {
@@ -259,12 +281,12 @@ struct VoicePage: View {
                 }
             }
         } header: {
-            SettingsSectionHeader(title: localTTS.engines.systemDescriptor?.displayName ?? "")
+            SectionHeader(title: localTTS.engines.systemDescriptor?.displayName ?? "").listHeader()
         } footer: {
             Text("Enhanced and Premium voices can be added in iOS Settings → Accessibility → Spoken Content → Voices.")
-                .settingsFooter()
+                .listFooter()
         }
-        .settingsCard()
+        .listCard()
     }
 
     /// A default voice's second line: its detail, then that it is the default ("Default" alone
@@ -284,7 +306,7 @@ struct LanguagePage: View {
             Section {
                 SettingsChoiceRow(
                     title: String(localized: "Automatic (match article)"),
-                    subtitle: automaticSubtitle,
+                    subtitle: DetailPart(automaticSubtitle),
                     selected: speech.languageAutomatic,
                     accessibilityID: "languageRow-automatic"
                 ) {
@@ -308,12 +330,12 @@ struct LanguagePage: View {
                         Text("Automatic detects each article's language. Articles in a language the selected engine can't speak use Apple's voice for that language.")
                     }
                 }
-                .settingsFooter()
+                .listFooter()
             }
-            .settingsCard()
+            .listCard()
         }
-        .libraryListStyle()
-        .navigationTitle(String(localized: "Language"))
+        .cardListStyle()
+        .navigationTitle(Verbs.language)
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -326,15 +348,5 @@ struct LanguagePage: View {
 
     private func isSelected(_ code: String) -> Bool {
         VoiceCatalog.canonicalLang(speech.selectedLanguageCode) == VoiceCatalog.canonicalLang(code)
-    }
-}
-
-/// A Settings section's title, as the Library's lists draw theirs.
-struct SettingsSectionHeader: View {
-    let title: String
-
-    var body: some View {
-        SectionHeader(title: title)
-            .libraryHeader()
     }
 }

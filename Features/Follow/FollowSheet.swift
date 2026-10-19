@@ -129,18 +129,16 @@ private struct FollowAddressStep: View {
                     .frame(minHeight: BottomChrome.minTapTarget)
                     .accessibilityIdentifier("followAddress")
             } header: {
-                SectionHeader(title: String(localized: "Story address"))
-                    .libraryHeader()
+                SectionHeader(title: String(localized: "Story Address"))
+                    .listHeader()
             } footer: {
                 Text("A page that lists the story’s chapters: a Royal Road story page, or another site’s table of contents.")
-                    .typeStyle(.caption)
-                    .foregroundStyle(Palette.secondaryInk)
-                    .libraryFooter()
+                    .listFooter()
             }
             .listRowInsets(EdgeInsets())
-            .listRowBackground(Palette.chrome)
+            .listCard()
         }
-        .libraryListStyle()
+        .cardListStyle()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             PillButton(String(localized: "Read Contents"), systemImage: Icons.follow, expands: true, action: read)
                 .disabled(flow.typedURL == nil)
@@ -173,22 +171,20 @@ private struct FollowReview: View {
                                      onToggle: { flow.toggle(chapter) }, onOpen: { flow.showPreview(of: chapter) })
                 }
             } header: {
-                DetailLine([String(localized: "Found \(contents.chapters.count) chapters"),
-                            String(localized: "\(keptCount) selected")])
-                    .typeStyle(.caption)
-                    .libraryHeader()
+                // How many it found; how many are kept is on Follow's button.
+                SectionHeader(title: Verbs.chapters, count: contents.chapters.count)
+                    .listHeader()
                     .accessibilityIdentifier("followFound")
             }
             .listRowInsets(EdgeInsets())
-            .listRowBackground(Palette.chrome)
+            .listCard()
         }
-        .libraryListStyle()
+        .cardListStyle()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("A folder is made at once. The chapters’ text is fetched one at a time while the app is open.")
-                    .typeStyle(.caption)
-                    .foregroundStyle(Palette.secondaryInk)
-                PillButton(String(localized: "OK"), detail: String(localized: "Follow \(keptCount) Chapters"),
+                    .footnote()
+                PillButton(Verbs.ok, detail: String(localized: "Follow \(keptCount) Chapters"),
                            systemImage: Icons.follow, expands: true, action: onFollow)
                     .disabled(keptCount == 0)
                     .accessibilityIdentifier("followOK")
@@ -204,16 +200,8 @@ private struct FollowReview: View {
         let kept = flow.keptChapters(of: contents).count
         let symbol = kept == contents.chapters.count ? Icons.included : kept == 0 ? Icons.excluded : Icons.partlyIncluded
         return Button { flow.toggleAll(in: contents) } label: {
-            HStack(spacing: Spacing.s) {
-                FollowCheckbox(symbol: symbol)
-                Text("Select All")
-                    .typeStyle(.row)
-                    .foregroundStyle(Palette.ink)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, Spacing.m)
-            .frame(minHeight: BottomChrome.minTapTarget)
-            .contentShape(Rectangle())
+            SymbolRow(String(localized: "Select All")) { FollowCheckbox(symbol: symbol) } trailing: { EmptyView() }
+                .padding(.horizontal, Spacing.m)
         }
         .buttonStyle(.plain)
         .accessibilityValue(kept == contents.chapters.count ? "All" : kept == 0 ? "None" : "Some")
@@ -222,7 +210,7 @@ private struct FollowReview: View {
 }
 
 /// A chapter in Review: its box (keep or leave out), then its title and address, which open its
-/// preview.
+/// preview. Two controls in a `SymbolRow`'s shape: the box in its leading column, at its height.
 private struct FollowChapterRow: View {
     let chapter: TableOfContents.Chapter
     let isKept: Bool
@@ -233,9 +221,10 @@ private struct FollowChapterRow: View {
         HStack(spacing: 0) {
             Button(action: onToggle) {
                 FollowCheckbox(symbol: isKept ? Icons.included : Icons.excluded)
+                    .frame(width: Glyph.rowLeading)
                     .padding(.leading, Spacing.m)
                     .padding(.trailing, Spacing.s)
-                    .frame(minHeight: BottomChrome.minTapTarget)
+                    .frame(minHeight: RowHeight.compact)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -257,12 +246,12 @@ private struct FollowChapterRow: View {
                     }
                     Spacer(minLength: 0)
                     Image(systemName: Icons.disclosure)
-                        .imageScale(.small)
+                        .disclosureSymbol()
                         .foregroundStyle(Palette.tertiaryInk)
                 }
                 .padding(.trailing, Spacing.m)
-                .padding(.vertical, Spacing.xs)
-                .frame(minHeight: BottomChrome.minTapTarget)
+                .padding(.vertical, Spacing.xxs)
+                .frame(minHeight: RowHeight.compact)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -279,7 +268,7 @@ struct FollowCheckbox: View {
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.title3)
+            .tileSymbol()
             .foregroundStyle(symbol == Icons.excluded ? Palette.tertiaryInk : Palette.accent)
             .accessibilityHidden(true)
     }

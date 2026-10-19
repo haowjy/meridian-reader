@@ -48,7 +48,7 @@ struct SheetBarButtonGallery: View {
     var body: some View {
         NavigationStack {
             List { Text("Rows") }
-                .libraryListStyle()
+                .cardListStyle()
                 .navigationTitle("Edit Details")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {

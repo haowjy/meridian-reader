@@ -16,7 +16,8 @@ extension View {
     /// SwiftUI sets the status bar style only through a colour scheme for the whole window, which
     /// would flip the surface under the sheet too. Instead, while either is on, a clear window that
     /// takes no touches and has nothing for VoiceOver sits just above the app's and answers for
-    /// both bars: being on top, it is the window the system asks.
+    /// both bars: being on top, it is the window the system asks. When both turn off, it answers
+    /// as the app's window does while the bars fade back, then goes (`SystemBarsAnchorView`).
     func systemBars(lightStatusBar: Bool, hidden: Bool) -> some View {
         let look = SystemBarsLook(lightStatusBar: lightStatusBar, hidden: hidden)
         // Zero-sized: a still render (`ImageRenderer`) draws a UIKit view as a placeholder.
@@ -42,7 +43,10 @@ private struct SystemBarsAnchor: UIViewRepresentable {
     }
 }
 
-/// Shows the system bars window while it is in a window, until it is released.
+/// Shows the system bars window while it is in a window, until it is released. Then the window
+/// stays, with the app's look, until the bars have faded back (`lingers`): a window that goes away
+/// takes its look with it at once, so the status bar would pop back. Only that long: kept for a
+/// reading sheet's life, the window made the UI tests run about 35 s longer.
 final class SystemBarsAnchorView: UIView {
     var look: SystemBarsLook {
         didSet { if look != oldValue { statusWindow?.controller.look = look } }
@@ -70,16 +74,22 @@ final class SystemBarsAnchorView: UIView {
         update()
     }
 
+    /// How long a released window stays: the bars' fade (`SystemBarsController.look`).
+    private static let lingers = Motion.standardResponse * 1.5
+
     private func update() {
-        guard !released, let scene = window?.windowScene else {
-            statusWindow?.isHidden = true
-            statusWindow = nil
-            return
-        }
+        guard !released, let scene = window?.windowScene else { return retire() }
         if statusWindow == nil {
             statusWindow = SystemBarsWindow(windowScene: scene, look: look)
         }
         statusWindow?.isHidden = false
+    }
+
+    private func retire() {
+        guard let statusWindow else { return }
+        self.statusWindow = nil
+        statusWindow.controller.look = SystemBarsLook()
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.lingers) { statusWindow.isHidden = true }
     }
 }
 

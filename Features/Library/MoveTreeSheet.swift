@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// The Move tree: one sheet for Move, *Save to Library…* and 🔖's *Save to Folder…* (the import
+/// The Move tree: one sheet for *Move to…* and *Save to Folder…* (a menu's row, 🔖 held; the import
 /// sheet's *Add to* pushes the same list, `MoveTreeList`). The whole tree as
 /// one indented list, like Safari's bookmark-folder picker; one tap files, ✓ marks the current
 /// place. *New Folder* makes one at the top level; a folder's
@@ -78,11 +78,7 @@ struct MoveTreeList: View {
         List {
             Section {
                 Button { name(in: nil) } label: {
-                    Label("New Folder", systemImage: Icons.newFolder)
-                        .typeStyle(.row)
-                        .foregroundStyle(Palette.accent)
-                        .frame(maxWidth: .infinity, minHeight: BottomChrome.minTapTarget, alignment: .leading)
-                        .contentShape(Rectangle())
+                    SymbolRow(Verbs.newFolder, symbol: Icons.newFolder, ink: Palette.accent)
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("moveNewFolder")
@@ -94,15 +90,15 @@ struct MoveTreeList: View {
                           isCurrent: current == .folder(folder.id),
                           isEnabled: !isMoving(folder), id: "moveFolder") { pick(folder) }
                         .contextMenu {
-                            Button("New Folder Inside", systemImage: Icons.newFolder) { name(in: folder) }
+                            Button(Verbs.newFolderInside, systemImage: Icons.newFolder) { name(in: folder) }
                                 .accessibilityIdentifier("moveNewFolderInside")
                                 .menuAvailability(MenuAvailability(when: !isMoving(folder)))
                         }
                 }
             }
-            .listRowBackground(Palette.chrome)
+            .listCard()
         }
-        .libraryListStyle()
+        .cardListStyle()
         .newFolderAlert(isPresented: $naming, name: $newName,
                         message: newParent.map { "It goes inside “\($0.name)”, and this goes into it." }
                             ?? "It goes at the top level, and this goes into it.") {
@@ -113,15 +109,9 @@ struct MoveTreeList: View {
     private func place(_ title: String, symbol: String, depth: Int, isCurrent: Bool, isEnabled: Bool, id: String,
                        action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: Spacing.s) {
-                Image(systemName: symbol)
-                    .foregroundStyle(Palette.accent)
-                    .frame(width: ListRow.leadingWidth)
-                Text(title)
-                    .typeStyle(.row)
-                    .foregroundStyle(Palette.ink)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
+            SymbolRow(title) {
+                Image(systemName: symbol).foregroundStyle(Palette.accent)
+            } trailing: {
                 if isCurrent {
                     Image(systemName: Icons.checkmark)
                         .foregroundStyle(Palette.accent)
@@ -129,12 +119,10 @@ struct MoveTreeList: View {
                 }
             }
             .padding(.leading, Spacing.l * CGFloat(depth))
-            .frame(minHeight: BottomChrome.minTapTarget)
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
-        .opacity(isEnabled ? 1 : 0.4)
+        .opacity(isEnabled ? 1 : Palette.disabledOpacity)
         .accessibilityLabel(title)
         .accessibilityValue(isCurrent ? "Current" : "")
         .accessibilityIdentifier(id)

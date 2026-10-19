@@ -7,14 +7,15 @@ import SwiftUI
 /// ```
 /// ┌ bar ────────────────────────────────────┐
 /// │ [🌐] ╭ Now Playing bar ──────────────╮ │  ← 🌐 the browser; the bar always there
-/// │ ( 🔍 Search Library                  ) │  ← filters the home's selected tab
-/// │  [‹]  [›]  [＋]  [🕘]  [⋯]             │  ← ‹ up a level; › dimmed; ＋ Import Book…,
-/// └──────────────────────────── home indicator ┘   New Folder; 🕘 History; ⋯ for the screen
+/// │ ( 🔍 Search Library                  ) │  ← filters the home's tab or the folder, and names it
+/// │  [‹]  [›]  [＋]  [🕘]  [⋯]             │  ← ‹ up a level; › dimmed; ＋ New Folder…,
+/// └──────────────────────────── home indicator ┘   Import Book…; 🕘 History; ⋯ for the screen
 /// ```
 ///
-/// The search filters the home list in place; starting one on a folder screen goes back to the
-/// home. While a folder is in Edit, the toolbar's slots are *Move to…*, *Mark as Finished*, *Remove*. Pages
-/// open in the Reader sheet over the Library; 🌐 shows the browser as it was, and the Library
+/// The search filters the screen it began on in place: the home's tab, or a folder (everything
+/// under it, `FolderSearchResults`); it ends when that folder is left. While a folder is in Edit,
+/// the toolbar's slots are *Move to…*, *Mark as Finished*, *Remove*. Pages open in the Reader
+/// sheet over the Library; 🌐 shows the browser as it was, and the Library
 /// keeps its place.
 struct LibrarySurface: View {
     @Environment(ShellState.self) private var shell
@@ -23,6 +24,8 @@ struct LibrarySurface: View {
     @Environment(DownloadCenter.self) private var downloads
     @Environment(FollowCenter.self) private var follow
     @State private var screen = LibraryScreenState()
+    /// The ⋯'s *Turn Off Download* asked: the question shows by the ⋯.
+    @State private var turningOff: Folder?
     @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
 
     private var search: SearchSession { shell.librarySearch }
@@ -32,22 +35,24 @@ struct LibrarySurface: View {
         VStack(spacing: 0) {
             NavigationStack(path: $shell.libraryPath) {
                 LibraryHomeView(pageSort: PageSort(rawValue: topLevelSort) ?? LibraryTopLevel.defaultSort,
-                                tab: shell.homeTab, searchText: search.isActive ? search.text : "")
+                                tab: shell.homeTab,
+                                searchText: search.isActive && shell.librarySearchFolder == nil ? search.text : "")
                     .navigationDestination(for: LibraryRoute.self) { LibraryRouteView(route: $0) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scrollDismissesKeyboard(.interactively)
 
             SurfaceBand(
-                swap: .init(systemImage: Icons.browser, label: String(localized: "Browser"),
+                swap: .init(systemImage: Icons.browser, label: Verbs.browser,
                             hint: String(localized: "Return to the browser"), identifier: "libraryBrowser",
                             action: shell.leaveLibrary),
                 session: search,
                 cancelID: "librarySearchCancel",
                 onCancel: shell.endLibrarySearch,
+                begin: shell.beginLibrarySearch,
                 isBarCovered: shell.reader != nil
             ) { focus in
-                SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: String(localized: "Search Library"), focus: focus,
+                SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt, focus: focus,
                             fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard)
             } toolbar: {
                 if screen.isEditing {
@@ -68,9 +73,13 @@ struct LibrarySurface: View {
         .libraryDialogs(screen) {
             shell.pruneLibraryPath { library.folder(id: $0) != nil }
         }
-        .onChange(of: search.isActive) { _, active in
-            if active { shell.librarySearchBegan() }
-        }
+    }
+
+    /// The field names what it searches, or would: the folder its search began on, else the
+    /// folder screen on top, else the home's tab.
+    private var searchPrompt: String {
+        let folder = search.isActive ? shell.librarySearchFolder.flatMap(library.folder(id:)) : screenMenu.topFolder
+        return folder.map { LibraryHomeTab.searchPrompt(naming: $0.name) } ?? shell.homeTab.searchPrompt
     }
 
     // MARK: - Toolbar
@@ -79,34 +88,27 @@ struct LibrarySurface: View {
     /// forward, so › stays dimmed in its place.
     private var toolbar: some View {
         BottomToolbarLayout {
-            BandToolbarButton(systemImage: Icons.back, label: String(localized: "Back"),
+            BandToolbarButton(systemImage: Icons.back, label: Verbs.back,
                               identifier: "libraryBack", action: shell.libraryBack)
                 .disabled(shell.libraryPath.isEmpty)
                 .toolbarSlot(0)
-            BandToolbarButton(systemImage: Icons.forward, label: String(localized: "Forward"),
+            BandToolbarButton(systemImage: Icons.forward, label: Verbs.forward,
                               identifier: "libraryForward") {}
                 .disabled(true)
                 .toolbarSlot(1)
             Menu {
-                Button("Import Book…", systemImage: Icons.book) {
-                    BookImportActions(library: library, shell: shell).pickBook(into: screenMenu.topFolder)
-                }
-                .accessibilityIdentifier("libraryImportBook")
-                Button("New Folder", systemImage: Icons.newFolder) { screen.makeFolder(in: screenMenu.topFolder) }
-                    .accessibilityIdentifier("libraryNewFolder")
+                MenuRows(screenMenu.createRows)
             } label: {
                 Image(systemName: Icons.add).toolbarIconFrame()
             }
             .accessibilityLabel("Add")
             .accessibilityIdentifier("libraryAdd")
             .toolbarSlot(2)
-            BandToolbarButton(systemImage: Icons.history, label: String(localized: "History"),
+            BandToolbarButton(systemImage: Icons.history, label: Verbs.history,
                               identifier: "libraryHistory") { shell.present(.history) }
                 .toolbarSlot(3)
-            MoreMenuButton(id: "libraryMore") {
-                let screenMenu = screenMenu
-                return .library(screenMenu.menu, perform: screenMenu.perform)
-            }
+            MoreMenuButton(id: "libraryMore") { screenMenu.menu }
+            .turnOffDownloadQuestion($turningOff)
             .toolbarSlot(BottomToolbarLayout.moreSlot)
         }
     }
@@ -116,12 +118,7 @@ struct LibrarySurface: View {
     private var screenMenu: LibraryScreenMenu {
         LibraryScreenMenu(library: library, speech: speech, shell: shell, downloads: downloads, follow: follow, screen: screen,
                           top: shell.libraryPath.last, topLevelSort: $topLevelSort,
-                          showMoved: { shell.libraryPath = library.path(to: $0) }) { tile in
-            switch tile {
-            case .favorites: shell.showFavorites()
-            case .history: shell.present(.history)
-            default: shell.leaveLibrary()
-            }
-        }
+                          showMoved: { shell.libraryPath = library.path(to: $0) },
+                          onTurnOffDownload: { turningOff = $0 })
     }
 }

@@ -51,7 +51,7 @@ extension LibraryStore {
     }
 
     /// Stars `page` where it is, in the Library or not, taking `artwork` as its icon when it has
-    /// none. Starring never files it: a page played without saving stays in History and joins
+    /// none. Starring never files it: a page played without saving stays in Recent and joins
     /// Favorites, which keeps it from the prune.
     func addFavorite(_ page: Page, artwork: Data? = nil) throws {
         try edit("favorite") {
@@ -98,12 +98,6 @@ extension LibraryStore {
         } catch {
             log("favorites migration failed; original folder remains: \(error)")
         }
-    }
-
-    func renameFavorite(_ page: Page, to title: String) throws {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        try edit("rename favorite") { page.title = trimmed }
     }
 
     /// Takes `data` as the page's icon unless it would replace a usable icon with a smaller one

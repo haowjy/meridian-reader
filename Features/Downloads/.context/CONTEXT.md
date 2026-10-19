@@ -26,7 +26,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   the observer.
 - **Downloads never take away what listening needs** (`DownloadCenter.needsAudio`: the page bound
   to the session, in any phase, and the chapter staged after it). `purgeAudio` is the one way
-  *Remove*, *Remove Download* and *Delete Downloads* delete audio, and it skips those keys; `stopActive` leaves
+  a page's *Remove Download* and a folder's *Remove Downloads* (in their menus and the Downloads list) delete audio, and it skips those keys; `stopActive` leaves
   their job in the queue (`removeBakeJob` takes any other out: removing a job fails its chunk
   waiters). *Remove Download* on the playing page still takes it out of every download; its
   audio stays for the session, saved or ephemeral as the library keeps the page.
@@ -42,7 +42,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   folder's pages when turned on: a book's or story's chapters that play and
   aren't finished (D7 trims finished ones' audio anyway), any other folder's own pages. While it
   is on, pages added later join it after each stored library edit (`takeInNewPages`, the same
-  pass that drops what left the Library), except the ones in `deleted` (P8: *Delete Downloads* on
+  pass that drops what left the Library), except the ones in `deleted` (P8: *Remove Download* on
   a page records it there; turning the toggle on again empties it). Turned off (`turnOff`), its
   queued pages leave it and done ones stay, so the rows keep their ✓. *Download* with the toggle
   off over a folder all downloaded (the header's ✓) only turns it back on (`turnOn`): done
@@ -53,8 +53,8 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   out-of-sight fetch, so a story's chapter Follow is already fetching is waited for, not fetched
   twice. The text is stored in place (`storeFetchedText`); the download then queues the render.
 - **One answer for where a download stands: `DownloadCenter.state(of:)`** (`DownloadState`:
-  not downloaded, downloading(fraction), downloaded), read by a page row's mark, the
-  *Download* / *Remove Download* face of the page menu and of the Reader's and Now Playing's ⋯,
+  not downloaded, downloading(fraction), paused(fraction), downloaded), read by a page row's mark, the
+  *Download* / *Remove Download* face of the page's menu (`PageMenu`, wherever it shows),
   and (for a folder, with the pages its row or screen already holds) the folder row and its
   header's Download control. A page is downloading while any download (its own or its folder's)
   has its entry queued, paused too, and that wins over downloaded; its fraction is always 0
@@ -66,7 +66,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   accepts (`DownloadRecord.accepts`: the download voice now, or the one *Keep* stored). Audio a
   listen rendered never counts. A page out of the Library has none; a folder is downloaded when
   every page it covers is (`covers`), or, covering none, while its toggle is on (a story you're
-  caught up on). *Remove Download* / *Delete Downloads* keep the two in step (`forget`): the page
+  caught up on). *Remove Download* / *Remove Downloads* keep the two in step (`forget`): the page
   leaves every download, a download of just that page goes and a folder's drops it from its list,
   never queuing it again. The folder's control then shows ↓ (not all its pages are downloaded);
   tapping it lists the folder's pages afresh (`request` → `requeue`), and only then, or a play,
@@ -79,3 +79,11 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
 - **Probes on the Simulator** use the Debug test voice (`-testVoice`, `-selectEngine test.voice`):
   the Simulator has no Kokoro model. `-resetLibrary` empties the download list and puts the voice
   back on One.
+- **Paused reads paused everywhere** (`DownloadState.paused`): a folder whose download is paused,
+  and a page whose every queued download is, draw the same mark in grey (its row's tile, its
+  header's control, the list's control), captioned *Paused*.
+- **The list's rows are `ListRow`s** with the download's one menu (`DownloadMenu`, the same rows
+  in every section, from the ⋯ and the long press) and the pause control in `ListRow.accessory`,
+  before the ⋯. Its remove row and swipe are the item's own action (`DownloadCenter.remove` runs
+  `deleteDownloads(of:)` on the page or folder, *Remove Download* / *Remove Downloads*); only a
+  download whose page or folder has left the library is dropped alone.

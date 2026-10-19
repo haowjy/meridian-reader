@@ -55,7 +55,7 @@ Rules:
   carries on, and otherwise the session finishes.
 - At the end of a page (or of a book or series) the engines stop, the audio session deactivates
   and the lock screen clears, but the page stays bound in `finished`: the Now Playing bar keeps it
-  with ▶ and "✓ Finished". Only *Stop Listening* (the bar's long-press) unbinds it, or the
+  with ▶ and ✓ Finished. Only *Stop Listening* (the bar's long-press) unbinds it, or the
   library changing the page under it: removed from the Library (once that is saved), deleted,
   its text revised by a *Replace*, or moved by a merge onto a page holding other text
   (`LibraryStore.stopPlaybackIfPlaying`, `rekeyActiveSession` → `SpeechController.stopIfPlaying`,
@@ -76,7 +76,8 @@ Rules:
 - **`nowPlaying`** (`NowPlaying`): the bound page's key, canonical URL, title (nil when the page
   has none), source (its host, or the book's or series' name for a chapter), its line one (`lineOne`:
   the title, else the source, else the address; what the bar and the lock screen name it by), byline (the lock screen's subtitle), artwork, where it plays from
-  (`PlayingFrom.folder(id:name:)` for a page in a folder, else `.site(host:)`) and phase. nil only before anything has played and after Stop
+  (`PlayingFrom.folder(id:name:)` for a page in a folder, else `.site(host:)`), whether it is a chapter (a page of a
+  book or series) and phase. nil only before anything has played and after Stop
   Listening or the page's removal or delete. `isFinished` (phase `.finished`) is what the bar and Now Playing read for "✓ Finished".
 - **Time left** is `ListeningTime`'s: one reading rate (180 words a minute, a word being 6 UTF-16
   units of the listen text; a page not yet played by its stored word count), one way to write it
@@ -155,7 +156,7 @@ so the players, the Apple voice and the lock screen agree. Adapters report facts
   (`AppleFallbackRenderer`: a synthesizer per render, so the render queue's fallback and the
   player's never wait on each other and none outlives a media-services reset; a synthesizer that
   sends nothing for 10 s is stopped and the render fails like any other), and the
-  lifecycle `state` (`LocalEngineState`). A reload, an engine switch, *Delete model*, Settings'
+  lifecycle `state` (`LocalEngineState`). A reload, an engine switch, Settings' *Remove Download* on a model, Settings'
   cancel or a failed start lets the host go: its load in flight stops, its models are released and
   the model call in flight on it finishes, and only then does the next host load, so two hosts'
   models (two ORT sessions, ≈1 GB) are never resident together. The states: `off` (Apple speaks), `warming(id, progress, task)`
@@ -313,7 +314,7 @@ opening a page and for listening starting or jumping is `LocalTTSCoordinator.ope
 (`LocalTTSCoordinator.renderTarget`, `RenderTarget`): the loaded on-device engine in its selected
 voice, as the audio cache's engine and voice keys. Jobs and pending jobs carry no voice; every
 readiness check, chunk file and publish reads the target at that step. While no engine is loaded
-(Apple selected, a model loading or failed, *Delete model*, a cancelled download) there is no
+(Apple selected, a model loading or failed, *Remove Download* on a model, a cancelled download) there is no
 target and nothing renders: the worker parks before its next chunk (the call in flight finishes
 and files nothing), a listener's chunk plays with Apple, and the queue never loads a model itself.
 Once an engine is ready the coordinator restarts it (`GlobalSynthQueue.renderTargetChanged`) and
@@ -366,9 +367,9 @@ thermal / Low Power hold applies, and in the background a download's job parks l
 article that isn't playing (admission, below). No page is handed to the queue while the app is in
 the background (a fetch needs a window), and nothing renders for downloads while Apple's voice is
 selected (`wantsLocalBake`). Pause and *Remove* take the page's job out of the queue
-(`removeBakeJob`), and *Remove* and *Delete Downloads* delete audio (`DownloadCenter.purgeAudio`),
+(`removeBakeJob`), and *Remove Download* and *Remove Downloads* delete audio (`DownloadCenter.purgeAudio`),
 never for what listening needs (`needsAudio`: the page bound to the session, playing, paused or
-finished, and the chapter staged after it): its job and its audio stay. *Remove Download* (a page) or *Delete Downloads* (a folder) takes
+finished, and the chapter staged after it): its job and its audio stay. *Remove Download* (a page, in its menu or the Downloads list) or *Remove Downloads* (a folder, the same) takes
 the page out of every download (a folder's download drops it, never queues it again), the page
 playing too, whose audio stays for the session, saved or ephemeral as the library keeps the page. The voice a download is shown in is read
 from its audio (`ArticleAudioCache.renderedVoice`: the voice most of its paragraphs are in), so a
@@ -604,9 +605,10 @@ choice row is one `SettingsChoiceRow` (title, optional one-line subtitle, fixed 
 check slots, min height 48), so state changes never move rows.
 
 1. **Engines**: Apple and the registry's on-device engines. State lives in the subtitle
-   ("Downloading… 42%", "Preparing voice…", "Ready (recommended)") and the accessory (the
-   download's filling arrow, `DownloadMark`, as every download shows; tapping it cancels). Swipe to delete a downloaded engine; crash and failure
-   notices in the footer.
+   ("Downloading… 42%", "Preparing voice…", "Ready (recommended)"; a downloaded engine's starts
+   with the grey ✓, `DetailPart.downloaded`) and the accessory (the download's filling arrow,
+   `DownloadMark`, as every download shows; tapping it cancels). Swipe left on a downloaded
+   engine for *Remove Download*; crash and failure notices in the footer.
 2. **Voice ›** (`VoicePage`): the selected engine's voices (the engine ticked; Kokoro: curated
    rows with preview, the default one marked "(default)"; Apple: "System default" and
    good-quality system voices for the language).
@@ -632,7 +634,8 @@ wasn't holding is released, so other apps' audio can resume.
 **Lock screen / Control Center** (`NowPlayingController`):
 
 - `MPNowPlayingInfoCenter`: title = the page's title, else its site, artist = "site – Paragraph N of M" (plain text, so an
-  en dash joins the parts), album = site,
+  en dash joins the parts; for an untitled page, whose title already is its site, "Paragraph N of M", as the bar leaves
+  the site out), album = site,
   chapter number and count (paragraphs), progress N/M, favicon artwork, rate 0 while paused. For
   a chapter of a book or series: title = the chapter's, else the book's or series' name, artist =
   "<the book's byline> – Paragraph N of M", album = the book or series, artwork = the chapter's,

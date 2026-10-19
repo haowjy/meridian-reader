@@ -13,7 +13,7 @@ struct ScrubTrack: View {
 
     var body: some View {
         let fill = reading?.accent ?? Palette.accent
-        let empty = reading?.track ?? Palette.secondaryInk.opacity(0.22)
+        let empty = reading?.track ?? Palette.track
         GeometryReader { g in
             let w = max(1, g.size.width)
             let shown = min(max(0, value), 1)

@@ -36,24 +36,24 @@ struct BookImportSheet: View {
                     EmptyView()
                 } header: {
                     header
-                        .libraryHeader()
+                        .listHeader()
                 }
                 Section {
                     destinationRow
                         .listRowInsets(EdgeInsets())
                 } header: {
-                    SectionHeader(title: String(localized: "Add to"))
-                        .libraryHeader()
+                    SectionHeader(title: Verbs.addTo)
+                        .listHeader()
                 } footer: {
-                    caption(destinationNote)
+                    Text(destinationNote).listFooter()
                 }
-                .listRowBackground(Palette.chrome)
+                .listCard()
                 if let preview = flow.preview, !preview.chapterTitles.isEmpty {
                     chapters(preview)
                 }
             }
-            .libraryListStyle()
-            .navigationTitle(String(localized: "Import Book"))
+            .cardListStyle()
+            .navigationTitle(Verbs.title(Verbs.importBook))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
             .navigationDestination(isPresented: $flow.isChoosingDestination) {
@@ -62,7 +62,7 @@ struct BookImportSheet: View {
                 } pickNewFolder: {
                     flow.chooseNewFolder(named: $0, in: $1, shell: shell)
                 }
-                .navigationTitle(String(localized: "Add to"))
+                .navigationTitle(Verbs.addTo)
                 .navigationBarTitleDisplayMode(.inline)
                 .accessibilityIdentifier("importAddToTree")
             }
@@ -72,7 +72,7 @@ struct BookImportSheet: View {
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(flow.isWorking)
         .alert(alreadyInLibraryTitle, isPresented: isAsking) {
-            Button("Cancel", role: .cancel) { flow.cancel() }
+            Button(Verbs.cancel, role: .cancel) { flow.cancel() }
                 .accessibilityIdentifier("importReplaceCancel")
             Button("Replace") { flow.replace() }
                 .accessibilityIdentifier("importReplace")
@@ -80,7 +80,7 @@ struct BookImportSheet: View {
             Text("Replace rebuilds its chapters in the same folder, and keeps your place where the chapters match.")
         }
         .alert(failure ?? "", isPresented: isFailing) {
-            Button("OK") { flow.acknowledgeFailure() }
+            Button(Verbs.ok) { flow.acknowledgeFailure() }
                 .accessibilityIdentifier("importFailureOK")
         }
         .onDisappear { flow.sheetGone() }
@@ -139,21 +139,15 @@ struct BookImportSheet: View {
 
     private var destinationName: String {
         if flow.isDestinationGone { return String(localized: "Deleted folder") }
-        return flow.destination?.name ?? String(localized: "Library")
+        return flow.destination?.name ?? Verbs.library
     }
 
     private var destinationRow: some View {
         Button { flow.isChoosingDestination = true } label: {
-            HStack(spacing: Spacing.s) {
+            SymbolRow(destinationName) {
                 Image(systemName: flow.destinationID == nil ? Icons.library : Icons.folder)
                     .foregroundStyle(Palette.accent)
-                    .frame(width: ListRow.leadingWidth)
-                    .accessibilityHidden(true)
-                Text(destinationName)
-                    .typeStyle(.row)
-                    .foregroundStyle(Palette.ink)
-                    .lineLimit(1)
-                Spacer(minLength: Spacing.xs)
+            } trailing: {
                 if !flow.isReplacing {
                     Text("Change")
                         .typeStyle(.row)
@@ -161,12 +155,10 @@ struct BookImportSheet: View {
                 }
             }
             .padding(.horizontal, Spacing.m)
-            .frame(minHeight: BottomChrome.minTapTarget)
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!flow.canChangeDestination)
-        .accessibilityLabel("Add to \(destinationName)")
+        .accessibilityLabel("\(Verbs.addTo) \(destinationName)")
         .accessibilityHint(flow.isReplacing ? "" : "Choose another folder")
         .accessibilityIdentifier("importChange")
     }
@@ -200,15 +192,16 @@ struct BookImportSheet: View {
                     .frame(maxWidth: .infinity, minHeight: BottomChrome.minTapTarget, alignment: .leading)
             }
         } header: {
-            SectionHeader(title: String(localized: "Chapters"))
-                .libraryHeader()
+            SectionHeader(title: Verbs.chapters)
+                .listHeader()
         } footer: {
             if !preview.skippedTitles.isEmpty {
-                caption(String(localized: "Skipped for listening: \(Self.list(preview.skippedTitles)). Still there to read."))
+                Text(String(localized: "Skipped for listening: \(Self.list(preview.skippedTitles)). Still there to read."))
+                    .listFooter()
             }
         }
         .listRowInsets(EdgeInsets())
-        .listRowBackground(Palette.chrome)
+        .listCard()
     }
 
     /// "Title Page, Licence and 2 more".
@@ -217,19 +210,13 @@ struct BookImportSheet: View {
         return titles.count > 3 ? String(localized: "\(shown) and \(titles.count - 3) more") : shown
     }
 
-    private func caption(_ text: String) -> some View {
-        Text(text)
-            .typeStyle(.caption)
-            .foregroundStyle(Palette.secondaryInk)
-    }
-
     // MARK: - Toolbar and questions
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         SheetBarButton(Verbs.cancel, placement: .cancellationAction, identifier: "importCancel") { flow.cancel() }
         if flow.phase == .ready {
-            SheetBarButton(String(localized: "Import"), placement: .confirmationAction, identifier: "importStart") {
+            SheetBarButton(Verbs.import, placement: .confirmationAction, identifier: "importStart") {
                 flow.startImport()
             }
         }
