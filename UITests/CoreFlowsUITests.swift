@@ -84,7 +84,7 @@ final class CoreFlowsUITests: XCTestCase {
         let round = app.buttons["folderContinue"]
         XCTAssertTrue(appears(round, timeout: 5), "the big ▶")
         app.buttons["folderMore"].tap()
-        let fromStart = app.buttons["Play from Start"]
+        let fromStart = app.buttons["menuPlayFromStart"]
         XCTAssertTrue(appears(fromStart, timeout: 3), "More's menu")
         fromStart.tap()
         let bar = find(app, "nowPlayingBarOpen")
