@@ -67,7 +67,10 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
   sheet and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
   It asks the playback session what you hear (`isHearing`) and stores nothing about it. A reading
   sheet's full screen is its own view state (`ReadingChrome`, held by `ReaderSheet` and
-  `NowPlayingSheet`, fed by the reading web view's drags and taps), not the shell's. Browse and the library share
+  `NowPlayingSheet`, fed by the reading web view's drags and taps), not the shell's. Pages mode
+  is the reading web view's own (`HTMLReadingView+Pages.swift`): the page's script measures its
+  line boxes, `ReadingPagination` breaks them into pages of whole lines, and native views in the
+  page's colour cover what of the pages around the one shown would show. Browse and the library share
   one `SearchSession` model.
 - **Listening.** `SpeechController` binds an engine per utterance and derives what every screen
   shows of what you hear (`nowPlaying`, `playState(of:)`); `PlaybackSessionState` owns what you
@@ -459,8 +462,8 @@ Extracted HTML is shown as Readability returns it; there is no separate sanitize
 drops `<script>` elements but keeps inline handlers (`onerror`, `onclick`) and `javascript:`
 links, so the reader's web view runs with the article's JavaScript off
 (`allowsContentJavaScript = false`). Only the app's own code runs there: the bootstrap user
-script and the listeners it installs (tap-to-seek, and taps for page turns and full screen,
-through the `readerBridge` message handler), and `evaluateJavaScript` calls for highlight and
+script and the listeners it installs (tap-to-seek, taps for page turns and full screen, and
+Pages mode's layout changes, through the `readerBridge` message handler), and `evaluateJavaScript` calls for highlight and
 scroll. The reader's web view never navigates: a tapped link is cancelled and handed to the app,
 which opens it in the browser; a fragment link only scrolls, and `javascript:` links do nothing.
 The visible

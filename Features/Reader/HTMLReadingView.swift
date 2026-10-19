@@ -756,8 +756,10 @@ struct HTMLReadingWebView: UIViewRepresentable {
         /// visible text: between the bars, or the whole screen while they are hidden (the bars
         /// coming back over it never move it).
         private func scroll(toSpokenAt top: CGFloat, height: CGFloat, _ move: SpokenMove, in sv: UIScrollView) {
+            // Full screen: from the screen's top edge (the strip above the sheet shows the page's
+            // colour) to its foot.
             let fullScreen = chrome?.hidden == true
-            let insetTop = fullScreen ? 0 : sv.contentInset.top
+            let insetTop = fullScreen ? -sv.convert(CGPoint(x: 0, y: sv.bounds.minY), to: nil).y : sv.contentInset.top
             let visibleTop = sv.contentOffset.y + insetTop
             let visible = sv.bounds.height - insetTop - (fullScreen ? 0 : sv.contentInset.bottom)
             if move == .intoView {

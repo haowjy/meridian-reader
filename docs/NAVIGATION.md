@@ -724,7 +724,9 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   paragraph too long to stay on screen, it does so again whenever the spoken sentence leaves the
   visible text (the `Motion.standard` spring; a jump under Reduce Motion). The sentence, not the
   paragraph, goes to the middle: a long paragraph's middle can be a screen away from what is
-  being read. The spoken paragraph lights up to full ink while the one before dims (a short
+  being read. The middle is the visible text's between the bars, and the whole screen's in full
+  screen (the bars coming back over it never move the text). In Pages the page turns to the
+  spoken sentence instead (below). The spoken paragraph lights up to full ink while the one before dims (a short
   fade; none under Reduce Motion), and the current sentence is underlined in the theme's accent, as in the Reader (per chunk on
   engines that report only chunk starts; no underline before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
   doesn't move the text, so following goes on); a *Jump to Audio* pill floats over the text just
@@ -811,12 +813,51 @@ Both sheets read full screen the same way (`ReadingChrome`); Follow's chapter pr
 - **At the top**, a pull down in full screen rubber-bands and brings the bars back, never closing
   the sheet; a pull that begins with the bars showing closes it as usual.
 - *Jump to Audio* sits just above the bottom band while the bars show, and near the screen's foot
-  in full screen, clear of the home indicator and the floating ▶.
+  in full screen, clear of the home indicator and the floating ▶ (above Pages' footer).
+
+### Pages (the Reader and Now Playing)
+
+With **Scroll / Pages** on *Pages* (Aa, Settings › Reading) both sheets show the text a page at a
+time; Follow's chapter preview always scrolls.
+
+```
+┌──────────────────────────────────────┐
+│                                      │ ← the top bar's room (the bars hide and show over it)
+│ Second page                          │ ← a page: whole lines only, from a line's top down to
+│ This offline test article has a long │   the last line that fits wholly above the footer
+│ …                                    │
+│                                 (▶)  │ ← the floating ▶ in full screen, above the footer
+│ Page 3 of 9   2 min left in chapter  │ ← the footer: caption, the theme's quiet ink, centred
+└──────────────────────────────────────┘
+```
+
+- **A page** runs from just below the top bar to the footer and holds whole lines only: no line
+  is ever cut at its top or bottom. A line that doesn't fit starts the next page; a picture taller
+  than a page gets a page of its own, cut at the page's foot. The bars hide and show over it as in
+  Scroll (the band covers the page's foot and the footer while they show); the text never moves
+  for them.
+- **The footer** (`Page 3 of 9   2 min left in chapter`, the two set apart by space, no
+  separator) stays in full screen. The time is what is left from the first character of the page
+  shown to the end of the page's text, at the playback speed.
+- **Turning**: a tap at the right edge turns to the next page, at the left edge to the one before,
+  at once (the first 48 pt from the left edge do nothing; the middle shows or hides the bars). A
+  drag turns one page its way and snaps there when you let go (the `Motion.standard` spring, a
+  jump under Reduce Motion); it never stops between pages. On the first page a pull down behaves
+  as at the top in Scroll: in full screen it brings the bars back, with the bars showing it closes
+  the sheet.
+- **Following the audio** (Now Playing) turns to the page holding the spoken sentence when the
+  voice reaches it. A turn of your own stops following and *Jump to Audio* appears; it goes back
+  to the spoken sentence's page and follows again. The Reader opens at a saved spot on the page
+  holding its sentence; Listen hands over to Now Playing on the page holding the Reader's first
+  line (D2).
+- **The line being read stays** through a new layout (Aa's typeface, size or spacing, Dynamic
+  Type, a picture arriving, the title card's height) and through switching Scroll ↔ Pages: the
+  page holding it shows.
 
 ### Reading appearance (Aa, Settings › Reading)
 
 One reading appearance for both sheets (`ReadingAppearance`, stored in UserDefaults
-`reading.theme`, `reading.font`, `reading.textSize`, `reading.lineSpacing`), separate from the
+`reading.theme`, `reading.font`, `reading.textSize`, `reading.lineSpacing`, `reading.layout`), separate from the
 app's theme. **Aa**, in both sheets' top bars just left of ☝︎, opens a compact panel pointing at
 it; Settings › Reading has the same controls. Both edit the one store, so they never disagree,
 and the page under the panel changes as you choose (colours repaint in place; a typeface, size or
@@ -832,6 +873,8 @@ spacing change reflows the text and keeps the line on screen where it was).
 - **Text size**: smaller / larger in steps from 85% to 165% of the Dynamic Type size (100%
   default), so the system's text size still applies under it.
 - **Line spacing**: *Compact*, *Normal* (the default), *Relaxed*.
+- **Scroll / Pages**: one long column you scroll (the default), or a page of whole lines at a
+  time (Pages, above).
 
 Aa sits in the top bar, not the bottom row: Now Playing's five slots are full (🔖, ⏮, ⏸, ⏭, ⋯)
 and the bottom chrome never moves, and the top bar is the one row the two sheets already share

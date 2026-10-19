@@ -30,7 +30,8 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   (`DownloadOverviewTests`), the engine crash guard (`EngineCrashGuardTests`), the web view's
   reloads after its content process ends (`ContentProcessRecoveryTests`), the bundled Block Ads list compiling
   (`BundledRuleListTests`), text splitting and
-  chunking (`TextChunkerTests`, `ParagraphSplitTests`), Follow's contents readers and back-off
+  chunking (`TextChunkerTests`, `ParagraphSplitTests`), Pages mode's page breaks
+  (`ReadingPaginationTests`), Follow's contents readers and back-off
   (`FollowTests`). `CoreFlowsUITests` holds the three
   end-to-end flows: save and play a browsed page, swipe-Remove takes a played page out of every
   list, open a folder and play it. A new test must fit the budget: replace one rather than add
