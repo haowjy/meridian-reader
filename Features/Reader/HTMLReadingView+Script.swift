@@ -1,8 +1,8 @@
 import Foundation
 
 /// The script every reading page runs at document end (`HTMLReadingWebView.makeWebView`): it
-/// numbers the listen blocks and gives Swift the page's side of tapping, highlighting, the
-/// sentence underline and measuring.
+/// numbers the listen blocks and gives Swift the page's side of tapping (a paragraph in jump mode,
+/// anywhere else for page turns and the bars), highlighting, the sentence underline and measuring.
 extension HTMLReadingWebView {
     /// A paragraph's accessibility label in jump mode ("Paragraph 3") and its hint.
     static let jumpLabel = "Paragraph"
@@ -176,6 +176,16 @@ extension HTMLReadingWebView {
             if (range) CSS.highlights.set('reader-sentence', new Highlight(range));
           };
           reindex();
+          // A tap on the text that isn't on a link (in jump mode the paragraphs take taps): Swift
+          // turns a screen or toggles the bars by where it landed. WebKit on iOS sends a click only
+          // to an element that looks clickable; the pointer cursor, inherited, makes the whole
+          // page one (the tap highlight is transparent).
+          document.body.style.cursor = 'pointer';
+          document.addEventListener('click', function(ev) {
+            if (window.__readerJump) return;
+            if (ev.target && ev.target.closest && ev.target.closest('a[href]')) return;
+            window.webkit.messageHandlers.readerBridge.postMessage({ tapX: ev.clientX, width: window.innerWidth });
+          });
           // The article's own leading heading already says the title: it takes the title's look,
           // and the source line moves under it (the heading stays a listen block, so numbering
           // doesn't change; the header isn't one wherever it sits).

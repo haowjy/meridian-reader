@@ -46,6 +46,9 @@ final class ReadingScrollHandle {
 ///   in the middle, and keeps it there through layout changes until the text is dragged.
 /// Without `follows` (the Reader) the text never scrolls by itself after that, except to follow
 /// a scrub.
+/// In a reading sheet (`readingChrome` in the environment) the text runs under the sheet's bars,
+/// its scroll insets their heights, and drags and taps on it drive full screen (see
+/// `HTMLReadingView+Taps.swift`). Links open through `onOpenLink`.
 /// Indices follow `ListenHTMLBlocks` leaf elements (same as speech).
 struct HTMLReadingView: View {
     let html: String
@@ -66,9 +69,9 @@ struct HTMLReadingView: View {
     /// on screen), instead of the top or the spoken sentence.
     var opensAt: ReadingHandOver? = nil
     var scrollHandle: ReadingScrollHandle? = nil
-    /// Room left above / below the text for chrome drawn over it.
-    var textInsets = ReaderTextInsets()
     var onUserScroll: () -> Void = {}
+    /// A link on the page was tapped (a web link; the reading view never follows it).
+    var onOpenLink: (URL) -> Void = { _ in }
     let onTapParagraph: (Int) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -76,6 +79,7 @@ struct HTMLReadingView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.readingPalette) private var reading
     @Environment(\.readingAppearance) private var appearance
+    @Environment(\.readingChrome) private var chrome
 
     private var palette: ReadingPalette { reading ?? .app }
 
@@ -94,11 +98,14 @@ struct HTMLReadingView: View {
             opensAtSentence: opensAtSentence,
             opensAt: opensAt,
             scrollHandle: scrollHandle,
-            textInsets: textInsets,
+            chrome: chrome,
+            fullScreen: chrome?.hidden == true,
+            textInsets: chrome?.insets ?? ReaderTextInsets(),
             sizes: ReadingStyle.Sizes(traits: UITraitCollection(preferredContentSizeCategory:
                 UIContentSizeCategory(dynamicTypeSize))),
             animates: !reduceMotion,
             onUserScroll: onUserScroll,
+            onOpenLink: onOpenLink,
             onTapParagraph: onTapParagraph
         )
         .background(palette.background)
@@ -138,10 +145,16 @@ struct HTMLReadingWebView: UIViewRepresentable {
     var opensAtSentence = false
     var opensAt: ReadingHandOver?
     var scrollHandle: ReadingScrollHandle?
+    /// The reading sheet's bars; nil outside one (no full screen, no page turns).
+    var chrome: ReadingChrome?
+    /// The bars are hidden: a pull at the top shows them instead of pulling the sheet.
+    var fullScreen = false
+    /// Room left above / below the text for the bars drawn over it.
     var textInsets = ReaderTextInsets()
     var sizes = ReadingStyle.Sizes()
     var animates = true
     var onUserScroll: () -> Void = {}
+    var onOpenLink: (URL) -> Void = { _ in }
     let onTapParagraph: (Int) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -197,7 +210,11 @@ struct HTMLReadingWebView: UIViewRepresentable {
         let c = context.coordinator
         c.onTapParagraph = onTapParagraph
         c.onUserScroll = onUserScroll
-        c.pullHandoff.handoff = context.environment.sheetPullHandoff
+        c.onOpenLink = onOpenLink
+        c.chrome = chrome
+        // In full screen a pull at the top only rubber-bands (and brings the bars back); the
+        // drag in progress keeps what it began with (`SheetPullTracking.canPull`).
+        c.pullHandoff.handoff = fullScreen ? nil : context.environment.sheetPullHandoff
         c.animates = animates
         scrollHandle?.coordinator = c
         c.setTextInsets(textInsets)
@@ -218,6 +235,8 @@ struct HTMLReadingWebView: UIViewRepresentable {
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         var onTapParagraph: (Int) -> Void
         var onUserScroll: () -> Void = {}
+        var onOpenLink: (URL) -> Void = { _ in }
+        weak var chrome: ReadingChrome?
         weak var webView: WKWebView?
         var lastHTML: String = ""
         var lastHeading: ReaderHeading?
@@ -235,7 +254,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
         var opensAtSentence = false
         /// The load in flight opens here (the Reader's `handOver`, handed to Now Playing).
         private var opensAt: ReadingHandOver?
-        private var loaded = false
+        private(set) var loaded = false
         private var pendingActive: Int?
         /// Highlight index the page last received; nil = nothing sent since the page loaded.
         /// SwiftUI calls `updateUIView` far more often than the paragraph changes, so only a new
@@ -580,21 +599,35 @@ struct HTMLReadingWebView: UIViewRepresentable {
         let pullHandoff = ScrollPullHandoff()
 
         /// Notes a finger drag through the scroll view's pan (WebKit owns its delegate;
-        /// programmatic scrolls never reach it): an inset change no longer pins the text to the
-        /// top, and a waiting restore is dropped. Following stops once the drag moves the text: a
+        /// programmatic scrolls never reach it): the user took over the text, and its movement
+        /// goes to the bars (none in jump mode). Following stops once the drag moves the text: a
         /// pull of the sheet alone (a pull down from the top) keeps following, as it moves nothing.
         func observeDragging(_ scrollView: UIScrollView) {
             pullHandoff.onDragBegan = { [weak self] in
-                self?.userScrolled = true
-                self?.spokenOpenPending = false
-                self?.cancelRestore()
+                self?.userTookOver()
+                self?.chrome?.dragBegan()
             }
-            pullHandoff.onScroll = { [weak self] in
-                guard let self, follows else { return }
-                follows = false
-                onUserScroll()
+            pullHandoff.onMove = { [weak self] delta in
+                guard let self, !jumpMode else { return }
+                chrome?.dragged(by: delta)
             }
+            pullHandoff.onScroll = { [weak self] in self?.stopFollowing() }
             pullHandoff.attach(to: scrollView)
+        }
+
+        /// The user moved the text (a drag, a page turn): an inset change no longer pins it to the
+        /// top, and a waiting restore is dropped.
+        func userTookOver() {
+            userScrolled = true
+            spokenOpenPending = false
+            cancelRestore()
+        }
+
+        /// The user moved the text while it followed the audio: it stops (Jump to Audio resumes).
+        func stopFollowing() {
+            guard follows else { return }
+            follows = false
+            onUserScroll()
         }
 
         /// Scrub-follow: center the paragraph under the scrub thumb.
@@ -789,11 +822,10 @@ struct HTMLReadingWebView: UIViewRepresentable {
             _ userContentController: WKUserContentController,
             didReceive message: WKScriptMessage
         ) {
-            guard message.name == "readerBridge" else { return }
-            guard jumpMode else { return }
-            if let body = message.body as? [String: Any], let index = body["index"] as? Int {
-                DispatchQueue.main.async { self.onTapParagraph(index) }
-            } else if let index = message.body as? Int {
+            guard message.name == "readerBridge", let body = message.body as? [String: Any] else { return }
+            if let x = body["tapX"] as? Double, let width = body["width"] as? Double {
+                textTapped(x: CGFloat(x), width: CGFloat(width))
+            } else if jumpMode, let index = body["index"] as? Int {
                 DispatchQueue.main.async { self.onTapParagraph(index) }
             }
         }

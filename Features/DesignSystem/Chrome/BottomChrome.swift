@@ -43,6 +43,10 @@ enum BottomChrome {
     static let transportDiscSize: CGFloat = 64
     /// The glyph inside the transport disc.
     static let transportDiscGlyph: CGFloat = 26
+    /// The play / pause disc floating over a reading sheet in full screen: one tap target wide.
+    static let floatingDiscSize: CGFloat = minTapTarget
+    /// The glyph inside the floating disc.
+    static let floatingDiscGlyph: CGFloat = 18
     /// How far the field capsule and its controls grow with Dynamic Type, as a multiple of their
     /// default size: enough that text and glyphs never clip, while the chrome stays a band.
     static let maxTextGrowth: CGFloat = 1.5

@@ -90,6 +90,8 @@ final class ScrollPullHandoff: NSObject {
     var onDragBegan: () -> Void = {}
     /// The drag moved the content, once per drag: a pull of the sheet alone doesn't call it.
     var onScroll: () -> Void = {}
+    /// The finger moved this far down (negative: up) since the last movement, scrolling or pulling.
+    var onMove: (CGFloat) -> Void = { _ in }
 
     private var tracking: SheetPullTracking?
     private var lastY: CGFloat = 0
@@ -138,7 +140,8 @@ final class ScrollPullHandoff: NSObject {
     private func move(_ sv: UIScrollView, to y: CGFloat) {
         guard var t = tracking else { return }
         let before = t.pull
-        let holds = t.move(by: y - lastY, scrolledIn: scrolledIn(sv))
+        let delta = y - lastY
+        let holds = t.move(by: delta, scrolledIn: scrolledIn(sv))
         lastY = y
         tracking = t
         if holds { hold(sv) }
@@ -147,6 +150,7 @@ final class ScrollPullHandoff: NSObject {
             reportedScroll = true
             onScroll()
         }
+        onMove(delta)
     }
 
     /// `lifted`: the finger lifted (else the touch was cancelled, and the sheet springs back).

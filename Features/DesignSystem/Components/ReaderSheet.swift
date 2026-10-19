@@ -6,8 +6,9 @@ import SwiftUI
 /// ┌──────────────────────────────────────┐
 /// │                 ───                  │ ← grabber
 /// │ ( ‹ Browser )             (Aa) (☝︎)  │ ← `SheetTopBar`: the close pill names what is
-/// │ … `text`: ReadingHeading, then the   │   underneath; `textAppearance` (Aa), `accessory` (☝︎)
-/// │   text in the reading theme …        │
+/// │ `banner` (the ☝︎ hint, while on)     │   underneath; `textAppearance` (Aa), `accessory` (☝︎)
+/// │ … `text`: ReadingHeading, then the   │ ← fills the sheet, running under the header and
+/// │   text in the reading theme …        │   the band
 /// │ ╭ `bar` (the Now Playing bar) ─────╮ │ ← what you hear (always another page)
 /// │ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]    │ ← this page's own play button over slots 2–4
 /// └──────────────────────────────────────┘
@@ -15,11 +16,13 @@ import SwiftUI
 ///
 /// Now Playing (`NowPlayingSheet`) has the same top bar, the same 🔖 and ⋯ slots and the same
 /// colours (`palette`, the reading theme), so the controls stay put as Listen turns one into the
-/// other. The close pill, the grabber and a pull
-/// down all close it (`onClose`, after it has gone). 🔖 saves (tap) or files (long-press,
+/// other. Both go full screen the same way (`ReadingChrome`): scrolling down hides the header and
+/// the band, and the floating ▶ plays this page as Listen does. The close pill, the grabber and a
+/// pull down all close it (`onClose`, after it has gone). 🔖 saves (tap) or files (long-press,
 /// `onSaveToFolder`). `more` is the ⋯ button. `floating` floats just above the bottom band (a
 /// toast).
-struct ReaderSheet<Reading: View, Bar: View, More: View, TextAppearance: View, Accessory: View, Floating: View>: View {
+struct ReaderSheet<Reading: View, Bar: View, More: View, TextAppearance: View, Accessory: View, Banner: View,
+                   Floating: View>: View {
     /// What is underneath: "Browser", "Library".
     let backTitle: String
     let listenTitle: String
@@ -37,36 +40,44 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, TextAppearance: View, A
     @ViewBuilder var textAppearance: TextAppearance
     /// The control at the trailing end of the top bar (☝︎, `JumpModeButton`).
     @ViewBuilder var accessory: Accessory
+    /// Under the top bar, in the header (the ☝︎ hint, `JumpHint`): the text's top inset grows
+    /// with it, so it never covers the first line.
+    @ViewBuilder var banner: Banner
     @ViewBuilder var text: Reading
     @ViewBuilder var bar: Bar
     @ViewBuilder var more: More
     @ViewBuilder var floating: Floating
 
+    @State private var chrome = ReadingChrome()
+
     var body: some View {
-        Sheet(onDismiss: onClose, palette: palette) {
-            SheetTopBar { SheetClosePill(kind: .back(backTitle)) } trailing: {
-                textAppearance
-                accessory
+        Sheet(onDismiss: onClose, palette: palette, chrome: chrome) {
+            VStack(spacing: 0) {
+                SheetTopBar { SheetClosePill(kind: .back(backTitle)) } trailing: {
+                    textAppearance
+                    accessory
+                }
+                banner
             }
         } content: {
             text
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    VStack(spacing: Spacing.xs) {
-                        bar
-                        BottomToolbarSpanLayout {
-                            saveButton
-                            PlayStateButton(state: listenState,
-                                            look: .pill(title: listenTitle, detail: listenDetail, expands: true),
-                                            action: onListen)
-                                .accessibilityIdentifier("listenPlayPause")
-                            more
-                                .foregroundStyle(palette.ink)
-                        }
-                    }
-                    .bottomChromeBand()
-                    .overlay(alignment: .top) { floating }
+        } band: {
+            VStack(spacing: Spacing.xs) {
+                bar
+                BottomToolbarSpanLayout {
+                    saveButton
+                    PlayStateButton(state: listenState,
+                                    look: .pill(title: listenTitle, detail: listenDetail, expands: true),
+                                    action: onListen)
+                        .accessibilityIdentifier("listenPlayPause")
+                    more
+                        .foregroundStyle(palette.ink)
                 }
+            }
+            .bottomChromeBand()
+            .overlay(alignment: .top) { floating }
+        } overText: {
+            FloatingPlayButton(state: listenState, action: onListen)
         }
     }
 
@@ -76,7 +87,8 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, TextAppearance: View, A
     }
 }
 
-extension ReaderSheet where TextAppearance == EmptyView, Accessory == EmptyView, Floating == EmptyView {
+extension ReaderSheet where TextAppearance == EmptyView, Accessory == EmptyView, Banner == EmptyView,
+    Floating == EmptyView {
     init(backTitle: String, listenTitle: String, listenDetail: String? = nil, listenState: PlayState, isSaved: Bool,
          onClose: @escaping () -> Void, onListen: @escaping () -> Void, onToggleSave: @escaping () -> Void,
          onSaveToFolder: (() -> Void)? = nil, @ViewBuilder text: () -> Reading, @ViewBuilder bar: () -> Bar,
@@ -84,7 +96,8 @@ extension ReaderSheet where TextAppearance == EmptyView, Accessory == EmptyView,
         self.init(backTitle: backTitle, listenTitle: listenTitle, listenDetail: listenDetail, listenState: listenState,
                   isSaved: isSaved,
                   onClose: onClose, onListen: onListen, onToggleSave: onToggleSave, onSaveToFolder: onSaveToFolder,
-                  textAppearance: { EmptyView() }, accessory: { EmptyView() }, text: text, bar: bar, more: more, floating: { EmptyView() })
+                  textAppearance: { EmptyView() }, accessory: { EmptyView() }, banner: { EmptyView() }, text: text,
+                  bar: bar, more: more, floating: { EmptyView() })
     }
 }
 

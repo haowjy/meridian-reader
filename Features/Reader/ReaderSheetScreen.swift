@@ -64,10 +64,10 @@ struct ReaderSheetScreen: View {
         } accessory: {
             JumpModeButton(isOn: jumpMode) { jumpMode.toggle() }
                 .disabled(!sessionReady)
+        } banner: {
+            if jumpMode { JumpHint { jumpMode = false } }
         } text: {
             text(start)
-                .jumpHint(jumpMode) { jumpMode = false }
-                .animation(Motion.snappy, value: jumpMode)
         } bar: {
             NowPlayingBarView(speech: speech)
         } more: {
@@ -95,7 +95,7 @@ struct ReaderSheetScreen: View {
     private func text(_ start: ListenSpot) -> some View {
         HTMLReadingView(html: article.readingHTML, heading: ReaderHeading(title: article.title, detail: detail),
                         activeParagraphIndex: nil, sentence: savedSentence(start), jumpMode: jumpMode,
-                        opensAtSentence: true, scrollHandle: scroll) { index in
+                        opensAtSentence: true, scrollHandle: scroll, onOpenLink: shell.navigate(to:)) { index in
             if jumpMode { listen(from: index, start: start) }
         }
     }

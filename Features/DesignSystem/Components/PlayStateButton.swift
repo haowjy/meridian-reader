@@ -33,6 +33,7 @@ enum PlayState: CaseIterable {
 /// | `badge` (🎧) | grey symbol | spinner | accent disc, moving bars | accent disc, still bars |
 /// | `pill` (Listen, Continue) | filled ▶ title | filled spinner title | tinted moving bars | tinted still bars |
 /// | `disc` (Now Playing's transport) | ▶ on an accent disc | spinner on the disc | ⏸ on the disc | ▶ on the disc |
+/// | `floatingDisc` (full screen) | as `disc`, smaller | | | |
 struct PlayStateButton: View {
     enum Look: Equatable {
         case glyph
@@ -45,6 +46,9 @@ struct PlayStateButton: View {
         /// A round accent disc, `BottomChrome.transportDiscSize` wide, with a dark glyph on the
         /// player: Now Playing's centre slot.
         case disc
+        /// `disc` at `BottomChrome.floatingDiscSize`: the play / pause floating over a reading
+        /// sheet in full screen.
+        case floatingDisc
     }
 
     let state: PlayState
@@ -62,7 +66,12 @@ struct PlayStateButton: View {
         case .glyph: glyph
         case .badge(let symbol): badge(symbol)
         case .pill(let title, let detail, let expands, let fit): pill(title, detail: detail, expands: expands, fit: fit)
-        case .disc: PlayStateDisc(state: state, action: action)
+        case .disc:
+            PlayStateDisc(state: state, size: BottomChrome.transportDiscSize, glyphSize: BottomChrome.transportDiscGlyph,
+                          action: action)
+        case .floatingDisc:
+            PlayStateDisc(state: state, size: BottomChrome.floatingDiscSize, glyphSize: BottomChrome.floatingDiscGlyph,
+                          action: action)
         }
     }
 
@@ -126,11 +135,13 @@ struct PlayStateButton: View {
     }
 }
 
-/// The `disc` look: the accent of the palette it sits on (the reading page's on Now Playing), a glyph
+/// The `disc` looks: the accent of the palette it sits on (the reading page's on Now Playing), a glyph
 /// in the colour that reads on it. Fixed size, like the toolbar glyphs; the large content viewer
 /// names it at large text sizes.
 private struct PlayStateDisc: View {
     let state: PlayState
+    let size: CGFloat
+    let glyphSize: CGFloat
     let action: () -> Void
 
     @Environment(\.readingPalette) private var reading
@@ -144,12 +155,12 @@ private struct PlayStateDisc: View {
                     ProgressView().tint(glyph)
                 } else {
                     Image(systemName: state == .playing ? Icons.pause : Icons.play)
-                        .font(.system(size: BottomChrome.transportDiscGlyph))
+                        .font(.system(size: glyphSize))
                         .foregroundStyle(glyph)
                         .contentTransition(.symbolEffect(.replace))
                 }
             }
-            .frame(width: BottomChrome.transportDiscSize, height: BottomChrome.transportDiscSize)
+            .frame(width: size, height: size)
             .contentShape(Circle())
         }
         .buttonStyle(PillPressStyle())
@@ -214,8 +225,11 @@ struct PlayStateButtonGallery: View {
                         PlayStateButton(state: state, look: .badge(idleSymbol: Icons.listen)) {}
                         PlayStateButton(state: state, look: .pill(title: Self.title(state), detail: "Ch 24")) {}
                     }
-                    PlayStateButton(state: state, look: .disc) {}
-                        .onReadingPreview()
+                    HStack(spacing: Spacing.m) {
+                        PlayStateButton(state: state, look: .disc) {}
+                        PlayStateButton(state: state, look: .floatingDisc) {}
+                    }
+                    .onReadingPreview()
                 }
             }
         }

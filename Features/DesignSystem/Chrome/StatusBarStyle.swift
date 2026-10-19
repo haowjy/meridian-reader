@@ -1,39 +1,59 @@
 import SwiftUI
 import UIKit
 
+/// How a sheet wants the status bar and the home indicator.
+struct SystemBarsLook: Equatable {
+    /// Light status bar content (a dark reading theme over the app).
+    var lightStatusBar = false
+    /// Full screen: no status bar, the home indicator dimmed.
+    var hidden = false
+}
+
 extension View {
-    /// Light status bar content while `light` is on (the player sheet, dark in both appearances).
+    /// Light status bar content while `lightStatusBar` is on (a dark reading theme); no status bar
+    /// and a dimmed home indicator while `hidden` is (a reading sheet in full screen).
     ///
-    /// SwiftUI sets the status bar only through a colour scheme for the whole window, which would
-    /// flip the surface under the sheet too. Instead, while it's on, a clear window that takes no
-    /// touches and has nothing for VoiceOver sits just above the app's and asks for the style.
-    func lightStatusBar(_ light: Bool) -> some View {
+    /// SwiftUI sets the status bar style only through a colour scheme for the whole window, which
+    /// would flip the surface under the sheet too. Instead, while either is on, a clear window that
+    /// takes no touches and has nothing for VoiceOver sits just above the app's and answers for
+    /// both bars: being on top, it is the window the system asks.
+    func systemBars(lightStatusBar: Bool, hidden: Bool) -> some View {
+        let look = SystemBarsLook(lightStatusBar: lightStatusBar, hidden: hidden)
         // Zero-sized: a still render (`ImageRenderer`) draws a UIKit view as a placeholder.
-        background(alignment: .topLeading) {
-            if light { StatusBarStyleAnchor().frame(width: 0, height: 0) }
+        return background(alignment: .topLeading) {
+            if lightStatusBar || hidden { SystemBarsAnchor(look: look).frame(width: 0, height: 0) }
         }
     }
 }
 
-private struct StatusBarStyleAnchor: UIViewRepresentable {
-    func makeUIView(context: Context) -> StatusBarAnchorView {
-        StatusBarAnchorView()
+private struct SystemBarsAnchor: UIViewRepresentable {
+    let look: SystemBarsLook
+
+    func makeUIView(context: Context) -> SystemBarsAnchorView {
+        SystemBarsAnchorView(look: look)
     }
 
-    func updateUIView(_ view: StatusBarAnchorView, context: Context) {}
+    func updateUIView(_ view: SystemBarsAnchorView, context: Context) {
+        view.look = look
+    }
 
-    static func dismantleUIView(_ view: StatusBarAnchorView, coordinator: ()) {
+    static func dismantleUIView(_ view: SystemBarsAnchorView, coordinator: ()) {
         view.release()
     }
 }
 
-/// Shows the status bar window while it is in a window, until it is released.
-final class StatusBarAnchorView: UIView {
-    private var released = false
-    private var statusWindow: LightStatusBarWindow?
+/// Shows the system bars window while it is in a window, until it is released.
+final class SystemBarsAnchorView: UIView {
+    var look: SystemBarsLook {
+        didSet { if look != oldValue { statusWindow?.controller.look = look } }
+    }
 
-    override init(frame: CGRect) {
-        super.init(frame: frame)
+    private var released = false
+    private var statusWindow: SystemBarsWindow?
+
+    init(look: SystemBarsLook) {
+        self.look = look
+        super.init(frame: .zero)
         isUserInteractionEnabled = false
         isAccessibilityElement = false
     }
@@ -57,20 +77,23 @@ final class StatusBarAnchorView: UIView {
             return
         }
         if statusWindow == nil {
-            statusWindow = LightStatusBarWindow(windowScene: scene)
+            statusWindow = SystemBarsWindow(windowScene: scene, look: look)
         }
         statusWindow?.isHidden = false
     }
 }
 
 /// Above the app's window; every touch falls through to it.
-private final class LightStatusBarWindow: UIWindow {
-    override init(windowScene: UIWindowScene) {
+private final class SystemBarsWindow: UIWindow {
+    let controller: SystemBarsController
+
+    init(windowScene: UIWindowScene, look: SystemBarsLook) {
+        controller = SystemBarsController(look: look)
         super.init(windowScene: windowScene)
         windowLevel = .normal + 1
         backgroundColor = .clear
         accessibilityElementsHidden = true
-        rootViewController = LightStatusBarController()
+        rootViewController = controller
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
@@ -78,8 +101,25 @@ private final class LightStatusBarWindow: UIWindow {
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
 }
 
-private final class LightStatusBarController: UIViewController {
-    override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
+private final class SystemBarsController: UIViewController {
+    var look: SystemBarsLook {
+        didSet {
+            UIView.animate(withDuration: Motion.standardResponse) { self.setNeedsStatusBarAppearanceUpdate() }
+            setNeedsUpdateOfHomeIndicatorAutoHidden()
+        }
+    }
+
+    init(look: SystemBarsLook) {
+        self.look = look
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    override var preferredStatusBarStyle: UIStatusBarStyle { look.lightStatusBar ? .lightContent : .default }
+    override var prefersStatusBarHidden: Bool { look.hidden }
+    override var preferredStatusBarUpdateAnimation: UIStatusBarAnimation { .fade }
+    override var prefersHomeIndicatorAutoHidden: Bool { look.hidden }
 
     override func loadView() {
         view = UIView()
