@@ -10,8 +10,10 @@ import WebKit
 ///   Motion); in Pages mode a whole page, at once (`turnPage`). A page turn is the user moving the text, like a drag: following the audio stops.
 ///   In ☝︎ jump mode taps play from a paragraph instead and nothing here runs; outside a reading
 ///   sheet (no chrome: Follow's preview) taps do nothing.
-/// - A link opens through the owner (`onOpenLink`: the browser); the reading view itself never
-///   leaves its page, except to scroll to a fragment on it.
+/// - A web link opens through the owner (`onOpenLink`: the browser); any other link (`mailto:`,
+///   `data:`, a book's own links, made absolute under `ReadabilityRunner.placeholderBase`) does
+///   nothing. A link to a place on the page goes there (in Pages mode, to the page holding it).
+///   The reading view itself never leaves its page.
 extension HTMLReadingWebView.Coordinator {
     /// The page's script reported a tap at `x` across a page `width` wide.
     func textTapped(x: CGFloat, width: CGFloat) {
@@ -53,26 +55,21 @@ extension HTMLReadingWebView.Coordinator {
         guard abs(target - sv.contentOffset.y) > 0.5 else { return }
         userTookOver()
         stopFollowing()
-        let offset = CGPoint(x: sv.contentOffset.x, y: target)
-        guard animates else { return sv.contentOffset = offset }
-        UIView.animate(springDuration: Motion.standardResponse, bounce: Motion.standardBounce,
-                       options: [.allowUserInteraction, .beginFromCurrentState]) {
-            sv.contentOffset = offset
-        }
+        scrollText(to: target)
     }
 
     // MARK: Links
 
-    /// The page itself loads (the reading HTML, a reload) and embeds in it load; a link on it opens
-    /// through the owner, except a fragment link on the page, which scrolls there, and a
-    /// `javascript:` link, which does nothing. Nothing else takes the reading view anywhere.
+    /// The page itself loads (the reading HTML, a reload) and embeds in it load. A link on it: a
+    /// place on the page is gone to (`goToAnchor`), a web address opens through the owner,
+    /// anything else does nothing. Nothing else takes the reading view anywhere.
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
                  decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
         guard let url = action.request.url else { return decisionHandler(.cancel) }
         if action.navigationType == .linkActivated || action.targetFrame == nil {
-            if Self.isFragment(url, of: webView.url) { return decisionHandler(.allow) }
             decisionHandler(.cancel)
-            if url.scheme?.lowercased() != "javascript" { onOpenLink(url) }
+            if let fragment = Self.fragment(of: url, on: webView.url) { return goToAnchor(fragment) }
+            if url.isWebOrTestPage, url.host() != ReadabilityRunner.placeholderBase.host() { onOpenLink(url) }
             return
         }
         // A frame inside the page (an embed) loads as it would; the page's own frame only loads
@@ -81,10 +78,47 @@ extension HTMLReadingWebView.Coordinator {
         decisionHandler(!isPage || url.absoluteString == "about:blank" ? .allow : .cancel)
     }
 
-    /// `url` points into the page at `page` (only its fragment differs).
-    private static func isFragment(_ url: URL, of page: URL?) -> Bool {
-        guard url.fragment != nil, let page else { return false }
-        func base(_ u: URL) -> String { u.absoluteString.components(separatedBy: "#")[0] }
-        return base(url) == base(page)
+    /// A link to a place on the page (`fragment`, an element's id or name): it goes to the top of
+    /// the reading area, on the `Motion.standard` spring (in Pages mode, the page holding it, at
+    /// once). WebKit's own fragment navigation doesn't scroll a page loaded from a string. The
+    /// user moved the text, as with a page turn: following stops.
+    private func goToAnchor(_ fragment: String) {
+        guard let webView, loaded, let data = try? JSONSerialization.data(withJSONObject: [fragment]),
+              let arg = String(data: data, encoding: .utf8) else { return }
+        let generation = loadGeneration
+        webView.evaluateJavaScript("window.__readerAnchorTop(\(arg)[0])") { [weak self] result, _ in
+            guard let self, let webView = self.webView, generation == loadGeneration,
+                  let top = (result as? Double).map({ CGFloat($0) }) else { return }
+            userTookOver()
+            stopFollowing()
+            if pages != nil { return showPage(holding: top) }
+            let sv = webView.scrollView
+            let layout = ReadingScrollRestore.Layout(
+                contentHeight: sv.contentSize.height, viewportHeight: sv.bounds.height,
+                insetTop: sv.contentInset.top, insetBottom: sv.contentInset.bottom)
+            let y = min(max(top - sv.contentInset.top, layout.range.lowerBound), layout.range.upperBound)
+            scrollText(to: y)
+        }
+    }
+
+    /// Scrolls the text to offset `y` on the `Motion.standard` spring (at once under Reduce Motion).
+    private func scrollText(to y: CGFloat) {
+        guard let sv = webView?.scrollView else { return }
+        let offset = CGPoint(x: sv.contentOffset.x, y: y)
+        guard animates else { return sv.contentOffset = offset }
+        UIView.animate(springDuration: Motion.standardResponse, bounce: Motion.standardBounce,
+                       options: [.allowUserInteraction, .beginFromCurrentState]) {
+            sv.contentOffset = offset
+        }
+    }
+
+    /// The fragment of `url` when it points into the page at `page` (only its fragment differs).
+    /// Read from the string: `URL.fragment` is nil for the reading page's `about:blank#…`.
+    private static func fragment(of url: URL, on page: URL?) -> String? {
+        let parts = url.absoluteString.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)
+        guard parts.count == 2, !parts[1].isEmpty, let page,
+              parts[0] == page.absoluteString.split(separator: "#", omittingEmptySubsequences: false)[0]
+        else { return nil }
+        return String(parts[1])
     }
 }

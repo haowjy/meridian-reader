@@ -6,7 +6,8 @@ import CoreGraphics
 /// slot and the heading as single boxes, merged where they overlap and sorted top to bottom
 /// (document y). Pages are filled greedily: the first starts at the content's top, each later one
 /// at a line's top; a line that doesn't fit wholly starts the next page; a box taller than a page
-/// gets a page of its own, cut at the page's height.
+/// shows in page-tall slices, from the top of the page it lands on while that one is still empty
+/// (the first page's 0), until its bottom fits on a page, which carries on from there.
 struct ReadingPagination: Equatable {
     struct Line: Equatable {
         var top: CGFloat
@@ -16,7 +17,7 @@ struct ReadingPagination: Equatable {
     struct Page: Equatable {
         /// Shown at the top of the reading area: its first line's top (0 for the first page).
         var top: CGFloat
-        /// Its last whole line's bottom (where a box taller than a page is cut).
+        /// Its last whole line's bottom (where a slice of a box taller than a page ends).
         var bottom: CGFloat
         /// How far it shows above `top` and below `bottom`: into the gap to the lines of the pages
         /// around it, at most `margin` (room for the spoken paragraph's tint, which pads its box).
@@ -30,30 +31,27 @@ struct ReadingPagination: Equatable {
     init(lines: [Line], pageHeight height: CGFloat, margin: CGFloat) {
         var spans: [(top: CGFloat, bottom: CGFloat)] = []
         // The page being filled: its top, and its last whole line's bottom once it has one.
-        var top: CGFloat? = 0
+        var top: CGFloat = 0
         var bottom: CGFloat?
         for line in lines {
-            let pageTop = top ?? line.top
-            if line.bottom <= pageTop + height {
-                (top, bottom) = (pageTop, line.bottom)
+            if line.bottom <= top + height {
+                bottom = line.bottom
                 continue
             }
-            // The line starts the next page; a box taller than a page cuts from the top of the
-            // page it lands on while that one is still empty (the first page's 0).
+            // The line starts the next page.
             var start = line.top
             if let last = bottom {
-                spans.append((pageTop, last))
+                spans.append((top, last))
             } else if line.bottom - line.top > height {
-                start = pageTop
+                start = top
             }
-            if line.bottom <= start + height {
-                (top, bottom) = (start, line.bottom)
-            } else {
+            while line.bottom > start + height {
                 spans.append((start, start + height))
-                (top, bottom) = (nil, nil)
+                start += height
             }
+            (top, bottom) = (start, line.bottom)
         }
-        if let top, let bottom { spans.append((top, bottom)) }
+        if let bottom { spans.append((top, bottom)) }
         if spans.isEmpty { spans = [(0, height)] }
         pages = spans.indices.map { i in
             let (top, bottom) = spans[i]

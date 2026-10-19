@@ -735,8 +735,12 @@ struct HTMLReadingWebView: UIViewRepresentable {
         func goToSpoken(_ move: SpokenMove) {
             guard let webView, loaded, goesToSpoken, let spot = spokenSpot else { return }
             if move != .intoView { cancelRestore() }
-            // Not paginated yet: the pages open on it.
-            if let pages, pages.pagination == nil { return pages.start = ReadingPages.Spot(spot) }
+            // Not paginated yet: the pages open on it, then come back here (which notes it shown).
+            if let pages, pages.pagination == nil {
+                pages.start = ReadingPages.Spot(spot)
+                pages.follow = true
+                return
+            }
             spokenShown = (spot.paragraph, spot.sentence != nil)
             spokenRequest += 1
             let request = spokenRequest, generation = loadGeneration

@@ -48,7 +48,7 @@ final class ReadingPages {
     /// sentence once laid out.
     @ObservationIgnored fileprivate var measuring = false
     @ObservationIgnored fileprivate var remeasure = false
-    @ObservationIgnored fileprivate var follow = false
+    @ObservationIgnored var follow = false
     /// The web view's height the pages were broken for.
     @ObservationIgnored fileprivate var viewportHeight: CGFloat = 0
 
@@ -122,8 +122,8 @@ extension HTMLReadingWebView.Coordinator {
         if let index = pendingScrollIndex {
             pendingScrollIndex = nil
             pages.start = ReadingPages.Spot(paragraph: index, offset: 0)
-        } else if goesToSpoken, let spot = spokenSpot {
-            pages.start = ReadingPages.Spot(spot)
+        } else {
+            goToSpoken(.jump)
         }
         measurePages()
     }

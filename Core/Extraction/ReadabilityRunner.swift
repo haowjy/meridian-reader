@@ -20,6 +20,10 @@ enum ReadabilityRunner {
         var siteName: String?
     }
 
+    /// The base a page without a web address (a book's chapter, a test page) is parsed against:
+    /// its relative links come out under it, and point nowhere.
+    static let placeholderBase = URL(string: "https://reader.invalid/")!
+
     static func parse(html: String, baseURL: URL) async throws -> ParseResult {
         let readabilityJS = try loadResource("Readability", ext: "js")
         let readerableJS = (try? loadResource("Readability-readerable", ext: "js")) ?? ""
@@ -52,8 +56,7 @@ enum ReadabilityRunner {
         let webView = OffscreenWebView.make()
         // Only web base URLs load; other schemes (e.g. the UI tests' `reader-test://` pages) never
         // finish, so parse those against a neutral https base.
-        let webBase = baseURL.isWeb
-            ? baseURL : URL(string: "https://reader.invalid/")!
+        let webBase = baseURL.isWeb ? baseURL : placeholderBase
         try await OffscreenWebView.load(webView, html: html, baseURL: webBase)
         _ = try await webView.evaluateJavaScript(readabilityJS + "\n" + readerableJS)
         let raw = try await webView.evaluateJavaScript(bridge)

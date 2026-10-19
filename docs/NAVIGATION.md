@@ -711,8 +711,10 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   band, which are drawn over it (the header on the page's colour, the band on its tinted bar
   material); its first line starts below the header and its last line scrolls clear of the band.
   Scrolling down goes full screen (below).
-- **Links** in the text open in the browser (as ⋯ → Website does: the sheet closes, Now Playing
-  too); a link to a place on the same page scrolls there. The text never leaves its page.
+- **Links** in the text open in the browser when they lead to a web page (as ⋯ → Website does:
+  the sheet closes, Now Playing too); a link to a place on the same page goes there (in Pages, to
+  the page holding it) and stops following the audio as a page turn does; any other link (mail,
+  a book's links between its own chapters) does nothing. The text never leaves its page.
 
 ### Now Playing
 
@@ -879,7 +881,8 @@ time; Follow's chapter preview always scrolls.
 
 - **A page** runs from just below the top bar to the footer and holds whole lines only: no line
   is ever cut at its top or bottom. A line that doesn't fit starts the next page; a picture taller
-  than a page gets a page of its own, cut at the page's foot. The bars hide and show over it as in
+  than a page shows a page-tall slice at a time until the rest of it fits, and the text after it
+  carries on from there. The bars hide and show over it as in
   Scroll (the band covers the page's foot and the footer while they show); the text never moves
   for them.
 - **The footer** (`Page 3 of 9   2 min left in chapter`, the two set apart by space, no
