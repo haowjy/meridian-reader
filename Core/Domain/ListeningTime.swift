@@ -71,14 +71,15 @@ enum ListeningTime {
     }
 
     /// What is left of `document` from `offset` UTF-16 units into paragraph `paragraph`, at `rate`
-    /// (Pages mode's footer, from a page's first character): "2 min left in chapter", "1 h 5 min
-    /// left in chapter"; nil for an empty document.
-    static func leftInChapterLabel(in document: ParagraphDocument, paragraph: Int, offset: Int,
-                                   rate: Double) -> String? {
+    /// (Pages mode's footer, from a page's first character): "2 min left", as the rows and the bar
+    /// say it, and for a chapter (a page of a book or series) "2 min left in chapter", which the
+    /// book's own time left would otherwise be mistaken for; nil for an empty document.
+    static func leftLabel(in document: ParagraphDocument, paragraph: Int, offset: Int, rate: Double,
+                          chapter: Bool) -> String? {
         guard !document.isEmpty else { return nil }
         let minutes = minutesLeft(in: document, fromUTF16Offset: document.startUTF16Offset(forParagraph: paragraph) + offset,
                                   rate: rate)
-        return String(localized: "\(leftLabel(minutes: minutes)) in chapter")
+        return chapter ? String(localized: "\(leftLabel(minutes: minutes)) in chapter") : leftLabel(minutes: minutes)
     }
 
     /// "✓ Finished", where a time left would be.

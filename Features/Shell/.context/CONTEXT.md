@@ -36,7 +36,10 @@ changing the shell code.
   (`DesignSystem/Chrome/SystemBars.swift`); SwiftUI's own route, a colour scheme for the
   window, would flip the surface underneath. The same window hides the status bar (and asks for a
   dimmed home indicator) in full screen, in every theme: while it is up it is the window the
-  system asks, so a second mechanism on the app's window would be ignored. Nothing of the app's covers the sheets; a system
+  system asks, so a second mechanism on the app's window would be ignored. When neither is wanted
+  any more it answers as the app's window for the length of the fade, then goes: removed at once,
+  the status bar would pop back. Kept for the sheet's whole life it made the UI tests run about
+  35 s longer, so it lingers only that long. Nothing of the app's covers the sheets; a system
   sheet over them (Settings, Share) leaves the strip above dark, so light stays right there.
   During a pull the dim lifts, and `Sheet` lays a scrim under the status bar
   (`PullDownLook.statusBarScrim`) that keeps the strip at the resting dim until the sheet is

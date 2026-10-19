@@ -32,6 +32,8 @@ struct NowPlaying: Equatable {
     var byline: String?
     var artwork: Data?
     var playingFrom: PlayingFrom
+    /// A chapter: a page of a book or series (`PlaybackFolder.isBookOrSeries`).
+    var isChapter: Bool
     /// `.prepared` and `.finished` included: the bar stays for both.
     var phase: PlaybackPhase
 
