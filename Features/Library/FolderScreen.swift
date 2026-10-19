@@ -64,7 +64,8 @@ struct FolderScreen: View {
             }
         }
             // The title names the screen for VoiceOver, the back button and tests; drawn only
-            // once the header's own title has scrolled away.
+            // once the header's own title has scrolled away, and never over search results, which
+            // carry the name themselves.
             .navigationTitle(folder.name)
             .navigationBarTitleDisplayMode(.inline)
             .modifier(BarTitleRemoved())
@@ -74,9 +75,9 @@ struct FolderScreen: View {
                         .typeStyle(.row, weight: .semibold)
                         .foregroundStyle(Palette.ink)
                         .lineLimit(1)
-                        .opacity(headerTitleHidden ? 1 : 0)
-                        .animation(Motion.snappy, value: headerTitleHidden)
-                        .accessibilityHidden(!headerTitleHidden)
+                        .opacity(headerTitleHidden && !searching ? 1 : 0)
+                        .animation(Motion.snappy, value: headerTitleHidden && !searching)
+                        .accessibilityHidden(!headerTitleHidden || searching)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     let editing = screen.isEditing(folderID: folder.id)
