@@ -147,7 +147,7 @@ private struct SuggestionRow<Leading: View>: View {
 
     private var openButton: some View {
         Button(action: onOpen) {
-            SymbolRow(title, subtitle: subtitle, leading: leading) { EmptyView() }
+            SymbolRow(title, subtitle: subtitle.map { DetailPart($0) }, leading: leading) { EmptyView() }
                 .padding(.leading, Spacing.m)
         }
         .buttonStyle(.plain)

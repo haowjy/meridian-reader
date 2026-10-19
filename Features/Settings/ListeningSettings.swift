@@ -19,7 +19,7 @@ struct ListeningSettingsSection: View {
             if let system = localTTS.engines.systemDescriptor {
                 SettingsChoiceRow(
                     title: system.displayName,
-                    subtitle: system.subtitle,
+                    subtitle: DetailPart(system.subtitle),
                     selected: localTTS.selectedEngineID == system.id,
                     accessibilityID: "engineRow-\(system.id.rawValue)"
                 ) {
@@ -87,10 +87,6 @@ struct ListeningSettingsSection: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Cancel \(descriptor.shortName) download")
                 .accessibilityIdentifier("engineCancel-\(id.rawValue)")
-            } else if gateOK, localTTS.isModelInstalled(id) {
-                // Downloaded: the grey ✓ every download shows once done (`DownloadMark`).
-                DownloadMark(state: .downloaded, size: Glyph.modelDownload)
-                    .accessibilityLabel("Downloaded")
             }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -105,7 +101,17 @@ struct ListeningSettingsSection: View {
         }
     }
 
-    private func localSubtitle(_ descriptor: EngineDescriptor, gateOK: Bool) -> String {
+    /// Line two: the model's state, after the grey ✓ once it is downloaded (as a downloaded row's
+    /// line two starts), so the trailing slots hold only its download's progress and the
+    /// selection ✓.
+    private func localSubtitle(_ descriptor: EngineDescriptor, gateOK: Bool) -> DetailPart {
+        let text = localState(descriptor, gateOK: gateOK)
+        let downloaded = gateOK && localTTS.isModelInstalled(descriptor.id)
+            && localTTS.synth.state.warmingEngineID != descriptor.id
+        return downloaded ? .downloaded(text) : DetailPart(text)
+    }
+
+    private func localState(_ descriptor: EngineDescriptor, gateOK: Bool) -> String {
         let id = descriptor.id
         if !gateOK {
             return localTTS.engines.blockReason(id) ?? String(localized: "Not supported on this device")
@@ -204,7 +210,7 @@ struct VoicePage: View {
                 let downloading = localTTS.voiceDownloadID == voice.id
                 SettingsChoiceRow(
                     title: voice.label,
-                    subtitle: voice.id == descriptor.defaultVoiceID ? Self.defaultVoiceSubtitle(voice.detail) : voice.detail,
+                    subtitle: DetailPart(voice.id == descriptor.defaultVoiceID ? Self.defaultVoiceSubtitle(voice.detail) : voice.detail),
                     selected: current == voice.id && localTTS.voiceDownloadID == nil,
                     accessibilityID: "voiceRow-\(voice.id)"
                 ) {
@@ -259,7 +265,7 @@ struct VoicePage: View {
         Section {
             SettingsChoiceRow(
                 title: String(localized: "System default"),
-                subtitle: VoiceCatalog.languageName(for: speech.effectiveLanguageCode),
+                subtitle: DetailPart(VoiceCatalog.languageName(for: speech.effectiveLanguageCode)),
                 selected: appleSelectedID == nil,
                 accessibilityID: "voiceRow-system"
             ) {
@@ -268,7 +274,7 @@ struct VoicePage: View {
             ForEach(VoiceCatalog.voices(forLanguage: speech.effectiveLanguageCode)) { entry in
                 SettingsChoiceRow(
                     title: entry.voice.name,
-                    subtitle: "\(entry.qualityLabel), \(entry.languageDisplayName)",
+                    subtitle: DetailPart("\(entry.qualityLabel), \(entry.languageDisplayName)"),
                     selected: appleSelectedID == entry.id,
                     accessibilityID: "voiceRow-\(entry.id)"
                 ) {
@@ -301,7 +307,7 @@ struct LanguagePage: View {
             Section {
                 SettingsChoiceRow(
                     title: String(localized: "Automatic (match article)"),
-                    subtitle: automaticSubtitle,
+                    subtitle: DetailPart(automaticSubtitle),
                     selected: speech.languageAutomatic,
                     accessibilityID: "languageRow-automatic"
                 ) {

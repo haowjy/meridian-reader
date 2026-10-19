@@ -20,7 +20,8 @@ import SwiftUI
 /// theme's ink.
 struct SymbolRow<Leading: View, Trailing: View>: View {
     let title: String
-    var subtitle: String?
+    /// Line two (a `DetailLine` part, so a downloaded model's starts with the grey ✓).
+    var subtitle: DetailPart?
     /// The title's and the symbol's colour (nil: ink): the accent for *New Folder*, red for
     /// *Unfollow*.
     var ink: Color?
@@ -48,10 +49,8 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
                         .typeStyle(.row)
                         .lineLimit(1)
                     if let subtitle {
-                        Text(subtitle)
+                        DetailLine(parts: [subtitle])
                             .typeStyle(.caption)
-                            .foregroundStyle(reading?.secondaryInk ?? Palette.secondaryInk)
-                            .lineLimit(1)
                     }
                 }
                 .layoutPriority(1)
@@ -79,7 +78,7 @@ extension SymbolRow {
 
 extension SymbolRow where Leading == Image {
     /// A row led by an SF Symbol (nil: no leading column).
-    init(_ title: String, subtitle: String? = nil, symbol: String?, ink: Color? = nil,
+    init(_ title: String, subtitle: DetailPart? = nil, symbol: String?, ink: Color? = nil,
          @ViewBuilder trailing: () -> Trailing) {
         self.init(title: title, subtitle: subtitle, ink: ink, leading: symbol.map { Image(systemName: $0) },
                   trailing: trailing)
@@ -87,14 +86,14 @@ extension SymbolRow where Leading == Image {
 }
 
 extension SymbolRow where Leading == Image, Trailing == EmptyView {
-    init(_ title: String, subtitle: String? = nil, symbol: String?, ink: Color? = nil) {
+    init(_ title: String, subtitle: DetailPart? = nil, symbol: String?, ink: Color? = nil) {
         self.init(title, subtitle: subtitle, symbol: symbol, ink: ink) { EmptyView() }
     }
 }
 
 extension SymbolRow {
     /// A row led by any view of the column's size (a site tile).
-    init(_ title: String, subtitle: String? = nil, ink: Color? = nil, @ViewBuilder leading: () -> Leading,
+    init(_ title: String, subtitle: DetailPart? = nil, ink: Color? = nil, @ViewBuilder leading: () -> Leading,
          @ViewBuilder trailing: () -> Trailing) {
         self.init(title: title, subtitle: subtitle, ink: ink, leading: leading(), trailing: trailing)
     }
