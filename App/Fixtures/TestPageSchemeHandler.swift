@@ -8,6 +8,9 @@ import WebKit
 ///   the handler; real navigations, so they get real back/forward history):
 ///   - `one`: not an article (no 📄 / 🎧), with links to the others and to a book (`bookLink`);
 ///   - `two` ("Second page", with a link to `three` in its text) and `three` ("Third page"): articles (pass `isProbablyReaderable`);
+///     `three`'s paragraphs are numbered ("Paragraph 2."), its first holds a link of each kind
+///     the reading view tells apart (to paragraph 4 on the page, relative, `mailto:`, the web),
+///     and a picture several screens tall follows its second;
 ///   - `thin` ("Thin page"): readable by that check, but its article text is invisible, so the
 ///     saved copy (which drops short invisible text) has almost nothing to listen to;
 ///   - `untitled`: an article with no `<title>` and no heading, so it has no title (`PageTitle`);
@@ -66,7 +69,12 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
         case "three":
             title = "Third page"
             let other = "A different offline article, about harbors and the boats that come and go with the tide. "
-            body = (1...5).map { _ in "<p>" + String(repeating: other, count: 4) + "</p>" }.joined()
+            let links = "Links: <a href=\"#p4\">to paragraph 4</a>, <a href=\"notes.html\">a relative link</a>, "
+                + "<a href=\"mailto:keeper@example.com\">mail</a>, <a href=\"https://example.com/\">example.com</a>."
+            body = (1...5).map { i in
+                "<p id=\"p\(i)\">Paragraph \(i). " + String(repeating: other, count: 4) + (i == 1 ? links : "") + "</p>"
+                    + (i == 2 ? tallPicture : "")
+            }.joined()
         case "thin":
             title = "Thin page"
             // Each paragraph is long enough for the readable check (which ignores opacity) and
@@ -118,6 +126,18 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
         let body = (1...5).map { "<p>Part \($0). " + String(repeating: sentence, count: 3) + "</p>" }.joined()
         let next = "<nav><a href=\"reader-test://story/chapter-\(number + 1)\">Next chapter</a></nav>"
         return document(title: "Chapter \(number)", body: next + body)
+    }
+
+    /// A picture 1,600 pt tall, marked every 200 pt, for Pages mode's slices.
+    private static var tallPicture: String {
+        let marks = stride(from: 200, to: 1600, by: 200).map {
+            "<line x1='0' y1='\($0)' x2='200' y2='\($0)' stroke='black' stroke-width='4'/>"
+                + "<text x='10' y='\($0 - 10)' font-size='40'>\($0)</text>"
+        }.joined()
+        let svg = "<svg xmlns='http://www.w3.org/2000/svg' width='200' height='1600'>"
+            + "<rect width='200' height='1600' fill='#9cc'/>\(marks)</svg>"
+        let src = "data:image/svg+xml;base64," + Data(svg.utf8).base64EncodedString()
+        return "<p><img alt=\"A tall picture\" width=\"200\" height=\"1600\" src=\"\(src)\"></p>"
     }
 
     /// Points page one's "Download a book" at the synthetic EPUB (`TestEPUB`) as a `blob:` URL
