@@ -51,7 +51,7 @@ struct SettingsView: View {
             get: { developerToggleNotice != nil },
             set: { if !$0 { developerToggleNotice = nil } }
         )) {
-            Button("OK", role: .cancel) {}
+            Button(Verbs.ok, role: .cancel) {}
         } message: {
             Text(developer.isEnabled
                  ? "Debug tools are shown in Settings › Developer. Long-press the version again to hide them."
@@ -95,7 +95,7 @@ private struct AppearanceSettingsSection: View {
 
     var body: some View {
         Section {
-            SettingsControlRow(title: String(localized: "Theme")) {
+            SettingsControlRow(title: Verbs.theme) {
                 ChoicePicker(options: AppearanceMode.allCases, selection: $appearance.mode,
                              identifier: "appearanceMode") { mode in
                     Text(mode.title).typeStyle(.row)
@@ -119,7 +119,7 @@ private struct ReadingSettingsSection: View {
     var body: some View {
         let accent = AppAppearance.shared.accent
         Section {
-            SettingsControlRow(title: String(localized: "Theme")) {
+            SettingsControlRow(title: Verbs.theme) {
                 ReadingThemePicker(selection: $appearance.theme, accent: accent)
             }
             SettingsControlRow(title: String(localized: "Font")) {

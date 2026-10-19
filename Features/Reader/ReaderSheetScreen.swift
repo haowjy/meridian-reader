@@ -136,7 +136,7 @@ struct ReaderSheetScreen: View {
             let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at, rate: speech.rateMultiplier)
             return (Verbs.continue, ListeningTime.leftLabel(minutes: left))
         }
-        return (String(localized: "Listen"),
+        return (Verbs.listen,
                 ListeningTime.label(minutes: ListeningTime.minutes(utf16Length: totalLength, rate: speech.rateMultiplier)))
     }
 

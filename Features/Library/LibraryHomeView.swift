@@ -133,7 +133,7 @@ struct LibraryHomeView: View {
                 PillButton(String(localized: "Browse the Web"), shortTitle: String(localized: "Browse"),
                            systemImage: Icons.browser, style: .filled, fit: fit) { shell.leaveLibrary() }
                     .accessibilityIdentifier("libraryEmptyBrowse")
-                PillButton(Verbs.importBook, shortTitle: String(localized: "Import"),
+                PillButton(Verbs.importBook, shortTitle: Verbs.import,
                            systemImage: Icons.book, style: .neutral, fit: fit) {
                     BookImportActions(library: library, shell: shell).pickBook(into: nil)
                 }

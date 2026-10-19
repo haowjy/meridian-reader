@@ -42,7 +42,7 @@ struct BookImportSheet: View {
                     destinationRow
                         .listRowInsets(EdgeInsets())
                 } header: {
-                    SectionHeader(title: String(localized: "Add to"))
+                    SectionHeader(title: Verbs.addTo)
                         .listHeader()
                 } footer: {
                     Text(destinationNote).listFooter()
@@ -62,7 +62,7 @@ struct BookImportSheet: View {
                 } pickNewFolder: {
                     flow.chooseNewFolder(named: $0, in: $1, shell: shell)
                 }
-                .navigationTitle(String(localized: "Add to"))
+                .navigationTitle(Verbs.addTo)
                 .navigationBarTitleDisplayMode(.inline)
                 .accessibilityIdentifier("importAddToTree")
             }
@@ -80,7 +80,7 @@ struct BookImportSheet: View {
             Text("Replace rebuilds its chapters in the same folder, and keeps your place where the chapters match.")
         }
         .alert(failure ?? "", isPresented: isFailing) {
-            Button("OK") { flow.acknowledgeFailure() }
+            Button(Verbs.ok) { flow.acknowledgeFailure() }
                 .accessibilityIdentifier("importFailureOK")
         }
         .onDisappear { flow.sheetGone() }
@@ -158,7 +158,7 @@ struct BookImportSheet: View {
         }
         .buttonStyle(.plain)
         .disabled(!flow.canChangeDestination)
-        .accessibilityLabel("Add to \(destinationName)")
+        .accessibilityLabel("\(Verbs.addTo) \(destinationName)")
         .accessibilityHint(flow.isReplacing ? "" : "Choose another folder")
         .accessibilityIdentifier("importChange")
     }
@@ -192,7 +192,7 @@ struct BookImportSheet: View {
                     .frame(maxWidth: .infinity, minHeight: BottomChrome.minTapTarget, alignment: .leading)
             }
         } header: {
-            SectionHeader(title: String(localized: "Chapters"))
+            SectionHeader(title: Verbs.chapters)
                 .listHeader()
         } footer: {
             if !preview.skippedTitles.isEmpty {
@@ -216,7 +216,7 @@ struct BookImportSheet: View {
     private var toolbar: some ToolbarContent {
         SheetBarButton(Verbs.cancel, placement: .cancellationAction, identifier: "importCancel") { flow.cancel() }
         if flow.phase == .ready {
-            SheetBarButton(String(localized: "Import"), placement: .confirmationAction, identifier: "importStart") {
+            SheetBarButton(Verbs.import, placement: .confirmationAction, identifier: "importStart") {
                 flow.startImport()
             }
         }

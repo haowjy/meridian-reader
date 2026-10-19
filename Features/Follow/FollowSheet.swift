@@ -172,7 +172,7 @@ private struct FollowReview: View {
                 }
             } header: {
                 // How many it found; how many are kept is on Follow's button.
-                SectionHeader(title: String(localized: "Chapters"), count: contents.chapters.count)
+                SectionHeader(title: Verbs.chapters, count: contents.chapters.count)
                     .listHeader()
                     .accessibilityIdentifier("followFound")
             }
@@ -184,7 +184,7 @@ private struct FollowReview: View {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("A folder is made at once. The chapters’ text is fetched one at a time while the app is open.")
                     .footnote()
-                PillButton(String(localized: "OK"), detail: String(localized: "Follow \(keptCount) Chapters"),
+                PillButton(Verbs.ok, detail: String(localized: "Follow \(keptCount) Chapters"),
                            systemImage: Icons.follow, expands: true, action: onFollow)
                     .disabled(keptCount == 0)
                     .accessibilityIdentifier("followOK")

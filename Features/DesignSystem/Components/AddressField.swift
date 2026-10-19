@@ -75,7 +75,7 @@ struct AddressField<Field: View, Accessory: View>: View {
                     .tapTarget(Self.readerSize)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Open in Reader")
+            .accessibilityLabel(Verbs.openInReader)
             .accessibilityIdentifier("addressReader")
             .transition(.opacity)
         }

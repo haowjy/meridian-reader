@@ -118,7 +118,7 @@ extension View {
     func newFolderAlert(isPresented: Binding<Bool>, name: Binding<String>, message: String? = nil,
                         create: @escaping () -> Void) -> some View {
         alert(Verbs.title(Verbs.newFolder), isPresented: isPresented) {
-            TextField("Name", text: name)
+            TextField(Verbs.name, text: name)
                 .accessibilityIdentifier("newFolderField")
             Button(Verbs.cancel, role: .cancel) {}
             Button("Create", action: create)
@@ -178,7 +178,7 @@ private struct LibraryDialogs: ViewModifier {
             }
             .alert(Verbs.title(Verbs.rename), isPresented: Binding(get: { state.renaming != nil },
                                                         set: { if !$0 { state.renaming = nil } })) {
-                TextField("Name", text: $state.renameText)
+                TextField(Verbs.name, text: $state.renameText)
                     .accessibilityIdentifier("renameFolderField")
                 Button(Verbs.cancel, role: .cancel) { state.renaming = nil }
                 Button(Verbs.title(Verbs.rename)) {

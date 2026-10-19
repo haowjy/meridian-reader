@@ -95,7 +95,7 @@ struct DownloadsList: View {
     }
 
     private func done(_ items: [DownloadOverview.Item]) -> some View {
-        section(items, header: SectionHeader(title: String(localized: "Downloaded"), count: items.count),
+        section(items, header: SectionHeader(title: Verbs.downloaded, count: items.count),
                 headerID: "downloadsDoneHeader") {
             let total = items.compactMap { sizes[$0.id] }.reduce(0, +)
             if total > 0 {
