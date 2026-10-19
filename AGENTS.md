@@ -49,7 +49,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedBookmarks`. Other options:
   `-importTestEPUB` (*Import Book…* takes a synthetic EPUB instead of the Files picker;
   `-playTestEPUB` imports it at launch and plays it), `-browseTestPages` (offline `reader-test://`
-  pages; page one links to a story to follow, `-testStoryChapters N` lengthens its contents and
+  pages; page one links to an article with no title and to a story to follow, `-testStoryChapters N` lengthens its contents and
   `-testStoryThrottles` makes its chapter 6 fail once, for Follow's back-off), `-openLibrary`, `-openDemoInBrowseReader`, `-restoreSurface` (a relaunch reopens where
   the last launch left), `-failLibrarySaves` (every library save fails), `-testVoice` (an offline
   on-device test voice for downloads; `-selectEngine test.voice`). Keep probes and tests offline;
