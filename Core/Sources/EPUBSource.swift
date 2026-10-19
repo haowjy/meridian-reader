@@ -55,7 +55,7 @@ final class EPUBSource: PageSource {
 
     private func ref(at index: Int) -> PageRef {
         let chapter = chapters[index]
-        return PageRef(key: chapter.key, locator: .book(chapter.locator), ordinal: index, title: chapter.title,
+        return PageRef(key: chapter.key, locator: .book(chapter.locator), ordinal: index,
                        skipsInPlayback: chapter.skipsInPlayback)
     }
 }

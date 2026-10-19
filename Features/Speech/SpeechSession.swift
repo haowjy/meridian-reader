@@ -47,20 +47,6 @@ struct SpeechSession: Equatable, Sendable, Identifiable {
                   canonicalURL: article.origin.canonicalURL, sourceLabel: article.sourceLabel)
     }
 
-    static func reader(
-        id: UUID,
-        plainText: String,
-        cleanedHTML: String? = nil,
-        matchingTitle: String? = nil
-    ) -> SpeechSession {
-        let doc = ParagraphDocument.forListening(
-            plainText: plainText,
-            cleanedHTML: cleanedHTML,
-            matchingTitle: matchingTitle
-        )
-        return SpeechSession(id: id, document: doc,
-                             detectedLanguage: ListenLanguage.detectCached(paragraphs: doc.paragraphs))
-    }
 }
 
 extension SpeechSession {

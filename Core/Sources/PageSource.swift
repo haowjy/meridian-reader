@@ -30,7 +30,6 @@ struct PageRef: Hashable, Sendable {
     var locator: Locator
     /// Place in the source's order, from 0.
     var ordinal: Int
-    var title: String?
     /// Front or back matter: kept, but never reached by carrying on from the page before.
     var skipsInPlayback: Bool = false
 }

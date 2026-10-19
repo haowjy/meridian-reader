@@ -31,8 +31,6 @@ final class URLPageFetcher {
     struct Snapshot: Equatable, Sendable {
         /// Where the page ended up, after redirects.
         var url: URL
-        /// The document's title, as the browser reads it (`WKWebView.title`).
-        var title: String?
         var html: String
     }
 
@@ -73,7 +71,7 @@ final class URLPageFetcher {
     func snapshot(of url: URL) async throws -> Snapshot {
         try await loaded(url) { view in
             let html = try await self.within(.snapshot) { try await PageSnapshot.html(of: view) }
-            return Snapshot(url: view.url ?? url, title: view.title, html: html)
+            return Snapshot(url: view.url ?? url, html: html)
         }
     }
 
@@ -110,8 +108,7 @@ final class URLPageFetcher {
 
     /// A snapshot's content, extracted as the browser extracts its page.
     func content(of snapshot: Snapshot) async throws -> PageContent {
-        let page = SingleWebPageSource(url: snapshot.url, pageTitle: snapshot.title, htmlSnapshot: snapshot.html,
-                                       extractor: extractor)
+        let page = SingleWebPageSource(url: snapshot.url, htmlSnapshot: snapshot.html, extractor: extractor)
         return try await within(.extract) { try await page.content(of: page.page) }
     }
 
