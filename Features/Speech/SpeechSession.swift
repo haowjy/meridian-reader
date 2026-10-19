@@ -56,13 +56,12 @@ extension SpeechSession {
     /// also shows the book's byline, and the book's cover when it has no artwork of its own.
     @MainActor
     static func page(_ page: Page) -> SpeechSession {
-        let folder = page.folder
-        let book = folder.flatMap { $0.kind.isBookOrSeries ? $0 : nil }
+        let book = page.isChapter ? page.folder : nil
         return SpeechSession(id: page.listenKey, document: page.listenDocument(),
                              detectedLanguage: page.detectedLanguageBackfilling(),
                              title: page.givenTitle, site: book?.byline ?? page.byline,
                              artwork: page.artworkData ?? book?.coverData,
                              canonicalURL: page.origin.canonicalURL,
-                             sourceLabel: page.byline, folder: folder.map(PlaybackFolder.init))
+                             sourceLabel: page.byline, folder: PlaybackFolder(page))
     }
 }

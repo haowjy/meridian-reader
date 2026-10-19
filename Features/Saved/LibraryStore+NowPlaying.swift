@@ -16,8 +16,7 @@ extension LibraryStore {
 /// folder's order.
 extension LibraryStore: NextChapterProviding {
     func folder(containing pageKey: UUID) -> PlaybackFolder? {
-        guard let folder = page(key: pageKey)?.folder else { return nil }
-        return PlaybackFolder(folder)
+        page(key: pageKey).flatMap(PlaybackFolder.init)
     }
 
     func chapters(of folderID: UUID) -> [ChapterAdvance.Chapter] {
@@ -36,7 +35,9 @@ extension LibraryStore: NextChapterProviding {
 }
 
 extension PlaybackFolder {
-    init(_ folder: Folder) {
-        self.init(id: folder.id, name: folder.name, isBookOrSeries: folder.kind.isBookOrSeries)
+    /// The folder `page` plays on through; nil out of a folder. A chapter's is a book's.
+    init?(_ page: Page) {
+        guard let folder = page.folder else { return nil }
+        self.init(id: folder.id, name: folder.name, isBookOrSeries: page.isChapter)
     }
 }
