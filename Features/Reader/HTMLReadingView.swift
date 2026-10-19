@@ -734,48 +734,6 @@ struct HTMLReadingWebView: UIViewRepresentable {
             }
         }
 
-        /// The one reading page (the Reader and Now Playing alike): the text in `look`, with
-        /// the title and source line on top, or a slot `top` points tall for the native top view.
-        /// The article text is wrapped (`.reader-text`) so where it starts can be measured. The
-        /// spoken paragraph's tint pads with a box-shadow, so it never reflows.
-        private static func wrap(_ html: String, heading: ReaderHeading?, top: CGFloat?, sizes: ReadingStyle.Sizes,
-                                 look: ReadingStyle.Look) -> String {
-            let header: String
-            if let top {
-                header = "<div class=\"reader-top\" aria-hidden=\"true\" style=\"height: \(Int(top))px\"></div>"
-            } else {
-                header = heading.map {
-                    "<header class=\"reader-heading\"><div class=\"reader-title\">\(escape($0.title))</div>"
-                        + "<div class=\"reader-detail\">"
-                        + $0.detail.filter { !$0.isEmpty }.map { "<span>\(escape($0))</span>" }.joined()
-                        + "</div></header>"
-                } ?? ""
-            }
-            return """
-            <!DOCTYPE html>
-            <html>
-            <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-            <style>
-            \(ReadingStyle.css(sizes: sizes, look: look, blockTags: ListenHTMLBlocks.tags))
-            </style>
-            </head>
-            <body>
-            \(header)
-            <main class="reader-text">
-            \(ReadingStyle.withoutPageStyles(html))
-            </main>
-            </body>
-            </html>
-            """
-        }
-
-        private static func escape(_ s: String) -> String {
-            s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
-                .replacingOccurrences(of: ">", with: "&gt;")
-        }
-
         func setActiveParagraph(_ index: Int?) {
             let changed = pendingActive != index
             pendingActive = index
