@@ -49,6 +49,8 @@ enum Icons {
     static let save = "bookmark"
     static let saved = "bookmark.fill"
     static let unsave = "bookmark.slash"
+    /// Remove from History: a page played without saving leaves the Library's History tab.
+    static let removeFromHistory = "clock.badge.xmark"
     /// ＋ in the Library's toolbar.
     static let add = "plus"
     static let folder = "folder"
@@ -113,14 +115,21 @@ enum Icons {
 
     // MARK: Downloads
 
-    /// Download (a row's menu, a toast, a download's state on its own).
+    /// Download (a row's menu, a toast, a folder header's control before it downloads).
     static let download = "arrow.down.circle"
-    /// The same inside a progress ring (the ring is the circle): resume a paused download.
-    static let downloadInRing = "arrow.down"
-    static let downloaded = "checkmark.circle"
+    /// The arrow alone, inside a download's filling circle (`DownloadMark`).
+    static let downloadArrow = "arrow.down"
+    /// Downloading: the jade disc over a row's dimmed tile.
+    static let downloading = "arrow.down.circle.fill"
+    /// Downloaded: the grey badge before a row's second line, a folder header's control.
+    static let downloaded = "checkmark.circle.fill"
     /// The Downloads list.
     static let downloads = "tray.and.arrow.down"
     static let deleteDownloads = "trash.circle"
+    /// A page's *Remove Download*: its downloads deleted, as *Delete Downloads* does a folder's.
+    static let removeDownload = deleteDownloads
+    /// Turning a folder's Download off (its audio stays).
+    static let turnOffDownload = "arrow.down.circle.dotted"
     static let redownload = reload
     /// Keep a download made with another voice.
     static let keep = checkmark

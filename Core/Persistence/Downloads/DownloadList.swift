@@ -52,7 +52,7 @@ struct DownloadRecord: Codable, Equatable, Identifiable {
     var keptVoice: String?
     /// A folder's Download toggle is on: pages added to the folder later join this download.
     var followsFolder = true
-    /// Pages of the folder whose downloads were deleted (*Delete Downloads* on one, decision P8):
+    /// Pages of the folder whose downloads were deleted (*Remove Download* on one, decision P8):
     /// they don't join again while the toggle stays on, until Download is asked for again.
     var deleted: [UUID] = []
 

@@ -58,23 +58,20 @@ struct FolderProgress {
     let fraction: Double?
     /// The playable pages' length left (all of it before anything has played).
     let minutesLeft: Int
-    /// A page plays (one with text, or a chapter waiting for it): the folder's row gets its ▶ and
-    /// its header its play buttons.
+    /// A page plays (one with text, or a chapter waiting for it): the folder's row shows its place
+    /// and time left, and its header the action row.
     let hasPagesToPlay: Bool
     /// Every page that plays is finished (a chapter waiting for its text isn't).
     let isFinished: Bool
-    /// Something in it has played, or is finished or part-way: the row names its place and the
-    /// header's button says *Continue*; before that, its byline and *Play*.
+    /// Something in it has played, or is finished or part-way: the row names its place; before
+    /// that, its byline.
     let hasStarted: Bool
-    /// One of its pages is what you hear.
-    let isPlaying: Bool
 
     /// `pages` in play order (`LibraryStore.pages(in:)`); `playingKey`: the page playing, when one
     /// of this folder's is what you hear; `rate`: the playback speed the minutes count at.
     @MainActor
     init(folder: Folder, pages: [Page], playingKey: UUID?, rate: Double, library: LibraryStore) {
         let snapshot = library.chapterSnapshot(pages)
-        isPlaying = playingKey != nil
         if let playingKey {
             currentKey = playingKey
         } else {
@@ -109,18 +106,12 @@ struct FolderProgress {
         hasStarted = folder.currentPageKey != nil || fraction != nil
     }
 
-    /// The header's round button and the lighter place after it: "Continue" "3 of 7", "Playing"
-    /// "3 of 7"; "Play" before anything in it has started.
-    var buttonTitle: (title: String, detail: String?) {
-        let place = number.map { "\($0) of \(playingCount)" }
-        if isPlaying { return (String(localized: "Playing"), place) }
-        if !hasStarted { return (String(localized: "Play"), nil) }
-        return (String(localized: "Continue"), place)
-    }
-
-    /// The header's bar and ["38%", "6 h 10 min left"], once a page is finished or part-way.
-    var header: (fraction: Double?, label: [String]) {
-        guard let fraction else { return (nil, []) }
-        return (fraction, ["\(Int((fraction * 100).rounded()))%", ListeningTime.leftLabel(minutes: minutesLeft)])
+    /// The header's line: where it is, how far and what's left once started (["3 of 7", "38%",
+    /// "6 h 10 min left"]); its length before (["52 min"]); ["Finished"] once finished.
+    var headerLine: [String] {
+        guard let fraction else { return minutesLeft > 0 ? [ListeningTime.label(minutes: minutesLeft)] : [] }
+        if isFinished { return [String(localized: "Finished")] }
+        let place = number.map { String(localized: "\($0) of \(playingCount)") }
+        return [place, "\(Int((fraction * 100).rounded()))%", ListeningTime.leftLabel(minutes: minutesLeft)].compactMap { $0 }
     }
 }

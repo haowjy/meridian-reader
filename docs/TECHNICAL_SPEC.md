@@ -158,7 +158,7 @@ another address cancelled), and the 📄 at the end of its header's address labe
 extracts that loaded page for the Reader text, as the browser's Reader does.
 The chapters' text is fetched one at a time while the app is in front (the chapter ▶ asked for,
 else the one after the page playing, else the oldest story's first waiting chapter) and stored in
-place (`storeFetchedText`; nothing renders: the folder's Download switch decides that). A
+place (`storeFetchedText`; nothing renders: the folder's Download toggle decides that). A
 chapter's address the library already has stays one page: one filed in a folder stays there, one
 loose at the top level or out of the Library joins the story. A chapter
 whose site refuses or doesn't answer is tried again after the back-off, four times, then waits for
@@ -233,12 +233,12 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `title`, `byline`, `excerpt`, `artworkData` | Rows, Now Playing (`byline` = site domain for web pages) |
 | `contentStateRaw` | `link` (a favorite, a followed story's chapter waiting for its text; any text is a cache) or `saved` |
 | `addedAt` | When it joined the Library; nil = played without saving or removed (kept 7 days after its last play; a removed page never played, until the next launch) |
-| `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, a page is in no list, not even "Not saved", nor the bar's resume; read only while `addedAt` is nil |
+| `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, a page is in no list, not even History, nor the bar's resume; read only while `addedAt` is nil |
 | `folder`, `folderID`, `sortKey` | Its folder (none = the pages in no folder) and order there; `folderID` mirrors the relationship for predicates |
 | `bodyHTML`, `plainTextData` | Offline reading; the listen text comes from the HTML |
 | `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount`. Words are counted by one rule, `WordCount`, for web pages and chapters alike (each Chinese or Japanese character is a word); every text write goes through `Page.setText` |
 | `positionParagraph`, `positionUTF16` | Resume position (paragraph + offset inside the document) |
-| `lastPlayedAt`, `finishedAt` | the "Not saved" pages' order, the prune and the bar's resume, and a row's "✓ Finished" |
+| `lastPlayedAt`, `finishedAt` | History's order, the prune and the bar's resume, and a row's "✓ Finished" |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
 | `skipsInPlayback` | Pages in folders (book front matter, *Skip in Playback*): what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
@@ -247,8 +247,8 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 
 **Which lists a page is in** is decided in one place, `LibraryQueries`, from three standings and
 the star: in the Library (`addedAt` set: its folder or the home's top level, search, address
-suggestions); played without saving (out of the Library, played, `removedAt` nil: the top of the
-home's pages as "Not saved", and search); removed (out of the Library, `removedAt` set: none of
+suggestions); played without saving (out of the Library, played, `removedAt` nil: the home's History
+tab and its search); removed (out of the Library, `removedAt` set: none of
 those). A starred page is in Favorites whatever its standing, and the prune keeps it. *Remove from Library* (`LibraryStore.remove`, the one remove for every path: a
 row, Edit, 🔖 and the ⋯ of the browser, the Reader and Now Playing, the Now Playing bar) takes a
 page out of its folder and every Library list it was in at once, keeps its star (and with it its

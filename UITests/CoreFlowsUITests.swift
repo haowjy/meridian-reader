@@ -37,14 +37,14 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertEqual(rows.count, 1, "one row per page")
     }
 
-    /// Swipe → *Remove* on the page you hear: its row leaves every list (not back as "Not saved",
+    /// Swipe → *Remove* on the page you hear: its row leaves every list (not back in History,
     /// not in search), playback stops, the bar offers the page played before it (the demo
     /// folders' part-way page) instead, and the app stays up.
     func testSwipeRemovingAPlayedPageTakesItOutOfEveryList() throws {
         let app = launchLibrary()
         let cell = libraryCell(app, "Demo Listen Article")
         XCTAssertTrue(appears(cell, timeout: 5), "Pages: the demo article")
-        cell.buttons["Play"].tap()
+        libraryRow(app, "Demo Listen Article").tap()
         let bar = app.buttons["nowPlayingBarPlayPause"]
         XCTAssertTrue(appears(bar, timeout: 10), "the bar shows what you hear")
         XCTAssertTrue(eventually(10) { bar.label == "Pause" }, "playing")
@@ -62,7 +62,7 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(appears(resume, timeout: 3), "the bar resumes another page")
         XCTAssertTrue(resume.label.contains("Seven-Day Yield"), "the one played before, not the removed one")
         idle(1)
-        XCTAssertFalse(row.exists, "not back as Not saved")
+        XCTAssertFalse(row.exists, "not back in the list")
 
         let search = app.textFields["librarySearchField"]
         XCTAssertTrue(appears(search, timeout: 3))
@@ -72,8 +72,8 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertFalse(libraryRow(app, "Demo Listen Article").exists, "search doesn't find it")
     }
 
-    /// A folder opened from the Library plays from its header: *Play from Start* plays its first
-    /// page, and the round button shows it playing.
+    /// A folder opened from the Library plays from its header: *More* › *Play from Start* plays its
+    /// first page, and the big ▶ shows it playing (⏸).
     func testOpenAFolderAndPlayIt() throws {
         let app = launchLibrary()
         let folder = libraryRow(app, "Demo Finance")
@@ -82,12 +82,15 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(appears(app.navigationBars["Demo Finance"], timeout: 5), "the folder's screen")
 
         let round = app.buttons["folderContinue"]
-        XCTAssertTrue(appears(round, timeout: 5), "the round button")
-        app.buttons["folderPlayFromStart"].tap()
+        XCTAssertTrue(appears(round, timeout: 5), "the big ▶")
+        app.buttons["folderMore"].tap()
+        let fromStart = app.buttons["Play from Start"]
+        XCTAssertTrue(appears(fromStart, timeout: 3), "More's menu")
+        fromStart.tap()
         let bar = find(app, "nowPlayingBarOpen")
         XCTAssertTrue(appears(bar, timeout: 10))
         XCTAssertTrue(eventually(10) { bar.label.contains("Seven-Day Yield") }, "its first page: \(bar.label)")
-        XCTAssertTrue(eventually(5) { round.label.hasPrefix("Playing") }, "the round button: \(round.label)")
+        XCTAssertTrue(eventually(5) { round.label == "Pause" }, "the big ▶: \(round.label)")
         find(app, "nowPlayingBarPlayPause").tap()
     }
 }

@@ -31,8 +31,9 @@ struct DownloadProgressEdge: View {
     }
 }
 
-/// Asking for a download from a row's menu or a ⋯ panel: the request, then a toast saying what
-/// happened, with *Show* to open Downloads.
+/// Asking for a download from a row's menu, a folder header or a ⋯ panel: the request, then a
+/// toast saying what happened. One that starts (or resumes) says *Downloading…* with *View*, which
+/// opens Downloads; it floats above the Now Playing bar, the shell's one toast.
 @MainActor
 struct DownloadActions {
     let downloads: DownloadCenter
@@ -49,7 +50,7 @@ struct DownloadActions {
     private func report(_ request: DownloadCenter.Request, title: String) {
         let message: String
         switch request {
-        case .added, .resumed: message = String(localized: "Downloading “\(title)”")
+        case .added, .resumed: message = String(localized: "Downloading…")
         case .alreadyQueued: message = String(localized: "“\(title)” is already downloading")
         case .waitingForNew:
             shell.showToast(ShellToast(message: String(localized: "New pages in “\(title)” will download"), systemImage: Icons.download))
@@ -58,7 +59,7 @@ struct DownloadActions {
             shell.showToast(ShellToast(message: String(localized: "Nothing to download"), systemImage: Icons.download))
             return
         }
-        shell.showToast(ShellToast(message: message, systemImage: Icons.download, actionTitle: String(localized: "Show")) {
+        shell.showToast(ShellToast(message: message, systemImage: Icons.download, actionTitle: String(localized: "View")) {
             [shell] in shell.present(.downloads)
         })
     }

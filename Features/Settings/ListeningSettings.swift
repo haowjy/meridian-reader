@@ -83,11 +83,11 @@ struct ListeningSettingsSection: View {
             Task { await localTTS.selectEngine(id) }
         } accessory: {
             if pending {
-                // Download ring doubles as the Cancel button (no extra rows appear).
+                // The download's mark doubles as the Cancel button (no extra rows appear).
                 Button {
                     localTTS.synth.cancelDownload()
                 } label: {
-                    DownloadRing(fraction: localTTS.synth.state.warmingProgress)
+                    ModelDownloadMark(fraction: localTTS.synth.state.warmingProgress)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Cancel \(descriptor.shortName) download")

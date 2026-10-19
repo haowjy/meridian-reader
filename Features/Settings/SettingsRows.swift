@@ -190,27 +190,20 @@ extension View {
     }
 }
 
-/// Determinate download ring with a stop square (tap = cancel); indeterminate spinner when the
-/// fraction is unknown (preparing / compiling).
-struct DownloadRing: View {
+/// A voice model downloading (tap = cancel): the `DownloadMark` filling as it downloads, as every
+/// download shows; a spinner while the fraction is unknown (preparing, compiling).
+struct ModelDownloadMark: View {
     let fraction: Double?
 
     var body: some View {
-        ZStack {
+        Group {
             if let fraction, fraction < 1 {
-                Circle().stroke(Palette.secondaryInk.opacity(0.25), lineWidth: 2.5)
-                Circle()
-                    .trim(from: 0, to: max(0.02, fraction))
-                    .stroke(Palette.accent, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(Palette.accent)
-                    .frame(width: 8, height: 8)
+                DownloadMark(state: .downloading(fraction: fraction), size: Glyph.modelDownload)
             } else {
                 ProgressView().controlSize(.small)
             }
         }
-        .frame(width: 24, height: 24)
+        .frame(width: Glyph.modelDownload, height: Glyph.modelDownload)
         .contentShape(Rectangle())
     }
 }

@@ -1,38 +1,44 @@
 import SwiftData
 import SwiftUI
 
-/// The Library home: the Everything/Favorites tab (`ShellState.favoritesOnly`) above one mixed
-/// list of folders and pages. Everything is the top level: its folders, the pages played without
-/// saving, then the pages in no folder in the top level's sort. Favorites is the starred folders
-/// and pages from anywhere in the tree. The band's search (`ShellState.librarySearch`) searches
-/// the selected tab across the tree, folders then pages, each by title. Which items each shows is
-/// `LibraryQueries`'. A favorite keeps its location; filtered (Favorites or a search) a row shows
-/// where it is (`LibraryScreenKey.filtered`).
+/// The Library home: the Everything / Favorites / History tab (`ShellState.homeTab`) above one
+/// mixed list of folders and pages. Everything is the top level of the Library: its folders, then
+/// the pages in no folder in the top level's sort. Favorites is the starred folders and pages from
+/// anywhere in the tree, in the Library or not. History is the pages played without saving, most
+/// recent first (no folders). The band's search (`ShellState.librarySearch`) searches the selected
+/// tab, folders then pages, each by title. Which items each shows is `LibraryQueries`'. A favorite
+/// keeps its location; filtered (a tab other than Everything, or a search) a row shows where it
+/// is (`LibraryScreenKey.filtered`).
 struct LibraryHomeView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
 
-    @Query(LibraryQueries.playedNotSaved) private var notSaved: [Page]
     @Query private var queriedFolders: [Folder]
     @Query private var queriedPages: [Page]
-    let favoritesOnly: Bool
+    let tab: LibraryHomeTab
     /// The band's search text ("" when not searching).
     let searchText: String
 
-    private var isFiltered: Bool { favoritesOnly || !searchText.isEmpty }
+    private var isFiltered: Bool { tab != .everything || !searchText.isEmpty }
 
-    init(pageSort: PageSort, favoritesOnly: Bool, searchText: String) {
-        self.favoritesOnly = favoritesOnly
+    init(pageSort: PageSort, tab: LibraryHomeTab, searchText: String) {
+        self.tab = tab
         self.searchText = searchText
         if !searchText.isEmpty {
-            _queriedFolders = Query(LibraryQueries.searchFolders(searchText, favoritesOnly: favoritesOnly))
-            _queriedPages = Query(LibraryQueries.searchPages(searchText, favoritesOnly: favoritesOnly))
-        } else if favoritesOnly {
-            _queriedFolders = Query(LibraryQueries.favoriteFolders)
-            _queriedPages = Query(LibraryQueries.favoritePages)
-        } else {
+            _queriedFolders = Query(LibraryQueries.searchFolders(searchText, in: tab))
+            _queriedPages = Query(LibraryQueries.searchPages(searchText, in: tab))
+            return
+        }
+        switch tab {
+        case .everything:
             _queriedFolders = Query(LibraryQueries.folders)
             _queriedPages = Query(LibraryQueries.loosePages(sort: pageSort))
+        case .favorites:
+            _queriedFolders = Query(LibraryQueries.favoriteFolders)
+            _queriedPages = Query(LibraryQueries.favoritePages)
+        case .history:
+            _queriedFolders = Query(LibraryQueries.noFolders)
+            _queriedPages = Query(LibraryQueries.history)
         }
     }
 
@@ -41,12 +47,11 @@ struct LibraryHomeView: View {
     private var folders: [Folder] {
         let live = queriedFolders.filter(\.isLive)
         if !searchText.isEmpty { return live }
-        return LibraryStore.ordered(favoritesOnly ? live : LibraryQueries.topLevel(live))
+        return LibraryStore.ordered(tab == .everything ? LibraryQueries.topLevel(live) : live)
     }
 
-    /// Everything's pages played without saving come first; a search finds them itself.
     private var pages: [Page] {
-        (isFiltered ? queriedPages : notSaved + queriedPages).filter(\.isLive)
+        queriedPages.filter(\.isLive)
     }
 
     var body: some View {
@@ -65,9 +70,10 @@ struct LibraryHomeView: View {
                     .libraryHeader()
             }
             Section {
-                Picker("Library view", selection: $shell.favoritesOnly) {
-                    Text("Everything").tag(false)
-                    Text("Favorites").tag(true)
+                Picker("Library view", selection: $shell.homeTab) {
+                    Text("Everything").tag(LibraryHomeTab.everything)
+                    Text("Favorites").tag(LibraryHomeTab.favorites)
+                    Text("History").tag(LibraryHomeTab.history)
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("libraryTabs")
@@ -106,9 +112,13 @@ struct LibraryHomeView: View {
         if !searchText.isEmpty {
             ContentUnavailableView.search(text: searchText)
                 .listRowBackground(Color.clear)
-        } else if favoritesOnly {
+        } else if tab == .favorites {
             ContentUnavailableView("No Favorites Yet", systemImage: Icons.favorite,
                                   description: Text("Star a folder or page to find it here."))
+                .listRowBackground(Color.clear)
+        } else if tab == .history {
+            ContentUnavailableView("No History Yet", systemImage: Icons.history,
+                                  description: Text("Pages you listen to without saving show up here."))
                 .listRowBackground(Color.clear)
         } else {
             emptyCard
@@ -123,7 +133,7 @@ struct LibraryHomeView: View {
             Text("Find something to listen to")
                 .typeStyle(.row, weight: .semibold)
                 .foregroundStyle(Palette.ink)
-            Text("Tap \(Text.symbol(Icons.browser)) to find a page, or \(Text.symbol(Icons.add)) to import a book. Pages you save or listen to, books you import and folders you make show up here.")
+            Text("Tap \(Text.symbol(Icons.browser)) to find a page, or \(Text.symbol(Icons.add)) to import a book. Pages you save, books you import and folders you make show up here.")
                 .typeStyle(.row)
                 .foregroundStyle(Palette.secondaryInk)
             ActionButtonRow { fit in

@@ -13,16 +13,16 @@ enum ActionLabelFit: CaseIterable {
     case icon
 }
 
-/// A row of action buttons that never wraps: a folder header's *Continue* / *From Start* /
-/// Download, the Library's first-run card, a download's *Re-download* / *Keep*. The row is drawn
+/// A row of labelled buttons that never wraps: the Library's first-run card, a download's
+/// *Re-download* / *Keep*. The row is drawn
 /// once per `ActionLabelFit` and the first that fits the width is shown: every label in full,
 /// then the short titles, then without details, then symbols alone. The symbols-only row is the last resort, taken even
 /// when it doesn't fit, so the buttons stay on one line at every width and text size.
 ///
 /// ```
-/// ( ▶ Continue  4 of 18     ) ( ⏮ From Start )  ⬇     full (and short: no short titles here)
-/// ( ▶ Continue               ) ( ⏮ From Start )  ⬇     titleOnly
-/// (            ▶                      ) (⏮)  ⬇     icon
+/// ( ▶ Continue  4 of 18     ) ( ⏮ From Start )     full (and short: no short titles here)
+/// ( ▶ Continue               ) ( ⏮ From Start )     titleOnly
+/// (            ▶                      ) (⏮)     icon
 /// ```
 ///
 /// Give each button its symbol (`PillButton(systemImage:)`, a `PlayStateButton` pill): the icon
@@ -57,7 +57,6 @@ struct ActionButtonRowGallery: View {
                         PlayStateButton(state: .idle, look: .pill(title: "Continue", detail: "4 of 18", expands: true,
                                                                    fit: fit)) {}
                         PillButton("From Start", systemImage: Icons.previous, style: .neutral, fit: fit) {}
-                        DownloadStateButton(state: .available) {}
                     }
                     .frame(width: width)
                 }

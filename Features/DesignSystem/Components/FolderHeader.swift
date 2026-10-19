@@ -1,122 +1,156 @@
 import SwiftUI
 
-/// The top of a folder screen. A plain folder: its title and counts. A book, a followed story, or
-/// a folder given details (`detailed`): the cover, title, details, how far through, and what
-/// `actions` holds (a story's status line, Continue and From Start in an `ActionButtonRow`, so
-/// one line at every width and text size, and the Download switch). A plain folder whose pages
-/// play has the progress and actions too, under its title.
+/// The top of a folder screen, centred (YouTube Music's album header). A book, a followed story,
+/// or a folder given details (`detailed`): the cover, then the title and details. A plain folder:
+/// its title and counts. Under them, once it has started, where it is ("3 of 7   38%   6 h 10 min
+/// left", parts spaced apart, never joined by a separator); then the caller's `status` (a followed
+/// story's line); then, for a folder whose pages play (`actions`), one row: its Download control,
+/// the big ▶ and *More* (the caller's `more`, the folder's own menu).
 ///
 /// ```
-/// Finance                        ╭──────╮  Pride and Prejudice
-/// 2 folders   7 pages            │cover │  Jane Austen   Book   61 chapters
-///                                ╰──────╯  Added 2 Oct
-///                                ━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░░░
-///                                38%   6 h 10 min left
-///                                ( ▶ Continue  Ch 24      ) ( ⏮ From Start )
-///                                ⬇ Download                              ( ●)
+///                ╭──────╮
+///                │cover │
+///                ╰──────╯
+///          Pride and Prejudice
+///      Jane Austen   Book   61 chapters
+///     24 of 61   38%   6 h 10 min left
+///        ◯↓          ( ▶ )          ⋯
+///     Download                     More
 /// ```
 ///
-/// Every block spans the content width and nothing pads it: in a Library list the section
-/// header already sits on the page margin, so the bar, the buttons and the cards below share
-/// both edges. Each line is separate parts set apart by space (`DetailLine`): the first in
-/// secondary ink, the rest in tertiary. At accessibility text sizes the cover sits above the
-/// title rather than beside it, so the title keeps the line.
-struct FolderHeader<Actions: View>: View {
+/// The Download control is a `DownloadMark` (an outline ↓, the circle filling as it downloads, a
+/// grey ✓ once downloaded) with what it shows written under it; *More* opens a menu; the ▶ is the
+/// folder's Continue (⏸ while one of its pages is what you hear). The side controls have a
+/// fixed width, so the ▶ stays centred whatever their captions say, and the captions shrink
+/// rather than wrap at the largest text sizes: the row never wraps (decision D21). Takes plain
+/// values and closures only.
+struct FolderHeader<Status: View, More: View>: View {
     var style: FolderHeaderStyle = .folder
     let title: String
     /// Counts (["2 folders", "7 pages"]) or the book's line (["Jane Austen", "Book", "61 chapters"]).
     let detail: [String]
     /// Where it came from (["Added 2 Oct"]); empty: no line.
     var source: [String] = []
-    /// 0…1 through a book or story; nil: no progress line.
-    var progress: Double?
-    /// Under the progress line, on one line (["38%", "6 h 10 min left"]).
+    /// Where it is (["3 of 7", "38%", "6 h 10 min left"]); empty: no line.
     var progressLabel: [String] = []
-    @ViewBuilder var actions: Actions
+    /// nil: no action row (none of its pages play).
+    var actions: FolderHeaderActions?
+    @ViewBuilder var status: Status
+    @ViewBuilder var more: More
 
-    @ScaledMetric(relativeTo: .title3) private var scaledCoverWidth: CGFloat = 96
-    @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var partSpacing = Spacing.s
+    @ScaledMetric(relativeTo: .title3) private var scaledCoverWidth: CGFloat = 80
+    @ScaledMetric(relativeTo: .caption) private var scaledSideWidth: CGFloat = 76
     @Environment(\.dynamicTypeSize) private var typeSize
 
     /// The cover grows with the text, up to `BottomChrome.maxTextGrowth`.
-    private var coverWidth: CGFloat { BottomChrome.grown(scaledCoverWidth, from: 96) }
+    private var coverWidth: CGFloat { BottomChrome.grown(scaledCoverWidth, from: 80) }
+    /// Each side control's column, so the ▶ stays centred.
+    private var sideWidth: CGFloat { BottomChrome.grown(scaledSideWidth, from: 76) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            switch style {
-            case .folder:
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text(title)
-                        .typeStyle(.title, design: .default)
-                        .foregroundStyle(Palette.ink)
-                        .accessibilityAddTraits(.isHeader)
-                    lines
-                }
-            case .detailed(let cover):
-                let stack = typeSize.isAccessibilitySize
-                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: Spacing.m))
-                    : AnyLayout(HStackLayout(alignment: .bottom, spacing: Spacing.m))
-                stack {
-                    ArtworkTile(image: cover, letter: title, size: coverWidth, isCover: true)
-                        .floatingShadow(opacity: 0.15)
-                    VStack(alignment: .leading, spacing: Spacing.xxs) {
-                        Text(title)
-                            .typeStyle(.heading)
-                            .foregroundStyle(Palette.ink)
-                            .accessibilityAddTraits(.isHeader)
-                        lines
+        VStack(spacing: Spacing.s) {
+            if case .detailed(let cover) = style {
+                ArtworkTile(image: cover, letter: title, size: coverWidth, isCover: true)
+                    .floatingShadow(opacity: 0.15)
+                    .padding(.bottom, Spacing.xxs)
+            }
+            VStack(spacing: Spacing.xxs) {
+                Text(title)
+                    .typeStyle(style.isDetailed ? .heading : .title, design: .default)
+                    .foregroundStyle(Palette.ink)
+                    .multilineTextAlignment(.center)
+                    .accessibilityAddTraits(.isHeader)
+                VStack(spacing: Spacing.xxs) {
+                    DetailLine(detail)
+                    if !source.isEmpty { DetailLine(source) }
+                    if !progressLabel.isEmpty {
+                        DetailLine(progressLabel)
+                            .monospacedDigit()
+                            .accessibilityIdentifier("folderHeaderProgress")
                     }
                 }
+                .typeStyle(.caption)
             }
-            if let progress {
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    ProgressLine(fraction: progress, height: ProgressLine.barHeight, track: .groove)
-                    if !progressLabel.isEmpty { progressLine }
+            status
+            if let actions { actionRow(actions) }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func actionRow(_ actions: FolderHeaderActions) -> some View {
+        HStack(spacing: Spacing.l) {
+            Button(action: actions.onDownload) {
+                sideLabel(actions.download.label) {
+                    DownloadMark(state: actions.download)
                 }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(DetailLine.accessibilityLabel(progressLabel))
-                .accessibilityIdentifier("folderHeaderProgress")
             }
-            actions
+            .buttonStyle(PillPressStyle())
+            .accessibilityLabel(Verbs.download)
+            .accessibilityValue(downloadValue(actions))
+            .accessibilityIdentifier("folderDownload")
+            PlayStateButton(state: actions.play, look: .disc, action: actions.onPlay)
+                .accessibilityIdentifier("folderContinue")
+            Menu { more } label: {
+                sideLabel(String(localized: "More")) {
+                    Image(systemName: Icons.more)
+                        .font(.system(size: Glyph.control * 0.8, weight: .semibold))
+                        .foregroundStyle(Palette.secondaryInk)
+                        .frame(width: Glyph.control, height: Glyph.control)
+                }
+            }
+            .accessibilityLabel("More")
+            .accessibilityIdentifier("folderMore")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, Spacing.xs)
     }
 
-    private var lines: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxs) {
-            DetailLine(detail)
-            if !source.isEmpty { DetailLine(source) }
+    /// A side control: its glyph in a 44 pt square, its caption under it.
+    private func sideLabel(_ caption: String, @ViewBuilder glyph: () -> some View) -> some View {
+        VStack(spacing: 0) {
+            glyph()
+                .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+            Text(caption)
+                .typeStyle(.caption)
+                .foregroundStyle(Palette.secondaryInk)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
         }
-        .typeStyle(.caption)
+        .frame(width: sideWidth)
+        .contentShape(Rectangle())
     }
 
-    /// "38%   6 h 10 min left": one line, never wrapped (it shrinks a little at the largest
-    /// sizes instead), the percent in secondary ink and the time in tertiary.
-    private var progressLine: some View {
-        HStack(alignment: .firstTextBaseline, spacing: partSpacing) {
-            ForEach(Array(progressLabel.enumerated()), id: \.offset) { index, part in
-                Text(part)
-                    .foregroundStyle(index == 0 ? DetailLine.leadInk(nil) : DetailLine.restInk(nil))
-            }
+    /// "On, 40 percent", "On, downloaded", "Off".
+    private func downloadValue(_ actions: FolderHeaderActions) -> String {
+        var parts = [actions.downloadIsOn ? String(localized: "On") : String(localized: "Off")]
+        switch actions.download {
+        case .downloading: parts.append(actions.download.percentText)
+        case .downloaded: parts.append(actions.download.label)
+        case .notDownloaded: break
         }
-        .typeStyle(.caption)
-        .monospacedDigit()
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
+        return parts.joined(separator: ", ")
     }
+}
+
+/// A `FolderHeader`'s action row: its values and what its controls do.
+struct FolderHeaderActions {
+    var download: DownloadState
+    /// The folder's Download toggle (VoiceOver reads it with the state).
+    var downloadIsOn: Bool
+    var onDownload: () -> Void
+    var play: PlayState
+    var onPlay: () -> Void
 }
 
 /// How a `FolderHeader` lays out its top.
 enum FolderHeaderStyle {
     /// Title and counts.
     case folder
-    /// The cover (a letter tile without one) beside the title and details.
+    /// The cover (a letter tile without one) above the title and details.
     case detailed(cover: Image?)
-}
 
-extension FolderHeader where Actions == EmptyView {
-    init(title: String, detail: [String]) {
-        self.init(title: title, detail: detail) { EmptyView() }
+    var isDetailed: Bool {
+        if case .detailed = self { return true }
+        return false
     }
 }
 
@@ -124,53 +158,38 @@ extension FolderHeader where Actions == EmptyView {
 struct FolderHeaderGallery: View {
     var body: some View {
         PreviewGallery {
-            PreviewState("folder") {
-                FolderHeader(title: "Finance", detail: ["2 folders", "7 pages"])
+            PreviewState("folder, none of its pages play") {
+                header(title: "Finance", detail: ["2 folders"], actions: nil)
             }
-            PreviewState("book, not playing") {
-                FolderHeader(style: .detailed(cover: nil), title: "Pride and Prejudice",
-                             detail: ["Jane Austen", "Book", "61 chapters"], source: ["Added 2 Oct"],
-                             progress: 0.02, progressLabel: ["2%", "8 h 48 min left"]) {
-                    PreviewActions(title: "Continue", detail: "Ch 24")
-                }
+            PreviewState("folder of pages, not started, not downloaded") {
+                header(title: "Finance", detail: ["2 folders", "7 pages"], progress: ["52 min"],
+                       actions: .init(download: .notDownloaded, downloadIsOn: false, onDownload: {}, play: .idle, onPlay: {}))
             }
-            PreviewState("folder with details") {
-                FolderHeader(style: .detailed(cover: nil), title: "Tide Tables",
-                             detail: ["A. Writer", "1 folder", "4 pages"],
-                             progress: 0.5, progressLabel: ["50%", "22 min left"]) {
-                    PreviewActions(title: "Continue", detail: "3 of 4")
-                }
+            PreviewState("book, part-way, downloading 40%") {
+                header(style: .detailed(cover: nil), title: "Pride and Prejudice",
+                       detail: ["Jane Austen", "Book", "61 chapters"], progress: ["24 of 61", "38%", "6 h 10 min left"],
+                       actions: .init(download: .downloading(fraction: 0.4), downloadIsOn: true, onDownload: {},
+                                      play: .idle, onPlay: {}))
             }
-            PreviewState("followed story, a chapter playing") {
-                FolderHeader(style: .detailed(cover: nil), title: "The Lantern Road",
-                             detail: ["A. Writer", "108 chapters"],
-                             progress: 0.2, progressLabel: ["20%"]) {
-                    VStack(alignment: .leading, spacing: Spacing.s) {
-                        HeaderLink(symbol: Icons.follow, text: "Following · fetched 41 of 108") {}
-                        PreviewActions(title: "Playing", detail: "24 of 108", state: .playing, downloadOn: true)
-                    }
+            PreviewState("followed story, a chapter playing, downloaded") {
+                FolderHeader(style: .detailed(cover: nil), title: "The Lantern Road", detail: ["A. Writer", "108 chapters"],
+                             progressLabel: ["24 of 108", "20%", "41 h left"],
+                             actions: .init(download: .downloaded, downloadIsOn: true, onDownload: {}, play: .playing,
+                                            onPlay: {})) {
+                    HeaderLink(symbol: Icons.follow, parts: ["Following", "fetched 41 of 108"]) {}
+                } more: {
+                    Button(Verbs.playFromStart, systemImage: Icons.previous) {}
                 }
             }
         }
     }
-}
 
-/// The header's actions as `FolderPlayButtons` and `FolderDownloadSwitch` draw them.
-private struct PreviewActions: View {
-    let title: String
-    let detail: String
-    var state: PlayState = .idle
-    var downloadOn = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            ActionButtonRow { fit in
-                PlayStateButton(state: state, look: .pill(title: title, detail: detail, expands: true, fit: fit)) {}
-                PillButton("From Start", systemImage: Icons.previous, style: .neutral, fit: fit) {}
-            }
-            SwitchCard(title: "Download", symbol: Icons.download,
-                       detail: downloadOn ? "On · 12 of 108 downloaded" : "Off · downloads when played or tapped",
-                       isOn: .constant(downloadOn))
+    private func header(style: FolderHeaderStyle = .folder, title: String, detail: [String], progress: [String] = [],
+                        actions: FolderHeaderActions?) -> some View {
+        FolderHeader(style: style, title: title, detail: detail, progressLabel: progress, actions: actions) {
+            EmptyView()
+        } more: {
+            Button(Verbs.playFromStart, systemImage: Icons.previous) {}
         }
     }
 }
