@@ -38,6 +38,25 @@ struct MenuRow: Identifiable {
     }
 
     var isShown: Bool { availability != .hidden }
+
+    /// The row as its list row's swipe (a swipe is its menu row): its name and symbol, red, its
+    /// action. `role: .destructive` only where the action takes the row out of the list's data at
+    /// once; a row that can stay (it asks first, or a save can fail) takes the tint alone
+    /// (AGENTS.md's swipe rule).
+    func swipeButton(role: ButtonRole? = nil) -> some View {
+        Button(role: role, action: action) {
+            if let icon { Label(title, systemImage: icon) } else { Text(title) }
+        }
+        .tint(Palette.destructive)
+    }
+}
+
+extension [MenuRow] {
+    /// The first of the rows `ids` that deletes and can run now: the one a swipe offers.
+    func swipeRow(_ ids: String...) -> MenuRow? {
+        ids.lazy.compactMap { id in first { $0.id == id } }
+            .first { $0.isDestructive && $0.availability == .enabled }
+    }
 }
 
 /// Menu rows as a system menu's buttons (a `Menu`'s or a `.contextMenu`'s content). Each block
