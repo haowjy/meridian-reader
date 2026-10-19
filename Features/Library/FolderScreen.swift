@@ -300,11 +300,8 @@ private struct FolderSearchResults: View {
             Section {
                 EmptyView()
             } header: {
-                Text(folder.name)
-                    .typeStyle(.title, design: .default)
-                    .foregroundStyle(Palette.ink)
+                ScreenTitle(folder.name)
                     .lineLimit(2)
-                    .accessibilityAddTraits(.isHeader)
                     .listHeader()
             }
             if folders.isEmpty && pages.isEmpty {

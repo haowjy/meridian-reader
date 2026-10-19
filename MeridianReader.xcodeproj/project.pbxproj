@@ -40,6 +40,7 @@
 		16FD4A8898B000359ACF6E8F /* EPUBContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE40BA60E969B2A39E70C43 /* EPUBContainer.swift */; };
 		18014716E8DAB24805F43B74 /* ReadingChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61E72572C73AC20F3B9107A0 /* ReadingChrome.swift */; };
 		186C0DFFB539ECE208F46C9A /* MenuAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D0254143FCE34E762D2EF88 /* MenuAvailability.swift */; };
+		1918E519F113943229143527 /* ScreenTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD910880AE9653FEE02B23D5 /* ScreenTitle.swift */; };
 		192E62AC194702AFBA9DBCDB /* ExtractedArticle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8590E6BBEF65EA96E6BFB1F8 /* ExtractedArticle.swift */; };
 		1967AC8A268F9957032F90E7 /* Folder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 995FC8D51A2647D3D236161E /* Folder.swift */; };
 		1B72DFAFEA2CE83052A94F85 /* LocalTTSCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CA6424EDA81D18627F24509 /* LocalTTSCoordinator.swift */; };
@@ -598,6 +599,7 @@
 		BBF21A232A73A97F115F63FC /* SavedArticle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedArticle.swift; sourceTree = "<group>"; };
 		BC96E1638267BB8429137E26 /* BookImportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookImportSheet.swift; sourceTree = "<group>"; };
 		BCC37E14AD33E47ED745E40C /* CardList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardList.swift; sourceTree = "<group>"; };
+		BD910880AE9653FEE02B23D5 /* ScreenTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTitle.swift; sourceTree = "<group>"; };
 		BE53C41AAA9EB9DA89DE7408 /* TextAppearanceControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextAppearanceControl.swift; sourceTree = "<group>"; };
 		C1C653684BFD5F07D0DBBCBD /* TableOfContents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableOfContents.swift; sourceTree = "<group>"; };
 		C29C868F37B0682223CEF80A /* ChunkAudioStitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChunkAudioStitcher.swift; sourceTree = "<group>"; };
@@ -796,6 +798,7 @@
 				61E72572C73AC20F3B9107A0 /* ReadingChrome.swift */,
 				5034608E93346E0D0FE990F2 /* ReadingSample.swift */,
 				442725515CE634B09949AA06 /* SaveToggleButton.swift */,
+				BD910880AE9653FEE02B23D5 /* ScreenTitle.swift */,
 				01D9228D2671B6B9F8154361 /* ScrubBar.swift */,
 				DB31D5E1D75B14031DA42A30 /* SearchField.swift */,
 				4A7C03D4520A1482F385C1C1 /* SectionHeader.swift */,
@@ -1825,6 +1828,7 @@
 				D4E76A50F3AF47C7F6624622 /* RootView.swift in Sources */,
 				E66FDAE628BD70C929F825F0 /* SaveToggleButton.swift in Sources */,
 				67BA8F35AA3E8DCAF29C0A99 /* SavedArticle.swift in Sources */,
+				1918E519F113943229143527 /* ScreenTitle.swift in Sources */,
 				63731DB95F61DBD1EA6120E3 /* ScrubBar.swift in Sources */,
 				789099ED514D8DDBBEE429FF /* SearchField.swift in Sources */,
 				B041436A068CF9A300345467 /* SearchSession.swift in Sources */,

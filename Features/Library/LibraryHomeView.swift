@@ -62,10 +62,7 @@ struct LibraryHomeView: View {
             Section {
                 EmptyView()
             } header: {
-                Text(Verbs.library)
-                    .typeStyle(.title, design: .default)
-                    .foregroundStyle(Palette.ink)
-                    .accessibilityAddTraits(.isHeader)
+                ScreenTitle(Verbs.library)
                     .accessibilityIdentifier("libraryTitle")
                     .listHeader()
             }

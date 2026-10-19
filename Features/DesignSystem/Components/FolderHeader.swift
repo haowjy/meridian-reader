@@ -59,11 +59,8 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
                     .padding(.bottom, Spacing.xxs)
             }
             VStack(spacing: Spacing.xxs) {
-                Text(title)
-                    .typeStyle(style.isDetailed ? .heading : .title, design: .default)
-                    .foregroundStyle(Palette.ink)
+                ScreenTitle(title, size: style.isDetailed ? .heading : .title)
                     .multilineTextAlignment(.center)
-                    .accessibilityAddTraits(.isHeader)
                 VStack(spacing: Spacing.xxs) {
                     DetailLine(detail)
                     if !source.isEmpty { DetailLine(source) }
