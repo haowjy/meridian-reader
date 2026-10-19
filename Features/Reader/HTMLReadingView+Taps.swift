@@ -7,7 +7,8 @@ import WebKit
 /// - A tap on the text that isn't on a link (the page's script posts where it landed, see
 ///   `bootstrapJS`): the middle toggles the bars, the right edge goes forward a screen and the
 ///   left back one (`ReadingChrome.TapZone`), on the `Motion.standard` spring (a jump under Reduce
-///   Motion); in Pages mode a whole page, at once (`turnPage`). A page turn is the user moving the text, like a drag: following the audio stops.
+///   Motion); in Pages mode a whole page, at once (`ReadingTextLayout.turn`). A page turn is the
+///   user moving the text, like a drag: following the audio stops.
 ///   In ☝︎ jump mode taps play from a paragraph instead and nothing here runs; outside a reading
 ///   sheet (no chrome: Follow's preview) taps do nothing.
 /// - A web link opens through the owner (`onOpenLink`: the browser); any other link (`mailto:`,
@@ -18,44 +19,19 @@ extension HTMLReadingWebView.Coordinator {
     /// The page's script reported a tap at `x` across a page `width` wide.
     func textTapped(x: CGFloat, width: CGFloat) {
         guard !jumpMode, let chrome, width > 0 else { return }
-        switch ReadingChrome.TapZone(x: x, width: width) {
+        let zone = ReadingChrome.TapZone(x: x, width: width)
+        switch zone {
         case .none:
             break
         case .centre:
             chrome.tappedCentre()
-        case .previous:
-            pages == nil ? turnScreen(forward: false) : turnPage(forward: false)
-            chrome.revealFloatingControl()
-        case .next:
-            pages == nil ? turnScreen(forward: true) : turnPage(forward: true)
+        case .previous, .next:
+            if layout.turn(forward: zone == .next) {
+                userTookOver()
+                stopFollowing()
+            }
             chrome.revealFloatingControl()
         }
-    }
-
-    /// One reading line, in points: the body text's size at this text size, times the spacing.
-    private var lineHeight: CGFloat {
-        sizes.body * CGFloat(look.textScale) * CGFloat(look.lineSpacing.multiple)
-    }
-
-    /// Scrolls the text by the visible reading area (the whole web view in full screen, between
-    /// the bars otherwise) less one line, so the line at one edge stays in view at the other.
-    /// Clamped to the content.
-    private func turnScreen(forward: Bool) {
-        guard let webView, loaded else { return }
-        let sv = webView.scrollView
-        let fullScreen = chrome?.hidden == true
-        let visible = sv.bounds.height - (fullScreen ? 0 : sv.contentInset.top + sv.contentInset.bottom)
-        let step = max(visible - lineHeight, lineHeight)
-        let layout = ReadingScrollRestore.Layout(
-            contentHeight: sv.contentSize.height, viewportHeight: sv.bounds.height,
-            insetTop: sv.contentInset.top, insetBottom: sv.contentInset.bottom)
-        guard layout.isLaidOut else { return }
-        let target = min(max(sv.contentOffset.y + (forward ? step : -step), layout.range.lowerBound),
-                         layout.range.upperBound)
-        guard abs(target - sv.contentOffset.y) > 0.5 else { return }
-        userTookOver()
-        stopFollowing()
-        scrollText(to: target)
     }
 
     // MARK: Links
@@ -83,32 +59,13 @@ extension HTMLReadingWebView.Coordinator {
     /// once). WebKit's own fragment navigation doesn't scroll a page loaded from a string. The
     /// user moved the text, as with a page turn: following stops.
     private func goToAnchor(_ fragment: String) {
-        guard let webView, loaded, let data = try? JSONSerialization.data(withJSONObject: [fragment]),
+        guard loaded, let data = try? JSONSerialization.data(withJSONObject: [fragment]),
               let arg = String(data: data, encoding: .utf8) else { return }
-        let generation = loadGeneration
-        webView.evaluateJavaScript("window.__readerAnchorTop(\(arg)[0])") { [weak self] result, _ in
-            guard let self, let webView = self.webView, generation == loadGeneration,
-                  let top = (result as? Double).map({ CGFloat($0) }) else { return }
+        locate("window.__readerAnchorRect(\(arg)[0])") { [weak self] top, height in
+            guard let self else { return }
             userTookOver()
             stopFollowing()
-            if pages != nil { return showPage(holding: top) }
-            let sv = webView.scrollView
-            let layout = ReadingScrollRestore.Layout(
-                contentHeight: sv.contentSize.height, viewportHeight: sv.bounds.height,
-                insetTop: sv.contentInset.top, insetBottom: sv.contentInset.bottom)
-            let y = min(max(top - sv.contentInset.top, layout.range.lowerBound), layout.range.upperBound)
-            scrollText(to: y)
-        }
-    }
-
-    /// Scrolls the text to offset `y` on the `Motion.standard` spring (at once under Reduce Motion).
-    private func scrollText(to y: CGFloat) {
-        guard let sv = webView?.scrollView else { return }
-        let offset = CGPoint(x: sv.contentOffset.x, y: y)
-        guard animates else { return sv.contentOffset = offset }
-        UIView.animate(springDuration: Motion.standardResponse, bounce: Motion.standardBounce,
-                       options: [.allowUserInteraction, .beginFromCurrentState]) {
-            sv.contentOffset = offset
+            layout.show(top: top, height: height, .top)
         }
     }
 

@@ -67,10 +67,14 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
   sheet and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
   It asks the playback session what you hear (`isHearing`) and stores nothing about it. A reading
   sheet's full screen is its own view state (`ReadingChrome`, held by `ReaderSheet` and
-  `NowPlayingSheet`, fed by the reading web view's drags and taps), not the shell's. Pages mode
-  is the reading web view's own (`HTMLReadingView+Pages.swift`): the page's script measures its
-  line boxes, `ReadingPagination` breaks them into pages of whole lines, and native views in the
-  page's colour cover what of the pages around the one shown would show. Browse and the library share
+  `NowPlayingSheet`, fed by the reading web view's drags and taps), not the shell's. The reading
+  web view's coordinator decides what the text shows (its hold: a fresh page's top, a handed-over
+  place, the saved spot, a scrub; the spoken sentence while following) and one of two layouts
+  (`ReadingTextLayout`) puts it on screen and keeps the reader's place through new layouts:
+  Scroll (`HTMLReadingView+Scroll.swift`) or Pages (`HTMLReadingView+Pages.swift`), where the
+  page's script measures its line boxes, `ReadingPagination` breaks them into pages of whole
+  lines, and native views in the page's colour cover what of the pages around the one shown
+  would show. Browse and the library share
   one `SearchSession` model.
 - **Listening.** `SpeechController` binds an engine per utterance and derives what every screen
   shows of what you hear (`nowPlaying`, `playState(of:)`); `PlaybackSessionState` owns what you

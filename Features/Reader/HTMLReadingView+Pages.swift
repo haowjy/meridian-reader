@@ -12,13 +12,11 @@ import WebKit
 /// - The line being read stays on screen through every new layout (loading, a reflow from Aa or
 ///   Dynamic Type, the title card's height, an image arriving: the script's `ResizeObserver`
 ///   posts `layout`): the page holding the first character of the page shown (`start`) is shown
-///   again, or, following the audio, the page holding the spoken sentence.
+///   again, or the one holding what the coordinator holds (`heldSpot`: the spoken sentence while
+///   the text goes there, a scrubbed paragraph).
 /// - A tap at either edge turns one page at once; a vertical drag turns one page its way and
 ///   snaps there on release, on the `Motion.standard` spring. A pull down on the first page
 ///   behaves as at the top in Scroll mode (the scroll view's own pull hand-off).
-/// - Following the audio turns to the page holding the spoken sentence when the voice reaches it;
-///   a turn by the user stops following (Jump to Audio resumes it), as a drag does in Scroll
-///   mode.
 @MainActor
 @Observable
 final class ReadingPages {
@@ -41,24 +39,11 @@ final class ReadingPages {
     fileprivate(set) var shown: Shown?
     /// The first character of the page shown: what the footer counts the time left from, and the
     /// line a new layout keeps on screen. Nil: the top of the text.
-    var start: Spot?
+    fileprivate(set) var start: Spot?
 
-    @ObservationIgnored fileprivate(set) var pagination: ReadingPagination?
-    /// A measurement in flight, another asked for meanwhile, and whether either goes to the spoken
-    /// sentence once laid out.
-    @ObservationIgnored fileprivate var measuring = false
-    @ObservationIgnored fileprivate var remeasure = false
-    @ObservationIgnored var follow = false
-    /// The web view's height the pages were broken for.
-    @ObservationIgnored fileprivate var viewportHeight: CGFloat = 0
-
-    /// A new page loads: nothing measured.
-    func reset() {
+    fileprivate func reset() {
         shown = nil
         start = nil
-        pagination = nil
-        remeasure = false
-        follow = false
     }
 }
 
@@ -69,158 +54,231 @@ extension ReadingPages.Spot {
     }
 }
 
-extension HTMLReadingWebView.Coordinator {
-    /// Scroll ↔ Pages, live (and the room under the pages): the line at the top of the reading
-    /// area stays there.
-    func setPages(_ model: ReadingPages?, footer: CGFloat) {
-        let footerChanged = footer != pageFooter
-        pageFooter = footer
-        guard model !== pages else {
-            if footerChanged { measurePages() }
-            return
-        }
-        pages = model
-        guard let webView else { return }
-        let sv = webView.scrollView
-        sv.showsVerticalScrollIndicator = model == nil
-        // A load in flight opens in the new mode (`didFinish`).
-        guard loaded else { return }
-        cancelRestore()
-        guard let model else { return relayOut() }
+/// Pages mode's layout (see `ReadingPages`).
+@MainActor
+final class PagesTextLayout: ReadingTextLayout {
+    private unowned let host: HTMLReadingWebView.Coordinator
+    /// What the page frame and the footer show.
+    let model: ReadingPages
+    /// The room under the pages: the footer and the home indicator's inset.
+    private var footer: CGFloat
+    private var pagination: ReadingPagination?
+    /// A measurement in flight, another asked for meanwhile, and whether either puts the
+    /// coordinator's hold back once laid out.
+    private var measuring = false
+    private var remeasure = false
+    private var placesHold = false
+    /// The web view's height the pages were broken for.
+    private var viewportHeight: CGFloat = 0
+    /// The room the page has below its text for the last page to reach the top.
+    private var room: CGFloat = 0
+
+    init(host: HTMLReadingWebView.Coordinator, model: ReadingPages, footer: CGFloat) {
+        self.host = host
+        self.model = model
+        self.footer = footer
+    }
+
+    private var scrollView: UIScrollView? { host.webView?.scrollView }
+
+    /// Scroll mode handed over, the page loaded: the line at the top of the reading area stays
+    /// there, or, following, the spoken sentence's page shows.
+    func activate() {
+        guard let sv = scrollView else { return }
+        reset()
+        placesHold = true
+        guard sv.contentOffset.y > -sv.contentInset.top + 1 else { return host.reapplyInsets() }
+        startPages(atLineAt: sv.contentOffset.y + sv.contentInset.top) { [weak self] in self?.host.reapplyInsets() }
+    }
+
+    func setFooter(_ footer: CGFloat) {
+        guard footer != self.footer else { return }
+        self.footer = footer
+        measure(placesHold: false)
+    }
+
+    func reset() {
         model.reset()
-        // Following goes back to the spoken sentence once paged.
-        model.follow = true
-        guard sv.contentOffset.y > -sv.contentInset.top + 1 else { return relayOut() }
-        startPages(atLineAt: sv.contentOffset.y + sv.contentInset.top, then: relayOut)
+        pagination = nil
+        remeasure = false
+        placesHold = false
+        room = 0
     }
 
-    /// The insets and the room under the text again, for the mode now on (which then measures the
-    /// pages).
-    private func relayOut() {
-        sentInsets = nil
-        setTextInsets(textInsets)
-        if pages == nil { setPageRoom() }
+    func opened() {
+        guard let sv = scrollView else { return }
+        model.reset()
+        pagination = nil
+        sv.contentOffset = CGPoint(x: 0, y: -sv.contentInset.top)
+        measure(placesHold: true)
     }
 
-    /// The page loaded in Pages mode: it opens on the handed-over line (D2), a scrub's paragraph,
-    /// the spoken sentence (following, or the Reader's saved spot), else the first page.
-    func openPages() {
-        guard let pages, let webView else { return }
-        pages.reset()
-        webView.scrollView.contentOffset = CGPoint(x: 0, y: -textInsets.top)
-        if opensAt != nil {
-            // Handed over from the Reader (D2): the page holding the line it had at the top of
-            // its reading area.
-            return measureTextTop { [weak self] in
-                guard let self, let webView = self.webView, let handOver = opensAt else { return }
-                opensAt = nil
-                guard case .text(let offset) = handOver else { return measurePages() }
-                let sv = webView.scrollView
-                startPages(atLineAt: textTop + max(0, viewportTop(of: webView) + sv.contentInset.top + offset))
-            }
+    /// The page holding the line the Reader had at the top of its reading area. It wins over the
+    /// opening's measure, which would put the spoken sentence's page up.
+    func open(handOver: ReadingHandOver) {
+        placesHold = false
+        guard case .text(let offset) = handOver, let webView = host.webView else {
+            host.handOverPlaced()
+            return measure(placesHold: false)
         }
-        if let index = pendingScrollIndex {
-            pendingScrollIndex = nil
-            pages.start = ReadingPages.Spot(paragraph: index, offset: 0)
-        } else {
-            goToSpoken(.jump)
+        startPages(atLineAt: host.documentY(of: offset, in: webView)) { [weak self] in
+            self?.host.handOverPlaced()
+            self?.measure(placesHold: false)
         }
-        measurePages()
     }
 
-    /// Pages from the line at document y `y`: it becomes the page's `start`, then `then` runs
-    /// (by default, measuring the pages).
-    private func startPages(atLineAt y: CGFloat, then: (() -> Void)? = nil) {
-        guard let webView else { return }
-        let generation = loadGeneration
+    func show(top: CGFloat, height: CGFloat, _ placement: ReadingPlacement) -> Bool {
+        guard let pagination else { return false }
+        let index = pagination.index(holding: top)
+        if index != model.shown?.index { show(page: index) }
+        return true
+    }
+
+    func turn(forward: Bool) -> Bool {
+        guard let shown = model.shown else { return false }
+        let index = shown.index + (forward ? 1 : -1)
+        guard (0..<shown.count).contains(index) else { return false }
+        show(page: index)
+        return true
+    }
+
+    func setInsets(_ insets: ReaderTextInsets) {
+        guard let sv = scrollView else { return }
+        let inset = UIEdgeInsets(top: insets.top, left: 0, bottom: insets.bottom, right: 0)
+        sv.contentInset = inset
+        sv.verticalScrollIndicatorInsets = inset
+        setRoom(sv.bounds.height)
+    }
+
+    /// The page shown when the reflow begins.
+    func reflowAnchor() -> (y: CGFloat, atTop: Bool) {
+        guard let sv = scrollView else { return (0, true) }
+        return (sv.contentOffset.y + sv.contentInset.top, false)
+    }
+
+    func reflowed(_ reflow: ReadingReflow, atTop: Bool) {
+        measure(placesHold: true)
+    }
+
+    func contentChanged() {
+        measure(placesHold: false)
+    }
+
+    /// The web view's height changed (the sheet laid out): break the pages again for it.
+    func viewportLaidOut() {
+        guard let sv = scrollView, sv.bounds.height != viewportHeight else { return }
+        host.reapplyInsets()
+    }
+
+    /// One page the drag's way, or back to the page it began on when it moved too little.
+    func dragEnded(velocity: CGFloat) {
+        guard let shown = model.shown, let pagination, let sv = scrollView else { return }
+        let moved = sv.contentOffset.y - (pagination.pages[shown.index].top - sv.contentInset.top)
+        let step = if abs(velocity) > Self.pageFlick { velocity < 0 ? 1 : -1 }
+            else if abs(moved) > Self.pageDrag { moved > 0 ? 1 : -1 }
+            else { 0 }
+        show(page: shown.index + step, animated: true)
+    }
+
+    /// Back to Scroll mode: the room below the text goes, and the text stays where it is, within
+    /// what it can scroll to.
+    func deactivate() {
+        model.reset()
+        guard host.loaded, let webView = host.webView else { return }
+        webView.evaluateJavaScript("document.body.style.setProperty('--page-room', '0px');") { [weak webView] _, _ in
+            guard let sv = webView?.scrollView else { return }
+            let y = sv.readingLayout.clamped(sv.contentOffset.y)
+            if y != sv.contentOffset.y { sv.contentOffset = CGPoint(x: sv.contentOffset.x, y: y) }
+        }
+    }
+
+    /// How far a drag moves the text, or how fast it lets go (points per second), to turn a page.
+    private static let pageDrag: CGFloat = 24
+    private static let pageFlick: CGFloat = 300
+
+    /// Pages from the line at document y `y`: it becomes the page's `start`, then `then` runs.
+    private func startPages(atLineAt y: CGFloat, then: @escaping () -> Void) {
+        guard let webView = host.webView else { return }
+        let generation = host.loadGeneration
         webView.evaluateJavaScript("window.__readerAnchor(\(Double(y)))") { [weak self] result, _ in
-            guard let self, generation == loadGeneration, let pages else { return }
-            pages.start = Self.spot(result)
-            if let then { then() } else { measurePages() }
+            guard let self, generation == host.loadGeneration, host.layout === self else { return }
+            model.start = Self.spot(result)
+            then()
         }
     }
 
-    /// Measures the lines and breaks them into pages again, then shows the page holding `start`
-    /// (and, with `follow`, goes to the spoken sentence while the text goes there). One at a
-    /// time: a request during one runs once it is back.
-    func measurePages(follow: Bool = false) {
-        guard let pages, let webView, loaded, webView.scrollView.bounds.height > 0 else { return }
-        pages.follow = pages.follow || follow
-        guard !pages.measuring else { return pages.remeasure = true }
-        pages.measuring = true
-        pages.viewportHeight = webView.scrollView.bounds.height
-        let generation = loadGeneration
-        let requested = pages.start
-        let held = requested.map { "window.__readerSpokenRect(\($0.paragraph), \($0.offset), \($0.offset + 1))" }
+    /// Room below the text, a screen tall, so the last page's top can reach the top of the reading
+    /// area. Padding on the page rather than a scroll inset: a tap there lands on the page's body,
+    /// which takes taps (an inset is outside the document, and gets none). Laying the page out
+    /// again measures the pages again.
+    private func setRoom(_ height: CGFloat) {
+        guard host.loaded, let webView = host.webView else { return }
+        guard height != room else { return measure(placesHold: false) }
+        room = height
+        webView.evaluateJavaScript("document.body.style.setProperty('--page-room', '\(Int(height))px');") { [weak self] _, _ in
+            self?.measure(placesHold: false)
+        }
+    }
+
+    /// Measures the lines and breaks them into pages again, then shows the page holding the line
+    /// to keep (`heldSpot` when it puts the hold back, else `start`), and puts the hold back. One
+    /// at a time: a request during one runs once it is back.
+    private func measure(placesHold: Bool) {
+        guard host.layout === self, host.loaded, let webView = host.webView,
+              webView.scrollView.bounds.height > 0 else { return }
+        self.placesHold = self.placesHold || placesHold
+        guard !measuring else { return remeasure = true }
+        measuring = true
+        viewportHeight = webView.scrollView.bounds.height
+        let generation = host.loadGeneration
+        let keep = keptSpot
+        let held = keep.map { "window.__readerSpokenRect(\($0.paragraph), \($0.offset), \($0.offset + 1))" }
         webView.evaluateJavaScript("[window.__readerLines(), \(held ?? "null")]") { [weak self] result, _ in
-            pages.measuring = false
-            guard let self, generation == loadGeneration, self.pages === pages else { return }
+            guard let self else { return }
+            measuring = false
+            guard generation == host.loadGeneration, host.layout === self else { return }
             // Asked again meanwhile, or the line to keep changed: this one is stale.
-            guard !pages.remeasure, pages.start == requested else {
-                pages.remeasure = false
-                return measurePages()
+            guard !remeasure, keptSpot == keep else {
+                remeasure = false
+                return measure(placesHold: false)
             }
             guard let parts = result as? [Any], parts.count == 2, let flat = parts[0] as? [Double] else { return }
             let sv = webView.scrollView
             let lines = stride(from: 0, to: flat.count - 1, by: 2).map {
                 ReadingPagination.Line(top: CGFloat(flat[$0]), bottom: CGFloat(flat[$0 + 1]))
             }
-            let height = sv.bounds.height - sv.contentInset.top - pageFooter
+            let height = sv.bounds.height - sv.contentInset.top - footer
             guard height > 0 else { return }
             let pagination = ReadingPagination(lines: lines, pageHeight: height, margin: Spacing.xs)
-            pages.pagination = pagination
+            self.pagination = pagination
             let heldTop = (parts[1] as? [Double])?.first.map { CGFloat($0) } ?? 0
             show(page: pagination.index(holding: heldTop))
-            if pages.follow {
-                pages.follow = false
-                goToSpoken(.jump)
+            if self.placesHold {
+                self.placesHold = false
+                host.placeHold()
             }
         }
     }
 
-    /// Pages: room below the text, a screen tall, so the last page's top can reach the top of the
-    /// reading area. Padding on the page rather than a scroll inset: a tap there lands on the
-    /// page's body, which takes taps (an inset is outside the document, and gets none). Scroll
-    /// mode takes it away. Laying the page out again measures the pages again.
-    func setPageRoom() {
-        guard let webView, loaded else { return }
-        let room = pages == nil ? 0 : webView.scrollView.bounds.height
-        guard room != pageRoom else { return measurePages() }
-        pageRoom = room
-        webView.evaluateJavaScript("document.body.style.setProperty('--page-room', '\(Int(room))px');") { [weak self] _, _ in
-            guard let self else { return }
-            guard pages == nil else { return measurePages() }
-            // Back in Scroll mode: the text stays where it is, within what it can scroll to.
-            let sv = webView.scrollView
-            let layout = ReadingScrollRestore.Layout(
-                contentHeight: sv.contentSize.height, viewportHeight: sv.bounds.height,
-                insetTop: sv.contentInset.top, insetBottom: sv.contentInset.bottom)
-            let y = min(max(sv.contentOffset.y, layout.range.lowerBound), layout.range.upperBound)
-            if y != sv.contentOffset.y { sv.contentOffset = CGPoint(x: sv.contentOffset.x, y: y) }
-        }
-    }
-
-    /// The web view's height changed (the sheet laid out): break the pages again for it.
-    func layoutPages() {
-        guard let pages, let sv = webView?.scrollView, sv.bounds.height != pages.viewportHeight else { return }
-        sentInsets = nil
-        setTextInsets(textInsets)
+    /// The line a measurement keeps on screen.
+    private var keptSpot: ReadingPages.Spot? {
+        (placesHold ? host.heldSpot : nil) ?? model.start
     }
 
     /// Shows page `index` (clamped): its top at the top of the reading area, at once or on the
     /// spring, the pages around it covered; then looks up its first character.
-    func show(page index: Int, animated: Bool = false) {
-        guard let pages, let pagination = pages.pagination, let webView else { return }
+    private func show(page index: Int, animated: Bool = false) {
+        guard let pagination, let webView = host.webView else { return }
         let i = min(max(index, 0), pagination.pages.count - 1)
         let page = pagination.pages[i]
         let sv = webView.scrollView
         let y = page.top - sv.contentInset.top
-        pages.shown = ReadingPages.Shown(index: i, count: pagination.pages.count, visibleTop: page.visibleTop - y,
+        model.shown = ReadingPages.Shown(index: i, count: pagination.pages.count, visibleTop: page.visibleTop - y,
                                          visibleBottom: page.visibleBottom - y)
         // Stops a deceleration or bounce the scroll view has begun.
         sv.setContentOffset(sv.contentOffset, animated: false)
         let offset = CGPoint(x: sv.contentOffset.x, y: y)
-        if animated, animates {
+        if animated, host.animates {
             UIView.animate(springDuration: Motion.standardResponse, bounce: Motion.standardBounce,
                            options: [.allowUserInteraction, .beginFromCurrentState]) {
                 sv.contentOffset = offset
@@ -229,57 +287,13 @@ extension HTMLReadingWebView.Coordinator {
             sv.contentOffset = offset
         }
         // Unless something else (a hand-over, the mode switch) sets the line to keep meanwhile.
-        let generation = loadGeneration, before = pages.start
+        let generation = host.loadGeneration, before = model.start
         webView.evaluateJavaScript("window.__readerAnchor(\(Double(page.top)))") { [weak self] result, _ in
-            guard let self, generation == loadGeneration, self.pages === pages, pages.shown?.index == i,
-                  pages.start == before, let spot = Self.spot(result) else { return }
-            pages.start = spot
+            guard let self, generation == host.loadGeneration, host.layout === self, model.shown?.index == i,
+                  model.start == before, let spot = Self.spot(result) else { return }
+            model.start = spot
         }
     }
-
-    /// The page holding document y `y`, unless it shows already (following the audio).
-    func showPage(holding y: CGFloat) {
-        guard let pages, let pagination = pages.pagination else { return }
-        let index = pagination.index(holding: y)
-        if index != pages.shown?.index { show(page: index) }
-    }
-
-    /// The page holding paragraph `index`'s start (following a scrub).
-    func showPage(holdingParagraph index: Int) {
-        guard let webView else { return }
-        let generation = loadGeneration
-        webView.evaluateJavaScript("window.__readerSpokenRect(\(index), null, null)") { [weak self] result, _ in
-            guard let self, generation == loadGeneration, let rect = result as? [Double], let top = rect.first else { return }
-            showPage(holding: CGFloat(top))
-        }
-    }
-
-    /// A tap at an edge: the next or previous page, at once. The user moved the text: following
-    /// stops.
-    func turnPage(forward: Bool) {
-        guard let shown = pages?.shown else { return }
-        let index = shown.index + (forward ? 1 : -1)
-        guard (0..<shown.count).contains(index) else { return }
-        userTookOver()
-        stopFollowing()
-        show(page: index)
-    }
-
-    /// A drag on the text let go (`velocity` down positive): one page its way, or back to the
-    /// page it began on when it moved too little.
-    func pageDragEnded(velocity: CGFloat) {
-        guard let pages, let shown = pages.shown, let pagination = pages.pagination, let sv = webView?.scrollView
-        else { return }
-        let moved = sv.contentOffset.y - (pagination.pages[shown.index].top - sv.contentInset.top)
-        let step = if abs(velocity) > Self.pageFlick { velocity < 0 ? 1 : -1 }
-            else if abs(moved) > Self.pageDrag { moved > 0 ? 1 : -1 }
-            else { 0 }
-        show(page: shown.index + step, animated: true)
-    }
-
-    /// How far a drag moves the text, or how fast it lets go (points per second), to turn a page.
-    private static let pageDrag: CGFloat = 24
-    private static let pageFlick: CGFloat = 300
 
     private static func spot(_ anchor: Any?) -> ReadingPages.Spot? {
         guard let a = anchor as? [String: Any], let paragraph = a["index"] as? Int, paragraph >= 0 else { return nil }

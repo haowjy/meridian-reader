@@ -168,12 +168,15 @@ extension HTMLReadingWebView {
             }
             return [docTop({ top: top }), bottom - top, window.__readerTextTop()];
           };
-          // The document y of the element a same-page link points to (its id, else its name).
-          window.__readerAnchorTop = function(fragment) {
+          // Where the element a same-page link points to (its id, else its name) sits, as
+          // __readerSpokenRect answers.
+          window.__readerAnchorRect = function(fragment) {
             var id = fragment;
             try { id = decodeURIComponent(fragment); } catch (e) {}
             var el = document.getElementById(id) || document.getElementsByName(id)[0];
-            return el ? docTop(el.getBoundingClientRect()) : null;
+            if (!el) return null;
+            var box = el.getBoundingClientRect();
+            return [docTop(box), box.height, window.__readerTextTop()];
           };
           // Pages mode: the page's lines as [top, bottom, top, bottom, …] in document y, sorted and
           // merged where they overlap. A text line is its line box (the glyphs' rect grown to the

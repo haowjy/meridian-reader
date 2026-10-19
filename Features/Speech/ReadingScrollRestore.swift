@@ -34,6 +34,11 @@ struct ReadingScrollRestore: Equatable {
             return top...max(top, contentHeight - viewportHeight + insetBottom)
         }
 
+        /// `offset` moved into `range`.
+        func clamped(_ offset: CGFloat) -> CGFloat {
+            min(max(offset, range.lowerBound), range.upperBound)
+        }
+
         /// Laid out: the page has a height and a viewport to show it in.
         var isLaidOut: Bool { contentHeight > 0 && viewportHeight > 0 }
     }
@@ -53,6 +58,6 @@ struct ReadingScrollRestore: Equatable {
         let range = layout.range
         if range.contains(offset) { return .scroll(to: offset) }
         guard quiet || expired else { return .wait }
-        return .scroll(to: min(max(offset, range.lowerBound), range.upperBound))
+        return .scroll(to: layout.clamped(offset))
     }
 }
