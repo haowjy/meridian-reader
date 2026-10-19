@@ -204,7 +204,7 @@ struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
                 .foregroundStyle(chosen ? reading?.ink ?? Palette.ink : reading?.secondaryInk ?? Palette.secondaryInk)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
-                .padding(.horizontal, Spacing.xxs)
+                .padding(.horizontal, Spacing.xs)
                 .frame(maxWidth: .infinity, minHeight: min(height, 56))
                 .background {
                     if chosen {
