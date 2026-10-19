@@ -32,7 +32,7 @@ struct LibrarySurface: View {
         VStack(spacing: 0) {
             NavigationStack(path: $shell.libraryPath) {
                 LibraryHomeView(pageSort: PageSort(rawValue: topLevelSort) ?? LibraryTopLevel.defaultSort,
-                                favoritesOnly: shell.favoritesOnly, searchText: search.isActive ? search.text : "")
+                                tab: shell.homeTab, searchText: search.isActive ? search.text : "")
                     .navigationDestination(for: LibraryRoute.self) { LibraryRouteView(route: $0) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

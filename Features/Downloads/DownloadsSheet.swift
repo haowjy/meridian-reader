@@ -183,7 +183,7 @@ struct DownloadsList: View {
             Text("Nothing downloaded")
                 .typeStyle(.row, weight: .semibold)
                 .foregroundStyle(Palette.ink)
-            Text("Tap \(Text.symbol(Icons.download)) on a page, a folder or a book in the Library. Its audio is made ahead of time, so it plays offline.")
+            Text("Download a page from its \(Text.symbol(Icons.more)) in the Library, or a folder or book with \(Text.symbol(Icons.download)) on its screen. Its audio is made ahead of time, so it plays offline.")
                 .typeStyle(.row)
                 .foregroundStyle(Palette.secondaryInk)
         }

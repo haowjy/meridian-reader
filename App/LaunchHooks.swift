@@ -229,9 +229,10 @@ enum LaunchHooks {
     }
 
     /// `-seedDemoArticle`: one deterministic article saved in no folder (and, with
-    /// `-seedPlayedPages N`, N pages played without saving). Saved and played as the app does;
-    /// each play is then dated a minute further back than the one before ("Played Page 1" most
-    /// recently), which no store write does (a play is dated as it starts).
+    /// `-seedPlayedPages N`, N pages played without saving, each left at its second paragraph:
+    /// part-way). Saved and played as the app does; each play is then dated a minute further back
+    /// than the one before ("Played Page 1" most recently), which no store write does (a play is
+    /// dated as it starts).
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in library: LibraryStore) {
         let paragraphs = [
             "First paragraph for listen probe. This one is intentionally longer so Simulator UI tests can press next and previous before speech finishes the whole article on its own.",
@@ -244,6 +245,7 @@ enum LaunchHooks {
             let played = library.recordPlayback(webPage("Played Page \(i + 1)", at: "https://example.com/played-\(i + 1)",
                                                         paragraphs: ["Played page \(i + 1), first paragraph.",
                                                                      "Played page \(i + 1), second paragraph."]))
+            library.recordPosition(played, paragraph: 1, utf16Offset: 0)
             played.lastPlayedAt = .now.addingTimeInterval(-60 * Double(i + 1))
         }
         library.commit("demo seed")

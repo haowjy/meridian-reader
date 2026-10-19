@@ -5,14 +5,14 @@ import SwiftData
 /// else. A page is in exactly one of three standings, and the star is a flag beside them:
 ///
 /// - **In the Library** (`addedAt` set): its folder's list (`pages(inFolder:)`) or the top level's
-///   pages on the home (`loosePages`), the home's search (`searchPages`), address suggestions
-///   (`savedInLibrary`).
-/// - **Played without saving** (`playedNotSaved`): out of the Library, played, not removed since
-///   you last listened to it. The top of the home's pages, "Not saved", and the home's search.
+///   pages on the home's Everything (`loosePages`), Everything's search (`searchPages`), address
+///   suggestions (`savedInLibrary`).
+/// - **In History** (`history`, `isInHistory`): played without saving, out of the Library, not
+///   removed since you last listened to it. The home's History tab and its search.
 /// - **Removed** (out of the Library with `removedAt` set): in none of those, nor the bar's
-///   resume (`lastPlayed`). *Remove from Library* takes a page out of every one of them at once
-///   (and stops it if you hear it); saving it brings it back, and so does listening to it again
-///   (🎧, the Reader's Listen).
+///   resume (`lastPlayed`). *Remove from Library* (and *Remove from History*, the same remove)
+///   takes a page out of every one of them at once (and stops it if you hear it); saving it brings
+///   it back, and so does listening to it again (🎧, the Reader's Listen).
 /// - **Starred** (`isFavorite`), whatever its standing: Favorites (`favoritePages`, and the
 ///   Favorites tab's search). Remove leaves the star, so a removed favorite stays in Favorites,
 ///   and the prune keeps a starred page (`prunable`); only unstarring takes it out.
@@ -50,17 +50,23 @@ enum LibraryQueries {
         FetchDescriptor(predicate: #Predicate<Page> { $0.folderID == id }, sortBy: sortDescriptors(sort))
     }
 
-    /// Pages played without saving (decision D5), most recently played first: the top of the
-    /// Library home's pages, marked "Not saved", until the 7-day prune
-    /// (`prunable`) deletes them. A page removed from the Library (`removedAt`) isn't one until
-    /// you listen to it again. Book chapters never qualify (they are always in their folder).
-    static var playedNotSaved: FetchDescriptor<Page> {
+    /// History: pages played without saving (decision D5), most recently played first: the
+    /// Library home's History tab, until the 7-day prune (`prunable`) deletes them. A page removed
+    /// (`removedAt`, *Remove from History* too) isn't in it until you listen to it again. Book
+    /// chapters never qualify (they are always in their folder).
+    static var history: FetchDescriptor<Page> {
         let past = Date.distantPast
         let saved = PageContentState.saved.rawValue
         return FetchDescriptor(predicate: #Predicate<Page> {
             $0.addedAt == nil && $0.removedAt == nil && $0.folderID == nil && $0.contentStateRaw == saved
                 && ($0.lastPlayedAt ?? past) > past
         }, sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse), SortDescriptor(\Page.key)])
+    }
+
+    /// Whether `page` is in History, for one page in hand (a row's menu): `history`'s own
+    /// predicate, evaluated on it.
+    static func isInHistory(_ page: Page) -> Bool {
+        (try? history.predicate?.evaluate(page)) == true
     }
 
     /// The pages played most recently, newest first, in the Library or played without saving
@@ -139,43 +145,61 @@ enum LibraryQueries {
 
     // MARK: The home
 
-    /// The home's search, across the tree: pages in the Library or played without saving whose
-    /// title, site or author, or excerpt holds `text`; on Favorites, starred pages (in the Library
-    /// or not), as the tab lists them. By title,
-    /// then newest first, so the results keep one order.
-    static func searchPages(_ text: String, favoritesOnly: Bool) -> FetchDescriptor<Page> {
+    /// The home's search within its tab (`tab`), across the tree: pages whose title, site or
+    /// author, or excerpt holds `text`. Everything: pages in the Library; Favorites: starred pages,
+    /// in the Library or not; History: History's pages. By title, then newest first, so the
+    /// results keep one order.
+    static func searchPages(_ text: String, in tab: LibraryHomeTab) -> FetchDescriptor<Page> {
         let sort = [SortDescriptor(\Page.title), SortDescriptor(\Page.addedAt, order: .reverse), SortDescriptor(\Page.key)]
-        if favoritesOnly {
+        switch tab {
+        case .everything:
+            return FetchDescriptor(predicate: #Predicate<Page> { page in
+                page.addedAt != nil
+                    && (page.title.localizedStandardContains(text) || page.byline.localizedStandardContains(text)
+                        || page.excerpt.localizedStandardContains(text))
+            }, sortBy: sort)
+        case .favorites:
             return FetchDescriptor(predicate: #Predicate<Page> { page in
                 page.isFavorite
                     && (page.title.localizedStandardContains(text) || page.byline.localizedStandardContains(text)
                         || page.excerpt.localizedStandardContains(text))
             }, sortBy: sort)
+        case .history:
+            // `history`'s rule, written again: a predicate can't call another on iOS 17.
+            let past = Date.distantPast
+            let saved = PageContentState.saved.rawValue
+            return FetchDescriptor(predicate: #Predicate<Page> { page in
+                page.addedAt == nil && page.removedAt == nil && page.folderID == nil && page.contentStateRaw == saved
+                    && (page.lastPlayedAt ?? past) > past
+                    && (page.title.localizedStandardContains(text) || page.byline.localizedStandardContains(text)
+                        || page.excerpt.localizedStandardContains(text))
+            }, sortBy: sort)
         }
-        let past = Date.distantPast
-        let saved = PageContentState.saved.rawValue
-        return FetchDescriptor(predicate: #Predicate<Page> { page in
-            (page.addedAt != nil
-                || (page.removedAt == nil && page.folderID == nil && page.contentStateRaw == saved
-                    && (page.lastPlayedAt ?? past) > past))
-                && (page.title.localizedStandardContains(text) || page.byline.localizedStandardContains(text)
-                    || page.excerpt.localizedStandardContains(text))
-        }, sortBy: sort)
     }
 
-    /// The home's search for folders, across the tree: those whose name or author holds `text`;
-    /// on Favorites, starred ones only. By name, then oldest first.
-    static func searchFolders(_ text: String, favoritesOnly: Bool) -> FetchDescriptor<Folder> {
+    /// The home's search for folders within its tab: those whose name or author holds `text`,
+    /// across the tree; on Favorites, starred ones only; History has none. By name, then oldest
+    /// first.
+    static func searchFolders(_ text: String, in tab: LibraryHomeTab) -> FetchDescriptor<Folder> {
         let sort = [SortDescriptor(\Folder.name), SortDescriptor(\Folder.createdAt)]
-        if favoritesOnly {
+        switch tab {
+        case .everything:
+            return FetchDescriptor(predicate: #Predicate<Folder> { folder in
+                folder.name.localizedStandardContains(text) || folder.byline?.localizedStandardContains(text) == true
+            }, sortBy: sort)
+        case .favorites:
             return FetchDescriptor(predicate: #Predicate<Folder> { folder in
                 folder.isFavorite
                     && (folder.name.localizedStandardContains(text) || folder.byline?.localizedStandardContains(text) == true)
             }, sortBy: sort)
+        case .history:
+            return noFolders
         }
-        return FetchDescriptor(predicate: #Predicate<Folder> { folder in
-            folder.name.localizedStandardContains(text) || folder.byline?.localizedStandardContains(text) == true
-        }, sortBy: sort)
+    }
+
+    /// No folder: History's.
+    static var noFolders: FetchDescriptor<Folder> {
+        FetchDescriptor(predicate: #Predicate<Folder> { _ in false })
     }
 
     // MARK: Sorts
@@ -189,4 +213,14 @@ enum LibraryQueries {
         case .title: [SortDescriptor(\Page.title), SortDescriptor(\Page.sortKey), SortDescriptor(\Page.key)]
         }
     }
+}
+
+/// The Library home's tabs: what its one list holds (`LibraryQueries` decides which items).
+enum LibraryHomeTab: String, CaseIterable {
+    /// The Library: its top level's folders and pages.
+    case everything
+    /// Starred folders and pages, wherever they are, in the Library or not.
+    case favorites
+    /// Pages played without saving, most recent first.
+    case history
 }

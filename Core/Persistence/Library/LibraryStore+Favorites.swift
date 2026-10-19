@@ -51,7 +51,7 @@ extension LibraryStore {
     }
 
     /// Stars `page` where it is, in the Library or not, taking `artwork` as its icon when it has
-    /// none. Starring never files it: a page played without saving stays *Not saved* and joins
+    /// none. Starring never files it: a page played without saving stays in History and joins
     /// Favorites, which keeps it from the prune.
     func addFavorite(_ page: Page, artwork: Data? = nil) throws {
         try edit("favorite") {

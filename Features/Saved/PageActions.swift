@@ -63,6 +63,9 @@ struct PageActions {
         guard let url, url.scheme != nil, url.host?.isEmpty == false else { return nil }
         return url
     }
+    /// The saved page is downloading or downloaded (`DownloadCenter.state(of:)`): its ⋯ offers
+    /// *Remove Download*, as its Library row's menu does.
+    var hasDownload: Bool { savedPage.map { downloads.state(of: $0) != .notDownloaded } == true }
     /// The text is ready to save (an older page builds its listen blocks after it opens).
     var canSave: Bool { article.map { !$0.document.isEmpty } == true }
 
@@ -73,11 +76,12 @@ struct PageActions {
         ReaderMenu(
             isSaved: isSaved,
             isFavorite: isFavorite,
+            hasDownload: hasDownload,
             save: MenuAvailability(when: canSave),
             moveTo: MenuAvailability(when: isSaved && canSave),
             favorite: MenuAvailability(when: canFavorite),
             share: MenuAvailability(when: shareURL != nil),
-            download: MenuAvailability(when: savedPage.map { !downloads.isQueued(.page($0.listenKey)) } == true),
+            download: MenuAvailability(when: isSaved),
             website: MenuAvailability(when: websiteURL != nil)
         )
     }
@@ -91,7 +95,7 @@ struct PageActions {
         case .moveTo: saveToFolder()
         case .toggleFavorite: toggleFavorite()
         case .share: share()
-        case .download: if let savedPage { DownloadActions(downloads: downloads, shell: shell).download(savedPage) }
+        case .download: toggleDownload()
         case .downloads: shell.present(.downloads)
         case .favorites: shell.showFavorites()
         case .history: shell.present(.history)
@@ -150,6 +154,17 @@ struct PageActions {
             }
         } else if let page {
             flow.toggle(page)
+        }
+    }
+
+    /// ⋯ → Download / Remove Download, the Library row menu's row: *Remove Download* takes the page
+    /// out of every download and keeps it out (`DownloadCenter.deleteDownloads(of:)`, P8).
+    func toggleDownload() {
+        guard let savedPage else { return }
+        if hasDownload {
+            downloads.deleteDownloads(of: savedPage)
+        } else {
+            DownloadActions(downloads: downloads, shell: shell).download(savedPage)
         }
     }
 

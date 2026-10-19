@@ -90,10 +90,18 @@ struct BookImportSheet: View {
 
     // MARK: - Header
 
+    /// The book as its folder's header will show it, with the import's progress bar under it.
     private var header: some View {
-        FolderHeader(style: .detailed(cover: cover), title: flow.title, detail: detail, source: source,
-                     progress: progress?.fraction, progressLabel: progress.map { [$0.label] } ?? []) {
-            EmptyView()
+        VStack(spacing: Spacing.xs) {
+            FolderHeader(style: .detailed(cover: cover), title: flow.title, detail: detail, source: source,
+                         progressLabel: progress.map { [$0.label] } ?? []) {
+                EmptyView()
+            } more: {
+                EmptyView()
+            }
+            if let progress {
+                ProgressLine(fraction: progress.fraction, height: ProgressLine.barHeight, track: .groove)
+            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("importHeader")

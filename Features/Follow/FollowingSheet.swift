@@ -11,7 +11,7 @@ import SwiftUI
 /// Last checked                       today 8:02 AM
 /// Next check                      tomorrow 8:02 AM
 /// Chapter text                    109 of 109 fetched
-/// Last new chapters                  today · 2 added
+/// Last new chapters             today 8:02 AM, 2 added
 /// ↻ Check Now
 /// 📡̸ Unfollow
 /// Each check reads the whole table of contents, so no chapter is missed after a long gap. …
@@ -52,7 +52,7 @@ struct FollowingSheet: View {
                 fact(String(localized: "Next check"), nextCheck(folder))
                 fact(String(localized: "Chapter text"), chapterText(progress))
                 fact(String(localized: "Last new chapters"), state.lastAddedAt.map {
-                    String(localized: "\(FollowText.when($0)) · \(state.lastAddedCount) added")
+                    String(localized: "\(FollowText.when($0)), \(state.lastAddedCount) added")
                 } ?? String(localized: "None yet"))
             } header: {
                 Text(folder.contentsURL.map { ShellState.addressText(for: $0) } ?? "")
@@ -104,11 +104,12 @@ struct FollowingSheet: View {
         return next <= .now ? String(localized: "When the app is next open") : FollowText.when(next)
     }
 
-    /// "41 of 107 fetched", then "· 1 chapter couldn’t load" when one couldn't.
+    /// "41 of 107 fetched", then ", 1 chapter couldn’t load" when one couldn't: one phrase, as a
+    /// fact's value is.
     private func chapterText(_ progress: FollowCenter.Progress) -> String {
         let fetched = String(localized: "\(progress.withText) of \(progress.chapters) fetched")
         guard progress.failed > 0 else { return fetched }
-        return fetched + " · " + FollowText.couldNotLoad(progress.failed)
+        return String(localized: "\(fetched), \(FollowText.couldNotLoad(progress.failed))")
     }
 
     private func fact(_ title: String, _ value: String) -> some View {

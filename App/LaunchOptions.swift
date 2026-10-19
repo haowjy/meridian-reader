@@ -9,7 +9,7 @@ struct LaunchOptions: Equatable {
         /// `-seedDemoPlainText`: the article has no HTML, only its plain text.
         var plainTextOnly = false
         /// `-seedPlayedPages N`: also N pages played without saving, part-way ("Played Page 1"
-        /// played most recently): the "Not saved" rows at the top of the Library's *Pages*.
+        /// played most recently): the Library's History tab.
         var playedPages = 0
     }
 

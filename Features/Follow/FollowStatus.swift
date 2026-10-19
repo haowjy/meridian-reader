@@ -1,14 +1,14 @@
 import SwiftUI
 
 /// A followed story's lines in its folder header: one status line, which opens the Following
-/// sheet, and, while its site has asked to slow down or isn't answering, one notice saying how
-/// long the next chapter waits, by its title.
+/// sheet (a `HeaderLink`, its parts set apart by space and ink), and, while its site has asked to
+/// slow down or isn't answering, one notice saying how long the next chapter waits, by its title.
 ///
 /// ```
-/// 📡 Following · fetching chapter text 4 of 107 ›
-/// 📡 Following · 1 chapter couldn’t load · fetched 41 of 107 ›
+/// 📡 Following   fetching chapter text 4 of 107 ›
+/// 📡 Following   1 chapter couldn’t load   fetched 41 of 107 ›
 /// ⏳ Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52, then slower.
-/// 📡 Following · checked today 8:02 AM · 2 new ›
+/// 📡 Following   checked today 8:02 AM   2 new ›
 /// ```
 struct FollowStatus: View {
     let folder: Folder
@@ -21,7 +21,7 @@ struct FollowStatus: View {
     var body: some View {
         let progress = follow.progress(of: pages)
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            HeaderLink(symbol: Icons.follow, text: line(progress), identifier: "followStatus") {
+            HeaderLink(symbol: Icons.follow, parts: parts(progress), identifier: "followStatus") {
                 shell.present(.following(folder.id))
             }
             if let next = progress.fetching, let url = folder.contentsURL,
@@ -36,10 +36,10 @@ struct FollowStatus: View {
         }
     }
 
-    private func line(_ progress: FollowCenter.Progress) -> String {
+    private func parts(_ progress: FollowCenter.Progress) -> [String] {
         let state = folder.followState
         var parts = [state?.isFollowing == false ? String(localized: "Not following") : String(localized: "Following")]
-        // Ahead of the progress: a line too long for the header loses its end, and the count matters more.
+        // Ahead of the progress, which it matters more than: read first, and first on the line.
         if progress.failed > 0 { parts.append(FollowText.couldNotLoad(progress.failed)) }
         if let fetching = progress.fetching {
             parts.append(String(localized: "fetching chapter text \(fetching.number) of \(progress.chapters)"))
@@ -53,7 +53,7 @@ struct FollowStatus: View {
                 parts.append(String(localized: "\(count) new"))
             }
         }
-        return parts.joined(separator: " · ")
+        return parts
     }
 }
 

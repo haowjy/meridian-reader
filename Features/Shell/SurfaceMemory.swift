@@ -49,8 +49,10 @@ struct SurfaceMemory: Codable, Equatable {
 /// and never change.
 struct SurfaceMemoryStore {
     static let key = "shell.lastSurface"
+    static let homeTabKey = "library.homeTab"
+    /// Where the tab was kept while there were two (true: Favorites); read once, then removed.
     static let favoritesTabKey = "library.favoritesTab"
-    static let storedKeys = [key, favoritesTabKey]
+    static let storedKeys = [key, homeTabKey, favoritesTabKey]
 
     var defaults: UserDefaults
 
@@ -65,12 +67,17 @@ struct SurfaceMemoryStore {
         defaults.set(data, forKey: Self.key)
     }
 
-    /// The Library home showed Favorites (false: Everything).
-    func loadFavoritesTab() -> Bool {
-        defaults.bool(forKey: Self.favoritesTabKey)
+    /// The tab the Library home showed. One stored as the two-tab Bool moves to its own key.
+    func loadHomeTab() -> LibraryHomeTab {
+        if let tab = defaults.string(forKey: Self.homeTabKey).flatMap(LibraryHomeTab.init(rawValue:)) { return tab }
+        guard defaults.object(forKey: Self.favoritesTabKey) != nil else { return .everything }
+        let tab: LibraryHomeTab = defaults.bool(forKey: Self.favoritesTabKey) ? .favorites : .everything
+        saveHomeTab(tab)
+        defaults.removeObject(forKey: Self.favoritesTabKey)
+        return tab
     }
 
-    func saveFavoritesTab(_ favoritesOnly: Bool) {
-        defaults.set(favoritesOnly, forKey: Self.favoritesTabKey)
+    func saveHomeTab(_ tab: LibraryHomeTab) {
+        defaults.set(tab.rawValue, forKey: Self.homeTabKey)
     }
 }

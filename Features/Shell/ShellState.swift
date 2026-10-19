@@ -148,12 +148,11 @@ final class ShellState {
     var libraryPath: [LibraryRoute] = [] {
         didSet { remember() }
     }
-    /// The Library home's tab: Favorites (starred folders and pages, wherever they are) or
-    /// Everything. Its picker sets it; going to a place in the Library shows Everything
-    /// (`showLibrary(at:)`), ⋯ → Favorites shows Favorites (`showFavorites`), and 📚 keeps it.
-    /// Remembered with the surface.
-    var favoritesOnly = false {
-        didSet { memory?.saveFavoritesTab(favoritesOnly) }
+    /// The Library home's tab (`LibraryHomeTab`). Its picker sets it; going to a place in the
+    /// Library shows Everything (`showLibrary(at:)`), ⋯ → Favorites shows Favorites
+    /// (`showFavorites`), and 📚 keeps it. Remembered with the surface.
+    var homeTab = LibraryHomeTab.everything {
+        didSet { memory?.saveHomeTab(homeTab) }
     }
     /// The Reader sheet (nil = closed). Removed by `readerDidClose` once its sheet has gone.
     private(set) var reader: ReaderSheetState?
@@ -202,7 +201,7 @@ final class ShellState {
         self.isHearing = isHearing
         self.memory = memory
         guard restores, let memory else { return }
-        favoritesOnly = memory.loadFavoritesTab()
+        homeTab = memory.loadHomeTab()
         if let last = memory.load() {
             surface = last.base == .library ? .library : .browse
             libraryPath = last.libraryPath
@@ -339,14 +338,14 @@ final class ShellState {
     func showLibrary(at path: [LibraryRoute]) {
         openLibrary()
         libraryPath = path
-        favoritesOnly = false
+        homeTab = .everything
     }
 
     /// ⋯ → Favorites, the start page's *Show All*: the Library home on its Favorites tab.
     func showFavorites() {
         openLibrary()
         libraryPath = []
-        favoritesOnly = true
+        homeTab = .favorites
     }
 
     // MARK: - Surfaces
