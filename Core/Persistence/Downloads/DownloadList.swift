@@ -51,8 +51,15 @@ struct DownloadRecord: Codable, Equatable, Identifiable {
     /// The cache voice key the user chose to keep after the voice changed (*Keep*): audio in it
     /// counts as done, not as a different voice.
     var keptVoice: String?
+    /// The Download toggle as stored: set on every record (lists written before the toggle have
+    /// it on), meaningful only for a folder's. Read it through `followsFolder`.
+    private var folderToggle = true
     /// A folder's Download toggle is on: pages added to the folder later join this download.
-    var followsFolder = true
+    /// Never for a page's own download.
+    var followsFolder: Bool {
+        get { target.isFolder && folderToggle }
+        set { folderToggle = newValue }
+    }
     /// Pages of the folder whose downloads were deleted (*Remove Download* on one, decision P8):
     /// they don't join again while the toggle stays on, until Download is asked for again.
     var deleted: [UUID] = []
@@ -65,7 +72,8 @@ struct DownloadRecord: Codable, Equatable, Identifiable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, target, title, addedAt, isPaused, entries, keptVoice, followsFolder, deleted
+        case id, target, title, addedAt, isPaused, entries, keptVoice, deleted
+        case folderToggle = "followsFolder"
     }
 
     /// A list written before the toggle has neither of its fields: a folder's download asked for
@@ -79,7 +87,7 @@ struct DownloadRecord: Codable, Equatable, Identifiable {
         isPaused = try values.decode(Bool.self, forKey: .isPaused)
         entries = try values.decode([Entry].self, forKey: .entries)
         keptVoice = try values.decodeIfPresent(String.self, forKey: .keptVoice)
-        followsFolder = try values.decodeIfPresent(Bool.self, forKey: .followsFolder) ?? true
+        folderToggle = try values.decodeIfPresent(Bool.self, forKey: .folderToggle) ?? true
         deleted = try values.decodeIfPresent([UUID].self, forKey: .deleted) ?? []
     }
 

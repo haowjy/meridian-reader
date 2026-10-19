@@ -11,7 +11,7 @@ struct BrowseAlerts: ViewModifier {
                 get: { extractionError != nil },
                 set: { if !$0 { extractionError = nil } }
             )) {
-                Button("OK", role: .cancel) { extractionError = nil }
+                Button(Verbs.ok, role: .cancel) { extractionError = nil }
             } message: {
                 Text(extractionError ?? "")
             }
@@ -25,7 +25,7 @@ struct BrowseAlerts: ViewModifier {
                         UIApplication.shared.open(url)
                     }
                 }
-                Button("OK", role: .cancel) { dictation?.errorMessage = nil }
+                Button(Verbs.ok, role: .cancel) { dictation?.errorMessage = nil }
             } message: {
                 Text(dictation?.errorMessage ?? "")
             }

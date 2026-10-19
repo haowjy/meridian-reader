@@ -116,7 +116,7 @@ struct PlayStateButton: View {
             .fieldControlFrame()
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(state == .idle ? "Listen" : state.accessibilityLabel)
+        .accessibilityLabel(state == .idle ? Verbs.listen : state.accessibilityLabel)
     }
 
     private func pill(_ title: String, detail: String?, expands: Bool, fit: ActionLabelFit) -> some View {

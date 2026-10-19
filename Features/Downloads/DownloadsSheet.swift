@@ -95,7 +95,7 @@ struct DownloadsList: View {
     }
 
     private func done(_ items: [DownloadOverview.Item]) -> some View {
-        section(items, header: SectionHeader(title: String(localized: "Downloaded"), count: items.count),
+        section(items, header: SectionHeader(title: Verbs.downloaded, count: items.count),
                 headerID: "downloadsDoneHeader") {
             let total = items.compactMap { sizes[$0.id] }.reduce(0, +)
             if total > 0 {
@@ -158,19 +158,17 @@ struct DownloadsList: View {
         let record = item.record
         let shown = DownloadShown(record: record, library: library)
         let parts = detail(item, noun: shown.noun)
-        let menu = AnyView(DownloadMenu(item: item, downloads: downloads))
+        let downloadMenu = DownloadMenu(item: item, downloads: downloads)
+        let menu = AnyView(downloadMenu)
         return ListRow(kind: shown.kind, title: shown.title, subtitle: parts.first, details: Array(parts.dropFirst()),
                        download: item.status == .done ? .downloaded : .notDownloaded, folderHasDetails: shown.hasDetails,
                        menu: menu, accessory: transfer(item))
             .opensOnTap { open(record.target) }
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                // The record goes at once (`remove` is synchronous), so the role's early row removal
-                // agrees with the list; the tint makes it red under the list's accent.
-                Button(DownloadMenu.removeTitle(item), systemImage: Icons.removeDownload, role: .destructive) {
-                    downloads.remove(item.id)
-                }
-                    .tint(Palette.destructive)
+                // The menu's *Remove Download(s)*. The record goes at once (`remove` is
+                // synchronous), so the role's early row removal agrees with the list.
+                downloadMenu.rows.swipeRow("menuRemoveDownload")?.swipeButton(role: .destructive)
             }
             .accessibilityIdentifier("downloadRow")
     }

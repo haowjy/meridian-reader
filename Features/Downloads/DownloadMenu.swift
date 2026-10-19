@@ -35,13 +35,11 @@ struct DownloadMenu: View {
                     availability: MenuAvailability(when: otherVoice != nil)) {
                 if let otherVoice { downloads.keep(id, voice: otherVoice) }
             },
-            MenuRow(id: "menuRemoveDownload", title: Self.removeTitle(item), icon: Icons.removeDownload,
+            // *Remove Download* for a page, *Remove Downloads* for a folder, as their own menus say.
+            MenuRow(id: "menuRemoveDownload",
+                    title: item.record.target.isFolder ? Verbs.removeDownloads : Verbs.removeDownload,
+                    icon: Icons.removeDownload,
                     isDestructive: true) { downloads.remove(id) },
         ]
-    }
-
-    /// *Remove Download* for a page, *Remove Downloads* for a folder: the name its own menu gives it.
-    static func removeTitle(_ item: DownloadOverview.Item) -> String {
-        item.record.target.isFolder ? Verbs.removeDownloads : Verbs.removeDownload
     }
 }

@@ -810,7 +810,9 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   content and a heavier dim on the strip above it; while a finger pulls it down the dim lifts, but
   the strip under the status bar stays as dark as at rest until the sheet has gone, so the clock
   stays readable. A **title card** at the top of the text (it scrolls with the text) shows the
-  artwork, the title (none for a page without one), and the site and time left as two parts (*✓ Finished* at the end). The
+  artwork, line one as the Now Playing bar has it (the title; for a page without one its site,
+  `PageTitle.lineOne`), and the site and time left as two parts, the site left out when line one
+  is already it (*✓ Finished* at the end). The
   spoken paragraph is in full ink on the theme's highlight, the others dimmed (a paragraph
   pressed while ☝︎ is on is in full ink too). The *Jump to Audio* pill is ink with the page's
   colour for its text; the scrub capsule, the bubble, the jump hint, the ⋯ panel and the speed
@@ -906,8 +908,9 @@ Both sheets read full screen the same way (`ReadingChrome`); Follow's chapter pr
   grabber, the top bar and the bottom band together: they slide off their edges and fade (fade
   only under Reduce Motion). The status bar fades out with them (and back in with them, in every
   theme), the home indicator dims, and the strip above the sheet takes the page's colour, so only
-  the text shows. In Scroll the text's top edge fades into the page over a line's height, so a
-  line scrolled part-way past it never shows cut. **Scrolling up a little**
+  the text shows. In Scroll the text's top edge fades into the page over a line's height, and a
+  drag let go comes to rest as an edge tap lands, with a whole line under the fade (where its
+  glide would stop, moved to the nearest line), so no line rests cut by the screen's edge. **Scrolling up a little**
   (about 8 pt) or **a tap in the middle of the text** brings them back over the text; the text
   doesn't move either way. The next scroll down or middle tap hides them again. Scrolls the app
   makes (following the audio, a scrub, opening at a spot) never do. The bars stay while VoiceOver

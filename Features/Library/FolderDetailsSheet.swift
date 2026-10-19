@@ -49,7 +49,7 @@ struct FolderDetailsSheet: View {
                     coverPreview
                         .listHeader()
                 }
-                field(String(localized: "Name"), text: $name, prompt: String(localized: "Name"), id: "detailsName")
+                field(Verbs.name, text: $name, prompt: Verbs.name, id: "detailsName")
                 field(String(localized: "Author"), text: $byline, prompt: String(localized: "Optional"), id: "detailsAuthor")
                 Section {
                     choice(String(localized: "Choose from Photos"), Icons.photos, id: "detailsCoverPhotos") {

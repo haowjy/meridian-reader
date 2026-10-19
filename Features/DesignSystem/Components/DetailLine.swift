@@ -79,7 +79,7 @@ struct DetailPart: Hashable, ExpressibleByStringLiteral {
     /// `text` after the grey ✓ a downloaded row starts its second line with (a page's, a
     /// download's, a voice model's in Settings).
     static func downloaded(_ text: String) -> DetailPart {
-        DetailPart(text, symbol: Icons.downloaded, spoken: String(localized: "Downloaded, \(text)"))
+        DetailPart(text, symbol: Icons.downloaded, spoken: "\(Verbs.downloaded), \(text)")
     }
 }
 

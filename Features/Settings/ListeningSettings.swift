@@ -93,10 +93,9 @@ struct ListeningSettingsSection: View {
             if gateOK, localTTS.isModelInstalled(id), !pending {
                 // What was downloaded goes: *Remove Download*, as for a page's or a folder's. The
                 // row stays (to download again), so not `.destructive` (`Palette.destructive`).
-                Button(Verbs.removeDownload, systemImage: Icons.removeDownload) {
-                    try? localTTS.deleteModel(id)
-                }
-                .tint(Palette.destructive)
+                MenuRow(id: "engineRemoveDownload", title: Verbs.removeDownload, icon: Icons.removeDownload,
+                        isDestructive: true) { try? localTTS.deleteModel(id) }
+                    .swipeButton()
             }
         }
     }

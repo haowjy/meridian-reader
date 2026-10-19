@@ -368,7 +368,7 @@ final class ShellState {
     /// Reader opened from the library goes with it.
     func leaveLibrary() {
         guard isInLibrary else { return }
-        librarySearch.end(showing: "")
+        endLibrarySearch()
         if reader?.origin == .library { reader = nil }
         surface = .browse
         // Reopened on the Library: the browser's last page loads the first time you go there.
@@ -420,9 +420,11 @@ final class ShellState {
         librarySearchFolder = nil
     }
 
-    /// The Library's search began: it searches the screen on top, the home's tab or a folder.
-    func librarySearchBegan() {
+    /// The Library's field tapped: a search of the screen on top, the home's tab or a folder,
+    /// which it keeps until it ends.
+    func beginLibrarySearch() {
         if case .folder(let id) = libraryPath.last { librarySearchFolder = id } else { librarySearchFolder = nil }
+        librarySearch.begin()
     }
 
     /// The Library's ‹: up one level (nothing at the home).

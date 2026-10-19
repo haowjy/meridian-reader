@@ -49,6 +49,7 @@ struct LibrarySurface: View {
                 session: search,
                 cancelID: "librarySearchCancel",
                 onCancel: shell.endLibrarySearch,
+                begin: shell.beginLibrarySearch,
                 isBarCovered: shell.reader != nil
             ) { focus in
                 SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt, focus: focus,
@@ -71,9 +72,6 @@ struct LibrarySurface: View {
         .environment(screen)
         .libraryDialogs(screen) {
             shell.pruneLibraryPath { library.folder(id: $0) != nil }
-        }
-        .onChange(of: search.isActive) { _, active in
-            if active { shell.librarySearchBegan() }
         }
     }
 

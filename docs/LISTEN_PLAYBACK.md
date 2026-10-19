@@ -156,7 +156,7 @@ so the players, the Apple voice and the lock screen agree. Adapters report facts
   (`AppleFallbackRenderer`: a synthesizer per render, so the render queue's fallback and the
   player's never wait on each other and none outlives a media-services reset; a synthesizer that
   sends nothing for 10 s is stopped and the render fails like any other), and the
-  lifecycle `state` (`LocalEngineState`). A reload, an engine switch, *Delete model*, Settings'
+  lifecycle `state` (`LocalEngineState`). A reload, an engine switch, Settings' *Remove Download* on a model, Settings'
   cancel or a failed start lets the host go: its load in flight stops, its models are released and
   the model call in flight on it finishes, and only then does the next host load, so two hosts'
   models (two ORT sessions, ≈1 GB) are never resident together. The states: `off` (Apple speaks), `warming(id, progress, task)`
@@ -314,7 +314,7 @@ opening a page and for listening starting or jumping is `LocalTTSCoordinator.ope
 (`LocalTTSCoordinator.renderTarget`, `RenderTarget`): the loaded on-device engine in its selected
 voice, as the audio cache's engine and voice keys. Jobs and pending jobs carry no voice; every
 readiness check, chunk file and publish reads the target at that step. While no engine is loaded
-(Apple selected, a model loading or failed, *Delete model*, a cancelled download) there is no
+(Apple selected, a model loading or failed, *Remove Download* on a model, a cancelled download) there is no
 target and nothing renders: the worker parks before its next chunk (the call in flight finishes
 and files nothing), a listener's chunk plays with Apple, and the queue never loads a model itself.
 Once an engine is ready the coordinator restarts it (`GlobalSynthQueue.renderTargetChanged`) and

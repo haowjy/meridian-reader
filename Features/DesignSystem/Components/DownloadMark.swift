@@ -33,7 +33,7 @@ enum DownloadState: Equatable {
         case .notDownloaded: Verbs.download
         case .downloading: String(localized: "Downloading")
         case .paused: String(localized: "Paused")
-        case .downloaded: String(localized: "Downloaded")
+        case .downloaded: Verbs.downloaded
         }
     }
 

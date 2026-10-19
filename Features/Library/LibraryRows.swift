@@ -93,16 +93,10 @@ struct LibraryPageRow: View {
             .libraryDrag(dragID, in: screen)
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                // In the Library: *Remove from Library*; in Recent: *Remove from Recent*. The same
-                // remove, named as the menu names it.
-                if page.isInLibrary || LibraryQueries.isInRecent(page) {
-                    // The row leaves every list once the remove is stored; a save that fails keeps
-                    // it, with a toast. So not `.destructive`, which takes the row out first
-                    // (`Palette.destructive`).
-                    Button(page.isInLibrary ? Verbs.removeFromLibrary : Verbs.removeFromRecent,
-                           systemImage: page.isInLibrary ? Icons.unsave : Icons.removeFromRecent) { actions.remove([page]) }
-                        .tint(Palette.destructive)
-                }
+                // The menu's remove: *Remove from Library* in the Library, *Remove from Recent* in
+                // Recent. The row leaves every list once the remove is stored; a save that fails
+                // keeps it, with a toast. So no role, which would take the row out first.
+                menu.rows.swipeRow("menuSave", "menuRemoveFromRecent")?.swipeButton()
             }
     }
 
@@ -171,10 +165,8 @@ struct LibraryFolderRow: View {
             .libraryDrag(isEditing || isFiltered ? nil : .folder(folder.id), in: screen)
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                Button(Verbs.deleteFolder(isBook: folder.kind == .book), systemImage: Icons.delete) {
-                    screen.confirmDelete([folder])
-                }
-                    .tint(Palette.destructive)
+                // The menu's *Delete Folder…*: it asks first, so the row can stay (no role).
+                menu.rows.swipeRow("menuDeleteFolder")?.swipeButton()
             }
     }
 

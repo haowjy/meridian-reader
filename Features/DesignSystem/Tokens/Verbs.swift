@@ -54,6 +54,9 @@ enum Verbs {
     /// A folder's, in its menu and in the Downloads list: its download off and gone, and
     /// *Remove Download* for each of its pages.
     static let removeDownloads = String(localized: "Remove Downloads")
+    /// A download done: the Downloads list's section, a folder header's control, the ✓ VoiceOver
+    /// reads before a downloaded row's line two.
+    static let downloaded = String(localized: "Downloaded")
     static let turnOffDownload = String(localized: "Turn Off Download")
     static let addToFavorites = String(localized: "Add to Favorites")
     static let removeFromFavorites = String(localized: "Remove from Favorites")
@@ -139,6 +142,18 @@ enum Verbs {
     static let more = String(localized: "More")
     /// A section header's action that opens the whole list.
     static let showAll = String(localized: "Show All")
+    /// The Reader's 📄 in the address field and the browser's ⋯ big button.
+    static let openInReader = String(localized: "Open in Reader")
+    /// The Reader's pill before a page is started (a part-way page says *Continue*).
+    static let listen = String(localized: "Listen")
+    /// *Import Book…*'s short title and the import sheet's confirming button.
+    static let `import` = String(localized: "Import")
+    /// A book's or story's chapter list (the import sheet's, Follow's review).
+    static let chapters = String(localized: "Chapters")
+    /// A folder's name field (New Folder, Rename, Edit Details).
+    static let name = String(localized: "Name")
+    /// Settings' appearance and reading themes.
+    static let theme = String(localized: "Theme")
     /// Settings rows and the pages or panels they open.
     static let speed = String(localized: "Speed")
     static let voice = String(localized: "Voice")
@@ -149,6 +164,10 @@ enum Verbs {
     // MARK: Sheets
 
     static let done = String(localized: "Done")
+    /// An alert's only button, and Follow's confirming pill.
+    static let ok = String(localized: "OK")
+    /// Where an imported book goes: the import sheet's section and the picker it opens.
+    static let addTo = String(localized: "Add to")
     static let cancel = String(localized: "Cancel")
     static let save = String(localized: "Save")
     static let edit = String(localized: "Edit")
