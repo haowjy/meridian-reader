@@ -55,7 +55,7 @@ struct FolderDetailsSheet: View {
                     choice(String(localized: "Choose from Photos"), Icons.photos, id: "detailsCoverPhotos") {
                         isPickingPhoto = true
                     }
-                    choice(String(localized: "Choose from Files"), Icons.folder, id: "detailsCoverFiles") { pickFile() }
+                    choice(String(localized: "Choose from Files"), Icons.files, id: "detailsCoverFiles") { pickFile() }
                     if cover != nil {
                         choice(String(localized: "Remove Cover"), Icons.delete, id: "detailsRemoveCover") {
                             withAnimation(Motion.snappy) { cover = nil }
