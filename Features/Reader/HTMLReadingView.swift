@@ -59,7 +59,8 @@ final class ReadingScrollHandle {
 /// Indices follow `ListenHTMLBlocks` leaf elements (same as speech).
 struct HTMLReadingView: View {
     let html: String
-    /// The title and source line on top of the text (the Reader).
+    /// The title and source line on top of the text (the Reader); with a `topView`, only the
+    /// title it shows, so the text's own leading heading saying the same is hidden.
     var heading: ReaderHeading? = nil
     /// A native view on top of the text instead (the player's title card).
     var topView: ReadingTopView? = nil
