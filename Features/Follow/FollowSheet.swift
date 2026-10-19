@@ -130,17 +130,15 @@ private struct FollowAddressStep: View {
                     .accessibilityIdentifier("followAddress")
             } header: {
                 SectionHeader(title: String(localized: "Story address"))
-                    .libraryHeader()
+                    .listHeader()
             } footer: {
                 Text("A page that lists the story’s chapters: a Royal Road story page, or another site’s table of contents.")
-                    .typeStyle(.caption)
-                    .foregroundStyle(Palette.secondaryInk)
-                    .libraryFooter()
+                    .listFooter()
             }
             .listRowInsets(EdgeInsets())
-            .listRowBackground(Palette.chrome)
+            .listCard()
         }
-        .libraryListStyle()
+        .cardListStyle()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             PillButton(String(localized: "Read Contents"), systemImage: Icons.follow, expands: true, action: read)
                 .disabled(flow.typedURL == nil)
@@ -176,13 +174,13 @@ private struct FollowReview: View {
                 DetailLine([String(localized: "Found \(contents.chapters.count) chapters"),
                             String(localized: "\(keptCount) selected")])
                     .typeStyle(.caption)
-                    .libraryHeader()
+                    .listHeader()
                     .accessibilityIdentifier("followFound")
             }
             .listRowInsets(EdgeInsets())
-            .listRowBackground(Palette.chrome)
+            .listCard()
         }
-        .libraryListStyle()
+        .cardListStyle()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("A folder is made at once. The chapters’ text is fetched one at a time while the app is open.")
@@ -279,7 +277,7 @@ struct FollowCheckbox: View {
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.title3)
+            .tileSymbol()
             .foregroundStyle(symbol == Icons.excluded ? Palette.tertiaryInk : Palette.accent)
             .accessibilityHidden(true)
     }

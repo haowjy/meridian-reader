@@ -67,7 +67,7 @@ struct PillButton<Leading: View>: View {
             // Icon only: a circle the pill's height, or a capsule when it stretches.
             .frame(minWidth: fit == .icon ? height : nil, maxWidth: expands ? .infinity : nil, minHeight: height)
             .background(background, in: RoundedRectangle(cornerRadius: Radius.pill, style: .continuous))
-            .opacity(isEnabled ? 1 : 0.4)
+            .opacity(isEnabled ? 1 : Palette.disabledOpacity)
             .tapTarget(size.height)
         }
         .buttonStyle(PillPressStyle())

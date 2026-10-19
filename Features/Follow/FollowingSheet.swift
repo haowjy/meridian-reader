@@ -55,16 +55,12 @@ struct FollowingSheet: View {
                     String(localized: "\(FollowText.when($0)), \(state.lastAddedCount) added")
                 } ?? String(localized: "None yet"))
             } header: {
-                Text(folder.contentsURL.map { ShellState.addressText(for: $0) } ?? "")
-                    .typeStyle(.caption)
-                    .foregroundStyle(Palette.accent)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .libraryHeader()
+                SectionHeader(title: folder.contentsURL.map { ShellState.addressText(for: $0) } ?? "")
+                    .listHeader()
                     .accessibilityIdentifier("followingAddress")
             }
             .listRowInsets(EdgeInsets())
-            .listRowBackground(Palette.chrome)
+            .listCard()
 
             Section {
                 action(Verbs.checkNow, Icons.reload, id: "followingCheckNow", busy: checking) {
@@ -88,15 +84,13 @@ struct FollowingSheet: View {
                             .accessibilityIdentifier("followingCheckFailed")
                     }
                     Text("Each check reads the whole table of contents, so no chapter is missed after a long gap. Chapters you left out in Review stay out. Unfollowing stops the checks and keeps every chapter added.")
-                        .foregroundStyle(Palette.secondaryInk)
                 }
-                .typeStyle(.caption)
-                .libraryFooter()
+                .listFooter()
             }
             .listRowInsets(EdgeInsets())
-            .listRowBackground(Palette.chrome)
+            .listCard()
         }
-        .libraryListStyle()
+        .cardListStyle()
     }
 
     private func nextCheck(_ folder: Folder) -> String {
@@ -113,36 +107,23 @@ struct FollowingSheet: View {
     }
 
     private func fact(_ title: String, _ value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
-            Text(title)
-                .foregroundStyle(Palette.ink)
-            Spacer(minLength: Spacing.s)
+        SymbolRow(title, symbol: nil) {
             Text(value)
+                .typeStyle(.row)
                 .foregroundStyle(Palette.secondaryInk)
                 .multilineTextAlignment(.trailing)
         }
-        .typeStyle(.row)
         .padding(.horizontal, Spacing.m)
-        .padding(.vertical, Spacing.xs)
-        .frame(minHeight: BottomChrome.minTapTarget)
         .accessibilityElement(children: .combine)
     }
 
-    private func action(_ title: String, _ symbol: String, id: String, tint: Color = Palette.ink, busy: Bool = false,
+    private func action(_ title: String, _ symbol: String, id: String, tint: Color? = nil, busy: Bool = false,
                         perform: @escaping () -> Void) -> some View {
         Button(action: perform) {
-            HStack(spacing: Spacing.s) {
-                Image(systemName: symbol)
-                    .frame(width: ListRow.leadingWidth)
-                Text(title)
-                    .typeStyle(.row)
-                Spacer(minLength: 0)
+            SymbolRow(title, symbol: symbol, ink: tint) {
                 if busy { ProgressView().tint(Palette.accent) }
             }
-            .foregroundStyle(tint)
             .padding(.horizontal, Spacing.m)
-            .frame(minHeight: BottomChrome.minTapTarget)
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(id)

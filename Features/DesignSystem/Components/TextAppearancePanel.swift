@@ -47,7 +47,7 @@ struct TextAppearancePanel: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             ReadingThemePicker(selection: $theme, accent: accent)
             ChoicePicker(options: ReadingFont.allCases, selection: $font, identifier: "readingFont") { option in
-                Text(option.title).font(.system(size: TypeStyle.row.size, weight: .medium, design: option.design))
+                Text(option.title).typeStyle(.row, weight: .medium, design: option.design)
             }
             TextSizeStepper(model: textSize)
             ChoicePicker(options: ReadingLineSpacing.allCases, selection: $lineSpacing,
@@ -59,7 +59,7 @@ struct TextAppearancePanel: View {
             }
         }
         .padding(Spacing.m)
-        .frame(width: 320)
+        .frame(width: Panel.width)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("textAppearancePanel")
     }
@@ -126,9 +126,9 @@ struct SwatchPicker<Option: Identifiable & Hashable, Face: View>: View {
                         face(option, side)
                             .frame(width: side, height: side)
                             .overlay(Circle().strokeBorder(reading?.hairline ?? Palette.hairline, lineWidth: 1))
-                            .padding(3)
+                            .padding(Spacing.xxs)
                             .overlay {
-                                if chosen { Circle().strokeBorder(reading?.accent ?? Palette.accent, lineWidth: 2) }
+                                if chosen { Circle().strokeBorder(reading?.accent ?? Palette.accent, lineWidth: Glyph.stroke) }
                             }
                         Text(title(option))
                             .typeStyle(.caption, weight: chosen ? .semibold : nil)
@@ -148,9 +148,10 @@ struct SwatchPicker<Option: Identifiable & Hashable, Face: View>: View {
     }
 }
 
-/// A one-line choice among a few options: equal segments on a card capsule, the chosen one on
-/// the page colour with its label in ink, the others in secondary ink. Labels never wrap; they
-/// shrink a little, then truncate.
+/// A choice among a few options: equal segments on a card capsule, the chosen one on the page
+/// colour with its label in ink, the others in secondary ink. One line while every label fits
+/// whole; otherwise the segments go in rows (half as many to a row, then a third, … one), so a
+/// label never shrinks or truncates while a narrower arrangement would show it whole.
 struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
     let options: [Option]
     @Binding var selection: Option
@@ -161,32 +162,87 @@ struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
     @Environment(\.readingPalette) private var reading
     @ScaledMetric(relativeTo: .callout) private var height: CGFloat = 40
 
+    /// How many segments to a row, widest arrangement first: 6 → 6, 3, 2, 1.
+    private var perRow: [Int] {
+        var counts: [Int] = []
+        for parts in 1...max(1, options.count) {
+            let count = (options.count + parts - 1) / parts
+            if counts.last != count { counts.append(count) }
+        }
+        return counts
+    }
+
     var body: some View {
-        HStack(spacing: Spacing.xxs) {
-            ForEach(options) { option in
-                let chosen = option == selection
-                Button { selection = option } label: {
-                    label(option)
-                        .foregroundStyle(chosen ? reading?.ink ?? Palette.ink : reading?.secondaryInk ?? Palette.secondaryInk)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                        .padding(.horizontal, Spacing.xs)
-                        .frame(maxWidth: .infinity, minHeight: min(height, 56))
-                        .background {
-                            if chosen {
-                                Capsule().fill(reading?.background ?? Palette.paper)
-                                    .overlay(Capsule().strokeBorder(reading?.hairline ?? Palette.hairline, lineWidth: 1))
-                            }
-                        }
-                        .contentShape(Capsule())
+        ViewThatFits(in: .horizontal) {
+            ForEach(perRow, id: \.self) { count in
+                rows(of: count)
+            }
+        }
+    }
+
+    private func rows(of count: Int) -> some View {
+        let rows = stride(from: 0, to: options.count, by: count).map { Array(options[$0..<min($0 + count, options.count)]) }
+        return VStack(spacing: Spacing.xxs) {
+            ForEach(rows.indices, id: \.self) { index in
+                EqualSegmentsLayout(spacing: Spacing.xxs) {
+                    ForEach(rows[index]) { segment($0) }
+                    // A short last row keeps the others' segment width.
+                    ForEach(rows[index].count..<count, id: \.self) { _ in Color.clear.frame(height: 0) }
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(chosen ? .isSelected : [])
-                .accessibilityIdentifier("\(identifier)-\(String(describing: option.id))")
             }
         }
         .padding(Spacing.xxs)
-        .background(ChoicePickerTrack.fill(reading), in: Capsule())
+        .background(ChoicePickerTrack.fill(reading),
+                    in: rows.count == 1 ? AnyShape(Capsule()) : AnyShape(RoundedRectangle(cornerRadius: Radius.pill,
+                                                                                           style: .continuous)))
+    }
+
+    private func segment(_ option: Option) -> some View {
+        let chosen = option == selection
+        return Button { selection = option } label: {
+            label(option)
+                .foregroundStyle(chosen ? reading?.ink ?? Palette.ink : reading?.secondaryInk ?? Palette.secondaryInk)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .padding(.horizontal, Spacing.xxs)
+                .frame(maxWidth: .infinity, minHeight: min(height, 56))
+                .background {
+                    if chosen {
+                        Capsule().fill(reading?.background ?? Palette.paper)
+                            .overlay(Capsule().strokeBorder(reading?.hairline ?? Palette.hairline, lineWidth: 1))
+                    }
+                }
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(chosen ? .isSelected : [])
+        .accessibilityIdentifier("\(identifier)-\(String(describing: option.id))")
+    }
+}
+
+/// Segments side by side, all as wide as the widest needs: asked for its ideal width (as a
+/// `ViewThatFits` asks) it answers that many of the widest label, so a row only "fits" when
+/// every label shows whole; given a width it splits it evenly.
+private struct EqualSegmentsLayout: Layout {
+    let spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard !subviews.isEmpty else { return .zero }
+        let gaps = spacing * CGFloat(subviews.count - 1)
+        let width = proposal.width
+            ?? subviews.map { $0.sizeThatFits(.unspecified).width }.max()! * CGFloat(subviews.count) + gaps
+        let segment = max(0, (width - gaps) / CGFloat(subviews.count))
+        let height = subviews.map { $0.sizeThatFits(ProposedViewSize(width: segment, height: nil)).height }.max()!
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let gaps = spacing * CGFloat(subviews.count - 1)
+        let segment = max(0, (bounds.width - gaps) / CGFloat(subviews.count))
+        for (index, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(x: bounds.minX + CGFloat(index) * (segment + spacing), y: bounds.midY),
+                          anchor: .leading, proposal: ProposedViewSize(width: segment, height: bounds.height))
+        }
     }
 }
 
@@ -234,7 +290,8 @@ struct TextSizeStepper: View {
                       action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.body.weight(.medium))
+                .rowSymbol()
+                .fontWeight(.medium)
                 .foregroundStyle(reading?.ink ?? Palette.ink)
                 .opacity(enabled ? 1 : Palette.disabledOpacity)
                 .frame(width: BottomChrome.minTapTarget * 1.5, height: BottomChrome.minTapTarget)

@@ -64,7 +64,7 @@ struct DownloadsList: View {
             if !overview.done.isEmpty { done(overview.done) }
             if !overview.differentVoice.isEmpty { differentVoice(overview.differentVoice) }
         }
-        .libraryListStyle()
+        .cardListStyle()
         .animation(Motion.standard, value: overview)
         .navigationTitle(Verbs.downloads)
         .navigationBarTitleDisplayMode(.inline)
@@ -89,7 +89,7 @@ struct DownloadsList: View {
         } footer: {
             if !speech.localTTS.wantsLocalBake {
                 waitingNote
-                    .libraryFooter()
+                    .listFooter()
             }
         }
     }
@@ -101,9 +101,9 @@ struct DownloadsList: View {
         } footer: {
             let total = items.compactMap { sizes[$0.id] }.reduce(0, +)
             if total > 0 {
-                footnote(String(localized: "\(FileSizes.label(total)) on this iPhone"))
+                Text(String(localized: "\(FileSizes.label(total)) on this iPhone"))
                     .accessibilityIdentifier("downloadsStorage")
-                    .libraryFooter()
+                    .listFooter()
             }
         }
     }
@@ -118,8 +118,8 @@ struct DownloadsList: View {
             .menuAvailability(MenuAvailability(when: item.voice != nil))
         } footer: {
             if let voice = speech.localTTS.downloadVoice {
-                footnote(String(localized: "Downloads now render in \(voiceLabel(voice)). Re-download one to hear it in that voice, or keep it as it is."))
-                    .libraryFooter()
+                Text(String(localized: "Downloads now render in \(voiceLabel(voice)). Re-download one to hear it in that voice, or keep it as it is."))
+                    .listFooter()
             }
         }
     }
@@ -140,10 +140,10 @@ struct DownloadsList: View {
                     }
             }
             .listRowInsets(EdgeInsets())
-            .listRowBackground(Palette.chrome)
+            .listCard()
         } header: {
             header
-                .libraryHeader()
+                .listHeader()
                 .accessibilityIdentifier(headerID)
         } footer: {
             footer
@@ -161,21 +161,13 @@ struct DownloadsList: View {
 
     private var waitingNote: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            footnote(String(localized: "Downloads render with an on-device voice. Choose one in Settings to go on."))
+            Text(String(localized: "Downloads render with an on-device voice. Choose one in Settings to go on."))
             PillButton(Verbs.settings, systemImage: Icons.settings, style: .neutral, size: .compact) {
                 shell.present(.settings)
             }
                 .accessibilityIdentifier("downloadsSettings")
         }
         .padding(.top, Spacing.xs)
-    }
-
-    private func footnote(_ text: String) -> some View {
-        Text(text)
-            .typeStyle(.caption)
-            .foregroundStyle(Palette.secondaryInk)
-            .textCase(nil)
-            .padding(.top, Spacing.xxs)
     }
 
     private var emptyCard: some View {
@@ -304,8 +296,7 @@ private struct DownloadShown {
         case .page(let key):
             let page = library.page(key: key)
             title = page?.lineOne ?? record.title
-            leading = .page(artwork: page?.artworkImage, letter: (page?.byline.isEmpty == false ? page?.byline : nil)?.siteLetter
-                            ?? String(title.prefix(1)))
+            leading = .page(artwork: page?.artworkImage, letter: page?.artworkLetter ?? title)
             unit = nil
         case .folder(let id):
             let folder = library.folder(id: id)

@@ -105,15 +105,15 @@ struct DownloadRow: View {
     private var leadingView: some View {
         switch leading {
         case .page(let artwork, let letter):
-            ArtworkTile(image: artwork, letter: letter, size: ListRow.leadingWidth, fill: Palette.paper)
+            ArtworkTile(image: artwork, letter: letter, size: Glyph.rowLeading, fill: Palette.paper)
         case .folder(_, let cover?):
-            ArtworkTile(image: cover, letter: title, size: ListRow.coverWidth, isCover: true, fill: Palette.paper)
-                .frame(width: ListRow.leadingWidth)
+            ArtworkTile(image: cover, letter: title, size: Glyph.rowLeading / 1.45, isCover: true, fill: Palette.paper)
+                .frame(width: Glyph.rowLeading)
         case .folder(let symbol, nil):
             Image(systemName: symbol)
-                .font(.title3)
+                .tileSymbol()
                 .foregroundStyle(Palette.accent)
-                .frame(width: ListRow.leadingWidth)
+                .frame(width: Glyph.rowLeading)
         }
     }
 }
