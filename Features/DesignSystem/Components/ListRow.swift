@@ -134,7 +134,7 @@ struct ListRow: View {
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
         .overlay { dropHighlight }
         .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) { insertionLine }
-        .opacity(isDimmed ? 0.6 : 1)
+        .opacity(isDimmed ? Palette.lighterRowOpacity : 1)
         .animation(Motion.snappy, value: isDropTarget)
         .animation(Motion.snappy, value: insertionEdge)
         .animation(Motion.standard, value: download)
@@ -328,7 +328,7 @@ struct ListRow: View {
     private var downloadLeading: some View {
         let downloading = download.isDownloading
         return leading
-            .opacity(downloading ? 0.45 : 1)
+            .opacity(downloading ? Palette.downloadingOpacity : 1)
             .overlay {
                 if downloading {
                     Image(systemName: Icons.downloading)

@@ -132,7 +132,7 @@ final class PlayedNotSavedTests: XCTestCase {
 
     /// Listened to again from its article (🎧, the Reader's Listen), a removed page is played
     /// without saving again, like any page you listen to: History lists it (Everything doesn't).
-    func testListeningToARemovedPageAgainListsItAsNotSaved() throws {
+    func testListeningToARemovedPageAgainListsItInHistory() throws {
         let article = env.article("https://example.com/heard-again")
         let page = try library.save(article)
         library.recordPlayback(article)

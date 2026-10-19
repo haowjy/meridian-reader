@@ -37,23 +37,29 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
   ephemeral or deleted it). A folder download's page that left the Library fails as "no longer in
   the Library" when its turn comes; the one rendering stops at once (`followLibrary`).
 - **A folder's download is its Download toggle** (`DownloadRecord.followsFolder`), its header's
-  Download control. It lists the
+  Download control and one *Download* / *Turn Off Download* row in its menus (its face is
+  `isOn`, not the state). It lists the
   folder's pages when turned on: a book's or story's chapters that play and
   aren't finished (D7 trims finished ones' audio anyway), any other folder's own pages. While it
   is on, pages added later join it after each stored library edit (`takeInNewPages`, the same
   pass that drops what left the Library), except the ones in `deleted` (P8: *Delete Downloads* on
   a page records it there; turning the toggle on again empties it). Turned off (`turnOff`), its
-  queued pages leave it and done ones stay, so the rows keep their ✓. A list written before the
-  toggle decodes as on (`DownloadRecord.init(from:)`).
+  queued pages leave it and done ones stay, so the rows keep their ✓. *Download* with the toggle
+  off over a folder all downloaded (the header's ✓) only turns it back on (`turnOn`): done
+  entries and `keptVoice` stay and only pages not listed join, since `requeue` would check
+  every page again and re-render what *Keep* accepted. A list written before the toggle decodes
+  as on (`DownloadRecord.init(from:)`).
 - **Link pages are fetched through Follow** (`fill`, `FollowCenter.fill`): one queue for every
   out-of-sight fetch, so a story's chapter Follow is already fetching is waited for, not fetched
   twice. The text is stored in place (`storeFetchedText`); the download then queues the render.
 - **One answer for where a download stands: `DownloadCenter.state(of:)`** (`DownloadState`:
-  not downloaded, downloading(fraction), downloaded), read by a page row's mark, the page menu's
-  *Download* / *Remove Download* face, the Reader's ⋯ *Download*, and (for a folder, with the
-  pages its row or screen already holds) the folder row and its header's Download control. A
-  page is downloading while any download (its own or its folder's) has its entry queued, paused
-  too, and that wins over downloaded; a folder while its own download has pages queued, at the
+  not downloaded, downloading(fraction), downloaded), read by a page row's mark, the
+  *Download* / *Remove Download* face of the page menu and of the Reader's and Now Playing's ⋯,
+  and (for a folder, with the pages its row or screen already holds) the folder row and its
+  header's Download control. A page is downloading while any download (its own or its folder's)
+  has its entry queued, paused too, and that wins over downloaded; its fraction is always 0
+  (nothing reads it), so a book screen's queued rows don't each measure the page rendering on
+  every paragraph. A folder is downloading while its own download has pages queued, at the
   list's figure (`DownloadOverview.fraction(of:active:)`). Downloaded is the *Downloaded*
   section's rule (`done`), per page (`DownloadOverview.isDownloaded` →
   `DownloadRecord.hasDownloaded`): an entry `.done` and its audio there, in a voice its download

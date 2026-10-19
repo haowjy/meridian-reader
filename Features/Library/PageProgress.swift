@@ -107,7 +107,7 @@ struct FolderProgress {
     }
 
     /// The header's line: where it is, how far and what's left once started (["3 of 7", "38%",
-    /// "6 h 10 min left"]); its length before (["52 min"]); nothing once finished.
+    /// "6 h 10 min left"]); its length before (["52 min"]); ["Finished"] once finished.
     var headerLine: [String] {
         guard let fraction else { return minutesLeft > 0 ? [ListeningTime.label(minutes: minutesLeft)] : [] }
         if isFinished { return [String(localized: "Finished")] }

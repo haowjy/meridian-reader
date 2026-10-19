@@ -305,18 +305,21 @@ commas.
 
   The big ▶ is the folder's *Continue* (its place, or the first page; ⏸ while one of its pages is
   what you hear: tap pauses). *More* opens the folder's own menu, the same as its row's ⋯
-  (*Continue, Play from Start, Download, Add to Favorites, Move to…, Rename, Edit Details,
-  Delete…*). **Download** is the folder's Download toggle (F7): an outline ↓ while it isn't
+  (*Continue, Play from Start, Download / Turn Off Download, Add to Favorites, Move to…, Rename,
+  Edit Details, Delete…*). **Download** is the folder's Download toggle (F7): an outline ↓ while it isn't
   downloaded; the circle filling with jade from the bottom as it downloads (the ↓ white where the
   fill has reached it; never a ring: rings are listening); a grey filled ✓ once every page its
   download covers is. Its caption says *Download*, *Downloading* or *Downloaded*, and VoiceOver
-  reads whether the toggle is on and the percent. Tapping ↓ turns the toggle on: every page in it
-  downloads and so does every page added to it later (Follow's new chapters, a page filed in).
-  Tapping it while it downloads or is downloaded, with the toggle on, asks *Turn Off Download*
-  ("Downloaded audio stays. New pages won’t download."): off, nothing new downloads and what is
-  downloaded stays. Downloaded with the toggle off, a tap turns it on again (a toast says new
-  pages will download). A page whose download you remove stays out of the folder's download until
-  ↓ is tapped again (or its own *Download*, which takes it back). The toggle turns on for a story
+  reads whether the toggle is on and the percent. Tapping ↓ turns the toggle on (or keeps it on):
+  every page in it downloads and so does every page added to it later (Follow's new chapters, a
+  page filed in). Tapping it while it downloads or is downloaded, with the toggle on, asks *Turn
+  Off Download* ("Downloaded audio stays. New pages won’t download."): off, nothing new downloads
+  and what is downloaded stays. Downloaded with the toggle off, a tap turns it on again and
+  nothing is downloaded again: it stays ✓ and a toast says new pages will download. *More*'s
+  *Download / Turn Off Download* row is the same toggle, its face whether the toggle is on, so
+  *Turn Off Download* is there (asking the same) even while the control shows ↓ with the toggle
+  on (a page's download removed, or one that failed). A page whose download you remove stays out
+  of the folder's download until ↓ is tapped again (or its own *Download*, which takes it back). The toggle turns on for a story
   you're caught up on too, which then shows ✓: the next chapters download as they come.
   A followed story's status line sits between the details and the row. It plays
   its own pages (not its subfolders') in the order shown, page to page, link pages skipped (a
@@ -330,7 +333,7 @@ commas.
   their delete is saved (*Cancel* keeps them selected). ⋯: *Sort ›, New Folder Inside, Import
   Book…, Follow…, Rename, Edit Details, Move to…, Delete Folder…, Download Folder, Delete
   Downloads, Downloads, Settings* (a book's say *Delete Book…* and *Download Book*; *Download
-  Folder* turns the Download toggle on, and is dimmed while it is on). Every ⋯ ends
+  Folder* is the Download toggle's row, as in *More*: *Turn Off Download* while it is on). Every ⋯ ends
   with the same rows in the same order: *Download, Downloads, Settings*; *Settings* is always the
   last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
@@ -414,10 +417,11 @@ goes in), where you type or paste the story's address. Follow covers the screen:
    from a minute up to 30 minutes (TECHNICAL_SPEC.md, "Fetching a page out of sight"). Nothing is
    fetched while the app is in the background.
 
-The story's folder header has one line in the accent, *📡 Following · fetching chapter text 4 of
-107*, *· fetched 41 of 107*, or *· checked today 8:02 AM · 2 new*. While chapters couldn't be had
-this launch, their count comes right after *Following*, where a line too long for the screen
-doesn't cut it off: *📡 Following · 1 chapter couldn’t load · fetched 41 of 107*. While its site
+The story's folder header has one line: *📡 Following* in the accent, then where it is, its parts
+set apart by space (never a separator), in secondary ink: *fetching chapter text 4 of 107*,
+*fetched 41 of 107*, or *checked today 8:02 AM   2 new*. While chapters couldn't be had this
+launch, their count comes right after *Following*: *📡 Following   1 chapter couldn’t load
+fetched 41 of 107*; a line too long for the screen wraps rather than losing its end. While its site
 is backed off, a notice in the caution colour names the chapter that waits by its title (*Chapter
 42* when it has none): *Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52, then
 slower.*, or *Example.com isn’t answering. “Chapter 42: Low Tide” is tried again in 1:52.* A
@@ -428,8 +432,8 @@ after the one playing is always fetched first. *Skip in Playback* on a chapter t
 lets playback go past it.
 
 Tapping the line opens **Following**: where it is read from, *Last checked*, *Next check*,
-*Chapter text* ("109 of 109 fetched", "107 of 109 fetched · 2 chapters couldn’t load"), *Last
-new chapters*, **Check Now** (↻, a spinner while it reads; a failed check says why) and
+*Chapter text* ("109 of 109 fetched", "107 of 109 fetched, 2 chapters couldn’t load"), *Last
+new chapters* ("today 8:02 AM, 2 added"), **Check Now** (↻, a spinner while it reads; a failed check says why) and
 **Unfollow** (or *Follow Again*). About once a day while the app is in front, the story's whole
 table of contents is read again and chapters it didn't list before go at the end of the folder;
 chapters left out in Review, and ones you deleted, stay out.
@@ -490,7 +494,7 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 
 | Row | Tap | Menu (⋯ and long-press: the same) | Swipe left |
 |---|---|---|---|
-| Folder, book or series | opens it (push) | *Continue, Play from Start* (dimmed while none of its pages play)*, Download* (turns its toggle on; dimmed while on or without pages)*, Add to / Remove from Favorites, Move to…, Rename, Edit Details, Delete…* | Delete… |
+| Folder, book or series | opens it (push) | *Continue, Play from Start* (dimmed while none of its pages play)*, Download / Turn Off Download* (its toggle; *Download* dimmed without pages, *Turn Off Download* asks first)*, Add to / Remove from Favorites, Move to…, Rename, Edit Details, Delete…* | Delete… |
 | Saved page (including a chapter) | plays it (Now Playing if it's what you hear) | *Read, Play from Here* (in a folder)*, Download / Remove Download, Add to / Remove from Favorites, Move to…, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback* (in a folder)*, Share* (with a web address)*, Remove from Library* | Remove |
 | History page (played without saving) | plays it (Now Playing if it's what you hear) | the saved page's rows, with *Save to Library* for *Remove from Library*, then *Remove from History*; *Download*, *Move to…* and the marks dimmed until it is saved | Remove (from History) |
 | Link page | opens it in the browser (a followed story's chapter: fetches it, then plays it) | the saved page's rows; the marks dimmed (a link has no text yet; a story's chapter also has *Play from Here* and *Skip in Playback*) | Remove |
@@ -500,14 +504,15 @@ page's) or first (a folder's). *Download / Remove Download* is one row showing t
 the page's download stands: *Remove Download* while it downloads or is downloaded, which takes the
 page out of every download and deletes its audio (it stays out of its folder's download, P8). A
 row that applies but can't run now is dimmed, not left out (decision DR-09): *Download* on a page
-not in the Library, a folder's *Download* while its toggle is on. Only what never applies to the
+not in the Library, a folder's *Download* while it has no pages. Only what never applies to the
 row's kind is left out: the folder-only rows on a page in no folder, *Share* on a chapter (no web
 address), *Select* where the screen has no Edit.
 
 **Downloads** (decision D16): *Download* on a page, a folder, a book or a followed story (a
 page row's ⋯ or long-press, a folder header's Download control, a folder row's menu or the
 folder's ⋯ *Download Folder* / *Download Book*, beside its *Delete Downloads*, dimmed when there
-is nothing to do; the Reader's ⋯) makes it ready to play offline: a link page's text is fetched out of sight (in Follow's one
+is nothing to do; the Reader's and Now Playing's ⋯, whose *Download / Remove Download* is the row
+menu's) makes it ready to play offline: a link page's text is fetched out of sight (in Follow's one
 queue) and kept where it is, then its whole audio is rendered ahead in the on-device voice
 selected (Kokoro). A folder covers its own pages in its order (not its subfolders'), a book or
 story its chapters that play and aren't finished, one page at a time, and while its toggle is on,
@@ -692,8 +697,9 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   the Move tree: saved there, or moved there when already saved); it keeps the screen as it is,
   and playback too, except that unsaving the page you hear stops it.
 - **⋯** (slot 5, the browser's ⋯ spot; Now Playing's is the same): rows *Save / Remove from Library, Move to…* (dimmed until
-  the page is saved)*, Add to Favorites, Share, Download* (dimmed until the page is saved, and
-  while it downloads)*, Downloads, Settings*; big buttons
+  the page is saved)*, Add to Favorites, Share, Download / Remove Download* (dimmed until the page
+  is saved; *Remove Download* while it downloads or is downloaded, as its Library row's menu
+  shows)*, Downloads, Settings*; big buttons
   **Favorites / History / Website** — *Website* (the Reader off) shows the page in the browser,
   wherever the Reader was opened from; from the library, the library closes first. Playback
   never stops.
@@ -775,7 +781,7 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   developer-only Debug chip) sit **above** the scrubber so appearing text never pushes it.
 - **⋯**: the Reader's menu for the page you hear, after *Go to <name>* (when it plays from a
   folder or the Library): *Save / Remove from Library, Move to…, Add to Favorites, Share,
-  Download, Downloads, Settings*; big buttons **Favorites / History / Website**.
+  Download / Remove Download, Downloads, Settings*; big buttons **Favorites / History / Website**.
 - A **download progress line** runs along the top edge of the bottom band while downloads run,
   as on the other surfaces, in the theme's accent.
 - **Scrubber** (sentence-precise): fill = progress (weighted by text length; with a local

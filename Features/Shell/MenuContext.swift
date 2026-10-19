@@ -60,15 +60,17 @@ struct ReaderMenu {
     var goTo: MenuAvailability = .hidden
     var place = Place(name: String(localized: "Library"), symbol: Icons.library)
 
-    /// The faces of the *Save* / *Remove from Library* and ☆ toggles.
+    /// The faces of the *Save* / *Remove from Library*, ☆ and *Download* / *Remove Download*
+    /// toggles (`hasDownload`: downloading or downloaded, as a Library row's menu shows it).
     var isSaved: Bool
     var isFavorite: Bool
+    var hasDownload: Bool
     var save: MenuAvailability
     /// *Move to…*: a saved page.
     var moveTo: MenuAvailability
     var favorite: MenuAvailability
     var share: MenuAvailability
-    /// *Download*: a saved page not downloading already.
+    /// *Download* / *Remove Download*: a saved page.
     var download: MenuAvailability
     /// The *Website* button: the article has a web page to go to.
     var website: MenuAvailability
@@ -82,11 +84,13 @@ struct LibraryMenu {
         case folder(FolderRows)
     }
 
-    /// A folder screen's own rows. A book reads *Delete Book…* and *Download Book*. *Download*:
-    /// it has pages and isn't downloading already; *Delete Downloads*: some of it is downloaded or
-    /// downloading.
+    /// A folder screen's own rows. A book reads *Delete Book…* and *Download Book*. *Download
+    /// Folder* / *Turn Off Download* is one row, its face the folder's Download toggle
+    /// (`downloadIsOn`), as in the folder's own menu; *Download Folder* needs pages. *Delete
+    /// Downloads*: some of it is downloaded or downloading.
     struct FolderRows: Equatable {
         var isBook: Bool
+        var downloadIsOn: Bool
         var download: MenuAvailability
         var deleteDownloads: MenuAvailability
     }

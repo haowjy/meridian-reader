@@ -104,8 +104,6 @@ private struct FolderContentsList: View {
     @Environment(LibraryScreenState.self) private var screen
     @Environment(DownloadCenter.self) private var downloads
     @Query private var queriedPages: [Page]
-    /// The Download control asks before turning the toggle off.
-    @State private var confirmsTurnOff = false
 
     @Binding var headerTitleHidden: Bool
     /// Where the list's visible content starts (under the navigation bar), in global coordinates.
@@ -206,25 +204,20 @@ private struct FolderContentsList: View {
             FolderMenu(folder: folder, progress: playback, hasPages: !pages.isEmpty, actions: actions,
                        downloads: downloads, screen: screen)
         }
-        .confirmationDialog(Verbs.turnOffDownload, isPresented: $confirmsTurnOff, titleVisibility: .hidden) {
-            Button(Verbs.turnOffDownload, role: .destructive) { downloads.turnOff(folder) }
-            Button(Verbs.cancel, role: .cancel) {}
-        } message: {
-            Text("Downloaded audio stays. New pages won’t download.")
-        }
     }
 
     /// The Download control, the ▶ (`LibraryActions.playFolder`) and their states. The control
-    /// downloads when it shows ↓ (turning the toggle on, and listing again pages whose downloads
-    /// were deleted, P8); with the toggle on it asks to turn it off (`DownloadCenter.turnOff`:
-    /// what is downloaded stays); downloaded with the toggle off, it turns it on (new pages
-    /// download).
+    /// downloads when it shows ↓, the toggle on or off (turning it on, and listing again pages
+    /// whose downloads were deleted, P8); downloading or downloaded with the toggle on, it asks to
+    /// turn it off (`DownloadCenter.turnOff`: what is downloaded stays); downloaded with the
+    /// toggle off, it turns it on and nothing is downloaded again (`DownloadCenter.download`: new
+    /// pages download).
     private var headerActions: FolderHeaderActions {
         let state = downloads.state(of: folder, pages: pages)
         let isOn = downloads.isOn(folder)
         return FolderHeaderActions(download: state, downloadIsOn: isOn, onDownload: {
             if isOn && state != .notDownloaded {
-                confirmsTurnOff = true
+                screen.confirmTurnOffDownload(folder)
             } else {
                 DownloadActions(downloads: downloads, shell: shell).download(folder)
             }

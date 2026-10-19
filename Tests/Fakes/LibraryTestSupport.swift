@@ -31,7 +31,10 @@ final class LibraryTestEnvironment {
     var context: ModelContext { container.mainContext }
 
     func cleanUp() {
-        UserDefaults.standard.removePersistentDomain(forName: suite)
+        // The suite's values written out, then its file deleted: removing the domain instead
+        // has the preferences daemon write an empty plist after the call returns, which stays.
+        CFPreferencesAppSynchronize(suite as CFString)
+        try? FileManager.default.removeItem(at: URL.libraryDirectory.appending(path: "Preferences/\(suite).plist"))
         try? FileManager.default.removeItem(at: dir)
     }
 

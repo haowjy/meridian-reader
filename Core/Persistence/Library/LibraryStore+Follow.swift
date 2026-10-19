@@ -77,9 +77,11 @@ extension LibraryStore {
         try edit("check story") {
             for chapter in new { addChapter(chapter, to: folder, byline: folder.byline) }
             state.seen += new.map(\.canonicalURL)
-            state.lastCheckedAt = now()
+            // One instant for both: the status line says "2 new" only while they are equal.
+            let checked = now()
+            state.lastCheckedAt = checked
             if !new.isEmpty {
-                state.lastAddedAt = now()
+                state.lastAddedAt = checked
                 state.lastAddedCount = new.count
             }
             setFollowState(state, of: folder)

@@ -35,9 +35,11 @@ struct LibraryScreenMenu {
         }
         let isQueued = downloads.isQueued(.folder(folder.id))
         let pages = library.pages(in: folder)
+        let isOn = downloads.isOn(folder)
         let rows = LibraryMenu.FolderRows(
             isBook: folder.kind == .book,
-            download: MenuAvailability(when: !pages.isEmpty && !downloads.isOn(folder)),
+            downloadIsOn: isOn,
+            download: MenuAvailability(when: isOn || !pages.isEmpty),
             deleteDownloads: MenuAvailability(when: isQueued || pages.contains(where: library.hasDownloads))
         )
         return LibraryMenu(screen: .folder(rows), sort: folder.pageSort)
@@ -64,7 +66,13 @@ struct LibraryScreenMenu {
             LibraryActions(library: library, speech: speech, shell: shell, follow: follow).move([.folder(folder)]) { showMoved(folder) }
         case .deleteFolder: if let folder { screen.confirmDelete([folder]) }
         case .deleteDownloads: if let folder { downloads.deleteDownloads(of: folder) }
-        case .download: if let folder { DownloadActions(downloads: downloads, shell: shell).download(folder) }
+        case .download:
+            guard let folder else { return }
+            if downloads.isOn(folder) {
+                screen.confirmTurnOffDownload(folder)
+            } else {
+                DownloadActions(downloads: downloads, shell: shell).download(folder)
+            }
         case .downloads: shell.present(.downloads)
         case .favorites, .history, .browser: tile(action)
         }

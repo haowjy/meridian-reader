@@ -375,7 +375,9 @@ voice change shows at once; finished downloads aren't re-rendered by it (*Re-dow
 A folder's download is its Download toggle (the header's Download control): while it is on, pages added to the folder later join
 it after each stored library edit (`DownloadCenter.takeInNewPages`), except pages whose downloads
 were deleted (`DownloadRecord.deleted`); turned off, its waiting pages leave it and its done ones
-stay.
+stay. Turned back on over a folder all downloaded (`DownloadCenter.download(folder)`'s `turnOn`),
+its done pages and *Keep* stay as they are and only pages it doesn't list join; otherwise
+*Download* on a folder queues every page it covers afresh (`DownloadRecord.requeue`).
 
 **Priority and admission.** Chunks of an article someone is listening to (a producer waits on
 one, or its audio is playing) render at `RenderPriority.listener` (`.userInitiated`); bake-ahead

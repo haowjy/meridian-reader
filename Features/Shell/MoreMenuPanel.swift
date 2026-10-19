@@ -72,7 +72,8 @@ struct MoreMenuPanel: View {
             .menuAvailability(menu.favorite)
         shareRow { run(.share) }
             .menuAvailability(menu.share)
-        downloadRow(Verbs.download) { run(.download) }
+        downloadRow(menu.hasDownload ? Verbs.removeDownload : Verbs.download,
+                    menu.hasDownload ? Icons.removeDownload : Icons.download) { run(.download) }
             .menuAvailability(menu.download)
         downloadsRow { run(.downloads) }
         settingsRow { run(.settings) }
@@ -106,7 +107,8 @@ struct MoreMenuPanel: View {
             editDetailsRow { run(.editDetails) }
             row(Verbs.moveTo, Icons.move, id: "moreMove") { run(.move) }
             row(Verbs.deleteFolder(isBook: folder.isBook), Icons.delete, id: "moreDeleteFolder") { run(.deleteFolder) }
-            downloadRow(Verbs.downloadFolder(isBook: folder.isBook)) { run(.download) }
+            downloadRow(folder.downloadIsOn ? Verbs.turnOffDownload : Verbs.downloadFolder(isBook: folder.isBook),
+                        folder.downloadIsOn ? Icons.turnOffDownload : Icons.download) { run(.download) }
                 .menuAvailability(folder.download)
             row(Verbs.deleteDownloads, Icons.deleteDownloads, id: "moreDeleteDownloads") { run(.deleteDownloads) }
                 .menuAvailability(folder.deleteDownloads)
@@ -174,9 +176,10 @@ struct MoreMenuPanel: View {
         row(Verbs.downloads, Icons.downloads, id: "moreDownloads", action: action)
     }
 
-    /// *Download* (a page), *Download Folder*, *Download Book*.
-    private func downloadRow(_ title: String, action: @escaping () -> Void) -> some View {
-        row(title, Icons.download, id: "moreDownload", action: action)
+    /// A download toggle row: *Download* / *Remove Download* (a page), *Download Folder* (or
+    /// *Book*) / *Turn Off Download*.
+    private func downloadRow(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
+        row(title, icon, id: "moreDownload", action: action)
     }
 
     private var divider: some View {

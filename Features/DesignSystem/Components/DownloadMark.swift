@@ -5,7 +5,8 @@ import SwiftUI
 enum DownloadState: Equatable {
     /// Not downloaded and not queued.
     case notDownloaded
-    /// Queued (paused too) or rendering: how much of it is ready, 0…1.
+    /// Queued (paused too) or rendering: how much of it is ready, 0…1 (a folder's; a page's
+    /// row shows only that it downloads, and its fraction stays 0).
     case downloading(fraction: Double)
     /// Every page it covers is downloaded (in the download voice, or one its download kept).
     case downloaded

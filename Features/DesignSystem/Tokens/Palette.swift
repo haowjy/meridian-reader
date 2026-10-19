@@ -76,6 +76,10 @@ enum Palette {
     static let disabledOpacity = 0.3
     /// A glyph button under the finger.
     static let pressedOpacity = 0.5
+    /// A Library row drawn lighter: a page skipped in playback, a link whose text isn't in.
+    static let lighterRowOpacity = 0.6
+    /// A Library row's thumbnail while its page downloads, under the jade ↓.
+    static let downloadingOpacity = 0.45
 }
 
 extension Color {

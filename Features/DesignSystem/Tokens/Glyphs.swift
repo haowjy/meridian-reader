@@ -7,7 +7,8 @@ enum Glyph {
     static let ring: CGFloat = 12
     /// Playing bars beside a row's status; the empty slot beside the address field's text.
     static let indicator: CGFloat = 16
-    /// A book preview's chapter row's empty leading mark; the playing bars inside a play button.
+    /// A book preview's chapter row's empty leading mark (`ListRow`); the playing bars inside a
+    /// play button; a Settings row's leading symbol, and its ✓ or spinner.
     static let mark: CGFloat = 20
     /// A round control: a download's `DownloadMark` in the Downloads list and a folder header, the
     /// header's ⋯.

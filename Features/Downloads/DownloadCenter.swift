@@ -131,17 +131,19 @@ final class DownloadCenter {
         record(for: target)?.hasQueuedPages == true
     }
 
-    /// Where `page`'s download stands, the one answer its row's mark and its menu's *Download* /
-    /// *Remove Download* read: downloading while any download (its own or its folder's) has it
-    /// queued, paused ones too, and that wins over downloaded (a re-download in flight);
-    /// downloaded by the Downloads list's own rule (`DownloadOverview.isDownloaded`), which audio
-    /// rendered only by listening never meets. A page out of the Library has no download.
+    /// Where `page`'s download stands, the one answer its row's mark and the *Download* /
+    /// *Remove Download* rows (its row's menu, the Reader's and Now Playing's ⋯) read: downloading
+    /// while any download (its own or its folder's) has it queued, paused ones too, and that wins
+    /// over downloaded (a re-download in flight); downloaded by the Downloads list's own rule
+    /// (`DownloadOverview.isDownloaded`), which audio rendered only by listening never meets. A
+    /// page out of the Library has no download. A page's fraction is always 0: what reads it shows
+    /// only that it downloads, and measuring the page rendering now would have every queued row
+    /// follow each paragraph it renders.
     func state(of page: Page) -> DownloadState {
         guard page.isInLibrary else { return .notDownloaded }
         let key = page.listenKey
         if records.contains(where: { $0.entries.contains { $0.key == key && $0.state == .queued } }) {
-            let active = activeProgress
-            return .downloading(fraction: active?.key == key ? active?.fraction ?? 0 : 0)
+            return .downloading(fraction: 0)
         }
         return isDownloaded([key]) ? .downloaded : .notDownloaded
     }
@@ -185,9 +187,31 @@ final class DownloadCenter {
     }
 
     /// A folder's Download, its toggle turned on: every page it covers is queued (its deleted
-    /// ones too), and the pages added later join.
+    /// ones too, P8), and the pages added later join. With the toggle off and every page it
+    /// covers downloaded already (its header's ✓), the toggle only goes back on (`turnOn`).
     func download(_ folder: Folder) -> Request {
-        request(.folder(folder.id))
+        if !isOn(folder), state(of: folder, pages: library.pages(in: folder)) == .downloaded { return turnOn(folder) }
+        return request(.folder(folder.id))
+    }
+
+    /// The toggle back on over a folder that is all downloaded: its download follows the folder
+    /// again, unpaused, its finished pages and its *Keep* as they were, so nothing is checked or
+    /// rendered again. Pages it doesn't list yet join, queued (`takeInNewPages`; with no download
+    /// of the folder's own, every page, each already downloaded by its own download, so its turn
+    /// is over at once).
+    private func turnOn(_ folder: Folder) -> Request {
+        if let record = record(for: .folder(folder.id)) {
+            withRecord(record.id) {
+                $0.title = folder.name
+                $0.followsFolder = true
+                $0.isPaused = false
+            }
+        } else {
+            records.append(DownloadRecord(target: .folder(folder.id), title: folder.name, addedAt: Date(), entries: []))
+        }
+        takeInNewPages()
+        advance()
+        return isQueued(.folder(folder.id)) ? .added : .waitingForNew
     }
 
     /// The folder's Download toggle turned off: nothing new joins and what waits stops; what is

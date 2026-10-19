@@ -71,8 +71,11 @@ struct PageMenu: View {
 
 /// A folder's menu: one builder for its row's ⋯, its row's long press and its header's *More*
 /// (`MenuAvailability`, DR-09). *Select* only where the screen has Edit (not in the header);
-/// *Continue* and *Play from Start* dimmed while none of its pages play; *Download* turns its
-/// Download toggle on, dimmed while the toggle is on or it has no pages.
+/// *Continue* and *Play from Start* dimmed while none of its pages play. *Download* / *Turn Off
+/// Download* is one row, its face the folder's Download toggle (`DownloadCenter.isOn`), whatever
+/// its header's control shows: *Download* turns it on (`DownloadCenter.download`), dimmed while
+/// the folder has no pages; *Turn Off Download* asks, as the header's control does, then turns it
+/// off and keeps what is downloaded.
 struct FolderMenu: View {
     let folder: Folder
     let progress: FolderProgress
@@ -90,10 +93,15 @@ struct FolderMenu: View {
             .menuAvailability(MenuAvailability(when: progress.hasPagesToPlay))
         Button(Verbs.playFromStart, systemImage: Icons.previous) { actions.playFolderFromStart(folder) }
             .menuAvailability(MenuAvailability(when: progress.hasPagesToPlay))
-        Button(Verbs.download, systemImage: Icons.download) {
-            DownloadActions(downloads: downloads, shell: actions.shell).download(folder)
+        let isOn = downloads.isOn(folder)
+        Button(isOn ? Verbs.turnOffDownload : Verbs.download, systemImage: isOn ? Icons.turnOffDownload : Icons.download) {
+            if isOn {
+                screen.confirmTurnOffDownload(folder)
+            } else {
+                DownloadActions(downloads: downloads, shell: actions.shell).download(folder)
+            }
         }
-        .menuAvailability(MenuAvailability(when: hasPages && !downloads.isOn(folder)))
+        .menuAvailability(MenuAvailability(when: isOn || hasPages))
         Button(folder.isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites,
                systemImage: folder.isFavorite ? Icons.unfavorite : Icons.favorite) {
             FavoriteFlow(library: actions.library, shell: actions.shell).toggle(folder)

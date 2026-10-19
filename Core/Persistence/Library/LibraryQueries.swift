@@ -63,10 +63,10 @@ enum LibraryQueries {
         }, sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse), SortDescriptor(\Page.key)])
     }
 
-    /// Whether `page` is in History: `history`'s predicate, for one page in hand (a row's menu).
+    /// Whether `page` is in History, for one page in hand (a row's menu): `history`'s own
+    /// predicate, evaluated on it.
     static func isInHistory(_ page: Page) -> Bool {
-        page.addedAt == nil && page.removedAt == nil && page.folderID == nil && page.contentState == .saved
-            && page.lastPlayedAt != nil
+        (try? history.predicate?.evaluate(page)) == true
     }
 
     /// The pages played most recently, newest first, in the Library or played without saving
@@ -165,6 +165,7 @@ enum LibraryQueries {
                         || page.excerpt.localizedStandardContains(text))
             }, sortBy: sort)
         case .history:
+            // `history`'s rule, written again: a predicate can't call another on iOS 17.
             let past = Date.distantPast
             let saved = PageContentState.saved.rawValue
             return FetchDescriptor(predicate: #Predicate<Page> { page in

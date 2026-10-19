@@ -100,8 +100,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **The home never changes size with playback** (decision D14): no section depends on what is
   playing or part-way. A page played without saving joins History (`LibraryQueries.history`) on
   its first play, the one insert playback causes, animated; Everything never changes with it.
-- **History's menu rows ask `LibraryQueries.isInHistory`** (the `history` predicate for a page in
-  hand): *Remove from History* dims on a page out of the Library that isn't in it, and a row's
+- **History's menu rows ask `LibraryQueries.isInHistory`** (the `history` predicate itself,
+  evaluated on a page in hand; History's search writes the rule again, as a predicate can't call
+  another on iOS 17): *Remove from History* dims on a page out of the Library that isn't in it, and a row's
   swipe offers *Remove* in the Library or in History.
 - **Download, Remove Download and Delete Downloads go through `DownloadCenter`**
   (`DownloadActions` for the toast): *Remove Download* (a page) and *Delete Downloads* (a folder's
@@ -110,7 +111,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   component of plain values; `FolderScreen` fills it): the section header is already at the
   margin in a Library list, so the header adds no padding of its own. Its Download control's
   taps (download, or ask *Turn Off Download* while the toggle is on) are `FolderScreen`'s
-  `headerActions`; the ▶ is `playFolder`; *More* is `FolderMenu`.
+  `headerActions`; the ▶ is `playFolder`; *More* is `FolderMenu`. The *Turn Off Download*
+  question is the surface's (`LibraryScreenState.confirmTurnOffDownload`, shown by
+  `libraryDialogs`), so the header's control, `FolderMenu` (a row's ⋯ and long press, *More*)
+  and the screen's ⋯ ask the same one.
 - **Books and series are folders** (decision D19): one screen (`FolderScreen`), one page row
   (`LibraryPageRow`), one ⋯ (`LibraryMenu.Screen.folder`), one delete question. Nothing refuses
   a move, a drop, a sort or a subfolder because of `kind`: only cycles, and a page out of the
