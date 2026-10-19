@@ -257,11 +257,12 @@ private struct SpokenText: View {
         let doc = speech.document
         let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: speech.spokenUTF16Offset,
                                              rate: speech.rateMultiplier)
-        // As the bar: line one is `lineOne`; untitled, it is already the site, so line two leaves it out.
+        // As the bar: line one is `lineOne`, line two starts with `lineTwoSource`.
         let lineOne = PageTitle.lineOne(title: card.title, source: card.source, address: card.address)
         let detail: [DetailPart] = finished ? [.finished]
-            : [(card.title ?? "").isEmpty ? "" : card.source, doc.isEmpty ? "" : ListeningTime.leftLabel(minutes: left)]
-                .filter { !$0.isEmpty }.map { DetailPart($0) }
+            : [PageTitle.lineTwoSource(title: card.title, source: card.source),
+               doc.isEmpty ? nil : ListeningTime.leftLabel(minutes: left)]
+                .compactMap { $0 }.map { DetailPart($0) }
         let palette = reading ?? .app
         return ReadingTopView(
             id: [lineOne, detail.map(\.text).joined(separator: "\n"), card.letter, card.artwork == nil ? "" : "artwork",
