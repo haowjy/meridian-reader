@@ -3,9 +3,9 @@ import SwiftUI
 /// The ⋯ for the Library screen on top (the home or a folder). On a folder's screen its first
 /// block is the folder's own menu (`FolderMenu`, the rows its row's ⋯ and its header's *More*
 /// show); then the screen's rows, the same on both: *Sort*, *New Folder…* (*New Folder Inside…* in
-/// a folder), *Import Book…*, *Follow…*, *Downloads*, *Settings*. The surface's ＋ (*New Folder…*,
-/// *Import Book…*) acts on the same screen through `topFolder`, and so does *Follow…*, whose
-/// story's folder goes there. Nothing in it acts on the browser's page.
+/// a folder), *Import Book…*, *Follow…*, *Downloads*, *Settings*. The surface's ＋ shows the same
+/// two creating rows (`createRows`), so both act on the screen on top (`topFolder`), and so does
+/// *Follow…*, whose story's folder goes there. Nothing in it acts on the browser's page.
 @MainActor
 struct LibraryScreenMenu {
     let library: LibraryStore
@@ -40,13 +40,7 @@ struct LibraryScreenMenu {
                        downloads: downloads, screen: screen, onTurnOffDownload: { onTurnOffDownload(folder) },
                        onMoved: { showMoved(folder) }).rows
         } ?? []
-        let screenRows = [
-            sortRow(folder),
-            MenuRow(id: "moreNewFolder", title: folder == nil ? Verbs.newFolder : Verbs.newFolderInside,
-                    icon: Icons.newFolder) { [screen] in screen.makeFolder(in: folder) },
-            MenuRow(id: "moreImportBook", title: Verbs.importBook, icon: Icons.book) { [library, shell] in
-                BookImportActions(library: library, shell: shell).pickBook(into: folder)
-            },
+        let screenRows = [sortRow(folder)] + createRows + [
             MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) { [shell, follow] in
                 shell.present(.follow(FollowFlow(url: nil, parentID: folder?.id, center: follow)))
             },
@@ -54,6 +48,19 @@ struct LibraryScreenMenu {
         let browser = MenuRow(id: "moreBrowser", title: String(localized: "Browser"), icon: Icons.browser,
                               accessibilityHint: String(localized: "Return to the browser"), action: shell.leaveLibrary)
         return MenuContext(item: item, screen: screenRows, tiles: MenuContext.tiles(shell, last: browser))
+    }
+
+    /// *New Folder…* (*New Folder Inside…* in a folder) and *Import Book…*, into the screen on top:
+    /// the ⋯ panel's and ＋'s.
+    var createRows: [MenuRow] {
+        let folder = topFolder
+        return [
+            MenuRow(id: "moreNewFolder", title: folder == nil ? Verbs.newFolder : Verbs.newFolderInside,
+                    icon: Icons.newFolder) { [screen] in screen.makeFolder(in: folder) },
+            MenuRow(id: "moreImportBook", title: Verbs.importBook, icon: Icons.book) { [library, shell] in
+                BookImportActions(library: library, shell: shell).pickBook(into: folder)
+            },
+        ]
     }
 
     /// *Sort*: the folder's page sort, or on the home the top level's.

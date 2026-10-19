@@ -20,8 +20,6 @@ struct BrowseStartPage: View {
 
     /// Two rows of four tiles; Show All opens the whole folder.
     static let favoriteLimit = 8
-    /// Width of a recent search's clock glyph.
-    private static let searchIconWidth: CGFloat = 20
 
     private var hasFavorites: Bool { !favorites.isEmpty || !favoriteFolders.isEmpty }
 
@@ -65,38 +63,21 @@ struct BrowseStartPage: View {
         .accessibilityIdentifier("browseStartPage")
     }
 
+    /// The search layer's Recent Searches as a card: the same header, action and rows
+    /// (`SymbolRow`, 🔍), a tap searching again.
     private var recentSearchesSection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Recent Searches")
-                    .typeStyle(.heading)
-                    .foregroundStyle(Palette.ink)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-                Button("Clear", action: onClearSearches)
-                    .typeStyle(.row)
-                    .accessibilityIdentifier("startSearchesClear")
-            }
+            SectionHeader(title: Verbs.recentSearches, size: .page, actionTitle: Verbs.clearAll,
+                          actionIdentifier: "startSearchesClear", action: onClearSearches)
             VStack(spacing: 0) {
                 ForEach(recentSearches, id: \.self) { term in
                     Button { onSearch(term) } label: {
-                        HStack(spacing: Spacing.s) {
-                            Image(systemName: Icons.history)
-                                .foregroundStyle(Palette.secondaryInk)
-                                .frame(width: Self.searchIconWidth)
-                            Text(term)
-                                .typeStyle(.row)
-                                .foregroundStyle(Palette.ink)
-                                .lineLimit(1)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.horizontal, Spacing.s)
-                        .padding(.vertical, Spacing.s)
-                        .contentShape(Rectangle())
+                        SymbolRow(term, symbol: Icons.search)
+                            .padding(.horizontal, Spacing.m)
                     }
                     .buttonStyle(.plain)
                     if term != recentSearches.last {
-                        Divider().padding(.leading, Spacing.s + Self.searchIconWidth + Spacing.s)
+                        SymbolRowSeparator(leadingInset: Spacing.m)
                     }
                 }
             }

@@ -26,13 +26,14 @@ import Foundation
 /// | Add to Favorites / Remove from Favorites | `Icons.favorite` / `Icons.unfavorite` |
 /// | Move to… / Save to Folder… | `Icons.move` |
 /// | Mark as Finished / Mark as Unfinished | `Icons.markFinished` / `Icons.markUnfinished` |
+/// | Mark All Above as Finished | `Icons.markAllAboveFinished` |
 /// | Share | `Icons.share` |
 /// | Select | `Icons.select` |
 /// | Save to Library / Remove from Library | `Icons.save` / `Icons.unsave` |
 /// | Remove from Recent | `Icons.removeFromRecent` |
 /// | Rename…, Edit Details… | `Icons.rename`, `Icons.editDetails` |
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
-/// | Pause / Resume (a download), Re-download, Keep | `Icons.pause` / `Icons.download`, `Icons.redownload`, `Icons.keep` |
+/// | Pause / Resume (a download), Re-download, Keep | `Icons.pause` / `Icons.resume`, `Icons.redownload`, `Icons.keep` |
 /// | New Folder…, Import Book…, Follow… | `Icons.newFolder`, `Icons.book`, `Icons.follow` |
 /// | Downloads, Settings | `Icons.downloads`, `Icons.settings` |
 enum Verbs {
@@ -117,6 +118,9 @@ enum Verbs {
     /// The browser's: pages visited.
     static let history = String(localized: "History")
     static let removeFromHistory = String(localized: "Remove from History")
+    /// The start page's and the search layer's section of searches made, and its action.
+    static let recentSearches = String(localized: "Recent Searches")
+    static let clearAll = String(localized: "Clear All")
 
     // MARK: Sheets
 

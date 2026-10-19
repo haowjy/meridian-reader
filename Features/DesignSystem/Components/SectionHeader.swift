@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A section's title with an optional trailing action ("Show All ›", "Clear", ＋), on the Library
+/// A section's title with an optional trailing action ("Show All ›", "Clear All", ＋), on the Library
 /// home and the start page.
 ///
 /// ```
@@ -81,7 +81,7 @@ struct SectionHeaderGallery: View {
             PreviewState("with Show All") {
                 SectionHeader(title: "Pages", count: 48, actionTitle: "Show All", actionNavigates: true)
             }
-            PreviewState("with an action") { SectionHeader(title: "Recent Searches", actionTitle: "Clear") }
+            PreviewState("with an action") { SectionHeader(title: "Recent Searches", actionTitle: "Clear All") }
         }
     }
 }

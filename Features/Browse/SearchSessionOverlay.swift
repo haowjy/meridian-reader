@@ -74,7 +74,7 @@ struct SearchSessionOverlay: View {
 
     private var recentSearchesList: some View {
         VStack(spacing: 0) {
-            SectionHeader(title: String(localized: "Recent Searches"), size: .page, actionTitle: String(localized: "Clear All"),
+            SectionHeader(title: Verbs.recentSearches, size: .page, actionTitle: Verbs.clearAll,
                           actionIdentifier: "recentSearchesClear", action: onClearRecentSearches)
                 .padding(.horizontal, Spacing.m)
                 .padding(.top, Spacing.s)

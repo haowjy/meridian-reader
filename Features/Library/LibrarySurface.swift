@@ -90,12 +90,7 @@ struct LibrarySurface: View {
                 .disabled(true)
                 .toolbarSlot(1)
             Menu {
-                Button(Verbs.newFolder, systemImage: Icons.newFolder) { screen.makeFolder(in: screenMenu.topFolder) }
-                    .accessibilityIdentifier("libraryNewFolder")
-                Button(Verbs.importBook, systemImage: Icons.book) {
-                    BookImportActions(library: library, shell: shell).pickBook(into: screenMenu.topFolder)
-                }
-                .accessibilityIdentifier("libraryImportBook")
+                MenuRows(screenMenu.createRows)
             } label: {
                 Image(systemName: Icons.add).toolbarIconFrame()
             }

@@ -234,7 +234,7 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
    folders as folder tiles; 4 per row, up to 8. Show All → the Library's Favorites tab. A page tile
    opens the page (a link in the browser, a saved page in the Reader); a folder tile opens it in
    the Library. A tile's long press is its page's or folder's menu ("Menus", below).
-2. **Recent Searches** (local, newest first, Clear).
+2. **Recent Searches** (local, newest first, *Clear All*; each a 🔍 row, as in the search layer).
 
 ## The Library
 
@@ -252,8 +252,8 @@ parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on 
 going to a place in the Library (Now Playing's ⋯ → *Go to …*, a favorite folder's tile, an
 imported book) opens it on Everything, where every place shows; 📚 comes back to the tab you
 left. The tab is remembered with the surface. The band is the browser's (above): the Now Playing bar, 🌐 then the search
-field, `[‹][›][＋][🕘][⋯]`. ＋ is *New Folder…* and *Import
-Book…*, both made in the folder on screen (a book's too). 🌐 shows the browser as
+field, `[‹][›][＋][🕘][⋯]`. ＋ is the ⋯ panel's two creating rows, *New Folder…*
+(*New Folder Inside…* in a folder) and *Import Book…*, both made in the folder on screen (a book's too). 🌐 shows the browser as
 it was; 📚 there comes back to the same folder. The
 ⋯ panel follows the screen on top (below): a folder's screen starts with the folder's own menu,
 then every screen has *Sort ›, New Folder…* (*New Folder Inside…* in a folder)*, Import Book…,
@@ -849,9 +849,9 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   headphone / lock-screen skips are paragraph skips (D4). A sideways swipe on the row skips too.
 - **Status notes** ("Preparing next…", Apple-fallback / language notes, the
   developer-only Debug chip) sit **above** the scrubber so appearing text never pushes it.
-- **⋯**: the Reader's menu for the page you hear, after *Go to <name>* (when it plays from a
-  folder or the Library): *Save / Remove from Library, Move to…, Add to Favorites, Share,
-  Download / Remove Download, Downloads, Settings*; big buttons **Favorites / History / Website**.
+- **⋯**: the page's menu ("Menus", above) for the page you hear, with *Go to <name>* first (when
+  it plays from a folder or the Library), then *Downloads, Settings*; big buttons
+  **Favorites / History / Website**.
 - A **download progress line** runs along the top edge of the bottom band while downloads run,
   as on the other surfaces, in the theme's accent.
 - **Scrubber** (sentence-precise): fill = progress (weighted by text length; with a local
