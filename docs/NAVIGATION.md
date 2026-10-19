@@ -856,7 +856,8 @@ Both sheets read full screen the same way (`ReadingChrome`); Follow's chapter pr
   full screen begins; a page turn, or a tap on it, brings it back for another 3 s. It isn't there
   while the bars show.
 - **At the top**, a pull down in full screen rubber-bands and brings the bars back, never closing
-  the sheet; a pull that begins with the bars showing closes it as usual.
+  the sheet; a pull that begins with the bars showing closes it as usual, and while it pulls the
+  sheet it never hides or shows the bars.
 - *Jump to Audio* sits just above the bottom band while the bars show, and near the screen's foot
   in full screen, clear of the home indicator and the floating ▶ (above Pages' footer).
 

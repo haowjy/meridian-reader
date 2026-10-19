@@ -10,8 +10,8 @@ import UIKit
 /// stay as they are, so the text never moves when the bars go or come back.
 ///
 /// - A finger drag on the text moving up (scrolling down) past `hideDistance` hides the bars;
-///   moving down `showDistance` brings them back (`dragged(by:)`). Programmatic scrolls never
-///   reach it.
+///   moving down `showDistance` brings them back (`dragged(by:)`). Programmatic scrolls and a
+///   drag's movement while it pulls the sheet never reach it.
 /// - A tap in the middle of the text toggles them (`tappedCentre`); a tap at either edge turns
 ///   a screen (`revealFloatingControl`) and leaves them as they are (`TapZone`).
 /// - In full screen a small play / pause floats at the bottom right (`floatingControl`) for

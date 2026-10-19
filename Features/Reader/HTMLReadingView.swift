@@ -233,8 +233,8 @@ struct HTMLReadingWebView: UIViewRepresentable {
         c.onUserScroll = onUserScroll
         c.onOpenLink = onOpenLink
         c.chrome = chrome
-        // In full screen a pull at the top only rubber-bands (and brings the bars back); the
-        // drag in progress keeps what it began with (`SheetPullTracking.canPull`).
+        // In full screen a pull at the top only rubber-bands (and brings the bars back); a drag
+        // in progress keeps the hand-off it began with (`ScrollPullHandoff`).
         c.pullHandoff.handoff = fullScreen ? nil : context.environment.sheetPullHandoff
         c.animates = animates
         scrollHandle?.coordinator = c
