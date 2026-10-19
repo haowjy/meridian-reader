@@ -523,7 +523,9 @@ selected (Kokoro). A folder covers its own pages in its order (not its subfolder
 story its chapters that play and aren't finished, one page at a time, and while its toggle is on,
 pages added later too. When a download starts (or a paused one goes on) a toast says
 *Downloading…* with *View*, which opens the Downloads list; it floats just above the Now Playing
-bar (never over it), as every toast does, and goes after a few seconds. Nothing is modal:
+bar (never over it), as every toast does, and goes after a few seconds. A toast's message wraps
+between words, never inside one: when a word wouldn't fit beside *View* (the largest text sizes),
+*View* goes under the message, and then the symbol goes. Nothing is modal:
 while downloads run, a 2 pt jade line along the top edge of the bottom chrome (the browser's, the
 Library's, the Reader's) fills as they get on, and fades when nothing is queued, everything queued
 is paused, or no on-device voice is selected (VoiceOver reads it as *Downloads, N percent*, a
