@@ -374,7 +374,7 @@ final class DownloadCenter {
         advance()
     }
 
-    /// *Delete Downloads* on a folder: its download goes (its toggle off), its pages leave every
+    /// *Remove Downloads* on a folder: its download goes (its toggle off), its pages leave every
     /// other download (`forget`), and their audio goes (unless listening needs it, `purgeAudio`).
     func deleteDownloads(of folder: Folder) {
         if let record = record(for: .folder(folder.id)), active?.recordID == record.id { stopActive() }

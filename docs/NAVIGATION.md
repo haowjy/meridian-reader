@@ -97,7 +97,7 @@ toolbar, each slot one role on both:
 |---|---|---|
 | 1 | ‹ web back | ‹ up a level (dimmed at the home) |
 | 2 | › web forward | › (always dimmed: the Library has no forward) |
-| 3 | 🔖 save the page / remove it (held: *Save to Folder…*) | ＋ *Import Book…*, *New Folder* |
+| 3 | 🔖 save the page / remove it (held: *Save to Folder…*) | ＋ *New Folder…*, *Import Book…* |
 | 4 | 🕘 History | 🕘 History |
 | 5 | ⋯ | ⋯ |
 
@@ -128,7 +128,11 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   suggestions follow the same rule (`BrowseURLParser`).
 - **🔖** (slot 3) is the Reader's 🔖 for the page on screen: tap saves it to the Library's top level
   (extracted first; 🔖 spins), or removes it when it is saved (filled, jade); held, it opens the
-  Move tree (*Save to Folder…*). Dimmed on the start page. **🕘** (slot 4) opens History.
+  Move tree (*Save to Folder…*). Dimmed on the start page. **🕘** (slot 4) opens History: the
+  pages visited, newest first, as Library rows (the site under a titled visit, none under an
+  untitled one, whose title line is already its site; then how long ago). A tap loads it; its ⋯
+  and long press are the page's menu ("Menus", below; on the Library's page for the address when
+  it has one), then *Remove from History*. Empty, it says *No History Yet*.
 - ‹ / › are web history (disabled when WebKit can't go back / forward; KVO on the web view, so
   same-document history counts too). The web view's own edge swipes still work.
 - A page whose web content process ends (WebKit crashed, or iOS took its memory) shows blank
@@ -152,24 +156,24 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   (tap: pause); jade with still bars when it is loaded and paused (tap: resume). It never
   navigates.
 - **⋯** opens a Safari-style menu panel that grows out of the button (covers the ⋯, no arrow):
-  rows *New Search, Save to Folder… / Remove from Library (🔖), Add to Favorites / Remove from
-  Favorites (☆), Follow…, Share, Reload, Downloads, Settings*, then a row of big buttons **Favorites**, **History**, and
-  **Reader** (rightmost, nearest the thumb, like Safari's All Tabs). *Save to Folder…* opens the
-  Move tree and saves the page into the folder picked. *Follow…* reads the story the page belongs
-  to ("Follow a story", below). On the start page *Save to Folder…*, ☆, *Follow…*,
-  *Share*, *Reload* and the Reader toggle show dimmed; the Reader toggle is dimmed on pages that
+  the page's own menu (the same rows as everywhere the page's menu shows: "Menus", below), then
+  *New Search, Follow…, Reload, Downloads, Settings*, then a row of big buttons **Favorites**,
+  **History**, and **Reader** (rightmost, nearest the thumb, like Safari's All Tabs). The page's
+  *Save to Library* and *Save to Folder…* extract it first. *Follow…* reads the story the page
+  belongs to ("Follow a story", below). On the start page there is no page, so no page rows;
+  *Follow…*, *Reload* and the Reader toggle show dimmed; the Reader toggle is dimmed on pages that
   aren't readable too, and on a readable page tapping it switches into reader mode. Actions that present something (Share, Settings, Favorites, History, the Move tree)
   run after the panel has closed.
 - **The ⋯ panel** (`MorphMenuOverlay`: one overlay for the browser toolbar ⋯, the library
   toolbar ⋯, the Reader's ⋯ and Now Playing's ⋯; its rows come from the surface that opened it,
-  `MenuContext`) is not a popover: it is placed so the bottom-right button's icon (Reader,
+  `MenuContext`: the item's menu, the screen's rows, the big buttons) is not a popover: it is placed so the bottom-right button's icon (Reader,
   or Website in the Reader and Now Playing — marked with `morphMenuFocus`) sits slightly up and to
   the left of the ⋯ glyph (Safari's feel: **12 pt left, 10 pt up**), not dead-on on top of it.
   Like every menu in the app (the long-press ones too), it keeps its shape (decision DR-09): a row
   that applies to what the menu is for but can't run now shows dimmed, and only a row that can
   never apply to that kind of item is left out (`MenuAvailability`). A toggle is one row showing
   the face for the item's state (*Save* / *Remove from Library*, *Mark as Finished* /
-  *Unfinished*). It covers
+  *Unfinished*). A row that deletes something is red in it as in a long-press menu. It covers
   the button and the toolbar around it, so the bottom row lands under the thumb, and grows out of
   that point (the glass grows from the button's circle to the panel's frame and corners, never
   stretched; the rows fade / un-blur in) while the ⋯ glyph
@@ -209,10 +213,10 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   by space, the time in lighter ink; at the playback speed, written as rows write it: "9 min left",
   "6 h 10 min left"), a thin progress line along its bottom edge, and
   play/pause centered over the ⋯ slot. It looks the same on the browser, the start page, the
-  Library and the Reader sheet. At the end of a page it stays, reading "✓ Finished", and ▶ plays
-  the page again. Tap or swipe up → Now Playing; long-press → *Stop Listening* (unloads the page;
-  dimmed on the page played last, which nothing has loaded) and *Remove from Library* (as
-  anywhere else, so the page you hear stops; dimmed on a page not in the Library).
+  Library and the Reader sheet. At the end of a page it stays, reading ✓ Finished, and ▶ plays
+  the page again. Tap or swipe up → Now Playing; long-press → the page's menu ("Menus", below;
+  its *Remove from Library* stops the page you hear, as anywhere else), then *Stop Listening*
+  (unloads the page; dimmed on the page played last, which nothing has loaded).
   **In the band it is always there, at one height:** with nothing loaded (before the first play
   of a launch, after *Stop Listening*, once the page you heard is removed or deleted) it shows
   the page played last that is in the Library or played without saving, paused (▶ resumes it
@@ -227,7 +231,7 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
    coloured letter tile when there is no usable favicon, with the title, else the site, below), then its
    folders as folder tiles; 4 per row, up to 8. Show All → the Library's Favorites tab. A page tile
    opens the page (a link in the browser, a saved page in the Reader); a folder tile opens it in
-   the Library. Long-press a page tile → Rename… / Remove from Favorites.
+   the Library. A tile's long press is its page's or folder's menu ("Menus", below).
 2. **Recent Searches** (local, newest first, Clear).
 
 ## The Library
@@ -235,7 +239,8 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
 The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
 back up, as does the band's ‹ (dimmed at the home). The home has **Everything / Favorites / Recent**
-tabs at the top; *Search Library* is the band's field, and searches the tab on screen. Each tab
+tabs at the top; the band's field searches the tab on screen and says so (*Search Library* on
+Everything, *Search Favorites*, *Search Recent*). Each tab
 is one mixed list: folders and pages share a single list, with no section headings. Favorites
 are independent stars. Recent is what you listened to without saving; *History* (🕘 in the band,
 a big button in the ⋯) is the browser's pages visited: one name per concept. On Favorites,
@@ -245,11 +250,12 @@ parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on 
 going to a place in the Library (Now Playing's ⋯ → *Go to …*, a favorite folder's tile, an
 imported book) opens it on Everything, where every place shows; 📚 comes back to the tab you
 left. The tab is remembered with the surface. The band is the browser's (above): the Now Playing bar, 🌐 then the search
-field, `[‹][›][＋][🕘][⋯]`. ＋ is *Import
-Book…* and *New Folder*, both made in the folder on screen (a book's too). 🌐 shows the browser as
+field, `[‹][›][＋][🕘][⋯]`. ＋ is *New Folder…* and *Import
+Book…*, both made in the folder on screen (a book's too). 🌐 shows the browser as
 it was; 📚 there comes back to the same folder. The
-⋯ panel follows the screen on top (below), always with big buttons **Favorites**, **History**,
-**Browser**, and *Settings* as its last row; nothing in it acts on the page under the Library. History closes the Library first; Browser is the same
+⋯ panel follows the screen on top (below): a folder's screen starts with the folder's own menu,
+then every screen has *Sort ›, New Folder…* (*New Folder Inside…* in a folder)*, Import Book…,
+Follow…, Downloads, Settings*, and the big buttons **Favorites**, **History**, **Browser**; nothing in it acts on the page under the Library. History closes the Library first; Browser is the same
 swap as 🌐.
 
 ```
@@ -275,11 +281,13 @@ commas.
   Recent shows the pages you started listening to without saving (no folders), most recent
   first, in the same rows (no "Not saved" note, no download mark); a tap plays one. Their ⋯ (and
   long-press) has *Save to Library*, which moves the page into the Library (out of Recent, into
-  Everything), and *Remove from Recent* (the same remove as *Remove from Library*: in no list
-  after, its star kept, pruned later), with the rest dimmed until it is saved (*Download*, *Move
-  to…*, the marks); swipe left is *Remove*. *Remove from Recent* never shows on a page in the
+  Everything), *Save to Folder…*, and *Remove from Recent* (the same remove as *Remove from
+  Library*: in no list after, its star kept, pruned later), with the rest dimmed until it is saved
+  (*Download*, the marks); swipe left is *Remove from Recent*. *Remove from Recent* never shows on a page in the
   Library, and is dimmed on one out of it that isn't in Recent (a starred page removed earlier,
-  on Favorites). Empty, Recent says *No Recent Pages Yet* (as Favorites says *No Favorites Yet*).
+  on Favorites). Empty, Recent says *No Recent Pages Yet* (as Favorites says *No Favorites Yet*,
+  History *No History Yet*, Downloads *Nothing Downloaded*: every empty list is the system's
+  empty view with a symbol, a Title Case title and one line, `EmptyState`).
   Search filters the tab on screen: on
   Everything the Library's folders and pages across the tree, on Favorites starred ones, on
   Recent Recent's pages; folders by name, then pages by title (the newest first among equal
@@ -289,12 +297,12 @@ commas.
   starred, and what is inside them stays as it was, unstarred. Rows are the compact two-line
   rows (below): a page row plays on a tap, a folder row opens, and each has only ⋯. The bar's ▶
   resumes what you last heard, and a folder row's ⋯ › *Continue* resumes its own pages without
-  opening it (D14). A first-run empty Library shows *Find something
-  to listen to*, naming the band's 🌐 and ＋ by their symbols, with *Browse the web* and *Import a
-  book* on one action row. The home has no navigation bar; rows scrolled up pass under a paper
+  opening it (D14). A first-run empty Library shows *Find Something
+  to Listen To*, naming the band's 🌐 and ＋ by their symbols, with *Browse the Web* and *Import
+  Book…* on one action row. The home has no navigation bar; rows scrolled up pass under a paper
   band behind the status bar, not under the clock. The home is the
   top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
-  default, or *Title*), *Import Book…, Follow…, New Folder, Downloads, Settings*.
+  default, or *Title*), *New Folder…, Import Book…, Follow…, Downloads, Settings*.
 - **A folder** (`FolderScreen`, books and series included): a centred header (YouTube Music's
   album header), then subfolders first (by their order), then pages by the folder's sort. The
   header is the title and counts; a folder with details has its cover above them (below). Once
@@ -309,12 +317,12 @@ commas.
   ```
 
   The big ▶ is the folder's *Continue* (its place, or the first page; ⏸ while one of its pages is
-  what you hear: tap pauses). *More* opens the folder's own menu, the same as its row's ⋯
-  (*Continue, Play from Start, Download / Turn Off Download, Add to Favorites, Move to…, Rename,
-  Edit Details, Delete…*). **Download** is the folder's Download toggle (F7): an outline ↓ while it isn't
+  what you hear: tap pauses). *More* opens the folder's own menu, the same as its row's ⋯ and
+  the top of its screen's ⋯ ("Menus", below). **Download** is the folder's Download toggle (F7): an outline ↓ while it isn't
   downloaded; the circle filling with jade from the bottom as it downloads (the ↓ white where the
-  fill has reached it; never a ring: rings are listening); a grey filled ✓ once every page its
-  download covers is. Its caption says *Download*, *Downloading* or *Downloaded*, and VoiceOver
+  fill has reached it; never a ring: rings are listening), the same in grey while its download is
+  paused; a grey filled ✓ once every page its download covers is. Its caption says *Download*,
+  *Downloading*, *Paused* or *Downloaded*, and VoiceOver
   reads whether the toggle is on and the percent. Tapping ↓ turns the toggle on (or keeps it on):
   every page in it downloads and so does every page added to it later (Follow's new chapters, a
   page filed in). Tapping it while it downloads or is downloaded, with the toggle on, asks *Turn
@@ -337,12 +345,9 @@ commas.
   *Move to…* (📁, slot 1), *Mark as Finished* (✓, the middle) and *Remove* (🗑, ⋯'s slot) as
   symbols for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
-  their delete is saved (*Cancel* keeps them selected). ⋯: *Sort ›, New Folder Inside, Import
-  Book…, Follow…, Rename, Edit Details, Move to…, Delete Folder…, Download Folder, Delete
-  Downloads, Downloads, Settings* (a book's say *Delete Book…* and *Download Book*; *Download
-  Folder* is the Download toggle's row, as in *More*: *Turn Off Download* while it is on). Every ⋯ ends
-  with the same rows in the same order: *Download, Downloads, Settings*; *Settings* is always the
-  last row, just above the big buttons.
+  their delete is saved (*Cancel* keeps them selected). ⋯: the folder's own menu, then *Sort ›,
+  New Folder Inside…, Import Book…, Follow…, Downloads, Settings*. Every ⋯ ends with *Downloads,
+  Settings*; *Settings* is always the last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
   has scrolled under the bar. An empty folder's header has no counts; the list says
   *Move pages here, or save them here from the Reader's 🔖* (the toolbar's symbol).
@@ -456,17 +461,19 @@ lines. In a folder that line is the status alone (the header already names the a
 on the home and in search the site or path comes first. The listening mark stays before the
 time: nothing before a length not yet started ("18 min"), a small ring part-way ("◔ 6 min left";
 the only rings in the app are listening), the playing row tinted with still or moving bars and
-"Playing" (or "Paused") in the accent, "✓ Finished" plain; every time at the playback speed.
+"Playing" (or "Paused") in the accent, ✓ Finished plain; every time at the playback speed.
 
 The row's only control is **⋯** at its trailing edge, centred on the toolbar's ⋯ slot as the
-bar's ⏸ is; a long press opens the same menu (one builder for both, `PageMenu` / `FolderMenu`;
-decision D11), and a long press that moves lifts the row into a drag (below). **Tapping a page
+bar's ⏸ is; a long press opens the same menu (the item's one menu, "Menus" below; decision
+D11), and a long press that moves lifts the row into a drag (below). **Tapping a page
 row plays it** (replacing what plays; in a folder it carries on through the folder), except the
 page you hear, which opens Now Playing (a stray tap never pauses), and a link that can't play,
 which opens in the browser; a skipped page plays when tapped. *Read*, the menu's first row, opens
 it (the Reader; Now Playing for the page you hear; the browser for a link). **Tapping a folder
-row opens it**; its ⋯ has *Continue* and *Play from Start*. Swipe left removes (a page's *Remove*
-takes its row out of every list once it is saved, and leaves it, with a toast, when it can't be).
+row opens it**; its ⋯ has *Continue* and *Play from Start*. Swipe left is the menu's own last row,
+by its name: a page's *Remove from Library* (or *Remove from Recent*), which takes its row out of
+every list once it is saved, and leaves it, with a toast, when it can't be; a folder's *Delete
+Folder…* (*Delete Book…*), which asks.
 In Edit the row has no ⋯ and a tap selects it.
 
 A row's download shows on the row, never as a button: **downloading** (queued in any download,
@@ -499,27 +506,59 @@ dragged over itself or a folder inside it is refused (the drag shows ⊘); rows 
 Favorites tab or in search results (gathered from across the tree), a page played without saving
 and rows in Edit don't lift. The list doesn't scroll by itself while a row is dragged.
 
-| Row | Tap | Menu (⋯ and long-press: the same) | Swipe left |
-|---|---|---|---|
-| Folder, book or series | opens it (push) | *Continue, Play from Start* (dimmed while none of its pages play)*, Download / Turn Off Download* (its toggle; *Download* dimmed without pages, *Turn Off Download* asks first)*, Add to / Remove from Favorites, Move to…, Rename, Edit Details, Delete…* | Delete… |
-| Saved page (including a chapter) | plays it (Now Playing if it's what you hear) | *Read, Play from Here* (in a folder)*, Download / Remove Download, Add to / Remove from Favorites, Move to…, Mark as Finished / Unfinished, Mark All Above as Finished, Skip in Playback / Play in Playback* (in a folder)*, Share* (with a web address)*, Remove from Library* | Remove |
-| Recent page (played without saving) | plays it (Now Playing if it's what you hear) | the saved page's rows, with *Save to Library* for *Remove from Library*, then *Remove from Recent*; *Download*, *Move to…* and the marks dimmed until it is saved | Remove (from Recent) |
-| Link page | opens it in the browser (a followed story's chapter: fetches it, then plays it) | the saved page's rows; the marks dimmed (a link has no text yet; a story's chapter also has *Play from Here* and *Skip in Playback*) | Remove |
+| Row | Tap | Swipe left |
+|---|---|---|
+| Folder, book or series | opens it (push) | *Delete Folder…* / *Delete Book…* |
+| Saved page (including a chapter) | plays it (Now Playing if it's what you hear) | *Remove from Library* |
+| Recent page (played without saving) | plays it (Now Playing if it's what you hear) | *Remove from Recent* |
+| Link page | opens it in the browser (a followed story's chapter: fetches it, then plays it) | *Remove from Library* |
 
-On a folder screen every row's menu also has *Select*, just before *Remove from Library* (a
-page's) or first (a folder's). *Download / Remove Download* is one row showing the face for where
-the page's download stands: *Remove Download* while it downloads or is downloaded, which takes the
-page out of every download and deletes its audio (it stays out of its folder's download, P8). A
-row that applies but can't run now is dimmed, not left out (decision DR-09): *Download* on a page
-not in the Library, a folder's *Download* while it has no pages. Only what never applies to the
-row's kind is left out: the folder-only rows on a page in no folder, *Share* on a chapter (no web
-address), *Select* where the screen has no Edit.
+### Menus
+
+An item has one menu wherever it shows (decision C4): a page's (`PageMenu`), a folder's
+(`FolderMenu`, books and series too) and a download's (`DownloadMenu`). The same rows, in the same
+order, with the same names and symbols, in a row's ⋯ and its long press, a Favorites tile, a
+History visit, the Now Playing bar's long press, a folder header's *More* and the top of every ⋯
+panel that is about one item (the browser's page, the Reader's, Now Playing's, a folder's screen).
+A place only hides a row that can never apply there or dims one that can't run now (DR-09); what
+a place adds of its own comes after, set apart by a divider (the ⋯ panel's screen rows and big
+buttons, the bar's *Stop Listening*, History's *Remove from History*). Rows that delete something
+are red everywhere.
+
+| A page's menu | Where it shows |
+|---|---|
+| *Read* / *Go to <place>* | *Read* (the Reader; Now Playing for the page you hear; the browser for a link or an address the Library hasn't) where the page isn't open; Now Playing has *Go to* its folder or the Library in its place; neither on the Reader or the browser |
+| *Play from Here* | a page in a folder, in a Library list |
+| *Download* / *Remove Download* (red) | dimmed out of the Library |
+| *Add to Favorites* / *Remove from Favorites* | |
+| *Move to…* / *Save to Folder…* | *Save to Folder…* out of the Library (the Move tree, titled *Save to Folder*, saves it there), *Move to…* in it |
+| *Mark as Finished* / *Mark as Unfinished* | dimmed until it is saved |
+| *Mark All Above as Finished* | a page in a folder, in a Library list |
+| *Skip in Playback* / *Play in Playback* | a page in a folder |
+| *Share* | a page with a web address |
+| *Select* | a folder screen's rows (Edit with that row selected) |
+| *Save to Library* / *Remove from Library* (red) | *Save to Library* dimmed without text to save |
+| *Remove from Recent* (red) | a page out of the Library; dimmed while it isn't in Recent |
+
+| A folder's menu | Where it shows |
+|---|---|
+| *Continue*, *Play from Start* | dimmed while none of its pages play |
+| *Download* / *Turn Off Download* | its Download toggle; *Download* dimmed without pages, *Turn Off Download* asks first |
+| *Remove Downloads* (red) | dimmed while nothing in it is downloaded or downloading |
+| *Add to Favorites* / *Remove from Favorites* | |
+| *Move to…* | |
+| *Rename…*, *Edit Details…* | |
+| *Select* | a folder screen's rows |
+| *Delete Folder…* / *Delete Book…* (red) | asks first |
+
+A toggle is one row showing the face for the item's state. *Remove Download* takes the page out of
+every download and deletes its audio (it stays out of its folder's download, P8); a folder's
+*Remove Downloads* does it for each of its pages. *Turn Off Download* keeps what is downloaded,
+so it isn't red. A download's menu is in "Downloads", below.
 
 **Downloads** (decision D16): *Download* on a page, a folder, a book or a followed story (a
-page row's ⋯ or long-press, a folder header's Download control, a folder row's menu or the
-folder's ⋯ *Download Folder* / *Download Book*, beside its *Delete Downloads*, dimmed when there
-is nothing to do; the Reader's and Now Playing's ⋯, whose *Download / Remove Download* is the row
-menu's) makes it ready to play offline: a link page's text is fetched out of sight (in Follow's one
+page's menu wherever it shows, a folder header's Download control, a folder's menu, beside its
+*Remove Downloads*, dimmed when there is nothing to do) makes it ready to play offline: a link page's text is fetched out of sight (in Follow's one
 queue) and kept where it is, then its whole audio is rendered ahead in the on-device voice
 selected (Kokoro). A folder covers its own pages in its order (not its subfolders'), a book or
 story its chapters that play and aren't finished, one page at a time, and while its toggle is on,
@@ -554,22 +593,26 @@ Different Voice  1
 the Reader's, Now Playing's; medium, grows to large; also Settings › Downloads & Storage ›
 Downloads, pushed) lists, in sections shown only when they have
 rows: **Queued** (the download rendering now and those waiting, *Pause All / Resume All*, each
-row's filling arrow pausing it; grey while paused, a tap resumes it), **Downloaded** (each with the room it takes, the total under the
-section, on the cards' edge), and **Different Voice** (done, but rendered in another voice than the one selected
-now). Every row names its voice ("Kokoro Heart"); its parts are set apart by space, never a dot.
-After a voice change a finished download moves to *Different Voice*, with **Re-download** (renders
-it again in the voice selected; the old voice keeps playing until each paragraph is replaced) and
-**Keep** (stays as it is, counted as done and marked downloaded on its rows, still named by its
-own voice), on one action row (symbols alone when short of room, D21). A row opens what was
-downloaded (the Reader, or the Library at the folder); swipe left *Remove* takes the download off
-the list and its audio off the phone (not the audio of what you hear). The list holds downloads
-of what is in the Library: removing a page from the Library, or deleting a page or folder, takes
-its download off the list too (a removed page's audio stays, ephemeral); its long-press menu has
-*Pause / Resume*, *Re-download*, *Keep* and *Remove* as they apply. While Apple's voice is
-selected nothing renders: queued downloads say *Waiting for an on-device voice*, with
-*Settings*. *Remove Download* on a page and *Delete Downloads* on a folder delete its audio and
-its download (a page's listening audio alone, never downloaded, is cleared only by its folder's
-*Delete Downloads* or Settings); the audio
+row's filling arrow, just before its ⋯, pausing it; grey while paused, a tap resumes it; a paused
+download is grey on its Library row and its folder's header too, captioned *Paused*),
+**Downloaded** (each with the grey ✓ and the room it takes, the total under the section, on the
+cards' edge), and **Different Voice** (done, but rendered in another voice than the one selected
+now). Every row is a Library row (`ListRow`: one title line, one detail line) and names its voice
+("Kokoro Heart"); its parts are set apart by space, never a dot. A row opens what was downloaded
+(the Reader, or the Library at the folder). Its ⋯ and long press are the download's one menu,
+the same in every section (`DownloadMenu`): *Pause / Resume* (dimmed once done), *Re-download*
+(renders it again in the voice selected, the old voice playing until each paragraph is replaced;
+dimmed while queued), *Keep* (stays as it is, counted as done and marked downloaded on its rows,
+still named by its own voice; dimmed unless its voice differs) and *Remove Download* (red). After
+a voice change a finished download moves to *Different Voice*, whose note says the menu has
+*Re-download* and *Keep*. Swipe left is *Remove Download*: the download off the list and its
+audio off the phone (not the audio of what you hear). The list holds downloads of what is in the
+Library: removing a page from the Library, or deleting a page or folder, takes its download off
+the list too (a removed page's audio stays, ephemeral). While Apple's voice is selected nothing
+renders: queued downloads say *Waiting for an on-device voice*, with *Settings*. *Remove
+Download* on a page and *Remove Downloads* on a folder delete its audio and its download (a
+page's listening audio alone, never downloaded, is cleared only by its folder's *Remove
+Downloads* or Settings); the audio
 of the page you hear and of the chapter staged after it stays for listening. It stays deleted: a
 folder's download that listed the page drops it (the folder stays under *Downloaded* if the rest
 is done, and its header's Download control shows ↓ again, since not everything in it is
@@ -577,14 +620,14 @@ downloaded), and nothing renders the page again until it is played or Download i
 page's, or the folder's, which lists the folder's pages afresh). A page
 that couldn't be fetched or rendered is counted ("2 couldn’t download"), and *Re-download* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch. With
-nothing in it, a card says *Nothing downloaded*: download a page from its ⋯, or a folder or a
-book from its screen's ↓.
+nothing in it, it says *Nothing Downloaded* (`EmptyState`): download a page from its ⋯, or a
+folder or a book from its screen's ↓.
 
-**The Move tree** (`MoveTreeSheet`): one sheet for *Move to…*, the browser's ⋯ → *Save to
-Folder…* and 🔖's *Save to Folder…*; the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋
-New Folder* (made at the top level, and the item goes in it), *Library (no folder)*, then
+**The Move tree** (`MoveTreeSheet`): one sheet for *Move to…* (titled *Move to*) and every *Save
+to Folder…* (a page's menu out of the Library, 🔖 held; titled *Save to Folder*); the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋
+New Folder…* (made at the top level, and the item goes in it), *Library (no folder)*, then
 every folder, depth first. One tap files; ✓ marks the current place; a folder's
-long-press offers *New Folder Inside* (made in it, and the item goes in that; dimmed on a folder
+long-press offers *New Folder Inside…* (made in it, and the item goes in that; dimmed on a folder
 that can't be picked). *Library (no
 folder)* files the page in no folder, out of the folder it was in; an ordinary 🔖 or *Save* keeps a page's folder. Every folder is a
 destination, books and series too; a folder being moved, and everything inside it, can't be
@@ -596,7 +639,7 @@ page is extracted first (⋯ spins).
 
 **A change that can't be saved** (a move, *New Folder*, *Rename*, *Edit Details*, *Sort*, a drop on a folder or
 between rows, a
-mark, *Remove*, a delete, ☆ or a favorite tile's *Rename* / *Remove*, saving or unsaving with 🔖
+mark, *Remove*, a delete, ☆, saving or unsaving with 🔖
 (the browser's, the Reader's or Now Playing's), *Save to Folder…*, ⋯ → *Save to Library* / *Remove from Library*) isn't stored: the
 library reads as it did before it, and a toast says so ("Couldn’t move", "Couldn’t save") where
 a success would have shown. *Remove* of several pages is one change: all go, or none. A folder's
@@ -676,7 +719,7 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
 - **A sheet over the surface that opened it** (`ReaderSheetScreen`, `ShellState.reader`). From
   the browser (📄, ⋯ → Reader, a Favorites tile) the pill reads *‹ Browser*; from the Library
   *‹ Library*. The pill, the grabber and a pull down all close it to exactly where you were.
-- **Listen** reads *▶ **Listen** 9 min*, *▶ **Resume** 6 min left* for a page part-way through
+- **Listen** reads *▶ **Listen** 9 min*, *▶ **Continue** 6 min left* for a page part-way through
   (at the playback speed, written as rows write it, "1 h 5 min left" past the hour; the time in regular weight after the semibold title, left out when the pill is short of room
   at large text sizes), or *▶ Listen Again* for a finished one. It starts at the page's saved spot, makes the page what you
   hear (replacing what plays) and turns the Reader into Now Playing in place, where the Reader was
@@ -696,7 +739,7 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   of the header: the text's first line at the top starts below it). While ☝︎ is on, each
   paragraph is a button to VoiceOver, *Paragraph N*, hint *Plays from this paragraph*.
 - **A page part-way through opens at its saved spot**: the sentence where listening stopped
-  (where *Resume* starts) is in the middle of the text and underlined, without a scroll of your
+  (where *Continue* starts) is in the middle of the text and underlined, without a scroll of your
   own, and stays there while the layout settles (the header, a text size change) until you drag.
   A page not yet started, or finished, opens at its top.
 - **After that the Reader never scrolls by itself** and has no speed or skip buttons; reading

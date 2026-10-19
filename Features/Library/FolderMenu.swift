@@ -10,9 +10,9 @@ import SwiftUI
 /// | Download / Turn Off Download | its face the Download toggle (`DownloadCenter.isOn`); *Download* dimmed with no pages |
 /// | Remove Downloads (red) | dimmed while nothing of it is downloaded or downloading |
 /// | Add to / Remove from Favorites | |
+/// | Move to… | |
 /// | Rename…, Edit Details… | |
 /// | Select | a list with Edit |
-/// | Move to… | |
 /// | Delete Folder… / Delete Book… (red) | |
 ///
 /// *Download* turns the toggle on (`DownloadCenter.download`); *Turn Off Download* asks first
@@ -67,13 +67,13 @@ struct FolderMenu: View {
                     icon: isFavorite ? Icons.unfavorite : Icons.favorite) {
                 FavoriteFlow(library: actions.library, shell: shell).toggle(folder)
             },
+            MenuRow(id: "menuMove", title: Verbs.moveTo, icon: Icons.move) { actions.move([.folder(folder)], onMoved: onMoved) },
             MenuRow(id: "menuRename", title: Verbs.rename, icon: Icons.rename) { screen.rename(folder) },
             MenuRow(id: "menuEditDetails", title: Verbs.editDetails, icon: Icons.editDetails) {
                 shell.present(.folderDetails(folder.id))
             },
             MenuRow(id: "menuSelect", title: Verbs.select, icon: Icons.select,
                     availability: MenuAvailability(applies: onSelect != nil)) { onSelect?() },
-            MenuRow(id: "menuMove", title: Verbs.moveTo, icon: Icons.move) { actions.move([.folder(folder)], onMoved: onMoved) },
             MenuRow(id: "menuDeleteFolder", title: Verbs.deleteFolder(isBook: isBook), icon: Icons.delete,
                     isDestructive: true) { screen.confirmDelete([folder]) },
         ]
