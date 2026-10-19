@@ -30,16 +30,18 @@ extension SpeechController {
     // MARK: - Now Playing
 
     /// The lock screen shows what the bar shows (`nowPlaying`), while it plays or is paused; its
-    /// ⏮ ⏭ follow the on-screen ones.
+    /// ⏮ ⏭ follow the on-screen ones. An untitled web page's title is already its site, so its
+    /// subtitle leaves the site's byline out, as the bar does (a chapter's byline is the book's
+    /// author, which its title doesn't name).
     func refreshNowPlaying() {
         guard let now = nowPlaying, now.phase == .playing || now.phase == .paused else {
             lockScreen.update(nil)
             return
         }
-        var album: String?
+        var album = now.byline
         if case .folder(_, let name) = now.playingFrom { album = name }
         let info = NowPlayingInfo(
-            title: now.lineOne, site: now.byline, album: album,
+            title: now.lineOne, site: now.title == nil && !now.isChapter ? nil : now.byline, album: album,
             paragraph: currentParagraphIndex + 1, paragraphCount: document.count,
             isPlaying: now.phase == .playing, rate: rateMultiplier, artwork: now.artwork)
         lockScreen.update(info, canNext: canSkipToNextParagraph, canPrevious: canSkipToPreviousParagraph)

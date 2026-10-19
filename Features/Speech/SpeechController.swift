@@ -196,10 +196,11 @@ final class SpeechController {
         let raw = meta?.sourceLabel ?? meta?.site ?? ""
         let host = raw.hasPrefix("www.") ? String(raw.dropFirst(4)) : raw
         let folder = meta?.folder
+        let isChapter = folder?.isBookOrSeries == true
         let playingFrom: PlayingFrom = folder.map { .folder(id: $0.id, name: $0.name) } ?? .site(host: host)
         return NowPlaying(pageKey: id, canonicalURL: meta?.canonicalURL, title: meta?.title,
-                          source: folder?.isBookOrSeries == true ? folder?.name ?? host : host, byline: meta?.site,
-                          artwork: meta?.artwork, playingFrom: playingFrom, phase: playbackPhase)
+                          source: isChapter ? folder?.name ?? host : host, byline: meta?.site,
+                          artwork: meta?.artwork, playingFrom: playingFrom, isChapter: isChapter, phase: playbackPhase)
     }
 
     /// What the bound page is (nil while the metadata adopted last belongs to another page).

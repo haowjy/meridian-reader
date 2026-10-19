@@ -846,14 +846,17 @@ Both sheets read full screen the same way (`ReadingChrome`); Follow's chapter pr
 
 - **Scrolling the text down** (the finger moving up about 16 pt without turning back) hides the
   grabber, the top bar and the bottom band together: they slide off their edges and fade (fade
-  only under Reduce Motion). The status bar goes too, the home indicator dims, and the strip
-  above the sheet takes the page's colour, so only the text shows. **Scrolling up a little**
+  only under Reduce Motion). The status bar fades out with them (and back in with them, in every
+  theme), the home indicator dims, and the strip above the sheet takes the page's colour, so only
+  the text shows. In Scroll the text's top edge fades into the page over a line's height, so a
+  line scrolled part-way past it never shows cut. **Scrolling up a little**
   (about 8 pt) or **a tap in the middle of the text** brings them back over the text; the text
   doesn't move either way. The next scroll down or middle tap hides them again. Scrolls the app
   makes (following the audio, a scrub, opening at a spot) never do. The bars stay while VoiceOver
   runs, while ☝︎ is on, and while Aa or ⋯ is open.
 - **Taps on the text** (not on a link; ☝︎ keeps its paragraph taps): the right 30% of the width
-  goes forward a screen, the left 30% back one (the visible text less one line, on the
+  goes forward a screen, the left 30% back one (the visible text less one line, landing with a
+  whole line at the top: below the top bar, or below the fade in full screen; on the
   `Motion.standard` spring, a jump under Reduce Motion, never past either end), the middle shows or
   hides the bars. The first 48 pt from the left edge do nothing, so an edge swipe never turns a
   page. Edge taps leave the bars as they are. In Now Playing a page turn stops following the audio
@@ -882,7 +885,7 @@ time; Follow's chapter preview always scrolls.
 │ This offline test article has a long │   the last line that fits wholly above the footer
 │ …                                    │
 │                                 (▶)  │ ← the floating ▶ in full screen, above the footer
-│ Page 3 of 9   2 min left in chapter  │ ← the footer: caption, the theme's quiet ink, centred
+│ Page 3 of 9   2 min left             │ ← the footer: caption, the theme's quiet ink, centred
 └──────────────────────────────────────┘
 ```
 
@@ -892,9 +895,10 @@ time; Follow's chapter preview always scrolls.
   carries on from there. The bars hide and show over it as in
   Scroll (the band covers the page's foot and the footer while they show); the text never moves
   for them.
-- **The footer** (`Page 3 of 9   2 min left in chapter`, the two set apart by space, no
-  separator) stays in full screen. The time is what is left from the first character of the page
-  shown to the end of the page's text, at the playback speed.
+- **The footer** (`Page 3 of 9   2 min left`, the two set apart by space, no separator) stays in
+  full screen. The time is what is left from the first character of the page shown to the end of
+  the page's text, at the playback speed, worded as the rows and the Now Playing bar word it; a
+  chapter of a book or series says `2 min left in chapter`, so it isn't read as the book's.
 - **Turning**: a tap at the right edge turns to the next page, at the left edge to the one before,
   at once (the first 48 pt from the left edge do nothing; the middle shows or hides the bars). A
   drag turns one page its way and snaps there when you let go (the `Motion.standard` spring, a
@@ -902,7 +906,8 @@ time; Follow's chapter preview always scrolls.
   as at the top in Scroll: in full screen it brings the bars back, with the bars showing it closes
   the sheet.
 - **Following the audio** (Now Playing) turns to the page holding the spoken sentence when the
-  voice reaches it. A turn of your own stops following and *Jump to Audio* appears; it goes back
+  voice reaches it, and to the next page as the voice crosses onto it, mid-sentence too. A turn
+  of your own stops following and *Jump to Audio* appears; it goes back
   to the spoken sentence's page and follows again. The Reader opens at a saved spot on the page
   holding its sentence; Listen hands over to Now Playing on the page holding the Reader's first
   line (D2).
