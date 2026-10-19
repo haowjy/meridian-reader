@@ -33,7 +33,7 @@ enum Icons {
     static let reader = "doc.plaintext"
     /// The Reader text is showing in the page's place (Follow's chapter preview).
     static let readerShowing = "doc.plaintext.fill"
-    /// History (the browser's: pages visited, searches made).
+    /// History (the browser's: pages visited).
     static let history = "clock"
     /// Recent (the Library's tab: pages listened to without saving).
     static let recent = "clock.arrow.circlepath"
@@ -78,7 +78,8 @@ enum Icons {
     /// circle that means downloaded).
     static let markFinished = checkmark
     static let markUnfinished = "circle"
-    static let markAllAboveFinished = "checkmark.circle.badge.questionmark"
+    /// Mark All Above as Finished: several ✓ at once (the circle-✓ is *Select*'s).
+    static let markAllAboveFinished = "checklist.checked"
     static let skipInPlayback = "forward.end"
     static let includeInPlayback = "play.square"
     static let photo = "photo"
@@ -136,7 +137,10 @@ enum Icons {
     static let removeDownload = "trash.circle"
     /// Turning a folder's Download off (its audio stays).
     static let turnOffDownload = "arrow.down.circle.dotted"
-    static let redownload = reload
+    /// *Re-download*: down again (not the browser's Reload arrow).
+    static let redownload = "arrow.uturn.down.circle"
+    /// *Resume* a paused download (not Download's arrow, nor listening's ▶).
+    static let resume = "playpause.fill"
     /// Keep a download made with another voice.
     static let keep = "pin"
 

@@ -27,7 +27,7 @@ struct DownloadMenu: View {
         let otherVoice: String? = if case .differentVoice(let voice) = item.status { voice } else { nil }
         return [
             MenuRow(id: "menuPause", title: isPaused ? Verbs.resume : Verbs.pause,
-                    icon: isPaused ? Icons.download : Icons.pause,
+                    icon: isPaused ? Icons.resume : Icons.pause,
                     availability: MenuAvailability(when: isQueued)) { downloads.setPaused(id, !isPaused) },
             MenuRow(id: "menuRedownload", title: Verbs.redownload, icon: Icons.redownload,
                     availability: MenuAvailability(when: !isQueued)) { downloads.redownload(id) },
