@@ -23,7 +23,7 @@ import SwiftUI
 /// Every row is a `ListRow`: a tap opens what was downloaded (the Reader for a page, the Library
 /// at a folder); a queued one has its pause / resume control before the ⋯; ⋯ and the long press
 /// are the download's menu (`DownloadMenu`, the same in every section); swipe left is its
-/// *Remove Download*.
+/// *Remove Download* (*Remove Downloads* on a folder).
 struct DownloadsSheet: View {
     @Environment(ShellState.self) private var shell
 
@@ -165,7 +165,10 @@ struct DownloadsList: View {
             .opensOnTap { open(record.target) }
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                Button(Verbs.removeDownload, role: .destructive) { downloads.remove(item.id) }
+                // The record goes at once (`remove` is synchronous), so the role's early row removal
+                // agrees with the list; the tint makes it red under the list's accent.
+                Button(DownloadMenu.removeTitle(item), role: .destructive) { downloads.remove(item.id) }
+                    .tint(Palette.destructive)
             }
             .accessibilityIdentifier("downloadRow")
     }

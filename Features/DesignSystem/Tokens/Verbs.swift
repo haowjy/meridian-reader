@@ -46,9 +46,11 @@ enum Verbs {
     static let playFromHere = String(localized: "Play from Here")
     static let playFromStart = String(localized: "Play from Start")
     static let download = String(localized: "Download")
-    /// A page's or a download's: its audio deleted, and it stays out of every download (P8).
+    /// A page's, in its menu and in the Downloads list: its audio deleted, and it stays out of
+    /// every download (P8).
     static let removeDownload = String(localized: "Remove Download")
-    /// A folder's: *Remove Download* for each of its pages.
+    /// A folder's, in its menu and in the Downloads list: its download off and gone, and
+    /// *Remove Download* for each of its pages.
     static let removeDownloads = String(localized: "Remove Downloads")
     static let turnOffDownload = String(localized: "Turn Off Download")
     static let addToFavorites = String(localized: "Add to Favorites")

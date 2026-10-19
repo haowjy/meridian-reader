@@ -609,10 +609,11 @@ now). Every row is a Library row (`ListRow`: one title line, one detail line) an
 the same in every section (`DownloadMenu`): *Pause / Resume* (dimmed once done), *Re-download*
 (renders it again in the voice selected, the old voice playing until each paragraph is replaced;
 dimmed while queued), *Keep* (stays as it is, counted as done and marked downloaded on its rows,
-still named by its own voice; dimmed unless its voice differs) and *Remove Download* (red). After
-a voice change a finished download moves to *Different Voice*, whose note says the menu has
-*Re-download* and *Keep*. Swipe left is *Remove Download*: the download off the list and its
-audio off the phone (not the audio of what you hear). The list holds downloads of what is in the
+still named by its own voice; dimmed unless its voice differs) and *Remove Download* on a page,
+*Remove Downloads* on a folder (red: the same action as in the page's or folder's own menu,
+below). After a voice change a finished download moves to *Different Voice*, whose note says the
+menu has *Re-download* and *Keep*. Swipe left is the same *Remove Download* / *Remove Downloads*.
+The list holds downloads of what is in the
 Library: removing a page from the Library, or deleting a page or folder, takes its download off
 the list too (a removed page's audio stays, ephemeral). While Apple's voice is selected nothing
 renders: queued downloads say *Waiting for an on-device voice*, with *Settings*. *Remove
