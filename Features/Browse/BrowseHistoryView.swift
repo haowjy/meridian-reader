@@ -27,10 +27,10 @@ struct BrowseHistoryView: View {
                                 row(visit)
                             }
                             .listRowInsets(EdgeInsets())
-                            .listRowBackground(Palette.chrome)
+                            .listCard()
                         }
                     }
-                    .libraryListStyle()
+                    .cardListStyle()
                 }
             }
             .navigationTitle("History")
@@ -44,7 +44,8 @@ struct BrowseHistoryView: View {
 
     private func row(_ visit: RecentVisit) -> some View {
         ListRow(kind: .page(artwork: visit.faviconData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
-                            letter: visit.host.siteLetter),
+                            letter: PageTitle.artworkLetter(title: visit.title, source: visit.host,
+                                                          address: visit.urlString)),
                 title: visit.lineOne, subtitle: visit.host,
                 note: visit.visitedAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
             .opensOnTap { onOpen(visit) }

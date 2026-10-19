@@ -47,7 +47,7 @@ struct FolderDetailsSheet: View {
                     EmptyView()
                 } header: {
                     coverPreview
-                        .libraryHeader()
+                        .listHeader()
                 }
                 field(String(localized: "Name"), text: $name, prompt: String(localized: "Name"), id: "detailsName")
                 field(String(localized: "Author"), text: $byline, prompt: String(localized: "Optional"), id: "detailsAuthor")
@@ -63,12 +63,12 @@ struct FolderDetailsSheet: View {
                     }
                 } header: {
                     SectionHeader(title: String(localized: "Cover"))
-                        .libraryHeader()
+                        .listHeader()
                 }
                 .listRowInsets(EdgeInsets())
-                .listRowBackground(Palette.chrome)
+                .listCard()
             }
-            .libraryListStyle()
+            .cardListStyle()
             .navigationTitle(String(localized: "Edit Details"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -125,26 +125,16 @@ struct FolderDetailsSheet: View {
                 .accessibilityIdentifier(id)
         } header: {
             SectionHeader(title: title)
-                .libraryHeader()
+                .listHeader()
         }
         .listRowInsets(EdgeInsets())
-        .listRowBackground(Palette.chrome)
+        .listCard()
     }
 
     private func choice(_ title: String, _ symbol: String, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: Spacing.s) {
-                Image(systemName: symbol)
-                    .foregroundStyle(Palette.ink)
-                    .frame(width: ListRow.leadingWidth)
-                Text(title)
-                    .typeStyle(.row)
-                    .foregroundStyle(Palette.ink)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, Spacing.m)
-            .frame(minHeight: BottomChrome.minTapTarget)
-            .contentShape(Rectangle())
+            SymbolRow(title, symbol: symbol)
+                .padding(.horizontal, Spacing.m)
         }
         .buttonStyle(.plain)
         .disabled(isPreparingCover)

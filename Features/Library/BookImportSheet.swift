@@ -36,23 +36,23 @@ struct BookImportSheet: View {
                     EmptyView()
                 } header: {
                     header
-                        .libraryHeader()
+                        .listHeader()
                 }
                 Section {
                     destinationRow
                         .listRowInsets(EdgeInsets())
                 } header: {
                     SectionHeader(title: String(localized: "Add to"))
-                        .libraryHeader()
+                        .listHeader()
                 } footer: {
                     caption(destinationNote)
                 }
-                .listRowBackground(Palette.chrome)
+                .listCard()
                 if let preview = flow.preview, !preview.chapterTitles.isEmpty {
                     chapters(preview)
                 }
             }
-            .libraryListStyle()
+            .cardListStyle()
             .navigationTitle(String(localized: "Import Book"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
@@ -144,16 +144,10 @@ struct BookImportSheet: View {
 
     private var destinationRow: some View {
         Button { flow.isChoosingDestination = true } label: {
-            HStack(spacing: Spacing.s) {
+            SymbolRow(destinationName) {
                 Image(systemName: flow.destinationID == nil ? Icons.library : Icons.folder)
                     .foregroundStyle(Palette.accent)
-                    .frame(width: ListRow.leadingWidth)
-                    .accessibilityHidden(true)
-                Text(destinationName)
-                    .typeStyle(.row)
-                    .foregroundStyle(Palette.ink)
-                    .lineLimit(1)
-                Spacer(minLength: Spacing.xs)
+            } trailing: {
                 if !flow.isReplacing {
                     Text("Change")
                         .typeStyle(.row)
@@ -161,8 +155,6 @@ struct BookImportSheet: View {
                 }
             }
             .padding(.horizontal, Spacing.m)
-            .frame(minHeight: BottomChrome.minTapTarget)
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!flow.canChangeDestination)
@@ -201,14 +193,14 @@ struct BookImportSheet: View {
             }
         } header: {
             SectionHeader(title: String(localized: "Chapters"))
-                .libraryHeader()
+                .listHeader()
         } footer: {
             if !preview.skippedTitles.isEmpty {
                 caption(String(localized: "Skipped for listening: \(Self.list(preview.skippedTitles)). Still there to read."))
             }
         }
         .listRowInsets(EdgeInsets())
-        .listRowBackground(Palette.chrome)
+        .listCard()
     }
 
     /// "Title Page, Licence and 2 more".

@@ -149,7 +149,7 @@ private struct FolderContentsList: View {
                         let hidden = top + titleLineHeight < contentTop
                         if hidden != headerTitleHidden { headerTitleHidden = hidden }
                     }
-                    .libraryHeader()
+                    .listHeader()
             }
             // One mixed list of compact rows (D23): subfolders, then pages, in one card.
             if !subfolders.isEmpty || !pages.isEmpty {
@@ -160,14 +160,14 @@ private struct FolderContentsList: View {
                     }
                     .onMove(perform: isEditing ? moveFolders : nil)
                     .listRowInsets(EdgeInsets())
-                    .listRowBackground(Palette.chrome)
+                    .listCard()
                     ForEach(pages, id: \.listenKey) { page in
                         LibraryPageRow(page: page, onSelect: select(.page(page.listenKey)))
                             .tag(LibraryItemID.page(page.listenKey))
                     }
                     .onMove(perform: isEditing && sort == .manual ? movePages : nil)
                     .listRowInsets(EdgeInsets())
-                    .listRowBackground(Palette.chrome)
+                    .listCard()
                 }
             }
             if subfolders.isEmpty && pages.isEmpty {
@@ -179,11 +179,11 @@ private struct FolderContentsList: View {
                         .typeStyle(.row)
                         .foregroundStyle(Palette.secondaryInk)
                         .accessibilityIdentifier("folderEmpty")
-                        .libraryHeader()
+                        .listHeader()
                 }
             }
         }
-        .libraryListStyle()
+        .cardListStyle()
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY + $0.safeAreaInsets.top } action: {
             contentTop = $0
         }

@@ -75,9 +75,9 @@ struct ListRow: View {
     /// asks attaches there, so on iOS 26 its popover points at the ⋯.
     var menuAnchor: AnyView?
 
-    /// 56 pt at the default text size; larger text grows the row through its content, and the
-    /// minimum only up to `BottomChrome.maxTextGrowth`.
-    @ScaledMetric(relativeTo: .callout) private var scaledMinHeight: CGFloat = 56
+    /// `RowHeight.content` at the default text size; larger text grows the row through its
+    /// content, and the minimum only up to `BottomChrome.maxTextGrowth`.
+    @ScaledMetric(relativeTo: .callout) private var scaledMinHeight = RowHeight.content
     /// Space between the second line's parts: `Spacing.s`, growing with the caption.
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var partSpacing = Spacing.s
     /// The two text lines' heights, scaled like their text: a page's thumbnail matches them.
@@ -135,7 +135,7 @@ struct ListRow: View {
         .padding(.leading, Spacing.m)
         .padding(.trailing, menu != nil ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
         .padding(.vertical, Spacing.xs)
-        .frame(minHeight: BottomChrome.grown(scaledMinHeight, from: 56))
+        .frame(minHeight: BottomChrome.grown(scaledMinHeight, from: RowHeight.content))
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
         .overlay { dropHighlight }
         .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) { insertionLine }
@@ -166,14 +166,12 @@ struct ListRow: View {
     private var dropHighlight: some View {
         RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
             .fill(Palette.accent.opacity(Palette.washOpacity))
-            .strokeBorder(Palette.accent, lineWidth: Self.dropOutlineWidth)
+            .strokeBorder(Palette.accent, lineWidth: Glyph.stroke)
             .padding(Spacing.xxs)
             .opacity(isDropTarget ? 1 : 0)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
-
-    static let dropOutlineWidth: CGFloat = 2
 
     /// Where a dragged row would go: an accent line along the row's edge, from the title's
     /// leading edge, with a ring at its start (as iOS marks a drop between rows).
@@ -182,11 +180,11 @@ struct ListRow: View {
         if insertionEdge != nil {
             HStack(spacing: 0) {
                 Circle()
-                    .strokeBorder(Palette.accent, lineWidth: Self.dropOutlineWidth)
+                    .strokeBorder(Palette.accent, lineWidth: Glyph.stroke)
                     .frame(width: Spacing.xs, height: Spacing.xs)
                 Capsule()
                     .fill(Palette.accent)
-                    .frame(height: Self.dropOutlineWidth)
+                    .frame(height: Glyph.stroke)
             }
             // The ring just before the title, the line from the title's leading edge on.
             .padding(.leading, Spacing.m + thumbnailSide + Spacing.s - Spacing.xs)
@@ -289,7 +287,7 @@ struct ListRow: View {
         case (_, .unplayed(let minutes?)): return ListeningTime.label(minutes: minutes)
         case (_, .unplayed(nil)): return nil
         case (_, .partWay(_, let left)): return ListeningTime.leftLabel(minutes: left)
-        case (_, .finished): return String(localized: "Finished")
+        case (_, .finished): return ListeningTime.finishedLabel
         case (_, .skipped): return String(localized: "Skipped")
         }
     }
@@ -309,7 +307,7 @@ struct ListRow: View {
             case .unplayed(let minutes?): parts.append(ListeningTime.label(minutes: minutes))
             case .unplayed(nil): break
             case .partWay(_, let left): parts.append(ListeningTime.leftLabel(minutes: left))
-            case .finished: parts.append("Finished")
+            case .finished: parts.append(ListeningTime.finishedLabel)
             case .skipped: parts.append("Skipped in playback")
             }
         }
@@ -360,7 +358,7 @@ struct ListRow: View {
                             isCover: true, fill: Palette.chrome)
                     .frame(width: thumbnailSide, height: thumbnailSide)
             } else {
-                Image(systemName: symbol).font(.title3).foregroundStyle(Palette.accent)
+                Image(systemName: symbol).tileSymbol().foregroundStyle(Palette.accent)
                     .frame(width: thumbnailSide, height: thumbnailSide)
             }
         case .page(let artwork, let letter):
@@ -381,13 +379,6 @@ struct ListRow: View {
         let base = TypeStyle.row.lineHeight + TypeStyle.caption.lineHeight
         return BottomChrome.grown(titleLineHeight + captionLineHeight, from: base)
     }
-
-    /// Width of a leading symbol in the rows built like these (Downloads, the Move tree, the
-    /// import sheet, Edit Details' choices).
-    static let leadingWidth: CGFloat = 32
-    /// A book cover in a folder row: narrower than the slot, so its height (1.45×) stays inside
-    /// the row's 56 pt.
-    static let coverWidth: CGFloat = 26
 }
 
 /// A small progress ring: how far through a part-way page or chapter.
@@ -395,12 +386,14 @@ struct ProgressRing: View {
     let fraction: Double
     var size: CGFloat = Glyph.ring
 
+    @Environment(\.readingPalette) private var reading
+
     var body: some View {
         ZStack {
-            Circle().stroke(Palette.secondaryInk.opacity(0.25), lineWidth: 2)
+            Circle().stroke(reading?.track ?? Palette.track, lineWidth: Glyph.stroke)
             Circle()
                 .trim(from: 0, to: min(max(0, fraction), 1))
-                .stroke(Palette.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .stroke(reading?.accent ?? Palette.accent, style: StrokeStyle(lineWidth: Glyph.stroke, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
         .frame(width: size, height: size)

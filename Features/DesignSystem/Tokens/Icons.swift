@@ -107,7 +107,6 @@ enum Icons {
     /// Playing (bars beside a title, the tinted pill).
     static let playing = "waveform"
     static let sleepTimer = "moon.fill"
-    static let voice = "person.wave.2"
     /// A voice's sample: play, stop.
     static let previewPlay = "play.circle"
     static let previewStop = "stop.circle"

@@ -27,7 +27,7 @@ struct MoreMenuPanel: View {
             }
         }
         .padding(.vertical, Spacing.xs)
-        .frame(width: 300)
+        .frame(width: Panel.width)
     }
 
     // MARK: - Contexts
@@ -197,23 +197,14 @@ struct MoreMenuPanel: View {
     }
 
     private func rowLabel(_ title: String, _ icon: String, trailing: String? = nil) -> some View {
-        HStack(spacing: Spacing.m) {
-            Image(systemName: icon)
-                .font(.body)
-                .frame(width: 24)
-            Text(title)
-                .typeStyle(.row)
-            Spacer(minLength: 0)
+        SymbolRow(title, symbol: icon) {
             if let trailing {
                 Image(systemName: trailing)
-                    .font(.footnote.weight(.semibold))
+                    .disclosureSymbol()
                     .foregroundStyle(secondaryInk)
             }
         }
-        .foregroundStyle(ink)
         .padding(.horizontal, Spacing.l)
-        .padding(.vertical, Spacing.s)
-        .contentShape(Rectangle())
     }
 
     private func tiles<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
@@ -228,7 +219,7 @@ struct MoreMenuPanel: View {
         Button(action: action) {
             VStack(spacing: Spacing.xs) {
                 Image(systemName: icon)
-                    .font(.title3)
+                    .tileSymbol()
                     .morphMenuFocus(focus)
                 Text(title)
                     .typeStyle(.caption)
@@ -253,7 +244,7 @@ private struct MenuRowStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .opacity(isEnabled ? 1 : 0.35)
+            .opacity(isEnabled ? 1 : Palette.disabledOpacity)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .fill((reading?.ink ?? Palette.ink).opacity(configuration.isPressed ? 0.08 : 0))

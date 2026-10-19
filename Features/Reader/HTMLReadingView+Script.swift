@@ -242,17 +242,22 @@ extension HTMLReadingWebView {
             if (ev.target && ev.target.closest && ev.target.closest('a[href]')) return;
             window.webkit.messageHandlers.readerBridge.postMessage({ tapX: ev.clientX, width: window.innerWidth });
           });
-          // The article's own leading heading already says the title: it takes the title's look,
-          // and the source line moves under it (the heading stays a listen block, so numbering
-          // doesn't change; the header isn't one wherever it sits).
+          // The article's own leading heading already says the title, which shows once: in the
+          // Reader the heading takes the title's look and the source line moves under it; under
+          // Now Playing's title card it is hidden. Either way it stays a listen block, so the
+          // numbering doesn't change (the header isn't one wherever it sits).
           (function() {
-            var title = document.querySelector('.reader-title');
             var first = blocks()[0];
+            if (!first || !/^H[1-3]$/.test(first.tagName)) return;
             var norm = function(t) { return (t || '').replace(/\\s+/g, ' ').trim().toLowerCase(); };
-            if (title && first && /^H[1-3]$/.test(first.tagName) && norm(first.textContent) === norm(title.textContent)) {
+            var title = document.querySelector('.reader-title');
+            var top = document.querySelector('.reader-top');
+            if (title && norm(first.textContent) === norm(title.textContent)) {
               title.style.display = 'none';
               first.classList.add('reader-title');
               first.parentNode.insertBefore(title.parentNode, first.nextSibling);
+            } else if (top && top.dataset.title && norm(first.textContent) === norm(top.dataset.title)) {
+              first.style.display = 'none';
             }
           })();
         })();
@@ -262,14 +267,16 @@ extension HTMLReadingWebView {
 
 extension HTMLReadingWebView.Coordinator {
     /// The one reading page (the Reader and Now Playing alike): the text in `look`, with
-    /// the title and source line on top, or a slot `top` points tall for the native top view.
+    /// the title and source line on top, or a slot `top` points tall for the native top view
+    /// (which shows `heading`'s title itself).
     /// The article text is wrapped (`.reader-text`) so where it starts can be measured. The
     /// spoken paragraph's tint pads with a box-shadow, so it never reflows.
     static func wrap(_ html: String, heading: ReaderHeading?, top: CGFloat?, sizes: ReadingStyle.Sizes,
                      look: ReadingStyle.Look) -> String {
         let header: String
         if let top {
-            header = "<div class=\"reader-top\" aria-hidden=\"true\" style=\"height: \(Int(top))px\"></div>"
+            let title = heading?.title.map { " data-title=\"\(escape($0))\"" } ?? ""
+            header = "<div class=\"reader-top\" aria-hidden=\"true\"\(title) style=\"height: \(Int(top))px\"></div>"
         } else {
             header = heading.map {
                 "<header class=\"reader-heading\">"
@@ -301,6 +308,6 @@ extension HTMLReadingWebView.Coordinator {
 
     private static func escape(_ s: String) -> String {
         s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;")
     }
 }

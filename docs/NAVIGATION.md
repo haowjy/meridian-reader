@@ -223,8 +223,8 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   only what you hear, and hides on Now Playing, under other sheets and once nothing is loaded.
 
 **Start page** (no page loaded), Safari-style:
-1. **Favorites**: starred pages and folders (favicon, or a
-   coloured letter tile when there is no usable favicon, with the title, else the site, below), then its
+1. **Favorites**: starred pages and folders (favicon, or the letter tile every page shows when
+   there is no usable favicon, with the title, else the site, below), then its
    folders as folder tiles; 4 per row, up to 8. Show All → the Library's Favorites tab. A page tile
    opens the page (a link in the browser, a saved page in the Reader); a folder tile opens it in
    the Library. Long-press a page tile → Rename… / Remove from Favorites.
@@ -301,7 +301,8 @@ commas.
   something in it has played, one more line says where it is, how far and what's left ("3 of 7
   38%   6 h 10 min left", at the playback speed); before that, its length ("52 min"). A folder
   with pages that play (decision D15) then has one row of three controls, the ▶ in the middle
-  and a caption under each side one:
+  and a caption under each side one (the captions go, leaving the symbols, when one wouldn't fit
+  whole, as at the largest text sizes: the row never wraps, D21):
 
   ```
               ◯↓            ( ▶ )            ⋯
@@ -452,8 +453,9 @@ row's second line is what is in it ("2 folders   3 pages", "Empty"), in Edit too
 play shows its place and time left there instead. Every row's separator starts at its title. A
 page row (a chapter too) is exactly two lines (decision D21): its title (its site, or its book, when it has none) on one line, truncated,
 then one short line of what it is and where it stands, with a small thumbnail as tall as the two
-lines. In a folder that line is the status alone (the header already names the author or site);
-on the home and in search the site or path comes first. The listening mark stays before the
+lines. Its site comes first on that line everywhere (none for a page without a title, whose
+first line already is its site), except in a book or series, whose header names the source once;
+on Favorites, Recent and in search a page in a folder shows its folder's path there instead. The listening mark stays before the
 time: nothing before a length not yet started ("18 min"), a small ring part-way ("◔ 6 min left";
 the only rings in the app are listening), the playing row tinted with still or moving bars and
 "Playing" (or "Paused") in the accent, "✓ Finished" plain; every time at the playback speed.
@@ -527,7 +529,9 @@ pages added later too. When a download starts (or a paused one goes on) a toast 
 *Downloading…* with *View*, which opens the Downloads list; it floats just above the Now Playing
 bar (never over it), as every toast does, and goes after a few seconds. A toast's message wraps
 between words, never inside one: when a word wouldn't fit beside *View* (the largest text sizes),
-*View* goes under the message, and then the symbol goes. Nothing is modal:
+*View* goes under the message, and then the symbol goes. Over the Reader and Now Playing a
+toast, like the Now Playing bar and the play controls there, takes the reading theme's card,
+inks and accent. Nothing is modal:
 while downloads run, a 2 pt jade line along the top edge of the bottom chrome (the browser's, the
 Library's, the Reader's) fills as they get on, and fades when nothing is queued, everything queued
 is paused, or no on-device voice is selected (VoiceOver reads it as *Downloads, N percent*, a
@@ -669,7 +673,9 @@ Reader shows the Now Playing bar of another page above its row.
 The heading is the serif title, then the site and length under it; a page with no title of its own
 shows the site and length alone (nothing stands in for a title). When the article's own
 first heading repeats the title, that heading takes the title's look and the source line moves
-under it. The reading style always wins over a page's own styles (an extracted page's
+under it; under Now Playing's title card that heading is hidden, so either sheet shows the title
+once. The length becomes the time left once the page has been started, as in its row and on
+Listen (a finished page shows its length). The reading style always wins over a page's own styles (an extracted page's
 stylesheets are left out), and an extracted title drops a trailing site name ("Speech synthesis
 - Wikipedia" reads "Speech synthesis").
 
@@ -787,7 +793,7 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   Tap it (or start another page) and following resumes. Scrubbing scrolls to the paragraph under
   the thumb.
 - **At the end** it stays on the page: the text stays, all of it in full ink, the title card
-  says "✓ Finished" where the time left was (where the Reader shows a page's length), and ▶
+  says "✓ Finished" where the time left was (the Reader shows the page's length), and ▶
   plays the page again.
 - **Controls** (today's listen rows): the scrub capsule (the speed at its trailing end) and
   `[🔖][⏮][▶︎][⏭][⋯]` in the browser's five-slot grid (🔖 under ‹, ⏮ under ›, ▶︎ under 🔖, ⏭
@@ -953,7 +959,9 @@ bottom:
   `appearance.accent`).
 - **Reading**: the reading appearance above, with a sample of what is chosen.
 - **Listening**: the engines (Apple and the on-device ones: download, cancel, ✓, swipe to delete
-  a download), *Voice ›* and *Language ›* (pages of their own), and *Speed* in one line.
+  a download), *Voice ›* and *Language ›* (pages of their own; no symbols in this card, as the
+  engines have none), and *Speed*: one line of speeds while each fits whole in the row type, else
+  two or three to a line, as every choice row in Settings and Aa does.
 - **Browsing**: *Block Ads* (on by default): requests to common ad and tracker hosts don't load
   in any of the app's web views; a change applies to pages loaded after it.
 - **Downloads & Storage**: *Downloads ›* (the Downloads list) and the listening audio kept on

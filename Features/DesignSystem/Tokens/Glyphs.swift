@@ -5,10 +5,12 @@ import SwiftUI
 enum Glyph {
     /// A part-way listening ring before a row's time left (rings mean listening, nothing else).
     static let ring: CGFloat = 12
+    /// The stroke of a ring, a drop target's outline and a chosen swatch's ring.
+    static let stroke: CGFloat = 2
     /// Playing bars beside a row's status; the empty slot beside the address field's text.
     static let indicator: CGFloat = 16
     /// A book preview's chapter row's empty leading mark (`ListRow`); the playing bars inside a
-    /// play button; a Settings row's leading symbol, and its ✓ or spinner.
+    /// play button; a Settings choice's ✓ or spinner.
     static let mark: CGFloat = 20
     /// A round control: a download's `DownloadMark` in the Downloads list and a folder header, the
     /// header's ⋯.
@@ -18,6 +20,25 @@ enum Glyph {
     /// The leading slot of every band field (Library search and the browser's address): 🔍, or
     /// on a loaded page its 📄 / spinner, always this square so the text starts at one place.
     static let fieldLeading: CGFloat = 30
+    /// The leading column of a `SymbolRow` (Settings, the ⋯ panel, the Move tree, search
+    /// suggestions, Following's actions): one width for a symbol or a small site tile, so every
+    /// such row's text starts at one place. It grows with the text like the row.
+    static let rowLeading: CGFloat = 28
+}
+
+/// The two minimum heights of a row at the default text size; larger text grows them up to
+/// `BottomChrome.maxTextGrowth`.
+enum RowHeight {
+    /// A content row: a page, folder or book with its thumbnail and two lines (`ListRow`).
+    static let content: CGFloat = 56
+    /// A compact row: a symbol and a label, a setting, an action, a menu row (`SymbolRow`).
+    static let compact: CGFloat = 48
+}
+
+/// The floating panels: the ⋯ panel and Aa.
+enum Panel {
+    /// One width for both, so they read as one kind of thing.
+    static let width: CGFloat = 320
 }
 
 extension View {
@@ -31,5 +52,33 @@ extension View {
     /// floating ▶ / ⏸): the text runs under them.
     func overTextShadow() -> some View {
         floatingShadow(opacity: 0.2)
+    }
+
+    /// A symbol leading a compact row (`SymbolRow`, a search suggestion): body size, growing with
+    /// the text like the row's column.
+    func rowSymbol() -> some View {
+        modifier(RowSymbol())
+    }
+
+    /// A symbol standing where a tile or a thumbnail would (a folder row's 📁, a tile in the ⋯
+    /// panel, a voice's preview, Follow's checkboxes, the morph menu's glyphs): `.title3`.
+    func tileSymbol() -> some View {
+        font(.title3)
+    }
+
+    /// The small chevron after a label that goes somewhere (*Show All ›*, a menu row's ›).
+    func disclosureSymbol() -> some View {
+        font(.caption.weight(.semibold))
+    }
+}
+
+/// Body size, growing with the text only up to `BottomChrome.maxTextGrowth`, so the symbol stays
+/// inside its row's leading column at the largest sizes.
+private struct RowSymbol: ViewModifier {
+    @ScaledMetric(relativeTo: .body) private var size: CGFloat = RowSymbol.base
+    private static let base: CGFloat = 17
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: BottomChrome.grown(size, from: Self.base)))
     }
 }
