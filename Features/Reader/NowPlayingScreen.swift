@@ -111,7 +111,8 @@ struct NowPlayingScreen: View {
                        card: TitleCardContent(title: article.map(\.title) ?? now.title, source: now.source,
                                               letter: now.artworkLetter,
                                               artwork: now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))),
-                       finished: now.isFinished, scrubMap: scrubMap, scrubPreview: scrubPreview,
+                       finished: now.isFinished, isChapter: now.isChapter, scrubMap: scrubMap,
+                       scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,
                        opensAt: shell.nowPlayingOpensAt,
                        onUserScroll: { following = false }, onTap: jump(to:), onOpenLink: shell.navigate(to:))
@@ -213,6 +214,7 @@ private struct SpokenText: View {
     let html: String
     let card: TitleCardContent
     let finished: Bool
+    let isChapter: Bool
     let scrubMap: ReaderScrubMap?
     let scrubPreview: Int?
     let jumpMode: Bool
@@ -232,14 +234,15 @@ private struct SpokenText: View {
             topView: titleCard,
             activeParagraphIndex: speech.spokenParagraph(scrubPreview: scrubPreview),
             sentence: finished || scrubPreview != nil ? nil : sentence(paragraph),
+            spokenWord: finished || scrubPreview != nil ? nil : spokenWord(paragraph),
             jumpMode: jumpMode,
             scrollRequest: scrollRequest,
             follows: follows && !finished,
             opensAt: opensAt,
             onUserScroll: onUserScroll,
             onOpenLink: onOpenLink,
-            pageTimeLeft: { [document = speech.document, rate = speech.rateMultiplier] in
-                ListeningTime.leftInChapterLabel(in: document, paragraph: $0, offset: $1, rate: rate)
+            pageTimeLeft: { [document = speech.document, rate = speech.rateMultiplier, isChapter] in
+                ListeningTime.leftLabel(in: document, paragraph: $0, offset: $1, rate: rate, chapter: isChapter)
             },
             onTapParagraph: onTap
         )
@@ -260,6 +263,14 @@ private struct SpokenText: View {
             view: AnyView(TitleCard(title: card.title, detail: detail, detailSymbol: finished ? Icons.checkmark : nil,
                                     artwork: card.artwork, artworkLetter: card.letter, palette: palette))
         )
+    }
+
+    /// The word being spoken: its paragraph and the UTF-16 offset in it.
+    private func spokenWord(_ paragraph: Int) -> ReadingPages.Spot? {
+        let doc = speech.document
+        guard doc.paragraphs.indices.contains(paragraph) else { return nil }
+        return ReadingPages.Spot(paragraph: paragraph,
+                                 offset: speech.spokenUTF16Offset - doc.startUTF16Offset(forParagraph: paragraph))
     }
 
     private func sentence(_ paragraph: Int) -> ReaderSentence? {

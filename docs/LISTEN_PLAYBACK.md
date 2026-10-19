@@ -76,7 +76,8 @@ Rules:
 - **`nowPlaying`** (`NowPlaying`): the bound page's key, canonical URL, title (nil when the page
   has none), source (its host, or the book's or series' name for a chapter), its line one (`lineOne`:
   the title, else the source, else the address; what the bar and the lock screen name it by), byline (the lock screen's subtitle), artwork, where it plays from
-  (`PlayingFrom.folder(id:name:)` for a page in a folder, else `.site(host:)`) and phase. nil only before anything has played and after Stop
+  (`PlayingFrom.folder(id:name:)` for a page in a folder, else `.site(host:)`), whether it is a chapter (a page of a
+  book or series) and phase. nil only before anything has played and after Stop
   Listening or the page's removal or delete. `isFinished` (phase `.finished`) is what the bar and Now Playing read for "✓ Finished".
 - **Time left** is `ListeningTime`'s: one reading rate (180 words a minute, a word being 6 UTF-16
   units of the listen text; a page not yet played by its stored word count), one way to write it
@@ -632,7 +633,8 @@ wasn't holding is released, so other apps' audio can resume.
 **Lock screen / Control Center** (`NowPlayingController`):
 
 - `MPNowPlayingInfoCenter`: title = the page's title, else its site, artist = "site – Paragraph N of M" (plain text, so an
-  en dash joins the parts), album = site,
+  en dash joins the parts; for an untitled page, whose title already is its site, "Paragraph N of M", as the bar leaves
+  the site out), album = site,
   chapter number and count (paragraphs), progress N/M, favicon artwork, rate 0 while paused. For
   a chapter of a book or series: title = the chapter's, else the book's or series' name, artist =
   "<the book's byline> – Paragraph N of M", album = the book or series, artwork = the chapter's,
