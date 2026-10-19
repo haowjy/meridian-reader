@@ -205,7 +205,7 @@ struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .padding(.horizontal, Spacing.xs)
-                .frame(maxWidth: .infinity, minHeight: min(height, 56))
+                .frame(maxWidth: .infinity, minHeight: min(height, RowHeight.content))
                 .background {
                     if chosen {
                         Capsule().fill(reading?.background ?? Palette.paper)
@@ -280,7 +280,7 @@ struct TextSizeStepper: View {
             step(Icons.textLarger, "Larger Text", enabled: model.canGrow, id: "readingTextLarger", action: model.grow)
         }
         .padding(Spacing.xxs)
-        .frame(minHeight: min(height, 56) + Spacing.xs)
+        .frame(minHeight: min(height, RowHeight.content) + Spacing.xs)
         .background(ChoicePickerTrack.fill(reading), in: Capsule())
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Text Size")

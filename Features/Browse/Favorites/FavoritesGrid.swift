@@ -11,9 +11,6 @@ struct FavoritesGrid: View {
     var pageMenu: (Page) -> AnyView
     var folderMenu: (Folder, _ onTurnOffDownload: @escaping () -> Void) -> AnyView
 
-    /// A tile's icon.
-    static let tileSize: CGFloat = 60
-
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -22,7 +19,7 @@ struct FavoritesGrid: View {
             ForEach(pages, id: \.listenKey) { page in
                 Button { onOpen(page) } label: {
                     tile(title: page.lineOne) {
-                        ArtworkTile(image: page.favoriteIcon, letter: page.artworkLetter, size: Self.tileSize)
+                        ArtworkTile(image: page.favoriteIcon, letter: page.artworkLetter, size: Glyph.favoriteTile)
                     }
                 }
                 .buttonStyle(.plain)
@@ -58,14 +55,14 @@ struct FavoritesGrid: View {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(Palette.chrome)
             if let cover = folder.coverImage {
-                ArtworkTile(image: cover, letter: folder.name, size: Self.tileSize * 0.5, isCover: true)
+                ArtworkTile(image: cover, letter: folder.name, size: Glyph.favoriteCover, isCover: true)
             } else {
                 Image(systemName: folder.rowSymbol)
-                    .font(.title2)
+                    .tileSymbol()
                     .foregroundStyle(Palette.accent)
             }
         }
-        .frame(width: Self.tileSize, height: Self.tileSize)
+        .frame(width: Glyph.favoriteTile, height: Glyph.favoriteTile)
         .accessibilityHidden(true)
     }
 }
@@ -85,7 +82,7 @@ private struct FolderTile<Tile: View>: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(folder.name)
-        .accessibilityHint("Folder")
+        .accessibilityHint(String(localized: "Opens it in the Library"))
         .accessibilityIdentifier("favoriteFolderTile")
         .contextMenu { menu(folder) { turningOff = folder } }
         .turnOffDownloadQuestion($turningOff)

@@ -24,6 +24,10 @@ enum Glyph {
     /// suggestions, Following's actions): one width for a symbol or a small site tile, so every
     /// such row's text starts at one place. It grows with the text like the row.
     static let rowLeading: CGFloat = 28
+    /// A Favorites tile on the start page: a page's icon, a folder's square.
+    static let favoriteTile: CGFloat = 60
+    /// A book's cover inside its Favorites tile.
+    static let favoriteCover: CGFloat = 30
 }
 
 /// The two minimum heights of a row at the default text size; larger text grows them up to
@@ -60,8 +64,8 @@ extension View {
         modifier(RowSymbol())
     }
 
-    /// A symbol standing where a tile or a thumbnail would (a folder row's 📁, a tile in the ⋯
-    /// panel, a voice's preview, Follow's checkboxes, the morph menu's glyphs): `.title3`.
+    /// A symbol standing where a tile or a thumbnail would (a folder row's 📁, a Favorites folder
+    /// tile's, a tile in the ⋯ panel, a voice's preview, Follow's checkboxes, the morph menu's glyphs): `.title3`.
     func tileSymbol() -> some View {
         font(.title3)
     }
