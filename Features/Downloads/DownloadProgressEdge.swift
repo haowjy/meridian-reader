@@ -39,7 +39,7 @@ struct DownloadActions {
     let shell: ShellState
 
     func download(_ page: Page) {
-        report(downloads.download(page), title: page.title)
+        report(downloads.download(page), title: page.lineOne)
     }
 
     func download(_ folder: Folder) {

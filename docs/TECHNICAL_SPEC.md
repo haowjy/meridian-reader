@@ -174,9 +174,11 @@ already in the snapshot. That is also why the off-screen view keeps page scripts
 a second time, fetch, and change the DOM before Readability reads it. The app's own
 `evaluateJavaScript` calls still run.
 
-**Success and failure.** Save and the reader need a non-empty title and body. Otherwise
-extraction fails with a reason the user sees, and nothing is stored (no bookmark-only save, no
-raw snapshot).
+**Success and failure.** Save and the reader need a non-empty body. Otherwise extraction fails
+with a reason the user sees, and nothing is stored (no bookmark-only save, no raw snapshot). A
+page without a title of its own (no `<title>`, heading or title metadata) is read and saved with
+none (`PageTitle`): the Reader shows its source line alone, and rows, the bar and the lock screen
+name it by its site.
 
 **Book chapters** skip Readability: each chapter's XHTML goes through the normalizer alone, in
 one reused off-screen web view holding a blank standards-mode page, after `ReaderBookChapter.js`
@@ -230,7 +232,7 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 |-------|---------|
 | `key` | Audio cache / listen key (`ARTICLE_IDENTITY.md`); copied verbatim from `SavedArticle.id` at migration, never recomputed |
 | `urlString`, `canonicalURL` | The page; one page per canonical URL |
-| `title`, `byline`, `excerpt`, `artworkData` | Rows, Now Playing (`byline` = site domain for web pages) |
+| `title`, `byline`, `excerpt`, `artworkData` | Rows, Now Playing (`byline` = site domain for web pages; `title` "" = the page has none, read as `givenTitle`, and a row names it by `lineOne`) |
 | `contentStateRaw` | `link` (a favorite, a followed story's chapter waiting for its text; any text is a cache) or `saved` |
 | `addedAt` | When it joined the Library; nil = played without saving or removed (kept 7 days after its last play; a removed page never played, until the next launch) |
 | `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, a page is in no list, not even "Not saved", nor the bar's resume; read only while `addedAt` is nil |
@@ -303,7 +305,8 @@ Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their 
    kept: a chapter with nothing to read is dropped; a book with no body chapter left plays every
    chapter; a body chapter under 100 words joins the body chapter after it, else the one before,
    within 30,000 words; a body chapter still over 30,000 words makes the book be cut again with a
-   lower cap, at most three cuts. An untitled chapter is named by its first words.
+   lower cap, at most three cuts. A chapter neither its contents entry nor a heading names has
+   no title: rows and the bar name it by its book.
 4. Before anything is stored, the chapters are held to the size policy on the listen blocks that
    will be stored (`BookChapterFinalizer.check`): a book with nothing left to read is refused as
    unreadable; a body chapter still over 30,000 words after the last cut, or one under 100 that a

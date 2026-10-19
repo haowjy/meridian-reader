@@ -38,8 +38,8 @@ extension LibraryStore {
             let storedOld = page.listenBlocksVersion == 2 ? Page.decodeAnyListenParagraphs(page.listenBlocksData) : nil
             let old = storedOld.map { ParagraphDocument(parts: $0) }
                 ?? ParagraphDocument.forListening(plainText: page.plainText, cleanedHTML: page.cleanedHTML,
-                                                  matchingTitle: page.title, splitLong: false)
-            let new = Page.buildListenDocument(plainText: page.plainText, cleanedHTML: page.cleanedHTML, title: page.title)
+                                                  matchingTitle: page.givenTitle, splitLong: false)
+            let new = Page.buildListenDocument(plainText: page.plainText, cleanedHTML: page.cleanedHTML, title: page.givenTitle)
             let before = ParagraphPositionMap.Position(paragraph: page.positionParagraph, utf16Offset: page.positionUTF16)
             let after = ParagraphPositionMap.map(paragraph: before.paragraph, utf16Offset: before.utf16Offset, from: old, to: new)
             page.storeListenParagraphs(new.paragraphs)

@@ -37,7 +37,8 @@ struct PageRef: Hashable, Sendable {
 /// A page's text, normalized: the reading HTML is the listening HTML.
 struct PageContent: Sendable {
     var ref: PageRef
-    var title: String
+    /// nil: the page has none (`PageTitle`).
+    var title: String?
     /// Web pages: the site's own name.
     var siteName: String?
     /// Normalized HTML (`ListenContentNormalizer`).
@@ -49,7 +50,7 @@ struct PageContent: Sendable {
     /// Book chapters: the book's language. Web pages: nil (detected from the listen blocks).
     var languageCode: String?
 
-    init(ref: PageRef, title: String, siteName: String? = nil, bodyHTML: String, plainText: String,
+    init(ref: PageRef, title: String?, siteName: String? = nil, bodyHTML: String, plainText: String,
          excerpt: String, languageCode: String? = nil) {
         self.ref = ref
         self.title = title

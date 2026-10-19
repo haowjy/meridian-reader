@@ -103,7 +103,7 @@ extension LibraryStore {
         try edit("chapter text") {
             page.setText(html: content.bodyHTML, plain: content.plainText, excerpt: content.excerpt,
                          paragraphs: content.document.paragraphs)
-            if page.title.isEmpty { page.title = content.title }
+            if page.givenTitle == nil { page.givenTitle = content.title }
             keepText(of: page)
         }
     }

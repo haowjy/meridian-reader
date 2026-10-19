@@ -293,7 +293,7 @@ enum LaunchHooks {
         var article = ReaderArticle(page: page)
         if article.document.isEmpty {
             let document = Page.buildListenDocument(plainText: page.plainText, cleanedHTML: page.cleanedHTML,
-                                                    title: page.title)
+                                                    title: page.givenTitle)
             article.document = document
             article.trustedParagraphs = document.paragraphs
         }

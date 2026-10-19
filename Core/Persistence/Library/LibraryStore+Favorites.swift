@@ -39,11 +39,10 @@ extension LibraryStore {
             return existing
         }
         let canonical = ArticleIdentity.canonicalURLString(from: url)
-        let host = url.host ?? url.absoluteString
         let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return try edit("favorite link") {
-            let page = Page(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: trimmed.isEmpty ? host : trimmed,
-                            byline: host, urlString: url.absoluteString, contentState: .link, addedAt: now(),
+            let page = Page(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: trimmed,
+                            byline: url.host ?? url.absoluteString, urlString: url.absoluteString, contentState: .link, addedAt: now(),
                             sortKey: nextSortKey(in: nil), artworkData: artwork)
             page.isFavorite = true
             context.insert(page)

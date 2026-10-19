@@ -88,9 +88,10 @@ extension ReaderSheet where TextAppearance == EmptyView, Accessory == EmptyView,
     }
 }
 
-/// The top of a page in the Reader and Now Playing: its title over its source and length.
+/// The top of a page in the Reader and Now Playing: its title (none for a page without one) over
+/// its source and length.
 struct ReadingHeading: View {
-    let title: String
+    let title: String?
     /// ["example.org", "9 min"], spaced apart (`DetailLine`).
     let detail: [String]
 
@@ -98,10 +99,12 @@ struct ReadingHeading: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text(title)
-                .typeStyle(.title)
-                .foregroundStyle(reading?.ink ?? Palette.ink)
-                .accessibilityAddTraits(.isHeader)
+            if let title {
+                Text(title)
+                    .typeStyle(.title)
+                    .foregroundStyle(reading?.ink ?? Palette.ink)
+                    .accessibilityAddTraits(.isHeader)
+            }
             DetailLine(detail)
                 .typeStyle(.caption)
         }

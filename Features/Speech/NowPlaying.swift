@@ -22,7 +22,8 @@ struct NowPlaying: Equatable {
     var pageKey: UUID
     /// Web pages: what 🎧 compares against.
     var canonicalURL: String?
-    var title: String
+    /// nil: the page has none (`PageTitle`); Now Playing's title card then shows no title.
+    var title: String?
     /// The book or series for a chapter ("Pride and Prejudice"), else the site
     /// ("investopedia.com").
     var source: String
@@ -35,6 +36,8 @@ struct NowPlaying: Equatable {
     var phase: PlaybackPhase
 
     var isFinished: Bool { phase == .finished }
+    /// What the bar and the lock screen name it by: `PageTitle.lineOne`.
+    var lineOne: String { PageTitle.lineOne(title: title, source: source, address: canonicalURL) }
 }
 
 /// What a play button is for.

@@ -197,7 +197,7 @@ final class SpeechController {
         let host = raw.hasPrefix("www.") ? String(raw.dropFirst(4)) : raw
         let folder = meta?.folder
         let playingFrom: PlayingFrom = folder.map { .folder(id: $0.id, name: $0.name) } ?? .site(host: host)
-        return NowPlaying(pageKey: id, canonicalURL: meta?.canonicalURL, title: meta?.title ?? "Untitled",
+        return NowPlaying(pageKey: id, canonicalURL: meta?.canonicalURL, title: meta?.title,
                           source: folder?.isBookOrSeries == true ? folder?.name ?? host : host, byline: meta?.site,
                           artwork: meta?.artwork, playingFrom: playingFrom, phase: playbackPhase)
     }
@@ -470,12 +470,10 @@ final class SpeechController {
 
     /// What the lock screen, the bar and the language rules show for `session`, before it binds.
     func adoptMeta(of session: SpeechSession) {
-        if session.title != nil || sessionMeta?.id != session.id {
-            let meta = SessionMeta(id: session.id, title: session.title, site: session.site, artwork: session.artwork,
-                                   canonicalURL: session.canonicalURL, sourceLabel: session.sourceLabel,
-                                   folder: session.folder)
-            if meta != sessionMeta { sessionMeta = meta }
-        }
+        let meta = SessionMeta(id: session.id, title: session.title, site: session.site, artwork: session.artwork,
+                               canonicalURL: session.canonicalURL, sourceLabel: session.sourceLabel,
+                               folder: session.folder)
+        if meta != sessionMeta { sessionMeta = meta }
         let detected = session.detectedLanguage ?? ListenLanguage.detectCached(paragraphs: session.document.paragraphs)
         if sessionDetectedLanguage != detected { sessionDetectedLanguage = detected }
     }

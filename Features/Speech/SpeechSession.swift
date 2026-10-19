@@ -9,8 +9,8 @@ struct SpeechSession: Equatable, Sendable, Identifiable {
     /// Article language detected from the listen blocks (`ListenLanguage`), nil if unknown.
     /// Used when Settings → Language is Automatic.
     let detectedLanguage: String?
-    /// Lock screen / Control Center (Now Playing): the title, the site's name or the book's
-    /// author, and the favicon or cover.
+    /// Lock screen / Control Center (Now Playing): the title (nil: the page has none), the site's
+    /// name or the book's author, and the favicon or cover.
     var title: String?
     var site: String?
     var artwork: Data?
@@ -60,7 +60,7 @@ extension SpeechSession {
         let book = folder.flatMap { $0.kind.isBookOrSeries ? $0 : nil }
         return SpeechSession(id: page.listenKey, document: page.listenDocument(),
                              detectedLanguage: page.detectedLanguageBackfilling(),
-                             title: page.title, site: book?.byline ?? page.byline,
+                             title: page.givenTitle, site: book?.byline ?? page.byline,
                              artwork: page.artworkData ?? book?.coverData,
                              canonicalURL: page.origin.canonicalURL,
                              sourceLabel: page.byline, folder: folder.map(PlaybackFolder.init))
