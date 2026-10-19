@@ -404,7 +404,7 @@ final class DownloadCenter {
         updateRecords { records in
             for index in records.indices { records[index].entries.removeAll { keys.contains($0.key) } }
             // A folder's toggle stays on with nothing left in it: later pages still join.
-            records.removeAll { $0.entries.isEmpty && !($0.target.isFolder && $0.followsFolder) }
+            records.removeAll { $0.entries.isEmpty && !$0.followsFolder }
         }
     }
 
