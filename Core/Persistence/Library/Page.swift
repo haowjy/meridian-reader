@@ -117,6 +117,8 @@ final class Page {
 
     /// What names it in one line (a row, a tile, the bar, a download): `PageTitle.lineOne`.
     var lineOne: String { PageTitle.lineOne(title: givenTitle, source: source, address: urlString) }
+    /// What its artwork's letter stands for: `PageTitle.artworkLetter`.
+    var artworkLetter: String { PageTitle.artworkLetter(title: givenTitle, source: source, address: urlString) }
 
     var cleanedHTML: String {
         get { bodyHTML.flatMap { String(data: $0, encoding: .utf8) } ?? "" }

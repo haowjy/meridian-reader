@@ -38,6 +38,8 @@ struct NowPlaying: Equatable {
     var isFinished: Bool { phase == .finished }
     /// What the bar and the lock screen name it by: `PageTitle.lineOne`.
     var lineOne: String { PageTitle.lineOne(title: title, source: source, address: canonicalURL) }
+    /// What its artwork's letter stands for: `PageTitle.artworkLetter`.
+    var artworkLetter: String { PageTitle.artworkLetter(title: title, source: source, address: canonicalURL) }
 }
 
 /// What a play button is for.

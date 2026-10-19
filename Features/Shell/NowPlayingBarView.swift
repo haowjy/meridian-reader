@@ -93,9 +93,11 @@ private struct BarProgress: View {
         let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: offset, rate: speech.rateMultiplier)
         NowPlayingBar(
             title: now.lineOne,
-            detail: now.isFinished ? [ListeningTime.finishedLabel] : [now.source, ListeningTime.leftLabel(minutes: left)],
+            // Untitled, line one is already its source.
+            detail: now.isFinished ? [ListeningTime.finishedLabel]
+                : [now.title == nil ? nil : now.source, ListeningTime.leftLabel(minutes: left)].compactMap { $0 },
             artwork: cover.image(for: now.pageKey, data: now.artwork),
-            artworkLetter: now.source.isEmpty ? now.lineOne : now.source,
+            artworkLetter: now.artworkLetter,
             progress: doc.progress(atUTF16Offset: offset),
             state: speech.playState(of: .page(now.pageKey)),
             onOpen: shell.showNowPlaying,
@@ -139,7 +141,7 @@ private struct ResumeBar: View {
             title: page.lineOne,
             detail: detail(progress),
             artwork: cover.image(for: page.listenKey, data: page.artworkData),
-            artworkLetter: page.source.isEmpty ? page.lineOne : page.source,
+            artworkLetter: page.artworkLetter,
             progress: fraction(progress),
             state: actions.playState(of: page),
             identifier: "nowPlayingBarResume",
@@ -150,11 +152,13 @@ private struct ResumeBar: View {
         )
     }
 
+    /// Its source (untitled, line one is already that), then the time left or ✓ Finished.
     private func detail(_ progress: ListRow.Progress) -> [String] {
+        let source = page.givenTitle == nil ? [] : [page.source]
         switch progress {
-        case .partWay(_, let minutesLeft): [page.source, ListeningTime.leftLabel(minutes: minutesLeft)]
-        case .finished: [ListeningTime.finishedLabel]
-        default: [page.source]
+        case .partWay(_, let minutesLeft): return source + [ListeningTime.leftLabel(minutes: minutesLeft)]
+        case .finished: return [ListeningTime.finishedLabel]
+        default: return source
         }
     }
 

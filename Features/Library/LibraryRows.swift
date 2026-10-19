@@ -108,10 +108,11 @@ struct LibraryPageRow: View {
     }
 
     /// Its folder's path on the filtered home, which gathers rows from every folder; elsewhere
-    /// its site, and nothing in a folder, whose header names it.
+    /// its site, and nothing in a folder, whose header names it. Untitled, its title line is
+    /// already its site.
     private var subtitle: String? {
         if let folder = page.folder { return screenKey == .filtered ? folder.pathName : nil }
-        return page.byline.isEmpty ? nil : page.byline
+        return page.byline.isEmpty || page.givenTitle == nil ? nil : page.byline
     }
 }
 

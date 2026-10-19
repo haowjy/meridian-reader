@@ -15,7 +15,8 @@ import UIKit
 /// - A tap in the middle of the text toggles them (`tappedCentre`); a tap at either edge turns
 ///   a screen (`revealFloatingControl`) and leaves them as they are (`TapZone`).
 /// - In full screen a small play / pause floats at the bottom right (`floatingControl`) for
-///   `floatingDuration` after full screen begins, a page turn, or a tap on the text.
+///   `floatingDuration` after full screen begins, an edge tap (a page turn) or a tap on it. A tap
+///   in the middle brings the bars back instead, and they carry the play control.
 /// - While VoiceOver runs the bars never hide (`Sheet` shows them when it starts). The ☝︎ jump mode and the popovers keep them
 ///   without a rule here: the web view reports nothing in jump mode, and a popover or the ⋯
 ///   menu takes every touch until it closes.
@@ -71,8 +72,8 @@ final class ReadingChrome {
         hidden ? show() : hide()
     }
 
-    /// A page turn, a tap on the text or on the floating play / pause itself: in full screen the
-    /// floating play / pause shows for another `floatingDuration`.
+    /// An edge tap (a page turn) or a tap on the floating play / pause itself: in full screen it
+    /// shows for another `floatingDuration`.
     func revealFloatingControl() {
         guard hidden else { return }
         floatingControl = true
@@ -147,7 +148,7 @@ struct FloatingPlayButton: View {
                     chrome.revealFloatingControl()
                     action()
                 }
-                .floatingShadow(opacity: 0.2)
+                .overTextShadow()
                 .accessibilityIdentifier("fullScreenPlayPause")
                 .transition(.opacity)
             }

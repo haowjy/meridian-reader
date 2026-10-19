@@ -80,7 +80,7 @@ struct NowPlayingSheet<Reading: View, TextAppearance: View, Accessory: View, Ban
         ZStack {
             if showsJumpToAudio {
                 PillButton("Jump to Audio", style: .inverted, size: .compact, action: onJumpToAudio)
-                    .floatingShadow(opacity: 0.2)
+                    .overTextShadow()
                     .accessibilityIdentifier("nowPlayingJumpToAudio")
                     .transition(.opacity)
             }

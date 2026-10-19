@@ -15,4 +15,10 @@ enum PageTitle {
     static func lineOne(title: String?, source: String?, address: String?) -> String {
         [title, source, address].lazy.compactMap { $0 }.first { !$0.isEmpty } ?? ""
     }
+
+    /// What a page's artwork shows the first letter of when it has no picture: its source, else
+    /// its title, else its address.
+    static func artworkLetter(title: String?, source: String?, address: String?) -> String {
+        [source, title, address].lazy.compactMap { $0 }.first { !$0.isEmpty } ?? ""
+    }
 }

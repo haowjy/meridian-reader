@@ -111,7 +111,7 @@ struct NowPlayingScreen: View {
         if let html = readingHTML(now, article: article) {
             SpokenText(speech: speech, html: html,
                        card: TitleCardContent(title: article.map(\.title) ?? now.title, source: now.source,
-                                              letter: now.source.isEmpty ? now.lineOne : now.source,
+                                              letter: now.artworkLetter,
                                               artwork: now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))),
                        finished: now.isFinished, scrubMap: scrubMap, scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,

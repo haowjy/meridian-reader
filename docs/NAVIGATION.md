@@ -855,8 +855,9 @@ Both sheets read full screen the same way (`ReadingChrome`); Follow's chapter pr
 - **A small ▶ / ⏸ floats at the bottom right** in full screen (a 44 pt accent disc with the
   floating shadow, above the home indicator, at the page margin): Now Playing's plays and pauses
   what you hear; the Reader's is its Listen (and turns it into Now Playing). It fades out 3 s after
-  full screen begins; a page turn, or a tap on it, brings it back for another 3 s. It isn't there
-  while the bars show.
+  full screen begins; an edge tap (a page turn), or a tap on it, brings it back for another 3 s. A
+  tap in the middle brings the bars back instead, with their play control. It isn't there while
+  the bars show.
 - **At the top**, a pull down in full screen rubber-bands and brings the bars back, never closing
   the sheet; a pull that begins with the bars showing closes it as usual, and while it pulls the
   sheet it never hides or shows the bars.

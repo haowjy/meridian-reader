@@ -86,7 +86,7 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
             if chrome != nil, isUp {
                 // Full screen: the page runs up to the screen's top edge.
                 palette.background
-                    .frame(height: statusBarHeight + Spacing.xs)
+                    .frame(height: statusBarHeight + Self.topGap)
                     .frame(maxHeight: .infinity, alignment: .top)
                     .ignoresSafeArea()
                     .opacity(fullScreen ? 1 : 0)
@@ -114,7 +114,7 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
                         .ignoresSafeArea(edges: .bottom)
                 }
                 .readingSurface(palette)
-                .padding(.top, Spacing.xs)
+                .padding(.top, Self.topGap)
                 .scaleEffect(pullLook.scale, anchor: .top)
                 .offset(y: pull)
                 .transition(.sheet(reduceMotion: reduceMotion))
@@ -167,7 +167,7 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
                     headerHeight = $0
                     chrome.insets.top = $0
                 }
-                .offset(y: slides ? -(headerHeight + statusBarHeight + Spacing.xs) : 0)
+                .offset(y: slides ? -(headerHeight + statusBarHeight + Self.topGap) : 0)
                 .opacity(hidden ? 0 : 1)
                 .allowsHitTesting(!hidden)
                 .accessibilityHidden(hidden)
@@ -281,6 +281,10 @@ extension Sheet where Header == EmptyView, Band == EmptyView, OverText == EmptyV
 }
 
 extension Sheet {
+    /// The gap between the status bar and the sheet's top edge; in full screen the page's colour
+    /// fills it with the status bar's strip.
+    static var topGap: CGFloat { Spacing.xs }
+
     /// The dim behind the sheet at rest. A dark theme's is heavier: the strip above it carries
     /// light status bar content, so it has to read dark over a light surface.
     static func maxDim(_ palette: ReadingPalette) -> Double {
