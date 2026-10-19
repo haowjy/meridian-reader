@@ -30,7 +30,7 @@ changing the shell code.
   starts fresh. Programmatic closes (Website, navigating) just remove it.
 - **The Reader and Now Playing draw in the reading theme** (`Sheet(palette:)`, a `ReadingPalette`
   from `ReadingAppearance`), the same for both; `readingSurface` sets `readingPalette` and the
-  theme's colour scheme on what they hold, and components that sit on both read it. A dark theme
+  theme's colour scheme on what they hold, and components that sit on both read it (`reading?.x ?? Palette.x`): everything that can float over the text does, the toast, the Now Playing bar and `PlayStateButton` included, so no app colour shows on a reading theme. A dark theme
   (Dark, Black) over a light app gets light status bar content from a clear window that takes no
   touches, shown just above the app's while the sheet is up
   (`DesignSystem/Chrome/SystemBars.swift`); SwiftUI's own route, a colour scheme for the

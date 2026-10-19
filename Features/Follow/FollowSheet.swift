@@ -202,16 +202,8 @@ private struct FollowReview: View {
         let kept = flow.keptChapters(of: contents).count
         let symbol = kept == contents.chapters.count ? Icons.included : kept == 0 ? Icons.excluded : Icons.partlyIncluded
         return Button { flow.toggleAll(in: contents) } label: {
-            HStack(spacing: Spacing.s) {
-                FollowCheckbox(symbol: symbol)
-                Text("Select All")
-                    .typeStyle(.row)
-                    .foregroundStyle(Palette.ink)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, Spacing.m)
-            .frame(minHeight: BottomChrome.minTapTarget)
-            .contentShape(Rectangle())
+            SymbolRow(String(localized: "Select All")) { FollowCheckbox(symbol: symbol) } trailing: { EmptyView() }
+                .padding(.horizontal, Spacing.m)
         }
         .buttonStyle(.plain)
         .accessibilityValue(kept == contents.chapters.count ? "All" : kept == 0 ? "None" : "Some")
@@ -220,7 +212,7 @@ private struct FollowReview: View {
 }
 
 /// A chapter in Review: its box (keep or leave out), then its title and address, which open its
-/// preview.
+/// preview. Two controls in a `SymbolRow`'s shape: the box in its leading column, at its height.
 private struct FollowChapterRow: View {
     let chapter: TableOfContents.Chapter
     let isKept: Bool
@@ -231,9 +223,10 @@ private struct FollowChapterRow: View {
         HStack(spacing: 0) {
             Button(action: onToggle) {
                 FollowCheckbox(symbol: isKept ? Icons.included : Icons.excluded)
+                    .frame(width: Glyph.rowLeading)
                     .padding(.leading, Spacing.m)
                     .padding(.trailing, Spacing.s)
-                    .frame(minHeight: BottomChrome.minTapTarget)
+                    .frame(minHeight: RowHeight.compact)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -255,12 +248,12 @@ private struct FollowChapterRow: View {
                     }
                     Spacer(minLength: 0)
                     Image(systemName: Icons.disclosure)
-                        .imageScale(.small)
+                        .disclosureSymbol()
                         .foregroundStyle(Palette.tertiaryInk)
                 }
                 .padding(.trailing, Spacing.m)
-                .padding(.vertical, Spacing.xs)
-                .frame(minHeight: BottomChrome.minTapTarget)
+                .padding(.vertical, Spacing.xxs)
+                .frame(minHeight: RowHeight.compact)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
