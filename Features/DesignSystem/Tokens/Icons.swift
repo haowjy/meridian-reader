@@ -79,15 +79,19 @@ enum Icons {
     static let sort = "arrow.up.arrow.down"
     /// Select (Edit's check circles).
     static let select = "checkmark.circle"
-    /// Checked, one concept in two places: the chosen option in a list or menu (where the system
-    /// draws the same ✓ in its own pickers), and a page heard to its end (✓ before "Finished",
-    /// and *Mark as Finished*, which sets it). Not Select's circle, nor the filled circle that
-    /// means downloaded.
+    /// Checked: the chosen option in a list or menu (where the system draws the same ✓ in its own
+    /// pickers). Not Select's circle, nor the filled circle that means downloaded, nor a finished
+    /// page (that is the listening ring, full).
     static let checkmark = "checkmark"
-    static let markFinished = checkmark
-    static let markUnfinished = "circle"
-    /// Mark All Above as Finished: several ✓ at once (the circle-✓ is *Select*'s).
-    static let markAllAboveFinished = "checklist.checked"
+    /// Mark as Finished: a filled circle, the listening ring made full (a finished page shows the
+    /// full `ProgressRing` before "Finished"; rings mean listening, ✓ is selection's and
+    /// downloaded's). Filled, not the bare ring, so Edit's toolbar slot doesn't read as one of
+    /// Edit's empty selection circles.
+    static let markFinished = "circle.fill"
+    /// Mark as Unfinished: the ring undone.
+    static let markUnfinished = "circle.dashed"
+    /// Mark All Above as Finished: a list of pages, rings full (no ✓; the circle-✓ is *Select*'s).
+    static let markAllAboveFinished = "list.bullet.circle"
     static let skipInPlayback = "forward.end"
     static let includeInPlayback = "play.square"
     static let photo = "photo"

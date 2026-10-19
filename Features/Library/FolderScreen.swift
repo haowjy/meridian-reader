@@ -26,10 +26,10 @@ import SwiftUI
 ///             Download                   More
 ///  📁 Bonds                                ⋯
 ///     4 pages
-///  ▣ Coupon Basics                         ⋯
-///  ▣ ✓ ✓ Finished                               ← downloaded, finished
-///  ▣ Seven-Day Yield                       ⋯   ← playing: tinted, with bars
-///  ▣ ▂▅▇ Playing
+///  ▣ Coupon Basics                      ●  ⋯
+///  ▣ ✓ Finished                                 ← downloaded, finished (● the ring, full)
+///  ▣ Seven-Day Yield                   ▂▅▇ ⋯   ← playing: tinted, with bars
+///  ▣ Playing                                     (marks in the trailing listening column)
 ///  🔗  investing.example.com                ⋯   (link: lighter)
 /// ```
 struct FolderScreen: View {

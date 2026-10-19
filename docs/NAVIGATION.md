@@ -216,7 +216,7 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   by space, the time in lighter ink; at the playback speed, written as rows write it: "9 min left",
   "6 h 10 min left"), a thin progress line along its bottom edge, and
   play/pause centered over the ⋯ slot. It looks the same on the browser, the start page, the
-  Library and the Reader sheet. At the end of a page it stays, reading ✓ Finished, and ▶ plays
+  Library and the Reader sheet. At the end of a page it stays, reading ◉ Finished, and ▶ plays
   the page again. Tap or swipe up → Now Playing; long-press → the page's menu ("Menus", below;
   its *Remove from Library* stops the page you hear, as anywhere else), then *Stop Listening*
   (unloads the page; dimmed on the page played last, which nothing has loaded).
@@ -349,7 +349,7 @@ commas.
   **Edit** (top right), or *Select* in a row's
   menu (Edit with that row selected), puts check circles on the rows, and drag handles
   (pages only when the sort is *Manual*); the toolbar keeps its five slots and shows
-  *Move to…* (📁, slot 1), *Mark as Finished* (✓, the middle) and *Remove* (🗑, ⋯'s slot) as
+  *Move to…* (📁, slot 1), *Mark as Finished* (●, the listening ring made full, the middle) and *Remove* (🗑, ⋯'s slot) as
   symbols for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
   their delete is saved (*Cancel* keeps them selected). ⋯: the folder's own menu, then *Sort ›,
@@ -468,10 +468,12 @@ page row (a chapter too) is exactly two lines (decision D21): its title (its sit
 then one short line of what it is and where it stands, with a small thumbnail as tall as the two
 lines. Its site comes first on that line everywhere (none for a page without a title, whose
 first line already is its site), except in a book or series, whose header names the source once;
-on Favorites, Recent and in search a page in a folder shows its folder's path there instead. The listening mark stays before the
-time: nothing before a length not yet started ("18 min"), a small ring part-way ("◔ 6 min left";
-the only rings in the app are listening), the playing row tinted with still or moving bars and
-"Playing" (or "Paused") in the accent, ✓ Finished plain; every time at the playback speed.
+on Favorites, Recent and in search a page in a folder shows its folder's path there instead. The listening mark stands in a
+fixed-width column at the row's trailing edge, just before the ⋯, so the rings line up down the list
+(C88): nothing before a start (the column kept; line two says "18 min"), a small ring part-way
+(line two "6 min left"; the only rings in the app are listening), the same ring full once finished
+(line two "Finished"; no ✓), and still or moving accent bars while it plays or is paused (the row
+tinted, "Playing" or "Paused" in the accent); every time at the playback speed.
 
 The row's only control is **⋯** at its trailing edge, centred on the toolbar's ⋯ slot as the
 bar's ⏸ is; a long press opens the same menu (the item's one menu, "Menus" below; decision
@@ -812,7 +814,7 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   stays readable. A **title card** at the top of the text (it scrolls with the text) shows the
   artwork, line one as the Now Playing bar has it (the title; for a page without one its site,
   `PageTitle.lineOne`), and the site and time left as two parts, the site left out when line one
-  is already it (*✓ Finished* at the end). The
+  is already it (*◉ Finished* at the end). The
   spoken paragraph is in full ink on the theme's highlight, the others dimmed (a paragraph
   pressed while ☝︎ is on is in full ink too). The *Jump to Audio* pill is ink with the page's
   colour for its text; the scrub capsule, the bubble, the jump hint, the ⋯ panel and the speed
@@ -847,7 +849,7 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   Tap it (or start another page) and following resumes. Scrubbing scrolls to the paragraph under
   the thumb.
 - **At the end** it stays on the page: the text stays, all of it in full ink, the title card
-  says "✓ Finished" where the time left was (the Reader shows the page's length), and ▶
+  says "◉ Finished" where the time left was (the Reader shows the page's length), and ▶
   plays the page again.
 - **Controls** (today's listen rows): the scrub capsule (the speed at its trailing end) and
   `[🔖][⏮][▶︎][⏭][⋯]` in the browser's five-slot grid (🔖 under ‹, ⏮ under ›, ▶︎ under 🔖, ⏭

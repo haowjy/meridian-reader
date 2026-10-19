@@ -69,7 +69,7 @@ private struct HistoryRow: View {
                                                               address: visit.urlString)),
                     title: visit.lineOne, subtitle: visit.title.isEmpty ? nil : visit.host,
                     note: visit.visitedAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)),
-                    menu: menu)
+                    menu: menu, showsListening: false)
                 .opensOnTap { onOpen(visit) }
                 .contextMenu { menu }
                 .accessibilityAddTraits(.isButton)

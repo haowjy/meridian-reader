@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Now Playing's bottom band (in the reading theme's colours), top to bottom: the status notes (buffering, the Apple-fallback and
-/// language notes, the developer Debug chip; "✓ Finished" is the title card's), the scrub row (sentence-precise
+/// language notes, the developer Debug chip; "● Finished" is the title card's), the scrub row (sentence-precise
 /// scrubber, the speed at its end) and the transport row (🔖 and ⋯ in the Reader's slots). Notes sit above the scrubber so appearing text
 /// never pushes it when you skip.
 ///
@@ -24,7 +24,7 @@ struct NowPlayingControls: View {
 
     private var palette: ReadingPalette { reading ?? .app }
 
-    /// The same fact the title card reads for its "✓ Finished".
+    /// The same fact the title card reads for its "● Finished".
     private var isFinished: Bool { speech.nowPlaying?.isFinished == true }
 
     var body: some View {
@@ -95,7 +95,7 @@ struct NowPlayingControls: View {
             .padding(.horizontal, Spacing.xs)
         }
         if isFinished {
-            // The title card says "✓ Finished"; no note under it.
+            // The title card says "● Finished"; no note under it.
             EmptyView()
         } else if speech.isBufferingNext {
             HStack(spacing: Spacing.xs) {

@@ -25,7 +25,8 @@ struct DetailLine: View {
         self.init(parts: parts.compactMap { $0 }.map { DetailPart($0) })
     }
 
-    /// Parts that may carry a symbol (`DetailPart.finished`); empty ones are left out.
+    /// Parts that may carry a symbol or a listening ring (`DetailPart.finished`); empty ones are
+    /// left out.
     init(parts: [DetailPart]) {
         self.parts = parts.filter { !$0.text.isEmpty }
     }
@@ -34,6 +35,7 @@ struct DetailLine: View {
         DetailLineLayout(spacing: spacing) {
             ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
                 HStack(spacing: Spacing.xxs) {
+                    if let ring = part.ring { ProgressRing(fraction: ring) }
                     if let symbol = part.symbol { Image(systemName: symbol) }
                     Text(part.text)
                 }
@@ -56,16 +58,19 @@ struct DetailLine: View {
     }
 }
 
-/// One part of a `DetailLine`: its text, after a symbol when it has one.
+/// One part of a `DetailLine`: its text, after a symbol or a listening ring when it has one.
 struct DetailPart: Hashable, ExpressibleByStringLiteral {
     let text: String
     var symbol: String?
+    /// A listening `ProgressRing` before the text, this full (0–1). Rings mean listening only.
+    var ring: Double?
     /// What VoiceOver reads for it, when the symbol says something the text doesn't.
     var spoken: String?
 
-    init(_ text: String, symbol: String? = nil, spoken: String? = nil) {
+    init(_ text: String, symbol: String? = nil, ring: Double? = nil, spoken: String? = nil) {
         self.text = text
         self.symbol = symbol
+        self.ring = ring
         self.spoken = spoken
     }
 
@@ -73,8 +78,9 @@ struct DetailPart: Hashable, ExpressibleByStringLiteral {
         self.init(text)
     }
 
-    /// A page heard to its end: ✓ and "Finished", as a row's status draws it.
-    static var finished: DetailPart { DetailPart(ListeningTime.finishedLabel, symbol: Icons.checkmark) }
+    /// A page heard to its end: the listening ring, full, and "Finished", as a row's status draws
+    /// it (no ✓: that is selection's and the downloaded badge's).
+    static var finished: DetailPart { DetailPart(ListeningTime.finishedLabel, ring: 1) }
 
     /// `text` after the grey ✓ a downloaded row starts its second line with (a page's, a
     /// download's, a voice model's in Settings).

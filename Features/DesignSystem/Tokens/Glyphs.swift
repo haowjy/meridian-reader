@@ -3,8 +3,12 @@ import SwiftUI
 /// Fixed sizes of small glyphs and indicators. They are sizes, not spacing, so changing the
 /// spacing scale never resizes them.
 enum Glyph {
-    /// A part-way listening ring before a row's time left (rings mean listening, nothing else).
+    /// A listening ring in a row's trailing column, part-way or full (rings mean listening,
+    /// nothing else); the playing bars there.
     static let ring: CGFloat = 12
+    /// A row's trailing listening column, just before its ⋯: one width whether it holds a ring,
+    /// the bars or nothing, so every row's ring lines up (`ListRow`).
+    static let listeningColumn: CGFloat = 20
     /// The stroke of a ring, a drop target's outline and a chosen swatch's ring.
     static let stroke: CGFloat = 2
     /// Playing bars beside a row's status; the empty slot beside the address field's text.

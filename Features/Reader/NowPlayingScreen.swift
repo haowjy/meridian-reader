@@ -20,7 +20,7 @@ import SwiftUI
 ///   then a tap on a paragraph plays from there; 🔖 saves / removes (tap) or files the page
 ///   (long-press, *Save to Folder…*); ⋯ is the Reader's menu. Both act through `PageActions`, as
 ///   in the Reader.
-/// - At the end it stays: the text stays, all in full ink, the title card says "✓ Finished"
+/// - At the end it stays: the text stays, all in full ink, the title card says "● Finished" (the ring, full)
 ///   (the one place it shows, where the Reader shows the page's length), ▶ plays it again.
 /// - Scrolling down reads full screen, as in the Reader (`NowPlayingSheet`, `ReadingChrome`): the
 ///   text still follows the audio, a page turn by a tap stops following as a drag does, and a link
@@ -251,7 +251,7 @@ private struct SpokenText: View {
         )
     }
 
-    /// The title card: the site and time left (or ✓ Finished). Replaced in the page only when its
+    /// The title card: the site and time left (or the full ring and Finished). Replaced in the page only when its
     /// text changes, so once a minute at most while playing.
     private var titleCard: ReadingTopView {
         let doc = speech.document

@@ -249,7 +249,7 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `bodyHTML`, `plainTextData` | Offline reading; the listen text comes from the HTML |
 | `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount`. Words are counted by one rule, `WordCount`, for web pages and chapters alike (each Chinese or Japanese character is a word); every text write goes through `Page.setText` |
 | `positionParagraph`, `positionUTF16` | Resume position (paragraph + offset inside the document) |
-| `lastPlayedAt`, `finishedAt` | Recent's order, the prune and the bar's resume, and a row's "✓ Finished" |
+| `lastPlayedAt`, `finishedAt` | Recent's order, the prune and the bar's resume, and a row's "◉ Finished" |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
 | `skipsInPlayback` | Pages in folders (book front matter, *Skip in Playback*): what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |

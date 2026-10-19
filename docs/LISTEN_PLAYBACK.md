@@ -55,7 +55,7 @@ Rules:
   carries on, and otherwise the session finishes.
 - At the end of a page (or of a book or series) the engines stop, the audio session deactivates
   and the lock screen clears, but the page stays bound in `finished`: the Now Playing bar keeps it
-  with ▶ and ✓ Finished. Only *Stop Listening* (the bar's long-press) unbinds it, or the
+  with ▶ and ◉ Finished. Only *Stop Listening* (the bar's long-press) unbinds it, or the
   library changing the page under it: removed from the Library (once that is saved), deleted,
   its text revised by a *Replace*, or moved by a merge onto a page holding other text
   (`LibraryStore.stopPlaybackIfPlaying`, `rekeyActiveSession` → `SpeechController.stopIfPlaying`,
@@ -78,7 +78,7 @@ Rules:
   the title, else the source, else the address; what the bar and the lock screen name it by), byline (the lock screen's subtitle), artwork, where it plays from
   (`PlayingFrom.folder(id:name:)` for a page in a folder, else `.site(host:)`), whether it is a chapter (a page of a
   book or series) and phase. nil only before anything has played and after Stop
-  Listening or the page's removal or delete. `isFinished` (phase `.finished`) is what the bar and Now Playing read for "✓ Finished".
+  Listening or the page's removal or delete. `isFinished` (phase `.finished`) is what the bar and Now Playing read for "◉ Finished".
 - **Time left** is `ListeningTime`'s: one reading rate (180 words a minute, a word being 6 UTF-16
   units of the listen text; a page not yet played by its stored word count), one way to write it
   ("9 min left", "6 h 10 min left"), and an explicit playback rate at every call. Every surface

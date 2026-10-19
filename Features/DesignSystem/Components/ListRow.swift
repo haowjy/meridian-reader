@@ -6,11 +6,11 @@ import SwiftUI
 /// 📁 Bonds                                       ⋯   folder: its count on the second line
 ///    2 folders   3 pages
 /// ▣  Pride and Prejudice                         ⋯   book: its place and time left
-///    Ch 24   ◐ 6 h 10 min left
-/// ▣ Coupon Basics                                ⋯   page, downloaded: the grey ✓ badge
-/// ▣ ✓ example.com   ✓ Finished
-/// ▣̲ Seven-Day Yield                              ⋯   page, playing and downloading: tinted,
-/// ▣ ▂▅▇ Playing                                       bars; the tile dimmed under a jade ↓
+///    Ch 24   6 h 10 min left                ◐  ⋯   (the listening column: ◐ part-way)
+/// ▣ Coupon Basics                             ●  ⋯   page, downloaded: the grey ✓ badge;
+/// ▣ ✓ example.com   Finished                          ● the same ring, full
+/// ▣̲ Seven-Day Yield                          ▂▅▇ ⋯   page, playing and downloading: tinted,
+/// ▣ Playing                                           bars; the tile dimmed under a jade ↓
 /// 🔗 serials.example.com                              link: lighter
 /// ```
 ///
@@ -20,6 +20,13 @@ import SwiftUI
 /// spaced apart, never joined by a separator: the first in secondary ink, the rest in tertiary,
 /// the status in the accent while it is what you hear ("Playing", "Paused"). The leading parts
 /// give way first, and at accessibility sizes the status shows alone.
+///
+/// Its listening mark stands in a fixed-width column at the trailing edge, just before the
+/// accessory and the ⋯ (`Glyph.listeningColumn`), so every row's ring lines up: a ring part-way,
+/// the same ring full once finished, the bars while it is what you hear, and nothing (the column
+/// kept, so nothing shifts) before it starts. Line two keeps the words ("18 min", "6 min left",
+/// "Finished", "Playing"). Rows with no listening (a folder with its count, a book preview's
+/// chapter, `showsListening` false: browser visits, downloads) have no column.
 ///
 /// Its download (`download`) shows on the row itself, never as a button: downloading dims the
 /// thumbnail under a small jade ↓ (grey while paused), downloaded puts a grey ✓ before the second
@@ -79,6 +86,9 @@ struct ListRow: View {
     var menuAnchor: AnyView?
     /// A control of the row's own, 44 pt, just before the ⋯ (a download's pause / resume).
     var accessory: AnyView?
+    /// Whether the row has the trailing listening column (false where listening never shows:
+    /// browser visits, the Downloads list).
+    var showsListening = true
 
     /// `RowHeight.content` at the default text size; larger text grows the row through its
     /// content, and the minimum only up to `BottomChrome.maxTextGrowth`.
@@ -121,6 +131,11 @@ struct ListRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 // The separator under the row starts at the title, for every kind of row.
                 .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+            }
+            if hasListeningColumn {
+                listeningMark
+                    .frame(width: Glyph.listeningColumn)
+                    .accessibilityHidden(true)
             }
             if let accessory {
                 accessory
@@ -216,7 +231,7 @@ struct ListRow: View {
     // MARK: - Second line
 
     /// The ✓ badge once downloaded, the subtitle, the note, then the status, spaced apart on one
-    /// line: "✓ example.org   ◐ 4 min left". The subtitle and note give way first; at
+    /// line: "✓ example.org   4 min left" (the ring is the trailing column's). The subtitle and note give way first; at
     /// accessibility sizes they are left out and the status truncates if it must, so the line
     /// never wraps or widens the row.
     @ViewBuilder
@@ -251,37 +266,46 @@ struct ListRow: View {
     }
 
     private func statusView(_ status: String, isLead: Bool) -> some View {
-        HStack(spacing: Spacing.xxs) {
-            switch statusMark {
-            case .bars:
-                PlayingBars(animating: playState == .playing)
-                    .frame(width: Glyph.ring, height: Glyph.ring)
-            case .ring(let fraction):
-                ProgressRing(fraction: fraction)
-            case .check:
-                Image(systemName: Icons.checkmark)
-            case nil:
-                EmptyView()
-            }
-            Text(status)
+        Text(status)
+            .foregroundStyle(playState.isCurrent ? Palette.accent
+                             : isLead ? Palette.secondaryInk : Palette.tertiaryInk)
+            .monospacedDigit()
+    }
+
+    /// The trailing listening column: a page's, a chapter's, a book's whose pages play. Not a
+    /// folder with its count, nor a book preview's chapter, nor where listening never shows.
+    private var hasListeningColumn: Bool {
+        guard showsListening, folderCount == nil else { return false }
+        if case .chapter = kind { return false }
+        return true
+    }
+
+    /// The column's mark, centred: bars, a ring, or nothing (the column keeps its width).
+    @ViewBuilder
+    private var listeningMark: some View {
+        switch statusMark {
+        case .bars:
+            PlayingBars(animating: playState == .playing)
+                .frame(width: Glyph.ring, height: Glyph.ring)
+                .foregroundStyle(Palette.accent)
+        case .ring(let fraction):
+            ProgressRing(fraction: fraction)
+        case nil:
+            Color.clear.frame(width: Glyph.ring, height: Glyph.ring)
         }
-        .foregroundStyle(playState.isCurrent ? Palette.accent
-                         : isLead ? Palette.secondaryInk : Palette.tertiaryInk)
-        .monospacedDigit()
     }
 
     private enum StatusMark {
         case bars
         case ring(Double)
-        case check
     }
 
-    /// Bars while it is what you hear, a ring part-way (rings mean listening, nothing else), ✓
-    /// once finished.
+    /// Bars while it is what you hear, a ring part-way and the same ring full once finished (rings
+    /// mean listening, nothing else; ✓ is selection's and the downloaded badge's).
     private var statusMark: StatusMark? {
         if playState.isCurrent { return .bars }
         if case .partWay(let fraction, _) = progress { return .ring(fraction) }
-        if case .finished = progress { return .check }
+        if case .finished = progress { return .ring(1) }
         return nil
     }
 

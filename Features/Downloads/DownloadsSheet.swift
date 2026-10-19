@@ -162,7 +162,7 @@ struct DownloadsList: View {
         let menu = AnyView(downloadMenu)
         return ListRow(kind: shown.kind, title: shown.title, subtitle: parts.first, details: Array(parts.dropFirst()),
                        download: item.status == .done ? .downloaded : .notDownloaded, folderHasDetails: shown.hasDetails,
-                       menu: menu, accessory: transfer(item))
+                       menu: menu, accessory: transfer(item), showsListening: false)
             .opensOnTap { open(record.target) }
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {

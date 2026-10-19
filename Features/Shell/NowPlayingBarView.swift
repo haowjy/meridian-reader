@@ -148,7 +148,7 @@ private struct ResumeBar: View {
         )
     }
 
-    /// Its source (untitled, line one is already that), then the time left or ✓ Finished.
+    /// Its source (untitled, line one is already that), then the time left or the full ring and Finished.
     private func detail(_ progress: ListRow.Progress) -> [DetailPart] {
         let source = PageTitle.lineTwoSource(title: page.givenTitle, source: page.source).map { [DetailPart($0)] } ?? []
         switch progress {
