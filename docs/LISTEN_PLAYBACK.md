@@ -605,9 +605,10 @@ choice row is one `SettingsChoiceRow` (title, optional one-line subtitle, fixed 
 check slots, min height 48), so state changes never move rows.
 
 1. **Engines**: Apple and the registry's on-device engines. State lives in the subtitle
-   ("Downloading… 42%", "Preparing voice…", "Ready (recommended)") and the accessory (the
-   download's filling arrow, `DownloadMark`, as every download shows; tapping it cancels). Swipe to delete a downloaded engine; crash and failure
-   notices in the footer.
+   ("Downloading… 42%", "Preparing voice…", "Ready (recommended)"; a downloaded engine's starts
+   with the grey ✓, `DetailPart.downloaded`) and the accessory (the download's filling arrow,
+   `DownloadMark`, as every download shows; tapping it cancels). Swipe left on a downloaded
+   engine for *Remove Download*; crash and failure notices in the footer.
 2. **Voice ›** (`VoicePage`): the selected engine's voices (the engine ticked; Kokoro: curated
    rows with preview, the default one marked "(default)"; Apple: "System default" and
    good-quality system voices for the language).
