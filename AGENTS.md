@@ -47,7 +47,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   empty library and the stored settings cleared, as on a fresh install), `-selectEngine apple` (or
   `test.voice`, `local.kokoro`). The seeds add to that: `-seedDemoArticle` (`-seedDemoPlainText`,
   `-seedPlayedPages N`), `-seedDemoBook` (a demo book; `-seedDemoBookPlace N` puts it part-way,
-  `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedBookmarks`. Other options:
+  `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedBookmarks`, `-seedHistory` (visits in the browser's History). Other options:
   `-importTestEPUB` (*Import Book…* takes a synthetic EPUB instead of the Files picker;
   `-playTestEPUB` imports it at launch and plays it), `-browseTestPages` (offline `reader-test://`
   pages; page one links to an article with no title and to a story to follow, `-testStoryChapters N` lengthens its contents and
