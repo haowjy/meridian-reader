@@ -69,7 +69,7 @@ struct FolderDetailsSheet: View {
                 .listCard()
             }
             .cardListStyle()
-            .navigationTitle(String(localized: "Edit Details"))
+            .navigationTitle(Verbs.title(Verbs.editDetails))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 SheetBarButton(Verbs.cancel, placement: .cancellationAction, identifier: "detailsCancel") {

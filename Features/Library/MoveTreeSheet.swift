@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// The Move tree: one sheet for Move, *Save to Library…* and 🔖's *Save to Folder…* (the import
+/// The Move tree: one sheet for *Move to…* and *Save to Folder…* (a menu's row, 🔖 held; the import
 /// sheet's *Add to* pushes the same list, `MoveTreeList`). The whole tree as
 /// one indented list, like Safari's bookmark-folder picker; one tap files, ✓ marks the current
 /// place. *New Folder* makes one at the top level; a folder's

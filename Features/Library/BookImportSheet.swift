@@ -53,7 +53,7 @@ struct BookImportSheet: View {
                 }
             }
             .cardListStyle()
-            .navigationTitle(String(localized: "Import Book"))
+            .navigationTitle(Verbs.title(Verbs.importBook))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
             .navigationDestination(isPresented: $flow.isChoosingDestination) {

@@ -31,7 +31,7 @@ enum ShellSheet: Identifiable, Equatable {
     case history
     case settings
     case share(URL)
-    /// The Move tree: Move, *Save to Library…*, 🔖's *Save to Folder…*.
+    /// The Move tree: *Move to…*, and *Save to Folder…* (a menu's row, 🔖 held).
     case moveTo(MoveRequest)
     /// A book being imported: its progress, *Add to*, and D13's question.
     case importBook(BookImportFlow)
