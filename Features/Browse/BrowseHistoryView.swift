@@ -85,10 +85,6 @@ private struct VisitMenu: View {
     let library: LibraryStore
 
     var body: some View {
-        MenuRows(blocks: [
-            PageMenu(actions: actions, place: .elsewhere).rows,
-            [MenuRow(id: "menuRemoveFromHistory", title: Verbs.removeFromHistory, icon: Icons.delete,
-                     isDestructive: true) { library.removeVisit(visit) }],
-        ])
+        PageMenu(actions: actions, place: .history(onRemove: { library.removeVisit(visit) }))
     }
 }

@@ -1,41 +1,39 @@
 import SwiftUI
 
-/// A page's menu: the one definition every way to a page's menu renders (decision C4), as a
+/// A page's menu: the one definition every way to a page's menu renders (decisions C4, C98), as a
 /// row's ⋯ and long press (`MenuRows`, through this view) and as the item block of the ⋯ panel
-/// (`rows`). Library rows on every tab and in search, a folder's rows, Favorites tiles, History
-/// visits, the Now Playing bar, the Reader, Now Playing and the browser all show these rows, in
-/// this order, with these names and symbols:
-///
-/// | Row | Shows |
-/// |---|---|
-/// | Read / Go to <place> | *Read* where the page isn't open (hidden in the Reader, Now Playing and the browser); Now Playing's *Go to* in its place |
-/// | Play from Here | a page in a folder, in a list |
-/// | Download / Remove Download (red) | dimmed out of the Library |
-/// | Add to / Remove from Favorites | dimmed when it can't be starred |
-/// | Move to… / Save to Folder… | *Save to Folder…* while the Library hasn't its text (`offersSave`), *Move to…* after |
-/// | Mark as Finished / Unfinished | dimmed until saved |
-/// | Mark All Above as Finished | a page in a folder, in a list |
-/// | Skip in / Play in Playback | a page in a folder |
-/// | Share | a page with a web address |
-/// | Select | a list with Edit |
-/// | Save to Library / Remove from Library (red) | the same face; *Save to Library* dimmed with no text to save |
-/// | Remove from Recent (red) | out of the Library; dimmed while it isn't in Recent |
-///
-/// A place only hides or dims rows (DR-09: hidden where the row can never apply there, dimmed
-/// where it applies but can't run now); what a place adds of its own comes after, in its own
-/// block. *Remove Download* takes the page out of every download and keeps it out (P8).
+/// (`rows`). Which options show where, in what order and greyed or not is `MenuRegistry`'s
+/// (docs/MENUS.md); this gives each its title, symbol and action. Built only when the menu opens:
+/// rows pass this view, never its `rows`, so nothing here runs on a row's redraw.
 struct PageMenu: View {
-    /// Where the menu opens: what decides the rows that can't apply there.
+    /// Where the menu opens.
     enum Place {
-        /// A Library list's row (every tab, search, a folder's screen). `onSelect`: *Select*,
-        /// Edit with this row selected (folder screens only).
-        case list(onSelect: (() -> Void)?)
-        /// A Favorites tile on the start page, a History visit, the Now Playing bar.
+        /// A Library list's row (every tab, search, a folder's screen).
+        case list
+        /// A Favorites tile on the start page.
         case elsewhere
-        /// The Reader and the browser, which show the page.
+        /// The Now Playing bar's long press; `onStop`: *Stop Listening* (nil: nothing loaded).
+        case bar(onStop: (() -> Void)?)
+        /// A History visit; `onRemove`: *Remove from History*.
+        case history(onRemove: () -> Void)
+        /// The Reader, which shows the page.
         case open
+        /// The browser, which shows the page.
+        case browser
         /// Now Playing, with *Go to* where the page plays from.
         case nowPlaying(GoTo)
+
+        var registryPlace: MenuRegistry.Place {
+            switch self {
+            case .list: .row
+            case .elsewhere: .tile
+            case .bar: .bar
+            case .history: .history
+            case .open: .reader
+            case .browser: .browser
+            case .nowPlaying: .nowPlaying
+            }
+        }
     }
 
     /// Now Playing's *Go to <place>*: the folder the page plays from, or the Library.
@@ -50,87 +48,110 @@ struct PageMenu: View {
     let place: Place
 
     var body: some View {
-        MenuRows(rows)
+        MenuRows(blocks: blocks)
     }
 
-    var rows: [MenuRow] {
+    var rows: [MenuRow] { blocks.flatMap { $0 } }
+
+    /// The page's state as the registry reads it.
+    var facts: MenuRegistry.Facts {
         let page = actions.page
-        let inLibrary = actions.isInLibrary
-        let isSaved = actions.isSaved
-        let offersSave = actions.offersSave
-        let inFolder = page?.folder != nil
-        let canPlay = isSaved || page?.isWaitingChapter == true
-        let hasDownload = actions.hasDownload
-        let isFavorite = actions.isFavorite
-        let isFinished = page?.finishedAt != nil
-        let skips = page?.skipsInPlayback == true
+        var facts = MenuRegistry.Facts()
+        facts.hasTarget = page != nil || actions.url != nil
+        facts.inLibrary = actions.isInLibrary
+        facts.isSaved = actions.isSaved
+        facts.offersSave = actions.offersSave
+        facts.canSave = actions.canSave
+        facts.inFolder = page?.folder != nil
+        facts.canPlay = actions.isSaved || page?.isWaitingChapter == true
+        facts.canFavorite = actions.canFavorite
+        facts.hasShareURL = actions.shareURL != nil
+        facts.inRecent = !facts.inLibrary && page.map(LibraryQueries.isInRecent) == true
+        if case .nowPlaying(let goTo) = place { facts.goToEnabled = goTo.availability == .enabled }
+        if case .bar(let onStop) = place { facts.isLoaded = onStop != nil }
+        return facts
+    }
+
+    var blocks: [[MenuRow]] {
+        MenuRegistry.blocks(.page, at: place.registryPlace, facts, row: row)
+    }
+
+    private func row(_ option: MenuRegistry.Option) -> MenuRow {
+        let page = actions.page
         let library = actions.libraryActions
-        return [
-            first,
-            MenuRow(id: "menuPlayFromHere", title: Verbs.playFromHere, icon: Icons.play,
-                    availability: MenuAvailability(applies: isList && inFolder, when: canPlay)) {
-                if let page { library.playFromStart(page) }
-            },
-            MenuRow(id: "menuDownload", title: hasDownload ? Verbs.removeDownload : Verbs.download,
-                    icon: hasDownload ? Icons.removeDownload : Icons.download, isDestructive: hasDownload,
-                    availability: MenuAvailability(when: inLibrary), action: actions.toggleDownload),
-            MenuRow(id: "menuFavorite", title: isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites,
-                    icon: isFavorite ? Icons.unfavorite : Icons.favorite,
-                    availability: MenuAvailability(when: actions.canFavorite), action: actions.toggleFavorite),
-            MenuRow(id: "menuMove", title: offersSave ? Verbs.saveToFolder : Verbs.moveTo, icon: Icons.move,
-                    availability: MenuAvailability(when: !offersSave || actions.canSave), action: actions.saveToFolder),
-            MenuRow(id: "menuFinished", title: isFinished ? Verbs.markUnfinished : Verbs.markFinished,
-                    icon: isFinished ? Icons.markUnfinished : Icons.markFinished,
-                    availability: MenuAvailability(when: isSaved)) {
+        let offersSave = actions.offersSave
+        switch option {
+        case .read:
+            return MenuRow(id: "menuRead", title: Verbs.read, icon: Icons.reader, action: actions.read)
+        case .goTo:
+            guard case .nowPlaying(let goTo) = place else { break }
+            return MenuRow(id: "menuGoTo", title: String(localized: "Go to \(goTo.name)"), icon: goTo.symbol,
+                           action: goTo.action)
+        case .download:
+            let has = actions.hasDownload
+            return MenuRow(id: "menuDownload", title: has ? Verbs.removeDownload : Verbs.download,
+                           icon: has ? Icons.removeDownload : Icons.download, isDestructive: has,
+                           action: actions.toggleDownload)
+        case .favorite:
+            let isFavorite = actions.isFavorite
+            return MenuRow(id: "menuFavorite", title: isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites,
+                           icon: isFavorite ? Icons.unfavorite : Icons.favorite, action: actions.toggleFavorite)
+        case .move:
+            return MenuRow(id: "menuMove", title: offersSave ? Verbs.saveToFolder : Verbs.moveTo, icon: Icons.move,
+                           action: actions.saveToFolder)
+        case .finished:
+            let isFinished = page?.finishedAt != nil
+            return MenuRow(id: "menuFinished", title: isFinished ? Verbs.markUnfinished : Verbs.markFinished,
+                           icon: isFinished ? Icons.markUnfinished : Icons.markFinished) {
                 if let page { library.setFinished([page], !isFinished) }
-            },
-            MenuRow(id: "menuMarkAllAbove", title: Verbs.markAllAboveFinished, icon: Icons.markAllAboveFinished,
-                    availability: MenuAvailability(applies: isList && inFolder, when: isSaved)) {
+            }
+        case .playback:
+            return MenuRow(id: "menuPlayback", title: Verbs.playback, icon: Icons.playback)
+        case .markAllAbove:
+            return MenuRow(id: "menuMarkAllAbove", title: Verbs.markAllAboveFinished, icon: Icons.markAllAboveFinished) {
                 if let page { library.markAllAbove(page) }
-            },
+            }
+        case .skip:
             // A waiting chapter too: one whose text can't be had is skipped so playback goes past it.
-            MenuRow(id: "menuSkip", title: skips ? Verbs.playInPlayback : Verbs.skipInPlayback,
-                    icon: skips ? Icons.includeInPlayback : Icons.skipInPlayback,
-                    availability: MenuAvailability(applies: inFolder, when: canPlay)) {
+            let skips = page?.skipsInPlayback == true
+            return MenuRow(id: "menuSkip", title: skips ? Verbs.playInPlayback : Verbs.skipInPlayback,
+                           icon: skips ? Icons.includeInPlayback : Icons.skipInPlayback) {
                 if let page { library.toggleSkipsInPlayback(page) }
-            },
-            MenuRow(id: "menuShare", title: Verbs.share, icon: Icons.share,
-                    availability: MenuAvailability(applies: actions.shareURL != nil), action: actions.share),
-            MenuRow(id: "menuSelect", title: Verbs.select, icon: Icons.select,
-                    availability: MenuAvailability(applies: onSelect != nil)) { onSelect?() },
-            MenuRow(id: "menuSave", title: offersSave ? Verbs.saveToLibrary : Verbs.removeFromLibrary,
-                    icon: offersSave ? Icons.save : Icons.unsave, isDestructive: !offersSave,
-                    availability: MenuAvailability(when: !offersSave || actions.canSave), action: actions.toggleSaved),
+            }
+        case .share:
+            return MenuRow(id: "menuShare", title: Verbs.share, icon: Icons.share, action: actions.share)
+        case .save:
+            return MenuRow(id: "menuSave", title: offersSave ? Verbs.saveToLibrary : Verbs.removeFromLibrary,
+                           icon: offersSave ? Icons.save : Icons.unsave, isDestructive: !offersSave,
+                           action: actions.toggleSaved)
+        case .removeFromRecent:
             // The same remove as the Library's (`LibraryStore.remove`): in no list after, the star kept.
-            MenuRow(id: "menuRemoveFromRecent", title: Verbs.removeFromRecent, icon: Icons.removeFromRecent,
-                    isDestructive: true,
-                    availability: MenuAvailability(applies: !inLibrary, when: page.map(LibraryQueries.isInRecent) == true),
-                    action: actions.remove),
-        ]
-    }
-
-    /// *Read*, or Now Playing's *Go to*: the page's first row.
-    private var first: MenuRow {
-        switch place {
-        case .nowPlaying(let goTo):
-            MenuRow(id: "menuGoTo", title: String(localized: "Go to \(goTo.name)"), icon: goTo.symbol,
-                    availability: goTo.availability, action: goTo.action)
-        case .open:
-            MenuRow(id: "menuRead", title: Verbs.read, icon: Icons.reader, availability: .hidden)
-        case .list, .elsewhere:
-            MenuRow(id: "menuRead", title: Verbs.read, icon: Icons.reader,
-                    availability: MenuAvailability(when: actions.page != nil || actions.url != nil), action: actions.read)
+            return MenuRow(id: "menuRemoveFromRecent", title: Verbs.removeFromRecent, icon: Icons.removeFromRecent,
+                           isDestructive: true, action: actions.remove)
+        case .stopListening:
+            guard case .bar(let onStop) = place else { break }
+            return MenuRow(id: "menuStopListening", title: Verbs.stopListening, icon: Icons.stop) { onStop?() }
+        case .removeFromHistory:
+            guard case .history(let onRemove) = place else { break }
+            return MenuRow(id: "menuRemoveFromHistory", title: Verbs.removeFromHistory, icon: Icons.delete,
+                           isDestructive: true, action: onRemove)
+        default: break
         }
+        return MenuRow(id: option.rawValue, title: option.rawValue, icon: nil)
     }
 
-    private var isList: Bool {
-        if case .list = place { return true }
-        return false
-    }
-
-    private var onSelect: (() -> Void)? {
-        if case .list(let onSelect) = place { return onSelect }
-        return nil
+    /// A list row's swipe, without building the menu: *Remove from Library* in the Library,
+    /// *Remove from Recent* out of it (the menu's own rows, the same action). Cheap: it reads
+    /// only the page's flags; the action is made when the swipe runs.
+    static func swipe(for page: Page, actions: @escaping () -> PageActions) -> MenuRow? {
+        let inLibrary = page.isInLibrary
+        guard inLibrary || page.lastPlayedAt != nil else { return nil }
+        return MenuRow(id: inLibrary ? "menuSave" : "menuRemoveFromRecent",
+                       title: inLibrary ? Verbs.removeFromLibrary : Verbs.removeFromRecent,
+                       icon: inLibrary ? Icons.unsave : Icons.removeFromRecent, isDestructive: true) {
+            let made = actions()
+            inLibrary ? made.toggleSaved() : made.remove()
+        }
     }
 }
 
@@ -145,7 +166,7 @@ extension PageActions {
                               accessibilityHint: String(localized: "Opens the page in the browser")) { [self] in
             if let websiteURL { shell.openWebsite(websiteURL) }
         }
-        return MenuContext(item: PageMenu(actions: self, place: place).rows, screen: MenuContext.tail(shell),
+        return MenuContext(item: PageMenu(actions: self, place: place).rows, screen: MenuContext.screenRows(at: place.registryPlace, shell: shell),
                            tiles: MenuContext.tiles(shell, last: website), isOnReadingPage: true)
     }
 }

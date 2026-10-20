@@ -67,6 +67,8 @@ enum Verbs {
     static let markUnfinished = String(localized: "Mark as Unfinished")
     static let markAllAboveFinished = String(localized: "Mark All Above as Finished")
     static let skipInPlayback = String(localized: "Skip in Playback")
+    /// The submenu holding a chapter's rare playback rows (C98).
+    static let playback = String(localized: "Playback")
     static let playInPlayback = String(localized: "Play in Playback")
     static let share = String(localized: "Share")
     static let select = String(localized: "Select")

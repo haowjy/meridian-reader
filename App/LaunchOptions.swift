@@ -65,6 +65,8 @@ struct LaunchOptions: Equatable {
     /// `-seedDemoFolders`: add a "Demo Finance" folder with two subfolders and saved pages (one in a
     /// subfolder).
     var seedsDemoFolders = false
+    /// `-seedBigFolder N`: add "Big Folder" with N saved pages (the menu and row timing probe, C98).
+    var bigFolderPages = 0
     /// `-restoreSurface` (with `-uiTesting`): reopen on the remembered surface, as a normal launch
     /// does (decision D10). Without it a UI-test launch starts on the browser, whatever an earlier
     /// test left, and `-browseTestPages` loads page one.
@@ -122,6 +124,7 @@ struct LaunchOptions: Equatable {
         demoBookPlace = value(after: "-seedDemoBookPlace").flatMap(Int.init)
         chainsDemoChapters = flags.contains("-chainDemoChapters")
         seedsDemoFolders = flags.contains("-seedDemoFolders")
+        bigFolderPages = value(after: "-seedBigFolder").flatMap(Int.init) ?? 0
         restoresSurfaceInUITests = flags.contains("-restoreSurface")
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")

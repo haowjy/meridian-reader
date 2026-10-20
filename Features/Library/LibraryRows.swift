@@ -20,8 +20,6 @@ import SwiftUI
 /// selection takes the tap, and the row has no ⋯.
 struct LibraryPageRow: View {
     let page: Page
-    /// *Select* in the menu: enters Edit with this row selected (folder screens only).
-    var onSelect: (() -> Void)?
 
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
@@ -42,6 +40,10 @@ struct LibraryPageRow: View {
     private var marksFavorite: Bool { !(screenKey == .filtered(under: nil) && shell.homeTab == .favorites) }
 
     var body: some View {
+        RenderTiming.measure(.pageRow) { content }
+    }
+
+    @ViewBuilder private var content: some View {
         if !page.isLive {
             DeletedRow()
         } else if case .retrying? = chapterStatus {
@@ -70,10 +72,13 @@ struct LibraryPageRow: View {
         }
     }
 
+    /// Its menu, built only when it opens (C98): the row hands over this view, never its rows.
     private var menu: PageMenu {
-        PageMenu(actions: PageActions(page: page, library: library, shell: shell, speech: speech, downloads: downloads,
-                                      follow: follow),
-                 place: .list(onSelect: onSelect))
+        PageMenu(actions: pageActions, place: .list)
+    }
+
+    private var pageActions: PageActions {
+        PageActions(page: page, library: library, shell: shell, speech: speech, downloads: downloads, follow: follow)
     }
 
     private var playState: PlayState {
@@ -96,7 +101,7 @@ struct LibraryPageRow: View {
                 // The menu's remove: *Remove from Library* in the Library, *Remove from Recent* in
                 // Recent. The row leaves every list once the remove is stored; a save that fails
                 // keeps it, with a toast. So no role, which would take the row out first.
-                menu.rows.swipeRow("menuSave", "menuRemoveFromRecent")?.swipeButton()
+                PageMenu.swipe(for: page) { pageActions }?.swipeButton()
             }
     }
 
@@ -128,8 +133,6 @@ struct LibraryPageRow: View {
 /// goes to its parent, and doesn't lift.
 struct LibraryFolderRow: View {
     let folder: Folder
-    /// *Select* in the menu: enters Edit with this row selected (folder screens only).
-    var onSelect: (() -> Void)?
 
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
@@ -151,6 +154,10 @@ struct LibraryFolderRow: View {
     private var marksFavorite: Bool { !(screenKey == .filtered(under: nil) && shell.homeTab == .favorites) }
 
     var body: some View {
+        RenderTiming.measure(.folderRow) { content }
+    }
+
+    @ViewBuilder private var content: some View {
         if folder.isLive { liveBody } else { DeletedRow() }
     }
 
@@ -158,7 +165,7 @@ struct LibraryFolderRow: View {
         let pages = folder.playOrder
         let progress = actions.progress(of: folder, pages: pages)
         let menu = FolderMenu(folder: folder, pages: pages, actions: actions, downloads: downloads, screen: screen,
-                              onTurnOffDownload: { turningOff = folder }, onSelect: onSelect)
+                              progress: progress, onTurnOffDownload: { turningOff = folder })
         opening(row(progress, download: downloads.state(of: folder, pages: pages), menu: isEditing ? nil : AnyView(menu)))
             .accessibilityIdentifier("folderRow")
             .libraryDropRow(.folder(folder.id), in: screen)
@@ -166,7 +173,7 @@ struct LibraryFolderRow: View {
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
                 // The menu's *Delete Folder…*: it asks first, so the row can stay (no role).
-                menu.rows.swipeRow("menuDeleteFolder")?.swipeButton()
+                FolderMenu.swipe(for: folder, screen: screen).swipeButton()
             }
     }
 

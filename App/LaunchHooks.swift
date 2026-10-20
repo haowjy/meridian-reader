@@ -35,6 +35,18 @@ enum LaunchHooks {
         if let demo = options.demoArticle { seedDemoArticle(demo, in: library) }
         if options.seedsDemoBook { seedDemoBook(in: library, place: options.demoBookPlace) }
         if options.seedsDemoFolders { seedDemoFolders(in: library) }
+        if options.bigFolderPages > 0 { seedBigFolder(pages: options.bigFolderPages, in: library) }
+    }
+
+    /// `-seedBigFolder N`: "Big Folder" with N short saved pages, for timing rows and menus.
+    static func seedBigFolder(pages count: Int, in library: LibraryStore) {
+        guard let folder = try? library.makeFolder(name: "Big Folder", in: nil) else { return }
+        for i in 1...count {
+            let paragraphs = (1...3).map { "Big page \(i), paragraph \($0). A synthetic note for the timing probe." }
+            _ = try? library.save(webPage("Big Page \(i)", at: "https://example.com/big-\(i)", paragraphs: paragraphs),
+                                  placement: .folder(folder))
+        }
+        library.commit("big folder seed")
     }
 
     /// `-resetLibrary`: every page (link pages too) and every folder goes, each page's audio,

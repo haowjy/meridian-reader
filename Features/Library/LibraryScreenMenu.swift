@@ -1,9 +1,7 @@
 import SwiftUI
 
-/// The ⋯ for the Library screen on top (the home or a folder). On a folder's screen its first
-/// block is the folder's own menu (`FolderMenu`, the rows its row's ⋯ and its header's *More*
-/// show); then the screen's rows, the same on both: *Sort*, *New Folder…* (*New Folder Inside…* in
-/// a folder), *Import Book…*, *Follow…*, *Downloads*, *Settings*. The surface's ＋ shows the same
+/// The ⋯ for the Library screen on top (the home or a folder): the screen's rows, the same on
+/// both (`MenuRegistry`, C98): *Sort*, *Follow…*, *Downloads*, *Settings*. The surface's ＋ shows the same
 /// two creating rows (`createRows`), so both act on the screen on top (`topFolder`), and so does
 /// *Follow…*, whose story's folder goes there. Nothing in it acts on the browser's page.
 @MainActor
@@ -32,22 +30,23 @@ struct LibraryScreenMenu {
         }
     }
 
+    /// The screen's rows only (C98): the folder's own menu is its header's *More*, and ＋ has
+    /// *New Folder…* and *Import Book…*.
     var menu: MenuContext {
         let folder = topFolder
-        let item = folder.map { folder in
-            FolderMenu(folder: folder, pages: library.pages(in: folder),
-                       actions: LibraryActions(library: library, speech: speech, shell: shell, follow: follow),
-                       downloads: downloads, screen: screen, onTurnOffDownload: { onTurnOffDownload(folder) },
-                       onMoved: { showMoved(folder) }).rows
-        } ?? []
-        let screenRows = [sortRow(folder)] + createRows + [
-            MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) { [shell, follow] in
-                shell.present(.follow(FollowFlow(url: nil, parentID: folder?.id, center: follow)))
-            },
-        ] + MenuContext.tail(shell)
+        let screenRows = MenuContext.screenRows(at: folder == nil ? .libraryHome : .folderScreen, shell: shell) { option in
+            switch option {
+            case .sort: return sortRow(folder)
+            case .follow:
+                return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) { [shell, follow] in
+                    shell.present(.follow(FollowFlow(url: nil, parentID: folder?.id, center: follow)))
+                }
+            default: return nil
+            }
+        }
         let browser = MenuRow(id: "moreBrowser", title: Verbs.browser, icon: Icons.browser,
                               accessibilityHint: String(localized: "Return to the browser"), action: shell.leaveLibrary)
-        return MenuContext(item: item, screen: screenRows, tiles: MenuContext.tiles(shell, last: browser))
+        return MenuContext(screen: screenRows, tiles: MenuContext.tiles(shell, last: browser))
     }
 
     /// *New Folder…* (*New Folder Inside…* in a folder) and *Import Book…*, into the screen on top:

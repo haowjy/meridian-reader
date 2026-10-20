@@ -233,20 +233,26 @@ struct BrowseStartView: View {
     /// The browser's ⋯: the page's menu (`PageMenu`) while a page is up, then *New Search*,
     /// *Follow…*, *Reload*, *Downloads*, *Settings*, then `[Favorites][History][Reader]`.
     private func menu(_ actions: PageActions) -> MenuContext {
-        let screen = [
-            MenuRow(id: "moreNewSearch", title: Verbs.newSearch, icon: Icons.search, action: shell.showStartPage),
-            MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow,
-                    availability: MenuAvailability(when: webStore.currentURL?.isWebOrTestPage == true)) {
-                guard let url = webStore.currentURL else { return }
-                shell.present(.follow(FollowFlow(url: url, parentID: nil, center: follow)))
-            },
-            MenuRow(id: "moreReload", title: Verbs.reload, icon: Icons.reload,
-                    availability: MenuAvailability(when: hasPage), action: webStore.refresh),
-        ] + MenuContext.tail(shell)
+        var facts = MenuRegistry.Facts()
+        facts.canFollow = webStore.currentURL?.isWebOrTestPage == true
+        facts.hasWebPage = hasPage
+        // No *New Search*: a tap on the address field starts one (C98).
+        let screen = MenuContext.screenRows(at: .browser, facts: facts, shell: shell) { option in
+            switch option {
+            case .follow:
+                return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) {
+                    guard let url = webStore.currentURL else { return }
+                    shell.present(.follow(FollowFlow(url: url, parentID: nil, center: follow)))
+                }
+            case .reload:
+                return MenuRow(id: "moreReload", title: Verbs.reload, icon: Icons.reload, action: webStore.refresh)
+            default: return nil
+            }
+        }
         let reader = MenuRow(id: "moreReaderToggle", title: Verbs.reader, icon: Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
                              accessibilityHint: Verbs.openInReader) { run { try await $0.openInReader() } }
-        return MenuContext(item: webPage == nil ? [] : PageMenu(actions: actions, place: .open).rows, screen: screen,
+        return MenuContext(item: webPage == nil ? [] : PageMenu(actions: actions, place: .browser).rows, screen: screen,
                            tiles: MenuContext.tiles(shell, last: reader))
     }
 
@@ -271,7 +277,8 @@ struct BrowseStartView: View {
                 folderMenu: { folder, onTurnOffDownload in
                     AnyView(FolderMenu(folder: folder, pages: folder.playOrder,
                                        actions: LibraryActions(library: library, speech: speech, shell: shell, follow: follow),
-                                       downloads: downloads, screen: favoritesScreen, onTurnOffDownload: onTurnOffDownload))
+                                       downloads: downloads, screen: favoritesScreen, place: .tile,
+                                       onTurnOffDownload: onTurnOffDownload))
                 },
                 onSearch: submit,
                 onClearSearches: { recentSearchesRaw = "" }

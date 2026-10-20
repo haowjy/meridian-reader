@@ -188,7 +188,7 @@ struct DownloadsList: View {
             .swipeActions(edge: .trailing) {
                 // The menu's *Remove Download(s)*. The record goes at once (`remove` is
                 // synchronous), so the role's early row removal agrees with the list.
-                downloadMenu.rows.swipeRow("menuRemoveDownload")?.swipeButton(role: .destructive)
+                downloadMenu.removeRow.swipeButton(role: .destructive)
             }
             .accessibilityIdentifier("downloadRow")
     }

@@ -144,16 +144,6 @@ private struct FolderContentsList: View {
     private var isEditing: Bool { screen.isEditing(folderID: folder.id) }
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
 
-    /// *Select* on a row: Edit, with that row selected.
-    private func select(_ item: LibraryItemID) -> () -> Void {
-        { [screen, folder] in
-            withAnimation(Motion.snappy) {
-                screen.beginEditing(folderID: folder.id)
-                screen.selection = [item]
-            }
-        }
-    }
-
     var body: some View {
         @Bindable var screen = screen
         List(selection: $screen.selection) {
@@ -171,14 +161,14 @@ private struct FolderContentsList: View {
             if !subfolders.isEmpty || !pages.isEmpty {
                 Section {
                     ForEach(subfolders, id: \.id) { child in
-                        LibraryFolderRow(folder: child, onSelect: select(.folder(child.id)))
+                        LibraryFolderRow(folder: child)
                             .tag(LibraryItemID.folder(child.id))
                     }
                     .onMove(perform: isEditing ? moveFolders : nil)
                     .listRowInsets(EdgeInsets())
                     .listCard()
                     ForEach(pages, id: \.listenKey) { page in
-                        LibraryPageRow(page: page, onSelect: select(.page(page.listenKey)))
+                        LibraryPageRow(page: page)
                             .tag(LibraryItemID.page(page.listenKey))
                     }
                     .onMove(perform: isEditing && sort == .manual ? movePages : nil)
@@ -224,7 +214,8 @@ private struct FolderContentsList: View {
             if folder.kind == .series { FollowStatus(folder: folder, pages: pages) }
         } more: {
             FolderMenu(folder: folder, pages: pages, actions: actions, downloads: downloads, screen: screen,
-                       onTurnOffDownload: { turningOffFromMore = folder })
+                       place: .header, progress: playback, onTurnOffDownload: { turningOffFromMore = folder },
+                       onMoved: { shell.libraryPath = library.path(to: folder) })
         } anchor: { control in
             Color.clear.turnOffDownloadQuestion(control == .download ? $turningOffFromControl : $turningOffFromMore)
         }

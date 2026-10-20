@@ -50,9 +50,12 @@ final class DownloadCenter {
     }
 
     private(set) var records: [DownloadRecord] {
-        didSet { store.save(records) }
+        didSet { store.save(records); audioKnown = [:] }
     }
-    private(set) var active: Active?
+    private(set) var active: Active? { didSet { audioKnown = [:] } }
+    /// Pages known to have audio on disk (`hasDownloads`), so a menu asks the disk once per page
+    /// until a download changes (C98).
+    @ObservationIgnored private var audioKnown: [UUID: Bool] = [:]
 
     @ObservationIgnored let library: LibraryStore
     @ObservationIgnored private let rendering: any DownloadRendering
@@ -175,6 +178,19 @@ final class DownloadCenter {
     private func isDownloaded(_ keys: [UUID]) -> Bool {
         DownloadOverview.isDownloaded(keys, records: records, currentVoice: rendering.downloadVoice) {
             rendering.renderedVoice(of: $0)
+        }
+    }
+
+    /// Something of `folder` is downloading or has audio kept: its *Remove Downloads* can run.
+    /// Cached per page (`audioKnown`), cleared whenever a download changes.
+    func hasDownloads(_ folder: Folder, pages: [Page]) -> Bool {
+        if isQueued(.folder(folder.id)) { return true }
+        return pages.contains { page in
+            let key = page.listenKey
+            if let known = audioKnown[key] { return known }
+            let has = library.hasDownloads(page)
+            audioKnown[key] = has
+            return has
         }
     }
 

@@ -102,3 +102,26 @@ struct MenuRows: View {
         if let icon = row.icon { Label(row.title, systemImage: icon) } else { Text(row.title) }
     }
 }
+
+extension MenuRegistry {
+    /// A menu's rows, by block: the registry decides which options show, in what order, greyed
+    /// or not, and their submenus; `row` gives each option's title, symbol and action (its
+    /// availability and submenu are the registry's).
+    @MainActor static func blocks(_ kind: Kind, at place: Place, _ facts: Facts, row: (Option) -> MenuRow) -> [[MenuRow]] {
+        RenderTiming.measure(.menuBuild) {
+            func make(_ entry: Entry) -> MenuRow {
+                var made = row(entry.option)
+                made.availability = entry.availability
+                made.submenu = entry.children.map(make)
+                return made
+            }
+            let all = entries(kind, at: place, facts)
+            return Set(all.map(\.block)).sorted().map { block in all.filter { $0.block == block }.map(make) }
+        }
+    }
+
+    /// The same rows as one list (the blocks run together).
+    @MainActor static func rows(_ kind: Kind, at place: Place, _ facts: Facts, row: (Option) -> MenuRow) -> [MenuRow] {
+        blocks(kind, at: place, facts, row: row).flatMap { $0 }
+    }
+}

@@ -175,11 +175,7 @@ private struct BarMenu: View {
     let onStop: (() -> Void)?
 
     var body: some View {
-        MenuRows(blocks: [
-            PageMenu(actions: actions, place: .elsewhere).rows,
-            [MenuRow(id: "menuStopListening", title: Verbs.stopListening, icon: Icons.stop,
-                     availability: MenuAvailability(when: onStop != nil)) { onStop?() }],
-        ])
+        PageMenu(actions: actions, place: .bar(onStop: onStop))
     }
 }
 

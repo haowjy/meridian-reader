@@ -527,6 +527,8 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 
 ### Menus
 
+**Which options each menu has, in what order, and when each is greyed or hidden is `MenuRegistry` (C98, C99); docs/MENUS.md lists them with the generated table. Where this section names a different set of rows, MENUS.md wins.**
+
 An item has one menu wherever it shows (decision C4): a page's (`PageMenu`), a folder's
 (`FolderMenu`, books and series too) and a download's (`DownloadMenu`). The same rows, in the same
 order, with the same names and symbols, in a row's ⋯ and its long press, a Favorites tile, a

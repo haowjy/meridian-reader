@@ -16,13 +16,21 @@ struct MenuContext {
     /// Opened on a reading page (the Reader or Now Playing): the panel takes its colours.
     var isOnReadingPage = false
 
-    /// The rows every screen's block ends with: *Downloads*, then *Settings*, always last.
+    /// A screen's own block, from `MenuRegistry` (C98): *Sort*, *Follow…*, *Reload* where they
+    /// apply, then *Downloads* and *Settings*, always last. `custom` gives the rows only a screen
+    /// can make (its *Sort*, *Follow…*, *Reload*).
     @MainActor
-    static func tail(_ shell: ShellState) -> [MenuRow] {
-        [
-            MenuRow(id: "moreDownloads", title: Verbs.downloads, icon: Icons.downloads) { shell.present(.downloads) },
-            MenuRow(id: "moreSettings", title: Verbs.settings, icon: Icons.settings) { shell.present(.settings) },
-        ]
+    static func screenRows(at place: MenuRegistry.Place, facts: MenuRegistry.Facts = .init(), shell: ShellState,
+                           custom: (MenuRegistry.Option) -> MenuRow? = { _ in nil }) -> [MenuRow] {
+        MenuRegistry.rows(.screen, at: place, facts) { option in
+            if let row = custom(option) { return row }
+            switch option {
+            case .settings:
+                return MenuRow(id: "moreSettings", title: Verbs.settings, icon: Icons.settings) { shell.present(.settings) }
+            default:
+                return MenuRow(id: "moreDownloads", title: Verbs.downloads, icon: Icons.downloads) { shell.present(.downloads) }
+            }
+        }
     }
 
     /// The first two big buttons, the same on every surface; `last` is the surface's own.

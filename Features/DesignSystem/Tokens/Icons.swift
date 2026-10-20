@@ -92,6 +92,8 @@ enum Icons {
     /// Mark All Above as Finished: a list of pages, rings full (no ✓; the circle-✓ is *Select*'s).
     static let markAllAboveFinished = "list.bullet.circle"
     static let skipInPlayback = "forward.end"
+    /// The *Playback* submenu (C98).
+    static let playback = "list.bullet"
     static let includeInPlayback = "play.square"
     static let photo = "photo"
     static let photos = "photo.on.rectangle"
