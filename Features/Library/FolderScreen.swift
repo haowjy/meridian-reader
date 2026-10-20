@@ -212,13 +212,16 @@ private struct FolderContentsList: View {
     /// play, the Download control, the big ▶ and *More*.
     private var header: some View {
         let style: FolderHeaderStyle = folder.hasDetails ? .detailed(cover: folder.coverImage) : .folder
-        let detail = [folder.byline].compactMap { $0 } + counts
         let playback = actions.progress(of: folder, pages: pages)
+        // Not started, the length joins the details ("Demo Author   4 chapters   4 min", C96);
+        // once started, the line says where it is.
+        let line = playback.hasPagesToPlay ? playback.headerLine : []
+        let lengthOnly = playback.hasPagesToPlay && playback.fraction == nil
+        let detail = [folder.byline].compactMap { $0 } + counts + (lengthOnly ? line : [])
         return FolderHeader(style: style, title: folder.name, detail: detail,
-                            progressLabel: playback.hasPagesToPlay ? playback.headerLine : [],
+                            progressLabel: lengthOnly ? [] : line,
                             actions: playback.hasPagesToPlay ? headerActions : nil) {
             if folder.kind == .series { FollowStatus(folder: folder, pages: pages) }
-            if playback.hasPagesToPlay { FolderDownloadStatus(folder: folder) }
         } more: {
             FolderMenu(folder: folder, pages: pages, actions: actions, downloads: downloads, screen: screen,
                        onTurnOffDownload: { turningOffFromMore = folder })
@@ -236,13 +239,19 @@ private struct FolderContentsList: View {
     private var headerActions: FolderHeaderActions {
         let state = downloads.state(of: folder, pages: pages)
         let isOn = downloads.isOn(folder)
+        let record = downloads.record(for: .folder(folder.id))
+        let running = record.map { $0.hasQueuedPages } ?? false
+        // While it downloads, the caption is the count and a tap opens Downloads (C96).
+        let caption = running ? record.map { String(localized: "\($0.finishedCount) of \($0.entries.count)") } : nil
         return FolderHeaderActions(download: state, downloadIsOn: isOn, onDownload: {
-            if isOn && state != .notDownloaded {
+            if running && state != .downloaded {
+                shell.present(.downloads)
+            } else if isOn && state != .notDownloaded {
                 turningOffFromControl = folder
             } else {
                 DownloadActions(downloads: downloads, shell: shell).download(folder)
             }
-        }, play: actions.playState(of: folder), onPlay: { actions.playFolder(folder) })
+        }, downloadCaption: caption, play: actions.playState(of: folder), onPlay: { actions.playFolder(folder) })
     }
 
     /// ["2 folders", "7 pages"] ("7 chapters" in a book or series); none for an empty folder,

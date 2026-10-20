@@ -32,8 +32,8 @@ struct DownloadProgressEdge: View {
 }
 
 /// Asking for a download from a row's menu, a folder header or a ⋯ panel: the request, then a
-/// toast saying what happened. One that starts (or resumes) says *Downloading…* with *View*, which
-/// opens Downloads; it floats above the Now Playing bar, the shell's one toast.
+/// toast only when nothing on screen shows it. One that starts (or resumes) has no toast: its row's
+/// mark and the header's control already show it (C96).
 @MainActor
 struct DownloadActions {
     let downloads: DownloadCenter
@@ -50,7 +50,7 @@ struct DownloadActions {
     private func report(_ request: DownloadCenter.Request, title: String) {
         let message: String
         switch request {
-        case .added, .resumed: message = String(localized: "Downloading…")
+        case .added, .resumed: return
         case .alreadyQueued: message = String(localized: "“\(title)” is already downloading")
         case .waitingForNew:
             shell.showToast(ShellToast(message: String(localized: "New pages in “\(title)” will download"), systemImage: Icons.download))

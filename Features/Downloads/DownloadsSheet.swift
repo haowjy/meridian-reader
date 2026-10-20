@@ -10,7 +10,7 @@ import SwiftUI
 ///    4 of 12   ~2 h 45 min left
 /// Waiting  2
 /// [i] Notes on Tides                        (✻)    ⋯   in queue order, spinner (C93)
-///    Next   starts in ~2 h 45 min
+///    Kokoro Heart
 /// [i] Bond Ladders                          (◔)    ⋯   paused: the mark in grey
 ///    Kokoro Heart   Paused
 /// Downloaded  1
@@ -174,13 +174,6 @@ struct DownloadsList: View {
 
     // MARK: - A row
 
-    /// "2nd", "3rd": a place in the queue.
-    private static func ordinal(_ n: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .ordinal
-        return formatter.string(from: n as NSNumber) ?? "\(n)"
-    }
-
     private func row(_ item: DownloadOverview.Item, place: Int) -> some View {
         let record = item.record
         let shown = DownloadShown(record: record, library: library)
@@ -201,7 +194,7 @@ struct DownloadsList: View {
     }
 
     /// The voice, then where it is: "4 of 12   ~2 h left" (rendering now),
-    /// "Next   starts in ~2 h" (waiting, `place` its index in the queue),
+    /// the voice alone while waiting (the Waiting section already says it is next, C96),
     /// "Kokoro Heart   12 MB".
     private func detail(_ item: DownloadOverview.Item, noun: String?, place: Int) -> [String] {
         let record = item.record
@@ -220,11 +213,7 @@ struct DownloadsList: View {
         case .fetching:
             return [voice, count, String(localized: "Getting the page")].compactMap { $0 }
         case .queued:
-            let position = place == 0 ? String(localized: "Next")
-                : String(localized: "\(Self.ordinal(place + 1)) in line")
-            let before = downloads.renderSecondsBefore(record)
-            let wait = before > 0 ? String(localized: "starts in \(DownloadCenter.estimate(before))") : nil
-            return [position, wait].compactMap { $0 }
+            return [voice].compactMap { $0 }
         case .paused(let f):
             return [voice, String(localized: "Paused"), f > 0 ? percent(f) : nil].compactMap { $0 }
         case .waitingForVoice:

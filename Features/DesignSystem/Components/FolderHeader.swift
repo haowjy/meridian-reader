@@ -42,12 +42,12 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
     /// Laid behind the Download control and *More*, at their size.
     @ViewBuilder var anchor: (FolderHeaderControl) -> Anchor
 
-    @ScaledMetric(relativeTo: .title3) private var scaledCoverWidth: CGFloat = 80
+    @ScaledMetric(relativeTo: .title3) private var scaledCoverWidth: CGFloat = 54
     @ScaledMetric(relativeTo: .caption) private var scaledSideWidth: CGFloat = 76
     @Environment(\.dynamicTypeSize) private var typeSize
 
     /// The cover grows with the text, up to `BottomChrome.maxTextGrowth`.
-    private var coverWidth: CGFloat { BottomChrome.grown(scaledCoverWidth, from: 80) }
+    private var coverWidth: CGFloat { BottomChrome.grown(scaledCoverWidth, from: 54) }
     /// Each side control's column, so the ▶ stays centred.
     private var sideWidth: CGFloat { BottomChrome.grown(scaledSideWidth, from: 76) }
 
@@ -88,7 +88,7 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
     private func actionControls(_ actions: FolderHeaderActions, captions: Bool) -> some View {
         CentredSidesLayout(spacing: Spacing.l, minSide: sideWidth) {
             Button(action: actions.onDownload) {
-                sideLabel(actions.download.label, shown: captions) {
+                sideLabel(actions.downloadCaption ?? actions.download.label, shown: captions) {
                     DownloadMark(state: actions.download)
                 }
             }
@@ -192,6 +192,9 @@ struct FolderHeaderActions {
     /// The folder's Download toggle (VoiceOver reads it with the state).
     var downloadIsOn: Bool
     var onDownload: () -> Void
+    /// The Download control's caption while a download runs ("2 of 3", C96); nil: the state's own
+    /// label. The header has no separate download line.
+    var downloadCaption: String? = nil
     var play: PlayState
     var onPlay: () -> Void
 }
@@ -224,7 +227,7 @@ struct FolderHeaderGallery: View {
                 header(style: .detailed(cover: nil), title: "Pride and Prejudice",
                        detail: ["Jane Austen", "Book", "61 chapters"], progress: ["24 of 61", "38%", "6 h 10 min left"],
                        actions: .init(download: .downloading(fraction: 0.4), downloadIsOn: true, onDownload: {},
-                                      play: .idle, onPlay: {}))
+                                      downloadCaption: "24 of 61", play: .idle, onPlay: {}))
             }
             PreviewState("followed story, a chapter playing, downloaded") {
                 FolderHeader(style: .detailed(cover: nil), title: "The Lantern Road", detail: ["A. Writer", "108 chapters"],

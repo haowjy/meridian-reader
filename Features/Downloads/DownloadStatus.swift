@@ -23,24 +23,3 @@ enum DownloadStatusText {
                 before > 0 ? String(localized: "starts in \(DownloadCenter.estimate(before))") : left].compactMap { $0 }
     }
 }
-
-/// A folder header's download status (`FolderHeader`'s `status`), while its download has pages
-/// still to render: "Downloading 5 of 17   ~2 h 45 min left". Nothing otherwise.
-struct FolderDownloadStatus: View {
-    let folder: Folder
-
-    @Environment(DownloadCenter.self) private var downloads
-
-    var body: some View {
-        if let record = downloads.record(for: .folder(folder.id)), record.hasQueuedPages {
-            VStack(spacing: Spacing.xxs) {
-                DetailLine(DownloadStatusText.parts(record, downloads: downloads, count: true))
-                    .monospacedDigit()
-            }
-            .typeStyle(.caption)
-            .multilineTextAlignment(.center)
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("folderDownloadStatus")
-        }
-    }
-}

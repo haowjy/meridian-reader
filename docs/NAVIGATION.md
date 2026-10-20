@@ -574,8 +574,10 @@ page's menu wherever it shows, a folder header's Download control, a folder's me
 queue) and kept where it is, then its whole audio is rendered ahead in the on-device voice
 selected (Kokoro). A folder covers its own pages in its order (not its subfolders'), a book or
 story its chapters that play and aren't finished, one page at a time, and while its toggle is on,
-pages added later too. When a download starts (or a paused one goes on) a toast says
-*Downloading…* with *View*, which opens the Downloads list; it floats just above the Now Playing
+pages added later too. A download starting (or a paused one going on) shows no toast: the row's
+mark and the folder header's Download control already show it, and that control, while its
+download runs, is captioned with the count ("2 of 3") and opens the Downloads list (C96). Other
+toasts (*already downloading*, *Nothing to download*) float just above the Now Playing
 bar (never over it), as every toast does, and goes after a few seconds. A toast's message wraps
 between words, never inside one: when a word wouldn't fit beside *View* (the largest text sizes),
 *View* goes under the message, and then the symbol goes. Over the Reader and Now Playing a
