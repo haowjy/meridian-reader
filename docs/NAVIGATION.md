@@ -1102,3 +1102,5 @@ Debug builds (`App/LaunchOptions.swift`).
 | Speed picker | — | popover |
 
 The browser's own ‹ / › are web-history buttons (the web view also has its edge swipes), not screens.
+
+**Item wording (C120).** Every item is an *article* in the UI ("3 articles"); in an imported EPUB's folder it is a *chapter* ("12 chapters"). An item is never called a "page" (Pages is only the Reader mode). Recent lists only started articles and chapters, never folders (C119).

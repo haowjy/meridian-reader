@@ -83,3 +83,5 @@ its last page (reloaded). A fresh install opens the Library.
 - Auto reader mode, auto-opening links, saving failed extractions.
 - Cloud voices.
 - Tags, highlights.
+
+| W1 | Item wording (C120): items are *articles* in every count, empty state and message ("3 articles"); in a folder imported from an EPUB they are *chapters*. Never "pages" for items. The Recent tab lists only started articles and chapters, never folders, and ＋ on the Library home has *New Folder…* (C119). |

@@ -53,7 +53,7 @@ struct DownloadActions {
         case .added, .resumed: return
         case .alreadyQueued: message = String(localized: "“\(title)” is already downloading")
         case .waitingForNew:
-            shell.showToast(ShellToast(message: String(localized: "New pages in “\(title)” will download"), systemImage: Icons.download))
+            shell.showToast(ShellToast(message: String(localized: "New articles in “\(title)” will download"), systemImage: Icons.download))
             return
         case .nothingToDownload:
             shell.showToast(ShellToast(message: String(localized: "Nothing to download"), systemImage: Icons.download))

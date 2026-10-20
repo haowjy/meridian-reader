@@ -21,7 +21,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 - **Folder header More**: Play from Start, Remove Downloads, Favorites, Move to…, Edit Details…, Delete.
 - **Library home ⋯**: Sort ›, Downloads, Settings, then [Browser] only (the tabs on screen are Favorites and Recent).
 - **Folder screen ⋯**: Sort › (hidden in a folder that keeps its own order: an imported EPUB, a followed story), Downloads, Settings, then [Favorites][Recent][Browser].
-- **＋** (Library home and folder screen): New Folder… (New Folder Inside…), Import EPUB…, Follow… (C101).
+- **＋** (Library home and folder screen): New Folder… at the top level (New Folder Inside… in a folder), Import EPUB…, Follow… (C101, C119).
 - **Reader / Now Playing ⋯**: the page's options, then Downloads, Settings, then [Favorites][Recent][Website].
 - **Browser ⋯**: the page's options, then Follow…, Reload, Downloads, Settings, then [Favorites][Recent][Reader]. No New Search: a tap on the address field starts one.
 - **Download on a page out of the Library** (C104): enabled; it saves the page to the Library's top level first. Grey only on a browser page not yet loaded as a page.

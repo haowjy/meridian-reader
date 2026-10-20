@@ -148,7 +148,7 @@ private struct ReadingSettingsSection: View {
         } header: {
             SectionHeader(title: String(localized: "Reading")).listHeader()
         } footer: {
-            Text("How the Reader and Now Playing show pages. Aa at the top of either changes the same settings.")
+            Text("How the Reader and Now Playing show articles. Aa at the top of either changes the same settings.")
                 .listFooter()
         }
         .listCard()
@@ -199,7 +199,7 @@ private struct StorageSettingsSection: View {
         } header: {
             SectionHeader(title: String(localized: "Downloads & Storage")).listHeader()
         } footer: {
-            Text("Listening audio is kept on this iPhone for pages you saved or downloaded; audio for pages you only opened is cleared after a while.")
+            Text("Listening audio is kept on this iPhone for articles you saved or downloaded; audio for articles you only opened is cleared after a while.")
                 .listFooter()
         }
         .listCard()

@@ -11,7 +11,7 @@ import SwiftUI
 /// ━━━━━━━━━━━━░░░░░░░  Reading chapters… 4 / 9
 /// Add to
 ///  📁 Fiction                              Change    ← pushes the Move tree; works while it runs
-/// The book becomes a folder inside Fiction, one page per chapter.
+/// The book becomes a folder inside Fiction, one chapter per section.
 /// Chapters
 ///  Chapter 1
 ///  Chapter 2
@@ -169,9 +169,9 @@ struct BookImportSheet: View {
             return String(localized: "The folder chosen for this import was deleted. Choose another, or the import stops.")
         }
         guard let folder = flow.destination else {
-            return String(localized: "The EPUB becomes a folder in the Library, one page per chapter.")
+            return String(localized: "The EPUB becomes a folder in the Library, one chapter per section.")
         }
-        return String(localized: "The EPUB becomes a folder inside \(folder.name), one page per chapter.")
+        return String(localized: "The EPUB becomes a folder inside \(folder.name), one chapter per section.")
     }
 
     // MARK: - Chapters

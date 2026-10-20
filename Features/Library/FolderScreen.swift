@@ -180,7 +180,7 @@ private struct FolderContentsList: View {
                 // Every empty list says so the same way (`EmptyState`), under the folder's header.
                 Section {
                     EmptyState(String(localized: "This Folder Is Empty"), symbol: Icons.folder,
-                               description: Text("Move pages here, or save them here from the Reader’s \(Text.symbol(Icons.save))."))
+                               description: Text("Move articles here, or save them here from the Reader’s \(Text.symbol(Icons.save))."))
                         .accessibilityIdentifier("folderEmpty")
                 }
                 .listRowInsets(EdgeInsets())
@@ -245,7 +245,7 @@ private struct FolderContentsList: View {
         }, downloadCaption: caption, play: actions.playState(of: folder), onPlay: { actions.playFolder(folder) })
     }
 
-    /// ["2 folders", "7 pages"] ("7 chapters" in a book or series); none for an empty folder,
+    /// ["2 folders", "7 articles"] ("7 chapters" in an imported EPUB); none for an empty folder,
     /// whose list says so.
     private var counts: [String] {
         guard !subfolders.isEmpty || !pages.isEmpty else { return [] }

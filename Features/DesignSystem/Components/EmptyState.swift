@@ -48,7 +48,7 @@ struct EmptyStateGallery: View {
             }
             PreviewState("with actions") {
                 EmptyState("Find Something to Listen To", symbol: Icons.library,
-                           description: Text("Pages you save show up here.")) {
+                           description: Text("Articles you save show up here.")) {
                     ActionButtonRow { fit in
                         PillButton("Browse the Web", shortTitle: "Browse", systemImage: Icons.browser, style: .filled,
                                    fit: fit) {}

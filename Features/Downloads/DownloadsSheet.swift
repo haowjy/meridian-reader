@@ -67,7 +67,7 @@ struct DownloadsList: View {
             if overview.isEmpty {
                 Section {
                     EmptyState(String(localized: "Nothing Downloaded"), symbol: Icons.downloads,
-                               description: Text("Download a page from its \(Text.symbol(Icons.more)) in the Library, or a folder with \(Text.symbol(Icons.download)) on its screen. Its audio is made ahead of time, so it plays offline."))
+                               description: Text("Download an article from its \(Text.symbol(Icons.more)) in the Library, or a folder with \(Text.symbol(Icons.download)) on its screen. Its audio is made ahead of time, so it plays offline."))
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("downloadsEmpty")
                 }
@@ -195,7 +195,7 @@ struct DownloadsList: View {
         let voice = item.voice.map(voiceLabel)
         switch item.status {
         case .downloading(let f): return ["\(Int((f * 100).rounded()))%"]
-        case .fetching: return [String(localized: "Getting the page")]
+        case .fetching: return [String(localized: "Getting the article")]
         case .queued: return [voice].compactMap { $0 }
         case .paused: return [String(localized: "Paused")]
         case .waitingForVoice: return [String(localized: "Waiting for an on-device voice")]

@@ -208,7 +208,7 @@ struct LibraryFolderRow: View {
                        menuAnchor: AnyView(Color.clear.turnOffDownloadQuestion($turningOff)))
     }
 
-    /// What is in it, as its screen's header counts it: ["2 folders", "3 pages"]; ["Empty"].
+    /// What is in it, as its screen's header counts it: ["2 folders", "3 articles"]; ["Empty"].
     private var contents: [String] {
         let folders = (folder.children ?? []).filter(\.isLive).count
         let pages = folder.livePages.count
@@ -277,18 +277,18 @@ extension Folder {
         (pages ?? []).filter(\.isLive)
     }
 
-    /// What its pages are called in a count: "chapters" in a book or series, "pages" in any
+    /// What its pages are called in a count: "chapters" in an imported EPUB, "articles" in any (C120)
     /// other folder (its row, its header, Downloads).
     var itemNoun: String {
-        kind.isBookOrSeries ? String(localized: "chapters") : String(localized: "pages")
+        kind == .book ? String(localized: "chapters") : String(localized: "articles")
     }
 
-    /// "3 pages", "1 chapter": `count` of its pages, by `itemNoun`.
+    /// "3 articles", "1 chapter": `count` of its pages, by `itemNoun`.
     func itemCount(_ count: Int) -> String {
-        if kind.isBookOrSeries {
+        if kind == .book {
             return count == 1 ? String(localized: "1 chapter") : String(localized: "\(count) chapters")
         }
-        return count == 1 ? String(localized: "1 page") : String(localized: "\(count) pages")
+        return count == 1 ? String(localized: "1 article") : String(localized: "\(count) articles")
     }
 
     var coverImage: Image? {

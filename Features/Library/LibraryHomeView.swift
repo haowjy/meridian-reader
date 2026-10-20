@@ -109,11 +109,11 @@ struct LibraryHomeView: View {
                 .listRowBackground(Color.clear)
         } else if tab == .favorites {
             EmptyState(String(localized: "No Favorites Yet"), symbol: Icons.favorite,
-                       description: String(localized: "Star a folder or page to find it here."))
+                       description: String(localized: "Star a folder or article to find it here."))
                 .listRowBackground(Color.clear)
         } else if tab == .recent {
-            EmptyState(String(localized: "No Recent Pages Yet"), symbol: Icons.recent,
-                       description: String(localized: "Listen to a page without saving it to find it here."))
+            EmptyState(String(localized: "No Recent Articles Yet"), symbol: Icons.recent,
+                       description: String(localized: "Articles you start show up here, saved or not."))
                 .listRowBackground(Color.clear)
         } else {
             emptyCard
@@ -125,7 +125,7 @@ struct LibraryHomeView: View {
     /// An empty Everything: what the toolbar does, with the two first-run actions.
     private var emptyCard: some View {
         EmptyState(String(localized: "Find Something to Listen To"), symbol: Icons.library,
-                   description: Text("Tap \(Text.symbol(Icons.browser)) to find a page, or \(Text.symbol(Icons.add)) to import an EPUB. Pages you save, EPUBs you import and folders you make show up here.")) {
+                   description: Text("Tap \(Text.symbol(Icons.browser)) to find an article, or \(Text.symbol(Icons.add)) to import an EPUB. Articles you save, EPUBs you import and folders you make show up here.")) {
             ActionButtonRow { fit in
                 PillButton(String(localized: "Browse the Web"), shortTitle: String(localized: "Browse"),
                            systemImage: Icons.browser, style: .filled, fit: fit) { shell.leaveLibrary() }

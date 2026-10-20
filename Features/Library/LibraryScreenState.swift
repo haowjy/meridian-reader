@@ -155,7 +155,7 @@ private struct TurnOffDownloadQuestion: ViewModifier {
             Button(Verbs.turnOffDownload, role: .destructive) { downloads.turnOff(folder) }
             Button(Verbs.cancel, role: .cancel) {}
         } message: { _ in
-            Text("Downloaded audio stays. New pages won’t download.")
+            Text("Downloaded audio stays. New articles won’t download.")
         }
     }
 }
