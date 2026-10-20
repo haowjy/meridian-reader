@@ -155,8 +155,9 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .ignoresSafeArea(.container, edges: .bottom)
-            // Pages mode is for reading: nothing floats over its text (C108).
-            if appearance.layout != .pages {
+            // Pages mode is for reading: nothing floats over its text while the bars are hidden
+            // (C108); with them shown, Jump to Audio sits above the band as in Scroll (C111).
+            if appearance.layout != .pages || !hidden {
                 overText
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, (hidden ? chrome.pageFooter : bandHeight) + Spacing.s)

@@ -983,7 +983,7 @@ time; Follow's chapter preview always scrolls.
   close pill do).
 - **No following, nothing over the text** (C108): Pages is for reading. It never turns by itself
   with the audio: once the voice leaves the page shown, Now Playing offers *Jump to Audio* in
-  its top bar (only while the bars show), which shows the spoken sentence's page once. Neither
+  its usual place above the band, as in Scroll (only while the bars show, C111), which shows the spoken sentence's page once. Neither
   the floating *Jump to Audio* nor the floating play / pause shows in Pages. Opening Now Playing
   in Pages still opens on the page you hear, or the Reader's handed-over line (D2).
 - **Play from Here** (C109): selecting text (both modes) adds *Play from Here* to the system edit

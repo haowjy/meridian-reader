@@ -13,7 +13,7 @@ import WebKit
 ///   finger and settles with the system's physics; an edge tap slides one page. The leftmost
 ///   `ReadingChrome.TapZone.edgeMargin` points are left to the system (back).
 /// - Pages never follow the audio (C108): the page you read stays until you turn it. *Jump to
-///   Audio* in the top bar goes to the spoken sentence's page once.
+///   Audio* (above the band, bars shown: C111) goes to the spoken sentence's page once.
 @MainActor
 @Observable
 final class ReadingPages {
@@ -166,7 +166,7 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
     }
 
     /// Pages never follow the audio (C108): once the voice leaves the page shown, following stops
-    /// (Now Playing then offers *Jump to Audio* in its top bar).
+    /// (Now Playing then offers *Jump to Audio* above the band, C111).
     func follow(word: ReadingPages.Spot) {
         guard let start = model.start, model.shown != nil else { return }
         if word < start || model.end.map({ word >= $0 }) == true { host.stopFollowing() }
@@ -280,9 +280,15 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         pageWidth = width
         layoutGuard()
         sv.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: sv.contentInset.right)
-        host.topViewY = insets.top
-        let top = Int(insets.top), boxHeight = Int(max(height - footer, insets.top + 100))
-        webView.evaluateJavaScript("window.__readerPaged(true, \(top), \(boxHeight));") { [weak self] _, _ in
+        // The page is the area between the bars, bars shown or not (C112): they never cover a
+        // line and showing or hiding them never reflows. A margin of `Spacing.s` above and below;
+        // the columns end on whole lines.
+        let top = insets.top + Spacing.s
+        let bottom = max(footer, insets.bottom) + Spacing.s
+        let boxHeight = Int(max(height - bottom, top + 100))
+        let topValue = Int(top.rounded())
+        host.topViewY = top
+        webView.evaluateJavaScript("window.__readerPaged(true, \(topValue), \(boxHeight));") { [weak self] _, _ in
             self?.measure()
         }
     }

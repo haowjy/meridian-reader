@@ -48,17 +48,11 @@ struct NowPlayingSheet<Reading: View, TextAppearance: View, Accessory: View, Ban
     @ViewBuilder var floating: Floating
 
     @State private var chrome = ReadingChrome()
-    @Environment(\.readingAppearance) private var appearance
 
     var body: some View {
         Sheet(onDismiss: onCollapse, palette: palette, chrome: chrome) {
             VStack(spacing: 0) {
                 SheetTopBar { SheetClosePill(kind: .collapse(playingFrom)) } trailing: {
-                    // Pages mode: Jump to Audio sits in the top bar, never over the text (C108).
-                    if appearance.layout == .pages, showsJumpToAudio {
-                        PillButton("Jump to Audio", style: .inverted, size: .compact, action: onJumpToAudio)
-                            .accessibilityIdentifier("nowPlayingJumpToAudio")
-                    }
                     textAppearance
                     accessory
                 }
