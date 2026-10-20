@@ -31,10 +31,13 @@ final class TestVoiceProvider: SpeechEngineProvider {
 
 private final class TestVoiceHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID
-    /// Seconds each render takes: slow enough that a download's progress shows.
-    /// Seconds per paragraph; `-testVoice.delay 1.5` slows it so a download can be seen in progress.
+    /// Seconds each render takes (default 0.15); `-testVoice.delay 1.5` slows it so a download can
+    /// be seen in progress.
     private let delay: TimeInterval = UserDefaults.standard.double(forKey: "testVoice.delay") > 0 ? UserDefaults.standard.double(forKey: "testVoice.delay") : 0.15
     var routingLabel: String? { "test" }
+    /// `-testVoice.rendersInBackground YES`: renders in the background like Kokoro's CPU route, to
+    /// test background rendering on the simulator.
+    var rendersInBackground: Bool { UserDefaults.standard.bool(forKey: "testVoice.rendersInBackground") }
     var onProgress: (@Sendable (Double) -> Void)?
     private let lock = NSLock()
     private var prepared = false

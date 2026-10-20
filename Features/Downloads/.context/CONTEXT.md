@@ -6,17 +6,19 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Downloads"; how it r
 - **No render path of its own.** `DownloadCenter` hands one page at a time to the render queue as
   an ordinary bake job (`LocalTTSCoordinator.queueDownload` → `startBakeIfNeeded`) and looks
   again at each render-queue change, its job's end included (`scheduleCheck`). Priority behind
-  the playhead, the thermal / Low Power hold and the background rules (`RenderAdmission`, bursts
-  for the playing article only) come from the queue. Don't add a loop that renders, and don't let
-  a download job count as playing (`playingCacheKeys`): that would let it render in the background.
+  the playhead, the thermal / Low Power hold and the background rules (`RenderAdmission`: bursts
+  for the playing article, a download's turn while it is safely ahead, C94) come from the queue.
+  Don't add a loop that renders, and don't let a download job count as playing
+  (`playingCacheKeys`): it renders in the background only on its turn (`markDownload`).
 - **It asks the speech stack only through `DownloadRendering`** (the coordinator conforms in
   `LocalTTSCoordinator+Downloads`); nothing hands it the render queue or the audio cache. It
   assigns nothing on its collaborators: `AppComposition.makeDownloads` wires the coordinator's
   `onRenderStateChange` to `scheduleCheck`, the library's `editStored` to `followLibrary`, and
   `needsAudio` from the session and the staged chapter. Both events do nothing until `start()`,
   which runs after the launch's library maintenance.
-- **Nothing new starts in the background.** `advance` checks `AppRunState`; a link page's fetch
-  needs a window (`URLPageFetcher`). Downloads resume on the next phase change.
+- **In the background, only while audio plays on the CPU route** (`mayHandOver`,
+  `rendersDownloadsInBackground`, C94). A link page's fetch needs a window (`URLPageFetcher`) and
+  waits for the foreground. Otherwise downloads resume on the next phase change.
 - **The list records intent and outcome, the cache answers voice and readiness.** A record's
   entries say queued / done / speaksLive / failed; which voice a page is in is read from its audio
   (`ArticleAudioCache.renderedVoice`), so a voice change shows without touching the list.

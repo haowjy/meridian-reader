@@ -83,6 +83,11 @@ final class GlobalSynthQueue {
     var bakeConditions: () -> BakeConditions = { .current }
     /// Bake-ahead of the playing article in the background, on a route that renders there.
     private let backgroundBursts = BackgroundRenderBursts()
+    /// Jobs a download queued (`markDownload`): in the background, while audio plays and the
+    /// playing article is safely ahead, they render on the same worker (C94).
+    private var downloadKeys: Set<UUID> = []
+    /// The job last picked in the background was a download's (for the turn / yield log lines).
+    private var onDownloadTurn = false
     private var deviceObservers: [NSObjectProtocol] = []
 
     init() {
@@ -145,12 +150,25 @@ final class GlobalSynthQueue {
     /// Playback moved on (a unit started, or playback resumed). In the background the worker idles
     /// between bursts and starts again here once less than the low-water mark of listening is
     /// ready ahead (`BackgroundRenderWatermarks`); units start often enough that no timer is needed.
+    /// It also wakes the worker for a download's job once the playing article is safely ahead (C94).
     func playbackAdvanced() {
-        guard worker == nil, runState.phase == .background, rendersInBackground,
-              stack.contains(where: playingCacheKeys.contains),
-              readyAhead() < BackgroundRenderWatermarks.lowWater else { return }
+        guard worker == nil, runState.phase == .background, rendersInBackground else { return }
+        let playingNeedsWork = stack.contains(where: playingCacheKeys.contains)
+            && readyAhead() < BackgroundRenderWatermarks.lowWater
+        let downloadWaits = coordinator?.playingCacheKey != nil && stack.contains(where: downloadKeys.contains)
+        guard playingNeedsWork || downloadWaits else { return }
         kickWorker()
     }
+
+    /// A download's job (`DownloadCenter` through `queueDownload`): it may render in the background
+    /// on its turn (C94).
+    func markDownload(cacheKey: UUID) {
+        downloadKeys.insert(cacheKey)
+        playbackAdvanced()
+    }
+
+    /// Whether `cacheKey`'s job is a download's.
+    func isDownload(cacheKey: UUID) -> Bool { downloadKeys.contains(cacheKey) }
 
     /// Listening time ready ahead of the playhead, counted up to the high-water mark.
     private func readyAhead() -> TimeInterval {
@@ -169,12 +187,13 @@ final class GlobalSynthQueue {
     }
 
     /// `RenderAdmission` for audio of `cacheKey` now.
-    private func admission(isLiveRequest: Bool, cacheKey: UUID?) -> RenderAdmission {
+    private func admission(isLiveRequest: Bool, cacheKey: UUID?, isDownloadTurn: Bool = false) -> RenderAdmission {
         RenderAdmission.decide(engineReady: coordinator?.renderTarget != nil,
                                phase: runState.phase, rendersInBackground: rendersInBackground,
                                isLiveRequest: isLiveRequest,
                                isPlayingArticle: cacheKey.map(playingCacheKeys.contains) ?? false,
-                               inBackgroundBurst: backgroundBursts.isBursting)
+                               inBackgroundBurst: backgroundBursts.isBursting,
+                               isDownloadTurn: isDownloadTurn)
     }
 
     private func failAllLiveWaiters(_ error: Error) {
@@ -297,6 +316,7 @@ final class GlobalSynthQueue {
 
     /// Drop an article from the queue (delete / clear audio). Does not delete disk files.
     func remove(cacheKey: UUID) {
+        downloadKeys.remove(cacheKey)
         jobs[cacheKey] = nil
         stack.removeAll { $0 == cacheKey }
         if staged?.cacheKey == cacheKey { staged = nil }
@@ -564,18 +584,37 @@ final class GlobalSynthQueue {
             ListenTimingLog.log("synth_queue_parked", ["phase": runState.phase.rawValue, "reason": "no_engine"])
             return "no_engine"
         }
-        guard let next = nextWorkUnit(in: target) else { return "queue_empty" }
-        let (job, index) = next
+        guard var next = nextWorkUnit(in: target) else { return "queue_empty" }
         #if canImport(UIKit)
         drainGrace.end() // the chunk in flight at backgrounding is done; playing audio keeps the app alive
         #endif
         // Check the app state before every chunk (see `RenderAdmission`).
         let phase = runState.phase
-        let playing = playingCacheKeys.contains(job.cacheKey)
-        if phase == .background, rendersInBackground, playing, !hasLiveWaiters {
-            backgroundBursts.update(readyAhead: readyAhead())
+        var downloadTurn = false
+        if phase == .background, rendersInBackground, !hasLiveWaiters {
+            let firstIsPlaying = playingCacheKeys.contains(next.0.cacheKey)
+            if firstIsPlaying { backgroundBursts.update(readyAhead: readyAhead()) }
+            // C94: while audio plays and the playing article needs nothing now (no burst: it is
+            // past the low-water mark ahead; or nothing of it is left to render), the same worker
+            // (one thread, bake-ahead priority and holds) takes a download's job. Weighed again
+            // before every chunk, so a burst takes the worker back at the next chunk.
+            if coordinator.playingCacheKey != nil, !(firstIsPlaying && backgroundBursts.isBursting),
+               let download = firstIsPlaying ? nextWorkUnit(in: target, skipping: playingCacheKeys) : next,
+               downloadKeys.contains(download.0.cacheKey) {
+                next = download
+                downloadTurn = true
+            }
+            if downloadTurn != onDownloadTurn {
+                onDownloadTurn = downloadTurn
+                ListenTimingLog.log(downloadTurn ? "bg_download_turn" : "bg_download_yield", [
+                    "key": ListenTimingLog.shortKey(next.0.cacheKey), "p": next.1,
+                    "ready_ahead_s": Int(readyAhead()),
+                ])
+            }
         }
-        guard admission(isLiveRequest: hasLiveWaiters, cacheKey: job.cacheKey) == .render else {
+        let (job, index) = next
+        let playing = playingCacheKeys.contains(job.cacheKey)
+        guard admission(isLiveRequest: hasLiveWaiters, cacheKey: job.cacheKey, isDownloadTurn: downloadTurn) == .render else {
             // Restarted by `runStateChanged`, `playbackAdvanced` (or a listener's request).
             failAllLiveWaiters(LocalSynthError.deferredInBackground)
             return noteParked(phase: phase, engine: coordinator.synthRenderer.engineShortName, playing: playing)
@@ -773,7 +812,8 @@ final class GlobalSynthQueue {
             // the engine's cache — the chunk renders with the engine once it may run again.
             if case LocalSynthError.deferredInBackground = error { throw error }
             guard coordinator.renderTarget == target else { return }
-            if admission(isLiveRequest: hasLiveWaiters, cacheKey: job.cacheKey) != .render {
+            if admission(isLiveRequest: hasLiveWaiters, cacheKey: job.cacheKey,
+                         isDownloadTurn: onDownloadTurn && downloadKeys.contains(job.cacheKey)) != .render {
                 throw LocalSynthError.deferredInBackground
             }
             let localError = error.localizedDescription
@@ -797,7 +837,8 @@ final class GlobalSynthQueue {
     /// background on a route that renders there, a job steps aside once only those are left:
     /// listening doesn't need them, and a burst rendering them would never reach the high-water
     /// mark. They render in front.
-    private func nextWorkUnit(in target: RenderTarget) -> (ArticleJob, Int)? {
+    /// `skipping`: jobs passed over (the playing article and staged chapter, for a download's turn).
+    private func nextWorkUnit(in target: RenderTarget, skipping: Set<UUID> = []) -> (ArticleJob, Int)? {
         placeStaged()
         let aheadOnly = runState.phase == .background && rendersInBackground
         var position = 0
@@ -805,6 +846,10 @@ final class GlobalSynthQueue {
             let key = stack[position]
             guard let job = jobs[key] else {
                 stack.remove(at: position)
+                continue
+            }
+            if skipping.contains(key) {
+                position += 1
                 continue
             }
             let missing = missingParagraphs(of: job, in: target)
@@ -823,6 +868,7 @@ final class GlobalSynthQueue {
             // Fully baked: off the queue, and try the next.
             finishJob(job, in: target)
             jobs[key] = nil
+            downloadKeys.remove(key)
             stack.remove(at: position)
             if staged?.cacheKey == key { staged = nil }
             ListenDebugLog.shared.append("bake complete \(job.cacheKey.uuidString.prefix(8))")

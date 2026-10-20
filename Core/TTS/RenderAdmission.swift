@@ -6,7 +6,7 @@ import Foundation
 /// |---|---|---|
 /// | active | render | render |
 /// | inactive | render | listener's chunks only; bake-ahead parks |
-/// | background | listener's chunks; bake-ahead of the playing article during a burst (`BackgroundRenderWatermarks`); other articles park | no model call: a listener's chunk goes to Apple, bake-ahead parks |
+/// | background | listener's chunks; bake-ahead of the playing article during a burst (`BackgroundRenderWatermarks`); a download's job on its turn (C94: audio playing, the playing article safely ahead); other articles park | no model call: a listener's chunk goes to Apple, bake-ahead parks |
 ///
 /// While no on-device engine is ready (no `RenderTarget`: Apple selected, a model loading, failed
 /// or deleted) no model call starts in any phase: a listener's chunk goes to Apple and bake-ahead
@@ -27,8 +27,11 @@ enum RenderAdmission: Equatable {
     ///   - isPlayingArticle: the audio belongs to the article that is playing.
     ///   - inBackgroundBurst: a background burst is running (less than the low-water mark of
     ///     listening was ready ahead when it started, and it hasn't reached the high-water mark).
+    ///   - isDownloadTurn: the audio is a download's, audio is playing, and the playing article
+    ///     needs nothing rendered now (no burst, or nothing of it left to render) (C94).
     static func decide(engineReady: Bool, phase: AppRunState.Phase, rendersInBackground: Bool,
-                       isLiveRequest: Bool, isPlayingArticle: Bool, inBackgroundBurst: Bool) -> RenderAdmission {
+                       isLiveRequest: Bool, isPlayingArticle: Bool, inBackgroundBurst: Bool,
+                       isDownloadTurn: Bool = false) -> RenderAdmission {
         guard engineReady, modelCallsAllowed(phase: phase, rendersInBackground: rendersInBackground) else {
             return isLiveRequest ? .deferToApple : .park
         }
@@ -38,7 +41,7 @@ enum RenderAdmission: Equatable {
         case .inactive:
             return rendersInBackground || isLiveRequest ? .render : .park
         case .background:
-            return isLiveRequest || (isPlayingArticle && inBackgroundBurst) ? .render : .park
+            return isLiveRequest || (isPlayingArticle && inBackgroundBurst) || isDownloadTurn ? .render : .park
         }
     }
 

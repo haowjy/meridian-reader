@@ -1,8 +1,8 @@
 # Downloads: deferred
 
 - **Rendering while charging, with the phone locked** (D16 says downloads render "mainly in the
-  foreground or while charging"). Not built: with the app in the background, download jobs park
-  like any article that isn't playing. It needs a `BGProcessingTask` with
+  foreground or while charging"). Not built: with the app in the background and nothing playing,
+  download jobs park (while audio plays on the CPU route they go on, C94). It needs a `BGProcessingTask` with
   `requiresExternalPower` (Info.plist `BGTaskSchedulerPermittedIdentifiers`, the `processing`
   background mode), registered at launch, that admits download jobs on the ONNX route only (never
   Core ML), one ONNX thread, while nothing plays, and stops at expiry. The launch it may cause runs

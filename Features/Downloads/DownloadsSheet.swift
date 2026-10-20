@@ -7,11 +7,10 @@ import SwiftUI
 /// Downloads                                         Done
 /// Now                                        Pause All
 /// ▣  Pride and Prejudice                    (◔)    ⋯   the ↓ filling as it renders
-///    Kokoro Heart   4 of 12 chapters   38%   ~2 h 45 min left
-/// Downloads while Meridian is open
+///    4 of 12   ~2 h 45 min left
 /// Waiting  2
 /// [i] Notes on Tides                        (✻)    ⋯   in queue order, spinner (C93)
-///    0 of 3 pages   Next   starts in ~2 h 45 min
+///    Next   starts in ~2 h 45 min
 /// [i] Bond Ladders                          (◔)    ⋯   paused: the mark in grey
 ///    Kokoro Heart   Paused
 /// Downloaded  1
@@ -94,13 +93,11 @@ struct DownloadsList: View {
         }
     }
 
-    /// The download rendering now (C92), with why it can take a while.
+    /// The download rendering now (C92).
     private func nowSection(_ items: [DownloadOverview.Item], anyRunning: Bool) -> some View {
         section(items, header: pauseAllHeader(String(localized: "Now"), count: nil, anyRunning: anyRunning),
                 headerID: "downloadsNowHeader") {
-            Text(DownloadStatusText.whileOpen)
-                .accessibilityIdentifier("downloadsWhileOpen")
-                .listFooter()
+            EmptyView()
         }
     }
 
@@ -113,8 +110,6 @@ struct DownloadsList: View {
             if !speech.localTTS.wantsLocalBake {
                 waitingNote
                     .listFooter()
-            } else if pauseAll, items.contains(where: { !$0.record.isPaused }) {
-                Text(DownloadStatusText.whileOpen).listFooter()
             }
         }
     }
@@ -205,8 +200,8 @@ struct DownloadsList: View {
             .accessibilityIdentifier("downloadRow")
     }
 
-    /// The voice, then where it is: "Kokoro Heart   4 of 12 chapters   38%   ~2 h left" (rendering
-    /// now), "0 of 3 pages   Next   starts in ~2 h" (waiting, `place` its index in the queue),
+    /// The voice, then where it is: "4 of 12   ~2 h left" (rendering now),
+    /// "Next   starts in ~2 h" (waiting, `place` its index in the queue),
     /// "Kokoro Heart   12 MB".
     private func detail(_ item: DownloadOverview.Item, noun: String?, place: Int) -> [String] {
         let record = item.record
@@ -216,8 +211,12 @@ struct DownloadsList: View {
         func percent(_ f: Double) -> String { "\(Int((f * 100).rounded()))%" }
         switch item.status {
         case .downloading(let f):
+            // Short enough for one line on a phone (C95): the count without its noun (a page's
+            // download: its percent), then the time left. The voice and percent are left out:
+            // the voice shows once done, the mark fills with the percent.
             let left = downloads.renderSecondsLeft(record).map { String(localized: "\(DownloadCenter.estimate($0)) left") }
-            return [voice, count, percent(f), left].compactMap { $0 }
+            let done = noun == nil ? percent(f) : String(localized: "\(record.finishedCount) of \(record.entries.count)")
+            return [done, left].compactMap { $0 }
         case .fetching:
             return [voice, count, String(localized: "Getting the page")].compactMap { $0 }
         case .queued:
@@ -225,7 +224,7 @@ struct DownloadsList: View {
                 : String(localized: "\(Self.ordinal(place + 1)) in line")
             let before = downloads.renderSecondsBefore(record)
             let wait = before > 0 ? String(localized: "starts in \(DownloadCenter.estimate(before))") : nil
-            return [count ?? voice, position, wait].compactMap { $0 }
+            return [position, wait].compactMap { $0 }
         case .paused(let f):
             return [voice, String(localized: "Paused"), f > 0 ? percent(f) : nil].compactMap { $0 }
         case .waitingForVoice:

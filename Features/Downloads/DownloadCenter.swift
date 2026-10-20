@@ -11,9 +11,10 @@ import Observation
 /// It renders nothing itself: each page's audio is an ordinary bake job in the one render queue
 /// (`DownloadRendering.queueDownload`), so the article playing and the chapter staged after it
 /// always go first, bake-ahead holds on a hot phone and in Low Power Mode apply, and in the
-/// background a download's job parks (only the playing article renders there, in bursts,
-/// `RenderAdmission`). The next page is handed over only while the app is in front: in the
-/// background nothing new starts, and a fetch needs a window.
+/// background the playing article renders first, in bursts (`RenderAdmission`); while it is
+/// safely ahead and audio plays on the CPU route, a download's job takes the same one-thread
+/// worker, and the next page is handed over then too (C94; a link page's fetch waits for the
+/// foreground). Paused or stopped in the background, nothing goes on (iOS suspends the app).
 ///
 /// The voice each download's audio is in comes from the audio cache, not from here, so a voice
 /// change shows at once (`DownloadOverview`'s *Different voice*), and *Re-download* or *Keep*
@@ -517,8 +518,13 @@ final class DownloadCenter {
         return nil
     }
 
+    /// The next page may be handed to the render queue: in front, or in the background while
+    /// audio plays on a route that renders there (C94; the render queue still puts the playing
+    /// article first and yields to it).
+    private var mayHandOver: Bool { runState.phase != .background || rendering.rendersDownloadsInBackground }
+
     private func advance() {
-        guard isStarted, runner == nil, active == nil, runState.phase != .background else { return }
+        guard isStarted, runner == nil, active == nil, mayHandOver else { return }
         runner = Task { [weak self] in
             await self?.runQueue()
             self?.runner = nil
@@ -528,12 +534,14 @@ final class DownloadCenter {
     /// Hands pages to the render queue until one is rendering (its `bakeCompleted` brings the
     /// next), the list is done, or no voice renders downloads.
     private func runQueue() async {
-        while runState.phase != .background, rendering.wantsLocalBake, active == nil, let next = nextQueued() {
+        while mayHandOver, rendering.wantsLocalBake, active == nil, let next = nextQueued() {
             let (recordID, key) = (next.recordID, next.key)
             guard let page = library.page(key: key), page.isInLibrary else {
                 finish(recordID, key, .failed, String(localized: "It’s no longer in the Library"))
                 continue
             }
+            // A fetch needs a window: a link page waits for the foreground.
+            if page.isLink, runState.phase == .background { return }
             if page.isLink {
                 active = Active(recordID: recordID, key: key, phase: .fetching)
                 let failure = await fill(page)
@@ -637,6 +645,8 @@ protocol DownloadRendering {
     var wantsLocalBake: Bool { get }
     /// The voice most of `key`'s audio is in.
     func renderedVoice(of key: UUID) -> String?
+    /// Downloads may go on in the background now: audio plays on a route that renders there (C94).
+    var rendersDownloadsInBackground: Bool { get }
     /// Queues `paragraphs` of `cacheKey` to render in full in the download voice.
     func queueDownload(cacheKey: UUID, paragraphs: [String]) -> DownloadQueueing
     /// Paragraphs that still need audio in the download voice; a view reading it follows the render.

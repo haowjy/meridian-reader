@@ -363,9 +363,13 @@ engine loads). When the job leaves the queue (`bakeCompleted`, through
 `LocalTTSCoordinator.onRenderStateChange`) the page is done once no paragraph needs audio in the
 download voice (the one rule, `ArticleAudioCache.missingParagraphs`); a job that left unfinished goes back once, then
 the page is marked failed. So the article playing and the staged chapter always go first, the
-thermal / Low Power hold applies, and in the background a download's job parks like any other
-article that isn't playing (admission, below). No page is handed to the queue while the app is in
-the background (a fetch needs a window), and nothing renders for downloads while Apple's voice is
+thermal / Low Power hold applies. In the background a download's job parks, except on its turn
+(C94): while audio plays on a route that renders there (Kokoro's ONNX CPU route) and the playing
+article needs nothing now (no burst: at least the low-water mark ahead; or nothing of it left), the
+same one-thread worker renders it, weighed again before every chunk, so a burst of the playing
+article takes the worker back at once (`bg_download_turn` / `bg_download_yield`). Then the next
+page is handed over in the background too; a link page's fetch waits for the foreground (it needs
+a window). Paused or stopped in the background, nothing goes on. Nothing renders for downloads while Apple's voice is
 selected (`wantsLocalBake`). Pause and *Remove* take the page's job out of the queue
 (`removeBakeJob`), and *Remove Download* and *Remove Downloads* delete audio (`DownloadCenter.purgeAudio`),
 never for what listening needs (`needsAudio`: the page bound to the session, playing, paused or
