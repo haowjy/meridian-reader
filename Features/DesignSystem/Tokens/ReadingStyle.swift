@@ -138,6 +138,7 @@ enum ReadingStyle {
         .reader-top { margin: 0 0 \(Int(Spacing.l))px; }
         [data-reader-index] { border-radius: \(pad)px; transition: color \(Motion.standardResponse)s ease-out; }
         @media (prefers-reduced-motion: reduce) { [data-reader-index] { transition: none; } }
+        html.reader-paged [data-reader-index] { transition: none; }
         /* Every paragraph stays in full ink (C105): only the spoken one gets the highlight. */
         body.reader-has-active .reader-active, .reader-active { color: var(--ink); background: var(--highlight);
                         box-shadow: 0 0 0 \(pad)px var(--highlight); }

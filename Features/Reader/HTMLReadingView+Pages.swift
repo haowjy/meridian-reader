@@ -37,6 +37,8 @@ final class ReadingPages {
     /// The first character of the page shown: what the footer counts the time left from, and the
     /// line a new layout keeps on screen. Nil: the top of the text.
     fileprivate(set) var start: Spot?
+    /// The overview's card height (C117): the text area and its bottom margin, no footer room.
+    fileprivate(set) var cardHeight: CGFloat = 0
     /// The first character of the next page (nil on the last page or until looked up).
     fileprivate(set) var end: Spot?
 
@@ -89,6 +91,7 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
     var isOverview: Bool { paged && overview }
     /// The overview's page cards (C116), by page: the shown page and its neighbours.
     private var cards: [Int: UIView] = [:]
+    private var snapTask: Task<Void, Never>?
 
     static let edgeGuard = ReadingChrome.TapZone.edgeMargin
 
@@ -230,7 +233,8 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
                 return v
             }()
             card.frame = CGRect(x: CGFloat(i) * pageWidth + Self.cardGap, y: 0,
-                                width: pageWidth - 2 * Self.cardGap, height: sv.bounds.height)
+                                width: pageWidth - 2 * Self.cardGap,
+                                height: model.cardHeight > 0 ? model.cardHeight : sv.bounds.height)
             let current = i == shown.index
             card.layer.borderColor = (current ? accent : rule).cgColor
             card.layer.borderWidth = current ? 2 : 1.5
@@ -388,6 +392,7 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         let bottom = footer + Spacing.s
         let boxHeight = Int(max(height - bottom, top + 100))
         let topValue = Int(top.rounded())
+        model.cardHeight = CGFloat(boxHeight) + Spacing.m
         host.topViewY = top
         webView.evaluateJavaScript("window.__readerPaged(true, \(topValue), \(boxHeight));") { [weak self] _, _ in
             self?.measure()
@@ -439,6 +444,16 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         if abs(sv.contentOffset.y) > 0.5 { sv.contentOffset.y = 0 }
         let exact = sv.contentOffset.x / pageWidth
         let index = Int(exact.rounded())
+        // A slide interrupted part-way (seen in the overview while playing, C117) settles on the
+        // nearest page once the finger and the deceleration are done.
+        snapTask?.cancel()
+        if abs(exact - CGFloat(index)) >= 0.01 {
+            snapTask = Task { @MainActor [weak self, weak sv] in
+                try? await Task.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled, let self, let sv, !sv.isTracking, !sv.isDecelerating else { return }
+                show(page: index, animated: host.animates)
+            }
+        }
         guard abs(exact - CGFloat(index)) < 0.01, index != shown.index else { return }
         if sv.isTracking || sv.isDecelerating {
             host.userTookOver()
@@ -526,6 +541,9 @@ struct ReadingPagesCard: ViewModifier {
     let active: Bool
     let overview: Bool
     let insets: ReaderTextInsets
+    /// The card's height in the page (`ReadingPages.cardHeight`, C117): the text area, so no
+    /// empty footer strip; 0 until known (the whole height).
+    var cardHeight: CGFloat = 0
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var fade = 1.0
@@ -534,11 +552,14 @@ struct ReadingPagesCard: ViewModifier {
         GeometryReader { proxy in
             let h = proxy.size.height
             let room = h - insets.top - insets.bottom - 2 * Spacing.m
-            let scale = active && overview && h > 0 ? min(0.78, max(0.4, room / h)) : 1
+            // The card (the text area, C117) is centred in the room between the bars; nothing is
+            // kept for Jump to Audio, which may float over the card's foot.
+            let card = cardHeight > 0 ? min(cardHeight, h) : h
+            let scale = active && overview && h > 0 ? min(0.8, max(0.4, room / card)) : 1
             let centre = insets.top + Spacing.m + room / 2
             content
                 .scaleEffect(scale)
-                .offset(y: scale < 1 ? centre - h / 2 : 0)
+                .offset(y: scale < 1 ? centre - h / 2 - (card / 2 - h / 2) * scale : 0)
                 .opacity(fade)
                 .animation(reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.12), value: scale)
         }

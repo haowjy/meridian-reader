@@ -136,7 +136,8 @@ struct HTMLReadingView: View {
             onTapParagraph: onTapParagraph
         )
         .background(palette.background)
-        .modifier(ReadingPagesCard(active: paged, overview: chrome?.hidden == false, insets: chrome?.insets ?? ReaderTextInsets()))
+        .modifier(ReadingPagesCard(active: paged, overview: chrome?.hidden == false, insets: chrome?.insets ?? ReaderTextInsets(),
+                                   cardHeight: paged ? pages.cardHeight : 0))
         .overlay {
             if paged { ReadingPageFrame(pages: pages, palette: palette, timeLeft: pageTimeLeft) }
         }

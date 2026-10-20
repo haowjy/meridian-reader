@@ -979,7 +979,8 @@ time; Follow's chapter preview always scrolls.
   the same page shrinks with a spring into a card between them (a scale of the page laid out for
   reading, so nothing reflows), outlined in the accent; the pages before and after are cards of
   their own beside it, the same size, parted by a gap and outlined in the theme's quiet rule grey
-  (C116), fully drawn; the accent outline follows the card centred as they swipe; the cards swipe sideways as pages do, and a tap anywhere on the card zooms back
+  (C116), fully drawn; a card ends at the text's bottom margin, with no strip kept for the
+  footer, and *Jump to Audio* may float over its foot (C117); the accent outline follows the card centred as they swipe; the cards swipe sideways as pages do, and a tap anywhere on the card zooms back
   into reading. Under Reduce Motion the change is a short fade instead of the zoom.
 - **The footer** (`2 min left` on the left, `33%` on the right), only while reading. The time is
   what is left from the first character of the page shown to the end of the page's text, at the
