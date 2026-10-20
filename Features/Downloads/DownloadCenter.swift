@@ -126,6 +126,12 @@ final class DownloadCenter {
                                        fraction: Double(paragraphs.count - missing) / Double(paragraphs.count))
     }
 
+    /// The Downloads list by page (C110).
+    var pageOverview: DownloadPages {
+        DownloadPages(records: records, active: activeProgress, currentVoice: rendering.downloadVoice,
+                      rendersDownloads: rendering.wantsLocalBake) { rendering.renderedVoice(of: $0) }
+    }
+
     func record(for target: DownloadRecord.Target) -> DownloadRecord? {
         records.first { $0.target == target }
     }
@@ -444,6 +450,20 @@ final class DownloadCenter {
         withRecord(id) {
             $0.title = title
             $0.requeue(keys)
+        }
+        advance()
+    }
+
+    /// *Re-download* on one page of the list (C110): its turn comes again in every download that
+    /// holds it, rendered in the download voice.
+    func redownload(page key: UUID) {
+        updateRecords { records in
+            for r in records.indices {
+                for e in records[r].entries.indices where records[r].entries[e].key == key {
+                    records[r].entries[e].state = .queued
+                    records[r].entries[e].failure = nil
+                }
+            }
         }
         advance()
     }

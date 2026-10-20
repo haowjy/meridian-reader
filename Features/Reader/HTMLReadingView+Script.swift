@@ -178,6 +178,67 @@ extension HTMLReadingWebView {
             var box = el.getBoundingClientRect();
             return [docTop(box), box.height, window.__readerTextTop()];
           };
+          // Pages mode (C107): CSS columns a screen wide in a box from `top` to `h`.
+          window.__readerPaged = function(on, top, h) {
+            document.documentElement.classList.toggle('reader-paged', !!on);
+            // On the body: the root's style attribute is rewritten with every look change.
+            var s = document.body.style;
+            s.setProperty('--page-top', top + 'px');
+            s.setProperty('--page-h', h + 'px');
+          };
+          function docLeft(r) { return r.left + window.scrollX; }
+          // The page (of width W) holding the spot's character.
+          window.__readerSpotPage = function(index, offset, W) {
+            var el = document.querySelector('[data-reader-index="' + index + '"]');
+            if (!el) return 0;
+            var r = offset > 0 ? rangeIn(el, offset, offset + 1) : null;
+            var rect = r && r.getClientRects()[0];
+            if (!rect) rect = el.getClientRects()[0];
+            if (!rect) return 0;
+            return Math.max(0, Math.floor((docLeft(rect) + 1) / W));
+          };
+          window.__readerFragmentPage = function(fragment, W) {
+            var id = fragment;
+            try { id = decodeURIComponent(fragment); } catch (e) {}
+            var el = document.getElementById(id) || document.getElementsByName(id)[0];
+            var rect = el && el.getClientRects()[0];
+            return rect ? Math.max(0, Math.floor((docLeft(rect) + 1) / W)) : 0;
+          };
+          // The first character on page k (of width W): { index, offset }, or null.
+          window.__readerPageStart = function(k, W) {
+            var lo = k * W - 1, els = document.querySelectorAll('[data-reader-index]');
+            for (var i = 0; i < els.length; i++) {
+              var rs = els[i].getClientRects();
+              if (!rs.length || docLeft(rs[rs.length - 1]) < lo) continue;
+              var el = els[i], idx = Number(el.getAttribute('data-reader-index'));
+              if (docLeft(rs[0]) >= lo) return { index: idx, offset: 0 };
+              var a = 0, b = (el.textContent || '').length;
+              while (a < b) {
+                var m = (a + b) >> 1, r = rangeIn(el, m, m + 1), rc = r && r.getClientRects()[0];
+                if (!rc || docLeft(rc) < lo) a = m + 1; else b = m;
+              }
+              return { index: idx, offset: a };
+            }
+            return null;
+          };
+          // The selection's start as [listen paragraph, offset in it] (C109), counted as rangeIn
+          // counts (leading white space skipped); null with no selection in the text.
+          window.__readerSelectionSpot = function() {
+            var sel = window.getSelection();
+            if (!sel || !sel.rangeCount || sel.isCollapsed) return null;
+            var r = sel.getRangeAt(0), node = r.startContainer;
+            var host = node.nodeType === 1 ? node : node.parentElement;
+            var el = host && host.closest('[data-reader-index]');
+            if (!el) {
+              var els = document.querySelectorAll('[data-reader-index]');
+              for (var i = 0; i < els.length; i++) if (r.intersectsNode(els[i])) return [Number(els[i].getAttribute('data-reader-index')), 0];
+              return null;
+            }
+            var pre = document.createRange();
+            pre.selectNodeContents(el);
+            pre.setEnd(r.startContainer, r.startOffset);
+            return [Number(el.getAttribute('data-reader-index')), pre.toString().replace(/^\\s+/, '').length];
+          };
           // Pages mode: the page's lines as [top, bottom, top, bottom, …] in document y, sorted and
           // merged where they overlap. A text line is its line box (the glyphs' rect grown to the
           // line height around its middle, so lines in a paragraph touch); images, embeds, the
@@ -240,12 +301,18 @@ extension HTMLReadingWebView {
           // A touch that stops a glide, or lands as one ends, isn't a tap (C105).
           var lastScroll = 0, touchAfterScroll = false;
           window.addEventListener('scroll', function() { lastScroll = Date.now(); }, { passive: true });
+          // A tap that clears a selection isn't a tap on the text either (C109).
+          var hadSelection = false;
           document.addEventListener('touchstart', function() {
             touchAfterScroll = Date.now() - lastScroll < 250;
+            var sel = window.getSelection();
+            hadSelection = !!(sel && !sel.isCollapsed);
           }, { passive: true });
           document.addEventListener('click', function(ev) {
             if (window.__readerJump) return;
-            if (touchAfterScroll || Date.now() - lastScroll < 250) return;
+            if (touchAfterScroll || hadSelection || Date.now() - lastScroll < 250) return;
+            var s2 = window.getSelection();
+            if (s2 && !s2.isCollapsed) return;
             if (ev.target && ev.target.closest && ev.target.closest('a[href]')) return;
             window.webkit.messageHandlers.readerBridge.postMessage({ tapX: ev.clientX, width: window.innerWidth });
           });

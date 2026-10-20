@@ -59,6 +59,11 @@ extension HTMLReadingWebView.Coordinator {
     /// once). WebKit's own fragment navigation doesn't scroll a page loaded from a string. The
     /// user moved the text, as with a page turn: following stops.
     private func goToAnchor(_ fragment: String) {
+        if let pages = layout as? PagesTextLayout {
+            userTookOver()
+            stopFollowing()
+            return pages.show(fragment: fragment)
+        }
         guard loaded, let data = try? JSONSerialization.data(withJSONObject: [fragment]),
               let arg = String(data: data, encoding: .utf8) else { return }
         locate("window.__readerAnchorRect(\(arg)[0])") { [weak self] top, height in

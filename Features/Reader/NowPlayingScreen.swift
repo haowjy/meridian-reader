@@ -115,7 +115,8 @@ struct NowPlayingScreen: View {
                        scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,
                        opensAt: shell.nowPlayingOpensAt,
-                       onUserScroll: { following = false }, onTap: jump(to:), onOpenLink: shell.navigate(to:))
+                       onUserScroll: { following = false }, onTap: jump(to:), onOpenLink: shell.navigate(to:),
+                       onPlaySelection: playFromSelection)
         } else {
             appearance.palette(accent: AppAppearance.shared.accent).background
         }
@@ -163,6 +164,17 @@ struct NowPlayingScreen: View {
         jumpMode = false
         following = true
         speech.play(fromParagraph: index)
+    }
+
+    /// *Play from Here* on a selection (C109): from its sentence's start.
+    private func playFromSelection(paragraph: Int, offset: Int) {
+        guard let spot = ListenSpot.fromSelection(in: speech.document, paragraph: paragraph, offset: offset) else { return }
+        jumpMode = false
+        following = true
+        speech.play(fromParagraph: spot.paragraph)
+        if spot.utf16Offset > speech.document.startUTF16Offset(forParagraph: spot.paragraph) {
+            speech.seek(toUTF16Offset: spot.utf16Offset)
+        }
     }
 
     private func buildScrubMap() async {
@@ -226,6 +238,7 @@ private struct SpokenText: View {
     let onUserScroll: () -> Void
     let onTap: (Int) -> Void
     let onOpenLink: (URL) -> Void
+    var onPlaySelection: ((Int, Int) -> Void)?
 
     @Environment(\.readingPalette) private var reading
 
@@ -247,6 +260,7 @@ private struct SpokenText: View {
             pageTimeLeft: { [document = speech.document, rate = speech.rateMultiplier, isChapter] in
                 ListeningTime.leftLabel(in: document, paragraph: $0, offset: $1, rate: rate, chapter: isChapter)
             },
+            onPlaySelection: onPlaySelection,
             onTapParagraph: onTap
         )
     }

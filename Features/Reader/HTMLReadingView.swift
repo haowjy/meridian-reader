@@ -87,6 +87,9 @@ struct HTMLReadingView: View {
     /// the UTF-16 offset in it), "2 min left" ("2 min left in chapter" for a chapter); nil shows the
     /// page alone.
     var pageTimeLeft: (_ paragraph: Int, _ offset: Int) -> String? = { _, _ in nil }
+    /// *Play from Here* on a text selection (C109): its listen paragraph and the offset in it;
+    /// nil offers none.
+    var onPlaySelection: ((_ paragraph: Int, _ offset: Int) -> Void)? = nil
     let onTapParagraph: (Int) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -129,6 +132,7 @@ struct HTMLReadingView: View {
             animates: !reduceMotion,
             onUserScroll: onUserScroll,
             onOpenLink: onOpenLink,
+            onPlaySelection: onPlaySelection,
             onTapParagraph: onTapParagraph
         )
         .background(palette.background)
@@ -199,6 +203,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
     var animates = true
     var onUserScroll: () -> Void = {}
     var onOpenLink: (URL) -> Void = { _ in }
+    var onPlaySelection: ((_ paragraph: Int, _ offset: Int) -> Void)?
     let onTapParagraph: (Int) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -237,6 +242,8 @@ struct HTMLReadingWebView: UIViewRepresentable {
         ))
 
         let webView = ReadingWebView(frame: .zero, configuration: config)
+        webView.canPlayFromHere = { [weak coordinator] in coordinator?.onPlaySelection != nil }
+        webView.onPlayFromHere = { [weak coordinator] in coordinator?.playFromSelection() }
         webView.onLayout = { [weak coordinator] in coordinator?.layoutTopView() }
         webView.isOpaque = false
         webView.backgroundColor = .clear
@@ -254,6 +261,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         let c = context.coordinator
         c.onTapParagraph = onTapParagraph
+        c.onPlaySelection = onPlaySelection
         c.onUserScroll = onUserScroll
         c.onOpenLink = onOpenLink
         c.chrome = chrome
@@ -281,6 +289,16 @@ struct HTMLReadingWebView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         var onTapParagraph: (Int) -> Void
+        var onPlaySelection: ((_ paragraph: Int, _ offset: Int) -> Void)?
+
+        /// *Play from Here* (C109): the selection's start, then the owner plays from its sentence.
+        func playFromSelection() {
+            guard let webView, let onPlaySelection else { return }
+            webView.evaluateJavaScript("window.__readerSelectionSpot()") { result, _ in
+                guard let spot = result as? [Int], spot.count == 2 else { return }
+                onPlaySelection(spot[0], spot[1])
+            }
+        }
         var onUserScroll: () -> Void = {}
         var onOpenLink: (URL) -> Void = { _ in }
         weak var chrome: ReadingChrome?
@@ -441,6 +459,11 @@ struct HTMLReadingWebView: UIViewRepresentable {
             layoutTopView()
         }
 
+        /// Pages mode's column box starts this far down (C107): the top view sits on its slot there.
+        var topViewY: CGFloat = 0 {
+            didSet { if oldValue != topViewY { topHost?.view.frame.origin.y = Spacing.xs + topViewY } }
+        }
+
         /// Sizes the top view to the page's width (inset by `Spacing.m`, at the body's top padding)
         /// and makes the page's slot under it as tall.
         func layoutTopView() {
@@ -452,7 +475,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
             if width != measuredTopWidth {
                 measuredTopWidth = width
                 let height = ceil(host.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height)
-                host.view.frame = CGRect(x: Spacing.m, y: Spacing.xs, width: width, height: height)
+                host.view.frame = CGRect(x: Spacing.m, y: Spacing.xs + topViewY, width: width, height: height)
                 if height != sentTopHeight {
                     sentTopHeight = height
                     sendTopHeight()
@@ -514,7 +537,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
             case .paragraph(let index):
                 showParagraph(index)
             case .top, .spoken, nil:
-                if goesToSpoken { goToSpoken(.jump) }
+                if goesToSpoken { goToSpoken(.jump, explicit: true) }
             }
         }
 
@@ -535,6 +558,10 @@ struct HTMLReadingWebView: UIViewRepresentable {
 
         /// The paragraph scrubbed to, in the middle; the hold goes once the layout has shown it.
         private func showParagraph(_ index: Int) {
+            if let pages = layout as? PagesTextLayout {
+                hold = nil
+                return pages.show(spot: ReadingPages.Spot(paragraph: index, offset: 0))
+            }
             locate("window.__readerSpokenRect(\(index), null, null)") { [weak self] top, height in
                 guard let self, hold == .paragraph(index) else { return }
                 if layout.show(top: top, height: height, .centre(.jump)) { hold = nil }
@@ -660,7 +687,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
         func setFollows(_ on: Bool) {
             guard on != follows else { return }
             follows = on
-            if on { goToSpoken(.animate) }
+            if on { goToSpoken(.animate, explicit: true) }
         }
 
         // MARK: Going to the spoken sentence
@@ -697,8 +724,15 @@ struct HTMLReadingWebView: UIViewRepresentable {
         /// text, or its page. A long paragraph's middle can be screens away from the sentence
         /// being read, so the sentence, not the paragraph, is what is shown. Going there drops a
         /// hand-over still being placed (following takes over at the next paragraph).
-        func goToSpoken(_ move: SpokenMove) {
+        /// Pages never follow the audio (C108): only an explicit move (opening at the sentence, a
+        /// new layout keeping it, *Jump to Audio*) shows the spoken sentence's page.
+        func goToSpoken(_ move: SpokenMove, explicit: Bool = false) {
             guard loaded, goesToSpoken, let spot = spokenSpot else { return }
+            if let pages = layout as? PagesTextLayout {
+                guard explicit else { return }
+                handOverPlaced()
+                return pages.show(spot: ReadingPages.Spot(spot))
+            }
             if move != .intoView {
                 layout.cancelSettling()
                 handOverPlaced()
@@ -724,7 +758,10 @@ struct HTMLReadingWebView: UIViewRepresentable {
                 "window.__readerSetActive && window.__readerSetActive(\(arg));",
                 completionHandler: nil
             )
-            if changed, follows, index != nil { goToSpoken(.animate) }
+            if changed, follows, let index {
+                if layout is PagesTextLayout { return layout.follow(word: ReadingPages.Spot(paragraph: index, offset: 0)) }
+                goToSpoken(.animate)
+            }
         }
 
         func setSentence(_ sentence: ReaderSentence?) {
@@ -736,7 +773,8 @@ struct HTMLReadingWebView: UIViewRepresentable {
                                        completionHandler: nil)
             guard let sentence else { return }
             // Opened at the sentence, which came after the page: it goes there now.
-            if !follows, hold == .spoken { return goToSpoken(.jump) }
+            if !follows, hold == .spoken { return goToSpoken(.jump, explicit: true) }
+            if layout is PagesTextLayout { return }
             // Following, within the paragraph the text last went to: to its sentence when the text
             // went there before the sentence was known, else only to keep the sentence in view.
             guard follows, sentence.paragraph == pendingActive, let shown = spokenShown,
@@ -884,6 +922,18 @@ extension ReadingTextLayout {
 /// title card).
 final class ReadingWebView: WKWebView {
     var onLayout: (() -> Void)?
+    var canPlayFromHere: () -> Bool = { false }
+    var onPlayFromHere: () -> Void = {}
+
+    /// The system edit menu on a selection gets *Play from Here* first (C109), beside Copy.
+    override func buildMenu(with builder: any UIMenuBuilder) {
+        super.buildMenu(with: builder)
+        guard canPlayFromHere() else { return }
+        let play = UIAction(title: String(localized: "Play from Here"), image: UIImage(systemName: "play")) {
+            [weak self] _ in self?.onPlayFromHere()
+        }
+        builder.insertChild(UIMenu(options: .displayInline, children: [play]), atStartOfMenu: .standardEdit)
+    }
 
     override func layoutSubviews() {
         super.layoutSubviews()

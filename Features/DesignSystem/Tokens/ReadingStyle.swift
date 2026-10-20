@@ -113,6 +113,12 @@ enum ReadingStyle {
                font-family: var(--font); font-size: calc(var(--body) * var(--scale)); line-height: var(--leading);
                -webkit-text-size-adjust: 100%; background: var(--paper); color: var(--ink); }
         a { color: var(--accent); }
+        html.reader-paged { height: 100%; overflow-y: hidden; }
+        html.reader-paged body { box-sizing: border-box; height: var(--page-h); padding-top: var(--page-top);
+               padding-bottom: 0; column-width: calc(100vw - \(2 * margin)px); column-gap: \(2 * margin)px; column-fill: auto; }
+        html.reader-paged img, html.reader-paged svg, html.reader-paged video, html.reader-paged iframe {
+               max-height: calc(var(--page-h) - var(--page-top) - \(Int(Spacing.l))px); object-fit: contain;
+               break-inside: avoid; }
         h1, h2, h3, h4, h5, h6 { line-height: 1.25; }
         h1 { font-size: calc(var(--title) * var(--scale) * 0.9); }
         h2 { font-size: calc(var(--body) * var(--scale) * 1.2); }

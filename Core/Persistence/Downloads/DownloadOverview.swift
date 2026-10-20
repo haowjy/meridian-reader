@@ -135,3 +135,68 @@ struct DownloadOverview: Equatable {
                          rendersDownloads: rendersDownloads) { _ in nil }.progress
     }
 }
+
+/// The Downloads list by page (C110): each page of every download its own row, a folder's pages
+/// too, never a folder total. A page in more than one download shows once, where it is furthest
+/// from done (queued over finished). Queued pages are in the order they render (the downloads in
+/// the order asked for, each one's pages in play order, as `DownloadCenter.nextQueued` takes them).
+struct DownloadPages: Equatable {
+    struct Item: Equatable, Identifiable {
+        /// The download it came from (its *Keep*, and the remove when the page has gone).
+        let recordID: UUID
+        let key: UUID
+        let status: DownloadOverview.Status
+        /// It ended without its audio.
+        var failed = false
+        let voice: String?
+
+        var id: UUID { key }
+    }
+
+    var now: [Item] = []
+    var waiting: [Item] = []
+    var done: [Item] = []
+    var differentVoice: [Item] = []
+
+    var isEmpty: Bool { now.isEmpty && waiting.isEmpty && done.isEmpty && differentVoice.isEmpty }
+
+    init(records: [DownloadRecord], active: DownloadOverview.Active?, currentVoice: String?, rendersDownloads: Bool,
+         voiceOf: (UUID) -> String?) {
+        var seen = Set<UUID>()
+        // Queued pages first, in render order.
+        for record in records where !record.isPaused {
+            for entry in record.entries where entry.state == .queued && seen.insert(entry.key).inserted {
+                add(record, entry.key, rendersDownloads: rendersDownloads, active: active, currentVoice: currentVoice)
+            }
+        }
+        for record in records where record.isPaused {
+            for entry in record.entries where entry.state == .queued && seen.insert(entry.key).inserted {
+                waiting.append(Item(recordID: record.id, key: entry.key, status: .paused(fraction: 0), voice: currentVoice))
+            }
+        }
+        for record in records {
+            for entry in record.entries where entry.state != .queued && seen.insert(entry.key).inserted {
+                let voice = voiceOf(entry.key)
+                if let voice, currentVoice != nil, !record.accepts(voice, current: currentVoice) {
+                    differentVoice.append(Item(recordID: record.id, key: entry.key, status: .differentVoice(voice), voice: voice))
+                } else {
+                    done.append(Item(recordID: record.id, key: entry.key, status: .done, failed: entry.state == .failed,
+                                     voice: voice))
+                }
+            }
+        }
+    }
+
+    private mutating func add(_ record: DownloadRecord, _ key: UUID, rendersDownloads: Bool,
+                              active: DownloadOverview.Active?, currentVoice: String?) {
+        if let active, active.key == key, active.recordID == record.id {
+            let f = min(max(active.fraction, 0), 1)
+            now.append(Item(recordID: record.id, key: key,
+                            status: active.isFetching ? .fetching(fraction: f) : .downloading(fraction: f), voice: currentVoice))
+        } else {
+            waiting.append(Item(recordID: record.id, key: key,
+                                status: rendersDownloads ? .queued(fraction: 0) : .waitingForVoice(fraction: 0),
+                                voice: currentVoice))
+        }
+    }
+}

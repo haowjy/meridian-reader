@@ -48,6 +48,7 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.readingAppearance) private var appearance
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @Environment(\.sheetRisesOnAppear) private var risesOnAppear
     @State private var risen = false
@@ -154,9 +155,12 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .ignoresSafeArea(.container, edges: .bottom)
-            overText
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                .padding(.bottom, (hidden ? chrome.pageFooter : bandHeight) + Spacing.s)
+            // Pages mode is for reading: nothing floats over its text (C108).
+            if appearance.layout != .pages {
+                overText
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, (hidden ? chrome.pageFooter : bandHeight) + Spacing.s)
+            }
             headerBlock
                 .background {
                     UnevenRoundedRectangle(topLeadingRadius: Radius.card, topTrailingRadius: Radius.card,

@@ -21,3 +21,15 @@ extension ReaderSentence {
         self.init(paragraph: paragraph, start: range.lowerBound, end: range.upperBound)
     }
 }
+
+extension ListenSpot {
+    /// *Play from Here* on a selection (C109): the start of the sentence holding `offset` (UTF-16,
+    /// into `paragraph`'s text), as a document spot; the paragraph's start when no sentence holds
+    /// it. Nil for a paragraph the document doesn't have.
+    static func fromSelection(in document: ParagraphDocument, paragraph: Int, offset: Int) -> ListenSpot? {
+        guard document.paragraphs.indices.contains(paragraph) else { return nil }
+        let base = document.startUTF16Offset(forParagraph: paragraph)
+        let start = ReaderSentence(in: document, paragraph: paragraph, utf16Offset: base + max(0, offset))?.start ?? 0
+        return ListenSpot(paragraph: paragraph, utf16Offset: base + start)
+    }
+}

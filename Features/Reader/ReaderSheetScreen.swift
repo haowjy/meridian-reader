@@ -101,6 +101,11 @@ struct ReaderSheetScreen: View {
                         pageTimeLeft: { [document = article.document, rate = speech.rateMultiplier] in
                             ListeningTime.leftLabel(in: document, paragraph: $0, offset: $1, rate: rate,
                                                     chapter: chapter)
+                        },
+                        onPlaySelection: { paragraph, offset in
+                            guard let spot = ListenSpot.fromSelection(in: article.document, paragraph: paragraph,
+                                                                      offset: offset) else { return }
+                            listen(at: spot)
                         }) { index in
             if jumpMode { listen(from: index, start: start) }
         }
@@ -150,6 +155,15 @@ struct ReaderSheetScreen: View {
         jumpMode = false
         let handOver = scroll.handOver
         speech.listen(to: article, at: paragraph.map { ListenSpot(paragraph: $0) } ?? start)
+        shell.turnReaderIntoNowPlaying(handOver: handOver)
+    }
+
+    /// *Play from Here* on a selection (C109): the page plays from that spot, as Listen does.
+    private func listen(at spot: ListenSpot) {
+        guard sessionReady else { return }
+        jumpMode = false
+        let handOver = scroll.handOver
+        speech.listen(to: article, at: spot)
         shell.turnReaderIntoNowPlaying(handOver: handOver)
     }
 

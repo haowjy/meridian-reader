@@ -595,9 +595,12 @@ downloads wait (only what plays renders there, in bursts; LISTEN_PLAYBACK.md).
 
 ```
 Downloads                                       ( Done )
-Queued  2                                  Pause All
-▣  Pride and Prejudice                        (↓)   the arrow filling: how far; tap pauses
-   Kokoro Heart   4 of 12 chapters   38%
+Now                                        Pause All
+[i] Chapter 3: The Tide                        ⋯   ↓ filling (its own progress) before line two
+   ↓ Demo Folder   17%
+Waiting  2
+[i] Chapter 4: The Bay                         ⋯   spinner, in the order pages render
+   ◌ Demo Folder   Kokoro Heart
 Downloaded  1
 [i] Coupon Basics
    Kokoro Heart   12 MB
@@ -610,8 +613,12 @@ Different Voice  1
 
 **⋯ › Downloads** (`DownloadsSheet`, every ⋯ panel: the browser's, the Library's on every screen,
 the Reader's, Now Playing's; medium, grows to large; also Settings › Downloads & Storage ›
-Downloads, pushed) lists, in sections shown only when they have
-rows: **Queued** (the download rendering now and those waiting, *Pause All / Resume All*, each
+Downloads, pushed) lists one row per page (C110: a folder's pages each on their own row, never a folder total;
+line two its folder's name, or its site for a page in no folder; the status mark before it:
+spinner waiting, accent ↓ filling while it renders, filled once done), in sections shown only
+when they have rows (**Now**, **Waiting** in render order, then the ones below; a folder's own
+download is turned off on its screen, *Pause All* pauses everything). Older text below
+describes record rows: **Queued** (the download rendering now and those waiting, *Pause All / Resume All*, each
 row's filling arrow, just before its ⋯, pausing it; grey while paused, a tap resumes it; a paused
 download is grey on its Library row and its folder's header too, captioned *Paused*),
 **Downloaded** (each with the grey ✓ and the room it takes, the total under the section, on the
@@ -966,20 +973,23 @@ time; Follow's chapter preview always scrolls.
   full screen. The time is what is left from the first character of the page shown to the end of
   the page's text, at the playback speed, worded as the rows and the Now Playing bar word it; a
   chapter of a book or series says `2 min left in chapter`, so it isn't read as the book's.
-- **Turning** (C106): pages turn sideways, as in Kindle. A swipe left drags the page shown off to
-  the left over the next one; a swipe right drags it off to the right over the one before. Let go
-  past a quarter of the width (or flicked) it turns, else it springs back; past the first or last
-  page it barely gives. A tap at the right edge zone slides to the next page, at the left edge
-  zone to the one before (at once under Reduce Motion); the middle shows or hides the bars. The
-  first 48 pt from the left edge stay the system's: neither a tap nor a swipe that begins there
-  turns a page, so the edge swipe back still works. The text never scrolls vertically in Pages,
-  so a pull down on the text no longer closes the sheet there (the grabber and the close pill do).
-- **Following the audio** (Now Playing) turns to the page holding the spoken sentence when the
-  voice reaches it, and to the next page as the voice crosses onto it, mid-sentence too. A turn
-  of your own stops following and *Jump to Audio* appears; it goes back
-  to the spoken sentence's page and follows again. The Reader opens at a saved spot on the page
-  holding its sentence; Listen hands over to Now Playing on the page holding the Reader's first
-  line (D2).
+- **Turning** (C107): native horizontal paging, as Apple Books' *Slide*. The page is laid out in
+  CSS columns a screen wide, in the web view's own scroll view with paging on, so a page tracks
+  the finger 1:1 and settles with the system's physics; a tap at the right edge zone slides to the
+  next page, at the left edge zone to the one before (the scroll view's own animation; at once
+  under Reduce Motion); the middle shows or hides the bars. The first 48 pt from the left edge
+  stay the system's: a swipe or tap that begins there turns nothing. Pages never scroll
+  vertically, so a pull down on the text doesn't close the sheet there (the grabber and the
+  close pill do).
+- **No following, nothing over the text** (C108): Pages is for reading. It never turns by itself
+  with the audio: once the voice leaves the page shown, Now Playing offers *Jump to Audio* in
+  its top bar (only while the bars show), which shows the spoken sentence's page once. Neither
+  the floating *Jump to Audio* nor the floating play / pause shows in Pages. Opening Now Playing
+  in Pages still opens on the page you hear, or the Reader's handed-over line (D2).
+- **Play from Here** (C109): selecting text (both modes) adds *Play from Here* to the system edit
+  menu, before Copy; it plays from the start of the sentence holding the selection's start (the
+  paragraph's start when none), saved page or not. A tap that clears a selection doesn't turn a
+  page or toggle the bars.
 - **The line being read stays** through a new layout (Aa's typeface, size or spacing, Dynamic
   Type, a picture arriving, the title card's height) and through switching Scroll ↔ Pages: the
   page holding it shows.

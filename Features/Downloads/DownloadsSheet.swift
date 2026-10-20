@@ -46,18 +46,23 @@ struct DownloadsSheet: View {
     }
 }
 
-/// The Downloads list itself: the sheet's, and Settings › Downloads & Storage › Downloads.
+/// The Downloads list itself: the sheet's, and Settings › Downloads & Storage › Downloads. Every
+/// row is one page (C110), a folder's pages each on their own row: its status mark before line
+/// two (a spinner waiting, the accent ↓ filling with its own progress, filled once done), line two
+/// its folder's name (its site when it is in no folder). Waiting is in the order pages render.
+/// A folder's own download (its toggle, *Turn Off Download*) stays on the folder's screen.
 struct DownloadsList: View {
     @Environment(DownloadCenter.self) private var downloads
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
     @Environment(FollowCenter.self) private var follow
     @Environment(\.speechController) private var speech
-    /// Bytes on disk of each finished download, by its id (measured off the main actor).
+    /// Bytes on disk of each downloaded page, by its key (measured off the main actor).
     @State private var sizes: [UUID: Int64] = [:]
 
     var body: some View {
-        let overview = downloads.overview
+        let overview = downloads.pageOverview
+        let records = downloads.overview.queued
         List {
             if overview.isEmpty {
                 Section {
@@ -69,18 +74,47 @@ struct DownloadsList: View {
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             }
-            let now = overview.queued.filter { downloads.isActive($0.id) }
-            let waiting = overview.queued.filter { !downloads.isActive($0.id) }
-            if !now.isEmpty { nowSection(now, anyRunning: overview.queued.contains { !$0.record.isPaused }) }
-            if !waiting.isEmpty { waitingSection(waiting, pauseAll: now.isEmpty) }
-            if !overview.done.isEmpty { done(overview.done) }
-            if !overview.differentVoice.isEmpty { differentVoice(overview.differentVoice) }
+            let anyRunning = records.contains { !$0.record.isPaused }
+            if !overview.now.isEmpty {
+                section(overview.now, header: pauseAllHeader(String(localized: "Now"), count: nil, anyRunning: anyRunning),
+                        headerID: "downloadsNowHeader") { EmptyView() }
+            }
+            if !overview.waiting.isEmpty {
+                let title = String(localized: "Waiting")
+                section(overview.waiting,
+                        header: overview.now.isEmpty ? pauseAllHeader(title, count: overview.waiting.count, anyRunning: anyRunning)
+                            : SectionHeader(title: title, count: overview.waiting.count),
+                        headerID: "downloadsWaitingHeader") {
+                    if !speech.localTTS.wantsLocalBake { waitingNote.listFooter() }
+                }
+            }
+            if !overview.done.isEmpty {
+                section(overview.done, header: SectionHeader(title: Verbs.downloaded, count: overview.done.count),
+                        headerID: "downloadsDoneHeader") {
+                    let total = overview.done.compactMap { sizes[$0.key] }.reduce(0, +)
+                    if total > 0 {
+                        Text(String(localized: "\(FileSizes.label(total)) on this iPhone"))
+                            .accessibilityIdentifier("downloadsStorage")
+                            .listFooter()
+                    }
+                }
+            }
+            if !overview.differentVoice.isEmpty {
+                section(overview.differentVoice,
+                        header: SectionHeader(title: String(localized: "Different Voice"), count: overview.differentVoice.count),
+                        headerID: "downloadsDifferentVoiceHeader") {
+                    if let voice = speech.localTTS.downloadVoice {
+                        Text(String(localized: "Downloads now render in \(voiceLabel(voice)). A download’s menu has Re-download, to hear it in that voice, and Keep, to keep it as it is."))
+                            .listFooter()
+                    }
+                }
+            }
         }
         .cardListStyle()
         .animation(Motion.standard, value: overview)
         .navigationTitle(Verbs.downloads)
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: SizeKey(overview)) { sizes = await measure(overview.done + overview.differentVoice) }
+        .task(id: overview.done.map(\.key)) { sizes = await measure(overview.done.map(\.key)) }
     }
 
     // MARK: - Sections
@@ -93,60 +127,14 @@ struct DownloadsList: View {
         }
     }
 
-    /// The download rendering now (C92).
-    private func nowSection(_ items: [DownloadOverview.Item], anyRunning: Bool) -> some View {
-        section(items, header: pauseAllHeader(String(localized: "Now"), count: nil, anyRunning: anyRunning),
-                headerID: "downloadsNowHeader") {
-            EmptyView()
-        }
-    }
-
-    /// The downloads waiting their turn, in queue order, each with its place and wait (C92).
-    private func waitingSection(_ items: [DownloadOverview.Item], pauseAll: Bool) -> some View {
-        let title = String(localized: "Waiting")
-        let header = pauseAll ? pauseAllHeader(title, count: items.count, anyRunning: items.contains { !$0.record.isPaused })
-            : SectionHeader(title: title, count: items.count)
-        return section(items, header: header, headerID: "downloadsWaitingHeader") {
-            if !speech.localTTS.wantsLocalBake {
-                waitingNote
-                    .listFooter()
-            }
-        }
-    }
-
-    private func done(_ items: [DownloadOverview.Item]) -> some View {
-        section(items, header: SectionHeader(title: Verbs.downloaded, count: items.count),
-                headerID: "downloadsDoneHeader") {
-            let total = items.compactMap { sizes[$0.id] }.reduce(0, +)
-            if total > 0 {
-                Text(String(localized: "\(FileSizes.label(total)) on this iPhone"))
-                    .accessibilityIdentifier("downloadsStorage")
-                    .listFooter()
-            }
-        }
-    }
-
-    private func differentVoice(_ items: [DownloadOverview.Item]) -> some View {
-        section(items, header: SectionHeader(title: String(localized: "Different Voice"), count: items.count),
-                headerID: "downloadsDifferentVoiceHeader") {
-            if let voice = speech.localTTS.downloadVoice {
-                Text(String(localized: "Downloads now render in \(voiceLabel(voice)). A download’s menu has Re-download, to hear it in that voice, and Keep, to keep it as it is."))
-                    .listFooter()
-            }
-        }
-    }
-
-    /// A section of downloads under `header` (identified `headerID`), with `footer` below.
     private func section<Footer: View>(
-        _ items: [DownloadOverview.Item], header: SectionHeader, headerID: String, @ViewBuilder footer: () -> Footer
+        _ items: [DownloadPages.Item], header: SectionHeader, headerID: String, @ViewBuilder footer: () -> Footer
     ) -> some View {
         let footer = footer()
         return Section {
-            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                row(item, place: index)
-            }
-            .listRowInsets(EdgeInsets())
-            .listCard()
+            ForEach(items) { item in row(item) }
+                .listRowInsets(EdgeInsets())
+                .listCard()
         } header: {
             header
                 .listHeader()
@@ -174,143 +162,66 @@ struct DownloadsList: View {
 
     // MARK: - A row
 
-    private func row(_ item: DownloadOverview.Item, place: Int) -> some View {
-        let record = item.record
-        let shown = DownloadShown(record: record, library: library)
-        let parts = detail(item, noun: shown.noun, place: place)
-        let downloadMenu = DownloadMenu(item: item, downloads: downloads)
+    private func row(_ item: DownloadPages.Item) -> some View {
+        let page = library.page(key: item.key)
+        let title = page?.lineOne ?? downloads.records.first { $0.id == item.recordID }?.title ?? ""
+        let kind: ListRow.Kind = .page(artwork: page?.artworkImage, letter: page?.artworkLetter ?? String(title.prefix(1)))
+        // Line two as a row's anywhere: its folder, else its site.
+        let place = page.flatMap { $0.folder?.name ?? PageTitle.lineTwoSource(title: $0.givenTitle, source: $0.byline) }
+        let downloadMenu = DownloadMenu(item: item, downloads: downloads, library: library)
         let menu = AnyView(downloadMenu)
-        return ListRow(kind: shown.kind, title: shown.title, subtitle: parts.first, details: Array(parts.dropFirst()),
-                       download: item.status == .done ? .downloaded : .notDownloaded, folderHasDetails: shown.hasDetails,
-                       menu: menu, accessory: transfer(item), showsListening: false)
-            .opensOnTap { open(record.target) }
+        return ListRow(kind: kind, title: title, subtitle: place, details: detail(item),
+                       download: mark(item), menu: menu, showsListening: false)
+            .opensOnTap { open(page) }
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                // The menu's *Remove Download(s)*. The record goes at once (`remove` is
-                // synchronous), so the role's early row removal agrees with the list.
                 downloadMenu.removeRow.swipeButton(role: .destructive)
             }
             .accessibilityIdentifier("downloadRow")
     }
 
-    /// The voice, then where it is: "4 of 12   ~2 h left" (rendering now),
-    /// the voice alone while waiting (the Waiting section already says it is next, C96),
-    /// "Kokoro Heart   12 MB".
-    private func detail(_ item: DownloadOverview.Item, noun: String?, place: Int) -> [String] {
-        let record = item.record
-        let voice = item.voice.map(voiceLabel)
-        let count = noun.map { String(localized: "\(record.finishedCount) of \(record.entries.count) \($0)") }
-        let size = sizes[record.id].map(FileSizes.label)
-        func percent(_ f: Double) -> String { "\(Int((f * 100).rounded()))%" }
+    /// The row's one status mark (C102): filling with its own progress, waiting, paused, done.
+    private func mark(_ item: DownloadPages.Item) -> DownloadState {
         switch item.status {
-        case .downloading(let f):
-            // Short enough for one line on a phone (C95): the count without its noun (a page's
-            // download: its percent), then the time left. The voice and percent are left out:
-            // the voice shows once done, the mark fills with the percent.
-            let left = downloads.renderSecondsLeft(record).map { String(localized: "\(DownloadCenter.estimate($0)) left") }
-            let done = noun == nil ? percent(f) : String(localized: "\(record.finishedCount) of \(record.entries.count)")
-            return [done, left].compactMap { $0 }
-        case .fetching:
-            return [voice, count, String(localized: "Getting the page")].compactMap { $0 }
-        case .queued:
-            return [voice].compactMap { $0 }
-        case .paused(let f):
-            return [voice, String(localized: "Paused"), f > 0 ? percent(f) : nil].compactMap { $0 }
-        case .waitingForVoice:
-            return [String(localized: "Waiting for an on-device voice")]
+        case .downloading(let f), .fetching(let f): .downloading(fraction: f)
+        case .queued, .waitingForVoice: .queued(fraction: 0)
+        case .paused: .paused(fraction: 0)
+        case .done: item.failed ? .notDownloaded : .downloaded
+        case .differentVoice: .downloaded
+        }
+    }
+
+    private func detail(_ item: DownloadPages.Item) -> [String] {
+        let voice = item.voice.map(voiceLabel)
+        switch item.status {
+        case .downloading(let f): return ["\(Int((f * 100).rounded()))%"]
+        case .fetching: return [String(localized: "Getting the page")]
+        case .queued: return [voice].compactMap { $0 }
+        case .paused: return [String(localized: "Paused")]
+        case .waitingForVoice: return [String(localized: "Waiting for an on-device voice")]
         case .done, .differentVoice:
-            let failed = record.failedCount
-            let live = record.entries.allSatisfy { $0.state == .speaksLive }
-            return [live ? String(localized: "Plays with Apple’s voice") : voice, size,
-                    failed > 0 ? String(localized: "\(failed) couldn’t download") : nil].compactMap { $0 }
+            if item.failed { return [String(localized: "Couldn’t download")] }
+            return [voice, sizes[item.key].map(FileSizes.label)].compactMap { $0 }
         }
     }
 
-    /// A queued download's control: its `DownloadMark` filling as it renders (a tap pauses it),
-    /// grey while paused (a tap resumes it). None once done.
-    private func transfer(_ item: DownloadOverview.Item) -> AnyView? {
-        guard let fraction = item.status.fraction else { return nil }
-        let paused = item.record.isPaused
-        return AnyView(
-            Button { downloads.setPaused(item.id, !paused) } label: {
-                DownloadMark(state: paused ? .paused(fraction: fraction)
-                             : downloads.isActive(item.id) ? .downloading(fraction: fraction)
-                             : .queued(fraction: fraction))
-                    .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel(paused ? String(localized: "Resume Download") : String(localized: "Pause Download"))
-            .accessibilityValue(String(localized: "\(Int((fraction * 100).rounded())) percent"))
-            .accessibilityIdentifier(paused ? "downloadResume" : "downloadPause")
-        )
-    }
-
-    /// A page opens in the Reader (Now Playing when it is what you hear); a folder in the Library.
-    private func open(_ target: DownloadRecord.Target) {
-        switch target {
-        case .page(let key):
-            guard let page = library.page(key: key) else { return }
-            shell.sheet = nil
-            LibraryActions(library: library, speech: speech, shell: shell, follow: follow).open(page)
-        case .folder(let id):
-            guard let folder = library.folder(id: id) else { return }
-            shell.sheet = nil
-            shell.showLibrary(at: library.path(to: folder))
-        }
+    /// A page opens in the Reader (Now Playing when it is what you hear).
+    private func open(_ page: Page?) {
+        guard let page else { return }
+        shell.sheet = nil
+        LibraryActions(library: library, speech: speech, shell: shell, follow: follow).open(page)
     }
 
     // MARK: - Storage
 
-    /// What the sizes depend on: the finished downloads and how far each got.
-    private struct SizeKey: Hashable {
-        var ids: [UUID]
-        var finished: [Int]
-
-        init(_ overview: DownloadOverview) {
-            let items = overview.done + overview.differentVoice
-            ids = items.map(\.id)
-            finished = items.map(\.record.finishedCount)
-        }
-    }
-
-    /// Each download's audio on disk: its pages' cache folders, allocated bytes.
-    private func measure(_ items: [DownloadOverview.Item]) async -> [UUID: Int64] {
+    /// Each page's audio on disk, allocated bytes.
+    private func measure(_ keys: [UUID]) async -> [UUID: Int64] {
         let cache = speech.localTTS.audioCache
-        let folders = items.map { item in (item.id, item.record.entries.map { cache.directory(for: $0.key) }) }
+        let folders = keys.map { ($0, cache.directory(for: $0)) }
         return await Task.detached(priority: .utility) {
             var sizes: [UUID: Int64] = [:]
-            for (id, urls) in folders { sizes[id] = urls.reduce(0) { $0 + FileSizes.allocatedBytes(at: $1) } }
+            for (key, url) in folders { sizes[key] = FileSizes.allocatedBytes(at: url) }
             return sizes
         }.value
-    }
-}
-
-/// How a download looks in the list: its page's or folder's current title and artwork (the title
-/// it was asked for once it is gone), and what its pages are called (`Folder.itemNoun`; nothing
-/// for one page).
-@MainActor
-private struct DownloadShown {
-    let title: String
-    let kind: ListRow.Kind
-    let hasDetails: Bool
-    let noun: String?
-
-    init(record: DownloadRecord, library: LibraryStore) {
-        switch record.target {
-        case .page(let key):
-            let page = library.page(key: key)
-            title = page?.lineOne ?? record.title
-            kind = .page(artwork: page?.artworkImage, letter: page?.artworkLetter ?? String(title.prefix(1)))
-            hasDetails = false
-            noun = nil
-        case .folder(let id):
-            let folder = library.folder(id: id)
-            title = folder?.name ?? record.title
-            kind = .folder(symbol: folder?.rowSymbol ?? Icons.folder, count: [],
-                           cover: folder?.hasDetails == true ? folder?.coverImage : nil)
-            hasDetails = folder?.hasDetails == true
-            noun = folder?.itemNoun ?? String(localized: "pages")
-        }
     }
 }
