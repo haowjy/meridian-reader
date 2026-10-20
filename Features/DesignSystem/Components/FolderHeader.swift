@@ -19,7 +19,7 @@ import SwiftUI
 /// ```
 ///
 /// The Download control is a `DownloadMark` (an outline ↓, the circle filling as it downloads, a
-/// grey ✓ once downloaded) with what it shows written under it; *More* opens a menu; the ▶ is the
+/// grey filled ↓ once downloaded) with what it shows written under it; *More* opens a menu; the ▶ is the
 /// folder's Continue (⏸ while one of its pages is what you hear). The side controls share one
 /// width, so the ▶ stays centred whatever their captions say. The row is an `ActionButtonRow`
 /// (decision D21): with its captions while they fit whole, else the symbols alone (VoiceOver and
@@ -135,7 +135,7 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
     private func downloadValue(_ actions: FolderHeaderActions) -> String {
         var parts = [actions.downloadIsOn ? String(localized: "On") : String(localized: "Off")]
         switch actions.download {
-        case .downloading, .paused: parts.append(actions.download.percentText)
+        case .downloading, .queued, .paused: parts.append(actions.download.percentText)
         case .downloaded: parts.append(actions.download.label)
         case .notDownloaded: break
         }

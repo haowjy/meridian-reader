@@ -126,25 +126,30 @@ final class DownloadCenter {
         records.first { $0.target == target }
     }
 
+    /// `id`'s download has the page being fetched or rendered now.
+    func isActive(_ id: UUID) -> Bool { active?.recordID == id }
+
     /// The download covering `target` is still to finish.
     func isQueued(_ target: DownloadRecord.Target) -> Bool {
         record(for: target)?.hasQueuedPages == true
     }
 
     /// Where `page`'s download stands, the one answer its row's mark and the *Download* /
-    /// *Remove Download* rows (its row's menu, the Reader's and Now Playing's ⋯) read: downloading
-    /// while any download (its own or its folder's) has it queued, paused ones too, and that wins
-    /// over downloaded (a re-download in flight); downloaded by the Downloads list's own rule
+    /// *Remove Download* rows (its row's menu, the Reader's and Now Playing's ⋯) read: while any
+    /// download (its own or its folder's) has it queued, downloading with its real progress
+    /// (paragraphs rendered of its total) when it is the page rendering now, waiting its turn
+    /// (`queued`) otherwise, paused when every download holding it is (C90); that wins over
+    /// downloaded (a re-download in flight). Downloaded by the Downloads list's own rule
     /// (`DownloadOverview.isDownloaded`), which audio rendered only by listening never meets. A
-    /// page out of the Library has no download. A page's fraction is always 0: what reads it shows
-    /// only that it downloads, and measuring the page rendering now would have every queued row
-    /// follow each paragraph it renders.
+    /// page out of the Library has no download.
     func state(of page: Page) -> DownloadState {
         guard page.isInLibrary else { return .notDownloaded }
         let key = page.listenKey
         let holding = records.filter { $0.entries.contains { $0.key == key && $0.state == .queued } }
         if !holding.isEmpty {
-            return holding.allSatisfy(\.isPaused) ? .paused(fraction: 0) : .downloading(fraction: 0)
+            if holding.allSatisfy(\.isPaused) { return .paused(fraction: 0) }
+            if let progress = activeProgress, progress.key == key { return .downloading(fraction: progress.fraction) }
+            return .queued(fraction: 0)
         }
         return isDownloaded([key]) ? .downloaded : .notDownloaded
     }
@@ -158,7 +163,8 @@ final class DownloadCenter {
         let record = record(for: .folder(folder.id))
         if let record, record.hasQueuedPages {
             let fraction = DownloadOverview.fraction(of: record, active: activeProgress)
-            return record.isPaused ? .paused(fraction: fraction) : .downloading(fraction: fraction)
+            if record.isPaused { return .paused(fraction: fraction) }
+            return active?.recordID == record.id ? .downloading(fraction: fraction) : .queued(fraction: fraction)
         }
         let keys = pages.filter { Self.covers($0, in: folder) }.map(\.listenKey)
         if keys.isEmpty { return record?.followsFolder == true ? .downloaded : .notDownloaded }
@@ -176,6 +182,68 @@ final class DownloadCenter {
         record(for: .folder(folder.id))?.followsFolder == true
     }
 
+    // MARK: - Time left (C91)
+
+    /// Words the download voice renders per second while the app is open, measured as pages
+    /// render (`sampleRate`) and kept across launches. Starts from the iPhone 17 Pro's Kokoro
+    /// figure (about 10 paragraphs, 600 words, a minute).
+    @ObservationIgnored private var wordsPerSecond: Double = {
+        let stored = UserDefaults.standard.double(forKey: DownloadCenter.rateKey)
+        return stored > 0 ? stored : 10
+    }()
+    @ObservationIgnored private var lastSample: (key: UUID, missing: Int, at: Date)?
+    nonisolated static let rateKey = "downloads.wordsPerSecond"
+
+    /// Folds the paragraphs rendered since the last look into the measured rate. Only gaps the
+    /// app spent rendering count: a gap over a minute (the app was away) starts a new sample.
+    private func sampleRate(key: UUID, paragraphs: [String], missing: Int) {
+        let now = Date()
+        defer { lastSample = (key, missing, now) }
+        guard let last = lastSample, last.key == key, missing < last.missing else { return }
+        let seconds = now.timeIntervalSince(last.at)
+        guard seconds > 0.2, seconds < 60, let page = library.page(key: key), page.wordCount > 0 else { return }
+        let words = Double(last.missing - missing) * Double(page.wordCount) / Double(max(paragraphs.count, 1))
+        let measured = min(max(words / seconds, 0.5), 500)
+        wordsPerSecond = wordsPerSecond * 0.8 + measured * 0.2
+        UserDefaults.standard.set(wordsPerSecond, forKey: Self.rateKey)
+    }
+
+    /// Words still to render in `record`: its queued pages', less what the page rendering now has.
+    private func wordsLeft(in record: DownloadRecord) -> Double {
+        var words = 0.0
+        for entry in record.entries where entry.state == .queued {
+            let count = Double(library.page(key: entry.key)?.wordCount ?? 0)
+            if let progress = activeProgress, progress.recordID == record.id, progress.key == entry.key {
+                words += count * (1 - progress.fraction)
+            } else {
+                words += count
+            }
+        }
+        return words
+    }
+
+    /// Seconds of rendering (with the app open) `record` still needs; nil when it has nothing
+    /// queued.
+    func renderSecondsLeft(_ record: DownloadRecord) -> TimeInterval? {
+        guard record.hasQueuedPages else { return nil }
+        return wordsLeft(in: record) / wordsPerSecond
+    }
+
+    /// Seconds of rendering before `record` starts: the downloads ahead of it that aren't paused.
+    func renderSecondsBefore(_ record: DownloadRecord) -> TimeInterval {
+        var seconds = 0.0
+        for other in records {
+            if other.id == record.id { break }
+            if !other.isPaused { seconds += renderSecondsLeft(other) ?? 0 }
+        }
+        return seconds
+    }
+
+    /// "~2 h 45 min" for a number of seconds (at least a minute).
+    nonisolated static func estimate(_ seconds: TimeInterval) -> String {
+        String(localized: "~\(ListeningTime.label(minutes: max(1, Int((seconds / 60).rounded()))))")
+    }
+
     // MARK: - Asking for downloads
 
     /// A page's own Download. A page whose downloads were deleted from its folder's download
@@ -190,7 +258,7 @@ final class DownloadCenter {
 
     /// A folder's Download, its toggle turned on: every page it covers is queued (its deleted
     /// ones too, P8), and the pages added later join. With the toggle off and every page it
-    /// covers downloaded already (its header's ✓), the toggle only goes back on (`turnOn`).
+    /// covers downloaded already (its header's filled ↓), the toggle only goes back on (`turnOn`).
     func download(_ folder: Folder) -> Request {
         if !isOn(folder), state(of: folder, pages: library.pages(in: folder)) == .downloaded { return turnOn(folder) }
         return request(.folder(folder.id))
@@ -531,6 +599,7 @@ final class DownloadCenter {
             return
         }
         let missing = rendering.missingDownloadParagraphs(cacheKey: active.key, paragraphs: paragraphs)
+        sampleRate(key: active.key, paragraphs: paragraphs, missing: missing)
         if missing == 0 {
             finish(active.recordID, active.key, .done)
             return advance()

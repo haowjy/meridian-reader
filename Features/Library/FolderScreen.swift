@@ -27,7 +27,7 @@ import SwiftUI
 ///  📁 Bonds                                ⋯
 ///     4 pages
 ///  ▣ Coupon Basics                      ●  ⋯
-///  ▣ ✓ Finished                                 ← downloaded, finished (● the ring, full)
+///  ▣ ↓ Finished                                 ← downloaded, finished (● the ring, full)
 ///  ▣ Seven-Day Yield                   ▂▅▇ ⋯   ← playing: tinted, with bars
 ///  ▣ Playing                                     (marks in the trailing listening column)
 ///  🔗  investing.example.com                ⋯   (link: lighter)
@@ -218,6 +218,7 @@ private struct FolderContentsList: View {
                             progressLabel: playback.hasPagesToPlay ? playback.headerLine : [],
                             actions: playback.hasPagesToPlay ? headerActions : nil) {
             if folder.kind == .series { FollowStatus(folder: folder, pages: pages) }
+            if playback.hasPagesToPlay { FolderDownloadStatus(folder: folder) }
         } more: {
             FolderMenu(folder: folder, pages: pages, actions: actions, downloads: downloads, screen: screen,
                        onTurnOffDownload: { turningOffFromMore = folder })

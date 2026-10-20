@@ -84,8 +84,7 @@ enum Icons {
     /// page (that is the listening ring, full).
     static let checkmark = "checkmark"
     /// Mark as Finished: a filled circle, the listening ring made full (a finished page shows the
-    /// full `ProgressRing` before "Finished"; rings mean listening, ✓ is selection's and
-    /// downloaded's). Filled, not the bare ring, so Edit's toolbar slot doesn't read as one of
+    /// full `ProgressRing` before "Finished"; rings mean listening, ✓ is selection's only). Filled, not the bare ring, so Edit's toolbar slot doesn't read as one of
     /// Edit's empty selection circles.
     static let markFinished = "circle.fill"
     /// Mark as Unfinished: the ring undone.
@@ -139,11 +138,12 @@ enum Icons {
     static let download = "arrow.down.circle"
     /// The arrow alone, inside a download's filling circle (`DownloadMark`).
     static let downloadArrow = "arrow.down"
-    /// Downloading: the jade disc over a row's dimmed tile.
-    static let downloading = "arrow.down.circle.fill"
     /// Downloaded: the grey badge before a row's second line, a folder header's control, a voice
     /// model in Settings.
-    static let downloaded = "checkmark.circle.fill"
+    /// Waiting to download with Reduce Motion on, in place of the spinner (C93).
+    static let downloadQueued = "hourglass"
+    /// A filled ↓, not a ✓ (C89): ✓ means only selection and a picked option.
+    static let downloaded = "arrow.down.circle.fill"
     /// The Downloads list.
     static let downloads = "tray.and.arrow.down"
     /// *Remove Download* (a page) and *Remove Downloads* (a folder), in their menus and the

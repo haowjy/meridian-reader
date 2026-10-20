@@ -7,8 +7,8 @@ import SwiftUI
 ///    2 folders   3 pages
 /// ▣  Pride and Prejudice                         ⋯   book: its place and time left
 ///    Ch 24   6 h 10 min left                ◐  ⋯   (the listening column: ◐ part-way)
-/// ▣ Coupon Basics                             ●  ⋯   page, downloaded: the grey ✓ badge;
-/// ▣ ✓ example.com   Finished                          ● the same ring, full
+/// ▣ Coupon Basics                             ●  ⋯   page, downloaded: the grey filled ↓ badge;
+/// ▣ ↓ example.com   Finished                          ● the same ring, full
 /// ▣̲ Seven-Day Yield                          ▂▅▇ ⋯   page, playing and downloading: tinted,
 /// ▣ Playing                                           bars; the tile dimmed under a jade ↓
 /// 🔗 serials.example.com                              link: lighter
@@ -29,7 +29,7 @@ import SwiftUI
 /// chapter, `showsListening` false: browser visits, downloads) have no column.
 ///
 /// Its download (`download`) shows on the row itself, never as a button: downloading dims the
-/// thumbnail under a small jade ↓ (grey while paused), downloaded puts a grey ✓ before the second
+/// thumbnail under a small jade ↓ (grey while paused), downloaded puts a grey filled ↓ before the second
 /// line. The trailing ⋯ (`menu`, the same menu as the row's long press) is centred on the
 /// toolbar's ⋯ slot like the Now Playing bar's ⏸; a row with a control of its own (a download's
 /// pause, `accessory`) has it just before the ⋯. Every row's separator starts at its title,
@@ -75,7 +75,7 @@ struct ListRow: View {
     var isDropTarget = false
     /// A dragged row would be placed beside this one, on this side: a line marks the place.
     var insertionEdge: VerticalEdge?
-    /// Where its download stands: the dimmed thumbnail while downloading, the ✓ badge once done.
+    /// Where its download stands: the dimmed thumbnail while downloading, the ↓ badge once done.
     var download: DownloadState = .notDownloaded
     var isFavorite = false
     var folderHasDetails = false
@@ -231,7 +231,7 @@ struct ListRow: View {
     // MARK: - Second line
 
     /// The ✓ badge once downloaded, the subtitle, the note, then the status, spaced apart on one
-    /// line: "✓ example.org   4 min left" (the ring is the trailing column's). The subtitle and note give way first; at
+    /// line: "↓ example.org   4 min left" (the ring is the trailing column's). The subtitle and note give way first; at
     /// accessibility sizes they are left out and the status truncates if it must, so the line
     /// never wraps or widens the row.
     @ViewBuilder
@@ -240,11 +240,18 @@ struct ListRow: View {
         // At accessibility sizes there is no room for both: the status alone (VoiceOver reads all).
         let leads = typeSize.isAccessibilitySize && status != nil ? []
             : [subtitle, note].compactMap { $0 } + details + (folderCount ?? [])
-        let badged = download == .downloaded
-        if !leads.isEmpty || status != nil || badged {
+        // A skipped chapter never plays, so it shows no downloaded mark (C89).
+        let badged = download == .downloaded && !isSkipped
+        let queued = download.isQueued
+        if !leads.isEmpty || status != nil || badged || queued {
             HStack(spacing: partSpacing) {
-                if badged {
-                    // Downloaded: a grey ✓ before the line, as tall as its text.
+                if queued {
+                    // Waiting its turn: a small spinner in the badge slot (C93).
+                    QueuedIndicator()
+                        .padding(.trailing, -partSpacing / 2)
+                        .transition(.opacity)
+                } else if badged {
+                    // Downloaded: a grey filled ↓ before the line, as tall as its text.
                     Image(systemName: Icons.downloaded)
                         .foregroundStyle(Palette.secondaryInk)
                         .padding(.trailing, -partSpacing / 2)
@@ -301,7 +308,7 @@ struct ListRow: View {
     }
 
     /// Bars while it is what you hear, a ring part-way and the same ring full once finished (rings
-    /// mean listening, nothing else; ✓ is selection's and the downloaded badge's).
+    /// mean listening, nothing else; ✓ is selection's only).
     private var statusMark: StatusMark? {
         if playState.isCurrent { return .bars }
         if case .partWay(let fraction, _) = progress { return .ring(fraction) }
@@ -361,20 +368,26 @@ struct ListRow: View {
         return Palette.ink
     }
 
-    /// The thumbnail, dimmed under a small jade ↓ while it downloads.
+    /// The thumbnail, dimmed under the download's `DownloadMark` while it downloads (C90): the ↓
+    /// filling with its real progress while it renders now, grey while paused. Waiting its turn
+    /// leaves the tile alone: the spinner is in the badge slot (C93).
     private var downloadLeading: some View {
-        let downloading = download.isDownloading
+        // A queued row's spinner is in its badge slot instead (C93).
+        let downloading = download.isDownloading && !download.isQueued
         return leading
             .opacity(downloading ? Palette.downloadingOpacity : 1)
             .overlay {
                 if downloading {
-                    Image(systemName: Icons.downloading)
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(Palette.onAccent, download.isPaused ? Palette.secondaryInk : Palette.accent)
-                        .font(.system(size: thumbnailSide * 0.5))
+                    DownloadMark(state: download, size: thumbnailSide * 0.6)
+                        .background(Circle().fill(Palette.paper).opacity(0.85))
                         .transition(.opacity)
                 }
             }
+    }
+
+    private var isSkipped: Bool {
+        if case .skipped = progress { return true }
+        return false
     }
 
     @ViewBuilder

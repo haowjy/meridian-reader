@@ -11,7 +11,7 @@ import SwiftUI
 /// the page you hear, which opens Now Playing, so a stray tap never pauses it, and a link that
 /// can't play, which opens in the browser. Its only control is ⋯ (`PageMenu`), the same menu as
 /// its long press (decision D11), whose first row, *Read*, opens it. Its download shows on the
-/// row (`DownloadCenter.state(of:)`): dimmed under a jade ↓ while downloading, a grey ✓ once
+/// row (`DownloadCenter.state(of:)`): dimmed under a jade ↓ while downloading, a grey filled ↓ once
 /// downloaded. Swipe left removes it from the Library, and from every list it shows in
 /// (`LibraryQueries`). A page in the Library lifts into a drag from the long press, to be filed in
 /// a folder or placed between rows (`LibraryDrag`), a chapter as any page (decision D19); not on
@@ -122,7 +122,7 @@ struct LibraryPageRow: View {
 /// left; any other folder shows its count. Its only control is ⋯ (`FolderMenu`, with *Continue*
 /// and *Play from Start*), the same menu as its long press, which also lifts it into a drag; a
 /// dragged row let go on it is filed in it. Its download shows as a page's does: dimmed under a
-/// jade ↓ while its download runs, a grey ✓ once every page it covers is downloaded; Download
+/// jade ↓ while its download runs, a grey filled ↓ once every page it covers is downloaded; Download
 /// itself is in its screen's header. Swipe left asks to delete it. On the home's Favorites tab or in search results
 /// (`LibraryScreenKey.filtered`) a nested folder shows its parents' path, opens under them, so ‹
 /// goes to its parent, and doesn't lift.

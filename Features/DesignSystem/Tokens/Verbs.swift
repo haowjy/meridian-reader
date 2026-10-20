@@ -54,7 +54,7 @@ enum Verbs {
     /// A folder's, in its menu and in the Downloads list: its download off and gone, and
     /// *Remove Download* for each of its pages.
     static let removeDownloads = String(localized: "Remove Downloads")
-    /// A download done: the Downloads list's section, a folder header's control, the ✓ VoiceOver
+    /// A download done: the Downloads list's section, a folder header's control, the ↓ VoiceOver
     /// reads before a downloaded row's line two.
     static let downloaded = String(localized: "Downloaded")
     static let turnOffDownload = String(localized: "Turn Off Download")

@@ -5,14 +5,18 @@ import SwiftUI
 ///
 /// ```
 /// Downloads                                         Done
-/// Queued  2                                  Pause All
-/// ▣  Pride and Prejudice                    (◔)    ⋯
-///    Kokoro Heart   4 of 12 chapters   38%
-/// [i] Notes on Tides                        (◔)    ⋯   paused: the mark in grey
+/// Now                                        Pause All
+/// ▣  Pride and Prejudice                    (◔)    ⋯   the ↓ filling as it renders
+///    Kokoro Heart   4 of 12 chapters   38%   ~2 h 45 min left
+/// Downloads while Meridian is open
+/// Waiting  2
+/// [i] Notes on Tides                        (✻)    ⋯   in queue order, spinner (C93)
+///    0 of 3 pages   Next   starts in ~2 h 45 min
+/// [i] Bond Ladders                          (◔)    ⋯   paused: the mark in grey
 ///    Kokoro Heart   Paused
 /// Downloaded  1
 /// [i] Coupon Basics                                 ⋯
-///    ✓ Kokoro Heart   12 MB
+///    ↓ Kokoro Heart   12 MB
 /// 12 MB on this iPhone
 /// Different Voice  1
 /// [i] Seven-Day Yield                               ⋯
@@ -66,7 +70,10 @@ struct DownloadsList: View {
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             }
-            if !overview.queued.isEmpty { queued(overview.queued) }
+            let now = overview.queued.filter { downloads.isActive($0.id) }
+            let waiting = overview.queued.filter { !downloads.isActive($0.id) }
+            if !now.isEmpty { nowSection(now, anyRunning: overview.queued.contains { !$0.record.isPaused }) }
+            if !waiting.isEmpty { waitingSection(waiting, pauseAll: now.isEmpty) }
             if !overview.done.isEmpty { done(overview.done) }
             if !overview.differentVoice.isEmpty { differentVoice(overview.differentVoice) }
         }
@@ -79,17 +86,35 @@ struct DownloadsList: View {
 
     // MARK: - Sections
 
-    private func queued(_ items: [DownloadOverview.Item]) -> some View {
-        let anyRunning = items.contains { !$0.record.isPaused }
-        let header = SectionHeader(title: String(localized: "Queued"), count: items.count,
-                                   actionTitle: anyRunning ? Verbs.pauseAll : Verbs.resumeAll,
-                                   actionIdentifier: "downloadsPauseAll") {
+    /// *Pause All* / *Resume All* over everything still to download.
+    private func pauseAllHeader(_ title: String, count: Int?, anyRunning: Bool) -> SectionHeader {
+        SectionHeader(title: title, count: count, actionTitle: anyRunning ? Verbs.pauseAll : Verbs.resumeAll,
+                      actionIdentifier: "downloadsPauseAll") {
             downloads.setAllPaused(anyRunning)
         }
-        return section(items, header: header, headerID: "downloadsQueuedHeader") {
+    }
+
+    /// The download rendering now (C92), with why it can take a while.
+    private func nowSection(_ items: [DownloadOverview.Item], anyRunning: Bool) -> some View {
+        section(items, header: pauseAllHeader(String(localized: "Now"), count: nil, anyRunning: anyRunning),
+                headerID: "downloadsNowHeader") {
+            Text(DownloadStatusText.whileOpen)
+                .accessibilityIdentifier("downloadsWhileOpen")
+                .listFooter()
+        }
+    }
+
+    /// The downloads waiting their turn, in queue order, each with its place and wait (C92).
+    private func waitingSection(_ items: [DownloadOverview.Item], pauseAll: Bool) -> some View {
+        let title = String(localized: "Waiting")
+        let header = pauseAll ? pauseAllHeader(title, count: items.count, anyRunning: items.contains { !$0.record.isPaused })
+            : SectionHeader(title: title, count: items.count)
+        return section(items, header: header, headerID: "downloadsWaitingHeader") {
             if !speech.localTTS.wantsLocalBake {
                 waitingNote
                     .listFooter()
+            } else if pauseAll, items.contains(where: { !$0.record.isPaused }) {
+                Text(DownloadStatusText.whileOpen).listFooter()
             }
         }
     }
@@ -122,8 +147,8 @@ struct DownloadsList: View {
     ) -> some View {
         let footer = footer()
         return Section {
-            ForEach(items) { item in
-                row(item)
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                row(item, place: index)
             }
             .listRowInsets(EdgeInsets())
             .listCard()
@@ -154,10 +179,17 @@ struct DownloadsList: View {
 
     // MARK: - A row
 
-    private func row(_ item: DownloadOverview.Item) -> some View {
+    /// "2nd", "3rd": a place in the queue.
+    private static func ordinal(_ n: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .ordinal
+        return formatter.string(from: n as NSNumber) ?? "\(n)"
+    }
+
+    private func row(_ item: DownloadOverview.Item, place: Int) -> some View {
         let record = item.record
         let shown = DownloadShown(record: record, library: library)
-        let parts = detail(item, noun: shown.noun)
+        let parts = detail(item, noun: shown.noun, place: place)
         let downloadMenu = DownloadMenu(item: item, downloads: downloads)
         let menu = AnyView(downloadMenu)
         return ListRow(kind: shown.kind, title: shown.title, subtitle: parts.first, details: Array(parts.dropFirst()),
@@ -173,8 +205,10 @@ struct DownloadsList: View {
             .accessibilityIdentifier("downloadRow")
     }
 
-    /// The voice, then where it is: "Kokoro Heart   4 of 12 chapters   38%", "Kokoro Heart   12 MB".
-    private func detail(_ item: DownloadOverview.Item, noun: String?) -> [String] {
+    /// The voice, then where it is: "Kokoro Heart   4 of 12 chapters   38%   ~2 h left" (rendering
+    /// now), "0 of 3 pages   Next   starts in ~2 h" (waiting, `place` its index in the queue),
+    /// "Kokoro Heart   12 MB".
+    private func detail(_ item: DownloadOverview.Item, noun: String?, place: Int) -> [String] {
         let record = item.record
         let voice = item.voice.map(voiceLabel)
         let count = noun.map { String(localized: "\(record.finishedCount) of \(record.entries.count) \($0)") }
@@ -182,11 +216,16 @@ struct DownloadsList: View {
         func percent(_ f: Double) -> String { "\(Int((f * 100).rounded()))%" }
         switch item.status {
         case .downloading(let f):
-            return [voice, count, percent(f)].compactMap { $0 }
+            let left = downloads.renderSecondsLeft(record).map { String(localized: "\(DownloadCenter.estimate($0)) left") }
+            return [voice, count, percent(f), left].compactMap { $0 }
         case .fetching:
             return [voice, count, String(localized: "Getting the page")].compactMap { $0 }
         case .queued:
-            return [voice, count, String(localized: "Queued")].compactMap { $0 }
+            let position = place == 0 ? String(localized: "Next")
+                : String(localized: "\(Self.ordinal(place + 1)) in line")
+            let before = downloads.renderSecondsBefore(record)
+            let wait = before > 0 ? String(localized: "starts in \(DownloadCenter.estimate(before))") : nil
+            return [count ?? voice, position, wait].compactMap { $0 }
         case .paused(let f):
             return [voice, String(localized: "Paused"), f > 0 ? percent(f) : nil].compactMap { $0 }
         case .waitingForVoice:
@@ -206,7 +245,9 @@ struct DownloadsList: View {
         let paused = item.record.isPaused
         return AnyView(
             Button { downloads.setPaused(item.id, !paused) } label: {
-                DownloadMark(state: paused ? .paused(fraction: fraction) : .downloading(fraction: fraction))
+                DownloadMark(state: paused ? .paused(fraction: fraction)
+                             : downloads.isActive(item.id) ? .downloading(fraction: fraction)
+                             : .queued(fraction: fraction))
                     .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
                     .contentShape(Rectangle())
             }

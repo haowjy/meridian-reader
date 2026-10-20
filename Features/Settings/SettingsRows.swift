@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// One fixed-layout choice row: title, optional one-line subtitle (a downloaded model's starts
-/// with the grey ✓, as every downloaded row's line two does), a fixed-size trailing accessory slot
+/// with the grey filled ↓, as every downloaded row's line two does), a fixed-size trailing accessory slot
 /// (a download's progress, a voice's preview), and a fixed-size slot for the selection ✓. State
 /// changes swap contents inside the slots, so the row's size never changes.
 struct SettingsChoiceRow<Accessory: View>: View {

@@ -113,6 +113,7 @@
 		56A9B24B71667DDC048B44FF /* ReaderBookChapter.js in Resources */ = {isa = PBXBuildFile; fileRef = 79643CA611C084BF59345F8B /* ReaderBookChapter.js */; };
 		572ECC471A7571447D32A39F /* UITestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1054139E6E22B27A0CE8095F /* UITestSupport.swift */; };
 		576FA31D5DB141C074B19045 /* EPUBTextStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF0B010883353D2BC263732 /* EPUBTextStream.swift */; };
+		5849152E8DD4FF9B6716884E /* DownloadStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E072AC45CB4BE760FD1E439 /* DownloadStatus.swift */; };
 		59373BA865E0685F6A730F48 /* LibraryScreenMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F097A8E7263234EEC9CF2D8 /* LibraryScreenMenu.swift */; };
 		5A4B546BED2075EBB0D7A00B /* LibraryNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 652FDB164655F3ACE50FDF31 /* LibraryNavigation.swift */; };
 		5B4B6AAE80EF251F38A44934 /* ListenAudioSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5CF58207C8EDEED6ACADF2 /* ListenAudioSession.swift */; };
@@ -534,6 +535,7 @@
 		8BA33EB892E9093873FE7B32 /* CPURouteBench.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPURouteBench.swift; sourceTree = "<group>"; };
 		8BD13DD8AE82088E1E9D231E /* ListenEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenEngine.swift; sourceTree = "<group>"; };
 		8D5A19B13E2E68C2C89A2CFC /* Readability-readerable.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "Readability-readerable.js"; sourceTree = "<group>"; };
+		8E072AC45CB4BE760FD1E439 /* DownloadStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadStatus.swift; sourceTree = "<group>"; };
 		8F6D660AC0C3A4C7105EDA19 /* EngineDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineDescriptor.swift; sourceTree = "<group>"; };
 		90BB5300F69AF709028F452E /* ArticleAudioCache+Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ArticleAudioCache+Downloads.swift"; sourceTree = "<group>"; };
 		90CBB7EDFFBE4A0EC134A5EA /* EPUBPackage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPUBPackage.swift; sourceTree = "<group>"; };
@@ -822,6 +824,7 @@
 				08DB670E68771773F9E44925 /* DownloadMenu.swift */,
 				C4517A8D6A85379F63ECA85E /* DownloadProgressEdge.swift */,
 				62208C6242E5526B15AA424F /* DownloadsSheet.swift */,
+				8E072AC45CB4BE760FD1E439 /* DownloadStatus.swift */,
 			);
 			path = Downloads;
 			sourceTree = "<group>";
@@ -1643,6 +1646,7 @@
 				4A472B868354625765339C06 /* DownloadMenu.swift in Sources */,
 				BA48041D375AADF140F981F2 /* DownloadOverview.swift in Sources */,
 				A0AD33DF74F5C7851AE0CDAC /* DownloadProgressEdge.swift in Sources */,
+				5849152E8DD4FF9B6716884E /* DownloadStatus.swift in Sources */,
 				113F702F35BE09FF6AC1F55E /* DownloadsSheet.swift in Sources */,
 				80780EB3CDB225F5D2877B32 /* EPUBBookReader.swift in Sources */,
 				391704010186AF1911BC677A /* EPUBChapterCutter.swift in Sources */,

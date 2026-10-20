@@ -79,10 +79,10 @@ struct DetailPart: Hashable, ExpressibleByStringLiteral {
     }
 
     /// A page heard to its end: the listening ring, full, and "Finished", as a row's status draws
-    /// it (no ✓: that is selection's and the downloaded badge's).
+    /// it (no ✓: that is selection's only).
     static var finished: DetailPart { DetailPart(ListeningTime.finishedLabel, ring: 1) }
 
-    /// `text` after the grey ✓ a downloaded row starts its second line with (a page's, a
+    /// `text` after the grey filled ↓ a downloaded row starts its second line with (a page's, a
     /// download's, a voice model's in Settings).
     static func downloaded(_ text: String) -> DetailPart {
         DetailPart(text, symbol: Icons.downloaded, spoken: "\(Verbs.downloaded), \(text)")

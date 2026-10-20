@@ -100,7 +100,7 @@ struct ListeningSettingsSection: View {
         }
     }
 
-    /// Line two: the model's state, after the grey ✓ once it is downloaded (as a downloaded row's
+    /// Line two: the model's state, after the grey filled ↓ once it is downloaded (as a downloaded row's
     /// line two starts), so the trailing slots hold only its download's progress and the
     /// selection ✓.
     private func localSubtitle(_ descriptor: EngineDescriptor, gateOK: Bool) -> DetailPart {

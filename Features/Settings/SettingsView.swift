@@ -7,7 +7,7 @@ import SwiftUI
 /// Settings                                              Done
 /// Appearance   [ System | Light | Dark ]  Color (●)(●)(●)(●)(●)
 /// Reading      themes (◐)(Aa)(Aa)(Aa)(Aa), font, size [A] 100% [A], spacing, Scroll / Pages, a sample
-/// Listening    engines (download, ✓), Voice ›, Language ›, Speed [0.75× … 2×]
+/// Listening    engines (download, ↓ once downloaded, ✓ chosen), Voice ›, Language ›, Speed [0.75× … 2×]
 /// Browsing     Block Ads (on)
 /// Downloads    Downloads ›, the audio kept on this iPhone
 /// Developer    (developer options only) listen debug, fake extraction failure, the panel
