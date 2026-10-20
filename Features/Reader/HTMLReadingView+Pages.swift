@@ -87,6 +87,8 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
     /// The bars show: the page is a card between them (C113).
     private var overview = false
     var isOverview: Bool { paged && overview }
+    /// The overview's page cards (C116), by page: the shown page and its neighbours.
+    private var cards: [Int: UIView] = [:]
 
     static let edgeGuard = ReadingChrome.TapZone.edgeMargin
 
@@ -190,6 +192,76 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         guard on != overview else { return }
         overview = on
         applyOverview()
+        updateCards(animated: true)
+        if on { repaint() }
+    }
+
+    /// The overview's cards (C116, Kindle's): each page's own rectangle, inset `cardGap` from its
+    /// column's edges (inside the page margin, so the text never moves) so a gap parts the cards;
+    /// the shown page outlined in the theme's accent, its neighbours in the theme's rule (a quiet
+    /// grey fitted to each reading theme). They scroll with the pages, so the selection follows
+    /// the page centred; hidden while reading.
+    static let cardGap = Spacing.s
+
+    private func updateCards(animated: Bool) {
+        guard let sv = scrollView else { return }
+        guard paged, let shown = model.shown, pageWidth > 0 else {
+            cards.values.forEach { $0.removeFromSuperview() }
+            cards = [:]
+            return
+        }
+        let wanted = Set(max(0, shown.index - 2)...min(shown.count - 1, shown.index + 2))
+        for (i, card) in cards where !wanted.contains(i) {
+            card.removeFromSuperview()
+            cards[i] = nil
+        }
+        let colors = host.look.colors
+        let accent = Self.color(colors.accent), rule = Self.color(colors.rule)
+        let alpha: CGFloat = overview ? 1 : 0
+        for i in wanted {
+            let card = cards[i] ?? {
+                let v = UIView()
+                v.isUserInteractionEnabled = false
+                v.backgroundColor = .clear
+                v.alpha = 0
+                v.accessibilityIdentifier = "readingPageCard"
+                sv.addSubview(v)
+                cards[i] = v
+                return v
+            }()
+            card.frame = CGRect(x: CGFloat(i) * pageWidth + Self.cardGap, y: 0,
+                                width: pageWidth - 2 * Self.cardGap, height: sv.bounds.height)
+            let current = i == shown.index
+            card.layer.borderColor = (current ? accent : rule).cgColor
+            card.layer.borderWidth = current ? 2 : 1.5
+            sv.bringSubviewToFront(card)
+            card.alpha = alpha
+            card.isHidden = !overview
+        }
+    }
+
+    /// The neighbours drawn outside the screen can keep tiles from an earlier layout (C116): a
+    /// repaint of the body, now and once the layout has settled, clears them.
+    private func repaint() {
+        guard let webView = host.webView else { return }
+        let js = "(function(){var b=document.body;b.style.opacity='0.999';requestAnimationFrame(function(){b.style.opacity='';});})()"
+        webView.evaluateJavaScript(js, completionHandler: nil)
+        Task { @MainActor [weak webView] in
+            try? await Task.sleep(for: .milliseconds(400))
+            webView?.evaluateJavaScript(js, completionHandler: nil)
+        }
+    }
+
+    /// A new theme: the cards' outlines in its colours.
+    func lookChanged() {
+        updateCards(animated: false)
+        repaint()
+    }
+
+    private static func color(_ hex: String) -> UIColor {
+        let v = UInt32(hex.dropFirst(), radix: 16) ?? 0
+        return UIColor(red: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255,
+                       blue: CGFloat(v & 0xFF) / 255, alpha: 1)
     }
 
     private func applyOverview() {
@@ -234,6 +306,8 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         let sv = webView.scrollView
         webView.clipsToBounds = true
         sv.clipsToBounds = true
+        cards.values.forEach { $0.removeFromSuperview() }
+        cards = [:]
         sv.isPagingEnabled = false
         sv.alwaysBounceVertical = true
         sv.alwaysBounceHorizontal = false
@@ -346,6 +420,7 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
                                              visibleBottom: sv.bounds.height)
             show(page: page, animated: false)
             host.placeHold()
+            repaint()
         }
     }
 
@@ -378,6 +453,7 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         guard let shown = model.shown, let webView = host.webView else { return }
         let i = min(max(index, 0), shown.count - 1)
         if shown.index != i { model.shown?.index = i }
+        updateCards(animated: false)
         let generation = host.loadGeneration
         let w = Double(pageWidth)
         webView.evaluateJavaScript("[window.__readerPageStart(\(i), \(w)), window.__readerPageStart(\(i + 1), \(w))]") {
@@ -461,13 +537,6 @@ struct ReadingPagesCard: ViewModifier {
             let scale = active && overview && h > 0 ? min(0.78, max(0.4, room / h)) : 1
             let centre = insets.top + Spacing.m + room / 2
             content
-                .overlay {
-                    Rectangle()
-                        .strokeBorder(Palette.accent, lineWidth: 1.5 / scale)
-                        .opacity(scale < 1 ? 1 : 0)
-                        .allowsHitTesting(false)
-                        .accessibilityIdentifier("readingPageCard")
-                }
                 .scaleEffect(scale)
                 .offset(y: scale < 1 ? centre - h / 2 : 0)
                 .opacity(fade)

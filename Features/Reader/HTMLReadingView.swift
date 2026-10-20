@@ -274,6 +274,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
         scrollHandle?.coordinator = c
         c.setLayout(pages: pages, footer: pageFooter)
         c.setTextInsets(textInsets)
+        (c.layout as? PagesTextLayout)?.setOverview(!fullScreen)
         c.setTopView(topView)
         if c.lastHTML != html || c.lastHeading != heading {
             c.load(html: html, heading: heading)
@@ -633,6 +634,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
             self.look = look
             guard loaded, look != old else { return }
             sentLook = look
+            (layout as? PagesTextLayout)?.lookChanged()
             let script = ReadingStyle.variablesScript(sizes, look)
             if let old, old.font == look.font, old.lineSpacing == look.lineSpacing, old.textScale == look.textScale {
                 webView?.evaluateJavaScript(script, completionHandler: nil)
