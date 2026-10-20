@@ -65,7 +65,7 @@ enum DownloadState: Equatable {
 /// Download progress, drawn one way app-wide (rings mean listening only): an outline ↓ before it
 /// downloads, the circle filling with the accent from the bottom as it downloads (the ↓ turning
 /// white where the fill has reached it), the same in grey while paused, a small spinner
-/// while it waits its turn (C93: `QueuedIndicator`, a small spinner), a grey filled ↓ once downloaded (C89: ✓ is selection's only). A
+/// while it waits its turn (C93: `QueuedIndicator`, a small spinner), a accent filled ↓ once downloaded (C89: ✓ is selection's only). A
 /// folder header's Download control, a row's tile while it downloads, a download in the
 /// Downloads list, a voice model in Settings. Only draws; the caller makes it a button.
 ///
@@ -96,7 +96,7 @@ struct DownloadMark: View {
                     .resizable()
                     .scaledToFit()
                     .fontWeight(.semibold)
-                    .foregroundStyle(Palette.secondaryInk)
+                    .foregroundStyle(Palette.accent)
             }
         }
         .frame(width: size, height: size)
@@ -143,7 +143,7 @@ struct DownloadMarkGallery: View {
 
 /// Waiting its turn to download (C93), as music apps mark a queued track: a small activity
 /// spinner in the accent (spokes, never a circle, so it can't read as a listening ring, which
-/// lives in a row's right column), and a still grey hourglass when Reduce Motion is on. A
+/// lives in a row's right column), and a still accent hourglass when Reduce Motion is on. A
 /// queued row's badge slot before its line two, a waiting download in the Downloads list.
 struct QueuedIndicator: View {
     var size: CGFloat = 13
@@ -155,7 +155,7 @@ struct QueuedIndicator: View {
             if reduceMotion {
                 Image(systemName: Icons.downloadQueued)
                     .font(.system(size: size * 0.85, weight: .medium))
-                    .foregroundStyle(Palette.secondaryInk)
+                    .foregroundStyle(Palette.accent)
             } else {
                 ProgressView()
                     .progressViewStyle(.circular)

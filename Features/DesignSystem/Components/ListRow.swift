@@ -7,7 +7,7 @@ import SwiftUI
 ///    2 folders   3 pages
 /// ▣  Pride and Prejudice                         ⋯   book: its place and time left
 ///    Ch 24   6 h 10 min left                ◐  ⋯   (the listening column: ◐ part-way)
-/// ▣ Coupon Basics                             ●  ⋯   page, downloaded: the grey filled ↓ badge;
+/// ▣ Coupon Basics                             ●  ⋯   page, downloaded: the accent filled ↓ badge;
 /// ▣ ↓ example.com   Finished                          ● the same ring, full
 /// ▣̲ Seven-Day Yield                          ▂▅▇ ⋯   page, playing and downloading: tinted,
 /// ▣ Playing                                           bars; the tile dimmed under a jade ↓
@@ -29,7 +29,7 @@ import SwiftUI
 /// chapter, `showsListening` false: browser visits, downloads) have no column.
 ///
 /// Its download (`download`) shows on the row itself, never as a button: downloading dims the
-/// thumbnail under a small jade ↓ (grey while paused), downloaded puts a grey filled ↓ before the second
+/// thumbnail under a small jade ↓ (grey while paused), downloaded puts a accent filled ↓ before the second
 /// line. The trailing ⋯ (`menu`, the same menu as the row's long press) is centred on the
 /// toolbar's ⋯ slot like the Now Playing bar's ⏸; a row with a control of its own (a download's
 /// pause, `accessory`) has it just before the ⋯. Every row's separator starts at its title,
@@ -251,9 +251,9 @@ struct ListRow: View {
                         .padding(.trailing, -partSpacing / 2)
                         .transition(.opacity)
                 } else if badged {
-                    // Downloaded: a grey filled ↓ before the line, as tall as its text.
+                    // Downloaded: the accent filled ↓ before the line, as tall as its text (C97).
                     Image(systemName: Icons.downloaded)
-                        .foregroundStyle(Palette.secondaryInk)
+                        .foregroundStyle(Palette.accent)
                         .padding(.trailing, -partSpacing / 2)
                         .transition(.opacity)
                 }

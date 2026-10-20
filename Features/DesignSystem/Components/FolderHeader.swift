@@ -19,7 +19,7 @@ import SwiftUI
 /// ```
 ///
 /// The Download control is a `DownloadMark` (an outline ↓, the circle filling as it downloads, a
-/// grey filled ↓ once downloaded) with what it shows written under it; *More* opens a menu; the ▶ is the
+/// accent filled ↓ once downloaded) with what it shows written under it; *More* opens a menu; the ▶ is the
 /// folder's Continue (⏸ while one of its pages is what you hear). The side controls share one
 /// width, so the ▶ stays centred whatever their captions say. The row is an `ActionButtonRow`
 /// (decision D21): with its captions while they fit whole, else the symbols alone (VoiceOver and

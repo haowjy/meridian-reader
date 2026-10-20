@@ -490,7 +490,7 @@ In Edit the row has no ⋯ and a tap selects it.
 
 A row's download shows on the row, never as a button: **downloading** (queued in any download,
 its own or its folder's, paused too) dims the thumbnail or folder symbol under a small jade disc
-with a white ↓; **downloaded** puts a small grey filled ✓ at the start of the second line, before
+with a white ↓; **downloaded** puts a small filled ↓ in the accent (C97) at the start of the second line, before
 the site. Downloaded means the page's whole audio was made ahead of time by a download (its ⋯ ›
 *Download*, or its folder's Download) and is there in the voice selected now (or one *Keep*
 stored); audio rendered only by listening never earns it. A folder, book or series row shows ✓

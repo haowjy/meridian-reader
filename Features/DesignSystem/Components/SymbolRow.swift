@@ -20,7 +20,7 @@ import SwiftUI
 /// theme's ink.
 struct SymbolRow<Leading: View, Trailing: View>: View {
     let title: String
-    /// Line two (a `DetailLine` part, so a downloaded model's starts with the grey filled ↓).
+    /// Line two (a `DetailLine` part, so a downloaded model's starts with the accent filled ↓).
     var subtitle: DetailPart?
     /// The title's and the symbol's colour (nil: ink): the accent for *New Folder*, red for
     /// *Unfollow*.
