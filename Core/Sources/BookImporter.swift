@@ -71,13 +71,13 @@ enum BookImportError: Error, Equatable, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .drmProtected: String(localized: "This book is copy-protected (DRM), so Meridian can't read it.")
-        case .fixedLayout: String(localized: "This is a fixed-layout book; its text can't be read in order.")
-        case .tooLarge: String(localized: "This book is too large to import.")
+        case .drmProtected: String(localized: "This EPUB is copy-protected (DRM), so Meridian can't read it.")
+        case .fixedLayout: String(localized: "This is a fixed-layout EPUB; its text can't be read in order.")
+        case .tooLarge: String(localized: "This EPUB is too large to import.")
         case .unreadable: String(localized: "This file isn't a readable EPUB.")
-        case .destinationGone: String(localized: "The folder chosen for this book no longer exists.")
-        case .couldNotPrepare: String(localized: "Meridian couldn't prepare this book's text.")
-        case .couldNotSave: String(localized: "Meridian couldn't save the book. Try again.")
+        case .destinationGone: String(localized: "The folder chosen for this import no longer exists.")
+        case .couldNotPrepare: String(localized: "Meridian couldn't prepare this EPUB's text.")
+        case .couldNotSave: String(localized: "Meridian couldn't save the folder. Try again.")
         }
     }
 }

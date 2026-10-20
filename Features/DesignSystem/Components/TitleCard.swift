@@ -66,7 +66,7 @@ struct TitleCardGallery: View {
             }
             PreviewState("a chapter, artwork") {
                 TitleCard(title: "Chapter 12", detail: ["Pride and Prejudice", "15 min left"],
-                          artwork: Image(systemName: Icons.book), artworkLetter: "P", palette: Self.palette(.sepia))
+                          artwork: Image(systemName: Icons.folder), artworkLetter: "P", palette: Self.palette(.sepia))
                     .onReadingPreview(.sepia)
             }
             PreviewState("a page with no title") {

@@ -225,7 +225,7 @@ struct FolderHeaderGallery: View {
             }
             PreviewState("book, part-way, downloading 40%") {
                 header(style: .detailed(cover: nil), title: "Pride and Prejudice",
-                       detail: ["Jane Austen", "Book", "61 chapters"], progress: ["24 of 61", "38%", "6 h 10 min left"],
+                       detail: ["Jane Austen", "61 chapters"], progress: ["24 of 61", "38%", "6 h 10 min left"],
                        actions: .init(download: .downloading(fraction: 0.4), downloadIsOn: true, onDownload: {},
                                       downloadCaption: "24 of 61", play: .idle, onPlay: {}))
             }

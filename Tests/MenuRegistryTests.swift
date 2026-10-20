@@ -37,8 +37,10 @@ final class MenuRegistryTests: XCTestCase {
             (.folder, .header, { var f = R.Facts(); f.hasPagesToPlay = true; f.hasPages = true; return f }(),
              "playFromStart removeDownloads(grey) folderFavorite folderMove editDetails deleteFolder"),
             (.download, .downloads, { var f = R.Facts(); f.isQueued = true; return f }(), "redownload(grey) keep(grey) removeDownload"),
-            (.screen, .libraryHome, R.Facts(), "sort follow downloads settings"),
-            (.screen, .folderScreen, R.Facts(), "sort follow downloads settings"),
+            (.screen, .libraryHome, R.Facts(), "sort downloads settings"),
+            (.screen, .folderScreen, R.Facts(), "sort downloads settings"),
+            (.screen, .folderScreen, { var f = R.Facts(); f.isFixedOrder = true; return f }(), "downloads settings"),
+            (.screen, .add, R.Facts(), "newFolder importFile follow"),
             (.screen, .browser, { var f = R.Facts(); f.canFollow = false; return f }(), "follow(grey) reload(grey) downloads settings"),
             (.screen, .reader, R.Facts(), "downloads settings"),
         ]

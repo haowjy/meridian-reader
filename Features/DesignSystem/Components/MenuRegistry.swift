@@ -37,6 +37,8 @@ enum MenuRegistry {
         case folderScreen
         /// A Downloads list row.
         case downloads
+        /// The Library's ＋ (the home or a folder's screen).
+        case add
     }
 
     /// Every option, in menu order within its kind.
@@ -50,7 +52,7 @@ enum MenuRegistry {
         // A download
         case redownload, keep, removeDownload
         // A screen's own rows
-        case sort, follow, reload, downloads, settings
+        case newFolder, importFile, follow, sort, reload, downloads, settings
     }
 
     /// The item's state as a menu needs it: plain values its host already has (no fetch, no disk).
@@ -80,6 +82,8 @@ enum MenuRegistry {
         var hasWebPage = false
         /// *Follow…* can run (the browser: a web page is up).
         var canFollow = true
+        /// The folder on screen keeps its own order (an imported EPUB, a followed story): no *Sort*.
+        var isFixedOrder = false
     }
 
     struct Spec {
@@ -154,9 +158,13 @@ enum MenuRegistry {
         Spec(option: .removeDownload, kind: .download, places: [.downloads]),
 
         // A screen's own rows (＋ has New Folder and Import Book; the address field starts a search).
-        Spec(option: .sort, kind: .screen, places: [.libraryHome, .folderScreen]),
-        Spec(option: .follow, kind: .screen, places: [.libraryHome, .folderScreen, .browser],
+        // ＋ makes things in the screen on top; the ⋯ panels keep only Sort, Reload and the tail.
+        Spec(option: .newFolder, kind: .screen, places: [.add]),
+        Spec(option: .importFile, kind: .screen, places: [.add]),
+        Spec(option: .follow, kind: .screen, places: [.add, .browser],
              enabled: { $0.canFollow }, greyIf: "browser: no web page up"),
+        Spec(option: .sort, kind: .screen, places: [.libraryHome, .folderScreen],
+             applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
         Spec(option: .reload, kind: .screen, places: [.browser], enabled: { $0.hasWebPage }, greyIf: "no page up"),
         Spec(option: .downloads, kind: .screen, places: panelPlaces),
         Spec(option: .settings, kind: .screen, places: panelPlaces),

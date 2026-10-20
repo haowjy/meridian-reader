@@ -50,7 +50,7 @@ struct BookImportFiles {
         var base = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if base.hasPrefix(".") { base = String(base.drop { $0 == "." }) }
-        if base.isEmpty { base = "Book" }
+        if base.isEmpty { base = "Imported" }
         return base.lowercased().hasSuffix(".epub") ? base : base + ".epub"
     }
 }

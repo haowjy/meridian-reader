@@ -17,14 +17,14 @@ enum DemoBook {
         var plainText: String { paragraphs.joined(separator: "\n\n") }
     }
 
-    static let title = "The Demo Book"
+    static let title = "Demo Folder"
     static let author = "Demo Author"
     /// Marks the seeded folder, so the next seed replaces it.
     static let sourceIdentifier = "debug.demo-book"
 
     static let chapters: [Chapter] = [
         Chapter(title: "Title Page", paragraphs: [
-            "The Demo Book. A short book written to test listening from one chapter to the next.",
+            "Demo Folder. A short folder written to test listening from one chapter to the next.",
         ], skipsInPlayback: true),
         Chapter(title: "Chapter 1: The Harbor", paragraphs: [
             "The harbor woke before the town did. Gulls circled the fishing boats while the first lamps came on along the quay, one window at a time, and the smell of coffee drifted down from the bakery on the corner.",
@@ -48,14 +48,14 @@ enum DemoBook {
             "On the quay a small crowd had gathered to wait for her. Nobody cheered, because that is not what people do in a harbor town, but several of them nodded at once, and one of them helped her tie up the boat.",
             "The harbor master wrote something on his clipboard and underlined it twice. Later she learned that it said only the date and the word fixed, which from him was about as close to a speech as anyone ever got.",
             "That night the boats went out as usual, and came home again guided by a light that nobody noticed, because nobody ever looks at a light that is always on, until the one evening when it is not.",
-            "And that is the end of the demo book. If you heard this last line, playback carried on through every chapter of the book and then stopped by itself at the end, which is exactly what it is supposed to do.",
+            "And that is the end of the demo folder. If you heard this last line, playback carried on through every chapter of the folder and then stopped by itself at the end, which is exactly what it is supposed to do.",
         ]),
     ]
 
     /// The page in no folder: it plays to its end and stops.
     static let loosePage = Chapter(title: "Demo Loose Page", paragraphs: [
         "This page is in no folder. When it ends, playback stops instead of carrying on to another page.",
-        "It is here so a book and a single page can be compared side by side.",
+        "It is here so a folder and a single page can be compared side by side.",
     ])
     static let loosePageURL = URL(string: "https://example.com/demo-loose-page")!
     /// Marks the page in no folder as the seed's (`Page.locator`, which no other page in no folder

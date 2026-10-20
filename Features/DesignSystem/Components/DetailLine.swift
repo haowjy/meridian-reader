@@ -189,7 +189,7 @@ struct DetailLineGallery: View {
                 DetailLine(parts: [.finished]).typeStyle(.caption)
             }
             PreviewState("three parts") {
-                DetailLine(["Jane Austen", "Book", "61 chapters"]).typeStyle(.caption)
+                DetailLine(["Jane Austen", "61 chapters"]).typeStyle(.caption)
             }
             PreviewState("a long lead gives way") {
                 DetailLine(["a-very-long-subdomain.investing.example.com", "6 h 10 min left"])

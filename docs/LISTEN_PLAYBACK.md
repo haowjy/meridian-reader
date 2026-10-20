@@ -754,7 +754,7 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   another page already has. `-chainDemoChapters`: once launched, play it from where
   Continue would, after the on-device engine has loaded, and let it carry on; each boundary logs
   `chapter_boundary`. Together, the locked-screen chapter-boundary check.
-- `-importTestEPUB`: *Import Book…* takes a synthetic EPUB built in code (`TestEPUB`: a title
+- `-importTestEPUB`: *Import EPUB…* takes a synthetic EPUB built in code (`TestEPUB`: a title
   page, then the demo book's three chapters, the first with a line loose in a `<div>` and a
   footnote) instead of opening the Files picker, which a probe or UI test can't drive; the import sheet
   and import are the real ones. `-playTestEPUB`: at launch, import it into the Library's top

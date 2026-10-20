@@ -257,6 +257,6 @@ extension LibraryActions {
 extension Folder {
     /// The symbol a folder row shows when it has no cover.
     var rowSymbol: String {
-        hasDetails ? Icons.book : Icons.folder
+        Icons.folder
     }
 }

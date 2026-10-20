@@ -52,7 +52,7 @@ struct EmptyStateGallery: View {
                     ActionButtonRow { fit in
                         PillButton("Browse the Web", shortTitle: "Browse", systemImage: Icons.browser, style: .filled,
                                    fit: fit) {}
-                        PillButton("Import a Book", shortTitle: "Import", systemImage: Icons.book, style: .neutral,
+                        PillButton("Import EPUB…", shortTitle: "Import", systemImage: Icons.importFile, style: .neutral,
                                    fit: fit) {}
                     }
                 }

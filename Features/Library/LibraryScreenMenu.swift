@@ -30,36 +30,41 @@ struct LibraryScreenMenu {
         }
     }
 
-    /// The screen's rows only (C98): the folder's own menu is its header's *More*, and ＋ has
-    /// *New Folder…* and *Import Book…*.
+    /// The screen's rows only (C98, C100): *Sort ›* (not in a folder that keeps its own order),
+    /// *Downloads*, *Settings*; then the big buttons, on the home only *Browser* (its tabs are
+    /// Favorites and Recent).
     var menu: MenuContext {
         let folder = topFolder
-        let screenRows = MenuContext.screenRows(at: folder == nil ? .libraryHome : .folderScreen, shell: shell) { option in
-            switch option {
-            case .sort: return sortRow(folder)
-            case .follow:
-                return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) { [shell, follow] in
-                    shell.present(.follow(FollowFlow(url: nil, parentID: folder?.id, center: follow)))
-                }
-            default: return nil
-            }
+        var facts = MenuRegistry.Facts()
+        facts.isFixedOrder = folder?.kind.isBookOrSeries == true
+        let screenRows = MenuContext.screenRows(at: folder == nil ? .libraryHome : .folderScreen, facts: facts,
+                                                shell: shell) { option in
+            option == .sort ? sortRow(folder) : nil
         }
         let browser = MenuRow(id: "moreBrowser", title: Verbs.browser, icon: Icons.browser,
                               accessibilityHint: String(localized: "Return to the browser"), action: shell.leaveLibrary)
-        return MenuContext(screen: screenRows, tiles: MenuContext.tiles(shell, last: browser))
+        return MenuContext(screen: screenRows, tiles: folder == nil ? [browser] : MenuContext.tiles(shell, last: browser))
     }
 
-    /// *New Folder…* (*New Folder Inside…* in a folder) and *Import Book…*, into the screen on top:
-    /// the ⋯ panel's and ＋'s.
+    /// ＋: *New Folder…* (*New Folder Inside…* in a folder), *Import EPUB…* and *Follow…*, into the
+    /// screen on top (`MenuRegistry`, place `.add`).
     var createRows: [MenuRow] {
         let folder = topFolder
-        return [
-            MenuRow(id: "moreNewFolder", title: folder == nil ? Verbs.newFolder : Verbs.newFolderInside,
-                    icon: Icons.newFolder) { [screen] in screen.makeFolder(in: folder) },
-            MenuRow(id: "moreImportBook", title: Verbs.importBook, icon: Icons.book) { [library, shell] in
-                BookImportActions(library: library, shell: shell).pickBook(into: folder)
-            },
-        ]
+        return MenuRegistry.rows(.screen, at: .add, .init()) { option in
+            switch option {
+            case .newFolder:
+                return MenuRow(id: "moreNewFolder", title: folder == nil ? Verbs.newFolder : Verbs.newFolderInside,
+                               icon: Icons.newFolder) { [screen] in screen.makeFolder(in: folder) }
+            case .importFile:
+                return MenuRow(id: "moreImportBook", title: Verbs.importBook, icon: Icons.importFile) { [library, shell] in
+                    BookImportActions(library: library, shell: shell).pickBook(into: folder)
+                }
+            default:
+                return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) { [shell, follow] in
+                    shell.present(.follow(FollowFlow(url: nil, parentID: folder?.id, center: follow)))
+                }
+            }
+        }
     }
 
     /// *Sort*: the folder's page sort, or on the home the top level's.

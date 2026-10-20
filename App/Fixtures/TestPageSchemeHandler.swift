@@ -94,7 +94,7 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
                 + "<p><a href=\"reader-test://story/toc\" \(link)>A story to follow</a></p>"
                 + "<p><a href=\"reader-test://pages/thin\" \(link)>Thin page</a></p>"
                 + "<p><a href=\"reader-test://pages/untitled\" \(link)>A page with no title</a></p>"
-                + "<p><a id=\"book\" href=\"#\" \(link)>Download a book</a></p>"
+                + "<p><a id=\"book\" href=\"#\" \(link)>Download an EPUB</a></p>"
                 + bookLink
         }
         return document(title: title, body: body)

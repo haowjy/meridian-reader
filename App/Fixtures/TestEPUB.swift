@@ -8,7 +8,7 @@ import ZIPFoundation
 /// first opens with a line that sits loose in a `<div>` and carries a footnote, so the
 /// normalizer's work shows on screen.
 enum TestEPUB {
-    static let title = "The Imported Demo Book"
+    static let title = "Imported Demo Folder"
     /// Its file's name, as *Import Book…* and the test pages' link give it.
     static let fileName = "the-imported-demo-book.epub"
     static let author = DemoBook.author

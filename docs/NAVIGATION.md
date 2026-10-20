@@ -97,7 +97,7 @@ toolbar, each slot one role on both:
 |---|---|---|
 | 1 | ‹ web back | ‹ up a level (dimmed at the home) |
 | 2 | › web forward | › (always dimmed: the Library has no forward) |
-| 3 | 🔖 save the page / remove it (held: *Save to Folder…*) | ＋ *New Folder…*, *Import Book…* |
+| 3 | 🔖 save the page / remove it (held: *Save to Folder…*) | ＋ *New Folder…*, *Import EPUB…* |
 | 4 | 🕘 History | 🕘 History |
 | 5 | ⋯ | ⋯ |
 
@@ -257,10 +257,10 @@ going to a place in the Library (Now Playing's ⋯ → *Go to …*, a favorite f
 imported book) opens it on Everything, where every place shows; 📚 comes back to the tab you
 left. The tab is remembered with the surface. The band is the browser's (above): the Now Playing bar, 🌐 then the search
 field, `[‹][›][＋][🕘][⋯]`. ＋ is the ⋯ panel's two creating rows, *New Folder…*
-(*New Folder Inside…* in a folder) and *Import Book…*, both made in the folder on screen (a book's too). 🌐 shows the browser as
+(*New Folder Inside…* in a folder) and *Import EPUB…*, both made in the folder on screen (a book's too). 🌐 shows the browser as
 it was; 📚 there comes back to the same folder. The
 ⋯ panel follows the screen on top (below): a folder's screen starts with the folder's own menu,
-then every screen has *Sort ›, New Folder…* (*New Folder Inside…* in a folder)*, Import Book…,
+then every screen has *Sort ›, New Folder…* (*New Folder Inside…* in a folder)*, Import EPUB…,
 Follow…, Downloads, Settings*, and the big buttons **Favorites**, **History**, **Browser**; nothing in it acts on the page under the Library. History closes the Library first; Browser is the same
 swap as 🌐.
 
@@ -308,7 +308,7 @@ commas.
   Book…* on one action row. The home has no navigation bar; rows scrolled up pass under a paper
   band behind the status bar, not under the clock. The home is the
   top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
-  default, or *Title*), *New Folder…, Import Book…, Follow…, Downloads, Settings*.
+  default, or *Title*), *New Folder…, Import EPUB…, Follow…, Downloads, Settings*.
 - **A folder** (`FolderScreen`, books and series included): a centred header (YouTube Music's
   album header), then subfolders first (by their order), then pages by the folder's sort. The
   header is the title and counts; a folder with details has its cover above them (below). Once
@@ -353,7 +353,7 @@ commas.
   symbols for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
   their delete is saved (*Cancel* keeps them selected). ⋯: the folder's own menu, then *Sort ›,
-  New Folder Inside…, Import Book…, Follow…, Downloads, Settings*. Every ⋯ ends with *Downloads,
+  New Folder Inside…, Import EPUB…, Follow…, Downloads, Settings*. Every ⋯ ends with *Downloads,
   Settings*; *Settings* is always the last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
   has scrolled under the bar. An empty folder's header has no counts; under it the empty view
@@ -369,7 +369,7 @@ commas.
   ("A. Writer   2 folders   3 pages"), then the same progress line and controls. Its row shows the cover in place of the folder symbol, and the author under the
   title until a page in it has played. Details change only the look: its sort, Edit, drags and
   drops are unchanged. Clearing the author and removing the cover brings back the plain header.
-- **Importing a book** (*Import Book…*: ＋, the home's and a folder's ⋯, the empty Library's
+- **Importing a book** (*Import EPUB…*: ＋, the home's and a folder's ⋯, the empty Library's
   card) opens the Files picker for EPUBs. The picked file is copied into the app and the import
   sheet (`BookImportSheet`, medium, grows to large) comes up at once: the cover, title, author,
   file and chapter count once read; a progress line ("Reading chapters… 4 / 9"); **Add to**, the
@@ -485,7 +485,7 @@ it (the Reader; Now Playing for the page you hear; the browser for a link). **Ta
 row opens it**; its ⋯ has *Continue* and *Play from Start*. Swipe left is the menu's own last row,
 by its name: a page's *Remove from Library* (or *Remove from Recent*), which takes its row out of
 every list once it is saved, and leaves it, with a toast, when it can't be; a folder's *Delete
-Folder…* (*Delete Book…*), which asks.
+Folder…* (*Delete Folder…*), which asks.
 In Edit the row has no ⋯ and a tap selects it.
 
 A row's download shows on the row, never as a button: **downloading** (queued in any download,
@@ -520,7 +520,7 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 
 | Row | Tap | Swipe left |
 |---|---|---|
-| Folder, book or series | opens it (push) | *Delete Folder…* / *Delete Book…* |
+| Folder, book or series | opens it (push) | *Delete Folder…* / *Delete Folder…* |
 | Saved page (including a chapter) | plays it (Now Playing if it's what you hear) | *Remove from Library* |
 | Recent page (played without saving) | plays it (Now Playing if it's what you hear) | *Remove from Recent* |
 | Link page | opens it in the browser (a followed story's chapter: fetches it, then plays it) | *Remove from Library* |
@@ -563,7 +563,7 @@ are red everywhere.
 | *Move to…* | |
 | *Rename…*, *Edit Details…* | |
 | *Select* | a folder screen's rows |
-| *Delete Folder…* / *Delete Book…* (red) | asks first |
+| *Delete Folder…* / *Delete Folder…* (red) | asks first |
 
 A toggle is one row showing the face for the item's state. *Remove Download* takes the page out of
 every download and deletes its audio (it stays out of its folder's download, P8); a folder's
@@ -1066,7 +1066,7 @@ Debug builds (`App/LaunchOptions.swift`).
 | Band 📚 / Library (`LibrarySurface`): the home | 🌐 before the band's field | in-place surface (shared bottom chrome); leave restores browse |
 | Library → a folder (a book or series too) (`FolderScreen`) | ‹ system | push (`navigationDestination`) |
 | Move to…, Save to Folder… (`MoveTreeSheet`) | Cancel (grabber) | `.sheet`, medium/large |
-| Import Book… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
+| Import EPUB… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
 | Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
 | Follow (`FollowSheet`): ⋯ → *Follow…* | Cancel; OK opens the story's folder | `.fullScreenCover` (a card's own pull would take the preview's); a chapter's preview is a `Sheet` over it holding the chapter's page, pulled down to close (from its top) |

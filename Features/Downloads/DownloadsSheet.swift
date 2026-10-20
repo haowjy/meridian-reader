@@ -62,7 +62,7 @@ struct DownloadsList: View {
             if overview.isEmpty {
                 Section {
                     EmptyState(String(localized: "Nothing Downloaded"), symbol: Icons.downloads,
-                               description: Text("Download a page from its \(Text.symbol(Icons.more)) in the Library, or a folder or book with \(Text.symbol(Icons.download)) on its screen. Its audio is made ahead of time, so it plays offline."))
+                               description: Text("Download a page from its \(Text.symbol(Icons.more)) in the Library, or a folder with \(Text.symbol(Icons.download)) on its screen. Its audio is made ahead of time, so it plays offline."))
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("downloadsEmpty")
                 }

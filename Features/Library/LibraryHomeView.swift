@@ -125,13 +125,13 @@ struct LibraryHomeView: View {
     /// An empty Everything: what the toolbar does, with the two first-run actions.
     private var emptyCard: some View {
         EmptyState(String(localized: "Find Something to Listen To"), symbol: Icons.library,
-                   description: Text("Tap \(Text.symbol(Icons.browser)) to find a page, or \(Text.symbol(Icons.add)) to import a book. Pages you save, books you import and folders you make show up here.")) {
+                   description: Text("Tap \(Text.symbol(Icons.browser)) to find a page, or \(Text.symbol(Icons.add)) to import an EPUB. Pages you save, EPUBs you import and folders you make show up here.")) {
             ActionButtonRow { fit in
                 PillButton(String(localized: "Browse the Web"), shortTitle: String(localized: "Browse"),
                            systemImage: Icons.browser, style: .filled, fit: fit) { shell.leaveLibrary() }
                     .accessibilityIdentifier("libraryEmptyBrowse")
                 PillButton(Verbs.importBook, shortTitle: Verbs.import,
-                           systemImage: Icons.book, style: .neutral, fit: fit) {
+                           systemImage: Icons.importFile, style: .neutral, fit: fit) {
                     BookImportActions(library: library, shell: shell).pickBook(into: nil)
                 }
                 .accessibilityIdentifier("libraryEmptyImport")

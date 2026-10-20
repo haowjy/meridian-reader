@@ -468,9 +468,9 @@ struct ListRowGallery: View {
                         progress: .unplayed(minutes: 12), insertionEdge: .top, menu: menu)
             }
             PreviewState("book: unplayed, part-way and downloading, playing and downloaded") {
-                ListRow(kind: .folder(symbol: Icons.book, count: []), title: "Pride and Prejudice",
+                ListRow(kind: .folder(symbol: Icons.folder, count: []), title: "Pride and Prejudice",
                         subtitle: "Jane Austen", progress: .unplayed(minutes: 645), menu: menu)
-                ListRow(kind: .folder(symbol: Icons.book, count: []), title: "Pride and Prejudice",
+                ListRow(kind: .folder(symbol: Icons.folder, count: []), title: "Pride and Prejudice",
                         subtitle: "Ch 24", progress: .partWay(fraction: 0.38, minutesLeft: 370),
                         download: .downloading(fraction: 0.2), folderHasDetails: true, menu: menu)
                 ListRow(kind: .folder(symbol: Icons.library, count: []), title: "The Lighthouse Keeper",

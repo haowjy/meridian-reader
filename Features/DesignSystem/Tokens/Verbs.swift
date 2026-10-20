@@ -34,7 +34,7 @@ import Foundation
 /// | Rename…, Edit Details… | `Icons.rename`, `Icons.editDetails` |
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
 /// | Pause / Resume (a download), Re-download, Keep | `Icons.pause` / `Icons.resume`, `Icons.redownload`, `Icons.keep` |
-/// | New Folder…, Import Book…, Follow… | `Icons.newFolder`, `Icons.book`, `Icons.follow` |
+/// | New Folder…, Import Book…, Follow… | `Icons.newFolder`, `Icons.importFile`, `Icons.follow` |
 /// | Downloads, Settings | `Icons.downloads`, `Icons.settings` |
 enum Verbs {
     // MARK: A page
@@ -89,7 +89,7 @@ enum Verbs {
 
     /// *Delete Folder…* / *Delete Book…*: a book is named as one.
     static func deleteFolder(isBook: Bool) -> String {
-        isBook ? String(localized: "Delete Book…") : String(localized: "Delete Folder…")
+        String(localized: "Delete Folder…")
     }
 
     // MARK: Playing
@@ -112,7 +112,7 @@ enum Verbs {
 
     static let newFolder = String(localized: "New Folder…")
     static let newFolderInside = String(localized: "New Folder Inside…")
-    static let importBook = String(localized: "Import Book…")
+    static let importBook = String(localized: "Import EPUB…")
     /// A story's table of contents, read into a folder of chapters.
     static let follow = String(localized: "Follow…")
     static let unfollow = String(localized: "Unfollow")
@@ -126,7 +126,8 @@ enum Verbs {
     static let settings = String(localized: "Settings")
     static let favorites = String(localized: "Favorites")
     /// The browser's: pages visited.
-    static let history = String(localized: "History")
+    /// The visits sheet's button and title: *Recent*, as the Library's tab (C100).
+    static let history = String(localized: "Recent")
     static let removeFromHistory = String(localized: "Remove from History")
     /// The start page's and the search layer's section of searches made, and its action.
     static let recentSearches = String(localized: "Recent Searches")
