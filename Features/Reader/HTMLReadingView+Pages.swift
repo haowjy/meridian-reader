@@ -194,8 +194,10 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
 
     private func applyOverview() {
         guard let webView = host.webView else { return }
-        webView.clipsToBounds = !isOverview
-        webView.scrollView.clipsToBounds = !isOverview
+        // Never clipped in Pages (C114): the neighbours stay drawn, so the card never shows blank
+        // while they come into view; off screen while reading.
+        webView.clipsToBounds = !paged
+        webView.scrollView.clipsToBounds = !paged
     }
 
     func setInsets(_ insets: ReaderTextInsets) {
@@ -306,8 +308,9 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         // bars hide while reading; when they show, the same page shrinks into a card between them
         // (`setOverview`), so it never reflows. A margin of `Spacing.s` above and below; the
         // columns end on whole lines.
-        let safeTop = webView.window?.safeAreaInsets.top ?? webView.safeAreaInsets.top
-        let top = safeTop + Spacing.s
+        // The web view already starts below the status bar (the sheet's top): a small margin
+        // only (C114; C113 added the status bar twice).
+        let top = Spacing.m
         let bottom = footer + Spacing.s
         let boxHeight = Int(max(height - bottom, top + 100))
         let topValue = Int(top.rounded())
@@ -426,8 +429,8 @@ struct ReadingPageFrame: View {
                 .typeStyle(.caption)
                 .padding(.horizontal, Spacing.l)
                 .frame(maxWidth: .infinity)
-                .padding(.top, Spacing.m)
-                .padding(.bottom, Spacing.xs)
+                .padding(.top, Spacing.xs)
+                .padding(.bottom, Spacing.xxs)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { chrome?.pageFooter = $0 }
                 .onDisappear { chrome?.pageFooter = 0 }
                 .padding(.bottom, chrome?.homeIndicator ?? 0)

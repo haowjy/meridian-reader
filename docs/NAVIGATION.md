@@ -971,7 +971,7 @@ time; Follow's chapter preview always scrolls.
 └──────────────────────────────────────┘
 ```
 
-- **A page** (C113, Kindle's) is laid out for the whole screen inside the safe area and holds
+- **A page** (C113, Kindle's) is laid out for the whole reading sheet, from 16 pt below its top (just under the status bar, C114) down to the footer, and holds
   whole lines only: no line is ever cut at its top or bottom. A line that doesn't fit starts the
   next page; a picture taller than a page shows a page-tall slice at a time until the rest of it
   fits, and the text after it carries on from there.
