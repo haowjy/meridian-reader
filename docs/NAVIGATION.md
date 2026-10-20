@@ -187,12 +187,12 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   so a horizontal drag leaves the panel in place and a drag that drifts sideways doesn't make it
   jump. The sheets' pull-down follows the same rules. Light glass on iOS 26 (thick material
   before). Debug › is a native `Menu`.
-- **☆ Add to Favorites**: one tap stars the page where it is (a flag, D20; it never moves, and it
-  doesn't file the page). A page that is nowhere yet becomes a link in no folder; a page played
-  without saving stays in Recent and joins Favorites. A starred page is a favorite, in the
-  Library or not: ☆ then reads *Remove from Favorites*, which clears the star and leaves the page
+- **☆ Add to Favorites**: one tap stars the page where it is (a flag, D20; a saved page never
+  moves). A page that is nowhere yet becomes a link in no folder; a page played without saving is
+  saved to the Library's top level (C104: Favorites lists only saved items). A starred page: ☆ then reads *Remove from Favorites*, which clears the star and leaves the page
   where it is (a link ☆ made stays). *Remove from Library* never clears the star: a removed
-  favorite leaves every Library list but stays in Favorites, starred, and the prune keeps it;
+  favorite leaves every list, Favorites too, but keeps its star (it is back in Favorites once
+  saved again), and the prune keeps it;
   unstarred, it is in no list and the prune deletes it on its schedule. A Library row's menu (a page's or a folder's) stars
   the same way, with the same toasts. ☆ is offered for a web page or a page in the Library, a
   book's chapter too, in the Library's rows and in the Reader's and Now Playing's ⋯ alike.
@@ -204,8 +204,8 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
   without saving (kept 7 days, listed in the Library's Recent tab, and in the bar). *Remove from Library* is one action wherever it is asked (a row's swipe or menu,
   Edit, 🔖, the ⋯ of the browser, the Reader and Now Playing, the Now Playing bar's long-press):
-  the page leaves its folder and every Library list it was in, Recent too, and keeps its
-  star (a starred page stays in Favorites); if it is what you hear, playback stops, as for
+  the page leaves its folder and every Library list it was in, Recent and Favorites too, and keeps its
+  star; if it is what you hear, playback stops, as for
   *Stop Listening*, and Now Playing closes. It is kept 7 days after its last play (a page never
   played goes at the next launch) but the bar doesn't offer it, and it comes back only when you
   save it or listen to it again (🎧, the Reader's Listen). There is one page per address: saving
@@ -241,20 +241,20 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
 
 The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
-back up, as does the band's ‹ (dimmed at the home). The home has **Everything / Favorites / Recent**
+back up, as does the band's ‹ (dimmed at the home). The home has **Library / Favorites / Recent** (C104)
 tabs at the top; the band's field searches the tab on screen and says so (*Search Library* on
-Everything, *Search Favorites*, *Search Recent*). On a folder's screen it searches that folder,
+Library, *Search Favorites*, *Search Recent*). On a folder's screen it searches that folder,
 everything under it, and says so (*Search Demo Finance*): the results stand under the folder's
 name, each row showing where it is below the folder (its site when it is in the folder itself);
 the search ends when you leave the folder. Each tab
 is one mixed list: folders and pages share a single list, with no section headings. Favorites
-are independent stars. Recent is what you listened to without saving; *History* (🕘 in the band,
+are the starred items in the Library. Recent is everything you opened or started (C104); *History* (🕘 in the band,
 a big button in the ⋯) is the browser's pages visited: one name per concept. On Favorites,
 Recent and in search results a row in a folder shows that folder's
 path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
 parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on Favorites;
 going to a place in the Library (Now Playing's ⋯ → *Go to …*, a favorite folder's tile, an
-imported book) opens it on Everything, where every place shows; 📚 comes back to the tab you
+imported book) opens it on Library, where every place shows; 📚 comes back to the tab you
 left. The tab is remembered with the surface. The band is the browser's (above): the Now Playing bar, 🌐 then the search
 field, `[‹][›][＋][🕘][⋯]`. ＋ is the ⋯ panel's two creating rows, *New Folder…*
 (*New Folder Inside…* in a folder) and *Import EPUB…*, both made in the folder on screen (a book's too). 🌐 shows the browser as
@@ -266,11 +266,11 @@ swap as 🌐.
 
 ```
 Library
-Everything  Favorites  Recent
-▣ Pride and Prejudice              ⋯   tap opens; the cover dimmed under a jade ↓ while it downloads
+Library  Favorites  Recent
+▣ Pride and Prejudice              ⋯   tap opens; its cover never changes (C102)
 ▣ Tide Tables                      ⋯
 ▣ Finance ★                        ⋯   location-independent favorite
-[i] Seven-Day Yield ★              ⋯   tap plays; ✓ before its second line once downloaded
+[i] Seven-Day Yield ★              ⋯   tap plays; ◌ queued, a filling accent ↓, then a filled ↓ before its second line
 ```
 
 Secondary lines (a row's second line, the bar's, a header's details) never join their parts with
@@ -282,16 +282,17 @@ when it is short of room, and at accessibility text sizes the row shows its stat
 own lighter label after the title (*Pages* then *48*). VoiceOver reads the parts joined with
 commas.
 
-- **The home** (`LibraryHomeView`): Everything shows what is saved: top-level folders and pages
-  in no folder. Favorites shows all starred folders and pages wherever they live, saved or not.
-  Recent shows the pages you started listening to without saving (no folders), most recent
-  first, in the same rows (no "Not saved" note, no download mark); a tap plays one. Their ⋯ (and
-  long-press) has *Save to Library*, which moves the page into the Library (out of Recent, into
-  Everything), *Save to Folder…*, and *Remove from Recent* (the same remove as *Remove from
-  Library*: in no list after, its star kept, pruned later), with the rest dimmed until it is saved
-  (*Download*, the marks); swipe left is *Remove from Recent*. *Remove from Recent* never shows on a page in the
-  Library, and is dimmed on one out of it that isn't in Recent (a starred page removed earlier,
-  on Favorites). Empty, Recent says *No Recent Pages Yet* (as Favorites says *No Favorites Yet*,
+- **The home** (`LibraryHomeView`, C104): Library shows what is saved: top-level folders and pages
+  in no folder. Downloading a page saves it to the Library first (a page played without saving
+  goes to the top level). Favorites shows the starred folders and pages in the Library wherever
+  they live; starring a page played without saving saves it to the top level (a page that is
+  nowhere yet becomes a saved link, as before). Recent shows every page you started listening to
+  ("opened" is started: `lastPlayedAt`), saved, downloaded or played without saving (no folders,
+  links or chapters), most recent first, in the same rows; a tap plays one. An unsaved one's ⋯ (and
+  long-press) has *Save to Library*, which moves the page into the Library (it stays in Recent), *Save to Folder…*, and *Remove from Recent* (the same remove as *Remove from
+  Library*: in no list after, its star kept, pruned later), *Download* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove from Recent*. *Remove from Recent* never shows on a page in the
+  Library (a saved page in Recent has *Remove from Library*), and is dimmed on one out of it that
+  isn't in Recent. Empty, Recent says *No Recent Pages Yet* (as Favorites says *No Favorites Yet*,
   History *No History Yet*, Downloads *Nothing Downloaded*: every empty list is the system's
   empty view with a symbol, a Title Case title and one line, `EmptyState`).
   Search filters the tab on screen: on
@@ -543,7 +544,7 @@ are red everywhere.
 |---|---|
 | *Read* / *Go to <place>* | *Read* (the Reader; Now Playing for the page you hear; the browser for a link or an address the Library hasn't) where the page isn't open; Now Playing has *Go to* its folder or the Library in its place; neither on the Reader or the browser |
 | *Play from Here* | a page in a folder, in a Library list |
-| *Download* / *Remove Download* (red) | dimmed out of the Library |
+| *Download* / *Remove Download* (red) | a page out of the Library is saved first (C104); dimmed only on a browser page not yet loaded as a page |
 | *Add to Favorites* / *Remove from Favorites* | |
 | *Move to…* / *Save to Folder…* | *Save to Folder…* out of the Library (the Move tree, titled *Save to Folder*, saves it there), *Move to…* in it |
 | *Mark as Finished* / *Mark as Unfinished* | dimmed until it is saved |
@@ -819,8 +820,7 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   artwork, line one as the Now Playing bar has it (the title; for a page without one its site,
   `PageTitle.lineOne`), and the site and time left as two parts, the site left out when line one
   is already it (*◉ Finished* at the end). The
-  spoken paragraph is in full ink on the theme's highlight, the others dimmed (a paragraph
-  pressed while ☝︎ is on is in full ink too). The *Jump to Audio* pill is ink with the page's
+  spoken paragraph is on the theme's highlight; every paragraph stays in full ink (C105). The *Jump to Audio* pill is ink with the page's
   colour for its text; the scrub capsule, the bubble, the jump hint, the ⋯ panel and the speed
   popover take the theme's colours. A plain-text article (no reading HTML) shows its paragraphs on
   the same reading page, in both, so everything below applies to it too.
@@ -966,12 +966,14 @@ time; Follow's chapter preview always scrolls.
   full screen. The time is what is left from the first character of the page shown to the end of
   the page's text, at the playback speed, worded as the rows and the Now Playing bar word it; a
   chapter of a book or series says `2 min left in chapter`, so it isn't read as the book's.
-- **Turning**: a tap at the right edge turns to the next page, at the left edge to the one before,
-  at once (the first 48 pt from the left edge do nothing; the middle shows or hides the bars). A
-  drag turns one page its way and snaps there when you let go (the `Motion.standard` spring, a
-  jump under Reduce Motion); it never stops between pages. On the first page a pull down behaves
-  as at the top in Scroll: in full screen it brings the bars back, with the bars showing it closes
-  the sheet.
+- **Turning** (C106): pages turn sideways, as in Kindle. A swipe left drags the page shown off to
+  the left over the next one; a swipe right drags it off to the right over the one before. Let go
+  past a quarter of the width (or flicked) it turns, else it springs back; past the first or last
+  page it barely gives. A tap at the right edge zone slides to the next page, at the left edge
+  zone to the one before (at once under Reduce Motion); the middle shows or hides the bars. The
+  first 48 pt from the left edge stay the system's: neither a tap nor a swipe that begins there
+  turns a page, so the edge swipe back still works. The text never scrolls vertically in Pages,
+  so a pull down on the text no longer closes the sheet there (the grabber and the close pill do).
 - **Following the audio** (Now Playing) turns to the page holding the spoken sentence when the
   voice reaches it, and to the next page as the voice crosses onto it, mid-sentence too. A turn
   of your own stops following and *Jump to Audio* appears; it goes back
@@ -994,7 +996,7 @@ spacing change reflows the text and keeps the line on screen where it was).
 - **Theme**: *Match App* (the app's paper and ink in its appearance and colour; the default),
   *Light*, *Sepia*, *Dark*, *Black*. One token set each (`ReadingPalette`: background, card,
   ink, secondary and tertiary ink, dimmed ink, highlight, accent) for the Reader and Now Playing
-  alike. The spoken paragraph sits on the highlight in full ink, the others dimmed; the spoken
+  alike. The spoken paragraph sits on the highlight; every paragraph is in full ink (C105); the spoken
   sentence is underlined in the theme's accent (one underline colour per theme). Light, Dark and
   Black take the app's colour as their accent; Sepia has its own. Each is a swatch named under
   it; a name wraps between words, and at the accessibility sizes, where a name's longest word

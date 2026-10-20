@@ -10,7 +10,7 @@ import SwiftUI
 /// ▣ Coupon Basics                             ●  ⋯   page, downloaded: the accent filled ↓ badge;
 /// ▣ ↓ example.com   Finished                          ● the same ring, full
 /// ▣̲ Seven-Day Yield                          ▂▅▇ ⋯   page, playing and downloading: tinted,
-/// ▣ Playing                                           bars; the tile dimmed under a jade ↓
+/// ▣ Playing                                           bars; the download mark before line two (C102)
 /// 🔗 serials.example.com                              link: lighter
 /// ```
 ///
@@ -29,7 +29,7 @@ import SwiftUI
 /// chapter, `showsListening` false: browser visits, downloads) have no column.
 ///
 /// Its download (`download`) shows on the row itself, never as a button: downloading dims the
-/// thumbnail under a small jade ↓ (grey while paused), downloaded puts a accent filled ↓ before the second
+/// small ↓ filling before line two (grey while paused; C102), downloaded puts a accent filled ↓ before the second
 /// line. The trailing ⋯ (`menu`, the same menu as the row's long press) is centred on the
 /// toolbar's ⋯ slot like the Now Playing bar's ⏸; a row with a control of its own (a download's
 /// pause, `accessory`) has it just before the ⋯. Every row's separator starts at its title,
@@ -243,9 +243,15 @@ struct ListRow: View {
         // A skipped chapter never plays, so it shows no downloaded mark (C89).
         let badged = download == .downloaded && !isSkipped
         let queued = download.isQueued
-        if !leads.isEmpty || status != nil || badged || queued {
+        // Rendering now or paused: the small ↓ filling in the same slot (C102), never on the tile.
+        let filling = download.isDownloading && !queued
+        if !leads.isEmpty || status != nil || badged || queued || filling {
             HStack(spacing: partSpacing) {
-                if queued {
+                if filling {
+                    DownloadMark(state: download, size: statusMarkSize)
+                        .padding(.trailing, -partSpacing / 2)
+                        .transition(.opacity)
+                } else if queued {
                     // Waiting its turn: a small spinner in the badge slot (C93).
                     QueuedIndicator()
                         .padding(.trailing, -partSpacing / 2)
@@ -372,18 +378,12 @@ struct ListRow: View {
     /// filling with its real progress while it renders now, grey while paused. Waiting its turn
     /// leaves the tile alone: the spinner is in the badge slot (C93).
     private var downloadLeading: some View {
-        // A queued row's spinner is in its badge slot instead (C93).
-        let downloading = download.isDownloading && !download.isQueued
-        return leading
-            .opacity(downloading ? Palette.downloadingOpacity : 1)
-            .overlay {
-                if downloading {
-                    DownloadMark(state: download, size: thumbnailSide * 0.6)
-                        .background(Circle().fill(Palette.paper).opacity(0.85))
-                        .transition(.opacity)
-                }
-            }
+        // The tile is never covered or dimmed by a download (C102): its state is the line-two mark.
+        leading
     }
+
+    /// The line-two download mark's side: as tall as the caption text.
+    @ScaledMetric(relativeTo: .caption) private var statusMarkSize: CGFloat = 13
 
     private var isSkipped: Bool {
         if case .skipped = progress { return true }
@@ -439,7 +439,9 @@ struct ProgressRing: View {
         ZStack {
             Circle().stroke(reading?.track ?? Palette.track, lineWidth: Glyph.stroke)
             Circle()
-                .trim(from: 0, to: min(max(0, fraction), 1))
+                // Never a sliver: a few percent in reads as a spinner's arc (C102); the arc starts at
+                // a solid dot-sized wedge, and the full track always shows round it.
+                .trim(from: 0, to: fraction > 0 ? min(max(0.1, fraction), 1) : 0)
                 .stroke(reading?.accent ?? Palette.accent, style: StrokeStyle(lineWidth: Glyph.stroke, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }

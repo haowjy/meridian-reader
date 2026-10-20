@@ -62,8 +62,9 @@ final class PlayedNotSavedTests: XCTestCase {
         neverPlayed.lastPlayedAt = nil
         _ = page("played")
         try context.save()
-        XCTAssertEqual(try recent().map(\.title), ["played"])
-        XCTAssertEqual(try recent().map(LibraryQueries.isInRecent), [true], "the one-page check agrees")
+        // Recent lists everything played, saved pages included (C104); links and chapters stay out.
+        XCTAssertEqual(Set(try recent().map(\.title)), ["played", "saved"])
+        XCTAssertEqual(try recent().map(LibraryQueries.isInRecent), [true, true], "the one-page check agrees")
     }
 
     /// *Save* in the row's menu (`LibraryActions.save`) saves the page's own copy of itself: into
@@ -73,7 +74,7 @@ final class PlayedNotSavedTests: XCTestCase {
         XCTAssertEqual(try recent().count, 1)
         try env.library.save(ReaderArticle(page: page))
         XCTAssertTrue(page.isSavedToLibrary)
-        XCTAssertTrue(try recent().isEmpty, "no longer in Recent")
+        XCTAssertEqual(try recent().map(\.listenKey), [page.listenKey], "still in Recent: it was played (C104)")
         XCTAssertEqual(try env.context.fetch(LibraryQueries.loosePages(sort: .newest)).map(\.listenKey), [page.listenKey],
                        "in Pages, the same page")
     }
@@ -90,11 +91,11 @@ final class PlayedNotSavedTests: XCTestCase {
         env.now += 60
         library.recordPlaybackStarted(page)
         library.recordPosition(page, paragraph: 1, utf16Offset: 3)
-        XCTAssertEqual(try lists(holding: page), ["Pages", "Search", "Favorites", "Suggestions"])
+        XCTAssertEqual(try lists(holding: page), ["Pages", "Search", "Favorites", "Recent", "Recent search", "Suggestions"])
 
         env.now += 60
         try library.remove([page])
-        XCTAssertEqual(try lists(holding: page), ["Favorites"], "in no Library list, Recent included; starred, in Favorites")
+        XCTAssertEqual(try lists(holding: page), [], "in no list: Favorites shows only saved pages (C104)")
         XCTAssertEqual(page.removedAt, env.now)
         XCTAssertTrue(page.isFavorite, "the star stays")
         XCTAssertIdentical(library.page(url: url), page, "kept")
@@ -174,7 +175,7 @@ final class PlayedNotSavedTests: XCTestCase {
 
         env.now += 60
         try library.save(ReaderArticle(page: page))
-        XCTAssertEqual(try lists(holding: page), ["Pages", "Search", "Suggestions"])
+        XCTAssertEqual(try lists(holding: page), ["Pages", "Search", "Recent", "Recent search", "Suggestions"])
 
         env.now += 60
         try library.remove([page])
@@ -191,7 +192,7 @@ final class PlayedNotSavedTests: XCTestCase {
         library.saveContext = { _ in throw SaveFailed() }
 
         XCTAssertThrowsError(try library.remove([page])) { XCTAssertEqual($0 as? LibraryStoreError, .saveFailed) }
-        XCTAssertEqual(try lists(holding: page), ["Pages", "Search", "Suggestions"], "where it was")
+        XCTAssertEqual(try lists(holding: page), ["Pages", "Search", "Recent", "Recent search", "Suggestions"], "where it was")
         XCTAssertNil(page.removedAt)
         XCTAssertNotNil(page.addedAt)
     }
@@ -213,7 +214,7 @@ final class PlayedNotSavedTests: XCTestCase {
         library.pruneUnsaved()
         for removed in [page, link] {
             XCTAssertFalse(removed.isDeleted, "the prune keeps a starred page")
-            XCTAssertEqual(try lists(holding: removed), ["Favorites"], "out of the Library, still in Favorites")
+            XCTAssertEqual(try lists(holding: removed), [], "out of the Library, so out of Favorites (C104)")
             XCTAssertTrue(removed.isFavorite, "the star stays")
         }
 
@@ -221,5 +222,16 @@ final class PlayedNotSavedTests: XCTestCase {
         XCTAssertEqual(try lists(holding: page), [], "unstarred: in no list")
         library.pruneUnsaved()
         XCTAssertNil(library.page(url: URL(string: "https://example.com/starred")!), "and pruned")
+    }
+
+    /// Starring a page played without saving saves it to the Library's top level (C104):
+    /// Favorites lists only saved pages.
+    func testStarringAPlayedPageSavesIt() throws {
+        let page = env.library.recordPlayback(env.article("https://example.com/star-me"))
+        XCTAssertFalse(page.isInLibrary)
+        try library.addFavorite(page)
+        XCTAssertTrue(page.isInLibrary)
+        XCTAssertNil(page.folder)
+        XCTAssertEqual(try lists(holding: page), ["Pages", "Search", "Favorites", "Recent", "Recent search", "Suggestions"])
     }
 }

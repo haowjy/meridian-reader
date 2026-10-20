@@ -9,8 +9,8 @@ import UIKit
 /// Full screen (`hidden`) slides the bars off their edges and hides the status bar; the insets
 /// stay as they are, so the text never moves when the bars go or come back.
 ///
-/// - A finger drag on the text moving up (scrolling down) past `hideDistance` hides the bars;
-///   moving down `showDistance` brings them back (`dragged(by:)`). Programmatic scrolls and a
+/// - A finger drag on the text moving up (scrolling down) past `hideDistance` hides the bars
+///   (`dragged(by:)`); scrolling back up leaves them hidden (C105). Programmatic scrolls and a
 ///   drag's movement while it pulls the sheet never reach it.
 /// - A tap in the middle of the text toggles them (`tappedCentre`); a tap at either edge turns
 ///   a screen (`revealFloatingControl`) and leaves them as they are (`TapZone`).
@@ -60,11 +60,8 @@ final class ReadingChrome {
     func dragged(by delta: CGFloat) {
         guard delta != 0 else { return }
         run = (run < 0) == (delta < 0) ? run + delta : delta
-        if run <= -Self.hideDistance {
-            hide()
-        } else if run >= Self.showDistance {
-            show()
-        }
+        // Scrolling back up never brings them back (C105): only a tap in the middle does.
+        if run <= -Self.hideDistance { hide() }
     }
 
     /// A tap in the middle of the text: the bars toggle.

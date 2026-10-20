@@ -177,7 +177,7 @@ extension LibraryHomeTab {
     /// Its name in the tabs.
     var title: String {
         switch self {
-        case .everything: String(localized: "Everything")
+        case .everything: Verbs.library
         case .favorites: Verbs.favorites
         case .recent: String(localized: "Recent")
         }

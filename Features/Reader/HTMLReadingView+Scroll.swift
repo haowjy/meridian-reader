@@ -13,8 +13,7 @@ import WebKit
 /// - An edge tap turns a screen: the visible text less one line, so the line at one edge stays in
 ///   view at the other, landing with a whole line at the top. In full screen the visible text
 ///   starts below the fade at the top (`HTMLReadingView`).
-/// - In full screen a drag let go comes to rest the same way: where its glide would stop, moved to
-///   the nearest line, so no line rests cut by the screen's top edge.
+/// - A drag let go glides and rests where UIKit's deceleration stops it (C105).
 @MainActor
 final class ScrollTextLayout: ReadingTextLayout {
     private unowned let host: HTMLReadingWebView.Coordinator
@@ -52,27 +51,8 @@ final class ScrollTextLayout: ReadingTextLayout {
     }
 
     func dragEnded(velocity: CGFloat) {
-        // Following places the text itself; a drag that scrolled has already ended following.
-        guard host.chrome?.hidden == true, !host.follows, let sv = scrollView, let webView = host.webView,
-              host.loaded else { return }
-        let layout = sv.readingLayout
-        guard layout.isLaidOut else { return }
-        // Where UIKit's glide would stop (its normal deceleration), as the line to settle on.
-        let rate = UIScrollView.DecelerationRate.normal.rawValue
-        let glide = velocity / 1000 * rate / (1 - rate)
-        let projected = layout.clamped(sv.contentOffset.y - glide)
-        // At either end of the text the page rests as it is.
-        guard projected > layout.range.lowerBound + 1, projected < layout.range.upperBound - 1 else { return }
-        let line = host.look.lineHeight(host.sizes)
-        let generation = host.loadGeneration
-        webView.evaluateJavaScript("window.__readerAnchor(\(Double(projected + line)))") { [weak self] result, _ in
-            guard let self, generation == host.loadGeneration, host.layout === self, !sv.isTracking else { return }
-            guard let lineTop = ((result as? [String: Any])?["top"] as? Double).map({ CGFloat($0) }),
-                  abs(lineTop - (projected + line)) <= line else { return }
-            // The line under the fade's foot comes to rest there, whole; the glide stops for it.
-            sv.setContentOffset(sv.contentOffset, animated: false)
-            scroll(to: sv.readingLayout.clamped(lineTop - line))
-        }
+        // A drag let go glides and stops as UIKit has it (C105): snapping it to a line fought the
+        // finger's glide and stuttered.
     }
 
     func turn(forward: Bool) -> Bool {

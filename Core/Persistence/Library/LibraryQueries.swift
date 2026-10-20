@@ -28,7 +28,7 @@ enum LibraryQueries {
     /// Starred pages, in the Library or not, anywhere in the tree, by title: the home's Favorites
     /// tab and the start page's grid.
     static var favoritePages: FetchDescriptor<Page> {
-        FetchDescriptor(predicate: #Predicate<Page> { $0.isFavorite },
+        FetchDescriptor(predicate: #Predicate<Page> { $0.isFavorite && $0.addedAt != nil },
                         sortBy: [SortDescriptor(\.title)])
     }
 
@@ -58,7 +58,7 @@ enum LibraryQueries {
         let past = Date.distantPast
         let saved = PageContentState.saved.rawValue
         return FetchDescriptor(predicate: #Predicate<Page> {
-            $0.addedAt == nil && $0.removedAt == nil && $0.folderID == nil && $0.contentStateRaw == saved
+            ($0.addedAt != nil || ($0.removedAt == nil && $0.folderID == nil && $0.contentStateRaw == saved))
                 && ($0.lastPlayedAt ?? past) > past
         }, sortBy: [SortDescriptor(\Page.lastPlayedAt, order: .reverse), SortDescriptor(\Page.key)])
     }
@@ -160,7 +160,7 @@ enum LibraryQueries {
             }, sortBy: sort)
         case .favorites:
             return FetchDescriptor(predicate: #Predicate<Page> { page in
-                page.isFavorite
+                page.isFavorite && page.addedAt != nil
                     && (page.title.localizedStandardContains(text) || page.byline.localizedStandardContains(text)
                         || page.excerpt.localizedStandardContains(text))
             }, sortBy: sort)
@@ -169,7 +169,7 @@ enum LibraryQueries {
             let past = Date.distantPast
             let saved = PageContentState.saved.rawValue
             return FetchDescriptor(predicate: #Predicate<Page> { page in
-                page.addedAt == nil && page.removedAt == nil && page.folderID == nil && page.contentStateRaw == saved
+                (page.addedAt != nil || (page.removedAt == nil && page.folderID == nil && page.contentStateRaw == saved))
                     && (page.lastPlayedAt ?? past) > past
                     && (page.title.localizedStandardContains(text) || page.byline.localizedStandardContains(text)
                         || page.excerpt.localizedStandardContains(text))

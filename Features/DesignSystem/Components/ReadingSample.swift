@@ -16,7 +16,7 @@ struct ReadingSample: View {
         let size = body19 * textScale
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text("Tides rise and fall twice a day.")
-                .foregroundStyle(palette.dimInk)
+                .foregroundStyle(palette.ink)
             (Text("Where a bay narrows, the water piles up.").underline(color: palette.underline)
                 + Text(" High water can reach several metres."))
                 .foregroundStyle(palette.ink)

@@ -59,6 +59,8 @@ enum MenuRegistry {
     struct Facts: Equatable {
         // A page
         var hasTarget = true
+        /// A page model exists (played, saved or a link), not only a page in the browser.
+        var hasPage = false
         var goToEnabled = true
         var inLibrary = false
         var isSaved = false
@@ -123,7 +125,7 @@ enum MenuRegistry {
         // browser have the bookmark, so *Save* isn't in their menus.
         Spec(option: .read, kind: .page, places: pageListPlaces, enabled: { $0.hasTarget }, greyIf: "no page or address"),
         Spec(option: .goTo, kind: .page, places: [.nowPlaying], enabled: { $0.goToEnabled }, greyIf: "nowhere to go"),
-        Spec(option: .download, kind: .page, places: pagePlaces, enabled: { $0.inLibrary }, greyIf: "not in the Library (save it first)"),
+        Spec(option: .download, kind: .page, places: pagePlaces, enabled: { $0.inLibrary || ($0.hasPage && $0.canSave) }, greyIf: "nothing to save yet (downloading saves it, C104)"),
         Spec(option: .favorite, kind: .page, places: pagePlaces, enabled: { $0.canFavorite }, greyIf: "it can\u{2019}t be starred"),
         Spec(option: .move, kind: .page, places: pagePlaces, enabled: { !$0.offersSave || $0.canSave }, greyIf: "nothing to save yet"),
         Spec(option: .finished, kind: .page, places: pagePlaces, enabled: { $0.isSaved }, greyIf: "not saved"),

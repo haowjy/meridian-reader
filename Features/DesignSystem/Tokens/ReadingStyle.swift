@@ -3,9 +3,7 @@ import UIKit
 
 /// The reading page's look in HTML (the Reader and Now Playing render articles in a web view):
 /// the reading theme's tokens (`ReadingPalette`) written as CSS, the same page for both sheets.
-/// The spoken paragraph sits on the highlight in full ink while the others are dimmed (with
-/// nothing spoken, or finished, every paragraph is full ink, as is a paragraph pressed in jump
-/// mode); the spoken sentence is underlined in the theme's accent. The Reader's title and source
+/// Every paragraph is in full ink (C105); the spoken one sits on the highlight, and the spoken sentence is underlined in the theme's accent. The Reader's title and source
 /// line are part of the page; Now Playing's title card is a native view over a slot at the top of
 /// the page (`.reader-top`).
 ///
@@ -134,7 +132,7 @@ enum ReadingStyle {
         .reader-top { margin: 0 0 \(Int(Spacing.l))px; }
         [data-reader-index] { border-radius: \(pad)px; transition: color \(Motion.standardResponse)s ease-out; }
         @media (prefers-reduced-motion: reduce) { [data-reader-index] { transition: none; } }
-        body.reader-has-active [data-reader-index] { color: var(--dim); }
+        /* Every paragraph stays in full ink (C105): only the spoken one gets the highlight. */
         body.reader-has-active .reader-active, .reader-active { color: var(--ink); background: var(--highlight);
                         box-shadow: 0 0 0 \(pad)px var(--highlight); }
         ::highlight(reader-sentence) { text-decoration: underline 2px var(--underline); text-underline-offset: 4px; }

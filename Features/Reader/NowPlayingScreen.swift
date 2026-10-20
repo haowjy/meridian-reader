@@ -2,14 +2,14 @@ import SwiftUI
 
 /// Now Playing: what you hear, opened up from the bar (`NowPlayingSheet`). The Reader's page in
 /// the same reading theme and type, under a title card: the spoken paragraph highlighted in full
-/// ink, the others dimmed. Presented over everything by the shell; it holds no article of its
+/// ink like the rest, on the highlight. Presented over everything by the shell; it holds no article of its
 /// own: it shows `speech.nowPlaying` and the playing page's content, looked up in the library by
 /// its key.
 ///
 /// - The title card (artwork, title, the site and time left) scrolls with the text.
 /// - The text follows the audio: it opens with the spoken sentence near the middle and keeps it
 ///   there (each new paragraph, a long paragraph's sentence leaving the screen); the spoken
-///   paragraph is highlighted in full ink and the others dimmed, its sentence underlined. A drag stops
+///   paragraph is highlighted (every paragraph in full ink), its sentence underlined. A drag stops
 ///   following; Jump to Audio resumes it, back to the sentence. Scrubbing scrolls to the
 ///   paragraph under the thumb.
 /// - The close pill names where the page plays from: a page in a folder plays from that folder (a
@@ -198,7 +198,7 @@ private struct TitleCardContent {
 }
 
 extension SpeechController {
-    /// The paragraph Now Playing's text shows as spoken (full ink, the others dimmed): the one a
+    /// The paragraph Now Playing's text shows as spoken (on the highlight, all in full ink): the one a
     /// scrub is over while it is dragged, else the playhead; none once the page has finished, so
     /// all of it reads in full ink.
     func spokenParagraph(scrubPreview: Int?) -> Int? {

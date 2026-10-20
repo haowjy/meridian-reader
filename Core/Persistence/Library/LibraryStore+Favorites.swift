@@ -50,14 +50,29 @@ extension LibraryStore {
         }
     }
 
-    /// Stars `page` where it is, in the Library or not, taking `artwork` as its icon when it has
-    /// none. Starring never files it: a page played without saving stays in Recent and joins
-    /// Favorites, which keeps it from the prune.
+    /// Stars `page`, taking `artwork` as its icon when it has none. Favorites shows only what is in
+    /// the Library (C104), so a page played without saving is saved with it, at the top level.
     func addFavorite(_ page: Page, artwork: Data? = nil) throws {
         try edit("favorite") {
+            fileIfUnsaved(page)
             page.isFavorite = true
             if page.artworkData == nil { page.artworkData = artwork }
         }
+    }
+
+    /// Saves a page played without saving into the Library's top level (starring or downloading
+    /// it, C104); a page in the Library stays where it is. Inside an `edit`.
+    func fileIfUnsaved(_ page: Page) {
+        guard page.addedAt == nil else { return }
+        page.addedAt = now()
+        page.removedAt = nil
+        page.sortKey = nextSortKey(in: nil)
+    }
+
+    /// `fileIfUnsaved` as its own change (*Download* on a page played without saving).
+    func saveUnsaved(_ page: Page) throws {
+        guard page.addedAt == nil else { return }
+        try edit("save to download") { fileIfUnsaved(page) }
     }
 
     /// Removes only the favorite flag; location and content stay intact (a link ☆ made stays in

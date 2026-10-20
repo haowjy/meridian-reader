@@ -86,7 +86,7 @@ struct SampleReading: View {
 
     var body: some View {
         let palette = reading ?? .app
-        let other = spoken ? palette.dimInk : palette.ink
+        let other = palette.ink
         VStack(alignment: .leading, spacing: Spacing.m) {
             if card {
                 TitleCard(title: title, detail: detail.map { DetailPart($0) }, artworkLetter: title, palette: palette)

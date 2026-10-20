@@ -58,6 +58,7 @@ struct PageMenu: View {
         let page = actions.page
         var facts = MenuRegistry.Facts()
         facts.hasTarget = page != nil || actions.url != nil
+        facts.hasPage = page != nil
         facts.inLibrary = actions.isInLibrary
         facts.isSaved = actions.isSaved
         facts.offersSave = actions.offersSave

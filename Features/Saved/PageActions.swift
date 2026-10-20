@@ -149,7 +149,12 @@ struct PageActions {
     /// *Download* / *Remove Download*: *Remove Download* takes the page out of every download and
     /// keeps it out (`DownloadCenter.deleteDownloads(of:)`, P8).
     func toggleDownload() {
-        guard let page, page.isInLibrary else { return }
+        guard let page else { return }
+        // Downloading saves it (C104): a page played without saving goes into the Library first.
+        if !page.isInLibrary {
+            guard page.isSaved, shell.attempt(String(localized: "Couldn’t save"), { try library.saveUnsaved(page) }) != nil
+            else { return }
+        }
         if hasDownload {
             downloads.deleteDownloads(of: page)
         } else {

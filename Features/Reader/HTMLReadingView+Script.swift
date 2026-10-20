@@ -102,7 +102,7 @@ extension HTMLReadingWebView {
             });
             // Highlight only: scrolling is Swift's (following, scrub).
             if (el) el.classList.add('reader-active');
-            // The rest dims only while a paragraph is spoken.
+            // Marks that a paragraph is spoken (nothing else dims: C105).
             document.body.classList.toggle('reader-has-active', !!el);
           };
           // Document y: what the scroll view calls content y.
@@ -237,8 +237,15 @@ extension HTMLReadingWebView {
           // to an element that looks clickable; the pointer cursor, inherited, makes the whole
           // page one (the tap highlight is transparent).
           document.body.style.cursor = 'pointer';
+          // A touch that stops a glide, or lands as one ends, isn't a tap (C105).
+          var lastScroll = 0, touchAfterScroll = false;
+          window.addEventListener('scroll', function() { lastScroll = Date.now(); }, { passive: true });
+          document.addEventListener('touchstart', function() {
+            touchAfterScroll = Date.now() - lastScroll < 250;
+          }, { passive: true });
           document.addEventListener('click', function(ev) {
             if (window.__readerJump) return;
+            if (touchAfterScroll || Date.now() - lastScroll < 250) return;
             if (ev.target && ev.target.closest && ev.target.closest('a[href]')) return;
             window.webkit.messageHandlers.readerBridge.postMessage({ tapX: ev.clientX, width: window.innerWidth });
           });

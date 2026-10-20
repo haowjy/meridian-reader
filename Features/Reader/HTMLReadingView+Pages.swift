@@ -17,9 +17,12 @@ import WebKit
 /// - Following the audio, the page holding the spoken sentence shows, and the page turns when the
 ///   spoken word reaches the next page's first character (`nextStart`), so a sentence running
 ///   over a page break turns the page as the voice crosses it.
-/// - A tap at either edge turns one page at once; a vertical drag turns one page its way and
-///   snaps there on release, on the `Motion.standard` spring. A pull down on the first page
-///   behaves as at the top in Scroll mode (the scroll view's own pull hand-off).
+/// - Pages turn sideways, as in a book (C106): a horizontal swipe drags the page shown off its
+///   side, the next (swiping left) or the previous (right) already under it, and lets go past a
+///   quarter of the width (or flicked) to turn, else springs back; a tap at either edge zone
+///   slides one page the same way (at once under Reduce Motion). The text never scrolls
+///   vertically here. A swipe that begins in the leftmost `ReadingChrome.TapZone.edgeMargin`
+///   points is left to the system (back), as the left edge zone's taps are.
 @MainActor
 @Observable
 final class ReadingPages {
@@ -95,6 +98,7 @@ final class PagesTextLayout: ReadingTextLayout {
     /// there, or, following, the spoken sentence's page shows.
     func activate() {
         guard let sv = scrollView else { return }
+        installSwipe()
         reset()
         placesHold = true
         guard sv.contentOffset.y > -sv.contentInset.top + 1 else { return host.reapplyInsets() }
@@ -118,6 +122,7 @@ final class PagesTextLayout: ReadingTextLayout {
 
     func opened() {
         guard let sv = scrollView else { return }
+        installSwipe()
         model.reset()
         pagination = nil
         nextStart = nil
@@ -155,8 +160,104 @@ final class PagesTextLayout: ReadingTextLayout {
         guard let shown = model.shown else { return false }
         let index = shown.index + (forward ? 1 : -1)
         guard (0..<shown.count).contains(index) else { return false }
+        guard host.animates, let sheet = beginSlide() else {
+            show(page: index)
+            return true
+        }
         show(page: index)
+        finishSlide(sheet, off: true, forward: forward)
         return true
+    }
+
+    // MARK: Turning sideways
+
+    /// The horizontal swipe that turns pages (installed while Pages mode is up).
+    private var swipe: PageSwipe?
+    /// The swipe in progress: the page it began on, drawn as a sheet over the page it turns to.
+    private var swiping: (sheet: UIView, from: Int, to: Int?)?
+
+    /// The text stops scrolling vertically and the sideways swipe goes on the web view.
+    private func installSwipe() {
+        guard let webView = host.webView else { return }
+        webView.scrollView.isScrollEnabled = false
+        guard swipe == nil else { return }
+        let swipe = PageSwipe(view: webView) { [weak self] pan in self?.swiped(pan) }
+        self.swipe = swipe
+    }
+
+    /// A picture of the page shown, cut to its lines, laid over the web view: what slides away.
+    private func beginSlide() -> UIView? {
+        guard let webView = host.webView, let shown = model.shown,
+              let picture = webView.snapshotView(afterScreenUpdates: false) else { return nil }
+        let top = max(0, shown.visibleTop), bottom = min(webView.bounds.height, shown.visibleBottom)
+        guard bottom > top else { return nil }
+        let sheet = UIView(frame: CGRect(x: 0, y: top, width: webView.bounds.width, height: bottom - top))
+        sheet.clipsToBounds = false
+        let clip = UIView(frame: sheet.bounds)
+        clip.clipsToBounds = true
+        picture.frame.origin.y = -top
+        clip.addSubview(picture)
+        sheet.addSubview(clip)
+        sheet.layer.shadowColor = UIColor.black.cgColor
+        sheet.layer.shadowOpacity = 0.12
+        sheet.layer.shadowRadius = 6
+        sheet.isUserInteractionEnabled = false
+        webView.addSubview(sheet)
+        return sheet
+    }
+
+    /// The sheet slides off its side (`off`: the turn holds) or back (and the page it shows
+    /// returns), then goes.
+    private func finishSlide(_ sheet: UIView, off: Bool, forward: Bool, back page: Int? = nil) {
+        let width = sheet.bounds.width
+        UIView.animate(springDuration: Motion.standardResponse, bounce: 0, options: [.allowUserInteraction]) {
+            sheet.transform = off ? CGAffineTransform(translationX: forward ? -width : width, y: 0) : .identity
+        } completion: { [weak self] _ in
+            if !off, let page { self?.show(page: page) }
+            sheet.removeFromSuperview()
+        }
+    }
+
+    private func swiped(_ pan: UIPanGestureRecognizer) {
+        guard let view = pan.view else { return }
+        let tx = pan.translation(in: view).x
+        switch pan.state {
+        case .began:
+            guard let shown = model.shown, let sheet = beginSlide() else { return }
+            let forward = pan.velocity(in: view).x < 0
+            let index = shown.index + (forward ? 1 : -1)
+            let to = (0..<shown.count).contains(index) ? index : nil
+            if let to { show(page: to) }
+            swiping = (sheet, shown.index, to)
+            host.userTookOver()
+            host.stopFollowing()
+        case .changed:
+            guard let swiping else { return }
+            let forward = (swiping.to ?? swiping.from) > swiping.from
+            // Only the way it began; past the first or last page it barely gives.
+            var x = forward ? min(tx, 0) : max(tx, 0)
+            if swiping.to == nil { x = tx / 6 }
+            swiping.sheet.transform = CGAffineTransform(translationX: x, y: 0)
+        case .ended, .cancelled, .failed:
+            guard let swiping else { return }
+            self.swiping = nil
+            let vx = pan.velocity(in: view).x
+            guard let to = swiping.to else {
+                return finishSlide(swiping.sheet, off: false, forward: true, back: nil)
+            }
+            let forward = to > swiping.from
+            let moved = forward ? -tx : tx, speed = forward ? -vx : vx
+            let turns = pan.state == .ended && (moved > view.bounds.width / 4 || speed > Self.pageFlick)
+            if !host.animates {
+                if !turns { show(page: swiping.from) }
+                swiping.sheet.removeFromSuperview()
+            } else {
+                finishSlide(swiping.sheet, off: turns, forward: forward, back: turns ? nil : swiping.from)
+            }
+            host.chrome?.revealFloatingControl()
+        default:
+            break
+        }
     }
 
     func setInsets(_ insets: ReaderTextInsets) {
@@ -201,6 +302,11 @@ final class PagesTextLayout: ReadingTextLayout {
     /// what it can scroll to.
     func deactivate() {
         model.reset()
+        swipe?.remove()
+        swipe = nil
+        swiping?.sheet.removeFromSuperview()
+        swiping = nil
+        scrollView?.isScrollEnabled = true
         guard host.loaded, let webView = host.webView else { return }
         webView.evaluateJavaScript("document.body.style.setProperty('--page-room', '0px');") { [weak webView] _, _ in
             guard let sv = webView?.scrollView else { return }
@@ -363,4 +469,36 @@ struct ReadingPageFrame: View {
         }
         .allowsHitTesting(false)
     }
+}
+
+/// Pages mode's sideways swipe: a pan that begins only when it moves more across than down, and
+/// not in the leftmost `ReadingChrome.TapZone.edgeMargin` points (the system's back swipe).
+@MainActor
+final class PageSwipe: NSObject, UIGestureRecognizerDelegate {
+    private let pan = UIPanGestureRecognizer()
+    private let action: (UIPanGestureRecognizer) -> Void
+
+    init(view: UIView, action: @escaping (UIPanGestureRecognizer) -> Void) {
+        self.action = action
+        super.init()
+        pan.addTarget(self, action: #selector(panned(_:)))
+        pan.delegate = self
+        view.addGestureRecognizer(pan)
+    }
+
+    func remove() {
+        pan.view?.removeGestureRecognizer(pan)
+    }
+
+    @objc private func panned(_ pan: UIPanGestureRecognizer) { action(pan) }
+
+    func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
+        guard let view = g.view else { return false }
+        let v = pan.velocity(in: view)
+        let start = pan.location(in: view).x - pan.translation(in: view).x
+        return abs(v.x) > abs(v.y) && start >= ReadingChrome.TapZone.edgeMargin
+    }
+
+    func gestureRecognizer(_ g: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { false }
 }
