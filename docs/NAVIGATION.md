@@ -953,26 +953,37 @@ With **Scroll / Pages** on *Pages* (Aa, Settings › Reading) both sheets show t
 time; Follow's chapter preview always scrolls.
 
 ```
-┌──────────────────────────────────────┐
-│                                      │ ← the top bar's room (the bars hide and show over it)
-│ Second page                          │ ← a page: whole lines only, from a line's top down to
-│ This offline test article has a long │   the last line that fits wholly above the footer
+┌──────────────────────────────────────┐   reading (bars hidden, C113)
+│ Second page                          │ ← a page: the whole screen inside the safe area, whole
+│ This offline test article has a long │   lines only, an even margin above and below
 │ …                                    │
-│                                 (▶)  │ ← the floating ▶ in full screen, above the footer
-│ Page 3 of 9   2 min left             │ ← the footer: caption, the theme's quiet ink, centred
+│ 2 min left                      33%  │ ← the footer: caption, quiet ink
+└──────────────────────────────────────┘
+
+┌──────────────────────────────────────┐   overview (a tap in the middle: bars shown)
+│ ⌄ pages                        Aa ☝︎ │ ← the top bar
+│ ┃ ┌──────────────────────────┐ ┃     │ ← the same page, scaled down (no reflow) into a card
+│ ┃ │ Second page              │ ┃     │   centred between the bars, outlined in the accent;
+│ ┃ │ This offline test …      │ ┃     │   the neighbouring pages peek at either side
+│ ┃ └──────────────────────────┘ ┃     │
+│            [Jump to Audio]           │ ← when the voice is on another page (C111)
+│ ─●──────────────────────────── 1×    │ ← the bottom band
 └──────────────────────────────────────┘
 ```
 
-- **A page** runs from just below the top bar to the footer and holds whole lines only: no line
-  is ever cut at its top or bottom. A line that doesn't fit starts the next page; a picture taller
-  than a page shows a page-tall slice at a time until the rest of it fits, and the text after it
-  carries on from there. The bars hide and show over it as in
-  Scroll (the band covers the page's foot and the footer while they show); the text never moves
-  for them.
-- **The footer** (`Page 3 of 9   2 min left`, the two set apart by space, no separator) stays in
-  full screen. The time is what is left from the first character of the page shown to the end of
-  the page's text, at the playback speed, worded as the rows and the Now Playing bar word it; a
-  chapter of a book or series says `2 min left in chapter`, so it isn't read as the book's.
+- **A page** (C113, Kindle's) is laid out for the whole screen inside the safe area and holds
+  whole lines only: no line is ever cut at its top or bottom. A line that doesn't fit starts the
+  next page; a picture taller than a page shows a page-tall slice at a time until the rest of it
+  fits, and the text after it carries on from there.
+- **Reading and the overview**: reading, the bars are hidden. A tap in the middle shows them and
+  the same page shrinks with a spring into a card between them (a scale of the page laid out for
+  reading, so nothing reflows), outlined in the accent, the pages before and after peeking at
+  either side; the cards swipe sideways as pages do, and a tap anywhere on the card zooms back
+  into reading. Under Reduce Motion the change is a short fade instead of the zoom.
+- **The footer** (`2 min left` on the left, `33%` on the right), only while reading. The time is
+  what is left from the first character of the page shown to the end of the page's text, at the
+  playback speed, worded as the rows and the Now Playing bar word it; a chapter of a book or
+  series says `2 min left in chapter`. The percentage is the page shown of the pages.
 - **Turning** (C107): native horizontal paging, as Apple Books' *Slide*. The page is laid out in
   CSS columns a screen wide, in the web view's own scroll view with paging on, so a page tracks
   the finger 1:1 and settles with the system's physics; a tap at the right edge zone slides to the

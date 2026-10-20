@@ -136,6 +136,7 @@ struct HTMLReadingView: View {
             onTapParagraph: onTapParagraph
         )
         .background(palette.background)
+        .modifier(ReadingPagesCard(active: paged, overview: chrome?.hidden == false, insets: chrome?.insets ?? ReaderTextInsets()))
         .overlay {
             if paged { ReadingPageFrame(pages: pages, palette: palette, timeLeft: pageTimeLeft) }
         }
@@ -215,6 +216,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
         let c = context.coordinator
         c.setLayout(pages: pages, footer: pageFooter)
         c.setTextInsets(textInsets)
+        (c.layout as? PagesTextLayout)?.setOverview(!fullScreen)
         c.follows = follows
         c.opensAtSentence = opensAtSentence
         c.sizes = sizes

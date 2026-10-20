@@ -84,6 +84,9 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
     private var guardView: UIView?
     /// The width a page is (the scroll view's width when it was measured).
     private var pageWidth: CGFloat = 0
+    /// The bars show: the page is a card between them (C113).
+    private var overview = false
+    var isOverview: Bool { paged && overview }
 
     static let edgeGuard = ReadingChrome.TapZone.edgeMargin
 
@@ -180,6 +183,21 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         return true
     }
 
+    /// Kindle-style overview (C113): with the bars shown the page laid out for reading shrinks
+    /// into a card (`ReadingPagesCard`, a SwiftUI scale: no reflow); here the neighbours are let
+    /// out of the scroll view's clip so they peek either side. Taps on the card zoom back.
+    func setOverview(_ on: Bool) {
+        guard on != overview else { return }
+        overview = on
+        applyOverview()
+    }
+
+    private func applyOverview() {
+        guard let webView = host.webView else { return }
+        webView.clipsToBounds = !isOverview
+        webView.scrollView.clipsToBounds = !isOverview
+    }
+
     func setInsets(_ insets: ReaderTextInsets) {
         self.insets = insets
         guard let sv = scrollView else { return }
@@ -212,6 +230,8 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         host.topViewY = 0
         guard let webView = host.webView else { return }
         let sv = webView.scrollView
+        webView.clipsToBounds = true
+        sv.clipsToBounds = true
         sv.isPagingEnabled = false
         sv.alwaysBounceVertical = true
         sv.alwaysBounceHorizontal = false
@@ -260,6 +280,8 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
             guardView = strip
         }
         layoutGuard()
+        overview = host.chrome.map { !$0.hidden } ?? false
+        applyOverview()
         offsetObservation = sv.observe(\.contentOffset, options: [.new]) { [weak self] sv, _ in
             MainActor.assumeIsolated { self?.offsetChanged(sv) }
         }
@@ -280,11 +302,13 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         pageWidth = width
         layoutGuard()
         sv.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: sv.contentInset.right)
-        // The page is the area between the bars, bars shown or not (C112): they never cover a
-        // line and showing or hiding them never reflows. A margin of `Spacing.s` above and below;
-        // the columns end on whole lines.
-        let top = insets.top + Spacing.s
-        let bottom = max(footer, insets.bottom) + Spacing.s
+        // The page is the full screen inside the safe area (C113, superseding C112's area): the
+        // bars hide while reading; when they show, the same page shrinks into a card between them
+        // (`setOverview`), so it never reflows. A margin of `Spacing.s` above and below; the
+        // columns end on whole lines.
+        let safeTop = webView.window?.safeAreaInsets.top ?? webView.safeAreaInsets.top
+        let top = safeTop + Spacing.s
+        let bottom = footer + Spacing.s
         let boxHeight = Int(max(height - bottom, top + 100))
         let topValue = Int(top.rounded())
         host.topViewY = top
@@ -392,18 +416,64 @@ struct ReadingPageFrame: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .overlay(alignment: .bottom) {
-            DetailLine([shown.map { String(localized: "Page \($0.index + 1) of \($0.count)") },
-                        pages.start.flatMap { timeLeft($0.paragraph, $0.offset) }])
+            // Kindle's (C113): the time left on the left, how far through on the right; only while
+            // reading (the bars show the player instead).
+            HStack {
+                Text(pages.start.flatMap { timeLeft($0.paragraph, $0.offset) } ?? " ")
+                Spacer()
+                Text(shown.map { "\(Int((Double($0.index + 1) / Double(max($0.count, 1)) * 100).rounded()))%" } ?? "")
+            }
                 .typeStyle(.caption)
+                .padding(.horizontal, Spacing.l)
                 .frame(maxWidth: .infinity)
                 .padding(.top, Spacing.m)
                 .padding(.bottom, Spacing.xs)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { chrome?.pageFooter = $0 }
                 .onDisappear { chrome?.pageFooter = 0 }
                 .padding(.bottom, chrome?.homeIndicator ?? 0)
-                .opacity(shown == nil ? 0 : 1)
+                .opacity(shown == nil || chrome?.hidden != true ? 0 : 1)
+                .animation(Motion.standard, value: chrome?.hidden == true)
                 .accessibilityIdentifier("readingPageFooter")
         }
         .allowsHitTesting(false)
+    }
+}
+
+/// Pages' overview (C113, Kindle's): while the bars show, the page laid out for the full screen
+/// shrinks (a scale, so it never reflows) into a card centred between them, outlined in the
+/// accent, the neighbouring pages peeking either side; hidden bars zoom it back to full screen.
+/// A spring; under Reduce Motion a short fade instead of the zoom.
+struct ReadingPagesCard: ViewModifier {
+    let active: Bool
+    let overview: Bool
+    let insets: ReaderTextInsets
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var fade = 1.0
+
+    func body(content: Content) -> some View {
+        GeometryReader { proxy in
+            let h = proxy.size.height
+            let room = h - insets.top - insets.bottom - 2 * Spacing.m
+            let scale = active && overview && h > 0 ? min(0.78, max(0.4, room / h)) : 1
+            let centre = insets.top + Spacing.m + room / 2
+            content
+                .overlay {
+                    Rectangle()
+                        .strokeBorder(Palette.accent, lineWidth: 1.5 / scale)
+                        .opacity(scale < 1 ? 1 : 0)
+                        .allowsHitTesting(false)
+                        .accessibilityIdentifier("readingPageCard")
+                }
+                .scaleEffect(scale)
+                .offset(y: scale < 1 ? centre - h / 2 : 0)
+                .opacity(fade)
+                .animation(reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.12), value: scale)
+        }
+        .onChange(of: active && overview) {
+            guard reduceMotion else { return }
+            fade = 0.2
+            withAnimation(.easeOut(duration: 0.25)) { fade = 1 }
+        }
     }
 }
