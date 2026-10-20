@@ -28,24 +28,24 @@ extension LibraryStore {
     func migrateParagraphLayout(saving: Bool = true) -> LayoutMigrationReport {
         var report = LayoutMigrationReport()
         let version = ListenHTMLBlocks.version
-        let stale = ((try? context.fetch(FetchDescriptor<Page>(predicate: #Predicate { $0.listenBlocksVersion < version }))) ?? [])
+        let stale = ((try? context.fetch(FetchDescriptor<Article>(predicate: #Predicate { $0.listenBlocksVersion < version }))) ?? [])
             .filter(\.hasText)
         guard !stale.isEmpty else { return report }
-        for page in stale {
+        for article in stale {
             let t0 = ListenTimingLog.now()
             // The list the stored position and audio refer to: the stored v2 blocks when present,
             // else what the pre-split rules produce from the saved HTML.
-            let storedOld = page.listenBlocksVersion == 2 ? Page.decodeAnyListenParagraphs(page.listenBlocksData) : nil
+            let storedOld = article.listenBlocksVersion == 2 ? Article.decodeAnyListenParagraphs(article.listenBlocksData) : nil
             let old = storedOld.map { ParagraphDocument(parts: $0) }
-                ?? ParagraphDocument.forListening(plainText: page.plainText, cleanedHTML: page.cleanedHTML,
-                                                  matchingTitle: page.givenTitle, splitLong: false)
-            let new = Page.buildListenDocument(plainText: page.plainText, cleanedHTML: page.cleanedHTML, title: page.givenTitle)
-            let before = ParagraphPositionMap.Position(paragraph: page.positionParagraph, utf16Offset: page.positionUTF16)
+                ?? ParagraphDocument.forListening(plainText: article.plainText, cleanedHTML: article.cleanedHTML,
+                                                  matchingTitle: article.givenTitle, splitLong: false)
+            let new = Article.buildListenDocument(plainText: article.plainText, cleanedHTML: article.cleanedHTML, title: article.givenTitle)
+            let before = ParagraphPositionMap.Position(paragraph: article.positionParagraph, utf16Offset: article.positionUTF16)
             let after = ParagraphPositionMap.map(paragraph: before.paragraph, utf16Offset: before.utf16Offset, from: old, to: new)
-            page.storeListenParagraphs(new.paragraphs)
-            page.positionParagraph = after.paragraph
-            page.positionUTF16 = after.utf16Offset
-            if let key = page.key { planAlign(key: key, old: old.paragraphs, new: new.paragraphs) }
+            article.storeListenParagraphs(new.paragraphs)
+            article.positionParagraph = after.paragraph
+            article.positionUTF16 = after.utf16Offset
+            if let key = article.key { planAlign(key: key, old: old.paragraphs, new: new.paragraphs) }
 
             let splitCount = old.paragraphs.filter { ParagraphSplitter.pieces($0).count > 1 }.count
             report.articles += 1
@@ -53,12 +53,12 @@ extension LibraryStore {
             report.newParagraphs += new.count
             report.splitParagraphs += splitCount
             ListenTimingLog.log("paragraph_layout_migration", [
-                "key": page.key.map(ListenTimingLog.shortKey) ?? "-", "old_paragraphs": old.count,
+                "key": article.key.map(ListenTimingLog.shortKey) ?? "-", "old_paragraphs": old.count,
                 "new_paragraphs": new.count, "split": splitCount, "from_stored": storedOld != nil,
                 "pos_old": "\(before.paragraph)@\(before.utf16Offset)", "pos_new": "\(after.paragraph)@\(after.utf16Offset)",
                 "ms": ListenTimingLog.ms(since: t0),
             ])
-            log("layout v\(version) \(Self.short(page.key)): paragraphs \(old.count)→\(new.count) (split \(splitCount)), position \(before.paragraph)→\(after.paragraph)")
+            log("layout v\(version) \(Self.short(article.key)): paragraphs \(old.count)→\(new.count) (split \(splitCount)), position \(before.paragraph)→\(after.paragraph)")
         }
         if saving, !commit("layout migration") {
             rollBack()
@@ -71,7 +71,7 @@ extension LibraryStore {
     // MARK: - Prune
 
     struct PruneReport: Equatable {
-        var deletedPages = 0
+        var deletedArticles = 0
         var clearedLinkCaches = 0
     }
 
@@ -85,14 +85,14 @@ extension LibraryStore {
         var report = PruneReport()
         let cutoff = now().addingTimeInterval(-Self.unsavedKeepInterval)
         let lastPlayed = (try? context.fetch(LibraryQueries.lastPlayed))?.first
-        for page in (try? context.fetch(LibraryQueries.prunable(before: cutoff))) ?? [] where page !== lastPlayed {
-            log("prune \(Self.short(page.key)) (not in Library, last played \(page.lastPlayedAt.map { "\($0)" } ?? "never"))")
-            context.delete(page)
-            report.deletedPages += 1
+        for article in (try? context.fetch(LibraryQueries.prunable(before: cutoff))) ?? [] where article !== lastPlayed {
+            log("prune \(Self.short(article.key)) (not in Library, last played \(article.lastPlayedAt.map { "\($0)" } ?? "never"))")
+            context.delete(article)
+            report.deletedArticles += 1
         }
-        for page in (try? context.fetch(LibraryQueries.staleLinkCaches(before: cutoff))) ?? [] where page !== lastPlayed {
-            clearText(page)
-            page.lastPlayedAt = nil
+        for article in (try? context.fetch(LibraryQueries.staleLinkCaches(before: cutoff))) ?? [] where article !== lastPlayed {
+            clearText(article)
+            article.lastPlayedAt = nil
             report.clearedLinkCaches += 1
         }
         if report != PruneReport(), !commit("prune") { rollBack() }
@@ -107,12 +107,12 @@ extension LibraryStore {
     /// work still needs it. Returns how many chapters lost their audio.
     @discardableResult
     func trimFinishedAudio(folder: Folder) -> Int {
-        guard folder.kind.isBookOrSeries, let place = folder.currentPageKey else { return 0 }
-        let order = pages(in: folder)
+        guard folder.kind.isBookOrSeries, let place = folder.currentArticleKey else { return 0 }
+        let order = articles(in: folder)
         guard let current = order.firstIndex(where: { $0.key == place }), current > 2 else { return 0 }
         var trimmed = 0
-        for page in order[..<(current - 2)] where page.finishedAt != nil {
-            guard let key = page.key, audio.audioCache.hasCache(for: key), !audio.audioCache.held.contains(key) else { continue }
+        for article in order[..<(current - 2)] where article.finishedAt != nil {
+            guard let key = article.key, audio.audioCache.hasCache(for: key), !audio.audioCache.held.contains(key) else { continue }
             try? audio.clearListenAudio(for: key)
             trimmed += 1
         }
@@ -124,9 +124,9 @@ extension LibraryStore {
 
     /// The page a crash-resume target names: its full key, or the 8-character prefix older crash
     /// markers wrote.
-    func page(matching target: ListenResumeTarget) -> Page? {
-        if let key = UUID(uuidString: target.articleKey) { return page(key: key) }
-        let pages = (try? context.fetch(FetchDescriptor<Page>())) ?? []
-        return pages.first { $0.key.map(target.matches) == true }
+    func article(matching target: ListenResumeTarget) -> Article? {
+        if let key = UUID(uuidString: target.articleKey) { return article(key: key) }
+        let articles = (try? context.fetch(FetchDescriptor<Article>())) ?? []
+        return articles.first { $0.key.map(target.matches) == true }
     }
 }

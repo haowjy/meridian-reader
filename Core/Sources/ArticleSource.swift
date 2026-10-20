@@ -5,18 +5,18 @@ import Foundation
 /// content whose listen blocks are its reading blocks, so the reader, the render queue and the
 /// audio cache treat every page alike. A source never decides playback.
 @MainActor
-protocol PageSource {
+protocol ArticleSource {
     /// The folder a source fills (a book's title, author, cover, key); nil for a single web page,
     /// which makes one page in no folder.
     var details: FolderDetails? { get }
     /// The pages known now: a book's chapters, all of them; a single web page, one.
-    func knownPages() async throws -> [PageRef]
+    func knownArticles() async throws -> [ArticleRef]
     /// The page's text, normalized.
-    func content(of ref: PageRef) async throws -> PageContent
+    func content(of ref: ArticleRef) async throws -> ArticleContent
 }
 
 /// One page of a source, before its content is fetched.
-struct PageRef: Hashable, Sendable {
+struct ArticleRef: Hashable, Sendable {
     enum Locator: Hashable, Sendable {
         /// A web page, by its address as visited.
         case web(URL)
@@ -35,9 +35,9 @@ struct PageRef: Hashable, Sendable {
 }
 
 /// A page's text, normalized: the reading HTML is the listening HTML.
-struct PageContent: Sendable {
-    var ref: PageRef
-    /// nil: the page has none (`PageTitle`).
+struct ArticleContent: Sendable {
+    var ref: ArticleRef
+    /// nil: the page has none (`ArticleRowTitle`).
     var title: String?
     /// Web pages: the site's own name.
     var siteName: String?
@@ -50,7 +50,7 @@ struct PageContent: Sendable {
     /// Book chapters: the book's language. Web pages: nil (detected from the listen blocks).
     var languageCode: String?
 
-    init(ref: PageRef, title: String?, siteName: String? = nil, bodyHTML: String, plainText: String,
+    init(ref: ArticleRef, title: String?, siteName: String? = nil, bodyHTML: String, plainText: String,
          excerpt: String, languageCode: String? = nil) {
         self.ref = ref
         self.title = title
@@ -84,7 +84,7 @@ struct FolderDetails: Equatable, Sendable {
 }
 
 /// Why a source couldn't give a page.
-enum PageSourceError: Error, Equatable {
+enum ArticleSourceError: Error, Equatable {
     /// Not one of this source's pages.
-    case unknownPage
+    case unknownArticle
 }

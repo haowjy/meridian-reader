@@ -14,7 +14,7 @@ struct SearchSessionOverlay: View {
     var onClearRecentSearches: () -> Void
 
     /// The saved pages, for suggestions: read only while the layer is up.
-    @Query(LibraryQueries.savedInLibrary) private var articles: [Page]
+    @Query(LibraryQueries.savedInLibrary) private var articles: [Article]
     @State private var google: [String] = []
     @Environment(\.fetchesSearchSuggestions) private var fetchesGoogle
 
@@ -27,7 +27,7 @@ struct SearchSessionOverlay: View {
     private var suggestions: [AddressSuggestion] {
         guard !showsRecentSearches else { return [] }
         return AddressSuggestions.build(query: session.text, visits: visits.prefix(RecentVisit.maxEntries),
-                                        articles: articles.lazy.map(SavedPageSuggestion.init), google: google)
+                                        articles: articles.lazy.map(SavedArticleSuggestion.init), google: google)
     }
 
     var body: some View {
@@ -98,7 +98,7 @@ struct SearchSessionOverlay: View {
                     switch row.kind {
                     case .recent, .saved:
                         ArtworkTile(image: row.faviconData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
-                                    letter: PageTitle.artworkLetter(title: row.title, source: row.host, address: row.query),
+                                    letter: ArticleRowTitle.artworkLetter(title: row.title, source: row.host, address: row.query),
                                     size: Glyph.rowLeading)
                     case .google:
                         Image(systemName: Icons.search).foregroundStyle(Palette.secondaryInk)

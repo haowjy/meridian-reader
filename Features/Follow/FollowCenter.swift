@@ -88,7 +88,7 @@ final class FollowCenter {
     /// The page bound to the playback session (the waiting chapter after it goes first).
     @ObservationIgnored private let playingKey: () -> UUID?
     /// Plays a page with its text in, from its spot.
-    @ObservationIgnored private let startPlayback: (Page) -> Void
+    @ObservationIgnored private let startPlayback: (Article) -> Void
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private var inFlight: [UUID: Task<String?, Never>] = [:]
     @ObservationIgnored private var loop: Task<Void, Never>?
@@ -96,7 +96,7 @@ final class FollowCenter {
     @ObservationIgnored private var runStateObserver: NSObjectProtocol?
 
     init(library: LibraryStore, queue: FetchQueue, runState: AppRunState = .shared,
-         playingKey: @escaping () -> UUID?, startPlayback: @escaping (Page) -> Void, now: @escaping () -> Date = Date.init) {
+         playingKey: @escaping () -> UUID?, startPlayback: @escaping (Article) -> Void, now: @escaping () -> Date = Date.init) {
         self.library = library
         self.queue = queue
         self.runState = runState
@@ -134,8 +134,8 @@ final class FollowCenter {
     /// The story `url` belongs to, read from its table of contents (`TableOfContents.contentsURL`):
     /// one request, ahead of background work.
     func readContents(of url: URL) async throws -> TableOfContents {
-        let page = try await queue.links(of: TableOfContents.contentsURL(for: url), priority: .user)
-        guard let contents = TableOfContents.read(page) else { throw FollowError.noChapters }
+        let article = try await queue.links(of: TableOfContents.contentsURL(for: url), priority: .user)
+        guard let contents = TableOfContents.read(article) else { throw FollowError.noChapters }
         return contents
     }
 
@@ -189,18 +189,18 @@ final class FollowCenter {
 
     /// ▶ on a chapter waiting for its text: it is fetched now, ahead of background work (a failure
     /// this launch is forgotten), then plays, unless something else has started by then.
-    func play(_ page: Page) {
-        let key = page.listenKey
+    func play(_ article: Article) {
+        let key = article.listenKey
         let playingWhenAsked = playingKey()
         failures[key] = nil
         playWhenFetched = key
         Task {
-            let failure = await fill(page, priority: .user)
+            let failure = await fill(article, priority: .user)
             if let failure { failures[key] = failure }
             guard playWhenFetched == key else { return }
             playWhenFetched = nil
-            if failure == nil, playingKey() == playingWhenAsked, let page = library.page(key: key), page.hasText {
-                startPlayback(page)
+            if failure == nil, playingKey() == playingWhenAsked, let article = library.article(key: key), article.hasText {
+                startPlayback(article)
             }
         }
     }
@@ -209,15 +209,15 @@ final class FollowCenter {
     /// trying again after the site's back-off when it refuses or doesn't answer, up to
     /// `attemptsPerChapter` times. Returns why it failed, nil once the text is in. A page being
     /// fetched already is waited for, not fetched again.
-    func fill(_ page: Page, priority: FetchQueue.Priority) async -> String? {
-        let key = page.listenKey
+    func fill(_ article: Article, priority: FetchQueue.Priority) async -> String? {
+        let key = article.listenKey
         if let running = inFlight[key] { return await running.value }
-        if page.hasText {
+        if article.hasText {
             // Played before (from the browser): the text it was played from is its own now.
-            do { try library.keepCachedText(page) } catch { return String(localized: "Couldn’t save it") }
+            do { try library.keepCachedText(article) } catch { return String(localized: "Couldn’t save it") }
             return nil
         }
-        guard let url = page.url else { return String(localized: "It has no address") }
+        guard let url = article.url else { return String(localized: "It has no address") }
         let task = Task { await self.fetchText(key: key, url: url, priority: priority) }
         inFlight[key] = task
         let failure = await task.value
@@ -238,8 +238,8 @@ final class FollowCenter {
                 let content = try await queue.content(of: url, priority: priority)
                 guard !content.document.isEmpty else { return String(localized: "Nothing to listen to") }
                 // Deleted, or filled some other way (played from the browser), while it loaded.
-                guard let page = library.page(key: key), page.isLink, !page.hasText else { return nil }
-                try library.storeFetchedText(content, in: page)
+                guard let article = library.article(key: key), article.isLink, !article.hasText else { return nil }
+                try library.storeFetchedText(content, in: article)
                 return nil
             } catch LibraryStoreError.saveFailed {
                 return String(localized: "Couldn’t save it")
@@ -264,22 +264,22 @@ final class FollowCenter {
     }
 
     private func runLoop() async {
-        while isInFront, let page = nextWaiting() {
-            let key = page.listenKey
-            if let failure = await fill(page, priority: .background) { failures[key] = failure }
+        while isInFront, let article = nextWaiting() {
+            let key = article.listenKey
+            if let failure = await fill(article, priority: .background) { failures[key] = failure }
         }
     }
 
     /// The chapter to fetch next: the waiting chapter after the page playing, else the first
     /// waiting chapter of the oldest story (▶'s goes at once, `play`).
-    private func nextWaiting() -> Page? {
-        if let playing = playingKey(), let folder = library.page(key: playing)?.folder, folder.kind == .series,
+    private func nextWaiting() -> Article? {
+        if let playing = playingKey(), let folder = library.article(key: playing)?.folder, folder.kind == .series,
            case .waiting(let key) = ChapterAdvance.after(playing, in: library.chapterSnapshot(of: folder)),
-           let page = library.page(key: key), isToFetch(page) {
-            return page
+           let article = library.article(key: key), isToFetch(article) {
+            return article
         }
         for folder in library.stories() {
-            if let page = library.pages(in: folder).first(where: isToFetch) { return page }
+            if let article = library.articles(in: folder).first(where: isToFetch) { return article }
         }
         return nil
     }
@@ -288,17 +288,17 @@ final class FollowCenter {
 
     /// A story's chapter in the Library still to fetch this launch: waiting for its text, not
     /// skipped, not failed.
-    private func isToFetch(_ page: Page) -> Bool {
-        page.isWaitingChapter && page.isInLibrary && !page.skipsInPlayback && failures[page.listenKey] == nil
+    private func isToFetch(_ article: Article) -> Bool {
+        article.isWaitingChapter && article.isInLibrary && !article.skipsInPlayback && failures[article.listenKey] == nil
     }
 
-    /// Where `page` stands when it is a followed story's chapter waiting for its text, not skipped;
+    /// Where `article` stands when it is a followed story's chapter waiting for its text, not skipped;
     /// nil for any other page. The one rule rows, headers and the Following sheet read.
-    func status(of page: Page) -> ChapterStatus? {
-        guard page.isWaitingChapter, !page.skipsInPlayback else { return nil }
-        let key = page.listenKey
+    func status(of article: Article) -> ChapterStatus? {
+        guard article.isWaitingChapter, !article.skipsInPlayback else { return nil }
+        let key = article.listenKey
         if fetching.contains(key) {
-            if retrying.contains(key), let url = page.url, let backOff = queue.backOff(of: FetchQueue.site(of: url)) {
+            if retrying.contains(key), let url = article.url, let backOff = queue.backOff(of: FetchQueue.site(of: url)) {
                 return .retrying(until: backOff.until)
             }
             return .fetching
@@ -307,17 +307,17 @@ final class FollowCenter {
         return .waiting
     }
 
-    /// `pages` (a story's, in its order) counted: skipped chapters left out.
-    func progress(of pages: [Page]) -> Progress {
+    /// `articles` (a story's, in its order) counted: skipped chapters left out.
+    func progress(of articles: [Article]) -> Progress {
         var progress = Progress()
-        for page in pages where !page.skipsInPlayback {
+        for article in articles where !article.skipsInPlayback {
             progress.chapters += 1
-            switch status(of: page) {
+            switch status(of: article) {
             case nil: progress.withText += 1
             case .fetching?, .retrying?:
                 progress.toFetch += 1
                 if progress.fetching == nil {
-                    progress.fetching = Progress.Fetching(number: progress.chapters, title: page.givenTitle)
+                    progress.fetching = Progress.Fetching(number: progress.chapters, title: article.givenTitle)
                 }
             case .waiting?: progress.toFetch += 1
             case .failed?: progress.failed += 1

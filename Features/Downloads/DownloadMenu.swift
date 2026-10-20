@@ -10,7 +10,7 @@ import SwiftUI
 /// download it came from, and *Remove Download* (the row's swipe too) is the page's own, as in its
 /// menu (`DownloadCenter.deleteDownloads(of:)`). A folder's download is turned off on its screen.
 struct DownloadMenu: View {
-    let item: DownloadPages.Item
+    let item: DownloadArticles.Item
     let downloads: DownloadCenter
     let library: LibraryStore
 
@@ -27,7 +27,7 @@ struct DownloadMenu: View {
         return MenuRegistry.rows(.download, at: .downloads, facts) { option in
             switch option {
             case .redownload:
-                return MenuRow(id: "menuRedownload", title: Verbs.redownload, icon: Icons.redownload) { downloads.redownload(page: key) }
+                return MenuRow(id: "menuRedownload", title: Verbs.redownload, icon: Icons.redownload) { downloads.redownload(article: key) }
             case .keep:
                 return MenuRow(id: "menuKeep", title: Verbs.keep, icon: Icons.keep) {
                     if let otherVoice { downloads.keep(id, voice: otherVoice) }
@@ -42,7 +42,7 @@ struct DownloadMenu: View {
     /// row's swipe too.
     var removeRow: MenuRow {
         MenuRow(id: "menuRemoveDownload", title: Verbs.removeDownload, icon: Icons.removeDownload, isDestructive: true) {
-            if let page = library.page(key: item.key) { downloads.deleteDownloads(of: page) } else { downloads.remove(item.recordID) }
+            if let article = library.article(key: item.key) { downloads.deleteDownloads(of: article) } else { downloads.remove(item.recordID) }
         }
     }
 }

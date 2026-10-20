@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// What the ⋯ panel shows, in three blocks: the item's own menu (a page's `PageMenu` or a
+/// What the ⋯ panel shows, in three blocks: the item's own menu (a page's `ArticleMenu` or a
 /// folder's `FolderMenu`, the same rows as everywhere that item's menu shows; none on a screen
 /// with no item, the Library's home and the start page), then the screen's own rows, ending in
 /// *Downloads* and *Settings* (`tail`), then the big buttons, the rightmost (nearest the thumb,

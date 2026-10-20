@@ -22,7 +22,7 @@ extension LibraryStore {
     /// has under its key (moved out of a copy of the book deleted since) is brought up to date
     /// where it is, not made twice; one no longer in the Library comes back into the book.
     @discardableResult
-    func addBook(_ details: FolderDetails, chapters: [PageContent], in destination: Folder?) throws -> Folder {
+    func addBook(_ details: FolderDetails, chapters: [ArticleContent], in destination: Folder?) throws -> Folder {
         let plan = replacement(of: [], in: nil, with: chapters)
         stopPlayback(changedBy: plan, chapters: chapters)
         let folder = try edit("add book") {
@@ -62,10 +62,10 @@ extension LibraryStore {
     /// The book's place follows its page; when that page goes, it moves to the nearest page before
     /// it in the book's order that stays, as deleting a page moves it (none if no earlier page
     /// stays).
-    func replaceBook(_ folder: Folder, with details: FolderDetails, chapters: [PageContent]) throws {
-        let shown = pages(in: folder)
-        let order = pages(in: folder, sort: .manual)
-        let place = folder.currentPageKey
+    func replaceBook(_ folder: Folder, with details: FolderDetails, chapters: [ArticleContent]) throws {
+        let shown = articles(in: folder)
+        let order = articles(in: folder, sort: .manual)
+        let place = folder.currentArticleKey
         let plan = replacement(of: recordedChapters(of: folder), in: folder, with: chapters)
         // Playback of a chapter that goes or changes stops before anything changes, and so does a
         // session a waiting merge would move onto one (`keysWaitingToMerge`), so no page changes
@@ -74,10 +74,10 @@ extension LibraryStore {
         stopPlayback(changedBy: plan, chapters: chapters)
 
         try edit("replace book") {
-            for page in plan.dropped { dropChapter(page) }
+            for article in plan.dropped { dropChapter(article) }
             apply(details, chapters: chapters, to: folder)
             stageChapters(chapters, plan: plan, in: folder, order: order)
-            folder.currentPageKey = Self.place(place, in: shown, after: plan, chapters: chapters)
+            folder.currentArticleKey = Self.place(place, in: shown, after: plan, chapters: chapters)
         }
         log("book \(folder.name) replaced: \(chapters.count) chapters, \(plan.byKey.count) by key, \(plan.byText.count) by text, \(plan.dropped.count) dropped")
     }
@@ -93,7 +93,7 @@ extension LibraryStore {
         var recorded = 0
         for folder in books where folder.bookState?.chapterKeys == nil {
             var state = folder.bookState ?? BookSourceState()
-            state.chapterKeys = pages(in: folder, sort: .manual).compactMap(\.key)
+            state.chapterKeys = articles(in: folder, sort: .manual).compactMap(\.key)
             folder.sourceStateData = try? JSONEncoder().encode(state)
             recorded += 1
         }
@@ -109,14 +109,14 @@ extension LibraryStore {
 
     /// The book's chapters from its last import, wherever they are now: the pages its record
     /// names, or, without a record (`recordBookChapters` couldn't save), the pages in it.
-    private func recordedChapters(of folder: Folder) -> [Page] {
-        guard let keys = folder.bookState?.chapterKeys else { return pages(in: folder, sort: .manual) }
-        return keys.compactMap(page(key:))
+    private func recordedChapters(of folder: Folder) -> [Article] {
+        guard let keys = folder.bookState?.chapterKeys else { return articles(in: folder, sort: .manual) }
+        return keys.compactMap(article(key:))
     }
 
     /// Stops playback of every chapter `plan` drops or changes the text of, and of a session a
     /// waiting merge would move onto one.
-    private func stopPlayback(changedBy plan: Replacement, chapters: [PageContent]) {
+    private func stopPlayback(changedBy plan: Replacement, chapters: [ArticleContent]) {
         let changing = plan.dropped.compactMap(\.key)
             + plan.byKey.filter { !Self.reads($0.value, as: chapters[$0.key]) }.compactMap { $0.value.key }
         for key in changing + keysWaitingToMerge(into: Set(changing)) { stopPlaybackIfPlaying(key) }
@@ -125,33 +125,33 @@ extension LibraryStore {
     /// Which page each chapter comes from (decision D13).
     private struct Replacement {
         /// Chapter index → the page with its key, wherever it is.
-        var byKey: [Int: Page] = [:]
+        var byKey: [Int: Article] = [:]
         /// Chapter index → one of the book's chapters with its listen text under another key.
-        var byText: [Int: Page] = [:]
+        var byText: [Int: Article] = [:]
         /// The book's chapters no chapter comes from that are still in the book.
-        var dropped: [Page] = []
+        var dropped: [Article] = []
     }
 
     /// `old`: the book's chapters from its last import, wherever they are; `folder`: the book.
-    private func replacement(of old: [Page], in folder: Folder?, with chapters: [PageContent]) -> Replacement {
+    private func replacement(of old: [Article], in folder: Folder?, with chapters: [ArticleContent]) -> Replacement {
         var plan = Replacement()
         var claimed = Set<ObjectIdentifier>()
         for (index, chapter) in chapters.enumerated() {
-            if let page = page(key: chapter.ref.key), claimed.insert(ObjectIdentifier(page)).inserted {
-                plan.byKey[index] = page
+            if let article = article(key: chapter.ref.key), claimed.insert(ObjectIdentifier(article)).inserted {
+                plan.byKey[index] = article
             }
         }
-        var byText: [String: [Page]] = [:]
-        for page in old where !claimed.contains(ObjectIdentifier(page)) {
-            guard let paragraphs = page.cachedListenParagraphs else { continue }
-            byText[ArticleIdentity.contentFingerprint(paragraphs: paragraphs), default: []].append(page)
+        var byText: [String: [Article]] = [:]
+        for article in old where !claimed.contains(ObjectIdentifier(article)) {
+            guard let paragraphs = article.cachedListenParagraphs else { continue }
+            byText[ArticleIdentity.contentFingerprint(paragraphs: paragraphs), default: []].append(article)
         }
         for (index, chapter) in chapters.enumerated() where plan.byKey[index] == nil {
             let fingerprint = ArticleIdentity.contentFingerprint(paragraphs: chapter.document.paragraphs)
-            if let page = byText[fingerprint]?.first {
+            if let article = byText[fingerprint]?.first {
                 byText[fingerprint]?.removeFirst()
-                plan.byText[index] = page
-                claimed.insert(ObjectIdentifier(page))
+                plan.byText[index] = article
+                claimed.insert(ObjectIdentifier(article))
             }
         }
         plan.dropped = old.filter { !claimed.contains(ObjectIdentifier($0)) && folder != nil && $0.folder === folder }
@@ -161,87 +161,87 @@ extension LibraryStore {
     /// Writes `chapters` by `plan`, the book being `folder`, whose pages were `order` (its manual
     /// order) before: a chapter's own page stays where it is; one carried over from a page under
     /// another key takes that page's folder and place; the rest go into the book (`slot`).
-    private func stageChapters(_ chapters: [PageContent], plan: Replacement, in folder: Folder, order: [Page]) {
+    private func stageChapters(_ chapters: [ArticleContent], plan: Replacement, in folder: Folder, order: [Article]) {
         let dropped = Set(plan.dropped.map(ObjectIdentifier.init))
         var order = order.filter { !dropped.contains(ObjectIdentifier($0)) }
-        var pages: [Page] = []
-        var newcomers: [Page] = []
+        var articles: [Article] = []
+        var newcomers: [Article] = []
         for (index, chapter) in chapters.enumerated() {
-            if let page = plan.byKey[index] {
-                updateChapter(page, to: chapter, byline: folder.byline)
-                if !page.isInLibrary {
-                    page.addedAt = now()
-                    newcomers.append(page)
+            if let article = plan.byKey[index] {
+                updateChapter(article, to: chapter, byline: folder.byline)
+                if !article.isInLibrary {
+                    article.addedAt = now()
+                    newcomers.append(article)
                 }
-                pages.append(page)
+                articles.append(article)
             } else if let from = plan.byText[index] {
-                let page = makeChapter(chapter, byline: folder.byline)
-                page.absorb(from)
+                let article = makeChapter(chapter, byline: folder.byline)
+                article.absorb(from)
                 if let fromKey = from.key {
                     planMerge(from: fromKey, into: chapter.ref.key, fromParagraphs: from.cachedListenParagraphs ?? [],
                               paragraphs: chapter.document.paragraphs)
                 }
                 if from.isInLibrary {
-                    page.sortKey = from.sortKey
-                    page.setFolder(from.folder)
-                    if let at = order.firstIndex(where: { $0 === from }) { order[at] = page }
-                    if let other = from.folder, other !== folder, other.currentPageKey == from.key {
-                        other.currentPageKey = chapter.ref.key
+                    article.sortKey = from.sortKey
+                    article.setFolder(from.folder)
+                    if let at = order.firstIndex(where: { $0 === from }) { order[at] = article }
+                    if let other = from.folder, other !== folder, other.currentArticleKey == from.key {
+                        other.currentArticleKey = chapter.ref.key
                     }
                 } else {
-                    newcomers.append(page)
+                    newcomers.append(article)
                 }
                 context.delete(from)
-                pages.append(page)
+                articles.append(article)
             } else {
-                let page = makeChapter(chapter, byline: folder.byline)
-                newcomers.append(page)
-                pages.append(page)
+                let article = makeChapter(chapter, byline: folder.byline)
+                newcomers.append(article)
+                articles.append(article)
             }
         }
-        slot(newcomers, among: pages, into: folder, order: &order)
+        slot(newcomers, among: articles, into: folder, order: &order)
     }
 
     /// Files `newcomers` into `folder`, whose pages are `order` (its manual order): each just
     /// after the chapter before it (in `chapters`, the book's order) that is in the folder, else
     /// just before the next one that is, else at the end. A book never reordered keeps the
     /// file's order; one reordered keeps yours, each new chapter beside its neighbour.
-    private func slot(_ newcomers: [Page], among chapters: [Page], into folder: Folder, order: inout [Page]) {
+    private func slot(_ newcomers: [Article], among chapters: [Article], into folder: Folder, order: inout [Article]) {
         var filed = Set(order.map(ObjectIdentifier.init))
-        for page in newcomers {
-            guard let index = chapters.firstIndex(where: { $0 === page }) else { continue }
-            let before: Page?
+        for article in newcomers {
+            guard let index = chapters.firstIndex(where: { $0 === article }) else { continue }
+            let before: Article?
             if let previous = chapters[..<index].last(where: { filed.contains(ObjectIdentifier($0)) }),
                let at = order.firstIndex(where: { $0 === previous }) {
                 before = order.indices.contains(at + 1) ? order[at + 1] : nil
             } else {
                 before = chapters[(index + 1)...].first { filed.contains(ObjectIdentifier($0)) }
             }
-            FractionalOrder.move([page], among: order, before: before, key: \.sortKey)
-            order.insert(page, at: before.flatMap { b in order.firstIndex { $0 === b } } ?? order.count)
-            filed.insert(ObjectIdentifier(page))
-            page.setFolder(folder)
+            FractionalOrder.move([article], among: order, before: before, key: \.sortKey)
+            order.insert(article, at: before.flatMap { b in order.firstIndex { $0 === b } } ?? order.count)
+            filed.insert(ObjectIdentifier(article))
+            article.setFolder(folder)
         }
     }
 
     /// The book's place after *Replace*: its page's key now (a chapter carried over to a new key
     /// takes that key), or, when that page goes, the key of the nearest page before it in `shown`
     /// (the book's pages as they played before) that stays; nil when none does.
-    private static func place(_ place: UUID?, in shown: [Page], after plan: Replacement,
-                              chapters: [PageContent]) -> UUID? {
+    private static func place(_ place: UUID?, in shown: [Article], after plan: Replacement,
+                              chapters: [ArticleContent]) -> UUID? {
         guard let place, let at = shown.firstIndex(where: { $0.key == place }) else { return nil }
         let dropped = Set(plan.dropped.map(ObjectIdentifier.init))
         var renamed: [ObjectIdentifier: UUID] = [:]
-        for (index, page) in plan.byText { renamed[ObjectIdentifier(page)] = chapters[index].ref.key }
-        return shown[...at].reversed().lazy.compactMap { page -> UUID? in
-            dropped.contains(ObjectIdentifier(page)) ? nil : renamed[ObjectIdentifier(page)] ?? page.key
+        for (index, article) in plan.byText { renamed[ObjectIdentifier(article)] = chapters[index].ref.key }
+        return shown[...at].reversed().lazy.compactMap { article -> UUID? in
+            dropped.contains(ObjectIdentifier(article)) ? nil : renamed[ObjectIdentifier(article)] ?? article.key
         }.first
     }
 
     // MARK: - Pieces
 
     /// The file's details, and the record of its chapters (`BookSourceState.chapterKeys`).
-    private func apply(_ details: FolderDetails, chapters: [PageContent], to folder: Folder) {
+    private func apply(_ details: FolderDetails, chapters: [ArticleContent], to folder: Folder) {
         folder.byline = details.byline
         folder.coverData = details.cover
         folder.sourceURLString = details.sourceURL?.absoluteString
@@ -253,60 +253,60 @@ extension LibraryStore {
     }
 
     /// A new chapter page, in no folder yet.
-    private func makeChapter(_ chapter: PageContent, byline: String?) -> Page {
-        let page = Page(key: chapter.ref.key, title: chapter.title, byline: byline ?? "", urlString: nil,
+    private func makeChapter(_ chapter: ArticleContent, byline: String?) -> Article {
+        let article = Article(key: chapter.ref.key, title: chapter.title, byline: byline ?? "", urlString: nil,
                         contentState: .saved, addedAt: now())
-        context.insert(page)
-        fillChapter(page, from: chapter)
-        return page
+        context.insert(article)
+        fillChapter(article, from: chapter)
+        return article
     }
 
-    /// Whether `page` reads as `chapter` reads: the same listen paragraphs.
-    private static func reads(_ page: Page, as chapter: PageContent) -> Bool {
-        (page.cachedListenParagraphs ?? page.listenDocument().paragraphs) == chapter.document.paragraphs
+    /// Whether `article` reads as `chapter` reads: the same listen paragraphs.
+    private static func reads(_ article: Article, as chapter: ArticleContent) -> Bool {
+        (article.cachedListenParagraphs ?? article.listenDocument().paragraphs) == chapter.document.paragraphs
     }
 
     /// A chapter's page keeps its listening when its text is unchanged; otherwise see
     /// `replaceBook`.
-    private func updateChapter(_ page: Page, to chapter: PageContent, byline: String?) {
-        let old = page.cachedListenParagraphs ?? page.listenDocument().paragraphs
+    private func updateChapter(_ article: Article, to chapter: ArticleContent, byline: String?) {
+        let old = article.cachedListenParagraphs ?? article.listenDocument().paragraphs
         let new = chapter.document
-        page.byline = byline ?? ""
+        article.byline = byline ?? ""
         if old == new.paragraphs {
-            fillChapter(page, from: chapter)
+            fillChapter(article, from: chapter)
             return
         }
         // What was heard isn't what it says now: a finished chapter starts again from its top,
         // so neither Continue nor the D7 trim treats the revision as heard.
-        let wasFinished = page.finishedAt != nil
-        page.finishedAt = nil
-        let position = wasFinished ? nil : Self.carriedPosition(paragraph: page.positionParagraph,
-                                                                 utf16Offset: page.positionUTF16, from: old, to: new)
-        fillChapter(page, from: chapter)
-        page.positionParagraph = position?.paragraph ?? 0
-        page.positionUTF16 = position?.utf16Offset ?? 0
-        if let key = page.key { planAlign(key: key, old: old, new: new.paragraphs) }
+        let wasFinished = article.finishedAt != nil
+        article.finishedAt = nil
+        let position = wasFinished ? nil : Self.carriedPosition(paragraph: article.positionParagraph,
+                                                                 utf16Offset: article.positionUTF16, from: old, to: new)
+        fillChapter(article, from: chapter)
+        article.positionParagraph = position?.paragraph ?? 0
+        article.positionUTF16 = position?.utf16Offset ?? 0
+        if let key = article.key { planAlign(key: key, old: old, new: new.paragraphs) }
     }
 
     /// A chapter of the book no chapter comes from: the page goes in this save; its audio once the save
     /// succeeds (`plan(.delete, key:)`). Playback of it was stopped before.
-    private func dropChapter(_ page: Page) {
-        if let key = page.key { plan(.delete, key: key) }
-        log("delete \(Self.short(page.key))")
-        context.delete(page)
+    private func dropChapter(_ article: Article) {
+        if let key = article.key { plan(.delete, key: key) }
+        log("delete \(Self.short(article.key))")
+        context.delete(article)
     }
 
-    private func fillChapter(_ page: Page, from chapter: PageContent) {
-        page.givenTitle = chapter.title
-        page.locator = Self.locator(of: chapter.ref)
-        page.skipsInPlayback = chapter.ref.skipsInPlayback
-        page.setText(html: chapter.bodyHTML, plain: chapter.plainText, excerpt: chapter.excerpt,
+    private func fillChapter(_ article: Article, from chapter: ArticleContent) {
+        article.givenTitle = chapter.title
+        article.locator = Self.locator(of: chapter.ref)
+        article.skipsInPlayback = chapter.ref.skipsInPlayback
+        article.setText(html: chapter.bodyHTML, plain: chapter.plainText, excerpt: chapter.excerpt,
                      paragraphs: chapter.document.paragraphs)
     }
 
-    private static func locator(of ref: PageRef) -> String? {
+    private static func locator(of ref: ArticleRef) -> String? {
         switch ref.locator {
-        case .book(let locator): locator.pageLocator
+        case .book(let locator): locator.articleLocator
         case .web: nil
         }
     }

@@ -135,7 +135,7 @@ private struct MenuRowStyle: ButtonStyle {
     }
 }
 
-extension PageSort {
+extension ArticleSort {
     /// Its name in the Sort menu.
     var title: String {
         switch self {

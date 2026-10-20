@@ -35,8 +35,8 @@ extension RecentVisit: AddressSuggestionSource {
 
 /// A saved page as a suggestion. Wraps the model (rather than conforming it) because a model's
 /// `id` is its persistent identifier; the icon is read only for rows that match.
-struct SavedPageSuggestion: AddressSuggestionSource {
-    let page: Page
+struct SavedArticleSuggestion: AddressSuggestionSource {
+    let page: Article
 
     var id: UUID { page.listenKey }
     var lineOne: String { page.lineOne }

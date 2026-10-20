@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// The copy from the pre-library data into `Folder` / `Page`. Copy-once and non-destructive:
+/// The copy from the pre-library data into `Folder` / `Article`. Copy-once and non-destructive:
 /// `SavedArticle` rows, `bookmarks.json` and the listen history are read, never written. A page's
 /// key is its row's id, verbatim, so its audio, crash resume and pending bakes stay where they
 /// are. What was copied is recorded as `LibraryMigrationReceipt`s in the same save as the copy;
@@ -54,12 +54,12 @@ extension LibraryStore {
 
         // Saved articles → saved pages in no folder, in the order they were saved.
         let history = ListenHistory(defaults: legacy.defaults)
-        var copiedByURL: [String: Page] = [:]
+        var copiedByURL: [String: Article] = [:]
         var looseKey = nextSortKey(in: nil)
         for row in rows {
-            let page = copy(row, history: history, sortKey: looseKey)
+            let article = copy(row, history: history, sortKey: looseKey)
             looseKey += 1
-            if let url = page.canonicalURL { copiedByURL[url] = copiedByURL[url] ?? page }
+            if let url = article.canonicalURL { copiedByURL[url] = copiedByURL[url] ?? article }
             report.copiedArticles += 1
         }
 
@@ -68,7 +68,7 @@ extension LibraryStore {
         // link, in no folder. Any other bookmark is a new starred link page in no folder.
         for bookmark in bookmarks {
             let canonical = ArticleIdentity.canonicalURLString(from: bookmark.urlString)
-            if let existing = copiedByURL[canonical] ?? page(canonicalURL: canonical) {
+            if let existing = copiedByURL[canonical] ?? article(canonicalURL: canonical) {
                 if existing.addedAt == nil {
                     existing.contentState = .link
                     existing.addedAt = bookmark.createdAt
@@ -79,14 +79,14 @@ extension LibraryStore {
                 if existing.artworkData == nil { existing.artworkData = bookmark.faviconData }
                 if existing.isSaved { report.savedIntoFavorites += 1 }
             } else {
-                let page = Page(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: bookmark.title,
+                let article = Article(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: bookmark.title,
                                 byline: bookmark.host, urlString: bookmark.urlString, contentState: .link,
                                 addedAt: bookmark.createdAt, sortKey: looseKey, artworkData: bookmark.faviconData)
-                page.canonicalURL = canonical
-                page.isFavorite = true
-                context.insert(page)
+                article.canonicalURL = canonical
+                article.isFavorite = true
+                context.insert(article)
                 looseKey += 1
-                copiedByURL[canonical] = page
+                copiedByURL[canonical] = article
             }
             report.copiedBookmarks += 1
         }
@@ -96,7 +96,7 @@ extension LibraryStore {
         for bookmark in bookmarks { context.insert(LibraryMigrationReceipt(legacyID: bookmark.id, source: .bookmark, copiedAt: copiedAt)) }
 
         migrateParagraphLayout(saving: false)
-        report.mergedDuplicates = dedupe(saving: false).mergedPages
+        report.mergedDuplicates = dedupe(saving: false).mergedArticles
         guard commit("migration copy") else {
             rollBack()
             log("migration: save failed, nothing copied or recorded; copies again next launch")
@@ -113,26 +113,26 @@ extension LibraryStore {
 
     /// A saved page from a legacy row: the same key, text, listen blocks, position and icon,
     /// with its listen history as `lastPlayedAt` / `finishedAt`.
-    private func copy(_ row: SavedArticle, history: ListenHistory, sortKey: Double) -> Page {
-        let page = Page(key: row.id, title: row.title, byline: row.siteDomain, urlString: row.urlString,
+    private func copy(_ row: SavedArticle, history: ListenHistory, sortKey: Double) -> Article {
+        let article = Article(key: row.id, title: row.title, byline: row.siteDomain, urlString: row.urlString,
                         contentState: .saved, addedAt: row.savedAt, sortKey: sortKey, artworkData: row.faviconData)
-        page.cleanedHTML = row.cleanedHTML
-        page.plainText = row.plainText
-        page.excerpt = row.excerpt
-        page.wordCount = WordCount.count(row.plainText)
-        page.listenBlocksData = row.listenBlocksData
-        page.listenBlocksVersion = row.listenBlocksVersion
-        page.detectedLanguageCode = row.detectedLanguageCode
-        page.paragraphCount = Page.decodeAnyListenParagraphs(row.listenBlocksData)?.count ?? 0
-        page.positionParagraph = row.playbackParagraphIndex
-        page.positionUTF16 = row.playbackUTF16Offset
+        article.cleanedHTML = row.cleanedHTML
+        article.plainText = row.plainText
+        article.excerpt = row.excerpt
+        article.wordCount = WordCount.count(row.plainText)
+        article.listenBlocksData = row.listenBlocksData
+        article.listenBlocksVersion = row.listenBlocksVersion
+        article.detectedLanguageCode = row.detectedLanguageCode
+        article.paragraphCount = Article.decodeAnyListenParagraphs(row.listenBlocksData)?.count ?? 0
+        article.positionParagraph = row.playbackParagraphIndex
+        article.positionUTF16 = row.playbackUTF16Offset
         if let entry = history.entry(for: row.id) {
             let at = Date(timeIntervalSince1970: entry.at)
-            page.lastPlayedAt = at
-            page.finishedAt = entry.done ? at : nil
+            article.lastPlayedAt = at
+            article.finishedAt = entry.done ? at : nil
         }
-        context.insert(page)
-        return page
+        context.insert(article)
+        return article
     }
 }
 
@@ -141,7 +141,7 @@ extension LibraryStore {
     /// `-rerunLibraryMigration`: deletes every folder, page and receipt, so the next
     /// `migrateLegacy` copies everything again. Audio is left alone (pages keep their keys).
     func resetForMigrationRerun() {
-        for page in (try? context.fetch(FetchDescriptor<Page>())) ?? [] { context.delete(page) }
+        for article in (try? context.fetch(FetchDescriptor<Article>())) ?? [] { context.delete(article) }
         for folder in (try? context.fetch(FetchDescriptor<Folder>())) ?? [] { context.delete(folder) }
         for receipt in (try? context.fetch(FetchDescriptor<LibraryMigrationReceipt>())) ?? [] { context.delete(receipt) }
         commit("reset for migration rerun")

@@ -4,11 +4,11 @@ import os
 /// Where row and menu work goes (C98): an `os_signpost` interval per measured block (Instruments'
 /// Points of Interest, subsystem `com.jimmyyao.Reader`, category `RenderTiming`) and running
 /// totals that the log gets every 5 s while something is measured:
-/// `render_timing pageRow=412 0.9ms folderRow=3 0.1ms menuBuild=0 0.0ms`. Main actor only; cheap
+/// `render_timing articleRow=412 0.9ms folderRow=3 0.1ms menuBuild=0 0.0ms`. Main actor only; cheap
 /// enough to leave on (a clock read and an add per block).
 @MainActor
 enum RenderTiming {
-    enum Block: String, CaseIterable { case pageRow, folderRow, menuBuild }
+    enum Block: String, CaseIterable { case articleRow, folderRow, menuBuild }
 
     private static let signposter = OSSignposter(subsystem: "com.jimmyyao.Reader", category: "RenderTiming")
     private static let log = Logger(subsystem: "com.jimmyyao.Reader", category: "RenderTiming")

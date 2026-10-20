@@ -69,7 +69,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 | Path | What lives there |
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks and test fixtures (`App/Fixtures/`) |
-| `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `Extraction` (Readability, the listen normalizer), `Sources` (`PageSource`s, the book import), `Persistence` (SwiftData; `Library/`: `Folder`, `Page`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
+| `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `Extraction` (Readability, the listen normalizer), `Sources` (`ArticleSource`s, the book import), `Persistence` (SwiftData; `Library/`: `Folder`, `Article`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
 | `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Library` (the Library's screens, rows, the Move tree, Favorites), `Downloads` (`DownloadCenter`, the Downloads list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
 | `Tests/`, `UITests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) and UI flows |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
@@ -107,7 +107,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   disagree, and UIKit aborts on the next change ("attempt to delete item … before the update").
   Which lists a page is in is decided only in `LibraryQueries`; an action that takes a row out
   must take it out of every list there.
-- **One menu per item kind** (decisions C4, DR-09): a page's (`PageMenu`), a folder's
+- **One menu per item kind** (decisions C4, DR-09): a page's (`ArticleMenu`), a folder's
   (`FolderMenu`) and a download's (`DownloadMenu`) are each one ordered `[MenuRow]`, drawn by every
   entry point (`MenuRows` in a ⋯ or long press, `MoreMenuPanel` in the ⋯ panel). Add or change a
   row there, never at an entry point; a place's own rows go in a block after the item's. A row

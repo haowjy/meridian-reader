@@ -128,7 +128,7 @@ struct DownloadsList: View {
     }
 
     private func section<Footer: View>(
-        _ items: [DownloadPages.Item], header: SectionHeader, headerID: String, @ViewBuilder footer: () -> Footer
+        _ items: [DownloadArticles.Item], header: SectionHeader, headerID: String, @ViewBuilder footer: () -> Footer
     ) -> some View {
         let footer = footer()
         return Section {
@@ -162,17 +162,17 @@ struct DownloadsList: View {
 
     // MARK: - A row
 
-    private func row(_ item: DownloadPages.Item) -> some View {
-        let page = library.page(key: item.key)
-        let title = page?.lineOne ?? downloads.records.first { $0.id == item.recordID }?.title ?? ""
-        let kind: ListRow.Kind = .page(artwork: page?.artworkImage, letter: page?.artworkLetter ?? String(title.prefix(1)))
+    private func row(_ item: DownloadArticles.Item) -> some View {
+        let article = library.article(key: item.key)
+        let title = article?.lineOne ?? downloads.records.first { $0.id == item.recordID }?.title ?? ""
+        let kind: ListRow.Kind = .article(artwork: article?.artworkImage, letter: article?.artworkLetter ?? String(title.prefix(1)))
         // Line two as a row's anywhere: its folder, else its site.
-        let place = page.flatMap { $0.folder?.name ?? PageTitle.lineTwoSource(title: $0.givenTitle, source: $0.byline) }
+        let place = article.flatMap { $0.folder?.name ?? ArticleRowTitle.lineTwoSource(title: $0.givenTitle, source: $0.byline) }
         let downloadMenu = DownloadMenu(item: item, downloads: downloads, library: library)
         let menu = AnyView(downloadMenu)
         return ListRow(kind: kind, title: title, subtitle: place, details: detail(item),
                        download: mark(item), menu: menu, showsListening: false)
-            .opensOnTap { open(page) }
+            .opensOnTap { open(article) }
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
                 downloadMenu.removeRow.swipeButton(role: .destructive)
@@ -181,7 +181,7 @@ struct DownloadsList: View {
     }
 
     /// The row's one status mark (C102): filling with its own progress, waiting, paused, done.
-    private func mark(_ item: DownloadPages.Item) -> DownloadState {
+    private func mark(_ item: DownloadArticles.Item) -> DownloadState {
         switch item.status {
         case .downloading(let f), .fetching(let f): .downloading(fraction: f)
         case .queued, .waitingForVoice: .queued(fraction: 0)
@@ -191,7 +191,7 @@ struct DownloadsList: View {
         }
     }
 
-    private func detail(_ item: DownloadPages.Item) -> [String] {
+    private func detail(_ item: DownloadArticles.Item) -> [String] {
         let voice = item.voice.map(voiceLabel)
         switch item.status {
         case .downloading(let f): return ["\(Int((f * 100).rounded()))%"]
@@ -206,10 +206,10 @@ struct DownloadsList: View {
     }
 
     /// A page opens in the Reader (Now Playing when it is what you hear).
-    private func open(_ page: Page?) {
-        guard let page else { return }
+    private func open(_ article: Article?) {
+        guard let article else { return }
         shell.sheet = nil
-        LibraryActions(library: library, speech: speech, shell: shell, follow: follow).open(page)
+        LibraryActions(library: library, speech: speech, shell: shell, follow: follow).open(article)
     }
 
     // MARK: - Storage

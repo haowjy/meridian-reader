@@ -48,13 +48,13 @@ extension SpeechController {
             return
         }
         beginBoundary(from: key)
-        library.pageFinished(key: key, text: playback.textFingerprint)
+        library.articleFinished(key: key, text: playback.textFingerprint)
         advance(to: nextKey, in: folderID)
     }
 
     /// Contents → a chapter: it plays from its start, replacing what plays, and the book or
     /// series carries on from it.
-    func playPage(_ key: UUID) {
+    func playArticle(_ key: UUID) {
         guard let session = nextChapters?.load(key) else { return }
         start(session)
     }

@@ -3,22 +3,22 @@ import SwiftUI
 
 /// "This page", wherever it shows: a Library row, a Favorites tile, a History visit, the Now
 /// Playing bar, the Reader, Now Playing and the browser. What it is (saved, a favorite, its
-/// download) and what its menu (`PageMenu`), 🔖, ☆ and the Move tree do with it are decided here
+/// download) and what its menu (`ArticleMenu`), 🔖, ☆ and the Move tree do with it are decided here
 /// once. The places keep only what differs: the browser extracts its page before it saves it and
 /// stars it with the web view's title and icon (`loaded`), and Now Playing adds *Go to*.
 ///
-/// `page` is the page's Library page by the one rule, address first, then key
-/// (`LibraryStore.page(key:canonicalURL:)`; on screen, live, `PageLookup`). *Remove from Library*
+/// `article` is the page's Library page by the one rule, address first, then key
+/// (`LibraryStore.article(key:canonicalURL:)`; on screen, live, `ArticleLookup`). *Remove from Library*
 /// removes that page and Save saves into it, so 🔖's look and what tapping it does always agree.
 @MainActor
-struct PageActions {
+struct ArticleActions {
     /// The page as text (the Reader's article, Now Playing's content). nil elsewhere: a Library
     /// page's text is read from it only when it is saved, and the browser extracts its page.
-    let article: ReaderArticle?
+    let readerArticle: ReaderArticle?
     /// The page's web address; nil for a chapter that has none.
     let url: URL?
     /// The page's Library page, saved or not (a link, played without saving), if it has one.
-    let page: Page?
+    let article: Article?
     /// The browser's page, which is text only once extracted.
     let loaded: LoadedPage?
     let library: LibraryStore
@@ -38,12 +38,12 @@ struct PageActions {
     }
 
     /// `url` nil: the article's address, else the page's.
-    init(page: Page?, article: ReaderArticle? = nil, url: URL? = nil, loaded: LoadedPage? = nil,
+    init(article: Article?, readerArticle: ReaderArticle? = nil, url: URL? = nil, loaded: LoadedPage? = nil,
          library: LibraryStore, shell: ShellState, speech: SpeechController, downloads: DownloadCenter,
          follow: FollowCenter) {
+        self.readerArticle = readerArticle
+        self.url = url ?? readerArticle?.origin.url ?? article?.url
         self.article = article
-        self.url = url ?? article?.origin.url ?? page?.url
-        self.page = page
         self.loaded = loaded
         self.library = library
         self.shell = shell
@@ -55,14 +55,14 @@ struct PageActions {
     // MARK: - State
 
     /// The page when it is saved in the Library (🔖 filled).
-    var savedPage: Page? { page.flatMap { $0.isSavedToLibrary ? $0 : nil } }
-    var isSaved: Bool { savedPage != nil }
+    var savedArticle: Article? { article.flatMap { $0.isSavedToLibrary ? $0 : nil } }
+    var isSaved: Bool { savedArticle != nil }
     /// In the Library (saved, or a link there such as a story's chapter): its menu offers
     /// *Remove from Library*, *Move to…* and *Download*.
-    var isInLibrary: Bool { page?.isInLibrary == true }
-    var isFavorite: Bool { page?.isFavorite == true }
+    var isInLibrary: Bool { article?.isInLibrary == true }
+    var isFavorite: Bool { article?.isFavorite == true }
     /// ☆ as the Library offers it: a web page, or a page in the Library (a chapter too).
-    var canFavorite: Bool { url.map(LibraryStore.canFavorite) == true || page.map(LibraryStore.canFavorite) == true }
+    var canFavorite: Bool { url.map(LibraryStore.canFavorite) == true || article.map(LibraryStore.canFavorite) == true }
     var shareURL: URL? { url.flatMap { $0.isWeb ? $0 : nil } }
     /// The article's own page, for ⋯ → Website (any loadable page URL, not just http(s)).
     var websiteURL: URL? {
@@ -71,13 +71,13 @@ struct PageActions {
     }
     /// Where its download stands (`DownloadCenter.state(of:)`): downloading or downloaded, its
     /// menu offers *Remove Download*.
-    var hasDownload: Bool { page.map { downloads.state(of: $0) != .notDownloaded } == true }
+    var hasDownload: Bool { article.map { downloads.state(of: $0) != .notDownloaded } == true }
     /// There is text to save: the article's, the page's own (not a link's), or the browser's page
     /// once extracted.
     var canSave: Bool {
         if let loaded { return loaded.canSave }
-        if let article { return !article.document.isEmpty }
-        return page.map { !$0.isLink } == true
+        if let readerArticle { return !readerArticle.document.isEmpty }
+        return article.map { !$0.isLink } == true
     }
     /// The save rows' face: *Save to Library* / *Save to Folder…* while the Library hasn't the
     /// page's text (out of it, or a link in it shown where its text is: the browser, the Reader),
@@ -91,8 +91,8 @@ struct PageActions {
     /// it was opened from (History) closes.
     func read() {
         shell.sheet = nil
-        if let page {
-            libraryActions.open(page)
+        if let article {
+            libraryActions.open(article)
         } else if let url {
             shell.navigate(to: url)
         }
@@ -114,16 +114,16 @@ struct PageActions {
     /// remove (`LibraryActions.remove`). Its star, audio and spot stay; if it is the page you
     /// hear, playback stops, and Now Playing closes.
     func remove() {
-        guard let page else { return }
-        libraryActions.remove([page])
+        guard let article else { return }
+        libraryActions.remove([article])
     }
 
     /// 🔖 held (*Save to Folder…*), and the menu row that reads *Save to Folder…* while the page's
     /// text isn't kept (`offersSave`) and *Move to…* after: the Move tree. The page is saved into the folder
     /// picked, or moves there; one that can't be stored keeps the tree up, with a toast saying so.
     func saveToFolder() {
-        if !offersSave, let page {
-            libraryActions.move([.page(page)])
+        if !offersSave, let article {
+            libraryActions.move([.article(article)])
             return
         }
         guard canSave else { return }
@@ -138,27 +138,27 @@ struct PageActions {
         if let loaded { return loaded.toggleFavorite() }
         let flow = FavoriteFlow(library: library, shell: shell)
         if let url, LibraryStore.canFavorite(url) {
-            flow.toggle(url: url, title: article?.title ?? page?.givenTitle, artwork: article?.artwork ?? page?.artworkData) {
+            flow.toggle(url: url, title: readerArticle?.title ?? article?.givenTitle, artwork: readerArticle?.artwork ?? article?.artworkData) {
                 await FaviconFetcher.best(for: url, webView: nil)
             }
-        } else if let page {
-            flow.toggle(page)
+        } else if let article {
+            flow.toggle(article)
         }
     }
 
     /// *Download* / *Remove Download*: *Remove Download* takes the page out of every download and
     /// keeps it out (`DownloadCenter.deleteDownloads(of:)`, P8).
     func toggleDownload() {
-        guard let page else { return }
+        guard let article else { return }
         // Downloading saves it (C104): a page played without saving goes into the Library first.
-        if !page.isInLibrary {
-            guard page.isSaved, shell.attempt(String(localized: "Couldn’t save"), { try library.saveUnsaved(page) }) != nil
+        if !article.isInLibrary {
+            guard article.isSaved, shell.attempt(String(localized: "Couldn’t save"), { try library.saveUnsaved(article) }) != nil
             else { return }
         }
         if hasDownload {
-            downloads.deleteDownloads(of: page)
+            downloads.deleteDownloads(of: article)
         } else {
-            DownloadActions(downloads: downloads, shell: shell).download(page)
+            DownloadActions(downloads: downloads, shell: shell).download(article)
         }
     }
 
@@ -180,69 +180,69 @@ struct PageActions {
             loaded.save(placement.folder)
             return true
         }
-        guard let article = textToSave else { return false }
+        guard let readerArticle = textToSave else { return false }
         // Asked again at the pick: the page may have been saved meanwhile.
         if case .folder(let folder) = placement,
-           let saved = library.savedPage(key: article.id, canonicalURL: article.origin.canonicalURL) {
-            return shell.attempt(String(localized: "Couldn’t move")) { try library.move([.page(saved)], to: folder) } != nil
+           let saved = library.savedArticle(key: readerArticle.id, canonicalURL: readerArticle.origin.canonicalURL) {
+            return shell.attempt(String(localized: "Couldn’t move")) { try library.move([.article(saved)], to: folder) } != nil
         }
         guard let key = shell.attempt(String(localized: "Couldn’t save"), {
-            try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: placement)
+            try ArticleSaveCoordinator(library: library, speech: speech).save(readerArticle, placement: placement)
         }) else { return false }
-        if key != article.id { shell.updateReader(id: article.id) { $0.id = key } }
+        if key != readerArticle.id { shell.updateReader(id: readerArticle.id) { $0.id = key } }
         return true
     }
 
     /// The text Save stores: the article on screen, else the page's own (its listen blocks when
     /// it has none built).
     private var textToSave: ReaderArticle? {
-        if let article { return article.document.isEmpty ? nil : article }
-        guard let page, !page.isLink else { return nil }
-        var article = ReaderArticle(page: page)
-        if article.document.isEmpty { article.document = page.listenDocument() }
-        return article
+        if let readerArticle { return readerArticle.document.isEmpty ? nil : readerArticle }
+        guard let article, !article.isLink else { return nil }
+        var readerArticle = ReaderArticle(article: article)
+        if readerArticle.document.isEmpty { readerArticle.document = article.listenDocument() }
+        return readerArticle
     }
 }
 
 extension LibraryStore {
-    /// The page for `key` and `canonicalURL` by `page(key:canonicalURL:)`, when it is saved in
+    /// The page for `key` and `canonicalURL` by `article(key:canonicalURL:)`, when it is saved in
     /// the Library.
-    func savedPage(key: UUID, canonicalURL: String?) -> Page? {
-        guard let page = page(key: key, canonicalURL: canonicalURL), page.isSavedToLibrary else { return nil }
-        return page
+    func savedArticle(key: UUID, canonicalURL: String?) -> Article? {
+        guard let article = article(key: key, canonicalURL: canonicalURL), article.isSavedToLibrary else { return nil }
+        return article
     }
 }
 
 /// The Library page a screen's page is, live: its address first, then its key, the rule
-/// `LibraryStore.page(key:canonicalURL:)` follows. Two one-row queries, so the screen follows a
+/// `LibraryStore.article(key:canonicalURL:)` follows. Two one-row queries, so the screen follows a
 /// save, a remove or a ☆ made anywhere, and reads nothing else.
-struct PageLookup<Content: View>: View {
-    @Query private var byAddress: [Page]
-    @Query private var byKey: [Page]
-    private let content: (Page?) -> Content
+struct ArticleLookup<Content: View>: View {
+    @Query private var byAddress: [Article]
+    @Query private var byKey: [Article]
+    private let content: (Article?) -> Content
 
     /// `key` nil or `canonicalURL` nil: that half finds nothing (no page has an empty address or
     /// the nil UUID).
-    init(key: UUID?, canonicalURL: String?, @ViewBuilder content: @escaping (Page?) -> Content) {
+    init(key: UUID?, canonicalURL: String?, @ViewBuilder content: @escaping (Article?) -> Content) {
         _byAddress = Query(Self.byAddress(canonicalURL ?? ""))
-        _byKey = Query(LibraryQueries.page(key: key ?? Self.noKey))
+        _byKey = Query(LibraryQueries.article(key: key ?? Self.noKey))
         self.content = content
     }
 
     var body: some View {
-        content(Self.page(byAddress: byAddress.first, byKey: byKey.first))
+        content(Self.article(byAddress: byAddress.first, byKey: byKey.first))
     }
 
     private static var noKey: UUID { UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)) }
 
-    /// The oldest page for the address, as `LibraryStore.page(canonicalURL:)` reads it.
-    static func byAddress(_ canonicalURL: String) -> FetchDescriptor<Page> {
-        var descriptor = LibraryQueries.pages(canonicalURL: canonicalURL)
+    /// The oldest page for the address, as `LibraryStore.article(canonicalURL:)` reads it.
+    static func byAddress(_ canonicalURL: String) -> FetchDescriptor<Article> {
+        var descriptor = LibraryQueries.articles(canonicalURL: canonicalURL)
         descriptor.fetchLimit = 1
         return descriptor
     }
 
-    static func page(byAddress: Page?, byKey: Page?) -> Page? {
+    static func article(byAddress: Article?, byKey: Article?) -> Article? {
         byAddress ?? byKey
     }
 }

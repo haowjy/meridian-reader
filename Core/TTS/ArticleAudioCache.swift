@@ -74,15 +74,15 @@ final class ArticleAudioCache {
     enum Hold: Equatable {
         /// These pages' audio: a merge's source and destination, a page whose paragraphs were
         /// rebuilt.
-        case pages(Set<UUID>)
+        case articles(Set<UUID>)
         /// Every page's: the stored work couldn't be read, so any audio may be what it needs.
         case all
 
-        static let nothing = Hold.pages([])
+        static let nothing = Hold.articles([])
 
         func contains(_ articleID: UUID) -> Bool {
             switch self {
-            case .pages(let keys): keys.contains(articleID)
+            case .articles(let keys): keys.contains(articleID)
             case .all: true
             }
         }

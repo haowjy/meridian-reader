@@ -14,7 +14,7 @@ struct ListenControllerView: View {
     @Environment(DeveloperSettings.self) private var developer
 
     private var state: PlayState {
-        speech.activeSessionID.map { speech.playState(of: .page($0)) } ?? .idle
+        speech.activeSessionID.map { speech.playState(of: .article($0)) } ?? .idle
     }
 
     var body: some View {

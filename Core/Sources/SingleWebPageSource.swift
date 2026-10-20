@@ -4,7 +4,7 @@ import Foundation
 /// One page in no folder. The browser's page goes through it, and so does a page `URLPageFetcher`
 /// loaded, so the two extract alike.
 @MainActor
-struct SingleWebPageSource: PageSource {
+struct SingleWebPageSource: ArticleSource {
     let url: URL
     let context: ExtractionContext
     let extractor: any ArticleExtracting
@@ -17,16 +17,16 @@ struct SingleWebPageSource: PageSource {
 
     var details: FolderDetails? { nil }
 
-    var page: PageRef {
-        PageRef(key: ArticleIdentity.articleKey(url: url), locator: .web(url), ordinal: 0)
+    var article: ArticleRef {
+        ArticleRef(key: ArticleIdentity.articleKey(url: url), locator: .web(url), ordinal: 0)
     }
 
-    func knownPages() async throws -> [PageRef] { [page] }
+    func knownArticles() async throws -> [ArticleRef] { [article] }
 
-    func content(of ref: PageRef) async throws -> PageContent {
-        guard ref == page else { throw PageSourceError.unknownPage }
+    func content(of ref: ArticleRef) async throws -> ArticleContent {
+        guard ref == article else { throw ArticleSourceError.unknownArticle }
         let extracted = try await extractor.extract(from: context)
-        return PageContent(ref: ref, title: extracted.title, siteName: extracted.siteName, bodyHTML: extracted.cleanedHTML,
+        return ArticleContent(ref: ref, title: extracted.title, siteName: extracted.siteName, bodyHTML: extracted.cleanedHTML,
                            plainText: extracted.plainText, excerpt: extracted.excerpt)
     }
 }

@@ -13,7 +13,7 @@ import WebKit
 ///     and a picture several screens tall follows its second;
 ///   - `thin` ("Thin page"): readable by that check, but its article text is invisible, so the
 ///     saved copy (which drops short invisible text) has almost nothing to listen to;
-///   - `untitled`: an article with no `<title>` and no heading, so it has no title (`PageTitle`);
+///   - `untitled`: an article with no `<title>` and no heading, so it has no title (`ArticleRowTitle`);
 ///   - `book-N`: chapter N of the demo book (`DemoBook`, `-seedDemoBook`).
 /// - **`story`**: a story to follow, served to the browser and to Follow's fetch queue, which a
 ///   Debug build always serves (`AppComposition.makeFollow`):

@@ -57,7 +57,7 @@ enum Palette {
     /// *Delete*; it deletes what the row only shows, as an engine's download; or its change can
     /// fail to save, as a page's *Remove*): the system's red, as a `.destructive` role draws it.
     /// Such an action takes this tint, not the role, which has the list take the row out at once
-    /// (`LibraryFolderRow`, `LibraryPageRow`, the engine rows in Settings).
+    /// (`LibraryFolderRow`, `LibraryArticleRow`, the engine rows in Settings).
     static let destructive = Color(uiColor: .systemRed)
     /// A warning glyph (the engine notice's ⚠︎): amber, 3:1 on paper and on the bar material.
     static let caution = Color(light: 0x9A5B00, dark: 0xF2A93B)

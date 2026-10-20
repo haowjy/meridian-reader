@@ -35,11 +35,11 @@ enum LaunchHooks {
         if let demo = options.demoArticle { seedDemoArticle(demo, in: library) }
         if options.seedsDemoBook { seedDemoBook(in: library, place: options.demoBookPlace) }
         if options.seedsDemoFolders { seedDemoFolders(in: library) }
-        if options.bigFolderPages > 0 { seedBigFolder(pages: options.bigFolderPages, in: library) }
+        if options.bigFolderArticles > 0 { seedBigFolder(articles: options.bigFolderArticles, in: library) }
     }
 
     /// `-seedBigFolder N`: "Big Folder" with N short saved pages, for timing rows and menus.
-    static func seedBigFolder(pages count: Int, in library: LibraryStore) {
+    static func seedBigFolder(articles count: Int, in library: LibraryStore) {
         guard let folder = try? library.makeFolder(name: "Big Folder", in: nil) else { return }
         for i in 1...count {
             let paragraphs = (1...3).map { "Big page \(i), paragraph \($0). A synthetic note for the timing probe." }
@@ -56,7 +56,7 @@ enum LaunchHooks {
     static func resetLibrary(_ library: LibraryStore) {
         let context = library.context
         _ = try? library.edit("reset library") {
-            for page in (try? context.fetch(FetchDescriptor<Page>())) ?? [] { library.deleteWithoutSaving(page) }
+            for article in (try? context.fetch(FetchDescriptor<Article>())) ?? [] { library.deleteWithoutSaving(article) }
             for folder in (try? context.fetch(FetchDescriptor<Folder>())) ?? [] { context.delete(folder) }
             for visit in (try? context.fetch(FetchDescriptor<RecentVisit>())) ?? [] { context.delete(visit) }
         }
@@ -71,7 +71,7 @@ enum LaunchHooks {
         guard let finance = try? library.makeFolder(name: "Demo Finance", in: nil),
               let bonds = try? library.makeFolder(name: "Bonds", in: finance),
               (try? library.makeFolder(name: "Taxes", in: finance)) != nil else { return }
-        func save(_ title: String, slug: String, in folder: Folder, playhead: Int? = nil) -> Page? {
+        func save(_ title: String, slug: String, in folder: Folder, playhead: Int? = nil) -> Article? {
             let paragraphs = (1...6).map { "\(title), paragraph \($0). A synthetic note about saving, yields and the plain arithmetic of interest over a few years." }
             let article = webPage(title, at: "https://investing.example.com/\(slug)-\(UUID().uuidString.prefix(6))",
                                   paragraphs: paragraphs)
@@ -123,7 +123,7 @@ enum LaunchHooks {
             try TestEPUB.write(to: file)
             let outcome = try await BookImporter(library: library).importBook(at: file, into: nil, ifAlreadyInLibrary: .cancel)
             guard case .added(let book) = outcome else { return nil }
-            ListenTimingLog.log("debug_import_test_epub", ["ok": true, "chapters": library.pages(in: book).count], console: true)
+            ListenTimingLog.log("debug_import_test_epub", ["ok": true, "chapters": library.articles(in: book).count], console: true)
             return book
         } catch {
             ListenTimingLog.log("debug_import_test_epub", ["ok": false, "error": "\(error)"], console: true)
@@ -137,7 +137,7 @@ enum LaunchHooks {
             ListenTimingLog.log("debug_play_test_epub", ["started": false], console: true)
             return
         }
-        ListenTimingLog.log("debug_play_test_epub", ["started": true, "title": start.page.title], console: true)
+        ListenTimingLog.log("debug_play_test_epub", ["started": true, "title": start.article.title], console: true)
     }
 
     /// `-seedDemoBook`: the demo book (a skipped title page and three chapters) and one page in no
@@ -146,7 +146,7 @@ enum LaunchHooks {
     /// chapter-boundary device check), so it removes only rows it marked itself: the book by its
     /// `sourceIdentifier` and its chapters by the book's record (`BookSourceState.chapterKeys`),
     /// wherever they were moved (anything moved into the book moves up out of it), and the page
-    /// in no folder by `DemoBook.loosePageMarker`. An address another page already has isn't given
+    /// in no folder by `DemoBook.looseArticleMarker`. An address another page already has isn't given
     /// to a seeded page, since the launch's dedupe would merge the two: that chapter goes without
     /// it, and the page in no folder isn't added.
     /// The book is imported and the page saved as the app does them; then each chapter gets its
@@ -157,42 +157,42 @@ enum LaunchHooks {
     /// chapters before it that play finished.
     static func seedDemoBook(in library: LibraryStore, place: Int? = nil) {
         for folder in demoBooks(in: library) {
-            for page in (folder.bookState?.chapterKeys ?? []).compactMap(library.page(key:)) { library.delete(page) }
-            let strays = library.subfolders(of: folder).map(LibraryItem.folder) + library.pages(in: folder).map(LibraryItem.page)
+            for article in (folder.bookState?.chapterKeys ?? []).compactMap(library.article(key:)) { library.delete(article) }
+            let strays = library.subfolders(of: folder).map(LibraryItem.folder) + library.articles(in: folder).map(LibraryItem.article)
             try? library.move(strays, to: folder.parent)
             try? library.deleteFolder(folder)
         }
-        for page in seededLoosePages(in: library) { library.delete(page) }
+        for article in seededLooseArticles(in: library) { library.delete(article) }
         let details = FolderDetails(kind: .book, title: DemoBook.title, byline: DemoBook.author,
                                     sourceIdentifier: DemoBook.sourceIdentifier)
         let chapters = DemoBook.chapters.enumerated().map { index, chapter in
             let locator = EPUBLocator(href: "chapter-\(index).xhtml", anchor: .fileStart)
-            return PageContent(ref: PageRef(key: UUID(), locator: .book(locator), ordinal: index,
+            return ArticleContent(ref: ArticleRef(key: UUID(), locator: .book(locator), ordinal: index,
                                             skipsInPlayback: chapter.skipsInPlayback),
                                title: chapter.title, bodyHTML: chapter.html, plainText: chapter.plainText,
                                excerpt: String(chapter.plainText.prefix(140)))
         }
         guard let book = try? library.addBook(details, chapters: chapters, in: nil) else { return }
-        let pages = library.pages(in: book, sort: .manual)
-        for (index, page) in pages.enumerated() {
+        let articles = library.articles(in: book, sort: .manual)
+        for (index, article) in articles.enumerated() {
             let url = DemoBook.url(ofChapter: index)
-            guard library.page(url: url) == nil else { continue }
-            page.urlString = url.absoluteString
-            page.canonicalURL = ArticleIdentity.canonicalURLString(from: url)
+            guard library.article(url: url) == nil else { continue }
+            article.urlString = url.absoluteString
+            article.canonicalURL = ArticleIdentity.canonicalURLString(from: url)
         }
-        if let place, pages.indices.contains(place) {
-            try? library.setFinished(pages[..<place].filter { !$0.skipsInPlayback }, true)
-            pages[place].positionParagraph = 2
-            pages[place].lastPlayedAt = .now.addingTimeInterval(-600)
-            book.currentPageKey = pages[place].key
+        if let place, articles.indices.contains(place) {
+            try? library.setFinished(articles[..<place].filter { !$0.skipsInPlayback }, true)
+            articles[place].positionParagraph = 2
+            articles[place].lastPlayedAt = .now.addingTimeInterval(-600)
+            book.currentArticleKey = articles[place].key
         }
-        if library.page(url: DemoBook.loosePageURL) == nil {
-            var loose = webPage(DemoBook.loosePage.title, at: DemoBook.loosePageURL.absoluteString,
-                                paragraphs: DemoBook.loosePage.paragraphs)
+        if library.article(url: DemoBook.looseArticleURL) == nil {
+            var loose = webPage(DemoBook.looseArticle.title, at: DemoBook.looseArticleURL.absoluteString,
+                                paragraphs: DemoBook.looseArticle.paragraphs)
             loose.sourceLabel = DemoBook.author
-            (try? library.save(loose))?.locator = DemoBook.loosePageMarker
+            (try? library.save(loose))?.locator = DemoBook.looseArticleMarker
         } else {
-            library.log("demo seed: \(DemoBook.loosePageURL.absoluteString) is another page's; no page in no folder added")
+            library.log("demo seed: \(DemoBook.looseArticleURL.absoluteString) is another page's; no page in no folder added")
         }
         library.commit("demo book seed")
     }
@@ -204,9 +204,9 @@ enum LaunchHooks {
     }
 
     /// The page in no folder an earlier seed added, by its marker.
-    private static func seededLoosePages(in library: LibraryStore) -> [Page] {
-        let marker: String? = DemoBook.loosePageMarker
-        return (try? library.context.fetch(FetchDescriptor<Page>(predicate: #Predicate { $0.locator == marker }))) ?? []
+    private static func seededLooseArticles(in library: LibraryStore) -> [Article] {
+        let marker: String? = DemoBook.looseArticleMarker
+        return (try? library.context.fetch(FetchDescriptor<Article>(predicate: #Predicate { $0.locator == marker }))) ?? []
     }
 
     /// A web page as its extraction gives it, under a fresh key, so no audio rendered before
@@ -227,17 +227,17 @@ enum LaunchHooks {
             return
         }
         ListenTimingLog.log("debug_chain_demo_chapters", [
-            "started": true, "key": ListenTimingLog.shortKey(start.page.listenKey), "p": start.spot.paragraph,
+            "started": true, "key": ListenTimingLog.shortKey(start.article.listenKey), "p": start.spot.paragraph,
             "engine": speech.activeEngine?.name ?? "—", "build": LocalTTSCoordinator.buildConfiguration,
         ], console: true)
     }
 
     /// Plays `book` from where Continue would, unless something already plays, after waiting
     /// (≤ 20 s) for the on-device engine so it doesn't start on Apple. Returns where it started.
-    private static func play(_ book: Folder, library: LibraryStore, speech: SpeechController) async -> (page: Page, spot: ListenSpot)? {
+    private static func play(_ book: Folder, library: LibraryStore, speech: SpeechController) async -> (article: Article, spot: ListenSpot)? {
         guard speech.activeSessionID == nil, let start = library.continueStart(of: book) else { return nil }
         await speech.localTTS.waitForEngineLoad(timeout: .seconds(20))
-        speech.start(.page(start.page), at: start.spot)
+        speech.start(.article(start.article), at: start.spot)
         return start
     }
 
@@ -254,7 +254,7 @@ enum LaunchHooks {
         ]
         _ = try? library.save(webPage("Demo Listen Article", at: "https://example.com/demo", paragraphs: paragraphs,
                                       html: !demo.plainTextOnly))
-        for i in 0..<demo.playedPages {
+        for i in 0..<demo.playedArticles {
             let played = library.recordPlayback(webPage("Played Page \(i + 1)", at: "https://example.com/played-\(i + 1)",
                                                         paragraphs: ["Played page \(i + 1), first paragraph.",
                                                                      "Played page \(i + 1), second paragraph."]))
@@ -269,16 +269,16 @@ enum LaunchHooks {
     /// argument for its own flags): render a saved article's audio top-down without playing it,
     /// then read ListenTiming / TTSCache.
     static func bakeArticle(prefix: String, in library: LibraryStore, speech: SpeechController) {
-        let pages = (try? library.context.fetch(FetchDescriptor<Page>())) ?? []
-        guard let page = pages.first(where: { $0.hasText && $0.listenKey.uuidString.hasPrefix(prefix) }) else {
+        let articles = (try? library.context.fetch(FetchDescriptor<Article>())) ?? []
+        guard let article = articles.first(where: { $0.hasText && $0.listenKey.uuidString.hasPrefix(prefix) }) else {
             ListenTimingLog.log("debug_bake_article", ["prefix": prefix, "found": false])
             return
         }
-        let paragraphs = page.listenDocument().paragraphs
+        let paragraphs = article.listenDocument().paragraphs
         ListenTimingLog.log("debug_bake_article", [
-            "prefix": prefix, "found": true, "key": ListenTimingLog.shortKey(page.listenKey), "paragraphs": paragraphs.count,
+            "prefix": prefix, "found": true, "key": ListenTimingLog.shortKey(article.listenKey), "paragraphs": paragraphs.count,
         ])
-        speech.localTTS.startBakeIfNeeded(articleID: page.listenKey, paragraphs: paragraphs)
+        speech.localTTS.startBakeIfNeeded(articleID: article.listenKey, paragraphs: paragraphs)
     }
 
     /// `-seedBookmarks`: five starred links on `example.com` hosts. They count as this launch's
@@ -293,8 +293,8 @@ enum LaunchHooks {
             ("https://example.com/", "Example"),
         ]
         for (address, title) in seeds {
-            guard let url = URL(string: address), let page = try? library.addFavorite(url: url, title: title, artwork: nil),
-                  let key = page.key else { continue }
+            guard let url = URL(string: address), let article = try? library.addFavorite(url: url, title: title, artwork: nil),
+                  let key = article.key else { continue }
             library.iconTried.insert(key)
         }
     }
@@ -316,11 +316,11 @@ enum LaunchHooks {
     static func openNewestInReader(in library: LibraryStore, shell: ShellState) {
         var newest = LibraryQueries.savedInLibrary
         newest.fetchLimit = 1
-        guard let page = try? library.context.fetch(newest).first else { return }
-        var article = ReaderArticle(page: page)
+        guard let saved = try? library.context.fetch(newest).first else { return }
+        var article = ReaderArticle(article: saved)
         if article.document.isEmpty {
-            let document = Page.buildListenDocument(plainText: page.plainText, cleanedHTML: page.cleanedHTML,
-                                                    title: page.givenTitle)
+            let document = Article.buildListenDocument(plainText: saved.plainText, cleanedHTML: saved.cleanedHTML,
+                                                    title: saved.givenTitle)
             article.document = document
             article.trustedParagraphs = document.paragraphs
         }

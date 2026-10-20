@@ -1,9 +1,9 @@
 import Foundation
 
-extension Page {
+extension Article {
     /// Where its text comes from: its web address when it has one (a book chapter with one is a
     /// web page too), else its place in its book.
-    var origin: PageOrigin {
+    var origin: ArticleOrigin {
         guard let url else { return .book(locator: locator ?? "") }
         return .web(url, canonicalURL: canonicalURL ?? ArticleIdentity.canonicalURLString(from: url))
     }

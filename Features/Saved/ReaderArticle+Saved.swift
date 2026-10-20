@@ -6,25 +6,25 @@ extension ReaderArticle {
     /// store them).
     @MainActor
     static func loadSaved(id: UUID, in library: LibraryStore, update: (ReaderArticle) -> Void) async {
-        guard let page = library.page(key: id) else { return }
-        page.detectedLanguageBackfilling()
-        var article = ReaderArticle(page: page)
-        update(article)
-        guard article.document.isEmpty else { return }
+        guard let article = library.article(key: id) else { return }
+        article.detectedLanguageBackfilling()
+        var readerArticle = ReaderArticle(article: article)
+        update(readerArticle)
+        guard readerArticle.document.isEmpty else { return }
 
-        let plain = page.plainText
-        let html = page.cleanedHTML
-        let title = page.givenTitle
+        let plain = article.plainText
+        let html = article.cleanedHTML
+        let title = article.givenTitle
         let doc = await Task.detached(priority: .userInitiated) {
-            Page.buildListenDocument(plainText: plain, cleanedHTML: html, title: title)
+            Article.buildListenDocument(plainText: plain, cleanedHTML: html, title: title)
         }.value
-        if let page = library.page(key: id) {
-            page.storeListenParagraphs(doc.paragraphs)
+        if let article = library.article(key: id) {
+            article.storeListenParagraphs(doc.paragraphs)
             library.commit("listen blocks")
-            article.storedDetectedLanguage = page.detectedLanguageCode
+            readerArticle.storedDetectedLanguage = article.detectedLanguageCode
         }
-        article.document = doc
-        article.trustedParagraphs = doc.paragraphs
-        update(article)
+        readerArticle.document = doc
+        readerArticle.trustedParagraphs = doc.paragraphs
+        update(readerArticle)
     }
 }

@@ -7,7 +7,7 @@ import UIKit
 /// played, after Stop Listening, once the page you hear is removed or deleted), on Now Playing,
 /// and under other sheets.
 ///
-/// Tap or swipe up opens Now Playing; long-press shows the page's menu (`PageMenu`), then Stop
+/// Tap or swipe up opens Now Playing; long-press shows the page's menu (`ArticleMenu`), then Stop
 /// Listening (decision D3). At the end of a page it stays, with ▶ and Finished.
 struct NowPlayingBarView: View {
     @Bindable var speech: SpeechController
@@ -44,7 +44,7 @@ struct BandNowPlayingBar: View {
     @Environment(FollowCenter.self) private var follow
     @Environment(LibraryStore.self) private var library
     @Environment(DownloadCenter.self) private var downloads
-    @Query(LibraryQueries.lastPlayed) private var lastPlayed: [Page]
+    @Query(LibraryQueries.lastPlayed) private var lastPlayed: [Article]
 
     private var isHidden: Bool {
         isCovered || shell.isNowPlayingPresented || shell.sheet != nil
@@ -58,8 +58,8 @@ struct BandNowPlayingBar: View {
                     .accessibilityHidden(true)
             } else if let now = speech.nowPlaying {
                 BarProgress(speech: speech, now: now)
-            } else if let page = lastPlayed.first(where: \.isLive) {
-                ResumeBar(page: page, actions: PageActions(page: page, library: library, shell: shell, speech: speech,
+            } else if let article = lastPlayed.first(where: \.isLive) {
+                ResumeBar(article: article, actions: ArticleActions(article: article, library: library, shell: shell, speech: speech,
                                                            downloads: downloads, follow: follow))
             } else {
                 NowPlayingBar.placeholder()
@@ -80,13 +80,13 @@ private struct BarProgress: View {
     @Environment(LibraryStore.self) private var library
     @Environment(FollowCenter.self) private var follow
     @Environment(DownloadCenter.self) private var downloads
-    @Query private var pages: [Page]
+    @Query private var articles: [Article]
     @State private var cover = BarCover()
 
     init(speech: SpeechController, now: NowPlaying) {
         self.speech = speech
         self.now = now
-        _pages = Query(LibraryQueries.page(key: now.pageKey))
+        _articles = Query(LibraryQueries.article(key: now.articleKey))
     }
 
     var body: some View {
@@ -96,15 +96,15 @@ private struct BarProgress: View {
         NowPlayingBar(
             title: now.lineOne,
             detail: now.isFinished ? [.finished]
-                : [PageTitle.lineTwoSource(title: now.title, source: now.source), ListeningTime.leftLabel(minutes: left)]
+                : [ArticleRowTitle.lineTwoSource(title: now.title, source: now.source), ListeningTime.leftLabel(minutes: left)]
                     .compactMap { $0 }.map { DetailPart($0) },
-            artwork: cover.image(for: now.pageKey, data: now.artwork),
+            artwork: cover.image(for: now.articleKey, data: now.artwork),
             artworkLetter: now.artworkLetter,
             progress: doc.progress(atUTF16Offset: offset),
-            state: speech.playState(of: .page(now.pageKey)),
+            state: speech.playState(of: .article(now.articleKey)),
             onOpen: shell.showNowPlaying,
             onPlayPause: speech.pressNowPlaying,
-            menu: AnyView(BarMenu(actions: PageActions(page: pages.first.flatMap { $0.isLive ? $0 : nil }, library: library,
+            menu: AnyView(BarMenu(actions: ArticleActions(article: articles.first.flatMap { $0.isLive ? $0 : nil }, library: library,
                                                        shell: shell, speech: speech, downloads: downloads, follow: follow),
                                   onStop: speech.stop))
         )
@@ -116,15 +116,15 @@ private struct BarProgress: View {
 /// menu (Stop Listening dimmed: nothing is loaded). Its state still comes from the session, so ▶
 /// turns into a spinner while it starts.
 private struct ResumeBar: View {
-    let page: Page
-    let actions: PageActions
+    let article: Article
+    let actions: ArticleActions
 
     @State private var cover = BarCover()
 
     var body: some View {
         // A delete being saved can redraw this once more after the page's data is gone; reading
         // it then traps (`isLive`), so the placeholder stands in.
-        if page.isLive {
+        if article.isLive {
             bar
         } else {
             NowPlayingBar.placeholder()
@@ -133,24 +133,24 @@ private struct ResumeBar: View {
 
     @ViewBuilder private var bar: some View {
         let library = actions.libraryActions
-        let progress = library.progress(of: page)
+        let progress = library.progress(of: article)
         NowPlayingBar(
-            title: page.lineOne,
+            title: article.lineOne,
             detail: detail(progress),
-            artwork: cover.image(for: page.listenKey, data: page.artworkData),
-            artworkLetter: page.artworkLetter,
+            artwork: cover.image(for: article.listenKey, data: article.artworkData),
+            artworkLetter: article.artworkLetter,
             progress: fraction(progress),
-            state: library.playState(of: page),
+            state: library.playState(of: article),
             identifier: "nowPlayingBarResume",
-            onOpen: { library.open(page) },
-            onPlayPause: { library.play(page) },
+            onOpen: { library.open(article) },
+            onPlayPause: { library.play(article) },
             menu: AnyView(BarMenu(actions: actions, onStop: nil))
         )
     }
 
     /// Its source (untitled, line one is already that), then the time left or the full ring and Finished.
     private func detail(_ progress: ListRow.Progress) -> [DetailPart] {
-        let source = PageTitle.lineTwoSource(title: page.givenTitle, source: page.source).map { [DetailPart($0)] } ?? []
+        let source = ArticleRowTitle.lineTwoSource(title: article.givenTitle, source: article.source).map { [DetailPart($0)] } ?? []
         switch progress {
         case .partWay(_, let minutesLeft): return source + [DetailPart(ListeningTime.leftLabel(minutes: minutesLeft))]
         case .finished: return [.finished]
@@ -167,15 +167,15 @@ private struct ResumeBar: View {
     }
 }
 
-/// The bar's long press: the page's menu (`PageMenu`), then *Stop Listening* (dimmed with
+/// The bar's long press: the page's menu (`ArticleMenu`), then *Stop Listening* (dimmed with
 /// nothing loaded). A view of its own, so the rows are built only when the menu shows, not on
 /// each of the bar's redraws.
 private struct BarMenu: View {
-    let actions: PageActions
+    let actions: ArticleActions
     let onStop: (() -> Void)?
 
     var body: some View {
-        PageMenu(actions: actions, place: .bar(onStop: onStop))
+        ArticleMenu(actions: actions, place: .bar(onStop: onStop))
     }
 }
 

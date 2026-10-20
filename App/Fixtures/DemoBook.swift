@@ -5,7 +5,7 @@ import Foundation
 /// playback across chapter boundaries before the Library screens exist. A title page that
 /// playback skips, three chapters of six paragraphs (about a minute and a half each with Kokoro at 1×),
 /// and one page in no folder. The chapters are also offline test pages
-/// (`reader-test://pages/book-N`), so a UI test can open one in the Reader from the browser.
+/// (`reader-test://articles/book-N`), so a UI test can open one in the Reader from the browser.
 enum DemoBook {
     struct Chapter {
         var title: String
@@ -53,15 +53,15 @@ enum DemoBook {
     ]
 
     /// The page in no folder: it plays to its end and stops.
-    static let loosePage = Chapter(title: "Demo Loose Page", paragraphs: [
+    static let looseArticle = Chapter(title: "Demo Loose Page", paragraphs: [
         "This page is in no folder. When it ends, playback stops instead of carrying on to another page.",
         "It is here so a folder and a single page can be compared side by side.",
     ])
-    static let loosePageURL = URL(string: "https://example.com/demo-loose-page")!
-    /// Marks the page in no folder as the seed's (`Page.locator`, which no other page in no folder
+    static let looseArticleURL = URL(string: "https://example.com/demo-loose-page")!
+    /// Marks the page in no folder as the seed's (`Article.locator`, which no other page in no folder
     /// has: it is a book chapter's place in its book), so the next seed replaces that page and
     /// no other at its address.
-    static let loosePageMarker = "debug.demo-book.loose-page"
+    static let looseArticleMarker = "debug.demo-book.loose-page"
 
     /// The offline test page of chapter `index` (0 is the title page).
     static func url(ofChapter index: Int) -> URL {

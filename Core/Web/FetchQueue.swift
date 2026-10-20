@@ -67,7 +67,7 @@ final class FetchQueue {
     }
 
     /// The page at `url`, extracted.
-    func content(of url: URL, priority: Priority) async throws -> PageContent {
+    func content(of url: URL, priority: Priority) async throws -> ArticleContent {
         try await run(url, priority: priority) { try await $0.content(of: url) }
     }
 

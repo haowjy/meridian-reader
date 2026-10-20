@@ -7,7 +7,7 @@ import Foundation
 /// - **Key = canonical URL.** One page per canonical URL; the same chapter reopened from the
 ///   browser, the library, or after an app restart resolves to the same cache key /
 ///   `SpeechSession.id`. A page's `key` *is* that key for pages made since v2; pages copied from
-///   older saves (random UUIDs) are found by `Page.canonicalURL` and keep their key.
+///   older saves (random UUIDs) are found by `Article.canonicalURL` and keep their key.
 /// - **Content fingerprint only detects change** (listen-block text after anti-copy stripping,
 ///   never raw HTML). Per-paragraph text hashes in the TTS cache let a changed page reuse audio
 ///   for unchanged paragraphs and re-bake only what changed.

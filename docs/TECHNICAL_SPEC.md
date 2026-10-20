@@ -20,7 +20,7 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 | UI | SwiftUI, `@Observable` state objects; UIKit only where SwiftUI has no equivalent (edge swipe-back, web views) |
 | Browser | `WKWebView` |
 | Extraction | Mozilla Readability.js, bundled (`Resources/Readability/`) |
-| Persistence | SwiftData, two store files: the library (`Folder`, `Page`) and the local store (`RecentVisit`; `SavedArticle`, frozen); small JSON files and UserDefaults for the rest |
+| Persistence | SwiftData, two store files: the library (`Folder`, `Article`) and the local store (`RecentVisit`; `SavedArticle`, frozen); small JSON files and UserDefaults for the rest |
 | Speech | `AVSpeechSynthesizer`; Kokoro via vendored FluidAudio (`Vendor/FluidAudio`) and ONNX Runtime (SPM `onnxruntime` 1.24.2) |
 | Language | `NaturalLanguage` (article language), `Speech` (address-bar dictation) |
 | Project | XcodeGen (`project.yml` → `MeridianReader.xcodeproj`) |
@@ -186,7 +186,7 @@ a second time, fetch, and change the DOM before Readability reads it. The app's 
 **Success and failure.** Save and the reader need a non-empty body. Otherwise extraction fails
 with a reason the user sees, and nothing is stored (no bookmark-only save, no raw snapshot). A
 page without a title of its own (no `<title>`, heading or title metadata) is read and saved with
-none (`PageTitle`): the Reader shows its source line alone, and rows, the bar and the lock screen
+none (`ArticleRowTitle`): the Reader shows its source line alone, and rows, the bar and the lock screen
 name it by its site.
 
 **Book chapters** skip Readability: each chapter's XHTML goes through the normalizer alone, in
@@ -207,7 +207,7 @@ page (e.g. `https://example.com`) fails with a reason and saves nothing.
 ## Data
 
 Two SwiftData stores in one container (`LibraryStoreConfiguration`): **library**
-(`Application Support/library.store`: `Folder`, `Page`, the migration's
+(`Application Support/library.store`: `Folder`, `Article`, the migration's
 `LibraryMigrationReceipt`s and pending `LibraryAudioWork`) and **local**
 (`Application Support/default.store`, the file the app always used: `RecentVisit`, and
 `SavedArticle`, frozen). The library has its own file because an older build reopening a shared
@@ -235,7 +235,7 @@ selection cleared, a moved folder's screen following it, the Move tree closed, "
 Favorites", a saved article's audio moved under the page's key when that is an older key, and
 baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only after it.
 
-**`Page`** (library):
+**`Article`** (library):
 
 | Field | Purpose |
 |-------|---------|
@@ -247,7 +247,7 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, a page is in no list, not even Recent, nor the bar's resume; read only while `addedAt` is nil |
 | `folder`, `folderID`, `sortKey` | Its folder (none = the pages in no folder) and order there; `folderID` mirrors the relationship for predicates |
 | `bodyHTML`, `plainTextData` | Offline reading; the listen text comes from the HTML |
-| `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount`. Words are counted by one rule, `WordCount`, for web pages and chapters alike (each Chinese or Japanese character is a word); every text write goes through `Page.setText` |
+| `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount`. Words are counted by one rule, `WordCount`, for web pages and chapters alike (each Chinese or Japanese character is a word); every text write goes through `Article.setText` |
 | `positionParagraph`, `positionUTF16` | Resume position (paragraph + offset inside the document) |
 | `lastPlayedAt`, `finishedAt` | Recent's order, the prune and the bar's resume, and a row's "◉ Finished" |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
@@ -274,13 +274,13 @@ resume (`LibraryQueries.lastPlayed`) reads pages in the Library or played withou
 they were played, and the prune keeps the one it offers.
 
 **`Folder`** (library): `name`, `kindRaw` (`plain`, `book`, `series`, `favorites`), `sortKey`,
-`parent` / `children` (any depth), `pages`, `pageSortRaw`, its details (`byline`, `coverData`:
+`parent` / `children` (any depth), `articles`, `articleSortRaw`, its details (`byline`, `coverData`:
 a book's from its file; *Edit Details* changes `name`, `byline` and `coverData`
 of any folder through `LibraryStore.setDetails`; a folder with a byline or cover,
 `hasDetails`, shows the detailed header), for books and series their source
 (`sourceIdentifier`, `sourceURLString`, `sourceStateData`: a book's `BookSourceState`, its file's
 SHA-256 and the keys of the chapters its file gave, in order), and for every folder its place
-(`currentPageKey`, the page that last started: every folder plays page to page in its sort).
+(`currentArticleKey`, the page that last started: every folder plays page to page in its sort).
 Whether a folder is finished isn't stored: `FolderProgress.isFinished` works it out from its pages.
 `languageCode`, `lastPlayedAt` and `finishedAt` are kept as older builds stored them and nothing
 writes or reads them. **Every folder follows the same rules (decision D19)**: books and
@@ -292,7 +292,7 @@ book's or story's pages show as chapters and name it as their source in the Now
 Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their audio (D7), and
   launch dedupe merges two copies of one source. Favorites are independent flags on pages and
   folders, independent of the Library too: Favorites lists every starred page
-  (`LibraryQueries.favoritePages`), starring never files a page, *Remove from Library* keeps the
+  (`LibraryQueries.favoriteArticles`), starring never files a page, *Remove from Library* keeps the
   flag (only unstarring clears it), and the prune keeps a starred page. A legacy Favorites folder an older build left in the store is migrated on launch
   (`migrateFavoritesFolder`): its direct children are starred (its pages return to the root, its
   subfolders move to the top level with their contents as they were, nothing deeper starred), and
@@ -438,7 +438,7 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 |------|-------|
 | Bookmarks before the library (frozen; copied into Favorites) | `Application Support/Bookmarks/bookmarks.json` (`LegacyBookmarks`) |
 | Recent searches | UserDefaults `browse.recentSearches` |
-| Last listened / finished before the library (frozen; folded into `Page`) | UserDefaults `reader.listenHistory.v1` (`ListenHistory`) |
+| Last listened / finished before the library (frozen; folded into `Article`) | UserDefaults `reader.listenHistory.v1` (`ListenHistory`) |
 | Crash-resume point (key, paragraph, text fingerprint, time) | `Application Support/ListenTiming/listen_resume.json` (`ListenResumePointStore`) |
 | Rendered audio | `Application Support/TTSCache/<article key>/` (`ArticleAudioCache`) |
 | Pending render jobs | `Application Support/PendingBakeJobs.json` |
@@ -472,3 +472,7 @@ scroll. The reader's web view never navigates: a tapped link is cancelled and ha
 which opens it in the browser; a fragment link only scrolls, and `javascript:` links do nothing.
 The visible
 browser keeps JavaScript on; sites need it.
+
+## Article rename and store migration (C121)
+
+The library's item model is `Article` (it was `Page`), alongside `Folder`. Its store entity was named `Page`, and SwiftData can't rename an entity, so `LibraryEntityRename` (`LibraryStoreConfiguration.swift`) runs before the container opens. It checks the store's metadata, and if it still has `Page`, it copies the files to `Application Support/LibraryBackup-C121` and runs Core Data's inferred lightweight migration in place. The source is the model cached in the store; `Page` and Folder's `pageSortRaw`, `currentPageKey` and `pages` are the renaming identifiers. If that fails, the launch stops rather than opening the store. `DownloadRecord.Target` still writes `page` in Downloads.json. Pages mode and web pages keep the word "page".

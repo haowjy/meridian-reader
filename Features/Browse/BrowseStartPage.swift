@@ -4,14 +4,14 @@ import SwiftUI
 /// opens the Library's Favorites tab), then Recent
 /// Searches.
 struct BrowseStartPage: View {
-    let favorites: [Page]
+    let favorites: [Article]
     let favoriteFolders: [Folder]
     let recentSearches: [String]
-    var onOpenFavorite: (Page) -> Void
+    var onOpenFavorite: (Article) -> Void
     var onOpenFavoriteFolder: (Folder) -> Void
     var onShowFavorites: () -> Void
-    /// A page tile's long press: the page's menu (`PageMenu`).
-    var pageMenu: (Page) -> AnyView
+    /// A page tile's long press: the page's menu (`ArticleMenu`).
+    var pageMenu: (Article) -> AnyView
     /// A folder tile's long press: the folder's menu (`FolderMenu`); its closure asks *Turn Off
     /// Download* by the tile.
     var folderMenu: (Folder, _ onTurnOffDownload: @escaping () -> Void) -> AnyView
@@ -32,10 +32,10 @@ struct BrowseStartPage: View {
                                       actionTitle: Verbs.showAll,
                                       actionNavigates: true, actionIdentifier: "startFavoritesShowAll",
                                       action: onShowFavorites)
-                        FavoritesGrid(pages: Array(favorites.prefix(Self.favoriteLimit)),
+                        FavoritesGrid(articles: Array(favorites.prefix(Self.favoriteLimit)),
                                       folders: Array(favoriteFolders.prefix(max(0, Self.favoriteLimit - favorites.count))),
                                       onOpen: onOpenFavorite, onOpenFolder: onOpenFavoriteFolder,
-                                      pageMenu: pageMenu, folderMenu: folderMenu)
+                                      articleMenu: pageMenu, folderMenu: folderMenu)
                     }
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("startFavorites")

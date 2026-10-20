@@ -56,10 +56,10 @@ enum ChapterAdvance {
         return next == .none ? first(in: chapters[...]) : next
     }
 
-    /// Carrying on: the next playable chapter after `pageKey`. A page that isn't one of
+    /// Carrying on: the next playable chapter after `articleKey`. A page that isn't one of
     /// `chapters` (a page in no folder) has none.
-    static func after(_ pageKey: UUID, in chapters: [Chapter]) -> Next {
-        guard let index = chapters.firstIndex(where: { $0.key == pageKey }) else { return .none }
+    static func after(_ articleKey: UUID, in chapters: [Chapter]) -> Next {
+        guard let index = chapters.firstIndex(where: { $0.key == articleKey }) else { return .none }
         return first(in: chapters[(index + 1)...])
     }
 

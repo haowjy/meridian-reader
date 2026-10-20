@@ -63,7 +63,7 @@ final class URLPageFetcher {
     }
 
     /// The page at `url`, loaded, snapshotted and extracted.
-    func content(of url: URL) async throws -> PageContent {
+    func content(of url: URL) async throws -> ArticleContent {
         try await content(of: snapshot(of: url))
     }
 
@@ -107,9 +107,9 @@ final class URLPageFetcher {
     }
 
     /// A snapshot's content, extracted as the browser extracts its page.
-    func content(of snapshot: Snapshot) async throws -> PageContent {
+    func content(of snapshot: Snapshot) async throws -> ArticleContent {
         let page = SingleWebPageSource(url: snapshot.url, htmlSnapshot: snapshot.html, extractor: extractor)
-        return try await within(.extract) { try await page.content(of: page.page) }
+        return try await within(.extract) { try await page.content(of: page.article) }
     }
 
     /// `operation`, within the time limit for `stage`.

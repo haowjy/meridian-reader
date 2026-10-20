@@ -7,32 +7,32 @@ extension LibraryStore {
     /// *Mark as Finished* / *Mark as Unfinished* (rows, Edit's *Mark Finished*). A finished page
     /// starts again from its top; a folder shows as finished once every page in it that plays is
     /// (`FolderProgress.isFinished`).
-    func setFinished(_ pages: [Page], _ finished: Bool) throws {
+    func setFinished(_ articles: [Article], _ finished: Bool) throws {
         try edit(finished ? "mark finished" : "mark unfinished") {
-            for page in pages {
-                page.finishedAt = finished ? (page.finishedAt ?? now()) : nil
+            for article in articles {
+                article.finishedAt = finished ? (article.finishedAt ?? now()) : nil
             }
         }
     }
 
-    /// *Mark All Above as Finished*: every page before `page` in its folder's play order.
-    func markAllAbove(_ page: Page) throws {
-        guard let folder = page.folder else { return }
-        let order = pages(in: folder)
-        guard let index = order.firstIndex(where: { $0 === page }), index > 0 else { return }
+    /// *Mark All Above as Finished*: every page before `article` in its folder's play order.
+    func markAllAbove(_ article: Article) throws {
+        guard let folder = article.folder else { return }
+        let order = articles(in: folder)
+        guard let index = order.firstIndex(where: { $0 === article }), index > 0 else { return }
         try setFinished(Array(order[..<index]), true)
     }
 
     /// *Skip in Playback*: carrying on through its folder passes over the page (it still plays
     /// when started directly).
-    func setSkipsInPlayback(_ page: Page, _ skips: Bool) throws {
-        guard page.skipsInPlayback != skips else { return }
-        try edit(skips ? "skip in playback" : "play in playback") { page.skipsInPlayback = skips }
+    func setSkipsInPlayback(_ article: Article, _ skips: Bool) throws {
+        guard article.skipsInPlayback != skips else { return }
+        try edit(skips ? "skip in playback" : "play in playback") { article.skipsInPlayback = skips }
     }
 
-    /// Whether `page` has audio on disk for any voice (*Remove Downloads* is offered).
-    func hasDownloads(_ page: Page) -> Bool {
-        guard let key = page.key else { return false }
+    /// Whether `article` has audio on disk for any voice (*Remove Downloads* is offered).
+    func hasDownloads(_ article: Article) -> Bool {
+        guard let key = article.key else { return false }
         return audio.audioCache.hasCache(for: key)
     }
 }

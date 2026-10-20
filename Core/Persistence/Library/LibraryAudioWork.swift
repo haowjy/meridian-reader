@@ -69,6 +69,6 @@ final class LibraryAudioWork {
     var kind: LibraryAudioWorkKind? { LibraryAudioWorkKind(rawValue: kindRaw) }
     /// The key the moving audio and the resume point are on now.
     var sourceKey: UUID? { fromKey ?? key }
-    var paragraphs: [String] { Page.decodeAnyListenParagraphs(paragraphsData) ?? [] }
-    var sourceParagraphs: [String] { Page.decodeAnyListenParagraphs(sourceParagraphsData) ?? [] }
+    var paragraphs: [String] { Article.decodeAnyListenParagraphs(paragraphsData) ?? [] }
+    var sourceParagraphs: [String] { Article.decodeAnyListenParagraphs(sourceParagraphsData) ?? [] }
 }

@@ -11,7 +11,7 @@ import Foundation
 /// table test (`MenuRegistryTests`) checks every kind × place × state.
 enum MenuRegistry {
     /// What a menu is for.
-    enum Kind: String, CaseIterable { case page, folder, download, screen }
+    enum Kind: String, CaseIterable { case article, folder, download, screen }
 
     /// Where a menu opens.
     enum Place: String, CaseIterable {
@@ -73,8 +73,8 @@ enum MenuRegistry {
         var inRecent = false
         var isLoaded = false
         // A folder
-        var hasPagesToPlay = false
-        var hasPages = false
+        var hasArticlesToPlay = false
+        var hasArticles = false
         var downloadIsOn = false
         var hasDownloads = false
         // A download
@@ -114,40 +114,40 @@ enum MenuRegistry {
         var block = 0
     }
 
-    private static let pagePlaces: Set<Place> = [.row, .tile, .bar, .history, .reader, .nowPlaying, .browser]
+    private static let articlePlaces: Set<Place> = [.row, .tile, .bar, .history, .reader, .nowPlaying, .browser]
     /// Where a page isn't on screen with its own bookmark: *Read* and *Save* show there.
-    private static let pageListPlaces: Set<Place> = [.row, .tile, .bar, .history]
+    private static let articleListPlaces: Set<Place> = [.row, .tile, .bar, .history]
     private static let folderPlaces: Set<Place> = [.row, .tile, .header]
     private static let panelPlaces: Set<Place> = [.libraryHome, .folderScreen, .browser, .reader, .nowPlaying]
 
     static let specs: [Spec] = [
         // A page. The row's tap plays it; Edit is on screen; the Reader, Now Playing and the
         // browser have the bookmark, so *Save* isn't in their menus.
-        Spec(option: .read, kind: .page, places: pageListPlaces, enabled: { $0.hasTarget }, greyIf: "no page or address"),
-        Spec(option: .goTo, kind: .page, places: [.nowPlaying], enabled: { $0.goToEnabled }, greyIf: "nowhere to go"),
-        Spec(option: .download, kind: .page, places: pagePlaces, enabled: { $0.inLibrary || ($0.hasPage && $0.canSave) }, greyIf: "nothing to save yet (downloading saves it, C104)"),
-        Spec(option: .favorite, kind: .page, places: pagePlaces, enabled: { $0.canFavorite }, greyIf: "it can\u{2019}t be starred"),
-        Spec(option: .move, kind: .page, places: pagePlaces, enabled: { !$0.offersSave || $0.canSave }, greyIf: "nothing to save yet"),
-        Spec(option: .finished, kind: .page, places: pagePlaces, enabled: { $0.isSaved }, greyIf: "not saved"),
+        Spec(option: .read, kind: .article, places: articleListPlaces, enabled: { $0.hasTarget }, greyIf: "no page or address"),
+        Spec(option: .goTo, kind: .article, places: [.nowPlaying], enabled: { $0.goToEnabled }, greyIf: "nowhere to go"),
+        Spec(option: .download, kind: .article, places: articlePlaces, enabled: { $0.inLibrary || ($0.hasPage && $0.canSave) }, greyIf: "nothing to save yet (downloading saves it, C104)"),
+        Spec(option: .favorite, kind: .article, places: articlePlaces, enabled: { $0.canFavorite }, greyIf: "it can\u{2019}t be starred"),
+        Spec(option: .move, kind: .article, places: articlePlaces, enabled: { !$0.offersSave || $0.canSave }, greyIf: "nothing to save yet"),
+        Spec(option: .finished, kind: .article, places: articlePlaces, enabled: { $0.isSaved }, greyIf: "not saved"),
         // Chapter-only and rare: one submenu, only for a page in a folder.
-        Spec(option: .playback, kind: .page, places: pagePlaces, applies: { $0.inFolder }, enabled: { $0.canPlay }, hiddenIf: "not in a folder", greyIf: "neither row inside can run"),
-        Spec(option: .markAllAbove, kind: .page, places: [.row], parent: .playback,
+        Spec(option: .playback, kind: .article, places: articlePlaces, applies: { $0.inFolder }, enabled: { $0.canPlay }, hiddenIf: "not in a folder", greyIf: "neither row inside can run"),
+        Spec(option: .markAllAbove, kind: .article, places: [.row], parent: .playback,
              applies: { $0.inFolder }, enabled: { $0.isSaved }, hiddenIf: "not in a folder; outside a list row", greyIf: "not saved"),
-        Spec(option: .skip, kind: .page, places: pagePlaces, parent: .playback,
+        Spec(option: .skip, kind: .article, places: articlePlaces, parent: .playback,
              applies: { $0.inFolder }, enabled: { $0.canPlay }, hiddenIf: "not in a folder", greyIf: "not saved and not a waiting chapter"),
-        Spec(option: .share, kind: .page, places: pagePlaces, applies: { $0.hasShareURL }, hiddenIf: "no web address"),
-        Spec(option: .save, kind: .page, places: pageListPlaces, enabled: { !$0.offersSave || $0.canSave }, greyIf: "nothing to save yet"),
-        Spec(option: .removeFromRecent, kind: .page, places: pagePlaces,
+        Spec(option: .share, kind: .article, places: articlePlaces, applies: { $0.hasShareURL }, hiddenIf: "no web address"),
+        Spec(option: .save, kind: .article, places: articleListPlaces, enabled: { !$0.offersSave || $0.canSave }, greyIf: "nothing to save yet"),
+        Spec(option: .removeFromRecent, kind: .article, places: articlePlaces,
              applies: { !$0.inLibrary }, enabled: { $0.inRecent }, hiddenIf: "in the Library", greyIf: "not in Recent"),
-        Spec(option: .stopListening, kind: .page, places: [.bar], block: 1, enabled: { $0.isLoaded }, greyIf: "nothing loaded"),
-        Spec(option: .removeFromHistory, kind: .page, places: [.history], block: 1),
+        Spec(option: .stopListening, kind: .article, places: [.bar], block: 1, enabled: { $0.isLoaded }, greyIf: "nothing loaded"),
+        Spec(option: .removeFromHistory, kind: .article, places: [.history], block: 1),
 
         // A folder. Its row's tap opens it; its header has ▶ and Download beside *More*.
-        Spec(option: .continueFolder, kind: .folder, places: [.row, .tile], enabled: { $0.hasPagesToPlay }, greyIf: "nothing in it plays"),
-        Spec(option: .playFromStart, kind: .folder, places: [.header], enabled: { $0.hasPagesToPlay }, greyIf: "nothing in it plays"),
+        Spec(option: .continueFolder, kind: .folder, places: [.row, .tile], enabled: { $0.hasArticlesToPlay }, greyIf: "nothing in it plays"),
+        Spec(option: .playFromStart, kind: .folder, places: [.header], enabled: { $0.hasArticlesToPlay }, greyIf: "nothing in it plays"),
         // One row: Download, Turn Off Download while on, Remove Downloads once all is downloaded.
         Spec(option: .folderDownload, kind: .folder, places: [.row, .tile],
-             enabled: { $0.downloadIsOn || $0.hasDownloads || $0.hasPages }, greyIf: "empty, nothing downloaded, toggle off"),
+             enabled: { $0.downloadIsOn || $0.hasDownloads || $0.hasArticles }, greyIf: "empty, nothing downloaded, toggle off"),
         Spec(option: .removeDownloads, kind: .folder, places: [.header], enabled: { $0.hasDownloads }, greyIf: "nothing downloaded or downloading"),
         Spec(option: .folderFavorite, kind: .folder, places: folderPlaces),
         Spec(option: .folderMove, kind: .folder, places: folderPlaces),

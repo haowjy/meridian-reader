@@ -13,13 +13,13 @@ import SwiftUI
 struct FollowStatus: View {
     let folder: Folder
     /// The folder's pages, in its order.
-    let pages: [Page]
+    let articles: [Article]
 
     @Environment(FollowCenter.self) private var follow
     @Environment(ShellState.self) private var shell
 
     var body: some View {
-        let progress = follow.progress(of: pages)
+        let progress = follow.progress(of: articles)
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HeaderLink(symbol: Icons.follow, parts: parts(progress), identifier: "followStatus") {
                 shell.present(.following(folder.id))

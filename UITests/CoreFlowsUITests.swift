@@ -7,7 +7,7 @@ final class CoreFlowsUITests: XCTestCase {
 
     /// A browsed page, played from its Reader and saved mid-listen: Save keeps it playing in Now
     /// Playing, and the Library then holds exactly one row for it.
-    func testSaveAndPlayABrowsedPage() throws {
+    func testSaveAndPlayABrowsedArticle() throws {
         let app = launch(["-browseTestPages"])
         let link = app.links["Next page"]
         XCTAssertTrue(appears(link, timeout: 10))
@@ -41,7 +41,7 @@ final class CoreFlowsUITests: XCTestCase {
     /// Swipe → *Remove from Library* on the page you hear: its row leaves every list (not back in Recent,
     /// not in search), playback stops, the bar offers the page played before it (the demo
     /// folders' part-way page) instead, and the app stays up.
-    func testSwipeRemovingAPlayedPageTakesItOutOfEveryList() throws {
+    func testSwipeRemovingAPlayedArticleTakesItOutOfEveryList() throws {
         let app = launchLibrary()
         let cell = libraryCell(app, "Demo Listen Article")
         XCTAssertTrue(appears(cell, timeout: 5), "Pages: the demo article")

@@ -18,7 +18,7 @@ import SwiftUI
 ///   or the Library; for a site, ⋯ → Website opens the page in the browser.
 /// - The top bar, 🔖 and ⋯ are the Reader's (decision D24): Aa changes how the page reads; ☝︎
 ///   then a tap on a paragraph plays from there; 🔖 saves / removes (tap) or files the page
-///   (long-press, *Save to Folder…*); ⋯ is the Reader's menu. Both act through `PageActions`, as
+///   (long-press, *Save to Folder…*); ⋯ is the Reader's menu. Both act through `ArticleActions`, as
 ///   in the Reader.
 /// - At the end it stays: the text stays, all in full ink, the title card says "● Finished" (the ring, full)
 ///   (the one place it shows, where the Reader shows the page's length), ▶ plays it again.
@@ -46,14 +46,14 @@ struct NowPlayingScreen: View {
     var body: some View {
         if let now = speech.nowPlaying {
             // Only the playing page's content: never the page before's, for a frame, on advance.
-            let article = content?.key == now.pageKey ? content?.article : nil
-            PageLookup(key: now.pageKey, canonicalURL: article?.origin.canonicalURL) { page in
-                player(now, PageActions(page: page, article: article, library: library, shell: shell, speech: speech,
+            let readerArticle = content?.key == now.articleKey ? content?.readerArticle : nil
+            ArticleLookup(key: now.articleKey, canonicalURL: readerArticle?.origin.canonicalURL) { article in
+                player(now, ArticleActions(article: article, readerArticle: readerArticle, library: library, shell: shell, speech: speech,
                                         downloads: downloads, follow: follow))
             }
             .environment(\.sheetRisesOnAppear, shell.nowPlayingOpensAt == nil)
-            .onChange(of: now.pageKey, initial: true) { _, key in load(key) }
-            .task(id: ScrubMapKey(key: now.pageKey, count: speech.document.count)) { await buildScrubMap() }
+            .onChange(of: now.articleKey, initial: true) { _, key in load(key) }
+            .task(id: ScrubMapKey(key: now.articleKey, count: speech.document.count)) { await buildScrubMap() }
         } else {
             // Nothing is bound (the page you heard was removed from the Library or deleted, or
             // crash resume found nothing to play): nothing to show.
@@ -61,10 +61,10 @@ struct NowPlayingScreen: View {
         }
     }
 
-    private func player(_ now: NowPlaying, _ actions: PageActions) -> some View {
+    private func player(_ now: NowPlaying, _ actions: ArticleActions) -> some View {
         NowPlayingSheet(
             playingFrom: playingFromName(now, saved: actions.isSaved),
-            playState: speech.playState(of: .page(now.pageKey)),
+            playState: speech.playState(of: .article(now.articleKey)),
             showsJumpToAudio: !following && !now.isFinished,
             onCollapse: { [shell, presentation = shell.nowPlayingPresentation] in
                 if let presentation { shell.nowPlayingDidClose(presentation) }
@@ -80,13 +80,13 @@ struct NowPlayingScreen: View {
         } banner: {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
-            text(now, article: actions.article)
+            text(now, readerArticle: actions.readerArticle)
         } controls: {
             NowPlayingControls(
                 speech: speech, scrubMap: scrubMap, detectedLanguage: speech.sessionDetectedLanguage,
                 save: AnyView(SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
                                                onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
-                    .disabled(actions.article == nil)),
+                    .disabled(actions.readerArticle == nil)),
                 more: AnyView(MoreMenuButton(id: "nowPlayingMore") { actions.readingPageMenu(.nowPlaying(goTo(now, actions))) }),
                 onScrubPreview: { p in
                     scrubPreview = p
@@ -105,10 +105,10 @@ struct NowPlayingScreen: View {
     // MARK: - Text
 
     @ViewBuilder
-    private func text(_ now: NowPlaying, article: ReaderArticle?) -> some View {
-        if let html = readingHTML(now, article: article) {
+    private func text(_ now: NowPlaying, readerArticle: ReaderArticle?) -> some View {
+        if let html = readingHTML(now, readerArticle: readerArticle) {
             SpokenText(speech: speech, html: html,
-                       card: TitleCardContent(title: article?.title ?? now.title, source: now.source,
+                       card: TitleCardContent(title: readerArticle?.title ?? now.title, source: now.source,
                                               address: now.canonicalURL, letter: now.artworkLetter,
                                               artwork: now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))),
                        finished: now.isFinished, isChapter: now.isChapter, scrubMap: scrubMap,
@@ -125,9 +125,9 @@ struct NowPlayingScreen: View {
     /// The page's reading HTML; for a plain-text article, or content that can't be found, the
     /// session's paragraphs as HTML, so every page reads, follows and underlines the same way.
     /// Nothing until the page's content has been looked up.
-    private func readingHTML(_ now: NowPlaying, article: ReaderArticle?) -> String? {
-        if let html = article?.displayHTML, html.contains(where: { !$0.isWhitespace }) { return html }
-        guard content?.key == now.pageKey, !speech.document.isEmpty else { return nil }
+    private func readingHTML(_ now: NowPlaying, readerArticle: ReaderArticle?) -> String? {
+        if let html = readerArticle?.displayHTML, html.contains(where: { !$0.isWhitespace }) { return html }
+        guard content?.key == now.articleKey, !speech.document.isEmpty else { return nil }
         return speech.document.paragraphsHTML
     }
 
@@ -141,13 +141,13 @@ struct NowPlayingScreen: View {
     /// ⋯ → *Go to*: the folder the page plays from, or the Library's home for a saved page in
     /// none; dimmed *Go to Library* for a page that plays from its site (⋯ → Website opens it).
     /// Playback keeps going.
-    private func goTo(_ now: NowPlaying, _ actions: PageActions) -> PageMenu.GoTo {
+    private func goTo(_ now: NowPlaying, _ actions: ArticleActions) -> ArticleMenu.GoTo {
         if case .folder(let id, _) = now.playingFrom {
-            return PageMenu.GoTo(name: now.playingFrom.name, symbol: Icons.folder, availability: .enabled) { [shell, library] in
+            return ArticleMenu.GoTo(name: now.playingFrom.name, symbol: Icons.folder, availability: .enabled) { [shell, library] in
                 if let folder = library.folder(id: id) { shell.showLibrary(at: library.path(to: folder)) }
             }
         }
-        return PageMenu.GoTo(name: Verbs.library, symbol: Icons.library,
+        return ArticleMenu.GoTo(name: Verbs.library, symbol: Icons.library,
                              availability: MenuAvailability(when: actions.isSaved)) { [shell] in shell.showLibrary(at: []) }
     }
 
@@ -155,7 +155,7 @@ struct NowPlayingScreen: View {
     private func load(_ key: UUID) {
         following = true
         jumpMode = false
-        content = NowPlayingContent(key: key, article: library.nowPlayingContent(for: key))
+        content = NowPlayingContent(key: key, readerArticle: library.nowPlayingContent(for: key))
     }
 
     /// ☝︎ then a tap: play from that paragraph.
@@ -193,7 +193,7 @@ struct NowPlayingScreen: View {
 /// The reading content looked up for a playing page (nil: it can't be found).
 private struct NowPlayingContent {
     let key: UUID
-    let article: ReaderArticle?
+    let readerArticle: ReaderArticle?
 }
 
 /// What the title card shows that doesn't move with the playhead.
@@ -272,9 +272,9 @@ private struct SpokenText: View {
         let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: speech.spokenUTF16Offset,
                                              rate: speech.rateMultiplier)
         // As the bar: line one is `lineOne`, line two starts with `lineTwoSource`.
-        let lineOne = PageTitle.lineOne(title: card.title, source: card.source, address: card.address)
+        let lineOne = ArticleRowTitle.lineOne(title: card.title, source: card.source, address: card.address)
         let detail: [DetailPart] = finished ? [.finished]
-            : [PageTitle.lineTwoSource(title: card.title, source: card.source),
+            : [ArticleRowTitle.lineTwoSource(title: card.title, source: card.source),
                doc.isEmpty ? nil : ListeningTime.leftLabel(minutes: left)]
                 .compactMap { $0 }.map { DetailPart($0) }
         let palette = reading ?? .app

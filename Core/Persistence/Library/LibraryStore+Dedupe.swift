@@ -7,7 +7,7 @@ import SwiftData
 extension LibraryStore {
     struct DedupeReport: Equatable {
         var mergedFolders = 0
-        var mergedPages = 0
+        var mergedArticles = 0
         var brokenCycles = 0
         var repairedFolderIDs = 0
     }
@@ -21,9 +21,9 @@ extension LibraryStore {
         dedupeSourceFolders(&report)
         breakCycles(&report)
         // One read of every page for both page passes (each page's text comes with it).
-        let pages = (try? context.fetch(FetchDescriptor<Page>())) ?? []
-        repairFolderIDs(pages, &report)
-        dedupePages(pages, &report)
+        let articles = (try? context.fetch(FetchDescriptor<Article>())) ?? []
+        repairFolderIDs(articles, &report)
+        dedupeArticles(articles, &report)
         if report != DedupeReport() {
             if saving, !commit("dedupe") {
                 rollBack()
@@ -47,8 +47,8 @@ extension LibraryStore {
             let ordered = group.sorted(by: Self.olderFirst)
             let keeper = ordered[0]
             for extra in ordered.dropFirst() {
-                if lastPlayed(extra) > lastPlayed(keeper) { keeper.currentPageKey = extra.currentPageKey }
-                append(pages(in: extra).map(LibraryItem.page) + subfolders(of: extra).map(LibraryItem.folder), to: keeper)
+                if lastPlayed(extra) > lastPlayed(keeper) { keeper.currentArticleKey = extra.currentArticleKey }
+                append(articles(in: extra).map(LibraryItem.article) + subfolders(of: extra).map(LibraryItem.folder), to: keeper)
                 if keeper.coverData == nil { keeper.coverData = extra.coverData }
                 mergeChapterRecord(of: extra, into: keeper)
                 log("dedupe folder \(extra.name) → \(keeper.name)")
@@ -60,7 +60,7 @@ extension LibraryStore {
 
     /// When a page in `folder` last played.
     private func lastPlayed(_ folder: Folder) -> Date {
-        pages(in: folder).compactMap(\.lastPlayedAt).max() ?? .distantPast
+        articles(in: folder).compactMap(\.lastPlayedAt).max() ?? .distantPast
     }
 
     /// A book's record of its chapters takes the other copy's chapters it lacks, so *Replace*
@@ -95,10 +95,10 @@ extension LibraryStore {
         }
     }
 
-    /// `Page.folderID` disagreeing with `Page.folder`: the relationship wins.
-    private func repairFolderIDs(_ pages: [Page], _ report: inout DedupeReport) {
-        for page in pages where page.folderID != page.folder?.id {
-            page.folderID = page.folder?.id
+    /// `Article.folderID` disagreeing with `Article.folder`: the relationship wins.
+    private func repairFolderIDs(_ articles: [Article], _ report: inout DedupeReport) {
+        for article in articles where article.folderID != article.folder?.id {
+            article.folderID = article.folder?.id
             report.repairedFolderIDs += 1
         }
     }
@@ -107,12 +107,12 @@ extension LibraryStore {
 
     /// Pages sharing a key or a canonical URL become one, the keeper chosen by: saved over link;
     /// the furthest position; the latest play; the older. The keeper takes in the other
-    /// (`Page.absorb`: what it lacks, the earliest `addedAt` so a save is never lost, the latest
+    /// (`Article.absorb`: what it lacks, the earliest `addedAt` so a save is never lost, the latest
     /// play, the star) and its audio, and its folder when it has none; any place or crash-resume
     /// point on the other's key follows it.
-    private func dedupePages(_ pages: [Page], _ report: inout DedupeReport) {
+    private func dedupeArticles(_ articles: [Article], _ report: inout DedupeReport) {
         // Union by key and by canonical URL.
-        var parent = Array(pages.indices)
+        var parent = Array(articles.indices)
         func root(_ i: Int) -> Int {
             var i = i
             while parent[i] != i { parent[i] = parent[parent[i]]; i = parent[i] }
@@ -120,33 +120,33 @@ extension LibraryStore {
         }
         var byKey: [UUID: Int] = [:]
         var byURL: [String: Int] = [:]
-        for (i, page) in pages.enumerated() {
-            if let key = page.key {
+        for (i, article) in articles.enumerated() {
+            if let key = article.key {
                 if let j = byKey[key] { parent[root(i)] = root(j) } else { byKey[key] = i }
             }
-            if let url = page.canonicalURL, !url.isEmpty {
+            if let url = article.canonicalURL, !url.isEmpty {
                 if let j = byURL[url] { parent[root(i)] = root(j) } else { byURL[url] = i }
             }
         }
-        let groups = Dictionary(grouping: pages.indices, by: root).values.filter { $0.count > 1 }
+        let groups = Dictionary(grouping: articles.indices, by: root).values.filter { $0.count > 1 }
         for group in groups {
-            let members = group.map { pages[$0] }
+            let members = group.map { articles[$0] }
             let keeper = members.min(by: Self.betterKeeper)!
             for extra in members where extra !== keeper {
                 merge(extra, into: keeper)
-                report.mergedPages += 1
+                report.mergedArticles += 1
             }
         }
     }
 
-    private func merge(_ extra: Page, into keeper: Page) {
+    private func merge(_ extra: Article, into keeper: Article) {
         // Folder: the keeper's, else the other's.
         if keeper.folder == nil, let folder = extra.folder {
             keeper.sortKey = extra.sortKey
             keeper.setFolder(folder)
         }
         keeper.absorb(extra)
-        if let from = extra.key, let to = keeper.key, from != to { mergeAudio(from: from, fromPage: extra, into: to, keeper: keeper) }
+        if let from = extra.key, let to = keeper.key, from != to { mergeAudio(from: from, fromArticle: extra, into: to, keeper: keeper) }
         log("dedupe page \(Self.short(extra.key)) → keeper \(Self.short(keeper.key)) (\(keeper.canonicalURL ?? "-"))")
         context.delete(extra)
     }
@@ -154,17 +154,17 @@ extension LibraryStore {
     /// Points every place at the keeper now; once this is saved, `from`'s audio moves under `to`
     /// (per-paragraph hashes decide what is reusable), its pending render is dropped, and the
     /// crash-resume point and the live session follow (`planMerge`).
-    private func mergeAudio(from: UUID, fromPage: Page, into to: UUID, keeper: Page) {
+    private func mergeAudio(from: UUID, fromArticle: Article, into to: UUID, keeper: Article) {
         let folders = (try? context.fetch(FetchDescriptor<Folder>())) ?? []
-        for folder in folders where folder.currentPageKey == from { folder.currentPageKey = to }
-        planMerge(from: from, into: to, fromParagraphs: fromPage.cachedListenParagraphs ?? [],
+        for folder in folders where folder.currentArticleKey == from { folder.currentArticleKey = to }
+        planMerge(from: from, into: to, fromParagraphs: fromArticle.cachedListenParagraphs ?? [],
                   paragraphs: keeper.cachedListenParagraphs ?? [])
     }
 
     // MARK: - Orders
 
     /// Saved over link; the furthest position; the latest play; the older.
-    static func betterKeeper(_ a: Page, _ b: Page) -> Bool {
+    static func betterKeeper(_ a: Article, _ b: Article) -> Bool {
         if a.isSaved != b.isSaved { return a.isSaved }
         if a.positionParagraph != b.positionParagraph { return a.positionParagraph > b.positionParagraph }
         if a.positionUTF16 != b.positionUTF16 { return a.positionUTF16 > b.positionUTF16 }

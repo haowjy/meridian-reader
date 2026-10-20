@@ -14,8 +14,8 @@ struct FavoriteFlow {
     /// tile-sized icon then asks `betterIcon` for one.
     func toggle(url: URL, title: String?, artwork: Data?, betterIcon: @escaping () async -> Data?) {
         guard LibraryStore.canFavorite(url) else { return }
-        if let page = library.favorite(for: url) {
-            remove(page)
+        if let article = library.favorite(for: url) {
+            remove(article)
         } else {
             add(betterIcon: betterIcon) { try library.addFavorite(url: url, title: title, artwork: artwork) }
         }
@@ -23,16 +23,16 @@ struct FavoriteFlow {
 
     /// ☆ in a Library row's menu: a page in the Library (a chapter too) or with a web address
     /// (`LibraryStore.canFavorite(_:)`). A web page without a tile-sized icon gets its site's.
-    func toggle(_ page: Page) {
-        guard LibraryStore.canFavorite(page) else { return }
-        if page.isFavorite {
-            remove(page)
+    func toggle(_ article: Article) {
+        guard LibraryStore.canFavorite(article) else { return }
+        if article.isFavorite {
+            remove(article)
             return
         }
-        let site = page.url.flatMap { LibraryStore.canFavorite($0) ? $0 : nil }
+        let site = article.url.flatMap { LibraryStore.canFavorite($0) ? $0 : nil }
         add(betterIcon: site.map { url in { await FaviconFetcher.best(for: url, webView: nil) } }) { [library] in
-            try library.addFavorite(page)
-            return page
+            try library.addFavorite(article)
+            return article
         }
     }
 
@@ -43,18 +43,18 @@ struct FavoriteFlow {
         said(adding: adding)
     }
 
-    private func remove(_ page: Page) {
-        guard shell.attempt(failure(adding: false), { try library.removeFavorite(page) }) != nil else { return }
+    private func remove(_ article: Article) {
+        guard shell.attempt(failure(adding: false), { try library.removeFavorite(article) }) != nil else { return }
         said(adding: false)
     }
 
-    private func add(betterIcon: (() async -> Data?)?, _ star: () throws -> Page) {
-        guard let page = shell.attempt(failure(adding: true), star) else { return }
+    private func add(betterIcon: (() async -> Data?)?, _ star: () throws -> Article) {
+        guard let article = shell.attempt(failure(adding: true), star) else { return }
         said(adding: true)
-        guard let betterIcon, !FaviconFetcher.isTileSized(page.artworkData) else { return }
+        guard let betterIcon, !FaviconFetcher.isTileSized(article.artworkData) else { return }
         let library = library
         Task {
-            if let icon = await betterIcon() { library.offerArtwork(icon, for: page) }
+            if let icon = await betterIcon() { library.offerArtwork(icon, for: article) }
         }
     }
 

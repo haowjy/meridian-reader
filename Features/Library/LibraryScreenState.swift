@@ -3,7 +3,7 @@ import SwiftUI
 /// Something a folder screen's Edit selects.
 enum LibraryItemID: Hashable {
     case folder(UUID)
-    case page(UUID)
+    case article(UUID)
 }
 
 /// What the Library's screens share with their surface:

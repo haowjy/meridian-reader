@@ -1,9 +1,9 @@
 import Foundation
 import SwiftData
 
-/// What a page holds. Stored as `Page.contentStateRaw`; raw values are persisted.
+/// What a page holds. Stored as `Article.contentStateRaw`; raw values are persisted.
 /// "Audio ready" isn't a state: it depends on the voice, so `ArticleAudioCache` answers it.
-enum PageContentState: String, Codable {
+enum ArticleContentState: String, Codable {
     /// A web address the user chose to keep (a favorite, a followed story's chapter not fetched
     /// yet). Any text it holds is a cache, refreshed when it is played again and cleared by the
     /// prune.
@@ -19,12 +19,12 @@ enum PageContentState: String, Codable {
 /// enforced by `LibraryStore` and the launch dedupe pass rather than `.unique` (CloudKit can't
 /// sync unique constraints).
 @Model
-final class Page {
+final class Article {
     /// The audio cache / listen session key. Copied verbatim from `SavedArticle.id` at migration
     /// and never recomputed: rows saved before identity v2 have random ids, and their audio,
     /// crash resume and pending bakes are keyed by them.
     var key: UUID?
-    /// The title its source gave it, "" when it has none (`PageTitle`): read it as `givenTitle`,
+    /// The title its source gave it, "" when it has none (`ArticleRowTitle`): read it as `givenTitle`,
     /// and name the page in a row or a bar by `lineOne`.
     var title: String = ""
     /// The site domain for web pages; the author for book chapters.
@@ -34,7 +34,7 @@ final class Page {
     var canonicalURL: String?
     /// Book chapters: "href#fragment" of the contents entry.
     var locator: String?
-    var contentStateRaw: String = PageContentState.link.rawValue
+    var contentStateRaw: String = ArticleContentState.link.rawValue
     /// nil = not in the Library: played without saving, or removed (`removedAt`). Pruned 7 days
     /// after it was last played; a removed page never played, at the next launch.
     var addedAt: Date?
@@ -77,7 +77,7 @@ final class Page {
     var fetchStateRaw: String = "none"
     var folder: Folder?
 
-    init(key: UUID, title: String?, byline: String, urlString: String?, contentState: PageContentState,
+    init(key: UUID, title: String?, byline: String, urlString: String?, contentState: ArticleContentState,
          addedAt: Date?, sortKey: Double = 0, artworkData: Data? = nil) {
         self.key = key
         self.title = title ?? ""
@@ -90,8 +90,8 @@ final class Page {
         self.artworkData = artworkData
     }
 
-    var contentState: PageContentState {
-        get { PageContentState(rawValue: contentStateRaw) ?? .link }
+    var contentState: ArticleContentState {
+        get { ArticleContentState(rawValue: contentStateRaw) ?? .link }
         set { contentStateRaw = newValue.rawValue }
     }
 
@@ -119,10 +119,10 @@ final class Page {
         return byline
     }
 
-    /// What names it in one line (a row, a tile, the bar, a download): `PageTitle.lineOne`.
-    var lineOne: String { PageTitle.lineOne(title: givenTitle, source: source, address: urlString) }
-    /// What its artwork's letter stands for: `PageTitle.artworkLetter`.
-    var artworkLetter: String { PageTitle.artworkLetter(title: givenTitle, source: source, address: urlString) }
+    /// What names it in one line (a row, a tile, the bar, a download): `ArticleRowTitle.lineOne`.
+    var lineOne: String { ArticleRowTitle.lineOne(title: givenTitle, source: source, address: urlString) }
+    /// What its artwork's letter stands for: `ArticleRowTitle.artworkLetter`.
+    var artworkLetter: String { ArticleRowTitle.artworkLetter(title: givenTitle, source: source, address: urlString) }
 
     var cleanedHTML: String {
         get { bodyHTML.flatMap { String(data: $0, encoding: .utf8) } ?? "" }
@@ -146,7 +146,7 @@ final class Page {
 
 // MARK: - Two records of one page
 
-extension Page {
+extension Article {
     /// Takes in `other`, another record of this page that is about to be deleted (dedupe's
     /// duplicate, or the chapter *Replace* finds under a new key), so nothing either one held is
     /// lost: its text, listen paragraphs, icon, address and key where this one has none; saved if
@@ -154,7 +154,7 @@ extension Page {
     /// play; its spot when this one has none, and finished if either is; starred, and skipped in
     /// playback, if either is. Where the page sits (its folder and order) is the caller's: dedupe
     /// and *Replace* place it by different rules.
-    func absorb(_ other: Page) {
+    func absorb(_ other: Article) {
         if !hasText, other.hasText {
             bodyHTML = other.bodyHTML
             plainTextData = other.plainTextData
@@ -188,7 +188,7 @@ extension Page {
 
 // MARK: - Its text
 
-extension Page {
+extension Article {
     /// The page's reading text: the cleaned HTML, the plain text, the excerpt and the listen
     /// paragraphs (with their count and language), and the words in the plain text (`WordCount`).
     /// Every text write goes through here: a web page saved or played, a chapter imported or

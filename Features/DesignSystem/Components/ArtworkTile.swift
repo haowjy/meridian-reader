@@ -7,7 +7,7 @@ import SwiftUI
 struct ArtworkTile: View {
     /// The image, when there is one (a favicon, a cover).
     var image: Image?
-    /// What the letter stands for (a page's `PageTitle.artworkLetter`, a folder's name): the tile
+    /// What the letter stands for (a page's `ArticleRowTitle.artworkLetter`, a folder's name): the tile
     /// shows its first letter or digit, a leading "www." skipped ("www.example.com" → "E").
     let letter: String
     var size: CGFloat = 36

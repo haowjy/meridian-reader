@@ -5,7 +5,7 @@ import SwiftUI
 /// (`rows`). Which options show where, in what order and greyed or not is `MenuRegistry`'s
 /// (docs/MENUS.md); this gives each its title, symbol and action. Built only when the menu opens:
 /// rows pass this view, never its `rows`, so nothing here runs on a row's redraw.
-struct PageMenu: View {
+struct ArticleMenu: View {
     /// Where the menu opens.
     enum Place {
         /// A Library list's row (every tab, search, a folder's screen).
@@ -44,7 +44,7 @@ struct PageMenu: View {
         let action: () -> Void
     }
 
-    let actions: PageActions
+    let actions: ArticleActions
     let place: Place
 
     var body: some View {
@@ -55,30 +55,30 @@ struct PageMenu: View {
 
     /// The page's state as the registry reads it.
     var facts: MenuRegistry.Facts {
-        let page = actions.page
+        let article = actions.article
         var facts = MenuRegistry.Facts()
-        facts.hasTarget = page != nil || actions.url != nil
-        facts.hasPage = page != nil
+        facts.hasTarget = article != nil || actions.url != nil
+        facts.hasPage = article != nil
         facts.inLibrary = actions.isInLibrary
         facts.isSaved = actions.isSaved
         facts.offersSave = actions.offersSave
         facts.canSave = actions.canSave
-        facts.inFolder = page?.folder != nil
-        facts.canPlay = actions.isSaved || page?.isWaitingChapter == true
+        facts.inFolder = article?.folder != nil
+        facts.canPlay = actions.isSaved || article?.isWaitingChapter == true
         facts.canFavorite = actions.canFavorite
         facts.hasShareURL = actions.shareURL != nil
-        facts.inRecent = !facts.inLibrary && page.map(LibraryQueries.isInRecent) == true
+        facts.inRecent = !facts.inLibrary && article.map(LibraryQueries.isInRecent) == true
         if case .nowPlaying(let goTo) = place { facts.goToEnabled = goTo.availability == .enabled }
         if case .bar(let onStop) = place { facts.isLoaded = onStop != nil }
         return facts
     }
 
     var blocks: [[MenuRow]] {
-        MenuRegistry.blocks(.page, at: place.registryPlace, facts, row: row)
+        MenuRegistry.blocks(.article, at: place.registryPlace, facts, row: row)
     }
 
     private func row(_ option: MenuRegistry.Option) -> MenuRow {
-        let page = actions.page
+        let article = actions.article
         let library = actions.libraryActions
         let offersSave = actions.offersSave
         switch option {
@@ -101,23 +101,23 @@ struct PageMenu: View {
             return MenuRow(id: "menuMove", title: offersSave ? Verbs.saveToFolder : Verbs.moveTo, icon: Icons.move,
                            action: actions.saveToFolder)
         case .finished:
-            let isFinished = page?.finishedAt != nil
+            let isFinished = article?.finishedAt != nil
             return MenuRow(id: "menuFinished", title: isFinished ? Verbs.markUnfinished : Verbs.markFinished,
                            icon: isFinished ? Icons.markUnfinished : Icons.markFinished) {
-                if let page { library.setFinished([page], !isFinished) }
+                if let article { library.setFinished([article], !isFinished) }
             }
         case .playback:
             return MenuRow(id: "menuPlayback", title: Verbs.playback, icon: Icons.playback)
         case .markAllAbove:
             return MenuRow(id: "menuMarkAllAbove", title: Verbs.markAllAboveFinished, icon: Icons.markAllAboveFinished) {
-                if let page { library.markAllAbove(page) }
+                if let article { library.markAllAbove(article) }
             }
         case .skip:
             // A waiting chapter too: one whose text can't be had is skipped so playback goes past it.
-            let skips = page?.skipsInPlayback == true
+            let skips = article?.skipsInPlayback == true
             return MenuRow(id: "menuSkip", title: skips ? Verbs.playInPlayback : Verbs.skipInPlayback,
                            icon: skips ? Icons.includeInPlayback : Icons.skipInPlayback) {
-                if let page { library.toggleSkipsInPlayback(page) }
+                if let article { library.toggleSkipsInPlayback(article) }
             }
         case .share:
             return MenuRow(id: "menuShare", title: Verbs.share, icon: Icons.share, action: actions.share)
@@ -144,9 +144,9 @@ struct PageMenu: View {
     /// A list row's swipe, without building the menu: *Remove from Library* in the Library,
     /// *Remove from Recent* out of it (the menu's own rows, the same action). Cheap: it reads
     /// only the page's flags; the action is made when the swipe runs.
-    static func swipe(for page: Page, actions: @escaping () -> PageActions) -> MenuRow? {
-        let inLibrary = page.isInLibrary
-        guard inLibrary || page.lastPlayedAt != nil else { return nil }
+    static func swipe(for article: Article, actions: @escaping () -> ArticleActions) -> MenuRow? {
+        let inLibrary = article.isInLibrary
+        guard inLibrary || article.lastPlayedAt != nil else { return nil }
         return MenuRow(id: inLibrary ? "menuSave" : "menuRemoveFromRecent",
                        title: inLibrary ? Verbs.removeFromLibrary : Verbs.removeFromRecent,
                        icon: inLibrary ? Icons.unsave : Icons.removeFromRecent, isDestructive: true) {
@@ -156,18 +156,18 @@ struct PageMenu: View {
     }
 }
 
-extension PageActions {
+extension ArticleActions {
     /// The ⋯ panel of the Reader and Now Playing (decision D24): the page's menu, then *Downloads*
     /// and *Settings*, then `[Favorites][History][Website]`. *Website* is the page's own web page
     /// in the browser, wherever the sheet was opened from; playback keeps going.
-    func readingPageMenu(_ place: PageMenu.Place) -> MenuContext {
+    func readingPageMenu(_ place: ArticleMenu.Place) -> MenuContext {
         let website = MenuRow(id: "moreWebsite", title: String(localized: "Website"), icon: Icons.browser,
                               availability: MenuAvailability(when: websiteURL != nil),
                               accessibilityLabel: String(localized: "View Website"),
                               accessibilityHint: String(localized: "Opens the page in the browser")) { [self] in
             if let websiteURL { shell.openWebsite(websiteURL) }
         }
-        return MenuContext(item: PageMenu(actions: self, place: place).rows, screen: MenuContext.screenRows(at: place.registryPlace, shell: shell),
+        return MenuContext(item: ArticleMenu(actions: self, place: place).rows, screen: MenuContext.screenRows(at: place.registryPlace, shell: shell),
                            tiles: MenuContext.tiles(shell, last: website), isOnReadingPage: true)
     }
 }

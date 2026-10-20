@@ -14,31 +14,31 @@ struct LibraryHomeView: View {
     @Environment(ShellState.self) private var shell
 
     @Query private var queriedFolders: [Folder]
-    @Query private var queriedPages: [Page]
+    @Query private var queriedArticles: [Article]
     let tab: LibraryHomeTab
     /// The band's search text ("" when not searching).
     let searchText: String
 
     private var isFiltered: Bool { tab != .everything || !searchText.isEmpty }
 
-    init(pageSort: PageSort, tab: LibraryHomeTab, searchText: String) {
+    init(articleSort: ArticleSort, tab: LibraryHomeTab, searchText: String) {
         self.tab = tab
         self.searchText = searchText
         if !searchText.isEmpty {
             _queriedFolders = Query(LibraryQueries.searchFolders(searchText, in: tab))
-            _queriedPages = Query(LibraryQueries.searchPages(searchText, in: tab))
+            _queriedArticles = Query(LibraryQueries.searchArticles(searchText, in: tab))
             return
         }
         switch tab {
         case .everything:
             _queriedFolders = Query(LibraryQueries.folders)
-            _queriedPages = Query(LibraryQueries.loosePages(sort: pageSort))
+            _queriedArticles = Query(LibraryQueries.looseArticles(sort: articleSort))
         case .favorites:
             _queriedFolders = Query(LibraryQueries.favoriteFolders)
-            _queriedPages = Query(LibraryQueries.favoritePages)
+            _queriedArticles = Query(LibraryQueries.favoriteArticles)
         case .recent:
             _queriedFolders = Query(LibraryQueries.noFolders)
-            _queriedPages = Query(LibraryQueries.recent)
+            _queriedArticles = Query(LibraryQueries.recent)
         }
     }
 
@@ -50,14 +50,14 @@ struct LibraryHomeView: View {
         return LibraryStore.ordered(tab == .everything ? LibraryQueries.topLevel(live) : live)
     }
 
-    private var pages: [Page] {
-        queriedPages.filter(\.isLive)
+    private var articles: [Article] {
+        queriedArticles.filter(\.isLive)
     }
 
     var body: some View {
         @Bindable var shell = shell
         let folders = folders
-        let pages = pages
+        let articles = articles
         List {
             Section {
                 EmptyView()
@@ -81,13 +81,13 @@ struct LibraryHomeView: View {
                 }
                 .listRowInsets(EdgeInsets())
                 .listCard()
-                ForEach(pages, id: \.listenKey) { page in
-                    LibraryPageRow(page: page)
+                ForEach(articles, id: \.listenKey) { article in
+                    LibraryArticleRow(article: article)
                 }
                 .listRowInsets(EdgeInsets())
                 .listCard()
             }
-            if folders.isEmpty && pages.isEmpty {
+            if folders.isEmpty && articles.isEmpty {
                 Section { emptyState }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
@@ -96,7 +96,7 @@ struct LibraryHomeView: View {
         .cardListStyle()
         .statusBarBacking()
         .environment(\.libraryScreenKey, isFiltered ? .filtered(under: nil) : .home)
-        .animation(Motion.standard, value: pages.map(\.listenKey))
+        .animation(Motion.standard, value: articles.map(\.listenKey))
         .navigationTitle(Verbs.library)
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityIdentifier("libraryHome")
@@ -148,11 +148,11 @@ struct LibraryHomeView: View {
 enum LibraryTopLevel {
     static let sortKey = "library.topLevel.sort"
     static let storedKeys = [sortKey]
-    static let defaultSort = PageSort.newest
+    static let defaultSort = ArticleSort.newest
 
     /// The sort, outside a view (views read it through `@AppStorage(sortKey)`).
-    static var sort: PageSort {
-        get { UserDefaults.standard.string(forKey: sortKey).flatMap(PageSort.init(rawValue:)) ?? defaultSort }
+    static var sort: ArticleSort {
+        get { UserDefaults.standard.string(forKey: sortKey).flatMap(ArticleSort.init(rawValue:)) ?? defaultSort }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: sortKey) }
     }
 }

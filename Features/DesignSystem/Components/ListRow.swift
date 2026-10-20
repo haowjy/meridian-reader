@@ -44,7 +44,7 @@ struct ListRow: View {
         /// folder whose pages play, whose second line is its place and time left.
         case folder(symbol: String = Icons.folder, count: [String], cover: Image? = nil)
         /// A saved page: its site icon (or a letter tile).
-        case page(artwork: Image? = nil, letter: String)
+        case article(artwork: Image? = nil, letter: String)
         /// A chapter in a book's preview: its title alone, after an empty mark's width.
         case chapter
         /// A page that is only an address so far (a link ☆ made, a chapter not fetched).
@@ -408,7 +408,7 @@ struct ListRow: View {
                 Image(systemName: symbol).tileSymbol().foregroundStyle(Palette.accent)
                     .frame(width: thumbnailSide, height: thumbnailSide)
             }
-        case .page(let artwork, let letter):
+        case .article(let artwork, let letter):
             ArtworkTile(image: artwork, letter: letter, size: thumbnailSide, fill: Palette.paper)
         case .chapter:
             Color.clear
@@ -466,7 +466,7 @@ struct ListRowGallery: View {
                 ListRow(kind: .folder(count: ["4 pages"]), title: "Bonds", isDropTarget: true, menu: menu)
             }
             PreviewState("a page with a dragged row about to be placed above it") {
-                ListRow(kind: .page(letter: "M"), title: "Money Market Funds", subtitle: "investing.example.com",
+                ListRow(kind: .article(letter: "M"), title: "Money Market Funds", subtitle: "investing.example.com",
                         progress: .unplayed(minutes: 12), insertionEdge: .top, menu: menu)
             }
             PreviewState("book: unplayed, part-way and downloading, playing and downloaded") {
@@ -480,29 +480,29 @@ struct ListRowGallery: View {
                         download: .downloaded, menu: menu)
             }
             PreviewState("page: not downloaded, downloading, downloaded") {
-                ListRow(kind: .page(letter: "N"), title: "Notes on Tides", subtitle: "example.org",
+                ListRow(kind: .article(letter: "N"), title: "Notes on Tides", subtitle: "example.org",
                         progress: .unplayed(minutes: 18), menu: menu)
-                ListRow(kind: .page(letter: "N"), title: "Notes on Tides", subtitle: "example.org",
+                ListRow(kind: .article(letter: "N"), title: "Notes on Tides", subtitle: "example.org",
                         progress: .unplayed(minutes: 18), download: .downloading(fraction: 0.4), menu: menu)
-                ListRow(kind: .page(letter: "N"), title: "Notes on Tides", subtitle: "example.org",
+                ListRow(kind: .article(letter: "N"), title: "Notes on Tides", subtitle: "example.org",
                         progress: .unplayed(minutes: 18), download: .downloaded, menu: menu)
             }
             PreviewState("page: part-way, playing, paused while downloading, finished") {
-                ListRow(kind: .page(letter: "S"), title: "Seven-Day Yield: Definition, Calculation, and Example",
+                ListRow(kind: .article(letter: "S"), title: "Seven-Day Yield: Definition, Calculation, and Example",
                         subtitle: "investing.example.com", progress: .partWay(fraction: 0.4, minutesLeft: 6),
                         download: .downloaded, menu: menu)
-                ListRow(kind: .page(letter: "C"), title: "Coupon Basics", subtitle: "example.com",
+                ListRow(kind: .article(letter: "C"), title: "Coupon Basics", subtitle: "example.com",
                         progress: .partWay(fraction: 0.58, minutesLeft: 9), playState: .playing, download: .downloaded,
                         menu: menu)
-                ListRow(kind: .page(letter: "C"), title: "Coupon Basics", subtitle: "example.com",
+                ListRow(kind: .article(letter: "C"), title: "Coupon Basics", subtitle: "example.com",
                         progress: .partWay(fraction: 0.58, minutesLeft: 9), playState: .paused,
                         download: .downloading(fraction: 0.1), menu: menu)
-                ListRow(kind: .page(letter: "B"), title: "Bond Ladders", subtitle: "example.com", progress: .finished,
+                ListRow(kind: .article(letter: "B"), title: "Bond Ladders", subtitle: "example.com", progress: .finished,
                         menu: menu)
             }
             PreviewState("in a folder: skipped; in Edit (no ⋯)") {
-                ListRow(kind: .page(letter: "T"), title: "Title Page", progress: .skipped, menu: menu)
-                ListRow(kind: .page(letter: "I"), title: "Index Funds", progress: .unplayed(minutes: 12))
+                ListRow(kind: .article(letter: "T"), title: "Title Page", progress: .skipped, menu: menu)
+                ListRow(kind: .article(letter: "I"), title: "Index Funds", progress: .unplayed(minutes: 12))
             }
             PreviewState("a book's chapters before import") {
                 VStack(spacing: 0) {

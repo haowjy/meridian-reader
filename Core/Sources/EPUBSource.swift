@@ -5,7 +5,7 @@ import Foundation
 /// blocks (`BookChapterFinalizer`). Everything is prepared up front, so the pages and keys it
 /// hands out are final before the library keeps any of them.
 @MainActor
-final class EPUBSource: PageSource {
+final class EPUBSource: ArticleSource {
     let book: EPUBBook
     let folderDetails: FolderDetails
     let chapters: [PreparedChapter]
@@ -42,20 +42,20 @@ final class EPUBSource: PageSource {
         return EPUBSource(book: book, details: details, chapters: BookChapterFinalizer.finalize(prepared, bar: bar))
     }
 
-    func knownPages() async throws -> [PageRef] {
+    func knownArticles() async throws -> [ArticleRef] {
         chapters.indices.map(ref(at:))
     }
 
-    func content(of ref: PageRef) async throws -> PageContent {
-        guard let chapter = chapters.first(where: { $0.key == ref.key }) else { throw PageSourceError.unknownPage }
+    func content(of ref: ArticleRef) async throws -> ArticleContent {
+        guard let chapter = chapters.first(where: { $0.key == ref.key }) else { throw ArticleSourceError.unknownArticle }
         let text = chapter.document.paragraphs.joined(separator: "\n\n")
-        return PageContent(ref: ref, title: chapter.title, bodyHTML: chapter.html, plainText: text,
+        return ArticleContent(ref: ref, title: chapter.title, bodyHTML: chapter.html, plainText: text,
                            excerpt: String(text.prefix(140)), languageCode: book.metadata.language)
     }
 
-    private func ref(at index: Int) -> PageRef {
+    private func ref(at index: Int) -> ArticleRef {
         let chapter = chapters[index]
-        return PageRef(key: chapter.key, locator: .book(chapter.locator), ordinal: index,
+        return ArticleRef(key: chapter.key, locator: .book(chapter.locator), ordinal: index,
                        skipsInPlayback: chapter.skipsInPlayback)
     }
 }
@@ -72,8 +72,8 @@ struct BookSourceState: Codable, Equatable {
 }
 
 extension EPUBLocator {
-    /// "href#fragment", or the href alone (`Page.locator`).
-    var pageLocator: String {
+    /// "href#fragment", or the href alone (`Article.locator`).
+    var articleLocator: String {
         fragment.map { "\(href)#\($0)" } ?? href
     }
 }

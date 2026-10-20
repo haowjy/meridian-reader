@@ -6,7 +6,7 @@ import Observation
 /// queue: `FollowCenter.fill`) and its whole audio rendered ahead in the download voice. The list
 /// is kept on the device (`DownloadListStore`) and worked through in order, one page at a time. A
 /// folder's download is its Download toggle: on, the pages added to the folder later join it
-/// (`takeInNewPages`); off, nothing new joins and what is downloaded stays.
+/// (`takeInNewArticles`); off, nothing new joins and what is downloaded stays.
 ///
 /// It renders nothing itself: each page's audio is an ordinary bake job in the one render queue
 /// (`DownloadRendering.queueDownload`), so the article playing and the chapter staged after it
@@ -63,7 +63,7 @@ final class DownloadCenter {
     @ObservationIgnored private let runState: AppRunState
     /// A link page's text, fetched and stored in place (`FollowCenter.fill` in the app): why it
     /// couldn't be had, nil once it is in.
-    @ObservationIgnored private let fill: (Page) async -> String?
+    @ObservationIgnored private let fill: (Article) async -> String?
     /// Listening needs a page's audio and its render job now: it is the page bound to the session
     /// (playing, paused or finished), or the chapter staged to play after it. Nothing Downloads
     /// does takes either away.
@@ -78,7 +78,7 @@ final class DownloadCenter {
     /// The composition tells it of each render-queue change (`scheduleCheck`) and each stored
     /// library edit (`followLibrary`); it acts on them once started.
     init(library: LibraryStore, rendering: any DownloadRendering, store: DownloadListStore = DownloadListStore(),
-         runState: AppRunState = .shared, fill: @escaping (Page) async -> String?,
+         runState: AppRunState = .shared, fill: @escaping (Article) async -> String?,
          needsAudio: @escaping (UUID) -> Bool) {
         self.library = library
         self.rendering = rendering
@@ -127,8 +127,8 @@ final class DownloadCenter {
     }
 
     /// The Downloads list by page (C110).
-    var pageOverview: DownloadPages {
-        DownloadPages(records: records, active: activeProgress, currentVoice: rendering.downloadVoice,
+    var pageOverview: DownloadArticles {
+        DownloadArticles(records: records, active: activeProgress, currentVoice: rendering.downloadVoice,
                       rendersDownloads: rendering.wantsLocalBake) { rendering.renderedVoice(of: $0) }
     }
 
@@ -141,10 +141,10 @@ final class DownloadCenter {
 
     /// The download covering `target` is still to finish.
     func isQueued(_ target: DownloadRecord.Target) -> Bool {
-        record(for: target)?.hasQueuedPages == true
+        record(for: target)?.hasQueuedArticles == true
     }
 
-    /// Where `page`'s download stands, the one answer its row's mark and the *Download* /
+    /// Where `article`'s download stands, the one answer its row's mark and the *Download* /
     /// *Remove Download* rows (its row's menu, the Reader's and Now Playing's ⋯) read: while any
     /// download (its own or its folder's) has it queued, downloading with its real progress
     /// (paragraphs rendered of its total) when it is the page rendering now, waiting its turn
@@ -152,9 +152,9 @@ final class DownloadCenter {
     /// downloaded (a re-download in flight). Downloaded by the Downloads list's own rule
     /// (`DownloadOverview.isDownloaded`), which audio rendered only by listening never meets. A
     /// page out of the Library has no download.
-    func state(of page: Page) -> DownloadState {
-        guard page.isInLibrary else { return .notDownloaded }
-        let key = page.listenKey
+    func state(of article: Article) -> DownloadState {
+        guard article.isInLibrary else { return .notDownloaded }
+        let key = article.listenKey
         let holding = records.filter { $0.entries.contains { $0.key == key && $0.state == .queued } }
         if !holding.isEmpty {
             if holding.allSatisfy(\.isPaused) { return .paused(fraction: 0) }
@@ -167,16 +167,16 @@ final class DownloadCenter {
     /// Where `folder`'s download stands, for its row and its header: downloading while its
     /// download has pages queued (paused included), by the Downloads list's figure
     /// (`DownloadOverview.fraction`); downloaded when every page it covers is (`covers`; with none
-    /// to cover, while its toggle is on). `pages`: its pages in play order (a row passes what it
+    /// to cover, while its toggle is on). `articles`: its pages in play order (a row passes what it
     /// already holds, so this fetches nothing; the cache's indexes are in memory).
-    func state(of folder: Folder, pages: [Page]) -> DownloadState {
+    func state(of folder: Folder, articles: [Article]) -> DownloadState {
         let record = record(for: .folder(folder.id))
-        if let record, record.hasQueuedPages {
+        if let record, record.hasQueuedArticles {
             let fraction = DownloadOverview.fraction(of: record, active: activeProgress)
             if record.isPaused { return .paused(fraction: fraction) }
             return active?.recordID == record.id ? .downloading(fraction: fraction) : .queued(fraction: fraction)
         }
-        let keys = pages.filter { Self.covers($0, in: folder) }.map(\.listenKey)
+        let keys = articles.filter { Self.covers($0, in: folder) }.map(\.listenKey)
         if keys.isEmpty { return record?.followsFolder == true ? .downloaded : .notDownloaded }
         return isDownloaded(keys) ? .downloaded : .notDownloaded
     }
@@ -189,12 +189,12 @@ final class DownloadCenter {
 
     /// Something of `folder` is downloading or has audio kept: its *Remove Downloads* can run.
     /// Cached per page (`audioKnown`), cleared whenever a download changes.
-    func hasDownloads(_ folder: Folder, pages: [Page]) -> Bool {
+    func hasDownloads(_ folder: Folder, articles: [Article]) -> Bool {
         if isQueued(.folder(folder.id)) { return true }
-        return pages.contains { page in
-            let key = page.listenKey
+        return articles.contains { article in
+            let key = article.listenKey
             if let known = audioKnown[key] { return known }
-            let has = library.hasDownloads(page)
+            let has = library.hasDownloads(article)
             audioKnown[key] = has
             return has
         }
@@ -224,8 +224,8 @@ final class DownloadCenter {
         defer { lastSample = (key, missing, now) }
         guard let last = lastSample, last.key == key, missing < last.missing else { return }
         let seconds = now.timeIntervalSince(last.at)
-        guard seconds > 0.2, seconds < 60, let page = library.page(key: key), page.wordCount > 0 else { return }
-        let words = Double(last.missing - missing) * Double(page.wordCount) / Double(max(paragraphs.count, 1))
+        guard seconds > 0.2, seconds < 60, let article = library.article(key: key), article.wordCount > 0 else { return }
+        let words = Double(last.missing - missing) * Double(article.wordCount) / Double(max(paragraphs.count, 1))
         let measured = min(max(words / seconds, 0.5), 500)
         wordsPerSecond = wordsPerSecond * 0.8 + measured * 0.2
         UserDefaults.standard.set(wordsPerSecond, forKey: Self.rateKey)
@@ -235,7 +235,7 @@ final class DownloadCenter {
     private func wordsLeft(in record: DownloadRecord) -> Double {
         var words = 0.0
         for entry in record.entries where entry.state == .queued {
-            let count = Double(library.page(key: entry.key)?.wordCount ?? 0)
+            let count = Double(library.article(key: entry.key)?.wordCount ?? 0)
             if let progress = activeProgress, progress.recordID == record.id, progress.key == entry.key {
                 words += count * (1 - progress.fraction)
             } else {
@@ -248,7 +248,7 @@ final class DownloadCenter {
     /// Seconds of rendering (with the app open) `record` still needs; nil when it has nothing
     /// queued.
     func renderSecondsLeft(_ record: DownloadRecord) -> TimeInterval? {
-        guard record.hasQueuedPages else { return nil }
+        guard record.hasQueuedArticles else { return nil }
         return wordsLeft(in: record) / wordsPerSecond
     }
 
@@ -271,25 +271,25 @@ final class DownloadCenter {
 
     /// A page's own Download. A page whose downloads were deleted from its folder's download
     /// (P8) is taken back into it too.
-    func download(_ page: Page) -> Request {
-        if let folder = page.folder, let record = record(for: .folder(folder.id)), record.deleted.contains(page.listenKey) {
-            withRecord(record.id) { $0.deleted.removeAll { $0 == page.listenKey } }
-            takeInNewPages()
+    func download(_ article: Article) -> Request {
+        if let folder = article.folder, let record = record(for: .folder(folder.id)), record.deleted.contains(article.listenKey) {
+            withRecord(record.id) { $0.deleted.removeAll { $0 == article.listenKey } }
+            takeInNewArticles()
         }
-        return request(.page(page.listenKey))
+        return request(.article(article.listenKey))
     }
 
     /// A folder's Download, its toggle turned on: every page it covers is queued (its deleted
     /// ones too, P8), and the pages added later join. With the toggle off and every page it
     /// covers downloaded already (its header's filled ↓), the toggle only goes back on (`turnOn`).
     func download(_ folder: Folder) -> Request {
-        if !isOn(folder), state(of: folder, pages: library.pages(in: folder)) == .downloaded { return turnOn(folder) }
+        if !isOn(folder), state(of: folder, articles: library.articles(in: folder)) == .downloaded { return turnOn(folder) }
         return request(.folder(folder.id))
     }
 
     /// The toggle back on over a folder that is all downloaded: its download follows the folder
     /// again, unpaused, its finished pages and its *Keep* as they were, so nothing is checked or
-    /// rendered again. Pages it doesn't list yet join, queued (`takeInNewPages`; with no download
+    /// rendered again. Pages it doesn't list yet join, queued (`takeInNewArticles`; with no download
     /// of the folder's own, every page, each already downloaded by its own download, so its turn
     /// is over at once).
     private func turnOn(_ folder: Folder) -> Request {
@@ -302,7 +302,7 @@ final class DownloadCenter {
         } else {
             records.append(DownloadRecord(target: .folder(folder.id), title: folder.name, addedAt: Date(), entries: []))
         }
-        takeInNewPages()
+        takeInNewArticles()
         advance()
         return isQueued(.folder(folder.id)) ? .added : .waitingForNew
     }
@@ -323,13 +323,13 @@ final class DownloadCenter {
 
     private func request(_ target: DownloadRecord.Target) -> Request {
         let existing = record(for: target)
-        if let existing, existing.hasQueuedPages {
+        if let existing, existing.hasQueuedArticles {
             guard existing.isPaused else { return .alreadyQueued }
             withRecord(existing.id) { $0.isPaused = false }
             advance()
             return .resumed
         }
-        guard let (title, keys) = pages(of: target) else { return .nothingToDownload }
+        guard let (title, keys) = articles(of: target) else { return .nothingToDownload }
         // A folder's toggle turns on with nothing in it yet; a page's download needs the page.
         guard !keys.isEmpty || target.isFolder else { return .nothingToDownload }
         if let existing {
@@ -346,29 +346,29 @@ final class DownloadCenter {
 
     /// The pages a download covers, in play order: a page itself; a book's or story's chapters
     /// that play and aren't finished; any other folder's own pages in its sort.
-    private func pages(of target: DownloadRecord.Target) -> (String, [UUID])? {
+    private func articles(of target: DownloadRecord.Target) -> (String, [UUID])? {
         switch target {
-        case .page(let key):
-            guard let page = library.page(key: key) else { return nil }
-            return (page.lineOne, [page.listenKey])
+        case .article(let key):
+            guard let article = library.article(key: key) else { return nil }
+            return (article.lineOne, [article.listenKey])
         case .folder(let id):
             guard let folder = library.folder(id: id) else { return nil }
-            let pages = library.pages(in: folder).filter { Self.covers($0, in: folder) }
-            return (folder.name, pages.map(\.listenKey))
+            let articles = library.articles(in: folder).filter { Self.covers($0, in: folder) }
+            return (folder.name, articles.map(\.listenKey))
         }
     }
 
     /// A folder's download covers its pages that play; a book's or story's only while unfinished
     /// (D7 trims finished chapters' audio).
-    static func covers(_ page: Page, in folder: Folder) -> Bool {
-        !page.skipsInPlayback && !(folder.kind.isBookOrSeries && page.finishedAt != nil)
+    static func covers(_ article: Article, in folder: Folder) -> Bool {
+        !article.skipsInPlayback && !(folder.kind.isBookOrSeries && article.finishedAt != nil)
     }
 
     /// The list's line, the Library's (`LibraryQueries`): a download is listed while what it
     /// downloads is in the Library. A page removed from it (still kept for what plays) isn't.
     private func isInLibrary(_ target: DownloadRecord.Target) -> Bool {
         switch target {
-        case .page(let key): library.page(key: key)?.isInLibrary == true
+        case .article(let key): library.article(key: key)?.isInLibrary == true
         case .folder(let id): library.folder(id: id) != nil
         }
     }
@@ -377,22 +377,22 @@ final class DownloadCenter {
     /// deleted) leave the list, and the page rendering for one stops; so does a folder download's
     /// page that left the Library, whose entry then fails as no longer in it. Their audio is the
     /// library's to keep or delete (a removed page's is ephemeral already, a deleted one's is
-    /// gone). Folders with Download on take in the pages added to them (`takeInNewPages`).
+    /// gone). Folders with Download on take in the pages added to them (`takeInNewArticles`).
     func followLibrary() {
         guard isStarted else { return }
         let gone = Set(records.filter { !isInLibrary($0.target) }.map(\.id))
-        if let active, gone.contains(active.recordID) || !isInLibrary(.page(active.key)) { stopActive() }
+        if let active, gone.contains(active.recordID) || !isInLibrary(.article(active.key)) { stopActive() }
         updateRecords { records in records.removeAll { gone.contains($0.id) } }
-        takeInNewPages()
+        takeInNewArticles()
         advance()
     }
 
     /// Each folder with Download on: its pages not in its download yet, and not deleted from it,
     /// join it at the end, queued.
-    private func takeInNewPages() {
+    private func takeInNewArticles() {
         let joining = records.compactMap { record -> (UUID, [UUID])? in
             guard record.followsFolder, case .folder(let id) = record.target, let folder = library.folder(id: id) else { return nil }
-            let new = record.joining(library.pages(in: folder).filter { Self.covers($0, in: folder) }.map(\.listenKey))
+            let new = record.joining(library.articles(in: folder).filter { Self.covers($0, in: folder) }.map(\.listenKey))
             return new.isEmpty ? nil : (record.id, new)
         }
         guard !joining.isEmpty else { return }
@@ -416,7 +416,7 @@ final class DownloadCenter {
     /// Pause or resume everything still queued.
     func setAllPaused(_ paused: Bool) {
         updateRecords { records in
-            for index in records.indices where records[index].hasQueuedPages { records[index].isPaused = paused }
+            for index in records.indices where records[index].hasQueuedArticles { records[index].isPaused = paused }
         }
         if paused, active != nil { stopActive() }
         advance()
@@ -429,8 +429,8 @@ final class DownloadCenter {
     func remove(_ id: UUID) {
         guard let index = records.firstIndex(where: { $0.id == id }) else { return }
         switch records[index].target {
-        case .page(let key):
-            if let page = library.page(key: key) { return deleteDownloads(of: page) }
+        case .article(let key):
+            if let article = library.article(key: key) { return deleteDownloads(of: article) }
         case .folder(let folderID):
             if let folder = library.folder(id: folderID) { return deleteDownloads(of: folder) }
         }
@@ -445,7 +445,7 @@ final class DownloadCenter {
     /// plays until each paragraph is replaced).
     func redownload(_ id: UUID) {
         guard let record = records.first(where: { $0.id == id }),
-              let (title, keys) = pages(of: record.target), !keys.isEmpty else { return }
+              let (title, keys) = articles(of: record.target), !keys.isEmpty else { return }
         if active?.recordID == id { stopActive() }
         withRecord(id) {
             $0.title = title
@@ -456,7 +456,7 @@ final class DownloadCenter {
 
     /// *Re-download* on one page of the list (C110): its turn comes again in every download that
     /// holds it, rendered in the download voice.
-    func redownload(page key: UUID) {
+    func redownload(article key: UUID) {
         updateRecords { records in
             for r in records.indices {
                 for e in records[r].entries.indices where records[r].entries[e].key == key {
@@ -478,12 +478,12 @@ final class DownloadCenter {
     /// longer lists it, so the folder shows as not all downloaded, and nothing renders it again
     /// until it is played or Download is tapped (the page's, or the folder's, which lists the
     /// folder's pages again).
-    func deleteDownloads(of page: Page) {
-        forget([page.listenKey])
-        if let folder = page.folder, let record = record(for: .folder(folder.id)) {
-            withRecord(record.id) { $0.deleted.append(page.listenKey) }
+    func deleteDownloads(of article: Article) {
+        forget([article.listenKey])
+        if let folder = article.folder, let record = record(for: .folder(folder.id)) {
+            withRecord(record.id) { $0.deleted.append(article.listenKey) }
         }
-        purgeAudio([page.listenKey])
+        purgeAudio([article.listenKey])
         advance()
     }
 
@@ -492,7 +492,7 @@ final class DownloadCenter {
     func deleteDownloads(of folder: Folder) {
         if let record = record(for: .folder(folder.id)), active?.recordID == record.id { stopActive() }
         records.removeAll { $0.target == .folder(folder.id) }
-        let keys = library.pages(in: folder).map(\.listenKey)
+        let keys = library.articles(in: folder).map(\.listenKey)
         forget(keys)
         purgeAudio(keys)
         advance()
@@ -540,7 +540,7 @@ final class DownloadCenter {
     /// the library keeps its page.
     private func purgeAudio(_ keys: [UUID]) {
         for key in keys where !needsAudio(key) {
-            if let page = library.page(key: key) { library.deleteDownloads(page) }
+            if let article = library.article(key: key) { library.deleteDownloads(article) }
         }
     }
 
@@ -572,15 +572,15 @@ final class DownloadCenter {
     private func runQueue() async {
         while mayHandOver, rendering.wantsLocalBake, active == nil, let next = nextQueued() {
             let (recordID, key) = (next.recordID, next.key)
-            guard let page = library.page(key: key), page.isInLibrary else {
+            guard let article = library.article(key: key), article.isInLibrary else {
                 finish(recordID, key, .failed, String(localized: "It’s no longer in the Library"))
                 continue
             }
             // A fetch needs a window: a link page waits for the foreground.
-            if page.isLink, runState.phase == .background { return }
-            if page.isLink {
+            if article.isLink, runState.phase == .background { return }
+            if article.isLink {
                 active = Active(recordID: recordID, key: key, phase: .fetching)
-                let failure = await fill(page)
+                let failure = await fill(article)
                 // Paused, removed or its downloads deleted while it loaded: it isn't rendered.
                 guard active == Active(recordID: recordID, key: key, phase: .fetching) else { continue }
                 active = nil
@@ -589,11 +589,11 @@ final class DownloadCenter {
                     continue
                 }
             }
-            guard let page = library.page(key: key), page.isInLibrary, page.hasText else {
+            guard let article = library.article(key: key), article.isInLibrary, article.hasText else {
                 finish(recordID, key, .failed, String(localized: "Couldn’t get its text"))
                 continue
             }
-            let paragraphs = page.listenDocument().paragraphs
+            let paragraphs = article.listenDocument().paragraphs
             guard !paragraphs.isEmpty else {
                 finish(recordID, key, .failed, String(localized: "Nothing to listen to"))
                 continue
@@ -614,7 +614,7 @@ final class DownloadCenter {
         }
     }
 
-    private func finish(_ recordID: UUID, _ key: UUID, _ state: DownloadRecord.PageState, _ failure: String? = nil) {
+    private func finish(_ recordID: UUID, _ key: UUID, _ state: DownloadRecord.ArticleState, _ failure: String? = nil) {
         let finished = withRecord(recordID) { record -> Bool in
             guard let e = record.entries.firstIndex(where: { $0.key == key && $0.state == .queued }) else { return false }
             record.entries[e].state = state

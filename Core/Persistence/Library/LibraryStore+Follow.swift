@@ -101,23 +101,23 @@ extension LibraryStore {
     /// A chapter's text, fetched: the link page becomes a page with text, in place (its key,
     /// title and folder stay), and once stored its audio is the Library's (`plan(.saved, key:)`).
     /// Nothing renders here: whether it downloads is its folder's Download's to say.
-    func storeFetchedText(_ content: PageContent, in page: Page) throws {
+    func storeFetchedText(_ content: ArticleContent, in article: Article) throws {
         try edit("chapter text") {
-            page.setText(html: content.bodyHTML, plain: content.plainText, excerpt: content.excerpt,
+            article.setText(html: content.bodyHTML, plain: content.plainText, excerpt: content.excerpt,
                          paragraphs: content.document.paragraphs)
-            if page.givenTitle == nil { page.givenTitle = content.title }
-            keepText(of: page)
+            if article.givenTitle == nil { article.givenTitle = content.title }
+            keepText(of: article)
         }
     }
 
     /// A link page holding the text it was played from keeps it as its own, without a fetch.
-    func keepCachedText(_ page: Page) throws {
-        try edit("keep link text") { keepText(of: page) }
+    func keepCachedText(_ article: Article) throws {
+        try edit("keep link text") { keepText(of: article) }
     }
 
-    private func keepText(of page: Page) {
-        page.contentState = .saved
-        if page.isInLibrary, let key = page.key { plan(.saved, key: key) }
+    private func keepText(of article: Article) {
+        article.contentState = .saved
+        if article.isInLibrary, let key = article.key { plan(.saved, key: key) }
     }
 
     /// One chapter at the end of `folder`. An address the library has already stays one page: one
@@ -125,7 +125,7 @@ extension LibraryStore {
     /// out of the Library (played without saving, removed) comes into the story, so the story has
     /// every chapter.
     private func addChapter(_ chapter: TableOfContents.Chapter, to folder: Folder, byline: String?) {
-        if let existing = page(canonicalURL: chapter.canonicalURL) {
+        if let existing = article(canonicalURL: chapter.canonicalURL) {
             guard existing.folder == nil else { return }
             if existing.addedAt == nil {
                 existing.addedAt = now()
@@ -135,11 +135,11 @@ extension LibraryStore {
             existing.setFolder(folder)
             return
         }
-        let page = Page(key: ArticleIdentity.articleKey(canonicalURL: chapter.canonicalURL), title: chapter.title,
+        let article = Article(key: ArticleIdentity.articleKey(canonicalURL: chapter.canonicalURL), title: chapter.title,
                         byline: byline ?? chapter.url.host ?? "", urlString: chapter.url.absoluteString,
                         contentState: .link, addedAt: now(), sortKey: nextSortKey(in: folder))
-        context.insert(page)
-        page.setFolder(folder)
+        context.insert(article)
+        article.setFolder(folder)
     }
 
     private func setFollowState(_ state: FollowState, of folder: Folder) {

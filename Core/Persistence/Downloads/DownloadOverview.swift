@@ -76,7 +76,7 @@ struct DownloadOverview: Equatable {
             // A folder's toggle turned on with nothing in it yet (a story you're caught up on):
             // not a download to list until a page joins it.
             guard !record.entries.isEmpty else { continue }
-            if record.hasQueuedPages {
+            if record.hasQueuedArticles {
                 let activeFraction = Self.activeFraction(of: record, active: active)
                 let total = max(record.entries.count, 1)
                 let fraction = Self.fraction(of: record, active: active)
@@ -131,7 +131,7 @@ struct DownloadOverview: Equatable {
     /// The progress line's value alone (`progress`), without reading any page's voice: cheap
     /// enough for every frame of the bottom chrome.
     static func progress(records: [DownloadRecord], active: Active?, rendersDownloads: Bool) -> Double? {
-        DownloadOverview(records: records.filter { $0.hasQueuedPages }, active: active, currentVoice: nil,
+        DownloadOverview(records: records.filter { $0.hasQueuedArticles }, active: active, currentVoice: nil,
                          rendersDownloads: rendersDownloads) { _ in nil }.progress
     }
 }
@@ -140,7 +140,7 @@ struct DownloadOverview: Equatable {
 /// too, never a folder total. A page in more than one download shows once, where it is furthest
 /// from done (queued over finished). Queued pages are in the order they render (the downloads in
 /// the order asked for, each one's pages in play order, as `DownloadCenter.nextQueued` takes them).
-struct DownloadPages: Equatable {
+struct DownloadArticles: Equatable {
     struct Item: Equatable, Identifiable {
         /// The download it came from (its *Keep*, and the remove when the page has gone).
         let recordID: UUID

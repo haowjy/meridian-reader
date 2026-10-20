@@ -6,7 +6,7 @@ import Foundation
 /// indices.
 struct PreparedChapter: Equatable, Sendable {
     var key: UUID
-    /// Its contents entry or heading; nil when the book names it neither way (`PageTitle`).
+    /// Its contents entry or heading; nil when the book names it neither way (`ArticleRowTitle`).
     var title: String?
     var locator: EPUBLocator
     var skipsInPlayback: Bool
@@ -112,7 +112,7 @@ enum BookChapterFinalizer {
         }
 
         /// What the library will store for the chapter: its listen blocks.
-        init(_ chapter: PageContent) {
+        init(_ chapter: ArticleContent) {
             self.init(title: chapter.title, hasBlocks: !chapter.document.isEmpty,
                       words: WordCount.count(chapter.document.joinedText), skipsInPlayback: chapter.ref.skipsInPlayback)
         }

@@ -15,7 +15,7 @@ import UIKit
 /// - A page in a folder (a book's chapter, or a page in any folder) that starts becomes the
 ///   folder's place; the last playable
 ///   chapter's end finishes the book (`LibraryStore+Chapters`). A chapter that playback carries on
-///   past is marked finished by the controller (`NextChapterProviding.pageFinished`), since the
+///   past is marked finished by the controller (`NextChapterProviding.articleFinished`), since the
 ///   session moves straight to the next one.
 ///
 /// Progress lands only on the text that was played: each write goes to the page for the session's
@@ -35,7 +35,7 @@ final class ListeningProgressRecorder {
     /// Scene-leave observers. The recorder lives as long as the app; each holds it weakly.
     private var observers: [NSObjectProtocol] = []
     /// The page being written.
-    private var current: Page?
+    private var current: Article?
     /// The article the session about to bind was started from, until its first start is recorded.
     private var startedFrom: ReaderArticle?
     /// The page last seen playing, so a start is recorded once, not per paragraph.
@@ -56,21 +56,21 @@ final class ListeningProgressRecorder {
     /// The library's page for `key`: the held one, or fetched once when the session moves on, or
     /// when a rollback dropped the one held (a page its first play made, which the library makes
     /// again).
-    private func page(_ key: UUID) -> Page? {
+    private func article(_ key: UUID) -> Article? {
         if let current, current.isLive, current.listenKey == key { return current }
-        current = library.page(key: key)
+        current = library.article(key: key)
         return current
     }
 
     /// The page for `key` while it holds `text`, the text the session plays: nil when no page has
     /// the key or it holds other text.
-    private func page(_ key: UUID, holding text: String?) -> Page? {
-        guard let page = page(key), library.holds(page, text: text) else { return nil }
-        return page
+    private func article(_ key: UUID, holding text: String?) -> Article? {
+        guard let article = article(key), library.holds(article, text: text) else { return nil }
+        return article
     }
 
     private func record(_ progress: ListenProgress) {
-        let key = progress.pageKey
+        let key = progress.articleKey
         if progress.phase == .playing {
             if listening != key {
                 listening = key
@@ -79,9 +79,9 @@ final class ListeningProgressRecorder {
         } else {
             listening = nil
         }
-        guard let page = page(key, holding: progress.text) else { return }
-        library.recordPosition(page, paragraph: progress.paragraph, utf16Offset: progress.utf16Offset)
-        if progress.phase == .finished { library.recordFinished(page) }
+        guard let article = article(key, holding: progress.text) else { return }
+        library.recordPosition(article, paragraph: progress.paragraph, utf16Offset: progress.utf16Offset)
+        if progress.phase == .finished { library.recordFinished(article) }
     }
 
     /// Listening started (or resumed) on the page: it is dated (most recently played) and
@@ -96,16 +96,16 @@ final class ListeningProgressRecorder {
                 return
             }
         }
-        if let page = page(key, holding: text) {
-            library.recordPlaybackStarted(page)
+        if let article = article(key, holding: text) {
+            library.recordPlaybackStarted(article)
         }
     }
 
     /// The live spot, including the offset inside the paragraph (which `onProgress` doesn't report
     /// tick by tick), then whatever else is pending.
     private func sceneLeft() {
-        if let id = speech.activeSessionID, let page = page(id, holding: speech.activeTextFingerprint) {
-            library.recordPosition(page, paragraph: speech.currentParagraphIndex, utf16Offset: speech.spokenUTF16Offset)
+        if let id = speech.activeSessionID, let article = article(id, holding: speech.activeTextFingerprint) {
+            library.recordPosition(article, paragraph: speech.currentParagraphIndex, utf16Offset: speech.spokenUTF16Offset)
         }
         library.commit("scene left")
     }

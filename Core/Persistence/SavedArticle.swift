@@ -1,13 +1,13 @@
 import Foundation
 import SwiftData
 
-/// A saved article as the app stored it before the library (`Folder` / `Page`). **Frozen:** the
-/// library migration copies each row once into a `Page` (same key) and nothing writes these rows
+/// A saved article as the app stored it before the library (`Folder` / `Article`). **Frozen:** the
+/// library migration copies each row once into a `Article` (same key) and nothing writes these rows
 /// again, so a rollback to an older build finds its saves as it left them. The model stays in
 /// the "local" store until a later release removes it.
 @Model
 final class SavedArticle {
-    /// Listen/cache identity, copied verbatim to `Page.key`. Rows saved since identity v2 use
+    /// Listen/cache identity, copied verbatim to `Article.key`. Rows saved since identity v2 use
     /// `ArticleIdentity.articleKey(canonicalURL:)`; older rows keep their random UUID.
     @Attribute(.unique) var id: UUID
     var urlString: String

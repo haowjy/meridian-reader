@@ -55,13 +55,13 @@ extension SpeechSession {
     /// folder carries its folder (playback goes on to the next page). A page in a book or series
     /// also shows the book's byline, and the book's cover when it has no artwork of its own.
     @MainActor
-    static func page(_ page: Page) -> SpeechSession {
-        let book = page.isChapter ? page.folder : nil
-        return SpeechSession(id: page.listenKey, document: page.listenDocument(),
-                             detectedLanguage: page.detectedLanguageBackfilling(),
-                             title: page.givenTitle, site: book?.byline ?? page.byline,
-                             artwork: page.artworkData ?? book?.coverData,
-                             canonicalURL: page.origin.canonicalURL,
-                             sourceLabel: page.byline, folder: PlaybackFolder(page))
+    static func article(_ article: Article) -> SpeechSession {
+        let book = article.isChapter ? article.folder : nil
+        return SpeechSession(id: article.listenKey, document: article.listenDocument(),
+                             detectedLanguage: article.detectedLanguageBackfilling(),
+                             title: article.givenTitle, site: book?.byline ?? article.byline,
+                             artwork: article.artworkData ?? book?.coverData,
+                             canonicalURL: article.origin.canonicalURL,
+                             sourceLabel: article.byline, folder: PlaybackFolder(article))
     }
 }

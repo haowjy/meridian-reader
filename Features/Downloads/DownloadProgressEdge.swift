@@ -39,8 +39,8 @@ struct DownloadActions {
     let downloads: DownloadCenter
     let shell: ShellState
 
-    func download(_ page: Page) {
-        report(downloads.download(page), title: page.lineOne)
+    func download(_ article: Article) {
+        report(downloads.download(article), title: article.lineOne)
     }
 
     func download(_ folder: Folder) {

@@ -156,7 +156,7 @@ extension LibraryStore {
             } catch {
                 let waiting = rows[outcome.finished...]
                 let keys = Set(waiting.flatMap { [$0.key, $0.fromKey].compactMap { $0 } })
-                outcome.held = .pages(keys)
+                outcome.held = .articles(keys)
                 log("audio work \(row.kindRaw) \(Self.short(row.key)) not finished, kept with \(waiting.count - 1) after it for the next launch: \(error)")
                 ListenTimingLog.log("library_audio_work_failed", [
                     "kind": row.kindRaw, "key": row.key.map(ListenTimingLog.shortKey) ?? "-",
@@ -206,7 +206,7 @@ extension LibraryStore {
     private func align(_ work: LibraryAudioWork, live: Bool) throws {
         guard let key = work.key else { return }
         let new = work.paragraphs
-        if let page = try context.fetch(LibraryQueries.page(key: key)).first, (page.cachedListenParagraphs ?? []) != new {
+        if let article = try context.fetch(LibraryQueries.article(key: key)).first, (article.cachedListenParagraphs ?? []) != new {
             log("audio \(Self.short(key)): the page changed since its layout work was planned; skipped")
             ListenTimingLog.log("library_audio_work", ["kind": "align", "key": ListenTimingLog.shortKey(key), "skipped": "page changed"])
             return
@@ -249,11 +249,11 @@ extension LibraryStore {
     /// for the page it was planned with.
     private func merge(_ work: LibraryAudioWork, live: Bool, sourceNamedLater: Bool) throws {
         guard let from = work.fromKey, let to = work.key else { return }
-        if let page = try context.fetch(LibraryQueries.page(key: from)).first {
+        if let article = try context.fetch(LibraryQueries.article(key: from)).first {
             log("audio \(Self.short(from)): its page is back since it was merged into \(Self.short(to)); kept")
             ListenTimingLog.log("library_audio_work", ["kind": "merge", "key": ListenTimingLog.shortKey(to),
                                                        "from": ListenTimingLog.shortKey(from), "skipped": "merged page back"])
-            try settleAudio(from, page: page)
+            try settleAudio(from, article: article)
             return
         }
         if sourceNamedLater {
@@ -263,7 +263,7 @@ extension LibraryStore {
             return
         }
         let cache = audio.audioCache
-        guard let keeper = try context.fetch(LibraryQueries.page(key: to)).first else {
+        guard let keeper = try context.fetch(LibraryQueries.article(key: to)).first else {
             if cache.hasDirectory(for: from) { cache.markEphemeral(cacheKey: from) }
             audio.removeBakeJob(cacheKey: from)
             log("audio \(Self.short(from)): the page it merged into is gone; left to the age prune")
@@ -302,10 +302,10 @@ extension LibraryStore {
     /// page's now: kept, and saved or ephemeral as that page is (`settleAudio`).
     private func deleteAudio(_ work: LibraryAudioWork) throws {
         guard let key = work.key else { return }
-        if let page = try context.fetch(LibraryQueries.page(key: key)).first {
+        if let article = try context.fetch(LibraryQueries.article(key: key)).first {
             log("audio \(Self.short(key)): its page is back since it was deleted; kept")
             ListenTimingLog.log("library_audio_work", ["kind": "delete", "key": ListenTimingLog.shortKey(key), "skipped": "page back"])
-            try settleAudio(key, page: page)
+            try settleAudio(key, article: article)
             return
         }
         try audio.clearListenAudio(for: key)
@@ -321,7 +321,7 @@ extension LibraryStore {
     /// carry either.
     private func settle(_ work: LibraryAudioWork) throws {
         guard let key = work.key else { return }
-        try settleAudio(key, page: try context.fetch(LibraryQueries.page(key: key)).first)
+        try settleAudio(key, article: try context.fetch(LibraryQueries.article(key: key)).first)
         ListenTimingLog.log("library_audio_work", ["kind": work.kindRaw, "key": ListenTimingLog.shortKey(key)])
     }
 
@@ -330,18 +330,18 @@ extension LibraryStore {
     /// played again without saving), and its renders are that page's. Saved audio for a page
     /// saved in the Library (a page with no audio yet has none to mark); for any other page, or
     /// none, the ephemeral TTL, with the address the page has now. The files stay either way.
-    private func settleAudio(_ key: UUID, page: Page?) throws {
+    private func settleAudio(_ key: UUID, article: Article?) throws {
         let cache = audio.audioCache
-        if page?.isSavedToLibrary == true {
+        if article?.isSavedToLibrary == true {
             audio.markListenCacheSaved(key)
             guard !cache.hasDirectory(for: key) || cache.loadMeta(for: key)?.kind == .saved else {
                 throw LibraryAudioWorkError.notSaved(key)
             }
             log("audio \(Self.short(key)) saved with its page")
         } else {
-            audio.markListenCacheEphemeral(key, canonicalURL: page?.canonicalURL)
+            audio.markListenCacheEphemeral(key, canonicalURL: article?.canonicalURL)
             guard cache.loadMeta(for: key)?.kind == .ephemeral else { throw LibraryAudioWorkError.notEphemeral(key) }
-            log("audio \(Self.short(key)) on the ephemeral TTL (\(page == nil ? "no page" : "not saved in the Library"))")
+            log("audio \(Self.short(key)) on the ephemeral TTL (\(article == nil ? "no page" : "not saved in the Library"))")
         }
     }
 
@@ -410,7 +410,7 @@ extension LibraryStore {
         return rows.indices.compactMap { index in
             let row = rows[index]
             guard row.kind == .merge, let to = row.key, keys.contains(to), let from = row.fromKey,
-                  lastNaming[from] == index, page(key: from) == nil else { return nil }
+                  lastNaming[from] == index, article(key: from) == nil else { return nil }
             return from
         }
     }

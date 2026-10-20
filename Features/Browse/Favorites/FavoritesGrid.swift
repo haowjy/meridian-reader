@@ -2,13 +2,13 @@ import SwiftUI
 
 /// The start page's starred pages and folders, as Safari shows its Favorites: a grid of pages
 /// (icon tile and title), then folders as folder tiles. A tile's long press is its item's menu,
-/// the same as everywhere that page or folder shows (`PageMenu`, `FolderMenu`).
+/// the same as everywhere that page or folder shows (`ArticleMenu`, `FolderMenu`).
 struct FavoritesGrid: View {
-    let pages: [Page]
+    let articles: [Article]
     let folders: [Folder]
-    var onOpen: (Page) -> Void
+    var onOpen: (Article) -> Void
     var onOpenFolder: (Folder) -> Void
-    var pageMenu: (Page) -> AnyView
+    var articleMenu: (Article) -> AnyView
     var folderMenu: (Folder, _ onTurnOffDownload: @escaping () -> Void) -> AnyView
 
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -16,16 +16,16 @@ struct FavoritesGrid: View {
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Spacing.xs, alignment: .top), count: 4),
                   spacing: Spacing.m) {
-            ForEach(pages, id: \.listenKey) { page in
-                Button { onOpen(page) } label: {
-                    tile(title: page.lineOne) {
-                        ArtworkTile(image: page.favoriteIcon, letter: page.artworkLetter, size: Glyph.favoriteTile)
+            ForEach(articles, id: \.listenKey) { article in
+                Button { onOpen(article) } label: {
+                    tile(title: article.lineOne) {
+                        ArtworkTile(image: article.favoriteIcon, letter: article.artworkLetter, size: Glyph.favoriteTile)
                     }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(page.lineOne)
+                .accessibilityLabel(article.lineOne)
                 .accessibilityIdentifier("favoriteTile")
-                .contextMenu { pageMenu(page) }
+                .contextMenu { articleMenu(article) }
             }
             ForEach(folders, id: \.id) { folder in
                 FolderTile(folder: folder, onOpen: onOpenFolder, menu: folderMenu) { title, icon in
@@ -89,7 +89,7 @@ private struct FolderTile<Tile: View>: View {
     }
 }
 
-private extension Page {
+private extension Article {
     /// Its site icon for a Favorites tile, unless it is too small to fill one (a 16 px favicon
     /// looks smeared there; the letter tile reads better).
     var favoriteIcon: Image? {

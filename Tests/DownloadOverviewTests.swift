@@ -8,7 +8,7 @@ final class DownloadOverviewTests: XCTestCase {
     private let heart = "kokoro.af_heart"
     private let bella = "kokoro.af_bella"
 
-    private func record(_ states: [DownloadRecord.PageState], kept: String? = nil) -> DownloadRecord {
+    private func record(_ states: [DownloadRecord.ArticleState], kept: String? = nil) -> DownloadRecord {
         var record = DownloadRecord(target: .folder(UUID()), title: "Book", addedAt: Date(),
                                     entries: states.map { DownloadRecord.Entry(key: UUID(), state: $0) })
         record.keptVoice = kept
@@ -62,5 +62,15 @@ final class DownloadOverviewTests: XCTestCase {
         XCTAssertEqual(o.differentVoice.first?.status, .differentVoice(bella))
         XCTAssertEqual(o.differentVoice.first?.voice, bella)
         XCTAssertTrue(o.done.isEmpty)
+    }
+
+    /// Downloads.json written before C121 names an article's download `page`: it still decodes,
+    /// and is written back under the same name.
+    func testAnArticleTargetKeepsItsStoredName() throws {
+        let key = UUID()
+        let json = Data(#"{"page":{"_0":"\#(key.uuidString)"}}"#.utf8)
+        let target = try JSONDecoder().decode(DownloadRecord.Target.self, from: json)
+        XCTAssertEqual(target, .article(key))
+        XCTAssertEqual(String(decoding: try JSONEncoder().encode(target), as: UTF8.self), String(decoding: json, as: UTF8.self))
     }
 }

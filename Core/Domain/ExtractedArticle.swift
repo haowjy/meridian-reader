@@ -1,7 +1,7 @@
 import Foundation
 
 struct ExtractedArticle: Sendable, Equatable {
-    /// nil: the page has none (`PageTitle`).
+    /// nil: the page has none (`ArticleRowTitle`).
     var title: String?
     var siteName: String?
     var cleanedHTML: String

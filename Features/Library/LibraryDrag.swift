@@ -37,7 +37,7 @@ extension LibraryItemID {
     var payload: String {
         switch self {
         case .folder(let id): "folder:\(id.uuidString)"
-        case .page(let key): "page:\(key.uuidString)"
+        case .article(let key): "page:\(key.uuidString)"
         }
     }
 }
@@ -173,16 +173,16 @@ enum LibraryDropAim: Equatable {
     static func aim(dragging: LibraryItemID, over row: LibraryItemID, fraction: CGFloat,
                     takesInto: Bool, besideAllowed: Bool) -> LibraryDropAim {
         switch (dragging, row) {
-        case (.page, .folder(let id)):
+        case (.article, .folder(let id)):
             return takesInto ? .into(id) : .refusedInto(id)
         case (.folder, .folder(let id)):
             if besideAllowed, fraction < 0.25 { return .beside(row, .top) }
             if besideAllowed, fraction > 0.75 { return .beside(row, .bottom) }
             return takesInto ? .into(id) : .refusedInto(id)
-        case (.page, .page):
+        case (.article, .article):
             guard besideAllowed else { return .nothing }
             return .beside(row, fraction < 0.5 ? .top : .bottom)
-        case (.folder, .page):
+        case (.folder, .article):
             return .nothing
         }
     }

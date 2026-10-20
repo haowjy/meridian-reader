@@ -1,15 +1,15 @@
 import Foundation
 
 /// Value snapshot rendered by the Reader sheet (`ReaderSheetScreen`) and Now Playing — the same
-/// shape whether the article came from Browse (fresh extraction) or the library (a `Page`). The
-/// screens never hold the `Page` model itself, so Save/Unsave can flip the bookmark without
+/// shape whether the article came from Browse (fresh extraction) or the library (a `Article`). The
+/// screens never hold the `Article` model itself, so Save/Unsave can flip the bookmark without
 /// tearing down the view or the playing session.
 struct ReaderArticle: Equatable, Identifiable {
     /// Listen/cache key. Equals the library page's `key` (see `ArticleIdentity`).
     var id: UUID
     /// The web address, or the chapter's place in its book.
-    var origin: PageOrigin
-    /// nil: the page has none, and the heading shows only its source line (`PageTitle`).
+    var origin: ArticleOrigin
+    /// nil: the page has none, and the heading shows only its source line (`ArticleRowTitle`).
     var title: String?
     /// The site ("investopedia.com"), or a chapter's author.
     var sourceLabel: String
@@ -78,25 +78,25 @@ struct ReaderArticle: Equatable, Identifiable {
 
     /// A library page holding text (saved, played, or a link with a text cache). Uses stored
     /// listen blocks when valid; otherwise `document` is empty and the caller builds it off-main
-    /// (`Page.buildListenDocument`).
+    /// (`Article.buildListenDocument`).
     @MainActor
-    init(page: Page) {
-        self.id = page.listenKey
-        self.origin = page.origin
-        self.title = page.givenTitle
-        self.sourceLabel = page.byline
+    init(article: Article) {
+        self.id = article.listenKey
+        self.origin = article.origin
+        self.title = article.givenTitle
+        self.sourceLabel = article.byline
         self.siteName = nil
-        let html = page.cleanedHTML
+        let html = article.cleanedHTML
         self.cleanedHTML = html
-        self.plainText = page.plainText
-        self.excerpt = page.excerpt
-        self.artwork = page.artworkData
-        let cached = page.cachedListenParagraphs
+        self.plainText = article.plainText
+        self.excerpt = article.excerpt
+        self.artwork = article.artworkData
+        let cached = article.cachedListenParagraphs
         self.document = cached.map { ParagraphDocument(parts: $0) } ?? .empty
         self.trustedParagraphs = cached
-        self.displayHTML = ParagraphDocument.readingHTML(html, matchingTitle: page.givenTitle)
-        self.resumeParagraph = page.positionParagraph
-        self.storedDetectedLanguage = page.detectedLanguageCode
+        self.displayHTML = ParagraphDocument.readingHTML(html, matchingTitle: article.givenTitle)
+        self.resumeParagraph = article.positionParagraph
+        self.storedDetectedLanguage = article.detectedLanguageCode
     }
 }
 

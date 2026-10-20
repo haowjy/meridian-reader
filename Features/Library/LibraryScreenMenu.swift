@@ -69,8 +69,8 @@ struct LibraryScreenMenu {
 
     /// *Sort*: the folder's page sort, or on the home the top level's.
     private func sortRow(_ folder: Folder?) -> MenuRow {
-        let current = folder?.pageSort ?? PageSort(rawValue: topLevelSort.wrappedValue) ?? LibraryTopLevel.defaultSort
-        let choices = PageSort.allCases.map { sort in
+        let current = folder?.articleSort ?? ArticleSort(rawValue: topLevelSort.wrappedValue) ?? LibraryTopLevel.defaultSort
+        let choices = ArticleSort.allCases.map { sort in
             MenuRow(id: "moreSort-\(sort.rawValue)", title: sort.title, icon: sort == current ? Icons.checkmark : nil) {
                 [library, shell, topLevelSort] in
                 if let folder {

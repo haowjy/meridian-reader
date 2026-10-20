@@ -197,7 +197,7 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   the same way, with the same toasts. ☆ is offered for a web page or a page in the Library, a
   book's chapter too, in the Library's rows and in the Reader's and Now Playing's ⋯ alike.
 - **One saved state**: the browser's 🔖 and ⋯, the Reader and Now Playing all read "is this page
-  saved?" from the page for its address, else its key (`PageActions`, `PageLookup`), the page
+  saved?" from the page for its address, else its key (`ArticleActions`, `ArticleLookup`), the page
   Save saves into and *Remove from Library* removes, and they follow a change made anywhere at
   once.
 - **One library**: everything is a page in a folder (or in none). A page is a *link* (an address
@@ -530,7 +530,7 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 
 **Which options each menu has, in what order, and when each is greyed or hidden is `MenuRegistry` (C98, C99); docs/MENUS.md lists them with the generated table. Where this section names a different set of rows, MENUS.md wins.**
 
-An item has one menu wherever it shows (decision C4): a page's (`PageMenu`), a folder's
+An item has one menu wherever it shows (decision C4): a page's (`ArticleMenu`), a folder's
 (`FolderMenu`, books and series too) and a download's (`DownloadMenu`). The same rows, in the same
 order, with the same names and symbols, in a row's ⋯ and its long press, a Favorites tile, a
 History visit, the Now Playing bar's long press, a folder header's *More* and the top of every ⋯
@@ -825,7 +825,7 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   the strip under the status bar stays as dark as at rest until the sheet has gone, so the clock
   stays readable. A **title card** at the top of the text (it scrolls with the text) shows the
   artwork, line one as the Now Playing bar has it (the title; for a page without one its site,
-  `PageTitle.lineOne`), and the site and time left as two parts, the site left out when line one
+  `ArticleRowTitle.lineOne`), and the site and time left as two parts, the site left out when line one
   is already it (*◉ Finished* at the end). The
   spoken paragraph is on the theme's highlight; every paragraph stays in full ink (C105). The *Jump to Audio* pill is ink with the page's
   colour for its text; the scrub capsule, the bubble, the jump hint, the ⋯ panel and the speed

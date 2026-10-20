@@ -3,7 +3,7 @@ import SwiftUI
 
 /// One screen for every folder at every depth, books and followed stories included (decision
 /// D19): the header, subfolders first (by their order), then pages by the folder's sort
-/// (`LibraryPageRow` everywhere, including imported chapters). The header is centred
+/// (`LibraryArticleRow` everywhere, including imported chapters). The header is centred
 /// (`FolderHeader`): a folder with details (a book's from its file, or any folder's from *Edit
 /// Details*: a cover or an author) has its cover above the title, the author before the counts.
 /// A followed story has its status line (Follow). A folder whose pages play has the action row:
@@ -60,7 +60,7 @@ struct FolderScreen: View {
             if searching {
                 FolderSearchResults(folder: folder, text: searchText)
             } else {
-                FolderContentsList(folder: folder, sort: folder.pageSort, headerTitleHidden: $headerTitleHidden)
+                FolderContentsList(folder: folder, sort: folder.articleSort, headerTitleHidden: $headerTitleHidden)
             }
         }
             // The title names the screen for VoiceOver, the back button and tests; drawn only
@@ -111,7 +111,7 @@ private struct BarTitleRemoved: ViewModifier {
 /// The folder's list, made with its sort (a query is fixed when its view is made).
 private struct FolderContentsList: View {
     let folder: Folder
-    let sort: PageSort
+    let sort: ArticleSort
 
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
@@ -119,7 +119,7 @@ private struct FolderContentsList: View {
     @Environment(\.speechController) private var speech
     @Environment(LibraryScreenState.self) private var screen
     @Environment(DownloadCenter.self) private var downloads
-    @Query private var queriedPages: [Page]
+    @Query private var queriedArticles: [Article]
 
     @Binding var headerTitleHidden: Bool
     /// *Turn Off Download* asked from the header's Download control, or from *More*: the question
@@ -130,16 +130,16 @@ private struct FolderContentsList: View {
     @State private var contentTop: CGFloat = 0
     @ScaledMetric(relativeTo: TypeStyle.title.relativeTo) private var titleLineHeight = TypeStyle.title.lineHeight
 
-    init(folder: Folder, sort: PageSort, headerTitleHidden: Binding<Bool>) {
+    init(folder: Folder, sort: ArticleSort, headerTitleHidden: Binding<Bool>) {
         self.folder = folder
         self.sort = sort
         _headerTitleHidden = headerTitleHidden
-        _queriedPages = Query(LibraryQueries.pages(inFolder: folder.id, sort: sort))
+        _queriedArticles = Query(LibraryQueries.articles(inFolder: folder.id, sort: sort))
     }
 
     // Only models still in the store: a saved delete can reach this list before its query or
     // relationship drops them, and the header reads every page (`isLive`).
-    private var pages: [Page] { queriedPages.filter(\.isLive) }
+    private var articles: [Article] { queriedArticles.filter(\.isLive) }
     private var subfolders: [Folder] { LibraryStore.ordered((folder.children ?? []).filter(\.isLive)) }
     private var isEditing: Bool { screen.isEditing(folderID: folder.id) }
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
@@ -158,7 +158,7 @@ private struct FolderContentsList: View {
                     .listHeader()
             }
             // One mixed list of compact rows (D23): subfolders, then pages, in one card.
-            if !subfolders.isEmpty || !pages.isEmpty {
+            if !subfolders.isEmpty || !articles.isEmpty {
                 Section {
                     ForEach(subfolders, id: \.id) { child in
                         LibraryFolderRow(folder: child)
@@ -167,16 +167,16 @@ private struct FolderContentsList: View {
                     .onMove(perform: isEditing ? moveFolders : nil)
                     .listRowInsets(EdgeInsets())
                     .listCard()
-                    ForEach(pages, id: \.listenKey) { page in
-                        LibraryPageRow(page: page)
-                            .tag(LibraryItemID.page(page.listenKey))
+                    ForEach(articles, id: \.listenKey) { article in
+                        LibraryArticleRow(article: article)
+                            .tag(LibraryItemID.article(article.listenKey))
                     }
-                    .onMove(perform: isEditing && sort == .manual ? movePages : nil)
+                    .onMove(perform: isEditing && sort == .manual ? moveArticles : nil)
                     .listRowInsets(EdgeInsets())
                     .listCard()
                 }
             }
-            if subfolders.isEmpty && pages.isEmpty {
+            if subfolders.isEmpty && articles.isEmpty {
                 // Every empty list says so the same way (`EmptyState`), under the folder's header.
                 Section {
                     EmptyState(String(localized: "This Folder Is Empty"), symbol: Icons.folder,
@@ -202,18 +202,18 @@ private struct FolderContentsList: View {
     /// play, the Download control, the big ▶ and *More*.
     private var header: some View {
         let style: FolderHeaderStyle = folder.hasDetails ? .detailed(cover: folder.coverImage) : .folder
-        let playback = actions.progress(of: folder, pages: pages)
+        let playback = actions.progress(of: folder, articles: articles)
         // Not started, the length joins the details ("Demo Author   4 chapters   4 min", C96);
         // once started, the line says where it is.
-        let line = playback.hasPagesToPlay ? playback.headerLine : []
-        let lengthOnly = playback.hasPagesToPlay && playback.fraction == nil
+        let line = playback.hasArticlesToPlay ? playback.headerLine : []
+        let lengthOnly = playback.hasArticlesToPlay && playback.fraction == nil
         let detail = [folder.byline].compactMap { $0 } + counts + (lengthOnly ? line : [])
         return FolderHeader(style: style, title: folder.name, detail: detail,
                             progressLabel: lengthOnly ? [] : line,
-                            actions: playback.hasPagesToPlay ? headerActions : nil) {
-            if folder.kind == .series { FollowStatus(folder: folder, pages: pages) }
+                            actions: playback.hasArticlesToPlay ? headerActions : nil) {
+            if folder.kind == .series { FollowStatus(folder: folder, articles: articles) }
         } more: {
-            FolderMenu(folder: folder, pages: pages, actions: actions, downloads: downloads, screen: screen,
+            FolderMenu(folder: folder, articles: articles, actions: actions, downloads: downloads, screen: screen,
                        place: .header, progress: playback, onTurnOffDownload: { turningOffFromMore = folder },
                        onMoved: { shell.libraryPath = library.path(to: folder) })
         } anchor: { control in
@@ -228,10 +228,10 @@ private struct FolderContentsList: View {
     /// toggle off, it turns it on and nothing is downloaded again (`DownloadCenter.download`: new
     /// pages download).
     private var headerActions: FolderHeaderActions {
-        let state = downloads.state(of: folder, pages: pages)
+        let state = downloads.state(of: folder, articles: articles)
         let isOn = downloads.isOn(folder)
         let record = downloads.record(for: .folder(folder.id))
-        let running = record.map { $0.hasQueuedPages } ?? false
+        let running = record.map { $0.hasQueuedArticles } ?? false
         // While it downloads, the caption is the count and a tap opens Downloads (C96).
         let caption = running ? record.map { String(localized: "\($0.finishedCount) of \($0.entries.count)") } : nil
         return FolderHeaderActions(download: state, downloadIsOn: isOn, onDownload: {
@@ -248,17 +248,17 @@ private struct FolderContentsList: View {
     /// ["2 folders", "7 articles"] ("7 chapters" in an imported EPUB); none for an empty folder,
     /// whose list says so.
     private var counts: [String] {
-        guard !subfolders.isEmpty || !pages.isEmpty else { return [] }
+        guard !subfolders.isEmpty || !articles.isEmpty else { return [] }
         var parts: [String] = []
         if !subfolders.isEmpty { parts.append("\(subfolders.count) folder\(subfolders.count == 1 ? "" : "s")") }
-        parts.append(folder.itemCount(pages.count))
+        parts.append(folder.itemCount(articles.count))
         return parts
     }
 
-    private func movePages(from source: IndexSet, to destination: Int) {
-        let moving = source.map { pages[$0] }
+    private func moveArticles(from source: IndexSet, to destination: Int) {
+        let moving = source.map { articles[$0] }
         shell.attempt(String(localized: "Couldn’t change the order")) {
-            try library.arrange(moving, in: folder, before: destination < pages.count ? pages[destination] : nil, shownIn: .manual)
+            try library.arrange(moving, in: folder, before: destination < articles.count ? articles[destination] : nil, shownIn: .manual)
         }
     }
 
@@ -273,20 +273,20 @@ private struct FolderContentsList: View {
 
 /// A search begun on a folder's screen: under the folder's name (as the home keeps its title over
 /// its results), the folders and pages under it, at any depth, that the home's search on
-/// Everything finds (`LibraryQueries.searchFolders` / `searchPages`), folders first, each row
+/// Everything finds (`LibraryQueries.searchFolders` / `searchArticles`), folders first, each row
 /// showing where it is below the folder (`LibraryScreenKey.filtered(under:)`).
 private struct FolderSearchResults: View {
     let folder: Folder
     let text: String
 
     @Query private var queriedFolders: [Folder]
-    @Query private var queriedPages: [Page]
+    @Query private var queriedArticles: [Article]
 
     init(folder: Folder, text: String) {
         self.folder = folder
         self.text = text
         _queriedFolders = Query(LibraryQueries.searchFolders(text, in: .everything))
-        _queriedPages = Query(LibraryQueries.searchPages(text, in: .everything))
+        _queriedArticles = Query(LibraryQueries.searchArticles(text, in: .everything))
     }
 
     private func isUnder(_ other: Folder?) -> Bool {
@@ -296,7 +296,7 @@ private struct FolderSearchResults: View {
 
     var body: some View {
         let folders = queriedFolders.filter { $0.isLive && isUnder($0.parent) }
-        let pages = queriedPages.filter { $0.isLive && isUnder($0.folder) }
+        let articles = queriedArticles.filter { $0.isLive && isUnder($0.folder) }
         List {
             Section {
                 EmptyView()
@@ -305,7 +305,7 @@ private struct FolderSearchResults: View {
                     .lineLimit(2)
                     .listHeader()
             }
-            if folders.isEmpty && pages.isEmpty {
+            if folders.isEmpty && articles.isEmpty {
                 ContentUnavailableView.search(text: text)
                     .listRowBackground(Color.clear)
             } else {
@@ -313,7 +313,7 @@ private struct FolderSearchResults: View {
                     ForEach(folders, id: \.id) { LibraryFolderRow(folder: $0) }
                         .listRowInsets(EdgeInsets())
                         .listCard()
-                    ForEach(pages, id: \.listenKey) { LibraryPageRow(page: $0) }
+                    ForEach(articles, id: \.listenKey) { LibraryArticleRow(article: $0) }
                         .listRowInsets(EdgeInsets())
                         .listCard()
                 }

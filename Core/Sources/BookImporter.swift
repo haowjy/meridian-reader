@@ -134,8 +134,8 @@ struct BookImporter {
 
         let details = source.folderDetails
         progress(.storing(title: details.title))
-        var chapters: [PageContent] = []
-        for ref in try await source.knownPages() { chapters.append(try await source.content(of: ref)) }
+        var chapters: [ArticleContent] = []
+        for ref in try await source.knownArticles() { chapters.append(try await source.content(of: ref)) }
         try checkSizes(chapters, title: details.title, cuts: cuts)
         // From here to the save nothing awaits, so nothing can change under it.
         try Task.checkCancellation()
@@ -173,7 +173,7 @@ struct BookImporter {
     }
 
     /// The last check before the library sees the chapters (`BookChapterFinalizer.check`).
-    private func checkSizes(_ chapters: [PageContent], title: String, cuts: Int) throws {
+    private func checkSizes(_ chapters: [ArticleContent], title: String, cuts: Int) throws {
         guard let rejection = BookChapterFinalizer.check(chapters.map(BookChapterFinalizer.Measure.init), bar: bar) else { return }
         library.log("import \(title) refused after \(cuts) cut(s): \(rejection)")
         func chapter(_ title: String?) -> String { title.map { "chapter “\($0)”" } ?? "a chapter with no title" }

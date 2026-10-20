@@ -10,7 +10,7 @@ struct LaunchOptions: Equatable {
         var plainTextOnly = false
         /// `-seedPlayedPages N`: also N pages played without saving, part-way ("Played Page 1"
         /// played most recently): the Library's Recent tab.
-        var playedPages = 0
+        var playedArticles = 0
     }
 
     /// `-uiTesting`: expose test-only accessibility markers and skip network-dependent features
@@ -66,7 +66,7 @@ struct LaunchOptions: Equatable {
     /// subfolder).
     var seedsDemoFolders = false
     /// `-seedBigFolder N`: add "Big Folder" with N saved pages (the menu and row timing probe, C98).
-    var bigFolderPages = 0
+    var bigFolderArticles = 0
     /// `-restoreSurface` (with `-uiTesting`): reopen on the remembered surface, as a normal launch
     /// does (decision D10). Without it a UI-test launch starts on the browser, whatever an earlier
     /// test left, and `-browseTestPages` loads page one.
@@ -107,7 +107,7 @@ struct LaunchOptions: Equatable {
         resetsLibrary = flags.contains("-resetLibrary")
         if flags.contains("-seedDemoArticle") {
             demoArticle = DemoArticle(plainTextOnly: flags.contains("-seedDemoPlainText"),
-                                      playedPages: value(after: "-seedPlayedPages").flatMap(Int.init) ?? 0)
+                                      playedArticles: value(after: "-seedPlayedPages").flatMap(Int.init) ?? 0)
         }
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")
         opensLibrary = flags.contains("-openLibrary")
@@ -124,7 +124,7 @@ struct LaunchOptions: Equatable {
         demoBookPlace = value(after: "-seedDemoBookPlace").flatMap(Int.init)
         chainsDemoChapters = flags.contains("-chainDemoChapters")
         seedsDemoFolders = flags.contains("-seedDemoFolders")
-        bigFolderPages = value(after: "-seedBigFolder").flatMap(Int.init) ?? 0
+        bigFolderArticles = value(after: "-seedBigFolder").flatMap(Int.init) ?? 0
         restoresSurfaceInUITests = flags.contains("-restoreSurface")
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")

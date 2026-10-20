@@ -26,7 +26,7 @@ struct FolderMenu: View {
 
     let folder: Folder
     /// Its pages in play order (what its row or screen already holds).
-    let pages: [Page]
+    let articles: [Article]
     let actions: LibraryActions
     let downloads: DownloadCenter
     let screen: LibraryScreenState
@@ -46,10 +46,10 @@ struct FolderMenu: View {
     /// The folder's state as the registry reads it.
     var facts: MenuRegistry.Facts {
         var facts = MenuRegistry.Facts()
-        facts.hasPagesToPlay = (progress ?? actions.progress(of: folder, pages: pages)).hasPagesToPlay
-        facts.hasPages = !pages.isEmpty
+        facts.hasArticlesToPlay = (progress ?? actions.progress(of: folder, articles: articles)).hasArticlesToPlay
+        facts.hasArticles = !articles.isEmpty
         facts.downloadIsOn = downloads.isOn(folder)
-        facts.hasDownloads = downloads.hasDownloads(folder, pages: pages)
+        facts.hasDownloads = downloads.hasDownloads(folder, articles: articles)
         return facts
     }
 
@@ -68,7 +68,7 @@ struct FolderMenu: View {
                 actions.playFolderFromStart(folder)
             }
         case .folderDownload:
-            let state = downloads.state(of: folder, pages: pages)
+            let state = downloads.state(of: folder, articles: articles)
             if facts.downloadIsOn && state != .downloaded {
                 return MenuRow(id: "menuDownload", title: Verbs.turnOffDownload, icon: Icons.turnOffDownload,
                                action: onTurnOffDownload)

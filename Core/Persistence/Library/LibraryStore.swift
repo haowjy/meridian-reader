@@ -5,7 +5,7 @@ import SwiftData
 /// The one entry point for library reads and writes: the folder tree, pages, saving, favorites,
 /// the launch maintenance (migration, dedupe, layout, prune). One page per canonical URL,
 /// app-wide; every content delete also removes the page's audio, which is why nothing else
-/// deletes `Folder` or `Page` rows.
+/// deletes `Folder` or `Article` rows.
 ///
 /// Lists in views read through `LibraryQueries` (with `@Query`); everything that changes the
 /// library comes here. The one save path is `ArticleSaveCoordinator` → `save(_:placement:playhead:)`.
@@ -61,24 +61,24 @@ final class LibraryStore {
 
     // MARK: - Lookups
 
-    func page(key: UUID) -> Page? {
-        try? context.fetch(LibraryQueries.page(key: key)).first
+    func article(key: UUID) -> Article? {
+        try? context.fetch(LibraryQueries.article(key: key)).first
     }
 
     /// The page for a canonical URL, anywhere in the tree (the oldest, before dedupe).
-    func page(canonicalURL: String) -> Page? {
+    func article(canonicalURL: String) -> Article? {
         guard !canonicalURL.isEmpty else { return nil }
-        return try? context.fetch(LibraryQueries.pages(canonicalURL: canonicalURL)).first
+        return try? context.fetch(LibraryQueries.articles(canonicalURL: canonicalURL)).first
     }
 
-    func page(url: URL) -> Page? {
-        page(canonicalURL: ArticleIdentity.canonicalURLString(from: url))
+    func article(url: URL) -> Article? {
+        article(canonicalURL: ArticleIdentity.canonicalURLString(from: url))
     }
 
     /// A web page by its address first, then by key: legacy pages have random keys, so the
     /// address is what finds them.
-    func page(key: UUID, canonicalURL: String?) -> Page? {
-        canonicalURL.flatMap(page(canonicalURL:)) ?? page(key: key)
+    func article(key: UUID, canonicalURL: String?) -> Article? {
+        canonicalURL.flatMap(article(canonicalURL:)) ?? article(key: key)
     }
 
     func folder(id: UUID) -> Folder? {
@@ -97,13 +97,13 @@ final class LibraryStore {
     /// A folder's pages in `sort`, its own sort unless another is given. In its own sort this is
     /// the order it plays in and its screen lists: skipped pages included (`skipsInPlayback`
     /// flags them); the folder screen, Contents and carrying on all read it.
-    func pages(in folder: Folder, sort: PageSort? = nil) -> [Page] {
-        (try? context.fetch(LibraryQueries.pages(inFolder: folder.id, sort: sort ?? folder.pageSort))) ?? []
+    func articles(in folder: Folder, sort: ArticleSort? = nil) -> [Article] {
+        (try? context.fetch(LibraryQueries.articles(inFolder: folder.id, sort: sort ?? folder.articleSort))) ?? []
     }
 
     /// The pages in the Library in no folder, in `sort`.
-    func loosePages(sort: PageSort) -> [Page] {
-        (try? context.fetch(LibraryQueries.loosePages(sort: sort))) ?? []
+    func looseArticles(sort: ArticleSort) -> [Article] {
+        (try? context.fetch(LibraryQueries.looseArticles(sort: sort))) ?? []
     }
 
     static func ordered(_ folders: [Folder]) -> [Folder] {
@@ -174,7 +174,7 @@ final class LibraryStore {
     /// save to store: a failed edit costs no listening history.
     ///
     /// SwiftData's `rollback()` leaves a model already in memory showing the values it rolled
-    /// back, relationships included (a book's `pages` still listing a chapter the change
+    /// back, relationships included (a book's `articles` still listing a chapter the change
     /// inserted), until that model is fetched again; it notifies no observer. Callers hold such
     /// models (the progress recorder its page, a screen its folder). A fetch returns the same
     /// instance holding the stored values, so each one is fetched again by its id. Models the

@@ -21,7 +21,7 @@ enum FolderKind: String, Codable, CaseIterable {
 }
 
 /// How a folder (or the top level) orders its pages. Raw values are persisted.
-enum PageSort: String, Codable, CaseIterable {
+enum ArticleSort: String, Codable, CaseIterable {
     case manual
     case newest
     case title
@@ -40,7 +40,7 @@ final class Folder {
     var sortKey: Double = 0
     var createdAt: Date = Date.now
     /// A book's or series' is *Manual* until changed: its pages start in the source's order.
-    var pageSortRaw: String = PageSort.manual.rawValue
+    @Attribute(originalName: "pageSortRaw") var articleSortRaw: String = ArticleSort.manual.rawValue
     /// An item can be favorited without changing where it lives in the tree.
     var isFavorite: Bool = false
 
@@ -62,7 +62,7 @@ final class Folder {
 
     // Listening.
     /// The page that last played: where Continue resumes.
-    var currentPageKey: UUID?
+    @Attribute(originalName: "currentPageKey") var currentArticleKey: UUID?
     /// Not written or read: when the folder's place last played is its page's `lastPlayedAt`
     /// (kept as stored by older builds; persisted fields don't change).
     var lastPlayedAt: Date?
@@ -74,7 +74,7 @@ final class Folder {
     // The inverse is declared on this side only: the macro rejects reciprocal `inverse:`
     // annotations on a self-reference.
     @Relationship(deleteRule: .nullify, inverse: \Folder.parent) var children: [Folder]? = []
-    @Relationship(deleteRule: .nullify, inverse: \Page.folder) var pages: [Page]? = []
+    @Relationship(deleteRule: .nullify, originalName: "pages", inverse: \Article.folder) var articles: [Article]? = []
 
     init(id: UUID = UUID(), name: String, kind: FolderKind = .plain, sortKey: Double = 0, createdAt: Date = .now) {
         self.id = id
@@ -89,9 +89,9 @@ final class Folder {
         set { kindRaw = newValue.rawValue }
     }
 
-    var pageSort: PageSort {
-        get { PageSort(rawValue: pageSortRaw) ?? .manual }
-        set { pageSortRaw = newValue.rawValue }
+    var articleSort: ArticleSort {
+        get { ArticleSort(rawValue: articleSortRaw) ?? .manual }
+        set { articleSortRaw = newValue.rawValue }
     }
 
     /// It has a cover or a byline: its screen has the header with the cover and the author, and its

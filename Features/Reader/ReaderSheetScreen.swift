@@ -16,7 +16,7 @@ import SwiftUI
 /// - 🔖 saves / removes from the Library (tap) or files the page (long-press, *Save to Folder…*: the Move tree);
 ///   ⋯ is the page's menu (Save / Remove from Library, Move to…, Add to Favorites, Share,
 ///   Download, Downloads, Settings; Favorites / History / Website). Both act through
-///   `PageActions`, as in Now Playing.
+///   `ArticleActions`, as in Now Playing.
 /// - Aa, left of ☝︎, changes how the page reads (`TextAppearanceControl`), live.
 /// - Scrolling down reads full screen, as in Now Playing (`ReaderSheet`, `ReadingChrome`); a link
 ///   in the text opens in the browser.
@@ -35,26 +35,26 @@ struct ReaderSheetScreen: View {
     @State private var jumpMode = false
     @State private var scroll = ReadingScrollHandle()
 
-    private var article: ReaderArticle { state.article }
+    private var readerArticle: ReaderArticle { state.article }
 
-    private var sessionReady: Bool { !article.document.isEmpty }
+    private var sessionReady: Bool { !readerArticle.document.isEmpty }
 
     var body: some View {
         // The article's library page, if it has one (saved, played, or a favorite).
-        PageLookup(key: article.id, canonicalURL: article.origin.canonicalURL) { page in
-            sheet(PageActions(page: page, article: article, library: library, shell: shell, speech: speech,
+        ArticleLookup(key: readerArticle.id, canonicalURL: readerArticle.origin.canonicalURL) { article in
+            sheet(ArticleActions(article: article, readerArticle: readerArticle, library: library, shell: shell, speech: speech,
                               downloads: downloads, follow: follow))
         }
     }
 
-    private func sheet(_ actions: PageActions) -> some View {
-        let start = listenStart(actions.page)
-        let listen = listenLabel(start, finished: actions.page?.finishedAt != nil)
+    private func sheet(_ actions: ArticleActions) -> some View {
+        let start = listenStart(actions.article)
+        let listen = listenLabel(start, finished: actions.article?.finishedAt != nil)
         return ReaderSheet(
             backTitle: state.origin.backTitle,
             listenTitle: listen.title,
             listenDetail: listen.detail,
-            listenState: speech.playState(of: .page(article.id)),
+            listenState: speech.playState(of: .article(readerArticle.id)),
             isSaved: actions.isSaved,
             onClose: { [shell, presentation = state.presentation] in shell.readerDidClose(presentation) },
             onListen: { self.listen(from: nil, start: start) },
@@ -69,7 +69,7 @@ struct ReaderSheetScreen: View {
         } banner: {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
-            text(start, status: listen.detail, chapter: actions.page?.isChapter == true)
+            text(start, status: listen.detail, chapter: actions.article?.isChapter == true)
         } bar: {
             NowPlayingBarView(speech: speech)
         } more: {
@@ -81,29 +81,29 @@ struct ReaderSheetScreen: View {
                 ShellToastLayer()
             }
         }
-        .task(id: WarmKey(id: article.id, count: article.document.count)) {
+        .task(id: WarmKey(id: readerArticle.id, count: readerArticle.document.count)) {
             prepareListen(from: start, saved: actions.isSaved)
         }
     }
 
     /// Where Listen starts: the page's saved spot, or its top once it is finished.
-    private func listenStart(_ page: Page?) -> ListenSpot {
-        page?.listenStart ?? ListenSpot(paragraph: article.resumeParagraph)
+    private func listenStart(_ article: Article?) -> ListenSpot {
+        article?.listenStart ?? ListenSpot(paragraph: readerArticle.resumeParagraph)
     }
 
     // MARK: - Text
 
     @ViewBuilder
     private func text(_ start: ListenSpot, status: String?, chapter: Bool) -> some View {
-        HTMLReadingView(html: article.readingHTML, heading: ReaderHeading(title: article.title, detail: detail(status)),
+        HTMLReadingView(html: readerArticle.readingHTML, heading: ReaderHeading(title: readerArticle.title, detail: detail(status)),
                         activeParagraphIndex: nil, sentence: savedSentence(start), jumpMode: jumpMode,
                         opensAtSentence: true, scrollHandle: scroll, onOpenLink: shell.navigate(to:),
-                        pageTimeLeft: { [document = article.document, rate = speech.rateMultiplier] in
+                        pageTimeLeft: { [document = readerArticle.document, rate = speech.rateMultiplier] in
                             ListeningTime.leftLabel(in: document, paragraph: $0, offset: $1, rate: rate,
                                                     chapter: chapter)
                         },
                         onPlaySelection: { paragraph, offset in
-                            guard let spot = ListenSpot.fromSelection(in: article.document, paragraph: paragraph,
+                            guard let spot = ListenSpot.fromSelection(in: readerArticle.document, paragraph: paragraph,
                                                                       offset: offset) else { return }
                             listen(at: spot)
                         }) { index in
@@ -115,11 +115,11 @@ struct ReaderSheetScreen: View {
     /// opens with it in the middle, underlined, where Continue starts.
     private func savedSentence(_ start: ListenSpot) -> ReaderSentence? {
         guard start.isPartWay else { return nil }
-        return ReaderSentence(in: article.document, paragraph: start.paragraph, utf16Offset: start.utf16Offset)
+        return ReaderSentence(in: readerArticle.document, paragraph: start.paragraph, utf16Offset: start.utf16Offset)
     }
 
     private var totalLength: Int {
-        sessionReady ? article.document.utf16Length : article.plainText.utf16.count
+        sessionReady ? readerArticle.document.utf16Length : readerArticle.plainText.utf16.count
     }
 
     /// The source, then what Listen's detail says, as a row's second line does: the length
@@ -128,14 +128,14 @@ struct ReaderSheetScreen: View {
     private func detail(_ status: String?) -> [String] {
         let minutes = ListeningTime.minutes(utf16Length: totalLength, rate: speech.rateMultiplier)
         let length = minutes > 0 ? ListeningTime.label(minutes: minutes) : ""
-        return [article.sourceLabel, status ?? length].filter { !$0.isEmpty }
+        return [readerArticle.sourceLabel, status ?? length].filter { !$0.isEmpty }
     }
 
     /// Listen's title and the lighter time after it, at the current speed: "Listen" "9 min",
     /// "Continue" "6 min left", "Listen Again".
     private func listenLabel(_ start: ListenSpot, finished: Bool) -> (title: String, detail: String?) {
         if finished { return (String(localized: "Listen Again"), nil) }
-        let doc = article.document
+        let doc = readerArticle.document
         if start.isPartWay, doc.paragraphs.indices.contains(start.paragraph) {
             let at = start.resolved(in: doc).utf16Offset
             let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at, rate: speech.rateMultiplier)
@@ -154,7 +154,7 @@ struct ReaderSheetScreen: View {
         guard sessionReady else { return }
         jumpMode = false
         let handOver = scroll.handOver
-        speech.listen(to: article, at: paragraph.map { ListenSpot(paragraph: $0) } ?? start)
+        speech.listen(to: readerArticle, at: paragraph.map { ListenSpot(paragraph: $0) } ?? start)
         shell.turnReaderIntoNowPlaying(handOver: handOver)
     }
 
@@ -163,7 +163,7 @@ struct ReaderSheetScreen: View {
         guard sessionReady else { return }
         jumpMode = false
         let handOver = scroll.handOver
-        speech.listen(to: article, at: spot)
+        speech.listen(to: readerArticle, at: spot)
         shell.turnReaderIntoNowPlaying(handOver: handOver)
     }
 
@@ -171,9 +171,9 @@ struct ReaderSheetScreen: View {
     /// never shows what is playing, so this never touches live playback.
     private func prepareListen(from start: ListenSpot, saved: Bool) {
         guard sessionReady else { return }
-        let paragraphs = article.document.paragraphs
+        let paragraphs = readerArticle.document.paragraphs
         ListenTimingLog.log("reader_open", [
-            "key": ListenTimingLog.shortKey(article.id),
+            "key": ListenTimingLog.shortKey(readerArticle.id),
             "paragraphs": paragraphs.count,
             "chars": paragraphs.reduce(0) { $0 + $1.count },
             "resume_p": start.paragraph,
@@ -181,13 +181,13 @@ struct ReaderSheetScreen: View {
             "saved": saved,
         ])
         speech.localTTS.prepareListenIdentity(
-            key: article.id,
+            key: readerArticle.id,
             paragraphs: paragraphs,
-            trustedParagraphs: article.trustedParagraphs,
-            legacyKeys: article.legacyCacheKeys,
+            trustedParagraphs: readerArticle.trustedParagraphs,
+            legacyKeys: readerArticle.legacyCacheKeys,
             isLivePlayback: false
         )
-        speech.localTTS.openArticle(cacheKey: article.id, paragraphs: paragraphs, from: start.paragraph,
+        speech.localTTS.openArticle(cacheKey: readerArticle.id, paragraphs: paragraphs, from: start.paragraph,
                                     isEphemeral: !saved)
     }
 

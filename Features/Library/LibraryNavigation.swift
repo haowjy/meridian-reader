@@ -54,7 +54,7 @@ struct LibraryEditBar: View {
         BottomToolbarLayout {
             BandToolbarButton(systemImage: Icons.move, label: Verbs.moveTo, identifier: "editMove") {
                 let selected = actions.selected(in: screen)
-                actions.move(selected.folders.map(LibraryItem.folder) + selected.pages.map(LibraryItem.page)) {
+                actions.move(selected.folders.map(LibraryItem.folder) + selected.articles.map(LibraryItem.article)) {
                     screen.selection = []
                 }
             }
@@ -62,9 +62,9 @@ struct LibraryEditBar: View {
             .toolbarSlot(0)
             BandToolbarButton(systemImage: Icons.markFinished, label: Verbs.markFinished,
                               identifier: "editMarkFinished") {
-                if actions.setFinished(actions.selected(in: screen).pages.filter(\.isSaved), true) { screen.selection = [] }
+                if actions.setFinished(actions.selected(in: screen).articles.filter(\.isSaved), true) { screen.selection = [] }
             }
-            .disabled(actions.selected(in: screen).pages.allSatisfy { !$0.isSaved })
+            .disabled(actions.selected(in: screen).articles.allSatisfy { !$0.isSaved })
             .toolbarSlot(2)
             BandToolbarButton(systemImage: Icons.delete, label: Verbs.remove, identifier: "editRemove") {
                 actions.removeSelection(of: screen)

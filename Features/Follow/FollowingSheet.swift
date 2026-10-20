@@ -44,7 +44,7 @@ struct FollowingSheet: View {
     }
 
     private func content(_ folder: Folder, _ state: FollowState) -> some View {
-        let progress = follow.progress(of: library.pages(in: folder))
+        let progress = follow.progress(of: library.articles(in: folder))
         let checking = follow.checking.contains(folder.id)
         return List {
             Section {

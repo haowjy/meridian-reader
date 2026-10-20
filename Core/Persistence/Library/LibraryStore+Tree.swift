@@ -4,7 +4,7 @@ import SwiftData
 /// Something in the tree a move or a delete acts on.
 enum LibraryItem {
     case folder(Folder)
-    case page(Page)
+    case article(Article)
 }
 
 /// Why the tree refused a change. Every folder takes pages and subfolders, books and series too
@@ -20,12 +20,12 @@ enum LibraryTreeError: Error, Equatable {
 /// What a folder holds, all the way down (`LibraryStore.contents(of:)`).
 struct FolderContents: Equatable {
     var folders = 0
-    var pages = 0
-    var pageKeys: Set<UUID> = []
+    var articles = 0
+    var articleKeys: Set<UUID> = []
 
     /// "2 folders, 27 pages"; nil when empty.
     var summary: String? {
-        let parts = [(folders, "folder"), (pages, "page")]
+        let parts = [(folders, "folder"), (articles, "page")]
             .filter { $0.0 > 0 }
             .map { count, noun in "\(count) \(noun)\(count == 1 ? "" : "s")" }
         return parts.isEmpty ? nil : parts.joined(separator: ", ")
@@ -99,8 +99,8 @@ extension LibraryStore {
 
     /// The folder's page order: *Manual* (a book's or series' starts as the source's), *Newest* or
     /// *Title*.
-    func setSort(_ sort: PageSort, for folder: Folder) throws {
-        try edit("sort") { folder.pageSort = sort }
+    func setSort(_ sort: ArticleSort, for folder: Folder) throws {
+        try edit("sort") { folder.articleSort = sort }
     }
 
     /// Moves `items` to the end of `destination` (the top level if nil), in the given order.
@@ -117,7 +117,7 @@ extension LibraryStore {
     /// Saved by the caller: a move, or dedupe merging two copies of a folder.
     func append(_ items: [LibraryItem], to destination: Folder?) {
         var folderKey = nextFolderSortKey(in: destination)
-        var pageKey = nextSortKey(in: destination)
+        var articleKey = nextSortKey(in: destination)
         for item in items {
             switch item {
             case .folder(let folder):
@@ -125,12 +125,12 @@ extension LibraryStore {
                 folder.parent = destination
                 folder.sortKey = folderKey
                 folderKey += 1
-            case .page(let page):
-                guard page.folder !== destination else { continue }
-                movePlaceOff(page)
-                page.setFolder(destination)
-                page.sortKey = pageKey
-                pageKey += 1
+            case .article(let article):
+                guard article.folder !== destination else { continue }
+                movePlaceOff(article)
+                article.setFolder(destination)
+                article.sortKey = articleKey
+                articleKey += 1
             }
         }
     }
@@ -141,8 +141,8 @@ extension LibraryStore {
     /// in the Library: only a page in the Library has a place in the tree to move to.
     func moveRefusal(_ item: LibraryItem, to destination: Folder?) -> LibraryTreeError? {
         switch item {
-        case .page(let page):
-            return page.isInLibrary ? nil : .notInLibrary
+        case .article(let article):
+            return article.isInLibrary ? nil : .notInLibrary
         case .folder(let folder):
             if let destination, destination === folder || destination.ancestors.contains(where: { $0 === folder }) {
                 return .cycle
@@ -171,12 +171,12 @@ extension LibraryStore {
 
     private func deleteRecursively(_ folder: Folder) {
         for child in subfolders(of: folder) { deleteRecursively(child) }
-        for page in pages(in: folder) { deleteWithoutSaving(page) }
+        for article in articles(in: folder) { deleteWithoutSaving(article) }
         log("delete folder \(folder.name) and contents")
         context.delete(folder)
     }
 
-    /// Places `pages` just before `before` (the end if nil) among the pages of `folder` (the top
+    /// Places `articles` just before `before` (the end if nil) among the pages of `folder` (the top
     /// level if nil), in their order, coming from wherever they are: Edit's drag handles, and a
     /// row dropped between rows. One fractional `sortKey` write per page, renumbering the siblings
     /// in one pass when a gap gets under `FractionalOrder.minimumGap`.
@@ -187,20 +187,20 @@ extension LibraryStore {
     /// sort is kept on the device, `LibraryTopLevel`; its caller switches it.)
     ///
     /// One save; a save that fails leaves every page where it was, in its order.
-    func arrange(_ pages: [Page], in folder: Folder?, before: Page?, shownIn sort: PageSort) throws {
-        for page in pages { try checkMove(.page(page), to: folder) }
+    func arrange(_ articles: [Article], in folder: Folder?, before: Article?, shownIn sort: ArticleSort) throws {
+        for article in articles { try checkMove(.article(article), to: folder) }
         try edit("arrange") {
-            let shown = folder.map { LibraryQueries.pages(inFolder: $0.id, sort: sort) } ?? LibraryQueries.loosePages(sort: sort)
+            let shown = folder.map { LibraryQueries.articles(inFolder: $0.id, sort: sort) } ?? LibraryQueries.looseArticles(sort: sort)
             let siblings = (try? context.fetch(shown)) ?? []
             if sort != .manual {
-                for (index, page) in siblings.enumerated() { page.sortKey = Double(index) }
+                for (index, article) in siblings.enumerated() { article.sortKey = Double(index) }
             }
-            folder?.pageSort = .manual
-            for page in pages where page.folder !== folder {
-                movePlaceOff(page)
-                page.setFolder(folder)
+            folder?.articleSort = .manual
+            for article in articles where article.folder !== folder {
+                movePlaceOff(article)
+                article.setFolder(folder)
             }
-            FractionalOrder.move(pages, among: siblings, before: before, key: \.sortKey)
+            FractionalOrder.move(articles, among: siblings, before: before, key: \.sortKey)
         }
     }
 
@@ -220,13 +220,13 @@ extension LibraryStore {
     /// (books and series among them) and pages, all the way down, and every page key (to say
     /// "Stops what's playing").
     func contents(of folder: Folder) -> FolderContents {
-        let pages = pages(in: folder)
-        var total = FolderContents(pages: pages.count, pageKeys: Set(pages.map(\.listenKey)))
+        let articles = articles(in: folder)
+        var total = FolderContents(articles: articles.count, articleKeys: Set(articles.map(\.listenKey)))
         for child in subfolders(of: folder) {
             let inner = contents(of: child)
             total.folders += 1 + inner.folders
-            total.pages += inner.pages
-            total.pageKeys.formUnion(inner.pageKeys)
+            total.articles += inner.articles
+            total.articleKeys.formUnion(inner.articleKeys)
         }
         return total
     }

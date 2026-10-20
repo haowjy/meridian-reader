@@ -3,7 +3,7 @@ import SwiftUI
 /// Recently visited pages (the bounded `RecentVisit` list), newest first, in the Library's rows:
 /// the site's icon (or its letter tile), the title, then the site (not for an untitled visit,
 /// whose title line is already its site) and how long ago. Tap to open; ⋯ and the long press are
-/// the page's menu (`PageMenu`, on the Library's page for the address when it has one), then
+/// the page's menu (`ArticleMenu`, on the Library's page for the address when it has one), then
 /// *Remove from History*.
 ///
 /// ```
@@ -47,7 +47,7 @@ struct BrowseHistoryView: View {
 }
 
 /// A visit's row, with its page's menu: the Library's page for its address when there is one
-/// (`PageLookup`), so its rows read as that page's do everywhere.
+/// (`ArticleLookup`), so its rows read as that page's do everywhere.
 private struct HistoryRow: View {
     let visit: RecentVisit
     let onOpen: (RecentVisit) -> Void
@@ -59,13 +59,13 @@ private struct HistoryRow: View {
     @Environment(FollowCenter.self) private var follow
 
     var body: some View {
-        PageLookup(key: ArticleIdentity.articleKey(canonicalURL: visit.urlString), canonicalURL: visit.urlString) { page in
+        ArticleLookup(key: ArticleIdentity.articleKey(canonicalURL: visit.urlString), canonicalURL: visit.urlString) { page in
             let menu = AnyView(VisitMenu(visit: visit,
-                                         actions: PageActions(page: page, url: visit.url, library: library, shell: shell,
+                                         actions: ArticleActions(article: page, url: visit.url, library: library, shell: shell,
                                                               speech: speech, downloads: downloads, follow: follow),
                                          library: library))
-            ListRow(kind: .page(artwork: visit.faviconData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
-                                letter: PageTitle.artworkLetter(title: visit.title, source: visit.host,
+            ListRow(kind: .article(artwork: visit.faviconData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
+                                letter: ArticleRowTitle.artworkLetter(title: visit.title, source: visit.host,
                                                               address: visit.urlString)),
                     title: visit.lineOne, subtitle: visit.title.isEmpty ? nil : visit.host,
                     note: visit.visitedAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)),
@@ -81,10 +81,10 @@ private struct HistoryRow: View {
 /// The page's menu, then History's own *Remove from History*.
 private struct VisitMenu: View {
     let visit: RecentVisit
-    let actions: PageActions
+    let actions: ArticleActions
     let library: LibraryStore
 
     var body: some View {
-        PageMenu(actions: actions, place: .history(onRemove: { library.removeVisit(visit) }))
+        ArticleMenu(actions: actions, place: .history(onRemove: { library.removeVisit(visit) }))
     }
 }

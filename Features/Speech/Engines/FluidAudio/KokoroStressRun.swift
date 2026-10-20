@@ -184,7 +184,7 @@ enum KokoroStressCorpus {
     static let sentencesPerParagraph = [1, 3, 2, 5, 1, 4, 8, 2, 6, 1, 3, 10]
 
     static var sentences: [String] {
-        let paragraphs = DemoBook.chapters.flatMap(\.paragraphs) + DemoBook.loosePage.paragraphs
+        let paragraphs = DemoBook.chapters.flatMap(\.paragraphs) + DemoBook.looseArticle.paragraphs
             + EngineLatencyProbe.texts.map(\.text)
         return paragraphs.flatMap { paragraph in
             var out: [String] = []

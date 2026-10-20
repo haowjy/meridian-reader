@@ -4,12 +4,12 @@ import Foundation
 /// heading, as Readability reads them), a book chapter's contents entry or heading, a story's
 /// chapter link. Nothing makes one up: no "Untitled", no first words, no "Chapter 6", no file
 /// name. In the domain and the views a title is `String?` (nil: none); the library stores none
-/// as "" (`Page.title`, `RecentVisit.title`).
+/// as "" (`Article.title`, `RecentVisit.title`).
 ///
 /// The Reader's heading and Now Playing's title card show a title only when there is one. What
 /// must name a page in one line (a row, a Favorites tile, the Now Playing bar, the lock screen, a
 /// download, a toast) uses `lineOne`, and only that.
-enum PageTitle {
+enum ArticleRowTitle {
     /// The page's title, else its source (its site, or the book or series a chapter is in), else
     /// its address.
     static func lineOne(title: String?, source: String?, address: String?) -> String {

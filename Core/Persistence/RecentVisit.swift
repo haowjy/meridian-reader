@@ -9,7 +9,7 @@ final class RecentVisit {
     @Attribute(.unique) var id: UUID
     /// The page's canonical URL (`ArticleIdentity`): one visit per page.
     var urlString: String
-    /// The page's title, "" when it has none (`PageTitle`).
+    /// The page's title, "" when it has none (`ArticleRowTitle`).
     var title: String
     var host: String
     var visitedAt: Date
@@ -34,8 +34,8 @@ final class RecentVisit {
 
     var url: URL? { URL(string: urlString) }
 
-    /// What names it in its row and a suggestion: `PageTitle.lineOne`.
-    var lineOne: String { PageTitle.lineOne(title: title, source: host, address: urlString) }
+    /// What names it in its row and a suggestion: `ArticleRowTitle.lineOne`.
+    var lineOne: String { ArticleRowTitle.lineOne(title: title, source: host, address: urlString) }
 }
 
 extension LibraryStore {

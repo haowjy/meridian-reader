@@ -2,20 +2,20 @@ import Foundation
 import SwiftData
 
 /// Favorites are flags on pages and folders, independent of their location and of the Library: a
-/// starred page is in Favorites whether it is in the Library or not (`LibraryQueries.favoritePages`),
+/// starred page is in Favorites whether it is in the Library or not (`LibraryQueries.favoriteArticles`),
 /// and the prune keeps it. Removing one from the Library keeps its flag and its place in
 /// Favorites; only unstarring clears it. Adding, removing and renaming a favorite save at once; a
 /// save that fails is rolled back and throws `LibraryStoreError.saveFailed`.
 extension LibraryStore {
     /// Favorite pages anywhere in the tree (a predicate fetch: only they are read).
-    func favoritePages() -> [Page] {
-        (try? context.fetch(LibraryQueries.favoritePages)) ?? []
+    func favoriteArticles() -> [Article] {
+        (try? context.fetch(LibraryQueries.favoriteArticles)) ?? []
     }
 
     /// The page for `url` when it is a favorite.
-    func favorite(for url: URL?) -> Page? {
-        guard let url, Self.canFavorite(url), let page = page(url: url), page.isFavorite else { return nil }
-        return page
+    func favorite(for url: URL?) -> Article? {
+        guard let url, Self.canFavorite(url), let article = article(url: url), article.isFavorite else { return nil }
+        return article
     }
 
     /// A web page's address can be starred, whether a page for it exists yet or not.
@@ -25,62 +25,62 @@ extension LibraryStore {
 
     /// A page's ☆ applies when it is in the Library (a book's chapter too, which has no web
     /// address), has a web address, or is starred already (a removed chapter can be unstarred).
-    static func canFavorite(_ page: Page) -> Bool {
-        page.isFavorite || page.isInLibrary || page.url.map(canFavorite) == true
+    static func canFavorite(_ article: Article) -> Bool {
+        article.isFavorite || article.isInLibrary || article.url.map(canFavorite) == true
     }
 
     /// Makes the page for `url` a favorite without moving it: the existing page as
     /// `addFavorite(_:artwork:)` does, or a new link page in no folder, made and starred in one
     /// save.
     @discardableResult
-    func addFavorite(url: URL, title: String?, artwork: Data?) throws -> Page {
-        if let existing = page(url: url) {
+    func addFavorite(url: URL, title: String?, artwork: Data?) throws -> Article {
+        if let existing = article(url: url) {
             try addFavorite(existing, artwork: artwork)
             return existing
         }
         let canonical = ArticleIdentity.canonicalURLString(from: url)
         let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return try edit("favorite link") {
-            let page = Page(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: trimmed,
+            let article = Article(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: trimmed,
                             byline: url.host ?? url.absoluteString, urlString: url.absoluteString, contentState: .link, addedAt: now(),
                             sortKey: nextSortKey(in: nil), artworkData: artwork)
-            page.isFavorite = true
-            context.insert(page)
-            return page
+            article.isFavorite = true
+            context.insert(article)
+            return article
         }
     }
 
-    /// Stars `page`, taking `artwork` as its icon when it has none. Favorites shows only what is in
+    /// Stars `article`, taking `artwork` as its icon when it has none. Favorites shows only what is in
     /// the Library (C104), so a page played without saving is saved with it, at the top level.
-    func addFavorite(_ page: Page, artwork: Data? = nil) throws {
+    func addFavorite(_ article: Article, artwork: Data? = nil) throws {
         try edit("favorite") {
-            fileIfUnsaved(page)
-            page.isFavorite = true
-            if page.artworkData == nil { page.artworkData = artwork }
+            fileIfUnsaved(article)
+            article.isFavorite = true
+            if article.artworkData == nil { article.artworkData = artwork }
         }
     }
 
     /// Saves a page played without saving into the Library's top level (starring or downloading
     /// it, C104); a page in the Library stays where it is. Inside an `edit`.
-    func fileIfUnsaved(_ page: Page) {
-        guard page.addedAt == nil else { return }
-        page.addedAt = now()
-        page.removedAt = nil
-        page.sortKey = nextSortKey(in: nil)
+    func fileIfUnsaved(_ article: Article) {
+        guard article.addedAt == nil else { return }
+        article.addedAt = now()
+        article.removedAt = nil
+        article.sortKey = nextSortKey(in: nil)
     }
 
     /// `fileIfUnsaved` as its own change (*Download* on a page played without saving).
-    func saveUnsaved(_ page: Page) throws {
-        guard page.addedAt == nil else { return }
-        try edit("save to download") { fileIfUnsaved(page) }
+    func saveUnsaved(_ article: Article) throws {
+        guard article.addedAt == nil else { return }
+        try edit("save to download") { fileIfUnsaved(article) }
     }
 
     /// Removes only the favorite flag; location and content stay intact (a link ☆ made stays in
     /// the Library). A page out of the Library is then in no list, and the prune deletes it on
     /// its schedule.
-    func removeFavorite(_ page: Page) throws {
-        guard page.isFavorite else { return }
-        try edit("unfavorite page") { page.isFavorite = false }
+    func removeFavorite(_ article: Article) throws {
+        guard article.isFavorite else { return }
+        try edit("unfavorite page") { article.isFavorite = false }
     }
 
     func toggleFavorite(_ folder: Folder) throws {
@@ -98,10 +98,10 @@ extension LibraryStore {
         do {
             try edit("migrate favorites folder") {
                 for legacy in legacyFolders {
-                    for page in legacy.pages ?? [] {
-                        page.isFavorite = true
-                        page.sortKey = nextSortKey(in: nil)
-                        page.setFolder(nil)
+                    for article in legacy.articles ?? [] {
+                        article.isFavorite = true
+                        article.sortKey = nextSortKey(in: nil)
+                        article.setFolder(nil)
                     }
                     for folder in legacy.children ?? [] {
                         folder.parent = nil
@@ -117,9 +117,9 @@ extension LibraryStore {
 
     /// Takes `data` as the page's icon unless it would replace a usable icon with a smaller one
     /// (tiny 16 px favicons look smeared on a tile).
-    func offerArtwork(_ data: Data, for page: Page) {
-        guard page.artworkData == nil || FaviconFetcher.isTileSized(data) else { return }
-        page.artworkData = data
+    func offerArtwork(_ data: Data, for article: Article) {
+        guard article.artworkData == nil || FaviconFetcher.isTileSized(data) else { return }
+        article.artworkData = data
         commit("artwork")
     }
 
@@ -127,20 +127,20 @@ extension LibraryStore {
     /// concurrently; a page only counts as tried once its fetch finished, so a cancelled pass
     /// retries next time.
     func backfillFavoriteIcons() async {
-        let pending = favoritePages().filter {
+        let pending = favoriteArticles().filter {
             !FaviconFetcher.isTileSized($0.artworkData) && $0.key.map { !iconTried.contains($0) } == true
         }
         guard !pending.isEmpty else { return }
         await withTaskGroup(of: (UUID, Data?).self) { group in
-            for page in pending {
+            for article in pending {
                 // A chapter (no web address) has no site to ask.
-                guard let key = page.key, let host = page.url?.host else { continue }
+                guard let key = article.key, let host = article.url?.host else { continue }
                 group.addTask { (key, await FaviconFetcher.fetch(forHost: host)) }
             }
             for await (key, icon) in group {
                 guard !Task.isCancelled else { return }
                 iconTried.insert(key)
-                if let icon, let page = page(key: key) { offerArtwork(icon, for: page) }
+                if let icon, let article = article(key: key) { offerArtwork(icon, for: article) }
             }
         }
     }

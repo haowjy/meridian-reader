@@ -81,24 +81,24 @@ enum AppLaunch {
     private static func resumeAfterCrash(library: LibraryStore, speech: SpeechController, shell: ShellState) async {
         let tts = speech.localTTS
         guard let target = tts.takePendingResume() else { return }
-        guard let page = library.page(matching: target), page.hasText else {
+        guard let article = library.article(matching: target), article.hasText else {
             ListenTimingLog.log("kokoro_resume", ["ok": false, "why": "article not found", "key": String(target.articleKey.prefix(8))])
             return
         }
-        let session = SpeechSession.page(page)
-        let inText = target.text.map { library.holds(page, text: $0) } ?? (target.paragraph == page.positionParagraph)
-        let p = inText ? min(max(0, target.paragraph), max(0, session.document.count - 1)) : page.positionParagraph
+        let session = SpeechSession.article(article)
+        let inText = target.text.map { library.holds(article, text: $0) } ?? (target.paragraph == article.positionParagraph)
+        let p = inText ? min(max(0, target.paragraph), max(0, session.document.count - 1)) : article.positionParagraph
         let autoPlay = inText && target.autoPlay
         if autoPlay {
             // The engine loads first, so the resume doesn't start on Apple.
             await tts.waitForEngineLoad(timeout: .seconds(20))
             speech.start(session, at: ListenSpot(paragraph: p))
         } else {
-            speech.prepare(session, at: ListenSpot(paragraph: p, utf16Offset: page.positionUTF16))
+            speech.prepare(session, at: ListenSpot(paragraph: p, utf16Offset: article.positionUTF16))
         }
         shell.showNowPlaying()
         ListenTimingLog.log("kokoro_resume", [
-            "ok": true, "key": ListenTimingLog.shortKey(page.listenKey), "p": p, "auto_play": autoPlay,
+            "ok": true, "key": ListenTimingLog.shortKey(article.listenKey), "p": p, "auto_play": autoPlay,
             "text": inText ? "same" : target.text == nil ? "unknown" : "other", "local": tts.usesLocalEngine,
         ])
     }

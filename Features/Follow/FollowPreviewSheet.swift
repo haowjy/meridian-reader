@@ -114,7 +114,7 @@ struct FollowPreviewSheet: View {
             defer { extracting = nil }
             do {
                 let source = SingleWebPageSource(url: url, htmlSnapshot: try await page.snapshotHTML(), extractor: extractor)
-                let content = try await source.content(of: source.page)
+                let content = try await source.content(of: source.article)
                 guard !Task.isCancelled else { return }
                 reader = ReaderArticle(id: UUID(), url: url, extracted: content.extracted, document: content.document)
             } catch is CancellationError {

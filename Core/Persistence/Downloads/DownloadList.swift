@@ -12,8 +12,12 @@ import Foundation
 /// downloaded stays.
 struct DownloadRecord: Codable, Equatable, Identifiable {
     enum Target: Codable, Hashable {
-        case page(UUID)
+        case article(UUID)
         case folder(UUID)
+        /// Persisted in Downloads.json under the names from before C121.
+        private enum CodingKeys: String, CodingKey {
+            case article = "page", folder
+        }
 
         var isFolder: Bool {
             if case .folder = self { return true }
@@ -22,7 +26,7 @@ struct DownloadRecord: Codable, Equatable, Identifiable {
     }
 
     /// Where one page is. Raw values are persisted.
-    enum PageState: String, Codable {
+    enum ArticleState: String, Codable {
         /// Waiting its turn, or being fetched or rendered now.
         case queued
         /// Its audio was rendered in full (the voice is the audio cache's to say).
@@ -36,7 +40,7 @@ struct DownloadRecord: Codable, Equatable, Identifiable {
 
     struct Entry: Codable, Equatable {
         var key: UUID
-        var state: PageState = .queued
+        var state: ArticleState = .queued
         var failure: String?
     }
 
@@ -92,7 +96,7 @@ struct DownloadRecord: Codable, Equatable, Identifiable {
     }
 
     /// Pages still to fetch or render.
-    var hasQueuedPages: Bool { entries.contains { $0.state == .queued } }
+    var hasQueuedArticles: Bool { entries.contains { $0.state == .queued } }
 
     /// Pages that ended without their audio.
     var failedCount: Int { entries.filter { $0.state == .failed }.count }

@@ -119,15 +119,15 @@ enum EPUBBookReader {
     /// cover is left out (caps still throw).
     private static func cover(of package: EPUBPackage, in archive: EPUBArchive, budget: MarkupBudget) throws -> EPUBCover? {
         var path = package.coverImagePath
-        if path == nil, let page = package.guide.first(where: { $0.type == "cover" }) {
-            let item = package.manifest.first { $0.path.lowercased() == page.path.lowercased() }
+        if path == nil, let article = package.guide.first(where: { $0.type == "cover" }) {
+            let item = package.manifest.first { $0.path.lowercased() == article.path.lowercased() }
             if item?.mediaType.hasPrefix("image/") == true {
-                path = page.path
-            } else if let data = try readOptionalText(page.path, from: archive, budget: budget) {
+                path = article.path
+            } else if let data = try readOptionalText(article.path, from: archive, budget: budget) {
                 let tree = try XHTMLReader.tree(from: data, budget: budget)
                 let source = tree.firstDescendant(named: "img")?.attribute("src")
                     ?? tree.firstDescendant(named: "image").flatMap { $0.attribute("xlink:href") ?? $0.attribute("href") }
-                path = source.flatMap { EPUBPath.resolve($0, relativeTo: page.path)?.path }
+                path = source.flatMap { EPUBPath.resolve($0, relativeTo: article.path)?.path }
             }
         }
         guard let path, let stored = archive.entryPath(matching: path),

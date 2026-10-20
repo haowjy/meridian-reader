@@ -16,7 +16,7 @@ final class FollowTests: XCTestCase {
     /// to other stories and the site's menus are left out. The title loses the site's name.
     func testContentsReaders() throws {
         let story = "https://www.royalroad.com/fiction/40512/the-copper-orchard"
-        let page = LinkPage(url: URL(string: story)!, title: "The Copper Orchard | Royal Road", heading: nil,
+        let article = LinkPage(url: URL(string: story)!, title: "The Copper Orchard | Royal Road", heading: nil,
                             author: " orchard_writer ", links: [
             link("https://www.royalroad.com/fictions/best-rated", "Best Rated", list: 0),
             link("\(story)/chapter/900001/1-first-frost", "Start Reading", list: 1),
@@ -28,7 +28,7 @@ final class FollowTests: XCTestCase {
             link("\(story)/chapter/900003/2-pruning-season", "8 years ago", list: 2),
             link("https://www.royalroad.com/fiction/99999/other/chapter/1/one", "Another story", list: 3),
         ])
-        let contents = try XCTUnwrap(TableOfContents.read(page))
+        let contents = try XCTUnwrap(TableOfContents.read(article))
         XCTAssertEqual(contents.title, "The Copper Orchard")
         XCTAssertEqual(contents.byline, "orchard_writer")
         XCTAssertEqual(contents.chapters.map(\.title), ["1. First Frost", "Author's Note: Hiatus", "2. Pruning Season"])
@@ -110,7 +110,7 @@ final class FollowTests: XCTestCase {
 
     /// A list written before the switch reads with every folder's switch on and nothing deleted;
     /// while on, a folder's new pages join it, its deleted ones don't; off, none do.
-    func testDownloadListBeforeTheSwitchAndPagesJoining() throws {
+    func testDownloadListBeforeTheSwitchAndArticlesJoining() throws {
         let key = UUID(), other = UUID(), new = UUID()
         let old = """
         [{"id":"\(UUID())","target":{"folder":{"_0":"\(UUID())"}},"title":"Story","addedAt":0,"isPaused":false,

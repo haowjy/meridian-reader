@@ -167,7 +167,7 @@ final class SpeechController {
         sampleListenStatus()
         let after = ListenProgressKey(id: activeSessionID, paragraph: currentParagraphIndex, phase: playbackPhase)
         if after != before, let id = playback.articleID {
-            onProgress?(ListenProgress(pageKey: id, text: playback.textFingerprint, paragraph: playback.playhead,
+            onProgress?(ListenProgress(articleKey: id, text: playback.textFingerprint, paragraph: playback.playhead,
                                        utf16Offset: playback.utf16Offset, phase: playback.phase))
         }
     }
@@ -198,7 +198,7 @@ final class SpeechController {
         let folder = meta?.folder
         let isChapter = folder?.isBookOrSeries == true
         let playingFrom: PlayingFrom = folder.map { .folder(id: $0.id, name: $0.name) } ?? .site(host: host)
-        return NowPlaying(pageKey: id, canonicalURL: meta?.canonicalURL, title: meta?.title,
+        return NowPlaying(articleKey: id, canonicalURL: meta?.canonicalURL, title: meta?.title,
                           source: isChapter ? folder?.name ?? host : host, byline: meta?.site,
                           artwork: meta?.artwork, playingFrom: playingFrom, isChapter: isChapter, phase: playbackPhase)
     }
@@ -223,7 +223,7 @@ final class SpeechController {
     private func isCurrent(_ target: ListenTarget) -> Bool {
         guard let id = activeSessionID, !document.isEmpty else { return false }
         switch target {
-        case .page(let key):
+        case .article(let key):
             return key == id
         case .webPage(let url):
             return boundMeta?.canonicalURL == url
@@ -249,7 +249,7 @@ final class SpeechController {
     /// ▶ / ⏸ on what you hear (the Now Playing bar, Now Playing's transport).
     func pressNowPlaying() {
         guard let id = activeSessionID else { return }
-        press(.page(id)) {}
+        press(.article(id)) {}
     }
 
     /// `target` is being made ready (its page extracting): its button shows `.preparing`, and
@@ -311,8 +311,8 @@ final class SpeechController {
     }
 
     /// The page's icon arrived after it started playing (🎧 starts before fetching it).
-    func setArtwork(_ data: Data, for pageKey: UUID) {
-        guard boundMeta?.id == pageKey, boundMeta?.artwork == nil else { return }
+    func setArtwork(_ data: Data, for articleKey: UUID) {
+        guard boundMeta?.id == articleKey, boundMeta?.artwork == nil else { return }
         sessionMeta?.artwork = data
         refreshNowPlaying()
     }

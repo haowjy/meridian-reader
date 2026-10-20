@@ -18,38 +18,38 @@ struct LibraryActions {
 
     /// A saved page in the Reader sheet (Now Playing if it is what you hear); a link in
     /// the browser.
-    func open(_ page: Page) {
-        if page.isLink {
-            if let url = page.url { shell.navigate(to: url) }
+    func open(_ article: Article) {
+        if article.isLink {
+            if let url = article.url { shell.navigate(to: url) }
             return
         }
-        shell.openSaved(page.listenKey, in: library)
+        shell.openSaved(article.listenKey, in: library)
     }
 
-    func playState(of page: Page) -> PlayState {
-        speech.playState(of: .page(page.listenKey))
+    func playState(of article: Article) -> PlayState {
+        speech.playState(of: .article(article.listenKey))
     }
 
-    /// What `page`'s row shows: its length or time left at the current speed, finished, skipped.
-    func progress(of page: Page) -> ListRow.Progress {
-        PageProgress.of(page, rate: speech.rateMultiplier)
+    /// What `article`'s row shows: its length or time left at the current speed, finished, skipped.
+    func progress(of article: Article) -> ListRow.Progress {
+        ArticleProgress.of(article, rate: speech.rateMultiplier)
     }
 
     /// The row's ▶: pause or resume it when it is what you hear; otherwise play it from its spot
     /// (a finished page from the top), replacing what plays. A page in a folder carries on through
     /// it.
-    func play(_ page: Page) {
-        speech.press(.page(page.listenKey)) { start(page, at: page.listenStart) }
+    func play(_ article: Article) {
+        speech.press(.article(article.listenKey)) { start(article, at: article.listenStart) }
     }
 
     /// *Play from Here* on a page in a folder: from its start, carrying on through the folder.
-    func playFromStart(_ page: Page) {
-        if page.isWaitingChapter { follow.play(page) } else { speech.playPage(page.listenKey) }
+    func playFromStart(_ article: Article) {
+        if article.isWaitingChapter { follow.play(article) } else { speech.playArticle(article.listenKey) }
     }
 
-    /// Plays `page` from `spot`, replacing what plays; a chapter waiting for its text once it is in.
-    private func start(_ page: Page, at spot: ListenSpot) {
-        if page.isWaitingChapter { follow.play(page) } else { speech.start(.page(page), at: spot) }
+    /// Plays `article` from `spot`, replacing what plays; a chapter waiting for its text once it is in.
+    private func start(_ article: Article, at spot: ListenSpot) {
+        if article.isWaitingChapter { follow.play(article) } else { speech.start(.article(article), at: spot) }
     }
 
     // MARK: - Folders
@@ -58,10 +58,10 @@ struct LibraryActions {
         speech.playState(of: .folder(folder.id))
     }
 
-    /// What `folder`'s row and its header show, `pages` being its pages in play order: with the
+    /// What `folder`'s row and its header show, `articles` being its pages in play order: with the
     /// page playing when one of them is what you hear, and its time left at the current speed.
-    func progress(of folder: Folder, pages: [Page]) -> FolderProgress {
-        FolderProgress(folder: folder, pages: pages,
+    func progress(of folder: Folder, articles: [Article]) -> FolderProgress {
+        FolderProgress(folder: folder, articles: articles,
                        playingKey: playState(of: folder).isCurrent ? speech.activeSessionID : nil,
                        rate: speech.rateMultiplier, library: library)
     }
@@ -72,15 +72,15 @@ struct LibraryActions {
     func playFolder(_ folder: Folder) {
         speech.press(.folder(folder.id)) {
             guard let place = library.continueStart(of: folder) else { return }
-            start(place.page, at: place.spot)
+            start(place.article, at: place.spot)
         }
     }
 
     /// *Play from Start*: the first page that plays, from its top.
     func playFolderFromStart(_ folder: Folder) {
         guard let key = ChapterAdvance.start(library.chapterSnapshot(of: folder), place: nil).key,
-              let page = library.page(key: key) else { return }
-        playFromStart(page)
+              let article = library.article(key: key) else { return }
+        playFromStart(article)
     }
 
     // MARK: - Marks and removing
@@ -88,47 +88,47 @@ struct LibraryActions {
     /// *Mark as Finished* / *Mark as Unfinished*, Edit's *Mark Finished*. False when it couldn't
     /// be saved (nothing changed; a toast says so).
     @discardableResult
-    func setFinished(_ pages: [Page], _ finished: Bool) -> Bool {
+    func setFinished(_ articles: [Article], _ finished: Bool) -> Bool {
         shell.attempt(finished ? String(localized: "Couldn’t mark as finished") : String(localized: "Couldn’t mark as unfinished")) {
-            try library.setFinished(pages, finished)
+            try library.setFinished(articles, finished)
         } != nil
     }
 
     /// *Mark All Above as Finished* on a page in a folder.
-    func markAllAbove(_ page: Page) {
-        shell.attempt(String(localized: "Couldn’t mark as finished")) { try library.markAllAbove(page) }
+    func markAllAbove(_ article: Article) {
+        shell.attempt(String(localized: "Couldn’t mark as finished")) { try library.markAllAbove(article) }
     }
 
     /// *Skip in Playback* / *Play in Playback* on a page in a folder.
-    func toggleSkipsInPlayback(_ page: Page) {
+    func toggleSkipsInPlayback(_ article: Article) {
         shell.attempt(String(localized: "Couldn’t change Skip in Playback")) {
-            try library.setSkipsInPlayback(page, !page.skipsInPlayback)
+            try library.setSkipsInPlayback(article, !article.skipsInPlayback)
         }
     }
 
     /// *Remove from Library* from every path (a row's menu and swipe, Edit's *Remove*, the Now
-    /// Playing bar's long-press, and through `PageActions` 🔖 and the browser's, the Reader's and
-    /// Now Playing's ⋯), all of `pages` in one save (`LibraryStore.remove`: the star stays, and
+    /// Playing bar's long-press, and through `ArticleActions` 🔖 and the browser's, the Reader's and
+    /// Now Playing's ⋯), all of `articles` in one save (`LibraryStore.remove`: the star stays, and
     /// the page you hear stops). False when it couldn't be saved: none removed, playback as it
     /// was, and a toast says so.
     @discardableResult
-    func remove(_ pages: [Page]) -> Bool {
-        shell.attempt(String(localized: "Couldn’t remove")) { try library.remove(pages) } != nil
+    func remove(_ articles: [Article]) -> Bool {
+        shell.attempt(String(localized: "Couldn’t remove")) { try library.remove(articles) } != nil
     }
 
     // MARK: - Edit
 
     /// The folders and pages Edit's selection on `screen` names.
-    func selected(in screen: LibraryScreenState) -> (folders: [Folder], pages: [Page]) {
+    func selected(in screen: LibraryScreenState) -> (folders: [Folder], articles: [Article]) {
         var folders: [Folder] = []
-        var pages: [Page] = []
+        var articles: [Article] = []
         for item in screen.selection {
             switch item {
             case .folder(let id): if let folder = library.folder(id: id) { folders.append(folder) }
-            case .page(let key): if let page = library.page(key: key) { pages.append(page) }
+            case .article(let key): if let article = library.article(key: key) { articles.append(article) }
             }
         }
-        return (folders, pages)
+        return (folders, articles)
     }
 
     /// Edit's *Remove*: the selected pages leave the Library in one save, and leave the
@@ -136,8 +136,8 @@ struct LibraryActions {
     /// their delete is saved (`deleteFolders`) and still selected if it is cancelled. Pages that
     /// can't be removed leave everything as it was, the selection too, and nothing is asked.
     func removeSelection(of screen: LibraryScreenState) {
-        let (folders, pages) = selected(in: screen)
-        guard remove(pages) else { return }
+        let (folders, articles) = selected(in: screen)
+        guard remove(articles) else { return }
         screen.selection = Set(folders.map { LibraryItemID.folder($0.id) })
         screen.confirmDelete(folders)
     }
@@ -164,7 +164,7 @@ struct LibraryActions {
         let current: MoveRequest.Place?
         switch items.first {
         case .folder(let folder)?: current = folder.parent.map { .folder($0.id) } ?? .topLevel
-        case .page(let page)?: current = page.folder.map { .folder($0.id) } ?? .topLevel
+        case .article(let article)?: current = article.folder.map { .folder($0.id) } ?? .topLevel
         case nil: current = nil
         }
         let moving = Set(items.compactMap { item -> UUID? in
@@ -190,7 +190,7 @@ extension LibraryActions {
     func item(_ id: LibraryItemID) -> LibraryItem? {
         switch id {
         case .folder(let id): library.folder(id: id).map(LibraryItem.folder)
-        case .page(let key): library.page(key: key).map(LibraryItem.page)
+        case .article(let key): library.article(key: key).map(LibraryItem.article)
         }
     }
 
@@ -213,8 +213,8 @@ extension LibraryActions {
     func canPlace(_ id: LibraryItemID, beside row: LibraryItemID) -> Bool {
         guard let item = item(id), let neighbour = self.item(row) else { return false }
         switch (item, neighbour) {
-        case (.page, .page(let page)):
-            return page.isInLibrary && library.moveRefusal(item, to: page.folder) == nil
+        case (.article, .article(let article)):
+            return article.isInLibrary && library.moveRefusal(item, to: article.folder) == nil
         case (.folder, .folder(let folder)):
             return library.moveRefusal(item, to: folder.parent) == nil
         default:
@@ -229,14 +229,14 @@ extension LibraryActions {
     func place(_ id: LibraryItemID, beside row: LibraryItemID, edge: VerticalEdge) -> Bool? {
         guard canPlace(id, beside: row), let item = item(id), let neighbour = self.item(row) else { return false }
         switch (item, neighbour) {
-        case (.page(let page), .page(let other)):
+        case (.article(let article), .article(let other)):
             let folder = other.folder
-            let sort = folder?.pageSort ?? LibraryTopLevel.sort
-            let siblings = folder.map { library.pages(in: $0) } ?? library.loosePages(sort: sort)
-            guard case .before(let before) = LibraryDropSlot.placement(of: page, beside: other, edge: edge, siblings: siblings)
+            let sort = folder?.articleSort ?? LibraryTopLevel.sort
+            let siblings = folder.map { library.articles(in: $0) } ?? library.looseArticles(sort: sort)
+            guard case .before(let before) = LibraryDropSlot.placement(of: article, beside: other, edge: edge, siblings: siblings)
             else { return nil }
             let placed = shell.attempt(String(localized: "Couldn’t change the order")) {
-                try library.arrange([page], in: folder, before: before, shownIn: sort)
+                try library.arrange([article], in: folder, before: before, shownIn: sort)
             } != nil
             if placed, folder == nil { LibraryTopLevel.sort = .manual }
             return placed

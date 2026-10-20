@@ -144,7 +144,7 @@ struct BrowseStartView: View {
 
     private var bottomChrome: some View {
         let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
-        return PageLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
+        return ArticleLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
             let actions = pageActions(page)
             BrowserBottomChrome(
                 speech: speech,
@@ -219,20 +219,20 @@ struct BrowseStartView: View {
 
     // MARK: - ⋯ menu
 
-    /// The page the browser shows, as every menu sees a page (`PageActions`): saved by extracting
+    /// The page the browser shows, as every menu sees a page (`ArticleActions`): saved by extracting
     /// it first (⋯ spins), starred with the web view's title and icon.
-    private func pageActions(_ libraryPage: Page?) -> PageActions {
+    private func pageActions(_ libraryPage: Article?) -> ArticleActions {
         let service = page
-        let loaded = PageActions.LoadedPage(canSave: hasPage && shell.busy == nil,
+        let loaded = ArticleActions.LoadedPage(canSave: hasPage && shell.busy == nil,
                                             save: { folder in run { try await $0.save(in: folder) } },
                                             toggleFavorite: service.toggleFavorite)
-        return PageActions(page: libraryPage, url: webPage, loaded: webPage == nil ? nil : loaded, library: library,
+        return ArticleActions(article: libraryPage, url: webPage, loaded: webPage == nil ? nil : loaded, library: library,
                            shell: shell, speech: speech, downloads: downloads, follow: follow)
     }
 
-    /// The browser's ⋯: the page's menu (`PageMenu`) while a page is up, then *New Search*,
+    /// The browser's ⋯: the page's menu (`ArticleMenu`) while a page is up, then *New Search*,
     /// *Follow…*, *Reload*, *Downloads*, *Settings*, then `[Favorites][History][Reader]`.
-    private func menu(_ actions: PageActions) -> MenuContext {
+    private func menu(_ actions: ArticleActions) -> MenuContext {
         var facts = MenuRegistry.Facts()
         facts.canFollow = webStore.currentURL?.isWebOrTestPage == true
         facts.hasWebPage = hasPage
@@ -252,7 +252,7 @@ struct BrowseStartView: View {
         let reader = MenuRow(id: "moreReaderToggle", title: Verbs.reader, icon: Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
                              accessibilityHint: Verbs.openInReader) { run { try await $0.openInReader() } }
-        return MenuContext(item: webPage == nil ? [] : PageMenu(actions: actions, place: .browser).rows, screen: screen,
+        return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: screen,
                            tiles: MenuContext.tiles(shell, last: reader))
     }
 
@@ -270,12 +270,12 @@ struct BrowseStartView: View {
                 onOpenFavoriteFolder: { shell.showLibrary(at: library.path(to: $0)) },
                 onShowFavorites: shell.showFavorites,
                 pageMenu: { page in
-                    AnyView(PageMenu(actions: PageActions(page: page, library: library, shell: shell, speech: speech,
+                    AnyView(ArticleMenu(actions: ArticleActions(article: page, library: library, shell: shell, speech: speech,
                                                           downloads: downloads, follow: follow),
                                      place: .elsewhere))
                 },
                 folderMenu: { folder, onTurnOffDownload in
-                    AnyView(FolderMenu(folder: folder, pages: folder.playOrder,
+                    AnyView(FolderMenu(folder: folder, articles: folder.playOrder,
                                        actions: LibraryActions(library: library, speech: speech, shell: shell, follow: follow),
                                        downloads: downloads, screen: favoritesScreen, place: .tile,
                                        onTurnOffDownload: onTurnOffDownload))

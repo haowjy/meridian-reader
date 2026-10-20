@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// What is playing, at the top of Now Playing's text (it scrolls with the text): the artwork,
-/// line one (`PageTitle.lineOne`: the title, or for a page without one its site), and the site
+/// line one (`ArticleRowTitle.lineOne`: the title, or for a page without one its site), and the site
 /// and time left as separate parts (`DetailLine`; the site left out when line one is already it),
 /// as the Now Playing bar shows them. Drawn in the reading page's colours (`palette`: it is hosted inside the page's
 /// web view, out of the sheet's environment, so it is handed them).
@@ -14,7 +14,7 @@ import SwiftUI
 /// └──────────────────────────────────────────┘
 /// ```
 struct TitleCard: View {
-    /// Line one: the title, else what stands for it (`PageTitle.lineOne`).
+    /// Line one: the title, else what stands for it (`ArticleRowTitle.lineOne`).
     let title: String
     /// ["example.com", "12 min left"], or [.finished].
     let detail: [DetailPart]

@@ -84,7 +84,7 @@ enum AppComposition {
         #endif
         return FollowCenter(library: library, queue: FetchQueue(fetcher: fetcher),
                             playingKey: { speech.activeSessionID },
-                            startPlayback: { speech.start(.page($0), at: $0.listenStart) })
+                            startPlayback: { speech.start(.article($0), at: $0.listenStart) })
     }
 
     /// Block Ads over the bundled list (`BundledRuleList`), in WebKit's default rule-list store: every

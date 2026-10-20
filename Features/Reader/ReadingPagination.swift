@@ -14,7 +14,7 @@ struct ReadingPagination: Equatable {
         var bottom: CGFloat
     }
 
-    struct Page: Equatable {
+    struct Article: Equatable {
         /// Shown at the top of the reading area: its first line's top (0 for the first page).
         var top: CGFloat
         /// Its last whole line's bottom (where a slice of a box taller than a page ends).
@@ -25,7 +25,7 @@ struct ReadingPagination: Equatable {
         var visibleBottom: CGFloat
     }
 
-    let pages: [Page]
+    let pages: [Article]
 
     /// `lines` sorted by top, not overlapping; `height` the reading area's.
     init(lines: [Line], pageHeight height: CGFloat, margin: CGFloat) {
@@ -55,7 +55,7 @@ struct ReadingPagination: Equatable {
         if spans.isEmpty { spans = [(0, height)] }
         pages = spans.indices.map { i in
             let (top, bottom) = spans[i]
-            return Page(top: top, bottom: bottom,
+            return Article(top: top, bottom: bottom,
                         visibleTop: i == 0 ? top : max(spans[i - 1].bottom, top - margin),
                         visibleBottom: i == spans.count - 1 ? bottom + margin : min(spans[i + 1].top, bottom + margin))
         }

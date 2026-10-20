@@ -55,7 +55,7 @@ struct PageArticleService {
         }
         // The page's spot, when the library has it (saved, or played without saving); a page
         // heard to the end starts again from the top, as the Reader's Listen Again does.
-        let page = library.page(key: article.id, canonicalURL: article.origin.canonicalURL)
+        let page = library.article(key: article.id, canonicalURL: article.origin.canonicalURL)
         speech.localTTS.prepareListenIdentity(key: article.id, paragraphs: article.document.paragraphs,
                                               trustedParagraphs: article.trustedParagraphs,
                                               legacyKeys: article.legacyCacheKeys, isLivePlayback: false)
@@ -63,7 +63,7 @@ struct PageArticleService {
         return .started(article)
     }
 
-    /// The browser's page saved (`PageActions.LoadedPage.save`: *Save to Library*, or *Save to
+    /// The browser's page saved (`ArticleActions.LoadedPage.save`: *Save to Library*, or *Save to
     /// Folder…* once a place is picked in the Move tree): the folder, or no folder (nil, out of the
     /// folder it was in). ⋯ spins meanwhile. A page that can't be extracted throws; a save that
     /// can't be stored says so in a toast.
@@ -104,7 +104,7 @@ struct PageArticleService {
             throw ExtractionError.unavailable(reason: "Open a page first.")
         }
         let source = SingleWebPageSource(url: url, htmlSnapshot: try await web.snapshotHTML(), extractor: extractor)
-        let content = try await source.content(of: source.page)
+        let content = try await source.content(of: source.article)
         var article = library.readerArticle(url: url, extracted: content.extracted, document: content.document)
         if article.artwork == nil {
             article.artwork = recentFavicon(for: url)

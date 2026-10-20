@@ -1,15 +1,15 @@
 import Foundation
 
 /// Where a page's text comes from: a web address, or a chapter's place in an imported book.
-enum PageOrigin: Hashable, Sendable {
+enum ArticleOrigin: Hashable, Sendable {
     /// A web page: its address as visited, and the canonical form the library knows it by
     /// (`ArticleIdentity.canonicalURLString`; one page per canonical URL).
     case web(URL, canonicalURL: String)
-    /// A chapter of an imported book, at its place in the book ("href#fragment", `Page.locator`),
+    /// A chapter of an imported book, at its place in the book ("href#fragment", `Article.locator`),
     /// or any other page with no web address.
     case book(locator: String)
 
-    static func web(_ url: URL) -> PageOrigin {
+    static func web(_ url: URL) -> ArticleOrigin {
         .web(url, canonicalURL: ArticleIdentity.canonicalURLString(from: url))
     }
 

@@ -34,7 +34,7 @@ struct LibrarySurface: View {
         @Bindable var shell = shell
         VStack(spacing: 0) {
             NavigationStack(path: $shell.libraryPath) {
-                LibraryHomeView(pageSort: PageSort(rawValue: topLevelSort) ?? LibraryTopLevel.defaultSort,
+                LibraryHomeView(articleSort: ArticleSort(rawValue: topLevelSort) ?? LibraryTopLevel.defaultSort,
                                 tab: shell.homeTab,
                                 searchText: search.isActive && shell.librarySearchFolder == nil ? search.text : "")
                     .navigationDestination(for: LibraryRoute.self) { LibraryRouteView(route: $0) }

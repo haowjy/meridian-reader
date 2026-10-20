@@ -19,18 +19,18 @@ final class PlayFromSelectionTests: XCTestCase {
         XCTAssertNil(ListenSpot.fromSelection(in: doc, paragraph: 5, offset: 0))
     }
 
-    func testDownloadPagesListEachPageInRenderOrder() {
+    func testDownloadArticlesListEachArticleInRenderOrder() {
         let a = UUID(), b = UUID(), c = UUID(), d = UUID()
         var folder = DownloadRecord(target: .folder(UUID()), title: "F", addedAt: .now,
                                     entries: [.init(key: a, state: .done), .init(key: b), .init(key: c)])
         folder.isPaused = false
-        let page = DownloadRecord(target: .page(d), title: "P", addedAt: .now, entries: [.init(key: d)])
-        let pages = DownloadPages(records: [folder, page],
+        let article = DownloadRecord(target: .article(d), title: "P", addedAt: .now, entries: [.init(key: d)])
+        let articles = DownloadArticles(records: [folder, article],
                                   active: .init(recordID: folder.id, key: b, fraction: 0.4),
                                   currentVoice: "v", rendersDownloads: true) { _ in "v" }
-        XCTAssertEqual(pages.now.map(\.key), [b])
-        XCTAssertEqual(pages.now.first?.status, .downloading(fraction: 0.4))
-        XCTAssertEqual(pages.waiting.map(\.key), [c, d], "queue order")
-        XCTAssertEqual(pages.done.map(\.key), [a])
+        XCTAssertEqual(articles.now.map(\.key), [b])
+        XCTAssertEqual(articles.now.first?.status, .downloading(fraction: 0.4))
+        XCTAssertEqual(articles.waiting.map(\.key), [c, d], "queue order")
+        XCTAssertEqual(articles.done.map(\.key), [a])
     }
 }

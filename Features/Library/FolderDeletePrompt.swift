@@ -22,8 +22,8 @@ struct FolderDeletePrompt: Equatable {
         for folder in folders {
             let inner = contents(folder)
             inside.folders += inner.folders
-            inside.pages += inner.pages
-            inside.pageKeys.formUnion(inner.pageKeys)
+            inside.articles += inner.articles
+            inside.articleKeys.formUnion(inner.articleKeys)
         }
         let one = folders.count == 1
         title = one ? "Delete the folder “\(folders[0].name)”?" : "Delete \(folders.count) folders?"
@@ -31,7 +31,7 @@ struct FolderDeletePrompt: Equatable {
         if let summary = inside.summary {
             lines.append("\(one ? "It holds" : "They hold") \(summary). They're deleted too.")
         }
-        if isPlaying(inside.pageKeys) { lines.append("Stops what's playing.") }
+        if isPlaying(inside.articleKeys) { lines.append("Stops what's playing.") }
         message = lines.joined(separator: " ")
         choices = [Choice(title: one ? "Delete Folder and Contents" : "Delete Folders and Contents",
                           id: "deleteFolderAndContents")]
