@@ -41,10 +41,9 @@ final class MenuRegistryTests: XCTestCase {
             (.screen, .libraryHome, R.Facts(), "sort downloads settings"),
             (.screen, .folderScreen, R.Facts(), "sort downloads settings"),
             (.screen, .folderScreen, { var f = R.Facts(); f.isFixedOrder = true; return f }(), "downloads settings"),
-            (.screen, .add, R.Facts(), "newFolder importFile saveFromWebsite paste(grey) follow"),
-            (.screen, .add, { var f = R.Facts(); f.canPaste = true; return f }(), "newFolder importFile saveFromWebsite paste follow"),
+            (.screen, .add, R.Facts(), "newFolder importFile saveFromWebsite pasteText follow"),
             (.screen, .add, { var f = R.Facts(); f.isFixedOrder = true; return f }(), ""),
-            (.screen, .edit, R.Facts(), "newFolder importFile saveFromWebsite paste(grey) follow"),
+            (.screen, .edit, R.Facts(), "newFolder importFile saveFromWebsite pasteText follow"),
             (.screen, .edit, { var f = R.Facts(); f.isFixedOrder = true; return f }(), ""),
             (.screen, .browser, { var f = R.Facts(); f.canFollow = false; return f }(), "follow(grey) reload(grey) downloads settings"),
             (.screen, .reader, R.Facts(), "downloads settings"),
@@ -79,5 +78,14 @@ final class ListRowHeightTests: XCTestCase {
             XCTAssertEqual(normal, editing, accuracy: 0.5, "\(kind): normal \(normal), Edit \(editing)")
             XCTAssertEqual(normal, RowHeight.content, accuracy: 0.5, "the 56 pt row")
         }
+    }
+}
+
+final class PastedTextTitleTests: XCTestCase {
+    func testTheTitleIsTheFirstSentenceOfTheFirstLine() {
+        XCTAssertEqual(LibraryStore.defaultTitle(for: "Hello there. More text.\nSecond"), "Hello there.")
+        XCTAssertEqual(LibraryStore.defaultTitle(for: "Just a line\nnext"), "Just a line")
+        XCTAssertEqual(LibraryStore.defaultTitle(for: "   "), "Pasted Text")
+        XCTAssertEqual(LibraryStore.defaultTitle(for: String(repeating: "a", count: 120)).count, 80)
     }
 }

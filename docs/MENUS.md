@@ -21,7 +21,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 - **Folder header More**: Play from Start, Remove Downloads, Favorites, Move to…, Edit Details…, Delete, then the create group into this folder (C126).
 - **Library home ⋯**: Sort ›, Downloads, Settings, then [Browser] only (the tabs on screen are Favorites and Recent).
 - **Folder screen ⋯**: Sort › (hidden in a folder that keeps its own order: an imported EPUB, a followed story), Downloads, Settings, then [Favorites][Recent][Browser].
-- **Create group** (C126, `LibraryCreateMenu`, one definition at `.add` and `.edit`): New Folder…, Import from… (the EPUB file picker), Save from Website… (an address, saved here as a link article), Paste (the copied web address saved here; grey when the pasteboard has none), Follow…. Shown by ＋ (Library home and folder screen), a folder header's More and Edit's ＋; hidden whole in an imported EPUB or followed story.
+- **Create group** (C126, `LibraryCreateMenu`, one definition at `.add` and `.edit`): New Folder…, Import from… (the EPUB file picker), Save from Website… (an address, saved here as a link article), Paste Text… (a sheet: optional title, the text, prefilled from the clipboard; Save makes a text article here; never grey, C127), Follow…. Shown by ＋ (Library home and folder screen), a folder header's More and Edit's ＋; hidden whole in an imported EPUB or followed story.
 - **Edit bar** (folder screen in Edit): Move to… (slot 1), Mark as Finished (middle), ＋ (slot 4: the create group; its New Folder… files the selection into the new folder, C122), Remove.
 - **Reader / Now Playing ⋯**: the page's options, then Downloads, Settings, then [Favorites][Recent][Website].
 - **Browser ⋯**: the page's options, then Follow…, Reload, Downloads, Settings, then [Favorites][Recent][Reader]. No New Search: a tap on the address field starts one.
@@ -201,7 +201,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | newFolder | the folder keeps its own order (imported, followed) | never |
 | importFile | the folder keeps its own order (imported, followed) | never |
 | saveFromWebsite | the folder keeps its own order (imported, followed) | never |
-| paste | the folder keeps its own order (imported, followed) | nothing to paste (no web address copied) |
+| pasteText | the folder keeps its own order (imported, followed) | never |
 | follow | the folder keeps its own order (imported, followed) | browser: no web page up |
 | reload | never | no page up |
 | downloads | never | never |
@@ -230,5 +230,5 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | newFolder | the folder keeps its own order (imported, followed) | never |
 | importFile | the folder keeps its own order (imported, followed) | never |
 | saveFromWebsite | the folder keeps its own order (imported, followed) | never |
-| paste | the folder keeps its own order (imported, followed) | nothing to paste (no web address copied) |
+| pasteText | the folder keeps its own order (imported, followed) | never |
 | follow | the folder keeps its own order (imported, followed) | browser: no web page up |

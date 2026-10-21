@@ -54,7 +54,7 @@ enum MenuRegistry {
         // A download
         case redownload, keep, removeDownload
         // A screen's own rows
-        case newFolder, importFile, saveFromWebsite, paste, follow, sort, reload, downloads, settings
+        case newFolder, importFile, saveFromWebsite, pasteText, follow, sort, reload, downloads, settings
     }
 
     /// The item's state as a menu needs it: plain values its host already has (no fetch, no disk).
@@ -88,8 +88,6 @@ enum MenuRegistry {
         var canFollow = true
         /// The folder on screen keeps its own order (an imported EPUB, a followed story): no *Sort*.
         var isFixedOrder = false
-        /// Paste has something to add: the pasteboard holds a web address (C126).
-        var canPaste = false
     }
 
     struct Spec {
@@ -175,9 +173,8 @@ enum MenuRegistry {
              applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
         Spec(option: .saveFromWebsite, kind: .screen, places: [.add, .edit],
              applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
-        Spec(option: .paste, kind: .screen, places: [.add, .edit],
-             applies: { !$0.isFixedOrder }, enabled: { $0.canPaste },
-             hiddenIf: "the folder keeps its own order (imported, followed)", greyIf: "nothing to paste (no web address copied)"),
+        Spec(option: .pasteText, kind: .screen, places: [.add, .edit],
+             applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
         Spec(option: .follow, kind: .screen, places: [.add, .edit, .browser],
              applies: { !$0.isFixedOrder }, enabled: { $0.canFollow },
              hiddenIf: "the folder keeps its own order (imported, followed)", greyIf: "browser: no web page up"),

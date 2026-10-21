@@ -36,6 +36,10 @@ final class LibraryScreenState {
     /// *Save from Website…*'s address alert: the folder it saves into (`.some(nil)`: the top level).
     var savingFromWebsite: Folder??
     var websiteAddress = ""
+    /// *Paste Text…*'s sheet: the folder it saves into (`.some(nil)`: the top level).
+    var pastingText: Folder??
+    var pastedTitle = ""
+    var pastedText = ""
 
     /// The row being dragged, from the moment it lifts (`libraryDrag`) until it is let go: the
     /// drop zone takes the drop only meanwhile (`libraryDropZone`).
@@ -114,6 +118,13 @@ final class LibraryScreenState {
     func makeFolder(in parent: Folder?, with items: [LibraryItem] = []) {
         newFolderName = ""
         newFolder = NewFolder(parent: parent, items: items)
+    }
+
+    /// Opens *Paste Text…*, its editor holding the pasteboard's text if it has some (C127).
+    func pasteText(into folder: Folder?) {
+        pastedTitle = ""
+        pastedText = UIPasteboard.general.hasStrings ? UIPasteboard.general.string ?? "" : ""
+        pastingText = .some(folder)
     }
 
     func saveFromWebsite(into folder: Folder?) {
@@ -218,6 +229,15 @@ private struct LibraryDialogs: ViewModifier {
                     }
                 }
             }
+            .sheet(isPresented: Binding(get: { state.pastingText != nil }, set: { if !$0 { state.pastingText = nil } })) {
+                PasteTextSheet(state: state) {
+                    guard case .some(let folder) = state.pastingText else { return }
+                    shell.attempt(String(localized: "Couldn’t save")) {
+                        try library.saveText(title: state.pastedTitle, text: state.pastedText, in: folder)
+                    }
+                    state.pastingText = nil
+                }
+            }
             .alert(Verbs.title(Verbs.saveFromWebsite), isPresented: Binding(get: { state.savingFromWebsite != nil },
                                                                         set: { if !$0 { state.savingFromWebsite = nil } })) {
                 TextField("example.com/article", text: $state.websiteAddress)
@@ -266,5 +286,47 @@ private struct LibraryDialogs: ViewModifier {
         guard LibraryActions(library: library, speech: speech, shell: shell, follow: follow)
             .deleteFolders(folders, in: state) else { return }
         onDeleted()
+    }
+}
+
+/// *Paste Text…* (C127): an optional title and the text, the pasteboard's when it held some.
+/// *Save* makes a new article of it in the folder on screen.
+struct PasteTextSheet: View {
+    @Bindable var state: LibraryScreenState
+    let save: () -> Void
+    @FocusState private var editing: Bool
+
+    private var isEmpty: Bool { state.pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                TextField(String(localized: "Title (optional)"), text: $state.pastedTitle,
+                          prompt: Text(isEmpty ? String(localized: "Title (optional)") : LibraryStore.defaultTitle(for: state.pastedText)))
+                    .typeStyle(.row)
+                    .padding(Spacing.s)
+                    .background(Palette.chrome, in: RoundedRectangle(cornerRadius: 10))
+                    .accessibilityIdentifier("pasteTextTitle")
+                TextEditor(text: $state.pastedText)
+                    .focused($editing)
+                    .scrollContentBackground(.hidden)
+                    .padding(Spacing.xs)
+                    .background(Palette.chrome, in: RoundedRectangle(cornerRadius: 10))
+                    .accessibilityIdentifier("pasteTextBody")
+            }
+            .padding(Spacing.m)
+            .navigationTitle(Verbs.title(Verbs.pasteText))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(Verbs.cancel) { state.pastingText = nil }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(Verbs.save, action: save).disabled(isEmpty).accessibilityIdentifier("pasteTextSave")
+                }
+            }
+            .onAppear { if state.pastedText.isEmpty { editing = true } }
+        }
+        .presentationDragIndicator(.visible)
     }
 }

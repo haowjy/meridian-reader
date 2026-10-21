@@ -97,6 +97,50 @@ extension LibraryStore {
         return saved
     }
 
+    /// *Paste Text…* (C127): a new article holding `text`, saved at the end of `folder` (nil: the
+    /// top level). It has no web address (`ArticleOrigin.book`, locator "text:<key>"), so nothing
+    /// ever refetches it; it reads, plays and downloads like any saved article.
+    @discardableResult
+    func saveText(title: String, text: String, in folder: Folder?) throws -> Article {
+        let plain = text.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        let blocks = plain.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        let html = blocks.map { "<p>" + Self.escapedHTML($0) + "</p>" }.joined(separator: "\n")
+        let name = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Self.defaultTitle(for: plain) : title
+        let paragraphs = Article.buildListenDocument(plainText: blocks.joined(separator: "\n\n"), cleanedHTML: html, title: nil).paragraphs
+        let saved = try edit("paste text") { () -> Article in
+            let key = UUID()
+            let article = Article(key: key, title: name, byline: String(localized: "Pasted text"), urlString: nil,
+                                  contentState: .saved, addedAt: now(), sortKey: nextSortKey(in: folder))
+            article.givenTitle = name
+            article.locator = "text:\(key.uuidString)"
+            article.setText(html: html, plain: blocks.joined(separator: "\n\n"), excerpt: String(plain.prefix(140)),
+                            paragraphs: paragraphs)
+            context.insert(article)
+            article.setFolder(folder)
+            return article
+        }
+        if let key = saved.key { plan(.saved, key: key) }
+        return saved
+    }
+
+    /// A pasted text's title when none is typed: its first line, cut at its first sentence's end,
+    /// at most 80 characters.
+    nonisolated static func defaultTitle(for text: String) -> String {
+        let line = text.split(whereSeparator: \.isNewline).first.map(String.init)?
+            .trimmingCharacters(in: .whitespaces) ?? ""
+        var sentence = line
+        if let end = line.firstIndex(where: { ".!?".contains($0) }), line.index(after: end) < line.endIndex {
+            sentence = String(line[...end])
+        }
+        if sentence.count > 80 { sentence = String(sentence.prefix(79)).trimmingCharacters(in: .whitespaces) + "…" }
+        return sentence.isEmpty ? String(localized: "Pasted Text") : sentence
+    }
+
+    nonisolated static func escapedHTML(_ s: String) -> String {
+        s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+    }
+
     /// `fileIfUnsaved` as its own change (*Download* on a page played without saving).
     func saveUnsaved(_ article: Article) throws {
         guard article.addedAt == nil else { return }

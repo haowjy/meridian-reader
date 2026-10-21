@@ -113,7 +113,7 @@ enum Verbs {
     static let newFolder = String(localized: "New Folder…")
     static let importBook = String(localized: "Import from…")
     static let saveFromWebsite = String(localized: "Save from Website…")
-    static let paste = String(localized: "Paste")
+    static let pasteText = String(localized: "Paste Text…")
     static let create = String(localized: "Add")
     /// A story's table of contents, read into a folder of chapters.
     static let follow = String(localized: "Follow…")

@@ -68,7 +68,7 @@ struct LibraryScreenMenu {
     }
 }
 
-/// The one create group (C126): *New Folder…*, *Import from…*, *Save from Website…*, *Paste*,
+/// The one create group (C126): *New Folder…*, *Import from…*, *Save from Website…*, *Paste Text…*,
 /// *Follow…*, into `folder` (nil: the top level). The Library's ＋ (home and folder), a folder
 /// header's *More* and Edit's bar all show it (`MenuRegistry`, places `.add` and `.edit`); it is
 /// hidden whole in an imported EPUB or followed story. In Edit (`filing`), *New Folder…* files the
@@ -87,8 +87,6 @@ struct LibraryCreateMenu {
     static func facts(for folder: Folder?) -> MenuRegistry.Facts {
         var facts = MenuRegistry.Facts()
         facts.isFixedOrder = folder?.kind.isBookOrSeries == true
-        // `hasURLs` reads no contents, so it asks nothing; Paste reads the address only on a tap.
-        facts.canPaste = UIPasteboard.general.hasURLs || UIPasteboard.general.hasStrings
         return facts
     }
 
@@ -108,9 +106,9 @@ struct LibraryCreateMenu {
                 return MenuRow(id: "moreSaveFromWebsite", title: Verbs.saveFromWebsite, icon: Icons.link) { [screen] in
                     screen.saveFromWebsite(into: folder)
                 }
-            case .paste:
-                return MenuRow(id: "morePaste", title: Verbs.paste, icon: Icons.paste) { [library, shell] in
-                    Self.paste(into: folder, library: library, shell: shell)
+            case .pasteText:
+                return MenuRow(id: "morePasteText", title: Verbs.pasteText, icon: Icons.paste) { [screen] in
+                    screen.pasteText(into: folder)
                 }
             default:
                 return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) { [shell, follow] in
@@ -118,15 +116,5 @@ struct LibraryCreateMenu {
                 }
             }
         }
-    }
-
-    /// *Paste*: the pasteboard's web address saved here. Copied articles (C125) aren't built yet.
-    static func paste(into folder: Folder?, library: LibraryStore, shell: ShellState) {
-        let board = UIPasteboard.general
-        guard let url = board.url.flatMap({ $0.isWeb ? $0 : nil }) ?? board.string.flatMap(LibraryScreenState.webURL) else {
-            shell.attempt(String(localized: "Nothing to paste: copy a web address first")) { throw URLError(.badURL) }
-            return
-        }
-        shell.attempt(String(localized: "Couldn’t save")) { try library.saveLink(url, in: folder) }
     }
 }
