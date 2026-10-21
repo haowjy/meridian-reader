@@ -40,7 +40,13 @@ struct FolderMenu: View {
     var onMoved: () -> Void = {}
 
     var body: some View {
-        MenuRows(rows)
+        if place == .header {
+            // More ends with the create group, into this folder (C126).
+            MenuRows(blocks: [rows, LibraryCreateMenu(library: actions.library, shell: actions.shell, follow: actions.follow,
+                                                      screen: screen, folder: folder).rows])
+        } else {
+            MenuRows(rows)
+        }
     }
 
     /// The folder's state as the registry reads it.
@@ -82,8 +88,6 @@ struct FolderMenu: View {
             }
         case .removeDownloads:
             return removeDownloads
-        case .folderNewFolder:
-            return MenuRow(id: "menuNewFolder", title: Verbs.newFolder, icon: Icons.newFolder) { screen.makeFolder(in: folder) }
         case .folderFavorite:
             let isFavorite = folder.isFavorite
             return MenuRow(id: "menuFavorite", title: isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites,

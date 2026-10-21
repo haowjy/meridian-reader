@@ -33,6 +33,9 @@ final class LibraryScreenState {
     var renameText = ""
     var newFolder: NewFolder?
     var newFolderName = ""
+    /// *Save from Website…*'s address alert: the folder it saves into (`.some(nil)`: the top level).
+    var savingFromWebsite: Folder??
+    var websiteAddress = ""
 
     /// The row being dragged, from the moment it lifts (`libraryDrag`) until it is let go: the
     /// drop zone takes the drop only meanwhile (`libraryDropZone`).
@@ -111,6 +114,20 @@ final class LibraryScreenState {
     func makeFolder(in parent: Folder?, with items: [LibraryItem] = []) {
         newFolderName = ""
         newFolder = NewFolder(parent: parent, items: items)
+    }
+
+    func saveFromWebsite(into folder: Folder?) {
+        websiteAddress = ""
+        savingFromWebsite = .some(folder)
+    }
+
+    /// A typed or pasted address as a web URL ("example.com/a" gets https), nil if it isn't one.
+    static func webURL(_ text: String) -> URL? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.contains(" ") else { return nil }
+        let withScheme = trimmed.contains("://") ? trimmed : "https://" + trimmed
+        guard let url = URL(string: withScheme), url.isWeb, url.host?.contains(".") == true else { return nil }
+        return url
     }
 }
 
@@ -200,6 +217,24 @@ private struct LibraryDialogs: ViewModifier {
                         state.selection = []
                     }
                 }
+            }
+            .alert(Verbs.title(Verbs.saveFromWebsite), isPresented: Binding(get: { state.savingFromWebsite != nil },
+                                                                        set: { if !$0 { state.savingFromWebsite = nil } })) {
+                TextField("example.com/article", text: $state.websiteAddress)
+                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .accessibilityIdentifier("websiteAddressField")
+                Button(Verbs.cancel, role: .cancel) {}
+                Button(Verbs.save) {
+                    guard case .some(let folder) = state.savingFromWebsite else { return }
+                    if let url = LibraryScreenState.webURL(state.websiteAddress) {
+                        shell.attempt(String(localized: "Couldn’t save")) { try library.saveLink(url, in: folder) }
+                    } else {
+                        shell.attempt(String(localized: "That isn’t a web address")) { throw URLError(.badURL) }
+                    }
+                }
+                .accessibilityIdentifier("websiteSave")
+            } message: {
+                Text("The article is saved here and read when it first plays.")
             }
     }
 

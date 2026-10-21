@@ -69,6 +69,34 @@ extension LibraryStore {
         article.sortKey = nextSortKey(in: nil)
     }
 
+    /// *Save from Website…* and *Paste* of an address (C126): the page for `url` saved in `folder`
+    /// (nil: the top level), at its end. One the library has already moves there and is saved;
+    /// a new one is a link page, whose text is fetched when it first plays or downloads.
+    @discardableResult
+    func saveLink(_ url: URL, in folder: Folder?) throws -> Article {
+        let existing = article(url: url)
+        let saved = try edit("save link") { () -> Article in
+            if let existing {
+                if existing.addedAt == nil || existing.folder !== folder {
+                    existing.addedAt = existing.addedAt ?? now()
+                    existing.removedAt = nil
+                    existing.sortKey = nextSortKey(in: folder)
+                    existing.setFolder(folder)
+                }
+                return existing
+            }
+            let canonical = ArticleIdentity.canonicalURLString(from: url)
+            let article = Article(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: "",
+                                  byline: url.host ?? url.absoluteString, urlString: url.absoluteString,
+                                  contentState: .link, addedAt: now(), sortKey: nextSortKey(in: folder))
+            context.insert(article)
+            article.setFolder(folder)
+            return article
+        }
+        if let key = saved.key { plan(.saved, key: key) }
+        return saved
+    }
+
     /// `fileIfUnsaved` as its own change (*Download* on a page played without saving).
     func saveUnsaved(_ article: Article) throws {
         guard article.addedAt == nil else { return }

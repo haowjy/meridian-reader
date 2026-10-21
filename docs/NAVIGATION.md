@@ -97,7 +97,7 @@ toolbar, each slot one role on both:
 |---|---|---|
 | 1 | ‹ web back | ‹ up a level (dimmed at the home) |
 | 2 | › web forward | › (always dimmed: the Library has no forward) |
-| 3 | 🔖 save the page / remove it (held: *Save to Folder…*) | ＋ *New Folder…*, *Import EPUB…* |
+| 3 | 🔖 save the page / remove it (held: *Save to Folder…*) | ＋ *New Folder…*, *Import from…* |
 | 4 | 🕘 History | 🕘 History |
 | 5 | ⋯ | ⋯ |
 
@@ -257,10 +257,10 @@ going to a place in the Library (Now Playing's ⋯ → *Go to …*, a favorite f
 imported book) opens it on Library, where every place shows; 📚 comes back to the tab you
 left. The tab is remembered with the surface. The band is the browser's (above): the Now Playing bar, 🌐 then the search
 field, `[‹][›][＋][🕘][⋯]`. ＋ is the ⋯ panel's two creating rows, *New Folder…*
-(*New Folder Inside…* in a folder) and *Import EPUB…*, both made in the folder on screen (a book's too). 🌐 shows the browser as
+(*New Folder Inside…* in a folder) and *Import from…*, both made in the folder on screen (a book's too). 🌐 shows the browser as
 it was; 📚 there comes back to the same folder. The
 ⋯ panel follows the screen on top (below): a folder's screen starts with the folder's own menu,
-then every screen has *Sort ›, New Folder…* (*New Folder Inside…* in a folder)*, Import EPUB…,
+then every screen has *Sort ›, New Folder…* (*New Folder Inside…* in a folder)*, Import from…,
 Follow…, Downloads, Settings*, and the big buttons **Favorites**, **History**, **Browser**; nothing in it acts on the page under the Library. History closes the Library first; Browser is the same
 swap as 🌐.
 
@@ -309,7 +309,7 @@ commas.
   Book…* on one action row. The home has no navigation bar; rows scrolled up pass under a paper
   band behind the status bar, not under the clock. The home is the
   top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
-  default, or *Title*), *New Folder…, Import EPUB…, Follow…, Downloads, Settings*.
+  default, or *Title*), *New Folder…, Import from…, Save from Website…, Paste, Follow…, Downloads, Settings*.
 - **A folder** (`FolderScreen`, books and series included): a centred header (YouTube Music's
   album header), then subfolders first (by their order), then pages by the folder's sort. The
   header is the title and counts; a folder with details has its cover above them (below). Once
@@ -353,12 +353,13 @@ commas.
   menu (Edit with that row selected), puts check circles on the rows, and drag handles
   (pages only when the sort is *Manual*); the toolbar keeps its five slots and shows
   *Move to…* (📁, slot 1), *Mark as Finished* (●, the listening ring made full, the middle),
-  *New Folder…* (📁+, slot 4: makes a folder here and files the selection into it, like Files'
-  *New Folder with Items*; hidden in an imported EPUB or followed story, C122) and *Remove*
+  ＋ (slot 4: the create group, C126; its *New Folder…* makes a folder here and files the
+  selection into it, like Files' *New Folder with Items*; hidden in an imported EPUB or followed
+  story, C122) and *Remove*
   (🗑, ⋯'s slot) as symbols for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
   their delete is saved (*Cancel* keeps them selected). ⋯: the folder's own menu, then *Sort ›,
-  New Folder…, Import EPUB…, Follow…, Downloads, Settings*. Every ⋯ ends with *Downloads,
+  New Folder…, Import from…, Save from Website…, Paste, Follow…, Downloads, Settings*. Every ⋯ ends with *Downloads,
   Settings*; *Settings* is always the last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
   has scrolled under the bar. An empty folder's header has no counts; under it the empty view
@@ -374,7 +375,7 @@ commas.
   ("A. Writer   2 folders   3 pages"), then the same progress line and controls. Its row shows the cover in place of the folder symbol, and the author under the
   title until a page in it has played. Details change only the look: its sort, Edit, drags and
   drops are unchanged. Clearing the author and removing the cover brings back the plain header.
-- **Importing a book** (*Import EPUB…*: ＋, the home's and a folder's ⋯, the empty Library's
+- **Importing a book** (*Import from…*: ＋, the home's and a folder's ⋯, the empty Library's
   card) opens the Files picker for EPUBs. The picked file is copied into the app and the import
   sheet (`BookImportSheet`, medium, grows to large) comes up at once: the cover, title, author,
   file and chapter count once read; a progress line ("Reading chapters… 4 / 9"); **Add to**, the
@@ -1095,7 +1096,7 @@ Debug builds (`App/LaunchOptions.swift`).
 | Band 📚 / Library (`LibrarySurface`): the home | 🌐 before the band's field | in-place surface (shared bottom chrome); leave restores browse |
 | Library → a folder (a book or series too) (`FolderScreen`) | ‹ system | push (`navigationDestination`) |
 | Move to…, Save to Folder… (`MoveTreeSheet`) | Cancel (grabber) | `.sheet`, medium/large |
-| Import EPUB… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
+| Import from… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
 | Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
 | Follow (`FollowSheet`): ⋯ → *Follow…* | Cancel; OK opens the story's folder | `.fullScreenCover` (a card's own pull would take the preview's); a chapter's preview is a `Sheet` over it holding the chapter's page, pulled down to close (from its top) |

@@ -46,27 +46,9 @@ struct LibraryScreenMenu {
         return MenuContext(screen: screenRows, tiles: folder == nil ? [browser] : MenuContext.tiles(shell, last: browser))
     }
 
-    /// ＋: *New Folder…* (*New Folder…* in a folder), *Import EPUB…* and *Follow…*, into the
-    /// screen on top (`MenuRegistry`, place `.add`).
+    /// ＋: the create group (`LibraryCreateMenu`) into the screen on top.
     var createRows: [MenuRow] {
-        let folder = topFolder
-        var facts = MenuRegistry.Facts()
-        facts.isFixedOrder = folder?.kind.isBookOrSeries == true
-        return MenuRegistry.rows(.screen, at: .add, facts) { option in
-            switch option {
-            case .newFolder:
-                return MenuRow(id: "moreNewFolder", title: Verbs.newFolder,
-                               icon: Icons.newFolder) { [screen] in screen.makeFolder(in: folder) }
-            case .importFile:
-                return MenuRow(id: "moreImportBook", title: Verbs.importBook, icon: Icons.importFile) { [library, shell] in
-                    BookImportActions(library: library, shell: shell).pickBook(into: folder)
-                }
-            default:
-                return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) { [shell, follow] in
-                    shell.present(.follow(FollowFlow(url: nil, parentID: folder?.id, center: follow)))
-                }
-            }
-        }
+        LibraryCreateMenu(library: library, shell: shell, follow: follow, screen: screen, folder: topFolder).rows
     }
 
     /// *Sort*: the folder's page sort, or on the home the top level's.
@@ -83,5 +65,68 @@ struct LibraryScreenMenu {
             }
         }
         return MenuRow(id: "moreSort", title: Verbs.sort, icon: Icons.sort, submenu: choices)
+    }
+}
+
+/// The one create group (C126): *New Folder…*, *Import from…*, *Save from Website…*, *Paste*,
+/// *Follow…*, into `folder` (nil: the top level). The Library's ＋ (home and folder), a folder
+/// header's *More* and Edit's bar all show it (`MenuRegistry`, places `.add` and `.edit`); it is
+/// hidden whole in an imported EPUB or followed story. In Edit (`filing`), *New Folder…* files the
+/// selection into the new folder.
+@MainActor
+struct LibraryCreateMenu {
+    let library: LibraryStore
+    let shell: ShellState
+    let follow: FollowCenter
+    let screen: LibraryScreenState
+    let folder: Folder?
+    var place: MenuRegistry.Place = .add
+    /// Edit's selection: New Folder files it.
+    var filing: () -> [LibraryItem] = { [] }
+
+    static func facts(for folder: Folder?) -> MenuRegistry.Facts {
+        var facts = MenuRegistry.Facts()
+        facts.isFixedOrder = folder?.kind.isBookOrSeries == true
+        // `hasURLs` reads no contents, so it asks nothing; Paste reads the address only on a tap.
+        facts.canPaste = UIPasteboard.general.hasURLs || UIPasteboard.general.hasStrings
+        return facts
+    }
+
+    var rows: [MenuRow] {
+        let folder = folder
+        return MenuRegistry.rows(.screen, at: place, Self.facts(for: folder)) { option in
+            switch option {
+            case .newFolder:
+                return MenuRow(id: "moreNewFolder", title: Verbs.newFolder, icon: Icons.newFolder) { [screen, filing] in
+                    screen.makeFolder(in: folder, with: filing())
+                }
+            case .importFile:
+                return MenuRow(id: "moreImportBook", title: Verbs.importBook, icon: Icons.importFile) { [library, shell] in
+                    BookImportActions(library: library, shell: shell).pickBook(into: folder)
+                }
+            case .saveFromWebsite:
+                return MenuRow(id: "moreSaveFromWebsite", title: Verbs.saveFromWebsite, icon: Icons.link) { [screen] in
+                    screen.saveFromWebsite(into: folder)
+                }
+            case .paste:
+                return MenuRow(id: "morePaste", title: Verbs.paste, icon: Icons.paste) { [library, shell] in
+                    Self.paste(into: folder, library: library, shell: shell)
+                }
+            default:
+                return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) { [shell, follow] in
+                    shell.present(.follow(FollowFlow(url: nil, parentID: folder?.id, center: follow)))
+                }
+            }
+        }
+    }
+
+    /// *Paste*: the pasteboard's web address saved here. Copied articles (C125) aren't built yet.
+    static func paste(into folder: Folder?, library: LibraryStore, shell: ShellState) {
+        let board = UIPasteboard.general
+        guard let url = board.url.flatMap({ $0.isWeb ? $0 : nil }) ?? board.string.flatMap(LibraryScreenState.webURL) else {
+            shell.attempt(String(localized: "Nothing to paste: copy a web address first")) { throw URLError(.badURL) }
+            return
+        }
+        shell.attempt(String(localized: "Couldn’t save")) { try library.saveLink(url, in: folder) }
     }
 }

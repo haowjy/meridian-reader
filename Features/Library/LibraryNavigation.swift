@@ -38,7 +38,7 @@ struct FolderGoneView: View {
 /// when it can't be.
 ///
 /// ```
-///  [📁]        [✓]  [📁+]  [🗑]
+///  [📁]        [✓]  [＋]  [🗑]
 /// ```
 struct LibraryEditBar: View {
     @Environment(LibraryStore.self) private var library
@@ -66,11 +66,12 @@ struct LibraryEditBar: View {
             }
             .disabled(actions.selected(in: screen).articles.allSatisfy { !$0.isSaved })
             .toolbarSlot(2)
-            if let folder = editedFolder, offersNewFolder(in: folder) {
-                BandToolbarButton(systemImage: Icons.newFolder, label: Verbs.newFolder, identifier: "editNewFolder") {
-                    let selected = actions.selected(in: screen)
-                    screen.makeFolder(in: folder, with: selected.folders.map(LibraryItem.folder) + selected.articles.map(LibraryItem.article))
+            if let folder = editedFolder, !createRows(in: folder).isEmpty {
+                Menu { MenuRows(createRows(in: folder)) } label: {
+                    Image(systemName: Icons.add).toolbarIconFrame()
                 }
+                .accessibilityLabel(Verbs.create)
+                .accessibilityIdentifier("editCreate")
                 .toolbarSlot(3)
             }
             BandToolbarButton(systemImage: Icons.delete, label: Verbs.remove, identifier: "editRemove") {
@@ -86,11 +87,12 @@ extension LibraryEditBar {
     /// The folder whose screen is in Edit.
     var editedFolder: Folder? { screen.editing.flatMap { library.folder(id: $0.folderID) } }
 
-    /// *New Folder…* in slot 3 (C122): the registry's `.newFolder` at `.edit`, the same option as ＋'s.
-    func offersNewFolder(in folder: Folder) -> Bool {
-        var facts = MenuRegistry.Facts()
-        facts.isFixedOrder = folder.kind.isBookOrSeries
-        return MenuRegistry.entries(.screen, at: .edit, facts).contains { $0.option == .newFolder }
+    /// Slot 3's ＋ (C122, C126): the create group at `.edit`, its New Folder filing the selection.
+    func createRows(in folder: Folder) -> [MenuRow] {
+        LibraryCreateMenu(library: library, shell: shell, follow: follow, screen: screen, folder: folder, place: .edit) {
+            let selected = actions.selected(in: screen)
+            return selected.folders.map(LibraryItem.folder) + selected.articles.map(LibraryItem.article)
+        }.rows
     }
 }
 

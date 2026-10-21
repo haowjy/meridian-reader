@@ -102,6 +102,7 @@ enum Icons {
     static let files = "doc"
     /// A web address standing in for a page with no title.
     static let link = "link"
+    static let paste = "doc.on.clipboard"
     /// Follow a story (⋯ → *Follow…*), a followed story's status line; Unfollow.
     static let follow = "antenna.radiowaves.left.and.right"
     static let unfollow = "antenna.radiowaves.left.and.right.slash"

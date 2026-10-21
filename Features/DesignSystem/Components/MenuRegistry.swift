@@ -50,11 +50,11 @@ enum MenuRegistry {
              removeFromRecent, stopListening, removeFromHistory
         // A folder, book or series
         case continueFolder, playFromStart, folderDownload, removeDownloads, folderFavorite, folderMove,
-             editDetails, deleteFolder, folderNewFolder
+             editDetails, deleteFolder
         // A download
         case redownload, keep, removeDownload
         // A screen's own rows
-        case newFolder, importFile, follow, sort, reload, downloads, settings
+        case newFolder, importFile, saveFromWebsite, paste, follow, sort, reload, downloads, settings
     }
 
     /// The item's state as a menu needs it: plain values its host already has (no fetch, no disk).
@@ -88,6 +88,8 @@ enum MenuRegistry {
         var canFollow = true
         /// The folder on screen keeps its own order (an imported EPUB, a followed story): no *Sort*.
         var isFixedOrder = false
+        /// Paste has something to add: the pasteboard holds a web address (C126).
+        var canPaste = false
     }
 
     struct Spec {
@@ -152,8 +154,6 @@ enum MenuRegistry {
              enabled: { $0.downloadIsOn || $0.hasDownloads || $0.hasArticles }, greyIf: "empty, nothing downloaded, toggle off"),
         Spec(option: .removeDownloads, kind: .folder, places: [.header], enabled: { $0.hasDownloads }, greyIf: "nothing downloaded or downloading"),
         // Its screen's More makes a subfolder in it (C122); never in a folder that keeps its own order.
-        Spec(option: .folderNewFolder, kind: .folder, places: [.header],
-             applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
         Spec(option: .folderFavorite, kind: .folder, places: folderPlaces),
         Spec(option: .folderMove, kind: .folder, places: folderPlaces),
         Spec(option: .editDetails, kind: .folder, places: folderPlaces),
@@ -166,12 +166,21 @@ enum MenuRegistry {
 
         // A screen's own rows (＋ has New Folder and Import Book; the address field starts a search).
         // ＋ makes things in the screen on top; the ⋯ panels keep only Sort, Reload and the tail.
-        // ＋ and Edit's bar make a folder in the folder on screen (C122); Edit's files the selection in it.
+        // The one create group (C126): ＋ (home and folder), a folder header's More and Edit's
+        // bar show it, into the folder on screen; Edit's New Folder files the selection in it.
+        // Hidden whole in a folder that keeps its own order (an imported EPUB, a followed story).
         Spec(option: .newFolder, kind: .screen, places: [.add, .edit],
              applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
-        Spec(option: .importFile, kind: .screen, places: [.add]),
-        Spec(option: .follow, kind: .screen, places: [.add, .browser],
-             enabled: { $0.canFollow }, greyIf: "browser: no web page up"),
+        Spec(option: .importFile, kind: .screen, places: [.add, .edit],
+             applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
+        Spec(option: .saveFromWebsite, kind: .screen, places: [.add, .edit],
+             applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
+        Spec(option: .paste, kind: .screen, places: [.add, .edit],
+             applies: { !$0.isFixedOrder }, enabled: { $0.canPaste },
+             hiddenIf: "the folder keeps its own order (imported, followed)", greyIf: "nothing to paste (no web address copied)"),
+        Spec(option: .follow, kind: .screen, places: [.add, .edit, .browser],
+             applies: { !$0.isFixedOrder }, enabled: { $0.canFollow },
+             hiddenIf: "the folder keeps its own order (imported, followed)", greyIf: "browser: no web page up"),
         Spec(option: .sort, kind: .screen, places: [.libraryHome, .folderScreen],
              applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
         Spec(option: .reload, kind: .screen, places: [.browser], enabled: { $0.hasWebPage }, greyIf: "no page up"),
