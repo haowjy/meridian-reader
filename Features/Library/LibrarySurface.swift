@@ -121,7 +121,7 @@ struct LibrarySurface: View {
     // MARK: - The screen on top
 
     private var screenMenu: LibraryScreenMenu {
-        LibraryScreenMenu(library: library, speech: speech, shell: shell, preparedAudio: preparedAudio, follow: follow, screen: screen,
+        LibraryScreenMenu(library: library, speech: speech, shell: shell, preparedAudio: preparedAudio, screen: screen,
                           top: shell.libraryPath.last, topLevelSort: $topLevelSort,
                           showMoved: { shell.libraryPath = library.path(to: $0) },
                           onTurnOffPrepare: { turningOff = $0 })

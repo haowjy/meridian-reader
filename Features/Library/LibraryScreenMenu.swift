@@ -2,15 +2,14 @@ import SwiftUI
 
 /// The ⋯ for the Library screen on top (the home or a folder): the screen's rows, the same on
 /// both (`MenuRegistry`, C98): *Sort*, *Prepared Audio*, then `[Settings][Saved][Reader]`. The surface's ＋ shows the same
-/// two creating rows (`createRows`), so both act on the screen on top (`topFolder`), and so does
-/// *Follow…*, whose story's folder goes there. Nothing in it acts on the browser's page.
+/// creating rows (`createRows`), acting on the screen on top (`topFolder`). Nothing in it acts on
+/// the browser's page.
 @MainActor
 struct LibraryScreenMenu {
     let library: LibraryStore
     let speech: SpeechController
     let shell: ShellState
     let preparedAudio: PrepareCenter
-    let follow: FollowCenter
     let screen: LibraryScreenState
     /// The pushed screen on top (nil: the home).
     let top: LibraryRoute?
@@ -51,7 +50,7 @@ struct LibraryScreenMenu {
 
     /// ＋: the create group (`LibraryCreateMenu`) into the screen on top.
     var createRows: [MenuRow] {
-        LibraryCreateMenu(library: library, shell: shell, follow: follow, screen: screen, folder: topFolder).rows
+        LibraryCreateMenu(library: library, shell: shell, screen: screen, folder: topFolder).rows
     }
 
     /// *Sort*: the folder's page sort, or on the home the top level's.
@@ -71,16 +70,14 @@ struct LibraryScreenMenu {
     }
 }
 
-/// The one create group (C126): *New Folder…*, *Import from…*, *Save from Website…*, *Paste Text…*,
-/// *Follow…*, into `folder` (nil: the top level). The Library's ＋ (home and folder), a folder
-/// header's *More* and Edit's bar all show it (`MenuRegistry`, places `.add` and `.edit`); it is
-/// hidden whole in an imported EPUB or followed story. In Edit (`filing`), *New Folder…* files the
-/// selection into the new folder.
+/// The one create group (C126): *New Folder…*, *Import from…*, *Paste Text…*, into `folder` (nil:
+/// the top level). The Library's ＋ (home and folder), a folder header's *More* and Edit's bar all
+/// show it (`MenuRegistry`, places `.add` and `.edit`); it is hidden whole in an imported EPUB or
+/// followed story. In Edit (`filing`), *New Folder…* files the selection into the new folder.
 @MainActor
 struct LibraryCreateMenu {
     let library: LibraryStore
     let shell: ShellState
-    let follow: FollowCenter
     let screen: LibraryScreenState
     let folder: Folder?
     var place: MenuRegistry.Place = .add
@@ -105,17 +102,9 @@ struct LibraryCreateMenu {
                 return MenuRow(id: "moreImportBook", title: Verbs.importBook, icon: Icons.importFile) { [library, shell] in
                     BookImportActions(library: library, shell: shell).pickBook(into: folder)
                 }
-            case .saveFromWebsite:
-                return MenuRow(id: "moreSaveFromWebsite", title: Verbs.saveFromWebsite, icon: Icons.link) { [screen] in
-                    screen.saveFromWebsite(into: folder)
-                }
-            case .pasteText:
+            default:
                 return MenuRow(id: "morePasteText", title: Verbs.pasteText, icon: Icons.paste) { [screen] in
                     screen.pasteText(into: folder)
-                }
-            default:
-                return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) { [shell, follow] in
-                    shell.present(.follow(FollowFlow(url: nil, parentID: folder?.id, center: follow)))
                 }
             }
         }

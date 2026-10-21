@@ -21,7 +21,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 - **Folder header More**: Play from Start, Remove Prepared Audio, Voice: <name> (a book or series), Favorites, Move to…, Edit Details…, Delete, then the create group into this folder (C126).
 - **Library home ⋯**: Sort ›, Prepared Audio, then [Settings][Saved][Reader]. Reader goes to Now Playing when audio is playing, greyed otherwise. Saved opens the Library home (already there: harmless).
 - **Folder screen ⋯**: Sort › (hidden in a folder that keeps its own order: an imported EPUB, a followed story), Prepared Audio, then [Settings][Saved][Reader]. Reader goes to Now Playing when audio is playing, greyed otherwise.
-- **Create group** (C126, `LibraryCreateMenu`, one definition at `.add` and `.edit`): New Folder…, Import from… (the EPUB file picker), Save from Website… (an address, saved here as a link article), Paste Text… (a sheet: optional title, the text, prefilled from the clipboard; Save makes a text article here; never grey, C127), Follow…. Shown by ＋ (Library home and folder screen), a folder header's More and Edit's ＋; hidden whole in an imported EPUB or followed story.
+- **Create group** (C126, `LibraryCreateMenu`, one definition at `.add` and `.edit`): New Folder…, Import from… (the EPUB file picker), Paste Text… (a sheet: optional title, the text, prefilled from the clipboard; Save makes a text article here; never grey, C127). Shown by ＋ (Library home and folder screen), a folder header's More and Edit's ＋; hidden whole in an imported EPUB or followed story. Follow… and Save from Website… are not here; users do those from the browser.
 - **Folder header More** ends with Delete Folder… alone at the bottom, after the create group (C130). Mark as Finished uses the outline `checkmark.circle` (C130).
 - **Edit bar** (folder screen in Edit): Move to… (slot 1), Mark as Finished (middle), ＋ (slot 4: the create group; its New Folder… files the selection into the new folder, C122), Remove.
 - **Reader / Now Playing ⋯**: the article's options, then Prepared Audio, then [Settings][Saved][Reader]. Reader is disabled (already reading). Website stays reachable via Share in the article's own rows. Favorites stays reachable from the item's own menu row and from the Library's Favorites tab; it leaves the tile row (C140).
@@ -210,11 +210,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 |---|---|---|
 | newFolder | the folder keeps its own order (imported, followed) | never |
 | importFile | the folder keeps its own order (imported, followed) | never |
-| saveFromWebsite | the folder keeps its own order (imported, followed) | never |
 | pasteText | the folder keeps its own order (imported, followed) | never |
-| follow | the folder keeps its own order (imported, followed) | browser: no web page up |
-| reload | never | no article up |
-| prepared audio | never | never |
 
 ### screen at libraryHome
 
@@ -236,9 +232,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 |---|---|---|
 | newFolder | the folder keeps its own order (imported, followed) | never |
 | importFile | the folder keeps its own order (imported, followed) | never |
-| saveFromWebsite | the folder keeps its own order (imported, followed) | never |
 | pasteText | the folder keeps its own order (imported, followed) | never |
-| follow | the folder keeps its own order (imported, followed) | browser: no web page up |
 
 ## Prepared Audio list ⋯ (C135)
 
