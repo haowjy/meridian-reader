@@ -70,16 +70,19 @@ enum AppLaunch {
     }
 
     /// Which Apple voices this device offers apps (C129: Siri's aren't among them), off the main
-    /// thread, into the timing log.
+    /// thread, into the timing log, with the English default it resolves to (C139).
     private static func logAppleVoices() {
         Task.detached(priority: .utility) {
-            let voices = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix("en") }
+            let all = AVSpeechSynthesisVoice.speechVoices()
+            let en = all.filter { $0.language.hasPrefix("en") }
             let q: (AVSpeechSynthesisVoice) -> String = {
                 switch $0.quality { case .premium: "premium"; case .enhanced: "enhanced"; default: "default" }
             }
-            let list = voices.map { "\($0.name)|\($0.language)|\(q($0))|\($0.gender.rawValue)" }
+            let list = en.map { "\($0.identifier)|\($0.name)|\($0.language)|\(q($0))|\($0.gender.rawValue)" }
+            let resolved = VoiceCatalog.bestVoice(forLanguage: "en-US", from: all)
             ListenTimingLog.log("apple_voices", [
-                "count": voices.count, "siri": voices.filter { $0.identifier.lowercased().contains("siri") }.count,
+                "count": en.count, "siri": en.filter { $0.identifier.lowercased().contains("siri") }.count,
+                "resolved_en": resolved.map { "\($0.identifier)|\($0.name)" } ?? "nil",
                 "voices": list.joined(separator: ";"),
             ])
         }
