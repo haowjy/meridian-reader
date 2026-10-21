@@ -64,7 +64,6 @@ enum LibraryEntityRename {
     }
 
     static func migrateIfNeeded(at url: URL, types: [any PersistentModel.Type]) throws {
-        guard needsMigration(at: url) else { return }
         guard let destination = NSManagedObjectModel.makeManagedObjectModel(for: types)?.copy() as? NSManagedObjectModel else {
             throw Failure(description: "library rename: couldn't build the model")
         }
@@ -73,7 +72,17 @@ enum LibraryEntityRename {
             if let old = entities[name] { entity.renamingIdentifier = old }
             for property in entity.properties { if let old = fields[name]?[property.name] { property.renamingIdentifier = old } }
         }
-        try backUp(url)
+        let renames = needsMigration(at: url)
+        // C138: a store migrated by C121 keeps that model (with `Article` renamed from `Page`) as
+        // the source of every later migration. SwiftData's own inferred migration, whose model
+        // has no renaming identifiers, then reads `Article` as a new entity and fails ("table
+        // ZARTICLE already exists"). So any later schema change (a new field) migrates here too,
+        // with the same renaming identifiers, before SwiftData opens the store. Only such a store
+        // (it has the C121 backup beside it): one SwiftData wrote itself migrates as usual.
+        let renamedBefore = FileManager.default.fileExists(
+            atPath: url.deletingLastPathComponent().appending(path: "LibraryBackup-C121").path)
+        guard renames || (renamedBefore && needsSchemaChange(at: url, model: destination)) else { return }
+        try backUp(url, folderName: renames ? "LibraryBackup-C121" : "LibraryBackup-C138")
         // The store keeps the model it was written with (Core Data's model cache), which is the
         // source of the inferred lightweight migration; it runs in place on the SQLite file.
         let description = NSPersistentStoreDescription(url: url)
@@ -93,10 +102,18 @@ enum LibraryEntityRename {
         guard !needsMigration(at: url) else { throw Failure(description: "library rename: the store still has the old names") }
     }
 
+    /// The store exists and its model differs from today's (metadata only, nothing opened).
+    static func needsSchemaChange(at url: URL, model: NSManagedObjectModel) -> Bool {
+        guard FileManager.default.fileExists(atPath: url.path),
+              let metadata = try? NSPersistentStoreCoordinator.metadataForPersistentStore(type: .sqlite, at: url)
+        else { return false }
+        return !model.isConfiguration(withName: nil, compatibleWithStoreMetadata: metadata)
+    }
+
     /// Copies the store's files (the database, its journal and its external blobs) aside, once.
-    private static func backUp(_ url: URL) throws {
+    private static func backUp(_ url: URL, folderName: String) throws {
         let files = FileManager.default
-        let folder = url.deletingLastPathComponent().appending(path: "LibraryBackup-C121")
+        let folder = url.deletingLastPathComponent().appending(path: folderName)
         guard !files.fileExists(atPath: folder.path) else { return }
         try files.createDirectory(at: folder, withIntermediateDirectories: true)
         let name = url.lastPathComponent
