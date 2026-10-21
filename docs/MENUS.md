@@ -242,3 +242,25 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | clearListeningAudio (*Clear Audio From Listening…*) | From Listening has rows | confirms, then deletes that audio only |
 
 Row menu: *Delete Audio* (`menuDeleteAudio`) on every row; *Prepare Again* only on prepared rows (*Keep* is gone, C138: audio not in its article's voice never plays).
+
+## Bottom-chrome glossary (C143)
+
+The names for the chrome that runs along the bottom of every screen.
+
+| Name | Kind | What it is |
+|---|---|---|
+| `SurfaceBand` | view | The whole bottom band on the browser and Library surfaces: NP bar row, field row, toolbar row. |
+| `BottomChrome` | enum (constants) | Design-system constants (sizes, spacing) shared by all bottom chrome. |
+| `BottomToolbarLayout` | layout | 5-slot evenly-spaced grid for toolbar rows (browser, Library, Now Playing transport). |
+| `BottomToolbarSpanLayout` | layout | 3-item layout for the Reader's listen pill: bookmark + span-pill + ⋯. |
+| `BandFieldRow` | view | The swap button + address/search capsule row in `SurfaceBand`. |
+| `NowPlayingBar` | view | The compact card (artwork, title, progress line, play/pause) in `SurfaceBand`'s top row. |
+| `NowPlayingBarView` | view | The same card in the Reader sheet; hides on Now Playing and while sheets are up. |
+| `BandNowPlayingBar` | view | `NowPlayingBar` in `SurfaceBand`: always present, shows placeholder when nothing is playing. |
+| `ReadingPlayerCard` | view | Title + time card (with optional scrub) at the bottom of the Reader and Now Playing chrome. |
+| `ReaderSheet` | view | Full layout of the Reader sheet (header, text, band). |
+| `NowPlayingSheet` | view | Full layout of the Now Playing sheet. |
+| `NowPlayingControls` | view | Status notes and the transport row in Now Playing's band. |
+| `ListenTransportView` | view | Speech-bound wrapper for `NowPlayingTransport` (skips, play/pause disc) with swipe gesture; used inside `NowPlayingControls`. Renamed from `ListenControllerView` in C143 (the "Controller" suffix was MVC jargon). |
+| `NowPlayingTransport` | view | The 5-slot transport row component: skip-back, play/pause disc (64 pt), skip-forward. |
+| `ReaderScrubRow` | view | The scrub bar inside `ReadingPlayerCard` (Now Playing only; Reader shows `EmptyView()`). |

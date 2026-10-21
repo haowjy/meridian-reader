@@ -64,10 +64,6 @@ struct NowPlayingScreen: View {
     private func player(_ now: NowPlaying, _ actions: ArticleActions) -> some View {
         let palette = appearance.palette(accent: AppAppearance.shared.accent)
         let artwork = now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))
-        let fieldAddress = now.canonicalURL ?? now.source
-        let swap = shell.isBrowsing
-            ? BandSwap(systemImage: Icons.library, label: Verbs.library, hint: "", identifier: "fieldSwap") { shell.openLibrary() }
-            : BandSwap(systemImage: Icons.browser, label: Verbs.browser, hint: "", identifier: "fieldSwap") { shell.leaveLibrary() }
         return NowPlayingSheet(
             playingFrom: playingFromName(now, saved: actions.isSaved),
             playState: speech.playState(of: .article(now.articleKey)),
@@ -98,16 +94,6 @@ struct NowPlayingScreen: View {
                     playerScrub
                 }
                 .environment(\.readingPalette, palette)
-            }
-        } field: {
-            BandFieldRow(swap: swap) {
-                Text(fieldAddress)
-                    .typeStyle(.caption)
-                    .foregroundStyle(palette.secondaryInk)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .bottomChromeField()
             }
         } controls: {
             NowPlayingControls(
