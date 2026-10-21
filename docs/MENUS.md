@@ -19,13 +19,13 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 - **Page** (row ⋯ and long press, Favorites tile, Now Playing bar, History, Reader, Now Playing, browser): Read, Prepare / Remove Prepared Audio, Voice: <name> (C138), Favorites, Move to… / Save to Folder…, Mark as Finished, Playback › (Mark All Above as Finished in a list row, Skip in Playback; a page in a folder only), Share, Save / Remove from Library (not in the Reader, Now Playing or the browser: the bookmark is there), Remove from Recent (out of the Library). The bar adds Stop Listening, History adds Remove from History, and Now Playing has Go to <folder> instead of Read.
 - **Folder** row and tile (an imported EPUB or followed story is a folder too, the same menu: C100): Continue, Prepare / Turn Off Prepare / Remove Prepared Audio (one row by state), Voice: <name> (a book or series only, C138), Favorites, Move to…, Edit Details… (holds the name), Delete.
 - **Folder header More**: Play from Start, Remove Prepared Audio, Voice: <name> (a book or series), Favorites, Move to…, Edit Details…, Delete, then the create group into this folder (C126).
-- **Library home ⋯**: Sort ›, Prepared Audio, Settings, then [Browser] only (the tabs on screen are Favorites and Recent).
-- **Folder screen ⋯**: Sort › (hidden in a folder that keeps its own order: an imported EPUB, a followed story), Prepared Audio, Settings, then [Favorites][Recent][Browser].
+- **Library home ⋯**: Sort ›, Prepared Audio, then [Settings][Saved][Reader]. Reader goes to Now Playing when audio is playing, greyed otherwise. Saved opens the Library home (already there: harmless).
+- **Folder screen ⋯**: Sort › (hidden in a folder that keeps its own order: an imported EPUB, a followed story), Prepared Audio, then [Settings][Saved][Reader]. Reader goes to Now Playing when audio is playing, greyed otherwise.
 - **Create group** (C126, `LibraryCreateMenu`, one definition at `.add` and `.edit`): New Folder…, Import from… (the EPUB file picker), Save from Website… (an address, saved here as a link article), Paste Text… (a sheet: optional title, the text, prefilled from the clipboard; Save makes a text article here; never grey, C127), Follow…. Shown by ＋ (Library home and folder screen), a folder header's More and Edit's ＋; hidden whole in an imported EPUB or followed story.
 - **Folder header More** ends with Delete Folder… alone at the bottom, after the create group (C130). Mark as Finished uses the outline `checkmark.circle` (C130).
 - **Edit bar** (folder screen in Edit): Move to… (slot 1), Mark as Finished (middle), ＋ (slot 4: the create group; its New Folder… files the selection into the new folder, C122), Remove.
-- **Reader / Now Playing ⋯**: the article's options, then Prepared Audio, Settings, then [Favorites][Recent][Website].
-- **Browser ⋯**: the page's options, then Follow…, Reload, Prepared Audio, Settings, then [Favorites][Recent][Reader]. No New Search: a tap on the address field starts one.
+- **Reader / Now Playing ⋯**: the article's options, then Prepared Audio, then [Settings][Saved][Reader]. Reader is disabled (already reading). Website stays reachable via Share in the article's own rows. Favorites stays reachable from the item's own menu row and from the Library's Favorites tab; it leaves the tile row (C140).
+- **Browser ⋯**: the page's options, then Follow…, Reload, Prepared Audio, then [Settings][Saved][Reader]. Reader opens the current page in the Reader (greyed when the page isn't readable). No New Search: a tap on the address field starts one.
 - **Prepare on a page out of the Library** (C104): enabled; it saves the page to the Library's top level first. Grey only on a browser page not yet loaded as a page.
 - **Prepared Audio row** (one article, C110): Prepare Again (that article), Remove Prepared Audio (that article). Pause All in the section header; a folder's prepare is turned off on its screen.
 
@@ -191,14 +191,12 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | Option | Hidden when | Greyed when |
 |---|---|---|
 | prepared audio | never | never |
-| settings | never | never |
 
 ### screen at nowPlaying
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
 | prepared audio | never | never |
-| settings | never | never |
 
 ### screen at browser
 
@@ -217,7 +215,6 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | follow | the folder keeps its own order (imported, followed) | browser: no web page up |
 | reload | never | no article up |
 | prepared audio | never | never |
-| settings | never | never |
 
 ### screen at libraryHome
 
@@ -225,7 +222,6 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 |---|---|---|
 | sort | the folder keeps its own order (imported, followed) | never |
 | prepared audio | never | never |
-| settings | never | never |
 
 ### screen at folderScreen
 
@@ -233,7 +229,6 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 |---|---|---|
 | sort | the folder keeps its own order (imported, followed) | never |
 | prepared audio | never | never |
-| settings | never | never |
 
 ### screen at add
 

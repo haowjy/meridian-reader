@@ -203,7 +203,7 @@ enum MenuRegistry {
              hiddenIf: "nothing prepared"),
         Spec(option: .clearListeningAudio, kind: .screen, places: [.preparedAudio], applies: { $0.hasListeningAudio },
              hiddenIf: "no audio from listening"),
-        Spec(option: .settings, kind: .screen, places: panelPlaces),
+        // Settings is a tile in every ⋯ panel (C140), not a list row.
     ]
 
     /// The options a `kind` menu shows at `place` for `facts`, in order, with their submenus.

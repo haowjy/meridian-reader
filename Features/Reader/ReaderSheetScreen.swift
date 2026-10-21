@@ -15,7 +15,7 @@ import SwiftUI
 ///   after that the text never scrolls by itself.
 /// - 🔖 saves / removes from the Library (tap) or files the page (long-press, *Save to Folder…*: the Move tree);
 ///   ⋯ is the page's menu (Save / Remove from Library, Move to…, Add to Favorites, Share,
-///   Prepare, Prepared audio, Settings; Favorites / History / Website). Both act through
+///   Prepare, Prepared Audio; then Settings / Saved / Reader, Reader disabled here, C140). Both act through
 ///   `ArticleActions`, as in Now Playing.
 /// - Aa, left of ☝︎, changes how the page reads (`TextAppearanceControl`), live.
 /// - Scrolling down reads full screen, as in Now Playing (`ReaderSheet`, `ReadingChrome`); a link
