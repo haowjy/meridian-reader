@@ -41,7 +41,7 @@ mid-utterance, is in `LISTEN_PLAYBACK.md` → "Engine binding".
 
 - `AppleListenEngine`: `AVSpeechSynthesizer` with one utterance for the rest of the article.
 - Voices: the installed system voices of good quality (`VoiceCatalog`), "System default" first.
-- Offline, nothing to download. Speaks whenever no on-device engine is ready, when the article's
+- Offline, nothing to prepare. Speaks whenever no on-device engine is ready, when the article's
   language isn't one the engine supports, and for any chunk the engine can't render.
 
 ## Kokoro
@@ -93,9 +93,9 @@ chunk with Apple, and `LocalPCMWriter` writes non-finite samples as 0.
   vocab, BART G2P, the US lexicon, voice packs (`<voice>.bin`, 0.5 MB each) and, for the Core ML
   route, the `.mlmodelc` stages. Settings shows download progress; swipe left for *Remove Download*.
 - Voices (`KokoroVoiceCatalog`): `af_heart` (default), `af_bella`, `bf_emma`, `am_puck`,
-  `bm_fable`. A stored voice that isn't curated resolves to the default. A voice pack downloads
+  `bm_fable`. A stored voice that isn't curated resolves to the default. A voice pack prepared audio
   when the voice is chosen (`LocalTTSCoordinator.chooseVoice` → `EngineRegistry.prepareVoice`);
-  only then does the voice switch. A failed download keeps the old voice and shows the error.
+  only then does the voice switch. A failed prepare keeps the old voice and shows the error.
 - Previews are bundled (`Resources/VoicePreviews/voice-preview-kokoro-<id>.m4a`, ≈5 s, 24 kHz
   mono AAC), rendered on the Mac:
 
@@ -135,8 +135,8 @@ a hook switch to Apple). Kokoro answers with `KokoroCrashRecovery`:
   between → Apple, with a notice in Settings ("Tap Kokoro to try again");
 - resume auto-plays when the crash was under 20 minutes ago and something was playing
   (`ListenResumeTarget.forCrash`);
-- the paragraph is applied only on a page that still holds the text it was played in; otherwise
-  the page opens paused at its own spot (`AppLaunch.resumeAfterCrash`, `LISTEN_PLAYBACK.md`).
+- the paragraph is applied only on an article that still holds the text it was played in; otherwise
+  the article opens paused at its own spot (`AppLaunch.resumeAfterCrash`, `LISTEN_PLAYBACK.md`).
 
 On the Core ML route `coreml_breadcrumb.json` names the model and stage that was about to run;
 after a Kokoro crash, `FluidAudioProvider.recover` logs it as `coreml_stage` in
@@ -206,7 +206,7 @@ engine that also owns index files written without an engine id.
 1. **Dependency.** Add the package in `project.yml` (`packages:` and the target's
    `dependencies:`), then `xcodegen generate`. Library imports stay in
    `Features/Speech/Engines/<Library>/`.
-2. **Host.** Implement `LocalSynthHost`: `prepare()` (download and load through a
+2. **Host.** Implement `LocalSynthHost`: `prepare()` (prepare and load through a
    `SingleFlightLoad`, so callers share one load and a cancel reaches it; hold
    `SynthRenderGate.shared` while loading Core ML; report `onProgress`), `synthesizeOnce(text:)`
    (one call → `SynthesizedPCM`; map the library's "input too long" error to
@@ -227,7 +227,7 @@ engine that also owns index files written without an engine id.
 6. **Verify.** A Release device run of
    `-engineProbe -probeOnly <ShortName>` (init, first audio, wall vs audio); then pick it in Settings.
 
-The Settings row, download / progress / delete UI, cache, bake-ahead, Apple fallback and probe
+The Settings row, prepare / progress / delete UI, cache, bake-ahead, Apple fallback and probe
 come from the registry.
 
 ## Settings keys

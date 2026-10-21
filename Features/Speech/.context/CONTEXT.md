@@ -16,15 +16,15 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
 
 - **What you hear.** Play buttons ask `playState(of:)` and press through `press(_:start:)`; never
   compare session ids in a view. Every start goes through `start(_:at:)` (`listen(to:)` wraps
-  it). A finished page stays bound (`.finished`); only `stop()` (Stop Listening) and
-  `stopIfPlaying` (the page you hear removed, deleted, revised, or merged onto other text; no gap
+  it). A finished article stays bound (`.finished`); only `stop()` (Stop Listening) and
+  `stopIfPlaying` (the article you hear removed, deleted, revised, or merged onto other text; no gap
   fill) unbind. `onProgress` fires synchronously from `publishPlayback`, so the recorder sees
-  a replaced page's last spot (the `.stop` before the next `bind`). `listen(to:)` hands its article
-  to `onListen` before it binds, so the recorder can keep a page the library doesn't have on its
+  a replaced article's last spot (the `.stop` before the next `bind`). `listen(to:)` hands its article
+  to `onListen` before it binds, so the recorder can keep an article the library doesn't have on its
   first start.
-- **Books, series and folders.** Any page in a folder carries on through it, in the folder's
+- **Books, series and folders.** Any article in a folder carries on through it, in the folder's
   sort (D15; books and series too, D19); `PlaybackFolder.isBookOrSeries` is the one thing that
-  tells a book or series apart (the bar's source, no catch-up bake). The controller decides at a page's `finished` before the session sees it
+  tells a book or series apart (the bar's source, no catch-up bake). The controller decides at an article's `finished` before the session sees it
   (`SpeechController+Advance`): the next chapter is bound with `advance`, in place. Nothing
   between chapters may deactivate the audio session, clear the session or clear the lock screen
   (`finishSession` is the end only); locked listening depends on it, and the
@@ -32,22 +32,22 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
   `NextChapterProviding`. A staged next chapter must never render at listener priority, and sits
   right behind the playing chapter's job (at the front once that is done), never behind a job that
   parks in the background, and its opening goes before the playing chapter's paragraphs above
-  the playhead; downloads come after all of it. Playback never waits for a fetch: a followed
+  the playhead; prepared audio come after all of it. Playback never waits for a fetch: a followed
   story's chapter still waiting for its text ends playback there (`ChapterAdvance.Next.waiting`);
   a silent wait would need the app in front, and iOS may suspend an app holding a silent session.
 - **Listening progress outlives rollbacks through the store only.** The recorder writes through
   `LibraryStore`'s `recordPlayback` / `recordPlaybackStarted` / `recordPosition` /
   `recordFinished`, which keep what isn't stored (`PendingListening`) and write it again after a
-  failed edit's rollback. Progress set straight on a `Page` is lost to the next rollback. A
-  write made while an edit is staged (the position stopping records when the playing page is
+  failed edit's rollback. Progress set straight on a `Article` is lost to the next rollback. A
+  write made while an edit is staged (the position stopping records when the playing article is
   deleted) waits for that edit's save.
 - **Progress follows the text.** `PlaybackSessionState.textFingerprint` is set with the document
   (`bind`, `advance`) and travels in every `ListenProgress`. The recorder, `pageFinished` and a
-  rollback's rewrite store progress only on a page holding that text (`LibraryStore.holds`), and
-  `rekeyActiveSession` moves the session only onto a page holding it, else stops it
-  (`stopIfPlaying`: a gap fill would render under a key no page holds). The crash
+  rollback's rewrite store progress only on an article holding that text (`LibraryStore.holds`), and
+  `rekeyActiveSession` moves the session only onto an article holding it, else stops it
+  (`stopIfPlaying`: a gap fill would render under a key no article holds). The crash
   resume file carries it too, and `AppLaunch.resumeAfterCrash` applies its paragraph only on a
-  page holding it. Anything new that writes a position, start or end onto a page, or moves the
+  article holding it. Anything new that writes a position, start or end onto an article, or moves the
   session to another key, goes through the same check.
 - **Position.** Only `PlaybackSessionState` holds it, and a seek publishes it synchronously in
   the same transaction as the UI change; the scrubber relies on that to avoid a snap back. The
@@ -88,8 +88,8 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
   bursts the worker is idle until playback wakes it (`GlobalSynthQueue.playbackAdvanced`, called
   by `LocalListenEngine` on each unit start and resume). Back-to-back background rendering got the
   app killed by iOS. Anything new that renders in the background goes through the queue's
-  admission, and nothing holds a background task per chunk. Downloads (`../../Downloads/`) are
-  ordinary bake jobs (`LocalTTSCoordinator+Downloads`): they park in the background and never
+  admission, and nothing holds a background task per chunk. Prepared Audio (`../../Prepared Audio/`) are
+  ordinary bake jobs (`LocalTTSCoordinator+PreparedAudio`): they park in the background and never
   count as playing.
 - **`onRenderStateChange` is called inside the queue's work** (`noteBakeMarksChanged` runs mid
   drain, `bakeCompleted` from the worker): its handler acts later, never re-entering the queue in

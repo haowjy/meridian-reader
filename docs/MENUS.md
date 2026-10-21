@@ -2,32 +2,32 @@
 
 Every menu option is defined once, in `MenuRegistry` (`Features/DesignSystem/Components/MenuRegistry.swift`, decision C98). An option's spec says:
 
-- **kind**: page, folder, download or screen;
-- **places**: where it can ever show (`row`, `tile`, `bar`, `history`, `reader`, `nowPlaying`, `browser`, `header`, `libraryHome`, `folderScreen`, `downloads`);
-- **applies**: a fact about the item that no state change in that place undoes (a page in no folder never gets *Playback ›*; a page in the Library never gets *Remove from Recent*); false hides it;
+- **kind**: article, folder, prepare or screen;
+- **places**: where it can ever show (`row`, `tile`, `bar`, `history`, `reader`, `nowPlaying`, `browser`, `header`, `libraryHome`, `folderScreen`, `prepared audio`);
+- **applies**: a fact about the item that no state change in that place undoes (an article in no folder never gets *Playback ›*; an article in the Library never gets *Remove from Recent*); false hides it;
 - **enabled**: whether it can run now; false greys it out;
 - order (the spec order), block (a divider before block 1) and parent (a submenu).
 
 **Grey or hidden (DR-09, refined by C99):** grey when some other state could make the option usable in that place for that item; hidden when nothing could. It's judged per menu and per option. The generated table below lists every case.
 
-Every menu is assembled from the registry by kind and place (`MenuRegistry.rows` / `blocks`); a menu file (`ArticleMenu`, `FolderMenu`, `DownloadMenu`, `MenuContext.screenRows`) only gives each option its title, symbol and action. Menus are built only when they open: a list row hands its menu over as a view and never reads its rows; a row's swipe uses `ArticleMenu.swipe` / `FolderMenu.swipe`, which read only the item's flags. `DownloadCenter.hasDownloads(_:articles:)` caches its disk checks per page until a download changes. `RenderTiming` (signposts plus a 5 s `render_timing` log line) measures row bodies and menu builds.
+Every menu is assembled from the registry by kind and place (`MenuRegistry.rows` / `blocks`); a menu file (`ArticleMenu`, `FolderMenu`, `PrepareMenu`, `MenuContext.screenRows`) only gives each option its title, symbol and action. Menus are built only when they open: a list row hands its menu over as a view and never reads its rows; a row's swipe uses `ArticleMenu.swipe` / `FolderMenu.swipe`, which read only the item's flags. `PrepareCenter.hasPreparedAudio(_:articles:)` caches its disk checks per page until a prepare changes. `RenderTiming` (signposts plus a 5 s `render_timing` log line) measures row bodies and menu builds.
 
 `MenuRegistryTests` checks the table: kind × place × state → shown options in order, greyed or not.
 
 ## The menus (C98)
 
-- **Page** (row ⋯ and long press, Favorites tile, Now Playing bar, History, Reader, Now Playing, browser): Read, Download / Remove Download, Favorites, Move to… / Save to Folder…, Mark as Finished, Playback › (Mark All Above as Finished in a list row, Skip in Playback; a page in a folder only), Share, Save / Remove from Library (not in the Reader, Now Playing or the browser: the bookmark is there), Remove from Recent (out of the Library). The bar adds Stop Listening, History adds Remove from History, and Now Playing has Go to <folder> instead of Read.
-- **Folder** row and tile (an imported EPUB or followed story is a folder too, the same menu: C100): Continue, Download / Turn Off Download / Remove Downloads (one row by state), Favorites, Move to…, Edit Details… (holds the name), Delete.
-- **Folder header More**: Play from Start, Remove Downloads, Favorites, Move to…, Edit Details…, Delete, then the create group into this folder (C126).
-- **Library home ⋯**: Sort ›, Downloads, Settings, then [Browser] only (the tabs on screen are Favorites and Recent).
-- **Folder screen ⋯**: Sort › (hidden in a folder that keeps its own order: an imported EPUB, a followed story), Downloads, Settings, then [Favorites][Recent][Browser].
+- **Page** (row ⋯ and long press, Favorites tile, Now Playing bar, History, Reader, Now Playing, browser): Read, Prepare / Remove Prepared Audio, Favorites, Move to… / Save to Folder…, Mark as Finished, Playback › (Mark All Above as Finished in a list row, Skip in Playback; a page in a folder only), Share, Save / Remove from Library (not in the Reader, Now Playing or the browser: the bookmark is there), Remove from Recent (out of the Library). The bar adds Stop Listening, History adds Remove from History, and Now Playing has Go to <folder> instead of Read.
+- **Folder** row and tile (an imported EPUB or followed story is a folder too, the same menu: C100): Continue, Prepare / Turn Off Prepare / Remove Prepared Audio (one row by state), Favorites, Move to…, Edit Details… (holds the name), Delete.
+- **Folder header More**: Play from Start, Remove Prepared Audio, Favorites, Move to…, Edit Details…, Delete, then the create group into this folder (C126).
+- **Library home ⋯**: Sort ›, Prepared Audio, Settings, then [Browser] only (the tabs on screen are Favorites and Recent).
+- **Folder screen ⋯**: Sort › (hidden in a folder that keeps its own order: an imported EPUB, a followed story), Prepared Audio, Settings, then [Favorites][Recent][Browser].
 - **Create group** (C126, `LibraryCreateMenu`, one definition at `.add` and `.edit`): New Folder…, Import from… (the EPUB file picker), Save from Website… (an address, saved here as a link article), Paste Text… (a sheet: optional title, the text, prefilled from the clipboard; Save makes a text article here; never grey, C127), Follow…. Shown by ＋ (Library home and folder screen), a folder header's More and Edit's ＋; hidden whole in an imported EPUB or followed story.
 - **Folder header More** ends with Delete Folder… alone at the bottom, after the create group (C130). Mark as Finished uses the outline `checkmark.circle` (C130).
 - **Edit bar** (folder screen in Edit): Move to… (slot 1), Mark as Finished (middle), ＋ (slot 4: the create group; its New Folder… files the selection into the new folder, C122), Remove.
-- **Reader / Now Playing ⋯**: the page's options, then Downloads, Settings, then [Favorites][Recent][Website].
-- **Browser ⋯**: the page's options, then Follow…, Reload, Downloads, Settings, then [Favorites][Recent][Reader]. No New Search: a tap on the address field starts one.
-- **Download on a page out of the Library** (C104): enabled; it saves the page to the Library's top level first. Grey only on a browser page not yet loaded as a page.
-- **Downloads row** (one page, C110): Re-download (that page), Keep, Remove Download (that page). Pause All in the section header; a folder's download is turned off on its screen.
+- **Reader / Now Playing ⋯**: the article's options, then Prepared Audio, Settings, then [Favorites][Recent][Website].
+- **Browser ⋯**: the page's options, then Follow…, Reload, Prepared Audio, Settings, then [Favorites][Recent][Reader]. No New Search: a tap on the address field starts one.
+- **Prepare on a page out of the Library** (C104): enabled; it saves the page to the Library's top level first. Grey only on a browser page not yet loaded as a page.
+- **Prepared Audio row** (one article, C110): Prepare Again (that article), Keep, Remove Prepared Audio (that article). Pause All in the section header; a folder's prepare is turned off on its screen.
 
 ## Grey / hidden table (generated by `MenuRegistry.table`)
 
@@ -35,8 +35,8 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| read | never | no page or address |
-| download | never | nothing to save yet (downloading saves it, C104) |
+| read | never | no article or address |
+| prepare | never | nothing to save yet (preparing saves it, C104) |
 | favorite | never | it can’t be starred |
 | move | never | nothing to save yet |
 | finished | never | not saved |
@@ -51,8 +51,8 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| read | never | no page or address |
-| download | never | nothing to save yet (downloading saves it, C104) |
+| read | never | no article or address |
+| prepare | never | nothing to save yet (preparing saves it, C104) |
 | favorite | never | it can’t be starred |
 | move | never | nothing to save yet |
 | finished | never | not saved |
@@ -66,8 +66,8 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| read | never | no page or address |
-| download | never | nothing to save yet (downloading saves it, C104) |
+| read | never | no article or address |
+| prepare | never | nothing to save yet (preparing saves it, C104) |
 | favorite | never | it can’t be starred |
 | move | never | nothing to save yet |
 | finished | never | not saved |
@@ -82,8 +82,8 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| read | never | no page or address |
-| download | never | nothing to save yet (downloading saves it, C104) |
+| read | never | no article or address |
+| prepare | never | nothing to save yet (preparing saves it, C104) |
 | favorite | never | it can’t be starred |
 | move | never | nothing to save yet |
 | finished | never | not saved |
@@ -98,7 +98,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| download | never | nothing to save yet (downloading saves it, C104) |
+| prepare | never | nothing to save yet (preparing saves it, C104) |
 | favorite | never | it can’t be starred |
 | move | never | nothing to save yet |
 | finished | never | not saved |
@@ -112,7 +112,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | Option | Hidden when | Greyed when |
 |---|---|---|
 | goTo | never | nowhere to go |
-| download | never | nothing to save yet (downloading saves it, C104) |
+| prepare | never | nothing to save yet (preparing saves it, C104) |
 | favorite | never | it can’t be starred |
 | move | never | nothing to save yet |
 | finished | never | not saved |
@@ -125,7 +125,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| download | never | nothing to save yet (downloading saves it, C104) |
+| prepare | never | nothing to save yet (preparing saves it, C104) |
 | favorite | never | it can’t be starred |
 | move | never | nothing to save yet |
 | finished | never | not saved |
@@ -139,7 +139,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | Option | Hidden when | Greyed when |
 |---|---|---|
 | continueFolder | never | nothing in it plays |
-| folderDownload | never | empty, nothing downloaded, toggle off |
+| folderPrepare | never | empty, nothing prepared, toggle off |
 | folderFavorite | never | never |
 | folderMove | never | never |
 | editDetails | never | never |
@@ -150,7 +150,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | Option | Hidden when | Greyed when |
 |---|---|---|
 | continueFolder | never | nothing in it plays |
-| folderDownload | never | empty, nothing downloaded, toggle off |
+| folderPrepare | never | empty, nothing prepared, toggle off |
 | folderFavorite | never | never |
 | folderMove | never | never |
 | editDetails | never | never |
@@ -161,32 +161,32 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | Option | Hidden when | Greyed when |
 |---|---|---|
 | playFromStart | never | nothing in it plays |
-| removeDownloads | never | nothing downloaded or downloading |
+| removePrepared Audio | never | nothing prepared or preparing |
 | folderFavorite | never | never |
 | folderMove | never | never |
 | editDetails | never | never |
 | deleteFolder | never | never |
 
-### download at downloads
+### prepare at prepared audio
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| redownload | never | still downloading |
+| reprepare | never | still preparing |
 | keep | never | its audio is in the current voice |
-| removeDownload | never | never |
+| removePrepare | never | never |
 
 ### screen at reader
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| downloads | never | never |
+| prepared audio | never | never |
 | settings | never | never |
 
 ### screen at nowPlaying
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| downloads | never | never |
+| prepared audio | never | never |
 | settings | never | never |
 
 ### screen at browser
@@ -204,8 +204,8 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | saveFromWebsite | the folder keeps its own order (imported, followed) | never |
 | pasteText | the folder keeps its own order (imported, followed) | never |
 | follow | the folder keeps its own order (imported, followed) | browser: no web page up |
-| reload | never | no page up |
-| downloads | never | never |
+| reload | never | no article up |
+| prepared audio | never | never |
 | settings | never | never |
 
 ### screen at libraryHome
@@ -213,7 +213,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | Option | Hidden when | Greyed when |
 |---|---|---|
 | sort | the folder keeps its own order (imported, followed) | never |
-| downloads | never | never |
+| prepared audio | never | never |
 | settings | never | never |
 
 ### screen at folderScreen
@@ -221,7 +221,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | Option | Hidden when | Greyed when |
 |---|---|---|
 | sort | the folder keeps its own order (imported, followed) | never |
-| downloads | never | never |
+| prepared audio | never | never |
 | settings | never | never |
 
 ### screen at add
@@ -233,3 +233,12 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | saveFromWebsite | the folder keeps its own order (imported, followed) | never |
 | pasteText | the folder keeps its own order (imported, followed) | never |
 | follow | the folder keeps its own order (imported, followed) | browser: no web page up |
+
+## Prepared Audio list ⋯ (C135)
+
+| Option | Shown | Does |
+|---|---|---|
+| deleteAllPrepared (*Delete All…*) | something is prepared | confirms, then deletes every prepared article and its audio; folders stay |
+| clearListeningAudio (*Clear Audio From Listening…*) | From Listening has rows | confirms, then deletes that audio only |
+
+Row menu: *Delete Audio* (`menuDeleteAudio`) on every row; *Prepare Again* and *Keep* only on prepared rows.

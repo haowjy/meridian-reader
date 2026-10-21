@@ -9,7 +9,7 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 - iPhone, portrait, iOS 17+. Native Swift and SwiftUI only.
 - No backend, accounts or sync. Article text and audio stay on the device.
 - Offline first: saved articles read and play with no network (Apple voices, or Kokoro once
-  downloaded).
+  prepared).
 - Apple TTS is the default and the fallback; on-device Kokoro is optional.
 - Extraction sits behind a protocol, so the engine can be swapped.
 
@@ -53,9 +53,9 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
 
 - **Composition root.** `AppComposition` is the only place that lists voice libraries; it builds
   the `EngineRegistry`, the one `SpeechController`, the `ShellState`, the `LibraryStore`, the one
-  extractor, `DeveloperSettings`, Block Ads, Follow and Downloads, which `ReaderApp` injects through
-  the environment; it wires Downloads to the render queue's changes and the library's edits
-  (`makeDownloads`) and connects the speech stack to the library
+  extractor, `DeveloperSettings`, Block Ads, Follow and Prepared Audio, which `ReaderApp` injects through
+  the environment; it wires Prepared Audio to the render queue's changes and the library's edits
+  (`makePreparedAudio`) and connects the speech stack to the library
   (`attachLibrary`: the library resolves Now Playing's text, and the `ListeningProgressRecorder`
   writes listening progress to it).
   `AppLaunch.run` does the launch work once: the library's launch maintenance
@@ -68,7 +68,7 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
   It asks the playback session what you hear (`isHearing`) and stores nothing about it. A reading
   sheet's full screen is its own view state (`ReadingChrome`, held by `ReaderSheet` and
   `NowPlayingSheet`, fed by the reading web view's drags and taps), not the shell's. The reading
-  web view's coordinator decides what the text shows (its hold: a fresh page's top, a handed-over
+  web view's coordinator decides what the text shows (its hold: a fresh article's top, a handed-over
   place, the saved spot, a scrub; the spoken sentence while following) and one of two layouts
   (`ReadingTextLayout`) puts it on screen and keeps the reader's place through new layouts:
   Scroll (`HTMLReadingView+Scroll.swift`) or Pages (`HTMLReadingView+Pages.swift`), where the
@@ -97,13 +97,13 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
 ## Extraction
 
 1. The browser keeps a live `WKWebView` (`WebViewStore`). Reader mode and Save take a snapshot of
-   the page's visible DOM (`PageSnapshot`: `ReaderVisibleSnapshot.js` drops short invisible text
+   the article's visible DOM (`PageSnapshot`: `ReaderVisibleSnapshot.js` drops short invisible text
    such as anti-copy lines).
    When WebKit ends the view's content process (a crash, or memory taken), the view's delegate
    handles it (`WebViewStore.contentProcessEnded`), so WebKit doesn't reload once and stop: the
-   page reloads at once (in the background, once the app is in front), then after 2 s and 5 s,
+   article reloads at once (in the background, once the app is in front), then after 2 s and 5 s,
    and is left blank after a fourth end within a minute (`ContentProcessRecovery`). A reload
-   still waiting is dropped when the view has moved to another page or is loading one.
+   still waiting is dropped when the view has moved to another article or is loading one.
 2. `ReadabilityArticleExtractor` loads that HTML into an **off-screen** `WKWebView`
    (`OffscreenWebView`; the page URL as base for web pages) with the page's JavaScript off (its
    load gives up after 30 s, when WebKit's content process ends, or when the caller is
@@ -116,7 +116,7 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
 3. The address bar's reader icon and the ⋯ Reader toggle use the same
    `isProbablyReaderable` check, run after each load and same-document URL change.
 
-**Fetching a page out of sight** (`URLPageFetcher`, for Follow and Downloads): a fresh `WKWebView`
+**Fetching a page out of sight** (`URLPageFetcher`, for Follow and Prepared Audio): a fresh `WKWebView`
 the size of the app's window, placed off its left edge (the page lays out at the browser's width,
 in a view WebKit counts as on screen), with the browser's cookies (the default website data
 store, so a site you are signed in to in the browser serves the same pages) and page scripts off.
@@ -133,13 +133,13 @@ the one before it and then for its site's pause (`FetchPacing`: 4 s, 12 s after 
 6 s or more; a 429, a 5xx or no answer doubles the wait from 1 min up to 30 min, never under the
 reply's `Retry-After`; each answer halves it back down). Of the requests whose site is ready, one a
 tap asked for (Review's read, ▶ on a waiting chapter) goes first, then the oldest
-(the chapter loop, the daily checks, downloads). Nothing loads in the background (the view needs
+(the chapter loop, the daily checks, prepared audio). Nothing loads in the background (the view needs
 the app's window): requests wait for the app to come to the front, and a load the background cut
 short is tried again then without counting against its site.
 
 **Every web view starts from one configuration** (`WKWebViewConfiguration.appWebView`: the
 browser and Follow's preview, the hidden fetcher, extraction, the Reader's text). Each view sets
-only whether the page's own JavaScript runs and the URL schemes it serves itself. The rest is shared: the
+only whether the article's own JavaScript runs and the URL schemes it serves itself. The rest is shared: the
 default website data store (the browser's cookies), media that waits for a tap (no autoplay), and
 **Block Ads** (`ContentBlocker`): the rule lists of one `ContentRuleListProvider` go on every
 view's content controller once ready, and on and off with Settings › Browsing › *Block Ads*
@@ -156,8 +156,8 @@ Royal Road's promotions of its fictions) are not blocked.
 
 **Follow** (`FollowCenter`, `LibraryStore+Follow`): a story's table of contents
 (`TableOfContents.read`, through an ordered list of readers, the first that matches an address
-reading it: Royal Road's story page by its chapters table, any other site by the list with the
-most chapter-like links on its own site; a Royal Road chapter's address leads to its story page;
+reading it: Royal Road's story article by its chapters table, any other site by the list with the
+most chapter-like links on its own site; a Royal Road chapter's address leads to its story article;
 each reader also names its site) becomes a `series` folder of link pages, one per chapter kept in Review, in the
 story's order, with its state in `sourceStateData` (`FollowState`: following or not, the last
 check, the last chapters added, and every chapter address the contents have listed, kept or not).
@@ -166,9 +166,9 @@ browser's `WebView` with a `WebViewStore(staysOnPage: true)` (links, forms and b
 another address cancelled), and the 📄 at the end of its header's address label (`AddressLabel`)
 extracts that loaded page for the Reader text, as the browser's Reader does.
 The chapters' text is fetched one at a time while the app is in front (the chapter ▶ asked for,
-else the one after the page playing, else the oldest story's first waiting chapter) and stored in
-place (`storeFetchedText`; nothing renders: the folder's Download toggle decides that). A
-chapter's address the library already has stays one page: one filed in a folder stays there, one
+else the one after the article playing, else the oldest story's first waiting chapter) and stored in
+place (`storeFetchedText`; nothing renders: the folder's Prepare toggle decides that). A
+chapter's address the library already has stays one article: one filed in a folder stays there, one
 loose at the top level or out of the Library joins the story. A chapter
 whose site refuses or doesn't answer is tried again after the back-off, four times, then waits for
 the next launch or ▶. About once a day while the app is in front (a check is due 24 h after the
@@ -176,33 +176,33 @@ last; the app looks every 15 min and when it comes to the front), each followed 
 are read again and chapters not listed before go at the end of its folder; *Check Now* does the
 same at once. Unfollow stops the checks; the chapters stay and their text is still fetched.
 
-Snapshot plus off-screen, rather than injecting into the visible page: the user's page is never
-mutated, injected scripts don't fight the page's CSP, and content rendered by JavaScript is
-already in the snapshot. That is also why the off-screen view keeps page scripts off
+Snapshot plus off-screen, rather than injecting into the visible article: the user's article is never
+mutated, injected scripts don't fight the article's CSP, and content rendered by JavaScript is
+already in the snapshot. That is also why the off-screen view keeps article scripts off
 (`allowsContentJavaScript = false`): the snapshot's `<script>` tags and inline handlers would run
 a second time, fetch, and change the DOM before Readability reads it. The app's own
 `evaluateJavaScript` calls still run.
 
 **Success and failure.** Save and the reader need a non-empty body. Otherwise extraction fails
 with a reason the user sees, and nothing is stored (no bookmark-only save, no raw snapshot). A
-page without a title of its own (no `<title>`, heading or title metadata) is read and saved with
+article without a title of its own (no `<title>`, heading or title metadata) is read and saved with
 none (`ArticleRowTitle`): the Reader shows its source line alone, and rows, the bar and the lock screen
 name it by its site.
 
 **Book chapters** skip Readability: each chapter's XHTML goes through the normalizer alone, in
-one reused off-screen web view holding a blank standards-mode page, after `ReaderBookChapter.js`
+one reused off-screen web view holding a blank standards-mode article, after `ReaderBookChapter.js`
 takes out pictures, embedded media, footnote asides, note references and links back from notes,
 and unwraps links (parsed in an inert document, so nothing loads). A book's endnotes stay, on
-their own back-matter page. See "Book import" below.
+their own back-matter article. See "Book import" below.
 
 **Swapping the engine.** A new type conforming to `ArticleExtracting`, as the base of
 `AppComposition.extractor`, the app's one extractor: the browser (through the environment),
-Follow and Downloads (through `FetchQueue`'s `URLPageFetcher`) all use it; the library and speech
+Follow and Prepared Audio (through `FetchQueue`'s `URLPageFetcher`) all use it; the library and speech
 don't change. `DeveloperSwitchedExtractor` wraps it so that every extraction fails while Settings ›
 Developer › Fake Extraction Failure is on.
 
 **Manual check.** A news article and a long blog post extract a clean title and body; a home
-page (e.g. `https://example.com`) fails with a reason and saves nothing.
+article (e.g. `https://example.com`) fails with a reason and saves nothing.
 
 ## Data
 
@@ -213,7 +213,7 @@ Two SwiftData stores in one container (`LibraryStoreConfiguration`): **library**
 `SavedArticle`, frozen). The library has its own file because an older build reopening a shared
 store would drop entities it doesn't know; a file it never opens survives a rollback. Library
 models are CloudKit-shaped: every property optional or defaulted, no `.unique`, relationships
-optional with `.nullify`; one page per canonical URL is kept by `LibraryStore` and the launch
+optional with `.nullify`; one article per canonical URL is kept by `LibraryStore` and the launch
 dedupe pass. Every library read and write goes through `LibraryStore`; lists use
 `LibraryQueries`. An edit someone asks for (a save, including one into a folder; a move; a
 folder made, renamed, sorted or reordered; a mark; a remove of one or several pages or a
@@ -224,15 +224,15 @@ and throws `LibraryStoreError.saveFailed`. So a failed edit never shows as done,
 in the context for a later save to store or a later rollback to drop. The rollback drops every
 other change still unsaved too, except listening progress: `LibraryStore` keeps what playback
 wrote and hasn't stored (`PendingListening`) and writes it again after the rollback, making again
-a page only a play had made, so the next save stores it while the edit stays undone. It is written
-again only on a page holding the text it was made in (`LibraryStore.holds`), as playback writes
-it only on a page holding the text playing (`LISTEN_PLAYBACK.md`). Nothing is
-saved while an edit is being staged: deleting the playing page stops it, and the position
+an article only a play had made, so the next save stores it while the edit stays undone. It is written
+again only on an article holding the text it was made in (`LibraryStore.holds`), as playback writes
+it only on an article holding the text playing (`LISTEN_PLAYBACK.md`). Nothing is
+saved while an edit is being staged: deleting the playing article stops it, and the position
 stopping records waits for the delete's save instead of storing the delete half made. The screens
 run these through `ShellState.attempt`, which shows the failure as a toast (the import sheet
 shows a failed import or *Replace* as its one-line failure); what follows success (Edit's
 selection cleared, a moved folder's screen following it, the Move tree closed, "Added to
-Favorites", a saved article's audio moved under the page's key when that is an older key, and
+Favorites", a saved article's audio moved under the article's key when that is an older key, and
 baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only after it.
 
 **`Article`** (library):
@@ -240,11 +240,11 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | Field | Purpose |
 |-------|---------|
 | `key` | Audio cache / listen key (`ARTICLE_IDENTITY.md`); copied verbatim from `SavedArticle.id` at migration, never recomputed |
-| `urlString`, `canonicalURL` | The page; one page per canonical URL |
+| `urlString`, `canonicalURL` | The article; one article per canonical URL |
 | `title`, `byline`, `excerpt`, `artworkData` | Rows, Now Playing (`byline` = site domain for web pages; `title` "" = the page has none, read as `givenTitle`, and a row names it by `lineOne`) |
 | `contentStateRaw` | `link` (a favorite, a followed story's chapter waiting for its text; any text is a cache) or `saved` |
-| `addedAt` | When it joined the Library; nil = played without saving or removed (kept 7 days after its last play; a removed page never played, until the next launch) |
-| `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, a page is in no list, not even Recent, nor the bar's resume; read only while `addedAt` is nil |
+| `addedAt` | When it joined the Library; nil = played without saving or removed (kept while it is in the last 50 of Recent (C134); a removed article never played, until the next launch) |
+| `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, an article is in no list, not even Recent, nor the bar's resume; read only while `addedAt` is nil |
 | `folder`, `folderID`, `sortKey` | Its folder (none = the pages in no folder) and order there; `folderID` mirrors the relationship for predicates |
 | `bodyHTML`, `plainTextData` | Offline reading; the listen text comes from the HTML |
 | `wordCount`, `paragraphCount` | Row metadata; "audio ready" compares the cache against `paragraphCount`. Words are counted by one rule, `WordCount`, for web pages and chapters alike (each Chinese or Japanese character is a word); every text write goes through `Article.setText` |
@@ -256,20 +256,20 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `fetchStateRaw` | Kept as older builds stored it; nothing writes or reads it |
 | `locator` | Book chapters: where the chapter starts in the book, `href#fragment` |
 
-**Which lists a page is in** is decided in one place, `LibraryQueries`, from three standings and
+**Which lists an article is in** is decided in one place, `LibraryQueries`, from three standings and
 the star: in the Library (`addedAt` set: its folder or the home's top level, search, address
 suggestions); played without saving (out of the Library, played, `removedAt` nil: the home's Recent
 tab and its search); removed (out of the Library, `removedAt` set: none of
-those). A starred page is in Favorites whatever its standing, and the prune keeps it. *Remove from Library* (`LibraryStore.remove`, the one remove for every path: a
+those). A starred article is in Favorites whatever its standing, and the prune keeps it. *Remove from Library* (`LibraryStore.remove`, the one remove for every path: a
 row, Edit, 🔖 and the ⋯ of the browser, the Reader and Now Playing, the Now Playing bar) takes a
-page out of its folder and every Library list it was in at once, keeps its star (and with it its
-place in Favorites) and deletes nothing (the launch prune does). Once that is saved, the page you
+article out of its folder and every Library list it was in at once, keeps its star (and with it its
+place in Favorites) and deletes nothing (the launch prune does). Once that is saved, the article you
 hear stops, and so does a session a waiting merge would move onto it (`keysWaitingToMerge`),
 through the hook a delete stops them by (`LibraryStore.stopPlaybackIfPlaying` →
 `SpeechController.stopIfPlaying`: no gap-fill render, and its queued render goes). A save puts it
 back, and so does listening to it again from its article (🎧, the Reader's Listen, which
-clears `removedAt`, through a rollback too: `PendingListening`). The Downloads list keeps downloads of what
-is in the Library (`DownloadCenter`, after each stored edit, `LibraryStore.editStored`). The bar's
+clears `removedAt`, through a rollback too: `PendingListening`). The Prepared Audio list keeps prepared audio of what
+is in the Library (`PrepareCenter`, after each stored edit, `LibraryStore.editStored`). The bar's
 resume (`LibraryQueries.lastPlayed`) reads pages in the Library or played without saving, by when
 they were played, and the prune keeps the one it offers.
 
@@ -280,7 +280,7 @@ of any folder through `LibraryStore.setDetails`; a folder with a byline or cover
 `hasDetails`, shows the detailed header), for books and series their source
 (`sourceIdentifier`, `sourceURLString`, `sourceStateData`: a book's `BookSourceState`, its file's
 SHA-256 and the keys of the chapters its file gave, in order), and for every folder its place
-(`currentArticleKey`, the page that last started: every folder plays page to page in its sort).
+(`currentArticleKey`, the article that last started: every folder plays article to article in its sort).
 Whether a folder is finished isn't stored: `FolderProgress.isFinished` works it out from its pages.
 `languageCode`, `lastPlayedAt` and `finishedAt` are kept as older builds stored them and nothing
 writes or reads them. **Every folder follows the same rules (decision D19)**: books and
@@ -291,9 +291,9 @@ its link chapters fetched by Follow, and playback stops before one still waiting
 book's or story's pages show as chapters and name it as their source in the Now
 Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their audio (D7), and
   launch dedupe merges two copies of one source. Favorites are independent flags on pages and
-  folders, independent of the Library too: Favorites lists every starred page
-  (`LibraryQueries.favoriteArticles`), starring never files a page, *Remove from Library* keeps the
-  flag (only unstarring clears it), and the prune keeps a starred page. A legacy Favorites folder an older build left in the store is migrated on launch
+  folders, independent of the Library too: Favorites lists every starred article
+  (`LibraryQueries.favoriteArticles`), starring never files an article, *Remove from Library* keeps the
+  flag (only unstarring clears it), and the prune keeps a starred article. A legacy Favorites folder an older build left in the store is migrated on launch
   (`migrateFavoritesFolder`): its direct children are starred (its pages return to the root, its
   subfolders move to the top level with their contents as they were, nothing deeper starred), and
   the container is removed.
@@ -327,7 +327,7 @@ Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their 
    thumbnail, language, the book key as `sourceIdentifier`, the file's SHA-256 and the chapter
    keys in order in `sourceStateData`) at the destination (any folder, a book too), looked up
    again then (a destination deleted while the book was read fails the import), with one saved
-   page per chapter in order (key `BookIdentity.chapterKey`, front matter `skipsInPlayback`), all
+   article per chapter in order (key `BookIdentity.chapterKey`, front matter `skipsInPlayback`), all
    in one save: a failed save keeps nothing. A chapter key the library already has (a chapter
    moved out of a deleted copy of the book) is brought up to date where it is, not made twice.
 6. A book already in the Library (same book key) is left alone, or, with *Replace* (D13),
@@ -346,7 +346,7 @@ sheet a `BookImportPreview` (title, authors, cover thumbnail, chapter titles, wh
 The importer takes *Add to* as a folder id it reads again in its save, so a change while the
 book is read and prepared is stored in that one save; from *Saving the book…* on it can't change,
 and a folder chosen and then deleted fails the import (`destinationGone`). One import sheet is up
-at a time: a book arriving while one is (a second download finishing) is discarded with a toast,
+at a time: a book arriving while one is (a second prepare finishing) is discarded with a toast,
 and a flow closes and lands only its own sheet (`ShellState.closeImport`). D13's *Cancel* is the importer's `.cancel` choice: it
 stops right after reading, and the sheet asks, then runs again with `.replace` on the same copy.
 
@@ -354,11 +354,11 @@ stops right after reading, and the sheet asks, then runs again with `.replace` o
 row and every bookmark in `bookmarks.json` without a receipt (`LibraryMigrationReceipt`, in the
 library store): saved rows become saved pages in no folder (same key, text, position, icon; the
 listen history becomes `lastPlayedAt` / `finishedAt`), bookmarks become starred link pages in no
-folder in file order, and a bookmark for a page the library has stars that page where it is (one
+folder in file order, and a bookmark for an article the library has stars that article where it is (one
 in a folder stays there; one out of the Library joins it as a link). The paragraph layout pass then moves copied pages on older listen blocks to today's
 layout, and only then does dedupe merge duplicates, so positions and audio are compared on the
 same paragraphs. The pages and a receipt for every item copied are saved together: a failed save
-leaves neither, so the next launch copies again, and a page deleted after the copy never comes
+leaves neither, so the next launch copies again, and an article deleted after the copy never comes
 back. Receipts that can't be read stop the copy. A bookmarks file that doesn't decode is logged
 and left as it is: nothing is copied or recorded from it, so it is copied if it becomes readable.
 A launch with nothing to copy (every launch after the first) changes nothing and saves nothing.
@@ -372,26 +372,26 @@ couldn't save). Debug: `-rerunLibraryMigration` empties the library and its rece
 again.
 
 **Audio work waits for the save.** Deleting pages (*Delete Folder and
-Contents*: the page's audio directory, pending render and queued renders go,
+Contents*: the article's audio directory, pending render and queued renders go,
 unless a page with its key exists again by then), pages leaving the Library (*Remove from
 Library*: the audio is kept, back on the ephemeral TTL), Save (the audio marked saved and
 its queued render non-ephemeral), the layout pass (audio aligned to the new
-paragraphs, the crash-resume point and pending renders remapped), dedupe (the merged page's audio filling the
-kept page's paragraphs it has none for, by text, then its directory and pending render dropped;
-the resume point, the crash target read at launch and the live session moved onto the kept page,
+paragraphs, the crash-resume point and pending renders remapped), dedupe (the merged article's audio filling the
+kept article's paragraphs it has none for, by text, then its directory and pending render dropped;
+the resume point, the crash target read at launch and the live session moved onto the kept article,
 at the paragraph with the same text) and a book's *Replace* (edited chapters aligned, chapters
 found by their text merged, and a dropped chapter's audio, pending render and queued renders
 deleted) change nothing outside the store until the library change is saved. They record `LibraryAudioWork` in the same save; `LibraryStore.commit` does it right
 after the save. A failed save is rolled back with its work, leaving the audio cache, pending
 renders and the resume point as they were. A record is retired only once its postconditions hold
 on disk: the destination's saved audio index aligned with its paragraphs, every file it lists
-there, the merged page's directory gone, a deleted page's audio gone, and otherwise the audio
-saved or ephemeral as its page is. Delete, remove and Save records act on the page holding the key
-when they run, not as it was planned: by then the key can belong to a later page (saved, deleted,
-then played again without saving), whose audio stays, saved only if that page is saved in the
+there, the merged article's directory gone, a deleted article's audio gone, and otherwise the audio
+saved or ephemeral as its article is. Delete, remove and Save records act on the article holding the key
+when they run, not as it was planned: by then the key can belong to a later article (saved, deleted,
+then played again without saving), whose audio stays, saved only if that article is saved in the
 Library. A record that fails is kept, with everything after it,
 for the next launch; so is the work of a launch that dies after the save. Meanwhile the pages
-those records touch (a merge's source and destination, a deleted page) are held (`ArticleAudioCache.held`):
+those records touch (a merge's source and destination, a deleted article) are held (`ArticleAudioCache.held`):
 the launch's engine purges (which then run again next launch) and the prune leave their audio
 alone, their pending renders aren't adopted, and a book's playback neither stages them as the
 next chapter nor trims them behind its place (D7). Records that can't be read hold all audio this
@@ -403,23 +403,23 @@ maintenance too (`LISTEN_PLAYBACK.md`, Pending jobs). Replay doesn't depend on t
 existing: the audio cache's changes are copy-on-write (`LISTEN_PLAYBACK.md`, Audio cache), so
 work stopped at any step is done again from what is on disk, losing nothing. The resume point
 moves only from where the work found it. Before it changes any audio, a record is checked against
-the committed page: layout work for a page that holds other paragraphs now is dropped (the page's
+the committed article: layout work for an article that holds other paragraphs now is dropped (the article's
 audio is aligned with what it holds when it opens); a merge aligns the merged audio, and moves
-the resume point, onto what the kept page holds now, and if the kept page has been deleted,
-leaves that audio to the cache's age prune; a delete whose page exists again (brought back while
-it waited) leaves its audio to that page. So does a merge whose merged key a page holds again (a
+the resume point, onto what the kept article holds now, and if the kept article has been deleted,
+leaves that audio to the cache's age prune; a delete whose article exists again (brought back while
+it waited) leaves its audio to that article. So does a merge whose merged key an article holds again (a
 book's *Replace* brought the chapter back): it moves and deletes nothing under that key, drops
 none of its renders, moves no resume point and rekeys no session, and the audio is saved or
-ephemeral as that page is; if that page is gone again by then, the later record that names the
+ephemeral as that article is; if that article is gone again by then, the later record that names the
 key (its delete or merge) decides instead. A session playing the merged key keeps it until the
-merge runs, so a *Replace* that revises or drops the kept page, a delete of it or its *Remove
-from Library*, stops that session with the kept page's own (`keysWaitingToMerge`, which applies
-the merge's rule: no page holds the merged key and no later record names it). Otherwise the
-merge would move it onto revised text it isn't playing or onto a page in no list, or leave it on
-a key no page holds. Under those stops, which follow the sequences a *Replace* can make, sits
-the rule that holds for all of them: the merge moves the session only onto a kept page holding
+merge runs, so a *Replace* that revises or drops the kept article, a delete of it or its *Remove
+from Library*, stops that session with the kept article's own (`keysWaitingToMerge`, which applies
+the merge's rule: no article holds the merged key and no later record names it). Otherwise the
+merge would move it onto revised text it isn't playing or onto an article in no list, or leave it on
+a key no article holds. Under those stops, which follow the sequences a *Replace* can make, sits
+the rule that holds for all of them: the merge moves the session only onto a kept article holding
 the text it plays and otherwise stops it (`SpeechController.rekeyActiveSession`, given the kept
-page's text by `keyMerged`), and listening is written only on a page holding the text playing,
+article's text by `keyMerged`), and listening is written only on an article holding the text playing,
 so no order of later *Replace*s (a key brought back with other text, a kept key that comes back
 after its text moved on) puts one text's positions on another.
 
@@ -442,7 +442,7 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 | Crash-resume point (key, paragraph, text fingerprint, time) | `Application Support/ListenTiming/listen_resume.json` (`ListenResumePointStore`) |
 | Rendered audio | `Application Support/TTSCache/<article key>/` (`ArticleAudioCache`) |
 | Pending render jobs | `Application Support/PendingBakeJobs.json` |
-| Downloads (decision D16: what was asked for, each page's state, a kept voice) | `Application Support/Downloads.json` (`DownloadListStore`) |
+| Downloads (decision D16: what was asked for, each article's state, a kept voice) | `Application Support/Downloads.json` (`PrepareListStore`) |
 | Timing log | `Application Support/ListenTiming/` |
 
 ## Offline
@@ -457,7 +457,7 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 
 ## Network use
 
-All of it is user-initiated or for the page in view: page loads, Google search and the unofficial
+All of it is user-initiated or for the article in view: article loads, Google search and the unofficial
 Google suggest endpoint (`suggestqueries.google.com`, while typing in the address field), favicons
 of visited and bookmarked sites, and the one-time Kokoro model and voice-pack downloads (Hugging
 Face). No analytics.
@@ -475,7 +475,7 @@ browser keeps JavaScript on; sites need it.
 
 ## Article rename and store migration (C121)
 
-The library's item model is `Article` (it was `Page`), alongside `Folder`. Its store entity was named `Page`, and SwiftData can't rename an entity, so `LibraryEntityRename` (`LibraryStoreConfiguration.swift`) runs before the container opens. It checks the store's metadata, and if it still has `Page`, it copies the files to `Application Support/LibraryBackup-C121` and runs Core Data's inferred lightweight migration in place. The source is the model cached in the store; `Page` and Folder's `pageSortRaw`, `currentPageKey` and `pages` are the renaming identifiers. If that fails, the launch stops rather than opening the store. `DownloadRecord.Target` still writes `page` in Downloads.json. Pages mode and web pages keep the word "page".
+The library's item model is `Article` (it was `Page`), alongside `Folder`. Its store entity was named `Page`, and SwiftData can't rename an entity, so `LibraryEntityRename` (`LibraryStoreConfiguration.swift`) runs before the container opens. It checks the store's metadata, and if it still has `Page`, it copies the files to `Application Support/LibraryBackup-C121` and runs Core Data's inferred lightweight migration in place. The source is the model cached in the store; `Page` and Folder's `pageSortRaw`, `currentPageKey` and `pages` are the renaming identifiers. If that fails, the launch stops rather than opening the store. `PrepareRecord.Target` still writes `page` in Downloads.json. Pages mode and web pages keep the word "page".
 
 ## New Folder everywhere and the header disc (C122, C124)
 
@@ -483,7 +483,7 @@ The library's item model is `Article` (it was `Page`), alongside `Folder`. Its s
 
 ## The create group (C126)
 
-`LibraryCreateMenu` (`LibraryScreenMenu.swift`) builds the one create group from `MenuRegistry` (`.newFolder`, `.importFile`, `.saveFromWebsite`, `.pasteText`, `.follow` at `.add` and `.edit`, each hidden when `isFixedOrder`). ＋ uses it as `createRows`, `FolderMenu` at `.header` appends it as a second block (`.folderNewFolder` is gone), and `LibraryEditBar` slot 3 is a ＋ `Menu` with it at `.edit`, `filing` the selection. *Save from Website…* (`LibraryScreenState.saveFromWebsite(into:)`, address alert) calls `LibraryStore.saveLink(_:in:)`: an article the library has moves into the folder and is saved; a new one is a `.link` article, fetched when it first plays or downloads.
+`LibraryCreateMenu` (`LibraryScreenMenu.swift`) builds the one create group from `MenuRegistry` (`.newFolder`, `.importFile`, `.saveFromWebsite`, `.pasteText`, `.follow` at `.add` and `.edit`, each hidden when `isFixedOrder`). ＋ uses it as `createRows`, `FolderMenu` at `.header` appends it as a second block (`.folderNewFolder` is gone), and `LibraryEditBar` slot 3 is a ＋ `Menu` with it at `.edit`, `filing` the selection. *Save from Website…* (`LibraryScreenState.saveFromWebsite(into:)`, address alert) calls `LibraryStore.saveLink(_:in:)`: an article the library has moves into the folder and is saved; a new one is a `.link` article, fetched when it first plays or prepared audio.
 
 ## One row height in Edit and out (C123)
 
@@ -504,7 +504,7 @@ Library rows are one component, `ListRow`, in Edit and out; Edit only drops the 
   replacing the app mid-call (the 2026-10-20 21:06 EDT Napoleon banner) is not a crash.
 - `KokoroCrashRecovery`: Core ML crash or ONNX crash #1 gives `.stay(notice: nil)` (same voice,
   ONNX CPU, no banner); ONNX crash #2 in a row gives `.pauseForRetry` (amended): the coordinator sets
-  `isPausedForRetry` and `GlobalSynthQueue.isPausedForRetry` stops the render worker (downloads,
+  `isPausedForRetry` and `GlobalSynthQueue.isPausedForRetry` stops the render worker (prepared audio,
   render-ahead); playback goes on through rendered audio. `LocalListenPlayer`'s producer stops at
   the first chunk not ready (`held_for_retry`), lets the buffer drain, then the engine pauses and
   `playbackReachedUnrendered` shows the banner with *Retry* (`retryAfterEngineStop`: fresh host
@@ -518,6 +518,13 @@ Library rows are one component, `ListRow`, in Edit and out; Edit only drops the 
 
 ## Tests (C133)
 
-Critical-only: crash guard and recovery policy, download cache integrity, no data loss on a
+Critical-only: crash guard and recovery policy, prepare cache integrity, no data loss on a
 failed save, no text dropped by the chunker, and one smoke UI test. About 13 s to run. The audit
 table is in the decision log (C133).
+
+## Retention and Prepared Audio (C134, C135, C136)
+
+- **Three states.** *Prepared*: saved and you chose *Prepare Audio*; its audio is never cleared automatically. *Saved*: in the Library; listening renders audio as it goes, and saving or starring no longer renders the whole article. *Being read*: opened or played without saving, listed in Recent.
+- **Recent is the last 50 articles started.** At launch and when an article starts, unsaved articles beyond those 50 are deleted with their audio; saved articles beyond them lose only their audio from listening. Audio the session or the staged chapter needs is never touched. The finished-chapters trim skips prepared audio.
+- **Prepared Audio list** (⋯ › Prepared Audio, Settings): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio From Listening…** (that audio only), each shown only when its section has rows.
+- **Naming.** The feature is *Prepare*, in the UI and in code (`PrepareCenter`, `PrepareRecord`, `PreparedAudioSheet`, `Features/PreparedAudio`). *Download* stays only for real file downloads (voice models, the CPU model, EPUB files). On-disk names are kept: `Downloads.json`, its keys, `downloads.wordsPerSecond`.

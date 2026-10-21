@@ -14,7 +14,7 @@ changing the shell code.
   last one left. One sheet at a time, except the listen debug panel, which shows over Voice
   settings when opened from them (`overSheet`, `ShellSheet.showsOverASheet`); the sheet's view
   presents it, so nothing else hosts a sheet of its own. It never stores what
-  you hear: `isHearing` (injected) asks the playback session, so `openReader` of the playing page
+  you hear: `isHearing` (injected) asks the playback session, so `openReader` of the playing article
   opens Now Playing.
 - **Layers** (`BrowseStartView.layers`): surface → Reader sheet → Now Playing → ⋯ menu → system
   sheets. The toast (`ShellToastLayer`) floats over whichever bottom chrome
@@ -68,7 +68,7 @@ changing the shell code.
   `ShellState`, the ⋯ panel (`MenuContext`, drawn by `MoreMenuPanel`: the item's rows from its
   one menu definition, `PageMenu` / `FolderMenu`, then the screen's rows ending in `tail`, then
   the big buttons; the panel draws `MenuRow`s and knows no surface), the Now Playing bar on a
-  surface (`NowPlayingBarView`, whose long press is the page's menu then *Stop Listening*).
+  surface (`NowPlayingBarView`, whose long press is the article's menu then *Stop Listening*).
 - **The ⋯ morph menu measures its focus point** through a preference and places the panel from it.
   Ignore focus changes under 0.5 pt (`MorphMenu.isNewFocus`): pixel rounding of the placement
   nudges the measurement each pass, and without the threshold the panel re-places itself forever

@@ -7,8 +7,8 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   change goes through `LibraryStore` (never `context.delete` here). What rows do is in
   `LibraryActions`, so a row and a header play and open the same way.
 - **Rows and the header play through `LibraryActions`** (`play` → `press(_:start:)` with
-  `.page(key)` for a page row's tap, `playFolder` with `.folder(id)` for the header's ▶ and
-  *Continue*), and show `playState(of:)`. A page row's tap plays, except the page you hear, which
+  `.article(key)` for an article row's tap, `playFolder` with `.folder(id)` for the header's ▶ and
+  *Continue*), and show `playState(of:)`. An article row's tap plays, except the article you hear, which
   opens (`open`: Now Playing), so a tap never pauses it; *Read* in its menu opens it. `FolderProgress` is what a folder's row and header show (its
   place, how far, time left), for books and plain folders alike.
 - **Drops don't reach a SwiftUI List** (on this iOS, neither `onDrop`, `dropDestination` nor
@@ -26,22 +26,22 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   The Library surface owns the zone and screen key.
 - **Swipe actions follow AGENTS.md's rule.** A folder's *Delete Folder…* only asks, so it takes
   `Palette.destructive`: with the role, *Cancel* would leave the row missing and the delete abort
-  in UIKit. A page's *Remove from Library* takes the tint too: its row goes once the remove is stored, and a
+  in UIKit. An article's *Remove from Library* takes the tint too: its row goes once the remove is stored, and a
   save that fails keeps it (a toast says so); with the role, the List would have taken the row
-  out first and aborted on the update. `CoreFlowsUITests` swipe-removes a playing page, which stops.
+  out first and aborted on the update. `CoreFlowsUITests` swipe-removes a playing article, which stops.
 - **The home's lists are `LibraryQueries`' too**: the starred folders (`favoriteFolders`), the
   top level's folders (`topLevel`, a filter after the fetch: no predicate on `parent`), and the
   search (`searchPages`, `searchFolders`). The home picks the descriptors in its `init` from the
   tab and the search text; it filters nothing itself but `isLive`.
-- **Which lists a page is in is `LibraryQueries`' alone** (in the Library, played without saving,
+- **Which lists an article is in is `LibraryQueries`' alone** (in the Library, played without saving,
   or removed: in none, nor the bar's resume, `lastPlayed`). *Remove* is one `LibraryStore.remove`
   from every path (rows, Edit, the Now Playing bar, and `PageActions`' 🔖 and ⋯ through
-  `LibraryActions.remove`); it never clears the star or deletes. Once it is saved, the page you
+  `LibraryActions.remove`); it never clears the star or deletes. Once it is saved, the article you
   hear stops through the store's one playback hook (`stopPlaybackIfPlaying`, as a delete), and so
   does a session a waiting merge would move onto it (`keysWaitingToMerge`), so nothing shows a
-  removed page playing. It stamps `removedAt`, so a played page doesn't come back
-  in Recent (a listen from its article clears it, `recordPlayback`); a view never re-derives a list from `addedAt` or `lastPlayedAt` itself. The Downloads
-  list follows the same line (`DownloadCenter` drops what left the Library after each stored
+  removed article playing. It stamps `removedAt`, so a played article doesn't come back
+  in Recent (a listen from its article clears it, `recordPlayback`); a view never re-derives a list from `addedAt` or `lastPlayedAt` itself. The Prepared Audio
+  list follows the same line (`PrepareCenter` drops what left the Library after each stored
   edit, `LibraryStore.editStored`).
 - **A saved delete reaches views one redraw early.** Rows, a folder's screen and a relationship's
   stale members still hold the deleted model for a redraw, and reading an attribute it hadn't
@@ -49,9 +49,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   saved): rows draw `DeletedRow`, a folder's screen `FolderGoneView`, and the home, folder
   screens and search keep only live models.
 - **One ☆ for pages: `FavoriteFlow`** (the browser's, the Reader's and Now Playing's ⋯ by
-  address, a row's menu by page): the same toasts, failure text and icon fetch everywhere, and
-  every label reads `Page.isFavorite`, the one flag Favorites lists (`LibraryQueries.favoritePages`,
-  in the Library or not). A row offers ☆ when the page is in the Library, has a web address, or is
+  address, a row's menu by article): the same toasts, failure text and icon fetch everywhere, and
+  every label reads `Article.isFavorite`, the one flag Favorites lists (`LibraryQueries.favoritePages`,
+  in the Library or not). A row offers ☆ when the article is in the Library, has a web address, or is
   starred already (`LibraryStore.canFavorite(_:)`), so a chapter can be starred and unstarred.
 - **Edit and the dialogs live in `LibraryScreenState`**, on the Library surface, shared through
   the environment: the bottom bar acts on the selection, and
@@ -64,9 +64,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   screen's rows, the same on the home and a folder.
 - **Deletes, removes and Save go through `LibraryStore`'s audio journal** (`plan(.delete`,
   `.ephemeral` or `.saved, key:)`): the audio changes only after the save, and a failed save is
-  rolled back. Work that waited acts on the page as it is when it runs. Save also moves audio
-  when an older page holds the address under another key (`ArticleSaveCoordinator` then rekeys
-  the live session too, without a restart), or, for a page not playing, through
+  rolled back. Work that waited acts on the article as it is when it runs. Save also moves audio
+  when an older article holds the address under another key (`ArticleSaveCoordinator` then rekeys
+  the live session too, without a restart), or, for an article not playing, through
   `prepareListenIdentity` (legacy v1 adoption, alignment).
 - **Edits can fail.** `LibraryStore`'s edits stage inside `edit(_:_:)`, which saves once and
   rolls back a failed save, throwing `LibraryStoreError.saveFailed`; nothing commits while an
@@ -101,37 +101,37 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   History visit, the Now Playing bar; as the item block of the ⋯ panel (the folder's screen, the
   Reader, Now Playing, the browser). A place passes a `PageMenu.Place`, which only hides or dims
   rows; its own rows go in a block after. Add a row in the definition, never at an entry point.
-  They take their collaborators as values (`PageActions`, `LibraryActions`, `DownloadCenter`,
+  They take their collaborators as values (`PageActions`, `LibraryActions`, `PrepareCenter`,
   `LibraryScreenState`), not from the environment, which a menu's content may not get, and build
   their rows only when shown (the views' bodies), not on each row redraw. In Edit a row passes no
-  ⋯ (`ListRow.menu` nil). A page's actions are `PageActions`' ("this page" anywhere: a row's
+  ⋯ (`ListRow.menu` nil). An article's actions are `PageActions`' ("this article" anywhere: a row's
   Library page, the Reader's article, the browser's page, which saves by extracting first).
 - **The home never changes size with playback** (decision D14): no section depends on what is
-  playing or part-way. A page played without saving joins Recent (`LibraryQueries.recent`) on
+  playing or part-way. An article played without saving joins Recent (`LibraryQueries.recent`) on
   its first play, the one insert playback causes, animated; Everything never changes with it.
 - **Recent's menu rows ask `LibraryQueries.isInRecent`** (the `recent` predicate itself,
-  evaluated on a page in hand; Recent's search writes the rule again, as a predicate can't call
-  another on iOS 17): *Remove from Recent* dims on a page out of the Library that isn't in it, and a row's
+  evaluated on an article in hand; Recent's search writes the rule again, as a predicate can't call
+  another on iOS 17): *Remove from Recent* dims on an article out of the Library that isn't in it, and a row's
   swipe offers *Remove* in the Library or in Recent. The tab's stored raw value stays `"history"`
   (`LibraryHomeTab.recent`, `library.homeTab`), so a remembered tab survives the rename.
   The browser's History (pages visited, 🕘 in the band) is another concept and keeps its name.
-- **Download, Remove Download and Remove Downloads go through `DownloadCenter`**
-  (`DownloadActions` for the toast): *Remove Download* (a page) and *Remove Downloads* (a folder's
-  menu) also drop the download, or the list would render it again.
-- **The folder header is centred and sits on the page margin** (`FolderHeader`, a design-system
+- **Prepare, Remove Prepared Audio and Remove Prepared Audio go through `PrepareCenter`**
+  (`PrepareActions` for the toast): *Remove Prepared Audio* (an article) and *Remove Prepared Audio* (a folder's
+  menu) also drop the prepare, or the list would render it again.
+- **The folder header is centred and sits on the article margin** (`FolderHeader`, a design-system
   component of plain values; `FolderScreen` fills it): the section header is already at the
-  margin in a Library list, so the header adds no padding of its own. Its Download control's
-  taps (download, or ask *Turn Off Download* while the toggle is on) are `FolderScreen`'s
-  `headerActions`; the ▶ is `playFolder`; *More* is `FolderMenu`, as the top of the screen's ⋯ is. The *Turn Off Download*
-  question is one modifier, `turnOffDownloadQuestion`, attached by each control that asks it
+  margin in a Library list, so the header adds no padding of its own. Its Prepare control's
+  taps (prepare, or ask *Turn Off Prepare Audio* while the toggle is on) are `FolderScreen`'s
+  `headerActions`; the ▶ is `playFolder`; *More* is `FolderMenu`, as the top of the screen's ⋯ is. The *Turn Off Prepare Audio*
+  question is one modifier, `turnOffPrepareQuestion`, attached by each control that asks it
   (a confirmation dialog points its iOS 26 popover at the view it is attached to): the header's
-  Download control and *More* (`FolderHeader`'s `anchor` slot, behind each side control), a
+  Prepare control and *More* (`FolderHeader`'s `anchor` slot, behind each side control), a
   folder row's ⋯ (`ListRow.menuAnchor`; its long press asks there too) and the band's ⋯
   (`LibrarySurface`). Each host keeps the folder being asked about in its own `@State`, so only
-  that one presents; `FolderMenu` reports the tap through `onTurnOffDownload`.
-- **Books and series are folders** (decision D19): one screen (`FolderScreen`), one page row
+  that one presents; `FolderMenu` reports the tap through `onTurnOffPrepare`.
+- **Books and series are folders** (decision D19): one screen (`FolderScreen`), one article row
   (`LibraryPageRow`), one ⋯ (`FolderMenu`), one delete question. Nothing refuses
-  a move, a drop, a sort or a subfolder because of `kind`: only cycles, and a page out of the
+  a move, a drop, a sort or a subfolder because of `kind`: only cycles, and an article out of the
   Library, which has no place in the tree (`LibraryTreeError`).
   `kind` is a hint of where a folder came from
   (`FolderKind.isBookOrSeries`): the row appearance comes from details; kind still supplies
@@ -141,13 +141,13 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **Details are not a kind** (decision D17): *Edit Details* (`FolderDetailsSheet`, a shell sheet)
   writes a folder's name, byline and cover in one `LibraryStore.setDetails`. `Folder.hasDetails`
   picks the header's look (`FolderHeaderStyle.detailed`: the cover above the title), a book's too.
-- **Rows, the page menu and the header ask `DownloadCenter.state(of:)`** (a page; a folder with
-  the pages its row or screen already holds) for the one `DownloadState`; `ListRow` only draws
-  the mark it is given (dimmed tile and ↓ while downloading, ✓ badge once downloaded).
+- **Rows, the article menu and the header ask `PrepareCenter.state(of:)`** (an article; a folder with
+  the pages its row or screen already holds) for the one `PrepareState`; `ListRow` only draws
+  the mark it is given (dimmed tile and ↓ while preparing, ✓ badge once prepared).
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way
   (`PageProgress.of`); counts come from relationships, not fetches.
 - **D20 home:** `LibraryHomeView` renders the Everything / Favorites / Recent tab
-  (`ShellState.homeTab`, a `LibraryHomeTab`) over one folder/page collection, filtered by the
+  (`ShellState.homeTab`, a `LibraryHomeTab`) over one folder/article collection, filtered by the
   band's search within that tab (`ShellState.librarySearch`, D22; `LibraryQueries.searchPages(_:in:)`).
   Star flags never change location. Filtered (Favorites, Recent or a search), the list sets
   `LibraryScreenKey.filtered(under: nil)` and the rows read it: none lifts or takes a drop, a row
@@ -156,10 +156,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   folder's screen searches under that folder (`ShellState.librarySearchFolder`,
   `FolderSearchResults`, `.filtered(under: id)`: paths from below it) and ends when the folder
   leaves the path. Rows have only ⋯ at their trailing edge. A folder
-  header has Download, the big ▶ (Continue) and More.
-- **D21: action rows never wrap; page rows are two lines.** A row of buttons is an
+  header has Prepare, the big ▶ (Continue) and More.
+- **D21: action rows never wrap; article rows are two lines.** A row of buttons is an
   `ActionButtonRow` (full labels → short titles → no details → symbols), never an HStack or a
-  stack that can wrap; give every button a symbol. A page row is its title on one line and one
+  stack that can wrap; give every button a symbol. An article row is its title on one line and one
   status line, the second its site everywhere except in a book or series (`kind.isBookOrSeries`), whose header names the source; a folder you made mixes sites, so its rows keep theirs. Imported pages are standard page rows; folder sort remains
   the source chapter order until the user changes it. The old Favorites folder is converted by
   `LibraryStore.migrateFavoritesFolder` before the first screen.

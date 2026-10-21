@@ -1,8 +1,8 @@
-# Downloads: deferred
+# Prepared Audio: deferred
 
-- **Rendering while charging, with the phone locked** (D16 says downloads render "mainly in the
+- **Rendering while charging, with the phone locked** (D16 says prepared audio render "mainly in the
   foreground or while charging"). Not built: with the app in the background and nothing playing,
-  download jobs park (while audio plays on the CPU route they go on, C94). It needs a `BGProcessingTask` with
+  prepare jobs park (while audio plays on the CPU route they go on, C94). It needs a `BGProcessingTask` with
   `requiresExternalPower` (Info.plist `BGTaskSchedulerPermittedIdentifiers`, the `processing`
   background mode), registered at launch, that admits download jobs on the ONNX route only (never
   Core ML), one ONNX thread, while nothing plays, and stops at expiry. The launch it may cause runs
@@ -10,9 +10,9 @@
   yet. Ties in with Speech's deferred overnight baking (`../../Speech/.context/FUTURE.md`). Needs a
   Release build and a locked, charging phone to verify (timing log).
 - A book's *Replace* that revises the playing chapter drops its queued render
-  (`stopIfPlaying` → `removeBakeJob`). When that chapter is also the active download,
+  (`stopIfPlaying` → `removeBakeJob`). When that chapter is also the active prepare,
   `checkActive` requeues it once with the paragraphs it took before the *Replace*, so it may
-  render the old text; the download should take the revised chapter's paragraphs.
-- A *Keep* is per download: after a second voice change the kept voice is still accepted.
-- Storage is measured per download from its pages' audio folders; pages shared by two downloads
+  render the old text; the prepare should take the revised chapter's paragraphs.
+- A *Keep* is per prepare: after a second voice change the kept voice is still accepted.
+- Storage is measured per prepare from its pages' audio folders; pages shared by two prepared audio
   count in both.

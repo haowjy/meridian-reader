@@ -7,7 +7,7 @@
 - `Features/Browse/BrowseStartView.swift` (`covered`): a layer under a sheet gets
   `allowsHitTesting(false)` and `accessibilityHidden(true)`, yet its elements still show in the
   XCUITest tree (the Reader's `readerClose` beside Now Playing's `nowPlayingClose` with Now
-  Playing over another page's Reader). Check with VoiceOver on a device whether they are reachable; if so, find
+  Playing over another article's Reader). Check with VoiceOver on a device whether they are reachable; if so, find
   what keeps them exposed (an `accessibilityAddTraits(.isModal)` on `Sheet` didn't change the tree,
   and two stacked modal sheets would conflict).
 - `Features/DesignSystem/Chrome/SystemBars.swift`: the home indicator's auto-hide in full screen

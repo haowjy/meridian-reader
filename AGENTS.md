@@ -27,7 +27,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   `-collect-test-diagnostics never`, xcodebuild can sit minutes in `simctl diagnose` after the
   UI tests). **Test policy (C133): critical tests only**, guarding costly regressions: the
   engine crash guard and C129 recovery (`EngineCrashGuardTests`), cache integrity (audio in the
-  wrong voice never counts as downloaded, `DownloadOverviewTests`), a failed save never losing
+  wrong voice never counts as prepared, `PrepareOverviewTests`), a failed save never losing
   an article (`PlayedNotSavedTests`), no text dropped from audio (`TextChunkerTests`), and one
   smoke UI test (`CoreFlowsUITests.testSaveAndPlayABrowsedArticle`). Add a test only for data
   loss, crashes, store migration or cache integrity; verify everything else on the running app.
@@ -48,7 +48,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   pages; page one links to an article with no title and to a story to follow, `-testStoryChapters N` lengthens its contents and
   `-testStoryThrottles` makes its chapter 6 fail once, for Follow's back-off), `-openLibrary`, `-openDemoInBrowseReader`, `-restoreSurface` (a relaunch reopens where
   the last launch left), `-failLibrarySaves` (every library save fails), `-testVoice` (an offline
-  on-device test voice for downloads; `-selectEngine test.voice`). Keep probes and tests offline;
+  on-device test voice for prepared audio; `-selectEngine test.voice`). Keep probes and tests offline;
   use the test pages, not live sites. `LaunchOptions` parses every launch argument, the
   diagnostics' too (`-engineProbe`, `-KokoroStress`, `-kokoroUnits`; `docs/LISTEN_PLAYBACK.md` →
   "Diagnostics"); Features and the speech stack get the values from App (`AppComposition`,
@@ -65,7 +65,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks and test fixtures (`App/Fixtures/`) |
 | `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `Extraction` (Readability, the listen normalizer), `Sources` (`ArticleSource`s, the book import), `Persistence` (SwiftData; `Library/`: `Folder`, `Article`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
-| `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Library` (the Library's screens, rows, the Move tree, Favorites), `Downloads` (`DownloadCenter`, the Downloads list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
+| `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Library` (the Library's screens, rows, the Move tree, Favorites), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
 | `Tests/`, `UITests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) and UI flows |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
 | `Resources/` | Readability scripts, voice previews, assets |
@@ -77,14 +77,14 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   the Library's path and its home's tab (Everything, Favorites or Recent), the Reader sheet and what it
   sits over, whether Now Playing is up, the one other sheet (and the debug panel over it), the toast. It remembers the surface for the next launch. Views ask it;
   they don't keep their own presentation flags.
-- **`PlaybackSessionState` owns what you hear**: the playing page, its position (paragraph +
+- **`PlaybackSessionState` owns what you hear**: the playing article, its position (paragraph +
   UTF-16 offset) and phase. Engines report events; the session decides. Nothing else stores or
-  guesses the playing page or a playhead: every ▶ / ⏸ asks `SpeechController.playState(of:)`, the
+  guesses the playing article or a playhead: every ▶ / ⏸ asks `SpeechController.playState(of:)`, the
   bar and Now Playing read `nowPlaying`, and `ListeningProgressRecorder` saves the position.
-- **One save path**: `ArticleSaveCoordinator` → `LibraryStore.save`. One page per canonical URL
-  (`ArticleIdentity`), app-wide. Save never restarts playback. Saving the page that is playing,
+- **One save path**: `ArticleSaveCoordinator` → `LibraryStore.save`. One article per canonical URL
+  (`ArticleIdentity`), app-wide. Save never restarts playback. Saving the article that is playing,
   under its own key, only marks its audio saved. Otherwise Save can move audio: under an older
-  page's key when one holds the address (rekeying the live session), and, for a page that isn't
+  article's key when one holds the address (rekeying the live session), and, for an article that isn't
   playing, into its key from a legacy v1 cache and onto its saved text
   (`prepareListenIdentity`). Every library read
   and write goes through `LibraryStore` (lists through `LibraryQueries`); `SavedArticle` and
@@ -100,10 +100,10 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   only shows, or saves a change that can fail) takes `.tint(Palette.destructive)`, never
   `role: .destructive`. The role has the List remove the row at once; the List and its data then
   disagree, and UIKit aborts on the next change ("attempt to delete item … before the update").
-  Which lists a page is in is decided only in `LibraryQueries`; an action that takes a row out
+  Which lists an article is in is decided only in `LibraryQueries`; an action that takes a row out
   must take it out of every list there.
-- **One menu per item kind** (decisions C4, DR-09): a page's (`ArticleMenu`), a folder's
-  (`FolderMenu`) and a download's (`DownloadMenu`) are each one ordered `[MenuRow]`, drawn by every
+- **One menu per item kind** (decisions C4, DR-09): an article's (`ArticleMenu`), a folder's
+  (`FolderMenu`) and a prepare's (`PrepareMenu`) are each one ordered `[MenuRow]`, drawn by every
   entry point (`MenuRows` in a ⋯ or long press, `MoreMenuPanel` in the ⋯ panel). Add or change a
   row there, never at an entry point; a place's own rows go in a block after the item's. A row
   is hidden only when it can never apply to that kind of item there, dimmed when it can't run now
@@ -150,4 +150,4 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 Directory-scoped working notes live next to the code in `<dir>/.context/CONTEXT.md` (deferred
 items in `<dir>/.context/FUTURE.md`); read them before changing that directory:
 `Features/Speech/.context/`, `Features/Shell/.context/`, `Features/Library/.context/`,
-`Features/Downloads/.context/`, `Features/Follow/.context/`, and `Core/Persistence/.context/` (deferred items only).
+`Features/PreparedAudio/.context/`, `Features/Follow/.context/`, and `Core/Persistence/.context/` (deferred items only).
