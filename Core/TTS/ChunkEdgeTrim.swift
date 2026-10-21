@@ -19,6 +19,8 @@ enum ChunkEdgeTrim {
     static let threshold: Float = 0.003
     static let frameMs = 10
     static let fadeMs = 5
+    /// Fade-out over the kept tail, so a join never stops on a non-zero sample mid-decay (C137).
+    static let tailFadeMs = 30
 
     /// Trailing silence kept after the last voiced frame (the join pause ≈ this + `leadMs`).
     static func trailMs(_ b: Boundary) -> Int {
@@ -43,6 +45,12 @@ enum ChunkEdgeTrim {
         if ",;:—–-".contains(last) { return .clause }
         if let nextWord, TextChunker.startsClause(nextWord) { return .clause }
         return .word
+    }
+
+    /// `text` + "," when it ends on a bare word (no closing punctuation), else unchanged (C137).
+    static func closeOpenEnd(_ text: String) -> String {
+        guard let last = text.last, last.isLetter || last.isNumber else { return text }
+        return text + ","
     }
 
     /// Trim leading silence to `leadMs` and trailing silence to exactly `trailMs` (pads with zeros
@@ -70,11 +78,11 @@ enum ChunkEdgeTrim {
         if missing > 0 { out.append(contentsOf: repeatElement(0, count: missing)) }
         let fade = min(out.count / 2, sampleRate * fadeMs / 1000)
         if fade > 0 {
-            for i in 0..<fade {
-                let g = Float(i) / Float(fade)
-                out[i] *= g
-                out[out.count - 1 - i] *= g
-            }
+            for i in 0..<fade { out[i] *= Float(i) / Float(fade) }
+        }
+        let tailFade = min(out.count / 2, sampleRate * min(tailFadeMs, max(trailMs, fadeMs)) / 1000)
+        if tailFade > 0 {
+            for i in 0..<tailFade { out[out.count - 1 - i] *= Float(i) / Float(tailFade) }
         }
         return out
     }

@@ -412,6 +412,10 @@ enum TextChunker {
         "u.k", "u.s.a", "cf", "al",
     ]
 
+    private static let numberAbbreviations: Set<String> = [
+        "c", "ca", "circa", "no", "nos", "p", "pp", "ch", "chap", "sec", "art", "op", "fl", "b", "d",
+    ]
+
     private static let sentenceEndingAbbreviations: Set<String> = ["etc", "inc", "ltd", "corp", "al"]
 
     /// Sentence boundaries: `.`/`!`/`?`/`…` (+ closing quotes/brackets) followed by a space.
@@ -456,6 +460,8 @@ enum TextChunker {
         let word = String(chars[(k + 1)..<enderIndex])
         if word.isEmpty { return true }
         let lower = word.lowercased()
+        // "c. 1805", "ca. 1900", "No. 5", "pp. 12": a reference abbreviation before a number (C137).
+        if next.isNumber, numberAbbreviations.contains(lower) { return false }
         // "etc. The" / "et al. They": these usually end the sentence when a capital follows
         // (titles like "Dr." are always followed by a capitalised name, so they stay joined).
         if sentenceEndingAbbreviations.contains(lower) { return true }

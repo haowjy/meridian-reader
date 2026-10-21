@@ -35,6 +35,9 @@ struct KokoroHeteronyms: Sendable {
         entries = out
     }
 
+    /// C137: each heteronym's VERB reading, for rebuilding OOV inflections (`lived` → lˈɪvd).
+    var verbStems: [String: String] { entries.compactMapValues { $0["VERB"] } }
+
     static let auxiliaries: Set<String> = [
         "have", "has", "had", "having", "'ve", "’ve", "'d", "’d",
         "was", "were", "been", "being", "is", "are", "am", "be", "'s", "’s", "'re", "’re", "'m", "’m",

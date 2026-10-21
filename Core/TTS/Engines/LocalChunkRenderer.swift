@@ -71,11 +71,15 @@ final class LocalChunkRenderer: Sendable {
         await gate.acquire()
         do {
             try Task.checkCancellation()
-            var pcm = try await synthesizeResilient(trimmed, depth: 0, request: request)
+            let boundary = ChunkEdgeTrim.boundary(after: trimmed, nextWord: request.nextWord,
+                                                  isLastInParagraph: request.isLastInParagraph)
+            // Kokoro clips the last phoneme of a call that ends without punctuation (a dead stop at
+            // the join). Close mid-sentence cuts with a comma: continuation intonation and a
+            // natural release; the edge trim then sets the join pause (C137).
+            let spoken = host.trimsEdgeSilence ? ChunkEdgeTrim.closeOpenEnd(trimmed) : trimmed
+            var pcm = try await synthesizeResilient(spoken, depth: 0, request: request)
             if host.trimsEdgeSilence {
                 // Join pauses sized to the cut (sentence / clause / word / paragraph end).
-                let boundary = ChunkEdgeTrim.boundary(after: trimmed, nextWord: request.nextWord,
-                                                      isLastInParagraph: request.isLastInParagraph)
                 pcm.samples = ChunkEdgeTrim.trim(pcm.samples, sampleRate: pcm.sampleRate,
                                                  trailMs: ChunkEdgeTrim.trailMs(boundary))
             }
