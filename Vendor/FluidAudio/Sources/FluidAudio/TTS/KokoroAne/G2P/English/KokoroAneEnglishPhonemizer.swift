@@ -49,12 +49,19 @@ struct KokoroAneEnglishPhonemizer: Sendable {
     /// skipped at `KokoroAneVocab.encode` anyway).
     let allowedPunctuation: Set<Character>
 
+    /// Reader local patch (C137): stem → IPA used when an OOV inflection (`lived`, `leads`,
+    /// `living`) is rebuilt from its stem. Heteronym stems map to their VERB reading, since
+    /// -ed/-ing/-s forms of `live`/`lead`/`read` are verbs; other stems use the lexicon.
+    let inflectionStems: [String: String]
+
     init(
         wordToPhonemes: [String: [String]] = [:],
         caseSensitiveWordToPhonemes: [String: [String]] = [:],
         customLexicon: [String: String] = [:],
-        allowedPunctuation: Set<Character> = []
+        allowedPunctuation: Set<Character> = [],
+        inflectionStems: [String: String] = [:]
     ) {
+        self.inflectionStems = inflectionStems
         self.wordToPhonemes = wordToPhonemes
         self.caseSensitiveWordToPhonemes = caseSensitiveWordToPhonemes
         self.customLexicon = customLexicon
@@ -203,6 +210,8 @@ struct KokoroAneEnglishPhonemizer: Sendable {
             return possessive
         }
 
+        if let inflected = resolveInflection(lowered) { return inflected }
+
         guard allowFallback, !normalized.isEmpty else { return nil }
         do {
             if let phonemes = try await fallback(normalized), !phonemes.isEmpty {
@@ -214,6 +223,53 @@ struct KokoroAneEnglishPhonemizer: Sendable {
             Self.logger.warning("G2P failed on word '\(normalized)': \(error.localizedDescription)")
             throw error
         }
+    }
+
+    /// Misaki's `stem_s` / `stem_ed` / `stem_ing` (C137): an OOV `-s`, `-ed` or `-ing` word
+    /// whose stem is known is the stem's IPA plus the suffix by rule, instead of a BART guess
+    /// (BART read `lived` as lˈIvd, the adjective `live`).
+    private func resolveInflection(_ w: String) -> String? {
+        guard w.count >= 4, w.allSatisfy({ $0.isLetter }) else { return nil }
+        func stem(_ s: String) -> String? {
+            guard s.count >= 2 else { return nil }
+            return inflectionStems[s] ?? lookupMisakiWord(s)
+        }
+        func drop(_ n: Int) -> String { String(w.dropLast(n)) }
+        let c = Array(w)
+        if w.hasSuffix("ing"), w.count >= 5 {
+            if let s = stem(drop(3)) ?? stem(drop(3) + "e") { return s + "ɪŋ" }
+            if c.count >= 6, c[c.count - 4] == c[c.count - 5], let s = stem(drop(4)) { return s + "ɪŋ" }
+            return nil
+        }
+        if w.hasSuffix("d"), !w.hasSuffix("dd") {
+            if w.hasSuffix("ed"), !w.hasSuffix("eed") {
+                if let s = stem(drop(1)) { return Self.edSuffix(s) }  // lived → live
+                if let s = stem(drop(2)) { return Self.edSuffix(s) }  // walked → walk
+                if c.count >= 6, c[c.count - 3] == c[c.count - 4], let s = stem(drop(3)) { return Self.edSuffix(s) }
+                if w.hasSuffix("ied"), let s = stem(drop(3) + "y") { return Self.edSuffix(s) }
+            }
+            return nil
+        }
+        if w.hasSuffix("s"), !w.hasSuffix("ss") {
+            if let s = stem(drop(1)) { return Self.sSuffix(s) }
+            if w.hasSuffix("ies"), let s = stem(drop(3) + "y") { return Self.sSuffix(s) }
+            if w.hasSuffix("es"), let s = stem(drop(2)) { return Self.sSuffix(s) }
+        }
+        return nil
+    }
+
+    static func sSuffix(_ s: String) -> String {
+        guard let last = s.last else { return s }
+        if "ptkfθ".contains(last) { return s + "s" }
+        if "szʃʒʧʤ".contains(last) { return s + "ᵻz" }
+        return s + "z"
+    }
+
+    static func edSuffix(_ s: String) -> String {
+        guard let last = s.last else { return s }
+        if "pkfθʃsʧ".contains(last) { return s + "t" }
+        if "dt".contains(last) { return s + "ᵻd" }
+        return s + "d"
     }
 
     /// Direct bundled lookup, shared by ordinary words and the whole-stem

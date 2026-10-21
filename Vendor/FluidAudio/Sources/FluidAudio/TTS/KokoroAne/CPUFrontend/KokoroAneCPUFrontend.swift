@@ -117,14 +117,17 @@ public actor KokoroAneCPUFrontend {
         phonemizer = KokoroAneEnglishPhonemizer(
             wordToPhonemes: maps.word,
             caseSensitiveWordToPhonemes: maps.caseSensitive,
-            allowedPunctuation: punctuation)
+            allowedPunctuation: punctuation,
+            inflectionStems: heteronyms?.verbStems ?? [:])
     }
 
     /// English text → Misaki IPA, like `KokoroAneManager.phonemes(for:)` (english variant).
     public func phonemes(for text: String) async throws -> String {
         try await prepare()
         guard let phonemizer else { throw FrontendError.assetsMissing("phonemizer") }
-        let normalized = EnglishTextNormalizer.normalizeForFrontend(text)
+        // C137: "c. 1805" / "ca. 1900" → "circa 1805" (else read "see. eighteen o five").
+        let circa = text.replacingOccurrences(of: #"\b[Cc]a?\.\s?(?=[0-9])"#, with: "circa ", options: .regularExpression)
+        let normalized = EnglishTextNormalizer.normalizeForFrontend(circa)
         let fallback: @Sendable (String) async -> [String]? = { [self] word in
             await self.oov(word)
         }
@@ -137,7 +140,8 @@ public actor KokoroAneCPUFrontend {
             wordToPhonemes: phonemizer.wordToPhonemes,
             caseSensitiveWordToPhonemes: phonemizer.caseSensitiveWordToPhonemes,
             customLexicon: overrides,
-            allowedPunctuation: phonemizer.allowedPunctuation)
+            allowedPunctuation: phonemizer.allowedPunctuation,
+            inflectionStems: phonemizer.inflectionStems)
         return try await perSentence.phonemize(tagged, fallback: fallback)
     }
 
