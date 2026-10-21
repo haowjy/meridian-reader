@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The ⋯ for the Library screen on top (the home or a folder): the screen's rows, the same on
-/// both (`MenuRegistry`, C98): *Sort*, *Follow…*, *Prepared audio*, *Settings*. The surface's ＋ shows the same
+/// both (`MenuRegistry`, C98): *Sort*, *Prepared Audio*, then `[Settings][Saved][Reader]`. The surface's ＋ shows the same
 /// two creating rows (`createRows`), so both act on the screen on top (`topFolder`), and so does
 /// *Follow…*, whose story's folder goes there. Nothing in it acts on the browser's page.
 @MainActor
@@ -30,9 +30,9 @@ struct LibraryScreenMenu {
         }
     }
 
-    /// The screen's rows only (C98, C100): *Sort ›* (not in a folder that keeps its own order),
-    /// *Prepared audio*, *Settings*; then the big buttons, on the home only *Browser* (its tabs are
-    /// Favorites and Recent).
+    /// The screen's rows (C98, C100): *Sort ›* (not in a folder that keeps its own order),
+    /// *Prepared Audio*; then `[Settings][Saved][Reader]`. Reader opens Now Playing when audio
+    /// is playing, greyed otherwise.
     var menu: MenuContext {
         let folder = topFolder
         var facts = MenuRegistry.Facts()
@@ -41,9 +41,12 @@ struct LibraryScreenMenu {
                                                 shell: shell) { option in
             option == .sort ? sortRow(folder) : nil
         }
-        let browser = MenuRow(id: "moreBrowser", title: Verbs.browser, icon: Icons.browser,
-                              accessibilityHint: String(localized: "Return to the browser"), action: shell.leaveLibrary)
-        return MenuContext(screen: screenRows, tiles: folder == nil ? [browser] : MenuContext.tiles(shell, last: browser))
+        let reader = MenuRow(id: "moreReader", title: Verbs.reader, icon: Icons.reader,
+                             availability: MenuAvailability(when: speech.nowPlaying != nil),
+                             accessibilityHint: String(localized: "Go to Now Playing")) { [shell] in
+            shell.showNowPlaying()
+        }
+        return MenuContext(screen: screenRows, tiles: MenuContext.tiles(shell, last: reader))
     }
 
     /// ＋: the create group (`LibraryCreateMenu`) into the screen on top.

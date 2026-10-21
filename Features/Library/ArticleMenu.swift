@@ -164,17 +164,15 @@ struct ArticleMenu: View {
 }
 
 extension ArticleActions {
-    /// The ⋯ panel of the Reader and Now Playing (decision D24): the page's menu, then *Prepared audio*
-    /// and *Settings*, then `[Favorites][History][Website]`. *Website* is the page's own web page
-    /// in the browser, wherever the sheet was opened from; playback keeps going.
+    /// The ⋯ panel of the Reader and Now Playing (decision D24, C140): the page's menu, then
+    /// *Prepared Audio*, then `[Settings][Saved][Reader]`. Reader is disabled: already reading.
+    /// Website is reachable via Share in the article's own menu rows.
     func readingPageMenu(_ place: ArticleMenu.Place) -> MenuContext {
-        let website = MenuRow(id: "moreWebsite", title: String(localized: "Website"), icon: Icons.browser,
-                              availability: MenuAvailability(when: websiteURL != nil),
-                              accessibilityLabel: String(localized: "View Website"),
-                              accessibilityHint: String(localized: "Opens the page in the browser")) { [self] in
-            if let websiteURL { shell.openWebsite(websiteURL) }
-        }
-        return MenuContext(item: ArticleMenu(actions: self, place: place).rows, screen: MenuContext.screenRows(at: place.registryPlace, shell: shell),
-                           tiles: MenuContext.tiles(shell, last: website), isOnReadingPage: true)
+        let reader = MenuRow(id: "moreReader", title: Verbs.reader, icon: Icons.reader,
+                             availability: .disabled,
+                             accessibilityHint: String(localized: "Already in the Reader"))
+        return MenuContext(item: ArticleMenu(actions: self, place: place).rows,
+                           screen: MenuContext.screenRows(at: place.registryPlace, shell: shell),
+                           tiles: MenuContext.tiles(shell, last: reader), isOnReadingPage: true)
     }
 }

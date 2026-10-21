@@ -113,7 +113,8 @@ enum VoiceCatalog {
 
     private static func isNoveltyName(_ name: String) -> Bool {
         let lowered = name.lowercased()
-        let blocked = ["zarvox", "trinoids", "whisper", "bad news", "good news", "bells", "bubbles", "cellos", "boing"]
+        let blocked = ["zarvox", "trinoids", "whisper", "bad news", "good news", "bells", "bubbles", "cellos", "boing",
+                       "bahh", "wobble", "jester", "organ", "superstar", "albert"]
         return blocked.contains { lowered.contains($0) }
     }
 
