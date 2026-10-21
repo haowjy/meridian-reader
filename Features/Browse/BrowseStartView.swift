@@ -23,8 +23,6 @@ struct BrowseStartView: View {
     @State private var browseWebViewMounted = false
     /// Address-bar dictation, made on the first mic tap.
     @State private var dictation: AddressDictation?
-    /// Measured height of the bottom chrome (SurfaceBand), used to keep reading sheets above it.
-    @State private var chromeHeight: CGFloat = 0
     @AppStorage(RecentSearches.storageKey) private var recentSearchesRaw = ""
     @State private var alertMessage: String?
     @Environment(\.readingAppearance) private var readingAppearance
@@ -32,8 +30,8 @@ struct BrowseStartView: View {
     private var webStore: WebViewStore { shell.web }
     private var search: SearchSession { shell.addressSearch }
 
-    /// The page content is behind a layer (library, reader, Now Playing): disable it.
-    private var isPageCovered: Bool {
+    /// Something covers the browser (the library, a sheet, Now Playing).
+    private var isCovered: Bool {
         shell.isInLibrary || shell.reader != nil || shell.isNowPlayingPresented
     }
 
@@ -48,13 +46,15 @@ struct BrowseStartView: View {
 
     var body: some View {
         browser
+            // Under the sheets the browser stays as it is (so pulling one down reveals it), but it
+            // is out of reach until they are gone.
+            .covered(isCovered)
             // While searching, avoid the keyboard so the field sits right above it. Otherwise keep
             // ignoring it (typing into a web page must not resize the page / the web view).
             .ignoresSafeArea(.keyboard, edges: search.isFocused ? [] : .bottom)
-            // The library covers the whole browser (it draws its own chrome). Reader and Now
-            // Playing stop above the chrome so it stays visible and usable (C140).
-            .overlay { libraryLayer }
-            .overlay { readingLayer }
+            // The reader and the library cover the whole browser, edge to edge. Outside the page
+            // ZStack, whose `.clipped()` would cut them at the safe area.
+            .overlay { layers }
             // Every surface's ⋯ menu: grows out of its button and covers it (Safari iOS 26), over
             // everything else (the library's navigation bar too).
             .overlay { menuOverlay }
@@ -111,15 +111,12 @@ struct BrowseStartView: View {
                 }
             }
             .clipped()
-            // Page content is non-interactive while a layer covers it; the chrome stays reachable.
-            .covered(isPageCovered)
 
-            // Always present: the chrome height is measured here so reading sheets stop above it.
-            // Hidden when the library is up (it draws its own chrome) but stays in layout.
-            bottomChrome
-                .opacity(shell.isInLibrary ? 0 : 1)
-                .allowsHitTesting(!shell.isInLibrary)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { chromeHeight = $0 }
+            // The library draws its own chrome and covers this; the reader overlay draws its own
+            // too, but this stays under it so its pull-down reveals the browser whole.
+            if !shell.isInLibrary {
+                bottomChrome
+            }
         }
         // The page area is clipped to the safe area; when paper shows there (the start page, the
         // search layer), it continues up under the status bar.
@@ -178,39 +175,24 @@ struct BrowseStartView: View {
 
     // MARK: - Layers
 
-    /// The Library, covering the whole browser including the chrome (it has its own chrome).
-    /// Out of reach while a reading sheet is over it.
-    private var libraryLayer: some View {
-        Group {
+    /// The library, the Reader sheet over it (or over the browser), Now Playing over everything.
+    /// Each layer is out of reach and hidden from VoiceOver while one covers it.
+    private var layers: some View {
+        ZStack {
             if shell.isInLibrary {
                 LibrarySurface()
                     .covered(shell.reader != nil || shell.isNowPlayingPresented)
                     .transition(.opacity)
             }
-        }
-    }
-
-    /// The Reader sheet and Now Playing, constrained to stop above the bottom chrome so the
-    /// chrome stays visible and usable. Clipped so the sheet's background never bleeds below.
-    private var readingLayer: some View {
-        VStack(spacing: 0) {
-            ZStack {
-                if let reader = shell.reader {
-                    ReaderSheetScreen(state: reader, speech: speech)
-                        .id(reader.presentation)
-                        .covered(shell.isNowPlayingPresented)
-                }
-                if shell.isNowPlayingPresented {
-                    NowPlayingScreen(speech: speech)
-                        .id(shell.nowPlayingPresentation)
-                }
+            if let reader = shell.reader {
+                ReaderSheetScreen(state: reader, speech: speech)
+                    .id(reader.presentation)
+                    .covered(shell.isNowPlayingPresented)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
-            // Transparent gap: lets the chrome show through; passes touches to the chrome below.
-            Color.clear
-                .frame(height: chromeHeight)
-                .allowsHitTesting(false)
+            if shell.isNowPlayingPresented {
+                NowPlayingScreen(speech: speech)
+                    .id(shell.nowPlayingPresentation)
+            }
         }
     }
 
@@ -248,8 +230,8 @@ struct BrowseStartView: View {
                            shell: shell, speech: speech, preparedAudio: preparedAudio, follow: follow)
     }
 
-    /// The browser's ⋯: the page's menu (`ArticleMenu`) while a page is up, then *Follow…*,
-    /// *Reload*, *Prepared Audio*, then `[Settings][Saved][Reader]` (C140).
+    /// The browser's ⋯: the page's menu (`ArticleMenu`) while a page is up, then *New Search*,
+    /// *Follow…*, *Reload*, *Prepared audio*, *Settings*, then `[Favorites][History][Reader]`.
     private func menu(_ actions: ArticleActions) -> MenuContext {
         var facts = MenuRegistry.Facts()
         facts.canFollow = webStore.currentURL?.isWebOrTestPage == true
