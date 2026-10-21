@@ -121,7 +121,7 @@ struct ReaderSheetScreen: View {
 
     @ViewBuilder
     private func text(_ start: ListenSpot, status: String?, chapter: Bool) -> some View {
-        HTMLReadingView(html: readerArticle.readingHTML, heading: ReaderHeading(title: nil, detail: detail(status)),
+        HTMLReadingView(html: readerArticle.readingHTML, heading: ReaderHeading(title: readerArticle.title, detail: detail(status), titleHidden: true),
                         activeParagraphIndex: nil, sentence: savedSentence(start), jumpMode: jumpMode,
                         opensAtSentence: true, scrollHandle: scroll, onOpenLink: shell.navigate(to:),
                         pageTimeLeft: { [document = readerArticle.document, rate = speech.rateMultiplier] in

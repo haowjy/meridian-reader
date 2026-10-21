@@ -10,6 +10,9 @@ struct ReaderHeading: Equatable {
     /// The source and the length, as separate parts (["example.org", "9 min"]): spans set apart
     /// by space, the first in secondary ink, the rest in tertiary (like `DetailLine`).
     var detail: [String]
+    /// The title shows elsewhere (C141: the player card), so neither it nor the article's own
+    /// matching leading heading shows in the text.
+    var titleHidden = false
 }
 
 /// A native view at the top of the text that scrolls with it, in place of the HTML title and
